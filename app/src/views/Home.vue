@@ -4,14 +4,14 @@
   </div>
 </template>
 
-<script>
-// @ is an alias to /src
-import CodeCity from "@/components/CodeCity.vue";
+<script lang="ts">
+import { defineComponent } from "vue";
+import CodeCity from "@/components/CodeCity.vue"; // @ is an alias to /src
 
-export default {
+export default defineComponent({
   name: "Home",
   components: {
     CodeCity,
   },
-};
+});
 </script>

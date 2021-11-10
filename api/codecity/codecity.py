@@ -71,6 +71,7 @@ class CodeCity(CodeWorld):
                 "type": "tree",
                 "parent_path": None,
                 "path": parent_path,
+                "children": [],
                 "stats": deepcopy(default_tree_stats),
             }
 
@@ -90,6 +91,7 @@ class CodeCity(CodeWorld):
             tree[node_path] = {
                 **node,
                 "parent_path": parent_path,
+                "children": [],
                 "stats": deepcopy(default_tree_stats),
             }
 
@@ -99,6 +101,7 @@ class CodeCity(CodeWorld):
             else:
                 tree[node_path]["blob"] = self.fetch_blob(node_path)
 
+            tree[parent_path]["children"].append(node_path)
             tree[parent_path]["stats"]["num_children"] += 1
             tree[parent_path]["stats"]["num_child_types"][node_type] += 1
             tree[parent_path]["stats"]["num_descendants"] += 1 + tree[node_path]["stats"]["num_descendants"]
