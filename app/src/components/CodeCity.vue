@@ -99,7 +99,7 @@ export default defineComponent({
 
       const childElements = this.generateChildElements(node, nodeDepth);
       block.elements = childElements.elements;
-      block.road.dimensions.width = childElements.width;
+      block.road.dimensions.width = childElements.maxWidth;
 
       block.dimensions.depth =
         block.road.dimensions.depth +
@@ -111,21 +111,23 @@ export default defineComponent({
         childElements.maxDepth.left -
         (block.dimensions.depth - block.road.dimensions.depth) / 2;
 
-      let lastX = 0;
+      let prevSideX: { [key: string]: number } = { left: 0, right: 0 };
       for (let j = 0, len = block.elements.length; j < len; j += 1) {
         const element = block.elements[j];
-        element.position.x = lastX;
-        element.position.x +=
-          -1 * (block.road.dimensions.width / 2) + element.dimensions.width / 2;
-        element.position.z = block.road.position.z;
-        if (element.branchDirection === "right") {
-          element.position.z +=
-            block.road.dimensions.depth / 2 + element.dimensions.depth / 2;
-        } else {
-          element.position.z -=
-            block.road.dimensions.depth / 2 + element.dimensions.depth / 2;
-        }
-        lastX += element.dimensions.width + element.buffer;
+        const direction = element.branchDirection === "left" ? -1 : 1;
+
+        element.position.x =
+          -1 * (block.road.dimensions.width / 2) +
+          element.dimensions.width / 2 +
+          prevSideX[element.branchDirection];
+
+        element.position.z =
+          direction *
+            (block.road.dimensions.depth / 2 + element.dimensions.depth / 2) +
+          block.road.position.z;
+
+        prevSideX[element.branchDirection] +=
+          element.dimensions.width + element.buffer;
       }
 
       block.road.dimensions.width += this.grid.buffer * 2;
@@ -139,9 +141,9 @@ export default defineComponent({
 
     generateChildElements(node: any, depth: number) {
       const elements: any[] = [];
-      let maxDepth: { [key: string]: number } = { left: 0, right: 0 };
       let maxHeight = 0;
-      let width = 0;
+      let maxDepth: { [key: string]: number } = { left: 0, right: 0 };
+      let sideWidths: { [key: string]: number } = { left: 0, right: 0 };
       for (let i = 0, len = node.children.length; i < len; i += 1) {
         const childPath: string = node.children[i];
         const childNode = this.tree[childPath];
@@ -157,7 +159,8 @@ export default defineComponent({
           continue;
         }
 
-        width += element.dimensions.width + element.buffer;
+        sideWidths[element.branchDirection] +=
+          element.dimensions.width + element.buffer;
         maxDepth[element.branchDirection] = Math.max(
           maxDepth[element.branchDirection],
           element.dimensions.depth
@@ -168,7 +171,9 @@ export default defineComponent({
 
       return {
         elements,
-        width,
+        width: sideWidths.left + sideWidths.right,
+        sideWidths,
+        maxWidth: Math.max(sideWidths.left, sideWidths.right),
         maxDepth,
         maxHeight,
       };
