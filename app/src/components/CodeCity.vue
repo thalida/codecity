@@ -1,56 +1,7 @@
 <template>
   <div class="codecity" v-if="isReady">
-    <!-- <Renderer ref="renderer" resize antialias pointer :orbit-ctrl="{}">
-      <Camera :position="{ x: 0, y: 100, z: 0 }" />
-      <Scene background="#ffffff">
-        <AmbientLight color="#ffffff" :intensity="0.8" />
-        <DirectionalLight
-          color="#ffff00"
-          :intensity="1"
-          :position="{ x: 10, y: 10, z: 10 }"
-        />
-        <Group
-          v-for="street in streets"
-          :key="street.path"
-          :rotation="{ x: 0, y: 0, z: 0 }"
-          :position="street.position"
-        >
-          <Box
-            :ref="`street-${street.path}__road`"
-            :height="street.height"
-            :width="street.width"
-            :depth="street.depth"
-          >
-            <ToonMaterial color="#333" />
-          </Box>
-          <Group
-            v-for="building in street.children.buildings"
-            :key="building.path"
-            :position="building.foundation.position"
-          >
-            <Box
-              :ref="`building-${building.path}__foundation`"
-              :height="building.foundation.height"
-              :width="building.foundation.width"
-              :depth="building.foundation.depth"
-            >
-              <ToonMaterial :color="building.foundation.color" />
-            </Box>
-            <Box
-              :ref="`building-${building.path}__property`"
-              :height="building.property.height"
-              :width="building.property.width"
-              :depth="building.property.depth"
-              :position="building.property.position"
-            >
-              <ToonMaterial :color="building.property.color" />
-            </Box>
-          </Group>
-        </Group>
-      </Scene>
-    </Renderer> -->
     <Renderer ref="renderer" resize antialias pointer :orbit-ctrl="{}">
-      <Camera :position="{ x: 0, y: 100, z: 0 }" />
+      <Camera :position="{ x: 0, y: 200, z: 0 }" />
       <Scene background="#ffffff">
         <AmbientLight color="#ffffff" :intensity="0.8" />
         <DirectionalLight
@@ -103,7 +54,6 @@ export default defineComponent({
     const loc = window.location;
     const res = await axios.get(`http://${loc.hostname}:8000/api/repos/thalida.com`);
     this.tree = res.data;
-    // this.streets = this.createStreets();
     this.rootBlock = this.createCity();
     this.isReady = true;
     console.log(this.rootBlock);
@@ -119,81 +69,88 @@ export default defineComponent({
       nodeDepth: number,
       maxDepth: number | null | undefined
     ) {
-      if (maxDepth && nodeDepth > maxDepth) {
+      if (
+        typeof maxDepth !== "undefined" &&
+        maxDepth !== null &&
+        nodeDepth > maxDepth
+      ) {
+        console.log("max depth reached");
         return;
       }
 
       const node = this.tree[path];
 
       const blockComplexity = Math.ceil(Math.log(node.stats.num_descendants));
-      let blockDimensions = {
-        width: 0,
-        depth: 0,
-        height: 0,
-      };
       let roadDimensions = {
         width: 0,
         depth: this.getRoadDepth(blockComplexity, grid),
         height: grid.height,
       };
+      let blockDimensions = {
+        width: 0,
+        depth: 0,
+        height: grid.height,
+      };
 
-      blockDimensions.depth += roadDimensions.depth + grid.depth;
-
-      const buildings: any[] = [];
-      const intersectingBlocks: any[] = [];
       const elements: { [key: string]: any } = {};
+      let maxElementDepth: { [key: string]: number } = { left: 0, right: 0 };
+      let maxElementHeight = 0;
 
       for (let i = 0, len = node.children.length; i < len; i += 1) {
         const childPath: string = node.children[i];
         const childNode = this.tree[childPath];
+        let element: any = null;
 
         if (childNode.type === "blob") {
-          const building = this.generateBuilding(childNode, grid);
-          building.position.x +=
-            blockDimensions.width + building.dimensions.width / 2;
+          element = this.generateBuilding(childNode, grid);
+        } else {
+          element = this.generateBlock(childPath, grid, nodeDepth + 1, maxDepth);
 
-          blockDimensions.width += building.dimensions.width;
-          blockDimensions.height = Math.max(
-            blockDimensions.height,
-            building.dimensions.height
+          if (typeof element === "undefined") {
+            continue;
+          }
+        }
+
+        element.position.x = roadDimensions.width;
+        roadDimensions.width += element.dimensions.width;
+
+        if (element.branchDirection) {
+          maxElementDepth[element.branchDirection] = Math.max(
+            maxElementDepth[element.branchDirection],
+            element.dimensions.depth
           );
-          elements[childPath] = building;
-          continue;
         }
 
-        const intersectingBlock = this.generateBlock(
-          childPath,
-          grid,
-          nodeDepth + 1,
-          maxDepth
-        );
-
-        if (typeof intersectingBlock === "undefined") {
-          continue;
-        }
-        console.log(childPath, intersectingBlock);
-        console.log(intersectingBlock.position.x, blockDimensions.width);
-        intersectingBlock.position.x +=
-          blockDimensions.width + intersectingBlock.dimensions.width / 2;
-        elements[childPath] = intersectingBlock;
-
-        blockDimensions.width += intersectingBlock.dimensions.width;
-        blockDimensions.depth = Math.max(
-          blockDimensions.depth,
-          intersectingBlock.dimensions.depth
-        );
-        blockDimensions.height = Math.max(
-          blockDimensions.height,
-          intersectingBlock.dimensions.height
-        );
+        maxElementHeight = Math.max(maxElementHeight, element.dimensions.height);
+        elements[childPath] = element;
       }
 
+      blockDimensions.depth =
+        roadDimensions.depth + maxElementDepth.left + maxElementDepth.right;
+      blockDimensions.height += maxElementHeight;
+
+      const road = { dimensions: roadDimensions, position: { x: 0, y: 0, z: 0 } };
+      road.position.z =
+        maxElementDepth.left - (blockDimensions.depth - road.dimensions.depth) / 2;
+
+      const buildings: any[] = [];
+      const intersectingBlocks: any[] = [];
       const renderableElKeys = Object.keys(elements);
       for (let j = 0, len = renderableElKeys.length; j < len; j += 1) {
         const nodePath = renderableElKeys[j];
         const element = elements[nodePath];
         const treeNode = this.tree[nodePath];
-        element.position.x = -1 * (blockDimensions.width / 2) + element.position.x;
+
+        element.position.x +=
+          -1 * (road.dimensions.width / 2) + element.dimensions.width / 2;
+        element.position.z = road.position.z;
+        if (element.branchDirection === "right") {
+          element.position.z +=
+            roadDimensions.depth / 2 + element.dimensions.depth / 2;
+        } else {
+          element.position.z -=
+            roadDimensions.depth / 2 + element.dimensions.depth / 2;
+        }
 
         if (treeNode.type === "blob") {
           buildings.push(element);
@@ -202,16 +159,11 @@ export default defineComponent({
         }
       }
 
-      blockDimensions.width += grid.buffer * 2;
-
-      roadDimensions.width = blockDimensions.width;
-      const road = {
-        dimensions: roadDimensions,
-        position: { x: 0, y: 0, z: 0 },
-      };
-
-      const block = {
+      road.dimensions.width += grid.buffer * 2;
+      blockDimensions.width = road.dimensions.width;
+      let block = {
         path: path,
+        maxElementDepth,
         position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
         dimensions: blockDimensions,
@@ -220,7 +172,27 @@ export default defineComponent({
         intersectingBlocks,
       };
 
+      if (nodeDepth > 0) {
+        block = this.setRotation(block);
+      }
       return block;
+    },
+
+    setRotation(element: any) {
+      const branchDirections: string[] = ["left", "right"];
+      const origDimenions = { ...element.dimensions };
+      element.branchDirection =
+        branchDirections[Math.floor(Math.random() * branchDirections.length)];
+      element.dimensions.width = origDimenions.depth;
+      element.dimensions.depth = origDimenions.width;
+
+      if (element.branchDirection === "left") {
+        element.rotation.y = -90 * (Math.PI / 180);
+      } else {
+        element.rotation.y = 90 * (Math.PI / 180);
+      }
+
+      return element;
     },
 
     getRoadDepth(blockComplexity: number, grid: any) {
@@ -277,7 +249,7 @@ export default defineComponent({
         },
       };
 
-      const building = {
+      let building = {
         path: node.path,
         position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
@@ -290,121 +262,9 @@ export default defineComponent({
         property,
       };
 
+      building = this.setRotation(building);
+
       return building;
-    },
-
-    generateIntersection(node: any, grid: any) {
-      const intersection = {
-        dimensions: {
-          width: grid.width,
-          depth: grid.depth,
-          height: grid.height,
-        },
-        position: { x: 0, y: 0, z: 0 },
-      };
-
-      return intersection;
-    },
-
-    createStreets() {
-      const streets: any[] = [];
-      let origin = { x: 0, y: 0, z: 0 };
-
-      for (const path in this.tree) {
-        const node = this.tree[path];
-        if (node.type === "blob") {
-          continue;
-        }
-
-        const street = this.createStreet(path, origin);
-        streets.push(street);
-        origin = {
-          x: street.position.x + street.width / 2,
-          y: street.position.y,
-          z: street.position.z,
-        };
-      }
-      return streets;
-    },
-    createStreet(path: string, origin: any) {
-      const grid = { width: 3, depth: 3, height: 1 };
-
-      const node = this.tree[path];
-
-      const streetComplexity = Math.ceil(Math.log(node.stats.num_descendants));
-      let depth;
-      if (streetComplexity === 0) {
-        depth = 1;
-      } else if (streetComplexity > 5) {
-        depth = 5;
-      } else {
-        depth = streetComplexity;
-      }
-      depth *= grid.depth;
-
-      let street = {
-        depth,
-        width: node.stats.num_children * grid.width,
-        height: grid.height,
-        position: { ...origin },
-        children: {
-          buildings: [] as any,
-          intersections: [] as any,
-        },
-      };
-      street.position.x += street.width / 2;
-
-      const baseProperty = { width: 1, depth: 1, height: 1 };
-      for (let i = 0, len = node.children.length; i < len; i += 1) {
-        const childPath = node.children[i];
-        const childNode = this.tree[childPath];
-
-        if (childNode.type === "tree") {
-          street.children.intersections.push(childPath);
-          continue;
-        }
-
-        const foundationColorG = Math.floor(Math.random() * 255);
-        const foundationColorB = Math.floor(foundationColorG / 2);
-        const foundation = {
-          width: grid.width,
-          depth: grid.depth,
-          height: grid.height,
-          position: { x: 0, y: 0, z: 0 },
-          color: `rgb(0, ${foundationColorG}, ${foundationColorB})`,
-        };
-
-        foundation.position.x +=
-          (street.width * -1) / 2 + grid.width / 2 + i * grid.width;
-        foundation.position.z += -1 * (street.depth / 2 + grid.depth / 2);
-
-        const propertyColors = {
-          r: Math.floor(Math.random() * 255),
-          g: Math.floor(Math.random() * 255),
-          b: Math.floor(Math.random() * 255),
-        };
-        let property = {
-          width: baseProperty.width,
-          depth: baseProperty.depth,
-          height: childNode.blob.stats
-            ? Math.log(childNode.blob.stats.num_lines)
-            : baseProperty.height,
-          position: { x: 0, y: 0, z: 0 },
-          color: `rgb(${propertyColors.r}, ${propertyColors.g}, ${propertyColors.b})`,
-        };
-        if (property.height < baseProperty.height) {
-          property.height = baseProperty.height;
-        }
-        property.position.y += property.height / 2;
-
-        const building = {
-          foundation,
-          property,
-        };
-        street.children.buildings.push(building);
-      }
-
-      return street;
     },
   },
 });

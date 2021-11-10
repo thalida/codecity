@@ -4,41 +4,21 @@
     :position="block.position"
     :rotation="block.rotation"
   >
-    <Box
-      :ref="`block-${block.path}__road`"
-      :height="block.road.dimensions.height"
-      :width="block.road.dimensions.width"
-      :depth="block.road.dimensions.depth"
-      :position="block.road.position"
+    <!-- <Box
+      :ref="`block-${block.path}__district`"
+      :width="block.dimensions.width"
+      :depth="block.dimensions.depth"
+      :height="1"
+      :rotation="block.rotation"
     >
-      <ToonMaterial color="#333" :props="{ transparent: true, opacity: 0.5 }" />
-    </Box>
-    <Group
+      <ToonMaterial color="#ff0000" :props="{ transparent: true, opacity: 0.2 }" />
+    </Box> -->
+    <Road :path="block.path" :road="block.road" />
+    <Building
       v-for="building in block.buildings"
-      :ref="`building-${building.path}`"
       :key="building.path"
-      :position="building.position"
-      :rotation="building.rotation"
-    >
-      <Box
-        :ref="`building-${building.path}__foundation`"
-        :height="building.foundation.dimensions.height"
-        :width="building.foundation.dimensions.width"
-        :depth="building.foundation.dimensions.depth"
-        :position="building.foundation.position"
-      >
-        <ToonMaterial :color="building.foundation.color" />
-      </Box>
-      <Box
-        :ref="`building-${building.path}__property`"
-        :height="building.property.dimensions.height"
-        :width="building.property.dimensions.width"
-        :depth="building.property.dimensions.depth"
-        :position="building.property.position"
-      >
-        <ToonMaterial :color="building.property.color" />
-      </Box>
-    </Group>
+      :building="building"
+    />
     <div v-if="shouldRenderNextLevel">
       <CityBlock
         v-for="intersectingBlock in block.intersectingBlocks"
@@ -53,14 +33,16 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import { Group, Box, ToonMaterial } from "troisjs";
+import { Group } from "troisjs";
+import Road from "@/components/Road.vue";
+import Building from "@/components/Building.vue";
 
 export default defineComponent({
   name: "CityBlock",
   components: {
     Group,
-    Box,
-    ToonMaterial,
+    Road,
+    Building,
   },
   props: {
     block: {
@@ -86,7 +68,7 @@ export default defineComponent({
         return true;
       }
 
-      return this.depth + 1 < this.maxDepth;
+      return this.depth + 1 <= this.maxDepth;
     },
   },
 });
