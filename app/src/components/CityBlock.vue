@@ -14,19 +14,18 @@
       <ToonMaterial color="#ff0000" :props="{ transparent: true, opacity: 0.2 }" />
     </Box> -->
     <Road :path="block.path" :road="block.road" />
-    <Building
-      v-for="building in block.buildings"
-      :key="building.path"
-      :building="building"
-    />
-    <div v-if="shouldRenderNextLevel">
-      <CityBlock
-        v-for="intersectingBlock in block.intersectingBlocks"
-        :key="intersectingBlock.path"
-        :block="intersectingBlock"
-        :depth="depth + 1"
-        :maxDepth="maxDepth"
-      />
+    <div v-for="element in block.elements" :key="element.path">
+      <div v-if="element.type === 'blob'">
+        <Building :key="element.path" :building="element" />
+      </div>
+      <div v-else-if="element.type === 'tree' && shouldRenderNextLevel">
+        <CityBlock
+          :key="element.path"
+          :block="element"
+          :depth="element.depth"
+          :maxDepth="maxDepth"
+        />
+      </div>
     </div>
   </Group>
 </template>
@@ -52,7 +51,6 @@ export default defineComponent({
     maxDepth: {
       type: Number,
       required: false,
-      default: null,
     },
     depth: {
       type: Number,
@@ -64,7 +62,7 @@ export default defineComponent({
       return this.block.intersectingBlocks.length > 0;
     },
     shouldRenderNextLevel() {
-      if (typeof this.maxDepth === "undefined" || this.maxDepth === null) {
+      if (typeof this.maxDepth === "undefined") {
         return true;
       }
 
