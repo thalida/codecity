@@ -23,7 +23,7 @@
 import { defineComponent } from "vue";
 import axios from "axios";
 import { Camera, AmbientLight, DirectionalLight, Renderer, Scene } from "troisjs";
-import CityBlock from "@/components/CityBlock.vue";
+import CityBlock from "@/components/CodeCity/CityBlock.vue";
 
 interface CodeCityData {
   isReady: boolean;
@@ -51,6 +51,7 @@ export default defineComponent({
       rootBlock: null,
       grid: { width: 3, depth: 3, height: 1, buffer: 3 },
       basePropertyDimensions: { width: 1, depth: 1, height: 1 },
+      maxDepth: undefined,
     } as Partial<CodeCityData>;
   },
   async mounted() {
@@ -86,6 +87,7 @@ export default defineComponent({
         rotation: { x: 0, y: 0, z: 0 },
         dimensions: { width: 0, depth: 0, height: this.grid.height },
         buffer: this.grid.buffer,
+        shiftX: 0,
         road: {
           dimensions: {
             width: 0,
@@ -93,13 +95,16 @@ export default defineComponent({
             height: this.grid.height,
           },
           position: { x: 0, y: 0, z: 0 },
+          segments: [] as any[],
         },
         elements: [] as any[],
+        maxDepth: {},
       };
 
       const childElements = this.generateChildElements(node, nodeDepth);
       block.elements = childElements.elements;
       block.road.dimensions.width = childElements.maxWidth;
+      block.maxDepth = childElements.maxDepth;
 
       block.dimensions.depth =
         block.road.dimensions.depth +
@@ -111,23 +116,81 @@ export default defineComponent({
         childElements.maxDepth.left -
         (block.dimensions.depth - block.road.dimensions.depth) / 2;
 
+      // block.road.segments.push({
+      //   position: { x: 0, y: 0, z: 0 },
+      //   dimensions: {
+      //     width: block.road.dimensions.width,
+      //     depth: block.road.dimensions.depth,
+      //     height: block.road.dimensions.height,
+      //   },
+      //   // color: "#0000ff",
+      // });
+
       let prevSideX: { [key: string]: number } = { left: 0, right: 0 };
       for (let j = 0, len = block.elements.length; j < len; j += 1) {
         const element = block.elements[j];
         const direction = element.branchDirection === "left" ? -1 : 1;
-
-        element.position.x =
+        const shift = element.shiftX || 0;
+        const normalizedX =
           -1 * (block.road.dimensions.width / 2) +
-          element.dimensions.width / 2 +
+          shift +
           prevSideX[element.branchDirection];
 
+        element.position.x = normalizedX + element.dimensions.width / 2;
         element.position.z =
           direction *
             (block.road.dimensions.depth / 2 + element.dimensions.depth / 2) +
           block.road.position.z;
 
+        if (element.type === "tree") {
+          const intersectionElement = {
+            position: { x: 0, y: 0, z: 0 },
+            dimensions: {
+              width: element.road.dimensions.depth,
+              depth: block.road.dimensions.depth,
+              height: block.road.dimensions.height,
+            },
+            color: "#ff0000",
+          };
+
+          intersectionElement.position.x =
+            normalizedX +
+            intersectionElement.dimensions.width / 2 +
+            element.maxDepth[element.branchDirection];
+
+          // let prevSegment = block.road.segments[block.road.segments.length - 1];
+          // const newWidth = Math.abs(
+          //   intersectionElement.position.x -
+          //     normalizedX -
+          //     intersectionElement.dimensions.width / 2
+          // );
+          // prevSegment.dimensions.width = newWidth;
+          // prevSegment.position.x = normalizedX + newWidth / 2;
+
+          // const intersectionEndX =
+          //   intersectionElement.position.x + intersectionElement.dimensions.width;
+          // const nextSegmentWidth =
+          //   block.road.dimensions.width / 2 - intersectionEndX;
+          // const nextSegment = {
+          //   position: {
+          //     x: intersectionEndX + nextSegmentWidth / 2,
+          //     y: 0,
+          //     z: 0,
+          //   },
+          //   dimensions: {
+          //     width: nextSegmentWidth,
+          //     depth: block.road.dimensions.depth,
+          //     height: block.road.dimensions.height,
+          //   },
+          //   color: "#0000ff",
+          // };
+
+          block.road.segments.push(intersectionElement);
+          // block.road.segments.push(nextSegment);
+        }
+
         prevSideX[element.branchDirection] +=
-          element.dimensions.width + element.buffer;
+          element.dimensions.width + element.buffer + shift;
       }
 
       block.road.dimensions.width += this.grid.buffer * 2;
@@ -141,9 +204,11 @@ export default defineComponent({
 
     generateChildElements(node: any, depth: number) {
       const elements: any[] = [];
+      const elementIdxs: { [key: string]: number } = {};
       let maxHeight = 0;
       let maxDepth: { [key: string]: number } = { left: 0, right: 0 };
       let sideWidths: { [key: string]: number } = { left: 0, right: 0 };
+      let nodeIntersections: any[] = [];
       for (let i = 0, len = node.children.length; i < len; i += 1) {
         const childPath: string = node.children[i];
         const childNode = this.tree[childPath];
@@ -159,20 +224,61 @@ export default defineComponent({
           continue;
         }
 
+        if (childNode.type === "tree") {
+          const intersectionPoint =
+            sideWidths[element.branchDirection] +
+            element.buffer +
+            element.maxDepth[element.branchDirection];
+          nodeIntersections.push({ node: childPath, intersectionPoint });
+        }
+
         sideWidths[element.branchDirection] +=
           element.dimensions.width + element.buffer;
+
         maxDepth[element.branchDirection] = Math.max(
           maxDepth[element.branchDirection],
           element.dimensions.depth
         );
+
         maxHeight = Math.max(maxHeight, element.dimensions.height);
+
+        elementIdxs[childPath] = elements.length;
         elements.push(element);
+      }
+
+      nodeIntersections.sort((a, b) => a.intersectionPoint - b.intersectionPoint);
+      let j = 1;
+      while (j < nodeIntersections.length) {
+        let nextI = j + 1;
+        const nodeA = nodeIntersections[j - 1];
+        const nodeB = nodeIntersections[j];
+        const elementAIdx = elementIdxs[nodeA.node];
+        const elementA = elements[elementAIdx];
+        const intersectionAEndPoint =
+          nodeA.intersectionPoint + elementA.road.dimensions.depth;
+        const gap = nodeB.intersectionPoint - intersectionAEndPoint;
+        const minGapSize = this.grid.buffer;
+
+        if (gap < minGapSize) {
+          const newGap = minGapSize - gap;
+          for (let k = j; k < nodeIntersections.length; k += 1) {
+            const nodeC = nodeIntersections[k];
+            const elementIdx = elementIdxs[nodeC.node];
+            const element = elements[elementIdx];
+            element.shiftX += newGap;
+            nodeIntersections[k].intersectionPoint += newGap;
+            sideWidths[element.branchDirection] += newGap;
+          }
+          nextI = 1;
+        }
+
+        j = nextI;
       }
 
       return {
         elements,
-        width: sideWidths.left + sideWidths.right,
         sideWidths,
+        width: sideWidths.left + sideWidths.right,
         maxWidth: Math.max(sideWidths.left, sideWidths.right),
         maxDepth,
         maxHeight,
@@ -228,7 +334,7 @@ export default defineComponent({
           depth: foundation.dimensions.depth,
           height: foundation.dimensions.height + property.dimensions.height,
         },
-        buffer: 0,
+        buffer: this.getRandomBuffer(),
         foundation,
         property,
       };
@@ -247,9 +353,9 @@ export default defineComponent({
       element.dimensions.depth = origDimenions.width;
 
       if (element.branchDirection === "left") {
-        element.rotation.y = -90 * (Math.PI / 180);
-      } else {
         element.rotation.y = 90 * (Math.PI / 180);
+      } else {
+        element.rotation.y = -90 * (Math.PI / 180);
       }
 
       return element;
@@ -257,9 +363,9 @@ export default defineComponent({
 
     getRoadDepth(blockComplexity: number) {
       let roadDepth;
-      if (blockComplexity <= 1) {
+      if (blockComplexity <= 2) {
         roadDepth = 1;
-      } else if (blockComplexity > 1 && blockComplexity < 4) {
+      } else if (blockComplexity > 2 && blockComplexity < 6) {
         roadDepth = 2;
       } else {
         roadDepth = 3;
@@ -267,6 +373,10 @@ export default defineComponent({
       roadDepth *= this.grid.depth;
 
       return roadDepth;
+    },
+
+    getRandomBuffer() {
+      return Math.floor(Math.random() * this.grid.buffer);
     },
   },
 });

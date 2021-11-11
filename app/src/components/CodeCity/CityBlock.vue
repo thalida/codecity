@@ -33,8 +33,8 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import { Group } from "troisjs";
-import Road from "@/components/Road.vue";
-import Building from "@/components/Building.vue";
+import Road from "@/components/CodeCity/Road.vue";
+import Building from "@/components/CodeCity/Building.vue";
 
 export default defineComponent({
   name: "CityBlock",

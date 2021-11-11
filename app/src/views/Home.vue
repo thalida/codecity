@@ -6,7 +6,7 @@
 
 <script lang="ts">
 import { defineComponent } from "vue";
-import CodeCity from "@/components/CodeCity.vue"; // @ is an alias to /src
+import CodeCity from "@/components/CodeCity/CodeCity.vue"; // @ is an alias to /src
 
 export default defineComponent({
   name: "Home",
