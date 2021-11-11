@@ -1,26 +1,26 @@
 <template>
   <Group
-    :ref="`building-${building.path}`"
-    :position="building.position"
-    :rotation="building.rotation"
+    :ref="`building-${node.path}`"
+    :position="node.render.position"
+    :rotation="node.render.rotation"
   >
     <Box
-      :ref="`building-${building.path}__foundation`"
-      :height="building.foundation.dimensions.height"
-      :width="building.foundation.dimensions.width"
-      :depth="building.foundation.dimensions.depth"
-      :position="building.foundation.position"
+      :ref="`building-${node.path}__foundation`"
+      :height="node.render.foundation.dimensions.height"
+      :width="node.render.foundation.dimensions.width"
+      :depth="node.render.foundation.dimensions.depth"
+      :position="node.render.foundation.position"
     >
-      <ToonMaterial :color="building.foundation.color" />
+      <ToonMaterial :color="node.render.foundation.color" />
     </Box>
     <Box
-      :ref="`building-${building.path}__property`"
-      :height="building.property.dimensions.height"
-      :width="building.property.dimensions.width"
-      :depth="building.property.dimensions.depth"
-      :position="building.property.position"
+      :ref="`building-${node.path}__property`"
+      :height="node.render.property.dimensions.height"
+      :width="node.render.property.dimensions.width"
+      :depth="node.render.property.dimensions.depth"
+      :position="node.render.property.position"
     >
-      <ToonMaterial :color="building.property.color" />
+      <ToonMaterial :color="node.render.property.color" />
     </Box>
   </Group>
 </template>
@@ -37,7 +37,7 @@ export default defineComponent({
     ToonMaterial,
   },
   props: {
-    building: {
+    node: {
       type: Object,
       required: true,
     },

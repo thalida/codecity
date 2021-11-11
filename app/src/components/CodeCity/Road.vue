@@ -1,5 +1,5 @@
 <template>
-  <Group :ref="`block-${path}__road`" :position="road.position">
+  <Group :ref="`block-road`" :position="road.position">
     <Box
       :height="road.dimensions.height"
       :width="road.dimensions.width"
@@ -8,16 +8,16 @@
       <ToonMaterial color="#333" :props="{ transparent: true, opacity: 0.5 }" />
     </Box>
     <Box
-      v-for="(intersection, index) in road.segments"
+      v-for="(intersection, index) in road.intersections"
       :key="index"
-      :ref="`block-${path}__road__${index}`"
-      :height="intersection.dimensions.height"
-      :width="intersection.dimensions.width"
-      :depth="intersection.dimensions.depth"
-      :position="intersection.position"
+      :ref="`intersection__${index}`"
+      :height="intersection.render.dimensions.height"
+      :width="intersection.render.dimensions.width"
+      :depth="intersection.render.dimensions.depth"
+      :position="intersection.render.position"
     >
       <ToonMaterial
-        :color="intersection.color"
+        :color="intersection.render.color"
         :props="{ transparent: true, opacity: 0.5 }"
       />
     </Box>
@@ -36,7 +36,6 @@ export default defineComponent({
     ToonMaterial,
   },
   props: {
-    path: { type: String, required: true },
     road: {
       type: Object,
       required: true,

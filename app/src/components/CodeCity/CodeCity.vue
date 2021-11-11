@@ -1,7 +1,7 @@
 <template>
   <div class="codecity" v-if="isReady">
     <Renderer ref="renderer" resize antialias pointer :orbit-ctrl="{}">
-      <Camera :position="{ x: 0, y: 500, z: 0 }" />
+      <Camera :position="camera.position" :rotation="camera.rotation" />
       <Scene background="#ffffff">
         <AmbientLight color="#ffffff" :intensity="0.8" />
         <DirectionalLight
@@ -9,11 +9,7 @@
           :intensity="1"
           :position="{ x: 10, y: 10, z: 10 }"
         />
-        <CityBlock
-          :block="rootBlock"
-          :depth="rootBlock.depth"
-          :max-depth="maxDepth"
-        />
+        <Neighborhood :node="city" />
       </Scene>
     </Renderer>
   </div>
@@ -23,21 +19,22 @@
 import { defineComponent } from "vue";
 import axios from "axios";
 import { Camera, AmbientLight, DirectionalLight, Renderer, Scene } from "troisjs";
-import CityBlock from "@/components/CodeCity/CityBlock.vue";
+import Neighborhood from "@/components/CodeCity/Neighborhood.vue";
+import { sumObj } from "@/helpers";
 
 interface CodeCityData {
   isReady: boolean;
-  tree: any;
-  rootBlock: any;
+  city: any;
   grid: any;
   basePropertyDimensions: any;
   maxDepth: number | undefined;
+  camera: any;
 }
 
 export default defineComponent({
   name: "CodeCity",
   components: {
-    CityBlock,
+    Neighborhood,
     Camera,
     AmbientLight,
     DirectionalLight,
@@ -47,44 +44,157 @@ export default defineComponent({
   data(): CodeCityData | Partial<CodeCityData> {
     return {
       isReady: false,
-      tree: null,
-      rootBlock: null,
+      city: null,
       grid: { width: 3, depth: 3, height: 1, buffer: 3 },
       basePropertyDimensions: { width: 1, depth: 1, height: 1 },
       maxDepth: undefined,
+      camera: {},
     } as Partial<CodeCityData>;
   },
   async mounted() {
-    this.tree = await this.getTree();
-    this.rootBlock = this.createCity();
+    this.city = await this.createCity();
     this.isReady = true;
-    console.log(this.rootBlock);
+    this.camera.position = { x: 0, y: 500, z: 0 };
+    // this.camera.position = { x: 0, y: 0, z: 100 };
+    console.log(this.city);
   },
   methods: {
-    async getTree() {
+    async getRepoDirTree(repo: string) {
       const loc = window.location;
-      const res = await axios.get(
-        `http://${loc.hostname}:8000/api/repos/thalida.com`
-      );
+      const res = await axios.get(`http://${loc.hostname}:8000/api/repos/${repo}`);
       return res.data;
     },
-    createCity() {
-      return this.generateBlock(".");
+    async createCity() {
+      const repo = "thalida.com";
+      let dirTree = await this.getRepoDirTree(repo);
+      const neighborhood = this.generateNeighborhood(dirTree, ["."]);
+      const city = {
+        path: "thalida.com",
+        neighborhood,
+        render: {
+          position: { x: 0, y: 0, z: 0 },
+          rotation: { x: 0, y: 0, z: 0 },
+        },
+      };
+
+      return city;
     },
-    generateBlock(path: string, nodeDepth = 0) {
-      if (typeof this.maxDepth !== "undefined" && nodeDepth > this.maxDepth) {
-        return;
+    generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
+      const neighborhood: { [name: string]: any } = {
+        nodes: [] as any[],
+        render: {
+          dimensions: {
+            width: 0,
+            depth: 0,
+            height: 0,
+          },
+          sideWidth: { left: 0, right: 0, center: 0 },
+          sideDepth: { left: 0, right: 0, center: 0 },
+          sideHeight: { left: 0, right: 0, center: 0 },
+          maxSideWidth: 0,
+          maxSideDepth: 0,
+          maxSideHeight: 0,
+        },
+      };
+
+      if (typeof this.maxDepth !== "undefined" && depth >= this.maxDepth) {
+        return neighborhood;
       }
 
-      const node = this.tree[path];
+      let nodeIntersections: any[] = [];
+      for (let i = 0, len = paths.length; i < len; i += 1) {
+        const nodePath = paths[i];
+        const node = dirTree[nodePath];
+        node.depth = depth;
+        if (node.type === "blob") {
+          node.render = this.getBuildingRender(node);
+        } else {
+          node.neighborhood = this.generateNeighborhood(
+            dirTree,
+            node.children,
+            depth + 1
+          );
+          node.render = this.getNeighborhoodRender(node);
+        }
+
+        neighborhood.nodes.push(node);
+
+        if (typeof node.render === "undefined") {
+          continue;
+        }
+
+        if (node.type === "tree") {
+          const intersectionPoint =
+            neighborhood.render.sideWidth[node.render.branchDirection] +
+            node.render.buffer +
+            node.neighborhood.render.sideDepth[node.render.branchDirection];
+
+          nodeIntersections.push({
+            path: node.path,
+            nodeIdx: i,
+            startX: intersectionPoint,
+            endX: intersectionPoint + node.render.road.dimensions.depth,
+          });
+        }
+
+        neighborhood.render.sideWidth[node.render.branchDirection] +=
+          node.render.dimensions.width + node.render.buffer;
+
+        neighborhood.render.sideDepth[node.render.branchDirection] = Math.max(
+          neighborhood.render.sideDepth[node.render.branchDirection],
+          node.render.dimensions.depth
+        );
+        neighborhood.render.sideHeight[node.render.branchDirection] = Math.max(
+          neighborhood.render.sideHeight[node.render.branchDirection],
+          node.render.dimensions.height
+        );
+      }
+
+      nodeIntersections.sort((a, b) => a.startX - b.startX);
+      let j = 1;
+      while (j < nodeIntersections.length) {
+        const nodeA = nodeIntersections[j - 1];
+        const nodeB = nodeIntersections[j];
+        const gap = nodeB.startX - nodeA.endX;
+        const minGapSize = this.grid.buffer;
+
+        if (gap < minGapSize) {
+          const newGap = minGapSize - gap;
+          for (let k = j; k < nodeIntersections.length; k += 1) {
+            const nodeC = nodeIntersections[k];
+            const node = neighborhood.nodes[nodeC.nodeIdx];
+            node.render.shiftX += newGap;
+            nodeC.intersectionPoint += newGap;
+            neighborhood.render.sideWidth[node.render.branchDirection] += newGap;
+          }
+        }
+
+        j += 1;
+      }
+
+      neighborhood.render.maxSideWidth = Math.max(
+        ...(Object.values(neighborhood.render.sideWidth) as number[])
+      );
+      neighborhood.render.maxSideDepth = Math.max(
+        ...(Object.values(neighborhood.render.sideDepth) as number[])
+      );
+      neighborhood.render.maxSideHeight = Math.max(
+        ...(Object.values(neighborhood.render.sideHeight) as number[])
+      );
+      neighborhood.render.dimensions.width = neighborhood.render.maxSideWidth;
+      neighborhood.render.dimensions.depth = sumObj(neighborhood.render.sideDepth);
+      neighborhood.render.dimensions.height = sumObj(neighborhood.render.sideHeight);
+
+      return neighborhood;
+    },
+
+    getNeighborhoodRender(node: any) {
       const blockComplexity = Math.ceil(Math.log(node.stats.num_descendants));
-      let block = {
-        node,
-        type: node.type,
-        path: path,
-        depth: nodeDepth,
+
+      let render = {
         position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
+        branchDirection: "center",
         dimensions: { width: 0, depth: 0, height: this.grid.height },
         buffer: this.grid.buffer,
         shiftX: 0,
@@ -95,197 +205,83 @@ export default defineComponent({
             height: this.grid.height,
           },
           position: { x: 0, y: 0, z: 0 },
-          segments: [] as any[],
+          intersections: [] as any[],
         },
-        elements: [] as any[],
-        maxDepth: {},
       };
 
-      const childElements = this.generateChildElements(node, nodeDepth);
-      block.elements = childElements.elements;
-      block.road.dimensions.width = childElements.maxWidth;
-      block.maxDepth = childElements.maxDepth;
+      render.road.dimensions.width = node.neighborhood.render.dimensions.width;
 
-      block.dimensions.depth =
-        block.road.dimensions.depth +
-        childElements.maxDepth.left +
-        childElements.maxDepth.right;
-      block.dimensions.height += childElements.maxHeight;
+      render.dimensions.depth =
+        render.road.dimensions.depth +
+        node.neighborhood.render.sideDepth.left +
+        node.neighborhood.render.sideDepth.right;
 
-      block.road.position.z =
-        childElements.maxDepth.left -
-        (block.dimensions.depth - block.road.dimensions.depth) / 2;
+      render.dimensions.height += node.neighborhood.render.maxSideHeight;
 
-      // block.road.segments.push({
-      //   position: { x: 0, y: 0, z: 0 },
-      //   dimensions: {
-      //     width: block.road.dimensions.width,
-      //     depth: block.road.dimensions.depth,
-      //     height: block.road.dimensions.height,
-      //   },
-      //   // color: "#0000ff",
-      // });
+      render.road.position.z =
+        node.neighborhood.render.sideDepth.left -
+        (render.dimensions.depth - render.road.dimensions.depth) / 2;
 
       let prevSideX: { [key: string]: number } = { left: 0, right: 0 };
-      for (let j = 0, len = block.elements.length; j < len; j += 1) {
-        const element = block.elements[j];
-        const direction = element.branchDirection === "left" ? -1 : 1;
-        const shift = element.shiftX || 0;
-        const normalizedX =
-          -1 * (block.road.dimensions.width / 2) +
-          shift +
-          prevSideX[element.branchDirection];
-
-        element.position.x = normalizedX + element.dimensions.width / 2;
-        element.position.z =
-          direction *
-            (block.road.dimensions.depth / 2 + element.dimensions.depth / 2) +
-          block.road.position.z;
-
-        if (element.type === "tree") {
-          const intersectionElement = {
-            position: { x: 0, y: 0, z: 0 },
-            dimensions: {
-              width: element.road.dimensions.depth,
-              depth: block.road.dimensions.depth,
-              height: block.road.dimensions.height,
-            },
-            color: "#ff0000",
-          };
-
-          intersectionElement.position.x =
-            normalizedX +
-            intersectionElement.dimensions.width / 2 +
-            element.maxDepth[element.branchDirection];
-
-          // let prevSegment = block.road.segments[block.road.segments.length - 1];
-          // const newWidth = Math.abs(
-          //   intersectionElement.position.x -
-          //     normalizedX -
-          //     intersectionElement.dimensions.width / 2
-          // );
-          // prevSegment.dimensions.width = newWidth;
-          // prevSegment.position.x = normalizedX + newWidth / 2;
-
-          // const intersectionEndX =
-          //   intersectionElement.position.x + intersectionElement.dimensions.width;
-          // const nextSegmentWidth =
-          //   block.road.dimensions.width / 2 - intersectionEndX;
-          // const nextSegment = {
-          //   position: {
-          //     x: intersectionEndX + nextSegmentWidth / 2,
-          //     y: 0,
-          //     z: 0,
-          //   },
-          //   dimensions: {
-          //     width: nextSegmentWidth,
-          //     depth: block.road.dimensions.depth,
-          //     height: block.road.dimensions.height,
-          //   },
-          //   color: "#0000ff",
-          // };
-
-          block.road.segments.push(intersectionElement);
-          // block.road.segments.push(nextSegment);
-        }
-
-        prevSideX[element.branchDirection] +=
-          element.dimensions.width + element.buffer + shift;
-      }
-
-      block.road.dimensions.width += this.grid.buffer * 2;
-      block.dimensions.width = block.road.dimensions.width;
-
-      if (nodeDepth > 0) {
-        block = this.setRotation(block);
-      }
-      return block;
-    },
-
-    generateChildElements(node: any, depth: number) {
-      const elements: any[] = [];
-      const elementIdxs: { [key: string]: number } = {};
-      let maxHeight = 0;
-      let maxDepth: { [key: string]: number } = { left: 0, right: 0 };
-      let sideWidths: { [key: string]: number } = { left: 0, right: 0 };
-      let nodeIntersections: any[] = [];
-      for (let i = 0, len = node.children.length; i < len; i += 1) {
-        const childPath: string = node.children[i];
-        const childNode = this.tree[childPath];
-
-        let element: any = null;
-        if (childNode.type === "blob") {
-          element = this.generateBuilding(childNode);
-        } else {
-          element = this.generateBlock(childPath, depth + 1);
-        }
-
-        if (typeof element === "undefined") {
+      for (let j = 0, len = node.neighborhood.nodes.length; j < len; j += 1) {
+        const childNode = node.neighborhood.nodes[j];
+        if (typeof childNode.render === "undefined") {
           continue;
         }
+        const direction = childNode.render.branchDirection === "left" ? -1 : 1;
+        const shift = childNode.render.shiftX || 0;
+        const normalizedX =
+          -1 * (render.road.dimensions.width / 2) +
+          shift +
+          prevSideX[childNode.render.branchDirection];
+
+        childNode.render.position.x =
+          normalizedX + childNode.render.dimensions.width / 2;
+        childNode.render.position.z =
+          direction *
+            (render.road.dimensions.depth / 2 +
+              childNode.render.dimensions.depth / 2) +
+          render.road.position.z;
 
         if (childNode.type === "tree") {
-          const intersectionPoint =
-            sideWidths[element.branchDirection] +
-            element.buffer +
-            element.maxDepth[element.branchDirection];
-          nodeIntersections.push({ node: childPath, intersectionPoint });
+          const intersection = {
+            node: [childNode.path],
+            render: {
+              position: { x: 0, y: 0, z: 0 },
+              dimensions: {
+                width: childNode.render.road.dimensions.depth,
+                depth: render.road.dimensions.depth,
+                height: render.road.dimensions.height,
+              },
+              color: "#ff0000",
+            },
+          };
+
+          intersection.render.position.x =
+            normalizedX +
+            intersection.render.dimensions.width / 2 +
+            childNode.neighborhood.render.sideDepth[
+              childNode.render.branchDirection
+            ];
+
+          render.road.intersections.push(intersection);
         }
 
-        sideWidths[element.branchDirection] +=
-          element.dimensions.width + element.buffer;
-
-        maxDepth[element.branchDirection] = Math.max(
-          maxDepth[element.branchDirection],
-          element.dimensions.depth
-        );
-
-        maxHeight = Math.max(maxHeight, element.dimensions.height);
-
-        elementIdxs[childPath] = elements.length;
-        elements.push(element);
+        prevSideX[childNode.render.branchDirection] +=
+          childNode.render.dimensions.width + childNode.render.buffer + shift;
       }
 
-      nodeIntersections.sort((a, b) => a.intersectionPoint - b.intersectionPoint);
-      let j = 1;
-      while (j < nodeIntersections.length) {
-        let nextI = j + 1;
-        const nodeA = nodeIntersections[j - 1];
-        const nodeB = nodeIntersections[j];
-        const elementAIdx = elementIdxs[nodeA.node];
-        const elementA = elements[elementAIdx];
-        const intersectionAEndPoint =
-          nodeA.intersectionPoint + elementA.road.dimensions.depth;
-        const gap = nodeB.intersectionPoint - intersectionAEndPoint;
-        const minGapSize = this.grid.buffer;
+      render.road.dimensions.width += this.grid.buffer * 2;
+      render.dimensions.width = render.road.dimensions.width;
 
-        if (gap < minGapSize) {
-          const newGap = minGapSize - gap;
-          for (let k = j; k < nodeIntersections.length; k += 1) {
-            const nodeC = nodeIntersections[k];
-            const elementIdx = elementIdxs[nodeC.node];
-            const element = elements[elementIdx];
-            element.shiftX += newGap;
-            nodeIntersections[k].intersectionPoint += newGap;
-            sideWidths[element.branchDirection] += newGap;
-          }
-          nextI = 1;
-        }
-
-        j = nextI;
+      if (node.depth > 0) {
+        render = this.setRotation(render);
       }
 
-      return {
-        elements,
-        sideWidths,
-        width: sideWidths.left + sideWidths.right,
-        maxWidth: Math.max(sideWidths.left, sideWidths.right),
-        maxDepth,
-        maxHeight,
-      };
+      return render;
     },
 
-    generateBuilding(node: any) {
+    getBuildingRender(node: any) {
       const foundationColorG = Math.floor(Math.random() * 255);
       const foundationColorB = Math.floor(foundationColorG / 2);
       const foundation = {
@@ -323,10 +319,7 @@ export default defineComponent({
         },
       };
 
-      let building = {
-        node,
-        type: node.type,
-        path: node.path,
+      let render = {
         position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
         dimensions: {
@@ -337,28 +330,28 @@ export default defineComponent({
         buffer: this.getRandomBuffer(),
         foundation,
         property,
+        branchDirection: "center",
       };
 
-      building = this.setRotation(building);
-
-      return building;
+      render = this.setRotation(render);
+      return render;
     },
 
-    setRotation(element: any) {
+    setRotation(render: any) {
       const branchDirections: string[] = ["left", "right"];
-      const origDimenions = { ...element.dimensions };
-      element.branchDirection =
+      const origDimenions = { ...render.dimensions };
+      render.branchDirection =
         branchDirections[Math.floor(Math.random() * branchDirections.length)];
-      element.dimensions.width = origDimenions.depth;
-      element.dimensions.depth = origDimenions.width;
+      render.dimensions.width = origDimenions.depth;
+      render.dimensions.depth = origDimenions.width;
 
-      if (element.branchDirection === "left") {
-        element.rotation.y = 90 * (Math.PI / 180);
+      if (render.branchDirection === "left") {
+        render.rotation.y = 90 * (Math.PI / 180);
       } else {
-        element.rotation.y = -90 * (Math.PI / 180);
+        render.rotation.y = -90 * (Math.PI / 180);
       }
 
-      return element;
+      return render;
     },
 
     getRoadDepth(blockComplexity: number) {
