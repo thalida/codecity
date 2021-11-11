@@ -195,7 +195,7 @@ export default defineComponent({
         position: { x: 0, y: 0, z: 0 },
         rotation: { x: 0, y: 0, z: 0 },
         branchDirection: "center",
-        dimensions: { width: 0, depth: 0, height: this.grid.height },
+        dimensions: { width: 0, depth: 0, height: 0 },
         buffer: this.grid.buffer,
         shiftX: 0,
         road: {
@@ -209,26 +209,27 @@ export default defineComponent({
         },
       };
 
-      render.road.dimensions.width = node.neighborhood.render.dimensions.width;
-
+      render.dimensions.height = node.neighborhood.render.maxSideHeight;
       render.dimensions.depth =
-        render.road.dimensions.depth +
-        node.neighborhood.render.sideDepth.left +
-        node.neighborhood.render.sideDepth.right;
+        render.road.dimensions.depth + node.neighborhood.render.dimensions.depth;
 
-      render.dimensions.height += node.neighborhood.render.maxSideHeight;
-
+      render.road.dimensions.width = node.neighborhood.render.dimensions.width;
       render.road.position.z =
         node.neighborhood.render.sideDepth.left -
         (render.dimensions.depth - render.road.dimensions.depth) / 2;
 
-      let prevSideX: { [key: string]: number } = { left: 0, right: 0 };
+      let prevSideX: { [key: string]: number } = { left: 0, right: 0, center: 0 };
       for (let j = 0, len = node.neighborhood.nodes.length; j < len; j += 1) {
         const childNode = node.neighborhood.nodes[j];
         if (typeof childNode.render === "undefined") {
           continue;
         }
-        const direction = childNode.render.branchDirection === "left" ? -1 : 1;
+        let direction = 0;
+        if (childNode.render.branchDirection === "left") {
+          direction = -1;
+        } else if (childNode.render.branchDirection === "right") {
+          direction = 1;
+        }
         const shift = childNode.render.shiftX || 0;
         const normalizedX =
           -1 * (render.road.dimensions.width / 2) +
@@ -275,7 +276,7 @@ export default defineComponent({
       render.dimensions.width = render.road.dimensions.width;
 
       if (node.depth > 0) {
-        render = this.setRotation(render);
+        render = this.setBranchDirection(render);
       }
 
       return render;
@@ -333,11 +334,11 @@ export default defineComponent({
         branchDirection: "center",
       };
 
-      render = this.setRotation(render);
+      render = this.setBranchDirection(render);
       return render;
     },
 
-    setRotation(render: any) {
+    setBranchDirection(render: any) {
       const branchDirections: string[] = ["left", "right"];
       const origDimenions = { ...render.dimensions };
       render.branchDirection =
