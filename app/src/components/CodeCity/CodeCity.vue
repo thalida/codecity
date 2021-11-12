@@ -101,7 +101,7 @@ export default defineComponent({
         return neighborhood;
       }
 
-      let nodeIntersections: any[] = [];
+      let plannedIntersections: any[] = [];
       for (let i = 0, len = paths.length; i < len; i += 1) {
         const nodePath = paths[i];
         const node = dirTree[nodePath];
@@ -124,16 +124,16 @@ export default defineComponent({
         }
 
         if (node.type === "tree") {
-          const intersectionPoint =
+          const currIntersectionX =
             neighborhood.render.sideWidth[node.render.branchDirection] +
             node.render.buffer +
             node.neighborhood.render.sideDepth[node.render.branchDirection];
 
-          nodeIntersections.push({
+          plannedIntersections.push({
             path: node.path,
             nodeIdx: i,
-            startX: intersectionPoint,
-            endX: intersectionPoint + node.render.road.dimensions.depth,
+            startX: currIntersectionX,
+            endX: currIntersectionX + node.render.road.dimensions.depth,
           });
         }
 
@@ -150,20 +150,20 @@ export default defineComponent({
         );
       }
 
-      nodeIntersections.sort((a, b) => a.startX - b.startX);
+      plannedIntersections.sort((a, b) => a.startX - b.startX);
       let j = 1;
-      while (j < nodeIntersections.length) {
-        const nodeA = nodeIntersections[j - 1];
-        const nodeB = nodeIntersections[j];
+      while (j < plannedIntersections.length) {
+        const nodeA = plannedIntersections[j - 1];
+        const nodeB = plannedIntersections[j];
         const gap = nodeB.startX - nodeA.endX;
         const minGapSize = this.grid.buffer;
 
         if (gap < minGapSize) {
           const newGap = minGapSize - gap;
-          for (let k = j; k < nodeIntersections.length; k += 1) {
-            const nodeC = nodeIntersections[k];
+          for (let k = j; k < plannedIntersections.length; k += 1) {
+            const nodeC = plannedIntersections[k];
             const node = neighborhood.nodes[nodeC.nodeIdx];
-            node.render.shiftX += newGap;
+            node.render.intersectionBuffer += newGap;
             nodeC.intersectionPoint += newGap;
             neighborhood.render.sideWidth[node.render.branchDirection] += newGap;
           }
@@ -197,7 +197,7 @@ export default defineComponent({
         branchDirection: "center",
         dimensions: { width: 0, depth: 0, height: 0 },
         buffer: this.grid.buffer,
-        shiftX: 0,
+        intersectionBuffer: 0,
         road: {
           dimensions: {
             width: 0,
@@ -221,23 +221,26 @@ export default defineComponent({
       let prevSideX: { [key: string]: number } = { left: 0, right: 0, center: 0 };
       for (let j = 0, len = node.neighborhood.nodes.length; j < len; j += 1) {
         const childNode = node.neighborhood.nodes[j];
+
         if (typeof childNode.render === "undefined") {
           continue;
         }
+
         let direction = 0;
         if (childNode.render.branchDirection === "left") {
           direction = -1;
         } else if (childNode.render.branchDirection === "right") {
           direction = 1;
         }
-        const shift = childNode.render.shiftX || 0;
+
         const normalizedX =
           -1 * (render.road.dimensions.width / 2) +
-          shift +
+          childNode.render.intersectionBuffer +
           prevSideX[childNode.render.branchDirection];
 
         childNode.render.position.x =
           normalizedX + childNode.render.dimensions.width / 2;
+
         childNode.render.position.z =
           direction *
             (render.road.dimensions.depth / 2 +
@@ -254,7 +257,7 @@ export default defineComponent({
                 depth: render.road.dimensions.depth,
                 height: render.road.dimensions.height,
               },
-              color: "#ff0000",
+              color: "#fff",
             },
           };
 
@@ -269,7 +272,9 @@ export default defineComponent({
         }
 
         prevSideX[childNode.render.branchDirection] +=
-          childNode.render.dimensions.width + childNode.render.buffer + shift;
+          childNode.render.dimensions.width +
+          childNode.render.buffer +
+          childNode.render.intersectionBuffer;
       }
 
       render.road.dimensions.width += this.grid.buffer * 2;
@@ -329,6 +334,7 @@ export default defineComponent({
           height: foundation.dimensions.height + property.dimensions.height,
         },
         buffer: this.getRandomBuffer(),
+        intersectionBuffer: 0,
         foundation,
         property,
         branchDirection: "center",
