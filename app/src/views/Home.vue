@@ -1,6 +1,6 @@
 <template>
   <div class="home">
-    <CodeCity />
+    <CodeCity v-if="hasRepoUrl" :repo-url="repoUrl" />
   </div>
 </template>
 
@@ -12,6 +12,18 @@ export default defineComponent({
   name: "Home",
   components: {
     CodeCity,
+  },
+  data: () => ({
+    repoUrl: "",
+  }),
+  created() {
+    this.repoUrl = this.$route.query.repo_url as string;
+    console.log(this.repoUrl);
+  },
+  computed: {
+    hasRepoUrl() {
+      return typeof this.repoUrl !== "undefined";
+    },
   },
 });
 </script>

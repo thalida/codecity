@@ -41,6 +41,12 @@ export default defineComponent({
     Renderer,
     Scene,
   },
+  props: {
+    repoUrl: {
+      type: String,
+      required: true,
+    },
+  },
   data(): CodeCityData | Partial<CodeCityData> {
     return {
       isReady: false,
@@ -59,17 +65,18 @@ export default defineComponent({
     console.log(this.city);
   },
   methods: {
-    async getRepoDirTree(repo: string) {
+    async getRepoDirTree() {
       const loc = window.location;
-      const res = await axios.get(`http://${loc.hostname}:8000/api/repos/${repo}`);
+      const res = await axios.get(`http://${loc.hostname}:8000/api/repo`, {
+        params: {
+          url: this.repoUrl,
+        },
+      });
       console.log(res.data);
       return res.data.tree;
     },
     async createCity() {
-      // const repo = "thalida/thalida.com";
-      // const repo = "xtream1101/scraperx";
-      const repo = "facebook/react";
-      let dirTree = await this.getRepoDirTree(repo);
+      let dirTree = await this.getRepoDirTree();
       const neighborhood = this.generateNeighborhood(dirTree, ["."]);
       const city = {
         path: "thalida.com",

@@ -19,6 +19,11 @@ app = Flask(__name__)
 cors = CORS(app, resources={r"*": {"origins": "*"}})
 
 
+@app.errorhandler(400)
+def resource_not_found(e):
+    return jsonify(error=str(e)), 400
+
+
 @app.route("/api/repo", methods=["GET"])
 def get_repo():
     repo_url = request.args.get("url")
@@ -27,7 +32,7 @@ def get_repo():
         return make_response(jsonify(response))
     except Exception as e:
         logger.exception(e)
-        abort(500)
+        abort(400, description=str(e))
 
 
 if __name__ == "__main__":
