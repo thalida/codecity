@@ -65,7 +65,9 @@ export default defineComponent({
       return res.data;
     },
     async createCity() {
-      const repo = "thalida.com";
+      // const repo = "thalida/thalida.com";
+      // const repo = "xtream1101/scraperx";
+      const repo = "facebook/react";
       let dirTree = await this.getRepoDirTree(repo);
       const neighborhood = this.generateNeighborhood(dirTree, ["."]);
       const city = {
@@ -111,7 +113,7 @@ export default defineComponent({
         } else {
           node.neighborhood = this.generateNeighborhood(
             dirTree,
-            node.children,
+            node.child_paths,
             depth + 1
           );
           node.render = this.getNeighborhoodRender(node);
@@ -189,7 +191,7 @@ export default defineComponent({
     },
 
     getNeighborhoodRender(node: any) {
-      const blockComplexity = Math.ceil(Math.log(node.stats.num_descendants));
+      const blockComplexity = Math.ceil(Math.log(node.tree_stats.num_descendants));
 
       let render = {
         position: { x: 0, y: 0, z: 0 },
@@ -304,8 +306,8 @@ export default defineComponent({
         g: Math.floor(Math.random() * 255),
         b: Math.floor(Math.random() * 255),
       };
-      let propertyHeight = node.blob.stats
-        ? Math.ceil(Math.log(node.blob.stats.num_lines))
+      let propertyHeight = node.file_stats.num_lines
+        ? Math.ceil(Math.log(node.file_stats.num_lines))
         : this.basePropertyDimensions.height;
       if (propertyHeight < this.basePropertyDimensions.height) {
         propertyHeight = this.basePropertyDimensions.height;

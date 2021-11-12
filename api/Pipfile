@@ -11,6 +11,7 @@ emoji = "*"
 nltk = "*"
 python-dateutil = "*"
 python-dotenv = "*"
+gitpython = "*"
 
 [dev-packages]
 

@@ -5,7 +5,7 @@ from pprint import pprint
 from copy import deepcopy
 
 import codecity.helpers
-from codecity.api import GithubApi
+from codecity.api import GithubApi, GitPython
 
 class CodeWorld:
     def __init__(
@@ -19,8 +19,9 @@ class CodeWorld:
         self.cities = {}
 
     def get_or_create_city(self, repo_name):
-        if repo_name not in self.cities:
-            self.cities[repo_name] = CodeCity(self, repo_name)
+        self.cities[repo_name] = CodeCity(self, repo_name)
+        # if repo_name not in self.cities:
+        #     self.cities[repo_name] = CodeCity(self, repo_name)
 
         return self.cities[repo_name]
 
@@ -55,61 +56,64 @@ class CodeCity(CodeWorld):
         self.repo_info = res
 
     def fetch_repo_tree(self, tree=None, parent_path="."):
-        default_tree_stats = {
-            "num_ancestors": len(parent_path.split("/")) + 1 if parent_path != '.' else 1,
-
-            "num_children": 0,
-            "num_child_types": { "tree": 0, "blob": 0 },
-
-            "num_descendants": 0,
-            "num_descendant_types": { "tree": 0, "blob": 0 },
-        }
-
-        if tree is None:
-            tree = {}
-            tree[parent_path] = {
-                "type": "tree",
-                "parent_path": None,
-                "path": parent_path,
-                "children": [],
-                "stats": deepcopy(default_tree_stats),
-            }
-
-        try:
-            src_tree = self.api.get("tree", variables={
-                **self.base_api_vars,
-                "path": parent_path,
-            })
-        except Exception as e:
-            print(f"Error fetching tree {parent_path}: {e}")
-            return tree
-
-        for node in src_tree:
-            node_path = node.get("path")
-            node_type = node.get("type")
-
-            tree[node_path] = {
-                **node,
-                "parent_path": parent_path,
-                "children": [],
-                "stats": deepcopy(default_tree_stats),
-            }
-
-            if node_type == "tree":
-                child_tree = self.fetch_repo_tree(tree=deepcopy(tree), parent_path=node_path)
-                tree |= child_tree
-            else:
-                tree[node_path]["blob"] = self.fetch_blob(node_path)
-
-            tree[parent_path]["children"].append(node_path)
-            tree[parent_path]["stats"]["num_children"] += 1
-            tree[parent_path]["stats"]["num_child_types"][node_type] += 1
-            tree[parent_path]["stats"]["num_descendants"] += 1 + tree[node_path]["stats"]["num_descendants"]
-            tree[parent_path]["stats"]["num_descendant_types"][node_type] += 1
-            tree[parent_path]["stats"]["num_descendant_types"]["tree"] += tree[node_path]["stats"]["num_descendant_types"]["tree"]
-            tree[parent_path]["stats"]["num_descendant_types"]["blob"] += tree[node_path]["stats"]["num_descendant_types"]["blob"]
-
+        repo = GitPython.fetchRepo(f'{self.world.owner}/{self.repo_name}')
+        tree = GitPython.getRepoTree(repo)
         return tree
+        # default_tree_stats = {
+        #     "num_ancestors": len(parent_path.split("/")) + 1 if parent_path != '.' else 1,
+
+        #     "num_children": 0,
+        #     "num_child_types": { "tree": 0, "blob": 0 },
+
+        #     "num_descendants": 0,
+        #     "num_descendant_types": { "tree": 0, "blob": 0 },
+        # }
+
+        # if tree is None:
+        #     tree = {}
+        #     tree[parent_path] = {
+        #         "type": "tree",
+        #         "parent_path": None,
+        #         "path": parent_path,
+        #         "children": [],
+        #         "stats": deepcopy(default_tree_stats),
+        #     }
+
+        # try:
+        #     src_tree = self.api.get("tree", variables={
+        #         **self.base_api_vars,
+        #         "path": parent_path,
+        #     })
+        # except Exception as e:
+        #     print(f"Error fetching tree {parent_path}: {e}")
+        #     return tree
+
+        # for node in src_tree:
+        #     node_path = node.get("path")
+        #     node_type = node.get("type")
+
+        #     tree[node_path] = {
+        #         **node,
+        #         "parent_path": parent_path,
+        #         "children": [],
+        #         "stats": deepcopy(default_tree_stats),
+        #     }
+
+        #     if node_type == "tree":
+        #         child_tree = self.fetch_repo_tree(tree=deepcopy(tree), parent_path=node_path)
+        #         tree |= child_tree
+        #     else:
+        #         tree[node_path]["blob"] = self.fetch_blob(node_path)
+
+        #     tree[parent_path]["children"].append(node_path)
+        #     tree[parent_path]["stats"]["num_children"] += 1
+        #     tree[parent_path]["stats"]["num_child_types"][node_type] += 1
+        #     tree[parent_path]["stats"]["num_descendants"] += 1 + tree[node_path]["stats"]["num_descendants"]
+        #     tree[parent_path]["stats"]["num_descendant_types"][node_type] += 1
+        #     tree[parent_path]["stats"]["num_descendant_types"]["tree"] += tree[node_path]["stats"]["num_descendant_types"]["tree"]
+        #     tree[parent_path]["stats"]["num_descendant_types"]["blob"] += tree[node_path]["stats"]["num_descendant_types"]["blob"]
+
+        # return tree
 
     def fetch_blob(self, path):
         try:
