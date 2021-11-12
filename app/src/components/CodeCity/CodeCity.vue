@@ -62,7 +62,8 @@ export default defineComponent({
     async getRepoDirTree(repo: string) {
       const loc = window.location;
       const res = await axios.get(`http://${loc.hostname}:8000/api/repos/${repo}`);
-      return res.data;
+      console.log(res.data);
+      return res.data.tree;
     },
     async createCity() {
       // const repo = "thalida/thalida.com";
