@@ -7,9 +7,9 @@
         :rotation="camera.rotation"
         :look-at="camera.lookAt"
       />
-      <Scene ref="scene" background="#ffffff">
+      <Scene ref="scene" background="#7db5dd">
         <div v-if="isReady">
-          <AmbientLight color="#eee" :intensity="0.4" />
+          <AmbientLight color="#fff7ea" :intensity="0.4" />
           <DirectionalLight
             color="#ffffff"
             :intensity="1"
@@ -18,15 +18,16 @@
             :shadow-map-size="{ width: 2048, height: 2048 }"
           />
           <Mesh ref="imesh">
-            <SphereGeometry :radius="worldSize"></SphereGeometry>
+            <SphereGeometry :radius="worldSize / 2"></SphereGeometry>
             <BasicMaterial color="#88c4ef" :props="{ side: BackSide }" />
           </Mesh>
           <Neighborhood :node="city" />
           <Plane
             :width="worldSize"
             :height="worldSize"
-            :position="{ x: 0, y: 0.4, z: 0 }"
+            :position="plane.position"
             :rotation="{ x: -Math.PI / 2 }"
+            :props="{ name: 'world-plane' }"
             receive-shadow
           >
             <StandardMaterial color="#44c560" />
@@ -72,8 +73,10 @@ interface CodeCityData {
   maxDepth: number | undefined;
   camera: any;
   light: any;
+  plane: any;
   worldSize: number;
   BackSide: any;
+  isFirstPerson: boolean;
 }
 
 export default defineComponent({
@@ -102,12 +105,14 @@ export default defineComponent({
       isReady: false,
       city: null,
       grid: { width: 3, depth: 3, height: 1, buffer: 3 },
-      basePropertyDimensions: { width: 3, depth: 3, height: 3 },
+      basePropertyDimensions: { width: 6, depth: 6, height: 3 },
       maxDepth: undefined,
       BackSide: BackSide,
       worldSize: 0,
       camera: {},
       light: {},
+      plane: {},
+      isFirstPerson: false,
     } as Partial<CodeCityData>;
   },
   async mounted() {
@@ -121,16 +126,34 @@ export default defineComponent({
     const camera = renderer.camera as ThreeCamera;
     const domElement = renderer.renderer.domElement;
     const controls = new PointerLockControls(camera, domElement);
+    const rootRoad = this.city.neighborhood.nodes[0].render.road;
+
+    this.isFirstPerson = true;
+
+    if (this.isFirstPerson) {
+      this.plane.position = { x: 0, y: 0.4, z: 0 };
+      this.camera.position = {
+        x: -1 * (rootRoad.dimensions.width / 2 - this.grid.buffer),
+        y: rootRoad.dimensions.height,
+        z: rootRoad.position.z,
+      };
+    } else {
+      this.plane.position = { x: 0, y: 0, z: 0 };
+      this.camera.position = {
+        x: -1 * (rootRoad.dimensions.width / 2 + this.grid.buffer * 2),
+        y: 50,
+        z: rootRoad.position.z,
+      };
+    }
 
     const scene = (this.$refs.scene as any).scene as ThreeScene;
-    scene.fog = new Fog(0xeeeee, 200, 500);
+    scene.fog = new Fog(0x7db5dd, 200, this.isFirstPerson ? 500 : 1500);
 
-    const rootRoad = this.city.neighborhood.nodes[0].render.road;
-    const cameraPosition = { ...rootRoad.position };
-    cameraPosition.x -= rootRoad.dimensions.width / 2 - this.grid.buffer;
-    cameraPosition.y = rootRoad.dimensions.height;
-    this.camera.position = cameraPosition;
-    this.camera.lookAt = { x: 0, y: cameraPosition.y, z: cameraPosition.z };
+    this.camera.lookAt = {
+      x: 0,
+      y: this.camera.position.y,
+      z: this.camera.position.z,
+    };
 
     this.light.position = { x: -5, y: 5, z: -5 };
 
@@ -207,15 +230,26 @@ export default defineComponent({
     renderer.onBeforeRender(() => {
       const time = performance.now();
       if (renderer.scene && controls.isLocked === true) {
-        raycaster.ray.origin.copy(camera.position);
-        const intersections = raycaster.intersectObjects(
-          renderer.scene.children,
-          true
-        );
-        const hasIntersections = intersections.length > 0;
-        const object = hasIntersections ? intersections[0].object : null;
+        let object = null;
+        let speed = 1;
+        if (this.isFirstPerson) {
+          raycaster.ray.origin.copy(camera.position);
+          const intersections = raycaster.intersectObjects(
+            renderer.scene.children,
+            true
+          );
+          const hasIntersections = intersections.length > 0;
+          object = hasIntersections ? intersections[0].object : null;
+        } else {
+          speed *= 2;
+        }
 
-        if (object !== null && object.name.indexOf("road") == 0) {
+        if (
+          !this.isFirstPerson ||
+          (object !== null &&
+            (object.name.indexOf("road") == 0 ||
+              object.name.indexOf("world-plane") == 0))
+        ) {
           const delta = (time - prevTime) / 1000;
 
           lastSafePosition = camera.position.clone();
@@ -227,8 +261,9 @@ export default defineComponent({
           direction.normalize();
 
           if (move.forward || move.backward)
-            velocity.z -= direction.z * 400.0 * delta;
-          if (move.left || move.right) velocity.x -= direction.x * 400.0 * delta;
+            velocity.z -= direction.z * 400.0 * delta * speed;
+          if (move.left || move.right)
+            velocity.x -= direction.x * 400.0 * delta * speed;
 
           controls.moveRight(-velocity.x * delta);
           controls.moveForward(-velocity.z * delta);
@@ -255,7 +290,7 @@ export default defineComponent({
       let dirTree = await this.getRepoDirTree();
       const neighborhood = this.generateNeighborhood(dirTree, ["."]);
       const city = {
-        path: "thalida.com",
+        path: this.repoUrl,
         neighborhood,
         render: {
           position: { x: 0, y: 0, z: 0 },
@@ -482,8 +517,13 @@ export default defineComponent({
       const foundation = {
         color: `rgb(${foundationColorG}, ${foundationColorG}, ${foundationColorG})`,
         dimensions: {
-          width: this.grid.width * 2,
-          depth: this.grid.depth * 2,
+          width:
+            this.basePropertyDimensions.width +
+            this.basePropertyDimensions.width / 2,
+          depth:
+            this.basePropertyDimensions.depth +
+            this.basePropertyDimensions.depth / 2,
+
           height: this.grid.height,
         },
         position: { x: 0, y: 0, z: 0 },
@@ -494,7 +534,7 @@ export default defineComponent({
         b: Math.floor(Math.random() * 255),
       };
       let propertyHeight = node.file_stats.num_lines
-        ? Math.ceil(Math.log(node.file_stats.num_lines)) * 2
+        ? Math.ceil(Math.log(node.file_stats.num_lines)) * 4
         : this.basePropertyDimensions.height;
       if (propertyHeight < this.basePropertyDimensions.height) {
         propertyHeight = this.basePropertyDimensions.height;
