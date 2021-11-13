@@ -3,6 +3,7 @@
     :ref="`building-${node.path}`"
     :position="node.render.position"
     :rotation="node.render.rotation"
+    :props="{ name: `building:${node.path}` }"
   >
     <Box
       :ref="`building-${node.path}__foundation`"
@@ -10,6 +11,7 @@
       :width="node.render.foundation.dimensions.width"
       :depth="node.render.foundation.dimensions.depth"
       :position="node.render.foundation.position"
+      :props="{ name: `building__foundation:${node.path}` }"
     >
       <ToonMaterial :color="node.render.foundation.color" />
     </Box>
@@ -19,6 +21,7 @@
       :width="node.render.property.dimensions.width"
       :depth="node.render.property.dimensions.depth"
       :position="node.render.property.position"
+      :props="{ name: `building__property:${node.path}` }"
     >
       <ToonMaterial :color="node.render.property.color" />
     </Box>

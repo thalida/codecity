@@ -1,8 +1,9 @@
 <template>
   <Group
-    :ref="`neighborhood-${node.path}`"
+    :ref="`neighborhood:${node.path}`"
     :position="node.render.position"
     :rotation="node.render.rotation"
+    :props="{ name: node.path }"
   >
     <!-- <Box
       :ref="`block-${node.path}__district`"

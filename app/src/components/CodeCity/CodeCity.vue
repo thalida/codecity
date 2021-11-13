@@ -1,15 +1,34 @@
 <template>
-  <div class="codecity" v-if="isReady">
-    <Renderer ref="renderer" resize antialias pointer :orbit-ctrl="{}">
-      <Camera :position="camera.position" :rotation="camera.rotation" />
+  <div class="codecity">
+    <div class="cursor"></div>
+    <Renderer ref="renderer" resize antialias pointer>
+      <Camera
+        :position="camera.position"
+        :rotation="camera.rotation"
+        :look-at="camera.lookAt"
+      />
       <Scene background="#ffffff">
         <AmbientLight color="#ffffff" :intensity="0.8" />
         <DirectionalLight
-          color="#ffff00"
+          color="#ffffff"
           :intensity="1"
           :position="{ x: 10, y: 10, z: 10 }"
         />
-        <Neighborhood :node="city" />
+        <Mesh ref="imesh">
+          <SphereGeometry :radius="400"></SphereGeometry>
+          <BasicMaterial color="#88c4ef" :props="{ side: BackSide }" />
+        </Mesh>
+        <Plane
+          :width="1000"
+          :height="1000"
+          :position="{ x: 0, y: 0.4, z: 0 }"
+          :rotation="{ x: -Math.PI / 2 }"
+        >
+          <ToonMaterial color="#44c560" />
+        </Plane>
+        <div v-if="isReady">
+          <Neighborhood :node="city" />
+        </div>
       </Scene>
     </Renderer>
   </div>
@@ -18,10 +37,24 @@
 <script lang="ts">
 import { defineComponent } from "vue";
 import axios from "axios";
-import { Camera, AmbientLight, DirectionalLight, Renderer, Scene } from "troisjs";
+import {
+  Camera,
+  AmbientLight,
+  DirectionalLight,
+  Renderer,
+  Scene,
+  RendererPublicInterface,
+  Plane,
+  Mesh,
+  SphereGeometry,
+  BasicMaterial,
+  ToonMaterial,
+} from "troisjs";
+import { Camera as ThreeCamera, Vector3, Raycaster, BackSide } from "three";
+// import { FirstPersonControls } from "three/examples/jsm/controls/FirstPersonControls.js";
+import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import Neighborhood from "@/components/CodeCity/Neighborhood.vue";
 import { sumObj } from "@/helpers";
-
 interface CodeCityData {
   isReady: boolean;
   city: any;
@@ -29,17 +62,23 @@ interface CodeCityData {
   basePropertyDimensions: any;
   maxDepth: number | undefined;
   camera: any;
+  BackSide: any;
 }
 
 export default defineComponent({
   name: "CodeCity",
   components: {
     Neighborhood,
-    Camera,
-    AmbientLight,
-    DirectionalLight,
     Renderer,
     Scene,
+    Camera,
+    Plane,
+    Mesh,
+    SphereGeometry,
+    BasicMaterial,
+    ToonMaterial,
+    AmbientLight,
+    DirectionalLight,
   },
   props: {
     repoUrl: {
@@ -54,14 +93,130 @@ export default defineComponent({
       grid: { width: 3, depth: 3, height: 1, buffer: 3 },
       basePropertyDimensions: { width: 1, depth: 1, height: 1 },
       maxDepth: undefined,
+      BackSide: BackSide,
       camera: {},
     } as Partial<CodeCityData>;
   },
   async mounted() {
     this.city = await this.createCity();
     this.isReady = true;
-    this.camera.position = { x: 0, y: 500, z: 0 };
-    // this.camera.position = { x: 0, y: 0, z: 100 };
+    const renderer = this.$refs.renderer as RendererPublicInterface;
+    const camera = renderer.camera as ThreeCamera;
+    const domElement = renderer.renderer.domElement;
+    const controls = new PointerLockControls(camera, domElement);
+
+    const rootRoad = this.city.neighborhood.nodes[0].render.road;
+    const cameraPosition = { ...rootRoad.position };
+    cameraPosition.y = rootRoad.dimensions.height * 2;
+    cameraPosition.x -= rootRoad.dimensions.width / 2 - this.grid.buffer;
+    this.camera.position = cameraPosition;
+    this.camera.lookAt = { x: 0, y: cameraPosition.y, z: cameraPosition.z };
+
+    let prevTime = performance.now() as number;
+    const velocity = new Vector3();
+    const direction = new Vector3();
+    const raycaster = new Raycaster(new Vector3(), new Vector3(0, -1, 0), 0, 10);
+
+    const move = {
+      forward: false,
+      backward: false,
+      left: false,
+      right: false,
+    };
+
+    const onKeyDown = function (event: KeyboardEvent) {
+      if (typeof renderer.scene === "undefined") {
+        return;
+      }
+      switch (event.code) {
+        case "ArrowUp":
+        case "KeyW":
+          move.forward = true;
+          break;
+
+        case "ArrowLeft":
+        case "KeyA":
+          move.left = true;
+          break;
+
+        case "ArrowDown":
+        case "KeyS":
+          move.backward = true;
+          break;
+
+        case "ArrowRight":
+        case "KeyD":
+          move.right = true;
+          break;
+      }
+    };
+
+    const onKeyUp = function (event: KeyboardEvent) {
+      switch (event.code) {
+        case "ArrowUp":
+        case "KeyW":
+          move.forward = false;
+          break;
+
+        case "ArrowLeft":
+        case "KeyA":
+          move.left = false;
+          break;
+
+        case "ArrowDown":
+        case "KeyS":
+          move.backward = false;
+          break;
+
+        case "ArrowRight":
+        case "KeyD":
+          move.right = false;
+          break;
+      }
+    };
+
+    domElement.addEventListener("click", function () {
+      controls.lock();
+    });
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
+
+    let lastSafePosition = camera.position;
+    renderer.onBeforeRender(() => {
+      const time = performance.now();
+      if (renderer.scene && controls.isLocked === true) {
+        raycaster.ray.origin.copy(camera.position);
+        const intersections = raycaster.intersectObjects(
+          renderer.scene.children,
+          true
+        );
+        const hasIntersections = intersections.length > 0;
+        const object = hasIntersections ? intersections[0].object : null;
+
+        if (object !== null && object.name.indexOf("road") == 0) {
+          const delta = (time - prevTime) / 1000;
+
+          lastSafePosition = camera.position.clone();
+          velocity.x -= velocity.x * 10.0 * delta;
+          velocity.z -= velocity.z * 10.0 * delta;
+
+          direction.z = Number(move.forward) - Number(move.backward);
+          direction.x = Number(move.right) - Number(move.left);
+          direction.normalize();
+
+          if (move.forward || move.backward)
+            velocity.z -= direction.z * 400.0 * delta;
+          if (move.left || move.right) velocity.x -= direction.x * 400.0 * delta;
+
+          controls.moveRight(-velocity.x * delta);
+          controls.moveForward(-velocity.z * delta);
+        } else {
+          camera.position.copy(lastSafePosition);
+        }
+      }
+
+      prevTime = time;
+    });
     console.log(this.city);
   },
   methods: {
@@ -72,7 +227,6 @@ export default defineComponent({
           url: this.repoUrl,
         },
       });
-      console.log(res.data);
       return res.data.tree;
     },
     async createCity() {
@@ -182,6 +336,8 @@ export default defineComponent({
         j += 1;
       }
 
+      neighborhood.plannedIntersections = plannedIntersections;
+
       neighborhood.render.maxSideWidth = Math.max(
         ...(Object.values(neighborhood.render.sideWidth) as number[])
       );
@@ -209,6 +365,7 @@ export default defineComponent({
         buffer: this.grid.buffer,
         intersectionBuffer: 0,
         road: {
+          parentPath: node.path,
           dimensions: {
             width: 0,
             depth: this.getRoadDepth(blockComplexity),
@@ -261,13 +418,13 @@ export default defineComponent({
           const intersection = {
             node: [childNode.path],
             render: {
-              position: { x: 0, y: 0, z: 0 },
+              position: { x: 0, y: 0.5, z: 0 },
               dimensions: {
                 width: childNode.render.road.dimensions.depth,
                 depth: render.road.dimensions.depth,
-                height: render.road.dimensions.height,
+                height: 0.1,
               },
-              color: "#fff",
+              color: "#eee",
             },
           };
 
@@ -397,5 +554,15 @@ export default defineComponent({
 .codecity {
   width: 100vw;
   height: 100vh;
+  .cursor {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    width: 5px;
+    height: 5px;
+    background: rgba(255, 0, 0, 0.5);
+  }
 }
 </style>

@@ -1,11 +1,16 @@
 <template>
-  <Group :ref="`block-road`" :position="road.position">
+  <Group
+    :ref="`block-road`"
+    :position="road.position"
+    :props="{ name: `road:${road.parentPath}` }"
+  >
     <Box
       :height="road.dimensions.height"
       :width="road.dimensions.width"
       :depth="road.dimensions.depth"
+      :props="{ name: `road__regular:${road.parentPath}` }"
     >
-      <ToonMaterial color="#333" :props="{ transparent: true, opacity: 0.5 }" />
+      <ToonMaterial color="#333" :props="{ transparent: false, opacity: 1 }" />
     </Box>
     <Box
       v-for="(intersection, index) in road.intersections"
@@ -15,10 +20,11 @@
       :width="intersection.render.dimensions.width"
       :depth="intersection.render.dimensions.depth"
       :position="intersection.render.position"
+      :props="{ name: `road__intersection:${road.parentPath}` }"
     >
       <ToonMaterial
         :color="intersection.render.color"
-        :props="{ transparent: true, opacity: 0.5 }"
+        :props="{ transparent: false, opacity: 1 }"
       />
     </Box>
   </Group>

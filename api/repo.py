@@ -62,7 +62,7 @@ def get_repo(repo_url):
         raise Exception(f"Invalid repo url: {repo_url}")
 
     safe_repo_url = base64.b64encode(repo_url.encode("utf-8")).decode("utf-8")
-    cache_dir = f"./cache/{safe_repo_url}"
+    cache_dir = f"/tmp/codecity/cache/{safe_repo_url}"
 
     cache_file = pathlib.Path(f"{cache_dir}/repo_data.json")
     cached_at = cache_file.stat().st_mtime if cache_file.exists() else None
