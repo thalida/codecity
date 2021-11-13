@@ -18,7 +18,7 @@
             :shadow-map-size="{ width: 2048, height: 2048 }"
           />
           <Mesh ref="imesh">
-            <SphereGeometry :radius="worldSize / 2"></SphereGeometry>
+            <SphereGeometry :radius="worldSize"></SphereGeometry>
             <BasicMaterial color="#88c4ef" :props="{ side: BackSide }" />
           </Mesh>
           <Neighborhood :node="city" />
@@ -128,7 +128,7 @@ export default defineComponent({
     const controls = new PointerLockControls(camera, domElement);
     const rootRoad = this.city.neighborhood.nodes[0].render.road;
 
-    this.isFirstPerson = true;
+    // this.isFirstPerson = true;
 
     if (this.isFirstPerson) {
       this.plane.position = { x: 0, y: 0.4, z: 0 };
@@ -141,7 +141,7 @@ export default defineComponent({
       this.plane.position = { x: 0, y: 0, z: 0 };
       this.camera.position = {
         x: -1 * (rootRoad.dimensions.width / 2 + this.grid.buffer * 2),
-        y: 50,
+        y: 60,
         z: rootRoad.position.z,
       };
     }
@@ -512,29 +512,13 @@ export default defineComponent({
     },
 
     getBuildingRender(node: any) {
-      const foundationColorG = Math.floor(Math.random() * 255);
-      // const foundationColorB = Math.floor(foundationColorG / 2);
-      const foundation = {
-        color: `rgb(${foundationColorG}, ${foundationColorG}, ${foundationColorG})`,
-        dimensions: {
-          width:
-            this.basePropertyDimensions.width +
-            this.basePropertyDimensions.width / 2,
-          depth:
-            this.basePropertyDimensions.depth +
-            this.basePropertyDimensions.depth / 2,
-
-          height: this.grid.height,
-        },
-        position: { x: 0, y: 0, z: 0 },
-      };
       const propertyColors = {
         r: Math.floor(Math.random() * 255),
         g: Math.floor(Math.random() * 255),
         b: Math.floor(Math.random() * 255),
       };
       let propertyHeight = node.file_stats.num_lines
-        ? Math.ceil(Math.log(node.file_stats.num_lines)) * 4
+        ? Math.ceil(Math.log(node.file_stats.num_lines) / Math.log(3)) * 4
         : this.basePropertyDimensions.height;
       if (propertyHeight < this.basePropertyDimensions.height) {
         propertyHeight = this.basePropertyDimensions.height;
@@ -543,8 +527,8 @@ export default defineComponent({
       let property = {
         color: `rgb(${propertyColors.r}, ${propertyColors.g}, ${propertyColors.b})`,
         dimensions: {
-          width: this.basePropertyDimensions.width,
-          depth: this.basePropertyDimensions.depth,
+          width: propertyHeight / 4,
+          depth: propertyHeight / 4,
           height: propertyHeight,
         },
         position: {
@@ -552,6 +536,17 @@ export default defineComponent({
           y: propertyHeight / 2,
           z: 0,
         },
+      };
+
+      const foundationColorG = Math.floor(Math.random() * 255);
+      const foundation = {
+        color: `rgb(${foundationColorG}, ${foundationColorG}, ${foundationColorG})`,
+        dimensions: {
+          width: property.dimensions.width + property.dimensions.width / 2,
+          depth: property.dimensions.depth + property.dimensions.depth / 2,
+          height: this.grid.height,
+        },
+        position: { x: 0, y: 0, z: 0 },
       };
 
       let render = {
