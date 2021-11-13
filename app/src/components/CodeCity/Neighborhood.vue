@@ -5,15 +5,6 @@
     :rotation="node.render.rotation"
     :props="{ name: node.path }"
   >
-    <!-- <Box
-      :ref="`block-${node.path}__district`"
-      :width="node.dimensions.width"
-      :depth="node.dimensions.depth"
-      :height="1"
-      :rotation="node.rotation"
-    >
-      <ToonMaterial color="#ff0000" :props="{ transparent: true, opacity: 0.2 }" />
-    </Box> -->
     <Road v-if="hasRoad" :road="node.render.road" />
     <div v-for="childNode in node.neighborhood.nodes" :key="childNode.path">
       <div v-if="childNode.type === 'blob'">

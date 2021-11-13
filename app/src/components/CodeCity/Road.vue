@@ -9,6 +9,7 @@
       :width="road.dimensions.width"
       :depth="road.dimensions.depth"
       :props="{ name: `road__regular:${road.parentPath}` }"
+      receive-shadow
     >
       <ToonMaterial color="#333" :props="{ transparent: false, opacity: 1 }" />
     </Box>
@@ -21,6 +22,7 @@
       :depth="intersection.render.dimensions.depth"
       :position="intersection.render.position"
       :props="{ name: `road__intersection:${road.parentPath}` }"
+      receive-shadow
     >
       <ToonMaterial
         :color="intersection.render.color"

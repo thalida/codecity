@@ -1,33 +1,36 @@
 <template>
   <div class="codecity">
     <div class="cursor"></div>
-    <Renderer ref="renderer" resize antialias pointer>
+    <Renderer ref="renderer" resize antialias pointer shadow>
       <Camera
         :position="camera.position"
         :rotation="camera.rotation"
         :look-at="camera.lookAt"
       />
-      <Scene background="#ffffff">
-        <AmbientLight color="#ffffff" :intensity="0.8" />
-        <DirectionalLight
-          color="#ffffff"
-          :intensity="1"
-          :position="{ x: 10, y: 10, z: 10 }"
-        />
-        <Mesh ref="imesh">
-          <SphereGeometry :radius="400"></SphereGeometry>
-          <BasicMaterial color="#88c4ef" :props="{ side: BackSide }" />
-        </Mesh>
-        <Plane
-          :width="1000"
-          :height="1000"
-          :position="{ x: 0, y: 0.4, z: 0 }"
-          :rotation="{ x: -Math.PI / 2 }"
-        >
-          <ToonMaterial color="#44c560" />
-        </Plane>
+      <Scene ref="scene" background="#ffffff">
         <div v-if="isReady">
+          <AmbientLight color="#eee" :intensity="0.4" />
+          <DirectionalLight
+            color="#ffffff"
+            :intensity="1"
+            :position="light.position"
+            cast-shadow
+            :shadow-map-size="{ width: 2048, height: 2048 }"
+          />
+          <Mesh ref="imesh">
+            <SphereGeometry :radius="worldSize"></SphereGeometry>
+            <BasicMaterial color="#88c4ef" :props="{ side: BackSide }" />
+          </Mesh>
           <Neighborhood :node="city" />
+          <Plane
+            :width="worldSize"
+            :height="worldSize"
+            :position="{ x: 0, y: 0.4, z: 0 }"
+            :rotation="{ x: -Math.PI / 2 }"
+            receive-shadow
+          >
+            <StandardMaterial color="#44c560" />
+          </Plane>
         </div>
       </Scene>
     </Renderer>
@@ -48,10 +51,16 @@ import {
   Mesh,
   SphereGeometry,
   BasicMaterial,
-  ToonMaterial,
+  StandardMaterial,
 } from "troisjs";
-import { Camera as ThreeCamera, Vector3, Raycaster, BackSide } from "three";
-// import { FirstPersonControls } from "three/examples/jsm/controls/FirstPersonControls.js";
+import {
+  Camera as ThreeCamera,
+  Vector3,
+  Raycaster,
+  BackSide,
+  Fog,
+  Scene as ThreeScene,
+} from "three";
 import { PointerLockControls } from "three/examples/jsm/controls/PointerLockControls.js";
 import Neighborhood from "@/components/CodeCity/Neighborhood.vue";
 import { sumObj } from "@/helpers";
@@ -62,6 +71,8 @@ interface CodeCityData {
   basePropertyDimensions: any;
   maxDepth: number | undefined;
   camera: any;
+  light: any;
+  worldSize: number;
   BackSide: any;
 }
 
@@ -76,7 +87,7 @@ export default defineComponent({
     Mesh,
     SphereGeometry,
     BasicMaterial,
-    ToonMaterial,
+    StandardMaterial,
     AmbientLight,
     DirectionalLight,
   },
@@ -91,26 +102,37 @@ export default defineComponent({
       isReady: false,
       city: null,
       grid: { width: 3, depth: 3, height: 1, buffer: 3 },
-      basePropertyDimensions: { width: 1, depth: 1, height: 1 },
+      basePropertyDimensions: { width: 3, depth: 3, height: 3 },
       maxDepth: undefined,
       BackSide: BackSide,
+      worldSize: 0,
       camera: {},
+      light: {},
     } as Partial<CodeCityData>;
   },
   async mounted() {
     this.city = await this.createCity();
+    this.worldSize = Math.max(
+      this.city.neighborhood.render.dimensions.width,
+      this.city.neighborhood.render.dimensions.depth
+    );
     this.isReady = true;
     const renderer = this.$refs.renderer as RendererPublicInterface;
     const camera = renderer.camera as ThreeCamera;
     const domElement = renderer.renderer.domElement;
     const controls = new PointerLockControls(camera, domElement);
 
+    const scene = (this.$refs.scene as any).scene as ThreeScene;
+    scene.fog = new Fog(0xeeeee, 200, 500);
+
     const rootRoad = this.city.neighborhood.nodes[0].render.road;
     const cameraPosition = { ...rootRoad.position };
-    cameraPosition.y = rootRoad.dimensions.height * 2;
     cameraPosition.x -= rootRoad.dimensions.width / 2 - this.grid.buffer;
+    cameraPosition.y = rootRoad.dimensions.height;
     this.camera.position = cameraPosition;
     this.camera.lookAt = { x: 0, y: cameraPosition.y, z: cameraPosition.z };
+
+    this.light.position = { x: -5, y: 5, z: -5 };
 
     let prevTime = performance.now() as number;
     const velocity = new Vector3();
@@ -424,7 +446,7 @@ export default defineComponent({
                 depth: render.road.dimensions.depth,
                 height: 0.1,
               },
-              color: "#eee",
+              color: "#666",
             },
           };
 
@@ -456,12 +478,12 @@ export default defineComponent({
 
     getBuildingRender(node: any) {
       const foundationColorG = Math.floor(Math.random() * 255);
-      const foundationColorB = Math.floor(foundationColorG / 2);
+      // const foundationColorB = Math.floor(foundationColorG / 2);
       const foundation = {
-        color: `rgb(0, ${foundationColorG}, ${foundationColorB})`,
+        color: `rgb(${foundationColorG}, ${foundationColorG}, ${foundationColorG})`,
         dimensions: {
-          width: this.grid.width,
-          depth: this.grid.depth,
+          width: this.grid.width * 2,
+          depth: this.grid.depth * 2,
           height: this.grid.height,
         },
         position: { x: 0, y: 0, z: 0 },
@@ -472,7 +494,7 @@ export default defineComponent({
         b: Math.floor(Math.random() * 255),
       };
       let propertyHeight = node.file_stats.num_lines
-        ? Math.ceil(Math.log(node.file_stats.num_lines))
+        ? Math.ceil(Math.log(node.file_stats.num_lines)) * 2
         : this.basePropertyDimensions.height;
       if (propertyHeight < this.basePropertyDimensions.height) {
         propertyHeight = this.basePropertyDimensions.height;
@@ -531,11 +553,11 @@ export default defineComponent({
     getRoadDepth(blockComplexity: number) {
       let roadDepth;
       if (blockComplexity <= 2) {
-        roadDepth = 1;
-      } else if (blockComplexity > 2 && blockComplexity < 6) {
         roadDepth = 2;
+      } else if (blockComplexity > 2 && blockComplexity < 6) {
+        roadDepth = 4;
       } else {
-        roadDepth = 3;
+        roadDepth = 6;
       }
       roadDepth *= this.grid.depth;
 
@@ -562,7 +584,7 @@ export default defineComponent({
 
     width: 5px;
     height: 5px;
-    background: rgba(255, 0, 0, 0.5);
+    background: rgba(255, 255, 255, 0.5);
   }
 }
 </style>

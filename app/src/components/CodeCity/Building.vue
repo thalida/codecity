@@ -6,24 +6,27 @@
     :props="{ name: `building:${node.path}` }"
   >
     <Box
-      :ref="`building-${node.path}__foundation`"
-      :height="node.render.foundation.dimensions.height"
-      :width="node.render.foundation.dimensions.width"
-      :depth="node.render.foundation.dimensions.depth"
-      :position="node.render.foundation.position"
-      :props="{ name: `building__foundation:${node.path}` }"
-    >
-      <ToonMaterial :color="node.render.foundation.color" />
-    </Box>
-    <Box
       :ref="`building-${node.path}__property`"
       :height="node.render.property.dimensions.height"
       :width="node.render.property.dimensions.width"
       :depth="node.render.property.dimensions.depth"
       :position="node.render.property.position"
       :props="{ name: `building__property:${node.path}` }"
+      :cast-shadow="true"
+      :receive-shadow="true"
     >
       <ToonMaterial :color="node.render.property.color" />
+    </Box>
+    <Box
+      :ref="`building-${node.path}__foundation`"
+      :height="node.render.foundation.dimensions.height"
+      :width="node.render.foundation.dimensions.width"
+      :depth="node.render.foundation.dimensions.depth"
+      :position="node.render.foundation.position"
+      :props="{ name: `building__foundation:${node.path}` }"
+      :receive-shadow="true"
+    >
+      <ToonMaterial :color="node.render.foundation.color" />
     </Box>
   </Group>
 </template>
