@@ -1,7 +1,7 @@
 <template>
   <div class="codecity">
     <div class="cursor"></div>
-    <Renderer ref="renderer" resize antialias pointer shadow>
+    <Renderer ref="renderer" resize antialias pointer>
       <Camera
         :position="camera.position"
         :rotation="camera.rotation"
@@ -9,13 +9,14 @@
       />
       <Scene ref="scene" background="#7db5dd">
         <div v-if="isReady">
-          <AmbientLight color="#fff7ea" :intensity="0.4" />
+          <AmbientLight color="#ffffff" :intensity="0.5" />
           <DirectionalLight
             color="#ffffff"
-            :intensity="1"
+            :intensity="0.5"
             :position="light.position"
             cast-shadow
             :shadow-map-size="{ width: 2048, height: 2048 }"
+            :shadow-camera="shadowCamera"
           />
           <Mesh ref="imesh">
             <SphereGeometry :radius="worldSize"></SphereGeometry>
@@ -43,8 +44,8 @@ import { defineComponent } from "vue";
 import axios from "axios";
 import {
   Camera,
-  AmbientLight,
   DirectionalLight,
+  AmbientLight,
   Renderer,
   Scene,
   RendererPublicInterface,
@@ -76,6 +77,7 @@ interface CodeCityData {
   plane: any;
   worldSize: number;
   BackSide: any;
+  shadowCamera: any;
   isFirstPerson: boolean;
 }
 
@@ -91,8 +93,8 @@ export default defineComponent({
     SphereGeometry,
     BasicMaterial,
     StandardMaterial,
-    AmbientLight,
     DirectionalLight,
+    AmbientLight,
   },
   props: {
     repoUrl: {
@@ -110,6 +112,7 @@ export default defineComponent({
       BackSide: BackSide,
       worldSize: 0,
       camera: {},
+      shadowCamera: {},
       light: {},
       plane: {},
       isFirstPerson: false,
@@ -128,7 +131,7 @@ export default defineComponent({
     const controls = new PointerLockControls(camera, domElement);
     const rootRoad = this.city.neighborhood.nodes[0].render.road;
 
-    // this.isFirstPerson = true;
+    this.isFirstPerson = true;
 
     if (this.isFirstPerson) {
       this.plane.position = { x: 0, y: 0.4, z: 0 };
@@ -146,6 +149,17 @@ export default defineComponent({
       };
     }
 
+    const d: number = this.worldSize;
+    this.shadowCamera = {
+      left: -1 * d,
+      right: d,
+      top: d,
+      bottom: -1 * d,
+      near: 0.1,
+      far: d,
+      bias: 0.001,
+    };
+
     const scene = (this.$refs.scene as any).scene as ThreeScene;
     scene.fog = new Fog(0x7db5dd, 200, this.isFirstPerson ? 500 : 1500);
 
@@ -154,8 +168,10 @@ export default defineComponent({
       y: this.camera.position.y,
       z: this.camera.position.z,
     };
-
-    this.light.position = { x: -5, y: 5, z: -5 };
+    this.light.position = { ...this.camera.position };
+    // this.light.position = { x: 0, y: 5, z: 20 };
+    // this.light.position = { x: -20, y: 5, z: -20 };
+    // this.light.position = { x: -20, y: 100, z: -20 };
 
     let prevTime = performance.now() as number;
     const velocity = new Vector3();
@@ -512,11 +528,6 @@ export default defineComponent({
     },
 
     getBuildingRender(node: any) {
-      const propertyColors = {
-        r: Math.floor(Math.random() * 255),
-        g: Math.floor(Math.random() * 255),
-        b: Math.floor(Math.random() * 255),
-      };
       let propertyHeight = node.file_stats.num_lines
         ? Math.ceil(Math.log(node.file_stats.num_lines) / Math.log(3)) * 4
         : this.basePropertyDimensions.height;
@@ -525,7 +536,6 @@ export default defineComponent({
       }
 
       let property = {
-        color: `rgb(${propertyColors.r}, ${propertyColors.g}, ${propertyColors.b})`,
         dimensions: {
           width: propertyHeight / 4,
           depth: propertyHeight / 4,
@@ -538,9 +548,7 @@ export default defineComponent({
         },
       };
 
-      const foundationColorG = Math.floor(Math.random() * 255);
       const foundation = {
-        color: `rgb(${foundationColorG}, ${foundationColorG}, ${foundationColorG})`,
         dimensions: {
           width: property.dimensions.width + property.dimensions.width / 2,
           depth: property.dimensions.depth + property.dimensions.depth / 2,

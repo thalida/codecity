@@ -15,7 +15,7 @@
       :cast-shadow="true"
       :receive-shadow="true"
     >
-      <ToonMaterial :color="node.render.property.color" />
+      <ToonMaterial :color="buildingColor" :props="buildingMaterialProps" />
     </Box>
     <Box
       :ref="`building-${node.path}__foundation`"
@@ -26,7 +26,7 @@
       :props="{ name: `building__foundation:${node.path}` }"
       :receive-shadow="true"
     >
-      <ToonMaterial :color="node.render.foundation.color" />
+      <ToonMaterial :color="foundationColor" />
     </Box>
   </Group>
 </template>
@@ -46,6 +46,67 @@ export default defineComponent({
     node: {
       type: Object,
       required: true,
+    },
+  },
+  data() {
+    return {
+      buildingColor: "",
+      foundationColor: "",
+      buildingMaterialProps: {},
+    };
+  },
+  mounted() {
+    // this.buildingMaterialProps = { metalness: 0.8, roughness: 0.5 };
+    // this.buildingMaterialProps = { shininess: 1, flatShading: false };
+
+    const extGroup: { [index: string]: string } = {
+      ts: "js",
+      js: "js",
+      jsx: "js",
+      vue: "js",
+      css: "css",
+      html: "html",
+      md: "md",
+    };
+    const colorRanges: { [index: string]: any[] } = {
+      js: [
+        [50, 120, 255],
+        [150, 120, 255],
+      ],
+      css: [
+        [120, 50, 120],
+        [170, 50, 120],
+      ],
+      html: [
+        [100, 50, 120],
+        [0, 50, 120],
+      ],
+      md: [
+        [100, 120, 120],
+        [0, 120, 120],
+      ],
+    };
+    this.foundationColor = "rgb(127, 127, 127)";
+    const ext = this.node.suffix.replace(/^\./, "");
+    if (ext in extGroup) {
+      const range = colorRanges[extGroup[ext]];
+      const r = this.randomIntFromInterval(range[0][0], range[1][0]);
+      const g = this.randomIntFromInterval(range[0][1], range[1][1]);
+      const b = this.randomIntFromInterval(range[0][2], range[1][2]);
+      this.buildingColor = `rgb(${r},${g},${b})`;
+    } else {
+      console.log(ext);
+    }
+
+    // const propertyColors = {
+    //   r: Math.floor(Math.random() * 255),
+    //   g: Math.floor(Math.random() * 255),
+    //   b: Math.floor(Math.random() * 255),
+    // };
+  },
+  methods: {
+    randomIntFromInterval(min: number, max: number) {
+      return Math.floor(Math.random() * (max - min + 1) + min);
     },
   },
 });
