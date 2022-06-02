@@ -12,7 +12,7 @@ function getIntersectionPosition(intersection) {
 </script>
 
 <template>
-  <a-entity :position="roadPosition">
+  <a-entity :position="roadPosition" shadow="cast:false; receive: true">
     <a-box color="gray" :width="roadDimensions.width" :height="roadDimensions.height" :depth="roadDimensions.depth">
     </a-box>
     <a-entity v-for="(intersection, idx) in road.intersections" :key="idx">

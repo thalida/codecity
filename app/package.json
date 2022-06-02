@@ -10,7 +10,9 @@
   },
   "dependencies": {
     "aframe": "^1.3.0",
+    "aframe-gradient-sky": "^1.0.4",
     "aframe-orbit-controls": "^1.3.0",
+    "aframe-simple-sun-sky": "^1.2.2",
     "axios": "^0.27.2",
     "pinia": "^2.0.13",
     "three": "^0.141.0",

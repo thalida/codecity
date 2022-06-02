@@ -17,9 +17,9 @@ const nodeRotation = `${props.node.render.rotation.x} ${props.node.render.rotati
 <template>
   <a-entity :position="nodePosition" :rotation="nodeRotation">
     <RenderRoad v-if="hasRoad" :road="props.node.render.road" />
-    <a-entity v-for="childNode in node.neighborhood.nodes" :key="childNode.path">
+    <a-entity v-for="childNode in node.directory.nodes" :key="childNode.path">
       <RenderBuilding v-if="childNode.type === 'blob'" :node="childNode" />
-      <RenderNode v-else-if="childNode.type === 'tree'" :node="childNode" />
+      <RenderDirectory v-else-if="childNode.type === 'tree'" :node="childNode" />
     </a-entity>
   </a-entity>
 </template>

@@ -2,21 +2,21 @@
 import axios from "axios";
 import { computed } from "vue";
 import { getObjectMaxValue, sumObj } from "@/helpers";
-import RenderCity from "./RenderCity.vue";
+import RenderRepo from "./RenderRepo.vue";
 
 const props = defineProps(['repoUrl'])
 const debugOptions = {
   maxDepth: undefined,
 }
-const grid = { width: 1, depth: 1, height: 1, buffer: 1 };
-const basePropertyDimensions = { width: 1, depth: 1, height: 2 };
+const grid = { width: 1, depth: 1, height: 0.5, buffer: 2 };
+const basePropertyDimensions = { width: 1, depth: 1, height: 1 };
 
-const repoData = await getRepoDirTree();
-const city = computed(generateCity);
-console.log(city.value);
+const repoData = await fetchRepo();
+const repoCity = computed(generateRepoCity);
+console.log(repoCity.value);
 
 
-async function getRepoDirTree() {
+async function fetchRepo() {
   const loc = window.location;
   const res = await axios.get(`http://${loc.hostname}:8000/api/repo`, {
     params: {
@@ -27,23 +27,29 @@ async function getRepoDirTree() {
   return res.data;
 }
 
-function generateCity() {
-  const neighborhood = generateNeighborhood(repoData.tree, ["."]);
-  const city = {
-    path: props.repoUrl,
-    neighborhood,
-    render: {
-      position: { x: 0, y: 0, z: 0 },
-      rotation: { x: 0, y: 0, z: 0 },
-    },
-  };
+function generateRepoCity() {
+  const directory = generateDirectory(repoData.tree, ["."]);
+  console.log(directory);
+  const rootNode = directory.nodes[0];
+  return rootNode;
+  // const city = {
+  //   path: props.repoUrl,
+  //   directory,
+  //   render: {
+  //     position: { x: 0, y: 0, z: 0 },
+  //     rotation: { x: 0, y: 0, z: 0 },
+  //     dimensions: directory.render.dimensions,
+  //   },
+  // };
 
-  return city;
+  // console.log(directory);
+
+  // return city;
 }
 
 
-function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
-  const neighborhood: { [name: string]: any } = {
+function generateDirectory(dirTree: any, paths: any[], depth = 0) {
+  const directory: { [name: string]: any } = {
     nodes: [] as any[],
     render: {
       dimensions: {
@@ -61,7 +67,7 @@ function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
   };
 
   if (typeof debugOptions.maxDepth !== "undefined" && depth >= debugOptions.maxDepth) {
-    return neighborhood;
+    return directory;
   }
 
   let plannedIntersections: any[] = [];
@@ -72,15 +78,15 @@ function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
     if (node.type === "blob") {
       node.render = getBuildingRender(node);
     } else {
-      node.neighborhood = generateNeighborhood(
+      node.directory = generateDirectory(
         dirTree,
         node.child_paths,
         depth + 1
       );
-      node.render = getNeighborhoodRender(node);
+      node.render = getDirectoryRender(node);
     }
 
-    neighborhood.nodes.push(node);
+    directory.nodes.push(node);
 
     if (typeof node.render === "undefined") {
       continue;
@@ -88,9 +94,9 @@ function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
 
     if (node.type === "tree") {
       const currIntersectionX =
-        neighborhood.render.sideWidth[node.render.branchDirection] +
+        directory.render.sideWidth[node.render.branchDirection] +
         node.render.buffer +
-        node.neighborhood.render.sideDepth[node.render.branchDirection];
+        node.directory.render.sideDepth[node.render.branchDirection];
 
       plannedIntersections.push({
         path: node.path,
@@ -100,15 +106,15 @@ function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
       });
     }
 
-    neighborhood.render.sideWidth[node.render.branchDirection] +=
+    directory.render.sideWidth[node.render.branchDirection] +=
       node.render.dimensions.width + node.render.buffer;
 
-    neighborhood.render.sideDepth[node.render.branchDirection] = Math.max(
-      neighborhood.render.sideDepth[node.render.branchDirection],
+    directory.render.sideDepth[node.render.branchDirection] = Math.max(
+      directory.render.sideDepth[node.render.branchDirection],
       node.render.dimensions.depth
     );
-    neighborhood.render.sideHeight[node.render.branchDirection] = Math.max(
-      neighborhood.render.sideHeight[node.render.branchDirection],
+    directory.render.sideHeight[node.render.branchDirection] = Math.max(
+      directory.render.sideHeight[node.render.branchDirection],
       node.render.dimensions.height
     );
   }
@@ -125,30 +131,30 @@ function generateNeighborhood(dirTree: any, paths: any[], depth = 0) {
       const newGap = minGapSize - gap;
       for (let k = j; k < plannedIntersections.length; k += 1) {
         const nodeC = plannedIntersections[k];
-        const node = neighborhood.nodes[nodeC.nodeIdx];
+        const node = directory.nodes[nodeC.nodeIdx];
         node.render.intersectionBuffer += newGap;
         nodeC.intersectionPoint += newGap;
-        neighborhood.render.sideWidth[node.render.branchDirection] += newGap;
+        directory.render.sideWidth[node.render.branchDirection] += newGap;
       }
     }
 
     j += 1;
   }
 
-  neighborhood.plannedIntersections = plannedIntersections;
+  directory.plannedIntersections = plannedIntersections;
 
-  neighborhood.render.maxSideWidth = getObjectMaxValue(neighborhood.render.sideWidth);
-  neighborhood.render.maxSideDepth = getObjectMaxValue(neighborhood.render.sideDepth);
-  neighborhood.render.maxSideHeight = getObjectMaxValue(neighborhood.render.sideHeight);
+  directory.render.maxSideWidth = getObjectMaxValue(directory.render.sideWidth);
+  directory.render.maxSideDepth = getObjectMaxValue(directory.render.sideDepth);
+  directory.render.maxSideHeight = getObjectMaxValue(directory.render.sideHeight);
 
-  neighborhood.render.dimensions.width = neighborhood.render.maxSideWidth;
-  neighborhood.render.dimensions.depth = sumObj(neighborhood.render.sideDepth);
-  neighborhood.render.dimensions.height = sumObj(neighborhood.render.sideHeight);
+  directory.render.dimensions.width = directory.render.maxSideWidth;
+  directory.render.dimensions.depth = sumObj(directory.render.sideDepth);
+  directory.render.dimensions.height = sumObj(directory.render.sideHeight);
 
-  return neighborhood;
+  return directory;
 }
 
-function getNeighborhoodRender(node: any) {
+function getDirectoryRender(node: any) {
   const blockComplexity = Math.ceil(Math.log(node.tree_stats.num_descendants));
 
   let render = {
@@ -163,25 +169,25 @@ function getNeighborhoodRender(node: any) {
       dimensions: {
         width: 0,
         depth: getRoadDepth(blockComplexity),
-        height: grid.height,
+        height: 0.1,
       },
-      position: { x: 0, y: 0, z: 0 },
+      position: { x: 0, y: 0.15, z: 0 },
       intersections: [] as any[],
     },
   };
 
-  render.dimensions.height = node.neighborhood.render.maxSideHeight;
+  render.dimensions.height = node.directory.render.maxSideHeight;
   render.dimensions.depth =
-    render.road.dimensions.depth + node.neighborhood.render.dimensions.depth;
+    render.road.dimensions.depth + node.directory.render.dimensions.depth;
 
-  render.road.dimensions.width = node.neighborhood.render.dimensions.width;
+  render.road.dimensions.width = node.directory.render.dimensions.width;
   render.road.position.z =
-    node.neighborhood.render.sideDepth.left -
+    node.directory.render.sideDepth.left -
     (render.dimensions.depth - render.road.dimensions.depth) / 2;
 
   let prevSideX: { [key: string]: number } = { left: 0, right: 0, center: 0 };
-  for (let j = 0, len = node.neighborhood.nodes.length; j < len; j += 1) {
-    const childNode = node.neighborhood.nodes[j];
+  for (let j = 0, len = node.directory.nodes.length; j < len; j += 1) {
+    const childNode = node.directory.nodes[j];
 
     if (typeof childNode.render === "undefined") {
       continue;
@@ -212,7 +218,7 @@ function getNeighborhoodRender(node: any) {
       const intersection = {
         node: [childNode.path],
         render: {
-          position: { x: 0, y: 0.5, z: 0 },
+          position: { x: 0, y: 0.2, z: 0 },
           dimensions: {
             width: childNode.render.road.dimensions.depth,
             depth: render.road.dimensions.depth,
@@ -225,7 +231,7 @@ function getNeighborhoodRender(node: any) {
       intersection.render.position.x =
         normalizedX +
         intersection.render.dimensions.width / 2 +
-        childNode.neighborhood.render.sideDepth[
+        childNode.directory.render.sideDepth[
         childNode.render.branchDirection
         ];
 
@@ -250,7 +256,7 @@ function getNeighborhoodRender(node: any) {
 
 function getBuildingRender(node: any) {
   let propertyHeight = node.file_stats.num_lines
-    ? Math.ceil(Math.log(node.file_stats.num_lines) / Math.log(3)) * 1
+    ? Math.ceil(Math.log(node.file_stats.num_lines) / Math.log(3)) * 4
     : basePropertyDimensions.height;
   if (propertyHeight < basePropertyDimensions.height) {
     propertyHeight = basePropertyDimensions.height;
@@ -319,9 +325,9 @@ function getRoadDepth(blockComplexity: number) {
   if (blockComplexity <= 2) {
     roadDepth = 2;
   } else if (blockComplexity > 2 && blockComplexity < 6) {
-    roadDepth = 4;
+    roadDepth = 3;
   } else {
-    roadDepth = 6;
+    roadDepth = 4;
   }
   roadDepth *= grid.depth;
 
@@ -335,6 +341,6 @@ function getRandomBuffer() {
 
 <template>
   <div>
-    <RenderCity :city="city" />
+    <RenderRepo :repo="repoCity" />
   </div>
 </template>
