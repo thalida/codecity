@@ -29,22 +29,8 @@ async function fetchRepo() {
 
 function generateRepoCity() {
   const directory = generateDirectory(repoData.tree, ["."]);
-  console.log(directory);
   const rootNode = directory.nodes[0];
   return rootNode;
-  // const city = {
-  //   path: props.repoUrl,
-  //   directory,
-  //   render: {
-  //     position: { x: 0, y: 0, z: 0 },
-  //     rotation: { x: 0, y: 0, z: 0 },
-  //     dimensions: directory.render.dimensions,
-  //   },
-  // };
-
-  // console.log(directory);
-
-  // return city;
 }
 
 

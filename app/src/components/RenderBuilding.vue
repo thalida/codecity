@@ -11,7 +11,7 @@ const propertyPosition = `${props.node.render.property.position.x} ${props.node.
 </script>
 
 <template>
-  <a-entity :position="nodePosition" :rotation="nodeRotation" shadow="cast:true; receive: false">
+  <a-entity :position="nodePosition" :rotation="nodeRotation" shadow="cast:true; receive: true;">
     <a-box color="red" :position="propertyPosition" :width="propertyDimensions.width"
       :height="propertyDimensions.height" :depth="propertyDimensions.depth" segments-depth="3" segments-height="3"
       segments-width="3"></a-box>
