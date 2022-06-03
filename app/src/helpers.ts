@@ -7,3 +7,8 @@ export function sumArr(arr: number[]): number {
   const sum: number = arr.reduce((p, c) => p + c, 0);
   return sum;
 }
+
+export function getObjectMaxValue(obj: { [name: string]: number }): number {
+  const values: number[] = Object.values(obj);
+  return Math.max(...values);
+}
