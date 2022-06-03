@@ -4,6 +4,8 @@ import "aframe-orbit-controls";
 import "aframe-gradient-sky";
 import "aframe-simple-sun-sky";
 
+// import "../environment.js";
+
 import { onMounted, ref } from "vue";
 import RenderDirectory from "./RenderDirectory.vue";
 
@@ -37,6 +39,8 @@ const directionalLightPos = {
 const directionalLightPosStr = `${directionalLightPos.x} ${directionalLightPos.y} ${directionalLightPos.z}`;
 
 const floorRadius = (props.repo.render.dimensions.width / 2) + (props.repo.render.dimensions.depth / 2);
+
+const environmentSettings = `preset:forest; playArea: ${floorRadius}`;
 onMounted(() => {
   document.querySelector('a-scene').flushToDOM(true);
 });
@@ -47,13 +51,15 @@ onMounted(() => {
     <a-scene shadow="type: pcfsoft">
       <a-simple-sun-sky :sun-position="directionalLightPosStr"></a-simple-sun-sky>
       <a-entity light="type: ambient; color: #BBB"></a-entity>
-      <a-entity :light="directionalLight" :position="directionalLightPosStr">
-      </a-entity>
-
+      <a-entity :light="directionalLight" :position="directionalLightPosStr"></a-entity>
       <a-entity camera look-controls wasd-controls :orbit-controls="orbitControls"></a-entity>
       <a-cone position="0 -150 0" color="green" shadow="cast:false; receive: true" :height="300"
         :radius-top="floorRadius" :radius-bottom="floorRadius / 3" segments-radial="16" material="side: double;">
       </a-cone>
+
+      <!-- <a-entity :environment="environmentSettings"></a-entity> -->
+      <!-- <a-entity camera look-controls wasd-controls :orbit-controls="orbitControls"></a-entity> -->
+
 
       <RenderDirectory :node="props.repo" />
     </a-scene>
