@@ -155,6 +155,7 @@ def get_repo_tree(repo):
     root_path = "."
     processedTree[root_path] = {
         "type": "tree",
+        "depth": 0,
         "parent_path": None,
         "path": root_path,
         "child_paths": [],
@@ -164,6 +165,8 @@ def get_repo_tree(repo):
         "tree_stats": {
             "num_children": 0,
             "num_descendants": 0,
+            "num_child_blobs": 0,
+            "num_child_trees": 0,
         },
     }
 
@@ -173,6 +176,7 @@ def get_repo_tree(repo):
         parent_path_str = str(parent_path)
         node = {
             "type": item.type,
+            "depth": 0,
             "parent_path": parent_path_str,
             "path": item.path,
             "name": item.name,
@@ -183,6 +187,8 @@ def get_repo_tree(repo):
             "tree_stats": {
                 "num_children": 0,
                 "num_descendants": 0,
+                "num_child_blobs": 0,
+                "num_child_trees": 0,
             },
         }
 
@@ -202,7 +208,10 @@ def get_repo_tree(repo):
         parent_dirs = parent_path_str.split("/")
 
         if parent_path_str != root_path:
+            node["depth"] = len(parent_dirs) + 1
             processedTree[root_path]["tree_stats"]["num_descendants"] += 1
+        else:
+            node["depth"] = len(parent_dirs)
 
         for i in range(len(parent_dirs)):
             ancestor_path = "/".join(parent_dirs[: i + 1])
@@ -210,6 +219,11 @@ def get_repo_tree(repo):
             if i == len(parent_dirs) - 1:
                 processedTree[ancestor_path]["tree_stats"]["num_children"] += 1
                 processedTree[ancestor_path]["child_paths"].append(item.path)
+
+                if item.type == "blob":
+                    processedTree[ancestor_path]["tree_stats"]["num_child_blobs"] += 1
+                elif item.type == "tree":
+                    processedTree[ancestor_path]["tree_stats"]["num_child_trees"] += 1
 
             processedTree[ancestor_path]["tree_stats"]["num_descendants"] += 1
 
