@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import axios from "axios";
-import { cloneDeep } from "lodash-es";
+import { cloneDeep, parseInt } from "lodash-es";
 import RenderGrid from "./RenderGrid.vue";
 
 const props = defineProps(['repoUrl'])
 const repoData = await fetchRepo();
 const repoTree = repoData.tree;
-console.log(repoTree);
-const dirsByDepth = getDirsByDepth(repoTree);
-// const maxDepth = Object.keys(dirsByDepth).length - 1;
-const maxDepth = 3;
-const dirGrids = getDirGrids(repoTree, dirsByDepth, maxDepth);
-combineGrids();
-
-const rootGrid = dirGrids['.'].grid;
+const repoGrid = generateGrid(repoTree, '.')
+console.log(repoTree, repoGrid);
 
 // console.log(rootGrid);
 
@@ -28,143 +22,152 @@ async function fetchRepo() {
   return res.data;
 }
 
-function getDirsByDepth(tree) {
-  const dirsByDepth: any = {};
-  for (const nodePath in tree) {
-    if (tree.hasOwnProperty(nodePath)) {
-      const node = tree[nodePath];
-      if (node.type === "tree") {
-        dirsByDepth[node.depth] = dirsByDepth[node.depth] || [];
-        dirsByDepth[node.depth].push(node.path);
-      }
-    }
+function generateGrid(repoTree, sourcePath) {
+  const maxDepth = 2;
+  const sourceNode = repoTree[sourcePath];
+
+  if (sourceNode.depth > maxDepth) {
+    return;
   }
 
-  return dirsByDepth;
-}
+  let grid: any = {};
 
-function getDirGrids(repoTree, dirsByDepth, maxDepth) {
-  const dirGrids: any = {};
-  for (let d = maxDepth; d >= 0; d -= 1) {
-    const dirs = dirsByDepth[d];
-    const numDirs = dirs.length;
+  grid[0] = { 0: ['S', sourcePath] };
 
-    for (let i = 0; i < numDirs; i += 1) {
-      const dirPath = dirs[i];
-      const dir = repoTree[dirPath];
-      const dirGrid: any = {};
-      const dirIntersections: any = {};
+  let x = Object.keys(grid).length;
+
+  for (let i = 0; i < sourceNode.child_paths.length; i += 1) {
+    const childPath = sourceNode.child_paths[i];
+    const childNode = repoTree[childPath];
 
 
-      dirGrid[0] = { 0: ['S', dirPath] };
+    if (childNode.type === 'blob') {
+      const by = i % 2 === 0 ? 1 : -1;
 
-      let intersectionOffset = 1;
-      for (let j = 0; j < dir.tree_stats.num_children; j += 1) {
-        const child = repoTree[dir.child_paths[j]];
-        let gridX = Math.floor(j / 2) + intersectionOffset;
-        const gridY = j % 2 === 0 ? 1 : -1;
+      if (typeof grid[x] === 'undefined') {
+        grid[x] = {};
+      }
 
-        if (child.type === "blob") {
-          if (dirGrid[gridX] && dirGrid[gridX][0][0] === 'C') {
-            intersectionOffset += 1;
-            gridX += 1;
-          }
+      grid[x][0] = ['R'];
+      grid[x][by] = ['B', childPath];
 
-          if (typeof dirGrid[gridX] === 'undefined') {
-            dirGrid[gridX] = {};
-          }
+      if (by === -1) {
+        x += 1;
+      }
 
-          dirGrid[gridX][0] = ['R'];
-          dirGrid[gridX][gridY] = ['B', child.path];
+      continue;
+    }
+
+    if (typeof grid[x] !== 'undefined') {
+      x += 1;
+    }
+
+    // console.log(sourcePath, x - 1, grid[x - 1]);
+    // if (grid[x - 1][0][0] === 'C') {
+    //   console.log('C', grid[x - 1][0][1]);
+    // }
+
+    const childGrid = generateGrid(repoTree, childPath);
+    let foundValidGrid = false;
+    let tmpNorthGrid: any = {};
+    let tmpSouthGrid: any = {};
+    const ix = x + 1;
+    let nx = ix, ny = 1, sx = ix, sy = -1;
+    while (!foundValidGrid) {
+      tmpNorthGrid = combineGrids(grid, childGrid, childPath, nx, ny, 1, ix);
+      tmpSouthGrid = combineGrids(grid, childGrid, childPath, sx, sy, -1, ix);
+
+      if (tmpNorthGrid.error) {
+        if (tmpNorthGrid.errorReason.isOverlappingRoad) {
+          ny += 1;
         } else {
-          let shiftXBy = 0;
-
-          if (dirGrid[gridX]) {
-            shiftXBy += 1;
-          }
-
-          if (dirGrid[gridX + shiftXBy - 1][0][0] === 'C') {
-            dirGrid[gridX + shiftXBy] = { 0: ['R'] };
-            shiftXBy += 1;
-          }
-
-          dirGrid[gridX + shiftXBy] = { '-1': ['C', child.path], 0: ['C', child.path], 1: ['C', child.path] };
-          dirGrid[gridX + shiftXBy + 1] = { 0: ['I', child.path] };
-          dirGrid[gridX + shiftXBy + 2] = { '-1': ['C', child.path], 0: ['C', child.path], 1: ['C', child.path] };
-
-          dirIntersections[child.path] = {
-            x: gridX + shiftXBy + 1,
-            y: 0,
-          };
-
-          intersectionOffset += 2 + shiftXBy;
+          nx += 1;
         }
+      } else {
+        foundValidGrid = true;
       }
 
-      const maxX = Object.keys(dirGrid).length;
-      dirGrid[maxX] = { 0: ['E'] };
-
-      dirGrids[dirPath] = { grid: dirGrid, intersections: dirIntersections };
+      if (tmpSouthGrid.error) {
+        if (tmpSouthGrid.errorReason.isOverlappingRoad) {
+          sy -= 1;
+        } else {
+          sx += 1;
+        }
+      } else {
+        foundValidGrid = true;
+      }
     }
+
+    x = (tmpNorthGrid.error ? sx : nx) + 2;
+    grid = cloneDeep(tmpNorthGrid.error ? tmpSouthGrid : tmpNorthGrid);
   }
 
-  return dirGrids;
-}
 
-function combineGrids() {
-  for (let d = maxDepth; d > 0; d -= 1) {
-    const dirs = dirsByDepth[d];
-
-    for (let i = 0; i < dirs.length; i += 1) {
-      const childPath = dirs[i];
-      const childNode = repoTree[childPath];
-      const parentNode = repoTree[childNode.parent_path];
-      const parentGrid = dirGrids[parentNode.path];
-      console.log(childPath, '=>', parentNode.path);
-      const newParentGrid = addChildToParent(childPath, parentGrid);
-
-      parentGrid.grid = newParentGrid;
-    }
+  console.log(grid[x - 1]);
+  if (typeof grid[x] === "undefined") {
+    grid[x] = { 0: ['E'] };
+  } else {
+    grid[x + 1] = {
+      ...{ 0: ['E'] },
+      ...grid[x + 1],
+    };
   }
+
+  return grid;
 }
 
-function addChildToParent(childPath, parentGrid, branchDirection: number = 1, fx: null | number = null, fy: null | number = null, shiftLeft = true) {
-  const childGrid = dirGrids[childPath];
-  const intersection = parentGrid.intersections[childPath];
-  const tmpNewParentGrid: any = {};
-
-  const ox = (fx !== null) ? fx : intersection.x;
-  const oy = (fy !== null) ? fy : intersection.y + branchDirection;
-
+function combineGrids(parentGrid, childGrid, childPath, ox, oy, branchDirection, sx) {
+  const tmpNewParentGrid: any = cloneDeep(parentGrid);
+  const tmpChildGrid: any = {};
   let isInvalidOrigin = false;
-  let wasInvalidAt: any = {};
+  let errorReason = {};
 
-  for (const x in parentGrid.grid) {
-    tmpNewParentGrid[x] = {};
+  // const numExtraParentRoadTiles = ox - sx;
+  // for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
+  //   tmpNewParentGrid[sx + i] = { 0: ['R'] };
+  // }
 
-    for (const y in parentGrid.grid[x]) {
-      tmpNewParentGrid[x][y] = parentGrid.grid[x][y].slice();
-    }
+  tmpNewParentGrid[ox - 1] = { '-1': ['C'], 0: ['C'], 1: ['C'] }
+  tmpNewParentGrid[ox] = { 0: ['I', childPath] }
+  tmpNewParentGrid[ox + 1] = { '-1': ['C'], 0: ['C'], 1: ['C'] }
+
+  const numExtraChildRoadTiles = Math.abs(oy) - 1;
+  for (let i = 0; i < numExtraChildRoadTiles; i += 1) {
+    tmpChildGrid[i] = { 0: ['R'] };
   }
 
-  for (const x in childGrid.grid) {
-    if (!childGrid.grid.hasOwnProperty(x)) {
+  for (const x in childGrid) {
+    if (!childGrid.hasOwnProperty(x)) {
+      continue;
+    }
+
+    tmpChildGrid[parseInt(x, 10) + numExtraChildRoadTiles] = {
+      ...tmpChildGrid[parseInt(x, 10) + numExtraChildRoadTiles],
+      ...childGrid[x]
+    };
+  }
+
+  for (const x in tmpChildGrid) {
+    if (!tmpChildGrid.hasOwnProperty(x)) {
       continue;
     }
 
     const ty = oy + (parseInt(x, 10) * branchDirection);
 
-    for (const y in childGrid.grid[x]) {
-      if (!childGrid.grid[x].hasOwnProperty(y)) {
+    for (const y in tmpChildGrid[x]) {
+      if (!tmpChildGrid[x].hasOwnProperty(y)) {
         continue;
       }
 
       const tx = ox - (parseInt(y, 10) * branchDirection);
 
-      const occupied = typeof tmpNewParentGrid[tx] !== 'undefined' && typeof tmpNewParentGrid[tx][ty] !== 'undefined';
-      if (occupied) {
+      const isOverlappingRoad = (branchDirection === 1 && ty <= 0) || (branchDirection === -1 && ty >= 0)
+      const isOccupied = typeof tmpNewParentGrid[tx] !== 'undefined' && typeof tmpNewParentGrid[tx][ty] !== 'undefined';
+      const isValid = !isOverlappingRoad && !isOccupied;
+
+      if (!isValid) {
         isInvalidOrigin = true;
-        wasInvalidAt = { x: tx, y: ty, entity: tmpNewParentGrid[tx][ty] };
+        errorReason = { isOverlappingRoad, isOccupied, tx, ty };
         break;
       }
 
@@ -172,7 +175,7 @@ function addChildToParent(childPath, parentGrid, branchDirection: number = 1, fx
         tmpNewParentGrid[tx] = {};
       }
 
-      tmpNewParentGrid[tx][ty] = childGrid.grid[x][y];
+      tmpNewParentGrid[tx][ty] = tmpChildGrid[x][y];
     }
 
 
@@ -182,75 +185,7 @@ function addChildToParent(childPath, parentGrid, branchDirection: number = 1, fx
   }
 
   if (isInvalidOrigin) {
-    const newBranchDirection = branchDirection * -1;
-    if (newBranchDirection === -1) {
-      return addChildToParent(childPath, parentGrid, newBranchDirection, ox, -1, shiftLeft);
-    }
-
-    console.log(childPath, '|', isInvalidOrigin, wasInvalidAt, '|', ox, oy, newBranchDirection);
-    // return parentGrid.grid;
-    const shiftedParentGrid: any = {};
-    const shiftedIntersections: any = {};
-    const crosswalk = (shiftLeft) ? intersection.x - 1 : intersection.x + 2;
-
-    for (const x in parentGrid.grid) {
-      if (!parentGrid.grid.hasOwnProperty(x)) {
-        continue;
-      }
-
-      const intX = parseInt(x, 10);
-
-      if (intX < crosswalk) {
-        shiftedParentGrid[intX] = parentGrid.grid[x];
-
-        if (shiftedParentGrid[intX][0] && shiftedParentGrid[intX][0][0] === 'I') {
-          const path = shiftedParentGrid[intX][0][1];
-          shiftedIntersections[path] = {
-            x: intX,
-            y: 0,
-          };
-        }
-
-        continue
-      }
-
-      if (intX === crosswalk) {
-        shiftedParentGrid[intX] = { 0: ['R'] };
-      }
-
-      const shiftedX = intX + 1;
-      // if (!shiftLeft) {
-      //   console.log(childPath, crosswalk, '|', intX, shiftedX);
-      // }
-
-      shiftedParentGrid[shiftedX] = {};
-      for (const y in parentGrid.grid[x]) {
-        if (!parentGrid.grid[x].hasOwnProperty(y)) {
-          continue;
-        }
-
-        const intY = parseInt(y, 10);
-
-        if (Math.abs(intY) > 1) {
-          shiftedParentGrid[intX][intY] = parentGrid.grid[x][y];
-          continue;
-        }
-
-        shiftedParentGrid[shiftedX][intY] = parentGrid.grid[x][y];
-
-        if (shiftedParentGrid[shiftedX][intY][0] === 'I') {
-          const path = shiftedParentGrid[shiftedX][intY][1];
-          shiftedIntersections[path] = {
-            x: shiftedX,
-            y: intY,
-          };
-        }
-      }
-    }
-
-    const nextX = (shiftLeft) ? ox + 1 : ox;
-
-    return addChildToParent(childPath, { grid: shiftedParentGrid, intersections: shiftedIntersections }, newBranchDirection, nextX, 1, !shiftLeft);
+    return { error: true, errorReason };
   }
 
   return tmpNewParentGrid;
@@ -260,6 +195,6 @@ function addChildToParent(childPath, parentGrid, branchDirection: number = 1, fx
 
 <template>
   <div>
-    <RenderGrid :grid="rootGrid" />
+    <RenderGrid :grid="repoGrid" />
   </div>
 </template>

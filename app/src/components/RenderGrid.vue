@@ -62,7 +62,6 @@ onMounted(() => {
         <a-entity v-for="(entity, y) in ys" :position="`${x} 0 ${y}`">
           <a-box v-if="entity[0] === 'S' && entity[1] == '.'" color="green" :height="10" :width="1" :depth="1"></a-box>
           <a-box v-else-if="entity[0] === 'S'" color="green" :height="1" :width="1" :depth="1">
-            <a-text :value="entity[1]"></a-text>
           </a-box>
           <a-box v-else-if="entity[0] === 'R'" color="gray" :height="1" :width="1" :depth="1"></a-box>
           <a-box v-else-if="entity[0] === 'C'" color="white" :height="1" :width="1" :depth="1"></a-box>
