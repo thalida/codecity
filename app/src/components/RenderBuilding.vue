@@ -2,17 +2,11 @@
 import "aframe";
 
 const props = defineProps(['node'])
-const nodePosition = `${props.node.render.position.x} ${props.node.render.position.y} ${props.node.render.position.z}`
-const nodeRotation = `${props.node.render.rotation.x} ${props.node.render.rotation.y} ${props.node.render.rotation.z}`
-
-const propertyDimensions = props.node.render.property.dimensions;
-const propertyPosition = `${props.node.render.property.position.x} ${props.node.render.property.position.y} ${props.node.render.property.position.z}`;
-// console.log(props.node);
+const height = props.node.file_stats.num_lines ? Math.ceil(Math.log(props.node.file_stats.num_lines)) + 2 : 2;
+const position = `0 ${height / 2} 0`;
 </script>
 
 <template>
-  <a-entity :position="nodePosition" :rotation="nodeRotation" shadow="cast:true; receive: true;">
-    <a-box color="red" :position="propertyPosition" :width="propertyDimensions.width"
-      :height="propertyDimensions.height" :depth="propertyDimensions.depth"></a-box>
-  </a-entity>
+  <a-box :position="position" color="blue" :width="1" :height="height" :depth="1" shadow="cast:false; receive: true">
+  </a-box>
 </template>

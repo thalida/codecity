@@ -8,7 +8,8 @@ const props = defineProps(['repoUrl'])
 const repoData = await fetchRepo();
 const repoTree = repoData.tree;
 const repoGrid = generateGrid(repoTree, '.')
-console.log(repoTree, repoGrid);
+// const scaledGrid = scaleGrid(repoGrid, 3);
+const renderGrid = repoGrid;
 
 async function fetchRepo() {
   const loc = window.location;
@@ -57,10 +58,10 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
       }
 
       if (typeof grid[x][0] === 'undefined') {
-        grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
+        grid[x][0] = createTile(TILE_TYPE.ROAD, childPath, sourcePath)
       }
 
-      grid[x][by] = createTile(TILE_TYPE.BUIlDING, sourcePath, parentPath)
+      grid[x][by] = createTile(TILE_TYPE.BUIlDING, childPath, sourcePath)
 
 
       if (by === -1) {
@@ -74,12 +75,12 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
       x += 1;
     }
 
-    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0][0] === 'C') {
+    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0].type === TILE_TYPE.CROSSWALK) {
       if (typeof grid[x] === 'undefined') {
         grid[x] = {};
       }
 
-      grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
+      grid[x][0] = createTile(TILE_TYPE.ROAD, childPath, sourcePath)
       x += 1;
     }
 
@@ -242,10 +243,47 @@ function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, bran
   return tmpNewParentGrid;
 }
 
+function scaleGrid(grid, size) {
+  const scaledGrid: any = {};
+  const dsize = Math.floor(size / 2);
+
+  for (const x in grid) {
+    if (!grid.hasOwnProperty(x)) {
+      continue;
+    }
+
+    const intX = parseInt(x, 10);
+    const cx = intX * size;
+
+    for (const y in grid[x]) {
+      if (!grid[x].hasOwnProperty(y)) {
+        continue;
+      }
+
+      const tile = cloneDeep(grid[x][y]);
+      const intY = parseInt(y, 10);
+      const cy = intY * size;
+
+      for (let xi = -1 * dsize; xi <= dsize; xi += 1) {
+        const nx = cx + xi;
+        if (typeof scaledGrid[nx] === 'undefined') {
+          scaledGrid[nx] = {};
+        }
+
+        for (let yi = -1 * dsize; yi <= dsize; yi += 1) {
+          const ny = cy + yi;
+          scaledGrid[nx][ny] = tile;
+        }
+      }
+    }
+  }
+  return scaledGrid;
+}
+
 </script>
 
 <template>
   <div>
-    <RenderGrid :grid="repoGrid" />
+    <RenderGrid :tree="repoTree" :grid="renderGrid" />
   </div>
 </template>

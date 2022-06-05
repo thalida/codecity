@@ -5,4 +5,5 @@ export enum TILE_TYPE {
   CROSSWALK = 4,
   INTERSECTION = 5,
   BUIlDING = 6,
+  BUILDING_FOUNDATION = 7,
 }

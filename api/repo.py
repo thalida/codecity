@@ -80,7 +80,7 @@ def get_repo(repo_url):
             repo_url,
             repo_dir,
             progress=GitProgress(),
-            multi_options=["--single-branch"],
+            multi_options=["--single-branch", "--depth 1"],
         )
 
     gh_url_parts = repo_url.split("github.com")
