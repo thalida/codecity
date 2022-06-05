@@ -1,20 +1,14 @@
 <script setup lang="ts">
+import { TILE_TYPE } from "@/constants/tiles";
 import axios from "axios";
-import { computed } from "vue";
-import { getObjectMaxValue, sumObj } from "@/helpers";
-import RenderRepo from "./RenderRepo.vue";
+import { cloneDeep, parseInt } from "lodash-es";
+import RenderGrid from "./RenderGrid.vue";
 
 const props = defineProps(['repoUrl'])
-const debugOptions = {
-  maxDepth: undefined,
-}
-const grid = { width: 1, depth: 1, height: 0.5, buffer: 2 };
-const basePropertyDimensions = { width: 1, depth: 1, height: 1 };
-
 const repoData = await fetchRepo();
-const repoCity = computed(generateRepoCity);
-console.log(repoCity.value);
-
+const repoTree = repoData.tree;
+const repoGrid = generateGrid(repoTree, '.')
+console.log(repoTree, repoGrid);
 
 async function fetchRepo() {
   const loc = window.location;
@@ -27,306 +21,231 @@ async function fetchRepo() {
   return res.data;
 }
 
-function generateRepoCity() {
-  const directory = generateDirectory(repoData.tree, ["."]);
-  const rootNode = directory.nodes[0];
-  return rootNode;
-}
-
-
-function generateDirectory(dirTree: any, paths: any[], depth = 0) {
-  const directory: { [name: string]: any } = {
-    nodes: [] as any[],
-    render: {
-      dimensions: {
-        width: 0,
-        depth: 0,
-        height: 0,
-      },
-      sideWidth: { left: 0, right: 0, center: 0 },
-      sideDepth: { left: 0, right: 0, center: 0 },
-      sideHeight: { left: 0, right: 0, center: 0 },
-      maxSideWidth: 0,
-      maxSideDepth: 0,
-      maxSideHeight: 0,
-    },
+function createTile(type: TILE_TYPE, nodePath: string, parentPath: null | string = null) {
+  const tile = {
+    type,
+    nodePath,
+    parentPath,
   };
 
-  if (typeof debugOptions.maxDepth !== "undefined" && depth >= debugOptions.maxDepth) {
-    return directory;
+  return tile;
+}
+
+function generateGrid(repoTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
+  const sourceNode = repoTree[sourcePath];
+
+  if (maxDepth && sourceNode.depth > maxDepth) {
+    return;
   }
 
-  let plannedIntersections: any[] = [];
-  for (let i = 0, len = paths.length; i < len; i += 1) {
-    const nodePath = paths[i];
-    const node = dirTree[nodePath];
-    node.depth = depth;
-    if (node.type === "blob") {
-      node.render = getBuildingRender(node);
-    } else {
-      node.directory = generateDirectory(
-        dirTree,
-        node.child_paths,
-        depth + 1
-      );
-      node.render = getDirectoryRender(node);
-    }
+  const numChildren = sourceNode.child_paths.length;
 
-    directory.nodes.push(node);
+  let grid: any = {};
+  grid[0] = { 0: createTile(TILE_TYPE.DIR_START, sourcePath, parentPath) };
 
-    if (typeof node.render === "undefined") {
+  let x = Object.keys(grid).length;
+
+  for (let i = 0; i < numChildren; i += 1) {
+    const childPath = sourceNode.child_paths[i];
+    const childNode = repoTree[childPath];
+
+    if (childNode.type === 'blob') {
+      const by = i % 2 === 0 ? 1 : -1;
+
+      if (typeof grid[x] === 'undefined') {
+        grid[x] = {};
+      }
+
+      if (typeof grid[x][0] === 'undefined') {
+        grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
+      }
+
+      grid[x][by] = createTile(TILE_TYPE.BUIlDING, sourcePath, parentPath)
+
+
+      if (by === -1) {
+        x += 1;
+      }
+
       continue;
     }
 
-    if (node.type === "tree") {
-      const currIntersectionX =
-        directory.render.sideWidth[node.render.branchDirection] +
-        node.render.buffer +
-        node.directory.render.sideDepth[node.render.branchDirection];
-
-      plannedIntersections.push({
-        path: node.path,
-        nodeIdx: i,
-        startX: currIntersectionX,
-        endX: currIntersectionX + node.render.road.dimensions.depth,
-      });
+    if (grid[x] && grid[x][0]) {
+      x += 1;
     }
 
-    directory.render.sideWidth[node.render.branchDirection] +=
-      node.render.dimensions.width + node.render.buffer;
+    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0][0] === 'C') {
+      if (typeof grid[x] === 'undefined') {
+        grid[x] = {};
+      }
 
-    directory.render.sideDepth[node.render.branchDirection] = Math.max(
-      directory.render.sideDepth[node.render.branchDirection],
-      node.render.dimensions.depth
-    );
-    directory.render.sideHeight[node.render.branchDirection] = Math.max(
-      directory.render.sideHeight[node.render.branchDirection],
-      node.render.dimensions.height
-    );
-  }
+      grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
+      x += 1;
+    }
 
-  plannedIntersections.sort((a, b) => a.startX - b.startX);
-  let j = 1;
-  while (j < plannedIntersections.length) {
-    const nodeA = plannedIntersections[j - 1];
-    const nodeB = plannedIntersections[j];
-    const gap = nodeB.startX - nodeA.endX;
-    const minGapSize = grid.buffer;
+    const childGrid = generateGrid(repoTree, childPath, sourcePath, maxDepth);
+    let foundValidGrid = false;
+    let tmpNorthGrid: any = {};
+    let tmpSouthGrid: any = {};
+    let height = 1;
+    if (childGrid) {
+      const maxX = Math.abs(Math.min(...Object.keys(childGrid).map(Number)));
+      height = maxX + 1
+    }
+    const ix = x + 1;
+    let nx = ix, ny = 1 * height, sx = ix, sy = -1 * height;
+    while (!foundValidGrid) {
+      tmpNorthGrid = combineGrids(grid, childGrid, sourcePath, childPath, nx, ny, 1, ix);
+      tmpSouthGrid = combineGrids(grid, childGrid, sourcePath, childPath, sx, sy, -1, ix);
 
-    if (gap < minGapSize) {
-      const newGap = minGapSize - gap;
-      for (let k = j; k < plannedIntersections.length; k += 1) {
-        const nodeC = plannedIntersections[k];
-        const node = directory.nodes[nodeC.nodeIdx];
-        node.render.intersectionBuffer += newGap;
-        nodeC.intersectionPoint += newGap;
-        directory.render.sideWidth[node.render.branchDirection] += newGap;
+      if (tmpNorthGrid.error) {
+        if (tmpNorthGrid.errorReason.isOverlappingRoad) {
+          ny += 1;
+        } else {
+          nx += 1;
+        }
+      } else {
+        foundValidGrid = true;
+      }
+
+      if (tmpSouthGrid.error) {
+        if (tmpSouthGrid.errorReason.isOverlappingRoad) {
+          sy -= 1;
+        } else {
+          sx += 1;
+        }
+      } else {
+        foundValidGrid = true;
       }
     }
 
-    j += 1;
+    if (typeof tmpNorthGrid.error === 'undefined' && typeof tmpSouthGrid.error === 'undefined') {
+      grid = i % 2 === 0 ? tmpNorthGrid : tmpSouthGrid;
+      x = (i % 2 === 0 ? nx : sx) + 2;
+    } else {
+      grid = tmpSouthGrid.error ? tmpNorthGrid : tmpSouthGrid;
+      x = (tmpSouthGrid.error ? nx : sx) + 2;
+    }
   }
 
-  directory.plannedIntersections = plannedIntersections;
+  const endTile = createTile(TILE_TYPE.DIR_END, sourcePath, parentPath)
+  if (typeof grid[x] === "undefined") {
+    grid[x] = { 0: endTile };
+  } else if (grid[x] && grid[x][0]) {
+    grid[x + 1] = grid[x + 1] || {};
+    grid[x + 1][0] = endTile
+  } else {
+    grid[x] = grid[x] || {};
+    grid[x][0] = endTile
+  }
 
-  directory.render.maxSideWidth = getObjectMaxValue(directory.render.sideWidth);
-  directory.render.maxSideDepth = getObjectMaxValue(directory.render.sideDepth);
-  directory.render.maxSideHeight = getObjectMaxValue(directory.render.sideHeight);
-
-  directory.render.dimensions.width = directory.render.maxSideWidth;
-  directory.render.dimensions.depth = sumObj(directory.render.sideDepth);
-  directory.render.dimensions.height = sumObj(directory.render.sideHeight);
-
-  return directory;
+  return grid;
 }
 
-function getDirectoryRender(node: any) {
-  const blockComplexity = Math.ceil(Math.log(node.tree_stats.num_descendants));
+function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, branchDirection, sx) {
+  const tmpNewParentGrid: any = cloneDeep(parentGrid);
+  const tmpChildGrid: any = {};
+  let isInvalidOrigin = false;
+  let errorReason = {};
 
-  let render = {
-    position: { x: 0, y: 0, z: 0 },
-    rotation: { x: 0, y: 0, z: 0 },
-    branchDirection: "center",
-    dimensions: { width: 0, depth: 0, height: 0 },
-    buffer: grid.buffer,
-    intersectionBuffer: 0,
-    road: {
-      parentPath: node.path,
-      dimensions: {
-        width: 0,
-        depth: getRoadDepth(blockComplexity),
-        height: 0.1,
-      },
-      position: { x: 0, y: 0.15, z: 0 },
-      intersections: [] as any[],
-    },
-  };
+  let numExtraParentRoadTiles = ox - sx;
+  if (numExtraParentRoadTiles > 0) {
+    numExtraParentRoadTiles += 1;
+  }
 
-  render.dimensions.height = node.directory.render.maxSideHeight;
-  render.dimensions.depth =
-    render.road.dimensions.depth + node.directory.render.dimensions.depth;
+  for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
+    if (typeof tmpNewParentGrid[sx + i - 1] === 'undefined') {
+      tmpNewParentGrid[sx + i - 1] = {};
+    }
 
-  render.road.dimensions.width = node.directory.render.dimensions.width;
-  render.road.position.z =
-    node.directory.render.sideDepth.left -
-    (render.dimensions.depth - render.road.dimensions.depth) / 2;
+    tmpNewParentGrid[sx + i - 1][0] = createTile(TILE_TYPE.ROAD, parentPath)
+  }
 
-  let prevSideX: { [key: string]: number } = { left: 0, right: 0, center: 0 };
-  for (let j = 0, len = node.directory.nodes.length; j < len; j += 1) {
-    const childNode = node.directory.nodes[j];
+  const crosswalkTile = createTile(TILE_TYPE.CROSSWALK, childPath, parentPath);
+  const intersectionTile = createTile(TILE_TYPE.INTERSECTION, childPath, parentPath);
 
-    if (typeof childNode.render === "undefined") {
+  for (let i = -1; i <= 1; i += 1) {
+    if (typeof tmpNewParentGrid[ox + i] === 'undefined') {
+      tmpNewParentGrid[ox + i] = {};
+    }
+
+    if (i === 0) {
+      tmpNewParentGrid[ox + i][0] = intersectionTile;
       continue;
     }
 
-    let direction = 0;
-    if (childNode.render.branchDirection === "left") {
-      direction = -1;
-    } else if (childNode.render.branchDirection === "right") {
-      direction = 1;
+    for (let j = -1; j <= 1; j += 1) {
+      tmpNewParentGrid[ox + i][j] = crosswalkTile;
+    }
+  }
+
+
+  const numExtraChildRoadTiles = Math.abs(oy) - 1;
+  for (let i = 0; i < numExtraChildRoadTiles; i += 1) {
+    const tile = createTile(i == 0 ? TILE_TYPE.DIR_START : TILE_TYPE.ROAD, childPath, parentPath);
+    tmpChildGrid[i] = { 0: tile };
+  }
+
+  for (const x in childGrid) {
+    if (!childGrid.hasOwnProperty(x)) {
+      continue;
     }
 
-    const normalizedX =
-      -1 * (render.road.dimensions.width / 2) +
-      childNode.render.intersectionBuffer +
-      prevSideX[childNode.render.branchDirection];
+    const intX = parseInt(x, 10);
+    tmpChildGrid[intX + numExtraChildRoadTiles] = {
+      ...childGrid[x],
+      ...tmpChildGrid[intX + numExtraChildRoadTiles],
+    };
+  }
 
-    childNode.render.position.x =
-      normalizedX + childNode.render.dimensions.width / 2;
-
-    childNode.render.position.z =
-      direction *
-      (render.road.dimensions.depth / 2 +
-        childNode.render.dimensions.depth / 2) +
-      render.road.position.z;
-
-    if (childNode.type === "tree") {
-      const intersection = {
-        node: [childNode.path],
-        render: {
-          position: { x: 0, y: 0.2, z: 0 },
-          dimensions: {
-            width: childNode.render.road.dimensions.depth,
-            depth: render.road.dimensions.depth,
-            height: 0.1,
-          },
-          color: "#666",
-        },
-      };
-
-      intersection.render.position.x =
-        normalizedX +
-        intersection.render.dimensions.width / 2 +
-        childNode.directory.render.sideDepth[
-        childNode.render.branchDirection
-        ];
-
-      render.road.intersections.push(intersection);
+  for (const x in tmpChildGrid) {
+    if (!tmpChildGrid.hasOwnProperty(x)) {
+      continue;
     }
 
-    prevSideX[childNode.render.branchDirection] +=
-      childNode.render.dimensions.width +
-      childNode.render.buffer +
-      childNode.render.intersectionBuffer;
+    const ty = branchDirection + (parseInt(x, 10) * branchDirection);
+
+    for (const y in tmpChildGrid[x]) {
+      if (!tmpChildGrid[x].hasOwnProperty(y)) {
+        continue;
+      }
+
+      const tx = ox - (parseInt(y, 10) * branchDirection);
+
+      const isOverlappingRoad = (branchDirection === 1 && ty <= 0) || (branchDirection === -1 && ty >= 0)
+      const isOccupied = typeof tmpNewParentGrid[tx] !== 'undefined' && typeof tmpNewParentGrid[tx][ty] !== 'undefined';
+      const isValid = !isOverlappingRoad && !isOccupied;
+
+      if (!isValid) {
+        isInvalidOrigin = true;
+        errorReason = { isOverlappingRoad, isOccupied, tx, ty };
+        break;
+      }
+
+      if (typeof tmpNewParentGrid[tx] === 'undefined') {
+        tmpNewParentGrid[tx] = {};
+      }
+
+      tmpNewParentGrid[tx][ty] = tmpChildGrid[x][y];
+    }
+
+
+    if (isInvalidOrigin) {
+      break;
+    }
   }
 
-  render.road.dimensions.width += grid.buffer * 2;
-  render.dimensions.width = render.road.dimensions.width;
-
-  if (node.depth > 0) {
-    render = setBranchDirection(render);
+  if (isInvalidOrigin) {
+    return { error: true, errorReason };
   }
 
-  return render;
+  return tmpNewParentGrid;
 }
 
-function getBuildingRender(node: any) {
-  let propertyHeight = node.file_stats.num_lines
-    ? Math.ceil(Math.log(node.file_stats.num_lines) / Math.log(3)) * 4
-    : basePropertyDimensions.height;
-  if (propertyHeight < basePropertyDimensions.height) {
-    propertyHeight = basePropertyDimensions.height;
-  }
-
-  let property = {
-    dimensions: {
-      width: propertyHeight / 4,
-      depth: propertyHeight / 4,
-      height: propertyHeight,
-    },
-    position: {
-      x: 0,
-      y: propertyHeight / 2,
-      z: 0,
-    },
-  };
-
-  const foundation = {
-    dimensions: {
-      width: property.dimensions.width + property.dimensions.width / 2,
-      depth: property.dimensions.depth + property.dimensions.depth / 2,
-      height: grid.height,
-    },
-    position: { x: 0, y: 0, z: 0 },
-  };
-
-  let render = {
-    position: { x: 0, y: 0, z: 0 },
-    rotation: { x: 0, y: 0, z: 0 },
-    dimensions: {
-      width: foundation.dimensions.width,
-      depth: foundation.dimensions.depth,
-      height: foundation.dimensions.height + property.dimensions.height,
-    },
-    buffer: getRandomBuffer(),
-    intersectionBuffer: 0,
-    foundation,
-    property,
-    branchDirection: "center",
-  };
-
-  render = setBranchDirection(render);
-  return render;
-}
-
-function setBranchDirection(render: any) {
-  const branchDirections: string[] = ["left", "right"];
-  const origDimenions = { ...render.dimensions };
-  render.branchDirection =
-    branchDirections[Math.floor(Math.random() * branchDirections.length)];
-  render.dimensions.width = origDimenions.depth;
-  render.dimensions.depth = origDimenions.width;
-
-  if (render.branchDirection === "left") {
-    render.rotation.y = 90;
-  } else {
-    render.rotation.y = -90;
-  }
-
-  return render;
-}
-
-function getRoadDepth(blockComplexity: number) {
-  let roadDepth;
-  if (blockComplexity <= 2) {
-    roadDepth = 2;
-  } else if (blockComplexity > 2 && blockComplexity < 6) {
-    roadDepth = 3;
-  } else {
-    roadDepth = 4;
-  }
-  roadDepth *= grid.depth;
-
-  return roadDepth;
-}
-
-function getRandomBuffer() {
-  return Math.floor(Math.random() * grid.buffer);
-}
 </script>
 
 <template>
   <div>
-    <RenderRepo :repo="repoCity" />
+    <RenderGrid :grid="repoGrid" />
   </div>
 </template>
