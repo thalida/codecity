@@ -38,12 +38,14 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
     return;
   }
 
+  const numChildren = sourceNode.child_paths.length;
+
   let grid: any = {};
   grid[0] = { 0: createTile(TILE_TYPE.DIR_START, sourcePath, parentPath) };
 
   let x = Object.keys(grid).length;
 
-  for (let i = 0; i < sourceNode.child_paths.length; i += 1) {
+  for (let i = 0; i < numChildren; i += 1) {
     const childPath = sourceNode.child_paths[i];
     const childNode = repoTree[childPath];
 
@@ -85,8 +87,12 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
     let foundValidGrid = false;
     let tmpNorthGrid: any = {};
     let tmpSouthGrid: any = {};
+    let height = 1;
+    if (childGrid) {
+      const maxX = Math.abs(Math.min(...Object.keys(childGrid).map(Number)));
+      height = maxX + 1
+    }
     const ix = x + 1;
-    const height = childGrid ? Math.abs(Math.min(...Object.keys(childGrid).map(Number))) + 1 : 1;
     let nx = ix, ny = 1 * height, sx = ix, sy = -1 * height;
     while (!foundValidGrid) {
       tmpNorthGrid = combineGrids(grid, childGrid, sourcePath, childPath, nx, ny, 1, ix);
@@ -113,8 +119,13 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
       }
     }
 
-    x = (tmpNorthGrid.error ? sx : nx) + 2;
-    grid = tmpNorthGrid.error ? tmpSouthGrid : tmpNorthGrid;
+    if (typeof tmpNorthGrid.error === 'undefined' && typeof tmpSouthGrid.error === 'undefined') {
+      grid = i % 2 === 0 ? tmpNorthGrid : tmpSouthGrid;
+      x = (i % 2 === 0 ? nx : sx) + 2;
+    } else {
+      grid = tmpSouthGrid.error ? tmpNorthGrid : tmpSouthGrid;
+      x = (tmpSouthGrid.error ? nx : sx) + 2;
+    }
   }
 
   const endTile = createTile(TILE_TYPE.DIR_END, sourcePath, parentPath)
