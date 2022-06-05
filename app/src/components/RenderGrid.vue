@@ -8,6 +8,7 @@ import "../environment.js";
 
 import { onMounted } from "vue";
 import { TILE_TYPE } from "@/constants/tiles";
+import RenderRoad from "./RenderRoad.vue";
 import RenderBuilding from "./RenderBuilding.vue";
 
 const props = defineProps(['grid', 'tree'])
@@ -62,24 +63,9 @@ onMounted(() => {
 
       <!-- <RenderDirectory :node="props.repo" /> -->
       <a-entity v-for="(ys, x) in props.grid">
-        <a-entity v-for="(entity, y) in ys" :position="`${x} 0.5 ${y}`">
-          <a-box v-if="entity.type === TILE_TYPE.DIR_START && entity.nodePath == '.'" color="green" :height="10"
-            :width="1" :depth="1" shadow="cast:false; receive: true"></a-box>
-          <a-box v-else-if="entity.type === TILE_TYPE.DIR_START" color="green" :height="1" :width="1" :depth="1"
-            shadow="cast:false; receive: true">
-          </a-box>
-          <a-box v-else-if="entity.type === TILE_TYPE.ROAD" color="gray" :height="1" :width="1" :depth="1"
-            shadow="cast:false; receive: true"></a-box>
-          <a-box v-else-if="entity.type === TILE_TYPE.CROSSWALK" color="white" :height="1" :width="1" :depth="1"
-            shadow="cast:false; receive: true">
-          </a-box>
-          <a-box v-else-if="entity.type === TILE_TYPE.INTERSECTION" color="red" :height="1" :width="1" :depth="1"
-            shadow="cast:false; receive: true">
-          </a-box>
-          <RenderBuilding v-else-if="entity.type === TILE_TYPE.BUIlDING" :node="props.tree[entity.nodePath]">
-          </RenderBuilding>
-          <a-box v-else-if="entity.type === TILE_TYPE.DIR_END" color="yellow" :height="1" :width="1" :depth="1"
-            shadow="cast:false; receive: true"></a-box>
+        <a-entity v-for="(tile, y) in ys" :position="`${x} 0.5 ${y}`">
+          <RenderBuilding v-if="tile.type === TILE_TYPE.BUIlDING" :node="props.tree[tile.nodePath]" />
+          <RenderRoad v-else :tile="tile" :node="props.tree[tile.nodePath]" />
         </a-entity>
       </a-entity>
     </a-scene>

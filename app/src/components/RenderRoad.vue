@@ -1,25 +1,21 @@
 <script setup lang="ts">
 import "aframe";
-import "aframe-gradient-sky";
 
-const props = defineProps(['road'])
-const roadPosition = `${props.road.position.x} ${props.road.position.y} ${props.road.position.z}`
-const roadDimensions = props.road.dimensions;
-
-function getIntersectionPosition(intersection) {
-  return `${intersection.render.position.x} ${intersection.render.position.y} ${intersection.render.position.z}`
-}
+import { TILE_TYPE } from "@/constants/tiles";
+const props = defineProps(['node', 'tile'])
 </script>
 
 <template>
-  <a-entity :position="roadPosition" shadow="cast:false; receive: true">
-    <a-box color="gray" :width="roadDimensions.width" :height="roadDimensions.height" :depth="roadDimensions.depth">
+  <a-entity shadow="cast:false; receive: true">
+    <a-box v-if="props.tile.type === TILE_TYPE.DIR_START && props.tile.nodePath == '.'" color="green" :height="10"
+      :width="1" :depth="1"></a-box>
+    <a-box v-else-if="props.tile.type === TILE_TYPE.DIR_START" color="green" :height="1" :width="1" :depth="1">
     </a-box>
-    <a-entity v-for="(intersection, idx) in road.intersections" :key="idx">
-      <a-box color="yellow" :height="intersection.render.dimensions.height"
-        :width="intersection.render.dimensions.width" :depth="intersection.render.dimensions.depth"
-        :position="getIntersectionPosition(intersection)">
-      </a-box>
-    </a-entity>
+    <a-box v-else-if="props.tile.type === TILE_TYPE.DIR_END" color="yellow" :height="1" :width="1" :depth="1"></a-box>
+    <a-box v-else-if="props.tile.type === TILE_TYPE.CROSSWALK" color="white" :height="1" :width="1" :depth="1">
+    </a-box>
+    <a-box v-else-if="props.tile.type === TILE_TYPE.INTERSECTION" color="red" :height="1" :width="1" :depth="1">
+    </a-box>
+    <a-box v-else-if="props.tile.type === TILE_TYPE.ROAD" color="gray" :height="1" :width="1" :depth="1"></a-box>
   </a-entity>
 </template>
