@@ -7,9 +7,7 @@ const props = defineProps(['repoUrl'])
 const repoData = await fetchRepo();
 const repoTree = repoData.tree;
 const repoGrid = generateGrid(repoTree, '.')
-console.log(repoTree, repoGrid);
-
-// console.log(rootGrid);
+// console.log(repoTree, repoGrid);
 
 async function fetchRepo() {
   const loc = window.location;
@@ -22,11 +20,12 @@ async function fetchRepo() {
   return res.data;
 }
 
-function generateGrid(repoTree, sourcePath) {
-  const maxDepth = 2;
+function generateGrid(repoTree, sourcePath, parentPath = '') {
+  // const maxDepth = 4;
+  const maxDepth = null;
   const sourceNode = repoTree[sourcePath];
 
-  if (sourceNode.depth > maxDepth) {
+  if (maxDepth && sourceNode.depth > maxDepth) {
     return;
   }
 
@@ -48,8 +47,12 @@ function generateGrid(repoTree, sourcePath) {
         grid[x] = {};
       }
 
-      grid[x][0] = ['R'];
-      grid[x][by] = ['B', childPath];
+      if (typeof grid[x][0] === 'undefined') {
+        grid[x][0] = ['R', sourcePath];
+      }
+
+      grid[x][by] = ['B', sourcePath, childPath];
+
 
       if (by === -1) {
         x += 1;
@@ -58,25 +61,30 @@ function generateGrid(repoTree, sourcePath) {
       continue;
     }
 
-    if (typeof grid[x] !== 'undefined') {
+    if (grid[x] && grid[x][0]) {
       x += 1;
     }
 
-    // console.log(sourcePath, x - 1, grid[x - 1]);
-    // if (grid[x - 1][0][0] === 'C') {
-    //   console.log('C', grid[x - 1][0][1]);
-    // }
+    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0][0] === 'C') {
+      if (typeof grid[x] === 'undefined') {
+        grid[x] = {};
+      }
 
-    const childGrid = generateGrid(repoTree, childPath);
+      grid[x][0] = ['RR', sourcePath, childPath];
+      x += 1;
+    }
+
+    const childGrid = generateGrid(repoTree, childPath, sourcePath);
     let foundValidGrid = false;
     let tmpNorthGrid: any = {};
     let tmpSouthGrid: any = {};
     const ix = x + 1;
-    let nx = ix, ny = 1, sx = ix, sy = -1;
+    const height = childGrid ? Math.abs(Math.min(...Object.keys(childGrid).map(Number))) + 1 : 1;
+    let nx = ix, ny = 1 * height, sx = ix, sy = -1 * height;
     while (!foundValidGrid) {
-      tmpNorthGrid = combineGrids(grid, childGrid, childPath, nx, ny, 1, ix);
-      tmpSouthGrid = combineGrids(grid, childGrid, childPath, sx, sy, -1, ix);
-
+      tmpNorthGrid = combineGrids(grid, childGrid, sourcePath, childPath, nx, ny, 1, ix);
+      tmpSouthGrid = combineGrids(grid, childGrid, sourcePath, childPath, sx, sy, -1, ix);
+      // console.log(tmpNorthGrid.errorReason, tmpSouthGrid.errorReason);
       if (tmpNorthGrid.error) {
         if (tmpNorthGrid.errorReason.isOverlappingRoad) {
           ny += 1;
@@ -99,41 +107,63 @@ function generateGrid(repoTree, sourcePath) {
     }
 
     x = (tmpNorthGrid.error ? sx : nx) + 2;
-    grid = cloneDeep(tmpNorthGrid.error ? tmpSouthGrid : tmpNorthGrid);
+    grid = tmpNorthGrid.error ? tmpSouthGrid : tmpNorthGrid;
   }
 
-
-  console.log(grid[x - 1]);
+  const endTile = ['E', sourcePath];
   if (typeof grid[x] === "undefined") {
-    grid[x] = { 0: ['E'] };
-  } else {
+    grid[x] = { 0: endTile };
+  } else if (grid[x] && grid[x][0]) {
     grid[x + 1] = {
-      ...{ 0: ['E'] },
+      ...{ 0: endTile },
       ...grid[x + 1],
+    }
+  } else {
+    grid[x] = {
+      ...{ 0: endTile },
+      ...grid[x],
     };
   }
 
   return grid;
 }
 
-function combineGrids(parentGrid, childGrid, childPath, ox, oy, branchDirection, sx) {
+function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, branchDirection, sx) {
   const tmpNewParentGrid: any = cloneDeep(parentGrid);
   const tmpChildGrid: any = {};
   let isInvalidOrigin = false;
   let errorReason = {};
 
-  // const numExtraParentRoadTiles = ox - sx;
-  // for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
-  //   tmpNewParentGrid[sx + i] = { 0: ['R'] };
-  // }
+  let numExtraParentRoadTiles = ox - sx;
+  if (numExtraParentRoadTiles > 0) {
+    numExtraParentRoadTiles += 1;
+  }
 
-  tmpNewParentGrid[ox - 1] = { '-1': ['C'], 0: ['C'], 1: ['C'] }
-  tmpNewParentGrid[ox] = { 0: ['I', childPath] }
-  tmpNewParentGrid[ox + 1] = { '-1': ['C'], 0: ['C'], 1: ['C'] }
+  for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
+    tmpNewParentGrid[sx + i - 2] = {
+      ...{ 0: ['R'] },
+      ...tmpNewParentGrid[sx + i - 2],
+    };
+  }
+
+  const crosswalkTile = ['C', parentPath, childPath];
+  tmpNewParentGrid[ox - 1] = {
+    ...{ '-1': crosswalkTile, 0: crosswalkTile, 1: crosswalkTile },
+    ...tmpNewParentGrid[ox - 1],
+  }
+  tmpNewParentGrid[ox] = {
+    ...{ 0: ['I', parentPath, childPath] },
+    ...tmpNewParentGrid[ox],
+  }
+  tmpNewParentGrid[ox + 1] = {
+    ...{ '-1': crosswalkTile, 0: crosswalkTile, 1: crosswalkTile },
+    ...tmpNewParentGrid[ox + 1],
+  }
+
 
   const numExtraChildRoadTiles = Math.abs(oy) - 1;
   for (let i = 0; i < numExtraChildRoadTiles; i += 1) {
-    tmpChildGrid[i] = { 0: ['R'] };
+    tmpChildGrid[i] = { 0: [i == 0 ? 'S' : 'R', childPath] };
   }
 
   for (const x in childGrid) {
@@ -141,9 +171,10 @@ function combineGrids(parentGrid, childGrid, childPath, ox, oy, branchDirection,
       continue;
     }
 
-    tmpChildGrid[parseInt(x, 10) + numExtraChildRoadTiles] = {
-      ...tmpChildGrid[parseInt(x, 10) + numExtraChildRoadTiles],
-      ...childGrid[x]
+    const intX = parseInt(x, 10);
+    tmpChildGrid[intX + numExtraChildRoadTiles] = {
+      ...childGrid[x],
+      ...tmpChildGrid[intX + numExtraChildRoadTiles],
     };
   }
 
@@ -152,7 +183,7 @@ function combineGrids(parentGrid, childGrid, childPath, ox, oy, branchDirection,
       continue;
     }
 
-    const ty = oy + (parseInt(x, 10) * branchDirection);
+    const ty = branchDirection + (parseInt(x, 10) * branchDirection);
 
     for (const y in tmpChildGrid[x]) {
       if (!tmpChildGrid[x].hasOwnProperty(y)) {

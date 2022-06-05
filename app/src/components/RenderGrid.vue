@@ -64,6 +64,7 @@ onMounted(() => {
           <a-box v-else-if="entity[0] === 'S'" color="green" :height="1" :width="1" :depth="1">
           </a-box>
           <a-box v-else-if="entity[0] === 'R'" color="gray" :height="1" :width="1" :depth="1"></a-box>
+          <a-box v-else-if="entity[0] === 'RR'" color="black" :height="1" :width="1" :depth="1"></a-box>
           <a-box v-else-if="entity[0] === 'C'" color="white" :height="1" :width="1" :depth="1"></a-box>
           <a-box v-else-if="entity[0] === 'I'" color="red" :height="1" :width="1" :depth="1"></a-box>
           <a-box v-else-if="entity[0] === 'B'" color="blue" :height="1" :width="1" :depth="1"></a-box>
