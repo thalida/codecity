@@ -20,9 +20,7 @@ async function fetchRepo() {
   return res.data;
 }
 
-function generateGrid(repoTree, sourcePath, parentPath = '') {
-  // const maxDepth = 4;
-  const maxDepth = null;
+function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
   const sourceNode = repoTree[sourcePath];
 
   if (maxDepth && sourceNode.depth > maxDepth) {
@@ -38,7 +36,6 @@ function generateGrid(repoTree, sourcePath, parentPath = '') {
   for (let i = 0; i < sourceNode.child_paths.length; i += 1) {
     const childPath = sourceNode.child_paths[i];
     const childNode = repoTree[childPath];
-
 
     if (childNode.type === 'blob') {
       const by = i % 2 === 0 ? 1 : -1;
@@ -74,7 +71,7 @@ function generateGrid(repoTree, sourcePath, parentPath = '') {
       x += 1;
     }
 
-    const childGrid = generateGrid(repoTree, childPath, sourcePath);
+    const childGrid = generateGrid(repoTree, childPath);
     let foundValidGrid = false;
     let tmpNorthGrid: any = {};
     let tmpSouthGrid: any = {};
@@ -84,7 +81,7 @@ function generateGrid(repoTree, sourcePath, parentPath = '') {
     while (!foundValidGrid) {
       tmpNorthGrid = combineGrids(grid, childGrid, sourcePath, childPath, nx, ny, 1, ix);
       tmpSouthGrid = combineGrids(grid, childGrid, sourcePath, childPath, sx, sy, -1, ix);
-      // console.log(tmpNorthGrid.errorReason, tmpSouthGrid.errorReason);
+
       if (tmpNorthGrid.error) {
         if (tmpNorthGrid.errorReason.isOverlappingRoad) {
           ny += 1;
