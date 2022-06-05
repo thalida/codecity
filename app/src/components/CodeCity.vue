@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { TILE_TYPE } from "@/constants/tiles";
 import axios from "axios";
 import { cloneDeep, parseInt } from "lodash-es";
 import RenderGrid from "./RenderGrid.vue";
@@ -7,7 +8,7 @@ const props = defineProps(['repoUrl'])
 const repoData = await fetchRepo();
 const repoTree = repoData.tree;
 const repoGrid = generateGrid(repoTree, '.')
-// console.log(repoTree, repoGrid);
+console.log(repoTree, repoGrid);
 
 async function fetchRepo() {
   const loc = window.location;
@@ -20,7 +21,27 @@ async function fetchRepo() {
   return res.data;
 }
 
-function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
+function createTile(type: TILE_TYPE, nodePath: string, parentPath: null | string = null) {
+  const tile = {
+    type,
+    nodePath,
+    parentPath,
+  };
+
+  return tile;
+}
+
+function addTile(grid, x, y, tile) {
+  if (typeof grid[x] === 'undefined') {
+    grid[x] = {};
+  }
+
+  grid[x][y] = tile;
+
+  return grid;
+}
+
+function generateGrid(repoTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
   const sourceNode = repoTree[sourcePath];
 
   if (maxDepth && sourceNode.depth > maxDepth) {
@@ -28,8 +49,7 @@ function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
   }
 
   let grid: any = {};
-
-  grid[0] = { 0: ['S', sourcePath] };
+  grid[0] = { 0: createTile(TILE_TYPE.DIR_START, sourcePath, parentPath) };
 
   let x = Object.keys(grid).length;
 
@@ -45,10 +65,10 @@ function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
       }
 
       if (typeof grid[x][0] === 'undefined') {
-        grid[x][0] = ['R', sourcePath];
+        grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
       }
 
-      grid[x][by] = ['B', sourcePath, childPath];
+      grid[x][by] = createTile(TILE_TYPE.BUIlDING, sourcePath, parentPath)
 
 
       if (by === -1) {
@@ -67,11 +87,11 @@ function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
         grid[x] = {};
       }
 
-      grid[x][0] = ['RR', sourcePath, childPath];
+      grid[x][0] = createTile(TILE_TYPE.ROAD, sourcePath, parentPath)
       x += 1;
     }
 
-    const childGrid = generateGrid(repoTree, childPath);
+    const childGrid = generateGrid(repoTree, childPath, sourcePath, maxDepth);
     let foundValidGrid = false;
     let tmpNorthGrid: any = {};
     let tmpSouthGrid: any = {};
@@ -107,7 +127,7 @@ function generateGrid(repoTree, sourcePath, maxDepth: null | number = null) {
     grid = tmpNorthGrid.error ? tmpSouthGrid : tmpNorthGrid;
   }
 
-  const endTile = ['E', sourcePath];
+  const endTile = createTile(TILE_TYPE.DIR_END, sourcePath, parentPath)
   if (typeof grid[x] === "undefined") {
     grid[x] = { 0: endTile };
   } else if (grid[x] && grid[x][0]) {
@@ -138,18 +158,19 @@ function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, bran
 
   for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
     tmpNewParentGrid[sx + i - 2] = {
-      ...{ 0: ['R'] },
+      ...{ 0: createTile(TILE_TYPE.ROAD, parentPath) },
       ...tmpNewParentGrid[sx + i - 2],
     };
   }
 
-  const crosswalkTile = ['C', parentPath, childPath];
+  const crosswalkTile = createTile(TILE_TYPE.CROSSWALK, childPath, parentPath);
+  const intersectionTile = createTile(TILE_TYPE.INTERSECTION, childPath, parentPath);
   tmpNewParentGrid[ox - 1] = {
     ...{ '-1': crosswalkTile, 0: crosswalkTile, 1: crosswalkTile },
     ...tmpNewParentGrid[ox - 1],
   }
   tmpNewParentGrid[ox] = {
-    ...{ 0: ['I', parentPath, childPath] },
+    ...{ 0: intersectionTile },
     ...tmpNewParentGrid[ox],
   }
   tmpNewParentGrid[ox + 1] = {
@@ -160,7 +181,8 @@ function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, bran
 
   const numExtraChildRoadTiles = Math.abs(oy) - 1;
   for (let i = 0; i < numExtraChildRoadTiles; i += 1) {
-    tmpChildGrid[i] = { 0: [i == 0 ? 'S' : 'R', childPath] };
+    const tile = createTile(i == 0 ? TILE_TYPE.DIR_START : TILE_TYPE.ROAD, childPath, parentPath);
+    tmpChildGrid[i] = { 0: tile };
   }
 
   for (const x in childGrid) {

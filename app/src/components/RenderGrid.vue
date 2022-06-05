@@ -7,6 +7,7 @@ import "aframe-simple-sun-sky";
 // import "../environment.js";
 
 import { onMounted } from "vue";
+import { TILE_TYPE } from "@/constants/tiles";
 
 const props = defineProps(['grid'])
 
@@ -60,15 +61,17 @@ onMounted(() => {
       <!-- <RenderDirectory :node="props.repo" /> -->
       <a-entity v-for="(ys, x) in grid">
         <a-entity v-for="(entity, y) in ys" :position="`${x} 0 ${y}`">
-          <a-box v-if="entity[0] === 'S' && entity[1] == '.'" color="green" :height="10" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'S'" color="green" :height="1" :width="1" :depth="1">
+          <a-box v-if="entity.type === TILE_TYPE.DIR_START && entity.nodePath == '.'" color="green" :height="10"
+            :width="1" :depth="1"></a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.DIR_START" color="green" :height="1" :width="1" :depth="1">
           </a-box>
-          <a-box v-else-if="entity[0] === 'R'" color="gray" :height="1" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'RR'" color="black" :height="1" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'C'" color="white" :height="1" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'I'" color="red" :height="1" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'B'" color="blue" :height="1" :width="1" :depth="1"></a-box>
-          <a-box v-else-if="entity[0] === 'E'" color="yellow" :height="1" :width="1" :depth="1"></a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.ROAD" color="gray" :height="1" :width="1" :depth="1"></a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.CROSSWALK" color="white" :height="1" :width="1" :depth="1">
+          </a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.INTERSECTION" color="red" :height="1" :width="1" :depth="1">
+          </a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.BUIlDING" color="blue" :height="1" :width="1" :depth="1"></a-box>
+          <a-box v-else-if="entity.type === TILE_TYPE.DIR_END" color="yellow" :height="1" :width="1" :depth="1"></a-box>
         </a-entity>
       </a-entity>
     </a-scene>
