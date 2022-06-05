@@ -31,16 +31,6 @@ function createTile(type: TILE_TYPE, nodePath: string, parentPath: null | string
   return tile;
 }
 
-function addTile(grid, x, y, tile) {
-  if (typeof grid[x] === 'undefined') {
-    grid[x] = {};
-  }
-
-  grid[x][y] = tile;
-
-  return grid;
-}
-
 function generateGrid(repoTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
   const sourceNode = repoTree[sourcePath];
 
@@ -131,15 +121,11 @@ function generateGrid(repoTree, sourcePath: string, parentPath: null | string = 
   if (typeof grid[x] === "undefined") {
     grid[x] = { 0: endTile };
   } else if (grid[x] && grid[x][0]) {
-    grid[x + 1] = {
-      ...{ 0: endTile },
-      ...grid[x + 1],
-    }
+    grid[x + 1] = grid[x + 1] || {};
+    grid[x + 1][0] = endTile
   } else {
-    grid[x] = {
-      ...{ 0: endTile },
-      ...grid[x],
-    };
+    grid[x] = grid[x] || {};
+    grid[x][0] = endTile
   }
 
   return grid;
@@ -157,25 +143,29 @@ function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, bran
   }
 
   for (let i = 0; i < numExtraParentRoadTiles; i += 1) {
-    tmpNewParentGrid[sx + i - 2] = {
-      ...{ 0: createTile(TILE_TYPE.ROAD, parentPath) },
-      ...tmpNewParentGrid[sx + i - 2],
-    };
+    if (typeof tmpNewParentGrid[sx + i - 1] === 'undefined') {
+      tmpNewParentGrid[sx + i - 1] = {};
+    }
+
+    tmpNewParentGrid[sx + i - 1][0] = createTile(TILE_TYPE.ROAD, parentPath)
   }
 
   const crosswalkTile = createTile(TILE_TYPE.CROSSWALK, childPath, parentPath);
   const intersectionTile = createTile(TILE_TYPE.INTERSECTION, childPath, parentPath);
-  tmpNewParentGrid[ox - 1] = {
-    ...{ '-1': crosswalkTile, 0: crosswalkTile, 1: crosswalkTile },
-    ...tmpNewParentGrid[ox - 1],
-  }
-  tmpNewParentGrid[ox] = {
-    ...{ 0: intersectionTile },
-    ...tmpNewParentGrid[ox],
-  }
-  tmpNewParentGrid[ox + 1] = {
-    ...{ '-1': crosswalkTile, 0: crosswalkTile, 1: crosswalkTile },
-    ...tmpNewParentGrid[ox + 1],
+
+  for (let i = -1; i <= 1; i += 1) {
+    if (typeof tmpNewParentGrid[ox + i] === 'undefined') {
+      tmpNewParentGrid[ox + i] = {};
+    }
+
+    if (i === 0) {
+      tmpNewParentGrid[ox + i][0] = intersectionTile;
+      continue;
+    }
+
+    for (let j = -1; j <= 1; j += 1) {
+      tmpNewParentGrid[ox + i][j] = crosswalkTile;
+    }
   }
 
 
