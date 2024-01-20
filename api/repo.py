@@ -1,24 +1,32 @@
 import base64
+import json
 import os
 import pathlib
-import json
 import time
 
 import git
 import requests
+from dotenv import load_dotenv
 
+os.environ["TZ"] = "UTC"
+
+load_dotenv()
+
+# "https://github.com/troisjs/trois.git"
 # test_repo_dir = pathlib.Path(f"./cache/test_repo_dir")
 # empty_repo = git.Repo.init(test_repo_dir)
 # origin = empty_repo.create_remote("origin", "https://github.com/faketroisjs/trois.git")
 # print(origin.exists())
 
-DISABLE_CACHE = True
-DEFAULT_API_CACHE_TTL = 60 * 60  # 1 hour
-DEFAULT_INSIGHTS_CACHE_TTL = 30 * 60  # 30 minutes
+DISABLE_CACHE = os.getenv("DISABLE_CACHE", False)
+CACHE_TTL = os.getenv("CACHE_TTL", 60 * 60)  # 1 hour
 
 if DISABLE_CACHE:
-    DEFAULT_API_CACHE_TTL = 0
-    DEFAULT_INSIGHTS_CACHE_TTL = 0
+    CACHE_TTL = 0
+
+CACHE_PARENT_DIR = pathlib.Path(__file__).parent / "repo-cache"
+CACHE_FILENAME = "repo_data.json"
+CACHE_REPO_DIR = "repo"
 
 
 def is_valid_repo_url(repo_url):
@@ -27,11 +35,8 @@ def is_valid_repo_url(repo_url):
         try:
             git_cmd.ls_remote(repo_url)
             return True
-        except:
+        except git.exc.GitCommandError:
             return False
-
-
-# "https://github.com/troisjs/trois.git"
 
 
 def get_stats(path_str):
@@ -48,7 +53,7 @@ def get_is_url_up(url):
     try:
         req = requests.get(url)
         return req.status_code == requests.codes.ok
-    except Exception as e:
+    except Exception:
         return False
 
 
@@ -62,16 +67,16 @@ def get_repo(repo_url):
         raise Exception(f"Invalid repo url: {repo_url}")
 
     safe_repo_url = base64.b64encode(repo_url.encode("utf-8")).decode("utf-8")
-    cache_dir = f"/tmp/codecity/cache/{safe_repo_url}"
+    cache_dir = pathlib.Path(f"{CACHE_PARENT_DIR}/{safe_repo_url}")
+    cache_file = pathlib.Path(f"{cache_dir}/{CACHE_FILENAME}")
 
-    cache_file = pathlib.Path(f"{cache_dir}/repo_data.json")
     cached_at = cache_file.stat().st_mtime if cache_file.exists() else None
-    if cached_at is not None and time.time() < cached_at + DEFAULT_API_CACHE_TTL:
+    if cached_at is not None and time.time() < cached_at + CACHE_TTL:
         with cache_file.open(mode="r") as f:
             response = json.load(f)
         return response
 
-    repo_dir = pathlib.Path(f"{cache_dir}/repo")
+    repo_dir = pathlib.Path(f"{cache_dir}/{CACHE_REPO_DIR}")
     if repo_dir.exists():
         repo = git.Repo.init(repo_dir)
         repo.remotes.origin.pull()
