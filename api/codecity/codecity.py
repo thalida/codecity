@@ -3,6 +3,7 @@ import json
 import os
 import pathlib
 import time
+from typing import cast
 
 import git
 import requests
@@ -199,7 +200,6 @@ class CodeCity:
         root_path = "."
         repo_tree = CodeCityRootTree(root_path=root_path, nodes={})
         repo_tree.nodes[root_path] = CodeCityTreeNode(
-            # node_type="tree",
             depth=0,
             parent_path=None,
             path=root_path,
@@ -207,22 +207,30 @@ class CodeCity:
             revision_stats=self.get_revision_stats(repo, repo.working_tree_dir),
             child_paths=[],
             num_children=0,
-            num_descendants=0,
             num_child_blobs=0,
             num_child_trees=0,
+            num_descendants=0,
+            num_descendant_blobs=0,
+            num_descendant_trees=0,
         )
 
         git_tree = repo.tree()
         for item in git_tree.traverse():
             full_path = pathlib.Path(item.abspath)
-            parent_path = full_path.parent.relative_to(repo.working_tree_dir)
-            parent_path_str = str(parent_path)
+            node_path = f"{root_path}/{item.path}"
+            parent_path = node_path.rsplit("/", 1)[0]
+            ancestors = parent_path.split("/")
+            num_ancestors = len(ancestors)
+
+            if item.type not in ["blob", "tree"]:
+                continue
 
             if item.type == "blob":
                 node = CodeCityBlobNode(
-                    depth=0,
-                    parent_path=parent_path_str,
-                    path=str(item.path),
+                    node_type="blob",
+                    depth=num_ancestors,
+                    path=node_path,
+                    parent_path=parent_path,
                     name=item.name,
                     mime_type=item.mime_type,
                     size=item.size,
@@ -239,49 +247,49 @@ class CodeCity:
                     pass
             else:
                 node = CodeCityTreeNode(
-                    depth=0,
-                    parent_path=parent_path_str,
-                    path=str(item.path),
+                    node_type="tree",
+                    depth=num_ancestors,
+                    parent_path=parent_path,
+                    path=node_path,
                     name=item.name,
                     revision_stats=self.get_revision_stats(repo, item.path),
                     child_paths=[],
                     num_children=0,
-                    num_descendants=0,
                     num_child_blobs=0,
                     num_child_trees=0,
+                    num_descendants=0,
+                    num_descendant_blobs=0,
+                    num_descendant_trees=0,
                 )
 
-            ancestors = parent_path_str.split("/")
-            num_ancestors = len(ancestors)
-
-            if parent_path_str != root_path:
-                node.depth = num_ancestors + 1
-
-                if repo_tree.nodes[root_path].node_type == "tree":
-                    repo_tree.nodes[root_path].num_descendants += 1
-            else:
-                node.depth = num_ancestors
-
-            repo_tree.nodes[str(item.path)] = node
+            repo_tree.nodes[node_path] = node
 
             for i in range(num_ancestors):
                 ancestor_path = "/".join(ancestors[: i + 1])
 
-                if repo_tree.nodes[ancestor_path].node_type != "tree":
+                if (
+                    ancestor_path not in repo_tree.nodes
+                    or repo_tree.nodes[ancestor_path].node_type != "tree"
+                ):
                     continue
 
-                repo_tree.nodes[ancestor_path].num_descendants += 1
+                ancestor_node = cast(CodeCityTreeNode, repo_tree.nodes[ancestor_path])
+                ancestor_node.num_descendants += 1
 
-                is_parent = i == num_ancestors - 1
-                if not is_parent:
+                if node.node_type == "blob":
+                    ancestor_node.num_descendant_blobs += 1
+                elif node.node_type == "tree":
+                    ancestor_node.num_descendant_trees += 1
+
+                if ancestor_path != parent_path:
                     continue
 
-                repo_tree.nodes[ancestor_path].num_children += 1
-                repo_tree.nodes[ancestor_path].child_paths.append(item.path)
+                ancestor_node.num_children += 1
+                ancestor_node.child_paths.append(node_path)
 
-                if item.type == "blob":
-                    repo_tree.nodes[ancestor_path].num_child_blobs += 1
-                elif item.type == "tree":
-                    repo_tree.nodes[ancestor_path].num_child_trees += 1
+                if node.node_type == "blob":
+                    ancestor_node.num_child_blobs += 1
+                elif node.node_type == "tree":
+                    ancestor_node.num_child_trees += 1
 
         return repo_tree

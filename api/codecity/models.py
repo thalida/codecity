@@ -31,9 +31,12 @@ class CodeCityTreeNode(BaseModel):
 
     child_paths: list[str]
     num_children: int = Field(ge=0)
-    num_descendants: int = Field(ge=0)
     num_child_blobs: int = Field(ge=0)
     num_child_trees: int = Field(ge=0)
+
+    num_descendants: int = Field(ge=0)
+    num_descendant_blobs: int = Field(ge=0)
+    num_descendant_trees: int = Field(ge=0)
 
     depth: int = Field(ge=0)
     parent_path: str | None
