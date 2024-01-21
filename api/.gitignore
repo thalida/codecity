@@ -134,3 +134,4 @@ cache/
 # PROJECT SPECIFIC
 # ----------------
 repo-cache/
+openapi.json

@@ -45,6 +45,7 @@
 	},
 	"forwardPorts": [
 		8000,
+		3000,
 		5432
 	],
 	"postCreateCommand": "bash -i ${containerWorkspaceFolder}/.devcontainer/postCreateCommand.sh",

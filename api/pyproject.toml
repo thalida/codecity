@@ -2,8 +2,9 @@
 name = "api"
 version = "0.1.0"
 description = ""
-authors = ["Thalida Noel <hello@thalida.com>"]
-readme = "README.md"
+authors = ["Thalida Noel <codecity@thalida.com>"]
+license = "GNU AFFERO GENERAL PUBLIC LICENSE"
+readme = "../README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"

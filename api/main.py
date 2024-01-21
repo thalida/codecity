@@ -1,11 +1,38 @@
+import os
+
+import uvicorn
+from dotenv import load_dotenv
 from fastapi import FastAPI, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.routing import APIRoute
 
-import repo
+from codecity import CodeCity
+from codecity.models import CodeCityResponse
 
-app = FastAPI(docs_url=None, redoc_url=None, openapi_url="/openapi.json")
+os.environ["TZ"] = "UTC"
+
+load_dotenv()
+
+
+def custom_generate_unique_id(route: APIRoute):
+    if route.tags is None or len(route.tags) == 0:
+        return route.name
+
+    return f"{route.tags[0]}-{route.name}"
+
+
+DEBUG = os.environ.get("DEBUG", False)
+DEBUG = True if DEBUG == "True" or DEBUG == 1 else False
+
+app = FastAPI(
+    debug=DEBUG,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url="/openapi.json",
+    generate_unique_id_function=custom_generate_unique_id,
+)
 
 origins = [
     "http://localhost",
@@ -54,15 +81,12 @@ def get_spotlight():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-@app.get("/repos")
-def get_repo(repo_url: str):
-    try:
-        response = repo.get_repo(repo_url)
-        return JSONResponse(content=response, status_code=status.HTTP_200_OK)
-    except Exception as e:
-        return JSONResponse(
-            content={"error": str(e)}, status_code=status.HTTP_400_BAD_REQUEST
-        )
+@app.get("/codecity", tags=["codecity"])
+def get_codecity(repo_url: str) -> CodeCityResponse:
+    codecity = CodeCity(repo_url)
+    repo_city = codecity.fetch()
+
+    return repo_city
 
 
 def custom_openapi():
@@ -86,3 +110,6 @@ def custom_openapi():
 
 
 app.openapi = custom_openapi
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)

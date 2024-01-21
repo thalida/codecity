@@ -2,7 +2,26 @@
 
 ## Development
 
-Run local api server:
+Run api:
 ```sh
-uvicorn main:app --reload
+poetry run uvicorn main:app --reload
+```
+
+
+Run app:
+```sh
+npm run server
+```
+
+
+## Generate Open API Specs & Code
+
+In api directory:
+```sh
+python generate_openapi.py
+```
+
+In app directory:
+```sh
+npm run generate-api-client
 ```
