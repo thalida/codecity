@@ -200,6 +200,7 @@ class CodeCity:
         root_path = "."
         repo_tree = CodeCityRootTree(root_path=root_path, nodes={})
         repo_tree.nodes[root_path] = CodeCityTreeNode(
+            node_type="tree",
             depth=0,
             parent_path=None,
             path=root_path,
