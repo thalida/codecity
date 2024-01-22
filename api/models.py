@@ -2,6 +2,7 @@ import base64
 import os
 import pathlib
 from datetime import datetime, timezone
+from statistics import geometric_mean
 from typing import Generator, Literal, Optional, Union, cast
 
 import git
@@ -27,27 +28,40 @@ class CodeCityRepoOverview(BaseModel):
 class CodeCityRevisionStats(BaseModel):
     num_commits: int = Field(ge=0)
     num_contributors: int = Field(ge=0)
-    newest_commit_time: datetime | None
-    oldest_commit_time: datetime | None
-    relative_age_factor: float | None = Field(
-        ge=0,
-        le=1,
-        description="Represents how old the node is relative to the age of the repository. A float between 0 and 1, where 0 is new and 1 is old.",
+    updated_on: datetime | None = Field(description="Last commit datetime")
+    created_on: datetime | None = Field(description="First commit datetime")
+    mean_updated_on: datetime | None = Field(
+        description="The geometric mean of all commit datetimes."
     )
-    relative_maintenance_factor: float | None = Field(
+    local_age: float | None = Field(
         ge=0,
         le=1,
-        description="Represents how maintained the node is relative to the activity in the repository. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+        description="How old is the node relative to the age of the repo. A float between 0 and 1, where 0 is new and 1 is old.",
     )
-    real_age_factor: float | None = Field(
+    local_maintenance: float | None = Field(
         ge=0,
         le=1,
-        description="Represents how old the node is relative to the current date. A float between 0 and 1, where 0 is new and 1 is old.",
+        description="How active is this node, based on last commit, relative to the last commit in the repo. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
-    real_maintenance_factor: float | None = Field(
+    local_mean_maintenance: float | None = Field(
         ge=0,
         le=1,
-        description="Represents how maintained the node is relative to the current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+        description="How active is this node, based on mean commit time, relative to the last commit in the repo. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+    )
+    global_age: float | None = Field(
+        ge=0,
+        le=1,
+        description="How old is the node relative to the current date. A float between 0 and 1, where 0 is new and 1 is old.",
+    )
+    global_maintenance: float | None = Field(
+        ge=0,
+        le=1,
+        description="How active is this nodes, based on last commit, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+    )
+    global_mean_maintenance: float | None = Field(
+        ge=0,
+        le=1,
+        description="How active is this node, based on mean commit time, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
 
 
@@ -270,24 +284,34 @@ class CodeCity(BaseModel):
         revision_stats = CodeCityRevisionStats(
             num_commits=0,
             num_contributors=0,
-            newest_commit_time=None,
-            oldest_commit_time=None,
-            relative_age_factor=None,
-            relative_maintenance_factor=None,
-            real_age_factor=None,
-            real_maintenance_factor=None,
+            updated_on=None,
+            created_on=None,
+            mean_updated_on=None,
+            local_age=None,
+            local_maintenance=None,
+            local_mean_maintenance=None,
+            global_age=None,
+            global_maintenance=None,
+            global_mean_maintenance=None,
         )
         found_contributors = set()
 
+        all_commit_times = []
+
         for commit in commits_generator:
             revision_stats.num_commits += 1
-            revision_stats.oldest_commit_time = commit.committed_datetime
 
-            if revision_stats.newest_commit_time is None:
-                revision_stats.newest_commit_time = commit.committed_datetime
+            utc_commit_time = commit.committed_datetime.replace(tzinfo=timezone.utc)
+
+            revision_stats.created_on = utc_commit_time
+
+            if revision_stats.updated_on is None:
+                revision_stats.updated_on = utc_commit_time
 
             found_contributors.add(commit.author.email)
             revision_stats.num_contributors = len(found_contributors)
+
+            all_commit_times.append(utc_commit_time)
 
         if is_root:
             root_node_revision_stats = revision_stats
@@ -295,34 +319,46 @@ class CodeCity(BaseModel):
         if root_node_revision_stats is None:
             return revision_stats
 
-        repo_oldest_commit_time = root_node_revision_stats.oldest_commit_time
-        repo_newest_commit_time = root_node_revision_stats.newest_commit_time
+        repo_created_on = root_node_revision_stats.created_on
+        repo_updated_on = root_node_revision_stats.updated_on
 
         if (
-            revision_stats.oldest_commit_time is None
-            or revision_stats.newest_commit_time is None
-            or repo_oldest_commit_time is None
-            or repo_newest_commit_time is None
+            revision_stats.created_on is None
+            or revision_stats.updated_on is None
+            or repo_created_on is None
+            or repo_updated_on is None
         ):
             return revision_stats
 
-        relative_repo_duration = repo_newest_commit_time - repo_oldest_commit_time
-        real_repo_duration = now - repo_oldest_commit_time
+        relative_repo_duration = repo_updated_on - repo_created_on
+        real_repo_duration = now - repo_created_on
 
-        revision_stats.relative_age_factor = 1 - (
-            (revision_stats.oldest_commit_time - repo_oldest_commit_time)
-            / relative_repo_duration
+        mean_updated_onstamp = geometric_mean(
+            [time.timestamp() for time in all_commit_times]
         )
-        revision_stats.relative_maintenance_factor = (
-            revision_stats.newest_commit_time - repo_oldest_commit_time
+        mean_updated_on = datetime.fromtimestamp(mean_updated_onstamp, tz=timezone.utc)
+
+        revision_stats.mean_updated_on = mean_updated_on
+
+        revision_stats.local_age = 1 - (
+            (revision_stats.created_on - repo_created_on) / relative_repo_duration
+        )
+        revision_stats.local_maintenance = (
+            revision_stats.updated_on - repo_created_on
         ) / relative_repo_duration
 
-        revision_stats.real_age_factor = 1 - (
-            (revision_stats.oldest_commit_time - repo_oldest_commit_time)
-            / real_repo_duration
+        revision_stats.local_mean_maintenance = (
+            mean_updated_on - repo_created_on
+        ) / relative_repo_duration
+
+        revision_stats.global_age = 1 - (
+            (revision_stats.created_on - repo_created_on) / real_repo_duration
         )
-        revision_stats.real_maintenance_factor = (
-            revision_stats.newest_commit_time - repo_oldest_commit_time
+        revision_stats.global_maintenance = (
+            revision_stats.updated_on - repo_created_on
+        ) / real_repo_duration
+        revision_stats.global_mean_maintenance = (
+            mean_updated_on - repo_created_on
         ) / real_repo_duration
 
         return revision_stats
