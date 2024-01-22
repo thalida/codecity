@@ -1,10 +1,18 @@
 from datetime import datetime, timezone
-from statistics import geometric_mean
+from statistics import geometric_mean, median
 
 
 def geometric_mean_datetime(datetimes: list[datetime]) -> datetime:
-    mean_timestamp = geometric_mean([time.timestamp() for time in datetimes])
+    timestamps = [time.timestamp() for time in datetimes]
+    mean_timestamp = geometric_mean(timestamps)
     utc_datetime = datetime.fromtimestamp(mean_timestamp, tz=timezone.utc)
+    return utc_datetime
+
+
+def median_datetime(datetimes: list[datetime]) -> datetime:
+    timestamps = [time.timestamp() for time in datetimes]
+    median_timestamp = median(timestamps)
+    utc_datetime = datetime.fromtimestamp(median_timestamp, tz=timezone.utc)
     return utc_datetime
 
 

@@ -15,6 +15,7 @@ from utils import (
     calc_distance_ratio,
     calc_inverse_distance_ratio,
     geometric_mean_datetime,
+    median_datetime,
 )
 
 os.environ["TZ"] = "UTC"
@@ -36,8 +37,8 @@ class CodeCityRevisionStats(BaseModel):
     num_contributors: int = Field(ge=0)
     updated_on: datetime | None = Field(description="Last commit datetime")
     created_on: datetime | None = Field(description="First commit datetime")
-    mean_updated_on: datetime | None = Field(
-        description="The geometric mean of all commit datetimes."
+    median_updated_on: datetime | None = Field(
+        description="The median of all commit datetimes"
     )
     local_age: float | None = Field(
         ge=0,
@@ -49,10 +50,10 @@ class CodeCityRevisionStats(BaseModel):
         le=1,
         description="How active is this node, based on last commit, relative to the last commit in the repo. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
-    local_mean_maintenance: float | None = Field(
+    local_median_maintenance: float | None = Field(
         ge=0,
         le=1,
-        description="How active is this node, based on mean commit time, relative to the last commit in the repo. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+        description="How active is this node, based on median commit datetime, relative to the last commit in the repo. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
     global_age: float | None = Field(
         ge=0,
@@ -62,12 +63,12 @@ class CodeCityRevisionStats(BaseModel):
     global_maintenance: float | None = Field(
         ge=0,
         le=1,
-        description="How active is this nodes, based on last commit, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+        description="How active is this node, based on last commit, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
-    global_mean_maintenance: float | None = Field(
+    global_median_maintenance: float | None = Field(
         ge=0,
         le=1,
-        description="How active is this node, based on mean commit time, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+        description="How active is this node, based on median commit datetime, relative to current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
     )
 
 
@@ -204,8 +205,9 @@ class CodeCity(BaseModel):
     def iter_tree(
         self,
     ) -> Generator[CodeCityNode, None, None]:
-        repo = self.get_repo()
+        now = datetime.now(timezone.utc)
 
+        repo = self.get_repo()
         repo_tree = repo.tree()
 
         root_node_path = "."
@@ -218,7 +220,7 @@ class CodeCity(BaseModel):
             parent_path=None,
             ancestor_paths=None,
             revision_stats=self.get_revision_stats(
-                repo, cast(git.PathLike, repo.working_tree_dir), is_root=True
+                repo, cast(git.PathLike, repo.working_tree_dir), now=now, is_root=True
             ),
             num_child_blobs=len(repo_tree.blobs),
             num_child_trees=len(repo_tree.trees),
@@ -238,7 +240,10 @@ class CodeCity(BaseModel):
             parent_path = ancestors[0] if len(ancestors) > 0 else None
             num_ancestors = len(ancestors)
             revision_stats = self.get_revision_stats(
-                repo, item.path, root_node_revision_stats=root_node.revision_stats
+                repo,
+                item.path,
+                now=now,
+                root_node_revision_stats=root_node.revision_stats,
             )
 
             if item.type == "blob":
@@ -282,23 +287,23 @@ class CodeCity(BaseModel):
         self,
         repo: git.Repo,
         path: git.PathLike,
+        now: datetime = datetime.now(timezone.utc),
         is_root: bool = False,
         root_node_revision_stats: CodeCityRevisionStats | None = None,
     ) -> CodeCityRevisionStats:
-        now = datetime.now(timezone.utc)
         commits_generator = repo.iter_commits(paths=path, all=True)
         revision_stats = CodeCityRevisionStats(
             num_commits=0,
             num_contributors=0,
             updated_on=None,
             created_on=None,
-            mean_updated_on=None,
+            median_updated_on=None,
             local_age=None,
             local_maintenance=None,
-            local_mean_maintenance=None,
+            local_median_maintenance=None,
             global_age=None,
             global_maintenance=None,
-            global_mean_maintenance=None,
+            global_median_maintenance=None,
         )
 
         contributors = set()
@@ -315,7 +320,7 @@ class CodeCity(BaseModel):
         revision_stats.num_contributors = len(contributors)
         revision_stats.created_on = commit_times[-1] if len(commit_times) > 0 else None
         revision_stats.updated_on = commit_times[0] if len(commit_times) > 0 else None
-        revision_stats.mean_updated_on = geometric_mean_datetime(commit_times)
+        revision_stats.median_updated_on = median_datetime(commit_times)
 
         if is_root:
             root_node_revision_stats = revision_stats
@@ -345,12 +350,12 @@ class CodeCity(BaseModel):
                 revision_stats.updated_on, repo_created_on, now
             )
 
-        if revision_stats.mean_updated_on is not None:
-            revision_stats.local_mean_maintenance = calc_distance_ratio(
-                revision_stats.mean_updated_on, repo_created_on, repo_updated_on
+        if revision_stats.median_updated_on is not None:
+            revision_stats.local_median_maintenance = calc_distance_ratio(
+                revision_stats.median_updated_on, repo_created_on, repo_updated_on
             )
-            revision_stats.global_mean_maintenance = calc_distance_ratio(
-                revision_stats.mean_updated_on, repo_created_on, now
+            revision_stats.global_median_maintenance = calc_distance_ratio(
+                revision_stats.median_updated_on, repo_created_on, now
             )
 
         return revision_stats
