@@ -39,7 +39,8 @@ app = FastAPI(
 
 origins = [
     "http://localhost",
-    "http://localhost:8080",
+    "http://localhost:3000",
+    "http://localhost:8000",
 ]
 
 app.add_middleware(
@@ -67,7 +68,7 @@ def get_repo_tree(repo_url: str):
 
     return StreamingResponse(
         stream(),  # type: ignore
-        media_type="application/json",
+        media_type="text/event-stream",
     )
 
 
@@ -94,7 +95,7 @@ def get_spotlight():
 
         <elements-api
             id="elements-api"
-            apiDescriptionUrl="http://localhost:8001/openapi.json"
+            apiDescriptionUrl="http://0.0.0.0:8000/openapi.json"
             router="hash"
             layout="sidebar"
         />
