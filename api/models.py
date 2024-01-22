@@ -1,8 +1,8 @@
 import base64
 import os
 import pathlib
-from datetime import datetime
-from typing import Generator, Literal, Optional, Union
+from datetime import datetime, timezone
+from typing import Generator, Literal, Optional, Union, cast
 
 import git
 import requests
@@ -27,8 +27,28 @@ class CodeCityRepoOverview(BaseModel):
 class CodeCityRevisionStats(BaseModel):
     num_commits: int = Field(ge=0)
     num_contributors: int = Field(ge=0)
-    last_commit_time: datetime | None
-    first_commit_time: datetime | None
+    newest_commit_time: datetime | None
+    oldest_commit_time: datetime | None
+    relative_age_factor: float | None = Field(
+        ge=0,
+        le=1,
+        description="Represents how old the node is relative to the age of the repository. A float between 0 and 1, where 0 is new and 1 is old.",
+    )
+    relative_maintenance_factor: float | None = Field(
+        ge=0,
+        le=1,
+        description="Represents how maintained the node is relative to the activity in the repository. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+    )
+    real_age_factor: float | None = Field(
+        ge=0,
+        le=1,
+        description="Represents how old the node is relative to the current date. A float between 0 and 1, where 0 is new and 1 is old.",
+    )
+    real_maintenance_factor: float | None = Field(
+        ge=0,
+        le=1,
+        description="Represents how maintained the node is relative to the current date. A float between 0 and 1, where 0 is not maintained and 1 is actively maintained.",
+    )
 
 
 class BaseCodeCityNode(BaseModel):
@@ -37,7 +57,7 @@ class BaseCodeCityNode(BaseModel):
     parent_path: pathlib.Path | None
     ancestor_paths: list[pathlib.Path] | None
     depth: int = Field(ge=0)
-    revision_stats: CodeCityRevisionStats | None
+    revision_stats: CodeCityRevisionStats
 
 
 class CodeCityTreeNode(BaseCodeCityNode):
@@ -177,7 +197,9 @@ class CodeCity(BaseModel):
             name=root_node_path,
             parent_path=None,
             ancestor_paths=None,
-            revision_stats=self.get_revision_stats(repo, repo.working_tree_dir),
+            revision_stats=self.get_revision_stats(
+                repo, cast(git.PathLike, repo.working_tree_dir), is_root=True
+            ),
             num_child_blobs=len(repo_tree.blobs),
             num_child_trees=len(repo_tree.trees),
             is_root=True,
@@ -195,6 +217,9 @@ class CodeCity(BaseModel):
             ancestors = list(relative_path.parents)
             parent_path = ancestors[0] if len(ancestors) > 0 else None
             num_ancestors = len(ancestors)
+            revision_stats = self.get_revision_stats(
+                repo, item.path, root_node_revision_stats=root_node.revision_stats
+            )
 
             if item.type == "blob":
                 num_lines = None
@@ -211,7 +236,7 @@ class CodeCity(BaseModel):
                     parent_path=parent_path,
                     ancestor_paths=ancestors,
                     depth=num_ancestors,
-                    revision_stats=self.get_revision_stats(repo, item.path),
+                    revision_stats=revision_stats,
                     mime_type=item.mime_type,
                     size=item.size,
                     suffix=full_path.suffix,
@@ -226,7 +251,7 @@ class CodeCity(BaseModel):
                     parent_path=parent_path,
                     ancestor_paths=ancestors,
                     depth=num_ancestors,
-                    revision_stats=self.get_revision_stats(repo, item.path),
+                    revision_stats=revision_stats,
                     num_child_blobs=len(item.blobs),
                     num_child_trees=len(item.trees),
                 )
@@ -234,28 +259,70 @@ class CodeCity(BaseModel):
             yield node
 
     def get_revision_stats(
-        self, repo: git.Repo, path: git.PathLike | str | None
-    ) -> CodeCityRevisionStats | None:
-        if path is None:
-            return None
-
+        self,
+        repo: git.Repo,
+        path: git.PathLike,
+        is_root: bool = False,
+        root_node_revision_stats: CodeCityRevisionStats | None = None,
+    ) -> CodeCityRevisionStats:
+        now = datetime.now(timezone.utc)
         commits_generator = repo.iter_commits(paths=path, all=True)
         revision_stats = CodeCityRevisionStats(
             num_commits=0,
             num_contributors=0,
-            last_commit_time=None,
-            first_commit_time=None,
+            newest_commit_time=None,
+            oldest_commit_time=None,
+            relative_age_factor=None,
+            relative_maintenance_factor=None,
+            real_age_factor=None,
+            real_maintenance_factor=None,
         )
         found_contributors = set()
 
         for commit in commits_generator:
             revision_stats.num_commits += 1
-            revision_stats.first_commit_time = commit.committed_datetime
+            revision_stats.oldest_commit_time = commit.committed_datetime
 
-            if revision_stats.last_commit_time is None:
-                revision_stats.last_commit_time = commit.committed_datetime
+            if revision_stats.newest_commit_time is None:
+                revision_stats.newest_commit_time = commit.committed_datetime
 
             found_contributors.add(commit.author.email)
             revision_stats.num_contributors = len(found_contributors)
+
+        if is_root:
+            root_node_revision_stats = revision_stats
+
+        if root_node_revision_stats is None:
+            return revision_stats
+
+        repo_oldest_commit_time = root_node_revision_stats.oldest_commit_time
+        repo_newest_commit_time = root_node_revision_stats.newest_commit_time
+
+        if (
+            revision_stats.oldest_commit_time is None
+            or revision_stats.newest_commit_time is None
+            or repo_oldest_commit_time is None
+            or repo_newest_commit_time is None
+        ):
+            return revision_stats
+
+        relative_repo_duration = repo_newest_commit_time - repo_oldest_commit_time
+        real_repo_duration = now - repo_oldest_commit_time
+
+        revision_stats.relative_age_factor = 1 - (
+            (revision_stats.oldest_commit_time - repo_oldest_commit_time)
+            / relative_repo_duration
+        )
+        revision_stats.relative_maintenance_factor = (
+            revision_stats.newest_commit_time - repo_oldest_commit_time
+        ) / relative_repo_duration
+
+        revision_stats.real_age_factor = 1 - (
+            (revision_stats.oldest_commit_time - repo_oldest_commit_time)
+            / real_repo_duration
+        )
+        revision_stats.real_maintenance_factor = (
+            revision_stats.newest_commit_time - repo_oldest_commit_time
+        ) / real_repo_duration
 
         return revision_stats
