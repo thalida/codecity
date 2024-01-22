@@ -11,6 +11,12 @@ from pydantic import BaseModel, Field, computed_field, field_validator
 from rich import inspect, print  # noqa: F401
 from typing_extensions import Annotated
 
+from utils import (
+    calc_distance_ratio,
+    calc_inverse_distance_ratio,
+    geometric_mean_datetime,
+)
+
 os.environ["TZ"] = "UTC"
 
 CACHE_DIR = pathlib.Path(__file__).parent / "cache"
@@ -294,9 +300,9 @@ class CodeCity(BaseModel):
             global_maintenance=None,
             global_mean_maintenance=None,
         )
-        found_contributors = set()
 
-        all_commit_times = []
+        contributors = set()
+        commit_times = []
 
         for commit in commits_generator:
             revision_stats.num_commits += 1
@@ -308,10 +314,12 @@ class CodeCity(BaseModel):
             if revision_stats.updated_on is None:
                 revision_stats.updated_on = utc_commit_time
 
-            found_contributors.add(commit.author.email)
-            revision_stats.num_contributors = len(found_contributors)
+            contributors.add(commit.author.email)
+            revision_stats.num_contributors = len(contributors)
 
-            all_commit_times.append(utc_commit_time)
+            commit_times.append(utc_commit_time)
+
+        revision_stats.mean_updated_on = geometric_mean_datetime(commit_times)
 
         if is_root:
             root_node_revision_stats = revision_stats
@@ -322,43 +330,31 @@ class CodeCity(BaseModel):
         repo_created_on = root_node_revision_stats.created_on
         repo_updated_on = root_node_revision_stats.updated_on
 
-        if (
-            revision_stats.created_on is None
-            or revision_stats.updated_on is None
-            or repo_created_on is None
-            or repo_updated_on is None
-        ):
+        if repo_created_on is None or repo_updated_on is None:
             return revision_stats
 
-        relative_repo_duration = repo_updated_on - repo_created_on
-        real_repo_duration = now - repo_created_on
+        if revision_stats.created_on is not None:
+            revision_stats.local_age = calc_inverse_distance_ratio(
+                revision_stats.created_on, repo_created_on, repo_updated_on
+            )
+            revision_stats.global_age = calc_inverse_distance_ratio(
+                revision_stats.created_on, repo_created_on, now
+            )
 
-        mean_updated_onstamp = geometric_mean(
-            [time.timestamp() for time in all_commit_times]
-        )
-        mean_updated_on = datetime.fromtimestamp(mean_updated_onstamp, tz=timezone.utc)
+        if revision_stats.updated_on is not None:
+            revision_stats.local_maintenance = calc_distance_ratio(
+                revision_stats.updated_on, repo_created_on, repo_updated_on
+            )
+            revision_stats.global_maintenance = calc_distance_ratio(
+                revision_stats.updated_on, repo_created_on, now
+            )
 
-        revision_stats.mean_updated_on = mean_updated_on
-
-        revision_stats.local_age = 1 - (
-            (revision_stats.created_on - repo_created_on) / relative_repo_duration
-        )
-        revision_stats.local_maintenance = (
-            revision_stats.updated_on - repo_created_on
-        ) / relative_repo_duration
-
-        revision_stats.local_mean_maintenance = (
-            mean_updated_on - repo_created_on
-        ) / relative_repo_duration
-
-        revision_stats.global_age = 1 - (
-            (revision_stats.created_on - repo_created_on) / real_repo_duration
-        )
-        revision_stats.global_maintenance = (
-            revision_stats.updated_on - repo_created_on
-        ) / real_repo_duration
-        revision_stats.global_mean_maintenance = (
-            mean_updated_on - repo_created_on
-        ) / real_repo_duration
+        if revision_stats.mean_updated_on is not None:
+            revision_stats.local_mean_maintenance = calc_distance_ratio(
+                revision_stats.mean_updated_on, repo_created_on, repo_updated_on
+            )
+            revision_stats.global_mean_maintenance = calc_distance_ratio(
+                revision_stats.mean_updated_on, repo_created_on, now
+            )
 
         return revision_stats
