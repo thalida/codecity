@@ -77,6 +77,17 @@ class CodeCityRootTree(BaseModel):
     nodes: dict[str, CodeCityNode] = Field(
         default_factory=dict,
         description="A mapping of node paths to node objects.",
+        json_schema_extra={
+            "type": "object",
+            "patternProperties": {
+                "^(.*)$": {
+                    "oneOf": [
+                        {"$ref": "#/components/schemas/CodeCityTreeNode"},
+                        {"$ref": "#/components/schemas/CodeCityBlobNode"},
+                    ],
+                }
+            },
+        },
     )
 
 
