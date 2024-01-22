@@ -8,7 +8,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.routing import APIRoute
 
-from codecity.models import (
+from models import (
     CodeCity,
     CodeCityNode,
     CodeCityRepoOverview,
