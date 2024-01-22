@@ -2,14 +2,17 @@ import os
 
 import uvicorn
 from dotenv import load_dotenv
-from fastapi import FastAPI, status
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.routing import APIRoute
 
-from codecity import CodeCity
-from codecity.models import CodeCityResponse
+from codecity.models import (
+    CodeCity,
+    CodeCityNode,
+    CodeCityRepoOverview,
+)
 
 os.environ["TZ"] = "UTC"
 
@@ -81,12 +84,26 @@ def get_spotlight():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-@app.get("/codecity", tags=["codecity"])
-def get_codecity(repo_url: str) -> CodeCityResponse:
-    codecity = CodeCity(repo_url)
-    repo_city = codecity.fetch()
+@app.get("/repo-overview")
+def get_repo_overview(repo_url: str) -> CodeCityRepoOverview:
+    codecity = CodeCity(repo_url=repo_url)
+    return codecity.fetch_repo_overview()
 
-    return repo_city
+
+@app.get("/repo-tree", response_model=list[CodeCityNode])
+def get_repo_tree(repo_url: str):
+    codecity = CodeCity(repo_url=repo_url)
+
+    async def stream():
+        for node in codecity.generate_tree():
+            yield node.model_dump_json(
+                indent=2 if app.debug else None,
+            )
+
+    return StreamingResponse(
+        stream(),  # type: ignore
+        media_type="application/json",
+    )
 
 
 def custom_openapi():
