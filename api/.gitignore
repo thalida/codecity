@@ -128,10 +128,10 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-cache/
 
 
 # PROJECT SPECIFIC
 # ----------------
+cache/
 repo-cache/
 openapi.json

@@ -10,13 +10,10 @@ from pydantic import BaseModel, Field, computed_field, field_validator
 from rich import inspect, print  # noqa: F401
 from typing_extensions import Annotated
 
-from .settings import (
-    CACHE_PARENT_DIR,
-    CACHE_REPO_DIR,
-)
-
 os.environ["TZ"] = "UTC"
-subclass_registry = {}
+
+CACHE_DIR = pathlib.Path(__file__).parent / "cache"
+CACHE_REPO_DIR_NAME = "src"
 
 
 class CodeCityRepoOverview(BaseModel):
@@ -93,13 +90,8 @@ class CodeCity(BaseModel):
 
     @computed_field(return_type=pathlib.Path, repr=False)
     @property
-    def _cache_dir(self) -> pathlib.Path:
-        return pathlib.Path(f"{CACHE_PARENT_DIR}/{self._safe_repo_url}")
-
-    @computed_field(return_type=pathlib.Path, repr=False)
-    @property
     def _cache_src_dir(self) -> pathlib.Path:
-        return pathlib.Path(f"{self._cache_dir}/{CACHE_REPO_DIR}")
+        return pathlib.Path(f"{CACHE_DIR}/{self._safe_repo_url}/{CACHE_REPO_DIR_NAME}")
 
     def get_repo(self) -> git.Repo:
         if self._cache_src_dir.exists():
