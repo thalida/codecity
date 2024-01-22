@@ -309,16 +309,12 @@ class CodeCity(BaseModel):
 
             utc_commit_time = commit.committed_datetime.replace(tzinfo=timezone.utc)
 
-            revision_stats.created_on = utc_commit_time
-
-            if revision_stats.updated_on is None:
-                revision_stats.updated_on = utc_commit_time
-
             contributors.add(commit.author.email)
-            revision_stats.num_contributors = len(contributors)
-
             commit_times.append(utc_commit_time)
 
+        revision_stats.num_contributors = len(contributors)
+        revision_stats.created_on = commit_times[-1] if len(commit_times) > 0 else None
+        revision_stats.updated_on = commit_times[0] if len(commit_times) > 0 else None
         revision_stats.mean_updated_on = geometric_mean_datetime(commit_times)
 
         if is_root:
