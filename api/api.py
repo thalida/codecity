@@ -95,7 +95,7 @@ def get_repo_tree(repo_url: str):
     codecity = CodeCity(repo_url=repo_url)
 
     async def stream():
-        for node in codecity.generate_tree():
+        for node in codecity.iter_tree():
             yield node.model_dump_json(
                 indent=2 if app.debug else None,
             )

@@ -161,7 +161,7 @@ class CodeCity(BaseModel):
         except Exception:
             return CodeCityRepoOverview(url=self.repo_url)
 
-    def generate_tree(
+    def iter_tree(
         self,
     ) -> Generator[CodeCityNode, None, None]:
         repo = self.get_repo()
