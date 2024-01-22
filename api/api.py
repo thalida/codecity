@@ -49,6 +49,28 @@ app.add_middleware(
 )
 
 
+@app.get("/repo-overview")
+def get_repo_overview(repo_url: str) -> CodeCityRepoOverview:
+    codecity = CodeCity(repo_url=repo_url)
+    return codecity.fetch_repo_overview()
+
+
+@app.get("/repo-tree", response_model=list[CodeCityNode])
+def get_repo_tree(repo_url: str):
+    codecity = CodeCity(repo_url=repo_url)
+
+    def stream():
+        for node in codecity.iter_tree():
+            yield node.model_dump_json(
+                indent=2 if app.debug else None,
+            )
+
+    return StreamingResponse(
+        stream(),  # type: ignore
+        media_type="application/json",
+    )
+
+
 @app.get("/docs", include_in_schema=False)
 def get_spotlight():
     html_content = """
@@ -84,28 +106,6 @@ def get_spotlight():
     return HTMLResponse(content=html_content, status_code=200)
 
 
-@app.get("/repo-overview")
-def get_repo_overview(repo_url: str) -> CodeCityRepoOverview:
-    codecity = CodeCity(repo_url=repo_url)
-    return codecity.fetch_repo_overview()
-
-
-@app.get("/repo-tree", response_model=list[CodeCityNode])
-def get_repo_tree(repo_url: str):
-    codecity = CodeCity(repo_url=repo_url)
-
-    async def stream():
-        for node in codecity.iter_tree():
-            yield node.model_dump_json(
-                indent=2 if app.debug else None,
-            )
-
-    return StreamingResponse(
-        stream(),  # type: ignore
-        media_type="application/json",
-    )
-
-
 def custom_openapi():
     if app.openapi_schema:
         return app.openapi_schema
@@ -129,4 +129,4 @@ def custom_openapi():
 app.openapi = custom_openapi
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
+    uvicorn.run("api:app", host="0.0.0.0", port=8000)

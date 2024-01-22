@@ -2,7 +2,6 @@ import base64
 import os
 import pathlib
 from datetime import datetime, timezone
-from statistics import geometric_mean
 from typing import Generator, Literal, Optional, Union, cast
 
 import git
@@ -14,7 +13,6 @@ from typing_extensions import Annotated
 from utils import (
     calc_distance_ratio,
     calc_inverse_distance_ratio,
-    geometric_mean_datetime,
     median_datetime,
 )
 

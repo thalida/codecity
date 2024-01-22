@@ -4,16 +4,17 @@
 /* eslint-disable */
 import type { CodeCityRevisionStats } from './CodeCityRevisionStats';
 export type CodeCityBlobNode = {
-    node_type?: any;
+    path: string;
+    name: string;
+    parent_path: (string | null);
+    ancestor_paths: (Array<string> | null);
+    depth: number;
+    revision_stats: CodeCityRevisionStats;
+    node_type: any;
     suffix: (string | null);
     suffixes: (Array<string> | null);
     mime_type: string;
     size: number;
     num_lines: (number | null);
-    depth: number;
-    parent_path: (string | null);
-    path: string;
-    name: string;
-    revision_stats: (CodeCityRevisionStats | null);
 };
 
