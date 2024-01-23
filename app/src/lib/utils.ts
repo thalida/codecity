@@ -47,7 +47,7 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
     const childPath = sourceNode.child_paths[i];
     const childNode = repoTree[childPath];
 
-    if (childNode.type === 'blob') {
+    if (childNode.node_type === 'blob') {
       const by = i % 2 === 0 ? 1 : -1;
 
       if (typeof grid[x] === 'undefined') {

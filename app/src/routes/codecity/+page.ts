@@ -35,7 +35,7 @@ async function getRepoOverview(fetcher: typeof fetch, repoUrl: string) {
   return res.json();
 }
 
-const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string): Promise<AsyncIterable<TCodeCityBlobNode | TCodeCityTreeNode>> => {
+const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string): Promise<AsyncIterable<string>> => {
   const queryParam = new URLSearchParams({ repo_url: repoUrl })
   const requestUrl = `${PUBLIC_API_URL}/repo-tree?${queryParam}`
   const response = await fetcher(
@@ -54,7 +54,7 @@ const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string): Promis
 
 async function* getIterableTreeStream(
   body: ReadableStream<Uint8Array>
-): AsyncIterable<TCodeCityBlobNode | TCodeCityTreeNode> {
+): AsyncIterable<string> {
   const reader = body.getReader()
   const decoder = new TextDecoder()
 
@@ -64,7 +64,6 @@ async function* getIterableTreeStream(
       break
     }
     const decodedChunk = decoder.decode(value, { stream: true })
-    const node: TCodeCityBlobNode | TCodeCityTreeNode = JSON.parse(decodedChunk)
-    yield node
+    yield decodedChunk
   }
 }

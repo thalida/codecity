@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { TCodeCityBlobNode, TCodeCityTreeNode } from '$lib/types';
 	import type { PageData } from './$types';
+	import CodeCity, { updateTree } from './CodeCity.svelte';
 
 	export let data: PageData;
 
@@ -13,35 +14,55 @@
 			return;
 		}
 
-		for await (const node of stream) {
-			addNode(node);
+		for await (const chunk of stream) {
+			try {
+				const node = JSON.parse(chunk) as TCodeCityBlobNode | TCodeCityTreeNode;
+				addNode(node);
+				updateTree(nodes);
+			} catch (e) {
+				console.error(e);
+				console.error(chunk);
+			}
 		}
 	}
 
 	function addNode(node: TCodeCityBlobNode | TCodeCityTreeNode) {
 		nodes[node.path] = node;
 
-		if (
-			typeof node.ancestor_paths === 'undefined' ||
-			node.ancestor_paths === null ||
-			node.ancestor_paths.length === 0
-		) {
+		if (typeof node.parent_path === 'undefined' || node.parent_path === null) {
 			return;
 		}
 
-		for (let i = 0; i < node.ancestor_paths.length; i += 1) {
-			const ancestorPath = node.ancestor_paths[i];
-			const ancestorNode = nodes[ancestorPath] as TCodeCityTreeNode;
+		const parentNode = nodes[node.parent_path] as TCodeCityTreeNode;
+		parentNode.child_paths = parentNode.child_paths ?? [];
+		parentNode.child_paths.push(node.path);
+		nodes[parentNode.path] = parentNode;
 
-			if (!ancestorNode) {
-				continue;
-			}
+		// if (
+		// 	typeof node.ancestor_paths === 'undefined' ||
+		// 	node.ancestor_paths === null ||
+		// 	node.ancestor_paths.length === 0
+		// ) {
+		// 	return;
+		// }
 
-			ancestorNode.child_paths = ancestorNode.child_paths ?? [];
-			ancestorNode.child_paths.push(node.path);
+		// for (let i = 0; i < node.ancestor_paths.length; i += 1) {
+		// 	const ancestorPath = node.ancestor_paths[i];
+		// 	const ancestorNode = nodes[ancestorPath] as TCodeCityTreeNode;
 
-			nodes[ancestorNode.path] = ancestorNode;
-		}
+		// 	if (!ancestorNode) {
+		// 		continue;
+		// 	}
+
+		// 	if (ancestorNode.path !== node.parent_path) {
+		// 		continue;
+		// 	}
+
+		// 	ancestorNode.child_paths = ancestorNode.child_paths ?? [];
+		// 	ancestorNode.child_paths.push(node.path);
+
+		// 	nodes[ancestorNode.path] = ancestorNode;
+		// }
 	}
 
 	handleStream();
@@ -52,7 +73,9 @@
 	<meta name="description" content="Svelte demo app" />
 </svelte:head>
 
-<section></section>
+<section>
+	<CodeCity />
+</section>
 
 <style>
 </style>
