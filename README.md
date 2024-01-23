@@ -4,7 +4,7 @@
 
 Run api:
 ```sh
-poetry run uvicorn api:app --reload
+poetry run uvicorn api:app --reload --host 0.0.0.0 --port 8000
 ```
 
 

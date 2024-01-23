@@ -39,7 +39,8 @@
 				"charliermarsh.ruff",
 				"ms-python.vscode-pylance",
 				"yzhang.markdown-all-in-one",
-				"julianchen.babylon-js-viewer"
+				"julianchen.babylon-js-viewer",
+				"1YiB.svelte-bundle"
 			]
 		}
 	},

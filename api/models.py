@@ -135,9 +135,10 @@ class CodeCity(BaseModel):
     def get_repo(self) -> git.Repo:
         if self._cache_src_dir.exists():
             repo = git.Repo.init(self._cache_src_dir)
-            repo.git.reset("--hard")
-            repo.git.clean("-fdx")
-            repo.remotes.origin.pull()
+            print("Skipping pull")
+            # repo.git.reset("--hard")
+            # repo.git.clean("-fdx")
+            # repo.remotes.origin.pull()
         else:
             repo = git.Repo.clone_from(
                 self.repo_url,
