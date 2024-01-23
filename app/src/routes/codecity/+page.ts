@@ -16,7 +16,7 @@ export async function load({ fetch, url }) {
 
   return {
     // repoOverview: await getRepoOverview(fetch, repoUrl),
-    repoTreeStream: getRepoTreeStream(fetch, repoUrl),
+    repoTreeStream: await getRepoTreeStream(fetch, repoUrl),
   }
 }
 
@@ -35,26 +35,30 @@ async function getRepoOverview(fetcher: typeof fetch, repoUrl: string) {
   return res.json();
 }
 
-const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string): Promise<AsyncIterable<string>> => {
+
+const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string) => {
   const queryParam = new URLSearchParams({ repo_url: repoUrl })
   const requestUrl = `${PUBLIC_API_URL}/repo-tree?${queryParam}`
   const response = await fetcher(
     requestUrl,
     {
       method: 'GET',
-      headers: { Accept: 'application/json' },
+      headers: { Accept: 'application/x-ndjson' },
     }
   )
   if (response.status !== 200) throw new Error(response.status.toString())
   if (!response.body) throw new Error('Response body does not exist')
 
-  return getIterableTreeStream(response.body)
+  return response.body
+
+  // return getIterableTreeStream(response.body)
 }
 
 
 async function* getIterableTreeStream(
   body: ReadableStream<Uint8Array>
 ): AsyncIterable<string> {
+
   const reader = body.getReader()
   const decoder = new TextDecoder()
 

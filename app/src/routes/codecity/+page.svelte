@@ -9,21 +9,52 @@
 
 	async function handleStream() {
 		const stream = await data.repoTreeStream;
+		const reader = stream.getReader();
+		const decoder = new TextDecoder();
 
-		if (!stream) {
-			return;
-		}
+		reader.read().then(function pump({ done, value }) {
+			if (done) {
+				// Do something with last chunk of data then exit reader
+				return;
+			}
+			// Otherwise do something here to process current chunk
 
-		for await (const chunk of stream) {
+			const decodedChunk = decoder.decode(value, { stream: true });
+
 			try {
-				const node = JSON.parse(chunk) as TCodeCityBlobNode | TCodeCityTreeNode;
+				const node = JSON.parse(decodedChunk) as TCodeCityBlobNode | TCodeCityTreeNode;
 				addNode(node);
 				updateTree(nodes);
 			} catch (e) {
 				console.error(e);
-				console.error(chunk);
+				console.error(decodedChunk);
 			}
-		}
+
+			// Read some more, and call this function again
+			return reader.read().then(pump);
+		});
+
+		// console.log(data.repoTreeStream);
+		// if (!data.repoTreeStream) {
+		// 	return;
+		// }
+
+		// const stream = await data.repoTreeStream;
+
+		// if (!stream) {
+		// 	return;
+		// }
+
+		// for await (const chunk of stream) {
+		// 	try {
+		// 		const node = JSON.parse(chunk) as TCodeCityBlobNode | TCodeCityTreeNode;
+		// 		addNode(node);
+		// 		updateTree(nodes);
+		// 	} catch (e) {
+		// 		console.error(e);
+		// 		console.error(chunk);
+		// 	}
+		// }
 	}
 
 	function addNode(node: TCodeCityBlobNode | TCodeCityTreeNode) {

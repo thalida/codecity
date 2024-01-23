@@ -62,13 +62,12 @@ def get_repo_tree(repo_url: str):
 
     def stream():
         for node in codecity.iter_tree():
-            yield node.model_dump_json(
-                indent=2 if app.debug else None,
-            )
+            yield node.model_dump_json() + "\n"
 
     return StreamingResponse(
         stream(),  # type: ignore
-        media_type="application/json",
+        media_type="application/x-ndjson",
+        # media_type="text/event-stream",
     )
 
 

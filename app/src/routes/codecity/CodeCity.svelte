@@ -23,12 +23,15 @@
 
 	let nodes: Record<string, TCodeCityBlobNode | TCodeCityTreeNode> = {};
 	let grid: any;
+	let engine: Engine;
+	let scene: Scene;
 
 	let canvas: HTMLCanvasElement;
 
 	function handleUpdateTree(payload: Record<string, TCodeCityBlobNode | TCodeCityTreeNode>) {
 		nodes = cloneDeep(payload);
 		grid = generateGrid(nodes, '.');
+		gridRender(scene);
 	}
 
 	recievers['updateTree'] = handleUpdateTree;
@@ -39,8 +42,8 @@
 
 		let resizeObserver: Nullable<ResizeObserver> = null;
 
-		const engine = new Engine(canvas, true, {}, true);
-		const scene = new Scene(engine, {});
+		engine = new Engine(canvas, true, {}, true);
+		scene = new Scene(engine, {});
 
 		if (window.ResizeObserver) {
 			resizeObserver = new ResizeObserver(() => {
@@ -97,7 +100,9 @@
 		// MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
 	}
 
-	function onRender(scene: Scene) {
+	function onRender(scene: Scene) {}
+
+	function gridRender(scene: Scene) {
 		if (!grid) {
 			return;
 		}
