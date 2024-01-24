@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { setContext } from 'svelte';
+	import { writable } from 'svelte/store';
 	import type {
 		TCodeCityBlobNode,
 		TCodeCityNode,
@@ -6,11 +8,13 @@
 		TCodeCityTreeNode
 	} from '$lib/types';
 	import type { PageData } from './$types';
-	import CodeCity, { trigger, CodeCityEvent } from './CodeCity.svelte';
+	import CodeCity from './CodeCity.svelte';
 
 	export let data: PageData;
 
-	const nodes: TCodeCityTree = {};
+	export const repoTree = writable<TCodeCityTree>({});
+
+	setContext('repoTree', repoTree);
 
 	async function handleStream() {
 		const stream = await data.repoTreeStream;
@@ -20,22 +24,25 @@
 		}
 
 		for await (const node of stream) {
-			addNode(node);
-			trigger(CodeCityEvent.UPDATE_CITY, nodes);
+			addTreeNode(node);
 		}
 	}
 
-	function addNode(node: TCodeCityNode) {
-		nodes[node.path] = node;
+	function addTreeNode(node: TCodeCityNode) {
+		repoTree.update((repoTree) => {
+			repoTree[node.path] = node;
 
-		if (typeof node.parent_path === 'undefined' || node.parent_path === null) {
-			return;
-		}
+			if (typeof node.parent_path === 'undefined' || node.parent_path === null) {
+				return repoTree;
+			}
 
-		const parentNode = nodes[node.parent_path] as TCodeCityTreeNode;
-		parentNode.child_paths = parentNode.child_paths ?? [];
-		parentNode.child_paths.push(node.path);
-		nodes[parentNode.path] = parentNode;
+			const parentNode = repoTree[node.parent_path] as TCodeCityTreeNode;
+			parentNode.child_paths = parentNode.child_paths ?? [];
+			parentNode.child_paths.push(node.path);
+			repoTree[parentNode.path] = parentNode;
+
+			return repoTree;
+		});
 	}
 
 	handleStream();

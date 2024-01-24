@@ -1,18 +1,5 @@
-<script lang="ts" context="module">
-	export enum CodeCityEvent {
-		UPDATE_CITY = 'updateAndRenderCity'
-	}
-
-	let moduleEvents: Record<CodeCityEvent, any> = {
-		[CodeCityEvent.UPDATE_CITY]: () => {}
-	};
-
-	export function trigger(event: CodeCityEvent, data: any) {
-		moduleEvents[event](data);
-	}
-</script>
-
 <script lang="ts">
+	import type { Writable } from 'svelte/store';
 	import {
 		Engine,
 		type Nullable,
@@ -22,32 +9,17 @@
 		HemisphericLight,
 		MeshBuilder
 	} from '@babylonjs/core';
-	import type {
-		TCodeCityBlobNode,
-		TCodeCityNode,
-		TCodeCityTree,
-		TCodeCityTreeNode
-	} from '$lib/types';
-	import { onMount } from 'svelte';
+	import type { TCodeCityGrid, TCodeCityTree } from '$lib/types';
+	import { getContext, onMount } from 'svelte';
 	import { generateGrid } from '$lib/utils';
-	import { cloneDeep } from 'lodash-es';
 
-	let nodes: TCodeCityTree = {};
-	let grid: any;
+	let repoTree = getContext<Writable<TCodeCityTree>>('repoTree');
 	let engine: Engine;
 	let scene: Scene;
 
 	let canvas: HTMLCanvasElement;
 
-	function onUpdateCity(payload: TCodeCityTree) {
-		nodes = cloneDeep(payload);
-		grid = generateGrid(nodes, '.');
-		renderCity(scene);
-	}
-
-	moduleEvents[CodeCityEvent.UPDATE_CITY] = onUpdateCity;
-
-	function renderCity(scene: Scene) {
+	function renderCity(nodes: TCodeCityTree, grid: TCodeCityGrid | undefined, scene: Scene) {
 		if (!grid) {
 			return;
 		}
@@ -87,7 +59,7 @@
 		// Our built-in 'ground' shape.
 		// MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
 
-		renderCity(scene);
+		// renderCity(scene);
 	}
 
 	function onRender(scene: Scene) {}
@@ -130,6 +102,11 @@
 		if (window) {
 			window.addEventListener('resize', resize);
 		}
+
+		repoTree.subscribe((nodes) => {
+			const grid = generateGrid(nodes, '.');
+			renderCity(nodes, grid, scene);
+		});
 	});
 </script>
 
