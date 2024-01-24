@@ -6,12 +6,12 @@
 		Scene,
 		ArcRotateCamera,
 		Vector3,
-		HemisphericLight,
-		MeshBuilder
+		HemisphericLight
 	} from '@babylonjs/core';
-	import type { TCodeCityGrid, TCodeCityTree } from '$lib/types';
+	import { type TCodeCityGrid, type TCodeCityTree } from '$lib/types';
 	import { getContext, onMount } from 'svelte';
 	import { generateGrid } from '$lib/utils';
+	import { renderTileFn } from '$lib/tiles';
 
 	let repoTree = getContext<Writable<TCodeCityTree>>('repoTree');
 	let engine: Engine;
@@ -28,11 +28,7 @@
 			for (const y in grid[x]) {
 				const tile = grid[x][y];
 				const node = nodes[tile.nodePath];
-				const height = node.node_type === 'blob' ? 1 : 0.1;
-				const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-				elem.position.x = parseInt(x, 10);
-				elem.position.y = height / 2;
-				elem.position.z = parseInt(y, 10);
+				renderTileFn[tile.tileType](node, tile, scene, parseInt(x), parseInt(y));
 			}
 		}
 	}

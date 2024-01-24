@@ -36,7 +36,7 @@ export function generateGrid(repoTree: TCodeCityTree, sourcePath: string, parent
 
   let grid: TCodeCityGrid = {};
 
-  grid[0] = { 0: createTile(TILE_TYPE.DIR_START, sourcePath, parentPath) };
+  grid[0] = { 0: createTile(TILE_TYPE.ROAD_START, sourcePath, parentPath) };
 
   let x = Object.keys(grid).length;
 
@@ -55,7 +55,7 @@ export function generateGrid(repoTree: TCodeCityTree, sourcePath: string, parent
         grid[x][0] = createTile(TILE_TYPE.ROAD, childPath, sourcePath)
       }
 
-      grid[x][by] = createTile(TILE_TYPE.BUIlDING, childPath, sourcePath)
+      grid[x][by] = createTile(TILE_TYPE.BUILDING, childPath, sourcePath)
 
 
       if (by === -1) {
@@ -124,7 +124,7 @@ export function generateGrid(repoTree: TCodeCityTree, sourcePath: string, parent
     }
   }
 
-  const endTile = createTile(TILE_TYPE.DIR_END, sourcePath, parentPath)
+  const endTile = createTile(TILE_TYPE.ROAD_END, sourcePath, parentPath)
   if (typeof grid[x] === "undefined") {
     grid[x] = { 0: endTile };
   } else if (grid[x] && grid[x][0]) {
@@ -192,7 +192,7 @@ export function combineGrids(
 
   const numExtraChildRoadTiles = Math.abs(oy) - 1;
   for (let i = 0; i < numExtraChildRoadTiles; i += 1) {
-    const tile = createTile(i == 0 ? TILE_TYPE.DIR_START : TILE_TYPE.ROAD, childPath, parentPath);
+    const tile = createTile(i == 0 ? TILE_TYPE.ROAD_START : TILE_TYPE.ROAD, childPath, parentPath);
     tmpChildGrid[i] = { 0: tile };
   }
 
