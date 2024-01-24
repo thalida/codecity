@@ -1,3 +1,7 @@
+export type TCodeCityTree = {
+  [path: string]: TCodeCityNode;
+}
+
 export type TCodeCityNode = TCodeCityBlobNode | TCodeCityTreeNode;
 
 export type TCodeCityBlobNode = {
@@ -83,3 +87,36 @@ export type TCodeCityRevisionStats = {
    */
   global_median_maintenance: (number | null);
 };
+
+export type TCodeCityGrid = {
+  [x: number]: {
+    [y: number]: TCodeCityGridTile;
+  };
+}
+
+export type TCodeCityGridTile = {
+  tileType: TILE_TYPE;
+  nodePath: string;
+  parentPath: (string | null);
+}
+
+export type TCodeCityGridCombineError = {
+  error: true;
+  errorReason: {
+    isOverlappingRoad: boolean;
+    isOccupied: boolean;
+    tx: number;
+    ty: number;
+  };
+}
+
+
+export enum TILE_TYPE {
+  DIR_START = 1,
+  DIR_END = 2,
+  ROAD = 3,
+  CROSSWALK = 4,
+  INTERSECTION = 5,
+  BUIlDING = 6,
+  BUILDING_FOUNDATION = 7,
+}

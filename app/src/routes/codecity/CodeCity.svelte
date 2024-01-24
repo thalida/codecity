@@ -1,8 +1,14 @@
 <script lang="ts" context="module">
-	let moduleEvents: Record<any, any> = {};
+	export enum CodeCityEvent {
+		UPDATE_CITY = 'updateAndRenderCity'
+	}
 
-	export function renderCity(data: any) {
-		moduleEvents.renderCity(data);
+	let moduleEvents: Record<CodeCityEvent, any> = {
+		[CodeCityEvent.UPDATE_CITY]: () => {}
+	};
+
+	export function trigger(event: CodeCityEvent, data: any) {
+		moduleEvents[event](data);
 	}
 </script>
 
@@ -16,25 +22,48 @@
 		HemisphericLight,
 		MeshBuilder
 	} from '@babylonjs/core';
-	import type { TCodeCityBlobNode, TCodeCityNode, TCodeCityTreeNode } from '$lib/types';
+	import type {
+		TCodeCityBlobNode,
+		TCodeCityNode,
+		TCodeCityTree,
+		TCodeCityTreeNode
+	} from '$lib/types';
 	import { onMount } from 'svelte';
 	import { generateGrid } from '$lib/utils';
 	import { cloneDeep } from 'lodash-es';
 
-	let nodes: Record<string, TCodeCityNode> = {};
+	let nodes: TCodeCityTree = {};
 	let grid: any;
 	let engine: Engine;
 	let scene: Scene;
 
 	let canvas: HTMLCanvasElement;
 
-	function renderCity(payload: Record<string, TCodeCityNode>) {
+	function onUpdateCity(payload: TCodeCityTree) {
 		nodes = cloneDeep(payload);
 		grid = generateGrid(nodes, '.');
-		gridRender(scene);
+		renderCity(scene);
 	}
 
-	moduleEvents['renderCity'] = renderCity;
+	moduleEvents[CodeCityEvent.UPDATE_CITY] = onUpdateCity;
+
+	function renderCity(scene: Scene) {
+		if (!grid) {
+			return;
+		}
+
+		for (const x in grid) {
+			for (const y in grid[x]) {
+				const tile = grid[x][y];
+				const node = nodes[tile.nodePath];
+				const height = node.node_type === 'blob' ? 1 : 0.1;
+				const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+				elem.position.x = parseInt(x, 10);
+				elem.position.y = height / 2;
+				elem.position.z = parseInt(y, 10);
+			}
+		}
+	}
 
 	function onSceneReady(scene: Scene) {
 		// https://doc.babylonjs.com/features/featuresDeepDive/cameras/camera_introduction#arc-rotate-camera
@@ -47,7 +76,6 @@
 
 		const canvas = scene.getEngine().getRenderingCanvas();
 
-		// This attaches the camera to the canvas
 		camera.attachControl(canvas, false);
 
 		// This creates a light, aiming 0,1,0 - to the sky (non-mesh)
@@ -58,26 +86,11 @@
 
 		// Our built-in 'ground' shape.
 		// MeshBuilder.CreateGround("ground", { width: 6, height: 6 }, scene);
+
+		renderCity(scene);
 	}
 
 	function onRender(scene: Scene) {}
-
-	function gridRender(scene: Scene) {
-		if (!grid) {
-			return;
-		}
-
-		for (const x in grid) {
-			for (const y in grid[x]) {
-				const tile = grid[x][y];
-				const node = nodes[tile.nodePath];
-				const height = node.node_type === 'blob' ? 4 : 1;
-				const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-				elem.position.x = parseInt(x, 10);
-				elem.position.z = parseInt(y, 10);
-			}
-		}
-	}
 
 	onMount(() => {
 		canvas.style.width = '100%';

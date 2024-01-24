@@ -1,11 +1,16 @@
 <script lang="ts">
-	import type { TCodeCityBlobNode, TCodeCityNode, TCodeCityTreeNode } from '$lib/types';
+	import type {
+		TCodeCityBlobNode,
+		TCodeCityNode,
+		TCodeCityTree,
+		TCodeCityTreeNode
+	} from '$lib/types';
 	import type { PageData } from './$types';
-	import CodeCity, { renderCity } from './CodeCity.svelte';
+	import CodeCity, { trigger, CodeCityEvent } from './CodeCity.svelte';
 
 	export let data: PageData;
 
-	const nodes: Record<string, TCodeCityNode> = {};
+	const nodes: TCodeCityTree = {};
 
 	async function handleStream() {
 		const stream = await data.repoTreeStream;
@@ -16,11 +21,11 @@
 
 		for await (const node of stream) {
 			addNode(node);
-			renderCity(nodes);
+			trigger(CodeCityEvent.UPDATE_CITY, nodes);
 		}
 	}
 
-	function addNode(node: TCodeCityBlobNode | TCodeCityTreeNode) {
+	function addNode(node: TCodeCityNode) {
 		nodes[node.path] = node;
 
 		if (typeof node.parent_path === 'undefined' || node.parent_path === null) {

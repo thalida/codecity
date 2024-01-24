@@ -1,18 +1,10 @@
 import { cloneDeep } from 'lodash-es';
+import { TILE_TYPE, type TCodeCityGridTile, type TCodeCityTree, type TCodeCityGrid, type TCodeCityGridCombineError } from './types';
 
-export enum TILE_TYPE {
-  DIR_START = 1,
-  DIR_END = 2,
-  ROAD = 3,
-  CROSSWALK = 4,
-  INTERSECTION = 5,
-  BUIlDING = 6,
-  BUILDING_FOUNDATION = 7,
-}
 
-export function createTile(type: TILE_TYPE, nodePath: string, parentPath: null | string = null) {
-  const tile = {
-    type,
+export function createTile(tileType: TILE_TYPE, nodePath: string, parentPath: null | string = null) {
+  const tile: TCodeCityGridTile = {
+    tileType,
     nodePath,
     parentPath,
   };
@@ -20,7 +12,7 @@ export function createTile(type: TILE_TYPE, nodePath: string, parentPath: null |
   return tile;
 }
 
-export function generateGrid(repoTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
+export function generateGrid(repoTree: TCodeCityTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
   if (!(sourcePath in repoTree)) {
     return;
   }
@@ -31,14 +23,19 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
     return;
   }
 
-
-  if (typeof sourceNode.child_paths === 'undefined' || sourceNode.child_paths.length === 0) {
+  if (
+    sourceNode.node_type !== 'tree'
+    || typeof sourceNode.child_paths === 'undefined'
+    || sourceNode.child_paths === null
+    || sourceNode.child_paths.length === 0
+  ) {
     return;
   }
 
   const numChildren = sourceNode.child_paths.length;
 
-  let grid: any = {};
+  let grid: TCodeCityGrid = {};
+
   grid[0] = { 0: createTile(TILE_TYPE.DIR_START, sourcePath, parentPath) };
 
   let x = Object.keys(grid).length;
@@ -72,7 +69,7 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
       x += 1;
     }
 
-    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0].type === TILE_TYPE.CROSSWALK) {
+    if (grid[x - 1] && grid[x - 1][0] && grid[x - 1][0].tileType === TILE_TYPE.CROSSWALK) {
       if (typeof grid[x] === 'undefined') {
         grid[x] = {};
       }
@@ -83,20 +80,21 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
 
     const childGrid = generateGrid(repoTree, childPath, sourcePath, maxDepth);
     let foundValidGrid = false;
-    let tmpNorthGrid: any = {};
-    let tmpSouthGrid: any = {};
+    let tmpNorthGrid: TCodeCityGrid | TCodeCityGridCombineError = {};
+    let tmpSouthGrid: TCodeCityGrid | TCodeCityGridCombineError = {};
     let height = 1;
     if (childGrid) {
       const maxX = Math.abs(Math.min(...Object.keys(childGrid).map(Number)));
       height = maxX + 1
     }
     const ix = x + 1;
-    let nx = ix, ny = 1 * height, sx = ix, sy = -1 * height;
+    let nx = ix, ny = 1 * height;
+    let sx = ix, sy = -1 * height;
     while (!foundValidGrid) {
       tmpNorthGrid = combineGrids(grid, childGrid, sourcePath, childPath, nx, ny, 1, ix);
       tmpSouthGrid = combineGrids(grid, childGrid, sourcePath, childPath, sx, sy, -1, ix);
 
-      if (tmpNorthGrid.error) {
+      if ("error" in tmpNorthGrid && tmpNorthGrid.error) {
         if (tmpNorthGrid.errorReason.isOverlappingRoad) {
           ny += 1;
         } else {
@@ -106,7 +104,7 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
         foundValidGrid = true;
       }
 
-      if (tmpSouthGrid.error) {
+      if ("error" in tmpSouthGrid && tmpSouthGrid.error) {
         if (tmpSouthGrid.errorReason.isOverlappingRoad) {
           sy -= 1;
         } else {
@@ -117,12 +115,12 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
       }
     }
 
-    if (typeof tmpNorthGrid.error === 'undefined' && typeof tmpSouthGrid.error === 'undefined') {
+    if (!("error" in tmpNorthGrid) && !("error" in tmpSouthGrid)) {
       grid = i % 2 === 0 ? tmpNorthGrid : tmpSouthGrid;
       x = (i % 2 === 0 ? nx : sx) + 2;
     } else {
-      grid = tmpSouthGrid.error ? tmpNorthGrid : tmpSouthGrid;
-      x = (tmpSouthGrid.error ? nx : sx) + 2;
+      grid = "error" in tmpSouthGrid ? tmpNorthGrid : tmpSouthGrid;
+      x = ("error" in tmpSouthGrid ? nx : sx) + 2;
     }
   }
 
@@ -140,11 +138,25 @@ export function generateGrid(repoTree, sourcePath: string, parentPath: null | st
   return grid;
 }
 
-export function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, oy, branchDirection, sx) {
-  const tmpNewParentGrid: any = cloneDeep(parentGrid);
-  const tmpChildGrid: any = {};
+export function combineGrids(
+  parentGrid: TCodeCityGrid,
+  childGrid: TCodeCityGrid,
+  parentPath: string,
+  childPath: string,
+  ox: number,
+  oy: number,
+  branchDirection: 1 | -1,
+  sx: number
+): TCodeCityGrid | TCodeCityGridCombineError {
+  const tmpNewParentGrid: TCodeCityGrid = cloneDeep(parentGrid);
+  const tmpChildGrid: TCodeCityGrid = {};
   let isInvalidOrigin = false;
-  let errorReason = {};
+  let errorReason: TCodeCityGridCombineError["errorReason"] = {
+    isOverlappingRoad: false,
+    isOccupied: false,
+    tx: 0,
+    ty: 0,
+  };
 
   let numExtraParentRoadTiles = ox - sx;
   if (numExtraParentRoadTiles > 0) {
@@ -238,41 +250,4 @@ export function combineGrids(parentGrid, childGrid, parentPath, childPath, ox, o
   }
 
   return tmpNewParentGrid;
-}
-
-export function scaleGrid(grid, size) {
-  const scaledGrid: any = {};
-  const dsize = Math.floor(size / 2);
-
-  for (const x in grid) {
-    if (!(x in grid)) {
-      continue;
-    }
-
-    const intX = parseInt(x, 10);
-    const cx = intX * size;
-
-    for (const y in grid[x]) {
-      if (!(y in grid[x])) {
-        continue;
-      }
-
-      const tile = cloneDeep(grid[x][y]);
-      const intY = parseInt(y, 10);
-      const cy = intY * size;
-
-      for (let xi = -1 * dsize; xi <= dsize; xi += 1) {
-        const nx = cx + xi;
-        if (typeof scaledGrid[nx] === 'undefined') {
-          scaledGrid[nx] = {};
-        }
-
-        for (let yi = -1 * dsize; yi <= dsize; yi += 1) {
-          const ny = cy + yi;
-          scaledGrid[nx][ny] = tile;
-        }
-      }
-    }
-  }
-  return scaledGrid;
 }
