@@ -10,8 +10,9 @@
 	} from '@babylonjs/core';
 	import { type TCodeCityGrid, type TCodeCityTree } from '$lib/types';
 	import { getContext, onMount } from 'svelte';
-	import { generateGrid } from '$lib/utils';
+	import { generateGrid, generateGrid2 } from '$lib/utils';
 	import { renderTileFn } from '$lib/tiles';
+	import { clone, cloneDeep } from 'lodash-es';
 
 	let repoTree = getContext<Writable<TCodeCityTree>>('repoTree');
 	let engine: Engine;
@@ -100,7 +101,12 @@
 		}
 
 		repoTree.subscribe((nodes) => {
-			const grid = generateGrid(nodes, '.');
+			while (scene.meshes.length) {
+				const mesh = scene.meshes[0];
+				mesh.dispose();
+			}
+
+			const grid = generateGrid2(nodes, '.');
 			renderCity(nodes, grid, scene);
 		});
 	});

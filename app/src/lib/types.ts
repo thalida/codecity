@@ -112,6 +112,7 @@ export type TCodeCityGridCombineError = {
 
 
 export enum TILE_TYPE {
+  OPEN_SPACE = 0,
   ROAD_START = 1,
   ROAD_END = 2,
   ROAD = 3,

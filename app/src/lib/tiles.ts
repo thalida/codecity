@@ -8,6 +8,7 @@ export const renderTileFn = {
   [TILE_TYPE.CROSSWALK]: renderCrosswalk,
   [TILE_TYPE.INTERSECTION]: renderIntersection,
   [TILE_TYPE.BUILDING]: renderBuilding,
+  [TILE_TYPE.OPEN_SPACE]: renderOpenSpace,
 }
 
 export function renderRoadStart(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
@@ -46,7 +47,7 @@ export function renderRoad(node: TCodeCityNode, tile: TCodeCityGridTile, scene: 
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
-  material.diffuseColor = Color3.FromHexString('#727272');
+  material.diffuseColor = Color3.FromHexString('#000000');
   elem.material = material;
 }
 
@@ -59,7 +60,7 @@ export function renderCrosswalk(node: TCodeCityNode, tile: TCodeCityGridTile, sc
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
-  material.diffuseColor = Color3.FromHexString('#edead9');
+  material.diffuseColor = Color3.FromHexString('#00ff00');
   elem.material = material;
 }
 
@@ -72,7 +73,7 @@ export function renderIntersection(node: TCodeCityNode, tile: TCodeCityGridTile,
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
-  material.diffuseColor = Color3.FromHexString('#d7c346');
+  material.diffuseColor = Color3.FromHexString('#333333');
   elem.material = material;
 }
 
@@ -86,4 +87,17 @@ export function renderBuilding(node: TCodeCityNode, tile: TCodeCityGridTile, sce
   elem.position.x = x
   elem.position.y = height / 2;
   elem.position.z = z
+}
+
+export function renderOpenSpace(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
+  const height = 0.01;
+  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  elem.position.x = x
+  elem.position.y = height / 2;
+  elem.position.z = z
+
+  const material = new StandardMaterial('material', scene);
+  material.alpha = 0.3;
+  material.diffuseColor = Color3.FromHexString('#333333');
+  elem.material = material;
 }
