@@ -66,8 +66,7 @@ def get_repo_tree(repo_url: str):
 
     return StreamingResponse(
         stream(),  # type: ignore
-        media_type="application/x-ndjson",
-        # media_type="text/event-stream",
+        media_type="text/event-stream",
     )
 
 

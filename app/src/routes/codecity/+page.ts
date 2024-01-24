@@ -1,5 +1,5 @@
 import { PUBLIC_API_URL } from '$env/static/public';
-import type { TCodeCityBlobNode, TCodeCityTreeNode } from "$lib/types";
+import type { TCodeCityNode } from "$lib/types";
 
 export const ssr = false;
 export async function load({ fetch, url }) {
@@ -49,15 +49,13 @@ const getRepoTreeStream = async (fetcher: typeof fetch, repoUrl: string) => {
   if (response.status !== 200) throw new Error(response.status.toString())
   if (!response.body) throw new Error('Response body does not exist')
 
-  return response.body
-
-  // return getIterableTreeStream(response.body)
+  return getIterableTreeStream(response.body)
 }
 
 
 async function* getIterableTreeStream(
   body: ReadableStream<Uint8Array>
-): AsyncIterable<string> {
+): AsyncIterable<TCodeCityNode> {
 
   const reader = body.getReader()
   const decoder = new TextDecoder()
@@ -67,7 +65,22 @@ async function* getIterableTreeStream(
     if (done) {
       break
     }
-    const decodedChunk = decoder.decode(value, { stream: true })
-    yield decodedChunk
+    const decodedChunk = decoder.decode(value, { stream: true });
+
+    try {
+      const splitChunks = decodedChunk.split('\n');
+
+      for (let i = 0; i < splitChunks.length; i += 1) {
+        const chunk = splitChunks[i];
+        if (chunk.length === 0) {
+          continue;
+        }
+
+        const node = JSON.parse(chunk) as TCodeCityNode;
+        yield node;
+      }
+    } catch (e) {
+      console.error(e);
+    }
   }
 }

@@ -1,3 +1,5 @@
+export type TCodeCityNode = TCodeCityBlobNode | TCodeCityTreeNode;
+
 export type TCodeCityBlobNode = {
   node_type: "blob";
   path: string;

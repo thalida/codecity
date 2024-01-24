@@ -1,8 +1,8 @@
 <script lang="ts" context="module">
-	let recievers: Record<any, any> = {};
+	let moduleEvents: Record<any, any> = {};
 
-	export function updateTree(data: any) {
-		recievers.updateTree(data);
+	export function renderCity(data: any) {
+		moduleEvents.renderCity(data);
 	}
 </script>
 
@@ -16,65 +16,25 @@
 		HemisphericLight,
 		MeshBuilder
 	} from '@babylonjs/core';
-	import type { TCodeCityBlobNode, TCodeCityTreeNode } from '$lib/types';
+	import type { TCodeCityBlobNode, TCodeCityNode, TCodeCityTreeNode } from '$lib/types';
 	import { onMount } from 'svelte';
 	import { generateGrid } from '$lib/utils';
 	import { cloneDeep } from 'lodash-es';
 
-	let nodes: Record<string, TCodeCityBlobNode | TCodeCityTreeNode> = {};
+	let nodes: Record<string, TCodeCityNode> = {};
 	let grid: any;
 	let engine: Engine;
 	let scene: Scene;
 
 	let canvas: HTMLCanvasElement;
 
-	function handleUpdateTree(payload: Record<string, TCodeCityBlobNode | TCodeCityTreeNode>) {
+	function renderCity(payload: Record<string, TCodeCityNode>) {
 		nodes = cloneDeep(payload);
 		grid = generateGrid(nodes, '.');
 		gridRender(scene);
 	}
 
-	recievers['updateTree'] = handleUpdateTree;
-
-	onMount(() => {
-		canvas.style.width = '100%';
-		canvas.style.height = '100%';
-
-		let resizeObserver: Nullable<ResizeObserver> = null;
-
-		engine = new Engine(canvas, true, {}, true);
-		scene = new Scene(engine, {});
-
-		if (window.ResizeObserver) {
-			resizeObserver = new ResizeObserver(() => {
-				engine.resize();
-				if (scene.activeCamera) {
-					scene.render();
-				}
-			});
-
-			resizeObserver.observe(canvas);
-		}
-
-		if (scene.isReady()) {
-			onSceneReady(scene);
-		} else {
-			scene.onReadyObservable.addOnce((scene) => onSceneReady(scene));
-		}
-
-		engine.runRenderLoop(() => {
-			if (typeof onRender === 'function') onRender(scene);
-			scene.render();
-		});
-
-		const resize = () => {
-			scene.getEngine().resize();
-		};
-
-		if (window) {
-			window.addEventListener('resize', resize);
-		}
-	});
+	moduleEvents['renderCity'] = renderCity;
 
 	function onSceneReady(scene: Scene) {
 		// https://doc.babylonjs.com/features/featuresDeepDive/cameras/camera_introduction#arc-rotate-camera
@@ -118,6 +78,46 @@
 			}
 		}
 	}
+
+	onMount(() => {
+		canvas.style.width = '100%';
+		canvas.style.height = '100%';
+
+		let resizeObserver: Nullable<ResizeObserver> = null;
+
+		engine = new Engine(canvas, true, {}, true);
+		scene = new Scene(engine, {});
+
+		if (window.ResizeObserver) {
+			resizeObserver = new ResizeObserver(() => {
+				engine.resize();
+				if (scene.activeCamera) {
+					scene.render();
+				}
+			});
+
+			resizeObserver.observe(canvas);
+		}
+
+		if (scene.isReady()) {
+			onSceneReady(scene);
+		} else {
+			scene.onReadyObservable.addOnce((scene) => onSceneReady(scene));
+		}
+
+		engine.runRenderLoop(() => {
+			if (typeof onRender === 'function') onRender(scene);
+			scene.render();
+		});
+
+		const resize = () => {
+			scene.getEngine().resize();
+		};
+
+		if (window) {
+			window.addEventListener('resize', resize);
+		}
+	});
 </script>
 
 <div class="citywrapper">
