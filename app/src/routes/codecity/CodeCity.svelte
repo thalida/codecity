@@ -10,9 +10,9 @@
 	} from '@babylonjs/core';
 	import { type TCodeCityGrid, type TCodeCityTree } from '$lib/types';
 	import { getContext, onMount } from 'svelte';
-	import { generateGrid, generateGrid2 } from '$lib/utils';
+	import { generateGrid2 } from '$lib/utils';
 	import { renderTileFn } from '$lib/tiles';
-	import { clone, cloneDeep } from 'lodash-es';
+	import { debounce, throttle } from 'lodash-es';
 
 	let repoTree = getContext<Writable<TCodeCityTree>>('repoTree');
 	let engine: Engine;
@@ -69,6 +69,10 @@
 
 		engine = new Engine(canvas, true, {}, true);
 		scene = new Scene(engine, {});
+		scene.skipPointerMovePicking = true;
+		scene.freezeActiveMeshes();
+		scene.autoClear = false; // Color buffer
+		scene.autoClearDepthAndStencil = false; // Depth and stencil, obviously
 
 		if (window.ResizeObserver) {
 			resizeObserver = new ResizeObserver(() => {
@@ -100,15 +104,22 @@
 			window.addEventListener('resize', resize);
 		}
 
-		repoTree.subscribe((nodes) => {
-			while (scene.meshes.length) {
-				const mesh = scene.meshes[0];
-				mesh.dispose();
-			}
+		const debouncedCallback = throttle(
+			(nodes) => {
+				scene.blockfreeActiveMeshesAndRenderingGroups = true;
+				while (scene.meshes.length) {
+					const mesh = scene.meshes[0];
+					mesh.dispose();
+				}
+				scene.blockfreeActiveMeshesAndRenderingGroups = false;
 
-			const grid = generateGrid2(nodes, '.');
-			renderCity(nodes, grid, scene);
-		});
+				const grid = generateGrid2(nodes, '.');
+				renderCity(nodes, grid, scene);
+			},
+			2000,
+			{ leading: false, trailing: true }
+		);
+		repoTree.subscribe(debouncedCallback);
 	});
 </script>
 

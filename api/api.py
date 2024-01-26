@@ -1,17 +1,19 @@
 import os
+import time
+from typing import Any
 
+import socketio
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.openapi.utils import get_openapi
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi.responses import HTMLResponse
 from fastapi.routing import APIRoute
+from rich import inspect, print  # noqa: I001, F401
 
 from models import (
     CodeCity,
-    CodeCityNode,
-    CodeCityRepoOverview,
 )
 
 os.environ["TZ"] = "UTC"
@@ -29,6 +31,10 @@ def custom_generate_unique_id(route: APIRoute):
 DEBUG = os.environ.get("DEBUG", False)
 DEBUG = True if DEBUG == "True" or DEBUG == 1 else False
 
+sio: Any = socketio.AsyncServer(
+    async_mode="asgi", cors_allowed_origins=[], namespaces=["*"]
+)
+socket_app = socketio.ASGIApp(sio, socketio_path="/")
 app = FastAPI(
     debug=DEBUG,
     docs_url=None,
@@ -49,25 +55,61 @@ app.add_middleware(
     allow_methods=["*"],
 )
 
+app.mount("/socket.io", socket_app)
 
-@app.get("/repo-overview")
-def get_repo_overview(repo_url: str) -> CodeCityRepoOverview:
+
+@sio.on("connect")
+async def connect(sid, env):
+    print("on connect")
+
+
+@sio.on("fetch_repo")
+async def fetch_repo(sid, repo_url):
+    print(f"fetch_repo {repo_url}")
+
     codecity = CodeCity(repo_url=repo_url)
-    return codecity.fetch_repo_overview()
+    repo_overview = codecity.fetch_repo_overview()
 
-
-@app.get("/repo-tree", response_model=list[CodeCityNode])
-def get_repo_tree(repo_url: str):
-    codecity = CodeCity(repo_url=repo_url)
-
-    def stream():
-        for node in codecity.iter_tree():
-            yield node.model_dump_json() + "\n"
-
-    return StreamingResponse(
-        stream(),  # type: ignore
-        media_type="text/event-stream",
+    await sio.emit(
+        "repo_overview",
+        repo_overview.model_dump_json(),
+        room=sid,
     )
+
+    start_time = time.time()
+    print(f"start_time {start_time}")
+    nodes = list(codecity.iter_tree())
+    mid_time = time.time()
+    print(f"mid_time {mid_time}")
+    nodes = [node.model_dump_json() for node in nodes]
+    end_time = time.time()
+    print(f"end_time {end_time}")
+    print(f"duration: {end_time - start_time}")
+    print(f"num nodes {len(nodes)}")
+
+    # for node in codecity.iter_tree():
+    #     await sio.emit(
+    #         "repo_node",
+    #         node.model_dump_json(),
+    #         room=sid,
+    #     )
+
+    await sio.emit(
+        "fetch_complete",
+        nodes,
+        room=sid,
+    )
+
+
+@sio.on("broadcast")
+async def broadcast(sid, msg):
+    print(f"broadcast {msg}")
+    await sio.emit("event_name", msg)  # or send to everyone
+
+
+@sio.on("disconnect")
+async def disconnect(sid):
+    print("on disconnect")
 
 
 @app.get("/docs", include_in_schema=False)

@@ -48,8 +48,6 @@ export type TCodeCityRepoOverview = {
 
 
 export type TCodeCityRevisionStats = {
-  num_commits: number;
-  num_contributors: number;
   /**
    * Last commit datetime
    */

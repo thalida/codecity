@@ -51,7 +51,7 @@ export function generateGrid2(repoTree: TCodeCityTree, sourcePath: string, paren
     return;
   }
 
-  const grid: TCodeCityGrid = {};
+  let grid: TCodeCityGrid = {};
   let x = 0;
 
   for (let i = 0; i < START_ROAD_SET.length; i += 1) {
@@ -116,65 +116,88 @@ export function generateGrid2(repoTree: TCodeCityTree, sourcePath: string, paren
       }
     }
 
+    // const directionMinX = branchDirection === 1 ? childGridMaxAboveRoad : childGridMinBelowRoad;
+    // const directionMaxX = branchDirection === 1 ? childGridMinBelowRoad : childGridMaxAboveRoad;
+
+    // const fillLeft = Math.abs(directionMinX);
+    // const fillRight = Math.abs(directionMaxX);
+
+    // for (let fillI = 0; fillI < fillLeft; fillI += 1) {
+    //   for (let rI = 0; rI < ROAD_SET.length; rI += 1) {
+    //     for (let rJ = 0; rJ < ROAD_SET[rI].length; rJ += 1) {
+    //       const newX = x + fillI + rI;
+    //       const newY = rJ - 1;
+    //       if (typeof grid[newX] === 'undefined') {
+    //         grid[newX] = {};
+    //       }
+
+    //       grid[newX][newY] = createTile(ROAD_SET[rI][rJ], childPath, sourcePath);
+    //     }
+    //   }
+    // }
+    // x += fillLeft * ROAD_SET.length;
+
+    // for (let interI = 0; interI < INTERSECTION_SET.length; interI += 1) {
+    //   const newX = x + interI;
+    //   if (typeof grid[newX] === 'undefined') {
+    //     grid[newX] = {};
+    //   }
+    //   grid[newX][0] = createTile(INTERSECTION_SET[interI], childPath, sourcePath);
+    // }
+    // x += INTERSECTION_SET.length;
+
+    // for (let fillI = 0; fillI < fillRight; fillI += 1) {
+    //   for (let rI = 0; rI < ROAD_SET.length; rI += 1) {
+    //     for (let rJ = 0; rJ < ROAD_SET[rI].length; rJ += 1) {
+    //       const newX = x + fillI + rI;
+    //       const newY = rJ - 1;
+    //       if (typeof grid[newX] === 'undefined') {
+    //         grid[newX] = {};
+    //       }
+
+    //       grid[newX][newY] = createTile(ROAD_SET[rI][rJ], childPath, sourcePath);
+    //     }
+    //   }
+    // }
+    // x += fillRight * ROAD_SET.length;
+
     const directionMinX = branchDirection === 1 ? childGridMaxAboveRoad : childGridMinBelowRoad;
     const directionMaxX = branchDirection === 1 ? childGridMinBelowRoad : childGridMaxAboveRoad;
 
     const fillLeft = Math.abs(directionMinX);
     const fillRight = Math.abs(directionMaxX);
-
     for (let fillI = 0; fillI < fillLeft; fillI += 1) {
-      for (let rI = 0; rI < ROAD_SET.length; rI += 1) {
-        for (let rJ = 0; rJ < ROAD_SET[rI].length; rJ += 1) {
-          const newX = x + fillI + rI;
-          const newY = rJ - 1;
-          if (typeof grid[newX] === 'undefined') {
-            grid[newX] = {};
-          }
-
-          grid[newX][newY] = createTile(ROAD_SET[rI][rJ], childPath, sourcePath);
-        }
-      }
-    }
-    x += fillLeft * ROAD_SET.length;
-
-    for (let interI = 0; interI < INTERSECTION_SET.length; interI += 1) {
-      const newX = x + interI;
+      const newX = x + fillI;
       if (typeof grid[newX] === 'undefined') {
         grid[newX] = {};
       }
-      grid[newX][0] = createTile(INTERSECTION_SET[interI], childPath, sourcePath);
+
+      grid[newX][0] = createTile(TILE_TYPE.ROAD, childPath, sourcePath);
     }
-    x += INTERSECTION_SET.length;
+    x += fillLeft;
 
     for (let fillI = 0; fillI < fillRight; fillI += 1) {
-      for (let rI = 0; rI < ROAD_SET.length; rI += 1) {
-        for (let rJ = 0; rJ < ROAD_SET[rI].length; rJ += 1) {
-          const newX = x + fillI + rI;
-          const newY = rJ - 1;
-          if (typeof grid[newX] === 'undefined') {
-            grid[newX] = {};
-          }
-
-          grid[newX][newY] = createTile(ROAD_SET[rI][rJ], childPath, sourcePath);
-        }
+      const newX = x + fillI;
+      if (typeof grid[newX] === 'undefined') {
+        grid[newX] = {};
       }
+
+      grid[newX][0] = createTile(TILE_TYPE.ROAD, childPath, sourcePath);
     }
-    x += fillRight * ROAD_SET.length;
+    x += fillRight;
 
-    for (const childGridX in childGrid) {
-      for (const childGridY in childGrid[childGridX]) {
-        const cx = parseInt(childGridX, 10);
-        const cy = parseInt(childGridY, 10);
+    let foundValidPlacement = false;
+    let gridStartX = insertX;
+    while (!foundValidPlacement) {
+      const { isValid, combinedGrid } = insertChildGrid(childGrid, grid, gridStartX, branchDirection);
 
-        const newX = insertX + cy + fillLeft + 1;
-        const newY = (cx + 1) * branchDirection;
-
-        if (typeof grid[newX] === 'undefined') {
-          grid[newX] = {};
-        }
-
-        grid[newX][newY] = childGrid[childGridX][childGridY];
+      if (isValid) {
+        grid = combinedGrid;
+        foundValidPlacement = true;
+        break;
       }
+
+      gridStartX += 1;
     }
   }
 
@@ -191,8 +214,40 @@ export function generateGrid2(repoTree: TCodeCityTree, sourcePath: string, paren
     }
   }
 
-  return cloneDeep(grid);
+  return grid;
 }
+
+export function insertChildGrid(childGrid: TCodeCityGrid, parentGrid: TCodeCityGrid, ox: number, branchDirection: 1 | -1) {
+  const combinedGrid = cloneDeep(parentGrid);
+  let isValid = true;
+  for (const childGridX in childGrid) {
+    for (const childGridY in childGrid[childGridX]) {
+      const cx = parseInt(childGridX, 10);
+      const cy = parseInt(childGridY, 10);
+
+      const newX = ox + cy + 1;
+      const newY = (cx + 1) * branchDirection;
+
+      if (typeof combinedGrid[newX] === 'undefined') {
+        combinedGrid[newX] = {};
+      }
+
+      if (typeof combinedGrid[newX][newY] !== 'undefined') {
+        isValid = false;
+        break;
+      }
+
+      combinedGrid[newX][newY] = childGrid[childGridX][childGridY];
+    }
+
+    if (!isValid) {
+      break;
+    }
+  }
+
+  return { isValid, combinedGrid };
+}
+
 
 export function generateGrid(repoTree: TCodeCityTree, sourcePath: string, parentPath: null | string = null, maxDepth: null | number = null) {
   if (!(sourcePath in repoTree)) {

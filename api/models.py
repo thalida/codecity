@@ -1,8 +1,9 @@
 import base64
+import json
 import os
 import pathlib
 from datetime import datetime, timezone
-from typing import Generator, Literal, Optional, Union, cast
+from typing import Literal, Optional, Union, cast
 
 import git
 import requests
@@ -20,6 +21,9 @@ os.environ["TZ"] = "UTC"
 
 CACHE_DIR = pathlib.Path(__file__).parent / "cache"
 CACHE_REPO_DIR_NAME = "src"
+CACHE_OVERVIEW_FILE_NAME = "overview.json"
+CACHE_REPO_LOGS_NAME = "repo_logs.json"
+CACHE_TTL: int = 60 * 60  # 1 hour
 
 
 class CodeCityRepoOverview(BaseModel):
@@ -31,8 +35,6 @@ class CodeCityRepoOverview(BaseModel):
 
 
 class CodeCityRevisionStats(BaseModel):
-    num_commits: int = Field(ge=0)
-    num_contributors: int = Field(ge=0)
     updated_on: datetime | None = Field(description="Last commit datetime")
     created_on: datetime | None = Field(description="First commit datetime")
     median_updated_on: datetime | None = Field(
@@ -129,16 +131,42 @@ class CodeCity(BaseModel):
 
     @computed_field(return_type=pathlib.Path, repr=False)
     @property
+    def _cache_dir(self) -> pathlib.Path:
+        return pathlib.Path(f"{CACHE_DIR}/{self._safe_repo_url}")
+
+    @computed_field(return_type=pathlib.Path, repr=False)
+    @property
     def _cache_src_dir(self) -> pathlib.Path:
-        return pathlib.Path(f"{CACHE_DIR}/{self._safe_repo_url}/{CACHE_REPO_DIR_NAME}")
+        return pathlib.Path(f"{self._cache_dir}/{CACHE_REPO_DIR_NAME}")
+
+    @computed_field(return_type=pathlib.Path, repr=False)
+    @property
+    def _cache_repo_logs_json(self) -> pathlib.Path:
+        return pathlib.Path(f"{self._cache_dir}/{CACHE_REPO_LOGS_NAME}")
+
+    @computed_field(return_type=pathlib.Path, repr=False)
+    @property
+    def _cache_repo_overview_json(self) -> pathlib.Path:
+        return pathlib.Path(f"{self._cache_dir}/{CACHE_OVERVIEW_FILE_NAME}")
 
     def get_repo(self) -> git.Repo:
+        now = datetime.now(timezone.utc)
+
         if self._cache_src_dir.exists():
             repo = git.Repo.init(self._cache_src_dir)
-            print("Skipping pull")
-            # repo.git.reset("--hard")
-            # repo.git.clean("-fdx")
-            # repo.remotes.origin.pull()
+            use_cache = False
+
+            if self._cache_repo_logs_json.exists():
+                with self._cache_repo_logs_json.open(mode="r") as f:
+                    repo_logs = json.load(f)
+                    cached_at = datetime.fromisoformat(repo_logs["cached_at"])
+                    use_cache = (now - cached_at).total_seconds() < CACHE_TTL
+                    if use_cache:
+                        return repo
+
+            repo.git.reset("--hard")
+            repo.git.clean("-fdx")
+            repo.remotes.origin.pull()
         else:
             repo = git.Repo.clone_from(
                 self.repo_url,
@@ -146,9 +174,29 @@ class CodeCity(BaseModel):
                 multi_options=["--single-branch"],
             )
 
+        self._cache_repo_logs_json.parent.mkdir(parents=True, exist_ok=True)
+        with self._cache_repo_logs_json.open(mode="w") as f:
+            json.dump(
+                {
+                    "cached_at": now.isoformat(),
+                },
+                f,
+            )
+
         return repo
 
     def fetch_repo_overview(self) -> CodeCityRepoOverview:
+        now = datetime.now(timezone.utc)
+        use_cache = False
+
+        if self._cache_repo_overview_json.exists():
+            with self._cache_repo_overview_json.open(mode="r") as f:
+                cache = json.load(f)
+                cached_at = datetime.fromisoformat(cache["cached_at"])
+                use_cache = (now - cached_at).total_seconds() < CACHE_TTL
+                if use_cache:
+                    return CodeCityRepoOverview(**cache["repo_overview"])
+
         repo = self.get_repo()
 
         gh_url_parts = self.repo_url.split("github.com")
@@ -176,12 +224,12 @@ class CodeCity(BaseModel):
         """
         try:
             headers = {"Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}"}
-            json = {
+            json_req = {
                 "query": query,
                 "variables": {"owner": repo_owner, "repo_name": repo_name},
             }
             request = requests.post(
-                "https://api.github.com/graphql", json=json, headers=headers
+                "https://api.github.com/graphql", json=json_req, headers=headers
             )
             gh_response = request.json()
 
@@ -190,7 +238,7 @@ class CodeCity(BaseModel):
 
             repo_res = gh_response.get("data", {}).get("repository", {})
 
-            return CodeCityRepoOverview(
+            response = CodeCityRepoOverview(
                 url=self.repo_url,
                 name=repo_res.get("name"),
                 description=repo_res.get("description"),
@@ -198,12 +246,25 @@ class CodeCity(BaseModel):
                 updated_at=repo_res.get("updatedAt"),
             )
 
+            self._cache_repo_overview_json.parent.mkdir(parents=True, exist_ok=True)
+            with self._cache_repo_overview_json.open(mode="w") as f:
+                json.dump(
+                    {
+                        "cached_at": now.isoformat(),
+                        "repo_overview": json.loads(response.model_dump_json()),
+                    },
+                    f,
+                )
+
+            return response
+
         except Exception:
             return CodeCityRepoOverview(url=self.repo_url)
 
     def iter_tree(
         self,
-    ) -> Generator[CodeCityNode, None, None]:
+    ) -> list[CodeCityNode]:
+        nodes = []
         now = datetime.now(timezone.utc)
 
         repo = self.get_repo()
@@ -226,7 +287,7 @@ class CodeCity(BaseModel):
             is_root=True,
         )
 
-        yield root_node
+        nodes.append(root_node)
 
         for item in repo_tree.traverse(branch_first=True):
             if item.type not in ["blob", "tree"]:
@@ -280,7 +341,10 @@ class CodeCity(BaseModel):
                     num_child_trees=len(item.trees),
                 )
 
-            yield node
+            # yield node
+            nodes.append(node)
+
+        return nodes
 
     def get_revision_stats(
         self,
@@ -290,10 +354,8 @@ class CodeCity(BaseModel):
         is_root: bool = False,
         root_node_revision_stats: CodeCityRevisionStats | None = None,
     ) -> CodeCityRevisionStats:
-        commits_generator = repo.iter_commits(paths=path, all=True)
+        # commits_generator = repo.iter_commits(paths=path)
         revision_stats = CodeCityRevisionStats(
-            num_commits=0,
-            num_contributors=0,
             updated_on=None,
             created_on=None,
             median_updated_on=None,
@@ -305,21 +367,24 @@ class CodeCity(BaseModel):
             global_median_maintenance=None,
         )
 
-        contributors = set()
-        commit_times = []
+        commits = list(repo.iter_commits(paths=path))
 
-        for commit in commits_generator:
-            revision_stats.num_commits += 1
+        last_commit_datetime = (
+            commits[0].committed_datetime.replace(tzinfo=timezone.utc)
+            if len(commits) > 0
+            else None
+        )
+        first_commit_datetime = (
+            commits[-1].committed_datetime.replace(tzinfo=timezone.utc)
+            if len(commits) > 0
+            else None
+        )
 
-            utc_commit_time = commit.committed_datetime.replace(tzinfo=timezone.utc)
-
-            contributors.add(commit.author.email)
-            commit_times.append(utc_commit_time)
-
-        revision_stats.num_contributors = len(contributors)
-        revision_stats.created_on = commit_times[-1] if len(commit_times) > 0 else None
-        revision_stats.updated_on = commit_times[0] if len(commit_times) > 0 else None
-        revision_stats.median_updated_on = median_datetime(commit_times)
+        revision_stats.created_on = first_commit_datetime
+        revision_stats.updated_on = last_commit_datetime
+        revision_stats.median_updated_on = median_datetime(
+            [last_commit_datetime, first_commit_datetime]  # type: ignore
+        )
 
         if is_root:
             root_node_revision_stats = revision_stats

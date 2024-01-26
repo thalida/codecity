@@ -13,68 +13,73 @@ export const renderTileFn = {
 
 export function renderRoadStart(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.1;
-  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   const color = node.node_type === 'tree' && node.is_root ? '#ff0000' : '#05b870';
   material.alpha = 1;
   material.diffuseColor = Color3.FromHexString(color);
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
 
 export function renderRoadEnd(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.1;
-  const elem = MeshBuilder.CreateBox('box', { height: 0.1, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height: 0.1, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
   material.diffuseColor = Color3.FromHexString('#4605b8');
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
 
 export function renderRoad(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.1;
-  const elem = MeshBuilder.CreateBox('box', { height: 0.1, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height: 0.1, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
   material.diffuseColor = Color3.FromHexString('#000000');
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
 
 export function renderCrosswalk(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.1;
-  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
   material.diffuseColor = Color3.FromHexString('#00ff00');
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
 
 export function renderIntersection(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.1;
-  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 1;
   material.diffuseColor = Color3.FromHexString('#333333');
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
 
 export function renderBuilding(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
@@ -83,21 +88,23 @@ export function renderBuilding(node: TCodeCityNode, tile: TCodeCityGridTile, sce
   }
 
   const height = node.num_lines ? Math.ceil(Math.log(node.num_lines)) + 2 : 2;
-  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
+  mesh.freezeWorldMatrix();
 }
 
 export function renderOpenSpace(node: TCodeCityNode, tile: TCodeCityGridTile, scene: Scene, x: number, z: number) {
   const height = 0.01;
-  const elem = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
-  elem.position.x = x
-  elem.position.y = height / 2;
-  elem.position.z = z
+  const mesh = MeshBuilder.CreateBox('box', { height, width: 1, depth: 1 }, scene);
+  mesh.position.x = x
+  mesh.position.y = height / 2;
+  mesh.position.z = z
 
   const material = new StandardMaterial('material', scene);
   material.alpha = 0.3;
   material.diffuseColor = Color3.FromHexString('#333333');
-  elem.material = material;
+  mesh.material = material;
+  mesh.freezeWorldMatrix();
 }
