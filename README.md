@@ -25,3 +25,20 @@ In app directory:
 ```sh
 npm run generate-api-client
 ```
+
+
+## Celery, RabbitMQ, Flower
+
+Celery:
+```sh
+celery -A main.celery worker --loglevel=info -Q codecity
+```
+
+Flower:
+```sh
+celery -A main.celery flower --port=5555 --broker_api="http://guest:guest@0.0.0.0:15672/api/"
+```
+http://0.0.0.0:5555/broker
+
+RabbitMQ:
+http://localhost:15672/#/queues

@@ -7,17 +7,18 @@
 	"workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
 	"features": {
 		"ghcr.io/devcontainers/features/node:1": {},
-		"ghcr.io/devcontainers-contrib/features/poetry:2": {}
+		"ghcr.io/devcontainers-contrib/features/poetry:2": {},
+		"ghcr.io/itsmechlark/features/rabbitmq-server:1": {},
+		"ghcr.io/itsmechlark/features/redis-server:1": {}
 	},
 	// Configure tool-specific properties.
 	"customizations": {
-
 		"vscode": {
 			"settings": {
 				// Python Settings
-				"python.venvPath": "/root/.cache/pypoetry/virtualenvs",
-				"python.defaultInterpreterPath": "/root/.cache/pypoetry/virtualenvs/api-d-StWLZG-py3.11/bin/python",
-				"python.testing.pytestPath": "/root/.cache/pypoetry/virtualenvs/api-d-StWLZG-py3.11/bin/pytest",
+				"python.venvPath": "/home/vscode/.cache/pypoetry/virtualenvs",
+				"python.defaultInterpreterPath": "/home/vscode/.cache/pypoetry/virtualenvs/api-d-StWLZG-py3.11/bin/python",
+				"python.testing.pytestPath": "/home/vscode/.cache/pypoetry/virtualenvs/api-d-StWLZG-py3.11/bin/pytest",
 				"python.languageServer": "Pylance",
 				"python.testing.unittestEnabled": true,
 				"python.testing.pytestEnabled": true,
@@ -45,11 +46,15 @@
 		}
 	},
 	"forwardPorts": [
-		8000,
-		3000,
-		5432
+		8000, // API
+		3000, // APP
+		5432, // PostgreSQL
+		5672, // RabbitMQ
+		15672, // RabbitMQ
+		5555, // Flower
+		6379 // Redis
 	],
 	"postCreateCommand": "bash -i ${containerWorkspaceFolder}/.devcontainer/postCreateCommand.sh",
 	"postStartCommand": "bash -i ${containerWorkspaceFolder}/.devcontainer/postStartCommand.sh",
-	"remoteUser": "root"
+	"remoteUser": "vscode"
 }

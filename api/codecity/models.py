@@ -1,3 +1,5 @@
+from rich import inspect, print  # noqa: F401, I001
+
 import base64
 import json
 import os
@@ -8,10 +10,10 @@ from typing import Literal, Optional, Union, cast
 import git
 import requests
 from pydantic import BaseModel, Field, computed_field, field_validator
-from rich import inspect, print  # noqa: F401
 from typing_extensions import Annotated
+from dotenv import load_dotenv
 
-from utils import (
+from .utils import (
     calc_distance_ratio,
     calc_inverse_distance_ratio,
     median_datetime,
@@ -19,9 +21,15 @@ from utils import (
 
 os.environ["TZ"] = "UTC"
 
+load_dotenv()
+
+GITEA_API_URL = "https://tea.gitx.codes/api/v1/"
+GITEA_TOKEN = os.getenv("GITTEA_TOKEN")
+
 CACHE_DIR = pathlib.Path(__file__).parent / "cache"
 CACHE_REPO_DIR_NAME = "src"
 CACHE_OVERVIEW_FILE_NAME = "overview.json"
+CACHE_REPO_TREE_FILE_NAME = "repo_tree.json"
 CACHE_REPO_LOGS_NAME = "repo_logs.json"
 CACHE_TTL: int = 60 * 60  # 1 hour
 
@@ -126,6 +134,12 @@ class CodeCity(BaseModel):
 
     @computed_field(return_type=str, repr=False)
     @property
+    def _internal_repo_name(self):
+        domain = self.repo_url.split("://")[1].split("/")[0]
+        return f"{domain}__{self.repo_url.split('/')[-1]}"
+
+    @computed_field(return_type=str, repr=False)
+    @property
     def _safe_repo_url(self):
         return base64.b64encode(self.repo_url.encode("utf-8")).decode("utf-8")
 
@@ -149,41 +163,29 @@ class CodeCity(BaseModel):
     def _cache_repo_overview_json(self) -> pathlib.Path:
         return pathlib.Path(f"{self._cache_dir}/{CACHE_OVERVIEW_FILE_NAME}")
 
-    def get_repo(self) -> git.Repo:
-        now = datetime.now(timezone.utc)
+    @computed_field(return_type=pathlib.Path, repr=False)
+    @property
+    def _cache_repo_tree_json(self) -> pathlib.Path:
+        return pathlib.Path(f"{self._cache_dir}/{CACHE_REPO_TREE_FILE_NAME}")
 
-        if self._cache_src_dir.exists():
-            repo = git.Repo.init(self._cache_src_dir)
-            use_cache = False
+    async def get_repo(self):
+        repo_req = requests.get(
+            f"{GITEA_API_URL}/repos/codecity/{self._internal_repo_name}",
+            headers={"Authorization": f"token {GITEA_TOKEN}"},
+        )
 
-            if self._cache_repo_logs_json.exists():
-                with self._cache_repo_logs_json.open(mode="r") as f:
-                    repo_logs = json.load(f)
-                    cached_at = datetime.fromisoformat(repo_logs["cached_at"])
-                    use_cache = (now - cached_at).total_seconds() < CACHE_TTL
-                    if use_cache:
-                        return repo
+        if repo_req.status_code == 200:
+            return
 
-            repo.git.reset("--hard")
-            repo.git.clean("-fdx")
-            repo.remotes.origin.pull()
-        else:
-            repo = git.Repo.clone_from(
-                self.repo_url,
-                self._cache_src_dir,
-                multi_options=["--single-branch"],
-            )
-
-        self._cache_repo_logs_json.parent.mkdir(parents=True, exist_ok=True)
-        with self._cache_repo_logs_json.open(mode="w") as f:
-            json.dump(
-                {
-                    "cached_at": now.isoformat(),
-                },
-                f,
-            )
-
-        return repo
+        requests.post(
+            f"{GITEA_API_URL}/repos/migrate",
+            json={
+                "clone_addr": self.repo_url,
+                "repo_name": self._internal_repo_name,
+                "repo_owner": "codecity",
+            },
+            headers={"Authorization": f"token {GITEA_TOKEN}"},
+        )
 
     def fetch_repo_overview(self) -> CodeCityRepoOverview:
         now = datetime.now(timezone.utc)
@@ -261,11 +263,109 @@ class CodeCity(BaseModel):
         except Exception:
             return CodeCityRepoOverview(url=self.repo_url)
 
-    def iter_tree(
+    def list_repo(self):
+        repo = self.get_repo()
+        repo_tree = repo.tree()
+        nodes = ["."] + list(repo_tree.traverse(branch_first=True))
+        return nodes
+
+    def fetch_node(
+        self,
+        item: any,
+    ) -> CodeCityNode:
+        now = datetime.now(timezone.utc)
+        root_node_path = "."
+
+        repo = self.get_repo()
+        repo_tree = repo.tree()
+
+        if item == root_node_path:
+            node = CodeCityTreeNode(
+                node_type="tree",
+                depth=0,
+                path=root_node_path,
+                name=root_node_path,
+                parent_path=None,
+                ancestor_paths=None,
+                revision_stats=self.get_revision_stats(
+                    repo,
+                    cast(git.PathLike, repo.working_tree_dir),
+                    now=now,
+                    is_root=True,
+                ),
+                num_child_blobs=len(repo_tree.blobs),
+                num_child_trees=len(repo_tree.trees),
+                is_root=True,
+            )
+        else:
+            root_node_revision_stats = self.get_revision_stats(
+                repo, cast(git.PathLike, repo.working_tree_dir), now=now, is_root=True
+            )
+            full_path = pathlib.Path(item.abspath)
+            relative_path = full_path.relative_to(self._cache_src_dir)
+            node_path = f"{item.path}"
+            ancestors = list(relative_path.parents)
+            parent_path = ancestors[0] if len(ancestors) > 0 else None
+            num_ancestors = len(ancestors)
+            revision_stats = self.get_revision_stats(
+                repo,
+                item.path,
+                now=now,
+                root_node_revision_stats=root_node_revision_stats,
+            )
+
+            if item.type == "blob":
+                num_lines = None
+                try:
+                    with full_path.open(mode="r") as f:
+                        num_lines = len(f.readlines())
+                except Exception:
+                    pass
+
+                node = CodeCityBlobNode(
+                    node_type="blob",
+                    name=item.name,
+                    path=node_path,
+                    parent_path=parent_path,
+                    ancestor_paths=ancestors,
+                    depth=num_ancestors,
+                    revision_stats=revision_stats,
+                    mime_type=item.mime_type,
+                    size=item.size,
+                    suffix=full_path.suffix,
+                    suffixes=full_path.suffixes,
+                    num_lines=num_lines,
+                )
+            else:
+                node = CodeCityTreeNode(
+                    node_type="tree",
+                    name=item.name,
+                    path=node_path,
+                    parent_path=parent_path,
+                    ancestor_paths=ancestors,
+                    depth=num_ancestors,
+                    revision_stats=revision_stats,
+                    num_child_blobs=len(item.blobs),
+                    num_child_trees=len(item.trees),
+                )
+
+        return node.model_dump_json()
+
+    def fetch_repo_tree(
         self,
     ) -> list[CodeCityNode]:
-        nodes = []
         now = datetime.now(timezone.utc)
+        use_cache = False
+
+        if self._cache_repo_tree_json.exists():
+            with self._cache_repo_tree_json.open(mode="r") as f:
+                cache = json.load(f)
+                cached_at = datetime.fromisoformat(cache["cached_at"])
+                use_cache = (now - cached_at).total_seconds() < CACHE_TTL
+                if use_cache:
+                    return cache["repo_tree"]
+
+        nodes = []
 
         repo = self.get_repo()
         repo_tree = repo.tree()
@@ -287,7 +387,7 @@ class CodeCity(BaseModel):
             is_root=True,
         )
 
-        nodes.append(root_node)
+        nodes.append(root_node.model_dump_json())
 
         for item in repo_tree.traverse(branch_first=True):
             if item.type not in ["blob", "tree"]:
@@ -341,8 +441,17 @@ class CodeCity(BaseModel):
                     num_child_trees=len(item.trees),
                 )
 
-            # yield node
-            nodes.append(node)
+            nodes.append(json.loads(node.model_dump_json()))
+
+        self._cache_repo_tree_json.parent.mkdir(parents=True, exist_ok=True)
+        with self._cache_repo_tree_json.open(mode="w") as f:
+            json.dump(
+                {
+                    "cached_at": now.isoformat(),
+                    "repo_tree": json.loads(json.dumps(nodes)),
+                },
+                f,
+            )
 
         return nodes
 
