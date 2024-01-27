@@ -17,7 +17,7 @@ class BaseConfig:
     CELERY_BROKER_URL: str = os.environ.get(
         "CELERY_BROKER_URL", "amqp://guest:guest@0.0.0.0:5672//"
     )
-    CELERY_RESULT_BACKEND: str = os.environ.get(
+    result_backend: str = os.environ.get(
         "CELERY_RESULT_BACKEND", "redis://0.0.0.0:6379/0"
     )
 
