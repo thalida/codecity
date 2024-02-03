@@ -13,27 +13,68 @@
 	} from '@babylonjs/core';
 	import { renderTileFn } from '$lib/tiles';
 	import { generateGrid2 } from '$lib/utils';
-	import { throttle } from 'lodash-es';
+	import { debounce, throttle } from 'lodash-es';
+	import { clientStore } from '$lib/store';
 
 	const repoTree: TCodeCityTree = {};
 
+	console.log('clientId', $clientStore.uid);
 	let engine: Engine;
 	let scene: Scene;
 
 	let canvas: HTMLCanvasElement;
 
-	function renderCity(nodes: TCodeCityTree, grid: TCodeCityGrid | undefined, scene: Scene) {
-		if (!grid) {
-			return;
+	const renderCity = debounce(
+		(nodes: TCodeCityTree, grid: TCodeCityGrid | undefined, scene: Scene) => {
+			if (!grid) {
+				return;
+			}
+
+			scene.blockfreeActiveMeshesAndRenderingGroups = true;
+			while (scene.meshes.length) {
+				const mesh = scene.meshes[0];
+				mesh.dispose();
+			}
+			scene.blockfreeActiveMeshesAndRenderingGroups = false;
+
+			for (const x in grid) {
+				for (const y in grid[x]) {
+					const tile = grid[x][y];
+					const node = nodes[tile.nodePath];
+					renderTileFn[tile.tileType](node, tile, scene, parseInt(x), parseInt(y));
+				}
+			}
+		},
+		2000,
+		{ leading: true, trailing: true }
+	);
+
+	const updateCityGrid = throttle(
+		(nodes) => {
+			const grid = generateGrid2(nodes, '.');
+			renderCity(nodes, grid, scene);
+		},
+		2000,
+		{ leading: false, trailing: true }
+	);
+
+	function addTreeNode(node: TCodeCityNode) {
+		repoTree[node.path] = node;
+
+		if (typeof node.parent_path === 'undefined' || node.parent_path === null) {
+			return repoTree;
 		}
 
-		for (const x in grid) {
-			for (const y in grid[x]) {
-				const tile = grid[x][y];
-				const node = nodes[tile.nodePath];
-				renderTileFn[tile.tileType](node, tile, scene, parseInt(x), parseInt(y));
-			}
+		const parentNode = repoTree[node.parent_path] as TCodeCityTreeNode;
+		if (typeof parentNode === 'undefined') {
+			return repoTree;
 		}
+
+		parentNode.child_paths = parentNode.child_paths ?? [];
+		parentNode.child_paths.push(node.path);
+		repoTree[parentNode.path] = parentNode;
+
+		return repoTree;
 	}
 
 	function onSceneReady(scene: Scene) {
@@ -63,50 +104,23 @@
 
 	function onRender(scene: Scene) {}
 
-	function addTreeNode(node: TCodeCityNode) {
-		repoTree[node.path] = node;
-
-		if (typeof node.parent_path === 'undefined' || node.parent_path === null) {
-			return repoTree;
-		}
-
-		const parentNode = repoTree[node.parent_path] as TCodeCityTreeNode;
-		parentNode.child_paths = parentNode.child_paths ?? [];
-		parentNode.child_paths.push(node.path);
-		repoTree[parentNode.path] = parentNode;
-
-		return repoTree;
-	}
-
 	onMount(() => {
 		const urlParams = new URLSearchParams(window.location.search);
 		const repo_url = urlParams.get('repo');
 
 		const socket = io(PUBLIC_API_URL);
 		socket.on('connect', () => {
-			console.log('Connected', socket.id);
-			socket.emit('fetch_repo', repo_url);
+			socket.emit('fetch_repo', {
+				repo_url: repo_url,
+				client_id: socket.id
+				// client_id: $clientStore.uid
+			});
 		});
-		socket.on('repo_overview', (data) => {
-			console.log('repo_overview', data);
-		});
-		socket.on('repo_node', (data) => {
-			console.log('add repo_node');
-			const node = JSON.parse(data);
+		socket.on('fetched_node', (data) => {
+			console.log('add repo_node', data['node_path']);
+			const node = JSON.parse(data['node']);
 			addTreeNode(node);
-		});
-		socket.on('fetch_complete', (data) => {
-			console.log('repo_done');
-
-			scene.blockfreeActiveMeshesAndRenderingGroups = true;
-			while (scene.meshes.length) {
-				const mesh = scene.meshes[0];
-				mesh.dispose();
-			}
-			scene.blockfreeActiveMeshesAndRenderingGroups = false;
-
-			const grid = generateGrid2(repoTree, '.');
-			renderCity(repoTree, grid, scene);
+			updateCityGrid(repoTree);
 		});
 
 		canvas.style.width = '100%';
@@ -150,23 +164,6 @@
 		if (window) {
 			window.addEventListener('resize', resize);
 		}
-
-		// const debouncedCallback = throttle(
-		// 	(nodes) => {
-		// 		scene.blockfreeActiveMeshesAndRenderingGroups = true;
-		// 		while (scene.meshes.length) {
-		// 			const mesh = scene.meshes[0];
-		// 			mesh.dispose();
-		// 		}
-		// 		scene.blockfreeActiveMeshesAndRenderingGroups = false;
-
-		// 		const grid = generateGrid2(nodes, '.');
-		// 		renderCity(nodes, grid, scene);
-		// 	},
-		// 	2000,
-		// 	{ leading: false, trailing: true }
-		// );
-		// repoTree.subscribe(debouncedCallback);
 	});
 </script>
 

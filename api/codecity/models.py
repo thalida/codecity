@@ -23,7 +23,7 @@ os.environ["TZ"] = "UTC"
 load_dotenv()
 
 GITEA_API_URL = "https://tea.gitx.codes/api/v1/"
-GITEA_TOKEN = os.getenv("GITTEA_TOKEN")
+GITEA_TOKEN = os.getenv("GITEA_TOKEN")
 
 CACHE_DIR = pathlib.Path(__file__).parent / "cache"
 CACHE_REPO_DIR_NAME = "src"
@@ -101,7 +101,11 @@ class CodeCityBlobNode(BaseCodeCityNode):
 
     suffix: str | None
     suffixes: list[str] | None
+    content_type: str | None
     num_lines: int | None
+
+    size: int | None
+    encoding: str | None
 
 
 CodeCityNode = Annotated[
@@ -174,7 +178,7 @@ class CodeCity(BaseModel):
         if repo_req.status_code == 200:
             return
 
-        requests.post(
+        res = requests.post(
             f"{GITEA_API_URL}/repos/migrate",
             json={
                 "clone_addr": self.repo_url,
@@ -184,18 +188,27 @@ class CodeCity(BaseModel):
             headers={"Authorization": f"token {GITEA_TOKEN}"},
         )
 
+        if res.status_code == 201:
+            return
+
+        raise Exception(f"Failed to clone repo {self.repo_url}")
+
     def fetch_node(
         self,
         node_path: str,
     ):
-        self.clone_repo()
-
         contents = requests.get(
             f"{GITEA_API_URL}/repos/codecity/{self._internal_repo_name}/contents/{node_path}",
             headers={"Authorization": f"token {GITEA_TOKEN}"},
         ).json()
 
+        if isinstance(contents, list) and len(contents) == 0:
+            return
+
         node_type = "tree" if isinstance(contents, list) else "blob"
+
+        if node_type == "blob" and contents["type"] != "file":
+            return
 
         path = pathlib.Path(f"./{node_path}")
         name = path.name
@@ -208,8 +221,10 @@ class CodeCity(BaseModel):
             file_contents = requests.get(
                 f"{GITEA_API_URL}/repos/codecity/{self._internal_repo_name}/raw/{node_path}",
                 headers={"Authorization": f"token {GITEA_TOKEN}"},
-            ).text
-            num_lines = len(file_contents.split("\n"))
+            )
+            content_type = file_contents.headers["Content-Type"]
+            raw_contents = file_contents.text
+            num_lines = len(raw_contents.split("\n"))
             node = CodeCityBlobNode(
                 node_type="blob",
                 name=name,
@@ -220,6 +235,9 @@ class CodeCity(BaseModel):
                 revision_stats=revision_stats,
                 suffix=path.suffix,
                 suffixes=path.suffixes,
+                size=contents["size"],
+                encoding=contents["encoding"],
+                content_type=content_type,
                 num_lines=num_lines,
             )
             return node.model_dump_json(), []
@@ -249,6 +267,7 @@ class CodeCity(BaseModel):
             revision_stats=revision_stats,
             num_child_blobs=num_blobs,
             num_child_trees=num_trees,
+            is_root=node_path == ".",
         )
         return node.model_dump_json(), nested_paths
 
