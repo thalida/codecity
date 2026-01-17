@@ -3,15 +3,14 @@ set dotenv-load
 
 
 project_dir := justfile_dir()
-api_dir := project_dir + "/api"
-app_dir := project_dir + "/app"
-
 
 default:
   just --list
 
-login:
-  cd "{{ project_dir }}"; infisical login
+# General Aliases
+# --------------------------------------------------------------------------------------------------
+uv *args='':
+  cd "{{ api_dir }}"; infisical run --env=dev  -- uv $@;
 
 django-admin *args='':
   cd "{{ api_dir }}"; infisical run --env=dev  -- uv run django-admin $@;
@@ -19,8 +18,10 @@ django-admin *args='':
 manage *args='':
   cd "{{ api_dir }}"; infisical run --env=dev  -- uv run manage.py $@;
 
-uv *args='':
-  cd "{{ api_dir }}"; infisical run --env=dev  -- uv $@;
+# Project specific commands
+# --------------------------------------------------------------------------------------------------
+login:
+  cd "{{ project_dir }}"; infisical login
 
 start-api:
   cd "{{ api_dir }}"; infisical run --env=dev  -- uv run manage.py runserver
