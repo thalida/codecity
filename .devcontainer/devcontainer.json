@@ -22,9 +22,10 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
-				"python.defaultInterpreterPath": " /workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
+				"python.defaultInterpreterPath": "/workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
 				"python.testing.pytestEnabled": true,
 				"python.testing.unittestEnabled": true,
+				"python.analysis.typeCheckingMode": "strict",
 				"[python]": {
 					"editor.formatOnSave": true,
 					"editor.codeActionsOnSave": [
