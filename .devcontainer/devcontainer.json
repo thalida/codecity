@@ -38,7 +38,8 @@
 				"sleistner.vscode-fileutils",
 				"charliermarsh.ruff",
 				"ms-python.vscode-pylance",
-				"yzhang.markdown-all-in-one"
+				"yzhang.markdown-all-in-one",
+				"nefrob.vscode-just-syntax"
 			]
 		}
 	}
