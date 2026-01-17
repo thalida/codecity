@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/python:1-3.11-bullseye
+FROM mcr.microsoft.com/devcontainers/python:2-3.14-trixie
 
 ENV PYTHONUNBUFFERED 1
 
@@ -10,6 +10,3 @@ ENV PYTHONUNBUFFERED 1
 # [Optional] Uncomment this section to install additional OS packages.
 # RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 #     && apt-get -y install --no-install-recommends <your-package-list-here>
-
-
-
