@@ -9,16 +9,20 @@
 	"features": {
 		"ghcr.io/devcontainers-extra/features/node-asdf:0": {},
 		"ghcr.io/devcontainers-extra/features/pre-commit:2": {},
-		"ghcr.io/devcontainers-extra/features/redis-homebrew:1": {},
-		"ghcr.io/devcontainers-extra/features/uv:1": {}
+		"ghcr.io/devcontainers-extra/features/uv:1": {},
+		"ghcr.io/itsmechlark/features/rabbitmq-server:1": {},
+		"ghcr.io/itsmechlark/features/redis-server:1": {}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// This can be used to network with other containers or the host.
 	"forwardPorts": [
-		8000,
-		5173,
-		6379,
-		"db:5432"
+		8000, // API
+		3000, // APP
+		5432, // PostgreSQL
+		5672, // RabbitMQ
+		15672, // RabbitMQ
+		5555, // Flower
+		6379 // Redis
 	],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
