@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-chmod -R +x $WORKSPACE_FOLDER/scripts
-sudo ln -s $WORKSPACE_FOLDER/scripts/* /usr/local/bin
+cd $WORKSPACE_FOLDER
+pre-commit install
 
-sudo rabbitmq-plugins enable rabbitmq_management
+# chmod -R +x $WORKSPACE_FOLDER/scripts
+# sudo ln -s $WORKSPACE_FOLDER/scripts/* /usr/local/bin
