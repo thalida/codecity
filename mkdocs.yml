@@ -1,0 +1,58 @@
+site_name: CodeCity Docs
+site_url: https://thalida.github.io/codecity/
+repo_url: https://github.com/thalida/codecity/
+
+nav:
+  - CodeCity:
+      - Welcome: index.md
+      # - Installation: install.md
+  # - Examples:
+  #     - examples/basic-cli.md
+  #     - examples/env-vars.md
+  #     - ... | flat | examples/**/*.md
+  # - ... | reference/**/*.md
+  # - ...
+
+theme:
+    name: material
+    palette:
+      scheme: slate
+      primary: pink
+      accent: amber
+    font:
+      text: Inter
+    features:
+      - navigation.tabs
+      - navigation.tabs.sticky
+      - navigation.tracking
+      - navigation.indexes
+      - navigation.footer
+      - toc.follow
+      - search.suggest
+
+plugins:
+  - search
+  - awesome-pages
+  - tags
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            show_root_heading: true
+            show_root_full_path: true
+            show_root_toc_entry: true
+            show_symbol_type_heading: true
+            show_symbol_type_toc: true
+            show_source: false
+
+markdown_extensions:
+  - attr_list
+  - mkdocs-click
+
+extra:
+  version:
+    provider: mike
+
+watch:
+  - docs
