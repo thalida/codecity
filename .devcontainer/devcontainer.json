@@ -10,22 +10,11 @@
 		"ghcr.io/devcontainers-extra/features/node-asdf:0": {},
 		"ghcr.io/devcontainers-extra/features/pre-commit:2": {},
 		"ghcr.io/devcontainers-extra/features/uv:1": {},
-		"ghcr.io/itsmechlark/features/rabbitmq-server:1": {},
-		"ghcr.io/itsmechlark/features/redis-server:1": {},
-		"ghcr.io/guiyomh/features/just:0": {},
-		"ghcr.io/devcontainers-extra/features/infisical:1": {}
+		"ghcr.io/guiyomh/features/just:0": {}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// This can be used to network with other containers or the host.
-	"forwardPorts": [
-		8000, // API
-		3000, // APP
-		5432, // PostgreSQL
-		5672, // RabbitMQ
-		15672, // RabbitMQ
-		5555, // Flower
-		6379 // Redis
-	],
+	"forwardPorts": [],
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "bash -i /workspaces/${localWorkspaceFolderBasename}/.devcontainer/postCreateCommand.sh",
 	"postStartCommand": "bash -i /workspaces/${localWorkspaceFolderBasename}/.devcontainer/postStartCommand.sh",
@@ -33,12 +22,9 @@
 	"customizations": {
 		"vscode": {
 			"settings": {
-				"python.defaultInterpreterPath": " /workspaces/${localWorkspaceFolderBasename}/api/.venv/bin/python",
+				"python.defaultInterpreterPath": " /workspaces/${localWorkspaceFolderBasename}/.venv/bin/python",
 				"python.testing.pytestEnabled": true,
 				"python.testing.unittestEnabled": true,
-				"python.analysis.extraPaths": [
-					" /workspaces/${localWorkspaceFolderBasename}/api"
-				],
 				"[python]": {
 					"editor.formatOnSave": true,
 					"editor.codeActionsOnSave": [

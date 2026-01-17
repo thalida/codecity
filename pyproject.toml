@@ -1,0 +1,15 @@
+[project]
+name = "codecity"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.ruff.lint]
+extend-select = ["I", "F"]
+
+[tool.ruff.lint.isort]
+force-wrap-aliases = true
+combine-as-imports = true
+known-first-party = ["api"]
