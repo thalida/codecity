@@ -1,9 +1,0 @@
-#!/usr/bin/env bash
-
-cd /workspaces/codecity/api
-echo "Generating OpenAPI schema..."
-poetry run python generate_openapi.py
-
-cd /workspaces/codecity/app
-echo "Generating API client..."
-npm run generate:api
