@@ -11,7 +11,9 @@
 		"ghcr.io/devcontainers-extra/features/pre-commit:2": {},
 		"ghcr.io/devcontainers-extra/features/uv:1": {},
 		"ghcr.io/itsmechlark/features/rabbitmq-server:1": {},
-		"ghcr.io/itsmechlark/features/redis-server:1": {}
+		"ghcr.io/itsmechlark/features/redis-server:1": {},
+		"ghcr.io/guiyomh/features/just:0": {},
+		"ghcr.io/devcontainers-extra/features/infisical:1": {}
 	},
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	// This can be used to network with other containers or the host.
@@ -24,17 +26,35 @@
 		5555, // Flower
 		6379 // Redis
 	],
-
 	// Use 'postCreateCommand' to run commands after the container is created.
 	"postCreateCommand": "bash -i /workspaces/${localWorkspaceFolderBasename}/.devcontainer/postCreateCommand.sh",
 	"postStartCommand": "bash -i /workspaces/${localWorkspaceFolderBasename}/.devcontainer/postStartCommand.sh",
-
 	// Configure tool-specific properties.
 	"customizations": {
+		"vscode": {
+			"settings": {
+				"python.defaultInterpreterPath": " /workspaces/${localWorkspaceFolderBasename}/api/.venv/bin/python",
+				"python.testing.pytestEnabled": true,
+				"python.testing.unittestEnabled": true,
+				"python.analysis.extraPaths": [
+					" /workspaces/${localWorkspaceFolderBasename}/api"
+				],
+				"[python]": {
+					"editor.formatOnSave": true,
+					"editor.codeActionsOnSave": [
+						"source.fixAll",
+						"source.organizeImports"
+					],
+					"editor.defaultFormatter": "charliermarsh.ruff"
+				}
+			},
 			"extensions": [
 				"sleistner.vscode-fileutils",
-				"charliermarsh.ruff"
+				"charliermarsh.ruff",
+				"ms-python.vscode-pylance",
+				"yzhang.markdown-all-in-one"
 			]
+		}
 	}
 	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
 	// "remoteUser": "root"
