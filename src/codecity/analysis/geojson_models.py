@@ -113,3 +113,24 @@ class SidewalkFeature:
                 "layer": "sidewalks",
             },
         }
+
+
+@dataclass
+class FootpathFeature:
+    """A curved footpath connecting a building to the sidewalk (LineString)."""
+
+    building_path: str
+    points: list[GeoCoord]  # Start at building, curve to sidewalk
+
+    def to_geojson(self) -> dict:
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [p.to_list() for p in self.points],
+            },
+            "properties": {
+                "building": self.building_path,
+                "layer": "footpaths",
+            },
+        }

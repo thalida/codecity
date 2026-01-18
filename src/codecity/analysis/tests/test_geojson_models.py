@@ -1,6 +1,7 @@
 # src/codecity/analysis/tests/test_geojson_models.py
 from codecity.analysis.geojson_models import (
     BuildingFeature,
+    FootpathFeature,
     GeoCoord,
     SidewalkFeature,
     StreetFeature,
@@ -114,3 +115,21 @@ def test_sidewalk_feature_to_geojson():
     assert geojson["properties"]["layer"] == "sidewalks"
     assert geojson["properties"]["street"] == "src"
     assert geojson["properties"]["side"] == "left"
+
+
+def test_footpath_feature_to_geojson():
+    footpath = FootpathFeature(
+        building_path="src/main.py",
+        points=[
+            GeoCoord(15, 9),  # building edge
+            GeoCoord(14, 7),  # curve control
+            GeoCoord(12, 6),  # sidewalk
+        ],
+    )
+    geojson = footpath.to_geojson()
+
+    assert geojson["type"] == "Feature"
+    assert geojson["geometry"]["type"] == "LineString"
+    assert len(geojson["geometry"]["coordinates"]) == 3
+    assert geojson["properties"]["layer"] == "footpaths"
+    assert geojson["properties"]["building"] == "src/main.py"

@@ -3,6 +3,7 @@ from codecity.analysis.diff import DiffResult, calculate_diff
 from codecity.analysis.geojson_layout import GeoJSONLayoutEngine
 from codecity.analysis.geojson_models import (
     BuildingFeature,
+    FootpathFeature,
     GeoCoord,
     SidewalkFeature,
     StreetFeature,
@@ -24,6 +25,7 @@ __all__ = [
     "City",
     "DiffResult",
     "FileMetrics",
+    "FootpathFeature",
     "GeoCoord",
     "GeoJSONLayoutEngine",
     "SidewalkFeature",
