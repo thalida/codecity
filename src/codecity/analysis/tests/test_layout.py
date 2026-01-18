@@ -132,3 +132,48 @@ def test_multiple_buildings_do_not_overlap() -> None:
         f"Buildings overlap: second.x ({second_building.x}) should be > "
         f"first.x ({first_building.x}) + first.width ({first_building.width})"
     )
+
+
+def test_layout_assigns_district_colors() -> None:
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("src/a.py", 10, 5.0, "python", now, now),
+        FileMetrics("tests/b.py", 20, 6.0, "python", now, now),
+    ]
+    city = generate_city_layout(files, "/repo")
+
+    # Top-level streets should have colors
+    src_street = next(s for s in city.root.substreets if s.name == "src")
+    tests_street = next(s for s in city.root.substreets if s.name == "tests")
+
+    assert src_street.color is not None
+    assert tests_street.color is not None
+    assert src_street.color != tests_street.color  # Different colors
+
+
+def test_layout_nested_streets_have_lighter_colors() -> None:
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("src/sub/a.py", 10, 5.0, "python", now, now),
+    ]
+    city = generate_city_layout(files, "/repo")
+
+    src_street = next(s for s in city.root.substreets if s.name == "src")
+    sub_street = next(s for s in src_street.substreets if s.name == "sub")
+
+    # Nested street color should be lighter (higher values)
+    assert sub_street.color is not None
+    assert any(sub_street.color[i] >= src_street.color[i] for i in range(3))
+
+
+def test_layout_road_width_decreases_with_depth() -> None:
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("src/sub/a.py", 10, 5.0, "python", now, now),
+    ]
+    city = generate_city_layout(files, "/repo")
+
+    src_street = next(s for s in city.root.substreets if s.name == "src")
+    sub_street = next(s for s in src_street.substreets if s.name == "sub")
+
+    assert src_street.road_width > sub_street.road_width

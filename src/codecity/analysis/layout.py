@@ -1,6 +1,7 @@
 from pathlib import PurePosixPath
 
 from codecity.analysis.models import Building, City, FileMetrics, Street
+from codecity.config.defaults import get_district_color
 
 
 def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
@@ -16,6 +17,7 @@ def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
     for file_metrics in files:
         _add_file_to_city(root, file_metrics)
 
+    _assign_colors(root, 0, 0)
     _calculate_positions(root, 0, 0)
 
     return City(root=root, repo_path=repo_path)
@@ -46,6 +48,30 @@ def _add_file_to_city(root: Street, metrics: FileMetrics) -> None:
     # Add the building to the final street
     building = Building.from_metrics(metrics)
     current_street.buildings.append(building)
+
+
+def _assign_colors(street: Street, color_index: int, depth: int) -> int:
+    """Assign colors and road widths to streets based on depth.
+
+    Args:
+        street: The street to assign colors to
+        color_index: The current color index for cycling through palette
+        depth: The depth in the street hierarchy (0 = root)
+
+    Returns:
+        The next color index to use
+    """
+    # Skip root street (depth 0), assign colors to non-root streets
+    if depth > 0:
+        street.color = get_district_color(color_index, depth - 1)
+        street.road_width = max(2.5 - depth * 0.5, 0.5)
+        color_index += 1
+
+    # Recursively assign colors to substreets
+    for substreet in street.substreets:
+        color_index = _assign_colors(substreet, color_index, depth + 1)
+
+    return color_index
 
 
 def _calculate_positions(
