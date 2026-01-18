@@ -48,9 +48,6 @@ class CodeCityApp {
         // Setup lights
         this.setupLights();
 
-        // Create ground plane
-        this.createGround();
-
         // Initialize city renderer
         this.cityRenderer = new CityRenderer(this.scene);
 
