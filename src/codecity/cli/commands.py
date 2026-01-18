@@ -13,7 +13,7 @@ from codecity.config import Settings
 console = Console()
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
-click.rich_click.USE_RICH_MARKUP = True
+click.rich_click.TEXT_MARKUP = "rich"
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)

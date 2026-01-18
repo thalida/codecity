@@ -30,3 +30,24 @@ def test_config_list() -> None:
     result = runner.invoke(cli, ["config", "list"])
     assert result.exit_code == 0
     assert "editor" in result.output
+
+
+def test_config_get_valid_key() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "get", "editor"])
+    assert result.exit_code == 0
+    assert "editor" in result.output
+
+
+def test_config_get_invalid_key() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "get", "nonexistent_key"])
+    assert result.exit_code == 0
+    assert "Unknown config key" in result.output
+
+
+def test_config_path() -> None:
+    runner = CliRunner()
+    result = runner.invoke(cli, ["config", "path"])
+    assert result.exit_code == 0
+    assert "Config path" in result.output
