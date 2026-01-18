@@ -248,3 +248,23 @@ def test_building_has_grid_fields() -> None:
     assert building.grid_z == 3
     assert building.road_side == 1
     assert building.road_direction == Direction.HORIZONTAL
+
+
+def test_city_has_grid_structure() -> None:
+    from codecity.analysis.models import City, Street, Tile, TileType
+
+    root = Street(path="", name="root")
+    tile = Tile(x=0, z=0, tile_type=TileType.ROAD, node_path="")
+
+    city = City(
+        root=root,
+        repo_path="/repo",
+        grid={(0, 0): tile},
+        buildings_dict={},
+        streets_dict={"": root},
+        bounds=(0, 0, 10, 10),
+    )
+
+    assert city.grid == {(0, 0): tile}
+    assert city.bounds == (0, 0, 10, 10)
+    assert "" in city.streets_dict

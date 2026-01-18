@@ -97,3 +97,8 @@ class City:
     root: Street
     repo_path: str = ""
     generated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    # New grid-based fields
+    grid: dict[tuple[int, int], Tile] = field(default_factory=dict)
+    buildings_dict: dict[str, Building] = field(default_factory=dict)
+    streets_dict: dict[str, Street] = field(default_factory=dict)
+    bounds: tuple[int, int, int, int] = (0, 0, 0, 0)  # min_x, min_z, max_x, max_z
