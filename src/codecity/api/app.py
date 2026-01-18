@@ -78,7 +78,7 @@ def create_app() -> FastAPI:
         return JSONResponse(content=_city_to_dict(city))
 
     @app.get("/")
-    async def index():
+    async def index() -> FileResponse:
         return FileResponse(APP_DIR / "index.html")
 
     # Mount static files

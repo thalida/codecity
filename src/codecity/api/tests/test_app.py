@@ -94,3 +94,24 @@ async def test_city_endpoint_returns_404_for_nonexistent_repo(
     )
     assert response.status_code == 404
     assert "error" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_index_returns_200(client: AsyncClient) -> None:
+    """Test that GET / returns status 200."""
+    response = await client.get("/")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_styles_css_returns_200(client: AsyncClient) -> None:
+    """Test that GET /styles.css returns status 200."""
+    response = await client.get("/styles.css")
+    assert response.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_nonexistent_file_returns_404(client: AsyncClient) -> None:
+    """Test that GET /nonexistent.file returns 404."""
+    response = await client.get("/nonexistent.file")
+    assert response.status_code == 404
