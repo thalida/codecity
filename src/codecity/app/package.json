@@ -6,6 +6,9 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
+  "dependencies": {
+    "maplibre-gl": "^4.7.1"
+  },
   "devDependencies": {
     "jsdom": "^26.0.0",
     "vitest": "^3.0.0"
