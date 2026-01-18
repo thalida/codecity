@@ -101,6 +101,25 @@ def layout_folder(
         node_path=folder.path,
     )
 
+    # Place buildings - alternate sides for balance
+    side_preference = -parent_side  # Start opposite to how we branched in
+    for i, file_metrics in enumerate(folder.files):
+        road_x = current_x + i
+        if road_x < end_x:
+            building = Building.from_metrics(file_metrics)
+            building.grid_x = road_x
+            building.grid_z = start_z
+            building.road_side = side_preference
+            building.road_direction = Direction.HORIZONTAL
+            buildings[file_metrics.path] = building
+
+            if side_preference > 0:
+                max_z_pos = max(max_z_pos, start_z + 1)
+            else:
+                min_z_neg = min(min_z_neg, start_z - 1)
+
+            side_preference *= -1  # Alternate
+
     # Record street metadata
     streets[folder.path] = Street(
         path=folder.path,
