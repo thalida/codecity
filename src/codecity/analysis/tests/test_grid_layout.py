@@ -189,3 +189,24 @@ def test_generate_grid_city_layout_all_buildings_reachable() -> None:
             TileType.ROAD_START,
             TileType.ROAD_END,
         ), f"Building {path} not on a road tile"
+
+
+def test_grid_layout_assigns_street_colors() -> None:
+    from codecity.analysis.grid_layout import generate_grid_city_layout
+
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("src/main.py", 100, 40.0, "python", now, now),
+        FileMetrics("tests/test_main.py", 50, 30.0, "python", now, now),
+    ]
+
+    city = generate_grid_city_layout(files, "/repo")
+
+    src_street = city.streets_dict.get("src")
+    tests_street = city.streets_dict.get("tests")
+
+    assert src_street is not None
+    assert tests_street is not None
+    assert src_street.color is not None
+    assert tests_street.color is not None
+    assert src_street.color != tests_street.color  # Different colors

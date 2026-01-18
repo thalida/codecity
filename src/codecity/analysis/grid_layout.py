@@ -12,6 +12,7 @@ from codecity.analysis.models import (
     Tile,
     TileType,
 )
+from codecity.config.defaults import get_district_color
 
 
 @dataclass
@@ -62,10 +63,12 @@ def layout_folder(
     grid: dict[tuple[int, int], Tile],
     buildings: dict[str, Building],
     streets: dict[str, Street],
-) -> tuple[int, int]:
+    depth: int = 0,
+    color_index: int = 0,
+) -> tuple[int, int, int]:
     """
     Layout a folder's street with files and subfolders along the same road.
-    Returns (max_z_positive, min_z_negative) bounds used by this folder.
+    Returns (max_z_positive, min_z_negative, next_color_index) bounds used by this folder.
     """
     street_length = max(len(folder.files), len(folder.subfolders), 1)
     current_x = start_x
@@ -73,6 +76,10 @@ def layout_folder(
     # Track depth used on each side
     max_z_pos = start_z
     min_z_neg = start_z
+
+    # Assign street color based on depth and color index
+    street_color = get_district_color(color_index, depth) if depth > 0 else None
+    next_color_index = color_index + 1 if depth > 0 else color_index
 
     # Place road start/intersection tile
     grid[(current_x, start_z)] = Tile(
@@ -145,7 +152,7 @@ def layout_folder(
             )
 
             # Recursively layout the subfolder
-            sub_max, sub_min = layout_folder(
+            sub_max, sub_min, next_color_index = layout_folder(
                 subfolder,
                 start_x=road_x,
                 start_z=connector_z,
@@ -153,6 +160,8 @@ def layout_folder(
                 grid=grid,
                 buildings=buildings,
                 streets=streets,
+                depth=depth + 1,
+                color_index=next_color_index,
             )
             max_z_pos = max(max_z_pos, sub_max)
             min_z_neg = min(min_z_neg, sub_min)
@@ -166,9 +175,11 @@ def layout_folder(
         start=(start_x, start_z),
         end=(end_x, start_z),
         direction=Direction.HORIZONTAL,
+        color=street_color,
+        depth=depth,
     )
 
-    return max_z_pos, min_z_neg
+    return max_z_pos, min_z_neg, next_color_index
 
 
 def generate_grid_city_layout(files: list[FileMetrics], repo_path: str) -> City:
@@ -194,6 +205,8 @@ def generate_grid_city_layout(files: list[FileMetrics], repo_path: str) -> City:
         grid=grid,
         buildings=buildings,
         streets=streets,
+        depth=0,
+        color_index=0,
     )
 
     # Calculate bounds
