@@ -30,6 +30,7 @@ export class CityRenderer {
         this.inspector = inspector;
         this.buildings = new Map(); // file_path -> mesh
         this.streets = [];
+        this.signposts = [];
     }
 
     render(cityData) {
@@ -47,6 +48,11 @@ export class CityRenderer {
             mesh.dispose();
         }
         this.streets = [];
+
+        for (const signpost of this.signposts) {
+            signpost.dispose();
+        }
+        this.signposts = [];
     }
 
     renderStreet(street, isRoot = false) {
@@ -106,10 +112,70 @@ export class CityRenderer {
             this.renderBuilding(building);
         }
 
+        // Render signpost
+        this.renderSignpost(street);
+
         // Render sub-streets
         for (const substreet of street.substreets) {
             this.renderStreet(substreet, false);
         }
+    }
+
+    renderSignpost(street) {
+        if (!street.name || street.name === 'root') return;
+
+        // Create post
+        const post = BABYLON.MeshBuilder.CreateCylinder(
+            `signpost_post_${street.path}`,
+            { height: 3, diameter: 0.2 },
+            this.scene
+        );
+        post.position.x = street.x + 1;
+        post.position.y = 1.5;
+        post.position.z = street.z - 1;
+
+        const postMat = new BABYLON.StandardMaterial(`signpostMat_${street.path}`, this.scene);
+        postMat.diffuseColor = new BABYLON.Color3(0.3, 0.25, 0.2);
+        postMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        post.material = postMat;
+
+        // Create sign plane with text
+        const sign = BABYLON.MeshBuilder.CreatePlane(
+            `signpost_sign_${street.path}`,
+            { width: Math.max(street.name.length * 0.4, 2), height: 0.8 },
+            this.scene
+        );
+        sign.position.x = street.x + 1 + Math.max(street.name.length * 0.2, 1);
+        sign.position.y = 2.8;
+        sign.position.z = street.z - 1;
+        sign.rotation.y = Math.PI / 2;
+
+        // Create dynamic texture for text
+        const textureWidth = Math.max(street.name.length * 40, 128);
+        const texture = new BABYLON.DynamicTexture(
+            `signTexture_${street.path}`,
+            { width: textureWidth, height: 64 },
+            this.scene
+        );
+        texture.hasAlpha = true;
+
+        const ctx = texture.getContext();
+        ctx.fillStyle = 'rgba(40, 40, 45, 0.9)';
+        ctx.fillRect(0, 0, textureWidth, 64);
+        ctx.font = 'bold 32px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText(street.name, textureWidth / 2, 44);
+        texture.update();
+
+        const signMat = new BABYLON.StandardMaterial(`signMat_${street.path}`, this.scene);
+        signMat.diffuseTexture = texture;
+        signMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        signMat.backFaceCulling = false;
+        sign.material = signMat;
+
+        this.signposts.push(post);
+        this.signposts.push(sign);
     }
 
     renderBuilding(building) {
