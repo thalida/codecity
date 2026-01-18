@@ -79,74 +79,183 @@ class CodeCityApp {
     }
 
     /**
-     * Setup ArcRotateCamera for orbiting around the city
+     * Setup camera with Google Maps-like controls
+     * - Left click + drag: Pan the map
+     * - Right click + drag: Rotate view
+     * - Scroll wheel: Zoom in/out
      */
     setupCamera() {
-        // ArcRotateCamera: alpha (horizontal), beta (vertical), radius, target
+        // ArcRotateCamera looking down at the city (like a map view)
         this.camera = new BABYLON.ArcRotateCamera(
             'camera',
-            -Math.PI / 2,  // alpha: horizontal angle
-            Math.PI / 3,   // beta: vertical angle (60 degrees from top)
-            50,            // radius: distance from target
+            -Math.PI / 2,  // alpha: horizontal angle (looking north)
+            Math.PI / 4,   // beta: 45 degrees from top (tilted view)
+            80,            // radius: distance from target
             new BABYLON.Vector3(0, 0, 0),  // target: center of scene
             this.scene
         );
 
-        // Camera limits
-        this.camera.lowerRadiusLimit = 5;
-        this.camera.upperRadiusLimit = 200;
-        this.camera.lowerBetaLimit = 0.1;
-        this.camera.upperBetaLimit = Math.PI / 2 - 0.1;
+        // Zoom limits
+        this.camera.lowerRadiusLimit = 10;
+        this.camera.upperRadiusLimit = 300;
 
-        // Camera controls
-        this.camera.attachControl(this.canvas, true);
-        this.camera.wheelPrecision = 10;
-        this.camera.panningSensibility = 100;
+        // Angle limits - keep camera above ground, allow more top-down view
+        this.camera.lowerBetaLimit = 0.1;  // Almost top-down
+        this.camera.upperBetaLimit = Math.PI / 2.5;  // Not too horizontal
 
-        // WASD keyboard controls for moving around
-        this.setupKeyboardControls();
+        // Detach default controls - we'll set up custom ones
+        this.camera.attachControl(this.canvas, false);
+
+        // Configure for map-like behavior
+        this.camera.panningSensibility = 50;  // Pan speed
+        this.camera.wheelPrecision = 15;      // Zoom speed
+        this.camera.pinchPrecision = 50;      // Touch zoom speed
+
+        // Inertia for smooth movement
+        this.camera.inertia = 0.9;
+        this.camera.panningInertia = 0.9;
+
+        // Setup Google Maps-like controls
+        this.setupMapControls();
     }
 
     /**
-     * Setup WASD keyboard controls for camera movement
+     * Setup Google Maps-like mouse controls
      */
-    setupKeyboardControls() {
-        const keys = { w: false, a: false, s: false, d: false, q: false, e: false };
-        const moveSpeed = 0.5;
+    setupMapControls() {
+        let isDragging = false;
+        let isRotating = false;
+        let lastX = 0;
+        let lastY = 0;
 
-        window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            if (key in keys) keys[key] = true;
+        // Mouse down - start drag or rotate
+        this.canvas.addEventListener('mousedown', (e) => {
+            if (e.button === 0) {
+                // Left click = pan
+                isDragging = true;
+                this.canvas.style.cursor = 'grabbing';
+            } else if (e.button === 2) {
+                // Right click = rotate
+                isRotating = true;
+                this.canvas.style.cursor = 'move';
+            }
+            lastX = e.clientX;
+            lastY = e.clientY;
         });
 
-        window.addEventListener('keyup', (e) => {
-            const key = e.key.toLowerCase();
-            if (key in keys) keys[key] = false;
+        // Mouse move - pan or rotate
+        this.canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging && !isRotating) return;
+
+            const deltaX = e.clientX - lastX;
+            const deltaY = e.clientY - lastY;
+            lastX = e.clientX;
+            lastY = e.clientY;
+
+            if (isDragging) {
+                // Pan: move camera target based on camera orientation
+                const panSpeed = this.camera.radius * 0.002;
+
+                // Calculate pan direction based on camera's horizontal angle
+                const cosAlpha = Math.cos(this.camera.alpha);
+                const sinAlpha = Math.sin(this.camera.alpha);
+
+                // Move in screen-relative directions
+                this.camera.target.x -= (deltaX * cosAlpha + deltaY * sinAlpha) * panSpeed;
+                this.camera.target.z -= (-deltaX * sinAlpha + deltaY * cosAlpha) * panSpeed;
+            } else if (isRotating) {
+                // Rotate: change camera angles
+                const rotateSpeed = 0.005;
+                this.camera.alpha -= deltaX * rotateSpeed;
+                this.camera.beta -= deltaY * rotateSpeed;
+
+                // Clamp beta to limits
+                this.camera.beta = Math.max(this.camera.lowerBetaLimit,
+                    Math.min(this.camera.upperBetaLimit, this.camera.beta));
+            }
         });
 
-        // Update camera target based on keys each frame
-        this.scene.registerBeforeRender(() => {
-            if (!this.camera) return;
+        // Mouse up - stop drag/rotate
+        const stopDrag = () => {
+            isDragging = false;
+            isRotating = false;
+            this.canvas.style.cursor = 'grab';
+        };
+        this.canvas.addEventListener('mouseup', stopDrag);
+        this.canvas.addEventListener('mouseleave', stopDrag);
 
-            // Calculate forward and right vectors based on camera angle
-            const forward = new BABYLON.Vector3(
-                Math.sin(this.camera.alpha),
-                0,
-                Math.cos(this.camera.alpha)
-            );
-            const right = new BABYLON.Vector3(
-                Math.sin(this.camera.alpha + Math.PI / 2),
-                0,
-                Math.cos(this.camera.alpha + Math.PI / 2)
-            );
+        // Default cursor
+        this.canvas.style.cursor = 'grab';
 
-            // Move camera target
-            if (keys.w) this.camera.target.addInPlace(forward.scale(moveSpeed));
-            if (keys.s) this.camera.target.addInPlace(forward.scale(-moveSpeed));
-            if (keys.a) this.camera.target.addInPlace(right.scale(-moveSpeed));
-            if (keys.d) this.camera.target.addInPlace(right.scale(moveSpeed));
-            if (keys.q) this.camera.target.y -= moveSpeed;
-            if (keys.e) this.camera.target.y += moveSpeed;
+        // Prevent context menu on right click
+        this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+
+        // Scroll wheel - zoom
+        this.canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomSpeed = 0.001;
+            const delta = e.deltaY * zoomSpeed * this.camera.radius;
+
+            // Zoom towards/away from mouse position
+            this.camera.radius += delta;
+            this.camera.radius = Math.max(this.camera.lowerRadiusLimit,
+                Math.min(this.camera.upperRadiusLimit, this.camera.radius));
+        }, { passive: false });
+
+        // Touch support for mobile
+        let lastTouchDistance = 0;
+        let lastTouchCenter = { x: 0, y: 0 };
+
+        this.canvas.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                lastX = e.touches[0].clientX;
+                lastY = e.touches[0].clientY;
+            } else if (e.touches.length === 2) {
+                // Pinch zoom
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
+                lastTouchCenter = {
+                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+                };
+            }
+        });
+
+        this.canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (e.touches.length === 1 && isDragging) {
+                const deltaX = e.touches[0].clientX - lastX;
+                const deltaY = e.touches[0].clientY - lastY;
+                lastX = e.touches[0].clientX;
+                lastY = e.touches[0].clientY;
+
+                const panSpeed = this.camera.radius * 0.003;
+                const cosAlpha = Math.cos(this.camera.alpha);
+                const sinAlpha = Math.sin(this.camera.alpha);
+
+                this.camera.target.x -= (deltaX * cosAlpha + deltaY * sinAlpha) * panSpeed;
+                this.camera.target.z -= (-deltaX * sinAlpha + deltaY * cosAlpha) * panSpeed;
+            } else if (e.touches.length === 2) {
+                // Pinch zoom
+                const dx = e.touches[0].clientX - e.touches[1].clientX;
+                const dy = e.touches[0].clientY - e.touches[1].clientY;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (lastTouchDistance > 0) {
+                    const scale = lastTouchDistance / distance;
+                    this.camera.radius *= scale;
+                    this.camera.radius = Math.max(this.camera.lowerRadiusLimit,
+                        Math.min(this.camera.upperRadiusLimit, this.camera.radius));
+                }
+                lastTouchDistance = distance;
+            }
+        }, { passive: false });
+
+        this.canvas.addEventListener('touchend', () => {
+            isDragging = false;
+            lastTouchDistance = 0;
         });
     }
 
