@@ -6,7 +6,12 @@ from dataclasses import dataclass, field
 from pathlib import PurePosixPath
 from typing import Any
 
-from codecity.analysis.geojson_models import BuildingFeature, GeoCoord, StreetFeature
+from codecity.analysis.geojson_models import (
+    BuildingFeature,
+    GeoCoord,
+    SidewalkFeature,
+    StreetFeature,
+)
 from codecity.analysis.models import FileMetrics
 
 # Layout constants
@@ -18,6 +23,7 @@ MAX_BUILDING_WIDTH = 15
 SUBFOLDER_OFFSET = (
     STREET_WIDTH + BUILDING_DEPTH + BUILDING_GAP + STREET_WIDTH // 2
 )  # ~25
+SIDEWALK_OFFSET = 1  # Distance from street edge to sidewalk
 
 
 @dataclass
@@ -26,12 +32,14 @@ class GeoJSONLayoutEngine:
 
     streets: list[StreetFeature] = field(default_factory=list)
     buildings: list[BuildingFeature] = field(default_factory=list)
+    sidewalks: list[SidewalkFeature] = field(default_factory=list)
     _street_set: set[str] = field(default_factory=set)
 
     def layout(self, file_metrics: dict[str, FileMetrics]) -> dict[str, Any]:
         """Generate GeoJSON FeatureCollection from file metrics."""
         self.streets = []
         self.buildings = []
+        self.sidewalks = []
         self._street_set = set()
 
         # Build folder tree
@@ -107,6 +115,7 @@ class GeoJSONLayoutEngine:
                     end=end,
                 )
             )
+            self._create_sidewalks(street_key, start, end, direction)
 
         # Place buildings
         self._place_buildings(
@@ -192,6 +201,44 @@ class GeoJSONLayoutEngine:
                 )
             )
 
+    def _create_sidewalks(
+        self,
+        street_path: str,
+        start: GeoCoord,
+        end: GeoCoord,
+        direction: str,
+    ) -> None:
+        """Create sidewalks on both sides of a street."""
+        offset = STREET_WIDTH / 2 + SIDEWALK_OFFSET
+
+        if direction == "horizontal":
+            left_start = GeoCoord(start.x, start.y + offset)
+            left_end = GeoCoord(end.x, end.y + offset)
+            right_start = GeoCoord(start.x, start.y - offset)
+            right_end = GeoCoord(end.x, end.y - offset)
+        else:
+            left_start = GeoCoord(start.x + offset, start.y)
+            left_end = GeoCoord(end.x + offset, end.y)
+            right_start = GeoCoord(start.x - offset, start.y)
+            right_end = GeoCoord(end.x - offset, end.y)
+
+        self.sidewalks.append(
+            SidewalkFeature(
+                street_path=street_path,
+                side="left",
+                start=left_start,
+                end=left_end,
+            )
+        )
+        self.sidewalks.append(
+            SidewalkFeature(
+                street_path=street_path,
+                side="right",
+                start=right_start,
+                end=right_end,
+            )
+        )
+
     def _parent_folder(self, path: str) -> str:
         """Get parent folder path."""
         parts = PurePosixPath(path).parts
@@ -216,6 +263,13 @@ class GeoJSONLayoutEngine:
 
         for building in self.buildings:
             for coord in building.corners:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
+        for sidewalk in self.sidewalks:
+            for coord in [sidewalk.start, sidewalk.end]:
                 min_x = min(min_x, coord.x)
                 min_y = min(min_y, coord.y)
                 max_x = max(max_x, coord.x)
@@ -250,10 +304,15 @@ class GeoJSONLayoutEngine:
         for building in self.buildings:
             building.corners = [normalize_coord(c) for c in building.corners]
 
+        for sidewalk in self.sidewalks:
+            sidewalk.start = normalize_coord(sidewalk.start)
+            sidewalk.end = normalize_coord(sidewalk.end)
+
         # Now generate the GeoJSON
         features: list[dict[str, Any]] = []
         features.extend(s.to_geojson() for s in self.streets)
         features.extend(b.to_geojson() for b in self.buildings)
+        features.extend(s.to_geojson() for s in self.sidewalks)
 
         return {
             "type": "FeatureCollection",

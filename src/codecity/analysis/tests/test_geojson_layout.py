@@ -158,3 +158,22 @@ def test_layout_subfolders_do_not_overlap_parent_buildings():
             assert not boxes_overlap(
                 b1, b2
             ), f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
+
+
+def test_layout_creates_sidewalks_for_streets():
+    metrics = {"src/main.py": make_file_metrics("src/main.py")}
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    sidewalks = [
+        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
+    ]
+    # Each street should have 2 sidewalks (left and right)
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+    assert len(sidewalks) == len(streets) * 2
+
+    # Check sidewalk properties
+    src_sidewalks = [s for s in sidewalks if s["properties"]["street"] == "src"]
+    assert len(src_sidewalks) == 2
+    sides = {s["properties"]["side"] for s in src_sidewalks}
+    assert sides == {"left", "right"}
