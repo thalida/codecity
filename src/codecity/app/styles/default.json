@@ -1,0 +1,14 @@
+{
+  "version": 8,
+  "name": "CodeCity Default",
+  "sources": {},
+  "layers": [
+    {
+      "id": "background",
+      "type": "background",
+      "paint": {
+        "background-color": "#e8e8e0"
+      }
+    }
+  ]
+}
