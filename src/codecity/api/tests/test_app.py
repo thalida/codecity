@@ -163,8 +163,8 @@ def test_api_returns_grid_layout_data() -> None:
         ),
     ]
 
-    # Generate city with grid layout
-    city = generate_city_layout(file_metrics, "/test/repo", use_grid_layout=True)
+    # Generate city (grid layout is now the default)
+    city = generate_city_layout(file_metrics, "/test/repo")
 
     # Serialize to dict
     result = _city_to_dict(city)
@@ -204,8 +204,8 @@ def test_api_returns_grid_layout_data() -> None:
     if buildings:
         first_building = next(iter(buildings.values()))
         assert "file_path" in first_building
-        assert "grid_x" in first_building
-        assert "grid_z" in first_building
+        assert "x" in first_building
+        assert "z" in first_building
         assert "road_side" in first_building
         assert "road_direction" in first_building
         assert "height" in first_building

@@ -100,10 +100,9 @@ def test_layout_creates_streets_for_folders() -> None:
 
     city = generate_city_layout(files, "/repo/path")
 
-    # Root should have 'src' street
-    assert len(city.root.substreets) == 1
-    src_street = city.root.substreets[0]
-    assert src_street.name == "src"
+    # Grid layout creates streets in streets_dict
+    assert "src" in city.streets_dict
+    assert "src/utils" in city.streets_dict
 
 
 def test_layout_places_buildings_on_streets() -> None:
@@ -120,12 +119,13 @@ def test_layout_places_buildings_on_streets() -> None:
     ]
 
     city = generate_city_layout(files, "/repo/path")
-    assert len(city.root.buildings) == 1
-    assert city.root.buildings[0].file_path == "main.py"
+    # Grid layout stores buildings in buildings_dict
+    assert "main.py" in city.buildings_dict
+    assert city.buildings_dict["main.py"].file_path == "main.py"
 
 
 def test_building_positions_are_calculated() -> None:
-    """Verify that building positions are calculated (x and z are set to non-default values)."""
+    """Verify that building grid positions are calculated."""
     now = datetime.now(timezone.utc)
     files = [
         FileMetrics(
@@ -139,15 +139,15 @@ def test_building_positions_are_calculated() -> None:
     ]
 
     city = generate_city_layout(files, "/repo/path")
-    building = city.root.buildings[0]
+    building = city.buildings_dict["main.py"]
 
-    # Positions should be calculated (non-zero due to street margins)
-    assert building.x != 0, "Building x position should be calculated"
-    assert building.z != 0, "Building z position should be calculated"
+    # Grid positions should be set (grid_x is on road tile)
+    assert building.grid_x >= 0, "Building grid_x should be set"
+    assert building.road_side in (1, -1), "Building road_side should be set"
 
 
 def test_multiple_buildings_do_not_overlap() -> None:
-    """Verify that multiple buildings don't overlap by checking positions."""
+    """Verify that multiple buildings don't overlap by checking grid positions."""
     now = datetime.now(timezone.utc)
     files = [
         FileMetrics(
@@ -169,16 +169,19 @@ def test_multiple_buildings_do_not_overlap() -> None:
     ]
 
     city = generate_city_layout(files, "/repo/path")
-    assert len(city.root.buildings) == 2
+    assert len(city.buildings_dict) == 2
 
-    first_building = city.root.buildings[0]
-    second_building = city.root.buildings[1]
+    first_building = city.buildings_dict["first.py"]
+    second_building = city.buildings_dict["second.py"]
 
-    # Second building should be positioned after first building's x + width
-    assert second_building.x > first_building.x + first_building.width, (
-        f"Buildings overlap: second.x ({second_building.x}) should be > "
-        f"first.x ({first_building.x}) + first.width ({first_building.width})"
-    )
+    # Buildings should be on different grid positions or different road sides
+    if first_building.grid_x == second_building.grid_x:
+        assert (
+            first_building.road_side != second_building.road_side
+        ), "Buildings on same grid_x should be on different sides"
+    else:
+        # Different grid_x means no overlap
+        pass
 
 
 def test_layout_assigns_district_colors() -> None:
@@ -189,9 +192,9 @@ def test_layout_assigns_district_colors() -> None:
     ]
     city = generate_city_layout(files, "/repo")
 
-    # Top-level streets should have colors
-    src_street = next(s for s in city.root.substreets if s.name == "src")
-    tests_street = next(s for s in city.root.substreets if s.name == "tests")
+    # Top-level streets should have colors in streets_dict
+    src_street = city.streets_dict["src"]
+    tests_street = city.streets_dict["tests"]
 
     assert src_street.color is not None
     assert tests_street.color is not None
@@ -205,8 +208,8 @@ def test_layout_nested_streets_have_lighter_colors() -> None:
     ]
     city = generate_city_layout(files, "/repo")
 
-    src_street = next(s for s in city.root.substreets if s.name == "src")
-    sub_street = next(s for s in src_street.substreets if s.name == "sub")
+    src_street = city.streets_dict["src"]
+    sub_street = city.streets_dict["src/sub"]
 
     # Nested street color should be lighter (higher values)
     assert src_street.color is not None
@@ -214,17 +217,18 @@ def test_layout_nested_streets_have_lighter_colors() -> None:
     assert any(sub_street.color[i] >= src_street.color[i] for i in range(3))
 
 
-def test_layout_road_width_decreases_with_depth() -> None:
+def test_layout_depth_increases_with_nesting() -> None:
     now = datetime.now(timezone.utc)
     files = [
         FileMetrics("src/sub/a.py", 10, 5.0, "python", now, now),
     ]
     city = generate_city_layout(files, "/repo")
 
-    src_street = next(s for s in city.root.substreets if s.name == "src")
-    sub_street = next(s for s in src_street.substreets if s.name == "sub")
+    src_street = city.streets_dict["src"]
+    sub_street = city.streets_dict["src/sub"]
 
-    assert src_street.road_width > sub_street.road_width
+    # Depth should increase with nesting
+    assert sub_street.depth > src_street.depth
 
 
 def test_building_has_grid_fields() -> None:
@@ -270,8 +274,8 @@ def test_city_has_grid_structure() -> None:
     assert "" in city.streets_dict
 
 
-def test_generate_city_layout_uses_grid_when_flag_enabled() -> None:
-    """When use_grid_layout=True, generate_city_layout uses the grid layout system."""
+def test_generate_city_layout_uses_grid() -> None:
+    """generate_city_layout uses the grid layout system by default."""
     now = datetime.now(timezone.utc)
     files = [
         FileMetrics(
@@ -292,7 +296,7 @@ def test_generate_city_layout_uses_grid_when_flag_enabled() -> None:
         ),
     ]
 
-    city = generate_city_layout(files, "/repo/path", use_grid_layout=True)
+    city = generate_city_layout(files, "/repo/path")
 
     # Grid layout should populate the grid dict with tiles
     assert city.grid is not None

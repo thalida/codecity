@@ -165,8 +165,8 @@ def _city_to_dict(city: City) -> dict:
         result["buildings"] = {
             path: {
                 "file_path": b.file_path,
-                "grid_x": b.grid_x,
-                "grid_z": b.grid_z,
+                "x": b.grid_x,
+                "z": b.grid_z,
                 "road_side": b.road_side,
                 "road_direction": b.road_direction.value if b.road_direction else None,
                 "height": b.height,
