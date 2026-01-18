@@ -1,11 +1,10 @@
 from pathlib import Path
-from typing import Literal
 
 import platformdirs
 from pydantic import Field, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-EditorType = Literal["vscode", "cursor", "idea", "webstorm", "vim", "custom"]
+from codecity.config.defaults import EditorType
 
 
 class Settings(BaseSettings):
