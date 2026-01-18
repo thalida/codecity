@@ -154,6 +154,8 @@ const BABYLON = {
                 fillStyle: '',
                 font: '',
                 textAlign: '',
+                textBaseline: '',
+                clearRect: vi.fn(),
                 fillRect: vi.fn(),
                 fillText: vi.fn(),
             };
@@ -256,7 +258,9 @@ function setupDomMocks() {
             classList: {
                 add: vi.fn(),
                 remove: vi.fn(),
+                contains: vi.fn(() => false),
             },
+            contains: vi.fn(() => false),
         },
         'inspector-close': {
             addEventListener: vi.fn(),

@@ -14,7 +14,9 @@ describe('Inspector', () => {
             classList: {
                 add: vi.fn(),
                 remove: vi.fn(),
+                contains: vi.fn(() => false),
             },
+            contains: vi.fn(() => false),
         };
 
         mockCloseBtn = {
@@ -146,8 +148,8 @@ describe('Inspector', () => {
     describe('show', () => {
         const mockBuilding = {
             file_path: 'src/utils/helpers.py',
-            height: 10,  // Scaled from LOC: will display as height * 10 = 100
-            width: 8,    // Scaled from avg line: will display as width * 5 = 40.0
+            height: 100,  // Lines of code (raw value)
+            width: 40.5,  // Average line length (raw value)
             language: 'python',
             created_at: '2024-01-15T10:30:00Z',
             last_modified: '2024-06-20T14:45:00Z',
@@ -178,16 +180,16 @@ describe('Inspector', () => {
             expect(mockElements['inspector-path'].textContent).toBe('src/utils/helpers.py');
         });
 
-        it('sets LOC by scaling height back', () => {
+        it('sets LOC from height value', () => {
             inspector.show(mockBuilding);
-            // LOC = Math.round(height * 10) = Math.round(10 * 10) = 100
+            // LOC = Math.round(height) = 100
             expect(mockElements['inspector-loc'].textContent).toBe(100);
         });
 
-        it('sets average line length by scaling width back', () => {
+        it('sets average line length from width value', () => {
             inspector.show(mockBuilding);
-            // avg line = (width * 5).toFixed(1) = (8 * 5).toFixed(1) = "40.0"
-            expect(mockElements['inspector-avg-line'].textContent).toBe('40.0');
+            // avg line = width.toFixed(1) = "40.5"
+            expect(mockElements['inspector-avg-line'].textContent).toBe('40.5');
         });
 
         it('sets language', () => {
@@ -229,16 +231,16 @@ describe('Inspector', () => {
             expect(mockViewRemoteBtn.style.display).toBe('none');
         });
 
-        it('removes hidden class from panel', () => {
+        it('adds open class to panel for slide-in', () => {
             inspector.show(mockBuilding);
-            expect(mockPanel.classList.remove).toHaveBeenCalledWith('hidden');
+            expect(mockPanel.classList.add).toHaveBeenCalledWith('open');
         });
     });
 
     describe('hide', () => {
-        it('adds hidden class to panel', () => {
+        it('removes open class from panel', () => {
             inspector.hide();
-            expect(mockPanel.classList.add).toHaveBeenCalledWith('hidden');
+            expect(mockPanel.classList.remove).toHaveBeenCalledWith('open');
         });
 
         it('clears currentBuilding', () => {
@@ -277,8 +279,8 @@ describe('Inspector', () => {
             const longPath = 'a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p/q/r/s/t/u/v/w/x/y/z/file.py';
             const building = {
                 file_path: longPath,
-                height: 10,
-                width: 8,
+                height: 100,
+                width: 40,
                 language: 'python',
                 created_at: '2024-01-15T10:30:00Z',
                 last_modified: '2024-06-20T14:45:00Z',
@@ -293,7 +295,7 @@ describe('Inspector', () => {
             const building = {
                 file_path: 'empty.py',
                 height: 0,
-                width: 8,
+                width: 40,
                 language: 'python',
                 created_at: '2024-01-15T10:30:00Z',
                 last_modified: '2024-06-20T14:45:00Z',
@@ -306,7 +308,7 @@ describe('Inspector', () => {
         it('handles buildings with zero width', () => {
             const building = {
                 file_path: 'narrow.py',
-                height: 10,
+                height: 100,
                 width: 0,
                 language: 'python',
                 created_at: '2024-01-15T10:30:00Z',
@@ -320,8 +322,8 @@ describe('Inspector', () => {
         it('handles unknown language', () => {
             const building = {
                 file_path: 'mystery.xyz',
-                height: 10,
-                width: 8,
+                height: 100,
+                width: 40,
                 language: 'unknown',
                 created_at: '2024-01-15T10:30:00Z',
                 last_modified: '2024-06-20T14:45:00Z',
@@ -334,8 +336,8 @@ describe('Inspector', () => {
         it('handles special characters in file path', () => {
             const building = {
                 file_path: 'src/my file (1).py',
-                height: 10,
-                width: 8,
+                height: 100,
+                width: 40,
                 language: 'python',
                 created_at: '2024-01-15T10:30:00Z',
                 last_modified: '2024-06-20T14:45:00Z',

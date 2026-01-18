@@ -336,51 +336,52 @@ describe('CityRenderer', () => {
         });
     });
 
-    describe('renderSignpost', () => {
-        it('creates a signpost for named streets', () => {
+    describe('renderTreeStreetLabel', () => {
+        it('creates a flat label for named streets', () => {
             const street = {
                 path: 'src',
                 name: 'src',
                 x: 0,
                 z: 0,
+                width: 100,
             };
-            renderer.renderSignpost(street);
-            // Should create cylinder (post) and plane (sign)
-            expect(BABYLON.MeshBuilder.CreateCylinder).toHaveBeenCalled();
+            renderer.renderTreeStreetLabel(street);
+            // Should create a plane for the label
             expect(BABYLON.MeshBuilder.CreatePlane).toHaveBeenCalled();
         });
 
-        it('does not create signpost for root', () => {
+        it('does not create label for root', () => {
             const street = {
                 path: '',
                 name: 'root',
                 x: 0,
                 z: 0,
             };
-            renderer.renderSignpost(street);
-            expect(BABYLON.MeshBuilder.CreateCylinder).not.toHaveBeenCalled();
+            renderer.renderTreeStreetLabel(street);
+            expect(BABYLON.MeshBuilder.CreatePlane).not.toHaveBeenCalled();
         });
 
-        it('does not create signpost for unnamed streets', () => {
+        it('does not create label for unnamed streets', () => {
             const street = {
                 path: '',
                 name: '',
                 x: 0,
                 z: 0,
             };
-            renderer.renderSignpost(street);
-            expect(BABYLON.MeshBuilder.CreateCylinder).not.toHaveBeenCalled();
+            renderer.renderTreeStreetLabel(street);
+            expect(BABYLON.MeshBuilder.CreatePlane).not.toHaveBeenCalled();
         });
 
-        it('stores signposts for later cleanup', () => {
+        it('stores labels for later cleanup', () => {
             const street = {
                 path: 'src',
                 name: 'src',
                 x: 0,
                 z: 0,
+                width: 100,
             };
-            renderer.renderSignpost(street);
-            expect(renderer.signposts.length).toBe(2); // post + sign
+            renderer.renderTreeStreetLabel(street);
+            expect(renderer.streetLabels.length).toBe(1);
         });
     });
 
@@ -624,22 +625,23 @@ describe('CityRenderer', () => {
             expect(renderer.streets.length).toBe(0);
         });
 
-        it('disposes all signposts', () => {
+        it('disposes all street labels', () => {
             const street = {
                 path: 'src',
                 name: 'src',
                 x: 0,
                 z: 0,
+                width: 100,
             };
-            renderer.renderSignpost(street);
+            renderer.renderTreeStreetLabel(street);
 
-            const signpostMeshes = [...renderer.signposts];
+            const labelMeshes = [...renderer.streetLabels];
             renderer.clear();
 
-            signpostMeshes.forEach((mesh) => {
+            labelMeshes.forEach((mesh) => {
                 expect(mesh.dispose).toHaveBeenCalled();
             });
-            expect(renderer.signposts.length).toBe(0);
+            expect(renderer.streetLabels.length).toBe(0);
         });
     });
 
@@ -1101,7 +1103,7 @@ describe('CityRenderer', () => {
             expect(BABYLON.MeshBuilder.CreateGround).toHaveBeenCalled();
         });
 
-        it('renders signposts for streets', () => {
+        it('renders street labels for streets', () => {
             const cityData = {
                 bounds: { min_x: 0, min_z: 0, max_x: 5, max_z: 2 },
                 grid: { '0,0': { type: 'road', path: '' } },
@@ -1120,8 +1122,8 @@ describe('CityRenderer', () => {
 
             renderer.renderGridCity(cityData);
 
-            // Should create signpost for 'src' street
-            expect(BABYLON.MeshBuilder.CreateCylinder).toHaveBeenCalled();
+            // Should create a plane for 'src' street label (flat on road)
+            expect(BABYLON.MeshBuilder.CreatePlane).toHaveBeenCalled();
         });
     });
 });

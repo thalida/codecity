@@ -10,41 +10,41 @@
     <!-- Babylon.js Canvas -->
     <canvas id="renderCanvas"></canvas>
 
-    <!-- Inspector Panel (hidden by default) -->
-    <div id="inspector" class="inspector hidden">
-        <div class="inspector-header">
+    <!-- Side Panel (slides in from left on building click) -->
+    <div id="inspector" class="side-panel">
+        <div class="side-panel-header">
             <h2 id="inspector-title">File Details</h2>
-            <button id="inspector-close" class="inspector-close">&times;</button>
+            <button id="inspector-close" class="side-panel-close">&times;</button>
         </div>
-        <div class="inspector-content">
-            <div class="inspector-field">
+        <div class="side-panel-content">
+            <div class="panel-field">
                 <label>File Path</label>
                 <span id="inspector-path">-</span>
             </div>
-            <div class="inspector-field">
+            <div class="panel-field">
                 <label>Language</label>
                 <span id="inspector-language">-</span>
             </div>
-            <div class="inspector-field">
+            <div class="panel-field">
                 <label>Lines of Code</label>
                 <span id="inspector-loc">-</span>
             </div>
-            <div class="inspector-field">
+            <div class="panel-field">
                 <label>Average Line Length</label>
                 <span id="inspector-avg-line">-</span>
             </div>
-            <div class="inspector-field">
+            <div class="panel-field">
                 <label>Created</label>
                 <span id="inspector-created">-</span>
             </div>
-            <div class="inspector-field">
+            <div class="panel-field">
                 <label>Last Modified</label>
                 <span id="inspector-modified">-</span>
             </div>
         </div>
-        <div class="inspector-actions">
-            <button id="btn-open-editor" class="inspector-btn">Open in Editor</button>
-            <button id="btn-view-remote" class="inspector-btn">View on GitHub</button>
+        <div class="side-panel-actions">
+            <button id="btn-open-editor" class="panel-btn">Open in Editor</button>
+            <button id="btn-view-remote" class="panel-btn">View on GitHub</button>
         </div>
     </div>
 

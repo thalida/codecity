@@ -3,6 +3,24 @@
 // Size of each grid tile in world units
 const TILE_SIZE = 10;
 
+// Building height limits for lowpoly city feel
+const MAX_BUILDING_HEIGHT = 15;
+const MIN_BUILDING_HEIGHT = 1;
+const HEIGHT_SCALE = 20; // Divide LOC by this to get height
+
+// Building width/depth limits
+const MAX_BUILDING_WIDTH = 6;
+const MIN_BUILDING_WIDTH = 2;
+const WIDTH_SCALE = 10; // Divide avg line length by this
+
+// Google Maps-inspired color palette
+const COLORS = {
+    ground: { r: 0.82, g: 0.89, b: 0.78 },      // Light green grass #d2e3c8
+    road: { r: 0.96, g: 0.96, b: 0.96 },         // Light gray road #f5f5f5
+    intersection: { r: 0.92, g: 0.92, b: 0.92 }, // Slightly darker intersection
+    roadLabel: '#555555',                         // Dark gray for road labels
+};
+
 // Language hue mapping (matches Python defaults.py)
 const LANGUAGE_HUES = {
     python: 210,
@@ -33,8 +51,8 @@ export class CityRenderer {
         this.inspector = inspector;
         this.buildings = new Map(); // file_path -> mesh
         this.streets = [];
-        this.signposts = [];
-        this.labels = new Map();  // file_path -> label
+        this.streetLabels = []; // Flat street name labels on roads
+        this.labels = new Map();  // file_path -> label (building labels)
         this.advancedTexture = null;
     }
 
@@ -72,10 +90,10 @@ export class CityRenderer {
         }
         this.streets = [];
 
-        for (const signpost of this.signposts) {
-            signpost.dispose();
+        for (const label of this.streetLabels) {
+            label.dispose();
         }
-        this.signposts = [];
+        this.streetLabels = [];
     }
 
     renderStreet(street, isRoot = false) {
@@ -135,8 +153,8 @@ export class CityRenderer {
             this.renderBuilding(building);
         }
 
-        // Render signpost
-        this.renderSignpost(street);
+        // Render flat street label (map-style)
+        this.renderTreeStreetLabel(street);
 
         // Render sub-streets
         for (const substreet of street.substreets) {
@@ -144,61 +162,56 @@ export class CityRenderer {
         }
     }
 
-    renderSignpost(street) {
+    renderTreeStreetLabel(street) {
+        // Render street name as flat text along the road (for tree-based layout)
         if (!street.name || street.name === 'root') return;
 
-        // Create post
-        const post = BABYLON.MeshBuilder.CreateCylinder(
-            `signpost_post_${street.path}`,
-            { height: 3, diameter: 0.2 },
+        // Calculate center of the street for label placement
+        const centerX = street.x + street.width / 2;
+        const centerZ = street.z - 1; // Just above the road
+
+        const labelWidth = Math.max(street.name.length * 0.8, 4);
+        const labelHeight = 1.5;
+
+        const label = BABYLON.MeshBuilder.CreatePlane(
+            `streetLabel_${street.path}`,
+            { width: labelWidth, height: labelHeight },
             this.scene
         );
-        post.position.x = street.x + 1;
-        post.position.y = 1.5;
-        post.position.z = street.z - 1;
 
-        const postMat = new BABYLON.StandardMaterial(`signpostMat_${street.path}`, this.scene);
-        postMat.diffuseColor = new BABYLON.Color3(0.3, 0.25, 0.2);
-        postMat.specularColor = new BABYLON.Color3(0, 0, 0);
-        post.material = postMat;
+        label.position.x = centerX;
+        label.position.y = 0.15;
+        label.position.z = centerZ;
+        label.rotation.x = Math.PI / 2; // Lie flat
 
-        // Create sign plane with text
-        const sign = BABYLON.MeshBuilder.CreatePlane(
-            `signpost_sign_${street.path}`,
-            { width: Math.max(street.name.length * 0.4, 2), height: 0.8 },
-            this.scene
-        );
-        sign.position.x = street.x + 1 + Math.max(street.name.length * 0.2, 1);
-        sign.position.y = 2.8;
-        sign.position.z = street.z - 1;
-        sign.rotation.y = Math.PI / 2;
-
-        // Create dynamic texture for text
-        const textureWidth = Math.max(street.name.length * 40, 128);
+        // Create dynamic texture for the street name
+        const textureWidth = 512;
+        const textureHeight = 96;
         const texture = new BABYLON.DynamicTexture(
-            `signTexture_${street.path}`,
-            { width: textureWidth, height: 64 },
+            `streetLabelTexture_${street.path}`,
+            { width: textureWidth, height: textureHeight },
             this.scene
         );
         texture.hasAlpha = true;
 
         const ctx = texture.getContext();
-        ctx.fillStyle = 'rgba(40, 40, 45, 0.9)';
-        ctx.fillRect(0, 0, textureWidth, 64);
-        ctx.font = 'bold 32px Arial';
-        ctx.fillStyle = 'white';
+        ctx.clearRect(0, 0, textureWidth, textureHeight);
+        ctx.font = 'bold 48px Arial';
+        ctx.fillStyle = COLORS.roadLabel;
         ctx.textAlign = 'center';
-        ctx.fillText(street.name, textureWidth / 2, 44);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(street.name.toUpperCase(), textureWidth / 2, textureHeight / 2);
         texture.update();
 
-        const signMat = new BABYLON.StandardMaterial(`signMat_${street.path}`, this.scene);
-        signMat.diffuseTexture = texture;
-        signMat.specularColor = new BABYLON.Color3(0, 0, 0);
-        signMat.backFaceCulling = false;
-        sign.material = signMat;
+        const material = new BABYLON.StandardMaterial(`streetLabelMat_${street.path}`, this.scene);
+        material.diffuseTexture = texture;
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        material.emissiveTexture = texture;
+        material.backFaceCulling = false;
+        material.useAlphaFromDiffuseTexture = true;
+        label.material = material;
 
-        this.signposts.push(post);
-        this.signposts.push(sign);
+        this.streetLabels.push(label);
     }
 
     renderBuilding(building) {
@@ -315,16 +328,17 @@ export class CityRenderer {
         // Hue from language
         const hue = LANGUAGE_HUES[building.language] || LANGUAGE_HUES.unknown;
 
-        // Saturation from file age (older = more saturated)
+        // For map-like lowpoly feel: softer, more pastel colors
+        // Lower saturation for a cleaner look
         const createdDate = new Date(building.created_at);
         const now = new Date();
         const ageInDays = (now - createdDate) / (1000 * 60 * 60 * 24);
-        const saturation = Math.min(0.3 + (ageInDays / 365) * 0.5, 0.8);
+        const saturation = Math.min(0.25 + (ageInDays / 365) * 0.25, 0.5);
 
-        // Lightness from last modified (more recent = lighter)
+        // Higher lightness for pastel look, slight variation based on modification
         const modifiedDate = new Date(building.last_modified);
         const daysSinceModified = (now - modifiedDate) / (1000 * 60 * 60 * 24);
-        const lightness = Math.max(0.7 - (daysSinceModified / 180) * 0.3, 0.4);
+        const lightness = Math.max(0.75 - (daysSinceModified / 180) * 0.15, 0.6);
 
         // Convert HSL to RGB
         return this.hslToColor3(hue / 360, saturation, lightness);
@@ -380,15 +394,15 @@ export class CityRenderer {
             case 'road':
             case 'road_start':
             case 'road_end':
-                this.renderRoadTile(x, z, tile);
+                this.renderRoadTile(x, z);
                 break;
             case 'intersection':
-                this.renderIntersectionTile(x, z, tile);
+                this.renderIntersectionTile(x, z);
                 break;
         }
     }
 
-    renderRoadTile(x, z, tile) {
+    renderRoadTile(x, z) {
         const mesh = BABYLON.MeshBuilder.CreateBox(
             `road_${x}_${z}`,
             { width: TILE_SIZE, height: 0.1, depth: TILE_SIZE },
@@ -399,14 +413,14 @@ export class CityRenderer {
         mesh.position.z = z * TILE_SIZE + TILE_SIZE / 2;
 
         const material = new BABYLON.StandardMaterial(`roadMat_${x}_${z}`, this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.17);
+        material.diffuseColor = new BABYLON.Color3(COLORS.road.r, COLORS.road.g, COLORS.road.b);
         material.specularColor = new BABYLON.Color3(0, 0, 0);
         mesh.material = material;
 
         this.streets.push(mesh);
     }
 
-    renderIntersectionTile(x, z, tile) {
+    renderIntersectionTile(x, z) {
         const mesh = BABYLON.MeshBuilder.CreateBox(
             `intersection_${x}_${z}`,
             { width: TILE_SIZE, height: 0.12, depth: TILE_SIZE },
@@ -417,7 +431,9 @@ export class CityRenderer {
         mesh.position.z = z * TILE_SIZE + TILE_SIZE / 2;
 
         const material = new BABYLON.StandardMaterial(`intersectionMat_${x}_${z}`, this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.22);
+        material.diffuseColor = new BABYLON.Color3(
+            COLORS.intersection.r, COLORS.intersection.g, COLORS.intersection.b
+        );
         material.specularColor = new BABYLON.Color3(0, 0, 0);
         mesh.material = material;
 
@@ -425,9 +441,15 @@ export class CityRenderer {
     }
 
     renderGridBuilding(building) {
-        const height = Math.max(building.height / 10, 1);
-        const width = Math.max(building.width / 5, 2);
-        const depth = width;
+        // Scale and cap building dimensions for lowpoly city feel
+        const rawHeight = building.height / HEIGHT_SCALE;
+        const height = Math.min(Math.max(rawHeight, MIN_BUILDING_HEIGHT), MAX_BUILDING_HEIGHT);
+
+        // Buildings must fit within a tile with margin to prevent overlap
+        const maxBuildingSize = TILE_SIZE * 0.7; // 70% of tile size max
+        const rawWidth = building.width / WIDTH_SCALE;
+        const width = Math.min(Math.max(rawWidth, MIN_BUILDING_WIDTH), Math.min(MAX_BUILDING_WIDTH, maxBuildingSize));
+        const depth = Math.min(width, maxBuildingSize);
 
         const mesh = BABYLON.MeshBuilder.CreateBox(
             `building_${building.file_path}`,
@@ -439,8 +461,9 @@ export class CityRenderer {
         const worldX = building.x * TILE_SIZE + TILE_SIZE / 2;
         const worldZ = building.z * TILE_SIZE + TILE_SIZE / 2;
 
-        // Offset from road based on which side
-        const offset = building.road_side * (TILE_SIZE / 2 + depth / 2);
+        // Offset from road based on which side, with gap between road and building
+        const roadGap = 0.5; // Small gap between road edge and building
+        const offset = building.road_side * (TILE_SIZE / 2 + depth / 2 + roadGap);
 
         if (building.road_direction === 'horizontal') {
             mesh.position.x = worldX;
@@ -516,17 +539,18 @@ export class CityRenderer {
             this.renderGridBuilding(building);
         }
 
-        // Render street signposts
+        // Render street labels (flat on road like map apps)
         for (const [path, street] of Object.entries(cityData.streets)) {
             if (path && street.start) {
-                this.renderGridSignpost(street);
+                this.renderStreetLabel(street);
             }
         }
     }
 
     renderGroundPlane(bounds) {
-        const width = (bounds.max_x - bounds.min_x + 2) * TILE_SIZE;
-        const depth = (bounds.max_z - bounds.min_z + 2) * TILE_SIZE;
+        const padding = 5; // Extra tiles of padding around the city
+        const width = (bounds.max_x - bounds.min_x + padding * 2) * TILE_SIZE;
+        const depth = (bounds.max_z - bounds.min_z + padding * 2) * TILE_SIZE;
         const centerX = ((bounds.min_x + bounds.max_x) / 2) * TILE_SIZE + TILE_SIZE / 2;
         const centerZ = ((bounds.min_z + bounds.max_z) / 2) * TILE_SIZE + TILE_SIZE / 2;
 
@@ -539,69 +563,73 @@ export class CityRenderer {
         ground.position.z = centerZ;
 
         const material = new BABYLON.StandardMaterial('groundMat', this.scene);
-        material.diffuseColor = new BABYLON.Color3(0.1, 0.12, 0.1);
+        material.diffuseColor = new BABYLON.Color3(COLORS.ground.r, COLORS.ground.g, COLORS.ground.b);
         material.specularColor = new BABYLON.Color3(0, 0, 0);
         ground.material = material;
     }
 
-    renderGridSignpost(street) {
+    renderStreetLabel(street) {
+        // Render street name as flat text along the road (like Google Maps)
         if (!street.name || street.name === 'root') return;
 
         const [startX, startZ] = street.start;
-        const worldX = startX * TILE_SIZE + TILE_SIZE / 2;
-        const worldZ = startZ * TILE_SIZE - TILE_SIZE / 2;
+        const [endX, endZ] = street.end;
 
-        // Create post
-        const post = BABYLON.MeshBuilder.CreateCylinder(
-            `signpost_post_${street.name}`,
-            { height: 3, diameter: 0.2 },
+        // Calculate center of the street
+        const centerX = ((startX + endX) / 2) * TILE_SIZE + TILE_SIZE / 2;
+        const centerZ = ((startZ + endZ) / 2) * TILE_SIZE + TILE_SIZE / 2;
+
+        // Determine street direction and rotation
+        const isHorizontal = street.direction === 'horizontal';
+
+        // Create a plane for the street label that lies flat on the road
+        const labelWidth = Math.max(street.name.length * 0.8, 4);
+        const labelHeight = 1.5;
+
+        const label = BABYLON.MeshBuilder.CreatePlane(
+            `streetLabel_${street.name}`,
+            { width: labelWidth, height: labelHeight },
             this.scene
         );
-        post.position.x = worldX;
-        post.position.y = 1.5;
-        post.position.z = worldZ;
 
-        const postMat = new BABYLON.StandardMaterial(`signpostMat_${street.name}`, this.scene);
-        postMat.diffuseColor = new BABYLON.Color3(0.3, 0.25, 0.2);
-        postMat.specularColor = new BABYLON.Color3(0, 0, 0);
-        post.material = postMat;
+        // Position flat on the road surface, slightly above to avoid z-fighting
+        label.position.x = centerX;
+        label.position.y = 0.15;
+        label.position.z = centerZ;
 
-        // Create sign
-        const sign = BABYLON.MeshBuilder.CreatePlane(
-            `signpost_sign_${street.name}`,
-            { width: Math.max(street.name.length * 0.4, 2), height: 0.8 },
-            this.scene
-        );
-        sign.position.x = worldX + Math.max(street.name.length * 0.2, 1);
-        sign.position.y = 2.8;
-        sign.position.z = worldZ;
-        sign.rotation.y = Math.PI / 2;
+        // Rotate to lie flat on ground and align with road direction
+        label.rotation.x = Math.PI / 2; // Lie flat
+        if (!isHorizontal) {
+            label.rotation.z = Math.PI / 2; // Rotate for vertical streets
+        }
 
-        // Create dynamic texture for text
-        const textureWidth = Math.max(street.name.length * 40, 128);
+        // Create dynamic texture for the street name
+        const textureWidth = 512;
+        const textureHeight = 96;
         const texture = new BABYLON.DynamicTexture(
-            `signTexture_${street.name}`,
-            { width: textureWidth, height: 64 },
+            `streetLabelTexture_${street.name}`,
+            { width: textureWidth, height: textureHeight },
             this.scene
         );
         texture.hasAlpha = true;
 
         const ctx = texture.getContext();
-        ctx.fillStyle = 'rgba(40, 40, 45, 0.9)';
-        ctx.fillRect(0, 0, textureWidth, 64);
-        ctx.font = 'bold 32px Arial';
-        ctx.fillStyle = 'white';
+        ctx.clearRect(0, 0, textureWidth, textureHeight);
+        ctx.font = 'bold 48px Arial';
+        ctx.fillStyle = COLORS.roadLabel;
         ctx.textAlign = 'center';
-        ctx.fillText(street.name, textureWidth / 2, 44);
+        ctx.textBaseline = 'middle';
+        ctx.fillText(street.name.toUpperCase(), textureWidth / 2, textureHeight / 2);
         texture.update();
 
-        const signMat = new BABYLON.StandardMaterial(`signMat_${street.name}`, this.scene);
-        signMat.diffuseTexture = texture;
-        signMat.specularColor = new BABYLON.Color3(0, 0, 0);
-        signMat.backFaceCulling = false;
-        sign.material = signMat;
+        const material = new BABYLON.StandardMaterial(`streetLabelMat_${street.name}`, this.scene);
+        material.diffuseTexture = texture;
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        material.emissiveTexture = texture; // Make it visible without lighting
+        material.backFaceCulling = false;
+        material.useAlphaFromDiffuseTexture = true;
+        label.material = material;
 
-        this.signposts.push(post);
-        this.signposts.push(sign);
+        this.streetLabels.push(label);
     }
 }
