@@ -37,12 +37,25 @@ def create_app() -> FastAPI:
     ) -> None:
         from codecity.api.websocket import websocket_endpoint
 
+        # Use app.state.repo_path as default if not provided
+        if repo_path is None and hasattr(app.state, "repo_path"):
+            repo_path = str(app.state.repo_path)
+
         await websocket_endpoint(websocket, repo_path)
 
     @app.get("/api/city")
     def get_city(
-        repo_path: str = Query(..., description="Path to git repository"),
+        repo_path: str | None = Query(None, description="Path to git repository"),
     ) -> JSONResponse:
+        # Use app.state.repo_path as default if not provided
+        if repo_path is None:
+            if hasattr(app.state, "repo_path"):
+                repo_path = str(app.state.repo_path)
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "repo_path is required"},
+                )
         repo = Path(repo_path).resolve()
 
         if not repo.exists():

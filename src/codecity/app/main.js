@@ -67,16 +67,13 @@ class CodeCityApp {
             this.scene.render();
         });
 
-        // Load city from URL parameter
+        // Load city - use URL parameter if provided, otherwise API uses server default
         const urlParams = new URLSearchParams(window.location.search);
         const repoPath = urlParams.get('repo');
 
-        if (repoPath) {
-            await this.loadCity(repoPath);
-            this.connectWebSocket(repoPath);
-        } else {
-            this.hideLoading();
-        }
+        // Always try to load city - API will use app.state.repo_path as default
+        await this.loadCity(repoPath);
+        this.connectWebSocket(repoPath);
     }
 
     /**
@@ -155,13 +152,18 @@ class CodeCityApp {
 
     /**
      * Load city data from API
-     * @param {string} repoPath - Path to the repository
+     * @param {string|null} repoPath - Path to the repository (optional, server uses default)
      */
     async loadCity(repoPath) {
         try {
             this.showLoading();
 
-            const response = await fetch(`/api/city?repo_path=${encodeURIComponent(repoPath)}`);
+            // Build URL - only add repo_path param if provided
+            const url = repoPath
+                ? `/api/city?repo_path=${encodeURIComponent(repoPath)}`
+                : '/api/city';
+
+            const response = await fetch(url);
 
             if (!response.ok) {
                 throw new Error(`Failed to load city: ${response.statusText}`);
@@ -184,11 +186,14 @@ class CodeCityApp {
 
     /**
      * Connect WebSocket for live updates
-     * @param {string} repoPath - Path to the repository
+     * @param {string|null} repoPath - Path to the repository (optional, server uses default)
      */
     connectWebSocket(repoPath) {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${window.location.host}/api/ws?repo_path=${encodeURIComponent(repoPath)}`;
+        // Build URL - only add repo_path param if provided
+        const wsUrl = repoPath
+            ? `${protocol}//${window.location.host}/ws?repo_path=${encodeURIComponent(repoPath)}`
+            : `${protocol}//${window.location.host}/ws`;
 
         this.websocket = new WebSocket(wsUrl);
 

@@ -67,9 +67,13 @@ async def test_health_endpoint(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_city_endpoint_requires_repo_path(client: AsyncClient) -> None:
+async def test_city_endpoint_requires_repo_path_when_no_default(
+    client: AsyncClient,
+) -> None:
+    # Without app.state.repo_path set, should return 400
     response = await client.get("/api/city")
-    assert response.status_code == 422  # Missing required param
+    assert response.status_code == 400
+    assert response.json() == {"error": "repo_path is required"}
 
 
 @pytest.mark.asyncio

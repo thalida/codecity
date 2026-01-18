@@ -35,14 +35,14 @@ class Settings(BaseSettings):
     cache_dir_override: Path | None = Field(default=None, alias="cache_dir")
     config_path_override: Path | None = Field(default=None, alias="config")
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def cache_dir(self) -> Path:
         if self.cache_dir_override:
             return self.cache_dir_override
         return Path(platformdirs.user_cache_dir("codecity"))
 
-    @computed_field
+    @computed_field  # type: ignore[prop-decorator]
     @property
     def config_path(self) -> Path:
         if self.config_path_override:

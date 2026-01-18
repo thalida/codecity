@@ -16,13 +16,16 @@ from codecity.analysis.git import (
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:
     """Create a temporary git repo with some commits."""
-    result = subprocess.run(["git", "init"], cwd=tmp_path, capture_output=True)
+    result = subprocess.run(
+        ["git", "init"], cwd=tmp_path, capture_output=True, text=True
+    )
     assert result.returncode == 0, f"git init failed: {result.stderr}"
 
     result = subprocess.run(
         ["git", "config", "user.email", "test@test.com"],
         cwd=tmp_path,
         capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"git config user.email failed: {result.stderr}"
 
@@ -30,6 +33,7 @@ def git_repo(tmp_path: Path) -> Path:
         ["git", "config", "user.name", "Test"],
         cwd=tmp_path,
         capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"git config user.name failed: {result.stderr}"
 
@@ -38,7 +42,7 @@ def git_repo(tmp_path: Path) -> Path:
     test_file.write_text("print('hello')\n")
 
     result = subprocess.run(
-        ["git", "add", "test.py"], cwd=tmp_path, capture_output=True
+        ["git", "add", "test.py"], cwd=tmp_path, capture_output=True, text=True
     )
     assert result.returncode == 0, f"git add failed: {result.stderr}"
 
@@ -46,6 +50,7 @@ def git_repo(tmp_path: Path) -> Path:
         ["git", "commit", "-m", "Initial commit"],
         cwd=tmp_path,
         capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"git commit failed: {result.stderr}"
 
@@ -99,7 +104,7 @@ def test_last_modified_changes_after_file_modification(git_repo: Path) -> None:
     test_file.write_text("print('hello world')\n")
 
     result = subprocess.run(
-        ["git", "add", "test.py"], cwd=git_repo, capture_output=True
+        ["git", "add", "test.py"], cwd=git_repo, capture_output=True, text=True
     )
     assert result.returncode == 0, f"git add failed: {result.stderr}"
 
@@ -107,6 +112,7 @@ def test_last_modified_changes_after_file_modification(git_repo: Path) -> None:
         ["git", "commit", "-m", "Modify test file"],
         cwd=git_repo,
         capture_output=True,
+        text=True,
     )
     assert result.returncode == 0, f"git commit failed: {result.stderr}"
 
