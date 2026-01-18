@@ -75,3 +75,60 @@ def test_layout_places_buildings_on_streets() -> None:
     city = generate_city_layout(files, "/repo/path")
     assert len(city.root.buildings) == 1
     assert city.root.buildings[0].file_path == "main.py"
+
+
+def test_building_positions_are_calculated() -> None:
+    """Verify that building positions are calculated (x and z are set to non-default values)."""
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics(
+            path="main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=now,
+            last_modified=now,
+        ),
+    ]
+
+    city = generate_city_layout(files, "/repo/path")
+    building = city.root.buildings[0]
+
+    # Positions should be calculated (non-zero due to street margins)
+    assert building.x != 0, "Building x position should be calculated"
+    assert building.z != 0, "Building z position should be calculated"
+
+
+def test_multiple_buildings_do_not_overlap() -> None:
+    """Verify that multiple buildings don't overlap by checking positions."""
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics(
+            path="first.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=now,
+            last_modified=now,
+        ),
+        FileMetrics(
+            path="second.py",
+            lines_of_code=50,
+            avg_line_length=35.0,
+            language="python",
+            created_at=now,
+            last_modified=now,
+        ),
+    ]
+
+    city = generate_city_layout(files, "/repo/path")
+    assert len(city.root.buildings) == 2
+
+    first_building = city.root.buildings[0]
+    second_building = city.root.buildings[1]
+
+    # Second building should be positioned after first building's x + width
+    assert second_building.x > first_building.x + first_building.width, (
+        f"Buildings overlap: second.x ({second_building.x}) should be > "
+        f"first.x ({first_building.x}) + first.width ({first_building.width})"
+    )

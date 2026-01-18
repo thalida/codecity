@@ -4,7 +4,13 @@ from codecity.analysis.models import Building, City, FileMetrics, Street
 
 
 def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
-    """Generate a city layout from file metrics."""
+    """Generate a city layout from file metrics.
+
+    Note:
+        File paths in the FileMetrics objects should use POSIX-style paths
+        (forward slashes) regardless of the operating system. This ensures
+        consistent path parsing across platforms.
+    """
     root = Street(path="", name="root")
 
     for file_metrics in files:
