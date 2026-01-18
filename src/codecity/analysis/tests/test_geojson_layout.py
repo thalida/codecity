@@ -177,3 +177,26 @@ def test_layout_creates_sidewalks_for_streets():
     assert len(src_sidewalks) == 2
     sides = {s["properties"]["side"] for s in src_sidewalks}
     assert sides == {"left", "right"}
+
+
+def test_layout_creates_footpath_for_each_building():
+    metrics = {
+        "src/main.py": make_file_metrics("src/main.py"),
+        "src/utils.py": make_file_metrics("src/utils.py"),
+    }
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    footpaths = [
+        f for f in result["features"] if f["properties"]["layer"] == "footpaths"
+    ]
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
+    ]
+    # One footpath per building
+    assert len(footpaths) == len(buildings)
+
+    # Check footpath has multiple points (curved)
+    for fp in footpaths:
+        coords = fp["geometry"]["coordinates"]
+        assert len(coords) >= 3, "Footpath should have at least 3 points for curve"

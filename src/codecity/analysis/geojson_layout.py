@@ -8,6 +8,7 @@ from typing import Any
 
 from codecity.analysis.geojson_models import (
     BuildingFeature,
+    FootpathFeature,
     GeoCoord,
     SidewalkFeature,
     StreetFeature,
@@ -33,6 +34,7 @@ class GeoJSONLayoutEngine:
     streets: list[StreetFeature] = field(default_factory=list)
     buildings: list[BuildingFeature] = field(default_factory=list)
     sidewalks: list[SidewalkFeature] = field(default_factory=list)
+    footpaths: list[FootpathFeature] = field(default_factory=list)
     _street_set: set[str] = field(default_factory=set)
 
     def layout(self, file_metrics: dict[str, FileMetrics]) -> dict[str, Any]:
@@ -40,6 +42,7 @@ class GeoJSONLayoutEngine:
         self.streets = []
         self.buildings = []
         self.sidewalks = []
+        self.footpaths = []
         self._street_set = set()
 
         # Build folder tree
@@ -201,6 +204,24 @@ class GeoJSONLayoutEngine:
                 )
             )
 
+            # Create footpath from building to sidewalk
+            if direction == "horizontal":
+                building_center = GeoCoord(x + width / 2, y)
+                sidewalk_y = street_start.y + side * (
+                    STREET_WIDTH / 2 + SIDEWALK_OFFSET
+                )
+                sidewalk_point = GeoCoord(x + width / 2, sidewalk_y)
+            else:
+                building_center = GeoCoord(x, y + width / 2)
+                sidewalk_x = street_start.x + side * (
+                    STREET_WIDTH / 2 + SIDEWALK_OFFSET
+                )
+                sidewalk_point = GeoCoord(sidewalk_x, y + width / 2)
+
+            self._create_footpath(
+                path, building_center, sidewalk_point, side, direction
+            )
+
     def _create_sidewalks(
         self,
         street_path: str,
@@ -236,6 +257,39 @@ class GeoJSONLayoutEngine:
                 side="right",
                 start=right_start,
                 end=right_end,
+            )
+        )
+
+    def _create_footpath(
+        self,
+        building_path: str,
+        building_center: GeoCoord,
+        sidewalk_point: GeoCoord,
+        side: int,
+        direction: str,
+    ) -> None:
+        """Create a curved footpath from building to sidewalk."""
+        # Calculate control point for gentle curve
+        if direction == "horizontal":
+            ctrl_x = (building_center.x + sidewalk_point.x) / 2
+            ctrl_y = building_center.y - side * (
+                abs(building_center.y - sidewalk_point.y) * 0.3
+            )
+        else:
+            ctrl_x = building_center.x - side * (
+                abs(building_center.x - sidewalk_point.x) * 0.3
+            )
+            ctrl_y = (building_center.y + sidewalk_point.y) / 2
+
+        control = GeoCoord(ctrl_x, ctrl_y)
+
+        # Generate curve points (quadratic bezier approximation)
+        points = [building_center, control, sidewalk_point]
+
+        self.footpaths.append(
+            FootpathFeature(
+                building_path=building_path,
+                points=points,
             )
         )
 
@@ -275,6 +329,13 @@ class GeoJSONLayoutEngine:
                 max_x = max(max_x, coord.x)
                 max_y = max(max_y, coord.y)
 
+        for footpath in self.footpaths:
+            for coord in footpath.points:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
         # Handle empty case
         if min_x == float("inf"):
             min_x, min_y, max_x, max_y = 0, 0, 1, 1
@@ -308,11 +369,15 @@ class GeoJSONLayoutEngine:
             sidewalk.start = normalize_coord(sidewalk.start)
             sidewalk.end = normalize_coord(sidewalk.end)
 
+        for footpath in self.footpaths:
+            footpath.points = [normalize_coord(p) for p in footpath.points]
+
         # Now generate the GeoJSON
         features: list[dict[str, Any]] = []
         features.extend(s.to_geojson() for s in self.streets)
         features.extend(b.to_geojson() for b in self.buildings)
         features.extend(s.to_geojson() for s in self.sidewalks)
+        features.extend(f.to_geojson() for f in self.footpaths)
 
         return {
             "type": "FeatureCollection",
