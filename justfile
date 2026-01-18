@@ -48,17 +48,17 @@ init:
 # Run the development server
 serve *args='':
   @cd "{{ project_dir }}"
-  uv run codecity serve . {{ args }}
+  uv run codecity serve . $@
 
 # Build static site
 build *args='':
   @cd "{{ project_dir }}"
-  uv run codecity build . {{ args }}
+  uv run codecity build . $@
 
 # Run tests
 test *args='':
   @cd "{{ project_dir }}"
-  uv run pytest src/ {{ args }}
+  uv run pytest src/ $@
 
 # Run linting
 lint:
