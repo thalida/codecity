@@ -72,6 +72,11 @@ lint-fix:
   uv run ruff check --fix src/
   uv run ruff format src/
 
+# Run type checking
+typecheck:
+  @cd "{{ project_dir }}"
+  uv run mypy src/
+
 # ==============================================================================
 #   DOCS
 # ------------------------------------------------------------------------------
