@@ -33,11 +33,8 @@ export class CityRenderer {
     }
 
     render(cityData) {
-        // Clear existing meshes
         this.clear();
-
-        // Render streets and buildings recursively
-        this.renderStreet(cityData.root);
+        this.renderStreet(cityData.root, true);
     }
 
     clear() {
@@ -52,11 +49,11 @@ export class CityRenderer {
         this.streets = [];
     }
 
-    renderStreet(street) {
-        // Render street as a flat plane
-        if (street.width > 0 && street.length > 0) {
-            const streetMesh = BABYLON.MeshBuilder.CreateBox(
-                `street_${street.path}`,
+    renderStreet(street, isRoot = false) {
+        // Render district ground (colored plate)
+        if (street.width > 0 && street.length > 0 && street.color) {
+            const districtMesh = BABYLON.MeshBuilder.CreateBox(
+                `district_${street.path}`,
                 {
                     width: street.width,
                     height: 0.1,
@@ -64,15 +61,44 @@ export class CityRenderer {
                 },
                 this.scene
             );
-            streetMesh.position.x = street.x + street.width / 2;
-            streetMesh.position.y = 0.05;
-            streetMesh.position.z = street.z + street.length / 2;
+            districtMesh.position.x = street.x + street.width / 2;
+            districtMesh.position.y = 0.05;
+            districtMesh.position.z = street.z + street.length / 2;
 
-            const streetMat = new BABYLON.StandardMaterial(`streetMat_${street.path}`, this.scene);
-            streetMat.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.25);
-            streetMesh.material = streetMat;
+            const districtMat = new BABYLON.StandardMaterial(`districtMat_${street.path}`, this.scene);
+            // Convert RGB 0-255 to 0-1
+            districtMat.diffuseColor = new BABYLON.Color3(
+                street.color[0] / 255,
+                street.color[1] / 255,
+                street.color[2] / 255
+            );
+            districtMat.specularColor = new BABYLON.Color3(0, 0, 0);
+            districtMesh.material = districtMat;
 
-            this.streets.push(streetMesh);
+            this.streets.push(districtMesh);
+        }
+
+        // Render road at district boundary
+        if (street.road_width > 0 && street.width > 0 && !isRoot) {
+            const roadMesh = BABYLON.MeshBuilder.CreateBox(
+                `road_${street.path}`,
+                {
+                    width: street.width + street.road_width * 2,
+                    height: 0.12,
+                    depth: street.road_width,
+                },
+                this.scene
+            );
+            roadMesh.position.x = street.x + street.width / 2;
+            roadMesh.position.y = 0.06;
+            roadMesh.position.z = street.z - street.road_width / 2;
+
+            const roadMat = new BABYLON.StandardMaterial(`roadMat_${street.path}`, this.scene);
+            roadMat.diffuseColor = new BABYLON.Color3(0.12, 0.12, 0.14);
+            roadMat.specularColor = new BABYLON.Color3(0, 0, 0);
+            roadMesh.material = roadMat;
+
+            this.streets.push(roadMesh);
         }
 
         // Render buildings
@@ -82,7 +108,7 @@ export class CityRenderer {
 
         // Render sub-streets
         for (const substreet of street.substreets) {
-            this.renderStreet(substreet);
+            this.renderStreet(substreet, false);
         }
     }
 
@@ -105,6 +131,7 @@ export class CityRenderer {
         const material = new BABYLON.StandardMaterial(`mat_${building.file_path}`, this.scene);
         const color = this.calculateBuildingColor(building);
         material.diffuseColor = color;
+        material.specularColor = new BABYLON.Color3(0, 0, 0);  // No specular for flat look
         mesh.material = material;
 
         // Store building data in mesh metadata
