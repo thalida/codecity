@@ -120,6 +120,44 @@ def layout_folder(
 
             side_preference *= -1  # Alternate
 
+    # Place subfolders - they branch perpendicular from the road
+    subfolder_side = -parent_side  # Start opposite to parent branch direction
+    for i, subfolder in enumerate(folder.subfolders):
+        road_x = current_x + i
+        if road_x < end_x:
+            # Create connector tile from this road to the subfolder's road
+            connector_z = start_z + subfolder_side
+            grid[(road_x, connector_z)] = Tile(
+                x=road_x,
+                z=connector_z,
+                tile_type=TileType.INTERSECTION,
+                node_path=subfolder.path,
+                parent_path=folder.path,
+            )
+
+            # Update the road tile at this position to be an intersection
+            grid[(road_x, start_z)] = Tile(
+                x=road_x,
+                z=start_z,
+                tile_type=TileType.INTERSECTION,
+                node_path=folder.path,
+            )
+
+            # Recursively layout the subfolder
+            sub_max, sub_min = layout_folder(
+                subfolder,
+                start_x=road_x,
+                start_z=connector_z,
+                parent_side=subfolder_side,
+                grid=grid,
+                buildings=buildings,
+                streets=streets,
+            )
+            max_z_pos = max(max_z_pos, sub_max)
+            min_z_neg = min(min_z_neg, sub_min)
+
+            subfolder_side *= -1  # Alternate sides for subfolders
+
     # Record street metadata
     streets[folder.path] = Street(
         path=folder.path,

@@ -96,3 +96,48 @@ def test_layout_folder_places_buildings() -> None:
     assert main_building.grid_x >= 0
     assert main_building.road_side in (1, -1)
     assert main_building.road_direction == Direction.HORIZONTAL
+
+
+def test_layout_folder_branches_subfolders() -> None:
+    from codecity.analysis.grid_layout import Folder, layout_folder
+    from codecity.analysis.models import Building, Street, Tile
+
+    now = datetime.now(timezone.utc)
+    child = Folder(
+        name="api",
+        path="src/api",
+        files=[
+            FileMetrics("src/api/routes.py", 50, 30.0, "python", now, now),
+        ],
+        subfolders=[],
+    )
+    parent = Folder(name="src", path="src", files=[], subfolders=[child])
+
+    grid: dict[tuple[int, int], Tile] = {}
+    buildings: dict[str, Building] = {}
+    streets: dict[str, Street] = {}
+
+    layout_folder(
+        parent,
+        start_x=0,
+        start_z=0,
+        parent_side=1,
+        grid=grid,
+        buildings=buildings,
+        streets=streets,
+    )
+
+    # Parent street should exist
+    assert "src" in streets
+
+    # Child street should exist and branch from parent
+    assert "src/api" in streets
+
+    # Child should have buildings
+    assert "src/api/routes.py" in buildings
+
+    # There should be a connector tile from parent to child
+    child_start = streets["src/api"].start
+    assert child_start is not None
+    # The connector should be one tile away from parent's road in z direction
+    assert child_start[1] != 0  # Child not on same z as parent
