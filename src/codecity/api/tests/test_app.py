@@ -119,3 +119,17 @@ async def test_nonexistent_file_returns_404(client: AsyncClient) -> None:
     """Test that GET /nonexistent.file returns 404."""
     response = await client.get("/nonexistent.file")
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_city_endpoint_includes_street_color(
+    client: AsyncClient, temp_git_repo: Path
+) -> None:
+    response = await client.get("/api/city", params={"repo_path": str(temp_git_repo)})
+    assert response.status_code == 200
+    data = response.json()
+    # Root won't have color, but check structure exists
+    assert "root" in data
+    root = data["root"]
+    assert "color" in root
+    assert "road_width" in root

@@ -111,6 +111,8 @@ def _city_to_dict(city: City) -> dict:
             "z": street.z,
             "width": street.width,
             "length": street.length,
+            "color": street.color,
+            "road_width": street.road_width,
             "buildings": [
                 {
                     "file_path": b.file_path,
