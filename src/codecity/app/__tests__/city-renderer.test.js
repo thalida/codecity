@@ -683,4 +683,288 @@ describe('CityRenderer', () => {
             expect(BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI).toHaveBeenCalledWith('UI');
         });
     });
+
+    describe('renderTile', () => {
+        it('renders road tile for type "road"', () => {
+            renderer.renderTile(5, 3, { type: 'road', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'road_5_3',
+                expect.objectContaining({ width: 10, height: 0.1, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('renders road tile for type "road_start"', () => {
+            renderer.renderTile(2, 1, { type: 'road_start', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'road_2_1',
+                expect.objectContaining({ width: 10, height: 0.1, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('renders road tile for type "road_end"', () => {
+            renderer.renderTile(7, 4, { type: 'road_end', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'road_7_4',
+                expect.objectContaining({ width: 10, height: 0.1, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('renders intersection tile', () => {
+            renderer.renderTile(2, 4, { type: 'intersection', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'intersection_2_4',
+                expect.objectContaining({ width: 10, height: 0.12, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('handles tile_type property (alternative naming)', () => {
+            renderer.renderTile(1, 1, { tile_type: 'road', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'road_1_1',
+                expect.objectContaining({ width: 10, height: 0.1, depth: 10 }),
+                mockScene
+            );
+        });
+    });
+
+    describe('renderRoadTile', () => {
+        it('creates a box mesh for the road tile', () => {
+            renderer.renderRoadTile(3, 2, { type: 'road', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'road_3_2',
+                expect.objectContaining({ width: 10, height: 0.1, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('positions road tile correctly using TILE_SIZE', () => {
+            const mockMesh = createMockMesh('road_3_2');
+            BABYLON.MeshBuilder.CreateBox.mockReturnValueOnce(mockMesh);
+
+            renderer.renderRoadTile(3, 2, { type: 'road', path: 'src' });
+
+            // x = 3 * 10 + 10/2 = 35, y = 0.05, z = 2 * 10 + 10/2 = 25
+            expect(mockMesh.position.x).toBe(35);
+            expect(mockMesh.position.y).toBe(0.05);
+            expect(mockMesh.position.z).toBe(25);
+        });
+
+        it('applies material to road tile', () => {
+            const mockMesh = createMockMesh('road_0_0');
+            BABYLON.MeshBuilder.CreateBox.mockReturnValueOnce(mockMesh);
+
+            renderer.renderRoadTile(0, 0, { type: 'road', path: 'src' });
+
+            expect(mockMesh.material).not.toBeNull();
+        });
+
+        it('stores road tile in streets array', () => {
+            renderer.renderRoadTile(0, 0, { type: 'road', path: 'src' });
+
+            expect(renderer.streets.length).toBe(1);
+        });
+    });
+
+    describe('renderIntersectionTile', () => {
+        it('creates a box mesh for the intersection tile', () => {
+            renderer.renderIntersectionTile(4, 5, { type: 'intersection', path: 'src' });
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'intersection_4_5',
+                expect.objectContaining({ width: 10, height: 0.12, depth: 10 }),
+                mockScene
+            );
+        });
+
+        it('positions intersection tile correctly using TILE_SIZE', () => {
+            const mockMesh = createMockMesh('intersection_4_5');
+            BABYLON.MeshBuilder.CreateBox.mockReturnValueOnce(mockMesh);
+
+            renderer.renderIntersectionTile(4, 5, { type: 'intersection', path: 'src' });
+
+            // x = 4 * 10 + 10/2 = 45, y = 0.06, z = 5 * 10 + 10/2 = 55
+            expect(mockMesh.position.x).toBe(45);
+            expect(mockMesh.position.y).toBe(0.06);
+            expect(mockMesh.position.z).toBe(55);
+        });
+
+        it('intersection is slightly taller than road (0.12 vs 0.1)', () => {
+            renderer.renderIntersectionTile(0, 0, { type: 'intersection', path: 'src' });
+
+            const callArgs = BABYLON.MeshBuilder.CreateBox.mock.calls[0];
+            const options = callArgs[1];
+            expect(options.height).toBe(0.12);
+        });
+
+        it('stores intersection tile in streets array', () => {
+            renderer.renderIntersectionTile(0, 0, { type: 'intersection', path: 'src' });
+
+            expect(renderer.streets.length).toBe(1);
+        });
+    });
+
+    describe('renderGridBuilding', () => {
+        const TILE_SIZE = 10;
+
+        beforeEach(() => {
+            renderer.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+        });
+
+        it('creates a box mesh for the building', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            expect(BABYLON.MeshBuilder.CreateBox).toHaveBeenCalledWith(
+                'building_src/main.py',
+                expect.any(Object),
+                mockScene
+            );
+        });
+
+        it('positions building offset in +z direction for road_side 1 (horizontal)', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            const mesh = renderer.buildings.get('src/main.py');
+            // Building should be offset in +z direction from road center
+            // worldZ = z * TILE_SIZE + TILE_SIZE/2 + road_side * offset
+            // offset = TILE_SIZE/2 + depth/2 = 5 + 4 = 9
+            // z = 0 * 10 + 5 + 1 * 9 = 14
+            expect(mesh.position.z).toBeGreaterThan(0 * TILE_SIZE + TILE_SIZE / 2);
+        });
+
+        it('positions building offset in -z direction for road_side -1 (horizontal)', () => {
+            const building = {
+                file_path: 'src/utils.py',
+                x: 3,
+                z: 0,
+                road_side: -1,
+                road_direction: 'horizontal',
+                height: 50,
+                width: 30,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            const mesh = renderer.buildings.get('src/utils.py');
+            // Building should be offset in -z direction from road center
+            expect(mesh.position.z).toBeLessThan(0 * TILE_SIZE + TILE_SIZE / 2);
+        });
+
+        it('stores building in buildings map', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            expect(renderer.buildings.has('src/main.py')).toBe(true);
+        });
+
+        it('creates an action manager for click handling', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            const mesh = renderer.buildings.get('src/main.py');
+            expect(mesh.actionManager).not.toBeNull();
+        });
+
+        it('creates a label for the building', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            expect(renderer.labels.has('src/main.py')).toBe(true);
+        });
+
+        it('stores building metadata', () => {
+            const building = {
+                file_path: 'src/main.py',
+                x: 2,
+                z: 0,
+                road_side: 1,
+                road_direction: 'horizontal',
+                height: 100,
+                width: 40,
+                language: 'python',
+                created_at: new Date().toISOString(),
+                last_modified: new Date().toISOString(),
+            };
+
+            renderer.renderGridBuilding(building);
+
+            const mesh = renderer.buildings.get('src/main.py');
+            expect(mesh.metadata.type).toBe('building');
+            expect(mesh.metadata.data).toBe(building);
+        });
+    });
 });

@@ -1,5 +1,8 @@
 // src/codecity/app/city-renderer.js
 
+// Size of each grid tile in world units
+const TILE_SIZE = 10;
+
 // Language hue mapping (matches Python defaults.py)
 const LANGUAGE_HUES = {
     python: 210,
@@ -362,5 +365,130 @@ export class CityRenderer {
             mesh.dispose();
             this.buildings.delete(filePath);
         }
+    }
+
+    renderTile(x, z, tile) {
+        const tileType = tile.tile_type || tile.type;
+
+        switch (tileType) {
+            case 'road':
+            case 'road_start':
+            case 'road_end':
+                this.renderRoadTile(x, z, tile);
+                break;
+            case 'intersection':
+                this.renderIntersectionTile(x, z, tile);
+                break;
+        }
+    }
+
+    renderRoadTile(x, z, tile) {
+        const mesh = BABYLON.MeshBuilder.CreateBox(
+            `road_${x}_${z}`,
+            { width: TILE_SIZE, height: 0.1, depth: TILE_SIZE },
+            this.scene
+        );
+        mesh.position.x = x * TILE_SIZE + TILE_SIZE / 2;
+        mesh.position.y = 0.05;
+        mesh.position.z = z * TILE_SIZE + TILE_SIZE / 2;
+
+        const material = new BABYLON.StandardMaterial(`roadMat_${x}_${z}`, this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.15, 0.15, 0.17);
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        mesh.material = material;
+
+        this.streets.push(mesh);
+    }
+
+    renderIntersectionTile(x, z, tile) {
+        const mesh = BABYLON.MeshBuilder.CreateBox(
+            `intersection_${x}_${z}`,
+            { width: TILE_SIZE, height: 0.12, depth: TILE_SIZE },
+            this.scene
+        );
+        mesh.position.x = x * TILE_SIZE + TILE_SIZE / 2;
+        mesh.position.y = 0.06;
+        mesh.position.z = z * TILE_SIZE + TILE_SIZE / 2;
+
+        const material = new BABYLON.StandardMaterial(`intersectionMat_${x}_${z}`, this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.2, 0.2, 0.22);
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        mesh.material = material;
+
+        this.streets.push(mesh);
+    }
+
+    renderGridBuilding(building) {
+        const height = Math.max(building.height / 10, 1);
+        const width = Math.max(building.width / 5, 2);
+        const depth = width;
+
+        const mesh = BABYLON.MeshBuilder.CreateBox(
+            `building_${building.file_path}`,
+            { width, height, depth },
+            this.scene
+        );
+
+        // Calculate world position from grid position
+        const worldX = building.x * TILE_SIZE + TILE_SIZE / 2;
+        const worldZ = building.z * TILE_SIZE + TILE_SIZE / 2;
+
+        // Offset from road based on which side
+        const offset = building.road_side * (TILE_SIZE / 2 + depth / 2);
+
+        if (building.road_direction === 'horizontal') {
+            mesh.position.x = worldX;
+            mesh.position.z = worldZ + offset;
+        } else {
+            // For vertical roads, offset in x direction
+            mesh.position.x = worldX + offset;
+            mesh.position.z = worldZ;
+        }
+
+        mesh.position.y = height / 2;
+
+        // Create material with HSL color
+        const material = new BABYLON.StandardMaterial(`mat_${building.file_path}`, this.scene);
+        const color = this.calculateBuildingColor(building);
+        material.diffuseColor = color;
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        mesh.material = material;
+
+        // Store building data in mesh metadata
+        mesh.metadata = {
+            type: 'building',
+            data: building,
+        };
+
+        // Add click handler
+        mesh.actionManager = new BABYLON.ActionManager(this.scene);
+        mesh.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPickTrigger,
+                () => this.inspector.show(building)
+            )
+        );
+
+        // Hover shows label
+        mesh.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPointerOverTrigger,
+                () => {
+                    const label = this.labels.get(building.file_path);
+                    if (label) label.alpha = 1;
+                }
+            )
+        );
+        mesh.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPointerOutTrigger,
+                () => {
+                    // Let distance-based visibility take over
+                }
+            )
+        );
+
+        this.buildings.set(building.file_path, mesh);
+        this.createBuildingLabel(building, mesh);
     }
 }
