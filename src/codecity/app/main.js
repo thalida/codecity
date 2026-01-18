@@ -102,6 +102,52 @@ class CodeCityApp {
         this.camera.attachControl(this.canvas, true);
         this.camera.wheelPrecision = 10;
         this.camera.panningSensibility = 100;
+
+        // WASD keyboard controls for moving around
+        this.setupKeyboardControls();
+    }
+
+    /**
+     * Setup WASD keyboard controls for camera movement
+     */
+    setupKeyboardControls() {
+        const keys = { w: false, a: false, s: false, d: false, q: false, e: false };
+        const moveSpeed = 0.5;
+
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keys) keys[key] = true;
+        });
+
+        window.addEventListener('keyup', (e) => {
+            const key = e.key.toLowerCase();
+            if (key in keys) keys[key] = false;
+        });
+
+        // Update camera target based on keys each frame
+        this.scene.registerBeforeRender(() => {
+            if (!this.camera) return;
+
+            // Calculate forward and right vectors based on camera angle
+            const forward = new BABYLON.Vector3(
+                Math.sin(this.camera.alpha),
+                0,
+                Math.cos(this.camera.alpha)
+            );
+            const right = new BABYLON.Vector3(
+                Math.sin(this.camera.alpha + Math.PI / 2),
+                0,
+                Math.cos(this.camera.alpha + Math.PI / 2)
+            );
+
+            // Move camera target
+            if (keys.w) this.camera.target.addInPlace(forward.scale(moveSpeed));
+            if (keys.s) this.camera.target.addInPlace(forward.scale(-moveSpeed));
+            if (keys.a) this.camera.target.addInPlace(right.scale(-moveSpeed));
+            if (keys.d) this.camera.target.addInPlace(right.scale(moveSpeed));
+            if (keys.q) this.camera.target.y -= moveSpeed;
+            if (keys.e) this.camera.target.y += moveSpeed;
+        });
     }
 
     /**
