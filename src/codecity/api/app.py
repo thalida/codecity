@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -28,6 +28,12 @@ def create_app() -> FastAPI:
     @app.get("/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @app.websocket("/ws")
+    async def websocket_route(websocket: WebSocket, repo_path: str | None = None):
+        from codecity.api.websocket import websocket_endpoint
+
+        await websocket_endpoint(websocket, repo_path)
 
     @app.get("/api/city")
     def get_city(
