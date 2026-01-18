@@ -59,6 +59,10 @@ async def websocket_endpoint(
                     # Could handle commands here
             except WebSocketDisconnect:
                 watch_task.cancel()
+                try:
+                    await watch_task
+                except asyncio.CancelledError:
+                    pass
         else:
             # No repo path, just keep connection alive
             while True:

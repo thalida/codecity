@@ -30,7 +30,9 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.websocket("/ws")
-    async def websocket_route(websocket: WebSocket, repo_path: str | None = None):
+    async def websocket_route(
+        websocket: WebSocket, repo_path: str | None = None
+    ) -> None:
         from codecity.api.websocket import websocket_endpoint
 
         await websocket_endpoint(websocket, repo_path)
