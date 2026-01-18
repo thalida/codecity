@@ -15,6 +15,9 @@ BUILDING_GAP = 2
 BUILDING_DEPTH = 8
 MIN_BUILDING_WIDTH = 4
 MAX_BUILDING_WIDTH = 15
+SUBFOLDER_OFFSET = (
+    STREET_WIDTH + BUILDING_DEPTH + BUILDING_GAP + STREET_WIDTH // 2
+)  # ~25
 
 
 @dataclass
@@ -114,7 +117,7 @@ class GeoJSONLayoutEngine:
         )
 
         # Layout subfolders
-        subfolder_offset = STREET_WIDTH * 2
+        subfolder_offset = SUBFOLDER_OFFSET
         for i, subfolder in enumerate(subfolders):
             subfolder_path = f"{folder_path}/{subfolder}" if folder_path else subfolder
             side = 1 if i % 2 == 0 else -1

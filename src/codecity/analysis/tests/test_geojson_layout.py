@@ -123,3 +123,38 @@ def test_layout_buildings_have_valid_polygon_coords():
     assert coords[0] == coords[-1]
     # Must have at least 4 unique corners + 1 closing = 5 points
     assert len(coords) >= 5
+
+
+def test_layout_subfolders_do_not_overlap_parent_buildings():
+    """Buildings from subfolders should not overlap with parent folder buildings."""
+    metrics = {
+        "src/main.py": make_file_metrics("src/main.py"),
+        "src/utils.py": make_file_metrics("src/utils.py"),
+        "src/components/Button.tsx": make_file_metrics("src/components/Button.tsx"),
+    }
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
+    ]
+
+    def get_bbox(building):
+        coords = building["geometry"]["coordinates"][0]
+        xs = [c[0] for c in coords]
+        ys = [c[1] for c in coords]
+        return min(xs), min(ys), max(xs), max(ys)
+
+    def boxes_overlap(b1, b2):
+        min_x1, min_y1, max_x1, max_y1 = get_bbox(b1)
+        min_x2, min_y2, max_x2, max_y2 = get_bbox(b2)
+        return not (
+            max_x1 < min_x2 or max_x2 < min_x1 or max_y1 < min_y2 or max_y2 < min_y1
+        )
+
+    # Check no buildings overlap
+    for i, b1 in enumerate(buildings):
+        for b2 in buildings[i + 1 :]:
+            assert not boxes_overlap(
+                b1, b2
+            ), f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
