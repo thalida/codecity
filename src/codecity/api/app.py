@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from codecity.analysis import (
+    City,
     FileMetrics,
     calculate_file_metrics,
     generate_city_layout,
@@ -29,7 +30,7 @@ def create_app() -> FastAPI:
         return {"status": "ok"}
 
     @app.get("/api/city")
-    async def get_city(
+    def get_city(
         repo_path: str = Query(..., description="Path to git repository"),
     ) -> JSONResponse:
         repo = Path(repo_path).resolve()
@@ -69,7 +70,7 @@ def create_app() -> FastAPI:
     return app
 
 
-def _city_to_dict(city) -> dict:
+def _city_to_dict(city: City) -> dict:
     """Convert City dataclass to JSON-serializable dict."""
 
     def street_to_dict(street) -> dict:
