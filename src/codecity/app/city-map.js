@@ -103,6 +103,22 @@ export class CityMap {
             },
         });
 
+        // Footpaths (curved paths from buildings to sidewalks)
+        this.map.addLayer({
+            id: 'footpaths',
+            type: 'line',
+            source: 'city',
+            filter: ['==', ['get', 'layer'], 'footpaths'],
+            paint: {
+                'line-color': '#aaaaaa',
+                'line-width': 1,
+            },
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round',
+            },
+        });
+
         // Street labels
         this.map.addLayer({
             id: 'street-labels',
