@@ -129,5 +129,17 @@ describe('CityMap', () => {
             expect(buildingLayer[0].type).toBe('fill-extrusion');
             expect(buildingLayer[0].paint['fill-extrusion-height']).toBeDefined();
         });
+
+        it('adds sidewalks layer', async () => {
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const addLayerCalls = cityMap.map.addLayer.mock.calls;
+            const sidewalksLayer = addLayerCalls.find(call => call[0].id === 'sidewalks');
+
+            expect(sidewalksLayer).toBeDefined();
+            expect(sidewalksLayer[0].type).toBe('line');
+            expect(sidewalksLayer[0].filter).toEqual(['==', ['get', 'layer'], 'sidewalks']);
+        });
     });
 });

@@ -87,6 +87,22 @@ export class CityMap {
             },
         });
 
+        // Sidewalks
+        this.map.addLayer({
+            id: 'sidewalks',
+            type: 'line',
+            source: 'city',
+            filter: ['==', ['get', 'layer'], 'sidewalks'],
+            paint: {
+                'line-color': '#cccccc',
+                'line-width': 2,
+            },
+            layout: {
+                'line-cap': 'round',
+                'line-join': 'round',
+            },
+        });
+
         // Street labels
         this.map.addLayer({
             id: 'street-labels',
