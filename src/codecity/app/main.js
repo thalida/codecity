@@ -82,7 +82,8 @@ class CodeCityApp {
      * Setup camera with Google Maps-like controls
      * - Left click + drag: Pan the map
      * - Right click + drag: Rotate view
-     * - Scroll wheel: Zoom in/out
+     * - Ctrl + left click + drag: Rotate view (alternative)
+     * - Scroll wheel: Zoom in/out (towards cursor)
      */
     setupCamera() {
         // ArcRotateCamera looking down at the city (like a map view)
@@ -126,7 +127,11 @@ class CodeCityApp {
             // Capture pointer to receive events outside canvas
             this.canvas.setPointerCapture(e.pointerId);
 
-            if (e.button === 0) {
+            if (e.button === 0 && e.ctrlKey) {
+                // Ctrl + left click = rotate (alternative to right click)
+                isRotating = true;
+                this.canvas.style.cursor = 'move';
+            } else if (e.button === 0) {
                 // Left click = pan
                 isDragging = true;
                 this.canvas.style.cursor = 'grabbing';
