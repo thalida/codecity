@@ -491,4 +491,111 @@ export class CityRenderer {
         this.buildings.set(building.file_path, mesh);
         this.createBuildingLabel(building, mesh);
     }
+
+    renderGridCity(cityData) {
+        this.clear();
+        this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+
+        // Render ground plane based on bounds
+        this.renderGroundPlane(cityData.bounds);
+
+        // Render all tiles
+        for (const [coords, tile] of Object.entries(cityData.grid)) {
+            const [x, z] = coords.split(',').map(Number);
+            this.renderTile(x, z, tile);
+        }
+
+        // Render all buildings
+        for (const building of Object.values(cityData.buildings)) {
+            this.renderGridBuilding(building);
+        }
+
+        // Render street signposts
+        for (const [path, street] of Object.entries(cityData.streets)) {
+            if (path && street.start) {
+                this.renderGridSignpost(street);
+            }
+        }
+    }
+
+    renderGroundPlane(bounds) {
+        const width = (bounds.max_x - bounds.min_x + 2) * TILE_SIZE;
+        const depth = (bounds.max_z - bounds.min_z + 2) * TILE_SIZE;
+        const centerX = ((bounds.min_x + bounds.max_x) / 2) * TILE_SIZE + TILE_SIZE / 2;
+        const centerZ = ((bounds.min_z + bounds.max_z) / 2) * TILE_SIZE + TILE_SIZE / 2;
+
+        const ground = BABYLON.MeshBuilder.CreateGround(
+            'ground',
+            { width, height: depth },
+            this.scene
+        );
+        ground.position.x = centerX;
+        ground.position.z = centerZ;
+
+        const material = new BABYLON.StandardMaterial('groundMat', this.scene);
+        material.diffuseColor = new BABYLON.Color3(0.1, 0.12, 0.1);
+        material.specularColor = new BABYLON.Color3(0, 0, 0);
+        ground.material = material;
+    }
+
+    renderGridSignpost(street) {
+        if (!street.name || street.name === 'root') return;
+
+        const [startX, startZ] = street.start;
+        const worldX = startX * TILE_SIZE + TILE_SIZE / 2;
+        const worldZ = startZ * TILE_SIZE - TILE_SIZE / 2;
+
+        // Create post
+        const post = BABYLON.MeshBuilder.CreateCylinder(
+            `signpost_post_${street.name}`,
+            { height: 3, diameter: 0.2 },
+            this.scene
+        );
+        post.position.x = worldX;
+        post.position.y = 1.5;
+        post.position.z = worldZ;
+
+        const postMat = new BABYLON.StandardMaterial(`signpostMat_${street.name}`, this.scene);
+        postMat.diffuseColor = new BABYLON.Color3(0.3, 0.25, 0.2);
+        postMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        post.material = postMat;
+
+        // Create sign
+        const sign = BABYLON.MeshBuilder.CreatePlane(
+            `signpost_sign_${street.name}`,
+            { width: Math.max(street.name.length * 0.4, 2), height: 0.8 },
+            this.scene
+        );
+        sign.position.x = worldX + Math.max(street.name.length * 0.2, 1);
+        sign.position.y = 2.8;
+        sign.position.z = worldZ;
+        sign.rotation.y = Math.PI / 2;
+
+        // Create dynamic texture for text
+        const textureWidth = Math.max(street.name.length * 40, 128);
+        const texture = new BABYLON.DynamicTexture(
+            `signTexture_${street.name}`,
+            { width: textureWidth, height: 64 },
+            this.scene
+        );
+        texture.hasAlpha = true;
+
+        const ctx = texture.getContext();
+        ctx.fillStyle = 'rgba(40, 40, 45, 0.9)';
+        ctx.fillRect(0, 0, textureWidth, 64);
+        ctx.font = 'bold 32px Arial';
+        ctx.fillStyle = 'white';
+        ctx.textAlign = 'center';
+        ctx.fillText(street.name, textureWidth / 2, 44);
+        texture.update();
+
+        const signMat = new BABYLON.StandardMaterial(`signMat_${street.name}`, this.scene);
+        signMat.diffuseTexture = texture;
+        signMat.specularColor = new BABYLON.Color3(0, 0, 0);
+        signMat.backFaceCulling = false;
+        sign.material = signMat;
+
+        this.signposts.push(post);
+        this.signposts.push(sign);
+    }
 }

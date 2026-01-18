@@ -967,4 +967,119 @@ describe('CityRenderer', () => {
             expect(mesh.metadata.data).toBe(building);
         });
     });
+
+    describe('renderGridCity', () => {
+        it('clears existing content before rendering', () => {
+            const clearSpy = vi.spyOn(renderer, 'clear');
+            const cityData = {
+                bounds: { min_x: 0, min_z: 0, max_x: 1, max_z: 1 },
+                grid: { '0,0': { type: 'road_start', path: '' } },
+                buildings: {},
+                streets: {},
+            };
+
+            renderer.renderGridCity(cityData);
+
+            expect(clearSpy).toHaveBeenCalled();
+        });
+
+        it('creates fullscreen UI for labels', () => {
+            const cityData = {
+                bounds: { min_x: 0, min_z: 0, max_x: 1, max_z: 1 },
+                grid: { '0,0': { type: 'road', path: '' } },
+                buildings: {},
+                streets: {},
+            };
+
+            renderer.renderGridCity(cityData);
+
+            expect(BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI).toHaveBeenCalledWith('UI');
+        });
+
+        it('renders tiles from grid data', () => {
+            const renderTileSpy = vi.spyOn(renderer, 'renderTile');
+            const cityData = {
+                bounds: { min_x: 0, min_z: 0, max_x: 2, max_z: 1 },
+                grid: {
+                    '0,0': { type: 'road_start', path: '' },
+                    '1,0': { type: 'road', path: '' },
+                    '2,0': { type: 'road_end', path: '' },
+                },
+                buildings: {},
+                streets: {},
+            };
+
+            renderer.renderGridCity(cityData);
+
+            expect(renderTileSpy).toHaveBeenCalledTimes(3);
+            expect(renderTileSpy).toHaveBeenCalledWith(0, 0, expect.any(Object));
+            expect(renderTileSpy).toHaveBeenCalledWith(1, 0, expect.any(Object));
+            expect(renderTileSpy).toHaveBeenCalledWith(2, 0, expect.any(Object));
+        });
+
+        it('renders buildings from buildings data', () => {
+            const renderGridBuildingSpy = vi.spyOn(renderer, 'renderGridBuilding');
+            const cityData = {
+                bounds: { min_x: 0, min_z: 0, max_x: 2, max_z: 1 },
+                grid: { '1,0': { type: 'road', path: '' } },
+                buildings: {
+                    'main.py': {
+                        file_path: 'main.py',
+                        x: 1,
+                        z: 0,
+                        road_side: 1,
+                        road_direction: 'horizontal',
+                        height: 50,
+                        width: 20,
+                        language: 'python',
+                        created_at: new Date().toISOString(),
+                        last_modified: new Date().toISOString(),
+                    },
+                },
+                streets: {},
+            };
+
+            renderer.renderGridCity(cityData);
+
+            expect(renderGridBuildingSpy).toHaveBeenCalledTimes(1);
+            expect(renderer.buildings.size).toBe(1);
+        });
+
+        it('renders ground plane based on bounds', () => {
+            const cityData = {
+                bounds: { min_x: 0, min_z: -2, max_x: 10, max_z: 5 },
+                grid: { '0,0': { type: 'road', path: '' } },
+                buildings: {},
+                streets: {},
+            };
+
+            renderer.renderGridCity(cityData);
+
+            // Ground mesh should be created
+            expect(BABYLON.MeshBuilder.CreateGround).toHaveBeenCalled();
+        });
+
+        it('renders signposts for streets', () => {
+            const cityData = {
+                bounds: { min_x: 0, min_z: 0, max_x: 5, max_z: 2 },
+                grid: { '0,0': { type: 'road', path: '' } },
+                buildings: {},
+                streets: {
+                    'src': {
+                        name: 'src',
+                        start: [0, 0],
+                        end: [5, 0],
+                        direction: 'horizontal',
+                        color: [100, 100, 100],
+                        depth: 1,
+                    },
+                },
+            };
+
+            renderer.renderGridCity(cityData);
+
+            // Should create signpost for 'src' street
+            expect(BABYLON.MeshBuilder.CreateCylinder).toHaveBeenCalled();
+        });
+    });
 });
