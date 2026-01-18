@@ -195,7 +195,59 @@ class GeoJSONLayoutEngine:
         return "/".join(parts[:-1])
 
     def _to_geojson(self) -> dict[str, Any]:
-        """Convert all features to GeoJSON FeatureCollection."""
+        """Convert all features to GeoJSON FeatureCollection.
+
+        Coordinates are normalized to fit within valid lat/lng bounds
+        (-85 to 85 for both axes) so MapLibre can render them.
+        """
+        # First, find the bounding box of all coordinates
+        min_x, min_y = float("inf"), float("inf")
+        max_x, max_y = float("-inf"), float("-inf")
+
+        for street in self.streets:
+            for coord in [street.start, street.end]:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
+        for building in self.buildings:
+            for coord in building.corners:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
+        # Handle empty case
+        if min_x == float("inf"):
+            min_x, min_y, max_x, max_y = 0, 0, 1, 1
+
+        # Calculate scale to fit within -85 to 85 (leaving margin for MapLibre)
+        target_range = 80  # Use -80 to 80
+        width = max_x - min_x or 1
+        height = max_y - min_y or 1
+        scale = min(target_range * 2 / width, target_range * 2 / height)
+
+        # Center offset
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+
+        def normalize_coord(coord: GeoCoord) -> GeoCoord:
+            """Scale and center coordinate to fit in valid bounds."""
+            return GeoCoord(
+                x=(coord.x - center_x) * scale,
+                y=(coord.y - center_y) * scale,
+            )
+
+        # Normalize all coordinates
+        for street in self.streets:
+            street.start = normalize_coord(street.start)
+            street.end = normalize_coord(street.end)
+
+        for building in self.buildings:
+            building.corners = [normalize_coord(c) for c in building.corners]
+
+        # Now generate the GeoJSON
         features: list[dict[str, Any]] = []
         features.extend(s.to_geojson() for s in self.streets)
         features.extend(b.to_geojson() for b in self.buildings)
