@@ -119,8 +119,13 @@ class CodeCityApp {
         let lastX = 0;
         let lastY = 0;
 
-        // Mouse down - start drag or rotate
-        this.canvas.addEventListener('mousedown', (e) => {
+        // Use pointer events for better cross-browser support
+        // They work with both mouse and touch
+
+        this.canvas.addEventListener('pointerdown', (e) => {
+            // Capture pointer to receive events outside canvas
+            this.canvas.setPointerCapture(e.pointerId);
+
             if (e.button === 0) {
                 // Left click = pan
                 isDragging = true;
@@ -134,8 +139,7 @@ class CodeCityApp {
             lastY = e.clientY;
         });
 
-        // Mouse move - pan or rotate
-        this.canvas.addEventListener('mousemove', (e) => {
+        this.canvas.addEventListener('pointermove', (e) => {
             if (!isDragging && !isRotating) return;
 
             const deltaX = e.clientX - lastX;
@@ -166,14 +170,19 @@ class CodeCityApp {
             }
         });
 
-        // Mouse up - stop drag/rotate
-        const stopDrag = () => {
+        this.canvas.addEventListener('pointerup', (e) => {
+            this.canvas.releasePointerCapture(e.pointerId);
             isDragging = false;
             isRotating = false;
             this.canvas.style.cursor = 'grab';
-        };
-        this.canvas.addEventListener('mouseup', stopDrag);
-        this.canvas.addEventListener('mouseleave', stopDrag);
+        });
+
+        this.canvas.addEventListener('pointercancel', (e) => {
+            this.canvas.releasePointerCapture(e.pointerId);
+            isDragging = false;
+            isRotating = false;
+            this.canvas.style.cursor = 'grab';
+        });
 
         // Default cursor
         this.canvas.style.cursor = 'grab';
@@ -187,67 +196,10 @@ class CodeCityApp {
             const zoomSpeed = 0.001;
             const delta = e.deltaY * zoomSpeed * this.camera.radius;
 
-            // Zoom towards/away from mouse position
             this.camera.radius += delta;
             this.camera.radius = Math.max(this.camera.lowerRadiusLimit,
                 Math.min(this.camera.upperRadiusLimit, this.camera.radius));
         }, { passive: false });
-
-        // Touch support for mobile
-        let lastTouchDistance = 0;
-        let lastTouchCenter = { x: 0, y: 0 };
-
-        this.canvas.addEventListener('touchstart', (e) => {
-            if (e.touches.length === 1) {
-                isDragging = true;
-                lastX = e.touches[0].clientX;
-                lastY = e.touches[0].clientY;
-            } else if (e.touches.length === 2) {
-                // Pinch zoom
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                lastTouchDistance = Math.sqrt(dx * dx + dy * dy);
-                lastTouchCenter = {
-                    x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
-                    y: (e.touches[0].clientY + e.touches[1].clientY) / 2
-                };
-            }
-        });
-
-        this.canvas.addEventListener('touchmove', (e) => {
-            e.preventDefault();
-            if (e.touches.length === 1 && isDragging) {
-                const deltaX = e.touches[0].clientX - lastX;
-                const deltaY = e.touches[0].clientY - lastY;
-                lastX = e.touches[0].clientX;
-                lastY = e.touches[0].clientY;
-
-                const panSpeed = this.camera.radius * 0.003;
-                const cosAlpha = Math.cos(this.camera.alpha);
-                const sinAlpha = Math.sin(this.camera.alpha);
-
-                this.camera.target.x -= (deltaX * cosAlpha + deltaY * sinAlpha) * panSpeed;
-                this.camera.target.z -= (-deltaX * sinAlpha + deltaY * cosAlpha) * panSpeed;
-            } else if (e.touches.length === 2) {
-                // Pinch zoom
-                const dx = e.touches[0].clientX - e.touches[1].clientX;
-                const dy = e.touches[0].clientY - e.touches[1].clientY;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                if (lastTouchDistance > 0) {
-                    const scale = lastTouchDistance / distance;
-                    this.camera.radius *= scale;
-                    this.camera.radius = Math.max(this.camera.lowerRadiusLimit,
-                        Math.min(this.camera.upperRadiusLimit, this.camera.radius));
-                }
-                lastTouchDistance = distance;
-            }
-        }, { passive: false });
-
-        this.canvas.addEventListener('touchend', () => {
-            isDragging = false;
-            lastTouchDistance = 0;
-        });
     }
 
     /**
