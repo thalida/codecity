@@ -54,7 +54,7 @@ Key features:
 
 - Main street runs vertically (║), each folder branches horizontally (═)
 - Buildings AND subfolders both connect to the same street
-- Files are on one side, subfolder branches on the other (or interspersed)
+- Files and subfolders can be placed on either side (+z or -z) for optimal compactness
 - Walking the road takes you past both buildings and intersections to child folders
 
 ## Data Model Changes
@@ -129,97 +129,133 @@ Strip packing solves these by:
 - **Linear complexity**: Single pass through the tree
 
 
-### Phase 1: Calculate Street Length (Bottom-Up)
+### Phase 1: Calculate Dimensions (Bottom-Up)
 
-Process the tree from leaves to root. Each folder's street length must accommodate
-both its files AND its subfolder branch points along the same road:
+Process the tree from leaves to root. Calculate street length and the depth
+required on each side (+z and -z) to determine optimal placement:
 
 ```python
 @dataclass
 class StreetDimensions:
     """Dimensions needed for a folder's street."""
-    length: int   # Road segments needed (files on one side, subfolders on other)
-    depth: int    # Max depth of nested subfolders (for total height calculation)
+    length: int       # Road segments needed
+    depth_pos: int    # Max depth of elements on +z side
+    depth_neg: int    # Max depth of elements on -z side
 
 def calculate_dimensions(folder: Folder) -> StreetDimensions:
     """Calculate dimensions bottom-up. O(n) - visits each node once."""
 
     # Street length = max(file count, subfolder count)
-    # Files line one side, subfolder branches on the other
+    # Files and subfolders can go on either side
     street_length = max(len(folder.files), len(folder.subfolders), 1)
 
     if not folder.subfolders:
-        return StreetDimensions(length=street_length, depth=1)
+        # Leaf folder: files can go on either side, depth = 1
+        return StreetDimensions(length=street_length, depth_pos=1, depth_neg=1)
 
-    # Recursive case: get max depth from subfolders
+    # Recursive case: get dimensions from subfolders
     subfolder_dims = [calculate_dimensions(sf) for sf in folder.subfolders]
-    max_depth = max(d.depth for d in subfolder_dims)
+
+    # Each subfolder's total depth = max(its pos depth, its neg depth) + 1 for connector
+    subfolder_depths = [max(d.depth_pos, d.depth_neg) + 1 for d in subfolder_dims]
+    max_subfolder_depth = max(subfolder_depths)
 
     return StreetDimensions(
         length=street_length,
-        depth=1 + max_depth
+        depth_pos=max_subfolder_depth,  # Either side can hold subfolders
+        depth_neg=max_subfolder_depth
     )
 ```
 
 
 ### Phase 2: Place Elements (Top-Down)
 
-Files and subfolder branches share the same street. Files on one side (e.g., +z),
-subfolder intersections on the other side (e.g., -z):
+Files and subfolder branches share the same street. The algorithm picks which side
+(+z or -z) to place each element to minimize total depth:
 
 ```python
 def layout_folder(
     folder: Folder,
     start_x: int,
     start_z: int,
+    parent_side: int,  # Which side we branched from parent (+1 or -1)
     grid: dict,
     buildings: dict,
     streets: dict
-) -> int:
+) -> tuple[int, int]:
     """
     Layout a folder's street with files and subfolders along the same road.
-    Returns the x position after this folder's content.
+    Returns (max_z_positive, min_z_negative) bounds used by this folder.
     """
     street_length = max(len(folder.files), len(folder.subfolders), 1)
     current_x = start_x
 
-    # 1. Place intersection tile at start (connects to parent's vertical street)
+    # Track depth used on each side
+    max_z_pos = start_z
+    min_z_neg = start_z
+
+    # 1. Place intersection tile at start
     grid[(current_x, start_z)] = Tile(current_x, start_z, TileType.INTERSECTION, folder.path)
     current_x += 1
 
-    # 2. Place road tiles, files above (+z), subfolder branches below (-z)
+    # 2. Interleave files and subfolders, placing on alternating sides
+    #    This balances depth on both sides of the road
+    items = []
+    for f in folder.files:
+        items.append(('file', f))
+    for sf in folder.subfolders:
+        items.append(('subfolder', sf))
+
+    # Sort: place subfolders first (they need more depth), alternate sides
+    items.sort(key=lambda x: (0 if x[0] == 'subfolder' else 1))
+
+    # Assign sides: alternate to balance, but prefer opposite of parent_side for first subfolder
+    side_preference = -parent_side  # Start opposite to how we branched in
+    assigned = []
+    for item in items:
+        assigned.append((item, side_preference))
+        side_preference *= -1  # Alternate
+
+    # 3. Place road tiles and elements
     for i in range(street_length):
         road_x = current_x + i
-
-        # Road tile
         grid[(road_x, start_z)] = Tile(road_x, start_z, TileType.ROAD, folder.path)
 
-        # File on +z side (if we have one at this position)
-        if i < len(folder.files):
-            file = folder.files[i]
-            building = Building.from_metrics(file)
-            building.grid_x = road_x
-            building.grid_z = start_z
-            building.road_side = 1  # +z side
-            buildings[file.path] = building
+    # Place each element at its position
+    file_idx = 0
+    subfolder_idx = 0
+    for (item_type, item), side in assigned:
+        if item_type == 'file':
+            road_x = current_x + file_idx
+            if road_x < current_x + street_length:
+                building = Building.from_metrics(item)
+                building.grid_x = road_x
+                building.grid_z = start_z
+                building.road_side = side
+                buildings[item.path] = building
 
-        # Subfolder branch on -z side (if we have one at this position)
-        if i < len(folder.subfolders):
-            subfolder = folder.subfolders[i]
+                if side > 0:
+                    max_z_pos = max(max_z_pos, start_z + 1)
+                else:
+                    min_z_neg = min(min_z_neg, start_z - 1)
+            file_idx += 1
 
-            # Place vertical connector going down (-z direction)
-            connector_z = start_z - 1
-            grid[(road_x, connector_z)] = Tile(
-                road_x, connector_z, TileType.ROAD, subfolder.path
-            )
+        else:  # subfolder
+            road_x = current_x + subfolder_idx
+            if road_x < current_x + street_length:
+                connector_z = start_z + side  # Branch in 'side' direction
+                grid[(road_x, connector_z)] = Tile(
+                    road_x, connector_z, TileType.ROAD, item.path
+                )
 
-            # Recurse: subfolder's street runs horizontally at connector_z
-            layout_folder(
-                subfolder,
-                road_x,      # Start at this x position
-                connector_z, # One row below parent
-                grid, buildings, streets
-            )
+                # Recurse
+                sub_max, sub_min = layout_folder(
+                    item, road_x, connector_z, side,
+                    grid, buildings, streets
+                )
+                max_z_pos = max(max_z_pos, sub_max)
+                min_z_neg = min(min_z_neg, sub_min)
+            subfolder_idx += 1
 
     # Record street metadata
     streets[folder.path] = Street(
@@ -230,7 +266,8 @@ def layout_folder(
         direction=Direction.HORIZONTAL
     )
 
-    return current_x + street_length
+    return max_z_pos, min_z_neg
+
 
 def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
     """Main entry point. O(n) total complexity."""
@@ -244,8 +281,16 @@ def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
     streets = {}
 
     # Root street starts at origin, extends in +x direction
-    # Subfolders branch downward (-z), files are above (+z)
-    layout_folder(root, start_x=0, start_z=0, grid, buildings, streets)
+    # Elements branch to both +z and -z sides for balance
+    layout_folder(
+        root,
+        start_x=0,
+        start_z=0,
+        parent_side=1,  # Arbitrary for root
+        grid=grid,
+        buildings=buildings,
+        streets=streets
+    )
 
     # Calculate bounds
     all_x = [pos[0] for pos in grid.keys()]
@@ -403,26 +448,45 @@ renderBuilding(building) {
 
 ## Compactness Optimizations
 
-The shared-road layout inherently produces compact cities. Additional optimizations:
+The shared-road layout with flexible side placement produces compact cities:
 
 
 ### 1. Files and Subfolders Share the Road
 
-Each road segment can have a file above AND a subfolder branch below:
+Each road segment can have elements on BOTH sides:
 
 ```text
-         ┌─────┬─────┬─────┐
-         │  a  │  b  │  c  │     <- files on +z side
-         └──┬──┴──┬──┴──┬──┘
-    ════════╧═════╧═════╧═════   <- shared road
-            │     │     │
-           sub1  sub2  sub3      <- subfolder branches on -z side
+         ┌─────┐     ┌─────┐
+         │  a  │     │  c  │     <- some elements on +z
+         └──┬──┘     └──┬──┘
+    ════════╧═════╤═════╧═════   <- shared road
+                  │
+                 sub1            <- some elements on -z
 ```
 
 Road length = max(file_count, subfolder_count), not the sum.
 
 
-### 2. Pack Files Tightly
+### 2. Alternating Side Placement
+
+Elements alternate sides to balance depth on both +z and -z:
+
+```text
+Unbalanced (all on one side):     Balanced (alternating):
+
+         ┌─┬─┬─┐                       ┌─┐   ┌─┐
+         │a│b│c│                       │a│   │c│
+         └┬┴┬┴┬┘                       └┬┘   └┬┘
+    ══════╧═╧═╧══════             ══════╧══╤══╧════
+          │ │ │                            │
+         s1 s2 s3                          │b│
+                                           └─┘
+
+Total depth: 4                    Total depth: 2
+```
+
+
+### 3. Pack Files Tightly
 
 Files on the same side of the road share edges (no gaps):
 
@@ -433,25 +497,21 @@ Files on the same side of the road share edges (no gaps):
 ```
 
 
-### 3. Depth = Z-Coordinate
+### 4. Opposite-Side Branching
 
-Tree nesting depth maps directly to the z-axis. No horizontal sprawl from nesting:
+When a folder branches from its parent, its children prefer the opposite side.
+This prevents all elements stacking in one direction:
 
 ```text
-z=0:  root ════════════════════════════
-              │           │
-z=-1:        src ════════ tests ═══════
-              │
-z=-2:        api ══════════════════════
-```
+Parent branches down (-z), so children prefer up (+z):
 
-
-### 4. Sort by Size (Optional)
-
-Place larger subfolders first to front-load width requirements:
-
-```python
-folder.subfolders.sort(key=lambda sf: -count_descendants(sf))
+    parent ════════╤════════
+                   │
+           child ══╧══╤══════
+                      │
+              ┌───────┴───────┐
+              │ grandchildren │  <- goes +z (opposite of child's branch)
+              └───────────────┘
 ```
 
 
