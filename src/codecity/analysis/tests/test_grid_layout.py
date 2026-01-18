@@ -39,3 +39,27 @@ def test_build_folder_tree_nested_files() -> None:
 
     tests = next(f for f in root.subfolders if f.name == "tests")
     assert len(tests.files) == 1
+
+
+def test_layout_folder_creates_road_tiles() -> None:
+    from codecity.analysis.grid_layout import Folder, layout_folder
+    from codecity.analysis.models import Building, Street, Tile, TileType
+
+    folder = Folder(name="src", path="src", files=[], subfolders=[])
+    grid: dict[tuple[int, int], Tile] = {}
+    buildings: dict[str, Building] = {}
+    streets: dict[str, Street] = {}
+
+    layout_folder(
+        folder,
+        start_x=0,
+        start_z=0,
+        parent_side=1,
+        grid=grid,
+        buildings=buildings,
+        streets=streets,
+    )
+
+    # Should have at least road start tile
+    assert (0, 0) in grid
+    assert grid[(0, 0)].tile_type in (TileType.ROAD_START, TileType.INTERSECTION)
