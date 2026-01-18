@@ -133,3 +133,98 @@ async def test_city_endpoint_includes_street_color(
     root = data["root"]
     assert "color" in root
     assert "road_width" in root
+
+
+def test_api_returns_grid_layout_data() -> None:
+    """Test that _city_to_dict includes grid layout data when present."""
+    from datetime import datetime, timezone
+
+    from codecity.analysis import FileMetrics, generate_city_layout
+    from codecity.api.app import _city_to_dict
+
+    # Create sample file metrics
+    now = datetime.now(timezone.utc)
+    file_metrics = [
+        FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="Python",
+            created_at=now,
+            last_modified=now,
+        ),
+        FileMetrics(
+            path="src/utils.py",
+            lines_of_code=50,
+            avg_line_length=35.0,
+            language="Python",
+            created_at=now,
+            last_modified=now,
+        ),
+    ]
+
+    # Generate city with grid layout
+    city = generate_city_layout(file_metrics, "/test/repo", use_grid_layout=True)
+
+    # Serialize to dict
+    result = _city_to_dict(city)
+
+    # Verify layout_type is "grid"
+    assert result["layout_type"] == "grid"
+
+    # Verify bounds are present
+    assert "bounds" in result
+    bounds = result["bounds"]
+    assert "min_x" in bounds
+    assert "min_z" in bounds
+    assert "max_x" in bounds
+    assert "max_z" in bounds
+
+    # Verify grid dict is present with string keys "x,z"
+    assert "grid" in result
+    grid = result["grid"]
+    assert isinstance(grid, dict)
+    # Check at least one grid key is in "x,z" format
+    if grid:
+        first_key = next(iter(grid.keys()))
+        assert "," in first_key
+        parts = first_key.split(",")
+        assert len(parts) == 2
+        # Verify values have expected structure
+        first_tile = grid[first_key]
+        assert "type" in first_tile
+        assert "path" in first_tile
+        assert "parent" in first_tile
+
+    # Verify buildings dict is present
+    assert "buildings" in result
+    buildings = result["buildings"]
+    assert isinstance(buildings, dict)
+    # Check building structure
+    if buildings:
+        first_building = next(iter(buildings.values()))
+        assert "file_path" in first_building
+        assert "grid_x" in first_building
+        assert "grid_z" in first_building
+        assert "road_side" in first_building
+        assert "road_direction" in first_building
+        assert "height" in first_building
+        assert "width" in first_building
+        assert "depth" in first_building
+        assert "language" in first_building
+        assert "created_at" in first_building
+        assert "last_modified" in first_building
+
+    # Verify streets dict is present
+    assert "streets" in result
+    streets = result["streets"]
+    assert isinstance(streets, dict)
+    # Check street structure
+    if streets:
+        first_street = next(iter(streets.values()))
+        assert "name" in first_street
+        assert "start" in first_street
+        assert "end" in first_street
+        assert "direction" in first_street
+        assert "color" in first_street
+        assert "depth" in first_street

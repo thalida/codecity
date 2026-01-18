@@ -130,8 +130,66 @@ def _city_to_dict(city: City) -> dict:
             "substreets": [street_to_dict(s) for s in street.substreets],
         }
 
-    return {
+    # Determine layout type based on whether grid has data
+    has_grid_layout = bool(city.grid)
+
+    result: dict = {
         "repo_path": city.repo_path,
         "generated_at": city.generated_at.isoformat(),
         "root": street_to_dict(city.root),
+        "layout_type": "grid" if has_grid_layout else "tree",
     }
+
+    # Add grid-specific data when grid layout is present
+    if has_grid_layout:
+        # Add bounds
+        min_x, min_z, max_x, max_z = city.bounds
+        result["bounds"] = {
+            "min_x": min_x,
+            "min_z": min_z,
+            "max_x": max_x,
+            "max_z": max_z,
+        }
+
+        # Add grid with string keys "x,z"
+        result["grid"] = {
+            f"{x},{z}": {
+                "type": tile.tile_type.name.lower(),
+                "path": tile.node_path,
+                "parent": tile.parent_path,
+            }
+            for (x, z), tile in city.grid.items()
+        }
+
+        # Add buildings dict with grid coordinates
+        result["buildings"] = {
+            path: {
+                "file_path": b.file_path,
+                "grid_x": b.grid_x,
+                "grid_z": b.grid_z,
+                "road_side": b.road_side,
+                "road_direction": b.road_direction.value if b.road_direction else None,
+                "height": b.height,
+                "width": b.width,
+                "depth": b.depth,
+                "language": b.language,
+                "created_at": b.created_at.isoformat(),
+                "last_modified": b.last_modified.isoformat(),
+            }
+            for path, b in city.buildings_dict.items()
+        }
+
+        # Add streets dict
+        result["streets"] = {
+            path: {
+                "name": s.name,
+                "start": list(s.start) if s.start else None,
+                "end": list(s.end) if s.end else None,
+                "direction": s.direction.value if s.direction else None,
+                "color": list(s.color) if s.color else None,
+                "depth": s.depth,
+            }
+            for path, s in city.streets_dict.items()
+        }
+
+    return result
