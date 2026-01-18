@@ -4,6 +4,8 @@ export class Inspector {
     constructor() {
         this.panel = document.getElementById('inspector');
         this.closeBtn = document.getElementById('inspector-close');
+        this.openEditorBtn = document.getElementById('btn-open-editor');
+        this.viewRemoteBtn = document.getElementById('btn-view-remote');
 
         this.currentBuilding = null;
         this.editorUrl = null;
@@ -14,41 +16,31 @@ export class Inspector {
 
     setupEventListeners() {
         this.closeBtn.addEventListener('click', () => this.hide());
+
+        this.openEditorBtn.addEventListener('click', () => {
+            if (this.editorUrl) {
+                window.open(this.editorUrl, '_blank');
+            }
+        });
+
+        this.viewRemoteBtn.addEventListener('click', () => {
+            if (this.remoteUrl) {
+                window.open(this.remoteUrl, '_blank');
+            }
+        });
     }
 
     show(building) {
         this.currentBuilding = building;
 
         // Update content
+        document.getElementById('inspector-title').textContent = building.file_path.split('/').pop();
         document.getElementById('inspector-path').textContent = building.file_path;
+        document.getElementById('inspector-loc').textContent = Math.round(building.height * 10);
+        document.getElementById('inspector-avg-line').textContent = (building.width * 5).toFixed(1);
         document.getElementById('inspector-language').textContent = building.language;
-
-        // Lines of code (height * 10 reverses the /10 scaling in city-renderer)
-        document.getElementById('inspector-lines').textContent = Math.round(building.height);
-
-        // Complexity (if available, otherwise show dash)
-        const complexityEl = document.getElementById('inspector-complexity');
-        if (complexityEl) {
-            complexityEl.textContent = building.complexity || '-';
-        }
-
-        // Functions count (if available)
-        const functionsEl = document.getElementById('inspector-functions');
-        if (functionsEl) {
-            functionsEl.textContent = building.functions ?? '-';
-        }
-
-        // Classes count (if available)
-        const classesEl = document.getElementById('inspector-classes');
-        if (classesEl) {
-            classesEl.textContent = building.classes ?? '-';
-        }
-
-        // Imports count (if available)
-        const importsEl = document.getElementById('inspector-imports');
-        if (importsEl) {
-            importsEl.textContent = building.imports ?? '-';
-        }
+        document.getElementById('inspector-created').textContent = this.formatDate(building.created_at);
+        document.getElementById('inspector-modified').textContent = this.formatDate(building.last_modified);
 
         // Get repo path from URL
         const params = new URLSearchParams(window.location.search);
@@ -60,6 +52,7 @@ export class Inspector {
 
         // Remote URL would be set from API response
         this.remoteUrl = null;
+        this.viewRemoteBtn.style.display = this.remoteUrl ? 'block' : 'none';
 
         // Show panel
         this.panel.classList.remove('hidden');
