@@ -103,4 +103,19 @@ describe('CityMap', () => {
             expect(cityMap.theme).toBe('dark');
         });
     });
+
+    describe('addLayers', () => {
+        it('adds street-labels symbol layer', async () => {
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const addLayerCalls = cityMap.map.addLayer.mock.calls;
+            const labelLayer = addLayerCalls.find(call => call[0].id === 'street-labels');
+
+            expect(labelLayer).toBeDefined();
+            expect(labelLayer[0].type).toBe('symbol');
+            expect(labelLayer[0].layout['symbol-placement']).toBe('line');
+            expect(labelLayer[0].layout['text-field']).toEqual(['get', 'name']);
+        });
+    });
 });

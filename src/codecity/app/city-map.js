@@ -87,6 +87,32 @@ export class CityMap {
             },
         });
 
+        // Street labels
+        this.map.addLayer({
+            id: 'street-labels',
+            type: 'symbol',
+            source: 'city',
+            filter: ['==', ['get', 'layer'], 'streets'],
+            layout: {
+                'symbol-placement': 'line',
+                'text-field': ['get', 'name'],
+                'text-size': [
+                    'match',
+                    ['get', 'road_class'],
+                    'primary', 14,
+                    'secondary', 12,
+                    10
+                ],
+                'text-anchor': 'center',
+                'text-max-angle': 30,
+            },
+            paint: {
+                'text-color': '#ffffff',
+                'text-halo-color': '#000000',
+                'text-halo-width': 2,
+            },
+        });
+
         // Buildings (flat for now, will add extrusion later)
         this.map.addLayer({
             id: 'buildings',
