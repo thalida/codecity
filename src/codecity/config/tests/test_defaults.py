@@ -58,3 +58,29 @@ def test_get_language_hue_unknown() -> None:
 
 def test_get_language_hue_case_insensitive() -> None:
     assert get_language_hue("PYTHON") == 210
+
+
+def test_district_colors_has_palette() -> None:
+    from codecity.config.defaults import DISTRICT_COLORS
+
+    assert len(DISTRICT_COLORS) >= 6
+    for color in DISTRICT_COLORS:
+        assert len(color) == 3
+        assert all(0 <= c <= 255 for c in color)
+
+
+def test_get_district_color_cycles() -> None:
+    from codecity.config.defaults import get_district_color
+
+    color0 = get_district_color(0)
+    color6 = get_district_color(6)
+    assert color0 == color6  # Should cycle
+
+
+def test_get_district_color_with_depth() -> None:
+    from codecity.config.defaults import get_district_color
+
+    base = get_district_color(0, depth=0)
+    nested = get_district_color(0, depth=1)
+    # Nested should be lighter
+    assert nested[0] >= base[0] or nested[1] >= base[1] or nested[2] >= base[2]

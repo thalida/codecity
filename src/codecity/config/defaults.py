@@ -97,3 +97,26 @@ def get_language_from_extension(extension: str) -> str:
 
 def get_language_hue(language: str) -> int:
     return LANGUAGE_COLORS.get(language.lower(), LANGUAGE_COLORS["unknown"])
+
+
+# Muted earthy tones for district ground colors (RGB 0-255)
+DISTRICT_COLORS: list[tuple[int, int, int]] = [
+    (89, 98, 117),  # slate blue
+    (117, 98, 89),  # warm brown
+    (89, 117, 98),  # sage green
+    (107, 89, 117),  # muted purple
+    (117, 107, 89),  # tan
+    (89, 107, 117),  # steel blue
+]
+
+
+def get_district_color(index: int, depth: int = 0) -> tuple[int, int, int]:
+    """Get district color by index, cycling through palette. Deeper = lighter."""
+    base = DISTRICT_COLORS[index % len(DISTRICT_COLORS)]
+    # Lighten by 15 per depth level, max 40
+    lighten = min(depth * 15, 40)
+    return (
+        min(base[0] + lighten, 255),
+        min(base[1] + lighten, 255),
+        min(base[2] + lighten, 255),
+    )
