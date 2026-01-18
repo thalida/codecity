@@ -121,7 +121,7 @@ def test_last_modified_changes_after_file_modification(git_repo: Path) -> None:
     last_modified = updated_history["last_modified"]
 
     # Verify last_modified is different from created_at
-    assert (
-        last_modified != created_at
-    ), "last_modified should be different from created_at after modification"
+    assert last_modified != created_at, (
+        "last_modified should be different from created_at after modification"
+    )
     assert last_modified > created_at, "last_modified should be after created_at"

@@ -176,9 +176,9 @@ def test_multiple_buildings_do_not_overlap() -> None:
 
     # Buildings should be on different grid positions or different road sides
     if first_building.grid_x == second_building.grid_x:
-        assert (
-            first_building.road_side != second_building.road_side
-        ), "Buildings on same grid_x should be on different sides"
+        assert first_building.road_side != second_building.road_side, (
+            "Buildings on same grid_x should be on different sides"
+        )
     else:
         # Different grid_x means no overlap
         pass
@@ -303,6 +303,6 @@ def test_generate_city_layout_uses_grid() -> None:
     assert len(city.grid) > 0, "Grid layout should have tiles in the grid dict"
     # Should also have buildings_dict populated
     assert city.buildings_dict is not None
-    assert (
-        len(city.buildings_dict) > 0
-    ), "Grid layout should have buildings in buildings_dict"
+    assert len(city.buildings_dict) > 0, (
+        "Grid layout should have buildings in buildings_dict"
+    )

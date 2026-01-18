@@ -155,9 +155,9 @@ def test_layout_subfolders_do_not_overlap_parent_buildings():
     # Check no buildings overlap
     for i, b1 in enumerate(buildings):
         for b2 in buildings[i + 1 :]:
-            assert not boxes_overlap(
-                b1, b2
-            ), f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
+            assert not boxes_overlap(b1, b2), (
+                f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
+            )
 
 
 def test_layout_creates_sidewalks_for_streets():
