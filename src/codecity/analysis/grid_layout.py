@@ -5,6 +5,7 @@ from pathlib import PurePosixPath
 
 from codecity.analysis.models import (
     Building,
+    City,
     Direction,
     FileMetrics,
     Street,
@@ -168,3 +169,49 @@ def layout_folder(
     )
 
     return max_z_pos, min_z_neg
+
+
+def generate_grid_city_layout(files: list[FileMetrics], repo_path: str) -> City:
+    """Generate a city layout using grid-based connected streets.
+
+    This is the main entry point for the new layout algorithm.
+    O(n) complexity - visits each file/folder once.
+    """
+    # Build folder tree from files
+    root = build_folder_tree(files)
+
+    # Initialize containers
+    grid: dict[tuple[int, int], Tile] = {}
+    buildings: dict[str, Building] = {}
+    streets: dict[str, Street] = {}
+
+    # Layout starting from root
+    layout_folder(
+        root,
+        start_x=0,
+        start_z=0,
+        parent_side=1,  # Arbitrary for root
+        grid=grid,
+        buildings=buildings,
+        streets=streets,
+    )
+
+    # Calculate bounds
+    if grid:
+        all_x = [pos[0] for pos in grid.keys()]
+        all_z = [pos[1] for pos in grid.keys()]
+        bounds = (min(all_x), min(all_z), max(all_x), max(all_z))
+    else:
+        bounds = (0, 0, 0, 0)
+
+    # Create root Street for compatibility with existing code
+    root_street = streets.get("", Street(path="", name="root"))
+
+    return City(
+        root=root_street,
+        repo_path=repo_path,
+        grid=grid,
+        buildings_dict=buildings,
+        streets_dict=streets,
+        bounds=bounds,
+    )

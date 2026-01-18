@@ -141,3 +141,51 @@ def test_layout_folder_branches_subfolders() -> None:
     assert child_start is not None
     # The connector should be one tile away from parent's road in z direction
     assert child_start[1] != 0  # Child not on same z as parent
+
+
+def test_generate_grid_city_layout_returns_city() -> None:
+    from codecity.analysis.grid_layout import generate_grid_city_layout
+    from codecity.analysis.models import City
+
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("src/main.py", 100, 40.0, "python", now, now),
+        FileMetrics("src/api/routes.py", 50, 30.0, "python", now, now),
+        FileMetrics("tests/test_main.py", 30, 25.0, "python", now, now),
+    ]
+
+    city = generate_grid_city_layout(files, "/repo/path")
+
+    assert isinstance(city, City)
+    assert city.repo_path == "/repo/path"
+    assert len(city.grid) > 0
+    assert len(city.buildings_dict) == 3
+    assert len(city.streets_dict) >= 3  # root, src, src/api, tests
+    assert city.bounds[2] > city.bounds[0]  # max_x > min_x
+
+
+def test_generate_grid_city_layout_all_buildings_reachable() -> None:
+    """Every building should be adjacent to a road tile."""
+    from codecity.analysis.grid_layout import generate_grid_city_layout
+    from codecity.analysis.models import TileType
+
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics("a.py", 10, 5.0, "python", now, now),
+        FileMetrics("src/b.py", 20, 6.0, "python", now, now),
+        FileMetrics("src/sub/c.py", 30, 7.0, "python", now, now),
+    ]
+
+    city = generate_grid_city_layout(files, "/repo")
+
+    for path, building in city.buildings_dict.items():
+        # Building should be at a grid position where there's a road tile
+        road_pos = (building.grid_x, building.grid_z)
+        assert road_pos in city.grid, f"Building {path} not adjacent to road"
+        tile = city.grid[road_pos]
+        assert tile.tile_type in (
+            TileType.ROAD,
+            TileType.INTERSECTION,
+            TileType.ROAD_START,
+            TileType.ROAD_END,
+        ), f"Building {path} not on a road tile"
