@@ -53,6 +53,11 @@ class Building:
     last_modified: datetime
     x: float = 0.0
     z: float = 0.0
+    # New grid-based fields
+    grid_x: int = 0
+    grid_z: int = 0
+    road_side: int = 1  # 1 for +z side, -1 for -z side
+    road_direction: Direction | None = None
 
     @classmethod
     def from_metrics(cls, metrics: FileMetrics) -> "Building":

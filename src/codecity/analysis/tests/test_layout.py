@@ -225,3 +225,26 @@ def test_layout_road_width_decreases_with_depth() -> None:
     sub_street = next(s for s in src_street.substreets if s.name == "sub")
 
     assert src_street.road_width > sub_street.road_width
+
+
+def test_building_has_grid_fields() -> None:
+    from codecity.analysis.models import Building, Direction
+
+    now = datetime.now(timezone.utc)
+    building = Building(
+        file_path="src/main.py",
+        height=100.0,
+        width=40.0,
+        depth=40.0,
+        language="python",
+        created_at=now,
+        last_modified=now,
+        grid_x=5,
+        grid_z=3,
+        road_side=1,
+        road_direction=Direction.HORIZONTAL,
+    )
+    assert building.grid_x == 5
+    assert building.grid_z == 3
+    assert building.road_side == 1
+    assert building.road_direction == Direction.HORIZONTAL
