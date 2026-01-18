@@ -97,7 +97,7 @@ class CodeCityApp {
 
         // Zoom limits
         this.camera.lowerRadiusLimit = 10;
-        this.camera.upperRadiusLimit = 300;
+        this.camera.upperRadiusLimit = 1000;
 
         // Angle limits - keep camera above ground, allow more top-down view
         this.camera.lowerBetaLimit = 0.1;  // Almost top-down
