@@ -15,6 +15,31 @@ def test_tile_type_enum_exists() -> None:
     assert TileType.ROAD_END.value == 5
 
 
+def test_direction_enum_exists() -> None:
+    from codecity.analysis.models import Direction
+
+    assert Direction.HORIZONTAL.value == "horizontal"
+    assert Direction.VERTICAL.value == "vertical"
+
+
+def test_street_model_has_grid_fields() -> None:
+    from codecity.analysis.models import Direction, Street
+
+    street = Street(
+        path="src",
+        name="src",
+        start=(0, 0),
+        end=(10, 0),
+        direction=Direction.HORIZONTAL,
+        depth=1,
+    )
+    assert street.start == (0, 0)
+    assert street.end == (10, 0)
+    assert street.direction == Direction.HORIZONTAL
+    assert street.branch_point is None
+    assert street.depth == 1
+
+
 def test_tile_model_exists() -> None:
     from codecity.analysis.models import Tile, TileType
 

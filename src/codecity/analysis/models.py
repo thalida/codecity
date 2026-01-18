@@ -14,6 +14,13 @@ class TileType(Enum):
     ROAD_END = 5
 
 
+class Direction(Enum):
+    """Direction a street runs."""
+
+    HORIZONTAL = "horizontal"
+    VERTICAL = "vertical"
+
+
 @dataclass
 class Tile:
     """A single cell in the city grid."""
@@ -72,6 +79,12 @@ class Street:
     substreets: list["Street"] = field(default_factory=list)
     color: tuple[int, int, int] | None = None
     road_width: float = 1.5
+    # New grid-based fields
+    start: tuple[int, int] | None = None
+    end: tuple[int, int] | None = None
+    direction: Direction | None = None
+    branch_point: tuple[int, int] | None = None
+    depth: int = 0
 
 
 @dataclass
