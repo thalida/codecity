@@ -17,7 +17,8 @@ class AnalysisCache:
         return hashlib.sha256(repo_path.encode()).hexdigest()[:12]
 
     def _cache_file(self, name: str) -> Path:
-        return self.repo_cache_dir / f"{name}.json"
+        safe_name = name.replace("/", "_").replace("\\", "_")
+        return self.repo_cache_dir / f"{safe_name}.json"
 
     def save(self, name: str, data: dict[str, Any]) -> None:
         """Save data to cache."""
@@ -45,4 +46,5 @@ class AnalysisCache:
         """Remove all cache files for this repo."""
         if self.repo_cache_dir.exists():
             for f in self.repo_cache_dir.iterdir():
-                f.unlink()
+                if f.is_file():
+                    f.unlink()
