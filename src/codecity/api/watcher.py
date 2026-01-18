@@ -22,11 +22,15 @@ class FileWatcher:
         """Watch for file changes and yield events."""
         async for changes in awatch(self.repo_path):
             for change_type, path in changes:
-                # Skip .git directory
-                if ".git" in path:
+                # Check if .git is a directory component, not just a substring
+                path_parts = Path(path).parts
+                if ".git" in path_parts:
                     continue
 
-                relative_path = str(Path(path).relative_to(self.repo_path))
+                try:
+                    relative_path = str(Path(path).relative_to(self.repo_path))
+                except ValueError:
+                    continue  # Skip paths outside repo
 
                 if change_type == Change.added:
                     yield ChangeEvent(path=relative_path, change_type="added")

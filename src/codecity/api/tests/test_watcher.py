@@ -17,7 +17,9 @@ async def test_watcher_detects_file_creation() -> None:
         async def collect_events():
             async for event in watcher.watch():
                 events.append(event)
-                break  # Stop after first event
+                # Stop after we get the test.py event
+                if event.path == "test.py":
+                    break
 
         # Start watcher in background
         task = asyncio.create_task(collect_events())
@@ -35,9 +37,20 @@ async def test_watcher_detects_file_creation() -> None:
             task.cancel()
 
         assert len(events) >= 1
+        # Find the event for test.py (may receive directory event first)
+        test_py_events = [e for e in events if e.path == "test.py"]
+        assert len(test_py_events) >= 1
+        assert test_py_events[0].change_type == "added"
+        assert test_py_events[0].path == "test.py"
 
 
 def test_change_event_types() -> None:
     event = ChangeEvent(path="test.py", change_type="modified")
     assert event.path == "test.py"
     assert event.change_type == "modified"
+
+
+def test_change_event_git_substring_not_filtered() -> None:
+    # Files like "dotgit_utils.py" should not be filtered
+    event = ChangeEvent(path="dotgit_utils.py", change_type="added")
+    assert event.path == "dotgit_utils.py"
