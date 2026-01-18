@@ -103,19 +103,10 @@ class CodeCityApp {
         this.camera.lowerBetaLimit = 0.1;  // Almost top-down
         this.camera.upperBetaLimit = Math.PI / 2.5;  // Not too horizontal
 
-        // Detach default controls - we'll set up custom ones
-        this.camera.attachControl(this.canvas, false);
+        // DO NOT attach default controls - we use fully custom controls
+        // this.camera.attachControl() would add default rotate-on-drag behavior
 
-        // Configure for map-like behavior
-        this.camera.panningSensibility = 50;  // Pan speed
-        this.camera.wheelPrecision = 15;      // Zoom speed
-        this.camera.pinchPrecision = 50;      // Touch zoom speed
-
-        // Inertia for smooth movement
-        this.camera.inertia = 0.9;
-        this.camera.panningInertia = 0.9;
-
-        // Setup Google Maps-like controls
+        // Setup Google Maps-like controls (fully custom)
         this.setupMapControls();
     }
 
