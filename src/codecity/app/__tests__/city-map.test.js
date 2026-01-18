@@ -80,6 +80,17 @@ describe('CityMap', () => {
         });
     });
 
+    describe('init', () => {
+        it('creates map with renderWorldCopies disabled', async () => {
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            // Check that Map was created with renderWorldCopies: false
+            // The MockMap stores constructor options in this.options
+            expect(cityMap.map.options.renderWorldCopies).toBe(false);
+        });
+    });
+
     describe('setTheme', () => {
         it('updates theme property', async () => {
             const cityMap = new CityMap(mockContainer);

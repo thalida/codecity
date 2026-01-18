@@ -27,6 +27,7 @@ export class CityMap {
             pitch: 45,
             bearing: -15,
             antialias: true,
+            renderWorldCopies: false,
         });
 
         // Wait for map to load before adding sources and layers
