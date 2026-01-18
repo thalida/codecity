@@ -29,13 +29,22 @@ export class CityMap {
             antialias: true,
         });
 
-        this.map.on('load', () => {
-            this.map.addSource('city', {
-                type: 'geojson',
-                data: this.cityData,
+        // Wait for map to load before adding sources and layers
+        await new Promise((resolve, reject) => {
+            this.map.on('load', () => {
+                try {
+                    this.map.addSource('city', {
+                        type: 'geojson',
+                        data: this.cityData,
+                    });
+                    this.addLayers();
+                    this.addNavigationControls();
+                    resolve();
+                } catch (err) {
+                    reject(err);
+                }
             });
-            this.addLayers();
-            this.addNavigationControls();
+            this.map.on('error', reject);
         });
     }
 
