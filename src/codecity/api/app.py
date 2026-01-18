@@ -146,6 +146,10 @@ def create_app() -> FastAPI:
     async def index() -> FileResponse:
         return FileResponse(APP_DIR / "index.html")
 
+    @app.get("/maplibre")
+    async def maplibre_index() -> FileResponse:
+        return FileResponse(APP_DIR / "index-maplibre.html")
+
     # Mount static files
     app.mount("/", StaticFiles(directory=APP_DIR), name="static")
 
