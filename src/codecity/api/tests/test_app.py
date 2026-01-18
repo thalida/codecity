@@ -49,6 +49,50 @@ def temp_git_repo() -> Iterator[Path]:
         yield repo_path
 
 
+@pytest.fixture
+def temp_git_repo_with_folder() -> Iterator[Path]:
+    """Create a temporary git repository with files in a subfolder."""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_path = Path(tmpdir)
+
+        # Initialize git repo
+        subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+        subprocess.run(
+            ["git", "config", "user.email", "test@test.com"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "Test User"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        # Create a subfolder with a file (so streets are generated)
+        src_folder = repo_path / "src"
+        src_folder.mkdir()
+        sample_file = src_folder / "main.py"
+        sample_file.write_text("print('hello world')\n")
+
+        # Commit the file
+        subprocess.run(
+            ["git", "add", "src/main.py"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Initial commit"],
+            cwd=repo_path,
+            check=True,
+            capture_output=True,
+        )
+
+        yield repo_path
+
+
 @pytest_asyncio.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     """Create a test client for the API."""
@@ -228,3 +272,32 @@ def test_api_returns_grid_layout_data() -> None:
         assert "direction" in first_street
         assert "color" in first_street
         assert "depth" in first_street
+
+
+@pytest.mark.asyncio
+async def test_get_city_geojson_returns_feature_collection(
+    client: AsyncClient, temp_git_repo: Path
+) -> None:
+    response = await client.get(
+        "/api/city.geojson", params={"repo_path": str(temp_git_repo)}
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/geo+json"
+
+    data = response.json()
+    assert data["type"] == "FeatureCollection"
+    assert "features" in data
+
+
+@pytest.mark.asyncio
+async def test_get_city_geojson_has_streets_and_buildings(
+    client: AsyncClient, temp_git_repo_with_folder: Path
+) -> None:
+    response = await client.get(
+        "/api/city.geojson", params={"repo_path": str(temp_git_repo_with_folder)}
+    )
+    data = response.json()
+
+    layers = {f["properties"]["layer"] for f in data["features"]}
+    assert "streets" in layers
+    assert "buildings" in layers

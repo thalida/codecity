@@ -90,6 +90,58 @@ def create_app() -> FastAPI:
 
         return JSONResponse(content=_city_to_dict(city))
 
+    @app.get("/api/city.geojson")
+    def get_city_geojson(
+        repo_path: str | None = Query(None, description="Path to git repository"),
+    ) -> JSONResponse:
+        """Return city layout as GeoJSON for MapLibre rendering."""
+        from codecity.analysis.geojson_layout import GeoJSONLayoutEngine
+
+        # Use app.state.repo_path as default if not provided
+        if repo_path is None:
+            if hasattr(app.state, "repo_path"):
+                repo_path = str(app.state.repo_path)
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content={"error": "repo_path is required"},
+                )
+        repo = Path(repo_path).resolve()
+
+        if not repo.exists():
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Repository not found: {repo_path}"},
+            )
+
+        files = get_repo_files(repo)
+        file_metrics_dict: dict[str, FileMetrics] = {}
+
+        for file_path in files:
+            full_path = repo / file_path
+            if not full_path.is_file():
+                continue
+
+            metrics_dict = calculate_file_metrics(full_path)
+            history = get_file_git_history(repo, file_path)
+
+            file_metrics_dict[file_path] = FileMetrics(
+                path=file_path,
+                lines_of_code=metrics_dict["lines_of_code"],
+                avg_line_length=metrics_dict["avg_line_length"],
+                language=metrics_dict["language"],
+                created_at=history["created_at"],
+                last_modified=history["last_modified"],
+            )
+
+        engine = GeoJSONLayoutEngine()
+        geojson = engine.layout(file_metrics_dict)
+
+        return JSONResponse(
+            content=geojson,
+            media_type="application/geo+json",
+        )
+
     @app.get("/")
     async def index() -> FileResponse:
         return FileResponse(APP_DIR / "index.html")
