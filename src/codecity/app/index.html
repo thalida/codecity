@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CodeCity - 3D Code Visualization</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Babylon.js Canvas -->
+    <canvas id="renderCanvas"></canvas>
+
+    <!-- Inspector Panel (hidden by default) -->
+    <div id="inspector" class="inspector hidden">
+        <div class="inspector-header">
+            <h2>File Details</h2>
+            <button id="inspector-close" class="inspector-close">&times;</button>
+        </div>
+        <div class="inspector-content">
+            <div class="inspector-field">
+                <label>File Path</label>
+                <span id="inspector-path">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Language</label>
+                <span id="inspector-language">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Lines of Code</label>
+                <span id="inspector-lines">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Complexity</label>
+                <span id="inspector-complexity">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Functions</label>
+                <span id="inspector-functions">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Classes</label>
+                <span id="inspector-classes">-</span>
+            </div>
+            <div class="inspector-field">
+                <label>Imports</label>
+                <span id="inspector-imports">-</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <p class="loading-text">Loading city...</p>
+    </div>
+
+    <!-- Babylon.js CDN -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <!-- Main Application -->
+    <script type="module" src="main.js"></script>
+</body>
+</html>
