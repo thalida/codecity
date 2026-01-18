@@ -117,5 +117,17 @@ describe('CityMap', () => {
             expect(labelLayer[0].layout['symbol-placement']).toBe('line');
             expect(labelLayer[0].layout['text-field']).toEqual(['get', 'name']);
         });
+
+        it('adds buildings as fill-extrusion layer with height from lines_of_code', async () => {
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const addLayerCalls = cityMap.map.addLayer.mock.calls;
+            const buildingLayer = addLayerCalls.find(call => call[0].id === 'buildings');
+
+            expect(buildingLayer).toBeDefined();
+            expect(buildingLayer[0].type).toBe('fill-extrusion');
+            expect(buildingLayer[0].paint['fill-extrusion-height']).toBeDefined();
+        });
     });
 });

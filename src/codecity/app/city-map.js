@@ -113,15 +113,25 @@ export class CityMap {
             },
         });
 
-        // Buildings (flat for now, will add extrusion later)
+        // Buildings (3D extruded)
         this.map.addLayer({
             id: 'buildings',
-            type: 'fill',
+            type: 'fill-extrusion',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'buildings'],
             paint: {
-                'fill-color': '#888888',
-                'fill-outline-color': '#333333',
+                'fill-extrusion-color': '#888888',
+                'fill-extrusion-height': [
+                    'interpolate',
+                    ['linear'],
+                    ['get', 'lines_of_code'],
+                    0, 5,      // min height 5
+                    100, 15,   // 100 LOC = 15 height
+                    500, 50,   // 500 LOC = 50 height
+                    1000, 80,  // 1000+ LOC = max 80 height
+                ],
+                'fill-extrusion-base': 0,
+                'fill-extrusion-opacity': 0.9,
             },
         });
     }
