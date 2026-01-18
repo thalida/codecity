@@ -31,10 +31,30 @@ setup:
     echo "✓ pre-commit is installed"
   fi
 
+  # Check for fnm (Node.js version manager)
+  if ! command -v fnm &> /dev/null; then
+    echo "Installing fnm..."
+    curl -fsSL https://fnm.vercel.app/install | bash
+    echo "Please restart your shell and run 'just setup' again"
+    exit 0
+  else
+    echo "✓ fnm is installed"
+  fi
+
+  # Check for Node.js
+  if ! command -v node &> /dev/null; then
+    echo "Installing Node.js LTS..."
+    fnm install --lts
+    fnm use lts-latest
+  else
+    echo "✓ Node.js is installed ($(node --version))"
+  fi
+
   echo ""
   echo "Setting up project..."
   uv sync
   pre-commit install
+  npm --prefix src/codecity/app install
 
   echo ""
   echo "✓ Setup complete! Run 'just serve' to start the dev server."
@@ -55,10 +75,16 @@ build *args='':
   @cd "{{ project_dir }}"
   uv run codecity build . $@
 
-# Run tests
+# Run tests (Python and JavaScript)
 test *args='':
   @cd "{{ project_dir }}"
   uv run pytest src/ $@
+  npm --prefix src/codecity/app test
+
+# Run JavaScript tests only
+test-js *args='':
+  @cd "{{ project_dir }}"
+  npm --prefix src/codecity/app test $@
 
 # Run linting
 lint:

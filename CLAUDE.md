@@ -21,7 +21,8 @@ uv run codecity build .     # Build static site
 uv run codecity config list # Show config
 
 # Development tasks (these use uv internally)
-just test                   # Run pytest
+just test                   # Run Python + JavaScript tests
+just test-js                # Run JavaScript tests only
 just lint                   # Check ruff + format
 just typecheck              # Run mypy
 just lint-fix               # Auto-fix lint issues
@@ -70,8 +71,8 @@ Existing plans are frozen historical records. New work should create new plan fi
 | Config | Pydantic Settings + TOML |
 | Backend | FastAPI + uvicorn + WebSocket |
 | Frontend | Vanilla JS + Babylon.js |
-| Testing | pytest + pytest-asyncio + httpx |
-| Package Mgmt | uv |
+| Testing | pytest + pytest-asyncio + httpx (Python), Vitest (JavaScript) |
+| Package Mgmt | uv (Python), npm + fnm (JavaScript) |
 
 ## City Visualization Model
 
