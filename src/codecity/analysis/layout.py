@@ -1,17 +1,29 @@
 from pathlib import PurePosixPath
 
+from codecity.analysis.grid_layout import generate_grid_city_layout
 from codecity.analysis.models import Building, City, FileMetrics, Street
 from codecity.config.defaults import get_district_color
 
 
-def generate_city_layout(files: list[FileMetrics], repo_path: str) -> City:
+def generate_city_layout(
+    files: list[FileMetrics], repo_path: str, *, use_grid_layout: bool = False
+) -> City:
     """Generate a city layout from file metrics.
+
+    Args:
+        files: List of file metrics to layout
+        repo_path: Path to the repository root
+        use_grid_layout: If True, use the new grid-based layout system.
+            Defaults to False (existing tree-based layout).
 
     Note:
         File paths in the FileMetrics objects should use POSIX-style paths
         (forward slashes) regardless of the operating system. This ensures
         consistent path parsing across platforms.
     """
+    if use_grid_layout:
+        return generate_grid_city_layout(files, repo_path)
+
     root = Street(path="", name="root")
 
     for file_metrics in files:

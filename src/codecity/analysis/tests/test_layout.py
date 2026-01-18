@@ -268,3 +268,37 @@ def test_city_has_grid_structure() -> None:
     assert city.grid == {(0, 0): tile}
     assert city.bounds == (0, 0, 10, 10)
     assert "" in city.streets_dict
+
+
+def test_generate_city_layout_uses_grid_when_flag_enabled() -> None:
+    """When use_grid_layout=True, generate_city_layout uses the grid layout system."""
+    now = datetime.now(timezone.utc)
+    files = [
+        FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=now,
+            last_modified=now,
+        ),
+        FileMetrics(
+            path="src/utils.py",
+            lines_of_code=50,
+            avg_line_length=35.0,
+            language="python",
+            created_at=now,
+            last_modified=now,
+        ),
+    ]
+
+    city = generate_city_layout(files, "/repo/path", use_grid_layout=True)
+
+    # Grid layout should populate the grid dict with tiles
+    assert city.grid is not None
+    assert len(city.grid) > 0, "Grid layout should have tiles in the grid dict"
+    # Should also have buildings_dict populated
+    assert city.buildings_dict is not None
+    assert (
+        len(city.buildings_dict) > 0
+    ), "Grid layout should have buildings in buildings_dict"
