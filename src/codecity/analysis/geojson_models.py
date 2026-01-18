@@ -89,3 +89,27 @@ class BuildingFeature:
                 "layer": "buildings",
             },
         }
+
+
+@dataclass
+class SidewalkFeature:
+    """A sidewalk running parallel to a street (LineString)."""
+
+    street_path: str
+    side: str  # "left" or "right"
+    start: GeoCoord
+    end: GeoCoord
+
+    def to_geojson(self) -> dict:
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [self.start.to_list(), self.end.to_list()],
+            },
+            "properties": {
+                "street": self.street_path,
+                "side": self.side,
+                "layer": "sidewalks",
+            },
+        }

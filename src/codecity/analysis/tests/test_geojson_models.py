@@ -1,5 +1,10 @@
 # src/codecity/analysis/tests/test_geojson_models.py
-from codecity.analysis.geojson_models import BuildingFeature, GeoCoord, StreetFeature
+from codecity.analysis.geojson_models import (
+    BuildingFeature,
+    GeoCoord,
+    SidewalkFeature,
+    StreetFeature,
+)
 
 
 def test_geocoord_to_list():
@@ -92,3 +97,20 @@ def test_building_feature_to_geojson():
     assert geojson["properties"]["language"] == "python"
     assert geojson["properties"]["lines_of_code"] == 150
     assert geojson["properties"]["layer"] == "buildings"
+
+
+def test_sidewalk_feature_to_geojson():
+    sidewalk = SidewalkFeature(
+        street_path="src",
+        side="left",
+        start=GeoCoord(0, 6),
+        end=GeoCoord(100, 6),
+    )
+    geojson = sidewalk.to_geojson()
+
+    assert geojson["type"] == "Feature"
+    assert geojson["geometry"]["type"] == "LineString"
+    assert geojson["geometry"]["coordinates"] == [[0, 6], [100, 6]]
+    assert geojson["properties"]["layer"] == "sidewalks"
+    assert geojson["properties"]["street"] == "src"
+    assert geojson["properties"]["side"] == "left"

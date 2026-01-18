@@ -1,7 +1,12 @@
 from codecity.analysis.cache import AnalysisCache
 from codecity.analysis.diff import DiffResult, calculate_diff
 from codecity.analysis.geojson_layout import GeoJSONLayoutEngine
-from codecity.analysis.geojson_models import BuildingFeature, GeoCoord, StreetFeature
+from codecity.analysis.geojson_models import (
+    BuildingFeature,
+    GeoCoord,
+    SidewalkFeature,
+    StreetFeature,
+)
 from codecity.analysis.git import (
     get_current_branch,
     get_file_git_history,
@@ -21,6 +26,7 @@ __all__ = [
     "FileMetrics",
     "GeoCoord",
     "GeoJSONLayoutEngine",
+    "SidewalkFeature",
     "Street",
     "StreetFeature",
     "calculate_diff",
