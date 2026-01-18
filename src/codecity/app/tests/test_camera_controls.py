@@ -135,7 +135,10 @@ class TestZoomControls:
     def test_zoom_modifies_camera_radius(self) -> None:
         """Verify zoom changes camera radius (distance from target)."""
         content = _read_main_js()
-        assert "camera.radius +=" in content or "camera.radius -=" in content
+        # Can be += or = assignment
+        assert "camera.radius" in content and (
+            "radius *" in content or "radius +" in content
+        )
 
     def test_zoom_respects_limits(self) -> None:
         """Verify zoom is clamped to radius limits."""

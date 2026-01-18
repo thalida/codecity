@@ -197,15 +197,31 @@ class CodeCityApp {
         // Prevent context menu on right click
         this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 
-        // Scroll wheel - zoom
+        // Scroll wheel - zoom towards cursor position
         this.canvas.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomSpeed = 0.001;
-            const delta = e.deltaY * zoomSpeed * this.camera.radius;
+            const zoomFactor = e.deltaY * zoomSpeed;
 
-            this.camera.radius += delta;
+            // Get the point under the cursor using raycasting
+            const pickResult = this.scene.pick(e.offsetX, e.offsetY);
+
+            const oldRadius = this.camera.radius;
+            const newRadius = oldRadius * (1 + zoomFactor);
+
+            // Clamp to limits
             this.camera.radius = Math.max(this.camera.lowerRadiusLimit,
-                Math.min(this.camera.upperRadiusLimit, this.camera.radius));
+                Math.min(this.camera.upperRadiusLimit, newRadius));
+
+            // If we hit something, move target towards that point proportionally
+            if (pickResult.hit && pickResult.pickedPoint) {
+                const actualZoomRatio = 1 - (this.camera.radius / oldRadius);
+                const targetPoint = pickResult.pickedPoint;
+
+                // Move target towards cursor point based on zoom amount
+                this.camera.target.x += (targetPoint.x - this.camera.target.x) * actualZoomRatio;
+                this.camera.target.z += (targetPoint.z - this.camera.target.z) * actualZoomRatio;
+            }
         }, { passive: false });
     }
 
