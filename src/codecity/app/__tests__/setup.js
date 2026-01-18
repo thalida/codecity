@@ -2,33 +2,27 @@
 
 import { vi } from 'vitest';
 
-// Mock maplibre-gl
-const mockMap = {
-    on: vi.fn(),
-    off: vi.fn(),
-    addSource: vi.fn(),
-    addLayer: vi.fn(),
-    getSource: vi.fn(() => null),
-    getLayer: vi.fn(() => null),
-    removeSource: vi.fn(),
-    removeLayer: vi.fn(),
-    setStyle: vi.fn(),
-    getCanvas: vi.fn(() => ({ style: { cursor: '' } })),
-    fitBounds: vi.fn(),
-    addControl: vi.fn(),
-};
-
+// Mock maplibre-gl as global (loaded via CDN in browser)
 class MockMap {
     constructor(options) {
         this.options = options;
-        Object.assign(this, mockMap);
-        // Simulate 'load' event
-        setTimeout(() => {
-            const loadCallback = this.on.mock.calls.find(call => call[0] === 'load');
-            if (loadCallback) {
-                loadCallback[1]();
+        this.on = vi.fn((event, callback) => {
+            // Immediately fire 'load' event
+            if (event === 'load') {
+                setTimeout(() => callback(), 0);
             }
-        }, 0);
+        });
+        this.off = vi.fn();
+        this.addSource = vi.fn();
+        this.addLayer = vi.fn();
+        this.getSource = vi.fn(() => null);
+        this.getLayer = vi.fn(() => null);
+        this.removeSource = vi.fn();
+        this.removeLayer = vi.fn();
+        this.setStyle = vi.fn();
+        this.getCanvas = vi.fn(() => ({ style: { cursor: '' } }));
+        this.fitBounds = vi.fn();
+        this.addControl = vi.fn();
     }
 }
 
@@ -38,10 +32,18 @@ class MockNavigationControl {
     }
 }
 
-vi.mock('maplibre-gl', () => ({
+class MockScaleControl {
+    constructor(options) {
+        this.options = options;
+    }
+}
+
+// Expose maplibregl globally (as it would be from CDN)
+globalThis.maplibregl = {
     Map: MockMap,
     NavigationControl: MockNavigationControl,
-}));
+    ScaleControl: MockScaleControl,
+};
 
 // Mock fetch for API calls
 global.fetch = vi.fn(() =>
@@ -64,4 +66,4 @@ Object.defineProperty(window, 'location', {
     writable: true,
 });
 
-export { mockMap, MockMap, MockNavigationControl };
+export { MockMap, MockNavigationControl, MockScaleControl };

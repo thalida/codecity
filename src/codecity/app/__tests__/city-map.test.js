@@ -1,24 +1,6 @@
 // src/codecity/app/__tests__/city-map.test.js
+// maplibregl is mocked globally in setup.js
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-
-// Mock maplibre-gl
-vi.mock('maplibre-gl', () => ({
-    default: {
-        Map: vi.fn().mockImplementation(() => ({
-            on: vi.fn((event, callback) => {
-                if (event === 'load') callback();
-            }),
-            addSource: vi.fn(),
-            addLayer: vi.fn(),
-            addControl: vi.fn(),
-            getSource: vi.fn(() => ({ _data: { features: [] }, setData: vi.fn() })),
-            setStyle: vi.fn(),
-        })),
-        NavigationControl: vi.fn(),
-        ScaleControl: vi.fn(),
-    },
-}));
-
 import { CityMap } from '../city-map.js';
 
 // Mock GeoJSON data for tests
@@ -102,6 +84,9 @@ describe('CityMap', () => {
         it('updates theme property', async () => {
             const cityMap = new CityMap(mockContainer);
             await cityMap.init('/api/city.geojson');
+
+            // Wait for the load event to fire
+            await new Promise(resolve => setTimeout(resolve, 10));
 
             cityMap.setTheme('dark');
             expect(cityMap.theme).toBe('dark');

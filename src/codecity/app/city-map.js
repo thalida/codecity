@@ -1,5 +1,5 @@
 // src/codecity/app/city-map.js
-import maplibregl from 'maplibre-gl';
+// maplibregl is loaded globally from CDN in index.html
 
 export class CityMap {
     constructor(container, options = {}) {
