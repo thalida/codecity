@@ -1,25 +1,30 @@
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from rich.console import Console
+
+from codecity.types import GIT_REPO_PATH
 
 console = Console()
 
 
 class CodeCityClient(BaseSettings):
     model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
         env_prefix="CODECITY_",
-        extra="ignore",
         env_ignore_empty=True,
         case_sensitive=False,
+        extra="ignore",
     )
 
-    project_path: Path = Path.cwd()
+    repo_path: GIT_REPO_PATH = Path.cwd()
     debug: bool = False
 
-    def __init__(self, *args, **kwargs):  # type: ignore
-        super().__init__(*args, **kwargs)  # type: ignore
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
 
         # self._http_client = AO3LimiterSession(burst=1, per_second=1 / self.requests_delay_seconds)
         # self._http_client.headers.update(
@@ -96,23 +101,22 @@ class CodeCityClient(BaseSettings):
 
     #     return self._works
 
-    def _log(self, *args, **kwargs):
+    def _log(self, *args: Any, **kwargs: Any) -> None:
         """
         Generic user-facing log function
         """
         console.print(*args, **kwargs)
 
-    def _debug_log(self, *args, **kwargs):
+    def _debug_log(self, *args: Any, **kwargs: Any) -> None:
         """
         Debug Mode Only: Basic log
         """
-
         if not self.debug:
             return
 
         logger.opt(depth=1).debug(*args, **kwargs)
 
-    def _debug_error(self, *args, **kwargs):
+    def _debug_error(self, *args: Any, **kwargs: Any) -> None:
         """
         Debug Mode Only: Error log
         """
@@ -121,7 +125,7 @@ class CodeCityClient(BaseSettings):
 
         logger.opt(depth=1).error(*args, **kwargs)
 
-    def _debug_info(self, *args, **kwargs):
+    def _debug_info(self, *args: Any, **kwargs: Any) -> None:
         """
         Debug Mode Only: Info log
         """

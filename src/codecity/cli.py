@@ -1,18 +1,26 @@
 import functools
-from typing import Any
+from typing import Any, Protocol
 
 import rich_click as click
 from rich.console import Console
 from rich.table import Table
 
 from codecity.client import CodeCityClient
-from codecity.types import CliCommandFunc
 
 console = Console()
 default_client = CodeCityClient()
 
 CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
 click.rich_click.USE_RICH_MARKUP = True
+
+
+class CliCommandFunc(Protocol):
+    def __call__(
+        self,
+        ctx: click.Context,
+        client: CodeCityClient,
+        **kwargs: Any,
+    ) -> None: ...
 
 
 @click.group(context_settings=CONTEXT_SETTINGS)
@@ -33,7 +41,7 @@ def cli_command(func: CliCommandFunc):
     )
     @click.pass_context
     @click.argument(
-        "project_path",
+        "repo_path",
         type=click.Path(exists=True, readable=True, file_okay=False, dir_okay=True),
         default=".",
     )
@@ -47,24 +55,26 @@ def cli_command(func: CliCommandFunc):
     @functools.wraps(func)
     def wrapper(ctx: click.Context, **kwargs: dict[str, str | bool | click.Path]):
         client = CodeCityClient(
-            project_path=kwargs.pop("project_path"),
+            repo_path=kwargs.pop("repo_path"),
             debug=kwargs.pop("debug"),
         )
 
         table = Table(
-            title="Settings",
-            title_justify="left",
+            title="CodeCity Configuration",
+            title_justify="center",
             title_style="bold",
-            show_lines=False,
+            show_lines=True,
             show_edge=True,
-            show_header=False,
+            show_header=True,
             expand=True,
             pad_edge=True,
         )
         table.add_column("Setting")
         table.add_column("Value")
 
-        if True:
+        table.add_row("Repo Path", str(client.repo_path))
+
+        if client.debug:
             table.add_row(
                 "Debug", "[green]Enabled" if client.debug else "[red]Disabled"
             )
@@ -98,7 +108,6 @@ def serve(
     **kwargs: Any,
 ) -> None:
     click.secho("\nServe CodeCity", bold=True, color=True)
-    click.secho(f"Project path: {client.project_path}", bold=True, color=True)
 
 
 @cli_command
@@ -108,7 +117,6 @@ def build(
     **kwargs: Any,
 ) -> None:
     click.secho("\nBuild CodeCity", bold=True, color=True)
-    click.secho(f"Project path: {client.project_path}", bold=True, color=True)
 
 
 if __name__ == "__main__":

@@ -1,14 +1,16 @@
-from typing import Any, Protocol
+from pathlib import Path
+from typing import Annotated
 
-import rich_click as click
-
-from codecity.client import CodeCityClient
+from pydantic import AfterValidator
 
 
-class CliCommandFunc(Protocol):
-    def __call__(
-        self,
-        ctx: click.Context,
-        client: CodeCityClient,
-        **kwargs: Any,
-    ) -> None: ...
+def is_git_repo(path: Path) -> Path:
+    has_git_dir = (path / ".git").is_dir()
+
+    if not has_git_dir:
+        raise ValueError(f"The path '{path}' is not a valid Git repository.")
+
+    return path
+
+
+GIT_REPO_PATH = Annotated[Path, AfterValidator(is_git_repo)]
