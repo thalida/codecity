@@ -162,6 +162,7 @@ def test_layout_nested_streets_have_lighter_colors() -> None:
     sub_street = next(s for s in src_street.substreets if s.name == "sub")
 
     # Nested street color should be lighter (higher values)
+    assert src_street.color is not None
     assert sub_street.color is not None
     assert any(sub_street.color[i] >= src_street.color[i] for i in range(3))
 
