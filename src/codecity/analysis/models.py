@@ -47,6 +47,8 @@ class Street:
     length: float = 100.0
     buildings: list[Building] = field(default_factory=list)
     substreets: list["Street"] = field(default_factory=list)
+    color: tuple[int, int, int] | None = None
+    road_width: float = 1.5
 
 
 @dataclass
