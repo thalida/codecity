@@ -2,7 +2,8 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 
 from codecity.analysis import (
     City,
@@ -12,6 +13,7 @@ from codecity.analysis import (
     get_file_git_history,
     get_repo_files,
 )
+from codecity.app import APP_DIR
 
 
 def create_app() -> FastAPI:
@@ -74,6 +76,13 @@ def create_app() -> FastAPI:
         city = generate_city_layout(file_metrics, str(repo))
 
         return JSONResponse(content=_city_to_dict(city))
+
+    @app.get("/")
+    async def index():
+        return FileResponse(APP_DIR / "index.html")
+
+    # Mount static files
+    app.mount("/", StaticFiles(directory=APP_DIR), name="static")
 
     return app
 
