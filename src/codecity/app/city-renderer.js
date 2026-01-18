@@ -31,14 +31,28 @@ export class CityRenderer {
         this.buildings = new Map(); // file_path -> mesh
         this.streets = [];
         this.signposts = [];
+        this.labels = new Map();  // file_path -> label
+        this.advancedTexture = null;
     }
 
     render(cityData) {
         this.clear();
+        // Create fullscreen UI for labels
+        this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
         this.renderStreet(cityData.root, true);
     }
 
     clear() {
+        for (const label of this.labels.values()) {
+            label.dispose();
+        }
+        this.labels.clear();
+
+        if (this.advancedTexture) {
+            this.advancedTexture.dispose();
+            this.advancedTexture = null;
+        }
+
         for (const mesh of this.buildings.values()) {
             mesh.dispose();
         }
@@ -215,7 +229,77 @@ export class CityRenderer {
             )
         );
 
+        // Hover shows label
+        mesh.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPointerOverTrigger,
+                () => {
+                    const label = this.labels.get(building.file_path);
+                    if (label) label.alpha = 1;
+                }
+            )
+        );
+        mesh.actionManager.registerAction(
+            new BABYLON.ExecuteCodeAction(
+                BABYLON.ActionManager.OnPointerOutTrigger,
+                () => {
+                    // Let distance-based visibility take over
+                }
+            )
+        );
+
         this.buildings.set(building.file_path, mesh);
+        this.createBuildingLabel(building, mesh);
+    }
+
+    createBuildingLabel(building, mesh) {
+        const filename = building.file_path.split('/').pop();
+
+        const label = new BABYLON.GUI.TextBlock();
+        label.text = filename;
+        label.color = 'white';
+        label.fontSize = 14;
+        label.outlineWidth = 2;
+        label.outlineColor = 'black';
+
+        const rect = new BABYLON.GUI.Rectangle();
+        rect.width = '150px';
+        rect.height = '30px';
+        rect.cornerRadius = 4;
+        rect.color = 'transparent';
+        rect.background = 'transparent';
+        rect.alpha = 0;  // Start hidden
+        rect.addControl(label);
+
+        this.advancedTexture.addControl(rect);
+        rect.linkWithMesh(mesh);
+        rect.linkOffsetY = -40;
+
+        this.labels.set(building.file_path, rect);
+    }
+
+    updateLabelVisibility(camera) {
+        const cameraPos = camera.position;
+
+        for (const [filePath, label] of this.labels) {
+            const mesh = this.buildings.get(filePath);
+            if (!mesh) continue;
+
+            const distance = BABYLON.Vector3.Distance(cameraPos, mesh.position);
+            const buildingHeight = mesh.scaling?.y || 1;
+
+            // Larger buildings visible from farther away
+            const fadeStart = 40 + buildingHeight * 3;
+            const fadeEnd = 25 + buildingHeight * 3;
+
+            if (distance < fadeEnd) {
+                label.alpha = 1;
+            } else if (distance < fadeStart) {
+                label.alpha = (fadeStart - distance) / (fadeStart - fadeEnd);
+            } else {
+                label.alpha = 0;
+            }
+        }
     }
 
     calculateBuildingColor(building) {

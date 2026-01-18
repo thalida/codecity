@@ -65,6 +65,11 @@ class CodeCityApp {
         // Start render loop
         this.engine.runRenderLoop(() => {
             this.scene.render();
+
+            // Update label visibility based on camera distance
+            if (this.cityRenderer && this.camera) {
+                this.cityRenderer.updateLabelVisibility(this.camera);
+            }
         });
 
         // Load city - use URL parameter if provided, otherwise API uses server default
