@@ -1,4 +1,5 @@
 from codecity.analysis.cache import AnalysisCache
+from codecity.analysis.diff import DiffResult, calculate_diff
 from codecity.analysis.git import (
     get_current_branch,
     get_file_git_history,
@@ -11,14 +12,16 @@ from codecity.analysis.models import Building, City, FileMetrics, Street
 
 __all__ = [
     "AnalysisCache",
-    "FileMetrics",
     "Building",
-    "Street",
     "City",
+    "DiffResult",
+    "FileMetrics",
+    "Street",
+    "calculate_diff",
     "calculate_file_metrics",
     "generate_city_layout",
-    "get_repo_files",
-    "get_file_git_history",
     "get_current_branch",
+    "get_file_git_history",
     "get_remote_url",
+    "get_repo_files",
 ]
