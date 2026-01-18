@@ -152,15 +152,6 @@ async def test_index_returns_200(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
-async def test_maplibre_index_returns_200(client: AsyncClient) -> None:
-    """Test that GET /maplibre returns status 200 and serves the MapLibre HTML."""
-    response = await client.get("/maplibre")
-    assert response.status_code == 200
-    # Verify it's serving HTML content
-    assert "text/html" in response.headers.get("content-type", "")
-
-
-@pytest.mark.asyncio
 async def test_styles_css_returns_200(client: AsyncClient) -> None:
     """Test that GET /styles.css returns status 200."""
     response = await client.get("/styles.css")

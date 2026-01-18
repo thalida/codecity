@@ -14,8 +14,7 @@ def build_static_site(out_dir: Path) -> None:
     files = [
         "index.html",
         "main.js",
-        "city-renderer.js",
-        "inspector.js",
+        "city-map.js",
         "styles.css",
     ]
 

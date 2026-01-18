@@ -3,63 +3,29 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CodeCity - 3D Code Visualization</title>
+    <title>CodeCity</title>
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Babylon.js Canvas -->
-    <canvas id="renderCanvas"></canvas>
+    <div id="map-container"></div>
 
-    <!-- Side Panel (slides in from left on building click) -->
-    <div id="inspector" class="side-panel">
-        <div class="side-panel-header">
-            <h2 id="inspector-title">File Details</h2>
-            <button id="inspector-close" class="side-panel-close">&times;</button>
-        </div>
-        <div class="side-panel-content">
-            <div class="panel-field">
-                <label>File Path</label>
-                <span id="inspector-path">-</span>
-            </div>
-            <div class="panel-field">
-                <label>Language</label>
-                <span id="inspector-language">-</span>
-            </div>
-            <div class="panel-field">
-                <label>Lines of Code</label>
-                <span id="inspector-loc">-</span>
-            </div>
-            <div class="panel-field">
-                <label>Average Line Length</label>
-                <span id="inspector-avg-line">-</span>
-            </div>
-            <div class="panel-field">
-                <label>Created</label>
-                <span id="inspector-created">-</span>
-            </div>
-            <div class="panel-field">
-                <label>Last Modified</label>
-                <span id="inspector-modified">-</span>
-            </div>
-        </div>
-        <div class="side-panel-actions">
-            <button id="btn-open-editor" class="panel-btn">Open in Editor</button>
-            <button id="btn-view-remote" class="panel-btn">View on GitHub</button>
-        </div>
+    <!-- Inspector Panel -->
+    <div id="inspector" class="hidden">
+        <button id="inspector-close">&times;</button>
+        <h2 id="inspector-title">File Info</h2>
+        <div id="inspector-content"></div>
     </div>
+
+    <!-- Tooltip -->
+    <div id="tooltip" class="hidden"></div>
 
     <!-- Loading Overlay -->
-    <div id="loading-overlay" class="loading-overlay">
-        <div class="loading-spinner"></div>
-        <p class="loading-text">Loading city...</p>
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading city...</p>
     </div>
 
-    <!-- Babylon.js CDN -->
-    <script src="https://cdn.babylonjs.com/babylon.js"></script>
-    <script src="https://cdn.babylonjs.com/gui/babylon.gui.min.js"></script>
-    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-
-    <!-- Main Application -->
     <script type="module" src="main.js"></script>
 </body>
 </html>

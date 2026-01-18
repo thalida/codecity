@@ -24,8 +24,7 @@ def test_build_copies_js_files() -> None:
         out_dir = Path(tmpdir) / "dist"
         build_static_site(out_dir)
         assert (out_dir / "main.js").exists()
-        assert (out_dir / "city-renderer.js").exists()
-        assert (out_dir / "inspector.js").exists()
+        assert (out_dir / "city-map.js").exists()
 
 
 def test_build_copies_css_file() -> None:
