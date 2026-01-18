@@ -81,7 +81,9 @@ def get_editor_url(
     line: int = 1,
     custom_command: str | None = None,
 ) -> str:
-    if editor == "custom" and custom_command:
+    if editor == "custom":
+        if not custom_command:
+            raise ValueError("custom_command is required when editor is 'custom'")
         template = custom_command
     else:
         template = EDITOR_URL_TEMPLATES.get(editor, EDITOR_URL_TEMPLATES["vscode"])
