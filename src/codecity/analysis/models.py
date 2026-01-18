@@ -1,5 +1,28 @@
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
+from enum import Enum
+
+
+class TileType(Enum):
+    """Type of tile in the city grid."""
+
+    EMPTY = 0
+    ROAD = 1
+    INTERSECTION = 2
+    BUILDING = 3
+    ROAD_START = 4
+    ROAD_END = 5
+
+
+@dataclass
+class Tile:
+    """A single cell in the city grid."""
+
+    x: int
+    z: int
+    tile_type: TileType
+    node_path: str
+    parent_path: str | None = None
 
 
 @dataclass

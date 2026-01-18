@@ -4,6 +4,28 @@ from codecity.analysis.layout import generate_city_layout
 from codecity.analysis.models import FileMetrics
 
 
+def test_tile_type_enum_exists() -> None:
+    from codecity.analysis.models import TileType
+
+    assert TileType.EMPTY.value == 0
+    assert TileType.ROAD.value == 1
+    assert TileType.INTERSECTION.value == 2
+    assert TileType.BUILDING.value == 3
+    assert TileType.ROAD_START.value == 4
+    assert TileType.ROAD_END.value == 5
+
+
+def test_tile_model_exists() -> None:
+    from codecity.analysis.models import Tile, TileType
+
+    tile = Tile(x=5, z=10, tile_type=TileType.ROAD, node_path="src")
+    assert tile.x == 5
+    assert tile.z == 10
+    assert tile.tile_type == TileType.ROAD
+    assert tile.node_path == "src"
+    assert tile.parent_path is None
+
+
 def test_layout_generates_city_from_metrics() -> None:
     now = datetime.now(timezone.utc)
     files = [
