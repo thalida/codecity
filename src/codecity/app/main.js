@@ -20,6 +20,16 @@ class CodeCityApp {
     }
 
     /**
+     * Create and configure the Babylon.js scene
+     * @returns {BABYLON.Scene} The configured scene
+     */
+    createScene() {
+        const scene = new BABYLON.Scene(this.engine);
+        scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+        return scene;
+    }
+
+    /**
      * Initialize the Babylon.js engine and scene
      */
     async init() {
@@ -30,8 +40,7 @@ class CodeCityApp {
         });
 
         // Create scene
-        this.scene = new BABYLON.Scene(this.engine);
-        this.scene.clearColor = new BABYLON.Color4(0.05, 0.05, 0.08, 1);
+        this.scene = this.createScene();
 
         // Setup camera
         this.setupCamera();
