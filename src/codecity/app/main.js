@@ -148,16 +148,23 @@ class CodeCityApp {
             lastY = e.clientY;
 
             if (isDragging) {
-                // Pan: move camera target based on camera orientation
-                const panSpeed = this.camera.radius * 0.002;
+                // Pan: move camera target so it feels like dragging the ground
+                // When you drag left, the world should move left (target moves right)
+                const panSpeed = this.camera.radius * 0.003;
 
-                // Calculate pan direction based on camera's horizontal angle
-                const cosAlpha = Math.cos(this.camera.alpha);
-                const sinAlpha = Math.sin(this.camera.alpha);
+                // Get the camera's forward and right vectors projected onto ground plane
+                // Alpha is the horizontal rotation angle
+                // For ArcRotateCamera: alpha=0 means looking along +X, alpha=PI/2 means looking along +Z
+                const rightX = Math.sin(this.camera.alpha);
+                const rightZ = -Math.cos(this.camera.alpha);
+                const forwardX = Math.cos(this.camera.alpha);
+                const forwardZ = Math.sin(this.camera.alpha);
 
-                // Move in screen-relative directions
-                this.camera.target.x -= (deltaX * cosAlpha + deltaY * sinAlpha) * panSpeed;
-                this.camera.target.z -= (-deltaX * sinAlpha + deltaY * cosAlpha) * panSpeed;
+                // Move target opposite to drag direction (grab and drag behavior)
+                // deltaX > 0 means dragging right, so move target left (negative right direction)
+                // deltaY > 0 means dragging down, so move target forward (into screen)
+                this.camera.target.x += (-deltaX * rightX + deltaY * forwardX) * panSpeed;
+                this.camera.target.z += (-deltaX * rightZ + deltaY * forwardZ) * panSpeed;
             } else if (isRotating) {
                 // Rotate: change camera angles
                 const rotateSpeed = 0.005;
