@@ -2,15 +2,25 @@
 
 3D city visualization of codebases where files become buildings, folders become streets, and code metrics determine visual properties.
 
+
+## CRITICAL: Always Use uv
+
+**NEVER run Python commands directly.** Always use `uv run` or `just` commands.
+
+- ❌ `python script.py` / `python -m pytest` / `pip install`
+- ✅ `uv run python script.py` / `uv run pytest` / `uv add package`
+
+This ensures the correct virtual environment and dependencies are always used.
+
 ## Quick Reference
 
 ```bash
-# Run CLI commands with uv
+# Run CLI commands with uv (ALWAYS use uv run, never python directly)
 uv run codecity serve .     # Start dev server
 uv run codecity build .     # Build static site
 uv run codecity config list # Show config
 
-# Development tasks
+# Development tasks (these use uv internally)
 just test                   # Run pytest
 just lint                   # Check ruff + format
 just typecheck              # Run mypy
