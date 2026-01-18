@@ -682,6 +682,48 @@ describe('CityRenderer', () => {
             renderer.render(cityData);
             expect(BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI).toHaveBeenCalledWith('UI');
         });
+
+        it('calls renderGridCity when cityData has grid property', () => {
+            const renderGridCitySpy = vi.spyOn(renderer, 'renderGridCity');
+            const renderStreetSpy = vi.spyOn(renderer, 'renderStreet');
+
+            const gridCityData = {
+                grid: { '0,0': { type: 'road' } },
+                buildings: {},
+                streets: {},
+                bounds: { min_x: 0, min_z: 0, max_x: 1, max_z: 1 },
+            };
+
+            renderer.render(gridCityData);
+
+            expect(renderGridCitySpy).toHaveBeenCalledWith(gridCityData);
+            expect(renderStreetSpy).not.toHaveBeenCalled();
+        });
+
+        it('calls renderStreet when cityData has root property', () => {
+            const renderGridCitySpy = vi.spyOn(renderer, 'renderGridCity');
+            const renderStreetSpy = vi.spyOn(renderer, 'renderStreet');
+
+            const treeCityData = {
+                root: {
+                    path: '',
+                    name: 'root',
+                    x: 0,
+                    z: 0,
+                    width: 100,
+                    length: 100,
+                    color: [50, 50, 60],
+                    road_width: 0,
+                    buildings: [],
+                    substreets: [],
+                },
+            };
+
+            renderer.render(treeCityData);
+
+            expect(renderStreetSpy).toHaveBeenCalled();
+            expect(renderGridCitySpy).not.toHaveBeenCalled();
+        });
     });
 
     describe('renderTile', () => {

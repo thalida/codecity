@@ -39,10 +39,16 @@ export class CityRenderer {
     }
 
     render(cityData) {
-        this.clear();
-        // Create fullscreen UI for labels
-        this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
-        this.renderStreet(cityData.root, true);
+        // Detect layout type and render accordingly
+        if (cityData.grid && Object.keys(cityData.grid).length > 0) {
+            // Grid-based connected streets layout
+            this.renderGridCity(cityData);
+        } else if (cityData.root) {
+            // Original tree-based district layout
+            this.clear();
+            this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('UI');
+            this.renderStreet(cityData.root, true);
+        }
     }
 
     clear() {
