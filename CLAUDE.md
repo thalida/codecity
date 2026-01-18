@@ -62,6 +62,7 @@ Existing plans are frozen historical records. New work should create new plan fi
 - **Hybrid TDD**: Test-first for core logic (analysis, API), rapid iteration for UI/polish
 - **Standard Python**: Follow existing patterns - Pydantic models, pytest, type hints
 - **Code quality**: ruff for linting/formatting, mypy for types
+- **Plan execution**: Always use subagent-driven development unless explicitly told otherwise
 
 ## Tech Stack
 
