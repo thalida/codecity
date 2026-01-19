@@ -407,3 +407,85 @@ def test_tile_grid_layout_creates_folder_streets():
 
     assert "src" in street_names
     assert "lib" in street_names
+
+
+def test_tile_grid_layout_no_invalid_road_crossings():
+    """Roads should only cross at adjacent depths (parent-child)."""
+    from datetime import datetime, timezone
+
+    from codecity.analysis.models import FileMetrics
+    from codecity.analysis.tile_grid import TileGridLayoutEngine
+
+    # Create a structure that would cause crossings in the old algorithm
+    # src/analysis/tests should NOT cross through the main src road
+    metrics = {
+        "src/main.py": FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[40] * 100,
+        ),
+        "src/analysis/parser.py": FileMetrics(
+            path="src/analysis/parser.py",
+            lines_of_code=200,
+            avg_line_length=45.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[45] * 200,
+        ),
+        "src/analysis/tests/test_parser.py": FileMetrics(
+            path="src/analysis/tests/test_parser.py",
+            lines_of_code=150,
+            avg_line_length=40.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[40] * 150,
+        ),
+    }
+
+    engine = TileGridLayoutEngine()
+    result = engine.layout(metrics)
+
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+
+    # Extract street segments as sets of grid cells
+    def get_street_cells(street) -> set[tuple[int, int]]:
+        coords = street["geometry"]["coordinates"]
+        x1, y1 = coords[0]
+        x2, y2 = coords[1]
+        cells = set()
+        # Discretize to grid
+        cell_size = 6.0
+        if abs(y2 - y1) < 0.001:  # Horizontal
+            for x in range(
+                int(min(x1, x2) // cell_size), int(max(x1, x2) // cell_size) + 1
+            ):
+                cells.add((x, int(y1 // cell_size)))
+        else:  # Vertical
+            for y in range(
+                int(min(y1, y2) // cell_size), int(max(y1, y2) // cell_size) + 1
+            ):
+                cells.add((int(x1 // cell_size), y))
+        return cells
+
+    # Check for invalid crossings
+    for i, s1 in enumerate(streets):
+        for s2 in streets[i + 1 :]:
+            depth1 = s1["properties"]["depth"]
+            depth2 = s2["properties"]["depth"]
+
+            cells1 = get_street_cells(s1)
+            cells2 = get_street_cells(s2)
+
+            intersection = cells1 & cells2
+            if intersection:
+                # Crossing exists - must be adjacent depths
+                assert abs(depth1 - depth2) <= 1, (
+                    f"Invalid crossing between {s1['properties']['path']} (depth {depth1}) "
+                    f"and {s2['properties']['path']} (depth {depth2})"
+                )
