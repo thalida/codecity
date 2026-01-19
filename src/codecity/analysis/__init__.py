@@ -17,6 +17,7 @@ from codecity.analysis.git import (
 from codecity.analysis.layout import generate_city_layout
 from codecity.analysis.metrics import calculate_file_metrics
 from codecity.analysis.models import Building, City, FileMetrics, Street
+from codecity.analysis.tile_grid import TileGridLayoutEngine
 
 __all__ = [
     "AnalysisCache",
@@ -28,6 +29,7 @@ __all__ = [
     "FootpathFeature",
     "GeoCoord",
     "GeoJSONLayoutEngine",
+    "TileGridLayoutEngine",
     "SidewalkFeature",
     "Street",
     "StreetFeature",
