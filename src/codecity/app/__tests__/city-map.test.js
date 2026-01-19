@@ -154,5 +154,21 @@ describe('CityMap', () => {
             expect(footpathsLayer[0].type).toBe('line');
             expect(footpathsLayer[0].filter).toEqual(['==', ['get', 'layer'], 'footpaths']);
         });
+
+        it('should use base_height and top_height from properties', async () => {
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const addLayerCalls = cityMap.map.addLayer.mock.calls;
+            const buildingsLayer = addLayerCalls.find(call => call[0].id === 'buildings');
+            expect(buildingsLayer).toBeDefined();
+
+            // Should use 'get' expression for heights, not interpolation
+            const heightExpr = buildingsLayer[0].paint['fill-extrusion-height'];
+            expect(heightExpr).toEqual(['get', 'top_height']);
+
+            const baseExpr = buildingsLayer[0].paint['fill-extrusion-base'];
+            expect(baseExpr).toEqual(['get', 'base_height']);
+        });
     });
 });

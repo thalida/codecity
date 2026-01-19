@@ -206,22 +206,9 @@ export class CityMap {
                     'toml', '#9c4221',
                     '#888888'  // Default gray
                 ],
-                // Height based on lines of code (human scale)
-                // Burj Khalifa (828m) = max height for largest files
-                'fill-extrusion-height': [
-                    'interpolate',
-                    ['linear'],
-                    ['get', 'lines_of_code'],
-                    0, 3,        // min 3m (1 story)
-                    50, 10,      // 50 LOC = 10m (3 stories)
-                    100, 25,     // 100 LOC = 25m (8 stories)
-                    300, 75,     // 300 LOC = 75m (25 stories)
-                    500, 150,    // 500 LOC = 150m (50 stories)
-                    1000, 300,   // 1000 LOC = 300m (100 stories)
-                    3000, 500,   // 3000 LOC = 500m (One World Trade)
-                    5000, 828,   // 5000+ LOC = 828m (Burj Khalifa max)
-                ],
-                'fill-extrusion-base': 0,
+                // Height from pre-calculated properties
+                'fill-extrusion-height': ['get', 'top_height'],
+                'fill-extrusion-base': ['get', 'base_height'],
                 'fill-extrusion-opacity': 0.95,
                 // Add vertical gradient for depth
                 'fill-extrusion-vertical-gradient': true,
