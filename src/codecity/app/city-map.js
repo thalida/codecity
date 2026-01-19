@@ -123,35 +123,6 @@ export class CityMap {
             },
         });
 
-        // Sidewalks (filled polygons beside roads)
-        this.map.addLayer({
-            id: 'sidewalks',
-            type: 'fill',
-            source: 'city',
-            filter: ['==', ['get', 'layer'], 'sidewalks'],
-            paint: {
-                'fill-color': '#cccccc',
-                'fill-opacity': 0.8,
-            },
-        });
-
-        // Footpaths (dotted curved lines from buildings to sidewalks)
-        this.map.addLayer({
-            id: 'footpaths',
-            type: 'line',
-            source: 'city',
-            filter: ['==', ['get', 'layer'], 'footpaths'],
-            paint: {
-                'line-color': '#999999',
-                'line-width': 1.5,
-                'line-dasharray': [2, 2],  // Dotted line pattern
-            },
-            layout: {
-                'line-cap': 'round',
-                'line-join': 'round',
-            },
-        });
-
         // Street labels
         this.map.addLayer({
             id: 'street-labels',

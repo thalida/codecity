@@ -209,7 +209,8 @@ def test_layout_subfolders_do_not_overlap_parent_buildings():
             ), f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
 
 
-def test_layout_creates_sidewalks_for_streets():
+def test_layout_no_sidewalks():
+    """Buildings sit directly beside streets without sidewalks."""
     metrics = {"src/main.py": make_file_metrics("src/main.py")}
     engine = GeoJSONLayoutEngine()
     result = engine.layout(metrics)
@@ -217,43 +218,12 @@ def test_layout_creates_sidewalks_for_streets():
     sidewalks = [
         f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
     ]
-    # Named streets (not connectors) should have 2 sidewalks each (left and right)
-    # Connector streets (paths like "root>src") don't have sidewalks
-    named_streets = [
-        f
-        for f in result["features"]
-        if f["properties"]["layer"] == "streets" and f["properties"]["name"]
-    ]
-    assert len(sidewalks) == len(named_streets) * 2
-
-    # Check sidewalk properties
-    src_sidewalks = [s for s in sidewalks if s["properties"]["street"] == "src"]
-    assert len(src_sidewalks) == 2
-    sides = {s["properties"]["side"] for s in src_sidewalks}
-    assert sides == {"left", "right"}
+    # Sidewalks are disabled - buildings directly beside streets
+    assert len(sidewalks) == 0
 
 
-def test_layout_sidewalks_are_polygons():
-    """Sidewalks should be rendered as filled polygons, not lines."""
-    metrics = {"src/main.py": make_file_metrics("src/main.py")}
-    engine = GeoJSONLayoutEngine()
-    result = engine.layout(metrics)
-
-    sidewalks = [
-        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
-    ]
-    assert len(sidewalks) >= 2  # At least left and right for one street
-
-    for sw in sidewalks:
-        assert (
-            sw["geometry"]["type"] == "Polygon"
-        ), f"Sidewalk should be Polygon, got {sw['geometry']['type']}"
-        coords = sw["geometry"]["coordinates"][0]
-        assert len(coords) == 5, "Polygon should have 4 corners + closing point"
-        assert coords[0] == coords[-1], "Polygon should be closed"
-
-
-def test_layout_creates_footpath_for_each_building():
+def test_layout_no_footpaths():
+    """Footpaths are disabled along with sidewalks."""
     metrics = {
         "src/main.py": make_file_metrics("src/main.py"),
         "src/utils.py": make_file_metrics("src/utils.py"),
@@ -264,18 +234,8 @@ def test_layout_creates_footpath_for_each_building():
     footpaths = [
         f for f in result["features"] if f["properties"]["layer"] == "footpaths"
     ]
-    buildings = [
-        f for f in result["features"] if f["properties"]["layer"] == "buildings"
-    ]
-    # One footpath per FILE (not per building tier)
-    # Count unique file paths to get number of files
-    unique_file_paths = set(b["properties"]["path"] for b in buildings)
-    assert len(footpaths) == len(unique_file_paths)
-
-    # Check footpath has multiple points (curved)
-    for fp in footpaths:
-        coords = fp["geometry"]["coordinates"]
-        assert len(coords) >= 3, "Footpath should have at least 3 points for curve"
+    # Footpaths are disabled - buildings directly beside streets
+    assert len(footpaths) == 0
 
 
 def test_layout_creates_grass_area():
@@ -382,41 +342,40 @@ def test_layout_deep_nesting_no_overlaps():
             ), f"Building {building['properties']['path']} overlaps with street {street_path}"
 
 
-def test_layout_sidewalks_extend_to_parent_street():
-    """Sidewalks should extend back to where connector meets parent street."""
-    metrics = {
-        "src/api/routes.py": make_file_metrics("src/api/routes.py"),
-    }
+def test_layout_buildings_beside_streets():
+    """Buildings should sit directly beside streets (no sidewalk gap)."""
+    metrics = {"src/main.py": make_file_metrics("src/main.py")}
     engine = GeoJSONLayoutEngine()
-    result = engine.layout(metrics, root_name="project")
+    result = engine.layout(metrics)
 
     streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
-    sidewalks = [
-        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
     ]
 
-    api_sidewalks = [sw for sw in sidewalks if sw["properties"]["street"] == "src/api"]
+    # Find a building and its associated street
+    src_buildings = [b for b in buildings if b["properties"]["street"] == "src"]
+    src_street = next(s for s in streets if s["properties"]["path"] == "src")
 
-    # Find the connector from src to src/api
-    src_api_connector = next(
-        (s for s in streets if s["properties"]["path"] == "src>src/api"), None
-    )
+    assert len(src_buildings) >= 1, "Should have at least one building on src street"
 
-    assert src_api_connector is not None, "Connector street should exist"
+    # Buildings should be positioned near the street
+    # Street is vertical, so check x-coordinates
+    street_coords = src_street["geometry"]["coordinates"]
+    street_x = street_coords[0][0]
 
-    connector_start = src_api_connector["geometry"]["coordinates"][0]
+    for building in src_buildings:
+        coords = building["geometry"]["coordinates"][0]
+        building_xs = [c[0] for c in coords[:-1]]  # Exclude closing coord
+        building_center_x = sum(building_xs) / len(building_xs)
 
-    # For polygon sidewalks, check that corners extend to connector
-    for sw in api_sidewalks:
-        coords = sw["geometry"]["coordinates"][0]
-        sw_xs = [c[0] for c in coords]
-        min_sw_x = min(sw_xs)
-        connector_start_x = connector_start[0]
-
-        assert min_sw_x <= connector_start_x + 0.0001, (
-            f"Sidewalk should extend to connector start. "
-            f"Sidewalk min x: {min_sw_x}, connector start x: {connector_start_x}"
-        )
+        # Building center should be within reasonable distance from street
+        # (half street width + half max building width, roughly)
+        distance = abs(building_center_x - street_x)
+        max_expected = 0.01  # Normalized coordinate distance
+        assert (
+            distance <= max_expected
+        ), f"Building too far from street: distance={distance}"
 
 
 def test_layout_street_extends_to_cover_all_branch_points():
@@ -495,65 +454,70 @@ def test_layout_main_street_extends_to_cover_all_top_level_folders():
         )
 
 
-def test_layout_footpath_connects_building_to_sidewalk():
-    """Footpath should start at building edge and end at sidewalk outer edge.
+def test_layout_tiered_buildings_are_centered():
+    """Each building tier should be centered around the same point."""
+    # Create a file with multiple tiers (150 LOC = 3 tiers)
+    metrics = {"src/main.py": make_file_metrics("src/main.py", loc=150, avg_len=40.0)}
+    metrics["src/main.py"].line_lengths = [40] * 150
 
-    The sidewalk outer edge is where buildings meet the sidewalk, which is
-    at STREET_WIDTH/2 + SIDEWALK_WIDTH from the street center.
-    The footpath should NOT end at the inner sidewalk edge (STREET_WIDTH/2).
-    """
-    metrics = {"src/main.py": make_file_metrics("src/main.py")}
     engine = GeoJSONLayoutEngine()
     result = engine.layout(metrics)
 
-    footpaths = [
-        f for f in result["features"] if f["properties"]["layer"] == "footpaths"
-    ]
-    sidewalks = [
-        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
-    ]
     buildings = [
         f for f in result["features"] if f["properties"]["layer"] == "buildings"
     ]
 
-    assert len(footpaths) >= 1
-    assert len(buildings) >= 1
+    main_buildings = [b for b in buildings if b["properties"]["path"] == "src/main.py"]
+    assert len(main_buildings) >= 2, "Should have multiple tiers"
 
-    # Get the src street sidewalks
-    src_sidewalks = [s for s in sidewalks if s["properties"]["street"] == "src"]
-    assert len(src_sidewalks) == 2  # left and right
+    # Calculate center of each tier
+    centers = []
+    for building in main_buildings:
+        coords = building["geometry"]["coordinates"][0]
+        xs = [c[0] for c in coords[:-1]]  # Exclude closing coord
+        ys = [c[1] for c in coords[:-1]]
+        center_x = sum(xs) / len(xs)
+        center_y = sum(ys) / len(ys)
+        centers.append((center_x, center_y))
 
-    for footpath in footpaths:
-        fp_coords = footpath["geometry"]["coordinates"]
-        fp_end = fp_coords[-1]  # Sidewalk end of footpath
-
-        # Find which sidewalk this footpath connects to
-        # The footpath end should be at the sidewalk's outer edge (building side)
-        # not the inner edge (street side)
-        matched_sidewalk = False
-        for sw in src_sidewalks:
-            sw_coords = sw["geometry"]["coordinates"][0]
-            # For a vertical street (like src), sidewalk x-coords define inner/outer
-            sw_xs = [c[0] for c in sw_coords]
-            min_x, max_x = min(sw_xs), max(sw_xs)
-
-            # Check if footpath end x-coordinate is at the outer edge of sidewalk
-            # The outer edge is the one further from street center
-            # For left sidewalk: outer edge = max_x
-            # For right sidewalk: outer edge = min_x
-            if sw["properties"]["side"] == "left":
-                outer_edge_x = max_x
-            else:
-                outer_edge_x = min_x
-
-            # Footpath should end at the outer edge (within tolerance)
-            if abs(fp_end[0] - outer_edge_x) < 0.0001:
-                matched_sidewalk = True
-                break
-
+    # All tiers should share the same center (within tolerance)
+    for i, (cx, cy) in enumerate(centers[1:], 1):
         assert (
-            matched_sidewalk
-        ), f"Footpath endpoint x={fp_end[0]} should match sidewalk outer edge"
+            abs(cx - centers[0][0]) < 0.0001
+        ), f"Tier {i} center x={cx} differs from tier 0 center x={centers[0][0]}"
+        assert (
+            abs(cy - centers[0][1]) < 0.0001
+        ), f"Tier {i} center y={cy} differs from tier 0 center y={centers[0][1]}"
+
+
+def test_layout_tiered_buildings_have_square_footprint():
+    """Each building tier should have equal width and depth (square footprint)."""
+    # Create a file with multiple tiers
+    metrics = {"src/main.py": make_file_metrics("src/main.py", loc=150, avg_len=40.0)}
+    metrics["src/main.py"].line_lengths = [40] * 150
+
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
+    ]
+
+    main_buildings = [b for b in buildings if b["properties"]["path"] == "src/main.py"]
+
+    for building in main_buildings:
+        coords = building["geometry"]["coordinates"][0]
+        xs = [c[0] for c in coords[:-1]]
+        ys = [c[1] for c in coords[:-1]]
+
+        width = max(xs) - min(xs)
+        depth = max(ys) - min(ys)
+
+        # Width and depth should be equal (square footprint)
+        assert abs(width - depth) < 0.0001, (
+            f"Tier {building['properties']['tier']} not square: "
+            f"width={width}, depth={depth}"
+        )
 
 
 def test_calculate_num_tiers():

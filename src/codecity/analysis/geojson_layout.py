@@ -15,10 +15,8 @@ from typing import Any
 
 from codecity.analysis.geojson_models import (
     BuildingFeature,
-    FootpathFeature,
     GeoCoord,
     GrassFeature,
-    SidewalkFeature,
     StreetFeature,
 )
 from codecity.analysis.models import FileMetrics
@@ -26,10 +24,9 @@ from codecity.analysis.models import FileMetrics
 # Layout constants
 STREET_WIDTH = 6  # Narrower streets (was 10)
 BUILDING_GAP = 1  # Tighter building spacing (was 3)
-BUILDING_DEPTH = 6  # Smaller building footprints (was 8)
-MIN_BUILDING_WIDTH = 3  # Minimum building width (was 4)
-MAX_BUILDING_WIDTH = 10  # Maximum building width (was 15)
-SIDEWALK_WIDTH = 1  # Thinner sidewalks (was 2)
+MIN_BUILDING_WIDTH = 4  # Minimum tier size (matches 1-story height ~10/3)
+MAX_BUILDING_WIDTH = 12  # Maximum tier size
+SIDEWALK_WIDTH = 0  # No sidewalks - buildings directly beside streets
 STREET_BUILDING_CLEARANCE = 0
 
 
@@ -174,12 +171,11 @@ class GeoJSONLayoutEngine:
     - Top-level folders branch off perpendicular to the main street
     - Each subfolder continues this pattern recursively
     - Collision detection ensures no overlapping elements
+    - Buildings sit directly beside streets (no sidewalks)
     """
 
     streets: list[StreetFeature] = field(default_factory=list)
     buildings: list[BuildingFeature] = field(default_factory=list)
-    sidewalks: list[SidewalkFeature] = field(default_factory=list)
-    footpaths: list[FootpathFeature] = field(default_factory=list)
     grass: GrassFeature | None = field(default=None)
     _occupied_boxes: list[BoundingBox] = field(default_factory=list)
     _street_set: set[str] = field(default_factory=set)
@@ -191,8 +187,6 @@ class GeoJSONLayoutEngine:
         """Generate GeoJSON FeatureCollection from file metrics."""
         self.streets = []
         self.buildings = []
-        self.sidewalks = []
-        self.footpaths = []
         self.grass = None
         self._occupied_boxes = []
         self._street_set = set()
@@ -389,23 +383,17 @@ class GeoJSONLayoutEngine:
         This is the distance from parent street center to child street center.
         It must account for:
         - Half of parent street width
-        - Parent street's sidewalk
-        - Parent street's buildings (full depth, since they sit next to sidewalk)
+        - Parent street's buildings (max width since tiers are centered)
         - Gap between parent buildings and child buildings
-        - Child street's buildings (full depth)
-        - Child street's sidewalk
+        - Child street's buildings (max width)
         - Half of child street width
-
-        This formula works correctly even when STREET_BUILDING_CLEARANCE = 0.
         """
         return (
             STREET_WIDTH / 2  # Half of parent street
-            + SIDEWALK_WIDTH  # Parent sidewalk
-            + BUILDING_DEPTH  # Parent street building
+            + MAX_BUILDING_WIDTH  # Parent street building (max tier width)
             + BUILDING_GAP  # Gap between building rows
             + STREET_BUILDING_CLEARANCE  # Optional extra clearance
-            + BUILDING_DEPTH  # Child street building (extends back toward parent)
-            + SIDEWALK_WIDTH  # Child sidewalk
+            + MAX_BUILDING_WIDTH  # Child street building
             + STREET_WIDTH / 2  # Half of child street
         )
 
@@ -615,7 +603,9 @@ class GeoJSONLayoutEngine:
         """Place buildings along both sides of a street, returning end position.
 
         Large files produce multiple building tiers, each with potentially
-        different widths based on the average line length of that section.
+        different sizes based on the average line length of that section.
+        All tiers are centered around the building center point.
+        Each tier has equal width and depth (square footprint).
         """
         current_offset = start_offset
 
@@ -629,75 +619,58 @@ class GeoJSONLayoutEngine:
             # Get line_lengths from metrics (may not exist on older data)
             line_lengths = getattr(metrics, "line_lengths", [])
 
-            # Calculate width for each tier based on line lengths in that section
-            tier_widths = calculate_tier_widths(line_lengths, num_tiers)
+            # Calculate size for each tier based on line lengths in that section
+            # Each tier has equal width and depth (square footprint)
+            tier_sizes = calculate_tier_widths(line_lengths, num_tiers)
 
-            # If tier_widths doesn't have enough entries, pad with default width
-            default_width = min(
+            # If tier_sizes doesn't have enough entries, pad with default size
+            default_size = min(
                 max(metrics.avg_line_length / 3, MIN_BUILDING_WIDTH),
                 MAX_BUILDING_WIDTH,
             )
-            while len(tier_widths) < num_tiers:
-                tier_widths.append(default_width)
+            while len(tier_sizes) < num_tiers:
+                tier_sizes.append(default_size)
 
             # Calculate total height using interpolation
             total_height = interpolate_height(metrics.lines_of_code)
             tier_height = total_height / num_tiers
 
-            # Building sits directly next to the sidewalk
-            # Offset from street center = half street + sidewalk + optional clearance + half building
-            building_offset = (
-                STREET_WIDTH / 2
-                + SIDEWALK_WIDTH
-                + STREET_BUILDING_CLEARANCE
-                + BUILDING_DEPTH / 2
-            )
+            # Buildings sit directly next to the street (no sidewalk)
+            # Building center offset from street center = half street + half max building
+            building_center_offset = STREET_WIDTH / 2 + MAX_BUILDING_WIDTH / 2
 
-            # Calculate base position for the building
+            # Calculate building center position
             if direction == "horizontal":
-                base_x = street_start.x + position_along
-                base_y = street_start.y + side * building_offset
+                center_x = street_start.x + position_along + MAX_BUILDING_WIDTH / 2
+                center_y = street_start.y + side * building_center_offset
             else:
-                base_x = street_start.x + side * building_offset
-                base_y = street_start.y + position_along
+                center_x = street_start.x + side * building_center_offset
+                center_y = street_start.y + position_along + MAX_BUILDING_WIDTH / 2
 
-            # Create a BuildingFeature for each tier
+            # Create a BuildingFeature for each tier (centered, square footprint)
             for tier_idx in range(num_tiers):
-                tier_width = tier_widths[tier_idx]
+                tier_size = tier_sizes[tier_idx]  # Same for width and depth
+                half_size = tier_size / 2
                 base_height = tier_idx * tier_height
                 top_height = (tier_idx + 1) * tier_height
 
-                if direction == "horizontal":
-                    corners = [
-                        GeoCoord(base_x, base_y - BUILDING_DEPTH / 2),
-                        GeoCoord(base_x + tier_width, base_y - BUILDING_DEPTH / 2),
-                        GeoCoord(base_x + tier_width, base_y + BUILDING_DEPTH / 2),
-                        GeoCoord(base_x, base_y + BUILDING_DEPTH / 2),
-                    ]
-                else:
-                    corners = [
-                        GeoCoord(base_x - BUILDING_DEPTH / 2, base_y),
-                        GeoCoord(base_x + BUILDING_DEPTH / 2, base_y),
-                        GeoCoord(base_x + BUILDING_DEPTH / 2, base_y + tier_width),
-                        GeoCoord(base_x - BUILDING_DEPTH / 2, base_y + tier_width),
-                    ]
+                # All tiers centered around the building center
+                corners = [
+                    GeoCoord(center_x - half_size, center_y - half_size),
+                    GeoCoord(center_x + half_size, center_y - half_size),
+                    GeoCoord(center_x + half_size, center_y + half_size),
+                    GeoCoord(center_x - half_size, center_y + half_size),
+                ]
 
                 # Only register collision box for ground tier (tier_idx == 0)
+                # Use max building width for collision to prevent overlaps
                 if tier_idx == 0:
-                    if direction == "horizontal":
-                        box = BoundingBox(
-                            base_x,
-                            base_y - BUILDING_DEPTH / 2,
-                            base_x + tier_width,
-                            base_y + BUILDING_DEPTH / 2,
-                        )
-                    else:
-                        box = BoundingBox(
-                            base_x - BUILDING_DEPTH / 2,
-                            base_y,
-                            base_x + BUILDING_DEPTH / 2,
-                            base_y + tier_width,
-                        )
+                    box = BoundingBox(
+                        center_x - MAX_BUILDING_WIDTH / 2,
+                        center_y - MAX_BUILDING_WIDTH / 2,
+                        center_x + MAX_BUILDING_WIDTH / 2,
+                        center_y + MAX_BUILDING_WIDTH / 2,
+                    )
                     self._occupied_boxes.append(box)
 
                 self.buildings.append(
@@ -717,42 +690,7 @@ class GeoJSONLayoutEngine:
                     )
                 )
 
-            # Create footpath from building edge to sidewalk outer edge
-            # Only for ground tier (tier 0)
-            # Use the ground tier width (first tier)
-            ground_width = tier_widths[0]
-
-            # Sidewalk outer edge is where the sidewalk meets the building zone
-            sidewalk_outer_offset = STREET_WIDTH / 2 + SIDEWALK_WIDTH
-            # Building edge closest to sidewalk
-            building_edge_offset = (
-                STREET_WIDTH / 2 + SIDEWALK_WIDTH + STREET_BUILDING_CLEARANCE
-            )
-
-            if direction == "horizontal":
-                # Building edge (closest to street)
-                building_edge = GeoCoord(
-                    base_x + ground_width / 2,
-                    street_start.y + side * building_edge_offset,
-                )
-                # Sidewalk outer edge point
-                sidewalk_point = GeoCoord(
-                    base_x + ground_width / 2,
-                    street_start.y + side * sidewalk_outer_offset,
-                )
-            else:
-                building_edge = GeoCoord(
-                    street_start.x + side * building_edge_offset,
-                    base_y + ground_width / 2,
-                )
-                sidewalk_point = GeoCoord(
-                    street_start.x + side * sidewalk_outer_offset,
-                    base_y + ground_width / 2,
-                )
-
-            self._create_footpath(path, building_edge, sidewalk_point, side, direction)
-
-            current_offset = max(current_offset, position_along + ground_width)
+            current_offset = max(current_offset, position_along + MAX_BUILDING_WIDTH)
 
         return current_offset
 
@@ -766,129 +704,11 @@ class GeoJSONLayoutEngine:
     ) -> None:
         """Create sidewalk polygons on both sides of the street.
 
-        Args:
-            street_path: The path identifier for this street
-            start: Starting point of the street
-            end: Ending point of the street
-            direction: "horizontal" or "vertical"
-            extend_to: Optional point to extend sidewalks toward (e.g., connector start)
+        Note: Currently disabled (SIDEWALK_WIDTH = 0) - buildings sit directly
+        beside streets without sidewalks.
         """
-        inner_offset = STREET_WIDTH / 2
-        outer_offset = STREET_WIDTH / 2 + SIDEWALK_WIDTH
-
-        # Determine actual start position - extend toward connector if provided
-        actual_start = start
-        if extend_to is not None:
-            if direction == "horizontal":
-                actual_start = GeoCoord(extend_to.x, start.y)
-            else:
-                actual_start = GeoCoord(start.x, extend_to.y)
-
-        if direction == "horizontal":
-            # Left sidewalk (positive y side)
-            left_corners = [
-                GeoCoord(actual_start.x, actual_start.y + inner_offset),
-                GeoCoord(end.x, end.y + inner_offset),
-                GeoCoord(end.x, end.y + outer_offset),
-                GeoCoord(actual_start.x, actual_start.y + outer_offset),
-            ]
-            # Right sidewalk (negative y side)
-            right_corners = [
-                GeoCoord(actual_start.x, actual_start.y - inner_offset),
-                GeoCoord(end.x, end.y - inner_offset),
-                GeoCoord(end.x, end.y - outer_offset),
-                GeoCoord(actual_start.x, actual_start.y - outer_offset),
-            ]
-        else:  # vertical
-            # Left sidewalk (positive x side)
-            left_corners = [
-                GeoCoord(actual_start.x + inner_offset, actual_start.y),
-                GeoCoord(end.x + inner_offset, end.y),
-                GeoCoord(end.x + outer_offset, end.y),
-                GeoCoord(actual_start.x + outer_offset, actual_start.y),
-            ]
-            # Right sidewalk (negative x side)
-            right_corners = [
-                GeoCoord(actual_start.x - inner_offset, actual_start.y),
-                GeoCoord(end.x - inner_offset, end.y),
-                GeoCoord(end.x - outer_offset, end.y),
-                GeoCoord(actual_start.x - outer_offset, actual_start.y),
-            ]
-
-        self.sidewalks.append(
-            SidewalkFeature(
-                street_path=street_path,
-                side="left",
-                corners=left_corners,
-            )
-        )
-        self.sidewalks.append(
-            SidewalkFeature(
-                street_path=street_path,
-                side="right",
-                corners=right_corners,
-            )
-        )
-
-    def _create_footpath(
-        self,
-        building_path: str,
-        building_edge: GeoCoord,
-        sidewalk_point: GeoCoord,
-        side: int,
-        direction: str,
-    ) -> None:
-        """Create a curved footpath from building edge to sidewalk.
-
-        Uses quadratic bezier interpolation with more points for a smooth curve.
-        """
-        # Calculate control point for gentle S-curve
-        if direction == "horizontal":
-            # Curve slightly to the side for visual interest
-            mid_y = (building_edge.y + sidewalk_point.y) / 2
-            ctrl1_x = building_edge.x - side * 0.5
-            ctrl1_y = building_edge.y - side * (building_edge.y - mid_y) * 0.3
-            ctrl2_x = sidewalk_point.x + side * 0.5
-            ctrl2_y = sidewalk_point.y + side * (mid_y - sidewalk_point.y) * 0.3
-        else:
-            mid_x = (building_edge.x + sidewalk_point.x) / 2
-            ctrl1_x = building_edge.x - side * (building_edge.x - mid_x) * 0.3
-            ctrl1_y = building_edge.y - side * 0.5
-            ctrl2_x = sidewalk_point.x + side * (mid_x - sidewalk_point.x) * 0.3
-            ctrl2_y = sidewalk_point.y + side * 0.5
-
-        # Generate smooth curve with multiple points (cubic bezier approximation)
-        points = []
-        num_points = 8  # More points for smoother curve
-        for t in range(num_points + 1):
-            t_norm = t / num_points
-            # Cubic bezier interpolation
-            t2 = t_norm * t_norm
-            t3 = t2 * t_norm
-            mt = 1 - t_norm
-            mt2 = mt * mt
-            mt3 = mt2 * mt
-
-            x = (
-                mt3 * building_edge.x
-                + 3 * mt2 * t_norm * ctrl1_x
-                + 3 * mt * t2 * ctrl2_x
-                + t3 * sidewalk_point.x
-            )
-            y = (
-                mt3 * building_edge.y
-                + 3 * mt2 * t_norm * ctrl1_y
-                + 3 * mt * t2 * ctrl2_y
-                + t3 * sidewalk_point.y
-            )
-            points.append(GeoCoord(x, y))
-
-        self.footpaths.append(
-            FootpathFeature(
-                building_path=building_path,
-                points=points,
-            )
-        )
+        # Sidewalks disabled - buildings directly beside streets
+        pass
 
     def _create_grass_area(self) -> None:
         """Create grass polygon covering the city bounds with margin."""
@@ -953,20 +773,6 @@ class GeoJSONLayoutEngine:
                 max_x = max(max_x, coord.x)
                 max_y = max(max_y, coord.y)
 
-        for sidewalk in self.sidewalks:
-            for coord in sidewalk.corners:
-                min_x = min(min_x, coord.x)
-                min_y = min(min_y, coord.y)
-                max_x = max(max_x, coord.x)
-                max_y = max(max_y, coord.y)
-
-        for footpath in self.footpaths:
-            for coord in footpath.points:
-                min_x = min(min_x, coord.x)
-                min_y = min(min_y, coord.y)
-                max_x = max(max_x, coord.x)
-                max_y = max(max_y, coord.y)
-
         # Handle empty case
         if min_x == float("inf"):
             min_x, min_y, max_x, max_y = 0, 0, 1, 1
@@ -996,12 +802,6 @@ class GeoJSONLayoutEngine:
         for building in self.buildings:
             building.corners = [normalize_coord(c) for c in building.corners]
 
-        for sidewalk in self.sidewalks:
-            sidewalk.corners = [normalize_coord(c) for c in sidewalk.corners]
-
-        for footpath in self.footpaths:
-            footpath.points = [normalize_coord(p) for p in footpath.points]
-
         # Normalize grass bounds
         if self.grass:
             self.grass.bounds = [normalize_coord(c) for c in self.grass.bounds]
@@ -1012,8 +812,6 @@ class GeoJSONLayoutEngine:
             features.append(self.grass.to_geojson())
         features.extend(s.to_geojson() for s in self.streets)
         features.extend(b.to_geojson() for b in self.buildings)
-        features.extend(s.to_geojson() for s in self.sidewalks)
-        features.extend(f.to_geojson() for f in self.footpaths)
 
         return {
             "type": "FeatureCollection",

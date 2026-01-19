@@ -130,29 +130,24 @@ describe('CityMap', () => {
             expect(buildingLayer[0].paint['fill-extrusion-height']).toBeDefined();
         });
 
-        it('adds sidewalks as fill layer', async () => {
+        it('does not add sidewalks layer (buildings directly beside streets)', async () => {
             const cityMap = new CityMap(mockContainer);
             await cityMap.init('/api/city.geojson');
 
             const addLayerCalls = cityMap.map.addLayer.mock.calls;
             const sidewalksLayer = addLayerCalls.find(call => call[0].id === 'sidewalks');
 
-            expect(sidewalksLayer).toBeDefined();
-            expect(sidewalksLayer[0].type).toBe('fill');
-            expect(sidewalksLayer[0].filter).toEqual(['==', ['get', 'layer'], 'sidewalks']);
-            expect(sidewalksLayer[0].paint['fill-color']).toBeDefined();
+            expect(sidewalksLayer).toBeUndefined();
         });
 
-        it('adds footpaths layer', async () => {
+        it('does not add footpaths layer (buildings directly beside streets)', async () => {
             const cityMap = new CityMap(mockContainer);
             await cityMap.init('/api/city.geojson');
 
             const addLayerCalls = cityMap.map.addLayer.mock.calls;
             const footpathsLayer = addLayerCalls.find(call => call[0].id === 'footpaths');
 
-            expect(footpathsLayer).toBeDefined();
-            expect(footpathsLayer[0].type).toBe('line');
-            expect(footpathsLayer[0].filter).toEqual(['==', ['get', 'layer'], 'footpaths']);
+            expect(footpathsLayer).toBeUndefined();
         });
 
         it('should use base_height and top_height from properties', async () => {
