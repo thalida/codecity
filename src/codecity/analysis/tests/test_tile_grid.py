@@ -340,3 +340,70 @@ def test_tile_grid_layout_engine_layout_returns_geojson():
 
     assert result["type"] == "FeatureCollection"
     assert "features" in result
+
+
+def test_tile_grid_layout_creates_main_street():
+    from datetime import datetime, timezone
+
+    from codecity.analysis.models import FileMetrics
+    from codecity.analysis.tile_grid import TileGridLayoutEngine
+
+    metrics = {
+        "src/main.py": FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[40] * 100,
+        )
+    }
+
+    engine = TileGridLayoutEngine()
+    result = engine.layout(metrics, root_name="myproject")
+
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+    main_street = next(
+        (s for s in streets if s["properties"]["name"] == "myproject"), None
+    )
+
+    assert main_street is not None
+    assert main_street["geometry"]["type"] == "LineString"
+
+
+def test_tile_grid_layout_creates_folder_streets():
+    from datetime import datetime, timezone
+
+    from codecity.analysis.models import FileMetrics
+    from codecity.analysis.tile_grid import TileGridLayoutEngine
+
+    metrics = {
+        "src/main.py": FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[40] * 100,
+        ),
+        "lib/utils.py": FileMetrics(
+            path="lib/utils.py",
+            lines_of_code=50,
+            avg_line_length=35.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[35] * 50,
+        ),
+    }
+
+    engine = TileGridLayoutEngine()
+    result = engine.layout(metrics)
+
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+    street_names = [s["properties"]["name"] for s in streets]
+
+    assert "src" in street_names
+    assert "lib" in street_names
