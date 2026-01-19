@@ -75,6 +75,9 @@ class BuildingFeature:
     created_at: str
     last_modified: str
     corners: list[GeoCoord]
+    tier: int = 0
+    base_height: float = 0.0
+    top_height: float = 0.0
 
     def to_geojson(self) -> dict:
         # Close the polygon (first coord repeated at end)
@@ -97,6 +100,9 @@ class BuildingFeature:
                 "avg_line_length": self.avg_line_length,
                 "created_at": self.created_at,
                 "last_modified": self.last_modified,
+                "tier": self.tier,
+                "base_height": self.base_height,
+                "top_height": self.top_height,
                 "layer": "buildings",
             },
         }

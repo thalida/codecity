@@ -168,3 +168,31 @@ def test_grass_feature_to_geojson():
     assert len(coords) == 5  # 4 corners + closing
     assert coords[0] == coords[-1]  # Closed polygon
     assert geojson["properties"]["layer"] == "grass"
+
+
+def test_building_feature_with_tier_properties():
+    """Building should include tier, base_height, and top_height."""
+    building = BuildingFeature(
+        path="src/main.py",
+        name="main.py",
+        street="src",
+        language="python",
+        lines_of_code=150,
+        avg_line_length=40.5,
+        created_at="2024-01-15T10:00:00Z",
+        last_modified="2026-01-10T15:30:00Z",
+        corners=[
+            GeoCoord(10, 5),
+            GeoCoord(18, 5),
+            GeoCoord(18, 13),
+            GeoCoord(10, 13),
+        ],
+        tier=1,
+        base_height=25.0,
+        top_height=50.0,
+    )
+    geojson = building.to_geojson()
+
+    assert geojson["properties"]["tier"] == 1
+    assert geojson["properties"]["base_height"] == 25.0
+    assert geojson["properties"]["top_height"] == 50.0
