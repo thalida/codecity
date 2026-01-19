@@ -618,7 +618,7 @@ class GeoJSONLayoutEngine:
         direction: str,
         extend_to: GeoCoord | None = None,
     ) -> None:
-        """Create sidewalks directly beside the road (at the edge of the street).
+        """Create sidewalk polygons on both sides of the street.
 
         Args:
             street_path: The path identifier for this street
@@ -627,44 +627,60 @@ class GeoJSONLayoutEngine:
             direction: "horizontal" or "vertical"
             extend_to: Optional point to extend sidewalks toward (e.g., connector start)
         """
-        # Sidewalk is at the edge of the street (half width from center)
-        offset = STREET_WIDTH / 2
+        inner_offset = STREET_WIDTH / 2
+        outer_offset = STREET_WIDTH / 2 + SIDEWALK_WIDTH
 
         # Determine actual start position - extend toward connector if provided
         actual_start = start
         if extend_to is not None:
             if direction == "horizontal":
-                # Extend horizontally toward extend_to.x
                 actual_start = GeoCoord(extend_to.x, start.y)
             else:
-                # Extend vertically toward extend_to.y
                 actual_start = GeoCoord(start.x, extend_to.y)
 
         if direction == "horizontal":
-            left_start = GeoCoord(actual_start.x, actual_start.y + offset)
-            left_end = GeoCoord(end.x, end.y + offset)
-            right_start = GeoCoord(actual_start.x, actual_start.y - offset)
-            right_end = GeoCoord(end.x, end.y - offset)
-        else:
-            left_start = GeoCoord(actual_start.x + offset, actual_start.y)
-            left_end = GeoCoord(end.x + offset, end.y)
-            right_start = GeoCoord(actual_start.x - offset, actual_start.y)
-            right_end = GeoCoord(end.x - offset, end.y)
+            # Left sidewalk (positive y side)
+            left_corners = [
+                GeoCoord(actual_start.x, actual_start.y + inner_offset),
+                GeoCoord(end.x, end.y + inner_offset),
+                GeoCoord(end.x, end.y + outer_offset),
+                GeoCoord(actual_start.x, actual_start.y + outer_offset),
+            ]
+            # Right sidewalk (negative y side)
+            right_corners = [
+                GeoCoord(actual_start.x, actual_start.y - inner_offset),
+                GeoCoord(end.x, end.y - inner_offset),
+                GeoCoord(end.x, end.y - outer_offset),
+                GeoCoord(actual_start.x, actual_start.y - outer_offset),
+            ]
+        else:  # vertical
+            # Left sidewalk (positive x side)
+            left_corners = [
+                GeoCoord(actual_start.x + inner_offset, actual_start.y),
+                GeoCoord(end.x + inner_offset, end.y),
+                GeoCoord(end.x + outer_offset, end.y),
+                GeoCoord(actual_start.x + outer_offset, actual_start.y),
+            ]
+            # Right sidewalk (negative x side)
+            right_corners = [
+                GeoCoord(actual_start.x - inner_offset, actual_start.y),
+                GeoCoord(end.x - inner_offset, end.y),
+                GeoCoord(end.x - outer_offset, end.y),
+                GeoCoord(actual_start.x - outer_offset, actual_start.y),
+            ]
 
         self.sidewalks.append(
             SidewalkFeature(
                 street_path=street_path,
                 side="left",
-                start=left_start,
-                end=left_end,
+                corners=left_corners,
             )
         )
         self.sidewalks.append(
             SidewalkFeature(
                 street_path=street_path,
                 side="right",
-                start=right_start,
-                end=right_end,
+                corners=right_corners,
             )
         )
 
@@ -792,7 +808,7 @@ class GeoJSONLayoutEngine:
                 max_y = max(max_y, coord.y)
 
         for sidewalk in self.sidewalks:
-            for coord in [sidewalk.start, sidewalk.end]:
+            for coord in sidewalk.corners:
                 min_x = min(min_x, coord.x)
                 min_y = min(min_y, coord.y)
                 max_x = max(max_x, coord.x)
@@ -835,8 +851,7 @@ class GeoJSONLayoutEngine:
             building.corners = [normalize_coord(c) for c in building.corners]
 
         for sidewalk in self.sidewalks:
-            sidewalk.start = normalize_coord(sidewalk.start)
-            sidewalk.end = normalize_coord(sidewalk.end)
+            sidewalk.corners = [normalize_coord(c) for c in sidewalk.corners]
 
         for footpath in self.footpaths:
             footpath.points = [normalize_coord(p) for p in footpath.points]

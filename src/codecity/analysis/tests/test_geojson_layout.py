@@ -216,6 +216,26 @@ def test_layout_creates_sidewalks_for_streets():
     assert sides == {"left", "right"}
 
 
+def test_layout_sidewalks_are_polygons():
+    """Sidewalks should be rendered as filled polygons, not lines."""
+    metrics = {"src/main.py": make_file_metrics("src/main.py")}
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    sidewalks = [
+        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
+    ]
+    assert len(sidewalks) >= 2  # At least left and right for one street
+
+    for sw in sidewalks:
+        assert (
+            sw["geometry"]["type"] == "Polygon"
+        ), f"Sidewalk should be Polygon, got {sw['geometry']['type']}"
+        coords = sw["geometry"]["coordinates"][0]
+        assert len(coords) == 5, "Polygon should have 4 corners + closing point"
+        assert coords[0] == coords[-1], "Polygon should be closed"
+
+
 def test_layout_creates_footpath_for_each_building():
     metrics = {
         "src/main.py": make_file_metrics("src/main.py"),
@@ -347,7 +367,6 @@ def test_layout_sidewalks_extend_to_parent_street():
     engine = GeoJSONLayoutEngine()
     result = engine.layout(metrics, root_name="project")
 
-    # Find the api street and its sidewalks
     streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
     sidewalks = [
         f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
@@ -362,23 +381,15 @@ def test_layout_sidewalks_extend_to_parent_street():
 
     assert src_api_connector is not None, "Connector street should exist"
 
-    # The connector runs from parent street to child street origin
-    # Sidewalks should extend back to the connector start (on the parent street side)
     connector_start = src_api_connector["geometry"]["coordinates"][0]
 
-    # For a horizontal child street (api), sidewalks run parallel to the street
-    # The connector is vertical (perpendicular to parent)
-    # Sidewalks should extend from connector_start.x, not connector_end.x
+    # For polygon sidewalks, check that corners extend to connector
     for sw in api_sidewalks:
-        sw_coords = sw["geometry"]["coordinates"]
-        sw_xs = [c[0] for c in sw_coords]
-
-        # The sidewalk should extend toward the connector start
-        # (which has smaller x value than connector end in this case)
+        coords = sw["geometry"]["coordinates"][0]
+        sw_xs = [c[0] for c in coords]
         min_sw_x = min(sw_xs)
         connector_start_x = connector_start[0]
 
-        # Sidewalk should reach the connector start point (with tolerance for floating point)
         assert min_sw_x <= connector_start_x + 0.0001, (
             f"Sidewalk should extend to connector start. "
             f"Sidewalk min x: {min_sw_x}, connector start x: {connector_start_x}"
