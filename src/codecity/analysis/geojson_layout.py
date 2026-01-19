@@ -17,6 +17,7 @@ from codecity.analysis.geojson_models import (
     BuildingFeature,
     FootpathFeature,
     GeoCoord,
+    GrassFeature,
     SidewalkFeature,
     StreetFeature,
 )
@@ -83,6 +84,7 @@ class GeoJSONLayoutEngine:
     buildings: list[BuildingFeature] = field(default_factory=list)
     sidewalks: list[SidewalkFeature] = field(default_factory=list)
     footpaths: list[FootpathFeature] = field(default_factory=list)
+    grass: GrassFeature | None = field(default=None)
     _occupied_boxes: list[BoundingBox] = field(default_factory=list)
     _street_set: set[str] = field(default_factory=set)
     _root_name: str = field(default="root")
@@ -95,6 +97,7 @@ class GeoJSONLayoutEngine:
         self.buildings = []
         self.sidewalks = []
         self.footpaths = []
+        self.grass = None
         self._occupied_boxes = []
         self._street_set = set()
         self._root_name = root_name
@@ -111,6 +114,9 @@ class GeoJSONLayoutEngine:
 
         # Create main street for the root
         self._create_main_street(tree, file_metrics, root_files)
+
+        # Create grass area covering the city
+        self._create_grass_area()
 
         return self._to_geojson()
 
@@ -677,6 +683,40 @@ class GeoJSONLayoutEngine:
             )
         )
 
+    def _create_grass_area(self) -> None:
+        """Create grass polygon covering the city bounds with margin."""
+        if not self.streets and not self.buildings:
+            return
+
+        # Find bounds
+        min_x, min_y = float("inf"), float("inf")
+        max_x, max_y = float("-inf"), float("-inf")
+
+        for street in self.streets:
+            for coord in [street.start, street.end]:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
+        for building in self.buildings:
+            for coord in building.corners:
+                min_x = min(min_x, coord.x)
+                min_y = min(min_y, coord.y)
+                max_x = max(max_x, coord.x)
+                max_y = max(max_y, coord.y)
+
+        # Add margin
+        margin = 10
+        self.grass = GrassFeature(
+            bounds=[
+                GeoCoord(min_x - margin, min_y - margin),
+                GeoCoord(max_x + margin, min_y - margin),
+                GeoCoord(max_x + margin, max_y + margin),
+                GeoCoord(min_x - margin, max_y + margin),
+            ]
+        )
+
     def _parent_folder(self, path: str) -> str:
         """Get parent folder path."""
         parts = PurePosixPath(path).parts
@@ -756,8 +796,14 @@ class GeoJSONLayoutEngine:
         for footpath in self.footpaths:
             footpath.points = [normalize_coord(p) for p in footpath.points]
 
+        # Normalize grass bounds
+        if self.grass:
+            self.grass.bounds = [normalize_coord(c) for c in self.grass.bounds]
+
         # Now generate the GeoJSON
         features: list[dict[str, Any]] = []
+        if self.grass:
+            features.append(self.grass.to_geojson())
         features.extend(s.to_geojson() for s in self.streets)
         features.extend(b.to_geojson() for b in self.buildings)
         features.extend(s.to_geojson() for s in self.sidewalks)

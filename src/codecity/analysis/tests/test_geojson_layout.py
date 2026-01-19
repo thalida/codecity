@@ -239,6 +239,19 @@ def test_layout_creates_footpath_for_each_building():
         assert len(coords) >= 3, "Footpath should have at least 3 points for curve"
 
 
+def test_layout_creates_grass_area():
+    metrics = {"src/main.py": make_file_metrics("src/main.py")}
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    grass = [f for f in result["features"] if f["properties"]["layer"] == "grass"]
+    assert len(grass) == 1
+    assert grass[0]["geometry"]["type"] == "Polygon"
+    # Grass should cover the bounds
+    coords = grass[0]["geometry"]["coordinates"][0]
+    assert len(coords) == 5  # Closed polygon
+
+
 def test_layout_deep_nesting_no_overlaps():
     """Test that deeply nested folder structures have no overlapping elements."""
     # Simulate a realistic project structure with multiple levels
