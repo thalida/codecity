@@ -33,6 +33,77 @@ SIDEWALK_WIDTH = 1  # Thinner sidewalks (was 2)
 STREET_BUILDING_CLEARANCE = 0
 
 
+def calculate_num_tiers(lines_of_code: int) -> int:
+    """Calculate number of building tiers based on lines of code.
+
+    Tier count corresponds to visual building height/stories:
+    - 1-50 LOC: 1 tier
+    - 51-100 LOC: 2 tiers
+    - 101-200 LOC: 3 tiers
+    - 201-400 LOC: 4 tiers
+    - 401-700 LOC: 5 tiers
+    - 701-1000 LOC: 6 tiers
+    - 1001-1500 LOC: 7 tiers
+    - 1501-2500 LOC: 8 tiers
+    - 2501-4000 LOC: 9 tiers
+    - 4001+ LOC: 10 tiers (max)
+    """
+    if lines_of_code <= 50:
+        return 1
+    elif lines_of_code <= 100:
+        return 2
+    elif lines_of_code <= 200:
+        return 3
+    elif lines_of_code <= 400:
+        return 4
+    elif lines_of_code <= 700:
+        return 5
+    elif lines_of_code <= 1000:
+        return 6
+    elif lines_of_code <= 1500:
+        return 7
+    elif lines_of_code <= 2500:
+        return 8
+    elif lines_of_code <= 4000:
+        return 9
+    else:
+        return 10
+
+
+def calculate_tier_widths(line_lengths: list[int], num_tiers: int) -> list[float]:
+    """Calculate width for each tier based on avg line length of that section.
+
+    Args:
+        line_lengths: Length of each line in the file
+        num_tiers: Number of tiers to divide the file into
+
+    Returns:
+        List of widths for each tier (bottom to top)
+    """
+    if not line_lengths or num_tiers <= 0:
+        return [MIN_BUILDING_WIDTH]
+
+    total_lines = len(line_lengths)
+    chunk_size = total_lines // num_tiers
+
+    widths = []
+    for i in range(num_tiers):
+        start_idx = i * chunk_size
+        # Last tier gets remaining lines
+        end_idx = (i + 1) * chunk_size if i < num_tiers - 1 else total_lines
+        chunk = line_lengths[start_idx:end_idx]
+
+        if chunk:
+            avg_length = sum(chunk) / len(chunk)
+        else:
+            avg_length = 0
+
+        width = min(max(avg_length / 3, MIN_BUILDING_WIDTH), MAX_BUILDING_WIDTH)
+        widths.append(width)
+
+    return widths
+
+
 @dataclass
 class BoundingBox:
     """Axis-aligned bounding box for collision detection."""

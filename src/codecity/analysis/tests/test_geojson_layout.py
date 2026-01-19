@@ -1,7 +1,13 @@
 # src/codecity/analysis/tests/test_geojson_layout.py
 from datetime import datetime, timezone
 
-from codecity.analysis.geojson_layout import GeoJSONLayoutEngine
+from codecity.analysis.geojson_layout import (
+    MAX_BUILDING_WIDTH,
+    MIN_BUILDING_WIDTH,
+    GeoJSONLayoutEngine,
+    calculate_num_tiers,
+    calculate_tier_widths,
+)
 from codecity.analysis.models import FileMetrics
 
 
@@ -531,3 +537,42 @@ def test_layout_footpath_connects_building_to_sidewalk():
         assert (
             matched_sidewalk
         ), f"Footpath endpoint x={fp_end[0]} should match sidewalk outer edge"
+
+
+def test_calculate_num_tiers():
+    """Number of tiers based on lines of code."""
+    assert calculate_num_tiers(10) == 1  # Small file
+    assert calculate_num_tiers(50) == 1  # Still 1 tier
+    assert calculate_num_tiers(51) == 2  # 2 tiers
+    assert calculate_num_tiers(100) == 2
+    assert calculate_num_tiers(101) == 3
+    assert calculate_num_tiers(200) == 3
+    assert calculate_num_tiers(201) == 4
+    assert calculate_num_tiers(400) == 4
+    assert calculate_num_tiers(401) == 5
+    assert calculate_num_tiers(4001) == 10  # Max tiers
+
+
+def test_calculate_tier_widths():
+    """Tier widths based on line lengths in each section."""
+    # 6 lines, 2 tiers: first 3 lines, last 3 lines
+    line_lengths = [30, 30, 30, 60, 60, 60]  # avg 30 first tier, avg 60 second
+    widths = calculate_tier_widths(line_lengths, 2)
+
+    assert len(widths) == 2
+    # Width = avg_line_length / 3, clamped to min/max
+    assert widths[0] == max(MIN_BUILDING_WIDTH, min(30 / 3, MAX_BUILDING_WIDTH))
+    assert widths[1] == max(MIN_BUILDING_WIDTH, min(60 / 3, MAX_BUILDING_WIDTH))
+
+
+def test_calculate_tier_widths_clamped():
+    """Tier widths should be clamped to MIN and MAX."""
+    # Very short lines
+    short_lines = [3, 3, 3]
+    widths = calculate_tier_widths(short_lines, 1)
+    assert widths[0] == MIN_BUILDING_WIDTH
+
+    # Very long lines
+    long_lines = [300, 300, 300]
+    widths = calculate_tier_widths(long_lines, 1)
+    assert widths[0] == MAX_BUILDING_WIDTH
