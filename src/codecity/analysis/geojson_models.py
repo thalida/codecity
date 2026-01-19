@@ -104,19 +104,20 @@ class BuildingFeature:
 
 @dataclass
 class SidewalkFeature:
-    """A sidewalk running parallel to a street (LineString)."""
+    """A sidewalk running parallel to a street (Polygon with width)."""
 
     street_path: str
     side: str  # "left" or "right"
-    start: GeoCoord
-    end: GeoCoord
+    corners: list[GeoCoord]  # 4 corners of the polygon
 
     def to_geojson(self) -> dict:
+        coords = [c.to_list() for c in self.corners]
+        coords.append(coords[0])  # Close polygon
         return {
             "type": "Feature",
             "geometry": {
-                "type": "LineString",
-                "coordinates": [self.start.to_list(), self.end.to_list()],
+                "type": "Polygon",
+                "coordinates": [coords],
             },
             "properties": {
                 "street": self.street_path,

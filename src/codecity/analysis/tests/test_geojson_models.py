@@ -110,17 +110,24 @@ def test_building_feature_to_geojson():
 
 
 def test_sidewalk_feature_to_geojson():
+    """Sidewalk is a filled polygon, not a line."""
     sidewalk = SidewalkFeature(
         street_path="src",
         side="left",
-        start=GeoCoord(0, 6),
-        end=GeoCoord(100, 6),
+        corners=[
+            GeoCoord(0, 3),  # inner start (street edge)
+            GeoCoord(100, 3),  # inner end
+            GeoCoord(100, 4),  # outer end
+            GeoCoord(0, 4),  # outer start
+        ],
     )
     geojson = sidewalk.to_geojson()
 
     assert geojson["type"] == "Feature"
-    assert geojson["geometry"]["type"] == "LineString"
-    assert geojson["geometry"]["coordinates"] == [[0, 6], [100, 6]]
+    assert geojson["geometry"]["type"] == "Polygon"
+    coords = geojson["geometry"]["coordinates"][0]
+    assert len(coords) == 5  # 4 corners + closing
+    assert coords[0] == coords[-1]  # Closed polygon
     assert geojson["properties"]["layer"] == "sidewalks"
     assert geojson["properties"]["street"] == "src"
     assert geojson["properties"]["side"] == "left"
