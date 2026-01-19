@@ -82,6 +82,18 @@ export class CityMap {
     }
 
     addLayers() {
+        // Grass background (render first, at bottom)
+        this.map.addLayer({
+            id: 'grass',
+            type: 'fill',
+            source: 'city',
+            filter: ['==', ['get', 'layer'], 'grass'],
+            paint: {
+                'fill-color': '#90EE90',  // Light green
+                'fill-opacity': 0.6,
+            },
+        });
+
         // Streets with traffic-based coloring
         // Primary (high traffic) = yellow/gold, Secondary = white, Tertiary = light gray
         this.map.addLayer({
