@@ -287,7 +287,12 @@ class GeoJSONLayoutEngine:
         file_metrics: dict[str, FileMetrics],
         root_files: list[tuple[str, FileMetrics]],
     ) -> None:
-        """Create the main street and layout all folders branching from it."""
+        """Create the main street and layout all folders branching from it.
+
+        Uses a parallel-lane approach where folders on opposite sides (north/south)
+        share the same x-position along the main street. This creates a more
+        compact, city-like layout.
+        """
         # Calculate space needed for each top-level folder
         folder_spaces: list[tuple[str, float]] = []
         for folder_name in tree.keys():
@@ -296,27 +301,53 @@ class GeoJSONLayoutEngine:
             )
             folder_spaces.append((folder_name, space))
 
-        # Calculate main street length based on folder spacing
-        num_folders = len(folder_spaces)
-        # Minimum slot width accounts for street + buildings on both sides
-        min_slot_width = self._get_perpendicular_offset() * 2
         # Add space for root files
         root_buildings_space = ((len(root_files) + 1) // 2) * (
             MAX_BUILDING_WIDTH + BUILDING_GAP
         )
 
-        # Calculate furthest branch point
-        temp_x: float = root_buildings_space + BUILDING_GAP * 2
-        furthest_branch: float = 0
-        for folder_name, folder_space in folder_spaces:
-            branch_x = temp_x + folder_space / 2
-            furthest_branch = max(furthest_branch, branch_x)
-            temp_x += folder_space + BUILDING_GAP * 2
+        # Group folders into pairs (north, south) that will share x-positions
+        # This creates a more compact layout where opposite-side folders
+        # branch from the same point on the main street
+        north_folders: list[tuple[str, float]] = []  # side = 1 (positive y)
+        south_folders: list[tuple[str, float]] = []  # side = -1 (negative y)
+        for i, (folder_name, folder_space) in enumerate(folder_spaces):
+            if i % 2 == 0:
+                north_folders.append((folder_name, folder_space))
+            else:
+                south_folders.append((folder_name, folder_space))
 
-        main_street_length = max(
-            furthest_branch + BUILDING_GAP * 2 + 20,
-            num_folders * min_slot_width + 40,
+        # Calculate branch positions using parallel lanes
+        # Each "slot" has a north and south folder sharing the same x
+        num_slots = max(len(north_folders), len(south_folders))
+        BranchPos = tuple[float, tuple[str, float] | None, tuple[str, float] | None]
+        branch_positions: list[BranchPos] = []
+
+        current_x: float = root_buildings_space + BUILDING_GAP * 2
+        for slot_idx in range(num_slots):
+            north_item = (
+                north_folders[slot_idx] if slot_idx < len(north_folders) else None
+            )
+            south_item = (
+                south_folders[slot_idx] if slot_idx < len(south_folders) else None
+            )
+
+            # Slot width is the max of north and south folder spaces
+            north_space = north_item[1] if north_item else 0
+            south_space = south_item[1] if south_item else 0
+            slot_space = max(north_space, south_space)
+
+            # Branch point for this slot
+            branch_x = current_x + slot_space / 2
+            branch_positions.append((branch_x, north_item, south_item))
+
+            current_x += slot_space + BUILDING_GAP * 2
+
+        # Calculate main street length
+        furthest_branch = (
+            branch_positions[-1][0] if branch_positions else root_buildings_space
         )
+        main_street_length = furthest_branch + BUILDING_GAP * 2 + 20
 
         # Create the main street (named after the root folder)
         main_start = GeoCoord(0, 0)
@@ -349,41 +380,55 @@ class GeoJSONLayoutEngine:
             start_offset=0,
         )
 
-        # Layout each top-level folder branching off the main street
-        current_x: float = root_buildings_space + BUILDING_GAP * 2
-        for i, (folder_name, folder_space) in enumerate(folder_spaces):
-            side = 1 if i % 2 == 0 else -1  # Alternate sides
+        # Layout folders from the parallel lanes
+        perpendicular_offset = self._get_perpendicular_offset()
 
-            # Branch point on main street
-            branch_x = current_x + folder_space / 2
+        for branch_x, north_item, south_item in branch_positions:
+            # Layout north-side folder (side = 1, grows in positive y)
+            if north_item:
+                folder_name, _ = north_item
+                branch_origin = GeoCoord(branch_x, perpendicular_offset)
+                connector_start = GeoCoord(branch_x, 0)
+                self._create_connector_street(
+                    parent_path="root",
+                    child_path=folder_name,
+                    start=connector_start,
+                    end=branch_origin,
+                    file_metrics=file_metrics,
+                )
+                self._layout_folder(
+                    tree=tree[folder_name],
+                    folder_path=folder_name,
+                    file_metrics=file_metrics,
+                    depth=1,
+                    origin=branch_origin,
+                    direction="vertical",
+                    connector_start=connector_start,
+                    grow_sign=1,  # North side grows in positive y
+                )
 
-            # Get perpendicular offset
-            perpendicular_offset = self._get_perpendicular_offset()
-
-            branch_origin = GeoCoord(branch_x, side * perpendicular_offset)
-
-            # Create connector street from main street to the branch origin
-            connector_start = GeoCoord(branch_x, 0)  # Point on main street
-            connector_end = branch_origin  # Where the child street begins
-            self._create_connector_street(
-                parent_path="root",
-                child_path=folder_name,
-                start=connector_start,
-                end=connector_end,
-                file_metrics=file_metrics,
-            )
-
-            self._layout_folder(
-                tree=tree[folder_name],
-                folder_path=folder_name,
-                file_metrics=file_metrics,
-                depth=1,
-                origin=branch_origin,
-                direction="vertical",
-                connector_start=connector_start,
-            )
-
-            current_x += folder_space + BUILDING_GAP * 2
+            # Layout south-side folder (side = -1, grows in negative y)
+            if south_item:
+                folder_name, _ = south_item
+                branch_origin = GeoCoord(branch_x, -perpendicular_offset)
+                connector_start = GeoCoord(branch_x, 0)
+                self._create_connector_street(
+                    parent_path="root",
+                    child_path=folder_name,
+                    start=connector_start,
+                    end=branch_origin,
+                    file_metrics=file_metrics,
+                )
+                self._layout_folder(
+                    tree=tree[folder_name],
+                    folder_path=folder_name,
+                    file_metrics=file_metrics,
+                    depth=1,
+                    origin=branch_origin,
+                    direction="vertical",
+                    connector_start=connector_start,
+                    grow_sign=-1,  # South side grows in negative y
+                )
 
     def _create_connector_street(
         self,
@@ -483,8 +528,12 @@ class GeoJSONLayoutEngine:
         origin: GeoCoord,
         direction: str,
         connector_start: GeoCoord | None = None,
+        grow_sign: int = 1,
     ) -> LayoutResult:
         """Layout a folder as a street with buildings on both sides.
+
+        Creates real intersections where child streets cross through the parent
+        street, extending in both directions with buildings on both sides.
 
         Args:
             tree: Nested folder structure
@@ -494,6 +543,7 @@ class GeoJSONLayoutEngine:
             origin: Starting point for this street
             direction: "horizontal" or "vertical"
             connector_start: Start point of connector from parent (for sidewalk extension)
+            grow_sign: Direction to extend the street (+1 for positive, -1 for negative)
         """
         # Get files directly in this folder
         folder_files = [
@@ -509,7 +559,7 @@ class GeoJSONLayoutEngine:
         buildings_per_side = (num_buildings + 1) // 2
         building_space = buildings_per_side * (MAX_BUILDING_WIDTH + BUILDING_GAP)
 
-        # Calculate space needed for subfolders
+        # Calculate space needed for subfolders - each gets its own intersection
         subfolder_spaces: list[tuple[str, float]] = []
         for subfolder_name in subfolders:
             subfolder_path = f"{folder_path}/{subfolder_name}"
@@ -518,24 +568,31 @@ class GeoJSONLayoutEngine:
             )
             subfolder_spaces.append((subfolder_name, space))
 
-        # Calculate furthest branch point position
-        temp_offset: float = building_space + BUILDING_GAP
-        furthest_branch: float = 0
+        # Calculate branch positions - each subfolder gets its own position
+        # (no pairing, each creates a full cross-intersection)
+        current_offset: float = building_space + BUILDING_GAP
+        branch_positions: list[tuple[float, str, float]] = []
+
         for subfolder_name, subfolder_space in subfolder_spaces:
-            position_along = temp_offset + subfolder_space / 2
-            furthest_branch = max(furthest_branch, position_along)
-            temp_offset += subfolder_space + BUILDING_GAP
+            position_along = current_offset + subfolder_space / 2
+            branch_positions.append((position_along, subfolder_name, subfolder_space))
+            current_offset += subfolder_space + BUILDING_GAP
+
+        # Calculate furthest branch point
+        furthest_branch = (
+            branch_positions[-1][0] if branch_positions else building_space
+        )
 
         # Street must extend past the furthest branch point
         min_length = max(building_space, furthest_branch + BUILDING_GAP * 2, 15)
 
-        # Street endpoints
+        # Street endpoints - grow in the direction specified by grow_sign
         if direction == "horizontal":
             start = origin
-            end = GeoCoord(origin.x + min_length, origin.y)
+            end = GeoCoord(origin.x + grow_sign * min_length, origin.y)
         else:
             start = origin
-            end = GeoCoord(origin.x, origin.y + min_length)
+            end = GeoCoord(origin.x, origin.y + grow_sign * min_length)
 
         # Create street feature
         street_name = PurePosixPath(folder_path).name
@@ -567,55 +624,297 @@ class GeoJSONLayoutEngine:
             start_offset=0,
         )
 
-        # Layout subfolders
-        current_offset: float = building_space + BUILDING_GAP
-        for i, (subfolder_name, subfolder_space) in enumerate(subfolder_spaces):
+        # Layout subfolders as cross-intersections
+        # Each subfolder's street crosses through this street, extending both ways
+        new_direction = "vertical" if direction == "horizontal" else "horizontal"
+
+        for position_along, subfolder_name, _ in branch_positions:
             subfolder_path = f"{folder_path}/{subfolder_name}"
-            side = 1 if i % 2 == 0 else -1
-            new_direction = "vertical" if direction == "horizontal" else "horizontal"
 
-            # Calculate position along this street
-            position_along = current_offset + subfolder_space / 2
-
-            # Perpendicular offset to clear parent street AND child street buildings
-            perpendicular_offset = self._get_perpendicular_offset()
-
+            # Calculate the intersection point on this street
             if direction == "horizontal":
-                child_connector_start = GeoCoord(start.x + position_along, origin.y)
-                branch_origin = GeoCoord(
-                    start.x + position_along, origin.y + side * perpendicular_offset
-                )
+                intersection_x = start.x + grow_sign * position_along
+                intersection_y = origin.y
             else:
-                child_connector_start = GeoCoord(origin.x, start.y + position_along)
-                branch_origin = GeoCoord(
-                    origin.x + side * perpendicular_offset, start.y + position_along
-                )
+                intersection_x = origin.x
+                intersection_y = start.y + grow_sign * position_along
 
-            # Create connector street from this street to the branch origin
-            self._create_connector_street(
-                parent_path=folder_path,
-                child_path=subfolder_path,
-                start=child_connector_start,
-                end=branch_origin,
-                file_metrics=file_metrics,
-            )
-
-            self._layout_folder(
+            # Create the crossing street that spans both sides of this street
+            self._layout_crossing_folder(
                 tree=tree[subfolder_name],
                 folder_path=subfolder_path,
                 file_metrics=file_metrics,
                 depth=depth + 1,
-                origin=branch_origin,
+                intersection_point=GeoCoord(intersection_x, intersection_y),
                 direction=new_direction,
-                connector_start=child_connector_start,
             )
-
-            current_offset += subfolder_space + BUILDING_GAP
 
         return LayoutResult(
             street_length=min_length,
             total_width=self._get_perpendicular_offset() * 2,
         )
+
+    def _layout_crossing_folder(
+        self,
+        tree: dict[str, Any],
+        folder_path: str,
+        file_metrics: dict[str, FileMetrics],
+        depth: int,
+        intersection_point: GeoCoord,
+        direction: str,
+    ) -> None:
+        """Layout a folder as a street that crosses through its parent.
+
+        Creates a real intersection where this street extends in both directions
+        from the intersection point, with buildings on both sides.
+
+        Args:
+            tree: Nested folder structure for this folder
+            folder_path: Path to this folder
+            file_metrics: All file metrics
+            depth: Nesting depth
+            intersection_point: Where this street crosses the parent
+            direction: "horizontal" or "vertical" for this street
+        """
+        # Get files directly in this folder
+        folder_files = [
+            (path, metrics)
+            for path, metrics in file_metrics.items()
+            if self._parent_folder(path) == folder_path
+        ]
+
+        subfolders = list(tree.keys())
+
+        # Calculate space needed for buildings
+        num_buildings = len(folder_files)
+
+        # Calculate space needed for subfolders
+        subfolder_spaces: list[tuple[str, float]] = []
+        for subfolder_name in subfolders:
+            subfolder_path = f"{folder_path}/{subfolder_name}"
+            space = self._calculate_folder_space(
+                tree[subfolder_name], subfolder_path, file_metrics
+            )
+            subfolder_spaces.append((subfolder_name, space))
+
+        # Calculate total subfolder space
+        total_subfolder_space = sum(s for _, s in subfolder_spaces)
+        total_subfolder_space += len(subfolder_spaces) * BUILDING_GAP
+
+        # Perpendicular offset for child streets
+        perpendicular_offset = self._get_perpendicular_offset()
+
+        # Street extends from intersection in both directions
+        # Split buildings and subfolders between positive and negative sides
+        # Buildings go closer to intersection, subfolders further out
+        buildings_per_side = (num_buildings + 1) // 2
+        building_space = buildings_per_side * (MAX_BUILDING_WIDTH + BUILDING_GAP)
+
+        # Calculate street extent in both directions
+        positive_extent = (
+            perpendicular_offset + building_space + total_subfolder_space / 2
+        )
+        negative_extent = (
+            perpendicular_offset + building_space + total_subfolder_space / 2
+        )
+
+        # Make sure there's minimum length
+        positive_extent = max(positive_extent, perpendicular_offset + 15)
+        negative_extent = max(negative_extent, perpendicular_offset + 15)
+
+        # Create street endpoints
+        if direction == "horizontal":
+            start = GeoCoord(
+                intersection_point.x - negative_extent, intersection_point.y
+            )
+            end = GeoCoord(intersection_point.x + positive_extent, intersection_point.y)
+        else:
+            start = GeoCoord(
+                intersection_point.x, intersection_point.y - negative_extent
+            )
+            end = GeoCoord(intersection_point.x, intersection_point.y + positive_extent)
+
+        # Create street feature
+        street_name = PurePosixPath(folder_path).name
+        street_key = folder_path
+        descendant_count = self._count_descendants(folder_path, file_metrics)
+
+        if street_key not in self._street_set:
+            self._street_set.add(street_key)
+            self.streets.append(
+                StreetFeature(
+                    path=street_key,
+                    name=street_name,
+                    depth=depth,
+                    file_count=len(folder_files),
+                    start=start,
+                    end=end,
+                    descendant_count=descendant_count,
+                )
+            )
+            self._register_street_box(start, end, direction)
+
+        # Place buildings on both sides of the intersection
+        # Split files between positive and negative directions
+        positive_files = folder_files[: (num_buildings + 1) // 2]
+        negative_files = folder_files[(num_buildings + 1) // 2 :]
+
+        # Place buildings in positive direction (from intersection outward)
+        if positive_files:
+            if direction == "horizontal":
+                pos_start = GeoCoord(
+                    intersection_point.x + perpendicular_offset, intersection_point.y
+                )
+            else:
+                pos_start = GeoCoord(
+                    intersection_point.x, intersection_point.y + perpendicular_offset
+                )
+            self._place_buildings_along_street(
+                files=positive_files,
+                street_path=street_key,
+                street_start=pos_start,
+                direction=direction,
+                start_offset=0,
+            )
+
+        # Place buildings in negative direction (from intersection outward)
+        if negative_files:
+            if direction == "horizontal":
+                neg_start = GeoCoord(
+                    intersection_point.x - perpendicular_offset, intersection_point.y
+                )
+            else:
+                neg_start = GeoCoord(
+                    intersection_point.x, intersection_point.y - perpendicular_offset
+                )
+            self._place_buildings_along_street_negative(
+                files=negative_files,
+                street_path=street_key,
+                street_start=neg_start,
+                direction=direction,
+            )
+
+        # Layout subfolders - alternate between positive and negative sides
+        new_direction = "vertical" if direction == "horizontal" else "horizontal"
+        pos_offset = perpendicular_offset + building_space + BUILDING_GAP
+        neg_offset = perpendicular_offset + building_space + BUILDING_GAP
+
+        for i, (subfolder_name, subfolder_space) in enumerate(subfolder_spaces):
+            subfolder_path = f"{folder_path}/{subfolder_name}"
+
+            if i % 2 == 0:
+                # Positive side
+                position_along = pos_offset + subfolder_space / 2
+                if direction == "horizontal":
+                    child_intersection = GeoCoord(
+                        intersection_point.x + position_along, intersection_point.y
+                    )
+                else:
+                    child_intersection = GeoCoord(
+                        intersection_point.x, intersection_point.y + position_along
+                    )
+                pos_offset += subfolder_space + BUILDING_GAP
+            else:
+                # Negative side
+                position_along = neg_offset + subfolder_space / 2
+                if direction == "horizontal":
+                    child_intersection = GeoCoord(
+                        intersection_point.x - position_along, intersection_point.y
+                    )
+                else:
+                    child_intersection = GeoCoord(
+                        intersection_point.x, intersection_point.y - position_along
+                    )
+                neg_offset += subfolder_space + BUILDING_GAP
+
+            self._layout_crossing_folder(
+                tree=tree[subfolder_name],
+                folder_path=subfolder_path,
+                file_metrics=file_metrics,
+                depth=depth + 1,
+                intersection_point=child_intersection,
+                direction=new_direction,
+            )
+
+    def _place_buildings_along_street_negative(
+        self,
+        files: list[tuple[str, FileMetrics]],
+        street_path: str,
+        street_start: GeoCoord,
+        direction: str,
+    ) -> None:
+        """Place buildings in the negative direction from street_start.
+
+        Similar to _place_buildings_along_street but positions buildings
+        in the negative direction (decreasing x or y).
+        """
+        for i, (path, metrics) in enumerate(files):
+            side = 1 if i % 2 == 0 else -1
+            # Position in negative direction
+            position_along = -((i // 2) * (MAX_BUILDING_WIDTH + BUILDING_GAP))
+
+            num_tiers = calculate_num_tiers(metrics.lines_of_code)
+            line_lengths = getattr(metrics, "line_lengths", [])
+            tier_sizes = calculate_tier_widths(line_lengths, num_tiers)
+
+            default_size = min(
+                max(metrics.avg_line_length / 3, MIN_BUILDING_WIDTH),
+                MAX_BUILDING_WIDTH,
+            )
+            while len(tier_sizes) < num_tiers:
+                tier_sizes.append(default_size)
+
+            total_height = interpolate_height(metrics.lines_of_code)
+            tier_height = total_height / num_tiers
+
+            building_center_offset = STREET_WIDTH / 2 + MAX_BUILDING_WIDTH / 2
+
+            if direction == "horizontal":
+                center_x = street_start.x + position_along - MAX_BUILDING_WIDTH / 2
+                center_y = street_start.y + side * building_center_offset
+            else:
+                center_x = street_start.x + side * building_center_offset
+                center_y = street_start.y + position_along - MAX_BUILDING_WIDTH / 2
+
+            for tier_idx in range(num_tiers):
+                tier_size = tier_sizes[tier_idx]
+                half_size = tier_size / 2
+                base_height = tier_idx * tier_height
+                top_height = (tier_idx + 1) * tier_height
+
+                corners = [
+                    GeoCoord(center_x - half_size, center_y - half_size),
+                    GeoCoord(center_x + half_size, center_y - half_size),
+                    GeoCoord(center_x + half_size, center_y + half_size),
+                    GeoCoord(center_x - half_size, center_y + half_size),
+                ]
+
+                if tier_idx == 0:
+                    box = BoundingBox(
+                        center_x - MAX_BUILDING_WIDTH / 2,
+                        center_y - MAX_BUILDING_WIDTH / 2,
+                        center_x + MAX_BUILDING_WIDTH / 2,
+                        center_y + MAX_BUILDING_WIDTH / 2,
+                    )
+                    self._occupied_boxes.append(box)
+
+                self.buildings.append(
+                    BuildingFeature(
+                        path=path,
+                        name=PurePosixPath(path).name,
+                        street=street_path,
+                        language=metrics.language,
+                        lines_of_code=metrics.lines_of_code,
+                        avg_line_length=metrics.avg_line_length,
+                        created_at=metrics.created_at.isoformat(),
+                        last_modified=metrics.last_modified.isoformat(),
+                        corners=corners,
+                        tier=tier_idx,
+                        base_height=base_height,
+                        top_height=top_height,
+                        tier_width=tier_size,
+                    )
+                )
 
     def _register_street_box(
         self, start: GeoCoord, end: GeoCoord, direction: str

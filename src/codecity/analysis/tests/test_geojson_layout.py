@@ -636,3 +636,43 @@ def test_layout_creates_tiered_buildings():
             assert (
                 b["properties"]["base_height"] == prev["properties"]["top_height"]
             ), f"Tier {i} base should equal tier {i - 1} top"
+
+
+def test_layout_parallel_lanes_compact():
+    """Folders on opposite sides of main street should share x-positions.
+
+    When two folders branch to opposite sides (north vs south), they don't
+    need separate horizontal slots - they can branch from the same x-position.
+    This makes the city more compact.
+    """
+    # Create two folders that will branch to opposite sides
+    metrics = {
+        "alpha/file1.py": make_file_metrics("alpha/file1.py"),
+        "beta/file2.py": make_file_metrics("beta/file2.py"),
+    }
+    engine = GeoJSONLayoutEngine()
+
+    # Get raw street positions before normalization
+    tree = engine._build_tree(metrics)
+    root_files = [
+        (path, m) for path, m in metrics.items() if engine._parent_folder(path) == ""
+    ]
+    engine._root_name = "test"
+    engine._create_main_street(tree, metrics, root_files)
+
+    # Find the connector streets for alpha and beta
+    alpha_connector = next((s for s in engine.streets if s.path == "root>alpha"), None)
+    beta_connector = next((s for s in engine.streets if s.path == "root>beta"), None)
+
+    assert alpha_connector is not None, "Should have alpha connector"
+    assert beta_connector is not None, "Should have beta connector"
+
+    # Since alpha and beta branch to opposite sides (north/south),
+    # they should share the same x-position (within tolerance)
+    # This is the key to a compact layout
+    x_diff = abs(alpha_connector.start.x - beta_connector.start.x)
+    assert x_diff < 1.0, (
+        f"Folders on opposite sides should share x-position, "
+        f"but alpha is at x={alpha_connector.start.x} and beta at x={beta_connector.start.x} "
+        f"(diff={x_diff})"
+    )
