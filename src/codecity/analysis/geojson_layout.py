@@ -23,13 +23,13 @@ from codecity.analysis.geojson_models import (
 from codecity.analysis.models import FileMetrics
 
 # Layout constants
-STREET_WIDTH = 10
-BUILDING_GAP = 3  # Gap between buildings along the street
-BUILDING_DEPTH = 8  # Building depth (perpendicular to street)
-MIN_BUILDING_WIDTH = 4  # Minimum building width (along street)
-MAX_BUILDING_WIDTH = 15  # Maximum building width (along street)
-SIDEWALK_WIDTH = 2  # Width of sidewalk
-STREET_BUILDING_CLEARANCE = 0  # Extra clearance between street and buildings (can be 0)
+STREET_WIDTH = 6  # Narrower streets (was 10)
+BUILDING_GAP = 1  # Tighter building spacing (was 3)
+BUILDING_DEPTH = 6  # Smaller building footprints (was 8)
+MIN_BUILDING_WIDTH = 3  # Minimum building width (was 4)
+MAX_BUILDING_WIDTH = 10  # Maximum building width (was 15)
+SIDEWALK_WIDTH = 1  # Thinner sidewalks (was 2)
+STREET_BUILDING_CLEARANCE = 0
 
 
 @dataclass
@@ -167,8 +167,8 @@ class GeoJSONLayoutEngine:
             MAX_BUILDING_WIDTH + BUILDING_GAP
         )
         main_street_length = max(
-            total_folder_space + root_buildings_space + 50,
-            num_folders * min_slot_width + 100,
+            total_folder_space + root_buildings_space + 20,  # was 50
+            num_folders * min_slot_width + 40,  # was 100
         )
 
         # Create the main street (named after the root folder)
@@ -330,7 +330,7 @@ class GeoJSONLayoutEngine:
 
         # Total space is max of building space and subfolder space
         min_space = self._get_perpendicular_offset() * 2
-        return max(building_space, subfolder_space, min_space, 50)
+        return max(building_space, subfolder_space, min_space, 15)  # was 50
 
     def _layout_folder(
         self,
@@ -366,7 +366,7 @@ class GeoJSONLayoutEngine:
             subfolder_spaces.append((subfolder_name, space))
 
         total_subfolder_space = sum(space for _, space in subfolder_spaces)
-        min_length = max(building_space, total_subfolder_space, 50)
+        min_length = max(building_space, total_subfolder_space, 15)  # was 50
 
         # Street endpoints
         if direction == "horizontal":
