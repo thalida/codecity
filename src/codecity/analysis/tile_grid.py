@@ -112,3 +112,45 @@ class TileGrid:
             )
 
         return True
+
+    def create_l_path(
+        self,
+        start: tuple[int, int],
+        end: tuple[int, int],
+        horizontal_first: bool = True,
+    ) -> list[tuple[int, int]]:
+        """Create an L-shaped path from start to end.
+
+        Args:
+            start: Starting grid position
+            end: Ending grid position
+            horizontal_first: If True, go horizontal then vertical; else vertical then horizontal
+
+        Returns:
+            List of grid cells forming the path
+        """
+        sx, sy = start
+        ex, ey = end
+
+        path: list[tuple[int, int]] = []
+
+        if horizontal_first:
+            # Horizontal segment
+            step_x = 1 if ex >= sx else -1
+            for x in range(sx, ex + step_x, step_x):
+                path.append((x, sy))
+            # Vertical segment (skip the corner, already added)
+            step_y = 1 if ey >= sy else -1
+            for y in range(sy + step_y, ey + step_y, step_y):
+                path.append((ex, y))
+        else:
+            # Vertical segment
+            step_y = 1 if ey >= sy else -1
+            for y in range(sy, ey + step_y, step_y):
+                path.append((sx, y))
+            # Horizontal segment (skip the corner, already added)
+            step_x = 1 if ex >= sx else -1
+            for x in range(sx + step_x, ex + step_x, step_x):
+                path.append((x, ey))
+
+        return path

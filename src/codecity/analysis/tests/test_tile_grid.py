@@ -187,3 +187,65 @@ def test_place_road_crossing_allowed():
     assert result is True
     # The crossing cell now has the child road (overwrites)
     assert grid.cells[(1, 0)].owner_path == "src"
+
+
+def test_l_path_horizontal_first():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    path = grid.create_l_path((0, 0), (3, 2))
+
+    # Horizontal first: (0,0) -> (3,0) -> (3,2)
+    assert (0, 0) in path
+    assert (1, 0) in path
+    assert (2, 0) in path
+    assert (3, 0) in path
+    assert (3, 1) in path
+    assert (3, 2) in path
+
+
+def test_l_path_vertical_first():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    path = grid.create_l_path((0, 0), (3, 2), horizontal_first=False)
+
+    # Vertical first: (0,0) -> (0,2) -> (3,2)
+    assert (0, 0) in path
+    assert (0, 1) in path
+    assert (0, 2) in path
+    assert (1, 2) in path
+    assert (2, 2) in path
+    assert (3, 2) in path
+
+
+def test_l_path_same_row():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    path = grid.create_l_path((0, 0), (3, 0))
+
+    # Straight horizontal line
+    assert path == [(0, 0), (1, 0), (2, 0), (3, 0)]
+
+
+def test_l_path_same_column():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    path = grid.create_l_path((0, 0), (0, 3))
+
+    # Straight vertical line
+    assert path == [(0, 0), (0, 1), (0, 2), (0, 3)]
+
+
+def test_l_path_negative_direction():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    path = grid.create_l_path((3, 3), (0, 0))
+
+    # Should handle negative direction
+    assert (3, 3) in path
+    assert (0, 0) in path
+    assert len(path) == 7  # 4 horizontal + 4 vertical - 1 corner
