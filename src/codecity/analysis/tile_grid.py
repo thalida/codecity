@@ -39,3 +39,20 @@ class TileGrid:
         Buildings can only be placed in empty cells - they never overlap anything.
         """
         return grid_pos not in self.cells
+
+    def can_place_road(self, grid_pos: tuple[int, int], path: str, depth: int) -> bool:
+        """Check if a road can be placed at this grid position.
+
+        Roads can be placed in empty cells, or can cross existing roads
+        only if they have adjacent depths (parent-child relationship).
+        """
+        existing = self.cells.get(grid_pos)
+
+        if existing is None:
+            return True  # empty cell
+
+        if existing.type == "road":
+            # Allow intersection only between adjacent depths
+            return abs(existing.depth - depth) == 1
+
+        return False  # building or reserved - never overlap
