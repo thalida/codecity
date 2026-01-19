@@ -40,6 +40,7 @@ class FileMetrics:
     language: str
     created_at: datetime
     last_modified: datetime
+    line_lengths: list[int] = field(default_factory=list)
 
 
 @dataclass

@@ -39,3 +39,14 @@ def test_nonexistent_file_returns_default_metrics() -> None:
     assert metrics["lines_of_code"] == 0
     assert metrics["avg_line_length"] == 0.0
     assert metrics["language"] == "unknown"
+
+
+def test_calculate_file_metrics_includes_line_lengths(tmp_path: Path) -> None:
+    """File metrics should include per-line character counts."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text("short\nmedium length\nvery long line here")
+
+    result = calculate_file_metrics(test_file)
+
+    assert "line_lengths" in result
+    assert result["line_lengths"] == [5, 13, 19]
