@@ -7,7 +7,15 @@ availability first, preventing overlaps.
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Literal
+from pathlib import PurePosixPath
+from typing import Any, Literal
+
+from codecity.analysis.geojson_models import (
+    BuildingFeature,
+    GrassFeature,
+    StreetFeature,
+)
+from codecity.analysis.models import FileMetrics
 
 
 @dataclass
@@ -216,3 +224,63 @@ class TileGrid:
                 if not self.can_place_building((tx + dx, ty + dy)):
                     return False
         return True
+
+
+@dataclass
+class TileGridLayoutEngine:
+    """Layout engine using tile-based collision detection.
+
+    This engine uses a grid reservation system to ensure no overlapping
+    elements. Folders are placed via BFS from parent endpoints, and roads
+    connect via L-shaped paths.
+    """
+
+    grid: TileGrid = field(default_factory=TileGrid)
+    streets: list[StreetFeature] = field(default_factory=list)
+    buildings: list[BuildingFeature] = field(default_factory=list)
+    grass: GrassFeature | None = field(default=None)
+    _root_name: str = field(default="root")
+
+    def layout(
+        self,
+        file_metrics: dict[str, FileMetrics],
+        root_name: str = "root",
+    ) -> dict[str, Any]:
+        """Generate GeoJSON FeatureCollection from file metrics."""
+        # Reset state
+        self.grid = TileGrid()
+        self.streets = []
+        self.buildings = []
+        self.grass = None
+        self._root_name = root_name
+
+        # Build folder tree
+        tree = self._build_tree(file_metrics)
+
+        # TODO: Implement full layout logic in Task 10
+        # For now, just return empty feature collection
+        _ = tree  # Suppress unused variable warning
+        return self._to_geojson()
+
+    def _build_tree(self, file_metrics: dict[str, FileMetrics]) -> dict[str, Any]:
+        """Convert flat file paths into nested folder tree."""
+        tree: dict[str, Any] = {}
+        for path in file_metrics.keys():
+            parts = PurePosixPath(path).parts
+            current = tree
+            for part in parts[:-1]:  # Folders only
+                current = current.setdefault(part, {})
+        return tree
+
+    def _to_geojson(self) -> dict[str, Any]:
+        """Convert all features to GeoJSON FeatureCollection."""
+        features: list[dict[str, Any]] = []
+        if self.grass:
+            features.append(self.grass.to_geojson())
+        features.extend(s.to_geojson() for s in self.streets)
+        features.extend(b.to_geojson() for b in self.buildings)
+
+        return {
+            "type": "FeatureCollection",
+            "features": features,
+        }

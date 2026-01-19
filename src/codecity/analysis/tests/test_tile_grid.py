@@ -306,3 +306,37 @@ def test_find_free_region_larger_block():
     rx, ry = result
     # Result should not overlap with blocked area
     assert rx >= 3 or ry >= 3 or rx < 0 or ry < 0
+
+
+def test_tile_grid_layout_engine_creation():
+    from codecity.analysis.tile_grid import TileGridLayoutEngine
+
+    engine = TileGridLayoutEngine()
+    assert engine.grid is not None
+    assert engine.streets == []
+    assert engine.buildings == []
+
+
+def test_tile_grid_layout_engine_layout_returns_geojson():
+    from datetime import datetime, timezone
+
+    from codecity.analysis.models import FileMetrics
+    from codecity.analysis.tile_grid import TileGridLayoutEngine
+
+    metrics = {
+        "src/main.py": FileMetrics(
+            path="src/main.py",
+            lines_of_code=100,
+            avg_line_length=40.0,
+            language="python",
+            created_at=datetime.now(timezone.utc),
+            last_modified=datetime.now(timezone.utc),
+            line_lengths=[40] * 100,
+        )
+    }
+
+    engine = TileGridLayoutEngine()
+    result = engine.layout(metrics)
+
+    assert result["type"] == "FeatureCollection"
+    assert "features" in result
