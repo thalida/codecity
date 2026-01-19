@@ -23,12 +23,22 @@ class StreetFeature:
     file_count: int
     start: GeoCoord
     end: GeoCoord
+    descendant_count: int = (
+        0  # Total nested children (files + folders) for traffic-based styling
+    )
 
     @property
     def road_class(self) -> str:
-        if self.depth == 0:
+        """Determine road class based on descendant count (traffic-based hierarchy).
+
+        More nested children = more traffic = higher road class.
+        - primary: 50+ descendants (high traffic main streets)
+        - secondary: 10-49 descendants (medium traffic)
+        - tertiary: <10 descendants (low traffic)
+        """
+        if self.descendant_count >= 50:
             return "primary"
-        elif self.depth == 1:
+        elif self.descendant_count >= 10:
             return "secondary"
         return "tertiary"
 
@@ -45,6 +55,7 @@ class StreetFeature:
                 "path": self.path,
                 "depth": self.depth,
                 "file_count": self.file_count,
+                "descendant_count": self.descendant_count,
                 "road_class": self.road_class,
                 "layer": "streets",
             },
@@ -132,5 +143,26 @@ class FootpathFeature:
             "properties": {
                 "building": self.building_path,
                 "layer": "footpaths",
+            },
+        }
+
+
+@dataclass
+class GrassFeature:
+    """Grass area covering the city bounds (Polygon)."""
+
+    bounds: list[GeoCoord]  # 4 corners
+
+    def to_geojson(self) -> dict:
+        coords = [c.to_list() for c in self.bounds]
+        coords.append(coords[0])  # Close polygon
+        return {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [coords],
+            },
+            "properties": {
+                "layer": "grass",
             },
         }

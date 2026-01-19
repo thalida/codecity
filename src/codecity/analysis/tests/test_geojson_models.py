@@ -3,6 +3,7 @@ from codecity.analysis.geojson_models import (
     BuildingFeature,
     FootpathFeature,
     GeoCoord,
+    GrassFeature,
     SidewalkFeature,
     StreetFeature,
 )
@@ -14,6 +15,7 @@ def test_geocoord_to_list():
 
 
 def test_street_feature_road_class_primary():
+    """Road class is primary when descendant_count >= 50."""
     street = StreetFeature(
         path="src",
         name="src",
@@ -21,11 +23,13 @@ def test_street_feature_road_class_primary():
         file_count=10,
         start=GeoCoord(0, 0),
         end=GeoCoord(100, 0),
+        descendant_count=60,  # >= 50 = primary
     )
     assert street.road_class == "primary"
 
 
 def test_street_feature_road_class_secondary():
+    """Road class is secondary when 10 <= descendant_count < 50."""
     street = StreetFeature(
         path="src/components",
         name="components",
@@ -33,11 +37,13 @@ def test_street_feature_road_class_secondary():
         file_count=5,
         start=GeoCoord(0, 20),
         end=GeoCoord(50, 20),
+        descendant_count=25,  # 10-49 = secondary
     )
     assert street.road_class == "secondary"
 
 
 def test_street_feature_road_class_tertiary():
+    """Road class is tertiary when descendant_count < 10."""
     street = StreetFeature(
         path="src/components/utils",
         name="utils",
@@ -45,6 +51,7 @@ def test_street_feature_road_class_tertiary():
         file_count=3,
         start=GeoCoord(0, 40),
         end=GeoCoord(30, 40),
+        descendant_count=5,  # < 10 = tertiary
     )
     assert street.road_class == "tertiary"
 
@@ -57,6 +64,7 @@ def test_street_feature_to_geojson():
         file_count=10,
         start=GeoCoord(0, 0),
         end=GeoCoord(100, 0),
+        descendant_count=60,  # >= 50 = primary
     )
     geojson = street.to_geojson()
 
@@ -66,6 +74,7 @@ def test_street_feature_to_geojson():
     assert geojson["properties"]["id"] == "src"
     assert geojson["properties"]["name"] == "src"
     assert geojson["properties"]["road_class"] == "primary"
+    assert geojson["properties"]["descendant_count"] == 60
     assert geojson["properties"]["layer"] == "streets"
 
 
@@ -133,3 +142,22 @@ def test_footpath_feature_to_geojson():
     assert len(geojson["geometry"]["coordinates"]) == 3
     assert geojson["properties"]["layer"] == "footpaths"
     assert geojson["properties"]["building"] == "src/main.py"
+
+
+def test_grass_feature_to_geojson():
+    grass = GrassFeature(
+        bounds=[
+            GeoCoord(-10, -10),
+            GeoCoord(10, -10),
+            GeoCoord(10, 10),
+            GeoCoord(-10, 10),
+        ]
+    )
+    geojson = grass.to_geojson()
+
+    assert geojson["type"] == "Feature"
+    assert geojson["geometry"]["type"] == "Polygon"
+    coords = geojson["geometry"]["coordinates"][0]
+    assert len(coords) == 5  # 4 corners + closing
+    assert coords[0] == coords[-1]  # Closed polygon
+    assert geojson["properties"]["layer"] == "grass"
