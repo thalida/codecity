@@ -383,8 +383,16 @@ class GeoJSONLayoutEngine:
             )
             subfolder_spaces.append((subfolder_name, space))
 
-        total_subfolder_space = sum(space for _, space in subfolder_spaces)
-        min_length = max(building_space, total_subfolder_space, 15)  # was 50
+        # Calculate furthest branch point position
+        temp_offset: float = building_space + BUILDING_GAP
+        furthest_branch: float = 0
+        for subfolder_name, subfolder_space in subfolder_spaces:
+            position_along = temp_offset + subfolder_space / 2
+            furthest_branch = max(furthest_branch, position_along)
+            temp_offset += subfolder_space + BUILDING_GAP
+
+        # Street must extend past the furthest branch point
+        min_length = max(building_space, furthest_branch + BUILDING_GAP * 2, 15)
 
         # Street endpoints
         if direction == "horizontal":

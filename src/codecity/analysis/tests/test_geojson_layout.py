@@ -383,3 +383,46 @@ def test_layout_sidewalks_extend_to_parent_street():
             f"Sidewalk should extend to connector start. "
             f"Sidewalk min x: {min_sw_x}, connector start x: {connector_start_x}"
         )
+
+
+def test_layout_street_extends_to_cover_all_branch_points():
+    """Street length must cover all subfolder branch points.
+
+    When a folder has both direct files AND subfolders, the subfolder branch
+    points are positioned after the building space. The street must extend
+    far enough to cover all these branch points.
+    """
+    metrics = {
+        # Direct files in src - these create building_space
+        "src/main.py": make_file_metrics("src/main.py"),
+        "src/utils.py": make_file_metrics("src/utils.py"),
+        "src/config.py": make_file_metrics("src/config.py"),
+        # Subfolders - branch points are positioned after the buildings
+        "src/a/file1.py": make_file_metrics("src/a/file1.py"),
+        "src/b/file2.py": make_file_metrics("src/b/file2.py"),
+        "src/c/file3.py": make_file_metrics("src/c/file3.py"),
+    }
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+
+    # Find src street and its child connectors
+    src_street = next(s for s in streets if s["properties"]["path"] == "src")
+    connectors = [s for s in streets if s["properties"]["path"].startswith("src>src/")]
+
+    # Get src street extent (src is a vertical street branching from root)
+    src_coords = src_street["geometry"]["coordinates"]
+    # For a vertical street, check y coordinates
+    src_ys = [c[1] for c in src_coords]
+    src_start_y = min(src_ys)
+    src_end_y = max(src_ys)
+
+    # All connector start points must be within src street extent
+    for conn in connectors:
+        conn_start = conn["geometry"]["coordinates"][0]
+        conn_y = conn_start[1]
+        assert src_start_y <= conn_y <= src_end_y, (
+            f"Connector {conn['properties']['path']} starts at y={conn_y} "
+            f"but src street only covers y={src_start_y} to y={src_end_y}"
+        )
