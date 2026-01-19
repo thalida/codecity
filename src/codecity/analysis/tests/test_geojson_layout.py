@@ -470,3 +470,64 @@ def test_layout_main_street_extends_to_cover_all_top_level_folders():
             f"Connector {conn['properties']['path']} starts at x={conn_x} "
             f"but main street only covers x={main_start_x} to x={main_end_x}"
         )
+
+
+def test_layout_footpath_connects_building_to_sidewalk():
+    """Footpath should start at building edge and end at sidewalk outer edge.
+
+    The sidewalk outer edge is where buildings meet the sidewalk, which is
+    at STREET_WIDTH/2 + SIDEWALK_WIDTH from the street center.
+    The footpath should NOT end at the inner sidewalk edge (STREET_WIDTH/2).
+    """
+    metrics = {"src/main.py": make_file_metrics("src/main.py")}
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    footpaths = [
+        f for f in result["features"] if f["properties"]["layer"] == "footpaths"
+    ]
+    sidewalks = [
+        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
+    ]
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
+    ]
+
+    assert len(footpaths) >= 1
+    assert len(buildings) >= 1
+
+    # Get the src street sidewalks
+    src_sidewalks = [s for s in sidewalks if s["properties"]["street"] == "src"]
+    assert len(src_sidewalks) == 2  # left and right
+
+    for footpath in footpaths:
+        fp_coords = footpath["geometry"]["coordinates"]
+        fp_end = fp_coords[-1]  # Sidewalk end of footpath
+
+        # Find which sidewalk this footpath connects to
+        # The footpath end should be at the sidewalk's outer edge (building side)
+        # not the inner edge (street side)
+        matched_sidewalk = False
+        for sw in src_sidewalks:
+            sw_coords = sw["geometry"]["coordinates"][0]
+            # For a vertical street (like src), sidewalk x-coords define inner/outer
+            sw_xs = [c[0] for c in sw_coords]
+            min_x, max_x = min(sw_xs), max(sw_xs)
+
+            # Check if footpath end x-coordinate is at the outer edge of sidewalk
+            # The outer edge is the one further from street center
+            # For left sidewalk: outer edge = max_x
+            # For right sidewalk: outer edge = min_x
+            if sw["properties"]["side"] == "left":
+                outer_edge_x = max_x
+            else:
+                outer_edge_x = min_x
+
+            # Footpath should end at the outer edge (within tolerance)
+            if abs(fp_end[0] - outer_edge_x) < 0.0001:
+                matched_sidewalk = True
+                break
+
+        assert (
+            matched_sidewalk
+        ), f"Footpath endpoint x={fp_end[0]} should match sidewalk outer edge"

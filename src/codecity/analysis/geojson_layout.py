@@ -579,9 +579,9 @@ class GeoJSONLayoutEngine:
                 )
             )
 
-            # Create footpath from building edge to sidewalk
-            # The sidewalk is at street_width/2 from center
-            sidewalk_offset = STREET_WIDTH / 2
+            # Create footpath from building edge to sidewalk outer edge
+            # Sidewalk outer edge is where the sidewalk meets the building zone
+            sidewalk_outer_offset = STREET_WIDTH / 2 + SIDEWALK_WIDTH
             # Building edge closest to sidewalk
             building_edge_offset = (
                 STREET_WIDTH / 2 + SIDEWALK_WIDTH + STREET_BUILDING_CLEARANCE
@@ -592,16 +592,16 @@ class GeoJSONLayoutEngine:
                 building_edge = GeoCoord(
                     x + width / 2, street_start.y + side * building_edge_offset
                 )
-                # Sidewalk point
+                # Sidewalk outer edge point
                 sidewalk_point = GeoCoord(
-                    x + width / 2, street_start.y + side * sidewalk_offset
+                    x + width / 2, street_start.y + side * sidewalk_outer_offset
                 )
             else:
                 building_edge = GeoCoord(
                     street_start.x + side * building_edge_offset, y + width / 2
                 )
                 sidewalk_point = GeoCoord(
-                    street_start.x + side * sidewalk_offset, y + width / 2
+                    street_start.x + side * sidewalk_outer_offset, y + width / 2
                 )
 
             self._create_footpath(path, building_edge, sidewalk_point, side, direction)
