@@ -135,7 +135,9 @@ def create_app() -> FastAPI:
             )
 
         engine = GeoJSONLayoutEngine()
-        geojson = engine.layout(file_metrics_dict)
+        # Use the repo folder name for the main street
+        root_name = repo.name
+        geojson = engine.layout(file_metrics_dict, root_name=root_name)
 
         return JSONResponse(
             content=geojson,
