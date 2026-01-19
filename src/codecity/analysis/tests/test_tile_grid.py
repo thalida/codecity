@@ -249,3 +249,60 @@ def test_l_path_negative_direction():
     assert (3, 3) in path
     assert (0, 0) in path
     assert len(path) == 7  # 4 horizontal + 4 vertical - 1 corner
+
+
+def test_find_free_region_immediate():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    result = grid.find_free_region(
+        start_pos=(0, 0),
+        width=2,
+        height=2,
+        depth=1,
+    )
+
+    # Should find space at start position
+    assert result == (0, 0)
+
+
+def test_find_free_region_offset():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    # Block the starting area
+    grid.cells[(0, 0)] = TileContent(type="building", owner_path="x", depth=1)
+
+    result = grid.find_free_region(
+        start_pos=(0, 0),
+        width=2,
+        height=2,
+        depth=1,
+    )
+
+    # Should find space nearby but not at (0,0)
+    assert result is not None
+    assert result != (0, 0)
+
+
+def test_find_free_region_larger_block():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    # Block a 3x3 area
+    for x in range(3):
+        for y in range(3):
+            grid.cells[(x, y)] = TileContent(type="building", owner_path="x", depth=1)
+
+    result = grid.find_free_region(
+        start_pos=(0, 0),
+        width=2,
+        height=2,
+        depth=1,
+    )
+
+    # Should find space outside the blocked area
+    assert result is not None
+    rx, ry = result
+    # Result should not overlap with blocked area
+    assert rx >= 3 or ry >= 3 or rx < 0 or ry < 0

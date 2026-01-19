@@ -5,6 +5,7 @@ represents a coordinate region. Elements are placed by checking
 availability first, preventing overlaps.
 """
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Literal
 
@@ -154,3 +155,64 @@ class TileGrid:
                 path.append((x, ey))
 
         return path
+
+    def find_free_region(
+        self,
+        start_pos: tuple[int, int],
+        width: int,
+        height: int,
+        depth: int,
+        max_search_radius: int = 100,
+    ) -> tuple[int, int] | None:
+        """BFS outward from start_pos to find a free region of width x height.
+
+        Args:
+            start_pos: Starting grid position for search
+            width: Required width in grid cells
+            height: Required height in grid cells
+            depth: Depth of the element being placed (for road crossing checks)
+            max_search_radius: Maximum distance to search
+
+        Returns:
+            Top-left corner of found region, or None if no space found
+        """
+        visited: set[tuple[int, int]] = set()
+        queue: deque[tuple[int, int]] = deque([start_pos])
+
+        while queue:
+            pos = queue.popleft()
+            if pos in visited:
+                continue
+            visited.add(pos)
+
+            # Check if we've gone too far
+            px, py = pos
+            sx, sy = start_pos
+            if abs(px - sx) > max_search_radius or abs(py - sy) > max_search_radius:
+                continue
+
+            # Check if region starting at pos is free
+            if self._region_is_free(pos, width, height):
+                return pos
+
+            # Expand search in 4 directions
+            for dx, dy in [(1, 0), (-1, 0), (0, 1), (0, -1)]:
+                next_pos = (pos[0] + dx, pos[1] + dy)
+                if next_pos not in visited:
+                    queue.append(next_pos)
+
+        return None
+
+    def _region_is_free(
+        self,
+        top_left: tuple[int, int],
+        width: int,
+        height: int,
+    ) -> bool:
+        """Check if a rectangular region is completely free."""
+        tx, ty = top_left
+        for dx in range(width):
+            for dy in range(height):
+                if not self.can_place_building((tx + dx, ty + dy)):
+                    return False
+        return True
