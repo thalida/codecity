@@ -107,3 +107,39 @@ def test_can_place_road_same_depth_blocked():
     grid.cells[(0, 0)] = TileContent(type="road", owner_path="src", depth=1)
     # Another depth-1 road cannot cross
     assert grid.can_place_road((0, 0), "lib", depth=1) is False
+
+
+def test_place_building_single_cell():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    result = grid.place_building((0, 0), "src/main.py", depth=1)
+
+    assert result is True
+    assert (0, 0) in grid.cells
+    assert grid.cells[(0, 0)].type == "building"
+    assert grid.cells[(0, 0)].owner_path == "src/main.py"
+
+
+def test_place_building_multi_cell():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    result = grid.place_building((0, 0), "src/main.py", depth=1, width=2, height=2)
+
+    assert result is True
+    # Should occupy 4 cells
+    assert (0, 0) in grid.cells
+    assert (1, 0) in grid.cells
+    assert (0, 1) in grid.cells
+    assert (1, 1) in grid.cells
+
+
+def test_place_building_blocked():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    grid.cells[(0, 0)] = TileContent(type="road", owner_path="src", depth=1)
+
+    result = grid.place_building((0, 0), "src/main.py", depth=1)
+    assert result is False

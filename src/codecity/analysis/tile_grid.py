@@ -56,3 +56,34 @@ class TileGrid:
             return abs(existing.depth - depth) == 1
 
         return False  # building or reserved - never overlap
+
+    def place_building(
+        self,
+        grid_pos: tuple[int, int],
+        path: str,
+        depth: int,
+        width: int = 1,
+        height: int = 1,
+    ) -> bool:
+        """Place a building occupying width x height cells starting at grid_pos.
+
+        Returns True if placement succeeded, False if blocked.
+        """
+        gx, gy = grid_pos
+
+        # Check all cells first
+        for dx in range(width):
+            for dy in range(height):
+                if not self.can_place_building((gx + dx, gy + dy)):
+                    return False
+
+        # Place in all cells
+        for dx in range(width):
+            for dy in range(height):
+                self.cells[(gx + dx, gy + dy)] = TileContent(
+                    type="building",
+                    owner_path=path,
+                    depth=depth,
+                )
+
+        return True
