@@ -426,3 +426,36 @@ def test_layout_street_extends_to_cover_all_branch_points():
             f"Connector {conn['properties']['path']} starts at y={conn_y} "
             f"but src street only covers y={src_start_y} to y={src_end_y}"
         )
+
+
+def test_layout_main_street_extends_to_cover_all_top_level_folders():
+    """Main street must extend to cover all top-level folder branch points."""
+    metrics = {
+        "src/file1.py": make_file_metrics("src/file1.py"),
+        "lib/file2.py": make_file_metrics("lib/file2.py"),
+        "tests/file3.py": make_file_metrics("tests/file3.py"),
+        "docs/file4.py": make_file_metrics("docs/file4.py"),
+    }
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics, root_name="project")
+
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+
+    # Find main street and top-level connectors
+    main_street = next(s for s in streets if s["properties"]["path"] == "root")
+    connectors = [s for s in streets if s["properties"]["path"].startswith("root>")]
+
+    # Get main street extent (main street is horizontal)
+    main_coords = main_street["geometry"]["coordinates"]
+    main_xs = [c[0] for c in main_coords]
+    main_start_x = min(main_xs)
+    main_end_x = max(main_xs)
+
+    # All connector start points must be within main street extent
+    for conn in connectors:
+        conn_start = conn["geometry"]["coordinates"][0]
+        conn_x = conn_start[0]
+        assert main_start_x <= conn_x <= main_end_x, (
+            f"Connector {conn['properties']['path']} starts at x={conn_x} "
+            f"but main street only covers x={main_start_x} to x={main_end_x}"
+        )

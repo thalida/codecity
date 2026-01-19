@@ -164,17 +164,22 @@ class GeoJSONLayoutEngine:
         num_folders = len(folder_spaces)
         # Minimum slot width accounts for street + buildings on both sides
         min_slot_width = self._get_perpendicular_offset() * 2
-        # Each folder needs enough space for its own extent plus gap
-        total_folder_space = sum(
-            max(space, min_slot_width) for _, space in folder_spaces
-        )
         # Add space for root files
         root_buildings_space = ((len(root_files) + 1) // 2) * (
             MAX_BUILDING_WIDTH + BUILDING_GAP
         )
+
+        # Calculate furthest branch point
+        temp_x: float = root_buildings_space + BUILDING_GAP * 2
+        furthest_branch: float = 0
+        for folder_name, folder_space in folder_spaces:
+            branch_x = temp_x + folder_space / 2
+            furthest_branch = max(furthest_branch, branch_x)
+            temp_x += folder_space + BUILDING_GAP * 2
+
         main_street_length = max(
-            total_folder_space + root_buildings_space + 20,  # was 50
-            num_folders * min_slot_width + 40,  # was 100
+            furthest_branch + BUILDING_GAP * 2 + 20,
+            num_folders * min_slot_width + 40,
         )
 
         # Create the main street (named after the root folder)
