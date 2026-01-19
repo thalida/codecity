@@ -96,7 +96,7 @@ def create_app() -> FastAPI:
         repo_path: str | None = Query(None, description="Path to git repository"),
     ) -> JSONResponse:
         """Return city layout as GeoJSON for MapLibre rendering."""
-        from codecity.analysis.geojson_layout import GeoJSONLayoutEngine
+        from codecity.analysis.tile_grid import TileGridLayoutEngine
 
         # Use app.state.repo_path as default if not provided
         if repo_path is None:
@@ -136,7 +136,7 @@ def create_app() -> FastAPI:
                 line_lengths=metrics_dict["line_lengths"],
             )
 
-        engine = GeoJSONLayoutEngine()
+        engine = TileGridLayoutEngine()
         # Use the repo folder name for the main street
         root_name = repo.name
         geojson = engine.layout(file_metrics_dict, root_name=root_name)
