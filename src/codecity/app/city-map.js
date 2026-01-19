@@ -24,8 +24,8 @@ export class CityMap {
             style: `/styles/${this.theme}.json`,
             bounds: bounds,
             fitBoundsOptions: { padding: 50 },
-            pitch: 45,
-            bearing: -15,
+            pitch: 60,  // Higher pitch for better 3D view
+            bearing: -17.6,
             antialias: true,
             renderWorldCopies: false,
         });
@@ -40,6 +40,7 @@ export class CityMap {
                     });
                     this.addLayers();
                     this.addNavigationControls();
+                    this.addLighting();
                     resolve();
                 } catch (err) {
                     reject(err);
@@ -70,16 +71,39 @@ export class CityMap {
         return [[minX, minY], [maxX, maxY]];
     }
 
+    addLighting() {
+        // Add ambient and directional lighting for 3D effect
+        this.map.setLight({
+            anchor: 'viewport',
+            color: '#ffffff',
+            intensity: 0.4,
+            position: [1.5, 90, 80],  // azimuth, polar angle, intensity
+        });
+    }
+
     addLayers() {
-        // Streets
+        // Streets with traffic-based coloring
+        // Primary (high traffic) = yellow/gold, Secondary = white, Tertiary = light gray
         this.map.addLayer({
             id: 'streets',
             type: 'line',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'streets'],
             paint: {
-                'line-color': '#ffffff',
-                'line-width': 8,
+                'line-color': [
+                    'match',
+                    ['get', 'road_class'],
+                    'primary', '#f5c542',    // Yellow/gold for high traffic main streets
+                    'secondary', '#ffffff',   // White for medium traffic
+                    '#dddddd'                 // Light gray for low traffic
+                ],
+                'line-width': [
+                    'match',
+                    ['get', 'road_class'],
+                    'primary', 14,
+                    'secondary', 10,
+                    6
+                ],
             },
             layout: {
                 'line-cap': 'round',
@@ -87,15 +111,15 @@ export class CityMap {
             },
         });
 
-        // Sidewalks
+        // Sidewalks (directly beside roads)
         this.map.addLayer({
             id: 'sidewalks',
             type: 'line',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'sidewalks'],
             paint: {
-                'line-color': '#cccccc',
-                'line-width': 2,
+                'line-color': '#bbbbbb',
+                'line-width': 3,
             },
             layout: {
                 'line-cap': 'round',
@@ -103,15 +127,16 @@ export class CityMap {
             },
         });
 
-        // Footpaths (curved paths from buildings to sidewalks)
+        // Footpaths (dotted curved lines from buildings to sidewalks)
         this.map.addLayer({
             id: 'footpaths',
             type: 'line',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'footpaths'],
             paint: {
-                'line-color': '#aaaaaa',
-                'line-width': 1,
+                'line-color': '#999999',
+                'line-width': 1.5,
+                'line-dasharray': [2, 2],  // Dotted line pattern
             },
             layout: {
                 'line-cap': 'round',
@@ -128,6 +153,7 @@ export class CityMap {
             layout: {
                 'symbol-placement': 'line',
                 'text-field': ['get', 'name'],
+                'text-font': ['Open Sans Semibold'],
                 'text-size': [
                     'match',
                     ['get', 'road_class'],
@@ -139,31 +165,56 @@ export class CityMap {
                 'text-max-angle': 30,
             },
             paint: {
-                'text-color': '#ffffff',
-                'text-halo-color': '#000000',
+                'text-color': '#333333',
+                'text-halo-color': '#ffffff',
                 'text-halo-width': 2,
             },
         });
 
-        // Buildings (3D extruded)
+        // Buildings (3D extruded) - must be added last to render on top
         this.map.addLayer({
             id: 'buildings',
             type: 'fill-extrusion',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'buildings'],
+            minzoom: 0,  // Render at all zoom levels
             paint: {
-                'fill-extrusion-color': '#888888',
+                // Color based on language or default gray
+                'fill-extrusion-color': [
+                    'match',
+                    ['get', 'language'],
+                    'python', '#3776ab',
+                    'javascript', '#f7df1e',
+                    'typescript', '#3178c6',
+                    'rust', '#dea584',
+                    'go', '#00add8',
+                    'java', '#b07219',
+                    'ruby', '#cc342d',
+                    'cpp', '#f34b7d',
+                    'c', '#555555',
+                    'markdown', '#083fa1',
+                    'json', '#292929',
+                    'yaml', '#cb171e',
+                    'toml', '#9c4221',
+                    '#888888'  // Default gray
+                ],
+                // Height based on lines of code (human scale)
+                // 1 story ≈ 3m, scaling up to ~33 stories for large files
                 'fill-extrusion-height': [
                     'interpolate',
                     ['linear'],
                     ['get', 'lines_of_code'],
-                    0, 5,      // min height 5
-                    100, 15,   // 100 LOC = 15 height
-                    500, 50,   // 500 LOC = 50 height
-                    1000, 80,  // 1000+ LOC = max 80 height
+                    0, 3,        // min 3m (1 story)
+                    30, 6,       // 30 LOC = 6m (2 stories)
+                    100, 12,     // 100 LOC = 12m (4 stories)
+                    300, 30,     // 300 LOC = 30m (10 stories)
+                    500, 50,     // 500 LOC = 50m (16 stories)
+                    1000, 100,   // 1000+ LOC = 100m (33 stories max)
                 ],
                 'fill-extrusion-base': 0,
-                'fill-extrusion-opacity': 0.9,
+                'fill-extrusion-opacity': 0.95,
+                // Add vertical gradient for depth
+                'fill-extrusion-vertical-gradient': true,
             },
         });
     }
