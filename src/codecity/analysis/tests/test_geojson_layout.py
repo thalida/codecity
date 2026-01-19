@@ -55,9 +55,14 @@ def test_layout_creates_building_for_file():
     buildings = [
         f for f in result["features"] if f["properties"]["layer"] == "buildings"
     ]
-    assert len(buildings) == 1
-    assert buildings[0]["properties"]["name"] == "main.py"
-    assert buildings[0]["geometry"]["type"] == "Polygon"
+    # With multi-tier buildings, a file may produce multiple building features
+    # At minimum, there should be at least 1 building
+    assert len(buildings) >= 1
+    # All buildings for this file should have the same name and path
+    main_buildings = [b for b in buildings if b["properties"]["path"] == "src/main.py"]
+    assert len(main_buildings) >= 1
+    assert main_buildings[0]["properties"]["name"] == "main.py"
+    assert main_buildings[0]["geometry"]["type"] == "Polygon"
 
 
 def test_layout_nested_folders_create_multiple_streets():
@@ -85,7 +90,9 @@ def test_layout_multiple_files_same_folder():
     buildings = [
         f for f in result["features"] if f["properties"]["layer"] == "buildings"
     ]
-    assert len(buildings) == 2
+    # With multi-tier buildings, count unique file paths instead of total building features
+    unique_paths = set(b["properties"]["path"] for b in buildings)
+    assert len(unique_paths) == 2
 
     streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
     src_streets = [s for s in streets if s["properties"]["name"] == "src"]
@@ -190,9 +197,13 @@ def test_layout_subfolders_do_not_overlap_parent_buildings():
             max_x1 < min_x2 or max_x2 < min_x1 or max_y1 < min_y2 or max_y2 < min_y1
         )
 
-    # Check no buildings overlap
+    # Check no buildings from DIFFERENT files overlap
+    # (tiers of the same building are allowed to overlap since they stack vertically)
     for i, b1 in enumerate(buildings):
         for b2 in buildings[i + 1 :]:
+            # Skip comparison if buildings are from the same file (different tiers)
+            if b1["properties"]["path"] == b2["properties"]["path"]:
+                continue
             assert not boxes_overlap(
                 b1, b2
             ), f"Buildings overlap: {b1['properties']['name']} and {b2['properties']['name']}"
@@ -256,8 +267,10 @@ def test_layout_creates_footpath_for_each_building():
     buildings = [
         f for f in result["features"] if f["properties"]["layer"] == "buildings"
     ]
-    # One footpath per building
-    assert len(footpaths) == len(buildings)
+    # One footpath per FILE (not per building tier)
+    # Count unique file paths to get number of files
+    unique_file_paths = set(b["properties"]["path"] for b in buildings)
+    assert len(footpaths) == len(unique_file_paths)
 
     # Check footpath has multiple points (curved)
     for fp in footpaths:
@@ -342,10 +355,14 @@ def test_layout_deep_nesting_no_overlaps():
             max_x1 < min_x2 or max_x2 < min_x1 or max_y1 < min_y2 or max_y2 < min_y1
         )
 
-    # Check no buildings overlap with each other
+    # Check no buildings from DIFFERENT files overlap with each other
+    # (tiers of the same building are allowed to overlap since they stack vertically)
     for i, b1 in enumerate(buildings):
         bbox1 = get_bbox(b1)
         for b2 in buildings[i + 1 :]:
+            # Skip comparison if buildings are from the same file (different tiers)
+            if b1["properties"]["path"] == b2["properties"]["path"]:
+                continue
             bbox2 = get_bbox(b2)
             assert not boxes_overlap(
                 bbox1, bbox2
@@ -576,3 +593,37 @@ def test_calculate_tier_widths_clamped():
     long_lines = [300, 300, 300]
     widths = calculate_tier_widths(long_lines, 1)
     assert widths[0] == MAX_BUILDING_WIDTH
+
+
+def test_layout_creates_tiered_buildings():
+    """Large files should produce multiple building tiers."""
+    # Create a file with 150 lines (should be 3 tiers)
+    metrics = {"src/main.py": make_file_metrics("src/main.py", loc=150, avg_len=40.0)}
+    # Add line_lengths to the metrics
+    metrics["src/main.py"].line_lengths = [40] * 150
+
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics)
+
+    buildings = [
+        f for f in result["features"] if f["properties"]["layer"] == "buildings"
+    ]
+
+    # Should have 3 tiers for 150 LOC file
+    main_buildings = [b for b in buildings if b["properties"]["path"] == "src/main.py"]
+    assert len(main_buildings) == 3, f"Expected 3 tiers, got {len(main_buildings)}"
+
+    # Verify tier numbers
+    tiers = sorted([b["properties"]["tier"] for b in main_buildings])
+    assert tiers == [0, 1, 2]
+
+    # Verify heights are stacked
+    main_buildings_sorted = sorted(
+        main_buildings, key=lambda b: b["properties"]["tier"]
+    )
+    for i, b in enumerate(main_buildings_sorted):
+        if i > 0:
+            prev = main_buildings_sorted[i - 1]
+            assert (
+                b["properties"]["base_height"] == prev["properties"]["top_height"]
+            ), f"Tier {i} base should equal tier {i - 1} top"

@@ -104,6 +104,31 @@ def calculate_tier_widths(line_lengths: list[int], num_tiers: int) -> list[float
     return widths
 
 
+def interpolate_height(lines_of_code: int) -> float:
+    """Calculate building height from lines of code.
+
+    Uses the same interpolation as the frontend for consistency.
+    """
+    if lines_of_code <= 0:
+        return 3.0
+    elif lines_of_code <= 50:
+        return 3.0 + (lines_of_code / 50) * 7.0  # 3 to 10
+    elif lines_of_code <= 100:
+        return 10.0 + ((lines_of_code - 50) / 50) * 15.0  # 10 to 25
+    elif lines_of_code <= 300:
+        return 25.0 + ((lines_of_code - 100) / 200) * 50.0  # 25 to 75
+    elif lines_of_code <= 500:
+        return 75.0 + ((lines_of_code - 300) / 200) * 75.0  # 75 to 150
+    elif lines_of_code <= 1000:
+        return 150.0 + ((lines_of_code - 500) / 500) * 150.0  # 150 to 300
+    elif lines_of_code <= 3000:
+        return 300.0 + ((lines_of_code - 1000) / 2000) * 200.0  # 300 to 500
+    elif lines_of_code <= 5000:
+        return 500.0 + ((lines_of_code - 3000) / 2000) * 328.0  # 500 to 828
+    else:
+        return 828.0  # Burj Khalifa max
+
+
 @dataclass
 class BoundingBox:
     """Axis-aligned bounding box for collision detection."""
@@ -587,17 +612,37 @@ class GeoJSONLayoutEngine:
         direction: str,
         start_offset: float,
     ) -> float:
-        """Place buildings along both sides of a street, returning end position."""
+        """Place buildings along both sides of a street, returning end position.
+
+        Large files produce multiple building tiers, each with potentially
+        different widths based on the average line length of that section.
+        """
         current_offset = start_offset
 
         for i, (path, metrics) in enumerate(files):
             side = 1 if i % 2 == 0 else -1
             position_along = (i // 2) * (MAX_BUILDING_WIDTH + BUILDING_GAP)
 
-            width = min(
+            # Calculate number of tiers based on lines of code
+            num_tiers = calculate_num_tiers(metrics.lines_of_code)
+
+            # Get line_lengths from metrics (may not exist on older data)
+            line_lengths = getattr(metrics, "line_lengths", [])
+
+            # Calculate width for each tier based on line lengths in that section
+            tier_widths = calculate_tier_widths(line_lengths, num_tiers)
+
+            # If tier_widths doesn't have enough entries, pad with default width
+            default_width = min(
                 max(metrics.avg_line_length / 3, MIN_BUILDING_WIDTH),
                 MAX_BUILDING_WIDTH,
             )
+            while len(tier_widths) < num_tiers:
+                tier_widths.append(default_width)
+
+            # Calculate total height using interpolation
+            total_height = interpolate_height(metrics.lines_of_code)
+            tier_height = total_height / num_tiers
 
             # Building sits directly next to the sidewalk
             # Offset from street center = half street + sidewalk + optional clearance + half building
@@ -608,49 +653,75 @@ class GeoJSONLayoutEngine:
                 + BUILDING_DEPTH / 2
             )
 
+            # Calculate base position for the building
             if direction == "horizontal":
-                x = street_start.x + position_along
-                y = street_start.y + side * building_offset
-                corners = [
-                    GeoCoord(x, y - BUILDING_DEPTH / 2),
-                    GeoCoord(x + width, y - BUILDING_DEPTH / 2),
-                    GeoCoord(x + width, y + BUILDING_DEPTH / 2),
-                    GeoCoord(x, y + BUILDING_DEPTH / 2),
-                ]
-                box = BoundingBox(
-                    x, y - BUILDING_DEPTH / 2, x + width, y + BUILDING_DEPTH / 2
-                )
+                base_x = street_start.x + position_along
+                base_y = street_start.y + side * building_offset
             else:
-                x = street_start.x + side * building_offset
-                y = street_start.y + position_along
-                corners = [
-                    GeoCoord(x - BUILDING_DEPTH / 2, y),
-                    GeoCoord(x + BUILDING_DEPTH / 2, y),
-                    GeoCoord(x + BUILDING_DEPTH / 2, y + width),
-                    GeoCoord(x - BUILDING_DEPTH / 2, y + width),
-                ]
-                box = BoundingBox(
-                    x - BUILDING_DEPTH / 2, y, x + BUILDING_DEPTH / 2, y + width
-                )
+                base_x = street_start.x + side * building_offset
+                base_y = street_start.y + position_along
 
-            # Register building box for collision detection
-            self._occupied_boxes.append(box)
+            # Create a BuildingFeature for each tier
+            for tier_idx in range(num_tiers):
+                tier_width = tier_widths[tier_idx]
+                base_height = tier_idx * tier_height
+                top_height = (tier_idx + 1) * tier_height
 
-            self.buildings.append(
-                BuildingFeature(
-                    path=path,
-                    name=PurePosixPath(path).name,
-                    street=street_path,
-                    language=metrics.language,
-                    lines_of_code=metrics.lines_of_code,
-                    avg_line_length=metrics.avg_line_length,
-                    created_at=metrics.created_at.isoformat(),
-                    last_modified=metrics.last_modified.isoformat(),
-                    corners=corners,
+                if direction == "horizontal":
+                    corners = [
+                        GeoCoord(base_x, base_y - BUILDING_DEPTH / 2),
+                        GeoCoord(base_x + tier_width, base_y - BUILDING_DEPTH / 2),
+                        GeoCoord(base_x + tier_width, base_y + BUILDING_DEPTH / 2),
+                        GeoCoord(base_x, base_y + BUILDING_DEPTH / 2),
+                    ]
+                else:
+                    corners = [
+                        GeoCoord(base_x - BUILDING_DEPTH / 2, base_y),
+                        GeoCoord(base_x + BUILDING_DEPTH / 2, base_y),
+                        GeoCoord(base_x + BUILDING_DEPTH / 2, base_y + tier_width),
+                        GeoCoord(base_x - BUILDING_DEPTH / 2, base_y + tier_width),
+                    ]
+
+                # Only register collision box for ground tier (tier_idx == 0)
+                if tier_idx == 0:
+                    if direction == "horizontal":
+                        box = BoundingBox(
+                            base_x,
+                            base_y - BUILDING_DEPTH / 2,
+                            base_x + tier_width,
+                            base_y + BUILDING_DEPTH / 2,
+                        )
+                    else:
+                        box = BoundingBox(
+                            base_x - BUILDING_DEPTH / 2,
+                            base_y,
+                            base_x + BUILDING_DEPTH / 2,
+                            base_y + tier_width,
+                        )
+                    self._occupied_boxes.append(box)
+
+                self.buildings.append(
+                    BuildingFeature(
+                        path=path,
+                        name=PurePosixPath(path).name,
+                        street=street_path,
+                        language=metrics.language,
+                        lines_of_code=metrics.lines_of_code,
+                        avg_line_length=metrics.avg_line_length,
+                        created_at=metrics.created_at.isoformat(),
+                        last_modified=metrics.last_modified.isoformat(),
+                        corners=corners,
+                        tier=tier_idx,
+                        base_height=base_height,
+                        top_height=top_height,
+                    )
                 )
-            )
 
             # Create footpath from building edge to sidewalk outer edge
+            # Only for ground tier (tier 0)
+            # Use the ground tier width (first tier)
+            ground_width = tier_widths[0]
+
             # Sidewalk outer edge is where the sidewalk meets the building zone
             sidewalk_outer_offset = STREET_WIDTH / 2 + SIDEWALK_WIDTH
             # Building edge closest to sidewalk
@@ -661,23 +732,27 @@ class GeoJSONLayoutEngine:
             if direction == "horizontal":
                 # Building edge (closest to street)
                 building_edge = GeoCoord(
-                    x + width / 2, street_start.y + side * building_edge_offset
+                    base_x + ground_width / 2,
+                    street_start.y + side * building_edge_offset,
                 )
                 # Sidewalk outer edge point
                 sidewalk_point = GeoCoord(
-                    x + width / 2, street_start.y + side * sidewalk_outer_offset
+                    base_x + ground_width / 2,
+                    street_start.y + side * sidewalk_outer_offset,
                 )
             else:
                 building_edge = GeoCoord(
-                    street_start.x + side * building_edge_offset, y + width / 2
+                    street_start.x + side * building_edge_offset,
+                    base_y + ground_width / 2,
                 )
                 sidewalk_point = GeoCoord(
-                    street_start.x + side * sidewalk_outer_offset, y + width / 2
+                    street_start.x + side * sidewalk_outer_offset,
+                    base_y + ground_width / 2,
                 )
 
             self._create_footpath(path, building_edge, sidewalk_point, side, direction)
 
-            current_offset = max(current_offset, position_along + width)
+            current_offset = max(current_offset, position_along + ground_width)
 
         return current_offset
 
