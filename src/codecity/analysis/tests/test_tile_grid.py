@@ -143,3 +143,47 @@ def test_place_building_blocked():
 
     result = grid.place_building((0, 0), "src/main.py", depth=1)
     assert result is False
+
+
+def test_place_road_cells():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    cells = [(0, 0), (1, 0), (2, 0)]
+    result = grid.place_road(cells, "src", depth=1)
+
+    assert result is True
+    for cell in cells:
+        assert cell in grid.cells
+        assert grid.cells[cell].type == "road"
+
+
+def test_place_road_blocked_by_building():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    grid.cells[(1, 0)] = TileContent(type="building", owner_path="src/main.py", depth=1)
+
+    cells = [(0, 0), (1, 0), (2, 0)]
+    result = grid.place_road(cells, "src", depth=1)
+
+    assert result is False
+    # Original cells should not be modified
+    assert (0, 0) not in grid.cells
+    assert (2, 0) not in grid.cells
+
+
+def test_place_road_crossing_allowed():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    # Place parent road at depth 0
+    grid.cells[(1, 0)] = TileContent(type="road", owner_path="root", depth=0)
+
+    # Child road at depth 1 should be able to cross
+    cells = [(1, -1), (1, 0), (1, 1)]
+    result = grid.place_road(cells, "src", depth=1)
+
+    assert result is True
+    # The crossing cell now has the child road (overwrites)
+    assert grid.cells[(1, 0)].owner_path == "src"

@@ -87,3 +87,28 @@ class TileGrid:
                 )
 
         return True
+
+    def place_road(
+        self,
+        cells: list[tuple[int, int]],
+        path: str,
+        depth: int,
+    ) -> bool:
+        """Place a road along the given cells.
+
+        Returns True if placement succeeded, False if blocked.
+        """
+        # Check all cells first
+        for cell in cells:
+            if not self.can_place_road(cell, path, depth):
+                return False
+
+        # Place in all cells
+        for cell in cells:
+            self.cells[cell] = TileContent(
+                type="road",
+                owner_path=path,
+                depth=depth,
+            )
+
+        return True
