@@ -337,3 +337,49 @@ def test_layout_deep_nesting_no_overlaps():
             assert not boxes_overlap(
                 street_bbox, building_bbox
             ), f"Building {building['properties']['path']} overlaps with street {street_path}"
+
+
+def test_layout_sidewalks_extend_to_parent_street():
+    """Sidewalks should extend back to where connector meets parent street."""
+    metrics = {
+        "src/api/routes.py": make_file_metrics("src/api/routes.py"),
+    }
+    engine = GeoJSONLayoutEngine()
+    result = engine.layout(metrics, root_name="project")
+
+    # Find the api street and its sidewalks
+    streets = [f for f in result["features"] if f["properties"]["layer"] == "streets"]
+    sidewalks = [
+        f for f in result["features"] if f["properties"]["layer"] == "sidewalks"
+    ]
+
+    api_sidewalks = [sw for sw in sidewalks if sw["properties"]["street"] == "src/api"]
+
+    # Find the connector from src to src/api
+    src_api_connector = next(
+        (s for s in streets if s["properties"]["path"] == "src>src/api"), None
+    )
+
+    assert src_api_connector is not None, "Connector street should exist"
+
+    # The connector runs from parent street to child street origin
+    # Sidewalks should extend back to the connector start (on the parent street side)
+    connector_start = src_api_connector["geometry"]["coordinates"][0]
+
+    # For a horizontal child street (api), sidewalks run parallel to the street
+    # The connector is vertical (perpendicular to parent)
+    # Sidewalks should extend from connector_start.x, not connector_end.x
+    for sw in api_sidewalks:
+        sw_coords = sw["geometry"]["coordinates"]
+        sw_xs = [c[0] for c in sw_coords]
+
+        # The sidewalk should extend toward the connector start
+        # (which has smaller x value than connector end in this case)
+        min_sw_x = min(sw_xs)
+        connector_start_x = connector_start[0]
+
+        # Sidewalk should reach the connector start point (with tolerance for floating point)
+        assert min_sw_x <= connector_start_x + 0.0001, (
+            f"Sidewalk should extend to connector start. "
+            f"Sidewalk min x: {min_sw_x}, connector start x: {connector_start_x}"
+        )

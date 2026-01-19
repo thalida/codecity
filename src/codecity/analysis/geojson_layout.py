@@ -239,6 +239,7 @@ class GeoJSONLayoutEngine:
                 depth=1,
                 origin=branch_origin,
                 direction="vertical",
+                connector_start=connector_start,
             )
 
             current_x += folder_space + BUILDING_GAP * 2
@@ -346,8 +347,19 @@ class GeoJSONLayoutEngine:
         depth: int,
         origin: GeoCoord,
         direction: str,
+        connector_start: GeoCoord | None = None,
     ) -> LayoutResult:
-        """Layout a folder as a street with buildings on both sides."""
+        """Layout a folder as a street with buildings on both sides.
+
+        Args:
+            tree: Nested folder structure
+            folder_path: Path to this folder
+            file_metrics: All file metrics
+            depth: Nesting depth
+            origin: Starting point for this street
+            direction: "horizontal" or "vertical"
+            connector_start: Start point of connector from parent (for sidewalk extension)
+        """
         # Get files directly in this folder
         folder_files = [
             (path, metrics)
@@ -400,7 +412,7 @@ class GeoJSONLayoutEngine:
                     descendant_count=descendant_count,
                 )
             )
-            self._create_sidewalks(street_key, start, end, direction)
+            self._create_sidewalks(street_key, start, end, direction, connector_start)
             self._register_street_box(start, end, direction)
 
         # Place buildings
@@ -426,12 +438,12 @@ class GeoJSONLayoutEngine:
             perpendicular_offset = self._get_perpendicular_offset()
 
             if direction == "horizontal":
-                connector_start = GeoCoord(start.x + position_along, origin.y)
+                child_connector_start = GeoCoord(start.x + position_along, origin.y)
                 branch_origin = GeoCoord(
                     start.x + position_along, origin.y + side * perpendicular_offset
                 )
             else:
-                connector_start = GeoCoord(origin.x, start.y + position_along)
+                child_connector_start = GeoCoord(origin.x, start.y + position_along)
                 branch_origin = GeoCoord(
                     origin.x + side * perpendicular_offset, start.y + position_along
                 )
@@ -440,7 +452,7 @@ class GeoJSONLayoutEngine:
             self._create_connector_street(
                 parent_path=folder_path,
                 child_path=subfolder_path,
-                start=connector_start,
+                start=child_connector_start,
                 end=branch_origin,
                 file_metrics=file_metrics,
             )
@@ -452,6 +464,7 @@ class GeoJSONLayoutEngine:
                 depth=depth + 1,
                 origin=branch_origin,
                 direction=new_direction,
+                connector_start=child_connector_start,
             )
 
             current_offset += subfolder_space + BUILDING_GAP
@@ -590,20 +603,39 @@ class GeoJSONLayoutEngine:
         start: GeoCoord,
         end: GeoCoord,
         direction: str,
+        extend_to: GeoCoord | None = None,
     ) -> None:
-        """Create sidewalks directly beside the road (at the edge of the street)."""
+        """Create sidewalks directly beside the road (at the edge of the street).
+
+        Args:
+            street_path: The path identifier for this street
+            start: Starting point of the street
+            end: Ending point of the street
+            direction: "horizontal" or "vertical"
+            extend_to: Optional point to extend sidewalks toward (e.g., connector start)
+        """
         # Sidewalk is at the edge of the street (half width from center)
         offset = STREET_WIDTH / 2
 
+        # Determine actual start position - extend toward connector if provided
+        actual_start = start
+        if extend_to is not None:
+            if direction == "horizontal":
+                # Extend horizontally toward extend_to.x
+                actual_start = GeoCoord(extend_to.x, start.y)
+            else:
+                # Extend vertically toward extend_to.y
+                actual_start = GeoCoord(start.x, extend_to.y)
+
         if direction == "horizontal":
-            left_start = GeoCoord(start.x, start.y + offset)
+            left_start = GeoCoord(actual_start.x, actual_start.y + offset)
             left_end = GeoCoord(end.x, end.y + offset)
-            right_start = GeoCoord(start.x, start.y - offset)
+            right_start = GeoCoord(actual_start.x, actual_start.y - offset)
             right_end = GeoCoord(end.x, end.y - offset)
         else:
-            left_start = GeoCoord(start.x + offset, start.y)
+            left_start = GeoCoord(actual_start.x + offset, actual_start.y)
             left_end = GeoCoord(end.x + offset, end.y)
-            right_start = GeoCoord(start.x - offset, start.y)
+            right_start = GeoCoord(actual_start.x - offset, actual_start.y)
             right_end = GeoCoord(end.x - offset, end.y)
 
         self.sidewalks.append(
