@@ -19,3 +19,21 @@ def test_tile_grid_creation():
     grid = TileGrid(cell_size=6.0)
     assert grid.cell_size == 6.0
     assert grid.cells == {}
+
+
+def test_grid_to_world():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid(cell_size=6.0)
+    x, y = grid.grid_to_world(2, 3)
+    assert x == 12.0  # 2 * 6.0
+    assert y == 18.0  # 3 * 6.0
+
+
+def test_world_to_grid():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid(cell_size=6.0)
+    gx, gy = grid.world_to_grid(14.0, 20.0)
+    assert gx == 2  # int(14.0 // 6.0)
+    assert gy == 3  # int(20.0 // 6.0)
