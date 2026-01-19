@@ -323,7 +323,12 @@ class GeoJSONLayoutEngine:
         BranchPos = tuple[float, tuple[str, float] | None, tuple[str, float] | None]
         branch_positions: list[BranchPos] = []
 
-        current_x: float = root_buildings_space + BUILDING_GAP * 2
+        # Start branches right after root files (compact layout)
+        current_x: float = (
+            root_buildings_space + BUILDING_GAP
+            if root_buildings_space > 0
+            else BUILDING_GAP
+        )
         for slot_idx in range(num_slots):
             north_item = (
                 north_folders[slot_idx] if slot_idx < len(north_folders) else None
@@ -341,13 +346,18 @@ class GeoJSONLayoutEngine:
             branch_x = current_x + slot_space / 2
             branch_positions.append((branch_x, north_item, south_item))
 
-            current_x += slot_space + BUILDING_GAP * 2
+            current_x += slot_space + BUILDING_GAP
 
-        # Calculate main street length
-        furthest_branch = (
-            branch_positions[-1][0] if branch_positions else root_buildings_space
-        )
-        main_street_length = furthest_branch + BUILDING_GAP * 2 + 20
+        # Calculate main street length - just enough to cover the content
+        if branch_positions:
+            last_x, last_north, last_south = branch_positions[-1]
+            last_space = (last_north[1] if last_north else 0) or (
+                last_south[1] if last_south else 0
+            )
+            furthest_branch = last_x + last_space / 2
+        else:
+            furthest_branch = root_buildings_space
+        main_street_length = furthest_branch + BUILDING_GAP
 
         # Create the main street (named after the root folder)
         main_start = GeoCoord(0, 0)
@@ -494,7 +504,11 @@ class GeoJSONLayoutEngine:
         folder_path: str,
         file_metrics: dict[str, FileMetrics],
     ) -> float:
-        """Calculate the total space needed for a folder and its subfolders."""
+        """Calculate the total space needed for a folder and its subfolders.
+
+        Space calculation is now more compact - we only reserve large minimum
+        space when there are actually subfolders that need crossing streets.
+        """
         # Files directly in this folder
         folder_files = [
             path
@@ -515,9 +529,19 @@ class GeoJSONLayoutEngine:
                 subtree, subfolder_path, file_metrics
             )
 
-        # Total space is max of building space and subfolder space
-        min_space = self._get_perpendicular_offset() * 2
-        return max(building_space, subfolder_space, min_space, 15)  # was 50
+        # Total space calculation:
+        # - If we have subfolders, we need perpendicular offset for crossing streets
+        # - If no subfolders, just need space for buildings (more compact)
+        has_subfolders = len(tree) > 0
+        if has_subfolders:
+            # Need space for crossing streets - but only one perpendicular offset
+            # (the crossing street extends in BOTH directions from intersection)
+            min_space = self._get_perpendicular_offset()
+        else:
+            # Leaf folder - just need space for buildings
+            min_space = MAX_BUILDING_WIDTH + BUILDING_GAP
+
+        return max(building_space, subfolder_space, min_space)
 
     def _layout_folder(
         self,
@@ -578,13 +602,17 @@ class GeoJSONLayoutEngine:
             branch_positions.append((position_along, subfolder_name, subfolder_space))
             current_offset += subfolder_space + BUILDING_GAP
 
-        # Calculate furthest branch point
-        furthest_branch = (
-            branch_positions[-1][0] if branch_positions else building_space
-        )
+        # Calculate furthest branch point (including the space the subfolder needs)
+        if branch_positions:
+            last_branch_pos, _, last_branch_space = branch_positions[-1]
+            furthest_branch = last_branch_pos + last_branch_space / 2
+        else:
+            furthest_branch = building_space
 
         # Street must extend past the furthest branch point
-        min_length = max(building_space, furthest_branch + BUILDING_GAP * 2, 15)
+        min_length = max(
+            building_space, furthest_branch + BUILDING_GAP, MAX_BUILDING_WIDTH
+        )
 
         # Street endpoints - grow in the direction specified by grow_sign
         if direction == "horizontal":
@@ -718,9 +746,9 @@ class GeoJSONLayoutEngine:
             perpendicular_offset + building_space + total_subfolder_space / 2
         )
 
-        # Make sure there's minimum length
-        positive_extent = max(positive_extent, perpendicular_offset + 15)
-        negative_extent = max(negative_extent, perpendicular_offset + 15)
+        # Make sure there's minimum length - just enough to clear intersection
+        positive_extent = max(positive_extent, perpendicular_offset + BUILDING_GAP)
+        negative_extent = max(negative_extent, perpendicular_offset + BUILDING_GAP)
 
         # Create street endpoints
         if direction == "horizontal":
