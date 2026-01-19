@@ -23,11 +23,14 @@ from codecity.analysis.models import FileMetrics
 
 # Layout constants
 STREET_WIDTH = 6  # Narrower streets (was 10)
-BUILDING_GAP = 1  # Tighter building spacing (was 3)
-MIN_BUILDING_WIDTH = 4  # Minimum tier size (matches 1-story height ~10/3)
-MAX_BUILDING_WIDTH = 12  # Maximum tier size
+BUILDING_GAP = 2  # Gap between buildings
+MIN_BUILDING_WIDTH = 6  # Minimum tier size
+MAX_BUILDING_WIDTH = 16  # Maximum tier size (ground floor)
 SIDEWALK_WIDTH = 0  # No sidewalks - buildings directly beside streets
 STREET_BUILDING_CLEARANCE = 0
+
+# Outlier trimming percentage for line length averaging (remove top/bottom X%)
+OUTLIER_TRIM_PERCENT = 0.1  # 10% trimmed from each end
 
 
 def calculate_num_tiers(lines_of_code: int) -> int:
@@ -67,36 +70,79 @@ def calculate_num_tiers(lines_of_code: int) -> int:
         return 10
 
 
+def _trimmed_average(values: list[int]) -> float:
+    """Calculate average with outliers trimmed (top/bottom 10%).
+
+    This provides a more representative average by excluding extreme values
+    like very long comments or very short lines.
+    """
+    if not values:
+        return 40.0  # Default
+
+    if len(values) <= 4:
+        # Too few values to trim, use simple average
+        return sum(values) / len(values)
+
+    sorted_values = sorted(values)
+    trim_count = max(1, int(len(sorted_values) * OUTLIER_TRIM_PERCENT))
+
+    # Remove top and bottom outliers
+    trimmed = sorted_values[trim_count:-trim_count] if trim_count > 0 else sorted_values
+
+    if not trimmed:
+        # Edge case: trimming removed everything
+        return sum(values) / len(values)
+
+    return sum(trimmed) / len(trimmed)
+
+
 def calculate_tier_widths(line_lengths: list[int], num_tiers: int) -> list[float]:
-    """Calculate width for each tier based on avg line length of that section.
+    """Calculate width for each tier based on line lengths in that section.
+
+    Each tier's width reflects the average line length of the code in that
+    section of the file (with outliers trimmed). Sections with longer lines
+    produce wider tiers. If line lengths are consistent across the file,
+    tiers will be uniform (creating a pillar shape).
 
     Args:
         line_lengths: Length of each line in the file
         num_tiers: Number of tiers to divide the file into
 
     Returns:
-        List of widths for each tier (bottom to top)
+        List of widths for each tier (bottom to top), based on section averages
     """
-    if not line_lengths or num_tiers <= 0:
+    if num_tiers <= 0:
         return [MIN_BUILDING_WIDTH]
 
-    total_lines = len(line_lengths)
-    chunk_size = total_lines // num_tiers
+    if not line_lengths:
+        # No line data - return uniform default width
+        default_width = (MIN_BUILDING_WIDTH + MAX_BUILDING_WIDTH) / 2
+        return [default_width] * num_tiers
+
+    # Divide lines into equal sections for each tier
+    lines_per_tier = len(line_lengths) // num_tiers
+    remainder = len(line_lengths) % num_tiers
 
     widths = []
-    for i in range(num_tiers):
-        start_idx = i * chunk_size
-        # Last tier gets remaining lines
-        end_idx = (i + 1) * chunk_size if i < num_tiers - 1 else total_lines
-        chunk = line_lengths[start_idx:end_idx]
+    start_idx = 0
 
-        if chunk:
-            avg_length = sum(chunk) / len(chunk)
-        else:
-            avg_length = 0
+    for tier_idx in range(num_tiers):
+        # Distribute remainder lines across first few tiers
+        extra = 1 if tier_idx < remainder else 0
+        end_idx = start_idx + lines_per_tier + extra
 
-        width = min(max(avg_length / 3, MIN_BUILDING_WIDTH), MAX_BUILDING_WIDTH)
-        widths.append(width)
+        # Get line lengths for this tier's section
+        section = line_lengths[start_idx:end_idx]
+
+        # Calculate trimmed average for this section
+        avg_length = _trimmed_average(section)
+
+        # Scale more aggressively for visibility: avg_length / 2 instead of / 4
+        # This maps typical 40-80 char lines to 20-40 width (before clamping)
+        tier_width = min(max(avg_length / 2, MIN_BUILDING_WIDTH), MAX_BUILDING_WIDTH)
+        widths.append(tier_width)
+
+        start_idx = end_idx
 
     return widths
 
@@ -687,6 +733,7 @@ class GeoJSONLayoutEngine:
                         tier=tier_idx,
                         base_height=base_height,
                         top_height=top_height,
+                        tier_width=tier_size,
                     )
                 )
 

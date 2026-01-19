@@ -5,6 +5,7 @@ from codecity.analysis.geojson_layout import (
     MAX_BUILDING_WIDTH,
     MIN_BUILDING_WIDTH,
     GeoJSONLayoutEngine,
+    _trimmed_average,
     calculate_num_tiers,
     calculate_tier_widths,
 )
@@ -534,27 +535,64 @@ def test_calculate_num_tiers():
     assert calculate_num_tiers(4001) == 10  # Max tiers
 
 
-def test_calculate_tier_widths():
-    """Tier widths based on line lengths in each section."""
-    # 6 lines, 2 tiers: first 3 lines, last 3 lines
-    line_lengths = [30, 30, 30, 60, 60, 60]  # avg 30 first tier, avg 60 second
-    widths = calculate_tier_widths(line_lengths, 2)
+def test_trimmed_average():
+    """Trimmed average should exclude top/bottom 10% outliers."""
+    # With outliers: [1, 1, 40, 40, 40, 40, 40, 40, 100, 100]
+    # After trimming 10% (1 from each end): [1, 40, 40, 40, 40, 40, 40, 100]
+    values = [1, 1, 40, 40, 40, 40, 40, 40, 100, 100]
+    avg = _trimmed_average(values)
+    # Should be closer to 40 than simple average would be
+    simple_avg = sum(values) / len(values)
+    assert avg < simple_avg  # Trimmed excludes high outliers
+    assert avg > 35  # Should be close to 40
 
-    assert len(widths) == 2
-    # Width = avg_line_length / 3, clamped to min/max
-    assert widths[0] == max(MIN_BUILDING_WIDTH, min(30 / 3, MAX_BUILDING_WIDTH))
-    assert widths[1] == max(MIN_BUILDING_WIDTH, min(60 / 3, MAX_BUILDING_WIDTH))
+    # Empty list returns default
+    assert _trimmed_average([]) == 40.0
+
+    # Very few values - no trimming
+    assert _trimmed_average([10, 20]) == 15.0
+
+
+def test_calculate_tier_widths_per_section():
+    """Tier widths should reflect the line lengths in each section."""
+    # File with varying line lengths across sections
+    # Use values that after /2 scaling stay within MIN (6) and MAX (16) bounds:
+    # Section 1 (bottom tier): 14 chars -> 7 width
+    # Section 2 (middle tier): 20 chars -> 10 width
+    # Section 3 (top tier): 28 chars -> 14 width
+    line_lengths = [14] * 34 + [20] * 33 + [28] * 33  # 100 lines total
+
+    widths = calculate_tier_widths(line_lengths, 3)
+
+    assert len(widths) == 3
+    # Bottom tier has short lines -> narrower
+    # Middle tier has medium lines -> medium width
+    # Top tier has long lines -> wider
+    assert (
+        widths[0] < widths[1] < widths[2]
+    ), f"Widths should increase with line length: {widths}"
+
+
+def test_calculate_tier_widths_uniform_lines():
+    """Uniform line lengths should produce uniform tier widths (pillar shape)."""
+    line_lengths = [40] * 100  # All lines same length
+    widths = calculate_tier_widths(line_lengths, 3)
+
+    assert len(widths) == 3
+    # All tiers should have approximately the same width
+    assert abs(widths[0] - widths[1]) < 0.01
+    assert abs(widths[1] - widths[2]) < 0.01
 
 
 def test_calculate_tier_widths_clamped():
     """Tier widths should be clamped to MIN and MAX."""
-    # Very short lines
-    short_lines = [3, 3, 3]
+    # Very short lines (5 chars) - scaled to 2.5, should clamp to MIN_BUILDING_WIDTH
+    short_lines = [5] * 10
     widths = calculate_tier_widths(short_lines, 1)
     assert widths[0] == MIN_BUILDING_WIDTH
 
-    # Very long lines
-    long_lines = [300, 300, 300]
+    # Very long lines (100 chars) - scaled to 50, should clamp to MAX_BUILDING_WIDTH
+    long_lines = [100] * 10
     widths = calculate_tier_widths(long_lines, 1)
     assert widths[0] == MAX_BUILDING_WIDTH
 

@@ -78,6 +78,7 @@ class BuildingFeature:
     tier: int = 0
     base_height: float = 0.0
     top_height: float = 0.0
+    tier_width: float = 0.0
 
     def to_geojson(self) -> dict:
         # Close the polygon (first coord repeated at end)
@@ -103,6 +104,7 @@ class BuildingFeature:
                 "tier": self.tier,
                 "base_height": self.base_height,
                 "top_height": self.top_height,
+                "tier_width": self.tier_width,
                 "layer": "buildings",
             },
         }

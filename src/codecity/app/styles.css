@@ -73,6 +73,40 @@ body {
     word-break: break-all;
 }
 
+/* Tier Details Table */
+#inspector-content .tier-details {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eee;
+}
+
+#inspector-content .tier-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+}
+
+#inspector-content .tier-table th,
+#inspector-content .tier-table td {
+    padding: 6px 8px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+#inspector-content .tier-table th {
+    font-weight: 600;
+    color: #666;
+    font-size: 12px;
+}
+
+#inspector-content .tier-table td:nth-child(2),
+#inspector-content .tier-table td:nth-child(3),
+#inspector-content .tier-table th:nth-child(2),
+#inspector-content .tier-table th:nth-child(3) {
+    text-align: right;
+}
+
 /* Tooltip */
 #tooltip {
     position: fixed;

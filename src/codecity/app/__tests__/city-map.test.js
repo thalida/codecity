@@ -166,4 +166,110 @@ describe('CityMap', () => {
             expect(baseExpr).toEqual(['get', 'base_height']);
         });
     });
+
+    describe('getBuildingTiers helper', () => {
+        const mockGeoJSONWithTiers = {
+            type: 'FeatureCollection',
+            features: [
+                {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [[[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001], [0, 0]]],
+                    },
+                    properties: {
+                        layer: 'buildings',
+                        path: 'src/main.py',
+                        name: 'main.py',
+                        language: 'python',
+                        lines_of_code: 150,
+                        avg_line_length: 45.5,
+                        tier: 0,
+                        base_height: 0,
+                        top_height: 25,
+                        tier_width: 12.5,
+                    },
+                },
+                {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [[[0.0001, 0.0001], [0.0009, 0.0001], [0.0009, 0.0009], [0.0001, 0.0009], [0.0001, 0.0001]]],
+                    },
+                    properties: {
+                        layer: 'buildings',
+                        path: 'src/main.py',
+                        name: 'main.py',
+                        language: 'python',
+                        lines_of_code: 150,
+                        avg_line_length: 45.5,
+                        tier: 1,
+                        base_height: 25,
+                        top_height: 50,
+                        tier_width: 10.0,
+                    },
+                },
+                {
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Polygon',
+                        coordinates: [[[0.0002, 0.0002], [0.0008, 0.0002], [0.0008, 0.0008], [0.0002, 0.0008], [0.0002, 0.0002]]],
+                    },
+                    properties: {
+                        layer: 'buildings',
+                        path: 'src/main.py',
+                        name: 'main.py',
+                        language: 'python',
+                        lines_of_code: 150,
+                        avg_line_length: 45.5,
+                        tier: 2,
+                        base_height: 50,
+                        top_height: 75,
+                        tier_width: 8.0,
+                    },
+                },
+            ],
+        };
+
+        it('getBuildingTiers returns all tiers for a building sorted by tier number', async () => {
+            global.fetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(mockGeoJSONWithTiers),
+                })
+            );
+
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const tiers = cityMap.getBuildingTiers('src/main.py');
+
+            expect(tiers.length).toBe(3);
+            expect(tiers[0].tier).toBe(0);
+            expect(tiers[1].tier).toBe(1);
+            expect(tiers[2].tier).toBe(2);
+            expect(tiers[0].baseHeight).toBe(0);
+            expect(tiers[0].topHeight).toBe(25);
+            expect(tiers[2].topHeight).toBe(75);
+        });
+
+        it('getBuildingTiers returns tier_width from GeoJSON properties', async () => {
+            global.fetch = vi.fn(() =>
+                Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(mockGeoJSONWithTiers),
+                })
+            );
+
+            const cityMap = new CityMap(mockContainer);
+            await cityMap.init('/api/city.geojson');
+
+            const tiers = cityMap.getBuildingTiers('src/main.py');
+
+            // Width values come from tier_width property in GeoJSON
+            expect(tiers[0].width).toBe(12.5);
+            expect(tiers[1].width).toBe(10.0);
+            expect(tiers[2].width).toBe(8.0);
+        });
+    });
 });

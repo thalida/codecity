@@ -68,12 +68,12 @@ init:
 # Run the development server
 serve *args='':
   @cd "{{ project_dir }}"
-  uv run codecity serve . $@
+  uv run codecity serve $@
 
 # Build static site
 build *args='':
   @cd "{{ project_dir }}"
-  uv run codecity build . $@
+  uv run codecity build $@
 
 # Run tests (Python and JavaScript)
 test *args='':

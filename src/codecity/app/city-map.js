@@ -192,6 +192,22 @@ export class CityMap {
         this.map.addControl(new maplibregl.ScaleControl(), 'bottom-left');
     }
 
+    getBuildingTiers(filePath) {
+        // Find all features (tiers) for this building from the GeoJSON data
+        const tiers = this.cityData.features
+            .filter(f => f.properties.layer === 'buildings' && f.properties.path === filePath)
+            .map(f => ({
+                tier: f.properties.tier,
+                baseHeight: f.properties.base_height,
+                topHeight: f.properties.top_height,
+                // Use tier_width from GeoJSON properties (calculated in Python)
+                width: f.properties.tier_width,
+            }))
+            .sort((a, b) => a.tier - b.tier);
+
+        return tiers;
+    }
+
     setTheme(themeName) {
         this.theme = themeName;
         this.map.setStyle(`/styles/${themeName}.json`);

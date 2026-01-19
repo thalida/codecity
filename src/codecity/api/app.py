@@ -83,6 +83,7 @@ def create_app() -> FastAPI:
                     language=metrics_dict["language"],
                     created_at=history["created_at"],
                     last_modified=history["last_modified"],
+                    line_lengths=metrics_dict["line_lengths"],
                 )
             )
 
@@ -132,6 +133,7 @@ def create_app() -> FastAPI:
                 language=metrics_dict["language"],
                 created_at=history["created_at"],
                 last_modified=history["last_modified"],
+                line_lengths=metrics_dict["line_lengths"],
             )
 
         engine = GeoJSONLayoutEngine()

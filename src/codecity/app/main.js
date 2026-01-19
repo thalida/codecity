@@ -39,8 +39,14 @@ async function init() {
                 const feature = e.features[0];
                 const props = feature.properties;
 
+                // Get all tiers for this building
+                const tiers = cityMap.getBuildingTiers(props.path);
+                const numTiers = tiers.length;
+                const totalHeight = numTiers > 0 ? tiers[numTiers - 1].topHeight : 0;
+
                 inspectorTitle.textContent = props.name || 'File Info';
-                inspectorContent.innerHTML = `
+
+                let html = `
                     <div class="field">
                         <div class="label">Path</div>
                         <div class="value">${props.path || ''}</div>
@@ -51,12 +57,55 @@ async function init() {
                     </div>
                     <div class="field">
                         <div class="label">Lines of Code</div>
-                        <div class="value">${props.lines_of_code || 0}</div>
+                        <div class="value">${(props.lines_of_code || 0).toLocaleString()}</div>
                     </div>
                     <div class="field">
                         <div class="label">Avg Line Length</div>
                         <div class="value">${(props.avg_line_length || 0).toFixed(1)}</div>
                     </div>
+                    <div class="field">
+                        <div class="label">Total Height</div>
+                        <div class="value">${totalHeight.toFixed(1)}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Number of Tiers</div>
+                        <div class="value">${numTiers}</div>
+                    </div>
+                `;
+
+                // Show tier details (dimensions for each tier)
+                if (numTiers >= 1) {
+                    html += `
+                        <div class="field tier-details">
+                            <div class="label">Tier Dimensions</div>
+                            <table class="tier-table">
+                                <thead>
+                                    <tr>
+                                        <th>Tier</th>
+                                        <th>Height</th>
+                                        <th>Width</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+                    for (const tier of tiers) {
+                        const tierHeight = tier.topHeight - tier.baseHeight;
+                        html += `
+                                    <tr>
+                                        <td>${tier.tier + 1}</td>
+                                        <td>${tierHeight.toFixed(1)}</td>
+                                        <td>${tier.width.toFixed(1)}</td>
+                                    </tr>
+                        `;
+                    }
+                    html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    `;
+                }
+
+                html += `
                     <div class="field">
                         <div class="label">Created</div>
                         <div class="value">${props.created_at || ''}</div>
@@ -66,6 +115,8 @@ async function init() {
                         <div class="value">${props.last_modified || ''}</div>
                     </div>
                 `;
+
+                inspectorContent.innerHTML = html;
                 inspector.classList.remove('hidden');
             }
         });
