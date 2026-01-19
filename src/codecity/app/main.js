@@ -91,6 +91,47 @@ async function init() {
             tooltip.classList.add('hidden');
         });
 
+        // Setup street click handler
+        cityMap.map.on('click', 'streets', (e) => {
+            if (e.features && e.features.length > 0) {
+                const props = e.features[0].properties;
+                // Skip unnamed connector streets
+                if (!props.name) return;
+
+                inspectorTitle.textContent = props.name || 'Street';
+                inspectorContent.innerHTML = `
+                    <div class="field">
+                        <div class="label">Full Path</div>
+                        <div class="value">${props.path || ''}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Files in Folder</div>
+                        <div class="value">${props.file_count || 0}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Total Descendants</div>
+                        <div class="value">${props.descendant_count || 0}</div>
+                    </div>
+                    <div class="field">
+                        <div class="label">Road Class</div>
+                        <div class="value">${props.road_class || ''}</div>
+                    </div>
+                `;
+                inspector.classList.remove('hidden');
+            }
+        });
+
+        // Setup street hover for cursor
+        cityMap.map.on('mouseenter', 'streets', (e) => {
+            if (e.features && e.features[0].properties.name) {
+                cityMap.map.getCanvas().style.cursor = 'pointer';
+            }
+        });
+
+        cityMap.map.on('mouseleave', 'streets', () => {
+            cityMap.map.getCanvas().style.cursor = '';
+        });
+
         // Setup inspector close
         inspectorClose.addEventListener('click', () => {
             inspector.classList.add('hidden');
