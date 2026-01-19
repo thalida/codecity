@@ -37,3 +37,26 @@ def test_world_to_grid():
     gx, gy = grid.world_to_grid(14.0, 20.0)
     assert gx == 2  # int(14.0 // 6.0)
     assert gy == 3  # int(20.0 // 6.0)
+
+
+def test_can_place_building_empty_cell():
+    from codecity.analysis.tile_grid import TileGrid
+
+    grid = TileGrid()
+    assert grid.can_place_building((0, 0)) is True
+
+
+def test_can_place_building_occupied_by_building():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    grid.cells[(0, 0)] = TileContent(type="building", owner_path="src/main.py", depth=1)
+    assert grid.can_place_building((0, 0)) is False
+
+
+def test_can_place_building_occupied_by_road():
+    from codecity.analysis.tile_grid import TileContent, TileGrid
+
+    grid = TileGrid()
+    grid.cells[(0, 0)] = TileContent(type="road", owner_path="src", depth=1)
+    assert grid.can_place_building((0, 0)) is False

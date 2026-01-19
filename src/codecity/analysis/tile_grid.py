@@ -32,3 +32,10 @@ class TileGrid:
     def world_to_grid(self, x: float, y: float) -> tuple[int, int]:
         """Convert world coordinates to grid position."""
         return (int(x // self.cell_size), int(y // self.cell_size))
+
+    def can_place_building(self, grid_pos: tuple[int, int]) -> bool:
+        """Check if a building can be placed at this grid position.
+
+        Buildings can only be placed in empty cells - they never overlap anything.
+        """
+        return grid_pos not in self.cells
