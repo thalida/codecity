@@ -123,19 +123,15 @@ export class CityMap {
             },
         });
 
-        // Sidewalks (directly beside roads)
+        // Sidewalks (filled polygons beside roads)
         this.map.addLayer({
             id: 'sidewalks',
-            type: 'line',
+            type: 'fill',
             source: 'city',
             filter: ['==', ['get', 'layer'], 'sidewalks'],
             paint: {
-                'line-color': '#bbbbbb',
-                'line-width': 3,
-            },
-            layout: {
-                'line-cap': 'round',
-                'line-join': 'round',
+                'fill-color': '#cccccc',
+                'fill-opacity': 0.8,
             },
         });
 

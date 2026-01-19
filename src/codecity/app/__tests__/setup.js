@@ -23,6 +23,7 @@ class MockMap {
         this.getCanvas = vi.fn(() => ({ style: { cursor: '' } }));
         this.fitBounds = vi.fn();
         this.addControl = vi.fn();
+        this.setLight = vi.fn();
     }
 }
 
