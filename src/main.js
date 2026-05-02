@@ -9,20 +9,21 @@ import './styles.css';
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
-import { showFileSidebar, showDirSidebar, closeSidebar } from './components/sidebar.js';
+import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette } from './components/sidebar.js';
 import { showTreeSidebar } from './components/tree.js';
 
 
 function startRenderLoop(canvas, manifest, config) {
   // -- 1. Layout + colors ------------------------------------------------------
-  var layout      = layoutCity(manifest.tree, config);
-  var dateRanges  = getDateRanges(manifest.tree);
-  var fileHueMap  = (config.building && config.building.file_hue_map) || {};
+  var layout     = layoutCity(manifest.tree, config);
+  var dateRanges = getDateRanges(manifest.tree);
+  var hueExtMap  = (config.building && config.building.hue_ext_map) || {};
+  setSidebarPalette(hueExtMap);
 
   for (var i = 0; i < layout.buildings.length; i++) {
     var b = layout.buildings[i];
     if (b.file && b.file.type === 'file') {
-      b.color = getBuildingColor(b.file, fileHueMap, dateRanges, config);
+      b.color = getBuildingColor(b.file, hueExtMap, dateRanges, config);
     } else {
       b.color = 'hsl(220, 15%, 25%)';
     }

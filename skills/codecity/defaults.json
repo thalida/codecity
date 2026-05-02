@@ -1,8 +1,4 @@
 {
-  "output_dir": "~/.codecity",
-  "depth": null,
-  "gitignore": true,
-
   "layout": {
     "child_gap": 5,
     "bldg_street_gap": 4,
@@ -41,6 +37,14 @@
   "scene": {
     "asphalt":  "#1a1d28",
     "sidewalk": "#2a3050",
-    "ground":   "#0a0b10"
+    "ground":   "#0a0b10",
+
+    "root_gem": {
+      "radius_frac": 0.35,
+      "min_radius":  5,
+      "hover_frac":  0.3,
+      "bob_frac":    0.5,
+      "clearance":   20
+    }
   }
 }

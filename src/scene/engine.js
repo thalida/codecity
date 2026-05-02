@@ -388,15 +388,21 @@ var _GEM_FACE_COLORS = [
 ];
 var _GEM_EDGES   = 0xf0f0ff;   // near-white — neutral separator between vivid faces
 
-function createRootGem(street) {
+function createRootGem(street, gemCfg) {
   var group = new THREE.Group();
 
   // Gem size scales with the street's width. The layout reserves extra dead
-  // space at the root street's origin end (ROOT_GEM_PAD), so the origin cap
-  // has no buildings overlapping it — the road's rounded cap IS the plaza.
-  var radius = street.width * 0.35;
-  if (radius < 5) radius = 5;
-  var hoverY = radius + street.width * 0.3;
+  // space at the root street's origin end (see config.scene.root_gem), so the
+  // origin cap has no buildings overlapping it — the road's rounded cap IS
+  // the plaza. radius_frac MUST match what layout.js used to reserve that pad.
+  var radiusFrac = (gemCfg.radius_frac != null) ? gemCfg.radius_frac : 0.35;
+  var minRadius  = (gemCfg.min_radius  != null) ? gemCfg.min_radius  : 5;
+  var hoverFrac  = (gemCfg.hover_frac  != null) ? gemCfg.hover_frac  : 0.3;
+  var bobFrac    = (gemCfg.bob_frac    != null) ? gemCfg.bob_frac    : 0.5;
+
+  var radius = street.width * radiusFrac;
+  if (radius < minRadius) radius = minRadius;
+  var hoverY = radius + street.width * hoverFrac;
 
   // Gem hovers at the center of the road's origin-end cap. For a stadium of
   // length L and width W, the origin cap circle is centered at a distance
@@ -441,7 +447,7 @@ function createRootGem(street) {
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
   gem.userData.baseY = hoverY;
-  gem.userData.bobAmp = radius * 0.5;
+  gem.userData.bobAmp = radius * bobFrac;
   gem.userData.type = 'root-gem';
 
   group.add(gem);
@@ -572,6 +578,7 @@ export function buildCityScene(layout, config) {
   STREET_COLOR_ASPHALT  = sc.asphalt  || DEFAULT_SCENE_COLORS.asphalt;
   STREET_COLOR_SIDEWALK = sc.sidewalk || DEFAULT_SCENE_COLORS.sidewalk;
   GROUND_COLOR          = sc.ground   || DEFAULT_SCENE_COLORS.ground;
+  var gemCfg            = sc.root_gem || {};
 
   var scene = new THREE.Scene();
   scene.background = new THREE.Color(GROUND_COLOR);
@@ -594,7 +601,7 @@ export function buildCityScene(layout, config) {
 
     // Root-of-repo landmark at the street's origin end.
     if (streets[si].isRoot) {
-      var gemGroup = createRootGem(streets[si]);
+      var gemGroup = createRootGem(streets[si], gemCfg);
       scene.add(gemGroup);
       rootGem = gemGroup.userData.gem;
     }

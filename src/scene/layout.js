@@ -64,15 +64,16 @@ export function getBuildingDimensions(file, config) {
 // -----------------------------------------------------------------------------
 // User-facing knobs (child_gap, bldg_street_gap) come from config.layout.
 // These remaining constants are layout internals not worth surfacing.
-var ROOT_END_PAD      = 8;   // fallback pad for the root street (has no parent)
+var ROOT_END_PAD = 8;   // fallback pad for the root street (has no parent)
 
-// Root gem landing zone. The gem's center sits at the origin-end cap center
-// (streetWidth/2 from the tip) and its radius is ROOT_GEM_RADIUS_FRAC of the
-// street width (mirrors engine.js), so its far edge is at
-// (0.5 + ROOT_GEM_RADIUS_FRAC) * streetWidth from the tip. Buildings must
-// start past that, plus ROOT_GEM_CLEARANCE of breathing room.
-var ROOT_GEM_RADIUS_FRAC = 0.35;
-var ROOT_GEM_CLEARANCE   = 20;
+// Root-gem landing-zone defaults. The gem's center sits at the origin-end cap
+// center (streetWidth/2 from the tip) and its radius is RADIUS_FRAC of the
+// street width — so its far edge sits at (0.5 + RADIUS_FRAC) * streetWidth
+// from the tip. Buildings must start past that, plus CLEARANCE of breathing
+// room. These defaults are overridden by config.scene.root_gem so layout and
+// engine cannot drift apart.
+var ROOT_GEM_RADIUS_FRAC_DEFAULT = 0.35;
+var ROOT_GEM_CLEARANCE_DEFAULT   = 20;
 
 
 // -----------------------------------------------------------------------------
@@ -225,8 +226,11 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
   // is kept clear of buildings so the root gem can float over it — the road
   // itself serves as the gem's plaza. Pad = half-width (cap center) + gem
   // radius + clearance. Non-root streets use endPad on both ends as before.
+  var gemCfg       = (config && config.scene && config.scene.root_gem) || {};
+  var gemRadiusFrac = (gemCfg.radius_frac != null) ? gemCfg.radius_frac : ROOT_GEM_RADIUS_FRAC_DEFAULT;
+  var gemClearance  = (gemCfg.clearance   != null) ? gemCfg.clearance   : ROOT_GEM_CLEARANCE_DEFAULT;
   var originPad = !parentStreetWidth
-    ? Math.max(endPad, myStreetWidth * (0.5 + ROOT_GEM_RADIUS_FRAC) + ROOT_GEM_CLEARANCE)
+    ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : endPad;
 
   // ---- Sort children alphabetically (files + dirs intermingled) -----------

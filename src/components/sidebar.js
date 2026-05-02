@@ -5,7 +5,21 @@ import { getHue } from '../scene/colors.js';
 // Track the currently selected building element so we can clear its highlight
 var _selectedBuilding = null;
 
+// Palette injected from main.js (config.building.hue_ext_map). Empty object
+// means "no palette configured" — getHue will fall back to its hash.
+var _huePalette = {};
+
 // ── Public API ────────────────────────────────────────────────────────────────
+
+/**
+ * Inject the extension→hue palette so badge colors match the building palette
+ * configured in defaults.json.
+ *
+ * @param {Object} palette - Map of extension → hue (e.g. { ".ts": 215 }).
+ */
+export function setSidebarPalette(palette) {
+  _huePalette = palette || {};
+}
 
 /**
  * Show the sidebar populated with metadata for a file node.
@@ -49,7 +63,7 @@ export function showFileSidebar(file) {
     badge.className = 'ext-badge';
     badge.textContent = file.extension;
 
-    var hue = getHue(file.extension, {});
+    var hue = getHue(file.extension, _huePalette);
     badge.style.backgroundColor = 'hsl(' + hue + ', 60%, 40%)';
     badge.style.color = 'hsl(' + hue + ', 20%, 90%)';
     badge.style.borderColor = 'hsl(' + hue + ', 60%, 50%)';
