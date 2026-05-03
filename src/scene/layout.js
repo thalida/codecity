@@ -166,11 +166,11 @@ export function layoutCity(manifest) {
   _markJoinSides(result.streets);
 
   // Compute paths from each building's door to the adjacent street.
-  // Length stretches to bridge the full gap; width stays a thin walkway
-  // (so widening the building-to-sidewalk gap makes the path LONGER, not
-  // wider — it's a path, not a plaza).
-  var pathLength = BUILDING_DIMENSIONS.get().STREET_GAP;
-  var pathWidth  = 3;
+  // Length bridges the building-to-sidewalk gap; width is a separate
+  // designer knob (and also drives door size — see engine.js).
+  var dimsCfg    = BUILDING_DIMENSIONS.get();
+  var pathLength = dimsCfg.PATH_LENGTH;
+  var pathWidth  = dimsCfg.PATH_WIDTH;
   for (var pi = 0; pi < result.buildings.length; pi++) {
     var bForPath = result.buildings[pi];
     var path = _pathForBuilding(bForPath, pathWidth, pathLength);
@@ -256,9 +256,10 @@ function _markJoinSides(streets) {
 // _pathForBuilding(building, pathWidth, pathLength) -> path | null
 //
 // Returns a thin sidewalk-colored strip connecting the building's door (on its
-// front face) to the adjacent street's sidewalk. `pathLength` should equal
-// BUILDING_DIMENSIONS.STREET_GAP so the path exactly bridges the gap between
-// building face and street edge; `pathWidth` is the walkway's narrow dim.
+// front face) to the adjacent street's sidewalk. `pathLength` is
+// BUILDING_DIMENSIONS.PATH_LENGTH (bridges the gap between building face and
+// street edge); `pathWidth` is BUILDING_DIMENSIONS.PATH_WIDTH (also drives
+// door size — see engine.js).
 // -----------------------------------------------------------------------------
 function _pathForBuilding(b, pathWidth, pathLength) {
   if (b.orient === BUILDING_ORIENT.SOUTH) {
@@ -332,20 +333,20 @@ function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidt
   var childGap        = streetLayout.CHILD_GAP;
   var parentJoinPad   = streetLayout.PARENT_JOIN_PAD;
   var rootEndPad      = streetLayout.ROOT_END_PAD;
-  var bldgStreetGap   = BUILDING_DIMENSIONS.get().STREET_GAP;
+  var bldgPathLength  = BUILDING_DIMENSIONS.get().PATH_LENGTH;
 
   // Widths — this street's visual width comes from its descendants count, and
   // end-padding depends on the PARENT street's width so children don't cross
   // the parent intersection.
   var myStreetWidth = _streetWidthForDir(dir);
-  var bldgOffset    = myStreetWidth / 2 + bldgStreetGap;
+  var bldgOffset    = myStreetWidth / 2 + bldgPathLength;
 
   // The street's rounded cap takes up streetWidth/2 of the length at the
   // OPEN end. To keep the last building (and its path connector) clear
   // of the curve, the open-end pad must be at least cap radius + a small
-  // buffer (re-using bldgStreetGap so the buffer matches the building↔
+  // buffer (re-using bldgPathLength so the buffer matches the building↔
   // sidewalk gap visually). Joining ends are flat — they don't need this.
-  var openEndPad     = myStreetWidth / 2 + bldgStreetGap;
+  var openEndPad     = myStreetWidth / 2 + bldgPathLength;
   var joinEndBaseline = parentStreetWidth
     ? parentStreetWidth / 2 + parentJoinPad
     : rootEndPad;

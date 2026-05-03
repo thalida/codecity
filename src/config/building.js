@@ -14,16 +14,19 @@ import { map } from 'nanostores';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// STREET_GAP is the empty space a building leaves around itself toward the
-// adjacent sidewalk. The path connector strip's length AND width are both
-// derived from this — the strip is square, exactly bridging the gap.
+// PATH_LENGTH and PATH_WIDTH define the connector strip running from the
+// building's door to the adjacent sidewalk: LENGTH is the gap perpendicular
+// to the street (also the empty space between building wall and sidewalk),
+// WIDTH is the strip's lateral size parallel to the street. The door is
+// sized off PATH_WIDTH so "walk out the door, onto the path" reads visually.
 export const BUILDING_DIMENSIONS = map({
   MIN_FLOORS:   1,
   MAX_FLOORS:   50,
   FLOOR_HEIGHT: 10,           // scene units per floor
   MIN_WIDTH:    6,
   MAX_WIDTH:    40,
-  STREET_GAP:   4             // gap between building wall and adjacent sidewalk
+  PATH_LENGTH:  4,            // connector strip length (building wall → sidewalk)
+  PATH_WIDTH:   3             // connector strip width (also drives door width)
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
@@ -73,12 +76,17 @@ export const BUILDING_OUTLINE = map({
 //   NEAR    — distance 1 (one hop along the directory spine)
 //   FAR     — distance ≥2 (cousins, deeper subtrees, unrelated branches)
 //
-// Each tier picks how a building looks via three independent knobs:
-//   *_DETAIL  — 'full' (textured with windows + doors)
-//             | 'silhouette' (solid-color box, no windows)
-//             | 'hidden'  (the body and ghost are both gone)
-//   *_OUTLINE — boolean. The wireframe edges layer.
-//   *_OPACITY — overall multiplier on whatever layers are visible.
+// Each tier picks how a building looks via four independent knobs:
+//   *_DETAIL          — 'full' (textured walls + windows + doors)
+//                     | 'silhouette' (solid-color box, no windows)
+//                     | 'hidden' (the body and ghost are both gone)
+//   *_OUTLINE         — boolean. Whether the wireframe edges layer is on.
+//   *_BODY_OPACITY    — opacity multiplier for the body / silhouette layer.
+//   *_OUTLINE_OPACITY — opacity multiplier for the wireframe layer.
+//
+// On hover, a building is rendered using the DEFAULT tier's settings
+// (full detail, default body + outline opacity) regardless of which tier
+// it would otherwise sit in — hover acts as a "preview the selection" state.
 //
 // All hot-reloadable.
 export const BUILDING_FADE = map({
@@ -87,21 +95,20 @@ export const BUILDING_FADE = map({
   SNAP_THRESHOLD:    0.005,
 
   // Default tier — siblings of selection, and the no-selection resting state.
-  DEFAULT_DETAIL:  'full',
-  DEFAULT_OUTLINE: false,
-  DEFAULT_OPACITY: 1.0,
+  DEFAULT_DETAIL:          'full',
+  DEFAULT_OUTLINE:         false,
+  DEFAULT_BODY_OPACITY:    1.0,
+  DEFAULT_OUTLINE_OPACITY: 1.0,
 
   // Level 1 — one hop from selection along the directory spine.
-  NEAR_DETAIL:  'full',
-  NEAR_OUTLINE: true,
-  NEAR_OPACITY: 0.65,
+  NEAR_DETAIL:          'full',
+  NEAR_OUTLINE:         true,
+  NEAR_BODY_OPACITY:    0.65,
+  NEAR_OUTLINE_OPACITY: 0.65,
 
   // Level 2+ — anything farther.
-  FAR_DETAIL:  'silhouette',
-  FAR_OUTLINE: true,
-  FAR_OPACITY: 0.18,
-
-  // A hovered file building's body never drops below this opacity even when
-  // it sits in the FAR tier — keeps the hover preview readable.
-  HOVER_MIN_OPACITY: 0.7
+  FAR_DETAIL:          'silhouette',
+  FAR_OUTLINE:         true,
+  FAR_BODY_OPACITY:    0.18,
+  FAR_OUTLINE_OPACITY: 0.18
 });

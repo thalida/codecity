@@ -27,7 +27,7 @@ import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../const
 // (sliders/colors in the Settings UI) free of implementation noise.
 
 // Facade canvas / window math. Door WIDTH is no longer in here — it's
-// derived per-building from BUILDING_DIMENSIONS.STREET_GAP at render time
+// derived per-building from BUILDING_DIMENSIONS.PATH_WIDTH at render time
 // (see DOOR_WIDTH_OF_PATH below) so doors visually match the path strip
 // that connects the building to its sidewalk.
 var FACADE = Object.freeze({
@@ -46,8 +46,8 @@ var FACADE = Object.freeze({
   DOOR_HEIGHT_FRAC:            0.7
 });
 
-// Door world width = STREET_GAP × this. Keeps the door visually matched
-// to the path connector strip (which is also STREET_GAP wide) so the
+// Door world width = PATH_WIDTH × this. Keeps the door visually matched
+// to the path connector strip (which is PATH_WIDTH wide) so the
 // "walk out the door onto the path" reading lands.
 var DOOR_WIDTH_OF_PATH = 0.8;
 
@@ -308,7 +308,7 @@ export function createBuildingMesh(building) {
 
   // Door world width = path connector width × DOOR_WIDTH_OF_PATH so the
   // door visually matches the path strip leading away from it.
-  var doorWorldWidth = BUILDING_DIMENSIONS.get().STREET_GAP * DOOR_WIDTH_OF_PATH;
+  var doorWorldWidth = BUILDING_DIMENSIONS.get().PATH_WIDTH * DOOR_WIDTH_OF_PATH;
 
   // One material per face, in BoxGeometry order: [+X, -X, +Y, -Y, +Z, -Z].
   // EW faces (east/west walls) span the building's depth `d`; NS faces span

@@ -44,7 +44,7 @@ export const LABEL_TYPOGRAPHY = map({
   HEIGHT_FRAC:       0.45,     // label plane height = street width × this
   SPACING_MULT:      3.5,      // repeat spacing = label width × this
   SPACING_FLOOR:     200,      // …or this floor (world units), whichever is larger
-  ELEVATION:         0.5,      // lift above asphalt to avoid z-fighting
+  ELEVATION:         0,        // lift above asphalt (rarely tweaked; not in UI)
   FLIP_HYSTERESIS:   0.15      // dead zone before camera-orbit flip
 });
 

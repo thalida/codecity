@@ -595,13 +595,13 @@ function startRenderLoop(canvas, manifest) {
                                rootGem.userData.streetWidth * hoverFrac;
     }
 
-    // Street labels — ELEVATION (group Y position) and HEIGHT_FRAC (plane
-    // size, scaled relative to the original frac so the texture stays
-    // pixel-correct). Both stashed on each label group's userData.
+    // Street labels — HEIGHT_FRAC (plane size, scaled relative to the
+    // original frac so the texture stays pixel-correct), stashed on each
+    // label group's userData. ELEVATION is set once at scene-build time
+    // and isn't re-applied per-frame (no UI surface for it).
     var labelCfg = LABEL_TYPOGRAPHY.get();
     for (var li = 0; li < streetLabels.length; li++) {
       var lg = streetLabels[li];
-      lg.position.y = labelCfg.ELEVATION;
       var origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
         var s = labelCfg.HEIGHT_FRAC / origFrac;
@@ -1369,44 +1369,55 @@ function startRenderLoop(canvas, manifest) {
       if (m.userData.outlineOp == null) m.userData.outlineOp = 0.0;
 
       // ---- Decide which tier this building falls into ----
-      var detail, outlineOn, opacity;
+      var detail, outlineOn, bodyOpacity, outlineOpacity;
       if (m === bldgTarget) {
         // Selected file building: always full, opaque, no default outline
         // (selectedOutline draws the rainbow chasing on its own pass).
-        detail    = 'full';
-        outlineOn = false;
-        opacity   = 1.0;
+        detail         = 'full';
+        outlineOn      = false;
+        bodyOpacity    = 1.0;
+        outlineOpacity = 0;
       } else if (dirTarget) {
         // Tier by directory-tree distance from the building's parent dir
         // to the selected/hovered dir: 0 = sibling, 1 = one hop, ≥2 = far.
         var f = m.userData.building && m.userData.building.file;
         var dist = _dirTreeDistance(f, dirTarget);
         if (dist === 0) {
-          detail = fadeCfg.DEFAULT_DETAIL;  outlineOn = fadeCfg.DEFAULT_OUTLINE;  opacity = fadeCfg.DEFAULT_OPACITY;
+          detail = fadeCfg.DEFAULT_DETAIL;  outlineOn = fadeCfg.DEFAULT_OUTLINE;
+          bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
+          outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
         } else if (dist === 1) {
-          detail = fadeCfg.NEAR_DETAIL;     outlineOn = fadeCfg.NEAR_OUTLINE;     opacity = fadeCfg.NEAR_OPACITY;
+          detail = fadeCfg.NEAR_DETAIL;     outlineOn = fadeCfg.NEAR_OUTLINE;
+          bodyOpacity    = fadeCfg.NEAR_BODY_OPACITY;
+          outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
         } else {
-          detail = fadeCfg.FAR_DETAIL;      outlineOn = fadeCfg.FAR_OUTLINE;      opacity = fadeCfg.FAR_OPACITY;
+          detail = fadeCfg.FAR_DETAIL;      outlineOn = fadeCfg.FAR_OUTLINE;
+          bodyOpacity    = fadeCfg.FAR_BODY_OPACITY;
+          outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
         }
       } else {
         // No selection — uniform Default look.
-        detail    = fadeCfg.DEFAULT_DETAIL;
-        outlineOn = fadeCfg.DEFAULT_OUTLINE;
-        opacity   = fadeCfg.DEFAULT_OPACITY;
+        detail         = fadeCfg.DEFAULT_DETAIL;
+        outlineOn      = fadeCfg.DEFAULT_OUTLINE;
+        bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
+        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
       }
 
-      // Hover preview: a hovered file building shows its full body and
-      // never drops below HOVER_MIN_OPACITY. Outline preference stays per
-      // tier (so the row's outline doesn't pop on/off on hover).
+      // Hover preview: a hovered file building is rendered using the
+      // DEFAULT tier styling regardless of which tier it would otherwise
+      // sit in. Hover acts as a "preview the selection" state — single
+      // source of truth, no separate hover-floor knob.
       if (m === hoverMesh) {
-        detail = 'full';
-        if (opacity < fadeCfg.HOVER_MIN_OPACITY) opacity = fadeCfg.HOVER_MIN_OPACITY;
+        detail         = fadeCfg.DEFAULT_DETAIL;
+        outlineOn      = fadeCfg.DEFAULT_OUTLINE;
+        bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
+        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
       }
 
-      // ---- Translate (detail, outline, opacity) → per-layer targets ----
-      var bodyTarget    = (detail === 'full')       ? opacity : 0;
-      var ghostTarget   = (detail === 'silhouette') ? opacity : 0;
-      var outlineTarget = outlineOn                  ? opacity : 0;
+      // ---- Translate (detail, outline, opacities) → per-layer targets ----
+      var bodyTarget    = (detail === 'full')       ? bodyOpacity    : 0;
+      var ghostTarget   = (detail === 'silhouette') ? bodyOpacity    : 0;
+      var outlineTarget = outlineOn                 ? outlineOpacity : 0;
 
       // Lerp each layer toward its target. SNAP_THRESHOLD lets us stop
       // animating once we're close enough — saves redundant material updates.

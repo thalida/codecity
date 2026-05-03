@@ -221,10 +221,6 @@ function _buildStreetsSection(applyTheme) {
     _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
       tip: 'Minimum repeat distance in world units (so tiny labels do not pile up).',
       rebuild: true
-    }),
-    _slider('Lift above asphalt',   LABEL_TYPOGRAPHY, 'ELEVATION', 0, 5, 0.1, {
-      tip: 'Vertical offset of the label plane above the road, to avoid z-fighting.',
-      onChange: applyTheme
     })
   ]));
 
@@ -269,19 +265,23 @@ function _buildBuildingsSection(applyTheme) {
 
   section.appendChild(_subgroup('Size', [
     _rangePair('Floors range',  BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
-      tip: 'Smallest file in the project lands at MIN floors; largest at MAX. Everything else interpolated by sqrt of line count.',
+      tip: 'How tall a building gets — represents the file\'s line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.',
       rebuild: true
     }),
     _number('Floor height',     BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-      tip: 'Vertical world units per floor.',
+      tip: 'Vertical world units per floor (multiplier on the floor count above).',
       rebuild: true
     }),
     _rangePair('Width range',   BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
-      tip: 'Smallest file lands at MIN width; largest at MAX. Interpolated by log of byte size. Footprints are square (depth = width).',
+      tip: 'How wide a building\'s footprint is — represents the file\'s byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).',
       rebuild: true
     }),
-    _number('Sidewalk gap',     BUILDING_DIMENSIONS, 'STREET_GAP', 0, 50, 1, {
-      tip: 'Empty space the building leaves between its wall and the adjacent sidewalk. The path connector strip exactly bridges this gap; the door is sized to ~80% of it.',
+    _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+      tip: 'Distance from the building\'s wall to the adjacent sidewalk. The path connector strip bridges this gap.',
+      rebuild: true
+    }),
+    _number('Building path width',  BUILDING_DIMENSIONS, 'PATH_WIDTH', 0, 50, 1, {
+      tip: 'Lateral width of the path connector strip running between building and sidewalk. The door is sized to ~80% of this.',
       rebuild: true
     })
   ]));
@@ -301,6 +301,21 @@ function _buildBuildingsSection(applyTheme) {
     })
   ]));
 
+  // Extension hues — one row per file extension in HUE_EXT_MAP, sorted
+  // alphabetically so the list stays predictable. Each row writes back
+  // to a single sub-key of HUE_EXT_MAP (no whole-map clobber).
+  var huePaletteRows = [];
+  var hueDefaults = getDefault(BUILDING_PALETTE, 'HUE_EXT_MAP') || {};
+  var hueExtensions = Object.keys(hueDefaults).sort();
+  for (var ei = 0; ei < hueExtensions.length; ei++) {
+    huePaletteRows.push(_nestedSlider(
+      hueExtensions[ei],
+      BUILDING_PALETTE, 'HUE_EXT_MAP', hueExtensions[ei],
+      0, 359, 1, { tip: 'Hue (0–359°) for files with this extension.', rebuild: true }
+    ));
+  }
+  section.appendChild(_subgroup('Extension hues (0–359°)', huePaletteRows));
+
   section.appendChild(_subgroup('Outlines', [
     _number('Linewidth',        BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
       tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
@@ -319,16 +334,12 @@ function _buildBuildingsSection(applyTheme) {
 
   // Selection fade — animation knobs first, then per-tier style. Each tier
   // (Default = siblings of selection / Level 1 = one hop / Level 2+ = far)
-  // gets the same three controls: detail (full / silhouette / hidden) +
-  // outline on/off + opacity. So a single coherent "what does this tier
-  // look like?" picker rather than 3 separate dim sliders.
+  // gets four controls: detail (full / silhouette / hidden), outline on/off,
+  // and separate body + outline opacity sliders. Hover renders a building
+  // using the Default tier's settings — no separate hover-floor knob.
   section.appendChild(_subgroup('Selection fade — animation', [
     _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
       tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
-      onChange: applyTheme
-    }),
-    _slider('Hover min opacity', BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, {
-      tip: 'A hovered file building\'s body never drops below this opacity, even when it sits in the Level 2+ tier.',
       onChange: applyTheme
     })
   ]));
@@ -348,22 +359,28 @@ function _buildBuildingsSection(applyTheme) {
       tip: 'Show the wireframe edge overlay.',
       onChange: applyTheme
     }),
-    _slider('Opacity', BUILDING_FADE, 'DEFAULT_OPACITY', 0.0, 1.0, 0.05, {
-      tip: 'Multiplier applied to whichever layers are visible (body or silhouette, plus outline if on).',
+    _slider('Body opacity',    BUILDING_FADE, 'DEFAULT_BODY_OPACITY',    0.0, 1.0, 0.05, {
+      tip: 'Opacity for the body / silhouette layer.',
+      onChange: applyTheme
+    }),
+    _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
+      tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
       onChange: applyTheme
     })
   ]));
 
   section.appendChild(_subgroup('Level 1 — one hop from selection', [
-    _select('Detail',  BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
-    _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', { onChange: applyTheme }),
-    _slider('Opacity', BUILDING_FADE, 'NEAR_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
+    _select('Detail',          BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS,         { onChange: applyTheme }),
+    _toggle('Outline',         BUILDING_FADE, 'NEAR_OUTLINE',                        { onChange: applyTheme }),
+    _slider('Body opacity',    BUILDING_FADE, 'NEAR_BODY_OPACITY',    0.0, 1.0, 0.05, { onChange: applyTheme }),
+    _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
   ]));
 
   section.appendChild(_subgroup('Level 2+ — cousins, deeper subtrees', [
-    _select('Detail',  BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
-    _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', { onChange: applyTheme }),
-    _slider('Opacity', BUILDING_FADE, 'FAR_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
+    _select('Detail',          BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS,         { onChange: applyTheme }),
+    _toggle('Outline',         BUILDING_FADE, 'FAR_OUTLINE',                        { onChange: applyTheme }),
+    _slider('Body opacity',    BUILDING_FADE, 'FAR_BODY_OPACITY',    0.0, 1.0, 0.05, { onChange: applyTheme }),
+    _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
   ]));
 
   return section;
@@ -673,6 +690,79 @@ function _slider(label, store, key, min, max, step, opts) {
     }
   });
   return _row(label, control, store, [key], opts);
+}
+
+// _nestedSlider — like _slider but the value lives at store.get()[parentKey][subKey].
+// Writes go through `store.setKey(parentKey, { ...current, [subKey]: v })` so other
+// sub-keys are preserved. The row's reset icon resets just `subKey` back to its
+// registered default (not the whole map). Used for HUE_EXT_MAP per-extension rows.
+function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
+  var onChange = _resolveChange(opts);
+  var refs = {};
+  var initial = (store.get()[parentKey] || {})[subKey];
+  var control = _sliderWidget(initial, min, max, step, function (v) {
+    var current = store.get()[parentKey] || {};
+    var next = {};
+    for (var k in current) {
+      if (Object.prototype.hasOwnProperty.call(current, k)) next[k] = current[k];
+    }
+    next[subKey] = v;
+    store.setKey(parentKey, next);
+    onChange();
+  }, refs);
+
+  store.subscribe(function (state) {
+    var v = (state[parentKey] || {})[subKey];
+    if (parseFloat(refs.range.value) !== v) {
+      refs.range.value = String(v);
+      refs.readout.textContent = _formatNumberForStep(v, step);
+    }
+  });
+
+  // Reset icon: visible when this sub-key differs from its registered default.
+  // Click resets only this sub-key.
+  var rowOpts = {};
+  for (var ok in opts) if (Object.prototype.hasOwnProperty.call(opts, ok)) rowOpts[ok] = opts[ok];
+
+  var row = _row(label, control, null, null, rowOpts);
+  var ctrlWrap = row.querySelector('.theme-row-control');
+  var resetBtn = _makeNestedResetButton(store, parentKey, subKey, opts);
+  ctrlWrap.appendChild(resetBtn);
+  return row;
+}
+
+function _makeNestedResetButton(store, parentKey, subKey, opts) {
+  var onChange = (opts && typeof opts.onChange === 'function') ? opts.onChange : function () {};
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'theme-row-reset';
+  btn.title = 'Reset to default';
+  btn.setAttribute('aria-label', 'Reset to default');
+  btn.appendChild(makeLucideIcon('rotate-ccw'));
+
+  var defaultMap = getDefault(store, parentKey) || {};
+  var defaultVal = defaultMap[subKey];
+
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    var current = store.get()[parentKey] || {};
+    var next = {};
+    for (var k in current) {
+      if (Object.prototype.hasOwnProperty.call(current, k)) next[k] = current[k];
+    }
+    next[subKey] = defaultVal;
+    store.setKey(parentKey, next);
+    onChange();
+  });
+
+  function refresh() {
+    var v = (store.get()[parentKey] || {})[subKey];
+    btn.classList.toggle('is-visible', !_isEqual(v, defaultVal));
+  }
+  refresh();
+  store.subscribe(refresh);
+  return btn;
 }
 
 // _select — segmented radio for an enum-valued key. `options` is an array
