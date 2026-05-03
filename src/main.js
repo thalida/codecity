@@ -64,6 +64,7 @@ function startRenderLoop(canvas, manifest, config) {
   var buildingMeshes  = built.buildingMeshes;
   var streetPickables = built.streetPickables;
   var streetLabels    = built.streetLabels;
+  var pathMeshes      = built.pathMeshes || [];
   var rootGem         = built.rootGem;
   // pickables is rebuilt on every height-mode toggle (since building meshes
   // are disposed + replaced), so we wrap the array in a getter-style closure
@@ -352,7 +353,7 @@ function startRenderLoop(canvas, manifest, config) {
   // config.scene.sidewalk; we mutate material.color directly on hover/select
   // and restore from sidewalk.userData.origColor (lazily captured first time
   // we touch the material).
-  var SIDEWALK_HOVER_COLOR    = 0x6a6c74;   // medium gray
+  var SIDEWALK_HOVER_COLOR    = 0xffffff;   // white
   var SIDEWALK_SELECTED_COLOR = 0xd0d2da;   // near-white
   var SIDEWALK_PATH_COLOR     = 0x4a4c54;   // slightly lighter than default — for parent streets on the path
 
@@ -371,6 +372,19 @@ function startRenderLoop(canvas, manifest, config) {
     }
   }
 
+  // Building-to-street connector strips, grouped by parent dir path so
+  // they can be tinted alongside their street's sidewalk (selected /
+  // hover / path lineage colors).
+  var pathMeshesByDirPath = {};
+  for (var pmi = 0; pmi < pathMeshes.length; pmi++) {
+    var _pm = pathMeshes[pmi];
+    var _pmFile = _pm.userData.file;
+    var _pmDir  = _pmFile && _pmFile.path != null ? parentDirPath(_pmFile.path) : null;
+    if (_pmDir == null) continue;
+    if (!pathMeshesByDirPath[_pmDir]) pathMeshesByDirPath[_pmDir] = [];
+    pathMeshesByDirPath[_pmDir].push(_pm);
+  }
+
   // _expectedSidewalkTint(sw) — selected / path / hover color, or null for
   // default. Selected wins over path; path wins over hover. The neon line
   // STILL traces the path; the sidewalk tint reinforces the lineage so
@@ -380,13 +394,15 @@ function startRenderLoop(canvas, manifest, config) {
         currentSelection.sidewalk === sw) {
       return SIDEWALK_SELECTED_COLOR;
     }
-    if (currentSelection && currentSelection._pathSidewalks &&
-        currentSelection._pathSidewalks.indexOf(sw) !== -1) {
-      return SIDEWALK_PATH_COLOR;
-    }
+    // Hover wins over path tint so parent roads still show a hover response
+    // when you mouse over them. Selection still wins over hover above.
     if (currentHover && currentHover.kind === 'directory' &&
         currentHover.sidewalk === sw) {
       return SIDEWALK_HOVER_COLOR;
+    }
+    if (currentSelection && currentSelection._pathSidewalks &&
+        currentSelection._pathSidewalks.indexOf(sw) !== -1) {
+      return SIDEWALK_PATH_COLOR;
     }
     return null;
   }
@@ -421,7 +437,22 @@ function startRenderLoop(canvas, manifest, config) {
         sw.userData.origColor = sw.material.color.getHex();
       }
       var expected = _expectedSidewalkTint(sw);
-      sw.material.color.setHex(expected != null ? expected : sw.userData.origColor);
+      var swColor = expected != null ? expected : sw.userData.origColor;
+      sw.material.color.setHex(swColor);
+      // Building connector strips for this street follow its tint so the
+      // lineage / selection / hover colors extend continuously from the
+      // sidewalk into each adjacent building's path.
+      var swDir = sw.userData.street && sw.userData.street.dir;
+      var connectors = swDir ? pathMeshesByDirPath[swDir.path] : null;
+      if (connectors) {
+        for (var ci = 0; ci < connectors.length; ci++) {
+          var pm = connectors[ci];
+          if (pm.userData.origColor == null) {
+            pm.userData.origColor = pm.material.color.getHex();
+          }
+          pm.material.color.setHex(swColor);
+        }
+      }
     }
   }
 
@@ -436,7 +467,8 @@ function startRenderLoop(canvas, manifest, config) {
     linewidth:    5,
     transparent:  true,
     opacity:      0.0,
-    depthTest:    true,    // buildings occlude the line — it's a road marking
+    depthTest:    true,            // buildings occlude the line
+    depthWrite:   false,           // don't pollute depth for later passes
     worldUnits:   false
   });
   pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
@@ -444,7 +476,11 @@ function startRenderLoop(canvas, manifest, config) {
   pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
   var pathLine = new LineSegments2(pathLineGeo, pathLineMat);
   pathLine.visible = false;
-  pathLine.renderOrder = 6;
+  // Render BEFORE labels (which sit at renderOrder 6) so the labels'
+  // alpha-blended text composites cleanly on top — opaque glyph pixels
+  // cover the path while transparent regions (letter loops in O, D, etc.)
+  // still reveal the neon line running underneath.
+  pathLine.renderOrder = 4;
   scene.add(pathLine);
 
   var pathSegmentCount = 0;            // tracks how many segments are live
@@ -708,7 +744,7 @@ function startRenderLoop(canvas, manifest, config) {
         return;
       }
       if (ud.street) {
-        _focusOnStreet(ud.street);
+        _focusOnStreet(ud.street, hit.point);
         return;
       }
       _recenterPivotToPoint(new THREE.Vector3(hit.point.x, 0, hit.point.z));
@@ -799,8 +835,17 @@ function startRenderLoop(canvas, manifest, config) {
   // the screen and zoom in to a navigable distance. Camera offset is along
   // the street's PERPENDICULAR axis on whichever side the camera currently
   // sits, so the transition is short and the user keeps their bearings.
-  function _focusOnStreet(s) {
-    var newTarget = new THREE.Vector3(s.x, 0, s.y);
+  function _focusOnStreet(s, hitPoint) {
+    // If the user double-clicked a specific spot, center above THAT spot
+    // (clamped to the street's centerline along its long axis so the road
+    // still runs cleanly horizontal). Without a hit point, fall back to
+    // the street's geometric center.
+    var tx = s.x, tz = s.y;
+    if (hitPoint) {
+      if (s.orientation === 'x') tx = hitPoint.x;   // slide along X
+      else                       tz = hitPoint.z;   // slide along Z
+    }
+    var newTarget = new THREE.Vector3(tx, 0, tz);
 
     // True top-down framing. Camera nearly vertical, well above the
     // tallest building so nothing can obstruct the street from this angle.
@@ -868,9 +913,9 @@ function startRenderLoop(canvas, manifest, config) {
     var horizDist = altitude / Math.tan(elev);
 
     var newCamPos = new THREE.Vector3(
-      s.x + offX * horizDist,
+      tx + offX * horizDist,
       altitude,
-      s.y + offZ * horizDist
+      tz + offZ * horizDist
     );
     _animateCamera(newTarget, newCamPos, 600);
     _pingPivot(newTarget);

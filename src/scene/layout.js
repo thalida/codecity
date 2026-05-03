@@ -197,8 +197,14 @@ export function layoutCity(manifest, config) {
   var pathWidth  = (lc.path_width != null) ? lc.path_width : 3;
   var pathLength = (lc.bldg_street_gap != null) ? lc.bldg_street_gap : 4;
   for (var pi = 0; pi < result.buildings.length; pi++) {
-    var path = _pathForBuilding(result.buildings[pi], pathWidth, pathLength);
-    if (path) result.paths.push(path);
+    var bForPath = result.buildings[pi];
+    var path = _pathForBuilding(bForPath, pathWidth, pathLength);
+    if (path) {
+      // Stamp the building's file so the renderer can match each path
+      // mesh back to its parent street's sidewalk for color updates.
+      path.file = bForPath.file;
+      result.paths.push(path);
+    }
   }
 
   return result;

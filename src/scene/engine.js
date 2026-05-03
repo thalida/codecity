@@ -500,6 +500,7 @@ function createPathMesh(path, yBase) {
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(path.x, yBase, path.y);
   mesh.renderOrder = 2;
+  mesh.userData.file = path.file || null;
   return mesh;
 }
 
@@ -518,8 +519,12 @@ function createPathMesh(path, yBase) {
 // camera orbits to the "upside-down" side.
 // -----------------------------------------------------------------------------
 function _buildLabelTexture(text) {
-  var fontPx = 72;
-  var pad    = 18;
+  // High source resolution so close-zoom doesn't reveal bilinear blur.
+  // The world-space plane size is unchanged — we're just packing more
+  // texels into the same footprint.
+  var fontPx = 192;
+  var pad    = 48;
+  var stroke = 32;
   var measure = document.createElement('canvas').getContext('2d');
   measure.font = '700 ' + fontPx + 'px Inter, "SF Mono", sans-serif';
   var textW = Math.ceil(measure.measureText(text).width);
@@ -531,18 +536,15 @@ function _buildLabelTexture(text) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Dark outline + bright fill — readable over asphalt AND over the
-  // chasing-rainbow neon path line. Thicker stroke (16) gives a solid
-  // backing pill so text stays legible against busy backgrounds.
-  ctx.lineWidth = 16;
-  ctx.strokeStyle = 'rgba(8, 9, 14, 1.0)';
+  ctx.lineWidth = stroke;
+  ctx.strokeStyle = 'rgba(8, 9, 14, 0.95)';
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   ctx.fillStyle = '#f4f6ff';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
   var tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 16;
   return { texture: tex, aspect: canvas.width / canvas.height };
 }
 
@@ -575,10 +577,18 @@ function createStreetLabels(street) {
 
     var mat = new THREE.MeshBasicMaterial({
       map: info.texture,
-      transparent: true
+      transparent: true,
+      // Don't write depth — otherwise the plane's transparent canvas pixels
+      // z-block the neon path running underneath, leaving a visible
+      // bbox-shaped hole. With depthWrite off, opaque glyph pixels still
+      // alpha-blend over the path, but letter loops (O, D, P) reveal it.
+      depthWrite: false
     });
     var plane = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), mat);
     plane.rotation.x = -Math.PI / 2;   // lay flat
+    // Render AFTER the neon path line (renderOrder 4) so the label
+    // composites on top via alpha blending.
+    plane.renderOrder = 6;
 
     // Wrap in a group so we can apply a single rotation.y for camera-follow
     // flipping without fighting the Euler order of the flattened plane.
@@ -637,9 +647,12 @@ export function buildCityScene(layout, config) {
   }
 
   // Paths
+  var pathMeshes = [];
   var paths = layout.paths || [];
   for (var pi = 0; pi < paths.length; pi++) {
-    scene.add(createPathMesh(paths[pi], 0));
+    var pm = createPathMesh(paths[pi], 0);
+    scene.add(pm);
+    pathMeshes.push(pm);
   }
 
   // Buildings
@@ -665,6 +678,7 @@ export function buildCityScene(layout, config) {
     buildingMeshes: buildingMeshes,
     streetPickables: streetPickables,
     streetLabels: streetLabels,
+    pathMeshes: pathMeshes,
     rootGem: rootGem,
     bbox: bbox
   };
