@@ -33,10 +33,19 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Three-pane layout: tree sidebar | city canvas | file sidebar.
-   Each pane is a direct flex child; the center grows/shrinks instead of
+/* App layout: a column with a thin sitewide header on top and a 3-pane
+   row underneath. The 3-pane row is itself a flex row — left sidebar |
+   center canvas | right sidebar. The center grows/shrinks instead of
    the sidebars overlaying it. */
 body {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#app-body {
+  flex: 1 1 0;
+  min-height: 0;
   display: flex;
   flex-direction: row;
   align-items: stretch;
@@ -49,10 +58,71 @@ body {
   overflow: hidden;
 }
 
+/* ── Sitewide header ──────────────────────────────────────────────────── */
+
+#app-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 6px;
+  background: #0c0d14;
+  border-bottom: 1px solid #1e2030;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+  color: #c0c4d8;
+  -webkit-app-region: drag;       /* in pywebview's native frame this lets you drag */
+  user-select: none;
+}
+
+#app-title {
+  flex: 1 1 auto;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.02em;
+  color: #8a8fa8;
+}
+#app-title:empty::before {
+  content: 'CodeCity';
+  color: #44485e;
+}
+
+.app-header-icon {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  border-radius: 3px;
+  -webkit-app-region: no-drag;
+}
+.app-header-icon:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-header-icon .lucide-icon {
+  font-size: 14px;
+}
+
+/* When toggled off via the header buttons, hide the entire sidebar (not
+   the same as the activity-bar collapse). */
+body.left-hidden #tree-sidebar { display: none; }
+body.right-hidden #sidebar      { display: none; }
+
 canvas {
   display: block;
   width: 100%;
   height: 100%;
+  /* Match the body bg so any sub-frame transparency during resize blends
+     in instead of flashing. */
+  background: #0a0b10;
 }
 
 
@@ -80,10 +150,6 @@ canvas {
   width: var(--sidebar-width, 360px);
   min-width: 280px;
   max-width: 70vw;
-}
-
-#sidebar.is-animating {
-  transition: width 0.25s ease;
 }
 
 /* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
@@ -132,11 +198,11 @@ canvas {
   background: #6c8aff;
 }
 
-/* The breadcrumb fills the middle of the header. RTL trick truncates from
-   the LEFT (so the leaf filename always stays visible) while the segments
-   themselves stay LTR. */
+/* The breadcrumb sits right after the chip in normal reading order. It's
+   shrinkable so a very long path doesn't push the close button off-screen
+   — the leading folders simply truncate (with a tooltip restoring them). */
 .editor-header-path {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-width: 0;
   display: flex;
   align-items: center;
@@ -146,11 +212,11 @@ canvas {
   color: #6a7090;
   white-space: nowrap;
   overflow: hidden;
-  direction: rtl;
-  text-align: left;
+  text-overflow: ellipsis;
 }
-.editor-header-path > * { direction: ltr; }
-.editor-header-path::-webkit-scrollbar { height: 0; }
+.editor-header-spacer {
+  flex: 1 1 auto;
+}
 
 .editor-header-segment {
   flex: 0 0 auto;

@@ -61,6 +61,7 @@ export function setSidebarCloseHandler(fn) {
   _onClose = fn || null;
 }
 
+
 /**
  * Show the sidebar populated with metadata for a file node.
  *
@@ -77,7 +78,7 @@ export function showFileSidebar(file) {
   _clearContent(sidebar);
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
-  _animateOpen(sidebar);
+  sidebar.classList.add('open');
 
   // Single compact header row: ext chip \u00b7 breadcrumb (path) \u00b7 copy \u00b7 close.
   var extChip = file.extension ? _makeExtChip(file.extension) : null;
@@ -92,8 +93,6 @@ export function showFileSidebar(file) {
 
   // Status bar \u2014 file metadata as VSCode-style chips.
   sidebar.appendChild(_makeFileStatusBar(file));
-
-  sidebar.classList.add('open');
 }
 
 /**
@@ -114,7 +113,7 @@ export function showDirSidebar(dir) {
   _clearContent(sidebar);
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
-  _animateOpen(sidebar);
+  sidebar.classList.add('open');
 
   sidebar.appendChild(_makeEditorHeader(_makeDirChip(), dir.path || dir.fullPath || ''));
 
@@ -125,8 +124,6 @@ export function showDirSidebar(dir) {
   sidebar.appendChild(body);
 
   sidebar.appendChild(_makeDirStatusBar(dir));
-
-  sidebar.classList.add('open');
 }
 
 /**
@@ -135,32 +132,8 @@ export function showDirSidebar(dir) {
  */
 export function closeSidebar() {
   var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
-  if (sidebar) {
-    _animateClose(sidebar);
-  }
+  if (sidebar) sidebar.classList.remove('open');
   if (_onClose) _onClose();
-}
-
-// is-animating gates the CSS width transition. We only want it active for
-// the duration of an open/close — drag-resizes should be instant.
-var _animateTimer = 0;
-function _animateOpen(sidebar) {
-  if (_animateTimer) clearTimeout(_animateTimer);
-  sidebar.classList.add('is-animating');
-  sidebar.classList.add('open');
-  _animateTimer = setTimeout(function () {
-    sidebar.classList.remove('is-animating');
-    _animateTimer = 0;
-  }, 280);
-}
-function _animateClose(sidebar) {
-  if (_animateTimer) clearTimeout(_animateTimer);
-  sidebar.classList.add('is-animating');
-  sidebar.classList.remove('open');
-  _animateTimer = setTimeout(function () {
-    sidebar.classList.remove('is-animating');
-    _animateTimer = 0;
-  }, 280);
 }
 
 /**
@@ -252,10 +225,12 @@ function _makeEditorHeader(chipEl, pathText) {
   var header = document.createElement('div');
   header.className = 'editor-header';
 
+  // [chip] [path] [copy] ───spacer──── [close]
   if (chipEl) header.appendChild(chipEl);
 
   var crumbs = document.createElement('div');
   crumbs.className = 'editor-header-path';
+  crumbs.title = pathText || '';   // tooltip restores any truncated portion
 
   var segments = (pathText || '').split('/').filter(Boolean);
   if (segments.length === 0) {
@@ -278,9 +253,6 @@ function _makeEditorHeader(chipEl, pathText) {
       }
     }
   }
-
-  // Tooltip the full path on hover — useful when the row truncates.
-  crumbs.title = pathText || '';
   header.appendChild(crumbs);
 
   var copyBtn = document.createElement('button');
@@ -293,6 +265,11 @@ function _makeEditorHeader(chipEl, pathText) {
     copyToClipboard(pathText, copyBtn);
   });
   header.appendChild(copyBtn);
+
+  // Spacer pushes the close button to the far right.
+  var spacer = document.createElement('span');
+  spacer.className = 'editor-header-spacer';
+  header.appendChild(spacer);
 
   var closeBtn = document.createElement('button');
   closeBtn.className = 'editor-header-icon';

@@ -78,6 +78,7 @@ import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
 import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
+import { initAppHeader } from './components/appHeader.js';
 import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
 import {
@@ -99,6 +100,12 @@ function startRenderLoop(canvas, manifest) {
   var layout     = layoutCity(manifest.tree);
   var dateRanges = getDateRanges(manifest.tree);
   setSidebarPalette(BUILDING_PALETTE.get().HUE_EXT_MAP || {});
+
+  // Sitewide header — owns the visible title + the show/hide-sidebar toggles.
+  // main.js is the source of truth for selection; we push the selected
+  // node's name into the header from _setSelection (and clear it on
+  // close) so data flows downward, not from the sidebar.
+  var appHeader = initAppHeader();
 
   for (var i = 0; i < layout.buildings.length; i++) {
     var b = layout.buildings[i];
@@ -930,6 +937,12 @@ function startRenderLoop(canvas, manifest) {
     _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _saveSelection(sel);
     _syncTreeSelection(sel);
+    // Sitewide header title mirrors the selection. Sel shape:
+    //   file:      { kind:'file',      mesh, data, file: {name,...} }
+    //   directory: { kind:'directory', sidewalk, street, dir:  {name,...} }
+    appHeader.setTitle(
+      sel ? ((sel.file && sel.file.name) || (sel.dir && sel.dir.name) || '') : ''
+    );
   }
 
   // City → tree: mirror the active selection into the left tree pane so
@@ -1347,6 +1360,9 @@ function startRenderLoop(canvas, manifest) {
     for (var rmi = 0; rmi < buildingOutlineMats.length; rmi++) {
       buildingOutlineMats[rmi].resolution.set(cw, ch);
     }
+    // Paint the resized canvas synchronously so the browser doesn't show
+    // a blank/cleared frame between the resize and the next animate() tick.
+    renderer.render(scene, camera);
   }
   window.addEventListener('resize', onResize);
   // Sidebars now share horizontal space with the canvas via flexbox (3-pane
