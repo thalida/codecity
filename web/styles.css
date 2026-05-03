@@ -13,6 +13,8 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  background-color: red;
+  outline: 2px solid blue ;
 }
 
 
@@ -50,7 +52,7 @@ canvas {
   min-width: 280px;
   max-width: 70vw;
   height: 100%;
-  background: #12131a;
+  background: red;
   border-left: 1px solid #1e2030;
   transform: translateX(100%);
   /* Only the slide animation transitions; width must stay exact during drag,

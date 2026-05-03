@@ -1,10 +1,12 @@
 """codecity CLI.
 
-Subcommands:
-    codecity PATH [...]                 shorthand for: codecity serve PATH
-    codecity serve PATH [...]           scan, serve, open pywebview window
-    codecity dev PATH [...]             dev mode — Vite + Python server
+Commands:
+    codecity PATH [--dev] [...]         shorthand for: codecity serve PATH
+    codecity serve PATH [--dev] [...]   scan, serve, open pywebview window
     codecity scan PATH [--output FILE]  debug — emit manifest JSON
+
+Pass --dev to spawn Vite (HMR) instead of serving the committed static
+build.
 """
 
 from __future__ import annotations
@@ -34,7 +36,7 @@ VITE_READY_TIMEOUT = 30  # seconds
 
 # argv[0] values that are real subcommands (vs. a path that should be
 # rewritten to `serve PATH`) and value-less help/version flags.
-_SUBCOMMANDS = {"serve", "dev", "scan"}
+_SUBCOMMANDS = {"serve", "scan"}
 _PASSTHROUGH = {"-h", "--help", "--version"}
 
 
@@ -80,7 +82,14 @@ def cmd_scan(args: argparse.Namespace) -> int:
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
-    """Scan, serve static, open pywebview."""
+    """Default action. With --dev, runs Vite + HMR; otherwise serves the
+    committed static build."""
+    if getattr(args, "dev", False):
+        return _serve_dev(args)
+    return _serve_prod(args)
+
+
+def _serve_prod(args: argparse.Namespace) -> int:
     from codecity.webview import launch
 
     manifest = _scan_from_args(args)
@@ -112,13 +121,18 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_dev(args: argparse.Namespace) -> int:
-    """Scan, run Python server on 8765, spawn Vite, open pywebview pointed at
-    Vite (which proxies /api/* back to Python)."""
+def _serve_dev(args: argparse.Namespace) -> int:
+    """Spawn Vite + Python server, point pywebview at Vite (HMR-enabled)."""
     from codecity.webview import launch
 
     if shutil.which("npm") is None:
-        print("error: 'npm' not found on PATH; required for dev mode", file=sys.stderr)
+        print("error: 'npm' not found on PATH; required for --dev", file=sys.stderr)
+        return 2
+    if not (WEB_DIR / "node_modules").exists():
+        print(
+            "error: web/node_modules missing — run (cd web && npm install) first",
+            file=sys.stderr,
+        )
         return 2
 
     manifest = _scan_from_args(args)
@@ -128,6 +142,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
         manifest, port=DEFAULT_API_PORT, scan_root=scan_root
     )
     print(f"[codecity] api server on http://127.0.0.1:{port}", file=sys.stderr)
+    print(f"[codecity] starting Vite on :{VITE_PORT}…", file=sys.stderr)
 
     vite_proc = subprocess.Popen(
         ["npm", "run", "dev"],
@@ -138,8 +153,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
     )
 
     try:
-        if not _wait_for_url(f"http://127.0.0.1:{VITE_PORT}/", VITE_READY_TIMEOUT):
-            print("error: Vite did not become ready in time", file=sys.stderr)
+        if not _wait_for_vite(f"http://127.0.0.1:{VITE_PORT}/", vite_proc):
             return 3
         launch(
             f"http://127.0.0.1:{VITE_PORT}/",
@@ -157,15 +171,33 @@ def cmd_dev(args: argparse.Namespace) -> int:
     return 0
 
 
-def _wait_for_url(url: str, timeout: float) -> bool:
-    deadline = time.monotonic() + timeout
+def _wait_for_vite(url: str, vite_proc: subprocess.Popen) -> bool:
+    """Block until Vite responds on ``url``, or until it exits early.
+
+    Polling ``vite_proc.poll()`` lets us surface "Vite died on startup"
+    immediately (e.g. port 5173 already in use with strictPort), instead
+    of waiting out the full ready timeout."""
+    deadline = time.monotonic() + VITE_READY_TIMEOUT
     while time.monotonic() < deadline:
+        rc = vite_proc.poll()
+        if rc is not None:
+            print(
+                f"error: Vite exited with code {rc} before becoming ready — "
+                f"likely port {VITE_PORT} is already in use; "
+                f"check `lsof -i :{VITE_PORT}` and try again",
+                file=sys.stderr,
+            )
+            return False
         try:
             with urllib.request.urlopen(url, timeout=1) as resp:
                 if 200 <= resp.status < 500:
                     return True
         except (urllib.error.URLError, urllib.error.HTTPError, ConnectionError):
             time.sleep(0.25)
+    print(
+        f"error: Vite did not become ready within {VITE_READY_TIMEOUT}s",
+        file=sys.stderr,
+    )
     return False
 
 
@@ -194,12 +226,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Open the PyWebView window with developer tools enabled.",
     )
+    p_serve.add_argument(
+        "--dev",
+        action="store_true",
+        help="Run via Vite dev server with frontend HMR.",
+    )
     p_serve.set_defaults(func=cmd_serve)
-
-    p_dev = sub.add_parser("dev", help="Run with Vite dev server + HMR.")
-    _add_scan_args(p_dev)
-    p_dev.add_argument("--debug", action="store_true", help="Enable webview dev tools.")
-    p_dev.set_defaults(func=cmd_dev)
 
     p_scan = sub.add_parser("scan", help="Emit the scanned manifest as JSON.")
     _add_scan_args(p_scan)

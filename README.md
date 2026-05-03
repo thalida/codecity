@@ -21,13 +21,14 @@ A window opens with the city. Pan with right-click drag, orbit with left-click d
 
 ```sh
 codecity PATH                       # shorthand for: codecity serve PATH
-codecity serve PATH [--port N] [--no-window]
-codecity dev   PATH                 # Vite + HMR for frontend dev
+codecity serve PATH [--dev] [--port N] [--no-window] [--debug]
 codecity scan  PATH [--output FILE] # emit the manifest as JSON
 
 codecity --help
 codecity --version
 ```
+
+Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build.
 
 Every subcommand accepts the same scan flags:
 
@@ -79,7 +80,7 @@ uv run codecity .                # smoke test against this repo
 Hot-reload loop while editing the frontend:
 
 ```sh
-uv run codecity dev .
+uv run codecity --dev .
 ```
 
 That spawns Vite on `:5173` and the Python API on `:8765`, opens the window pointed at Vite, and tears both down when you close the window.

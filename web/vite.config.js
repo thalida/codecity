@@ -23,6 +23,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // strictPort: don't silently shift to 5174 if 5173 is taken — codecity
+    // dev mode polls 5173, so a port shift would look like "Vite never came
+    // up" instead of the real cause (another process holding the port).
+    strictPort: true,
     proxy: {
       '/api': 'http://127.0.0.1:8765',
     },
