@@ -101,6 +101,7 @@ function _buildViewSection() {
 
   section.appendChild(_buildShortcutsList([
     { kbd: ['R'],   action: 'Reset the camera framing' },
+    { kbd: ['F'],   action: 'Focus camera on the current selection' },
     { kbd: ['Esc'], action: 'Close the sidebar / clear selection' },
     null,        // section break
     { mouse: 'Left drag',    action: 'Orbit' },

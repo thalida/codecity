@@ -1225,6 +1225,16 @@ function startRenderLoop(canvas, manifest) {
       closeSidebar();                 // close handler clears selection + focus
     } else if (e.key === 'r' || e.key === 'R' || e.key === 'Home') {
       resetView();
+    } else if (e.key === 'f' || e.key === 'F') {
+      // Focus on whatever is currently selected. Mirrors the dblclick
+      // dispatch (file → building head-on, directory → top-down street),
+      // so users don't have to re-aim and double-click after a click-select.
+      if (!currentSelection) return;
+      if (currentSelection.kind === NODE_KIND.FILE) {
+        _focusOnBuilding(currentSelection.mesh, currentSelection.data);
+      } else if (currentSelection.kind === NODE_KIND.DIRECTORY) {
+        _focusOnStreet(currentSelection.street);
+      }
     }
   });
 
