@@ -28,11 +28,10 @@ export const BUILDING_PALETTE = map({
   SATURATION_MAX: 100,
   LIGHTNESS_MIN:  25,
   LIGHTNESS_MAX:  70,
-  // Fallbacks when a file has no creation/modification date (rare but
-  // possible). Kept in the middle of each range so the building still
-  // reads as "average" rather than crushed to either extreme.
-  SATURATION_MISSING_DATE_FALLBACK: 60,
-  LIGHTNESS_MISSING_DATE_FALLBACK:  45,
+  // (When a file has no creation/modification date, getSaturation /
+  // getLightness fall back to the midpoint of the range above so the
+  // building reads as "average" rather than crushed to either extreme.
+  // No separate config keys — the midpoint is derived in colors.js.)
   FALLBACK_COLOR:  'hsl(220, 10%, 40%)',   // when building.color is null
   DIRECTORY_COLOR: 'hsl(220, 15%, 25%)',   // dim slab for directory entries
   HUE_EXT_MAP: {
@@ -95,17 +94,15 @@ export const BUILDING_FACADE = map({
 // ─── Wireframe outlines ────────────────────────────────────────────────────
 // Per-building outline stays invisible until the building fades; HOVER +
 // SELECTED outlines are dedicated overlays painted over the active building.
-// All hot-reloadable.
+// One shared WIDTH for all three outlines — hover/selected differentiate
+// via color (white for hover, animated rainbow for selected) rather than
+// thickness. The chasing-rainbow effect on selected uses RAINBOW (shared
+// with the path line) — see config/animation.js.
 export const BUILDING_OUTLINE = map({
-  DEFAULT_LINEWIDTH:    3,
-  HOVER_COLOR:          '#ffffff',
-  HOVER_LINEWIDTH:      2,
-  HOVER_OPACITY:        0.85,
-  SELECTED_LINEWIDTH:   4,
-  SELECTED_OPACITY:     1.0,
-  RAINBOW_SPEED:        0.00045,    // hue chase speed (multiplier on performance.now())
-  RAINBOW_SATURATION:   1.0,
-  RAINBOW_LIGHTNESS:    0.6
+  WIDTH:            3,            // shared by default + hover + selected
+  HOVER_COLOR:      '#ffffff',
+  HOVER_OPACITY:    0.85,
+  SELECTED_OPACITY: 1.0
 });
 
 // ─── Visibility / selection-driven fade ────────────────────────────────────

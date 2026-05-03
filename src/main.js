@@ -47,6 +47,7 @@ import {
   INPUT_TIMING,
   PIVOT_PING,
   PATH_LINE,
+  RAINBOW,
   RENDER_ORDERS
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
@@ -136,7 +137,7 @@ function startRenderLoop(canvas, manifest) {
     _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
     var _olMat = new LineMaterial({
       color:       _bcol.clone(),
-      linewidth:   BUILDING_OUTLINE.get().DEFAULT_LINEWIDTH,
+      linewidth:   BUILDING_OUTLINE.get().WIDTH,
       transparent: true,
       opacity:     0.0,
       depthTest:   true,
@@ -300,7 +301,7 @@ function startRenderLoop(canvas, manifest) {
   var _bo = BUILDING_OUTLINE.get();
   var hoverLineMat = new LineMaterial({
     color:      new THREE.Color(_bo.HOVER_COLOR),
-    linewidth:  _bo.HOVER_LINEWIDTH,
+    linewidth:  _bo.WIDTH,
     transparent: true,
     opacity:    _bo.HOVER_OPACITY,
     depthTest:  true,
@@ -319,7 +320,7 @@ function startRenderLoop(canvas, manifest) {
   // offset by 1/12 of the wheel.
   var selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth:    _bo.SELECTED_LINEWIDTH,
+    linewidth:    _bo.WIDTH,
     transparent:  true,
     opacity:      _bo.SELECTED_OPACITY,
     depthTest:    true,
@@ -370,13 +371,13 @@ function startRenderLoop(canvas, manifest) {
   // is responsible for copying _selectedColors → _selColorBuf.array once
   // after all segments are written, and flagging needsUpdate.
   function _setSegHueGradient(segIdx, hueStart, hueEnd) {
-    var rb = BUILDING_OUTLINE.get();
+    var rb = RAINBOW.get();
     var k = segIdx * 6;
-    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
+    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
     _selectedColors[k]     = _tmpHsl.r;
     _selectedColors[k + 1] = _tmpHsl.g;
     _selectedColors[k + 2] = _tmpHsl.b;
-    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
+    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
     _selectedColors[k + 3] = _tmpHsl.r;
     _selectedColors[k + 4] = _tmpHsl.g;
     _selectedColors[k + 5] = _tmpHsl.b;
@@ -530,12 +531,12 @@ function startRenderLoop(canvas, manifest) {
 
     // Hover + selected outline overlays.
     hoverLineMat.color.set(outline.HOVER_COLOR);
-    hoverLineMat.linewidth    = outline.HOVER_LINEWIDTH;
-    selectedLineMat.linewidth = outline.SELECTED_LINEWIDTH;
+    hoverLineMat.linewidth    = outline.WIDTH;
+    selectedLineMat.linewidth = outline.WIDTH;
     // Per-building default outlines (the colored wireframes that fade in
     // as the building dims out).
     for (var oi = 0; oi < buildingOutlineMats.length; oi++) {
-      buildingOutlineMats[oi].linewidth = outline.DEFAULT_LINEWIDTH;
+      buildingOutlineMats[oi].linewidth = outline.WIDTH;
     }
 
     // Root gem edges color.
@@ -622,16 +623,16 @@ function startRenderLoop(canvas, manifest) {
   // hues are offset by 1/N around the wheel; t advances every frame.
   function _updatePathRainbow(t) {
     if (!pathLine.visible || pathSegmentCount === 0) return;
-    var rb = PATH_LINE.get();
+    var rb = RAINBOW.get();
     var n = pathSegmentCount;
     for (var s = 0; s < n; s++) {
       var h1 = ((t + s       / n) % 1 + 1) % 1;
       var h2 = ((t + (s + 1) / n) % 1 + 1) % 1;
-      _pathHsl.setHSL(h1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
+      _pathHsl.setHSL(h1, rb.SATURATION, rb.LIGHTNESS);
       _pathColorsBuf[s * 6]     = _pathHsl.r;
       _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
       _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
-      _pathHsl.setHSL(h2, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
+      _pathHsl.setHSL(h2, rb.SATURATION, rb.LIGHTNESS);
       _pathColorsBuf[s * 6 + 3] = _pathHsl.r;
       _pathColorsBuf[s * 6 + 4] = _pathHsl.g;
       _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
@@ -1434,7 +1435,7 @@ function startRenderLoop(canvas, manifest) {
       // building. Vertical edges (8-11) take a single hue from their
       // corresponding bottom corner so the verticals colors-match the loop
       // they connect to.
-      var t = performance.now() * BUILDING_OUTLINE.get().RAINBOW_SPEED;
+      var t = performance.now() * RAINBOW.get().SPEED;
       _setSegHueGradient(0, t + 0.00, t + 0.25);  // bottom: back  edge
       _setSegHueGradient(1, t + 0.25, t + 0.50);  // bottom: right edge
       _setSegHueGradient(2, t + 0.50, t + 0.75);  // bottom: front edge
@@ -1459,7 +1460,7 @@ function startRenderLoop(canvas, manifest) {
   function animate() {
     controls.update();
     _updateXRayAndOutlines();
-    _updatePathRainbow(performance.now() * PATH_LINE.get().RAINBOW_SPEED);
+    _updatePathRainbow(performance.now() * RAINBOW.get().SPEED);
     _orientLabelsForCamera(streetLabels, camera, labelRight);
     if (rootGem) {
       var gemAnim = GEM_ANIMATION.get();

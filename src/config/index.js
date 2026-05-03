@@ -29,7 +29,9 @@ export * from './building.js';
 export * from './gem.js';
 export * from './camera.js';
 export * from './interaction.js';
-export * from './sidebar.js';
 export * from './rendering.js';
+export * from './animation.js';
 export * from './ui.js';
 export * from './formatting.js';
+// (sidebar badge styling lives in CSS as custom properties — JS only
+//  sets `--badge-hue` per file; see styles.css `.ext-badge`.)

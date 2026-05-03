@@ -2,7 +2,6 @@
 
 import { getHue } from '../scene/colors.js';
 import {
-  SIDEBAR_BADGE,
   GLYPHS,
   UI_TIMING,
   BYTE_FORMATTING,
@@ -85,10 +84,9 @@ export function showFileSidebar(file) {
     badge.textContent = file.extension;
 
     var hue = getHue(file.extension, _huePalette);
-    var bg = SIDEBAR_BADGE.get();
-    badge.style.backgroundColor = 'hsl(' + hue + ', ' + bg.BG_SATURATION     + '%, ' + bg.BG_LIGHTNESS     + '%)';
-    badge.style.color           = 'hsl(' + hue + ', ' + bg.TEXT_SATURATION   + '%, ' + bg.TEXT_LIGHTNESS   + '%)';
-    badge.style.borderColor     = 'hsl(' + hue + ', ' + bg.BORDER_SATURATION + '%, ' + bg.BORDER_LIGHTNESS + '%)';
+    // Set the per-file hue as a CSS custom property; saturation +
+    // lightness for bg/text/border live in styles.css `.ext-badge`.
+    badge.style.setProperty('--badge-hue', hue);
     titleRow.appendChild(badge);
   }
 

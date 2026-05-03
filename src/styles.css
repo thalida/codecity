@@ -117,8 +117,19 @@ canvas {
 
 
 /* ── Extension badge ────────────────────────────────────────────────────────── */
-
+/*
+ * Per-file hue is set in JS via `style.setProperty('--badge-hue', ...)`;
+ * everything else (saturation, lightness, padding, font, border-radius) is
+ * styling and lives here. Tweak the HSL %s below to retheme every badge.
+ */
 .ext-badge {
+  --badge-bg-sat:        60%;
+  --badge-bg-light:      40%;
+  --badge-text-sat:      20%;
+  --badge-text-light:    90%;
+  --badge-border-sat:    60%;
+  --badge-border-light:  50%;
+
   display: inline-block;
   padding: 2px 8px;
   border-radius: 100px;
@@ -126,11 +137,13 @@ canvas {
   font-weight: 600;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   letter-spacing: 0.02em;
-  color: #fff;
-  background: rgba(108, 138, 255, 0.25);
-  border: 1px solid rgba(108, 138, 255, 0.35);
   white-space: nowrap;
   flex-shrink: 0;
+
+  background: hsl(var(--badge-hue, 0), var(--badge-bg-sat),     var(--badge-bg-light));
+  color:      hsl(var(--badge-hue, 0), var(--badge-text-sat),   var(--badge-text-light));
+  border: 1px solid
+    hsl(var(--badge-hue, 0), var(--badge-border-sat), var(--badge-border-light));
 }
 
 
@@ -678,11 +691,82 @@ canvas {
 }
 
 .theme-slider-readout {
-  flex: 0 0 38px;
+  flex: 0 0 56px;
   text-align: right;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 10px;
   color: #8a8fa8;
+}
+
+/* Dual-thumb range — two stacked native sliders with their tracks
+ * collapsed onto one row. Each slider's thumb stays interactive while the
+ * track itself is transparent so the lower slider doesn't visually
+ * obscure the upper one. */
+.theme-range-pair {
+  position: relative;
+  flex: 1;
+  height: 14px;
+  margin: 0 4px;
+}
+.theme-range-pair input[type=range] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  width: 100%;
+  height: 14px;
+  background: none;
+  pointer-events: none;
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+/* The fill track sits BEHIND the two range inputs so we can paint a
+ * highlighted segment between the thumbs. */
+.theme-range-pair-track {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #1a1c28;
+  border-radius: 2px;
+}
+.theme-range-pair-fill {
+  position: absolute;
+  top: 5px;
+  height: 4px;
+  background: rgba(108, 138, 255, 0.55);
+  border-radius: 2px;
+  pointer-events: none;
+}
+.theme-range-pair input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: rgba(108, 138, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.theme-range-pair input[type=range]::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: rgba(108, 138, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.20);
+  border-radius: 50%;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.theme-range-pair input[type=range]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 4px;
+}
+.theme-range-pair input[type=range]::-moz-range-track {
+  background: transparent;
+  height: 4px;
 }
 
 /* Scrollbar for tree */

@@ -50,9 +50,9 @@ export function getHue(extension, palette) {
  * @returns {number} Saturation percentage, clamped to [config.min, config.max].
  */
 export function getSaturation(createdDate, minDate, maxDate, config) {
-  // Fallback: no date available → mid-point
+  // Fallback: no date available → mid-point of the configured range
   if (!createdDate) {
-    return BUILDING_PALETTE.get().SATURATION_MISSING_DATE_FALLBACK;
+    return Math.round((config.min + config.max) / 2);
   }
 
   var created = Date.parse(createdDate);
@@ -89,9 +89,9 @@ export function getSaturation(createdDate, minDate, maxDate, config) {
  * @returns {number} Lightness percentage, clamped to [config.min, config.max].
  */
 export function getLightness(modifiedDate, minDate, maxDate, config) {
-  // Fallback: no date available → mid-point
+  // Fallback: no date available → mid-point of the configured range
   if (!modifiedDate) {
-    return BUILDING_PALETTE.get().LIGHTNESS_MISSING_DATE_FALLBACK;
+    return Math.round((config.min + config.max) / 2);
   }
 
   var modified = Date.parse(modifiedDate);

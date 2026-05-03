@@ -125,8 +125,9 @@ describe('getSaturation', () => {
     expect(sat).toBeLessThan(cfg.max);
   });
 
-  it('returns 60 for null date', () => {
-    expect(getSaturation(null, '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)).toBe(60);
+  it('returns midpoint of the saturation range for null date', () => {
+    var midpoint = Math.round((cfg.min + cfg.max) / 2);
+    expect(getSaturation(null, '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)).toBe(midpoint);
   });
 
   it('returns max for degenerate range', () => {
@@ -170,8 +171,9 @@ describe('getLightness', () => {
     expect(l).toBeLessThan(cfg.max);
   });
 
-  it('returns 45 for null date', () => {
-    expect(getLightness(null, '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)).toBe(45);
+  it('returns midpoint of the lightness range for null date', () => {
+    var midpoint = Math.round((cfg.min + cfg.max) / 2);
+    expect(getLightness(null, '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)).toBe(midpoint);
   });
 
   it('returns max for degenerate range', () => {

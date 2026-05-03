@@ -23,8 +23,8 @@
 import {
   // Theme (hot-reloadable) stores
   SCENE_COLORS, ASPHALT, SIDEWALK_COLORS, BUILDING_OUTLINE, BUILDING_FADE,
-  PIVOT_PING, PATH_LINE, GEM_ANIMATION, GEM_APPEARANCE, TOOLTIP,
-  INPUT_TIMING, SIDEBAR_BADGE, LABEL_TYPOGRAPHY,
+  PIVOT_PING, PATH_LINE, RAINBOW, GEM_ANIMATION, GEM_APPEARANCE, TOOLTIP,
+  INPUT_TIMING, LABEL_TYPOGRAPHY,
   // Advanced (rebuild-required) stores
   LAYOUT_GAPS, BUILDING_DIMENSIONS, BUILDING_PALETTE, GEM_SIZING,
   CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION,
@@ -130,30 +130,29 @@ function _buildThemeSection(applyTheme) {
   ]));
 
   // ── Building outlines ──────────────────────────────────────────────────
+  // ONE shared linewidth across default + hover + selected outlines —
+  // hover/selected differentiate via color + opacity, not thickness.
   section.appendChild(_subgroup('Outlines', [
-    _number('Default linewidth',  BUILDING_OUTLINE, 'DEFAULT_LINEWIDTH',  1, 10, 1, applyTheme),
-    _color ('Hover color',        BUILDING_OUTLINE, 'HOVER_COLOR',                  applyTheme),
-    _number('Hover linewidth',    BUILDING_OUTLINE, 'HOVER_LINEWIDTH',    1, 10, 1, applyTheme),
-    _slider('Hover opacity',      BUILDING_OUTLINE, 'HOVER_OPACITY',      0, 1, 0.05, applyTheme),
-    _number('Selected linewidth', BUILDING_OUTLINE, 'SELECTED_LINEWIDTH', 1, 10, 1, applyTheme),
-    _slider('Selected opacity',   BUILDING_OUTLINE, 'SELECTED_OPACITY',   0, 1, 0.05, applyTheme),
-    _slider('Rainbow speed',      BUILDING_OUTLINE, 'RAINBOW_SPEED',      0, 0.005, 0.0001, applyTheme),
-    _slider('Rainbow saturation', BUILDING_OUTLINE, 'RAINBOW_SATURATION', 0, 1, 0.05, applyTheme),
-    _slider('Rainbow lightness',  BUILDING_OUTLINE, 'RAINBOW_LIGHTNESS',  0, 1, 0.05, applyTheme)
+    _number('Linewidth',         BUILDING_OUTLINE, 'WIDTH',            1, 10, 1, applyTheme),
+    _color ('Hover color',       BUILDING_OUTLINE, 'HOVER_COLOR',                applyTheme),
+    _slider('Hover opacity',     BUILDING_OUTLINE, 'HOVER_OPACITY',    0, 1, 0.05, applyTheme),
+    _slider('Selected opacity',  BUILDING_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, applyTheme)
   ]));
 
   // ── Fade tiers ─────────────────────────────────────────────────────────
+  // FADE_TOP/FADE_BOTTOM are coupled (top must stay above bottom) — one
+  // dual-thumb range. Tier values are 6 sliders arranged near→far × body/
+  // outline/ghost so the relationship reads visually.
   section.appendChild(_subgroup('Fade animation', [
-    _slider('Lerp speed',        BUILDING_FADE, 'LERP_SPEED',     0.01, 1.0,  0.01, applyTheme),
-    _slider('Fade top',          BUILDING_FADE, 'FADE_TOP',       0.0,  1.0,  0.05, applyTheme),
-    _slider('Fade bottom',       BUILDING_FADE, 'FADE_BOTTOM',    0.0,  1.0,  0.05, applyTheme),
-    _slider('Near body',         BUILDING_FADE, 'TIER_NEAR_BODY',    0.0, 1.0, 0.05, applyTheme),
-    _slider('Near outline',      BUILDING_FADE, 'TIER_NEAR_OUTLINE', 0.0, 1.0, 0.05, applyTheme),
-    _slider('Near ghost',        BUILDING_FADE, 'TIER_NEAR_GHOST',   0.0, 1.0, 0.05, applyTheme),
-    _slider('Far body',          BUILDING_FADE, 'TIER_FAR_BODY',     0.0, 1.0, 0.05, applyTheme),
-    _slider('Far outline',       BUILDING_FADE, 'TIER_FAR_OUTLINE',  0.0, 1.0, 0.05, applyTheme),
-    _slider('Far ghost',         BUILDING_FADE, 'TIER_FAR_GHOST',    0.0, 1.0, 0.05, applyTheme),
-    _slider('Hover min opacity', BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, applyTheme)
+    _slider   ('Lerp speed',        BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, applyTheme),
+    _rangePair('Crossfade band',    BUILDING_FADE, 'FADE_BOTTOM', 'FADE_TOP', 0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Near body',         BUILDING_FADE, 'TIER_NEAR_BODY',    0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Near outline',      BUILDING_FADE, 'TIER_NEAR_OUTLINE', 0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Near ghost',        BUILDING_FADE, 'TIER_NEAR_GHOST',   0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Far body',          BUILDING_FADE, 'TIER_FAR_BODY',     0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Far outline',       BUILDING_FADE, 'TIER_FAR_OUTLINE',  0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Far ghost',         BUILDING_FADE, 'TIER_FAR_GHOST',    0.0, 1.0, 0.05, applyTheme),
+    _slider   ('Hover min opacity', BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, applyTheme)
   ]));
 
   // ── Interaction feel ───────────────────────────────────────────────────
@@ -166,21 +165,26 @@ function _buildThemeSection(applyTheme) {
   ]));
 
   // ── Pivot ping ─────────────────────────────────────────────────────────
+  // Start/end scale collapsed into one paired range so users can adjust
+  // both bounds together.
   section.appendChild(_subgroup('Pivot ping', [
-    _color ('Color',          PIVOT_PING, 'COLOR',                  applyTheme),
-    _number('Duration (ms)',  PIVOT_PING, 'DURATION_MS',  100, 2000, 50, applyTheme),
-    _slider('Start opacity',  PIVOT_PING, 'START_OPACITY', 0.0, 1.0, 0.05, applyTheme),
-    _slider('Start scale',    PIVOT_PING, 'START_SCALE',   0.1, 5.0, 0.1, applyTheme),
-    _slider('End scale',      PIVOT_PING, 'END_SCALE',     0.1, 10,  0.1, applyTheme)
+    _color   ('Color',         PIVOT_PING, 'COLOR',                       applyTheme),
+    _number  ('Duration (ms)', PIVOT_PING, 'DURATION_MS',  100, 2000, 50, applyTheme),
+    _slider  ('Start opacity', PIVOT_PING, 'START_OPACITY', 0.0, 1.0, 0.05, applyTheme),
+    _rangePair('Scale span',   PIVOT_PING, 'START_SCALE', 'END_SCALE', 0.1, 10, 0.1, applyTheme)
   ]));
 
   // ── Path line ──────────────────────────────────────────────────────────
   section.appendChild(_subgroup('Path line', [
-    _number('Linewidth',          PATH_LINE, 'LINEWIDTH',         1, 20, 1, applyTheme),
-    _slider('Opacity',            PATH_LINE, 'OPACITY',           0.0, 1.0, 0.05, applyTheme),
-    _slider('Rainbow speed',      PATH_LINE, 'RAINBOW_SPEED',     0, 0.005, 0.0001, applyTheme),
-    _slider('Rainbow saturation', PATH_LINE, 'RAINBOW_SATURATION', 0, 1, 0.05, applyTheme),
-    _slider('Rainbow lightness',  PATH_LINE, 'RAINBOW_LIGHTNESS', 0, 1, 0.05, applyTheme)
+    _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, applyTheme),
+    _slider('Opacity',   PATH_LINE, 'OPACITY',   0.0, 1.0, 0.05, applyTheme)
+  ]));
+
+  // ── Rainbow (shared by selected outline + path line) ───────────────────
+  section.appendChild(_subgroup('Rainbow', [
+    _slider('Speed',      RAINBOW, 'SPEED',      0, 0.005, 0.0001, applyTheme),
+    _slider('Saturation', RAINBOW, 'SATURATION', 0, 1, 0.05, applyTheme),
+    _slider('Lightness',  RAINBOW, 'LIGHTNESS',  0, 1, 0.05, applyTheme)
   ]));
 
   // ── Root gem ───────────────────────────────────────────────────────────
@@ -192,16 +196,6 @@ function _buildThemeSection(applyTheme) {
     _slider('Bob amplitude',  GEM_ANIMATION,  'BOB_AMPLITUDE_FRAC',     0, 2,   0.05, applyTheme),
     _slider('Hover scale',    GEM_ANIMATION,  'HOVER_SCALE',            1, 3,   0.05, applyTheme),
     _slider('Scale lerp',     GEM_ANIMATION,  'SCALE_LERP_SPEED',    0.01, 1,   0.01, applyTheme)
-  ]));
-
-  // ── Sidebar badge ──────────────────────────────────────────────────────
-  section.appendChild(_subgroup('Sidebar badge', [
-    _number('BG saturation',     SIDEBAR_BADGE, 'BG_SATURATION',     0, 100, 5, applyTheme),
-    _number('BG lightness',      SIDEBAR_BADGE, 'BG_LIGHTNESS',      0, 100, 5, applyTheme),
-    _number('Text saturation',   SIDEBAR_BADGE, 'TEXT_SATURATION',   0, 100, 5, applyTheme),
-    _number('Text lightness',    SIDEBAR_BADGE, 'TEXT_LIGHTNESS',    0, 100, 5, applyTheme),
-    _number('Border saturation', SIDEBAR_BADGE, 'BORDER_SATURATION', 0, 100, 5, applyTheme),
-    _number('Border lightness',  SIDEBAR_BADGE, 'BORDER_LIGHTNESS',  0, 100, 5, applyTheme)
   ]));
 
   // ── Misc visual feel ──────────────────────────────────────────────────
@@ -244,14 +238,12 @@ function _buildAdvancedSection() {
   ]));
 
   // ── Building dimensions ────────────────────────────────────────────────
+  // Floors + width are paired (smallest file → MIN, largest → MAX) so they
+  // get one dual-thumb range each. SIZE_CEILING_BYTES surfaces in MB.
   section.appendChild(_subgroup('Building dimensions', [
-    _number('Min floors',         BUILDING_DIMENSIONS, 'MIN_FLOORS',         1, 50, 1, noop),
-    _number('Max floors',         BUILDING_DIMENSIONS, 'MAX_FLOORS',         1, 200, 1, noop),
-    _number('Floor height',       BUILDING_DIMENSIONS, 'FLOOR_HEIGHT',       1, 50, 1, noop),
-    _number('Min width',          BUILDING_DIMENSIONS, 'MIN_WIDTH',          1, 100, 1, noop),
-    _number('Max width',          BUILDING_DIMENSIONS, 'MAX_WIDTH',          1, 200, 1, noop),
-    // Surface SIZE_CEILING_BYTES in MB units — way more legible than
-    // raw bytes (10 MB vs 10485760).
+    _rangePair   ('Floors range',    BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, noop),
+    _rangePair   ('Width range',     BUILDING_DIMENSIONS, 'MIN_WIDTH',  'MAX_WIDTH',  1, 200, 1, noop),
+    _number      ('Floor height',    BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, noop),
     _scaledNumber('Size ceiling (MB)', BUILDING_DIMENSIONS, 'SIZE_CEILING_BYTES', BYTES_PER_MB, 1, 1024, 1, noop)
   ]));
 
@@ -259,12 +251,10 @@ function _buildAdvancedSection() {
   // (Hue-extension map is a structured object — edit src/config/building.js
   // directly for now; a tier editor would be a separate UI feature.)
   section.appendChild(_subgroup('Building palette', [
-    _number('Saturation min',  BUILDING_PALETTE, 'SATURATION_MIN',  0, 100, 5, noop),
-    _number('Saturation max',  BUILDING_PALETTE, 'SATURATION_MAX',  0, 100, 5, noop),
-    _number('Lightness min',   BUILDING_PALETTE, 'LIGHTNESS_MIN',   0, 100, 5, noop),
-    _number('Lightness max',   BUILDING_PALETTE, 'LIGHTNESS_MAX',   0, 100, 5, noop),
-    _color ('Fallback color',  BUILDING_PALETTE, 'FALLBACK_COLOR',  noop),
-    _color ('Directory color', BUILDING_PALETTE, 'DIRECTORY_COLOR', noop)
+    _rangePair('Saturation range', BUILDING_PALETTE, 'SATURATION_MIN', 'SATURATION_MAX', 0, 100, 5, noop),
+    _rangePair('Lightness range',  BUILDING_PALETTE, 'LIGHTNESS_MIN',  'LIGHTNESS_MAX',  0, 100, 5, noop),
+    _color    ('Fallback color',   BUILDING_PALETTE, 'FALLBACK_COLOR',  noop),
+    _color    ('Directory color',  BUILDING_PALETTE, 'DIRECTORY_COLOR', noop)
   ]));
 
   // ── Label typography ───────────────────────────────────────────────────
@@ -364,9 +354,13 @@ function _subgroup(name, rows) {
 function _row(labelText, control) {
   var row = document.createElement('label');
   row.className = 'theme-row';
+  // Title on the WHOLE row + the label span so the full name is readable
+  // even when the visible text is truncated by the narrow sidebar width.
+  row.title = labelText;
   var span = document.createElement('span');
   span.className = 'theme-row-label';
   span.textContent = labelText;
+  span.title = labelText;
   row.appendChild(span);
   var ctrlWrap = document.createElement('span');
   ctrlWrap.className = 'theme-row-control';
@@ -430,6 +424,75 @@ function _scaledNumber(label, store, key, unit, min, max, step, onChange) {
     onChange();
   });
   return _row(label, input);
+}
+
+// _rangePair — dual-thumb slider for paired MIN/MAX values that should
+// stay coupled (a single configurable RANGE rather than two independent
+// sliders that can violate min < max). Two native range inputs share a
+// track; the fill bar between thumbs is repainted on every input event.
+function _rangePair(label, store, minKey, maxKey, lo, hi, step, onChange) {
+  var current = store.get();
+  var loVal = current[minKey];
+  var hiVal = current[maxKey];
+
+  var pair = document.createElement('span');
+  pair.className = 'theme-range-pair';
+
+  var track = document.createElement('span');
+  track.className = 'theme-range-pair-track';
+  pair.appendChild(track);
+
+  var fill = document.createElement('span');
+  fill.className = 'theme-range-pair-fill';
+  pair.appendChild(fill);
+
+  function makeRange(value) {
+    var r = document.createElement('input');
+    r.type = 'range';
+    r.min = String(lo);
+    r.max = String(hi);
+    r.step = String(step);
+    r.value = String(value);
+    return r;
+  }
+  var loRange = makeRange(loVal);
+  var hiRange = makeRange(hiVal);
+  pair.appendChild(loRange);
+  pair.appendChild(hiRange);
+
+  var readout = document.createElement('span');
+  readout.className = 'theme-slider-readout';
+
+  function paint() {
+    var l = parseFloat(loRange.value);
+    var h = parseFloat(hiRange.value);
+    var span = (hi - lo) || 1;
+    fill.style.left  = ((l - lo) / span * 100) + '%';
+    fill.style.right = ((hi - h) / span * 100) + '%';
+    readout.textContent = _formatNumber(l) + '–' + _formatNumber(h);
+  }
+
+  function commit() {
+    var l = parseFloat(loRange.value);
+    var h = parseFloat(hiRange.value);
+    if (!Number.isFinite(l) || !Number.isFinite(h)) return;
+    if (l > h) { l = h; loRange.value = String(l); }
+    if (h < l) { h = l; hiRange.value = String(h); }
+    store.setKey(minKey, l);
+    store.setKey(maxKey, h);
+    paint();
+    onChange();
+  }
+
+  loRange.addEventListener('input', commit);
+  hiRange.addEventListener('input', commit);
+  paint();
+
+  var wrap = document.createElement('span');
+  wrap.className = 'theme-slider-wrap';
+  wrap.appendChild(pair);
+  wrap.appendChild(readout);
+  return _row(label, wrap);
 }
 
 // Shared slider+readout DOM construction.

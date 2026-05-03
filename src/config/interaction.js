@@ -34,12 +34,11 @@ export const PIVOT_PING = map({
 });
 
 // ─── Neon path line (gem → selection) ──────────────────────────────────────
+// Rainbow color cycle is shared with the selected building outline — see
+// RAINBOW in config/animation.js.
 export const PATH_LINE = map({
-  LINEWIDTH:          5,
-  ELEVATION:          0.3,     // Y position above ground
-  OPACITY:            0.95,
-  RAINBOW_SATURATION: 1.0,
-  RAINBOW_LIGHTNESS:  0.65,
-  RAINBOW_SPEED:      0.0006   // hue chase speed
+  LINEWIDTH: 5,
+  ELEVATION: 0.3,    // Y position above ground
+  OPACITY:   0.95
 });
 
