@@ -309,27 +309,26 @@ function startRenderLoop(canvas, manifest, config) {
   selectedOutline.renderOrder = 7;
   scene.add(selectedOutline);
 
-  // _isDirectChildFile(file, dir) — true if file's path puts it directly
-  // under dir (no further subdirectories). Manifest paths look like
-  // "src/scene/colors.js"; root dir is "." (or "").
-  function _isDirectChildFile(file, dir) {
-    if (!file || !file.path || !dir || dir.path == null) return false;
-    if (dir.path === '.' || dir.path === '') {
-      return file.path.indexOf('/') === -1;
-    }
-    var prefix = dir.path + '/';
-    if (file.path.indexOf(prefix) !== 0) return false;
-    var rest = file.path.slice(prefix.length);
-    return rest.indexOf('/') === -1;
-  }
-
-  // _isDescendantFile(file, dir) — true if file is anywhere under dir's tree
-  // (direct child OR deeper).
-  function _isDescendantFile(file, dir) {
-    if (!file || !file.path || !dir || dir.path == null) return false;
-    if (dir.path === '.' || dir.path === '') return true;
-    var prefix = dir.path + '/';
-    return file.path.indexOf(prefix) === 0;
+  // _dirTreeDistance(file, dir) — tree distance from `file`'s parent
+  // directory to `dir`, measured as edges in the directory tree (LCA
+  // distance). Drives the hover/selected fade tiers:
+  //   0  → file lives directly in dir (the "neighborhood")
+  //   1  → file lives one level up (dir's parent's other files —
+  //         direct ancestor) OR one level down (dir's direct subdir's
+  //         files — direct descendant). Always lies on dir's spine.
+  //   ≥2 → off-spine: cousins (1 up + 1 down), grandparent's files,
+  //         deeper descendants, etc. Gets the outline-only treatment.
+  // Returns Infinity if either input is missing.
+  function _dirTreeDistance(file, dir) {
+    if (!file || !file.path || !dir || dir.path == null) return Infinity;
+    var parent = parentDirPath(file.path);
+    if (parent == null) parent = '.';
+    if (parent === dir.path) return 0;
+    var ap = (parent === '.' || parent === '') ? [] : parent.split('/');
+    var dp = (dir.path === '.' || dir.path === '') ? [] : dir.path.split('/');
+    var lca = 0;
+    while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
+    return (ap.length - lca) + (dp.length - lca);
   }
 
   // _setSegHueGradient(segIdx, hueStart, hueEnd) — write a HSL gradient into
@@ -353,8 +352,8 @@ function startRenderLoop(canvas, manifest, config) {
   // config.scene.sidewalk; we mutate material.color directly on hover/select
   // and restore from sidewalk.userData.origColor (lazily captured first time
   // we touch the material).
-  var SIDEWALK_HOVER_COLOR    = 0xffffff;   // white
-  var SIDEWALK_SELECTED_COLOR = 0xd0d2da;   // near-white
+  var SIDEWALK_HOVER_COLOR    = 0xd0d2da;   // light gray
+  var SIDEWALK_SELECTED_COLOR = 0xffffff;   // white
   var SIDEWALK_PATH_COLOR     = 0x4a4c54;   // slightly lighter than default — for parent streets on the path
 
   // Lookup: directory path → sidewalk mesh / street object. Used to walk
@@ -946,7 +945,30 @@ function startRenderLoop(canvas, manifest, config) {
     _pingPivot(initialTarget);
   }
 
+  // Hover pipeline: pointermove fires faster than render frames, so we
+  // coalesce events into one raycast per rAF tick. The raycast result
+  // then sits in a short commit-delay buffer — only after the cursor
+  // hovers a target for HOVER_COMMIT_MS does the heavy cascade fade
+  // engage. Brief brushes (mouse sweeping across the scene) never
+  // commit, which keeps the city stable instead of strobing tiers.
+  // Tooltip + cursor still update on every coalesced raycast for
+  // responsiveness — only the fade-cascade is debounced.
+  var HOVER_COMMIT_MS = 35;
+  var _hoverRafId      = 0;
+  var _hoverLastEvt    = null;
+  var _hoverPending    = null;   // candidate hover awaiting commit
+  var _hoverCommitId   = 0;      // setTimeout id
+
   canvas.addEventListener('pointermove', function (e) {
+    _hoverLastEvt = e;
+    if (_hoverRafId) return;
+    _hoverRafId = requestAnimationFrame(_processHoverRaf);
+  });
+
+  function _processHoverRaf() {
+    _hoverRafId = 0;
+    var e = _hoverLastEvt;
+    if (!e) return;
     var rect = canvas.getBoundingClientRect();
     pointer.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
@@ -973,10 +995,7 @@ function startRenderLoop(canvas, manifest, config) {
       }
     }
 
-    // Only call _setHover if the underlying target changed (avoids
-    // teardown/rebuild every pointermove on the same object).
-    if (!_sameHover(newHover, currentHover)) _setHover(newHover);
-
+    // Tooltip + cursor: immediate (lightweight, want responsiveness).
     if (tooltipText) {
       showTooltip(tooltipText, e.clientX, e.clientY);
       canvas.style.cursor = 'pointer';
@@ -984,7 +1003,27 @@ function startRenderLoop(canvas, manifest, config) {
       hideTooltip();
       canvas.style.cursor = 'grab';
     }
-  });
+
+    // Hover commit: debounced. If the candidate already matches what's
+    // committed (or what's pending), nothing to do. Otherwise restart
+    // the timer — only stable hovers (held > HOVER_COMMIT_MS) commit.
+    if (_sameHover(newHover, currentHover)) {
+      // Cursor returned to the already-committed target — drop any
+      // pending change so we don't rebound to a stale candidate.
+      if (_hoverCommitId) { clearTimeout(_hoverCommitId); _hoverCommitId = 0; }
+      _hoverPending = null;
+      return;
+    }
+    if (_sameHover(newHover, _hoverPending)) return;   // already queued
+    _hoverPending = newHover;
+    if (_hoverCommitId) clearTimeout(_hoverCommitId);
+    _hoverCommitId = setTimeout(function () {
+      _hoverCommitId = 0;
+      var toCommit = _hoverPending;
+      _hoverPending = null;
+      if (!_sameHover(toCommit, currentHover)) _setHover(toCommit);
+    }, HOVER_COMMIT_MS);
+  }
 
   function _sameHover(a, b) {
     if (a === b) return true;
@@ -1000,6 +1039,11 @@ function startRenderLoop(canvas, manifest, config) {
   // onto sidebar, leaves window). Selection is left alone — only hover.
   canvas.addEventListener('pointerleave', function () {
     hideTooltip();
+    // Cancel any pending raycast / commit so a stale candidate doesn't
+    // sneak through after the cursor leaves the canvas.
+    if (_hoverRafId)    { cancelAnimationFrame(_hoverRafId); _hoverRafId = 0; }
+    if (_hoverCommitId) { clearTimeout(_hoverCommitId);      _hoverCommitId = 0; }
+    _hoverPending = null;
     _setHover(null);
   });
 
@@ -1229,8 +1273,39 @@ function startRenderLoop(canvas, manifest, config) {
         }
       }
     }
+    // Hover preview: hovering a street OR a building previews the EXACT
+    // same fade that a click would produce. For a building, the file's
+    // parent dir becomes the dirTarget — same lookup the selection path
+    // uses. Wins over the active selection's dirTarget while hovering,
+    // so the user can see what's down THAT street / around THAT building
+    // before committing; when the mouse leaves, fade snaps back to the
+    // selection.
+    if (currentHover) {
+      if (currentHover.kind === 'directory' &&
+          currentHover.street && currentHover.street.dir) {
+        dirTarget = currentHover.street.dir;
+      } else if (currentHover.kind === 'file' && currentHover.file) {
+        var hoverParent = parentDirPath(currentHover.file.path);
+        if (hoverParent != null) {
+          var hoverStreet = streetsByDirPath[hoverParent];
+          if (hoverStreet) dirTarget = hoverStreet.dir;
+        }
+      }
+    }
     var hoverMesh  = (currentHover && currentHover.kind === 'file')
       ? currentHover.mesh : null;
+
+    // Two faded tiers, both windowless (the GHOST_THRESHOLD below is set
+    // high enough that any target < 1.0 swaps to the solid-color ghost,
+    // dropping the windowed texture). NEAR keeps a clearly-visible body
+    // for "1 step away"; FAR collapses to essentially just an outline.
+    var TIER_DIRECT      = 1.0;
+    var TIER_DESC        = 0.65;
+    var TIER_DESC_OUTLN  = 0.40;
+    var TIER_DESC_GHOST  = 0.85;
+    var TIER_OTHER       = 0.18;
+    var TIER_OTHER_OUTLN = 0.12;
+    var TIER_OTHER_GHOST = 0.20;
 
     // Obstruction detection disabled for now — selected building relies
     // purely on the tiered fade. Re-enable by un-commenting and restoring
@@ -1251,20 +1326,24 @@ function startRenderLoop(canvas, manifest, config) {
         // Selected file building: always full, never obstructor-faded.
         target = 1.0;
       } else if (dirTarget) {
-        // Tiered fade by relationship to the selection's "neighborhood"
-        // (the dir itself for street selection, or the file's parent dir
-        // for building selection — same UX either way).
+        // Tiered fade by directory-tree distance from the building's
+        // parent dir to the selected/hovered dir:
+        //   0   → bright, full windows (the "neighborhood")
+        //   1   → faded but textured (one hop along dir's spine —
+        //          parent's other files OR direct subdir's files)
+        //   ≥2  → outline-only ghost (cousins, deeper subtrees, etc.)
         var f = m.userData.building && m.userData.building.file;
-        if (_isDirectChildFile(f, dirTarget)) {
-          target = 1.0;
-        } else if (_isDescendantFile(f, dirTarget)) {
-          target = 0.55;
-          outlineDim = 0.30;
-          ghostDim   = 0.35;
+        var dist = _dirTreeDistance(f, dirTarget);
+        if (dist === 0) {
+          target = TIER_DIRECT;
+        } else if (dist === 1) {
+          target     = TIER_DESC;
+          outlineDim = TIER_DESC_OUTLN;
+          ghostDim   = TIER_DESC_GHOST;
         } else {
-          target = 0.18;
-          outlineDim = 0.12;
-          ghostDim   = 0.20;
+          target     = TIER_OTHER;
+          outlineDim = TIER_OTHER_OUTLN;
+          ghostDim   = TIER_OTHER_GHOST;
         }
       }
       // Obstructor fade: when a building is selected, anything closer to
@@ -1287,24 +1366,51 @@ function startRenderLoop(canvas, manifest, config) {
         cur += (target - cur) * 0.18;
         if (Math.abs(cur - target) < 0.005) cur = target;
         m.userData.opacityCurrent = cur;
-        var mats = Array.isArray(m.material) ? m.material : [m.material];
-        var transparent = cur < 0.999;
-        for (var ki = 0; ki < mats.length; ki++) {
-          var mat = mats[ki];
-          if (mat.transparent !== transparent) {
-            mat.transparent = transparent;
-            mat.depthWrite  = !transparent;
-            mat.needsUpdate = true;
-          }
-          mat.opacity = cur;
-        }
       }
+
+      // Crossfade band between the textured (windowed) mesh and the
+      // windowless ghost body. The textured mesh ramps from invisible
+      // (0) to FULLY OPAQUE (1.0) across the band, so windows appear
+      // to fade in over the solid ghost backdrop instead of stalling
+      // at a semi-transparent state. FADE_BOTTOM must stay above the
+      // NEAR tier's target (TIER_DESC) so faded tiers never reveal
+      // windows. FADE_TOP at 1.0 gives the widest window-fade ramp,
+      // and smoothstep easing softens the start/end of the reveal so
+      // it doesn't pop in.
+      var FADE_TOP    = 1.0;
+      var FADE_BOTTOM = 0.70;
+      var blend;   // 1.0 = textured wins, 0.0 = ghost wins
+      if      (cur >= FADE_TOP)    blend = 1.0;
+      else if (cur <= FADE_BOTTOM) blend = 0.0;
+      else {
+        var bRaw = (cur - FADE_BOTTOM) / (FADE_TOP - FADE_BOTTOM);
+        blend = bRaw * bRaw * (3.0 - 2.0 * bRaw);   // smoothstep
+      }
+
+      var texturedAlpha = blend;                            // 0 → 1.0
+      var ghostAlpha    = cur * ghostDim * (1.0 - blend);
+
+      // Apply textured mesh opacity (per-material; multi-mat buildings
+      // have one material per face). Material.transparent flag triggers
+      // a shader recompile, so only flip it when it actually changed.
+      var mats = Array.isArray(m.material) ? m.material : [m.material];
+      var transparent = texturedAlpha < 0.999;
+      for (var ki = 0; ki < mats.length; ki++) {
+        var mat = mats[ki];
+        if (mat.transparent !== transparent) {
+          mat.transparent = transparent;
+          mat.depthWrite  = !transparent;
+          mat.needsUpdate = true;
+        }
+        mat.opacity = texturedAlpha;
+      }
+      m.visible = blend > 0.0;
+
       // Sync the colored outline + ghost body. Both share position/scale
       // with the main mesh (so they track height-mode toggle animations).
       //   outline.opacity = 1 − cur  (visible when building fades out)
-      //   ghost takes over when cur drops below GHOST_THRESHOLD — removes
-      //   window detail so heavily-faded buildings read as clean colored
-      //   silhouettes instead of dim noisy windowed boxes.
+      //   ghost crossfades in via (1 − blend), so the windowless body
+      //   eases up as the windowed texture eases down.
       //
       // Outline + ghost dimming uses the per-building outlineDim/ghostDim
       // computed above (varies by tier so unrelated buildings recede much
@@ -1320,15 +1426,8 @@ function startRenderLoop(canvas, manifest, config) {
       if (ghost) {
         ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
         ghost.position.copy(m.position);
-        var GHOST_THRESHOLD = 0.5;
-        if (cur < GHOST_THRESHOLD) {
-          m.visible = false;
-          ghost.visible = true;
-          ghost.material.opacity = cur * ghostDim;
-        } else {
-          m.visible = true;
-          ghost.visible = false;
-        }
+        ghost.visible = blend < 1.0;
+        ghost.material.opacity = ghostAlpha;
       }
     }
 
