@@ -22,6 +22,12 @@ export default defineConfig({
     },
   },
   server: {
+    // Bind explicitly to IPv4. Vite's default `localhost` resolves to ::1
+    // first on many Node setups (macOS especially), but the codecity CLI
+    // polls 127.0.0.1 — the resulting v6/v4 mismatch shows up as "Vite did
+    // not become ready" while the browser still works (since the browser
+    // tries both families).
+    host: '127.0.0.1',
     port: 5173,
     // strictPort: don't silently shift to 5174 if 5173 is taken — codecity
     // dev mode polls 5173, so a port shift would look like "Vite never came
