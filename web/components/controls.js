@@ -29,7 +29,7 @@ import {
   RAINBOW
 } from '../config/index.js';
 import {
-  clearPersistence, getDefault, resetKey, hasAnyOverrides, onAnyChange
+  getDefault, resetKey
 } from '../config/_persist.js';
 import { makeLucideIcon } from './icon.js';
 
@@ -493,22 +493,12 @@ function _buildEffectsSection(applyTheme) {
 
 
 // ─── Sticky bottom action bar ──────────────────────────────────────────────
-// "Rebuild" button (matches the small refresh-cw icon shown next to rows
-// that need a rebuild) + a small "Reset all" link. Per-row reset icons
-// cover the common case; "Reset all" stays understated as the global panic
-// button.
+// Single "Rebuild" button. Forcibly wipes all persisted state — every
+// theme override, the camera pose, the saved selection, sidebar widths,
+// hide flags, everything — and reloads to a clean slate.
 //
-// Both buttons clear the persisted camera pose ('cc.cameraPose', set by
-// main.js) before reloading so the user lands at the freshly-fitted
-// default view rather than wherever they last navigated. Hardcoded here
-// instead of imported to avoid coupling controls UI to render-loop state.
-var SAVED_CAMERA_KEY = 'cc.cameraPose';
-
-function _clearSavedCameraPose() {
-  try {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
-  } catch (_) { /* private mode / unavailable — ignore */ }
-}
+// (Per-row reset icons next to individual values still cover the
+// "restore one knob" case for users who want surgical changes.)
 
 function _buildActionsSection() {
   var actions = document.createElement('div');
@@ -519,37 +509,14 @@ function _buildActionsSection() {
   rebuildBtn.className = 'controls-button';
   rebuildBtn.appendChild(makeLucideIcon('refresh-cw', { class: 'controls-button-icon' }));
   rebuildBtn.appendChild(document.createTextNode('Rebuild'));
-  rebuildBtn.title = 'Reload the page so rows marked with the rebuild icon take effect. Resets the camera too. Your tweaks persist.';
+  rebuildBtn.title = 'Clear every saved override + UI state (camera, selection, sidebar widths, …) and reload from a clean slate.';
   rebuildBtn.addEventListener('click', function () {
-    _clearSavedCameraPose();
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.clear();
+    } catch (_) { /* private mode / unavailable — proceed to reload anyway */ }
     if (typeof location !== 'undefined') location.reload();
   });
   actions.appendChild(rebuildBtn);
-
-  // Reset all — secondary button. Disabled when there's nothing to reset
-  // (no overrides persisted), so the affordance only invites clicking when
-  // there's actually something to do.
-  var resetAll = document.createElement('button');
-  resetAll.type = 'button';
-  resetAll.className = 'controls-button controls-button-secondary';
-  resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
-  resetAll.appendChild(document.createTextNode('Reset all'));
-  resetAll.title = 'Wipe every override (and reset the camera) and reload. (Per-row reset icons restore single values.)';
-  resetAll.addEventListener('click', function () {
-    if (resetAll.disabled) return;
-    if (!confirm('Reset every override and reload?')) return;
-    clearPersistence();
-    _clearSavedCameraPose();
-    if (typeof location !== 'undefined') location.reload();
-  });
-  actions.appendChild(resetAll);
-
-  // Live enable/disable as values are tweaked or reset.
-  function refreshResetAll() {
-    resetAll.disabled = !hasAnyOverrides();
-  }
-  refreshResetAll();
-  onAnyChange(refreshResetAll);
 
   return actions;
 }
