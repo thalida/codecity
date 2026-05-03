@@ -4,13 +4,42 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { LineSegments2 }      from 'three/addons/lines/LineSegments2.js';
+import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { LineMaterial }       from 'three/addons/lines/LineMaterial.js';
 import './styles.css';
 
-import { buildCityScene } from './scene/engine.js';
+
+// 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
+// Used by the Line2 outlines, which render as triangle strips so the
+// linewidth can be set in pixels (regular LineBasicMaterial is locked to
+// 1px in WebGL).
+var UNIT_BOX_EDGE_POSITIONS = [
+  -0.5,-0.5,-0.5,  0.5,-0.5,-0.5,
+   0.5,-0.5,-0.5,  0.5,-0.5, 0.5,
+   0.5,-0.5, 0.5, -0.5,-0.5, 0.5,
+  -0.5,-0.5, 0.5, -0.5,-0.5,-0.5,
+  -0.5, 0.5,-0.5,  0.5, 0.5,-0.5,
+   0.5, 0.5,-0.5,  0.5, 0.5, 0.5,
+   0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
+  -0.5, 0.5, 0.5, -0.5, 0.5,-0.5,
+  -0.5,-0.5,-0.5, -0.5, 0.5,-0.5,
+   0.5,-0.5,-0.5,  0.5, 0.5,-0.5,
+   0.5,-0.5, 0.5,  0.5, 0.5, 0.5,
+  -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
+];
+
+import { buildCityScene, createBuildingMesh } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
-import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette } from './components/sidebar.js';
-import { showTreeSidebar } from './components/tree.js';
+import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
+import { showLeftSidebar } from './components/leftSidebar.js';
+import { showTooltip, hideTooltip } from './components/tooltip.js';
+import {
+  parentDirPath,
+  streetChainForDirPath,
+  computePathPoints
+} from './scene/path.js';
 
 
 function startRenderLoop(canvas, manifest, config) {
@@ -36,8 +65,80 @@ function startRenderLoop(canvas, manifest, config) {
   var streetPickables = built.streetPickables;
   var streetLabels    = built.streetLabels;
   var rootGem         = built.rootGem;
+  // pickables is rebuilt on every height-mode toggle (since building meshes
+  // are disposed + replaced), so we wrap the array in a getter-style closure
+  // and pass `getPickables()` to the raycaster.
   var pickables = buildingMeshes.concat(streetPickables);
+  // Gem is also clickable — click acts as a "reset view to start" gesture
+  // (city's signature landmark doubles as a home button).
+  if (rootGem) {
+    var gemBody = rootGem.children && rootGem.children[0];
+    if (gemBody) {
+      gemBody.userData.type = 'root-gem';
+      pickables.push(gemBody);
+    }
+  }
+  function getPickables() { return pickables; }
   var bbox = built.bbox;
+
+  // Per-building wireframe outlines + solid-color "ghost" bodies. Both are
+  // always in the scene; visibility/opacity is driven by the per-frame fade.
+  //
+  //   outline: visible inversely to building opacity → silhouette stays
+  //            readable when the building fades out. Uses LineSegments2 +
+  //            LineMaterial so linewidth is settable in pixels (Three.js's
+  //            LineBasicMaterial is locked to 1px hairline in WebGL).
+  //   ghost:   used INSTEAD of the textured mesh below a fade threshold,
+  //            to remove window noise on heavily-faded buildings (Cities-
+  //            Skylines-style "data view" — silhouette + color, no detail).
+  var _unitBoxGeo   = new THREE.BoxGeometry(1, 1, 1);
+  var buildingOutlines      = [];   // parallel to buildingMeshes
+  var buildingOutlineMats   = [];   // each LineMaterial needs resolution updates on resize
+  var buildingGhosts        = [];
+  for (var bli = 0; bli < buildingMeshes.length; bli++) {
+    var _bm = buildingMeshes[bli];
+    var _bd = _bm.userData.building;
+    var _bcol = new THREE.Color(_bd.color || '#888888');
+
+    var _olGeo = new LineSegmentsGeometry();
+    _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
+    var _olMat = new LineMaterial({
+      color:       _bcol.clone(),
+      linewidth:   3,
+      transparent: true,
+      opacity:     0.0,
+      depthTest:   true,
+      depthWrite:  false,
+      worldUnits:  false
+    });
+    _olMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
+    var _ol = new LineSegments2(_olGeo, _olMat);
+    _ol.renderOrder = 5;
+    _ol.scale.set(_bd.w, _bd.h * (_bm.scale.y || 1), _bd.d);
+    _ol.position.copy(_bm.position);
+    scene.add(_ol);
+    buildingOutlines.push(_ol);
+    buildingOutlineMats.push(_olMat);
+
+    var _gh = new THREE.Mesh(
+      _unitBoxGeo,
+      new THREE.MeshBasicMaterial({
+        color:       _bcol.clone(),
+        transparent: true,
+        opacity:     0.0,
+        depthWrite:  false
+      })
+    );
+    _gh.visible = false;
+    _gh.scale.set(_bd.w, _bd.h * (_bm.scale.y || 1), _bd.d);
+    _gh.position.copy(_bm.position);
+    scene.add(_gh);
+    buildingGhosts.push(_gh);
+  }
+
+  // Active height mode: tracks what the renderer is currently showing so the
+  // toggle can decide whether to act and which alt-mode to animate toward.
+  var heightMode = (config.building && config.building.height_mode === 'exact') ? 'exact' : 'compact';
 
   // -- 3. Renderer -------------------------------------------------------------
   var renderer = new THREE.WebGLRenderer({
@@ -53,21 +154,58 @@ function startRenderLoop(canvas, manifest, config) {
   var H = canvas.clientHeight;
   var camera = new THREE.PerspectiveCamera(45, W / Math.max(1, H), 1, 20000);
 
-  // Isometric framing from the -X/+Y/+Z octant — the root park sits at -X so
-  // this places it in the foreground-left of the frame.
+  // Isometric framing from the -X/+Y/+Z octant. Orbit pivot sits ON THE
+  // GROUND at the center of the ROOT STREET (the main road) — anchored to
+  // the city's spine, not the bbox center, so subdirectory branches don't
+  // pull the pivot off-axis.
   var center = new THREE.Vector3();
   bbox.getCenter(center);
-  var size = new THREE.Vector3();
-  bbox.getSize(size);
-  var radius = Math.max(size.x, size.z, size.y) * 0.5 + 10;
-  var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * 1.4;
+
+  var rootStreet = (layout.streets || []).filter(function (s) { return s.isRoot; })[0];
+  var groundCenter = rootStreet
+    ? new THREE.Vector3(rootStreet.x, 0, rootStreet.y)
+    : new THREE.Vector3(center.x, 0, center.z);
+
+  // Gem world position (origin end of the root street). Used by street
+  // focus to orient the camera so the gem reliably sits at the top of the
+  // frame — gives the user a fixed landmark for spatial orientation no
+  // matter which street they jump to.
+  var gemWorldPos = null;
+  if (rootStreet) {
+    gemWorldPos = new THREE.Vector3();
+    if (rootStreet.orientation === 'x') {
+      gemWorldPos.set(
+        rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2,
+        0,
+        rootStreet.y
+      );
+    } else {
+      gemWorldPos.set(
+        rootStreet.x,
+        0,
+        rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2
+      );
+    }
+  }
+
+  // Camera distance: framed from the orbit pivot, sized to the FARTHEST bbox
+  // corner relative to the pivot — guarantees every building fits even when
+  // the pivot is offset from bbox center. 0.95 multiplier gives the city
+  // tight, comfortable framing (1.4 was overly padded — city was lost in
+  // black space).
+  var farX = Math.max(Math.abs(bbox.max.x - groundCenter.x), Math.abs(bbox.min.x - groundCenter.x));
+  var farY = Math.max(Math.abs(bbox.max.y - groundCenter.y), Math.abs(bbox.min.y - groundCenter.y));
+  var farZ = Math.max(Math.abs(bbox.max.z - groundCenter.z), Math.abs(bbox.min.z - groundCenter.z));
+  var radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
+  var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * 0.95;
+
   var dir = new THREE.Vector3(-1, 1, 1).normalize();
-  camera.position.copy(center).add(dir.multiplyScalar(dist));
-  camera.lookAt(center);
+  camera.position.copy(groundCenter).add(dir.multiplyScalar(dist));
+  camera.lookAt(groundCenter);
 
   // -- 5. Controls -------------------------------------------------------------
   var controls = new OrbitControls(camera, canvas);
-  controls.target.copy(center);
+  controls.target.copy(groundCenter);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
   controls.screenSpacePanning = false;
@@ -89,6 +227,334 @@ function startRenderLoop(canvas, manifest, config) {
   var downX = 0, downY = 0, downTime = 0;
   var CLICK_MOVE_THRESHOLD_SQ = 5 * 5;
   var CLICK_TIME_THRESHOLD    = 400;
+
+  // Reusable infinite ground plane (Y=0) for raycasting empty space.
+  var groundPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+  var groundHit    = new THREE.Vector3();
+  var camAnimToken = 0;
+
+  // Pivot ping: a brief expanding-ring "ping" at the new pivot location,
+  // shown only at the moment focus changes (dblclick / F / reset). No
+  // persistent indicator — that's not how Blender, Maya, SketchUp, or
+  // Google Earth do it; rotation pivot is implicit during normal navigation.
+  // The ping is feedback for "your pivot moved here" then disappears.
+  var pivotPing = new THREE.Mesh(
+    new THREE.RingGeometry(0.6, 1.0, 48),
+    new THREE.MeshBasicMaterial({
+      color:       0x8ea4ff,
+      transparent: true,
+      opacity:     0.0,         // hidden by default
+      depthWrite:  false,
+      side:        THREE.DoubleSide
+    })
+  );
+  pivotPing.rotation.x  = -Math.PI / 2;   // lay flat on XZ
+  pivotPing.renderOrder = 4;
+  pivotPing.position.y  = 0.6;
+  pivotPing.visible     = false;
+  scene.add(pivotPing);
+
+  // Hover + selection outlines for buildings: ONE shared mesh per state,
+  // retransformed to whichever building is currently hovered / selected.
+  // LineSegments2 (vs the regular LineSegments) renders as triangle strips
+  // so linewidth can actually be set in pixels — regular WebGL lines are
+  // locked to 1px, which reads as a faint hairline. ~3px feels much more
+  // like a Cities-Skylines selection outline.
+  var _unitEdgesGeo = new LineSegmentsGeometry();
+  _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
+
+  var hoverLineMat = new LineMaterial({
+    color:      0xffffff,
+    linewidth:  2,
+    transparent: true,
+    opacity:    0.85,
+    depthTest:  true,
+    worldUnits: false
+  });
+  hoverLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
+  var hoverOutline = new LineSegments2(_unitEdgesGeo, hoverLineMat);
+  hoverOutline.visible = false;
+  hoverOutline.renderOrder = 5;
+  scene.add(hoverOutline);
+
+  // Selected: 3px Line2 outline with per-segment vertex colors so the 12
+  // box edges show different hues that ROTATE around the wheel each frame
+  // — a chasing-rainbow neon effect. Each segment's start and end share
+  // one hue (so the segment is solid-colored), but neighboring segments
+  // are offset by 1/12 of the wheel.
+  var selectedLineMat = new LineMaterial({
+    vertexColors: true,
+    linewidth:    4,
+    transparent:  true,
+    opacity:      1.0,
+    depthTest:    true,
+    worldUnits:   false
+  });
+  selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
+
+  // Each outline needs its OWN geometry instance because instance colors
+  // are stored on the geometry, not the material. Hover keeps the shared
+  // geometry; selected gets its own with the color buffer attached.
+  var _selectedEdgesGeo = new LineSegmentsGeometry();
+  _selectedEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
+  var _selectedColors = new Float32Array(12 * 6);   // 12 segments × (startRGB + endRGB)
+  for (var ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
+  _selectedEdgesGeo.setColors(_selectedColors);
+  var _selColorBuf = _selectedEdgesGeo.attributes.instanceColorStart.data;
+  var _tmpHsl      = new THREE.Color();
+
+  var selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
+  selectedOutline.visible = false;
+  selectedOutline.renderOrder = 7;
+  scene.add(selectedOutline);
+
+  // _isDirectChildFile(file, dir) — true if file's path puts it directly
+  // under dir (no further subdirectories). Manifest paths look like
+  // "src/scene/colors.js"; root dir is "." (or "").
+  function _isDirectChildFile(file, dir) {
+    if (!file || !file.path || !dir || dir.path == null) return false;
+    if (dir.path === '.' || dir.path === '') {
+      return file.path.indexOf('/') === -1;
+    }
+    var prefix = dir.path + '/';
+    if (file.path.indexOf(prefix) !== 0) return false;
+    var rest = file.path.slice(prefix.length);
+    return rest.indexOf('/') === -1;
+  }
+
+  // _isDescendantFile(file, dir) — true if file is anywhere under dir's tree
+  // (direct child OR deeper).
+  function _isDescendantFile(file, dir) {
+    if (!file || !file.path || !dir || dir.path == null) return false;
+    if (dir.path === '.' || dir.path === '') return true;
+    var prefix = dir.path + '/';
+    return file.path.indexOf(prefix) === 0;
+  }
+
+  // _setSegHueGradient(segIdx, hueStart, hueEnd) — write a HSL gradient into
+  // segment segIdx's start+end colors. Wraps hue values via mod 1. Caller
+  // is responsible for copying _selectedColors → _selColorBuf.array once
+  // after all segments are written, and flagging needsUpdate.
+  function _setSegHueGradient(segIdx, hueStart, hueEnd) {
+    var k = segIdx * 6;
+    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, 1.0, 0.6);
+    _selectedColors[k]     = _tmpHsl.r;
+    _selectedColors[k + 1] = _tmpHsl.g;
+    _selectedColors[k + 2] = _tmpHsl.b;
+    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, 1.0, 0.6);
+    _selectedColors[k + 3] = _tmpHsl.r;
+    _selectedColors[k + 4] = _tmpHsl.g;
+    _selectedColors[k + 5] = _tmpHsl.b;
+  }
+
+
+  // Sidewalk tint colors. Each street's sidewalk material starts at
+  // config.scene.sidewalk; we mutate material.color directly on hover/select
+  // and restore from sidewalk.userData.origColor (lazily captured first time
+  // we touch the material).
+  var SIDEWALK_HOVER_COLOR    = 0x6a6c74;   // medium gray
+  var SIDEWALK_SELECTED_COLOR = 0xd0d2da;   // near-white
+  var SIDEWALK_PATH_COLOR     = 0x4a4c54;   // slightly lighter than default — for parent streets on the path
+
+  // Lookup: directory path → sidewalk mesh / street object. Used to walk
+  // the parent chain from a selected dir/file back to root, which lets us
+  // draw the neon path line through the road network.
+  var sidewalksByDirPath = {};
+  var streetsByDirPath   = {};
+  for (var spi = 0; spi < streetPickables.length; spi++) {
+    var _sw = streetPickables[spi];
+    var _swStreet = _sw.userData.street;
+    var _swDir    = _swStreet && _swStreet.dir;
+    if (_swDir && _swDir.path != null) {
+      sidewalksByDirPath[_swDir.path] = _sw;
+      streetsByDirPath[_swDir.path]   = _swStreet;
+    }
+  }
+
+  // _expectedSidewalkTint(sw) — selected / path / hover color, or null for
+  // default. Selected wins over path; path wins over hover. The neon line
+  // STILL traces the path; the sidewalk tint reinforces the lineage so
+  // the user can see which streets are on the chain at a glance.
+  function _expectedSidewalkTint(sw) {
+    if (currentSelection && currentSelection.kind === 'directory' &&
+        currentSelection.sidewalk === sw) {
+      return SIDEWALK_SELECTED_COLOR;
+    }
+    if (currentSelection && currentSelection._pathSidewalks &&
+        currentSelection._pathSidewalks.indexOf(sw) !== -1) {
+      return SIDEWALK_PATH_COLOR;
+    }
+    if (currentHover && currentHover.kind === 'directory' &&
+        currentHover.sidewalk === sw) {
+      return SIDEWALK_HOVER_COLOR;
+    }
+    return null;
+  }
+
+  // Compute the sidewalks on the path from root → selection (excluding the
+  // selected sidewalk itself, which gets its own SELECTED tint).
+  function _pathSidewalksForSelection(sel) {
+    if (!sel) return [];
+    var dirPath, includeLast;
+    if (sel.kind === 'directory') {
+      dirPath = sel.dir.path;
+      includeLast = false;            // selected dir's own sidewalk: SELECTED tint
+    } else {
+      dirPath = parentDirPath(sel.file.path);
+      includeLast = true;             // file's parent street: PATH tint
+    }
+    if (dirPath == null) return [];
+    var chain = streetChainForDirPath(dirPath, streetsByDirPath);
+    var stop = includeLast ? chain.length : chain.length - 1;
+    var path = [];
+    for (var i = 0; i < stop; i++) {
+      var sw = sidewalksByDirPath[chain[i].dir.path];
+      if (sw) path.push(sw);
+    }
+    return path;
+  }
+
+  function _refreshSidewalkTints() {
+    for (var ri = 0; ri < streetPickables.length; ri++) {
+      var sw = streetPickables[ri];
+      if (sw.userData.origColor == null) {
+        sw.userData.origColor = sw.material.color.getHex();
+      }
+      var expected = _expectedSidewalkTint(sw);
+      sw.material.color.setHex(expected != null ? expected : sw.userData.origColor);
+    }
+  }
+
+  // ---- Neon path line: gem → ... → selection ----
+  // Built from independent line segments (LineSegments2) — one segment
+  // per leg of the path. Tried Line2 (polyline) first but its mitered
+  // bends silently dropped subsequent legs in dynamic updates; segments
+  // are more robust. Per-segment vertex colors cycle through the rainbow
+  // each frame for the same chasing-neon effect as the building outline.
+  var pathLineMat = new LineMaterial({
+    vertexColors: true,
+    linewidth:    5,
+    transparent:  true,
+    opacity:      0.0,
+    depthTest:    true,    // buildings occlude the line — it's a road marking
+    worldUnits:   false
+  });
+  pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
+  var pathLineGeo = new LineSegmentsGeometry();
+  pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
+  var pathLine = new LineSegments2(pathLineGeo, pathLineMat);
+  pathLine.visible = false;
+  pathLine.renderOrder = 6;
+  scene.add(pathLine);
+
+  var pathSegmentCount = 0;            // tracks how many segments are live
+  var _pathColorsBuf   = new Float32Array(0);
+  var _pathHsl         = new THREE.Color();
+
+  function _updatePathLine() {
+    if (!gemWorldPos || !currentSelection) {
+      pathLine.visible = false;
+      pathLineMat.opacity = 0;
+      pathSegmentCount = 0;
+      return;
+    }
+    var pts = computePathPoints(
+      currentSelection,
+      { x: gemWorldPos.x, z: gemWorldPos.z },
+      streetsByDirPath
+    );
+    if (pts.length < 2) {
+      pathLine.visible = false;
+      pathLineMat.opacity = 0;
+      pathSegmentCount = 0;
+      return;
+    }
+    // LineSegments2 wants PAIRS of vertices — one segment per pair. So
+    // duplicate intermediate points: [p0,p1, p1,p2, p2,p3, ...].
+    var flat = [];
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i];
+      var b = pts[i + 1];
+      flat.push(a.x, 0.3, a.z, b.x, 0.3, b.z);
+    }
+    // RECREATE the geometry on every update — empirically Three.js's
+    // LineSegmentsGeometry.setPositions can leave stale instance state
+    // when segment count changes between calls (segments silently dropped).
+    if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();
+    pathLineGeo = new LineSegmentsGeometry();
+    pathLineGeo.setPositions(flat);
+    pathLine.geometry = pathLineGeo;
+
+    pathSegmentCount = pts.length - 1;
+    if (_pathColorsBuf.length !== pathSegmentCount * 6) {
+      _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
+    }
+    pathLine.visible = true;
+    pathLineMat.opacity = 0.95;
+  }
+
+  // _updatePathRainbow(t) — per-frame chase: each segment's start+end
+  // hues are offset by 1/N around the wheel; t advances every frame.
+  function _updatePathRainbow(t) {
+    if (!pathLine.visible || pathSegmentCount === 0) return;
+    var n = pathSegmentCount;
+    for (var s = 0; s < n; s++) {
+      var h1 = ((t + s       / n) % 1 + 1) % 1;
+      var h2 = ((t + (s + 1) / n) % 1 + 1) % 1;
+      _pathHsl.setHSL(h1, 1.0, 0.65);
+      _pathColorsBuf[s * 6]     = _pathHsl.r;
+      _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
+      _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
+      _pathHsl.setHSL(h2, 1.0, 0.65);
+      _pathColorsBuf[s * 6 + 3] = _pathHsl.r;
+      _pathColorsBuf[s * 6 + 4] = _pathHsl.g;
+      _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
+    }
+    pathLineGeo.setColors(_pathColorsBuf);
+  }
+
+  // ---- Selection + hover state (single source of truth) ----
+  //
+  // Both `currentSelection` and `currentHover` are EITHER null OR an object:
+  //   { kind: 'file',      mesh, data, file }       — a file building
+  //   { kind: 'directory', sidewalk, street, dir }  — a directory street
+  //
+  // All visuals (outlines, sidewalk tints, X-ray fades, sidebar contents,
+  // tooltip) derive from these two values. State changes go through
+  // `_setSelection()` and `_setHover()`, which atomically clear prior
+  // visuals before applying new ones — no stale state, no dangling X-ray
+  // focus when the user moves on to something else.
+  var currentSelection = null;
+  var currentHover     = null;
+
+  var pingToken = 0;
+  function _pingPivot(worldPos) {
+    var token = ++pingToken;
+    pivotPing.position.x = worldPos.x;
+    pivotPing.position.z = worldPos.z;
+    pivotPing.visible = true;
+    var t0 = performance.now();
+    var duration = 700;
+    var startScale = 0.7;
+    var endScale   = 4.0;
+    var startOpacity = 0.85;
+    function step() {
+      if (pingToken !== token) return;       // newer ping superseded this one
+      var elapsed = performance.now() - t0;
+      var t = elapsed / duration;
+      if (t >= 1) {
+        pivotPing.visible = false;
+        pivotPing.material.opacity = 0;
+        return;
+      }
+      var eased = 1 - Math.pow(1 - t, 2);    // ease-out quad
+      var s = startScale + (endScale - startScale) * eased;
+      pivotPing.scale.set(s, s, s);
+      pivotPing.material.opacity = startOpacity * (1 - t);
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
 
   canvas.addEventListener('pointerdown', function (e) {
     downX = e.clientX;
@@ -112,21 +578,327 @@ function startRenderLoop(canvas, manifest, config) {
     pointer.y = -((clientY - rect.top)  / rect.height) * 2 + 1;
 
     raycaster.setFromCamera(pointer, camera);
-    var hits = raycaster.intersectObjects(pickables, false);
+    var hits = raycaster.intersectObjects(getPickables(), false);
 
     if (hits.length > 0) {
-      var hit = hits[0].object.userData;
-      if (hit.building && hit.building.file) {
-        if (hit.building.file.type === 'directory') showDirSidebar(hit.building.file);
-        else showFileSidebar(hit.building.file);
-      } else if (hit.street && hit.street.dir) {
-        showDirSidebar(hit.street.dir);
-      } else {
-        closeSidebar();
+      var hit = hits[0];
+      var ud  = hit.object.userData;
+      // Gem click → reset view only. Doesn't select anything (just gets
+      // the user back to the default home framing with whatever sidebar
+      // state they had cleared).
+      if (ud.type === 'root-gem') {
+        closeSidebar();    // close handler clears selection too
+        resetView();
+        return;
       }
-    } else {
-      closeSidebar();
+      if (ud.building && ud.building.file) {
+        if (ud.building.file.type === 'directory') {
+          // Directory buildings aren't actually rendered (engine.js skips
+          // them), but if the data ever shows up just open the sidebar.
+          showDirSidebar(ud.building.file);
+        } else {
+          _setSelection({
+            kind: 'file',
+            mesh: hit.object,
+            data: ud.building,
+            file: ud.building.file
+          });
+          showFileSidebar(ud.building.file);
+        }
+        return;
+      }
+      if (ud.street && ud.street.dir) {
+        _setSelection({
+          kind:     'directory',
+          sidewalk: hit.object,
+          street:   ud.street,
+          dir:      ud.street.dir
+        });
+        showDirSidebar(ud.street.dir);
+        return;
+      }
     }
+    closeSidebar();   // close handler clears selection too
+  }
+
+  // _setSelection(sel) — single entry point for changing what's selected.
+  // sel is null OR { kind:'file', mesh, data, file } OR
+  //                { kind:'directory', sidewalk, street, dir }.
+  //
+  // Computes the path-of-sidewalks (root → selection lineage), then
+  // delegates ALL sidewalk colors to _refreshSidewalkTints(). No manual
+  // tint bookkeeping — every street's color is derived from current state.
+  function _setSelection(sel) {
+    if (currentSelection && currentSelection.kind === 'file') {
+      selectedOutline.visible = false;
+    }
+    currentSelection = sel;
+    if (sel) {
+      sel._pathSidewalks = _pathSidewalksForSelection(sel);
+      if (sel.kind === 'file') {
+        _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
+        selectedOutline.visible = true;
+      }
+    }
+    _refreshSidewalkTints();
+    _updatePathLine();
+  }
+
+  // _setHover(h) — single entry point for hover. Independent of selection
+  // (you can hover one thing while selecting another); coordinates via
+  // _refreshSidewalkTints() which picks the right per-street tint.
+  function _setHover(h) {
+    if (currentHover && currentHover.kind === 'file') {
+      hoverOutline.visible = false;
+    }
+    currentHover = h;
+    if (h && h.kind === 'file' &&
+        (!currentSelection || currentSelection.mesh !== h.mesh)) {
+      _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
+      hoverOutline.visible = true;
+    }
+    _refreshSidewalkTints();
+  }
+
+  // Any path that closes the sidebar (X button, Esc, click-empty) clears
+  // selection too. Single source of truth — every close path behaves the
+  // same way.
+  setSidebarCloseHandler(function () { _setSelection(null); });
+
+  // _syncOutlineToBuilding(outline, mesh, b, scaleFactor=1) — match outline's
+  // transform to a building's CURRENT visual size. scaleFactor > 1 expands
+  // outward for the "halo" outline that sits just outside the building edges.
+  function _syncOutlineToBuilding(outline, mesh, b, scaleFactor) {
+    var s = scaleFactor || 1;
+    outline.scale.set(b.w * s, b.h * mesh.scale.y * s, b.d * s);
+    outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
+  }
+
+  // Initial camera pose — captured here so the Controls panel's "Reset View"
+  // button can return to it after the user has navigated away.
+  var initialCamPos = camera.position.clone();
+  var initialTarget = controls.target.clone();
+
+  // Double-click + F dispatch by what's under the cursor:
+  //   - building → frame the door face head-on
+  //   - street   → square the street to screen-horizontal and zoom in for
+  //                navigating it
+  //   - empty    → recenter pivot to ground point (slide camera with delta)
+  canvas.addEventListener('dblclick', function (e) {
+    var rect = canvas.getBoundingClientRect();
+    var ndcX =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
+    var ndcY = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
+    _focusAtPointer(ndcX, ndcY);
+  });
+
+  function _focusAtPointer(ndcX, ndcY) {
+    pointer.set(ndcX, ndcY);
+    raycaster.setFromCamera(pointer, camera);
+
+    var hits = raycaster.intersectObjects(getPickables(), false);
+    if (hits.length > 0) {
+      var hit = hits[0];
+      var ud  = hit.object.userData;
+      if (ud.type === 'root-gem') {       // dblclick gem also resets view
+        resetView();
+        return;
+      }
+      if (ud.building && ud.building.file && ud.building.file.type === 'file') {
+        _focusOnBuilding(hit.object, ud.building);
+        return;
+      }
+      if (ud.street) {
+        _focusOnStreet(ud.street);
+        return;
+      }
+      _recenterPivotToPoint(new THREE.Vector3(hit.point.x, 0, hit.point.z));
+      return;
+    }
+
+    if (raycaster.ray.intersectPlane(groundPlane, groundHit)) {
+      _recenterPivotToPoint(groundHit.clone());
+    }
+  }
+
+  // _recenterPivotToPoint(p) — slide pivot to p; camera shifts by the same
+  // delta so the visible scene doesn't zoom or rotate, just slides under.
+  function _recenterPivotToPoint(p) {
+    camera.up.set(0, 1, 0);
+    var delta = p.clone().sub(controls.target);
+    _animateCamera(p, camera.position.clone().add(delta), 350);
+    _pingPivot(p);
+  }
+
+  // _focusOnBuilding(mesh, b) — frame the building's door face head-on.
+  // Pivot is the building centroid (b.x, b.h/2, b.y) so subsequent orbit
+  // circles around the building. Camera sits along the door's outward
+  // normal at a distance that fits the visible face (width × height) in
+  // the viewport with modest padding. Stores the mesh as the X-ray focus
+  // so the per-frame pass fades obstructors between camera and building.
+  //
+  // To avoid landing the camera with another building blocking the view,
+  // we test sight-line at increasing elevations (0°, 20°, 40°, ...) and
+  // use the first clear angle. Combined with per-frame X-ray, this almost
+  // always gives an unobstructed look at the target.
+  function _focusOnBuilding(mesh, b) {
+    camera.up.set(0, 1, 0);   // reset (street focus may have changed it)
+    var doorDX = 0, doorDZ = 0, faceW;
+    if      (b.orient === 's') { doorDZ =  1; faceW = b.w; }
+    else if (b.orient === 'n') { doorDZ = -1; faceW = b.w; }
+    else if (b.orient === 'e') { doorDX =  1; faceW = b.d; }
+    else if (b.orient === 'w') { doorDX = -1; faceW = b.d; }
+    else                       { doorDZ =  1; faceW = b.w; }
+    var faceH = b.h;
+
+    var halfV = (camera.fov * Math.PI / 180) / 2;
+    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+    var distForH = (faceH / 2) / Math.tan(halfV);
+    var distForW = (faceW / 2) / Math.tan(halfH);
+    var dist = Math.max(distForH, distForW) * 1.6 + 4;
+
+    var halfDepth = (b.orient === 'e' || b.orient === 'w') ? b.w / 2 : b.d / 2;
+    var newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
+
+    // Try head-on first; raise camera 20° at a time if obstructed.
+    var newCamPos = null;
+    for (var attempt = 0; attempt < 5; attempt++) {
+      var elev = (attempt * 20) * Math.PI / 180;
+      var horiz = dist * Math.cos(elev);
+      var vert  = b.h / 2 + dist * Math.sin(elev);
+      var candidate = new THREE.Vector3(
+        b.x + doorDX * (halfDepth + horiz),
+        vert,
+        b.y + doorDZ * (halfDepth + horiz)
+      );
+      if (_isSightClear(candidate, newTarget, mesh)) {
+        newCamPos = candidate;
+        break;
+      }
+      newCamPos = candidate;   // keep the highest attempt as fallback
+    }
+
+    _animateCamera(newTarget, newCamPos, 600);
+    _pingPivot(newTarget);
+  }
+
+  // _isSightClear(camPos, target, focusedMesh) — does a ray from camPos to
+  // target hit any building besides focusedMesh? Used by _focusOnBuilding
+  // to pick a camera position with an unobstructed view.
+  function _isSightClear(camPos, target, focusedMesh) {
+    _xrayDir.subVectors(target, camPos).normalize();
+    _xrayRay.set(camPos, _xrayDir);
+    _xrayRay.far = camPos.distanceTo(target) - 0.5;
+    var hits = _xrayRay.intersectObjects(buildingMeshes, false);
+    for (var i = 0; i < hits.length; i++) {
+      if (hits[i].object !== focusedMesh) return false;
+    }
+    return true;
+  }
+
+  // _focusOnStreet(s) — orient camera so the street runs left-right across
+  // the screen and zoom in to a navigable distance. Camera offset is along
+  // the street's PERPENDICULAR axis on whichever side the camera currently
+  // sits, so the transition is short and the user keeps their bearings.
+  function _focusOnStreet(s) {
+    var newTarget = new THREE.Vector3(s.x, 0, s.y);
+
+    // True top-down framing. Camera nearly vertical, well above the
+    // tallest building so nothing can obstruct the street from this angle.
+    //
+    // Camera orientation rules:
+    //   1. Road runs HORIZONTAL on screen (always). camera.up must be
+    //      perpendicular to the road's long axis in the XZ plane.
+    //   2. Gem appears at TOP of screen. Camera.up sign is chosen so the
+    //      gem's perpendicular component lands on the +screen-up side.
+    //   3. If gem is purely along the road axis (no perpendicular
+    //      component), default sign +1 — gem will appear at LEFT or
+    //      RIGHT instead of TOP.
+    // OrbitControls computes its up-quaternion ONCE at init and ignores
+    // later camera.up changes — so we can't use camera.up to spin the
+    // screen. Instead keep camera.up = world Y always, and control screen
+    // orientation via the camera's horizontal OFFSET direction.
+    //
+    // With default up + top-down view: screen-up direction in world =
+    // OPPOSITE of camera's horizontal offset direction (camera tilts
+    // back toward target, so the "far" side of target is at top of frame).
+    // Screen-right axis follows from that.
+    //
+    // Rules (gem must end up at TOP or LEFT, road horizontal):
+    //   x-street (road along X): camera offset is on Z axis. Sign chosen so:
+    //     - perpendicular gem (gem.z ≠ s.y): offset OPPOSITE of gem.z
+    //       → gem ends up at TOP.
+    //     - along-axis gem  (gem.z = s.y, e.g. focusing on root street
+    //       itself): offset = +Z if gem.x ≤ s.x (smaller X = LEFT under
+    //       this orientation), else -Z (flips screen so larger X = LEFT).
+    //   y-street: mirror with X/Z swapped.
+    // Uniform compass: road horizontal, gem at WEST (x-streets) or
+    // NORTH (y-streets). With default world-up, camera at +offset puts
+    // smaller world coords on the +screen-up / +screen-right SIDE of the
+    // frame closer to the gem (which lives near origin = -X relative to
+    // most focused streets). Always-positive offsets give that.
+    var offX = 0, offZ = 0;
+    if (s.orientation === 'x') {
+      offZ = 1;    // gem at west (left)
+    } else {
+      offX = 1;    // gem at north (top)
+    }
+    camera.up.set(0, 1, 0);             // stay world-up for OrbitControls
+
+    // Camera altitude must clear every building. Compute max building
+    // height (factoring in current scale.y from any in-progress toggle).
+    var maxBldgH = 0;
+    for (var i = 0; i < buildingMeshes.length; i++) {
+      var mb = buildingMeshes[i].userData.building;
+      var sy = buildingMeshes[i].scale.y || 1;
+      var bh = (mb && mb.h ? mb.h : 0) * sy;
+      if (bh > maxBldgH) maxBldgH = bh;
+    }
+
+    var halfV = (camera.fov * Math.PI / 180) / 2;
+    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+    var distForLength = (s.length * 0.65 / 2) / Math.tan(halfH);
+    var distForWidth  = (s.width * 4   / 2) / Math.tan(halfV);
+    var altitude = Math.max(distForLength, distForWidth, maxBldgH * 1.4 + 50);
+
+    // Near-90° elevation (87°) — well within OrbitControls' polar limit
+    // (~88°) so the camera doesn't snap on the next update. Camera sits
+    // at +offX / +offZ horizontal offset; with default world-up, screen-up
+    // is the OPPOSITE direction (target's "far side" appears at top).
+    var elev = 87 * Math.PI / 180;
+    var horizDist = altitude / Math.tan(elev);
+
+    var newCamPos = new THREE.Vector3(
+      s.x + offX * horizDist,
+      altitude,
+      s.y + offZ * horizDist
+    );
+    _animateCamera(newTarget, newCamPos, 600);
+    _pingPivot(newTarget);
+  }
+
+  function _animateCamera(newTarget, newCamPos, duration) {
+    var token = ++camAnimToken;
+    var startTarget = controls.target.clone();
+    var startCamPos = camera.position.clone();
+    var t0 = performance.now();
+
+    function step() {
+      if (camAnimToken !== token) return;       // superseded by a newer animation
+      var elapsed = performance.now() - t0;
+      var t = elapsed / duration;
+      if (t >= 1) t = 1;
+      var eased = 1 - Math.pow(1 - t, 3);       // ease-out cubic
+      controls.target.lerpVectors(startTarget, newTarget, eased);
+      camera.position.lerpVectors(startCamPos, newCamPos, eased);
+      if (t < 1) requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function resetView() {
+    camera.up.set(0, 1, 0);           // back to default world-up
+    _animateCamera(initialTarget.clone(), initialCamPos.clone(), 500);
+    _pingPivot(initialTarget);
   }
 
   canvas.addEventListener('pointermove', function (e) {
@@ -134,8 +906,56 @@ function startRenderLoop(canvas, manifest, config) {
     pointer.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
     pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    var hits = raycaster.intersectObjects(pickables, false);
-    canvas.style.cursor = hits.length > 0 ? 'pointer' : 'grab';
+    var hits = raycaster.intersectObjects(getPickables(), false);
+
+    var newHover = null, tooltipText = null;
+    if (hits.length > 0) {
+      var h0 = hits[0];
+      var ud = h0.object.userData;
+      if (ud.type === 'root-gem') {
+        newHover = { kind: 'gem' };
+        var rootName = (rootStreet && rootStreet.dir && rootStreet.dir.name) || 'root';
+        tooltipText = 'root  ·  ' + rootName;
+      } else if (ud.building && ud.building.file && ud.building.file.type === 'file') {
+        var f = ud.building.file;
+        newHover = { kind: 'file', mesh: h0.object, data: ud.building, file: f };
+        tooltipText = f.name + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
+      } else if (ud.street && ud.street.dir) {
+        var d = ud.street.dir;
+        var n = (d.descendants_count != null) ? d.descendants_count : (d.children_count || 0);
+        newHover = { kind: 'directory', sidewalk: h0.object, street: ud.street, dir: d };
+        tooltipText = (d.name || 'directory') + '  ·  ' + n + ' items';
+      }
+    }
+
+    // Only call _setHover if the underlying target changed (avoids
+    // teardown/rebuild every pointermove on the same object).
+    if (!_sameHover(newHover, currentHover)) _setHover(newHover);
+
+    if (tooltipText) {
+      showTooltip(tooltipText, e.clientX, e.clientY);
+      canvas.style.cursor = 'pointer';
+    } else {
+      hideTooltip();
+      canvas.style.cursor = 'grab';
+    }
+  });
+
+  function _sameHover(a, b) {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.kind !== b.kind) return false;
+    if (a.kind === 'file')      return a.mesh === b.mesh;
+    if (a.kind === 'directory') return a.sidewalk === b.sidewalk;
+    if (a.kind === 'gem')       return true;     // singleton
+    return false;
+  }
+
+  // Hide tooltip + clear hover when the cursor leaves the canvas (drifts
+  // onto sidebar, leaves window). Selection is left alone — only hover.
+  canvas.addEventListener('pointerleave', function () {
+    hideTooltip();
+    _setHover(null);
   });
 
   // -- 7. Resize ---------------------------------------------------------------
@@ -145,25 +965,374 @@ function startRenderLoop(canvas, manifest, config) {
     var ch = canvas.clientHeight;
     camera.aspect = cw / Math.max(1, ch);
     camera.updateProjectionMatrix();
+    // LineMaterial.resolution must match viewport for pixel-accurate width.
+    hoverLineMat.resolution.set(cw, ch);
+    selectedLineMat.resolution.set(cw, ch);
+    pathLineMat.resolution.set(cw, ch);
+    for (var rmi = 0; rmi < buildingOutlineMats.length; rmi++) {
+      buildingOutlineMats[rmi].resolution.set(cw, ch);
+    }
   }
   window.addEventListener('resize', onResize);
 
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') closeSidebar();
+    // Don't intercept hotkeys while the user is typing in an input/textarea
+    // (none today, but defensive against future controls-panel additions).
+    var tag = (e.target && e.target.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+
+    if (e.key === 'Escape') {
+      closeSidebar();                 // close handler clears selection + focus
+    } else if (e.key === 'f' || e.key === 'F') {
+      // Focus pivot on whatever the cursor is currently pointing at — same
+      // result as a double-click, but no need to release-press-press.
+      _focusAtPointer(pointer.x, pointer.y);
+    } else if (e.key === 'r' || e.key === 'R' || e.key === 'Home') {
+      resetView();
+    }
   });
 
-  showTreeSidebar(manifest);
+  // Pre-compute the max world-space distance from origin so the toggle's
+  // staggered ripple has a stable normalization. Updated never — building
+  // footprints don't change across mode toggles.
+  var maxDist = 0;
+  for (var bdi = 0; bdi < buildingMeshes.length; bdi++) {
+    var bb = buildingMeshes[bdi].userData.building;
+    var dd = Math.sqrt(bb.x * bb.x + bb.y * bb.y);
+    if (dd > maxDist) maxDist = dd;
+  }
+  if (maxDist === 0) maxDist = 1;
+
+  showLeftSidebar(manifest, {
+    initialHeightMode:  heightMode,
+    onHeightModeChange: function (newMode) {
+      if (newMode === heightMode) return;
+      heightMode = newMode;
+      _toggleHeightMode(newMode);
+    },
+    onResetView: resetView
+  });
+
+  // _toggleHeightMode(newMode)
+  //
+  // For each building, animate scale.y + position.y from current to target
+  // over 400ms (ease-out cubic), with a per-building delay scaled by distance
+  // from origin so the toggle visually ripples out from the root. At the end
+  // of each animation we dispose the old mesh and rebuild it at the true new
+  // height — keeps facade textures crisp at the new floor count.
+  function _toggleHeightMode(newMode) {
+    var DURATION  = 400;
+    var STAGGER   = 200;
+    for (var i = 0; i < buildingMeshes.length; i++) {
+      var mesh = buildingMeshes[i];
+      var b = mesh.userData.building;
+      var targetH = (newMode === 'exact') ? b.h_exact : b.h_compact;
+      // Currently visible height = position.y * 2 (base sits on z=0). This
+      // also handles re-toggling mid-animation: we always start from the
+      // current visual state, not the storage value.
+      var startH = mesh.position.y * 2;
+      if (targetH === startH) continue;
+
+      var dist  = Math.sqrt(b.x * b.x + b.y * b.y);
+      var delay = (dist / maxDist) * STAGGER;
+
+      _animateBuildingHeight(mesh, b, startH, targetH, newMode, delay, DURATION);
+    }
+  }
+
+  function _animateBuildingHeight(mesh, b, startH, targetH, targetMode, delay, duration) {
+    // Token cancels any in-flight animation on this mesh if a new one starts.
+    var token = (mesh.userData.heightAnimToken || 0) + 1;
+    mesh.userData.heightAnimToken = token;
+
+    var startTime = performance.now() + delay;
+    function step(now) {
+      if (mesh.userData.heightAnimToken !== token) return;
+      if (now < startTime) { requestAnimationFrame(step); return; }
+      var elapsed = now - startTime;
+      if (elapsed >= duration) {
+        // Final state: replace mesh so geometry + facade textures match the
+        // new floor count exactly (no stretched windows).
+        b.h      = targetH;
+        b.floors = (targetMode === 'exact') ? b.floors_exact : b.floors_compact;
+        _replaceBuildingMesh(mesh, b);
+        return;
+      }
+      var t = elapsed / duration;
+      var eased = 1 - Math.pow(1 - t, 3);   // ease-out cubic
+      var currentH = startH + (targetH - startH) * eased;
+      mesh.scale.y    = currentH / startH;
+      mesh.position.y = currentH / 2;
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+  }
+
+  function _replaceBuildingMesh(oldMesh, b) {
+    var newMesh = createBuildingMesh(b);
+    scene.add(newMesh);
+    scene.remove(oldMesh);
+
+    // Dispose GPU resources held by the old mesh. BoxGeometry is one geometry,
+    // shared across all 6 face materials; each face material owns its own
+    // CanvasTexture (facade or roof) we built per-building.
+    if (oldMesh.geometry && oldMesh.geometry.dispose) oldMesh.geometry.dispose();
+    var mats = Array.isArray(oldMesh.material) ? oldMesh.material : [oldMesh.material];
+    for (var mi = 0; mi < mats.length; mi++) {
+      var mat = mats[mi];
+      if (mat && mat.map && mat.map.dispose) mat.map.dispose();
+      if (mat && mat.dispose) mat.dispose();
+    }
+
+    // Swap the new mesh into the lookup arrays so picking sees it.
+    var bIdx = buildingMeshes.indexOf(oldMesh);
+    if (bIdx !== -1) buildingMeshes[bIdx] = newMesh;
+    var pIdx = pickables.indexOf(oldMesh);
+    if (pIdx !== -1) pickables[pIdx] = newMesh;
+
+    // If this building was hovered / selected, retarget the refs so the
+    // outlines + X-ray keep tracking through the toggle animation tail.
+    if (currentSelection && currentSelection.mesh === oldMesh) {
+      currentSelection.mesh = newMesh;
+    }
+    if (currentHover && currentHover.mesh === oldMesh) {
+      currentHover.mesh = newMesh;
+    }
+  }
 
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
   var labelRight = new THREE.Vector3();
+  // Reusable scratch objects for sight-line check + screen-space X-ray.
+  var _xrayRay = new THREE.Raycaster();
+  var _xrayDir = new THREE.Vector3();
+  var _boxA    = new THREE.Box3();
+  var _boxB    = new THREE.Box3();
+  var _scratchCenter = new THREE.Vector3();
+  var _corners = [
+    new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),
+    new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()
+  ];
+
+  // _projectBoxToNDC(box) -> { minX, maxX, minY, maxY }
+  // Project all 8 corners of a world Box3 into NDC and return their
+  // screen-aligned bounding rect. Used to test silhouette overlap.
+  function _projectBoxToNDC(box) {
+    _corners[0].set(box.min.x, box.min.y, box.min.z);
+    _corners[1].set(box.max.x, box.min.y, box.min.z);
+    _corners[2].set(box.min.x, box.max.y, box.min.z);
+    _corners[3].set(box.max.x, box.max.y, box.min.z);
+    _corners[4].set(box.min.x, box.min.y, box.max.z);
+    _corners[5].set(box.max.x, box.min.y, box.max.z);
+    _corners[6].set(box.min.x, box.max.y, box.max.z);
+    _corners[7].set(box.max.x, box.max.y, box.max.z);
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (var i = 0; i < 8; i++) {
+      _corners[i].project(camera);
+      if (_corners[i].x < minX) minX = _corners[i].x;
+      if (_corners[i].x > maxX) maxX = _corners[i].x;
+      if (_corners[i].y < minY) minY = _corners[i].y;
+      if (_corners[i].y > maxY) maxY = _corners[i].y;
+    }
+    return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  }
+
+  // _updateXRayAndOutlines() — runs every frame. Two jobs:
+  //   1. X-ray: while a building is focused, fade ANY building whose
+  //      screen-space silhouette overlaps the focused building's silhouette
+  //      AND is closer to the camera. This catches every visually-blocking
+  //      building, regardless of where they sit in 3D — much more robust
+  //      than ray sampling, which misses obstructors that don't happen to
+  //      lie on the test rays.
+  //   2. Outlines: keep hover + selected outlines synced to their mesh's
+  //      current visual size — accounts for mesh.scale.y during height-mode
+  //      toggle animation.
+  function _updateXRayAndOutlines() {
+    // CRITICAL: refresh world matrices before projecting. controls.update()
+    // moved the camera but matrixWorldInverse is stale until renderer.render
+    // runs at end-of-frame. Without this, .project() returns wrong NDC and
+    // the screen-space obstructor test misses everything.
+    camera.updateMatrixWorld();
+    scene.updateMatrixWorld();
+
+    // ---- 1. Visibility ----
+    // Building selected/focused: fade obstructors only (buildings whose
+    //   silhouette overlaps the selected building's silhouette AND are
+    //   closer in NDC depth). Selected stays at 1.0; clear buildings stay
+    //   at 1.0; only obstructors fade.
+    // Street selected: TIERED fade based on directory tree (SimCity 2013
+    //   "data view" pattern):
+    //     direct children files      → 1.00
+    //     descendants (sub-dirs)     → 0.45
+    //     unrelated                  → 0.10
+    // Read fade targets from the unified selection state. Building
+    // selection ALSO triggers tiered fade — the file's parent dir acts
+    // as the "neighborhood" so the user sees siblings + descendants
+    // exactly like a street selection. The selected building itself
+    // stays fully solid on top.
+    var bldgTarget = (currentSelection && currentSelection.kind === 'file')
+      ? currentSelection.mesh : null;
+    var dirTarget = null;
+    if (currentSelection) {
+      if (currentSelection.kind === 'directory') {
+        dirTarget = currentSelection.dir;
+      } else if (currentSelection.kind === 'file') {
+        var parentPath = parentDirPath(currentSelection.file.path);
+        if (parentPath != null) {
+          var parentStreet = streetsByDirPath[parentPath];
+          if (parentStreet) dirTarget = parentStreet.dir;
+        }
+      }
+    }
+    var hoverMesh  = (currentHover && currentHover.kind === 'file')
+      ? currentHover.mesh : null;
+
+    // Obstruction detection disabled for now — selected building relies
+    // purely on the tiered fade. Re-enable by un-commenting and restoring
+    // the obstructor-fade block in the per-building loop below.
+    var obstructorIds = null;
+
+    for (var bi = 0; bi < buildingMeshes.length; bi++) {
+      var m = buildingMeshes[bi];
+      if (m.userData.opacityCurrent == null) m.userData.opacityCurrent = 1.0;
+      // Per-building visual tier. `target` drives main-mesh opacity;
+      // `outlineDim` and `ghostDim` independently control the colored
+      // outline + ghost-body so we can recede unrelated buildings hard
+      // while keeping descendants readable.
+      var target = 1.0;
+      var outlineDim = 1.0;
+      var ghostDim   = 1.0;
+      if (m === bldgTarget) {
+        // Selected file building: always full, never obstructor-faded.
+        target = 1.0;
+      } else if (dirTarget) {
+        // Tiered fade by relationship to the selection's "neighborhood"
+        // (the dir itself for street selection, or the file's parent dir
+        // for building selection — same UX either way).
+        var f = m.userData.building && m.userData.building.file;
+        if (_isDirectChildFile(f, dirTarget)) {
+          target = 1.0;
+        } else if (_isDescendantFile(f, dirTarget)) {
+          target = 0.55;
+          outlineDim = 0.30;
+          ghostDim   = 0.35;
+        } else {
+          target = 0.18;
+          outlineDim = 0.12;
+          ghostDim   = 0.20;
+        }
+      }
+      // Obstructor fade: when a building is selected, anything closer to
+      // the camera that visually overlaps it gets EXTRA fade so the
+      // selected building stays visible at any rotation/zoom. Applies on
+      // top of the tier above (multiplies it down).
+      if (bldgTarget && m !== bldgTarget && obstructorIds && obstructorIds[m.id]) {
+        target     = Math.min(target, 0.10);
+        outlineDim = Math.min(outlineDim, 0.20);
+        ghostDim   = Math.min(ghostDim, 0.20);
+      }
+      // Hover restore: a hovered building never drops below 0.7.
+      if (m === hoverMesh && target < 0.7) {
+        target = 0.7;
+        outlineDim = 1.0;
+        ghostDim   = 1.0;
+      }
+      var cur = m.userData.opacityCurrent;
+      if (cur !== target) {
+        cur += (target - cur) * 0.18;
+        if (Math.abs(cur - target) < 0.005) cur = target;
+        m.userData.opacityCurrent = cur;
+        var mats = Array.isArray(m.material) ? m.material : [m.material];
+        var transparent = cur < 0.999;
+        for (var ki = 0; ki < mats.length; ki++) {
+          var mat = mats[ki];
+          if (mat.transparent !== transparent) {
+            mat.transparent = transparent;
+            mat.depthWrite  = !transparent;
+            mat.needsUpdate = true;
+          }
+          mat.opacity = cur;
+        }
+      }
+      // Sync the colored outline + ghost body. Both share position/scale
+      // with the main mesh (so they track height-mode toggle animations).
+      //   outline.opacity = 1 − cur  (visible when building fades out)
+      //   ghost takes over when cur drops below GHOST_THRESHOLD — removes
+      //   window detail so heavily-faded buildings read as clean colored
+      //   silhouettes instead of dim noisy windowed boxes.
+      //
+      // Outline + ghost dimming uses the per-building outlineDim/ghostDim
+      // computed above (varies by tier so unrelated buildings recede much
+      // harder than descendants).
+      var b = m.userData.building;
+      var outline = buildingOutlines[bi];
+      if (outline) {
+        outline.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
+        outline.position.copy(m.position);
+        outline.material.opacity = (1.0 - cur) * outlineDim;
+      }
+      var ghost = buildingGhosts[bi];
+      if (ghost) {
+        ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
+        ghost.position.copy(m.position);
+        var GHOST_THRESHOLD = 0.5;
+        if (cur < GHOST_THRESHOLD) {
+          m.visible = false;
+          ghost.visible = true;
+          ghost.material.opacity = cur * ghostDim;
+        } else {
+          m.visible = true;
+          ghost.visible = false;
+        }
+      }
+    }
+
+    // ---- 2. Outlines (sync + flowing rainbow color update) ----
+    if (currentSelection && currentSelection.kind === 'file') {
+      _syncOutlineToBuilding(selectedOutline, currentSelection.mesh, currentSelection.data);
+      // Bottom (segments 0-3) and top (4-7) form continuous 4-edge loops
+      // around the box. Each segment gets a START hue matching the previous
+      // segment's END hue, so colors flow seamlessly around the loop. The
+      // shared `t` advances every frame → entire spectrum chases around the
+      // building. Vertical edges (8-11) take a single hue from their
+      // corresponding bottom corner so the verticals colors-match the loop
+      // they connect to.
+      var t = performance.now() * 0.00045;
+      _setSegHueGradient(0, t + 0.00, t + 0.25);  // bottom: back  edge
+      _setSegHueGradient(1, t + 0.25, t + 0.50);  // bottom: right edge
+      _setSegHueGradient(2, t + 0.50, t + 0.75);  // bottom: front edge
+      _setSegHueGradient(3, t + 0.75, t + 1.00);  // bottom: left  edge
+      _setSegHueGradient(4, t + 0.00, t + 0.25);  // top:    back  edge
+      _setSegHueGradient(5, t + 0.25, t + 0.50);  // top:    right edge
+      _setSegHueGradient(6, t + 0.50, t + 0.75);  // top:    front edge
+      _setSegHueGradient(7, t + 0.75, t + 1.00);  // top:    left  edge
+      _setSegHueGradient(8,  t + 0.00, t + 0.00); // vertical: back-left
+      _setSegHueGradient(9,  t + 0.25, t + 0.25); // vertical: back-right
+      _setSegHueGradient(10, t + 0.50, t + 0.50); // vertical: front-right
+      _setSegHueGradient(11, t + 0.75, t + 0.75); // vertical: front-left
+      _selColorBuf.array.set(_selectedColors);
+      _selColorBuf.needsUpdate = true;
+    }
+    if (currentHover && currentHover.kind === 'file' &&
+        (!currentSelection || currentSelection.mesh !== currentHover.mesh)) {
+      _syncOutlineToBuilding(hoverOutline, currentHover.mesh, currentHover.data);
+    }
+  }
+
   function animate() {
     controls.update();
+    _updateXRayAndOutlines();
+    _updatePathRainbow(performance.now() * 0.0006);
     _orientLabelsForCamera(streetLabels, camera, labelRight);
     if (rootGem) {
       var t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * 0.6;
       rootGem.position.y = rootGem.userData.baseY + Math.sin(t * 1.8) * rootGem.userData.bobAmp;
+      // Scale-up affordance on hover so the gem reads as clickable.
+      var gemTargetScale = (currentHover && currentHover.kind === 'gem') ? 1.25 : 1.0;
+      var curS = rootGem.scale.x;
+      var nextS = curS + (gemTargetScale - curS) * 0.18;
+      rootGem.scale.set(nextS, nextS, nextS);
     }
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
@@ -180,17 +1349,27 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   var rightX = labelRight.x;
   var rightZ = labelRight.z;
 
+  // Hysteresis: only flip when the relevant axis crosses ±0.15, not 0.
+  // Without this, near-top-down camera positions (where rightX/rightZ are
+  // near zero) cause floating-point jitter from OrbitControls' damping to
+  // flip labels back and forth every frame.
+  var THRESH = 0.15;
+
   for (var i = 0; i < labels.length; i++) {
     var lbl = labels[i];
     var street = lbl.userData.street;
     var base = lbl.userData.baseRotY || 0;
-    var flip;
-    if (street.orientation === 'x') {
-      flip = (rightX < 0) ? Math.PI : 0;
+    var axis  = (street.orientation === 'x') ? rightX : rightZ;
+    var flipped = lbl.userData.flipped || false;
+    if (flipped) {
+      // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
+      if (axis > THRESH) flipped = false;
     } else {
-      flip = (rightZ < 0) ? Math.PI : 0;
+      // Not flipped — only flip when axis clearly crosses NEGATIVE.
+      if (axis < -THRESH) flipped = true;
     }
-    lbl.rotation.y = base + flip;
+    lbl.userData.flipped = flipped;
+    lbl.rotation.y = base + (flipped ? Math.PI : 0);
   }
 }
 

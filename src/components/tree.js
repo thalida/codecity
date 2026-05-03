@@ -82,16 +82,15 @@ export function buildTree(node) {
 }
 
 
-export function showTreeSidebar(manifest) {
-  var container = document.getElementById('tree-sidebar');
-  if (!container) return;
+// buildTreePane(manifest) -> HTMLElement
+//
+// Returns the Tree tab's content as a single DOM element, ready to be
+// inserted into the left sidebar's panel area. Owned by the parent shell
+// (leftSidebar.js) — this function does not touch #tree-sidebar directly.
+export function buildTreePane(manifest) {
+  var pane = document.createElement('div');
+  pane.className = 'left-pane tree-pane';
 
-  // Clear previous content
-  while (container.firstChild) {
-    container.removeChild(container.firstChild);
-  }
-
-  // Header
   var header = document.createElement('div');
   header.className = 'tree-header';
 
@@ -101,10 +100,11 @@ export function showTreeSidebar(manifest) {
   title.textContent = tree.name || 'Project';
   header.appendChild(title);
 
-  container.appendChild(header);
+  pane.appendChild(header);
 
-  // Build and append tree
   var treeEl = buildTree(tree);
   treeEl.className = 'tree-list tree-root';
-  container.appendChild(treeEl);
+  pane.appendChild(treeEl);
+
+  return pane;
 }

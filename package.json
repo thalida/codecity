@@ -1,7 +1,7 @@
 {
   "name": "codecity-ai",
   "version": "1.0.0",
-  "description": "CodeCity AI is an AI plugin that visualizes codebases as isometric 2.5D cities. Give an agent a directory and it walks the tree, collects file metadata and git history, then assembles a single self-contained HTML file you can open in any browser. Directories become streets — wide boulevards for large directories, narrow alleys for small ones. Files become buildings whose shape and color encode information: how big the file is, how old it is, when it was last touched, and what language it is written in.",
+  "description": "CodeCity AI is an AI plugin that visualizes codebases as 3D cities. Give an agent a directory and it walks the tree, collects file metadata and git history, then assembles a single self-contained HTML file you can open in any browser. Directories become streets — wide boulevards for large directories, narrow alleys for small ones. Files become buildings whose shape and color encode information: how big the file is, how old it is, when it was last touched, and what language it is written in.",
   "main": "index.js",
   "directories": {
     "doc": "docs"

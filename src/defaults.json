@@ -13,9 +13,10 @@
   },
 
   "building": {
+    "height_mode": "compact",
     "lines_per_floor": 20,
     "min_floors": 1,
-    "max_floors": null,
+    "max_floors": 30,
     "floor_height": 10,
     "byte_ceiling": 10485760,
     "min_width": 6,
@@ -36,7 +37,7 @@
 
   "scene": {
     "asphalt":  "#1a1d28",
-    "sidewalk": "#2a3050",
+    "sidewalk": "#2c2e36",
     "ground":   "#0a0b10",
 
     "root_gem": {

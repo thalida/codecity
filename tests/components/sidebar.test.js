@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { showFileSidebar, showDirSidebar, closeSidebar } from '../../src/components/sidebar.js';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarCloseHandler } from '../../src/components/sidebar.js';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';
@@ -117,5 +117,25 @@ describe('closeSidebar', () => {
   it('does nothing if #sidebar is missing', () => {
     document.body.innerHTML = '';
     expect(() => closeSidebar()).not.toThrow();
+  });
+});
+
+describe('setSidebarCloseHandler', () => {
+  beforeEach(resetDom);
+
+  it('fires the registered handler when closeSidebar is called', () => {
+    var handler = vi.fn();
+    setSidebarCloseHandler(handler);
+    closeSidebar();
+    expect(handler).toHaveBeenCalledTimes(1);
+    setSidebarCloseHandler(null);   // cleanup
+  });
+
+  it('passing null clears the handler', () => {
+    var handler = vi.fn();
+    setSidebarCloseHandler(handler);
+    setSidebarCloseHandler(null);
+    closeSidebar();
+    expect(handler).not.toHaveBeenCalled();
   });
 });

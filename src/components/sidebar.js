@@ -2,12 +2,15 @@
 
 import { getHue } from '../scene/colors.js';
 
-// Track the currently selected building element so we can clear its highlight
-var _selectedBuilding = null;
-
 // Palette injected from main.js (config.building.hue_ext_map). Empty object
 // means "no palette configured" — getHue will fall back to its hash.
 var _huePalette = {};
+
+// Optional handler invoked AFTER closeSidebar runs. main.js wires this to
+// clear scene-level selection state (outlines, sidewalk tints) so any path
+// that closes the sidebar — close button, Esc, click-empty — also clears
+// the selection visuals automatically.
+var _onClose = null;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -19,6 +22,16 @@ var _huePalette = {};
  */
 export function setSidebarPalette(palette) {
   _huePalette = palette || {};
+}
+
+/**
+ * Register a callback to fire whenever the sidebar closes. Used by main.js
+ * to clear scene-level selection state in lockstep with the sidebar.
+ *
+ * @param {Function} fn - Callback. Pass null to clear.
+ */
+export function setSidebarCloseHandler(fn) {
+  _onClose = fn || null;
 }
 
 /**
@@ -216,18 +229,15 @@ export function showDirSidebar(dir) {
 }
 
 /**
- * Close the sidebar and clear any selected building highlight.
+ * Close the sidebar. Fires the registered close handler so the caller can
+ * clean up linked state (e.g. scene-level selection visuals).
  */
 export function closeSidebar() {
   var sidebar = document.getElementById('sidebar');
   if (sidebar) {
     sidebar.classList.remove('open');
   }
-
-  if (_selectedBuilding) {
-    _selectedBuilding.classList.remove('selected');
-    _selectedBuilding = null;
-  }
+  if (_onClose) _onClose();
 }
 
 /**

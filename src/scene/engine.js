@@ -20,6 +20,16 @@ var DEFAULT_SCENE_COLORS = {
   sidewalk: '#2a3050',
   ground:   '#0a0b10'
 };
+
+
+// _toPow2(n) — round n UP to the next power of two. Used so canvas-backed
+// textures get mipmaps (Three.js requires power-of-2 dims for guaranteed
+// mipmap support across all WebGL profiles).
+function _toPow2(n) {
+  var p = 1;
+  while (p < n) p *= 2;
+  return p;
+}
 var STREET_COLOR_ASPHALT  = DEFAULT_SCENE_COLORS.asphalt;
 var STREET_COLOR_SIDEWALK = DEFAULT_SCENE_COLORS.sidewalk;
 var GROUND_COLOR          = DEFAULT_SCENE_COLORS.ground;
@@ -47,12 +57,17 @@ function _buildFacadeTexture(opts) {
   var doorColor  = opts.doorColor;
   var hasDoor    = !!opts.hasDoor;
 
-  // Pixel canvas — 64 px per floor vertically gives enough room for a window
-  // row that reads clearly at typical zoom. 128 px wide per column.
-  var pxPerFloor = 64;
-  var pxPerCol   = 128;
-  var width      = Math.max(128, pxPerCol * cols);
-  var height     = Math.max(64,  pxPerFloor * floors);
+  // Pixel canvas — round dimensions UP to the next power of two so Three.js
+  // can generate mipmaps. Without mipmaps, zoomed-out facades shimmer/blur
+  // via single-texel sampling.
+  // pxPerFloor / pxPerCol are then RECOMPUTED from the rounded canvas so
+  // floors and columns fill the canvas evenly — otherwise the drawing
+  // (which anchors floors at the bottom) would leave a huge blank stripe
+  // at the top of the texture, making the building look half-empty.
+  var width  = _toPow2(Math.max(128, 128 * cols));
+  var height = _toPow2(Math.max(64,  64  * floors));
+  var pxPerFloor = height / floors;
+  var pxPerCol   = width  / cols;
 
   var canvas = document.createElement('canvas');
   canvas.width  = width;
@@ -111,7 +126,15 @@ function _buildFacadeTexture(opts) {
 
   var tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
+  // mag = Nearest, min = NearestMipmapLinear: pixel-perfect crispness at
+  // every distance. Nearest sampling within each mipmap keeps window edges
+  // sharp; linear blending BETWEEN mipmap levels prevents shimmer when
+  // small/distant. (LinearMipmapLinear was tried first but smoothed the
+  // window pixels into a soft blur — wrong for the blocky pixel-art look.)
+  tex.magFilter   = THREE.NearestFilter;
+  tex.minFilter   = THREE.NearestMipmapLinearFilter;
+  tex.generateMipmaps = true;
   return tex;
 }
 
@@ -135,6 +158,10 @@ function _buildRoofTexture(opts) {
   ctx.strokeRect(2, 2, 124, 124);
   var tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestMipmapLinearFilter;
+  tex.generateMipmaps = true;
   return tex;
 }
 
@@ -154,7 +181,7 @@ function _buildRoofTexture(opts) {
 // `building.file` is attached to `mesh.userData.building` so raycast hits can
 // look the original building object back up.
 // -----------------------------------------------------------------------------
-function createBuildingMesh(building) {
+export function createBuildingMesh(building) {
   var w = building.w;
   var d = building.d;
   var color = building.color || 'hsl(220, 10%, 40%)';
@@ -504,11 +531,13 @@ function _buildLabelTexture(text) {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
-  // Dark outline + bright fill — readable over asphalt at any zoom.
-  ctx.lineWidth = 8;
-  ctx.strokeStyle = 'rgba(10, 11, 16, 0.9)';
+  // Dark outline + bright fill — readable over asphalt AND over the
+  // chasing-rainbow neon path line. Thicker stroke (16) gives a solid
+  // backing pill so text stays legible against busy backgrounds.
+  ctx.lineWidth = 16;
+  ctx.strokeStyle = 'rgba(8, 9, 14, 1.0)';
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
-  ctx.fillStyle = '#eef1fa';
+  ctx.fillStyle = '#f4f6ff';
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
   var tex = new THREE.CanvasTexture(canvas);

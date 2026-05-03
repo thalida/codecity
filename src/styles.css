@@ -306,6 +306,24 @@ canvas {
 }
 
 
+/* ── Hover tooltip ─────────────────────────────────────────────────────────── */
+
+#hover-tooltip {
+  position: fixed;
+  background: rgba(15, 17, 26, 0.94);
+  border: 1px solid #2a3050;
+  color: #d8dceb;
+  font-size: 11px;
+  padding: 4px 9px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 200;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  white-space: nowrap;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {
@@ -321,29 +339,95 @@ canvas {
 }
 
 
-/* ── Tree sidebar (left panel) ─────────────────────────────────────────────── */
+/* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
 
 #tree-sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 260px;
+  width: 304px;            /* 44px activity bar + 260px panel */
   height: 100%;
   background: #10111a;
   border-right: 1px solid #1e2030;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   z-index: 90;
   overflow: hidden;
 }
 
-.tree-header {
+.activity-bar {
+  width: 44px;
+  flex-shrink: 0;
+  background: #0c0d14;
+  border-right: 1px solid #1e2030;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding-top: 8px;
+  gap: 2px;
+}
+
+.activity-bar-icon {
+  background: none;
+  border: none;
+  color: #565a72;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  padding: 0;
+}
+
+.activity-bar-icon:hover {
+  color: #c0c4d8;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.activity-bar-icon.active {
+  color: #e0e4f5;
+  border-left-color: #6c8aff;
+  background: rgba(108, 138, 255, 0.06);
+}
+
+.activity-bar-glyph {
+  display: block;
+  width: 20px;
+  height: 20px;
+  background-color: currentColor;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+}
+
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.left-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.tree-header,
+.controls-header {
   padding: 16px 16px 12px;
   border-bottom: 1px solid #1e2030;
   flex-shrink: 0;
 }
 
-.tree-title {
+.tree-title,
+.controls-title {
   font-size: 13px;
   font-weight: 700;
   color: #c0c4d8;
@@ -355,6 +439,105 @@ canvas {
   flex: 1;
   overflow-y: auto;
   padding: 8px 0;
+}
+
+/* ── Controls pane ─────────────────────────────────────────────────────────── */
+
+.controls-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.controls-section + .controls-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #1a1c28;
+}
+
+.controls-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #c0c4d8;
+  margin-bottom: 6px;
+}
+
+.controls-section-hint {
+  font-size: 11px;
+  color: #6a7090;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.controls-section-hint kbd {
+  display: inline-block;
+  background: rgba(108, 138, 255, 0.10);
+  border: 1px solid rgba(108, 138, 255, 0.30);
+  border-radius: 3px;
+  color: #c0c4d8;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 10px;
+  padding: 1px 5px;
+  margin: 0 1px;
+  line-height: 1.2;
+}
+
+.segmented-control {
+  display: flex;
+  background: #0c0d14;
+  border: 1px solid #252838;
+  border-radius: 6px;
+  padding: 2px;
+}
+
+.segmented-option {
+  flex: 1;
+  background: none;
+  border: none;
+  color: #6a7090;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: color 0.15s, background 0.15s;
+}
+
+.segmented-option:hover {
+  color: #c0c4d8;
+}
+
+.segmented-option.active {
+  background: rgba(108, 138, 255, 0.18);
+  color: #e0e4f5;
+}
+
+.controls-button {
+  display: block;
+  width: 100%;
+  background: rgba(108, 138, 255, 0.10);
+  border: 1px solid rgba(108, 138, 255, 0.25);
+  border-radius: 5px;
+  color: #c0c4d8;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.controls-button:hover {
+  background: rgba(108, 138, 255, 0.18);
+  border-color: rgba(108, 138, 255, 0.4);
+  color: #e0e4f5;
+}
+
+.controls-button:active {
+  background: rgba(108, 138, 255, 0.25);
 }
 
 /* Scrollbar for tree */

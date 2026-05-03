@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   buildTree,
-  showTreeSidebar,
+  buildTreePane,
 } from '../../src/components/tree.js';
 
 const TEST_TREE = {
@@ -119,52 +119,28 @@ describe('buildTree', () => {
   });
 });
 
-// ---- showTreeSidebar ----
-describe('showTreeSidebar', () => {
-  it('populates #tree-sidebar with tree content', () => {
-    // Create a mock container
-    var container = document.createElement('div');
-    container.id = 'tree-sidebar';
-    document.body.appendChild(container);
+// ---- buildTreePane ----
+describe('buildTreePane', () => {
+  it('returns a pane element with header + tree content', () => {
+    var pane = buildTreePane({ tree: TEST_TREE });
 
-    showTreeSidebar({ tree: TEST_TREE });
+    expect(pane.classList.contains('left-pane')).toBe(true);
+    expect(pane.classList.contains('tree-pane')).toBe(true);
 
-    // Should have a header
-    var header = container.querySelector('.tree-header');
+    var header = pane.querySelector('.tree-header');
     expect(header).not.toBeNull();
 
-    // Should have a title
-    var title = container.querySelector('.tree-title');
+    var title = pane.querySelector('.tree-title');
     expect(title).not.toBeNull();
     expect(title.textContent).toBe('project');
 
-    // Should have tree items
-    var items = container.querySelectorAll('.tree-item');
+    var items = pane.querySelectorAll('.tree-item');
     expect(items.length).toBeGreaterThan(0);
-
-    // Cleanup
-    document.body.removeChild(container);
   });
 
-  it('clears previous content on re-call', () => {
-    var container = document.createElement('div');
-    container.id = 'tree-sidebar';
-    document.body.appendChild(container);
-
-    showTreeSidebar({ tree: TEST_TREE });
-    showTreeSidebar({ tree: TEST_TREE });
-
-    // Should have exactly one header (not duplicated)
-    var headers = container.querySelectorAll('.tree-header');
-    expect(headers.length).toBe(1);
-
-    document.body.removeChild(container);
-  });
-
-  it('does nothing if #tree-sidebar is not in the DOM', () => {
-    // Just should not throw
-    expect(() => {
-      showTreeSidebar({ tree: TEST_TREE });
-    }).not.toThrow();
+  it('accepts a bare tree (no { tree } wrapper)', () => {
+    var pane = buildTreePane(TEST_TREE);
+    var title = pane.querySelector('.tree-title');
+    expect(title.textContent).toBe('project');
   });
 });

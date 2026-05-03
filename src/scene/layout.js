@@ -26,16 +26,89 @@ export function getStreetWidth(count, tiers) {
 }
 
 
-export function getBuildingDimensions(file, config) {
+// computeLineStats(tree) -> { min, max }
+//
+// Walks the manifest once and returns the smallest and largest non-zero line
+// counts across every file. Compact-mode height computation needs both ends of
+// the project's actual range so it can sqrt-normalize files into the
+// [min_floors, max_floors] band. Empty tree → { min: 1, max: 1 } (single-file
+// fallback so the renderer doesn't divide by zero).
+export function computeLineStats(tree) {
+  var minLines = Infinity;
+  var maxLines = -Infinity;
+  function walk(node) {
+    if (!node) return;
+    if (node.type === 'file' && node.lines && node.lines > 0) {
+      if (node.lines < minLines) minLines = node.lines;
+      if (node.lines > maxLines) maxLines = node.lines;
+    }
+    if (node.children) {
+      for (var i = 0; i < node.children.length; i++) walk(node.children[i]);
+    }
+  }
+  walk(tree);
+  if (minLines === Infinity) return { min: 1, max: 1 };
+  return { min: minLines, max: maxLines };
+}
+
+
+// getBuildingDimensions(file, config, lineStats) -> { w, d, h, floors, ... }
+//
+// Computes BOTH height modes for every building so the frontend can swap
+// between them without touching the layout. `lineStats` is optional; when
+// omitted (e.g. legacy callers, isolated tests), only "exact" mode is
+// available and the active height falls back to it.
+//
+// Active mode is chosen by config.building.height_mode ("compact" or "exact").
+// Default is "compact" because compact produces a more legible city out of
+// the box.
+//
+// Returned shape:
+//   { w, d, h, floors, h_compact, floors_compact, h_exact, floors_exact, mode }
+//
+// Both _compact and _exact are always populated (when lineStats is provided)
+// so the frontend toggle reads them straight off the building.
+export function getBuildingDimensions(file, config, lineStats) {
   var bc = config.building;
 
-  // ---- Height: floors directly from line count ------------------------------
-  // Linear in lines. If `max_floors` is a number, the tower saturates there;
-  // if null, there's no cap and huge files produce proportionally huge towers.
   var lines = (file.lines && file.lines > 0) ? file.lines : 1;
-  var target = Math.max(bc.min_floors, Math.ceil(lines / bc.lines_per_floor));
-  var floors = (bc.max_floors != null) ? Math.min(bc.max_floors, target) : target;
-  var height = floors * bc.floor_height;
+
+  // ---- Exact mode: floors directly from line count --------------------------
+  // Linear in lines. NO max_floors cap — exact means EXACT. Huge files
+  // produce proportionally huge towers; that's the whole point of this
+  // mode (the user toggles to it precisely to see real magnitudes).
+  // max_floors only governs compact mode below.
+  var floorsExact  = Math.max(bc.min_floors, Math.ceil(lines / bc.lines_per_floor));
+  var hExact       = floorsExact * bc.floor_height;
+
+  // ---- Compact mode: sqrt-normalized to project's own min/max lines ---------
+  // Smallest file → min_floors, largest → max_floors, everything else
+  // distributed by sqrt — visibly spreads the bottom while compressing the
+  // long tail. Needs lineStats AND a real max_floors cap to define the band.
+  var floorsCompact = floorsExact;
+  var hCompact      = hExact;
+  var maxFloorsCap  = (bc.max_floors != null) ? bc.max_floors : 30;
+  if (lineStats && lineStats.max > lineStats.min) {
+    var sMin   = Math.sqrt(lineStats.min);
+    var sMax   = Math.sqrt(lineStats.max);
+    var sLines = Math.sqrt(lines);
+    var t = (sLines - sMin) / (sMax - sMin);
+    if (t < 0) t = 0; else if (t > 1) t = 1;
+    floorsCompact = Math.round(bc.min_floors + t * (maxFloorsCap - bc.min_floors));
+    if (floorsCompact < bc.min_floors) floorsCompact = bc.min_floors;
+    hCompact = floorsCompact * bc.floor_height;
+  } else if (lineStats) {
+    // All files identical / single file → everything sits at min_floors.
+    floorsCompact = bc.min_floors;
+    hCompact      = bc.min_floors * bc.floor_height;
+  }
+
+  // Active mode. Compact is the default; falls back to exact if compact wasn't
+  // computable (no lineStats passed).
+  var mode = (bc.height_mode === 'exact') ? 'exact' : 'compact';
+  if (mode === 'compact' && !lineStats) mode = 'exact';
+  var floors = (mode === 'compact') ? floorsCompact : floorsExact;
+  var height = (mode === 'compact') ? hCompact      : hExact;
 
   // ---- Width from file size in bytes ----------------------------------------
   // Log-scaled because file sizes legitimately span many orders of magnitude.
@@ -51,10 +124,15 @@ export function getBuildingDimensions(file, config) {
   var depth = width;
 
   return {
-    w: Math.round(width  * 10) / 10,
-    d: Math.round(depth  * 10) / 10,
-    h: Math.round(height * 10) / 10,
-    floors: floors
+    w:      Math.round(width  * 10) / 10,
+    d:      Math.round(depth  * 10) / 10,
+    h:      Math.round(height * 10) / 10,
+    floors: floors,
+    mode:   mode,
+    h_compact:      Math.round(hCompact * 10) / 10,
+    floors_compact: floorsCompact,
+    h_exact:        Math.round(hExact * 10) / 10,
+    floors_exact:   floorsExact
   };
 }
 
@@ -95,7 +173,13 @@ export function layoutCity(manifest, config) {
   var tree = manifest.tree || manifest;
   var result = { streets: [], buildings: [], paths: [] };
 
-  _layoutDir(tree, config, 0, 0, 'x', result);
+  // Compute the project's line-count range once and stash it on `result` so
+  // callers (main.js) can keep it for later toggle rebuilds, and so the
+  // recursion below can pass it to every getBuildingDimensions call.
+  var lineStats = computeLineStats(tree);
+  result.lineStats = lineStats;
+
+  _layoutDir(tree, config, 0, 0, 'x', result, undefined, lineStats);
 
   // Mark the root-dir street so the renderer can draw a distinct "start of
   // repo" marker at its origin end.
@@ -207,7 +291,7 @@ function _pathForBuilding(b, pathWidth, pathLength) {
 // Door faces back toward the street when visible (orient='s' or 'e'); when
 // the file is on the secondary side the door is on a hidden face ('n' or 'w').
 // -----------------------------------------------------------------------------
-function _layoutDir(dir, config, originX, originY, orientation, result, parentStreetWidth) {
+function _layoutDir(dir, config, originX, originY, orientation, result, parentStreetWidth, lineStats) {
   // User-tunable gaps (pulled fresh so tests / runtime configs can override).
   var lc              = (config && config.layout) || {};
   var childGap        = (lc.child_gap       != null) ? lc.child_gap       : 5;
@@ -252,7 +336,7 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
   for (var i = 0; i < children.length; i++) {
     if (children[i].type === 'directory') {
       var localResult = { streets: [], buildings: [] };
-      _layoutDir(children[i], config, 0, 0, subOrient, localResult, myStreetWidth);
+      _layoutDir(children[i], config, 0, 0, subOrient, localResult, myStreetWidth, lineStats);
       subLayouts[i] = {
         result: localResult,
         bbox: _computeBbox(localResult)
@@ -282,7 +366,7 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
     var child = children[ci];
 
     if (child.type === 'file') {
-      var dim = getBuildingDimensions(child, config);
+      var dim = getBuildingDimensions(child, config, lineStats);
       var alongStreet = dim.w;
       var perpStreet  = dim.d;
       var sideIdx = preferredFileSide;
@@ -321,6 +405,12 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
         x: bx, y: by,
         w: bldgW, d: bldgD, h: dim.h,
         floors: dim.floors,
+        // Both modes' precomputed dimensions ride along on every building so
+        // the frontend toggle can swap heights without a re-layout.
+        h_compact:      dim.h_compact,
+        floors_compact: dim.floors_compact,
+        h_exact:        dim.h_exact,
+        floors_exact:   dim.floors_exact,
         file: child,
         color: null,
         orient: orient
@@ -377,6 +467,10 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
           y: (negateY ? -b.y : b.y) + subAnchorY,
           w: b.w, d: b.d, h: b.h,
           floors: b.floors,
+          h_compact:      b.h_compact,
+          floors_compact: b.floors_compact,
+          h_exact:        b.h_exact,
+          floors_exact:   b.floors_exact,
           file: b.file,
           color: b.color,
           orient: _mirrorOrient(b.orient, negateX, negateY)
