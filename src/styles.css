@@ -796,6 +796,47 @@ canvas {
 .theme-color::-webkit-color-swatch { border: none; border-radius: 3px; }
 .theme-color::-moz-color-swatch    { border: none; border-radius: 3px; }
 
+/* Segmented select — used for enum picks like "Detail: full / silhouette
+ * / hidden". One button per option; the active option lights up. */
+.theme-select {
+  display: inline-flex;
+  background: #0c0d14;
+  border: 1px solid #252838;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.theme-select-option {
+  background: none;
+  border: none;
+  border-right: 1px solid #1a1c28;
+  color: #6a7090;
+  font-family: inherit;
+  font-size: 10px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+}
+.theme-select-option:last-child {
+  border-right: none;
+}
+.theme-select-option:hover {
+  color: #c0c4d8;
+  background: rgba(255, 255, 255, 0.04);
+}
+.theme-select-option.is-active {
+  background: rgba(108, 138, 255, 0.18);
+  color: #e0e4f5;
+}
+
+/* Boolean toggle — native checkbox styled to match the brand blue. */
+.theme-toggle {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #6c8aff;
+  margin: 0;
+}
+
 /* Number input — narrow box on the right of the row */
 .theme-number {
   width: 70px;

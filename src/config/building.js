@@ -66,29 +66,42 @@ export const BUILDING_OUTLINE = map({
 });
 
 // ─── Visibility / selection-driven fade ────────────────────────────────────
-// When a street/building is selected or hovered, every other building gets
-// dimmed based on its directory-tree distance from the selection. All
-// hot-reloadable.
+// When something is selected, every other building is categorized by its
+// directory-tree distance from the selection and rendered per the matching
+// tier's style:
+//   DEFAULT — distance 0 (selection's siblings; also the no-selection state)
+//   NEAR    — distance 1 (one hop along the directory spine)
+//   FAR     — distance ≥2 (cousins, deeper subtrees, unrelated branches)
+//
+// Each tier picks how a building looks via three independent knobs:
+//   *_DETAIL  — 'full' (textured with windows + doors)
+//             | 'silhouette' (solid-color box, no windows)
+//             | 'hidden'  (the body and ghost are both gone)
+//   *_OUTLINE — boolean. The wireframe edges layer.
+//   *_OPACITY — overall multiplier on whatever layers are visible.
+//
+// All hot-reloadable.
 export const BUILDING_FADE = map({
-  LERP_SPEED:        0.18,    // per-frame easing toward target opacity
-  SNAP_THRESHOLD:    0.005,   // close-enough threshold to stop lerping
-  // Material.opacity above this counts as opaque (depthWrite on, full
-  // alpha). Just below 1.0 so any faded tier flips to true transparency.
-  OPAQUE_THRESHOLD:  0.999,
-  // Crossfade band between textured (windowed) mesh and windowless ghost.
-  // FADE_BOTTOM must stay above TIER_NEAR_BODY so faded tiers never reveal
-  // windows.
-  FADE_TOP:          1.0,
-  FADE_BOTTOM:       0.7,
-  // Tier values for "1 hop along the selection's spine".
-  TIER_NEAR_BODY:    0.65,
-  TIER_NEAR_OUTLINE: 0.40,
-  TIER_NEAR_GHOST:   0.85,
-  // Tier values for everything farther than 1 hop (outline-only "distant").
-  TIER_FAR_BODY:     0.18,
-  TIER_FAR_OUTLINE:  0.12,
-  TIER_FAR_GHOST:    0.20,
-  // A hovered file building never fades below this opacity even if it sits
-  // in the FAR tier.
+  // Animation
+  LERP_SPEED:        0.18,
+  SNAP_THRESHOLD:    0.005,
+
+  // Default tier — siblings of selection, and the no-selection resting state.
+  DEFAULT_DETAIL:  'full',
+  DEFAULT_OUTLINE: false,
+  DEFAULT_OPACITY: 1.0,
+
+  // Level 1 — one hop from selection along the directory spine.
+  NEAR_DETAIL:  'full',
+  NEAR_OUTLINE: true,
+  NEAR_OPACITY: 0.65,
+
+  // Level 2+ — anything farther.
+  FAR_DETAIL:  'silhouette',
+  FAR_OUTLINE: true,
+  FAR_OPACITY: 0.18,
+
+  // A hovered file building's body never drops below this opacity even when
+  // it sits in the FAR tier — keeps the hover preview readable.
   HOVER_MIN_OPACITY: 0.7
 });

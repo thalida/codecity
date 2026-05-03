@@ -91,21 +91,27 @@ export function persistStore(name, store) {
     && !Array.isArray(initialState);
 
   if (isMap) {
-    // map() — saved is a partial diff; restore each saved key.
+    // map() — saved is a partial diff; restore each saved key. Skip keys
+    // that aren't in the current defaults (a previous version of the app
+    // may have persisted a key that's since been removed; ignoring those
+    // entries lets the schema evolve without piling stale data into the
+    // live store).
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
       for (var k in saved) {
-        if (Object.prototype.hasOwnProperty.call(saved, k)) {
-          store.setKey(k, saved[k]);
-        }
+        if (!Object.prototype.hasOwnProperty.call(saved, k)) continue;
+        if (!Object.prototype.hasOwnProperty.call(defaults, k)) continue;
+        store.setKey(k, saved[k]);
       }
     }
-    // On change, write the diff (only keys that differ from defaults).
+    // On change, write the diff (only keys that exist in defaults AND
+    // differ from them). Same skip-unknown-keys rule.
     store.subscribe(function (state) {
       var diff = {};
       var any = false;
       for (var sk in state) {
-        if (Object.prototype.hasOwnProperty.call(state, sk) &&
-            !_equal(state[sk], defaults[sk])) {
+        if (!Object.prototype.hasOwnProperty.call(state, sk)) continue;
+        if (!Object.prototype.hasOwnProperty.call(defaults, sk)) continue;
+        if (!_equal(state[sk], defaults[sk])) {
           diff[sk] = state[sk];
           any = true;
         }

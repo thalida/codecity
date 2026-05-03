@@ -57,6 +57,22 @@ import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from 
 var SIGHTLINE_STEP_DEG     = 20;     // elevation step between attempts
 var SIGHTLINE_MAX_ATTEMPTS = 5;      // give up after this many tilts
 var SIGHTLINE_FAR_OFFSET   = 0.5;    // shrink raycast.far so it doesn't self-hit
+
+// material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
+// Just below 1.0 so any faded tier flips to true transparency. Internal
+// implementation detail — flipping mat.transparent triggers a shader
+// recompile, so we delay the flip until we're truly under 1.0.
+var OPAQUE_THRESHOLD = 0.999;
+
+// _stepOpacity(cur, target, cfg) — one-frame lerp toward target with a
+// snap-to-target threshold so we don't keep reassigning materials forever
+// once we're effectively at the goal.
+function _stepOpacity(cur, target, cfg) {
+  if (cur === target) return cur;
+  var next = cur + (target - cur) * cfg.LERP_SPEED;
+  if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
+  return next;
+}
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
@@ -1210,129 +1226,105 @@ function startRenderLoop(canvas, manifest) {
       ? currentHover.mesh : null;
 
     // Two faded tiers, both windowless (the GHOST_THRESHOLD below is set
-    // high enough that any target < 1.0 swaps to the solid-color ghost,
-    // dropping the windowed texture). NEAR keeps a clearly-visible body
-    // for "1 step away"; FAR collapses to essentially just an outline.
-    // Tier opacities + dim multipliers; sourced from config.scene.fade.
-    var TIER_DIRECT      = 1.0;
+    // Per-tier style: detail (full / silhouette / hidden) + outline (on/off)
+    // + opacity (overall multiplier). Fetched once per frame.
     var fadeCfg = BUILDING_FADE.get();
-    var TIER_DESC        = fadeCfg.TIER_NEAR_BODY;
-    var TIER_DESC_OUTLN  = fadeCfg.TIER_NEAR_OUTLINE;
-    var TIER_DESC_GHOST  = fadeCfg.TIER_NEAR_GHOST;
-    var TIER_OTHER       = fadeCfg.TIER_FAR_BODY;
-    var TIER_OTHER_OUTLN = fadeCfg.TIER_FAR_OUTLINE;
-    var TIER_OTHER_GHOST = fadeCfg.TIER_FAR_GHOST;
 
     // Obstruction detection (NDC silhouette overlap) was previously here;
     // tiered fade alone covers the visibility need, so it was deleted.
 
     for (var bi = 0; bi < buildingMeshes.length; bi++) {
       var m = buildingMeshes[bi];
-      if (m.userData.opacityCurrent == null) m.userData.opacityCurrent = 1.0;
-      // Per-building visual tier. `target` drives main-mesh opacity;
-      // `outlineDim` and `ghostDim` independently control the colored
-      // outline + ghost-body so we can recede unrelated buildings hard
-      // while keeping descendants readable.
-      var target = 1.0;
-      var outlineDim = 1.0;
-      var ghostDim   = 1.0;
+
+      // Init per-layer lerp state. Each layer (body / ghost / outline)
+      // animates independently toward its tier-derived target; that lets
+      // a tier with detail='silhouette' smoothly fade body→0 + ghost→opacity
+      // when the user makes a new selection.
+      if (m.userData.bodyOp    == null) m.userData.bodyOp    = 1.0;
+      if (m.userData.ghostOp   == null) m.userData.ghostOp   = 0.0;
+      if (m.userData.outlineOp == null) m.userData.outlineOp = 0.0;
+
+      // ---- Decide which tier this building falls into ----
+      var detail, outlineOn, opacity;
       if (m === bldgTarget) {
-        // Selected file building: always full, never obstructor-faded.
-        target = 1.0;
+        // Selected file building: always full, opaque, no default outline
+        // (selectedOutline draws the rainbow chasing on its own pass).
+        detail    = 'full';
+        outlineOn = false;
+        opacity   = 1.0;
       } else if (dirTarget) {
-        // Tiered fade by directory-tree distance from the building's
-        // parent dir to the selected/hovered dir:
-        //   0   → bright, full windows (the "neighborhood")
-        //   1   → faded but textured (one hop along dir's spine —
-        //          parent's other files OR direct subdir's files)
-        //   ≥2  → outline-only ghost (cousins, deeper subtrees, etc.)
+        // Tier by directory-tree distance from the building's parent dir
+        // to the selected/hovered dir: 0 = sibling, 1 = one hop, ≥2 = far.
         var f = m.userData.building && m.userData.building.file;
         var dist = _dirTreeDistance(f, dirTarget);
         if (dist === 0) {
-          target = TIER_DIRECT;
+          detail = fadeCfg.DEFAULT_DETAIL;  outlineOn = fadeCfg.DEFAULT_OUTLINE;  opacity = fadeCfg.DEFAULT_OPACITY;
         } else if (dist === 1) {
-          target     = TIER_DESC;
-          outlineDim = TIER_DESC_OUTLN;
-          ghostDim   = TIER_DESC_GHOST;
+          detail = fadeCfg.NEAR_DETAIL;     outlineOn = fadeCfg.NEAR_OUTLINE;     opacity = fadeCfg.NEAR_OPACITY;
         } else {
-          target     = TIER_OTHER;
-          outlineDim = TIER_OTHER_OUTLN;
-          ghostDim   = TIER_OTHER_GHOST;
+          detail = fadeCfg.FAR_DETAIL;      outlineOn = fadeCfg.FAR_OUTLINE;      opacity = fadeCfg.FAR_OPACITY;
         }
-      }
-      // Hover restore: a hovered building never drops below HOVER_MIN_OPACITY.
-      if (m === hoverMesh && target < fadeCfg.HOVER_MIN_OPACITY) {
-        target = fadeCfg.HOVER_MIN_OPACITY;
-        outlineDim = 1.0;
-        ghostDim   = 1.0;
-      }
-      var cur = m.userData.opacityCurrent;
-      if (cur !== target) {
-        cur += (target - cur) * fadeCfg.LERP_SPEED;
-        if (Math.abs(cur - target) < fadeCfg.SNAP_THRESHOLD) cur = target;
-        m.userData.opacityCurrent = cur;
+      } else {
+        // No selection — uniform Default look.
+        detail    = fadeCfg.DEFAULT_DETAIL;
+        outlineOn = fadeCfg.DEFAULT_OUTLINE;
+        opacity   = fadeCfg.DEFAULT_OPACITY;
       }
 
-      // Crossfade band between the textured (windowed) mesh and the
-      // windowless ghost body. The textured mesh ramps from invisible
-      // (0) to FULLY OPAQUE (1.0) across the band, so windows appear
-      // to fade in over the solid ghost backdrop instead of stalling
-      // at a semi-transparent state. FADE_BOTTOM must stay above the
-      // NEAR tier's target (TIER_DESC) so faded tiers never reveal
-      // windows. FADE_TOP at 1.0 gives the widest window-fade ramp,
-      // and smoothstep easing softens the start/end of the reveal so
-      // it doesn't pop in.
-      var FADE_TOP    = fadeCfg.FADE_TOP;
-      var FADE_BOTTOM = fadeCfg.FADE_BOTTOM;
-      var blend;   // 1.0 = textured wins, 0.0 = ghost wins
-      if      (cur >= FADE_TOP)    blend = 1.0;
-      else if (cur <= FADE_BOTTOM) blend = 0.0;
-      else {
-        var bRaw = (cur - FADE_BOTTOM) / (FADE_TOP - FADE_BOTTOM);
-        blend = bRaw * bRaw * (3.0 - 2.0 * bRaw);   // smoothstep
+      // Hover preview: a hovered file building shows its full body and
+      // never drops below HOVER_MIN_OPACITY. Outline preference stays per
+      // tier (so the row's outline doesn't pop on/off on hover).
+      if (m === hoverMesh) {
+        detail = 'full';
+        if (opacity < fadeCfg.HOVER_MIN_OPACITY) opacity = fadeCfg.HOVER_MIN_OPACITY;
       }
 
-      var texturedAlpha = blend;                            // 0 → 1.0
-      var ghostAlpha    = cur * ghostDim * (1.0 - blend);
+      // ---- Translate (detail, outline, opacity) → per-layer targets ----
+      var bodyTarget    = (detail === 'full')       ? opacity : 0;
+      var ghostTarget   = (detail === 'silhouette') ? opacity : 0;
+      var outlineTarget = outlineOn                  ? opacity : 0;
 
-      // Apply textured mesh opacity (per-material; multi-mat buildings
-      // have one material per face). Material.transparent flag triggers
-      // a shader recompile, so only flip it when it actually changed.
+      // Lerp each layer toward its target. SNAP_THRESHOLD lets us stop
+      // animating once we're close enough — saves redundant material updates.
+      m.userData.bodyOp    = _stepOpacity(m.userData.bodyOp,    bodyTarget,    fadeCfg);
+      m.userData.ghostOp   = _stepOpacity(m.userData.ghostOp,   ghostTarget,   fadeCfg);
+      m.userData.outlineOp = _stepOpacity(m.userData.outlineOp, outlineTarget, fadeCfg);
+
+      var b = m.userData.building;
+
+      // ---- Body (textured mesh: walls, windows, doors) ----
+      // Per-material — buildings have one material per face. material.transparent
+      // triggers a shader recompile, so only flip it when it actually changed.
+      var bodyOp = m.userData.bodyOp;
       var mats = Array.isArray(m.material) ? m.material : [m.material];
-      var transparent = texturedAlpha < fadeCfg.OPAQUE_THRESHOLD;
+      var bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
       for (var ki = 0; ki < mats.length; ki++) {
         var mat = mats[ki];
-        if (mat.transparent !== transparent) {
-          mat.transparent = transparent;
-          mat.depthWrite  = !transparent;
+        if (mat.transparent !== bodyTransparent) {
+          mat.transparent = bodyTransparent;
+          mat.depthWrite  = !bodyTransparent;
           mat.needsUpdate = true;
         }
-        mat.opacity = texturedAlpha;
+        mat.opacity = bodyOp;
       }
-      m.visible = blend > 0.0;
+      m.visible = bodyOp > 0;
 
-      // Sync the colored outline + ghost body. Both share position/scale
-      // with the main mesh (so they track height-mode toggle animations).
-      //   outline.opacity = 1 − cur  (visible when building fades out)
-      //   ghost crossfades in via (1 − blend), so the windowless body
-      //   eases up as the windowed texture eases down.
-      //
-      // Outline + ghost dimming uses the per-building outlineDim/ghostDim
-      // computed above (varies by tier so unrelated buildings recede much
-      // harder than descendants).
-      var b = m.userData.building;
+      // ---- Outline (per-building wireframe) ----
       var outline = buildingOutlines[bi];
       if (outline) {
         outline.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
         outline.position.copy(m.position);
-        outline.material.opacity = (1.0 - cur) * outlineDim;
+        outline.material.opacity = m.userData.outlineOp;
+        outline.visible = m.userData.outlineOp > 0;
       }
+
+      // ---- Ghost (windowless solid silhouette) ----
       var ghost = buildingGhosts[bi];
       if (ghost) {
         ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
         ghost.position.copy(m.position);
-        ghost.visible = blend < 1.0;
-        ghost.material.opacity = ghostAlpha;
+        ghost.material.opacity = m.userData.ghostOp;
+        ghost.visible = m.userData.ghostOp > 0;
       }
     }
 

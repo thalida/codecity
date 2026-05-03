@@ -305,31 +305,53 @@ function _buildBuildingsSection(applyTheme) {
     })
   ]));
 
-  section.appendChild(_subgroup('Selection fade', [
-    _slider('Fade speed',         BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
+  // Selection fade — animation knobs first, then per-tier style. Each tier
+  // (Default = siblings of selection / Level 1 = one hop / Level 2+ = far)
+  // gets the same three controls: detail (full / silhouette / hidden) +
+  // outline on/off + opacity. So a single coherent "what does this tier
+  // look like?" picker rather than 3 separate dim sliders.
+  section.appendChild(_subgroup('Selection fade — animation', [
+    _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
       tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
       onChange: applyTheme
     }),
-    _rangePair('Crossfade band',  BUILDING_FADE, 'FADE_BOTTOM', 'FADE_TOP', 0.0, 1.0, 0.05, {
-      tip: 'Opacity band over which buildings cross-fade between textured (windowed) and solid-color "ghost" forms. Anything below the bottom is windowless.',
-      onChange: applyTheme
-    }),
-    _slider('Near body',          BUILDING_FADE, 'TIER_NEAR_BODY',    0.0, 1.0, 0.05, {
-      tip: 'Opacity for buildings 1 hop from the selection (parent\'s siblings, direct subdir files).',
-      onChange: applyTheme
-    }),
-    _slider('Near outline',       BUILDING_FADE, 'TIER_NEAR_OUTLINE', 0.0, 1.0, 0.05, { onChange: applyTheme }),
-    _slider('Near ghost',         BUILDING_FADE, 'TIER_NEAR_GHOST',   0.0, 1.0, 0.05, { onChange: applyTheme }),
-    _slider('Far body',           BUILDING_FADE, 'TIER_FAR_BODY',     0.0, 1.0, 0.05, {
-      tip: 'Opacity for buildings ≥2 hops from the selection (cousins, deeper subtrees).',
-      onChange: applyTheme
-    }),
-    _slider('Far outline',        BUILDING_FADE, 'TIER_FAR_OUTLINE',  0.0, 1.0, 0.05, { onChange: applyTheme }),
-    _slider('Far ghost',          BUILDING_FADE, 'TIER_FAR_GHOST',    0.0, 1.0, 0.05, { onChange: applyTheme }),
-    _slider('Hover min opacity',  BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, {
-      tip: 'A hovered file building never drops below this opacity, even if it sits in the FAR tier.',
+    _slider('Hover min opacity', BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, {
+      tip: 'A hovered file building\'s body never drops below this opacity, even when it sits in the Level 2+ tier.',
       onChange: applyTheme
     })
+  ]));
+
+  var DETAIL_OPTIONS = [
+    { value: 'full',       label: 'Full' },
+    { value: 'silhouette', label: 'Silhouette' },
+    { value: 'hidden',     label: 'Hidden' }
+  ];
+
+  section.appendChild(_subgroup('Default — siblings of selection', [
+    _select('Detail',  BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
+      tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
+      onChange: applyTheme
+    }),
+    _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
+      tip: 'Show the wireframe edge overlay.',
+      onChange: applyTheme
+    }),
+    _slider('Opacity', BUILDING_FADE, 'DEFAULT_OPACITY', 0.0, 1.0, 0.05, {
+      tip: 'Multiplier applied to whichever layers are visible (body or silhouette, plus outline if on).',
+      onChange: applyTheme
+    })
+  ]));
+
+  section.appendChild(_subgroup('Level 1 — one hop from selection', [
+    _select('Detail',  BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
+    _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', { onChange: applyTheme }),
+    _slider('Opacity', BUILDING_FADE, 'NEAR_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
+  ]));
+
+  section.appendChild(_subgroup('Level 2+ — cousins, deeper subtrees', [
+    _select('Detail',  BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
+    _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', { onChange: applyTheme }),
+    _slider('Opacity', BUILDING_FADE, 'FAR_OPACITY', 0.0, 1.0, 0.05, { onChange: applyTheme })
   ]));
 
   return section;
@@ -639,6 +661,62 @@ function _slider(label, store, key, min, max, step, opts) {
     }
   });
   return _row(label, control, store, [key], opts);
+}
+
+// _select — segmented radio for an enum-valued key. `options` is an array
+// of { value, label }. Renders one button per option; clicking sets the
+// store key. The active option has .is-active.
+function _select(label, store, key, options, opts) {
+  var onChange = _resolveChange(opts);
+  var wrap = document.createElement('span');
+  wrap.className = 'theme-select';
+
+  var buttons = [];
+  for (var i = 0; i < options.length; i++) {
+    var opt = options[i];
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'theme-select-option';
+    btn.dataset.value = opt.value;
+    btn.textContent = opt.label;
+    (function (value) {
+      btn.addEventListener('click', function (e) {
+        e.preventDefault();
+        store.setKey(key, value);
+        onChange();
+      });
+    })(opt.value);
+    wrap.appendChild(btn);
+    buttons.push(btn);
+  }
+
+  function refresh() {
+    var current = store.get()[key];
+    for (var j = 0; j < buttons.length; j++) {
+      buttons[j].classList.toggle('is-active', buttons[j].dataset.value === current);
+    }
+  }
+  refresh();
+  store.subscribe(refresh);
+  return _row(label, wrap, store, [key], opts);
+}
+
+// _toggle — boolean checkbox. Reflects external changes (reset-to-default).
+function _toggle(label, store, key, opts) {
+  var onChange = _resolveChange(opts);
+  var input = document.createElement('input');
+  input.type = 'checkbox';
+  input.className = 'theme-toggle';
+  input.checked = !!store.get()[key];
+  input.addEventListener('change', function () {
+    store.setKey(key, input.checked);
+    onChange();
+  });
+  store.subscribe(function (state) {
+    var v = !!state[key];
+    if (input.checked !== v) input.checked = v;
+  });
+  return _row(label, input, store, [key], opts);
 }
 
 function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
