@@ -22,5 +22,5 @@ def launch(
     ``debug=True`` enables WebKit/Chromium developer extras — right-click
     inside the window to get Inspect Element + the JS console.
     """
-    webview.create_window(title, url, width=width, height=height)
+    webview.create_window(title, url, width=width, height=height, text_select=True)
     webview.start(debug=debug)
