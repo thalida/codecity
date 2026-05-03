@@ -18,6 +18,11 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
+from urllib.parse import parse_qs, urlparse
+
+# Cap individual /api/file responses so a stray symlink to a giant blob
+# doesn't try to load 10 GB into the browser.
+MAX_FILE_BYTES = 100 * 1024 * 1024
 
 # Where the Vite build output lives. Resolved at import time so tests can
 # spin up a server without an installed wheel layout.
@@ -28,6 +33,9 @@ class _State:
     """Module-level state shared by every handler instance."""
     manifest: dict[str, Any] = {}
     static_dir: Path = STATIC_DIR
+    # Absolute path of the directory the user asked us to scan. /api/file
+    # rejects any request whose target resolves outside this root.
+    scan_root: Path | None = None
 
 
 def _send_json(handler: BaseHTTPRequestHandler, status: int, body: Any) -> None:
@@ -37,6 +45,62 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: Any) -> None:
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
     handler.wfile.write(payload)
+
+
+def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Serve a file from the user's filesystem, restricted to paths inside
+    ``_State.scan_root``. Path-traversal and symlink-escape attempts are
+    caught by ``Path.resolve()`` + ``relative_to()``."""
+    params = parse_qs(query)
+    raw = params.get("path", [""])[0]
+    if not raw:
+        _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'path' param"})
+        return
+
+    if _State.scan_root is None:
+        _send_json(
+            handler,
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            {"error": "server not initialized with a scan root"},
+        )
+        return
+
+    try:
+        target = Path(raw).resolve(strict=True)
+    except (OSError, RuntimeError):
+        _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "not found"})
+        return
+
+    root = _State.scan_root.resolve()
+    try:
+        target.relative_to(root)
+    except ValueError:
+        _send_json(handler, HTTPStatus.FORBIDDEN, {"error": "outside scan root"})
+        return
+
+    if not target.is_file():
+        _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "not a file"})
+        return
+
+    size = target.stat().st_size
+    if size > MAX_FILE_BYTES:
+        _send_json(
+            handler,
+            HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            {"error": "file too large", "size": size, "limit": MAX_FILE_BYTES},
+        )
+        return
+
+    ctype, _ = mimetypes.guess_type(str(target))
+    if ctype is None:
+        ctype = "application/octet-stream"
+
+    body = target.read_bytes()
+    handler.send_response(HTTPStatus.OK)
+    handler.send_header("Content-Type", ctype)
+    handler.send_header("Content-Length", str(len(body)))
+    handler.end_headers()
+    handler.wfile.write(body)
 
 
 def _send_static(handler: BaseHTTPRequestHandler, rel: str) -> None:
@@ -76,7 +140,8 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self) -> None:  # noqa: N802 (stdlib API)
-        path = self.path.split("?", 1)[0]
+        parsed = urlparse(self.path)
+        path = parsed.path
 
         if path == "/api/health":
             _send_json(self, HTTPStatus.OK, {"ok": True})
@@ -84,6 +149,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/manifest":
             _send_json(self, HTTPStatus.OK, _State.manifest)
+            return
+
+        if path == "/api/file":
+            _serve_file_api(self, parsed.query)
             return
 
         if path.startswith("/api/"):
@@ -98,16 +167,21 @@ def start_server(
     manifest: dict[str, Any],
     port: int = 0,
     static_dir: Path | None = None,
+    scan_root: Path | None = None,
 ) -> tuple[ThreadingHTTPServer, int, Callable[[], None]]:
     """Start the server on a background daemon thread.
 
     Returns ``(server, bound_port, shutdown_fn)``. ``port=0`` lets the OS
     pick a free port; the bound port is returned so the caller can point
     the webview at the right URL.
+
+    ``scan_root`` is required if /api/file should serve anything — it's
+    the trust boundary for path validation.
     """
     if static_dir is not None:
         _State.static_dir = static_dir
     _State.manifest = manifest
+    _State.scan_root = scan_root
 
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     bound_port = server.server_address[1]

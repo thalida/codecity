@@ -85,5 +85,78 @@ class ServerTests(unittest.TestCase):
         self.assertIn(resp.status, (HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND))
 
 
+class FileApiTests(unittest.TestCase):
+    """Coverage for /api/file — the root-bounded file reader."""
+
+    def setUp(self) -> None:
+        self.tmp = TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.scan_root = Path(self.tmp.name) / "project"
+        self.scan_root.mkdir()
+
+        # Inside-root files
+        (self.scan_root / "hello.txt").write_text("hello world")
+        (self.scan_root / "image.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
+        sub = self.scan_root / "sub"
+        sub.mkdir()
+        (sub / "nested.md").write_text("# heading")
+
+        # An outside-root file the server must refuse to expose
+        self.outside = Path(self.tmp.name) / "secret.txt"
+        self.outside.write_text("you can't see me")
+
+        # Static dir is irrelevant to /api/file but required by start_server
+        static = Path(self.tmp.name) / "static"
+        static.mkdir()
+        (static / "index.html").write_text("ok")
+
+        self.server, self.port, self.shutdown = start_server(
+            {}, port=0, static_dir=static, scan_root=self.scan_root
+        )
+        self.addCleanup(self.shutdown)
+        self.base = f"http://127.0.0.1:{self.port}"
+
+    def test_returns_text_with_correct_mime(self) -> None:
+        status, body, ctype = _get(
+            self.base + f"/api/file?path={self.scan_root / 'hello.txt'}"
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertTrue(ctype.startswith("text/plain"))
+        self.assertEqual(body, b"hello world")
+
+    def test_returns_image_with_correct_mime(self) -> None:
+        status, body, ctype = _get(
+            self.base + f"/api/file?path={self.scan_root / 'image.png'}"
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(ctype, "image/png")
+        self.assertTrue(body.startswith(b"\x89PNG"))
+
+    def test_nested_path_inside_root(self) -> None:
+        status, _, _ = _get(
+            self.base + f"/api/file?path={self.scan_root / 'sub' / 'nested.md'}"
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+
+    def test_path_outside_root_forbidden(self) -> None:
+        status, body, _ = _get(self.base + f"/api/file?path={self.outside}")
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        self.assertEqual(json.loads(body), {"error": "outside scan root"})
+
+    def test_missing_path_param(self) -> None:
+        status, _, _ = _get(self.base + "/api/file")
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+
+    def test_nonexistent_file(self) -> None:
+        status, _, _ = _get(
+            self.base + f"/api/file?path={self.scan_root / 'nope.txt'}"
+        )
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+
+    def test_directory_is_not_a_file(self) -> None:
+        status, _, _ = _get(self.base + f"/api/file?path={self.scan_root / 'sub'}")
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+
+
 if __name__ == "__main__":
     unittest.main()

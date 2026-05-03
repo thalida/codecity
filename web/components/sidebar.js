@@ -7,6 +7,11 @@ import { makeLucideIcon } from './icon.js';
 // How long the "Copied!" badge lingers after the copy button is clicked.
 var COPY_FEEDBACK_DURATION_MS = 1500;
 
+// Persistent width range (in px) for the right sidebar drag handle.
+var SIDEBAR_MIN_WIDTH = 280;
+var SIDEBAR_MAX_WIDTH_RATIO = 0.7;  // fraction of viewport width
+var SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
+
 // Binary-unit thresholds for human-readable file size formatting.
 var BYTES_PER_KB = 1024;
 var BYTES_PER_MB = 1024 * 1024;
@@ -68,10 +73,9 @@ export function showFileSidebar(file) {
   var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
-  // Clear previous content
-  while (sidebar.firstChild) {
-    sidebar.removeChild(sidebar.firstChild);
-  }
+  _clearContent(sidebar);
+  _ensureResizeHandle(sidebar);
+  _applyPersistedWidth(sidebar);
 
   // ---- Header: name + extension badge + close button -------------------------
   var header = document.createElement('div');
@@ -143,6 +147,10 @@ export function showFileSidebar(file) {
   statsSection.appendChild(statsGrid);
   body.appendChild(statsSection);
 
+  // ---- Preview section -------------------------------------------------------
+  var previewSection = _makePreviewSection(file);
+  if (previewSection) body.appendChild(previewSection);
+
   sidebar.appendChild(body);
 
   // ---- Slide in --------------------------------------------------------------
@@ -164,10 +172,9 @@ export function showDirSidebar(dir) {
   var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
-  // Clear previous content
-  while (sidebar.firstChild) {
-    sidebar.removeChild(sidebar.firstChild);
-  }
+  _clearContent(sidebar);
+  _ensureResizeHandle(sidebar);
+  _applyPersistedWidth(sidebar);
 
   // ---- Header: name + directory badge + close button -------------------------
   var header = document.createElement('div');
@@ -369,6 +376,198 @@ function _appendStatItem(container, label, value, source) {
 
   item.appendChild(valueEl);
   container.appendChild(item);
+}
+
+// ── Preview rendering ─────────────────────────────────────────────────────────
+// Auto-load images/video/audio/PDF (browser handles streaming + memory).
+// Auto-load text under TEXT_PREVIEW_MAX_BYTES; above that, show a size note.
+// For unrecognised binary types, just show "Binary file".
+
+var TEXT_PREVIEW_MAX_BYTES = 256 * 1024;
+
+var IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif'];
+var VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
+var AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
+var PDF_EXTS   = ['.pdf'];
+
+function _previewKind(file) {
+  var ext = (file.extension || '').toLowerCase();
+  if (IMAGE_EXTS.indexOf(ext) !== -1) return 'image';
+  if (VIDEO_EXTS.indexOf(ext) !== -1) return 'video';
+  if (AUDIO_EXTS.indexOf(ext) !== -1) return 'audio';
+  if (PDF_EXTS.indexOf(ext)   !== -1) return 'pdf';
+  // Anything else: try as text. The Preview helper will swap to a "Binary"
+  // notice if the response isn't decodable as UTF-8.
+  return 'text';
+}
+
+function _fileApiUrl(file) {
+  var p = file.fullPath || '';
+  return '/api/file?path=' + encodeURIComponent(p);
+}
+
+function _makePreviewSection(file) {
+  if (!file || !file.fullPath) return null;
+
+  var section = document.createElement('div');
+  section.className = 'sidebar-section sidebar-preview-section';
+
+  var label = document.createElement('div');
+  label.className = 'sidebar-section-label';
+  label.textContent = 'Preview';
+  section.appendChild(label);
+
+  var body = document.createElement('div');
+  body.className = 'sidebar-preview-body';
+  section.appendChild(body);
+
+  var url = _fileApiUrl(file);
+  var kind = _previewKind(file);
+
+  if (kind === 'image') {
+    var img = document.createElement('img');
+    img.className = 'sidebar-preview-image';
+    img.src = url;
+    img.alt = file.name || '';
+    body.appendChild(img);
+    return section;
+  }
+
+  if (kind === 'video') {
+    var vid = document.createElement('video');
+    vid.className = 'sidebar-preview-media';
+    vid.src = url;
+    vid.controls = true;
+    body.appendChild(vid);
+    return section;
+  }
+
+  if (kind === 'audio') {
+    var aud = document.createElement('audio');
+    aud.className = 'sidebar-preview-media';
+    aud.src = url;
+    aud.controls = true;
+    body.appendChild(aud);
+    return section;
+  }
+
+  if (kind === 'pdf') {
+    var emb = document.createElement('embed');
+    emb.className = 'sidebar-preview-pdf';
+    emb.type = 'application/pdf';
+    emb.src = url;
+    body.appendChild(emb);
+    return section;
+  }
+
+  // Text: skip the fetch entirely if the file is too big.
+  var size = typeof file.size === 'number' ? file.size : null;
+  if (size != null && size > TEXT_PREVIEW_MAX_BYTES) {
+    var note = document.createElement('div');
+    note.className = 'sidebar-preview-note';
+    note.textContent = 'File too large to preview (' + formatBytes(size) + ').';
+    body.appendChild(note);
+    return section;
+  }
+
+  var pre = document.createElement('pre');
+  pre.className = 'sidebar-preview-text';
+  var code = document.createElement('code');
+  code.textContent = 'Loading…';
+  pre.appendChild(code);
+  body.appendChild(pre);
+
+  fetch(url).then(function (resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var ctype = resp.headers.get('Content-Type') || '';
+    // If the server tagged it as image/audio/etc. without an extension we
+    // recognised, swap to a "binary" note instead of dumping bytes.
+    if (!/^text\/|json|xml|javascript|yaml|toml/i.test(ctype)) {
+      throw new Error('binary');
+    }
+    return resp.text();
+  }).then(function (text) {
+    code.textContent = text;
+  }).catch(function (err) {
+    code.textContent = err && err.message === 'binary'
+      ? 'Binary file — preview not available.'
+      : 'Failed to load preview: ' + (err && err.message);
+  });
+
+  return section;
+}
+
+// ── Resize handle ─────────────────────────────────────────────────────────────
+// Mirrors leftSidebar.js's pattern: a thin invisible drag-strip on the
+// inside edge (LEFT here, RIGHT for the left sidebar). Width is clamped to
+// [SIDEBAR_MIN_WIDTH, 70vw] and persisted in localStorage.
+
+function _clearContent(sidebar) {
+  // Keep .sidebar-resize-handle-right across content swaps so we don't have
+  // to re-bind drag listeners on every selection change.
+  var children = Array.prototype.slice.call(sidebar.children);
+  for (var i = 0; i < children.length; i++) {
+    if (!children[i].classList.contains('sidebar-resize-handle-right')) {
+      sidebar.removeChild(children[i]);
+    }
+  }
+}
+
+function _ensureResizeHandle(sidebar) {
+  if (sidebar.querySelector('.sidebar-resize-handle-right')) return;
+
+  var handle = document.createElement('div');
+  handle.className = 'sidebar-resize-handle-right';
+  handle.setAttribute('role', 'separator');
+  handle.setAttribute('aria-orientation', 'vertical');
+  handle.title = 'Drag to resize';
+
+  var dragging = false;
+  handle.addEventListener('pointerdown', function (e) {
+    dragging = true;
+    handle.classList.add('dragging');
+    handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+  handle.addEventListener('pointermove', function (e) {
+    if (!dragging) return;
+    // Cursor X measured from viewport left → sidebar width is what's to the
+    // right of the cursor.
+    var w = window.innerWidth - e.clientX;
+    var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
+    if (w > maxW)              w = maxW;
+    sidebar.style.width = w + 'px';
+  });
+  handle.addEventListener('pointerup', function (e) {
+    if (!dragging) return;
+    dragging = false;
+    handle.classList.remove('dragging');
+    handle.releasePointerCapture(e.pointerId);
+    _persistWidth(parseFloat(sidebar.style.width) || sidebar.offsetWidth);
+  });
+
+  sidebar.appendChild(handle);
+}
+
+function _applyPersistedWidth(sidebar) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    var raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    if (raw == null) return;
+    var w = parseFloat(raw);
+    if (!Number.isFinite(w)) return;
+    var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
+    if (w > maxW)              w = maxW;
+    sidebar.style.width = w + 'px';
+  } catch (_) { /* private mode / no storage — fall back to CSS default */ }
+}
+
+function _persistWidth(w) {
+  if (typeof localStorage === 'undefined') return;
+  try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w)); }
+  catch (_) { /* drop */ }
 }
 
 function _legacyCopy(text) {

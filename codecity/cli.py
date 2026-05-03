@@ -84,8 +84,9 @@ def cmd_serve(args: argparse.Namespace) -> int:
     from codecity.webview import launch
 
     manifest = _scan_from_args(args)
+    scan_root = Path(args.path).resolve()
 
-    _, port, shutdown = start_server(manifest, port=args.port)
+    _, port, shutdown = start_server(manifest, port=args.port, scan_root=scan_root)
     url = f"http://127.0.0.1:{port}/"
     print(f"[codecity] serving on {url}", file=sys.stderr)
 
@@ -121,8 +122,11 @@ def cmd_dev(args: argparse.Namespace) -> int:
         return 2
 
     manifest = _scan_from_args(args)
+    scan_root = Path(args.path).resolve()
 
-    _, port, shutdown = start_server(manifest, port=DEFAULT_API_PORT)
+    _, port, shutdown = start_server(
+        manifest, port=DEFAULT_API_PORT, scan_root=scan_root
+    )
     print(f"[codecity] api server on http://127.0.0.1:{port}", file=sys.stderr)
 
     vite_proc = subprocess.Popen(
