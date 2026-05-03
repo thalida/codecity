@@ -43,33 +43,33 @@ describe('showFileSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders the file name in the title', () => {
+  it('renders the file name in the editor tab', () => {
     showFileSidebar(FILE_NODE);
-    const title = document.querySelector('.sidebar-title');
-    expect(title).not.toBeNull();
-    expect(title.textContent).toBe('index.ts');
+    const name = document.querySelector('.editor-tab-name');
+    expect(name).not.toBeNull();
+    expect(name.textContent).toBe('index.ts');
   });
 
-  it('renders an extension badge', () => {
+  it('renders an extension chip in the tab', () => {
     showFileSidebar(FILE_NODE);
-    const badge = document.querySelector('.ext-badge');
-    expect(badge).not.toBeNull();
-    expect(badge.textContent).toBe('.ts');
+    const chip = document.querySelector('.editor-tab-chip');
+    expect(chip).not.toBeNull();
+    expect(chip.textContent).toBe('ts');  // leading dot stripped
   });
 
-  it('renders size + line-count stats', () => {
+  it('shows size + line count in the status bar', () => {
     showFileSidebar(FILE_NODE);
-    const text = document.getElementById('sidebar').textContent;
+    const text = document.querySelector('.editor-status-bar').textContent;
     expect(text).toContain('1.5 KB');
-    expect(text).toContain('50');
+    expect(text).toContain('50 lines');
   });
 
   it('clears existing content on re-open', () => {
     showFileSidebar(FILE_NODE);
     showFileSidebar({ ...FILE_NODE, name: 'utils.ts' });
-    const titles = document.querySelectorAll('.sidebar-title');
-    expect(titles.length).toBe(1);
-    expect(titles[0].textContent).toBe('utils.ts');
+    const names = document.querySelectorAll('.editor-tab-name');
+    expect(names.length).toBe(1);
+    expect(names[0].textContent).toBe('utils.ts');
   });
 
   it('does nothing if #sidebar is missing', () => {
@@ -86,21 +86,19 @@ describe('showDirSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders directory name + directory badge', () => {
+  it('renders directory name + dir chip in the tab', () => {
     showDirSidebar(DIR_NODE);
-    expect(document.querySelector('.sidebar-title').textContent).toBe('src');
-    expect(document.querySelector('.dir-badge').textContent).toBe('directory');
+    expect(document.querySelector('.editor-tab-name').textContent).toBe('src');
+    expect(document.querySelector('.editor-tab-chip-dir').textContent).toBe('dir');
   });
 
-  it('renders children + descendants stats', () => {
+  it('renders children + descendants stats in the body', () => {
     showDirSidebar(DIR_NODE);
-    const text = document.getElementById('sidebar').textContent;
-    // children counts
-    expect(text).toContain('3');  // total children
-    expect(text).toContain('2');  // children files
-    // descendants counts
-    expect(text).toContain('5');  // total descendants
-    expect(text).toContain('4');  // descendant files
+    const text = document.querySelector('.dir-info').textContent;
+    expect(text).toContain('3');  // direct children total
+    expect(text).toContain('2');  // direct children files
+    expect(text).toContain('5');  // recursive total
+    expect(text).toContain('4');  // recursive files
   });
 });
 

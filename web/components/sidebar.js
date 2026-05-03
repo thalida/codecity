@@ -78,83 +78,23 @@ export function showFileSidebar(file) {
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
 
-  // ---- Header: name + extension badge + close button -------------------------
-  var header = document.createElement('div');
-  header.className = 'sidebar-header';
+  // Tab bar \u2014 name + ext chip + close. Like a single open editor tab.
+  var extChip = file.extension ? _makeExtChip(file.extension) : null;
+  sidebar.appendChild(_makeTabBar(file.name || '', extChip));
 
-  var closeBtn = document.createElement('button');
-  closeBtn.className = 'sidebar-close';
-  closeBtn.type = 'button';
-  closeBtn.setAttribute('aria-label', 'Close');
-  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
-  closeBtn.addEventListener('click', closeSidebar);
-  header.appendChild(closeBtn);
+  // Breadcrumb under the tab.
+  sidebar.appendChild(_makeBreadcrumb(file.path || file.fullPath || ''));
 
-  var titleRow = document.createElement('div');
-  titleRow.className = 'sidebar-title-row';
-
-  var nameEl = document.createElement('h2');
-  nameEl.className = 'sidebar-title';
-  nameEl.textContent = file.name || '';
-  titleRow.appendChild(nameEl);
-
-  if (file.extension) {
-    var badge = document.createElement('span');
-    badge.className = 'ext-badge';
-    badge.textContent = file.extension;
-
-    var hue = getHue(file.extension, _huePalette);
-    // Set the per-file hue as a CSS custom property; saturation +
-    // lightness for bg/text/border live in styles.css `.ext-badge`.
-    badge.style.setProperty('--badge-hue', hue);
-    titleRow.appendChild(badge);
-  }
-
-  header.appendChild(titleRow);
-
-  // Path row inside header
-  var pathRow = _makePathRow(file.path || file.fullPath || '');
-  header.appendChild(pathRow);
-
-  sidebar.appendChild(header);
-
-  // ---- Scrollable body -------------------------------------------------------
+  // Editor body \u2014 the preview fills the panel.
   var body = document.createElement('div');
-  body.className = 'sidebar-body';
-
-  // ---- Stats section ---------------------------------------------------------
-  var statsSection = document.createElement('div');
-  statsSection.className = 'sidebar-section';
-
-  var statsLabel = document.createElement('div');
-  statsLabel.className = 'sidebar-section-label';
-  statsLabel.textContent = 'Stats';
-  statsSection.appendChild(statsLabel);
-
-  var statsGrid = document.createElement('div');
-  statsGrid.className = 'sidebar-stats';
-
-  _appendStatItem(statsGrid, 'Size', formatBytes(file.size || 0));
-  _appendStatItem(statsGrid, 'Lines', String(file.lines != null ? file.lines : MISSING_VALUE));
-
-  var hasGit = file.git && (file.git.created || file.git.modified);
-  var createdDate   = (file.git && file.git.created)  || file.created  || null;
-  var modifiedDate  = (file.git && file.git.modified) || file.modified || null;
-  var dateSource    = hasGit ? 'git' : 'fs';
-
-  _appendStatItem(statsGrid, 'Created', createdDate ? formatDate(createdDate) : '\u2014', dateSource);
-  _appendStatItem(statsGrid, 'Modified', modifiedDate ? formatDate(modifiedDate) : '\u2014', dateSource);
-
-  statsSection.appendChild(statsGrid);
-  body.appendChild(statsSection);
-
-  // ---- Preview section -------------------------------------------------------
+  body.className = 'editor-body';
   var previewSection = _makePreviewSection(file);
   if (previewSection) body.appendChild(previewSection);
-
   sidebar.appendChild(body);
 
-  // ---- Slide in --------------------------------------------------------------
+  // Status bar \u2014 file metadata as VSCode-style chips.
+  sidebar.appendChild(_makeFileStatusBar(file));
+
   sidebar.classList.add('open');
 }
 
@@ -177,85 +117,17 @@ export function showDirSidebar(dir) {
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
 
-  // ---- Header: name + directory badge + close button -------------------------
-  var header = document.createElement('div');
-  header.className = 'sidebar-header';
+  sidebar.appendChild(_makeTabBar(dir.name || '', _makeDirChip()));
+  sidebar.appendChild(_makeBreadcrumb(dir.path || dir.fullPath || ''));
 
-  var closeBtn = document.createElement('button');
-  closeBtn.className = 'sidebar-close';
-  closeBtn.type = 'button';
-  closeBtn.setAttribute('aria-label', 'Close');
-  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
-  closeBtn.addEventListener('click', closeSidebar);
-  header.appendChild(closeBtn);
-
-  var titleRow = document.createElement('div');
-  titleRow.className = 'sidebar-title-row';
-
-  var nameEl = document.createElement('h2');
-  nameEl.className = 'sidebar-title';
-  nameEl.textContent = dir.name || '';
-  titleRow.appendChild(nameEl);
-
-  var badge = document.createElement('span');
-  badge.className = 'dir-badge';
-  badge.textContent = 'directory';
-  titleRow.appendChild(badge);
-
-  header.appendChild(titleRow);
-
-  // Path row inside header
-  var pathRow = _makePathRow(dir.path || dir.fullPath || '');
-  header.appendChild(pathRow);
-
-  sidebar.appendChild(header);
-
-  // ---- Scrollable body -------------------------------------------------------
+  // Body: a compact info panel — directories don't have an editor view.
   var body = document.createElement('div');
-  body.className = 'sidebar-body';
-
-  // ---- Children section ------------------------------------------------------
-  var childSection = document.createElement('div');
-  childSection.className = 'sidebar-section';
-
-  var childLabel = document.createElement('div');
-  childLabel.className = 'sidebar-section-label';
-  childLabel.textContent = 'Children';
-  childSection.appendChild(childLabel);
-
-  var childGrid = document.createElement('div');
-  childGrid.className = 'sidebar-stats';
-
-  _appendStatItem(childGrid, 'Total', String(dir.children_count || 0));
-  _appendStatItem(childGrid, 'Files', String(dir.children_file_count || 0));
-  _appendStatItem(childGrid, 'Dirs', String(dir.children_dir_count || 0));
-
-  childSection.appendChild(childGrid);
-  body.appendChild(childSection);
-
-  // ---- Descendants section ---------------------------------------------------
-  var descSection = document.createElement('div');
-  descSection.className = 'sidebar-section';
-
-  var descLabel = document.createElement('div');
-  descLabel.className = 'sidebar-section-label';
-  descLabel.textContent = 'Descendants';
-  descSection.appendChild(descLabel);
-
-  var descGrid = document.createElement('div');
-  descGrid.className = 'sidebar-stats';
-
-  _appendStatItem(descGrid, 'Total', String(dir.descendants_count || 0));
-  _appendStatItem(descGrid, 'Files', String(dir.descendants_file_count || 0));
-  _appendStatItem(descGrid, 'Dirs', String(dir.descendants_dir_count || 0));
-  _appendStatItem(descGrid, 'Total Size', formatBytes(dir.descendants_size || 0));
-
-  descSection.appendChild(descGrid);
-  body.appendChild(descSection);
-
+  body.className = 'editor-body editor-body-info';
+  body.appendChild(_makeDirInfoPanel(dir));
   sidebar.appendChild(body);
 
-  // ---- Slide in --------------------------------------------------------------
+  sidebar.appendChild(_makeDirStatusBar(dir));
+
   sidebar.classList.add('open');
 }
 
@@ -326,57 +198,208 @@ function formatDate(isoString) {
   return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
 }
 
-// ── Private helpers ───────────────────────────────────────────────────────────
+// ── IDE chrome (tab bar / breadcrumb / status bar) ────────────────────────────
 
 /**
- * Build a path row element: the path text + a copy button.
- *
- * @param {string} pathText
- * @returns {Element}
+ * Single editor tab: filename, optional ext-color chip, close button.
  */
-function _makePathRow(pathText) {
-  var row = document.createElement('div');
-  row.className = 'sidebar-path-row';
+function _makeTabBar(name, chipEl) {
+  var bar = document.createElement('div');
+  bar.className = 'editor-tab-bar';
 
-  var pathEl = document.createElement('span');
-  pathEl.className = 'sidebar-path';
-  pathEl.textContent = pathText;
-  row.appendChild(pathEl);
+  var tab = document.createElement('div');
+  tab.className = 'editor-tab is-active';
+
+  if (chipEl) tab.appendChild(chipEl);
+
+  var nameEl = document.createElement('span');
+  nameEl.className = 'editor-tab-name';
+  nameEl.textContent = name;
+  nameEl.title = name;  // long names get truncated; tooltip restores them
+  tab.appendChild(nameEl);
+
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'editor-tab-close';
+  closeBtn.type = 'button';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
+  closeBtn.addEventListener('click', closeSidebar);
+  tab.appendChild(closeBtn);
+
+  bar.appendChild(tab);
+  return bar;
+}
+
+/**
+ * Per-extension hue chip rendered inside the tab. Visually telegraphs
+ * the file's language family without a dedicated icon set.
+ */
+function _makeExtChip(extension) {
+  var chip = document.createElement('span');
+  chip.className = 'editor-tab-chip';
+  chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
+  var hue = getHue(extension, _huePalette);
+  chip.style.setProperty('--badge-hue', hue);
+  return chip;
+}
+
+function _makeDirChip() {
+  var chip = document.createElement('span');
+  chip.className = 'editor-tab-chip editor-tab-chip-dir';
+  chip.textContent = 'dir';
+  return chip;
+}
+
+/**
+ * Breadcrumb under the tab. Splits the path on / and renders each segment
+ * as plain text joined by ›. Tail of the row holds a small Copy button.
+ */
+function _makeBreadcrumb(pathText) {
+  var bar = document.createElement('div');
+  bar.className = 'editor-breadcrumb';
+
+  var segments = (pathText || '').split('/').filter(Boolean);
+  if (segments.length === 0) {
+    var none = document.createElement('span');
+    none.className = 'editor-breadcrumb-segment';
+    none.textContent = pathText || '/';
+    bar.appendChild(none);
+  } else {
+    for (var i = 0; i < segments.length; i++) {
+      var seg = document.createElement('span');
+      seg.className = 'editor-breadcrumb-segment';
+      if (i === segments.length - 1) seg.classList.add('is-leaf');
+      seg.textContent = segments[i];
+      bar.appendChild(seg);
+      if (i < segments.length - 1) {
+        var sep = document.createElement('span');
+        sep.className = 'editor-breadcrumb-sep';
+        sep.textContent = '›';
+        bar.appendChild(sep);
+      }
+    }
+  }
 
   var copyBtn = document.createElement('button');
-  copyBtn.className = 'copy-btn';
+  copyBtn.className = 'editor-breadcrumb-copy';
   copyBtn.type = 'button';
-  copyBtn.textContent = 'Copy';
+  copyBtn.title = 'Copy path';
+  copyBtn.setAttribute('aria-label', 'Copy path');
+  copyBtn.appendChild(makeLucideIcon('copy', { title: 'Copy path' }));
   copyBtn.addEventListener('click', function () {
     copyToClipboard(pathText, copyBtn);
   });
-  row.appendChild(copyBtn);
+  bar.appendChild(copyBtn);
 
-  return row;
+  return bar;
 }
 
-function _appendStatItem(container, label, value, source) {
-  var item = document.createElement('div');
-  item.className = 'stat-item';
+/**
+ * Status bar — `language · 1234 lines · 33.7 KB · modified Apr 18 (git)`.
+ * Mirrors VSCode's bottom bar but rendered per-file instead of global.
+ */
+function _makeFileStatusBar(file) {
+  var bar = document.createElement('div');
+  bar.className = 'editor-status-bar';
 
-  var labelEl = document.createElement('span');
-  labelEl.className = 'stat-label';
-  labelEl.textContent = label;
-  item.appendChild(labelEl);
+  var lang = _humanLanguageFor(file);
+  if (lang) bar.appendChild(_statusItem(lang));
 
-  var valueEl = document.createElement('span');
-  valueEl.className = 'stat-value';
-  valueEl.textContent = value;
-
-  if (source) {
-    var sourceTag = document.createElement('span');
-    sourceTag.className = 'stat-source';
-    sourceTag.textContent = '(' + source + ')';
-    valueEl.appendChild(sourceTag);
+  if (file.lines != null) {
+    bar.appendChild(_statusItem(String(file.lines) + ' lines'));
   }
 
-  item.appendChild(valueEl);
-  container.appendChild(item);
+  bar.appendChild(_statusItem(formatBytes(file.size || 0)));
+
+  var hasGit = file.git && (file.git.created || file.git.modified);
+  var modified = (file.git && file.git.modified) || file.modified || null;
+  var created  = (file.git && file.git.created)  || file.created  || null;
+  var src = hasGit ? 'git' : 'fs';
+  if (modified) {
+    bar.appendChild(_statusItem('modified ' + formatDate(modified), src));
+  }
+  if (created) {
+    bar.appendChild(_statusItem('created ' + formatDate(created), src));
+  }
+  return bar;
+}
+
+function _makeDirStatusBar(dir) {
+  var bar = document.createElement('div');
+  bar.className = 'editor-status-bar';
+  bar.appendChild(_statusItem('Directory'));
+  bar.appendChild(_statusItem((dir.descendants_file_count || 0) + ' files'));
+  bar.appendChild(_statusItem((dir.descendants_dir_count || 0) + ' dirs'));
+  bar.appendChild(_statusItem(formatBytes(dir.descendants_size || 0)));
+  return bar;
+}
+
+function _statusItem(text, source) {
+  var item = document.createElement('span');
+  item.className = 'editor-status-item';
+  item.textContent = text;
+  if (source) {
+    var src = document.createElement('span');
+    src.className = 'editor-status-source';
+    src.textContent = '(' + source + ')';
+    item.appendChild(src);
+  }
+  return item;
+}
+
+/**
+ * Compact info body for directories — two pairs of stat rows shown
+ * inline rather than the previous full-section grid. The status bar
+ * already carries the high-level totals.
+ */
+function _makeDirInfoPanel(dir) {
+  var panel = document.createElement('div');
+  panel.className = 'dir-info';
+
+  var rows = [
+    ['Direct children',  String(dir.children_count       || 0)],
+    ['  Files',          String(dir.children_file_count  || 0)],
+    ['  Dirs',           String(dir.children_dir_count   || 0)],
+    ['Recursive total',  String(dir.descendants_count    || 0)],
+    ['  Files',          String(dir.descendants_file_count || 0)],
+    ['  Dirs',           String(dir.descendants_dir_count  || 0)],
+    ['  Size',           formatBytes(dir.descendants_size || 0)],
+  ];
+
+  for (var i = 0; i < rows.length; i++) {
+    var row = document.createElement('div');
+    row.className = 'dir-info-row';
+    var k = document.createElement('span');
+    k.className = 'dir-info-key';
+    k.textContent = rows[i][0];
+    var v = document.createElement('span');
+    v.className = 'dir-info-value';
+    v.textContent = rows[i][1];
+    row.appendChild(k);
+    row.appendChild(v);
+    panel.appendChild(row);
+  }
+  return panel;
+}
+
+function _humanLanguageFor(file) {
+  var key = _languageFor(file);
+  if (!key) {
+    if (file.extension) return file.extension.replace(/^\./, '').toUpperCase();
+    return 'Plain Text';
+  }
+  // Map hljs internal id → display name.
+  var labels = {
+    javascript: 'JavaScript', typescript: 'TypeScript', python: 'Python',
+    ruby: 'Ruby', go: 'Go', rust: 'Rust', java: 'Java', kotlin: 'Kotlin',
+    swift: 'Swift', c: 'C', cpp: 'C++', csharp: 'C#', php: 'PHP',
+    bash: 'Shell', shell: 'Shell', xml: 'HTML', css: 'CSS', scss: 'SCSS',
+    less: 'Less', json: 'JSON', yaml: 'YAML', ini: 'INI',
+    markdown: 'Markdown', sql: 'SQL', dockerfile: 'Dockerfile',
+    diff: 'Diff', lua: 'Lua', r: 'R', perl: 'Perl', scala: 'Scala',
+    plaintext: 'Plain Text', makefile: 'Makefile',
+  };
+  return labels[key] || key;
 }
 
 // ── Preview rendering ─────────────────────────────────────────────────────────
@@ -460,70 +483,52 @@ function _fileApiUrl(file) {
 function _makePreviewSection(file) {
   if (!file || !file.fullPath) return null;
 
-  var section = document.createElement('div');
-  section.className = 'sidebar-section sidebar-preview-section';
-
-  var label = document.createElement('div');
-  label.className = 'sidebar-section-label';
-  label.textContent = 'Preview';
-  section.appendChild(label);
-
-  var body = document.createElement('div');
-  body.className = 'sidebar-preview-body';
-  section.appendChild(body);
-
   var url = _fileApiUrl(file);
   var kind = _previewKind(file);
 
   if (kind === 'image') {
     var img = document.createElement('img');
-    img.className = 'sidebar-preview-image';
+    img.className = 'preview-image';
     img.src = url;
     img.alt = file.name || '';
-    body.appendChild(img);
-    return section;
+    return img;
   }
 
   if (kind === 'video') {
     var vid = document.createElement('video');
-    vid.className = 'sidebar-preview-media';
+    vid.className = 'preview-media';
     vid.src = url;
     vid.controls = true;
-    body.appendChild(vid);
-    return section;
+    return vid;
   }
 
   if (kind === 'audio') {
     var aud = document.createElement('audio');
-    aud.className = 'sidebar-preview-media';
+    aud.className = 'preview-media';
     aud.src = url;
     aud.controls = true;
-    body.appendChild(aud);
-    return section;
+    return aud;
   }
 
   if (kind === 'pdf') {
     var emb = document.createElement('embed');
-    emb.className = 'sidebar-preview-pdf';
+    emb.className = 'preview-pdf';
     emb.type = 'application/pdf';
     emb.src = url;
-    body.appendChild(emb);
-    return section;
+    return emb;
   }
 
-  // Text: skip the fetch entirely if the file is too big.
+  // Text path: skip the fetch entirely if the file is too big.
   var size = typeof file.size === 'number' ? file.size : null;
   if (size != null && size > TEXT_PREVIEW_MAX_BYTES) {
     var note = document.createElement('div');
-    note.className = 'sidebar-preview-note';
+    note.className = 'preview-note';
     note.textContent = 'File too large to preview (' + formatBytes(size) + ').';
-    body.appendChild(note);
-    return section;
+    return note;
   }
 
-  // Code-editor-style scaffold: a flex row with a line-number gutter and a
-  // <pre><code> for the highlighted source. Both share the same line-height
-  // so the gutter numbers align with their source lines.
+  // Code-editor scaffold: gutter + <pre><code>. Both share the line-height
+  // so gutter numbers line up with their source lines.
   var editor = document.createElement('div');
   editor.className = 'code-editor';
 
@@ -539,7 +544,6 @@ function _makePreviewSection(file) {
 
   editor.appendChild(gutter);
   editor.appendChild(pre);
-  body.appendChild(editor);
 
   fetch(url).then(function (resp) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -556,7 +560,7 @@ function _makePreviewSection(file) {
       : 'Failed to load preview: ' + (err && err.message);
   });
 
-  return section;
+  return editor;
 }
 
 function _renderCode(codeEl, gutterEl, text, file) {
