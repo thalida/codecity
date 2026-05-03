@@ -16,9 +16,11 @@ import { shadeColor, shadeAndShiftHue, shadeByRatio } from './hsl.js';
 // Active colors are set at the top of buildCityScene from config.scene and
 // read from the helpers below.
 var DEFAULT_SCENE_COLORS = {
-  asphalt:  '#1a1d28',
-  sidewalk: '#2a3050',
-  ground:   '#0a0b10'
+  asphalt:       '#1a1d28',
+  sidewalk:      '#2a3050',
+  ground:        '#0a0b10',
+  label_fill:    '#f4f6ff',
+  label_stroke:  'rgba(8, 9, 14, 0.95)'
 };
 
 
@@ -33,6 +35,8 @@ function _toPow2(n) {
 var STREET_COLOR_ASPHALT  = DEFAULT_SCENE_COLORS.asphalt;
 var STREET_COLOR_SIDEWALK = DEFAULT_SCENE_COLORS.sidewalk;
 var GROUND_COLOR          = DEFAULT_SCENE_COLORS.ground;
+var LABEL_FILL            = DEFAULT_SCENE_COLORS.label_fill;
+var LABEL_STROKE          = DEFAULT_SCENE_COLORS.label_stroke;
 
 
 // -----------------------------------------------------------------------------
@@ -413,9 +417,10 @@ var _GEM_FACE_COLORS = [
   [0.15, 1.00, 0.75],   // aqua
   [0.40, 1.00, 0.30]    // lime
 ];
-var _GEM_EDGES   = 0xf0f0ff;   // near-white — neutral separator between vivid faces
+var _GEM_EDGES_DEFAULT = 0xf0f0ff;   // near-white separator between vivid faces
 
 function createRootGem(street, gemCfg) {
+  var edgeColor = (gemCfg && gemCfg.edge_color) || _GEM_EDGES_DEFAULT;
   var group = new THREE.Group();
 
   // Gem size scales with the street's width. The layout reserves extra dead
@@ -466,7 +471,7 @@ function createRootGem(street, gemCfg) {
 
   var edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geo),
-    new THREE.LineBasicMaterial({ color: _GEM_EDGES })
+    new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor) })
   );
 
   var gem = new THREE.Group();
@@ -537,9 +542,9 @@ function _buildLabelTexture(text) {
   ctx.textBaseline = 'middle';
 
   ctx.lineWidth = stroke;
-  ctx.strokeStyle = 'rgba(8, 9, 14, 0.95)';
+  ctx.strokeStyle = LABEL_STROKE;
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
-  ctx.fillStyle = '#f4f6ff';
+  ctx.fillStyle = LABEL_FILL;
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
   var tex = new THREE.CanvasTexture(canvas);
@@ -614,9 +619,16 @@ export function buildCityScene(layout, config) {
   // vars are set here so the street/path helpers below pick them up without
   // needing to thread `config` through each function.
   var sc = (config && config.scene) || {};
-  STREET_COLOR_ASPHALT  = sc.asphalt  || DEFAULT_SCENE_COLORS.asphalt;
-  STREET_COLOR_SIDEWALK = sc.sidewalk || DEFAULT_SCENE_COLORS.sidewalk;
-  GROUND_COLOR          = sc.ground   || DEFAULT_SCENE_COLORS.ground;
+  STREET_COLOR_ASPHALT  = sc.asphalt || DEFAULT_SCENE_COLORS.asphalt;
+  // Sidewalk is now a {default, hover, selected, path} object — engine
+  // only paints the default tint; main.js drives the hover/selected/path
+  // recolors from sc.sidewalk.{hover,selected,path}.
+  var sidewalkCfg = sc.sidewalk || {};
+  STREET_COLOR_SIDEWALK = sidewalkCfg.default || DEFAULT_SCENE_COLORS.sidewalk;
+  GROUND_COLOR          = sc.ground || DEFAULT_SCENE_COLORS.ground;
+  var labelCfg = sc.label || {};
+  LABEL_FILL    = labelCfg.fill   || DEFAULT_SCENE_COLORS.label_fill;
+  LABEL_STROKE  = labelCfg.stroke || DEFAULT_SCENE_COLORS.label_stroke;
   var gemCfg            = sc.root_gem || {};
 
   var scene = new THREE.Scene();

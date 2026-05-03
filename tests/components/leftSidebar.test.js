@@ -22,7 +22,7 @@ describe('showLeftSidebar', () => {
   });
 
   it('mounts an activity bar with both tab icons', () => {
-    showLeftSidebar({ tree: TEST_TREE }, { initialHeightMode: 'compact' });
+    showLeftSidebar({ tree: TEST_TREE }, {});
     const icons = container.querySelectorAll('.activity-bar .activity-bar-icon');
     expect(icons.length).toBe(2);
     expect(icons[0].dataset.tab).toBe('tree');
@@ -30,7 +30,7 @@ describe('showLeftSidebar', () => {
   });
 
   it('shows the tree pane by default and hides the controls pane', () => {
-    showLeftSidebar({ tree: TEST_TREE }, { initialHeightMode: 'compact' });
+    showLeftSidebar({ tree: TEST_TREE }, {});
     const treePane     = container.querySelector('.tree-pane');
     const controlsPane = container.querySelector('.controls-pane');
     expect(treePane.style.display).toBe('');
@@ -39,7 +39,7 @@ describe('showLeftSidebar', () => {
   });
 
   it('switches panes when an icon is clicked', () => {
-    showLeftSidebar({ tree: TEST_TREE }, { initialHeightMode: 'compact' });
+    showLeftSidebar({ tree: TEST_TREE }, {});
     const controlsBtn = container.querySelector('.activity-bar-icon[data-tab="controls"]');
     controlsBtn.click();
 
@@ -48,30 +48,16 @@ describe('showLeftSidebar', () => {
     expect(controlsBtn.classList.contains('active')).toBe(true);
   });
 
-  it('forwards height mode changes from the controls pane', () => {
-    const handler = vi.fn();
-    showLeftSidebar({ tree: TEST_TREE }, {
-      initialHeightMode: 'compact',
-      onHeightModeChange: handler
-    });
-    container.querySelector('.activity-bar-icon[data-tab="controls"]').click();
-    container.querySelector('.segmented-option[data-value="exact"]').click();
-    expect(handler).toHaveBeenCalledWith('exact');
-  });
-
   it('forwards reset-view clicks from the controls pane', () => {
     const handler = vi.fn();
-    showLeftSidebar({ tree: TEST_TREE }, {
-      initialHeightMode: 'compact',
-      onResetView: handler
-    });
+    showLeftSidebar({ tree: TEST_TREE }, { onResetView: handler });
     container.querySelector('.activity-bar-icon[data-tab="controls"]').click();
     container.querySelector('.controls-button').click();
     expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it('respects initialTab=controls', () => {
-    showLeftSidebar({ tree: TEST_TREE }, { initialHeightMode: 'compact', initialTab: 'controls' });
+    showLeftSidebar({ tree: TEST_TREE }, { initialTab: 'controls' });
     expect(container.querySelector('.tree-pane').style.display).toBe('none');
     expect(container.querySelector('.controls-pane').style.display).toBe('');
   });

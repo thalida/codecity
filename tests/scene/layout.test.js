@@ -34,7 +34,7 @@ const TEST_CONFIG = {
     lightness:  { min: 25, max: 70 },
     hue_ext_map: { ".ts": 215, ".js": 220, ".md": 275, ".json": 50, ".png": 30 }
   },
-  scene: { asphalt: '#1a1d28', sidewalk: '#2a3050', ground: '#0a0b10' }
+  scene: { asphalt: '#1a1d28', sidewalk: { default: '#2a3050' }, ground: '#0a0b10' }
 };
 
 const TEST_TREE = {
@@ -84,46 +84,20 @@ describe('getStreetWidth', () => {
 });
 
 // ---- getBuildingDimensions ----
+//
+// Heights are sqrt-normalized across the project's line-count range:
+// smallest file → min_floors, largest → max_floors, midrange via sqrt.
+// Without lineStats, the safe default is min_floors.
 describe('getBuildingDimensions', () => {
-  it('null/zero data returns 1 floor and min width', () => {
+  it('null/zero data returns min_floors and min width', () => {
     const dim = getBuildingDimensions({ lines: null, size: null }, TEST_CONFIG);
     expect(dim.floors).toBe(1);
     expect(dim.h).toBe(10);
     expect(dim.w).toBe(6);
   });
 
-  it('ceil(lines / lines_per_floor) floors — 1 to 20 lines is 1 floor', () => {
-    expect(getBuildingDimensions({ lines: 1,  size: 100 }, TEST_CONFIG).floors).toBe(1);
-    expect(getBuildingDimensions({ lines: 20, size: 100 }, TEST_CONFIG).floors).toBe(1);
-  });
-
-  it('21 lines rolls over to 2 floors', () => {
-    expect(getBuildingDimensions({ lines: 21, size: 100 }, TEST_CONFIG).floors).toBe(2);
-  });
-
-  it('80 lines = 4 floors at 20 lines/floor', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG);
-    expect(dim.floors).toBe(4);
-    expect(dim.h).toBe(40);
-  });
-
-  it('exact mode IGNORES max_floors — exact means exact', () => {
-    // 100000 lines / 20 per floor = 5000 floors, regardless of max_floors=30.
-    const dim = getBuildingDimensions({ lines: 100000, size: 10 * 1024 * 1024 }, TEST_CONFIG);
-    expect(dim.floors).toBe(5000);
-    expect(dim.h).toBe(50000);
-    expect(dim.w).toBe(40);
-  });
-
-  it('exact mode with explicit max_floors: null also uncapped', () => {
-    const uncapped = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, max_floors: null } };
-    const dim = getBuildingDimensions({ lines: 10000, size: 1000 }, uncapped);
-    expect(dim.floors).toBe(500);  // 10000 / 20 lines/floor
-    expect(dim.h).toBe(5000);
-  });
-
   it('depth == width (square footprint)', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG);
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG, { min: 10, max: 1000 });
     expect(dim.d).toBe(dim.w);
   });
 
@@ -134,140 +108,40 @@ describe('getBuildingDimensions', () => {
     expect(dim.w).toBe(6);
   });
 
-  // ---- Compact (sqrt-normalized) mode ---------------------------------------
-
-  it('compact mode: smallest file maps to min_floors', () => {
-    const cfg = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, height_mode: 'compact' } };
-    const dim = getBuildingDimensions({ lines: 10, size: 100 }, cfg, { min: 10, max: 1000 });
+  it('smallest file in the project maps to min_floors', () => {
+    const dim = getBuildingDimensions({ lines: 10, size: 100 }, TEST_CONFIG, { min: 10, max: 1000 });
     expect(dim.floors).toBe(1);
-    expect(dim.mode).toBe('compact');
   });
 
-  it('compact mode: largest file maps to max_floors', () => {
-    const cfg = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, height_mode: 'compact' } };
-    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, cfg, { min: 10, max: 1000 });
-    expect(dim.floors).toBe(30);
+  it('largest file in the project maps to max_floors', () => {
+    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, TEST_CONFIG, { min: 10, max: 1000 });
+    expect(dim.floors).toBe(TEST_CONFIG.building.max_floors);
   });
 
-  it('compact mode: midrange file uses sqrt-interpolated floors', () => {
+  it('midrange file uses sqrt-interpolated floors', () => {
     // sMin=sqrt(10)=3.162, sMax=sqrt(1000)=31.62, sLines=sqrt(100)=10
     // t = (10 - 3.162) / (31.62 - 3.162) ≈ 0.240
     // floors ≈ round(1 + 0.240 * 29) = round(7.96) = 8
-    const cfg = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, height_mode: 'compact' } };
-    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, cfg, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, TEST_CONFIG, { min: 10, max: 1000 });
     expect(dim.floors).toBe(8);
   });
 
-  it('always returns both _compact and _exact precomputed dims', () => {
-    const dim = getBuildingDimensions({ lines: 200, size: 1000 }, TEST_CONFIG, { min: 10, max: 1000 });
-    expect(typeof dim.h_compact).toBe('number');
-    expect(typeof dim.floors_compact).toBe('number');
-    expect(typeof dim.h_exact).toBe('number');
-    expect(typeof dim.floors_exact).toBe('number');
+  it('without lineStats falls back to min_floors', () => {
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG);
+    expect(dim.floors).toBe(TEST_CONFIG.building.min_floors);
   });
 
-  it('compact mode falls back to exact when no lineStats supplied', () => {
-    const cfg = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, height_mode: 'compact' } };
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, cfg);
-    expect(dim.mode).toBe('exact');
-    expect(dim.floors).toBe(4);                  // 80/20 lines per floor
-  });
-
-  it('compact mode with min == max collapses to min_floors', () => {
-    const cfg = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, height_mode: 'compact' } };
-    const dim = getBuildingDimensions({ lines: 50, size: 500 }, cfg, { min: 50, max: 50 });
+  it('lineStats with min == max collapses everyone to min_floors', () => {
+    const dim = getBuildingDimensions({ lines: 50, size: 500 }, TEST_CONFIG, { min: 50, max: 50 });
     expect(dim.floors).toBe(1);
   });
 
-  // ---- Toggle integrity: layoutCity must populate BOTH h_compact + h_exact ----
-  // The frontend height-mode toggle (Compact ↔ Exact) reads b.h_exact /
-  // b.h_compact off each building. If layoutCity ever stops populating
-  // these (e.g. someone refactors and forgets to copy them through the
-  // recursion), the toggle silently does nothing and exact mode appears
-  // "broken". These tests catch that regression.
-  it('every building exposes h_compact + h_exact + floors_compact + floors_exact', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
-    expect(layout.buildings.length).toBeGreaterThan(0);
-    for (const b of layout.buildings) {
-      expect(typeof b.h_compact).toBe('number');
-      expect(typeof b.h_exact).toBe('number');
-      expect(typeof b.floors_compact).toBe('number');
-      expect(typeof b.floors_exact).toBe('number');
-      expect(b.h_compact).toBeGreaterThan(0);
-      expect(b.h_exact).toBeGreaterThan(0);
-    }
-  });
-
-  it('exact mode active height matches h_exact (not h_compact)', () => {
-    const exactCfg = {
-      ...TEST_CONFIG,
-      building: { ...TEST_CONFIG.building, height_mode: 'exact' }
-    };
-    const layout = layoutCity({ tree: TEST_TREE }, exactCfg);
-    for (const b of layout.buildings) {
-      expect(b.h).toBe(b.h_exact);
-      expect(b.floors).toBe(b.floors_exact);
-    }
-  });
-
-  it('compact mode active height matches h_compact (not h_exact)', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);   // default compact
-    for (const b of layout.buildings) {
-      expect(b.h).toBe(b.h_compact);
-      expect(b.floors).toBe(b.floors_compact);
-    }
-  });
-
-  it('h_compact and h_exact differ for files outside the project min/max line range', () => {
-    // Build a tree where one file has many more lines than another so the two
-    // height modes definitely produce different heights.
-    const tree = {
-      name: 'root', type: 'directory', path: '.',
-      children_count: 2, children_file_count: 2, children_dir_count: 0,
-      descendants_count: 2, descendants_file_count: 2, descendants_dir_count: 0,
-      descendants_size: 2200,
-      children: [
-        { name: 'tiny.ts',  type: 'file', path: 'tiny.ts',
-          extension: '.ts', size: 100,  lines: 5 },
-        { name: 'huge.ts',  type: 'file', path: 'huge.ts',
-          extension: '.ts', size: 10000, lines: 5000 }
-      ]
-    };
-    const layout = layoutCity({ tree }, TEST_CONFIG);
-    const huge = layout.buildings.find(b => b.file.name === 'huge.ts');
-    const tiny = layout.buildings.find(b => b.file.name === 'tiny.ts');
-    expect(huge).toBeTruthy();
-    expect(tiny).toBeTruthy();
-    // Exact mode: huge (5000 lines / 20 per floor → 250 floors, NOT capped).
-    expect(huge.h_exact).toBe(250 * 10);    // 2500
-    // Tiny in exact: 1 floor (5 lines, ceil(5/20)=1)
-    expect(tiny.h_exact).toBe(10);
-    // In compact mode, tiny is at min_floors and huge at max_floors=30.
-    expect(tiny.h_compact).toBe(10);
-    expect(huge.h_compact).toBe(300);
-  });
-
-  it('exact and compact mode heights diverge for very tall files (regression: cap removed from exact)', () => {
-    // A very tall building. In compact, it caps at max_floors. In exact,
-    // it grows freely. They MUST differ — proves the cap isn't applied
-    // to exact mode by mistake.
-    const dim = getBuildingDimensions(
-      { lines: 600, size: 6000 },
-      TEST_CONFIG,
-      { min: 1, max: 600 }   // forces compact to max_floors at the top
-    );
-    expect(dim.floors_exact).toBe(30);          // 600 / 20 = 30
-    expect(dim.floors_compact).toBeLessThanOrEqual(TEST_CONFIG.building.max_floors);
-
-    // For an even bigger file beyond compact's cap:
-    const huge = getBuildingDimensions(
-      { lines: 10000, size: 100000 },
-      TEST_CONFIG,
-      { min: 1, max: 10000 }
-    );
-    expect(huge.floors_exact).toBe(500);                  // way past max_floors=30
-    expect(huge.floors_compact).toBeLessThanOrEqual(30);  // compact stays capped
-    expect(huge.floors_exact).toBeGreaterThan(huge.floors_compact);
+  it('huge files cap at max_floors (no runaway towers)', () => {
+    // Without an upper cap the tallest file would dwarf the rest of the
+    // city. Verify the cap is still enforced.
+    const tinyMax = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, max_floors: 5 } };
+    const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, tinyMax, { min: 1, max: 100000 });
+    expect(dim.floors).toBeLessThanOrEqual(5);
   });
 });
 

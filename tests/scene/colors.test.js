@@ -32,7 +32,7 @@ const TEST_CONFIG = {
     lightness:  { min: 25, max: 70 },
     hue_ext_map: { ".ts": 215, ".js": 220, ".md": 275, ".json": 50, ".png": 30 }
   },
-  scene: { asphalt: '#1a1d28', sidewalk: '#2a3050', ground: '#0a0b10' }
+  scene: { asphalt: '#1a1d28', sidewalk: { default: '#2a3050' }, ground: '#0a0b10' }
 };
 
 const TEST_TREE = {

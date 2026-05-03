@@ -29,7 +29,7 @@ var UNIT_BOX_EDGE_POSITIONS = [
   -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
 ];
 
-import { buildCityScene, createBuildingMesh } from './scene/engine.js';
+import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
 import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
@@ -43,6 +43,41 @@ import {
 
 
 function startRenderLoop(canvas, manifest, config) {
+  // -- 0. Resolve scene config knobs ------------------------------------------
+  // Every visual tunable below is sourced from config.scene.*; literals here
+  // are fallbacks for missing keys so the renderer still works without a
+  // config (e.g. tests). Anything tweak-worthy lives in defaults.json under
+  // `scene.*` — DO NOT inline new color/opacity/linewidth literals; surface
+  // them through this block so designers can adjust without code edits.
+  var sceneCfg     = (config && config.scene) || {};
+  var sidewalkCfg  = sceneCfg.sidewalk || {};
+  var outlineCfg   = sceneCfg.outline  || {};
+  var fadeCfg      = sceneCfg.fade     || {};
+  var fadeNear     = fadeCfg.tier_near || {};
+  var fadeFar      = fadeCfg.tier_far  || {};
+  var CFG_SIDEWALK_HOVER    = sidewalkCfg.hover    || '#d0d2da';
+  var CFG_SIDEWALK_SELECTED = sidewalkCfg.selected || '#ffffff';
+  var CFG_SIDEWALK_PATH     = sidewalkCfg.path     || '#4a4c54';
+  var CFG_OUTLINE_HOVER_COLOR    = outlineCfg.hover_color        || '#ffffff';
+  var CFG_OUTLINE_DEFAULT_LW     = outlineCfg.default_linewidth  || 3;
+  var CFG_OUTLINE_HOVER_LW       = outlineCfg.hover_linewidth    || 2;
+  var CFG_OUTLINE_SELECTED_LW    = outlineCfg.selected_linewidth || 4;
+  var CFG_FADE_LERP    = (fadeCfg.lerp_speed != null)  ? fadeCfg.lerp_speed  : 0.18;
+  var CFG_FADE_TOP     = (fadeCfg.fade_top != null)    ? fadeCfg.fade_top    : 1.0;
+  var CFG_FADE_BOTTOM  = (fadeCfg.fade_bottom != null) ? fadeCfg.fade_bottom : 0.7;
+  var CFG_TIER_NEAR    = {
+    main:    (fadeNear.main    != null) ? fadeNear.main    : 0.65,
+    outline: (fadeNear.outline != null) ? fadeNear.outline : 0.40,
+    ghost:   (fadeNear.ghost   != null) ? fadeNear.ghost   : 0.85
+  };
+  var CFG_TIER_FAR     = {
+    main:    (fadeFar.main    != null) ? fadeFar.main    : 0.18,
+    outline: (fadeFar.outline != null) ? fadeFar.outline : 0.12,
+    ghost:   (fadeFar.ghost   != null) ? fadeFar.ghost   : 0.20
+  };
+  var CFG_HOVER_COMMIT_MS = (sceneCfg.hover_commit_ms != null)
+    ? sceneCfg.hover_commit_ms : 35;
+
   // -- 1. Layout + colors ------------------------------------------------------
   var layout     = layoutCity(manifest.tree, config);
   var dateRanges = getDateRanges(manifest.tree);
@@ -105,7 +140,7 @@ function startRenderLoop(canvas, manifest, config) {
     _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
     var _olMat = new LineMaterial({
       color:       _bcol.clone(),
-      linewidth:   3,
+      linewidth:   CFG_OUTLINE_DEFAULT_LW,
       transparent: true,
       opacity:     0.0,
       depthTest:   true,
@@ -136,10 +171,6 @@ function startRenderLoop(canvas, manifest, config) {
     scene.add(_gh);
     buildingGhosts.push(_gh);
   }
-
-  // Active height mode: tracks what the renderer is currently showing so the
-  // toggle can decide whether to act and which alt-mode to animate toward.
-  var heightMode = (config.building && config.building.height_mode === 'exact') ? 'exact' : 'compact';
 
   // -- 3. Renderer -------------------------------------------------------------
   var renderer = new THREE.WebGLRenderer({
@@ -265,8 +296,8 @@ function startRenderLoop(canvas, manifest, config) {
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
 
   var hoverLineMat = new LineMaterial({
-    color:      0xffffff,
-    linewidth:  2,
+    color:      new THREE.Color(CFG_OUTLINE_HOVER_COLOR),
+    linewidth:  CFG_OUTLINE_HOVER_LW,
     transparent: true,
     opacity:    0.85,
     depthTest:  true,
@@ -285,7 +316,7 @@ function startRenderLoop(canvas, manifest, config) {
   // are offset by 1/12 of the wheel.
   var selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth:    4,
+    linewidth:    CFG_OUTLINE_SELECTED_LW,
     transparent:  true,
     opacity:      1.0,
     depthTest:    true,
@@ -352,9 +383,14 @@ function startRenderLoop(canvas, manifest, config) {
   // config.scene.sidewalk; we mutate material.color directly on hover/select
   // and restore from sidewalk.userData.origColor (lazily captured first time
   // we touch the material).
-  var SIDEWALK_HOVER_COLOR    = 0xd0d2da;   // light gray
-  var SIDEWALK_SELECTED_COLOR = 0xffffff;   // white
-  var SIDEWALK_PATH_COLOR     = 0x4a4c54;   // slightly lighter than default — for parent streets on the path
+  // Sidewalk tint variants for hover/selected/path lineage. Sourced from
+  // config.scene.sidewalk.{hover,selected,path}; see the CFG_SIDEWALK_*
+  // resolution at the top of startRenderLoop. THREE.Color() accepts both
+  // hex literals (0xRRGGBB) and CSS color strings, so the JSON values
+  // come through unchanged.
+  var SIDEWALK_HOVER_COLOR    = new THREE.Color(CFG_SIDEWALK_HOVER).getHex();
+  var SIDEWALK_SELECTED_COLOR = new THREE.Color(CFG_SIDEWALK_SELECTED).getHex();
+  var SIDEWALK_PATH_COLOR     = new THREE.Color(CFG_SIDEWALK_PATH).getHex();
 
   // Lookup: directory path → sidewalk mesh / street object. Used to walk
   // the parent chain from a selected dir/file back to root, which lets us
@@ -953,7 +989,7 @@ function startRenderLoop(canvas, manifest, config) {
   // commit, which keeps the city stable instead of strobing tiers.
   // Tooltip + cursor still update on every coalesced raycast for
   // responsiveness — only the fade-cascade is debounced.
-  var HOVER_COMMIT_MS = 35;
+  var HOVER_COMMIT_MS = CFG_HOVER_COMMIT_MS;
   var _hoverRafId      = 0;
   var _hoverLastEvt    = null;
   var _hoverPending    = null;   // candidate hover awaiting commit
@@ -1081,113 +1117,9 @@ function startRenderLoop(canvas, manifest, config) {
     }
   });
 
-  // Pre-compute the max world-space distance from origin so the toggle's
-  // staggered ripple has a stable normalization. Updated never — building
-  // footprints don't change across mode toggles.
-  var maxDist = 0;
-  for (var bdi = 0; bdi < buildingMeshes.length; bdi++) {
-    var bb = buildingMeshes[bdi].userData.building;
-    var dd = Math.sqrt(bb.x * bb.x + bb.y * bb.y);
-    if (dd > maxDist) maxDist = dd;
-  }
-  if (maxDist === 0) maxDist = 1;
-
   showLeftSidebar(manifest, {
-    initialHeightMode:  heightMode,
-    onHeightModeChange: function (newMode) {
-      if (newMode === heightMode) return;
-      heightMode = newMode;
-      _toggleHeightMode(newMode);
-    },
     onResetView: resetView
   });
-
-  // _toggleHeightMode(newMode)
-  //
-  // For each building, animate scale.y + position.y from current to target
-  // over 400ms (ease-out cubic), with a per-building delay scaled by distance
-  // from origin so the toggle visually ripples out from the root. At the end
-  // of each animation we dispose the old mesh and rebuild it at the true new
-  // height — keeps facade textures crisp at the new floor count.
-  function _toggleHeightMode(newMode) {
-    var DURATION  = 400;
-    var STAGGER   = 200;
-    for (var i = 0; i < buildingMeshes.length; i++) {
-      var mesh = buildingMeshes[i];
-      var b = mesh.userData.building;
-      var targetH = (newMode === 'exact') ? b.h_exact : b.h_compact;
-      // Currently visible height = position.y * 2 (base sits on z=0). This
-      // also handles re-toggling mid-animation: we always start from the
-      // current visual state, not the storage value.
-      var startH = mesh.position.y * 2;
-      if (targetH === startH) continue;
-
-      var dist  = Math.sqrt(b.x * b.x + b.y * b.y);
-      var delay = (dist / maxDist) * STAGGER;
-
-      _animateBuildingHeight(mesh, b, startH, targetH, newMode, delay, DURATION);
-    }
-  }
-
-  function _animateBuildingHeight(mesh, b, startH, targetH, targetMode, delay, duration) {
-    // Token cancels any in-flight animation on this mesh if a new one starts.
-    var token = (mesh.userData.heightAnimToken || 0) + 1;
-    mesh.userData.heightAnimToken = token;
-
-    var startTime = performance.now() + delay;
-    function step(now) {
-      if (mesh.userData.heightAnimToken !== token) return;
-      if (now < startTime) { requestAnimationFrame(step); return; }
-      var elapsed = now - startTime;
-      if (elapsed >= duration) {
-        // Final state: replace mesh so geometry + facade textures match the
-        // new floor count exactly (no stretched windows).
-        b.h      = targetH;
-        b.floors = (targetMode === 'exact') ? b.floors_exact : b.floors_compact;
-        _replaceBuildingMesh(mesh, b);
-        return;
-      }
-      var t = elapsed / duration;
-      var eased = 1 - Math.pow(1 - t, 3);   // ease-out cubic
-      var currentH = startH + (targetH - startH) * eased;
-      mesh.scale.y    = currentH / startH;
-      mesh.position.y = currentH / 2;
-      requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
-  function _replaceBuildingMesh(oldMesh, b) {
-    var newMesh = createBuildingMesh(b);
-    scene.add(newMesh);
-    scene.remove(oldMesh);
-
-    // Dispose GPU resources held by the old mesh. BoxGeometry is one geometry,
-    // shared across all 6 face materials; each face material owns its own
-    // CanvasTexture (facade or roof) we built per-building.
-    if (oldMesh.geometry && oldMesh.geometry.dispose) oldMesh.geometry.dispose();
-    var mats = Array.isArray(oldMesh.material) ? oldMesh.material : [oldMesh.material];
-    for (var mi = 0; mi < mats.length; mi++) {
-      var mat = mats[mi];
-      if (mat && mat.map && mat.map.dispose) mat.map.dispose();
-      if (mat && mat.dispose) mat.dispose();
-    }
-
-    // Swap the new mesh into the lookup arrays so picking sees it.
-    var bIdx = buildingMeshes.indexOf(oldMesh);
-    if (bIdx !== -1) buildingMeshes[bIdx] = newMesh;
-    var pIdx = pickables.indexOf(oldMesh);
-    if (pIdx !== -1) pickables[pIdx] = newMesh;
-
-    // If this building was hovered / selected, retarget the refs so the
-    // outlines + X-ray keep tracking through the toggle animation tail.
-    if (currentSelection && currentSelection.mesh === oldMesh) {
-      currentSelection.mesh = newMesh;
-    }
-    if (currentHover && currentHover.mesh === oldMesh) {
-      currentHover.mesh = newMesh;
-    }
-  }
 
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
@@ -1234,8 +1166,7 @@ function startRenderLoop(canvas, manifest, config) {
   //      than ray sampling, which misses obstructors that don't happen to
   //      lie on the test rays.
   //   2. Outlines: keep hover + selected outlines synced to their mesh's
-  //      current visual size — accounts for mesh.scale.y during height-mode
-  //      toggle animation.
+  //      current visual size.
   function _updateXRayAndOutlines() {
     // CRITICAL: refresh world matrices before projecting. controls.update()
     // moved the camera but matrixWorldInverse is stale until renderer.render
@@ -1299,13 +1230,14 @@ function startRenderLoop(canvas, manifest, config) {
     // high enough that any target < 1.0 swaps to the solid-color ghost,
     // dropping the windowed texture). NEAR keeps a clearly-visible body
     // for "1 step away"; FAR collapses to essentially just an outline.
+    // Tier opacities + dim multipliers; sourced from config.scene.fade.
     var TIER_DIRECT      = 1.0;
-    var TIER_DESC        = 0.65;
-    var TIER_DESC_OUTLN  = 0.40;
-    var TIER_DESC_GHOST  = 0.85;
-    var TIER_OTHER       = 0.18;
-    var TIER_OTHER_OUTLN = 0.12;
-    var TIER_OTHER_GHOST = 0.20;
+    var TIER_DESC        = CFG_TIER_NEAR.main;
+    var TIER_DESC_OUTLN  = CFG_TIER_NEAR.outline;
+    var TIER_DESC_GHOST  = CFG_TIER_NEAR.ghost;
+    var TIER_OTHER       = CFG_TIER_FAR.main;
+    var TIER_OTHER_OUTLN = CFG_TIER_FAR.outline;
+    var TIER_OTHER_GHOST = CFG_TIER_FAR.ghost;
 
     // Obstruction detection disabled for now — selected building relies
     // purely on the tiered fade. Re-enable by un-commenting and restoring
@@ -1363,7 +1295,7 @@ function startRenderLoop(canvas, manifest, config) {
       }
       var cur = m.userData.opacityCurrent;
       if (cur !== target) {
-        cur += (target - cur) * 0.18;
+        cur += (target - cur) * CFG_FADE_LERP;
         if (Math.abs(cur - target) < 0.005) cur = target;
         m.userData.opacityCurrent = cur;
       }
@@ -1377,8 +1309,8 @@ function startRenderLoop(canvas, manifest, config) {
       // windows. FADE_TOP at 1.0 gives the widest window-fade ramp,
       // and smoothstep easing softens the start/end of the reveal so
       // it doesn't pop in.
-      var FADE_TOP    = 1.0;
-      var FADE_BOTTOM = 0.70;
+      var FADE_TOP    = CFG_FADE_TOP;
+      var FADE_BOTTOM = CFG_FADE_BOTTOM;
       var blend;   // 1.0 = textured wins, 0.0 = ghost wins
       if      (cur >= FADE_TOP)    blend = 1.0;
       else if (cur <= FADE_BOTTOM) blend = 0.0;

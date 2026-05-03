@@ -52,63 +52,33 @@ export function computeLineStats(tree) {
 }
 
 
-// getBuildingDimensions(file, config, lineStats) -> { w, d, h, floors, ... }
+// getBuildingDimensions(file, config, lineStats) -> { w, d, h, floors }
 //
-// Computes BOTH height modes for every building so the frontend can swap
-// between them without touching the layout. `lineStats` is optional; when
-// omitted (e.g. legacy callers, isolated tests), only "exact" mode is
-// available and the active height falls back to it.
+// Floors are sqrt-normalized across the project's own line-count range:
+// the smallest file lands at min_floors, the largest at max_floors,
+// everything else distributed by sqrt — visibly spreads the bottom of
+// the range while compressing the long tail so a 100k-line file doesn't
+// dwarf the rest of the city.
 //
-// Active mode is chosen by config.building.height_mode ("compact" or "exact").
-// Default is "compact" because compact produces a more legible city out of
-// the box.
-//
-// Returned shape:
-//   { w, d, h, floors, h_compact, floors_compact, h_exact, floors_exact, mode }
-//
-// Both _compact and _exact are always populated (when lineStats is provided)
-// so the frontend toggle reads them straight off the building.
+// `lineStats` (the project's { min, max } line counts) is required to
+// normalize. When it's missing or degenerate (single file / all
+// identical), every building lands at min_floors as a safe default.
 export function getBuildingDimensions(file, config, lineStats) {
   var bc = config.building;
-
   var lines = (file.lines && file.lines > 0) ? file.lines : 1;
+  var maxFloorsCap = (bc.max_floors != null) ? bc.max_floors : 30;
 
-  // ---- Exact mode: floors directly from line count --------------------------
-  // Linear in lines. NO max_floors cap — exact means EXACT. Huge files
-  // produce proportionally huge towers; that's the whole point of this
-  // mode (the user toggles to it precisely to see real magnitudes).
-  // max_floors only governs compact mode below.
-  var floorsExact  = Math.max(bc.min_floors, Math.ceil(lines / bc.lines_per_floor));
-  var hExact       = floorsExact * bc.floor_height;
-
-  // ---- Compact mode: sqrt-normalized to project's own min/max lines ---------
-  // Smallest file → min_floors, largest → max_floors, everything else
-  // distributed by sqrt — visibly spreads the bottom while compressing the
-  // long tail. Needs lineStats AND a real max_floors cap to define the band.
-  var floorsCompact = floorsExact;
-  var hCompact      = hExact;
-  var maxFloorsCap  = (bc.max_floors != null) ? bc.max_floors : 30;
+  var floors = bc.min_floors;
   if (lineStats && lineStats.max > lineStats.min) {
     var sMin   = Math.sqrt(lineStats.min);
     var sMax   = Math.sqrt(lineStats.max);
     var sLines = Math.sqrt(lines);
     var t = (sLines - sMin) / (sMax - sMin);
     if (t < 0) t = 0; else if (t > 1) t = 1;
-    floorsCompact = Math.round(bc.min_floors + t * (maxFloorsCap - bc.min_floors));
-    if (floorsCompact < bc.min_floors) floorsCompact = bc.min_floors;
-    hCompact = floorsCompact * bc.floor_height;
-  } else if (lineStats) {
-    // All files identical / single file → everything sits at min_floors.
-    floorsCompact = bc.min_floors;
-    hCompact      = bc.min_floors * bc.floor_height;
+    floors = Math.round(bc.min_floors + t * (maxFloorsCap - bc.min_floors));
+    if (floors < bc.min_floors) floors = bc.min_floors;
   }
-
-  // Active mode. Compact is the default; falls back to exact if compact wasn't
-  // computable (no lineStats passed).
-  var mode = (bc.height_mode === 'exact') ? 'exact' : 'compact';
-  if (mode === 'compact' && !lineStats) mode = 'exact';
-  var floors = (mode === 'compact') ? floorsCompact : floorsExact;
-  var height = (mode === 'compact') ? hCompact      : hExact;
+  var height = floors * bc.floor_height;
 
   // ---- Width from file size in bytes ----------------------------------------
   // Log-scaled because file sizes legitimately span many orders of magnitude.
@@ -119,20 +89,13 @@ export function getBuildingDimensions(file, config, lineStats) {
   var width = bc.min_width + tW * (bc.max_width - bc.min_width);
   width = Math.max(bc.min_width, Math.min(bc.max_width, width));
 
-  // ---- Depth == width -------------------------------------------------------
-  // Keeps the footprint square so tall thin towers don't become deep slabs.
-  var depth = width;
-
+  // Depth == width keeps footprints square so tall thin towers don't
+  // become deep slabs.
   return {
     w:      Math.round(width  * 10) / 10,
-    d:      Math.round(depth  * 10) / 10,
+    d:      Math.round(width  * 10) / 10,
     h:      Math.round(height * 10) / 10,
-    floors: floors,
-    mode:   mode,
-    h_compact:      Math.round(hCompact * 10) / 10,
-    floors_compact: floorsCompact,
-    h_exact:        Math.round(hExact * 10) / 10,
-    floors_exact:   floorsExact
+    floors: floors
   };
 }
 
@@ -411,12 +374,6 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
         x: bx, y: by,
         w: bldgW, d: bldgD, h: dim.h,
         floors: dim.floors,
-        // Both modes' precomputed dimensions ride along on every building so
-        // the frontend toggle can swap heights without a re-layout.
-        h_compact:      dim.h_compact,
-        floors_compact: dim.floors_compact,
-        h_exact:        dim.h_exact,
-        floors_exact:   dim.floors_exact,
         file: child,
         color: null,
         orient: orient
@@ -473,10 +430,6 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
           y: (negateY ? -b.y : b.y) + subAnchorY,
           w: b.w, d: b.d, h: b.h,
           floors: b.floors,
-          h_compact:      b.h_compact,
-          floors_compact: b.floors_compact,
-          h_exact:        b.h_exact,
-          floors_exact:   b.floors_exact,
           file: b.file,
           color: b.color,
           orient: _mirrorOrient(b.orient, negateX, negateY)

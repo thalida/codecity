@@ -13,10 +13,9 @@
   },
 
   "building": {
-    "height_mode": "compact",
     "lines_per_floor": 20,
     "min_floors": 1,
-    "max_floors": 30,
+    "max_floors": 50,
     "floor_height": 10,
     "byte_ceiling": 10485760,
     "min_width": 6,
@@ -36,16 +35,45 @@
   },
 
   "scene": {
-    "asphalt":  "#1a1d28",
-    "sidewalk": "#2c2e36",
     "ground":   "#0a0b10",
+    "asphalt":  "#1a1d28",
+
+    "sidewalk": {
+      "default":  "#2c2e36",
+      "hover":    "#d0d2da",
+      "selected": "#ffffff",
+      "path":     "#4a4c54"
+    },
+
+    "label": {
+      "fill":   "#f4f6ff",
+      "stroke": "rgba(8, 9, 14, 0.95)"
+    },
+
+    "outline": {
+      "default_linewidth":  3,
+      "hover_color":        "#ffffff",
+      "hover_linewidth":    2,
+      "selected_linewidth": 4
+    },
+
+    "fade": {
+      "lerp_speed":  0.18,
+      "fade_top":    1.0,
+      "fade_bottom": 0.7,
+      "tier_near": { "main": 0.65, "outline": 0.40, "ghost": 0.85 },
+      "tier_far":  { "main": 0.18, "outline": 0.12, "ghost": 0.20 }
+    },
+
+    "hover_commit_ms": 35,
 
     "root_gem": {
-      "radius_frac": 0.35,
-      "min_radius":  5,
-      "hover_frac":  0.3,
-      "bob_frac":    0.5,
-      "clearance":   20
+      "radius_frac":  0.35,
+      "min_radius":   5,
+      "hover_frac":   0.3,
+      "bob_frac":     0.5,
+      "clearance":    20,
+      "edge_color":   "#f0f0ff"
     }
   }
 }

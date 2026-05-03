@@ -26,10 +26,8 @@ var TABS = [
 // showLeftSidebar(manifest, opts)
 //
 // opts:
-//   initialHeightMode  — 'compact' | 'exact'
-//   onHeightModeChange — fn(newMode)
-//   onResetView        — fn() invoked when the Controls panel's Reset button fires
-//   initialTab         — 'tree' | 'controls' (default 'tree')
+//   onResetView — fn() invoked when the Controls panel's Reset button fires
+//   initialTab  — 'tree' | 'controls' (default 'tree')
 export function showLeftSidebar(manifest, opts) {
   opts = opts || {};
   var container = document.getElementById('tree-sidebar');
@@ -46,9 +44,7 @@ export function showLeftSidebar(manifest, opts) {
   var panes = {
     tree:     buildTreePane(manifest),
     controls: buildControlsPane({
-      initialHeightMode:  opts.initialHeightMode,
-      onHeightModeChange: opts.onHeightModeChange,
-      onResetView:        opts.onResetView
+      onResetView: opts.onResetView
     })
   };
 
