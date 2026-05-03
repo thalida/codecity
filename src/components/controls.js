@@ -20,7 +20,7 @@ import {
   // Background
   SCENE_COLORS,
   // Streets
-  ASPHALT, SIDEWALK_COLORS, LABEL_TYPOGRAPHY, PATH_LINE, STREET_LAYOUT,
+  ASPHALT, SIDEWALK_COLORS, LABEL_TYPOGRAPHY, PATH_LINE, HOVER_PATH_LINE, STREET_LAYOUT,
   // Buildings
   BUILDING_DIMENSIONS, BUILDING_PALETTE, BUILDING_OUTLINE, BUILDING_FADE,
   // Gem
@@ -235,6 +235,29 @@ function _buildStreetsSection(applyTheme) {
     }),
     _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
       tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
+      onChange: applyTheme
+    })
+  ]));
+
+  // Hover preview path line — the faded "what would happen if I clicked"
+  // version of the selection line, drawn while the cursor is over a
+  // building or street. Suppressed when the hovered target IS the
+  // current selection (would just overlap the rainbow line).
+  section.appendChild(_subgroup('Hover preview path line', [
+    _toggle('Enabled', HOVER_PATH_LINE, 'ENABLED', {
+      tip: 'Show a draft preview line from the gem to whatever the cursor is currently over.',
+      onChange: applyTheme
+    }),
+    _color ('Color', HOVER_PATH_LINE, 'COLOR', {
+      tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
+      onChange: applyTheme
+    }),
+    _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
+      tip: 'Pixel thickness of the preview line.',
+      onChange: applyTheme
+    }),
+    _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+      tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
       onChange: applyTheme
     })
   ]));

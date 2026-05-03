@@ -48,6 +48,7 @@ import {
   CAMERA_ANIMATION,
   INPUT_TIMING,
   PATH_LINE,
+  HOVER_PATH_LINE,
   RAINBOW
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
@@ -575,6 +576,14 @@ function startRenderLoop(canvas, manifest) {
     pathLineMat.linewidth = plCfg.LINEWIDTH;
     if (pathLine.visible) pathLineMat.opacity = plCfg.OPACITY;
 
+    // Hover preview line — color/linewidth always live; the visibility +
+    // opacity get re-evaluated by _updateHoverPathLine below in case the
+    // ENABLED toggle just flipped.
+    var hplCfg = HOVER_PATH_LINE.get();
+    hoverPathLineMat.color.set(hplCfg.COLOR);
+    hoverPathLineMat.linewidth = hplCfg.LINEWIDTH;
+    _updateHoverPathLine();
+
     // Root gem — edge color + body opacity. Body color is per-vertex
     // (palette baked into the geometry) so we don't recolor it here.
     var gemAppearance = GEM_APPEARANCE.get();
@@ -641,6 +650,30 @@ function startRenderLoop(canvas, manifest) {
   var _pathColorsBuf   = new Float32Array(0);
   var _pathHsl         = new THREE.Color();
 
+  // Hover preview path — same chain logic as the rainbow selection line,
+  // but solid (single-color) and faded so it reads as a draft. Drawn at
+  // a slightly lower elevation than PATH_LINE so the rainbow stays on
+  // top when hover and selection overlap (we also explicitly suppress
+  // hover when hover === selection, but the elevation order is the
+  // safety net for any near-misses).
+  var _hpl = HOVER_PATH_LINE.get();
+  var hoverPathLineMat = new LineMaterial({
+    color:        _hpl.COLOR,
+    linewidth:    _hpl.LINEWIDTH,
+    transparent:  true,
+    opacity:      0.0,
+    depthTest:    true,
+    depthWrite:   false,
+    worldUnits:   false
+  });
+  hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
+  var hoverPathLineGeo = new LineSegmentsGeometry();
+  hoverPathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
+  var hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
+  hoverPathLine.visible = false;
+  hoverPathLine.renderOrder = _orders.PATH_LINE;       // same layer as PATH_LINE
+  scene.add(hoverPathLine);
+
   function _updatePathLine() {
     if (!gemWorldPos || !currentSelection) {
       pathLine.visible = false;
@@ -703,6 +736,59 @@ function startRenderLoop(canvas, manifest) {
       _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
     }
     pathLineGeo.setColors(_pathColorsBuf);
+  }
+
+  // _updateHoverPathLine() — preview path: same chain logic as the
+  // selection line, but driven by `currentHover` instead of selection.
+  // Suppressed when (a) the feature is disabled, (b) no hover, (c)
+  // hover is over the gem (no path makes sense), or (d) hover matches
+  // the current selection (the rainbow line already covers it).
+  function _updateHoverPathLine() {
+    var cfg = HOVER_PATH_LINE.get();
+    function hide() {
+      hoverPathLine.visible = false;
+      hoverPathLineMat.opacity = 0;
+    }
+    if (!cfg.ENABLED || !gemWorldPos || !currentHover) return hide();
+    if (currentHover.kind === NODE_KIND.GEM) return hide();
+    if (_isHoverSameAsSelection()) return hide();
+    // currentHover for a file has { kind:'file', file, data }; for a
+    // directory has { kind:'directory', dir } — both shapes are exactly
+    // what computePathPoints accepts, so we pass it through directly.
+    var pts = computePathPoints(
+      currentHover,
+      { x: gemWorldPos.x, z: gemWorldPos.z },
+      streetsByDirPath
+    );
+    if (pts.length < 2) return hide();
+    var elev = cfg.ELEVATION;
+    var flat = [];
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i];
+      var b = pts[i + 1];
+      flat.push(a.x, elev, a.z, b.x, elev, b.z);
+    }
+    if (hoverPathLineGeo && hoverPathLineGeo.dispose) hoverPathLineGeo.dispose();
+    hoverPathLineGeo = new LineSegmentsGeometry();
+    hoverPathLineGeo.setPositions(flat);
+    hoverPathLine.geometry = hoverPathLineGeo;
+    hoverPathLine.visible = true;
+    hoverPathLineMat.opacity = cfg.OPACITY;
+  }
+
+  // True when `currentHover` and `currentSelection` point at the same
+  // target (same building mesh OR same street). Used to suppress the
+  // hover preview line when it would just overlap the rainbow one.
+  function _isHoverSameAsSelection() {
+    if (!currentHover || !currentSelection) return false;
+    if (currentHover.kind !== currentSelection.kind) return false;
+    if (currentHover.kind === NODE_KIND.FILE) {
+      return currentHover.mesh === currentSelection.mesh;
+    }
+    if (currentHover.kind === NODE_KIND.DIRECTORY) {
+      return currentHover.street === currentSelection.street;
+    }
+    return false;
   }
 
   // ---- Selection + hover state (single source of truth) ----
@@ -829,6 +915,7 @@ function startRenderLoop(canvas, manifest) {
     }
     _refreshSidewalkTints();
     _updatePathLine();
+    _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _saveSelection(sel);
   }
 
@@ -846,6 +933,7 @@ function startRenderLoop(canvas, manifest) {
       hoverOutline.visible = true;
     }
     _refreshSidewalkTints();
+    _updateHoverPathLine();
   }
 
   // Any path that closes the sidebar (X button, Esc, click-empty) clears
@@ -1223,6 +1311,7 @@ function startRenderLoop(canvas, manifest) {
     hoverLineMat.resolution.set(cw, ch);
     selectedLineMat.resolution.set(cw, ch);
     pathLineMat.resolution.set(cw, ch);
+    hoverPathLineMat.resolution.set(cw, ch);
     for (var rmi = 0; rmi < buildingOutlineMats.length; rmi++) {
       buildingOutlineMats[rmi].resolution.set(cw, ch);
     }

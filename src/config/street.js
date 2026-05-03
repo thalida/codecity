@@ -58,6 +58,20 @@ export const PATH_LINE = map({
   OPACITY:   0.95
 });
 
+// ─── Hover preview path line (gem → hovered target) ───────────────────────
+// A draft / "what would happen if I clicked here" version of PATH_LINE,
+// drawn while the cursor is over a hovered building or street. Solid
+// color (not rainbow) and faded so it reads as a preview, not the
+// committed selection. Suppressed when hover matches the current
+// selection (would just overlap the rainbow line).
+export const HOVER_PATH_LINE = map({
+  ENABLED:   true,
+  LINEWIDTH: 3,
+  COLOR:     '#ffffff',
+  OPACITY:   0.35,
+  ELEVATION: 0.25    // sits just below PATH_LINE so the rainbow stays on top
+});
+
 // ─── Street width tiers ────────────────────────────────────────────────────
 // Step-function mapping a directory's descendant count to its street width.
 // The first matching tier from the top wins. Wider streets read as more
