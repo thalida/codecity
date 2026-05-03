@@ -77,7 +77,7 @@ function _stepOpacity(cur, target, cfg) {
 import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
-import { showFileSidebar, showDirSidebar, showEmptySidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
+import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
@@ -101,21 +101,49 @@ function startRenderLoop(canvas, manifest) {
   var dateRanges = getDateRanges(manifest.tree);
   setSidebarPalette(BUILDING_PALETTE.get().HUE_EXT_MAP || {});
 
-  // Sitewide header — owns the visible title + the show/hide-sidebar toggles.
-  // main.js is the source of truth for selection; we push the selected
-  // node's name into the header from _setSelection (and clear it on
-  // close) so data flows downward, not from the sidebar.
-  //
-  // onRightToggle: when the user un-hides the right sidebar via the
-  // header button and there's no current selection, show the empty
-  // state so the panel actually has something to render. (Without this,
-  // an unselected sidebar stays width:0 even after `display: none` is
-  // removed — the .open class is what gives it width.)
+  // ── Sidebar render pump ───────────────────────────────────────────────
+  // Two independent pieces of state drive the right sidebar:
+  //   • sidebarVisible — is the panel showing at all? (header toggle / X)
+  //   • currentSelection — what's selected? (city click, tree click, Esc, …)
+  // _renderSidebar() is the single place that combines them and updates
+  // the DOM. Every input that changes either flag calls it. This means
+  // the toggle icon, body class, and .open class can never disagree —
+  // which fixes the "icon says open but panel is hidden" bug after Esc.
+  var sidebarVisible = false;   // set from appHeader's persisted state below
+
+  function _renderSidebar() {
+    if (!sidebarVisible) {
+      hideSidebar();
+      return;
+    }
+    if (!currentSelection) {
+      showEmptySidebar();
+      return;
+    }
+    if (currentSelection.kind === NODE_KIND.FILE) {
+      showFileSidebar(currentSelection.file);
+    } else if (currentSelection.kind === NODE_KIND.DIRECTORY) {
+      showDirSidebar(currentSelection.dir);
+    }
+  }
+
+  // Sitewide header — owns the title + the show/hide-sidebar toggles.
+  // Toggling visibility just flips sidebarVisible and re-renders.
   var appHeader = initAppHeader({
     onRightToggle: function (hidden) {
-      if (hidden) return;
-      if (!currentSelection) showEmptySidebar();
+      sidebarVisible = !hidden;
+      _renderSidebar();
     },
+  });
+  sidebarVisible = appHeader.isRightVisible();
+
+  // X button inside the sidebar's own header = "hide me". This used to
+  // also clear the selection; it no longer does — selection survives a
+  // hide/show round-trip.
+  setSidebarCloseHandler(function () {
+    sidebarVisible = false;
+    appHeader.setRightVisible(false);   // keeps the header icon in sync
+    _renderSidebar();
   });
 
   for (var i = 0; i < layout.buildings.length; i++) {
@@ -864,19 +892,23 @@ function startRenderLoop(canvas, manifest) {
     if (hits.length > 0) {
       var hit = hits[0];
       var ud  = hit.object.userData;
-      // Gem click → reset view only. Doesn't select anything (just gets
-      // the user back to the default home framing with whatever sidebar
-      // state they had cleared).
+      // Gem click → reset view + clear selection. The sidebar's
+      // visibility is the user's call; we just clear what's shown.
       if (ud.type === NODE_KIND.GEM) {
-        closeSidebar();    // close handler clears selection too
+        _setSelection(null);
         resetView();
         return;
       }
       if (ud.building && ud.building.file) {
         if (ud.building.file.type === NODE_KIND.DIRECTORY) {
           // Directory buildings aren't actually rendered (engine.js skips
-          // them), but if the data ever shows up just open the sidebar.
-          showDirSidebar(ud.building.file);
+          // them); if one ever does show up, treat it like a directory.
+          _setSelection({
+            kind: NODE_KIND.DIRECTORY,
+            sidewalk: null,
+            street: null,
+            dir: ud.building.file,
+          });
         } else {
           _setSelection({
             kind: NODE_KIND.FILE,
@@ -884,7 +916,6 @@ function startRenderLoop(canvas, manifest) {
             data: ud.building,
             file: ud.building.file
           });
-          showFileSidebar(ud.building.file);
         }
         return;
       }
@@ -895,11 +926,10 @@ function startRenderLoop(canvas, manifest) {
           street:   ud.street,
           dir:      ud.street.dir
         });
-        showDirSidebar(ud.street.dir);
         return;
       }
     }
-    closeSidebar();   // close handler clears selection too
+    _setSelection(null);
   }
 
   // ---- Selection persistence ----
@@ -948,13 +978,19 @@ function startRenderLoop(canvas, manifest) {
     _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _saveSelection(sel);
     _syncTreeSelection(sel);
-    // Sitewide header title mirrors the selection's full project-relative
-    // path — the right-sidebar's compact header shows only the filename, so
-    // the path lives up here where it has the room. Sel shape:
+
+    // Sitewide header title mirrors the selection's project-relative path.
+    // Sel shape:
     //   file:      { kind:'file',      mesh, data, file: {name,path,fullPath,...} }
     //   directory: { kind:'directory', sidewalk, street, dir:  {name,path,fullPath,...} }
     var node = sel && (sel.file || sel.dir);
     appHeader.setTitle(node ? (node.path || node.fullPath || node.name || '') : '');
+
+    // Sidebar visibility is the user's call (header toggle / X button) —
+    // selecting something doesn't override it. The panel updates its
+    // content if currently visible; otherwise it just stays hidden with
+    // the new selection ready behind it.
+    _renderSidebar();
   }
 
   // City → tree: mirror the active selection into the left tree pane so
@@ -988,19 +1024,10 @@ function startRenderLoop(canvas, manifest) {
   // sidebar's api is available.
   var _syncTreeHover = function () {};
 
-  // Any path that closes the sidebar (X button, Esc, click-empty) clears
-  // selection AND hover too. Single source of truth — every close path
-  // produces a fully neutral state. (If the cursor is still over a real
-  // pickable, the next pointermove re-establishes hover after the normal
-  // commit debounce — this just clears whatever was visible at close time.)
-  setSidebarCloseHandler(function () {
-    _setSelection(null);
-    if (_hoverRafId)    { cancelAnimationFrame(_hoverRafId); _hoverRafId = 0; }
-    if (_hoverCommitId) { clearTimeout(_hoverCommitId);      _hoverCommitId = 0; }
-    _hoverPending = null;
-    _hoverLastEvt = null;
-    _setHover(null);
-  });
+  // Sidebar X-button handler is wired further up (around the appHeader
+  // setup) — it hides the panel via appHeader.setRightVisible(false)
+  // and re-renders. It deliberately does NOT clear the selection any
+  // more, so re-opening the sidebar shows whatever was selected.
 
   // _syncOutlineToBuilding(outline, mesh, b, scaleFactor=1) — match outline's
   // transform to a building's CURRENT visual size. scaleFactor > 1 expands
@@ -1392,7 +1419,11 @@ function startRenderLoop(canvas, manifest) {
     if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
 
     if (e.key === 'Escape') {
-      closeSidebar();                 // close handler clears selection + focus
+      // Esc clears the selection (and any hover) but leaves sidebar
+      // visibility alone — if the user has it toggled open via the
+      // header, it stays open and re-renders to the empty state.
+      _setSelection(null);
+      _setHover(null);
     } else if (e.key === 'r' || e.key === 'R' || e.key === 'Home') {
       resetView();
     } else if (e.key === 'f' || e.key === 'F') {
@@ -1425,7 +1456,6 @@ function startRenderLoop(canvas, manifest) {
         data: b.building,
         file: b.building.file
       });
-      showFileSidebar(b.building.file);
     } else if (node.type === NODE_KIND.DIRECTORY) {
       var sw = sidewalksByDirPath[node.path];
       var st = streetsByDirPath[node.path];
@@ -1436,7 +1466,6 @@ function startRenderLoop(canvas, manifest) {
         street:   st,
         dir:      st.dir
       });
-      showDirSidebar(st.dir);
     }
   }
   function _onTreeFocus(node) {
@@ -1523,7 +1552,6 @@ function startRenderLoop(canvas, manifest) {
             var _rb = _rm.userData.building;
             if (_rb && _rb.file && _rb.file.path === savedSel.path) {
               _setSelection({ kind: NODE_KIND.FILE, mesh: _rm, data: _rb, file: _rb.file });
-              showFileSidebar(_rb.file);
               restored = true;
               break;
             }
@@ -1538,7 +1566,6 @@ function startRenderLoop(canvas, manifest) {
               street:   sStreet,
               dir:      sStreet.dir
             });
-            showDirSidebar(sStreet.dir);
             restored = true;
           }
         }

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarCloseHandler } from '../../components/sidebar.js';
+import { showFileSidebar, showDirSidebar, hideSidebar, closeSidebar, setSidebarCloseHandler } from '../../components/sidebar.js';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';
@@ -102,19 +102,30 @@ describe('showDirSidebar', () => {
   });
 });
 
-describe('closeSidebar', () => {
+describe('hideSidebar', () => {
   beforeEach(resetDom);
 
   it('removes .open class from #sidebar', () => {
     showFileSidebar(FILE_NODE);
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
-    closeSidebar();
+    hideSidebar();
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(false);
   });
 
   it('does nothing if #sidebar is missing', () => {
     document.body.innerHTML = '';
-    expect(() => closeSidebar()).not.toThrow();
+    expect(() => hideSidebar()).not.toThrow();
+  });
+});
+
+describe('closeSidebar', () => {
+  beforeEach(resetDom);
+
+  it('does NOT mutate the DOM (visibility is owned by the host)', () => {
+    showFileSidebar(FILE_NODE);
+    setSidebarCloseHandler(null);
+    closeSidebar();
+    expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 });
 

@@ -48,40 +48,58 @@ export function initAppHeader(opts) {
     rightBtn.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
   }
 
-  var leftHidden  = _loadFlag(STORAGE_LEFT);
-  var rightHidden = _loadFlag(STORAGE_RIGHT);
+  // Defaults on first run: left sidebar visible (it's the navigator),
+  // right sidebar hidden (it's the inspector — empty until you select).
+  var leftHidden  = _loadFlag(STORAGE_LEFT,  false);
+  var rightHidden = _loadFlag(STORAGE_RIGHT, true);
   document.body.classList.toggle('left-hidden',  leftHidden);
   document.body.classList.toggle('right-hidden', rightHidden);
   _renderLeftIcon(leftHidden);
   _renderRightIcon(rightHidden);
 
   leftBtn.addEventListener('click', function () {
-    leftHidden = !leftHidden;
-    document.body.classList.toggle('left-hidden', leftHidden);
-    _renderLeftIcon(leftHidden);
-    _saveFlag(STORAGE_LEFT, leftHidden);
+    _setLeftHidden(!leftHidden);
     if (onLeftToggle) onLeftToggle(leftHidden);
   });
   rightBtn.addEventListener('click', function () {
-    rightHidden = !rightHidden;
+    _setRightHidden(!rightHidden);
+    if (onRightToggle) onRightToggle(rightHidden);
+  });
+
+  function _setLeftHidden(hidden) {
+    leftHidden = hidden;
+    document.body.classList.toggle('left-hidden', leftHidden);
+    _renderLeftIcon(leftHidden);
+    _saveFlag(STORAGE_LEFT, leftHidden);
+  }
+  function _setRightHidden(hidden) {
+    rightHidden = hidden;
     document.body.classList.toggle('right-hidden', rightHidden);
     _renderRightIcon(rightHidden);
     _saveFlag(STORAGE_RIGHT, rightHidden);
-    if (onRightToggle) onRightToggle(rightHidden);
-  });
+  }
 
   return {
     setTitle: function (text) {
       titleEl.textContent = text || '';
     },
+    // Programmatic visibility — used when the user clicks the X inside
+    // the sidebar's own header so the sitewide button stays in sync.
+    // Doesn't fire onLeftToggle / onRightToggle (caller already knows).
+    setLeftVisible:  function (visible) { _setLeftHidden(!visible); },
+    setRightVisible: function (visible) { _setRightHidden(!visible); },
+    isLeftVisible:   function () { return !leftHidden;  },
+    isRightVisible:  function () { return !rightHidden; },
   };
 }
 
-function _loadFlag(key) {
+function _loadFlag(key, defaultVal) {
   try {
-    return localStorage.getItem(key) === '1';
+    var v = localStorage.getItem(key);
+    if (v == null) return defaultVal;
+    return v === '1';
   } catch (_) {
-    return false;
+    return defaultVal;
   }
 }
 

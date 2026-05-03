@@ -140,9 +140,24 @@ export function showDirSidebar(dir) {
  * Close the sidebar. Fires the registered close handler so the caller can
  * clean up linked state (e.g. scene-level selection visuals).
  */
-export function closeSidebar() {
+/**
+ * Hide the sidebar (remove the .open class so it collapses to width 0).
+ * Pure DOM mutation; does not fire any callback. Use this when the host
+ * has already decided the sidebar should be hidden (e.g. after the user
+ * toggles visibility off via the sitewide header).
+ */
+export function hideSidebar() {
   var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (sidebar) sidebar.classList.remove('open');
+}
+
+/**
+ * Fire the close-button event. The sidebar's X button is a request from
+ * the user to dismiss the panel — it doesn't directly mutate the DOM
+ * here because main.js owns visibility state. Main's close handler will
+ * call hideSidebar (or whatever else) in response.
+ */
+export function closeSidebar() {
   if (_onClose) _onClose();
 }
 
