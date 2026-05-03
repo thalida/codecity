@@ -103,7 +103,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
     try:
         launch(
             url,
-            title=f"CodeCity — {Path(args.path).name}",
+            title=f"CodeCity — {Path(args.path).resolve().name}",
             debug=getattr(args, "debug", False),
         )
     finally:
@@ -139,7 +139,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
             return 3
         launch(
             f"http://127.0.0.1:{VITE_PORT}/",
-            title=f"CodeCity (dev) — {Path(args.path).name}",
+            title=f"CodeCity (dev) — {Path(args.path).resolve().name}",
             debug=getattr(args, "debug", False),
         )
     finally:
