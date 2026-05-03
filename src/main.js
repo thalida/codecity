@@ -275,6 +275,48 @@ function startRenderLoop(canvas, manifest) {
     RIGHT:  THREE.MOUSE.PAN
   };
 
+  // ---- Camera pose persistence ----
+  // Snapshot camera + orbit target to localStorage when the user stops
+  // changing them, so reload picks up where they left off. Uses a
+  // 500ms debounce off OrbitControls' 'change' event — fires for both
+  // user drags AND programmatic animations (resetView, focus-on-X), since
+  // both end up calling controls.update() and detecting position changes.
+  var SAVED_CAMERA_KEY = 'cc.cameraPose';
+  var _saveCameraTimer = 0;
+  function _saveCameraPose() {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      localStorage.setItem(SAVED_CAMERA_KEY, JSON.stringify({
+        pos:    { x: camera.position.x,  y: camera.position.y,  z: camera.position.z  },
+        target: { x: controls.target.x,  y: controls.target.y,  z: controls.target.z  }
+      }));
+    } catch (_) { /* private mode / quota — drop silently */ }
+  }
+  function _scheduleCameraSave() {
+    if (_saveCameraTimer) clearTimeout(_saveCameraTimer);
+    _saveCameraTimer = setTimeout(function () {
+      _saveCameraTimer = 0;
+      _saveCameraPose();
+    }, 500);
+  }
+
+  // Restore saved camera pose on boot, BEFORE attaching the change listener
+  // so the load itself doesn't immediately re-trigger a save.
+  try {
+    if (typeof localStorage !== 'undefined') {
+      var savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
+      if (savedPoseRaw) {
+        var p = JSON.parse(savedPoseRaw);
+        if (p && p.pos && p.target) {
+          camera.position.set(p.pos.x, p.pos.y, p.pos.z);
+          controls.target.set(p.target.x, p.target.y, p.target.z);
+        }
+      }
+    }
+  } catch (_) { /* corrupt JSON / unavailable storage — stay at default */ }
+
+  controls.addEventListener('change', _scheduleCameraSave);
+
   // -- 6. Raycaster picking ----------------------------------------------------
   var raycaster = new THREE.Raycaster();
   var pointer   = new THREE.Vector2();
@@ -728,13 +770,38 @@ function startRenderLoop(canvas, manifest) {
     closeSidebar();   // close handler clears selection too
   }
 
+  // ---- Selection persistence ----
+  // Saved by file.path or dir.path (the only stable identifiers across
+  // reloads — mesh references can't survive). On boot, after the scene's
+  // path lookups are built, _restoreSavedSelection() walks the saved kind
+  // back into a real {kind, mesh, data, file} or {kind, sidewalk, street,
+  // dir} object and re-runs the selection flow.
+  var SAVED_SELECTION_KEY = 'cc.selection';
+  function _saveSelection(sel) {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      if (!sel) {
+        localStorage.removeItem(SAVED_SELECTION_KEY);
+        return;
+      }
+      var snap;
+      if (sel.kind === NODE_KIND.FILE && sel.file && sel.file.path != null) {
+        snap = { kind: 'file', path: sel.file.path };
+      } else if (sel.kind === NODE_KIND.DIRECTORY && sel.dir && sel.dir.path != null) {
+        snap = { kind: 'directory', path: sel.dir.path };
+      } else {
+        return;
+      }
+      localStorage.setItem(SAVED_SELECTION_KEY, JSON.stringify(snap));
+    } catch (_) { /* private mode / quota — drop silently */ }
+  }
+
   // _setSelection(sel) — single entry point for changing what's selected.
   // sel is null OR { kind:'file', mesh, data, file } OR
   //                { kind:'directory', sidewalk, street, dir }.
   //
-  // Computes the path-of-sidewalks (root → selection lineage), then
-  // delegates ALL sidewalk colors to _refreshSidewalkTints(). No manual
-  // tint bookkeeping — every street's color is derived from current state.
+  // Updates the live outlines + sidewalk tints + neon path line, then
+  // persists the selection (by path) so a reload picks it back up.
   function _setSelection(sel) {
     if (currentSelection && currentSelection.kind === NODE_KIND.FILE) {
       selectedOutline.visible = false;
@@ -746,6 +813,7 @@ function startRenderLoop(canvas, manifest) {
     }
     _refreshSidewalkTints();
     _updatePathLine();
+    _saveSelection(sel);
   }
 
   // _setHover(h) — single entry point for hover. Independent of selection
@@ -1149,6 +1217,47 @@ function startRenderLoop(canvas, manifest) {
     onResetView: resetView,
     applyTheme:  applyTheme
   });
+
+  // ---- Restore the previously-selected file/dir, if any ----
+  // Runs AFTER showLeftSidebar so the right-hand sidebar is wired up too.
+  // If the saved path no longer matches anything in the current tree
+  // (file renamed/moved/deleted), drop the entry and start fresh — no
+  // way to recover and we don't want stale paths lingering in storage.
+  try {
+    if (typeof localStorage !== 'undefined') {
+      var savedSelRaw = localStorage.getItem(SAVED_SELECTION_KEY);
+      if (savedSelRaw) {
+        var savedSel = JSON.parse(savedSelRaw);
+        var restored = false;
+        if (savedSel && savedSel.kind === 'file' && savedSel.path != null) {
+          for (var rsi = 0; rsi < buildingMeshes.length; rsi++) {
+            var _rm = buildingMeshes[rsi];
+            var _rb = _rm.userData.building;
+            if (_rb && _rb.file && _rb.file.path === savedSel.path) {
+              _setSelection({ kind: NODE_KIND.FILE, mesh: _rm, data: _rb, file: _rb.file });
+              showFileSidebar(_rb.file);
+              restored = true;
+              break;
+            }
+          }
+        } else if (savedSel && savedSel.kind === 'directory' && savedSel.path != null) {
+          var sw = sidewalksByDirPath[savedSel.path];
+          var sStreet = streetsByDirPath[savedSel.path];
+          if (sw && sStreet && sStreet.dir) {
+            _setSelection({
+              kind:     NODE_KIND.DIRECTORY,
+              sidewalk: sw,
+              street:   sStreet,
+              dir:      sStreet.dir
+            });
+            showDirSidebar(sStreet.dir);
+            restored = true;
+          }
+        }
+        if (!restored) localStorage.removeItem(SAVED_SELECTION_KEY);
+      }
+    }
+  } catch (_) { /* corrupt JSON — ignore */ }
 
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
