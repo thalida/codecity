@@ -64,7 +64,7 @@ export const BUILDING_PALETTE = map({
 // thickness. The chasing-rainbow effect on selected uses RAINBOW (shared
 // with the path line) — see config/effects.js.
 export const BUILDING_OUTLINE = map({
-  WIDTH:            3,            // shared by default + hover + selected
+  WIDTH:            2,            // shared by default + hover + selected
   HOVER_COLOR:      '#ffffff',
   HOVER_OPACITY:    0.85,
   SELECTED_OPACITY: 1.0
@@ -109,7 +109,7 @@ export const BUILDING_FADE = map({
   NEAR_OUTLINE_OPACITY: 0.65,
 
   // Level 2+ — anything farther.
-  FAR_DETAIL:          'silhouette',
+  FAR_DETAIL:          'hidden',
   FAR_OUTLINE:         true,
   FAR_BODY_OPACITY:    0.10,
   FAR_OUTLINE_OPACITY: 0.18

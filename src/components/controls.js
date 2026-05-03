@@ -643,16 +643,20 @@ function _makeResetButton(store, keys, opts) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
-  btn.title = 'Reset to default';
+  btn.title = _formatDefaultTooltip(store, keys);
   btn.setAttribute('aria-label', 'Reset to default');
   btn.appendChild(makeLucideIcon('rotate-ccw'));
   btn.addEventListener('click', function (e) {
+    if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
     for (var i = 0; i < keys.length; i++) resetKey(store, keys[i]);
     onChange();
   });
 
+  // Disabled when value matches default — keeps the icon in layout
+  // (no UI bouncing) but only clickable when there's actually
+  // something to reset.
   function refresh() {
     var state = store.get();
     var changed = false;
@@ -660,11 +664,31 @@ function _makeResetButton(store, keys, opts) {
       var k = keys[i];
       if (!_isEqual(state[k], getDefault(store, k))) { changed = true; break; }
     }
-    btn.classList.toggle('is-visible', changed);
+    btn.disabled = !changed;
   }
   refresh();
   store.subscribe(refresh);
   return btn;
+}
+
+// _formatDefaultTooltip(store, keys) -> "Default: <value>" / "Default: <lo> – <hi>"
+// Used as the reset icon's hover title so the user can see what they'd revert
+// to without clicking. Static — reads the registered default once.
+function _formatDefaultTooltip(store, keys) {
+  if (!keys || keys.length === 0) return 'Reset to default';
+  if (keys.length === 1) {
+    return 'Default: ' + _formatDefaultValue(getDefault(store, keys[0]));
+  }
+  // rangePair (2 keys: min, max)
+  var lo = getDefault(store, keys[0]);
+  var hi = getDefault(store, keys[1]);
+  return 'Default: ' + _formatDefaultValue(lo) + ' – ' + _formatDefaultValue(hi);
+}
+
+function _formatDefaultValue(v) {
+  if (v === null || v === undefined) return '(none)';
+  if (typeof v === 'boolean') return v ? 'on' : 'off';
+  return String(v);
 }
 
 function _isEqual(a, b) {
@@ -793,14 +817,15 @@ function _makeNestedResetButton(store, parentKey, subKey, opts) {
   var btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
-  btn.title = 'Reset to default';
   btn.setAttribute('aria-label', 'Reset to default');
   btn.appendChild(makeLucideIcon('rotate-ccw'));
 
   var defaultMap = getDefault(store, parentKey) || {};
   var defaultVal = defaultMap[subKey];
+  btn.title = 'Default: ' + _formatDefaultValue(defaultVal);
 
   btn.addEventListener('click', function (e) {
+    if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
     var current = store.get()[parentKey] || {};
@@ -815,7 +840,7 @@ function _makeNestedResetButton(store, parentKey, subKey, opts) {
 
   function refresh() {
     var v = (store.get()[parentKey] || {})[subKey];
-    btn.classList.toggle('is-visible', !_isEqual(v, defaultVal));
+    btn.disabled = _isEqual(v, defaultVal);
   }
   refresh();
   store.subscribe(refresh);

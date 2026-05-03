@@ -1567,12 +1567,24 @@ function startRenderLoop(canvas, manifest) {
       }
 
       // ---- Ghost (windowless solid silhouette) ----
+      // When the silhouette is fully opaque it MUST write depth — same
+      // logic as the body above. Without this, Level 1 / Level 2+ tiers
+      // at body opacity 1.0 look solid but are still transparent under
+      // the hood, letting outlines and labels of buildings BEHIND show
+      // through them.
       var ghost = buildingGhosts[bi];
       if (ghost) {
         ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
         ghost.position.copy(m.position);
-        ghost.material.opacity = m.userData.ghostOp;
-        ghost.visible = m.userData.ghostOp > 0;
+        var ghostOp = m.userData.ghostOp;
+        var ghostTransparent = ghostOp < OPAQUE_THRESHOLD;
+        if (ghost.material.transparent !== ghostTransparent) {
+          ghost.material.transparent = ghostTransparent;
+          ghost.material.depthWrite  = !ghostTransparent;
+          ghost.material.needsUpdate = true;
+        }
+        ghost.material.opacity = ghostOp;
+        ghost.visible = ghostOp > 0;
       }
     }
 

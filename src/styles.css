@@ -787,7 +787,8 @@ canvas {
  * is purely informational. */
 .theme-row-reset {
   flex: 0 0 auto;
-  display: none;
+  display: inline-flex;
+  align-items: center;
   background: none;
   border: 1px solid transparent;
   padding: 3px 5px;
@@ -798,17 +799,17 @@ canvas {
   font-size: 14px;
   line-height: 1;
 }
-.theme-row-reset.is-visible {
-  display: inline-flex;
-  align-items: center;
-}
-.theme-row-reset:hover {
+.theme-row-reset:not(:disabled):hover {
   color: #ffffff;
   background: rgba(108, 138, 255, 0.18);
   border-color: rgba(108, 138, 255, 0.45);
 }
-.theme-row-reset:active {
+.theme-row-reset:not(:disabled):active {
   background: rgba(108, 138, 255, 0.30);
+}
+.theme-row-reset:disabled {
+  cursor: default;
+  color: rgba(108, 138, 255, 0.22);
 }
 
 /* Rebuild badge: SUBTLE and informational. Just the refresh-cw glyph
