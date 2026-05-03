@@ -43,11 +43,11 @@ describe('showFileSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders the filename as the leaf breadcrumb segment', () => {
+  it('renders the filename in the header', () => {
     showFileSidebar(FILE_NODE);
-    const leaf = document.querySelector('.editor-header-segment.is-leaf');
-    expect(leaf).not.toBeNull();
-    expect(leaf.textContent).toBe('index.ts');
+    const name = document.querySelector('.editor-header-name');
+    expect(name).not.toBeNull();
+    expect(name.textContent).toBe('index.ts');
   });
 
   it('renders an extension chip in the header', () => {
@@ -67,9 +67,9 @@ describe('showFileSidebar', () => {
   it('clears existing content on re-open', () => {
     showFileSidebar(FILE_NODE);
     showFileSidebar({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
-    const leaves = document.querySelectorAll('.editor-header-segment.is-leaf');
-    expect(leaves.length).toBe(1);
-    expect(leaves[0].textContent).toBe('utils.ts');
+    const names = document.querySelectorAll('.editor-header-name');
+    expect(names.length).toBe(1);
+    expect(names[0].textContent).toBe('utils.ts');
   });
 
   it('does nothing if #sidebar is missing', () => {
@@ -86,9 +86,9 @@ describe('showDirSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders directory name as leaf breadcrumb + dir chip', () => {
+  it('renders directory name in the header + dir chip', () => {
     showDirSidebar(DIR_NODE);
-    expect(document.querySelector('.editor-header-segment.is-leaf').textContent).toBe('src');
+    expect(document.querySelector('.editor-header-name').textContent).toBe('src');
     expect(document.querySelector('.editor-tab-chip-dir').textContent).toBe('dir');
   });
 

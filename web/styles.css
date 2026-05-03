@@ -198,37 +198,22 @@ canvas {
   background: #6c8aff;
 }
 
-/* The breadcrumb sits right after the chip in normal reading order. It's
-   shrinkable so a very long path doesn't push the close button off-screen
-   — the leading folders simply truncate (with a tooltip restoring them). */
-.editor-header-path {
+/* Filename next to the chip. The full path lives up in the sitewide
+   header — this row is intentionally name-only so the chrome stays
+   compact. Long names truncate with ellipsis; tooltip restores them. */
+.editor-header-name {
   flex: 0 1 auto;
   min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 4px;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
-  color: #6a7090;
+  font-size: 12px;
+  font-weight: 500;
+  color: #e0e4f5;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 .editor-header-spacer {
   flex: 1 1 auto;
-}
-
-.editor-header-segment {
-  flex: 0 0 auto;
-}
-.editor-header-segment.is-leaf {
-  color: #e0e4f5;
-  font-weight: 500;
-}
-.editor-header-sep {
-  flex: 0 0 auto;
-  color: #44485e;
-  font-size: 12px;
 }
 
 /* Per-extension chip in the header. Hue comes from JS. */
@@ -484,6 +469,10 @@ canvas {
   z-index: 90;
   overflow: hidden;
 }
+/* Until showLeftSidebar populates the tree, the empty container would
+   show as a lighter strip on the left during the manifest fetch / scene
+   build. Hide it while empty so the initial paint is just the header. */
+#tree-sidebar:empty { display: none; }
 
 /* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
  * 6px hit zone makes it easy to grab. */

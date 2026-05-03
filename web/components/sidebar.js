@@ -80,9 +80,15 @@ export function showFileSidebar(file) {
   _applyPersistedWidth(sidebar);
   sidebar.classList.add('open');
 
-  // Single compact header row: ext chip \u00b7 breadcrumb (path) \u00b7 copy \u00b7 close.
+  // Single compact header row: ext chip \u00b7 filename \u00b7 copy \u00b7 close.
+  // Path lives in the sitewide header up top; copy button still copies
+  // the full relative path even though it's not displayed here.
   var extChip = file.extension ? _makeExtChip(file.extension) : null;
-  sidebar.appendChild(_makeEditorHeader(extChip, file.path || file.fullPath || ''));
+  sidebar.appendChild(_makeEditorHeader(
+    extChip,
+    file.name || '',
+    file.path || file.fullPath || ''
+  ));
 
   // Editor body \u2014 the preview fills the panel.
   var body = document.createElement('div');
@@ -115,7 +121,11 @@ export function showDirSidebar(dir) {
   _applyPersistedWidth(sidebar);
   sidebar.classList.add('open');
 
-  sidebar.appendChild(_makeEditorHeader(_makeDirChip(), dir.path || dir.fullPath || ''));
+  sidebar.appendChild(_makeEditorHeader(
+    _makeDirChip(),
+    dir.name || '',
+    dir.path || dir.fullPath || ''
+  ));
 
   // Body: a compact info panel — directories don't have an editor view.
   var body = document.createElement('div');
@@ -242,46 +252,23 @@ function _makeDirChip() {
 }
 
 /**
- * Single compact header row: chip + breadcrumb path + copy + close.
+ * Single compact header row: chip + name + copy + spacer + close.
  *
- * Replaces the old two-row tab+breadcrumb chrome — only one file can be
- * open at a time, so a separate "tab" strip carries no information the
- * breadcrumb's leaf segment doesn't already convey. The leaf segment is
- * styled brighter so it still reads as the filename at a glance.
+ * The full path lives in the sitewide app header up top; this row carries
+ * just the filename. The copy button still operates on the full path
+ * (passed in separately) so users can grab it without reading it.
  */
-function _makeEditorHeader(chipEl, pathText) {
+function _makeEditorHeader(chipEl, name, pathForCopy) {
   var header = document.createElement('div');
   header.className = 'editor-header';
 
-  // [chip] [path] [copy] ───spacer──── [close]
   if (chipEl) header.appendChild(chipEl);
 
-  var crumbs = document.createElement('div');
-  crumbs.className = 'editor-header-path';
-  crumbs.title = pathText || '';   // tooltip restores any truncated portion
-
-  var segments = (pathText || '').split('/').filter(Boolean);
-  if (segments.length === 0) {
-    var none = document.createElement('span');
-    none.className = 'editor-header-segment is-leaf';
-    none.textContent = pathText || '/';
-    crumbs.appendChild(none);
-  } else {
-    for (var i = 0; i < segments.length; i++) {
-      var seg = document.createElement('span');
-      seg.className = 'editor-header-segment';
-      if (i === segments.length - 1) seg.classList.add('is-leaf');
-      seg.textContent = segments[i];
-      crumbs.appendChild(seg);
-      if (i < segments.length - 1) {
-        var sep = document.createElement('span');
-        sep.className = 'editor-header-sep';
-        sep.textContent = '›';
-        crumbs.appendChild(sep);
-      }
-    }
-  }
-  header.appendChild(crumbs);
+  var nameEl = document.createElement('div');
+  nameEl.className = 'editor-header-name';
+  nameEl.textContent = name || '';
+  nameEl.title = pathForCopy || name || '';  // tooltip exposes the path
+  header.appendChild(nameEl);
 
   var copyBtn = document.createElement('button');
   copyBtn.className = 'editor-header-icon';
@@ -290,7 +277,7 @@ function _makeEditorHeader(chipEl, pathText) {
   copyBtn.setAttribute('aria-label', 'Copy path');
   copyBtn.appendChild(makeLucideIcon('copy', { title: 'Copy path' }));
   copyBtn.addEventListener('click', function () {
-    copyToClipboard(pathText, copyBtn);
+    copyToClipboard(pathForCopy || '', copyBtn);
   });
   header.appendChild(copyBtn);
 

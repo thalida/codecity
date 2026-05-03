@@ -948,12 +948,13 @@ function startRenderLoop(canvas, manifest) {
     _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _saveSelection(sel);
     _syncTreeSelection(sel);
-    // Sitewide header title mirrors the selection. Sel shape:
-    //   file:      { kind:'file',      mesh, data, file: {name,...} }
-    //   directory: { kind:'directory', sidewalk, street, dir:  {name,...} }
-    appHeader.setTitle(
-      sel ? ((sel.file && sel.file.name) || (sel.dir && sel.dir.name) || '') : ''
-    );
+    // Sitewide header title mirrors the selection's full project-relative
+    // path — the right-sidebar's compact header shows only the filename, so
+    // the path lives up here where it has the room. Sel shape:
+    //   file:      { kind:'file',      mesh, data, file: {name,path,fullPath,...} }
+    //   directory: { kind:'directory', sidewalk, street, dir:  {name,path,fullPath,...} }
+    var node = sel && (sel.file || sel.dir);
+    appHeader.setTitle(node ? (node.path || node.fullPath || node.name || '') : '');
   }
 
   // City → tree: mirror the active selection into the left tree pane so
