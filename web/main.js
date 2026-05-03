@@ -274,16 +274,14 @@ function startRenderLoop(canvas, manifest) {
   );
 
   // Isometric framing from the -X/+Y/+Z octant. Orbit pivot sits ON THE
-  // GROUND at the center of the ROOT STREET (the main road) — anchored to
-  // the city's spine, not the bbox center, so subdirectory branches don't
-  // pull the pivot off-axis.
+  // GROUND at the bbox center so the city is visually centered in the
+  // canvas (an asymmetric layout — long branches on one side — would
+  // otherwise drift off-screen if we anchored to the root street).
   var center = new THREE.Vector3();
   bbox.getCenter(center);
 
   var rootStreet = (layout.streets || []).filter(function (s) { return s.isRoot; })[0];
-  var groundCenter = rootStreet
-    ? new THREE.Vector3(rootStreet.x, 0, rootStreet.y)
-    : new THREE.Vector3(center.x, 0, center.z);
+  var groundCenter = new THREE.Vector3(center.x, 0, center.z);
 
   // Gem world position (origin end of the root street). Used by street
   // focus to orient the camera so the gem reliably sits at the top of the
