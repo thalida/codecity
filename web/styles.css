@@ -295,6 +295,33 @@ canvas {
   overflow-y: auto;
 }
 
+/* Empty-state body — shown when the right sidebar is opened via the
+   sitewide header toggle without an active selection. */
+.editor-body-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.editor-empty-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 20px;
+  color: #44485e;
+  text-align: center;
+}
+.editor-empty-hint .lucide-icon {
+  font-size: 28px;
+  opacity: 0.5;
+}
+.editor-empty-hint p {
+  margin: 0;
+  max-width: 240px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ── Status bar ─────────────────────────────────────────────────────────── */
 
 .editor-status-bar {

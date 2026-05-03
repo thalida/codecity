@@ -77,7 +77,7 @@ function _stepOpacity(cur, target, cfg) {
 import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
-import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
+import { showFileSidebar, showDirSidebar, showEmptySidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
@@ -105,7 +105,18 @@ function startRenderLoop(canvas, manifest) {
   // main.js is the source of truth for selection; we push the selected
   // node's name into the header from _setSelection (and clear it on
   // close) so data flows downward, not from the sidebar.
-  var appHeader = initAppHeader();
+  //
+  // onRightToggle: when the user un-hides the right sidebar via the
+  // header button and there's no current selection, show the empty
+  // state so the panel actually has something to render. (Without this,
+  // an unselected sidebar stays width:0 even after `display: none` is
+  // removed — the .open class is what gives it width.)
+  var appHeader = initAppHeader({
+    onRightToggle: function (hidden) {
+      if (hidden) return;
+      if (!currentSelection) showEmptySidebar();
+    },
+  });
 
   for (var i = 0; i < layout.buildings.length; i++) {
     var b = layout.buildings[i];

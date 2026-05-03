@@ -137,6 +137,34 @@ export function closeSidebar() {
 }
 
 /**
+ * Open the sidebar with an empty-state placeholder. Used when the user
+ * shows the sidebar via the sitewide header toggle but nothing is
+ * currently selected.
+ */
+export function showEmptySidebar() {
+  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
+  if (!sidebar) return;
+
+  _clearContent(sidebar);
+  _ensureResizeHandle(sidebar);
+  _applyPersistedWidth(sidebar);
+  sidebar.classList.add('open');
+
+  var body = document.createElement('div');
+  body.className = 'editor-body editor-body-empty';
+
+  var hint = document.createElement('div');
+  hint.className = 'editor-empty-hint';
+  hint.appendChild(makeLucideIcon('mouse-pointer-click'));
+  var msg = document.createElement('p');
+  msg.textContent = 'Select a file or folder in the city to inspect it here.';
+  hint.appendChild(msg);
+  body.appendChild(hint);
+
+  sidebar.appendChild(body);
+}
+
+/**
  * Copy text to the clipboard with a brief visual confirmation on the trigger button.
  *
  * Uses navigator.clipboard (modern) with fallback to the legacy execCommand API

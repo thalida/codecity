@@ -12,9 +12,19 @@ var STORAGE_RIGHT = 'cc.appRightHidden';
  * Initialise the sitewide header. Adds Lucide icons to the existing
  * toggle buttons in index.html and wires their click handlers; restores
  * persisted hidden state from localStorage. Returns a small API the
- * sidebar component uses to push the current selection title.
+ * caller uses to push the current selection title and to react to the
+ * user toggling either sidebar.
+ *
+ * @param {Object} [opts]
+ * @param {Function} [opts.onRightToggle]  fn(hidden:boolean) — fires after
+ *   the user clicks the right-sidebar toggle. Caller can show an empty
+ *   state when un-hiding with no current selection, etc.
+ * @param {Function} [opts.onLeftToggle]   fn(hidden:boolean)
  */
-export function initAppHeader() {
+export function initAppHeader(opts) {
+  opts = opts || {};
+  var onRightToggle = typeof opts.onRightToggle === 'function' ? opts.onRightToggle : null;
+  var onLeftToggle  = typeof opts.onLeftToggle  === 'function' ? opts.onLeftToggle  : null;
   var leftBtn  = document.getElementById('toggle-left-sidebar');
   var rightBtn = document.getElementById('toggle-right-sidebar');
   var titleEl  = document.getElementById('app-title');
@@ -50,12 +60,14 @@ export function initAppHeader() {
     document.body.classList.toggle('left-hidden', leftHidden);
     _renderLeftIcon(leftHidden);
     _saveFlag(STORAGE_LEFT, leftHidden);
+    if (onLeftToggle) onLeftToggle(leftHidden);
   });
   rightBtn.addEventListener('click', function () {
     rightHidden = !rightHidden;
     document.body.classList.toggle('right-hidden', rightHidden);
     _renderRightIcon(rightHidden);
     _saveFlag(STORAGE_RIGHT, rightHidden);
+    if (onRightToggle) onRightToggle(rightHidden);
   });
 
   return {
