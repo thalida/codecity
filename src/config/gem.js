@@ -3,6 +3,8 @@
 // and animation tuning (hot-reloadable, read fresh per frame).
 
 import { map, atom } from 'nanostores';
+// (atom kept for GEM_FACE_PALETTE — the others moved into the GEM_APPEARANCE
+// map below.)
 
 // ─── Sizing + landing zone ────────────────────────────────────────────────
 // Layout reserves dead space around the gem based on these — changing any
@@ -29,14 +31,14 @@ export const GEM_FACE_PALETTE = atom([
   [0.40, 1.00, 0.30]    // lime
 ]);
 
-// ─── Edge color ────────────────────────────────────────────────────────────
-// Neutral separator line drawn around the gem's faces. Hot-reloadable.
-export const GEM_EDGE_COLOR = atom('#f0f0ff');
-
-// ─── Body opacity ──────────────────────────────────────────────────────────
-// The gem mesh renders semi-transparent so the colored faces have a
-// jewel-like quality (fully opaque feels like a plastic toy). Hot-reloadable.
-export const GEM_BODY_OPACITY = atom(0.9);
+// ─── Appearance ────────────────────────────────────────────────────────────
+// Edge color = neutral separator line drawn around the faces. Body opacity
+// keeps the gem semi-transparent so the colored faces have a jewel-like
+// quality (fully opaque feels like a plastic toy). Both hot-reloadable.
+export const GEM_APPEARANCE = map({
+  EDGE_COLOR:   '#f0f0ff',
+  BODY_OPACITY: 0.9
+});
 
 // ─── Animation ─────────────────────────────────────────────────────────────
 // Read fresh each frame in the render loop, so changes apply immediately.

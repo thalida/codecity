@@ -17,9 +17,3 @@ export const RENDER_ORDERS = map({
   SELECTED_OUTLINE: 7         // chasing-rainbow selected wireframe
 });
 
-// Materials with opacity below this go transparent (depthWrite off,
-// alpha-blending on). Above it they're treated as opaque even if their
-// material declares transparent: true.
-export const TRANSPARENCY = map({
-  OPAQUE_THRESHOLD: 0.999
-});

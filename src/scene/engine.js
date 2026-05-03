@@ -12,14 +12,12 @@ import {
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
-  STREET_GEOMETRY,
   BUILDING_PALETTE,
   BUILDING_SHADING,
   BUILDING_FACADE,
   GEM_SIZING,
   GEM_FACE_PALETTE,
-  GEM_EDGE_COLOR,
-  GEM_BODY_OPACITY,
+  GEM_APPEARANCE,
   GEM_ANIMATION,
   RENDER_ORDERS
 } from '../config/index.js';
@@ -343,7 +341,7 @@ function _buildStadiumGeometry(length, width, orientation) {
     shape.lineTo(r, halfStraight);
     shape.absarc(0, halfStraight, r, 0, Math.PI, false);
   }
-  return new THREE.ShapeGeometry(shape, STREET_GEOMETRY.get().STADIUM_SEGMENTS);
+  return new THREE.ShapeGeometry(shape, ASPHALT.get().STADIUM_SEGMENTS);
 }
 
 
@@ -420,7 +418,8 @@ function createStreetMesh(street, yBase) {
 // beacon regardless of what's around it.
 function createRootGem(street) {
   var sizing    = GEM_SIZING.get();
-  var edgeColor = GEM_EDGE_COLOR.get();
+  var appearance = GEM_APPEARANCE.get();
+  var edgeColor  = appearance.EDGE_COLOR;
   var group     = new THREE.Group();
 
   // Gem size scales with the street's width. The layout reserves extra dead
@@ -467,7 +466,7 @@ function createRootGem(street) {
   var body = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity:     GEM_BODY_OPACITY.get(),
+    opacity:     appearance.BODY_OPACITY,
     depthWrite:  false
   }));
 

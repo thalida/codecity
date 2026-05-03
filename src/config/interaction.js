@@ -4,16 +4,14 @@
 
 import { map } from 'nanostores';
 
-// ─── Click vs drag detection ───────────────────────────────────────────────
-export const CLICK = map({
-  MOVE_THRESHOLD_PX: 5,        // pointer must move less than this to count as a click
-  TIME_THRESHOLD_MS: 400       // …and release within this window
-});
-
-// ─── Hover stickiness ──────────────────────────────────────────────────────
-// Throttles the heavy fade cascade when sweeping the cursor across the scene.
-export const HOVER = map({
-  COMMIT_MS: 35                // ms cursor must stay on a target before committing
+// ─── Pointer input timing ─────────────────────────────────────────────────
+// Click vs drag detection + hover stickiness, grouped because they all
+// describe how the pointer feel works.
+export const INPUT_TIMING = map({
+  CLICK_MOVE_THRESHOLD_PX: 5,    // pointer must move < this px to count as a click
+  CLICK_TIME_THRESHOLD_MS: 400,  // …and release within this window
+  HOVER_COMMIT_MS:         35    // ms cursor must stay on a target before
+                                 // the heavy fade cascade commits
 });
 
 // ─── Tooltip placement ────────────────────────────────────────────────────
@@ -45,7 +43,3 @@ export const PATH_LINE = map({
   RAINBOW_SPEED:      0.0006   // hue chase speed
 });
 
-// ─── Misc thresholds ──────────────────────────────────────────────────────
-export const LABEL_FLIP_HYSTERESIS = map({
-  THRESHOLD: 0.15              // axis-crossing sensitivity for label flip
-});

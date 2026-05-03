@@ -8,21 +8,33 @@
 //                 button at the bottom does location.reload() — the
 //                 changes survive because every store is mirrored to
 //                 localStorage by config/_persist.js.
+//
+// What's NOT exposed here (still in config for code-level centralization,
+// just not surfaced as a UI control because it's either engine-internal
+// or designer-only fine tuning):
+//   - RENDER_ORDERS, GLYPHS, UI_TEXT, UI_TIMING, ACTIVITY_BAR_TABS,
+//     LUCIDE_ICON_BASE_URL, BYTE_FORMATTING, DATE_FORMAT_OPTIONS,
+//     NUMBER_READOUT  — engine + UI plumbing
+//   - BUILDING_SHADING, BUILDING_FACADE, BUILDING_PALETTE.HUE_EXT_MAP —
+//     facade rendering minutiae
+//   - CAMERA_ANIMATION sightline knobs — obstacle-detection internals
+//   - STREET_TIERS — needs a tier-list editor, not a slider
 
 import {
   // Theme (hot-reloadable) stores
   SCENE_COLORS, ASPHALT, SIDEWALK_COLORS, BUILDING_OUTLINE, BUILDING_FADE,
-  HOVER, PIVOT_PING, PATH_LINE, GEM_ANIMATION, GEM_EDGE_COLOR,
-  GEM_BODY_OPACITY, TOOLTIP, CLICK, LABEL_FLIP_HYSTERESIS, SIDEBAR_BADGE,
+  PIVOT_PING, PATH_LINE, GEM_ANIMATION, GEM_APPEARANCE, TOOLTIP,
+  INPUT_TIMING, SIDEBAR_BADGE, LABEL_TYPOGRAPHY,
   // Advanced (rebuild-required) stores
-  LAYOUT_GAPS, BUILDING_DIMENSIONS, BUILDING_PALETTE, BUILDING_SHADING,
-  BUILDING_FACADE, LABEL_TYPOGRAPHY, STREET_GEOMETRY, GEM_SIZING,
+  LAYOUT_GAPS, BUILDING_DIMENSIONS, BUILDING_PALETTE, GEM_SIZING,
   CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION,
-  RENDER_ORDERS, TRANSPARENCY,
   // UI text + glyphs
   UI_TEXT
 } from '../config/index.js';
 import { clearPersistence } from '../config/_persist.js';
+
+// 1 MB in bytes — surface SIZE_CEILING_BYTES in MB units for readability.
+var BYTES_PER_MB = 1024 * 1024;
 
 // buildControlsPane(opts) -> HTMLElement
 //
@@ -105,8 +117,8 @@ function _buildThemeSection(applyTheme) {
 
   // ── Background ─────────────────────────────────────────────────────────
   section.appendChild(_subgroup('Background', [
-    _color('Ground',  SCENE_COLORS, 'GROUND',  applyTheme),
-    _color('Asphalt', ASPHALT,      'COLOR',   applyTheme)
+    _color('Ground',  SCENE_COLORS, 'GROUND', applyTheme),
+    _color('Asphalt', ASPHALT,      'COLOR',  applyTheme)
   ]));
 
   // ── Sidewalks ──────────────────────────────────────────────────────────
@@ -132,26 +144,25 @@ function _buildThemeSection(applyTheme) {
 
   // ── Fade tiers ─────────────────────────────────────────────────────────
   section.appendChild(_subgroup('Fade animation', [
-    _slider('Lerp speed',     BUILDING_FADE, 'LERP_SPEED',     0.01, 1.0,  0.01, applyTheme),
-    _slider('Fade top',       BUILDING_FADE, 'FADE_TOP',       0.0,  1.0,  0.05, applyTheme),
-    _slider('Fade bottom',    BUILDING_FADE, 'FADE_BOTTOM',    0.0,  1.0,  0.05, applyTheme),
-    _slider('Near body',      BUILDING_FADE, 'TIER_NEAR_BODY',    0.0, 1.0, 0.05, applyTheme),
-    _slider('Near outline',   BUILDING_FADE, 'TIER_NEAR_OUTLINE', 0.0, 1.0, 0.05, applyTheme),
-    _slider('Near ghost',     BUILDING_FADE, 'TIER_NEAR_GHOST',   0.0, 1.0, 0.05, applyTheme),
-    _slider('Far body',       BUILDING_FADE, 'TIER_FAR_BODY',     0.0, 1.0, 0.05, applyTheme),
-    _slider('Far outline',    BUILDING_FADE, 'TIER_FAR_OUTLINE',  0.0, 1.0, 0.05, applyTheme),
-    _slider('Far ghost',      BUILDING_FADE, 'TIER_FAR_GHOST',    0.0, 1.0, 0.05, applyTheme),
+    _slider('Lerp speed',        BUILDING_FADE, 'LERP_SPEED',     0.01, 1.0,  0.01, applyTheme),
+    _slider('Fade top',          BUILDING_FADE, 'FADE_TOP',       0.0,  1.0,  0.05, applyTheme),
+    _slider('Fade bottom',       BUILDING_FADE, 'FADE_BOTTOM',    0.0,  1.0,  0.05, applyTheme),
+    _slider('Near body',         BUILDING_FADE, 'TIER_NEAR_BODY',    0.0, 1.0, 0.05, applyTheme),
+    _slider('Near outline',      BUILDING_FADE, 'TIER_NEAR_OUTLINE', 0.0, 1.0, 0.05, applyTheme),
+    _slider('Near ghost',        BUILDING_FADE, 'TIER_NEAR_GHOST',   0.0, 1.0, 0.05, applyTheme),
+    _slider('Far body',          BUILDING_FADE, 'TIER_FAR_BODY',     0.0, 1.0, 0.05, applyTheme),
+    _slider('Far outline',       BUILDING_FADE, 'TIER_FAR_OUTLINE',  0.0, 1.0, 0.05, applyTheme),
+    _slider('Far ghost',         BUILDING_FADE, 'TIER_FAR_GHOST',    0.0, 1.0, 0.05, applyTheme),
     _slider('Hover min opacity', BUILDING_FADE, 'HOVER_MIN_OPACITY', 0.0, 1.0, 0.05, applyTheme)
   ]));
 
   // ── Interaction feel ───────────────────────────────────────────────────
   section.appendChild(_subgroup('Interaction', [
-    _number('Hover commit (ms)',     HOVER,     'COMMIT_MS',         0,   500, 5, applyTheme),
-    _number('Click move px',         CLICK,     'MOVE_THRESHOLD_PX', 1,    50, 1, applyTheme),
-    _number('Click time (ms)',       CLICK,     'TIME_THRESHOLD_MS', 100, 1000, 50, applyTheme),
-    _number('Tooltip offset (px)',   TOOLTIP,   'OFFSET_PX',         0,    40, 1, applyTheme),
-    _number('Tooltip viewport pad',  TOOLTIP,   'VIEWPORT_MARGIN_PX', 0,   20, 1, applyTheme),
-    _slider('Label flip hysteresis', LABEL_FLIP_HYSTERESIS, 'THRESHOLD', 0, 0.5, 0.01, applyTheme)
+    _number('Hover commit (ms)',   INPUT_TIMING, 'HOVER_COMMIT_MS',         0,   500, 5, applyTheme),
+    _number('Click move px',       INPUT_TIMING, 'CLICK_MOVE_THRESHOLD_PX', 1,    50, 1, applyTheme),
+    _number('Click time (ms)',     INPUT_TIMING, 'CLICK_TIME_THRESHOLD_MS', 100, 1000, 50, applyTheme),
+    _number('Tooltip offset (px)', TOOLTIP,      'OFFSET_PX',               0,    40, 1, applyTheme),
+    _number('Tooltip viewport pad', TOOLTIP,     'VIEWPORT_MARGIN_PX',      0,    20, 1, applyTheme)
   ]));
 
   // ── Pivot ping ─────────────────────────────────────────────────────────
@@ -165,22 +176,22 @@ function _buildThemeSection(applyTheme) {
 
   // ── Path line ──────────────────────────────────────────────────────────
   section.appendChild(_subgroup('Path line', [
-    _number('Linewidth',         PATH_LINE, 'LINEWIDTH',          1, 20, 1, applyTheme),
-    _slider('Opacity',           PATH_LINE, 'OPACITY',           0.0, 1.0, 0.05, applyTheme),
-    _slider('Rainbow speed',     PATH_LINE, 'RAINBOW_SPEED',     0, 0.005, 0.0001, applyTheme),
+    _number('Linewidth',          PATH_LINE, 'LINEWIDTH',         1, 20, 1, applyTheme),
+    _slider('Opacity',            PATH_LINE, 'OPACITY',           0.0, 1.0, 0.05, applyTheme),
+    _slider('Rainbow speed',      PATH_LINE, 'RAINBOW_SPEED',     0, 0.005, 0.0001, applyTheme),
     _slider('Rainbow saturation', PATH_LINE, 'RAINBOW_SATURATION', 0, 1, 0.05, applyTheme),
-    _slider('Rainbow lightness', PATH_LINE, 'RAINBOW_LIGHTNESS', 0, 1, 0.05, applyTheme)
+    _slider('Rainbow lightness',  PATH_LINE, 'RAINBOW_LIGHTNESS', 0, 1, 0.05, applyTheme)
   ]));
 
   // ── Root gem ───────────────────────────────────────────────────────────
   section.appendChild(_subgroup('Root gem', [
-    _atomColor ('Edge color',    GEM_EDGE_COLOR,                              applyTheme),
-    _atomSlider('Body opacity',  GEM_BODY_OPACITY,         0.0, 1.0, 0.05, applyTheme),
-    _slider    ('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED',   0,  3,   0.05, applyTheme),
-    _slider    ('Bob frequency',  GEM_ANIMATION, 'BOB_FREQUENCY',    0,  5,   0.1,  applyTheme),
-    _slider    ('Bob amplitude',  GEM_ANIMATION, 'BOB_AMPLITUDE_FRAC', 0, 2,  0.05, applyTheme),
-    _slider    ('Hover scale',    GEM_ANIMATION, 'HOVER_SCALE',      1,  3,   0.05, applyTheme),
-    _slider    ('Scale lerp',     GEM_ANIMATION, 'SCALE_LERP_SPEED', 0.01, 1, 0.01, applyTheme)
+    _color ('Edge color',     GEM_APPEARANCE, 'EDGE_COLOR',                       applyTheme),
+    _slider('Body opacity',   GEM_APPEARANCE, 'BODY_OPACITY',         0.0, 1.0, 0.05, applyTheme),
+    _slider('Rotation speed', GEM_ANIMATION,  'ROTATION_SPEED',         0, 3,   0.05, applyTheme),
+    _slider('Bob frequency',  GEM_ANIMATION,  'BOB_FREQUENCY',          0, 5,   0.1,  applyTheme),
+    _slider('Bob amplitude',  GEM_ANIMATION,  'BOB_AMPLITUDE_FRAC',     0, 2,   0.05, applyTheme),
+    _slider('Hover scale',    GEM_ANIMATION,  'HOVER_SCALE',            1, 3,   0.05, applyTheme),
+    _slider('Scale lerp',     GEM_ANIMATION,  'SCALE_LERP_SPEED',    0.01, 1,   0.01, applyTheme)
   ]));
 
   // ── Sidebar badge ──────────────────────────────────────────────────────
@@ -191,6 +202,11 @@ function _buildThemeSection(applyTheme) {
     _number('Text lightness',    SIDEBAR_BADGE, 'TEXT_LIGHTNESS',    0, 100, 5, applyTheme),
     _number('Border saturation', SIDEBAR_BADGE, 'BORDER_SATURATION', 0, 100, 5, applyTheme),
     _number('Border lightness',  SIDEBAR_BADGE, 'BORDER_LIGHTNESS',  0, 100, 5, applyTheme)
+  ]));
+
+  // ── Misc visual feel ──────────────────────────────────────────────────
+  section.appendChild(_subgroup('Misc', [
+    _slider('Label flip hysteresis', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, applyTheme)
   ]));
 
   return section;
@@ -214,7 +230,8 @@ function _buildAdvancedSection() {
     'they take effect. Edit values, then click Apply & Reload at the bottom.';
   section.appendChild(hint);
 
-  // No-op: Advanced widgets just mutate stores. Persistence captures them.
+  // Advanced widgets just mutate stores — persistence captures them; the
+  // Apply & Reload button at the bottom flushes them via location.reload().
   var noop = function () {};
 
   // ── Layout ─────────────────────────────────────────────────────────────
@@ -228,16 +245,19 @@ function _buildAdvancedSection() {
 
   // ── Building dimensions ────────────────────────────────────────────────
   section.appendChild(_subgroup('Building dimensions', [
-    _number('Lines per floor',    BUILDING_DIMENSIONS, 'LINES_PER_FLOOR',    1, 200, 1, noop),
     _number('Min floors',         BUILDING_DIMENSIONS, 'MIN_FLOORS',         1, 50, 1, noop),
     _number('Max floors',         BUILDING_DIMENSIONS, 'MAX_FLOORS',         1, 200, 1, noop),
     _number('Floor height',       BUILDING_DIMENSIONS, 'FLOOR_HEIGHT',       1, 50, 1, noop),
     _number('Min width',          BUILDING_DIMENSIONS, 'MIN_WIDTH',          1, 100, 1, noop),
     _number('Max width',          BUILDING_DIMENSIONS, 'MAX_WIDTH',          1, 200, 1, noop),
-    _number('Size ceiling bytes', BUILDING_DIMENSIONS, 'SIZE_CEILING_BYTES', 1024, 100000000, 1024, noop)
+    // Surface SIZE_CEILING_BYTES in MB units — way more legible than
+    // raw bytes (10 MB vs 10485760).
+    _scaledNumber('Size ceiling (MB)', BUILDING_DIMENSIONS, 'SIZE_CEILING_BYTES', BYTES_PER_MB, 1, 1024, 1, noop)
   ]));
 
-  // ── Building palette (HSL ranges + fallback colors) ────────────────────
+  // ── Building palette HSL ranges + fallback colors ──────────────────────
+  // (Hue-extension map is a structured object — edit src/config/building.js
+  // directly for now; a tier editor would be a separate UI feature.)
   section.appendChild(_subgroup('Building palette', [
     _number('Saturation min',  BUILDING_PALETTE, 'SATURATION_MIN',  0, 100, 5, noop),
     _number('Saturation max',  BUILDING_PALETTE, 'SATURATION_MAX',  0, 100, 5, noop),
@@ -245,37 +265,6 @@ function _buildAdvancedSection() {
     _number('Lightness max',   BUILDING_PALETTE, 'LIGHTNESS_MAX',   0, 100, 5, noop),
     _color ('Fallback color',  BUILDING_PALETTE, 'FALLBACK_COLOR',  noop),
     _color ('Directory color', BUILDING_PALETTE, 'DIRECTORY_COLOR', noop)
-  ]));
-
-  // ── Building shading (palette → derivative-color knobs) ────────────────
-  section.appendChild(_subgroup('Building shading', [
-    _number('Wall front Δlight',  BUILDING_SHADING, 'WALL_FRONT_LIGHTNESS_DELTA', -50, 50, 1, noop),
-    _number('Wall front Δhue',    BUILDING_SHADING, 'WALL_FRONT_HUE_SHIFT',       -180, 180, 5, noop),
-    _slider('Wall side ratio',    BUILDING_SHADING, 'WALL_SIDE_DARKEN_RATIO',     0, 1, 0.05, noop),
-    _number('Wall side Δlight',   BUILDING_SHADING, 'WALL_SIDE_LIGHTNESS_DELTA',  -50, 50, 1, noop),
-    _number('Wall side floor',    BUILDING_SHADING, 'WALL_SIDE_LIGHTNESS_FLOOR',  0, 100, 1, noop),
-    _number('Slab front Δlight',  BUILDING_SHADING, 'SLAB_FRONT_LIGHTNESS_DELTA', -50, 50, 1, noop),
-    _number('Slab front Δhue',    BUILDING_SHADING, 'SLAB_FRONT_HUE_SHIFT',       -180, 180, 5, noop),
-    _slider('Slab side ratio',    BUILDING_SHADING, 'SLAB_SIDE_DARKEN_RATIO',     0, 1, 0.05, noop),
-    _number('Slab side Δlight',   BUILDING_SHADING, 'SLAB_SIDE_LIGHTNESS_DELTA',  -50, 50, 1, noop),
-    _number('Slab side floor',    BUILDING_SHADING, 'SLAB_SIDE_LIGHTNESS_FLOOR',  0, 100, 1, noop),
-    _number('Window Δlight',      BUILDING_SHADING, 'WINDOW_LIGHTNESS_DELTA',     -50, 50, 1, noop),
-    _number('Door Δlight',        BUILDING_SHADING, 'DOOR_LIGHTNESS_DELTA',       -100, 100, 1, noop),
-    _number('Roof border Δlight', BUILDING_SHADING, 'ROOF_BORDER_LIGHTNESS_DELTA', -50, 50, 1, noop)
-  ]));
-
-  // ── Building facade rendering ──────────────────────────────────────────
-  section.appendChild(_subgroup('Building facade', [
-    _number('Texture min width',     BUILDING_FACADE, 'TEXTURE_MIN_WIDTH_PX',        16, 1024, 16, noop),
-    _number('Texture min height',    BUILDING_FACADE, 'TEXTURE_MIN_HEIGHT_PX',       16, 1024, 16, noop),
-    _number('Anisotropy',            BUILDING_FACADE, 'ANISOTROPY',                  1, 16, 1, noop),
-    _slider('Slab height frac',      BUILDING_FACADE, 'SLAB_HEIGHT_FRAC',            0, 0.5, 0.01, noop),
-    _slider('Window margin frac',    BUILDING_FACADE, 'WINDOW_MARGIN_FRAC',          0, 0.5, 0.01, noop),
-    _slider('Window width frac',     BUILDING_FACADE, 'WINDOW_WIDTH_FRAC',           0, 1, 0.05, noop),
-    _slider('Window height frac',    BUILDING_FACADE, 'WINDOW_HEIGHT_FRAC',          0, 1, 0.05, noop),
-    _number('Window cols max',       BUILDING_FACADE, 'WINDOW_COLS_MAX',             1, 20, 1, noop),
-    _slider('Door width frac',       BUILDING_FACADE, 'DOOR_WIDTH_FRAC',             0, 1, 0.02, noop),
-    _slider('Door height frac',      BUILDING_FACADE, 'DOOR_HEIGHT_FRAC',            0, 1, 0.05, noop)
   ]));
 
   // ── Label typography ───────────────────────────────────────────────────
@@ -290,17 +279,20 @@ function _buildAdvancedSection() {
     _slider('Elevation',      LABEL_TYPOGRAPHY, 'ELEVATION',         0, 5, 0.1, noop)
   ]));
 
-  // ── Street geometry ────────────────────────────────────────────────────
-  section.appendChild(_subgroup('Street geometry', [
-    _atomNumber('Stadium segments', STREET_GEOMETRY, 'STADIUM_SEGMENTS', 4, 64, 1, noop)
+  // ── Asphalt geometry ───────────────────────────────────────────────────
+  // (COLOR is in the Theme tab; these geometry knobs are rebuild-required.)
+  section.appendChild(_subgroup('Asphalt geometry', [
+    _slider('Width frac',       ASPHALT, 'WIDTH_FRAC',       0.1, 1, 0.05, noop),
+    _slider('Length min frac',  ASPHALT, 'LENGTH_MIN_FRAC',  0,   1, 0.05, noop),
+    _number('Stadium segments', ASPHALT, 'STADIUM_SEGMENTS', 4,  64, 1,    noop)
   ]));
 
   // ── Gem sizing (re-layout because layout reserves clearance) ───────────
   section.appendChild(_subgroup('Gem sizing', [
-    _slider('Radius / street',   GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, noop),
-    _number('Min radius',        GEM_SIZING, 'MIN_RADIUS',            1, 50, 1, noop),
-    _slider('Hover lift frac',   GEM_SIZING, 'HOVER_LIFT_FRAC',       0, 2, 0.05, noop),
-    _number('Building clearance', GEM_SIZING, 'BUILDING_CLEARANCE',   0, 100, 1, noop)
+    _slider('Radius / street',    GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, noop),
+    _number('Min radius',         GEM_SIZING, 'MIN_RADIUS',            1, 50, 1, noop),
+    _slider('Hover lift frac',    GEM_SIZING, 'HOVER_LIFT_FRAC',       0, 2, 0.05, noop),
+    _number('Building clearance', GEM_SIZING, 'BUILDING_CLEARANCE',    0, 100, 1, noop)
   ]));
 
   // ── Camera ─────────────────────────────────────────────────────────────
@@ -319,20 +311,6 @@ function _buildAdvancedSection() {
     _slider('Street view length',   CAMERA_ANIMATION,   'STREET_FOCUS_LENGTH_FRAC',  0.1, 1.5, 0.05, noop),
     _number('Street view width ×',  CAMERA_ANIMATION,   'STREET_FOCUS_WIDTH_MULT',  1, 20, 1, noop),
     _number('Street elevation deg', CAMERA_ANIMATION,   'STREET_FOCUS_ELEVATION_DEG', 30, 89, 1, noop)
-  ]));
-
-  // ── Render orders + transparency ───────────────────────────────────────
-  section.appendChild(_subgroup('Render orders', [
-    _number('Sidewalk',         RENDER_ORDERS, 'SIDEWALK',         0, 20, 1, noop),
-    _number('Path connector',   RENDER_ORDERS, 'PATH_CONNECTOR',   0, 20, 1, noop),
-    _number('Asphalt',          RENDER_ORDERS, 'ASPHALT',          0, 20, 1, noop),
-    _number('Pivot ping',       RENDER_ORDERS, 'PIVOT_PING',       0, 20, 1, noop),
-    _number('Path line',        RENDER_ORDERS, 'PATH_LINE',        0, 20, 1, noop),
-    _number('Hover outline',    RENDER_ORDERS, 'HOVER_OUTLINE',    0, 20, 1, noop),
-    _number('Building outline', RENDER_ORDERS, 'BUILDING_OUTLINE', 0, 20, 1, noop),
-    _number('Street label',     RENDER_ORDERS, 'STREET_LABEL',     0, 20, 1, noop),
-    _number('Selected outline', RENDER_ORDERS, 'SELECTED_OUTLINE', 0, 20, 1, noop),
-    _slider('Opaque threshold', TRANSPARENCY,  'OPAQUE_THRESHOLD', 0, 1, 0.001, noop)
   ]));
 
   // ── Action buttons ─────────────────────────────────────────────────────
@@ -397,7 +375,6 @@ function _row(labelText, control) {
   return row;
 }
 
-// ── Map-store widgets (.get()[KEY], .setKey(KEY, v)) ──────────────────────
 function _color(label, store, key, onChange) {
   var input = document.createElement('input');
   input.type = 'color';
@@ -435,42 +412,21 @@ function _slider(label, store, key, min, max, step, onChange) {
   });
 }
 
-// ── Atom-store widgets (.get(), .set(v)) — for single-value stores ────────
-function _atomColor(label, atom, onChange) {
-  var input = document.createElement('input');
-  input.type = 'color';
-  input.className = 'theme-color';
-  input.value = _toHexInputValue(atom.get());
-  input.addEventListener('input', function () {
-    atom.set(input.value);
-    onChange();
-  });
-  return _row(label, input);
-}
-
-function _atomSlider(label, atom, min, max, step, onChange) {
-  return _sliderWidget(label, atom.get(), min, max, step, function (v) {
-    atom.set(v);
-    onChange();
-  });
-}
-
-function _atomNumber(label, target, key, min, max, step, onChange) {
-  // Convenience for atoms whose value is a small object with one key.
-  // (STREET_GEOMETRY = atom({ STADIUM_SEGMENTS: 16 })).
+// _scaledNumber — for stored values whose raw unit is hostile (e.g. bytes).
+// The widget displays + edits in DISPLAY_UNIT (e.g. MB) and converts to/from
+// the stored unit via `unit` (e.g. 1024*1024 for MB→bytes).
+function _scaledNumber(label, store, key, unit, min, max, step, onChange) {
   var input = document.createElement('input');
   input.type = 'number';
   input.min = String(min);
   input.max = String(max);
   input.step = String(step);
-  input.value = String(target.get()[key]);
+  input.value = String(store.get()[key] / unit);
   input.className = 'theme-number';
   input.addEventListener('input', function () {
     var v = parseFloat(input.value);
     if (!Number.isFinite(v)) return;
-    var next = Object.assign({}, target.get());
-    next[key] = v;
-    target.set(next);
+    store.setKey(key, Math.round(v * unit));
     onChange();
   });
   return _row(label, input);

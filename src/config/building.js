@@ -10,7 +10,6 @@ import { map } from 'nanostores';
 // Floors = sqrt-normalized across the project's own line-count range; width
 // = log-normalized against SIZE_CEILING_BYTES.
 export const BUILDING_DIMENSIONS = map({
-  LINES_PER_FLOOR:    20,            // smaller = taller buildings
   MIN_FLOORS:         1,
   MAX_FLOORS:         50,
   FLOOR_HEIGHT:       10,            // scene units per floor
@@ -114,27 +113,25 @@ export const BUILDING_OUTLINE = map({
 // dimmed based on its directory-tree distance from the selection. All
 // hot-reloadable.
 export const BUILDING_FADE = map({
-  LERP_SPEED:             0.18,    // per-frame easing toward target opacity
-  SNAP_THRESHOLD:         0.005,   // close-enough threshold to stop lerping
+  LERP_SPEED:        0.18,    // per-frame easing toward target opacity
+  SNAP_THRESHOLD:    0.005,   // close-enough threshold to stop lerping
+  // Material.opacity above this counts as opaque (depthWrite on, full
+  // alpha). Just below 1.0 so any faded tier flips to true transparency.
+  OPAQUE_THRESHOLD:  0.999,
   // Crossfade band between textured (windowed) mesh and windowless ghost.
-  // FADE_BOTTOM must stay above TIER_NEAR.BODY so faded tiers never reveal
+  // FADE_BOTTOM must stay above TIER_NEAR_BODY so faded tiers never reveal
   // windows.
-  FADE_TOP:               1.0,
-  FADE_BOTTOM:            0.7,
+  FADE_TOP:          1.0,
+  FADE_BOTTOM:       0.7,
   // Tier values for "1 hop along the selection's spine".
-  TIER_NEAR_BODY:         0.65,
-  TIER_NEAR_OUTLINE:      0.40,
-  TIER_NEAR_GHOST:        0.85,
+  TIER_NEAR_BODY:    0.65,
+  TIER_NEAR_OUTLINE: 0.40,
+  TIER_NEAR_GHOST:   0.85,
   // Tier values for everything farther than 1 hop (outline-only "distant").
-  TIER_FAR_BODY:          0.18,
-  TIER_FAR_OUTLINE:       0.12,
-  TIER_FAR_GHOST:         0.20,
+  TIER_FAR_BODY:     0.18,
+  TIER_FAR_OUTLINE:  0.12,
+  TIER_FAR_GHOST:    0.20,
   // A hovered file building never fades below this opacity even if it sits
   // in the FAR tier.
-  HOVER_MIN_OPACITY:      0.7,
-  // Obstructor floors when a building is selected (currently disabled but
-  // kept tunable for the parked re-enable).
-  OBSTRUCTOR_MIN:         0.10,
-  OBSTRUCTOR_OUTLINE_MIN: 0.20,
-  OBSTRUCTOR_GHOST_MIN:   0.20
+  HOVER_MIN_OPACITY: 0.7
 });

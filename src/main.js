@@ -36,20 +36,18 @@ import {
   SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
+  LABEL_TYPOGRAPHY,
   BUILDING_OUTLINE,
   BUILDING_FADE,
-  HOVER,
   GEM_ANIMATION,
-  GEM_EDGE_COLOR,
+  GEM_APPEARANCE,
   CAMERA_PERSPECTIVE,
   CAMERA_CONTROLS,
   CAMERA_ANIMATION,
-  CLICK,
+  INPUT_TIMING,
   PIVOT_PING,
   PATH_LINE,
-  RENDER_ORDERS,
-  TRANSPARENCY,
-  LABEL_FLIP_HYSTERESIS
+  RENDER_ORDERS
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
 import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT } from './constants.js';
@@ -542,7 +540,7 @@ function startRenderLoop(canvas, manifest) {
 
     // Root gem edges color.
     if (rootGemEdges && rootGemEdges.material && rootGemEdges.material.color) {
-      rootGemEdges.material.color.set(GEM_EDGE_COLOR.get());
+      rootGemEdges.material.color.set(GEM_APPEARANCE.get().EDGE_COLOR);
     }
   }
 
@@ -696,10 +694,10 @@ function startRenderLoop(canvas, manifest) {
     var dx = e.clientX - downX;
     var dy = e.clientY - downY;
     var dtime = Date.now() - downTime;
-    var clickCfg = CLICK.get();
-    var moveSq = clickCfg.MOVE_THRESHOLD_PX * clickCfg.MOVE_THRESHOLD_PX;
+    var input  = INPUT_TIMING.get();
+    var moveSq = input.CLICK_MOVE_THRESHOLD_PX * input.CLICK_MOVE_THRESHOLD_PX;
     if (dx * dx + dy * dy > moveSq) return;
-    if (dtime > clickCfg.TIME_THRESHOLD_MS) return;
+    if (dtime > input.CLICK_TIME_THRESHOLD_MS) return;
     _handlePick(e.clientX, e.clientY);
   });
 
@@ -1121,7 +1119,7 @@ function startRenderLoop(canvas, manifest) {
       var toCommit = _hoverPending;
       _hoverPending = null;
       if (!_sameHover(toCommit, currentHover)) _setHover(toCommit);
-    }, HOVER.get().COMMIT_MS);
+    }, INPUT_TIMING.get().HOVER_COMMIT_MS);
   }
 
   function _sameHover(a, b) {
@@ -1347,11 +1345,9 @@ function startRenderLoop(canvas, manifest) {
       // the camera that visually overlaps it gets EXTRA fade so the
       // selected building stays visible at any rotation/zoom. Applies on
       // top of the tier above (multiplies it down).
-      if (bldgTarget && m !== bldgTarget && obstructorIds && obstructorIds[m.id]) {
-        target     = Math.min(target, fadeCfg.OBSTRUCTOR_MIN);
-        outlineDim = Math.min(outlineDim, fadeCfg.OBSTRUCTOR_OUTLINE_MIN);
-        ghostDim   = Math.min(ghostDim, fadeCfg.OBSTRUCTOR_GHOST_MIN);
-      }
+      // Obstructor detection is currently disabled (`obstructorIds` is
+      // always null below); when re-enabled it'd dim obstructors here.
+      // Tier values were removed from BUILDING_FADE since they were dead.
       // Hover restore: a hovered building never drops below HOVER_MIN_OPACITY.
       if (m === hoverMesh && target < fadeCfg.HOVER_MIN_OPACITY) {
         target = fadeCfg.HOVER_MIN_OPACITY;
@@ -1391,7 +1387,7 @@ function startRenderLoop(canvas, manifest) {
       // have one material per face). Material.transparent flag triggers
       // a shader recompile, so only flip it when it actually changed.
       var mats = Array.isArray(m.material) ? m.material : [m.material];
-      var transparent = texturedAlpha < TRANSPARENCY.get().OPAQUE_THRESHOLD;
+      var transparent = texturedAlpha < fadeCfg.OPAQUE_THRESHOLD;
       for (var ki = 0; ki < mats.length; ki++) {
         var mat = mats[ki];
         if (mat.transparent !== transparent) {
@@ -1495,7 +1491,7 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   // Without this, near-top-down camera positions (where rightX/rightZ are
   // near zero) cause floating-point jitter from OrbitControls' damping to
   // flip labels back and forth every frame.
-  var THRESH = LABEL_FLIP_HYSTERESIS.get().THRESHOLD;
+  var THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
 
   for (var i = 0; i < labels.length; i++) {
     var lbl = labels[i];

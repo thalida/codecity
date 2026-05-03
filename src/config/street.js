@@ -1,17 +1,18 @@
 // config/street.js — Everything visual about a street: asphalt, sidewalks,
 // road labels, geometry. The asphalt color + sidewalk variants are
-// hot-reloadable; label typography is rebuild-required (baked into
-// CanvasTextures).
+// hot-reloadable; label typography + stadium segments are rebuild-required
+// (baked into CanvasTextures and ShapeGeometry respectively).
 
-import { map, atom } from 'nanostores';
+import { map } from 'nanostores';
 
-// ─── Asphalt (the inner stripe of every street) ────────────────────────────
-// COLOR is hot-reloadable; WIDTH_FRAC + LENGTH_MIN_FRAC affect geometry and
-// require a rebuild.
+// ─── Asphalt (the inner stripe of every street) + street geometry ─────────
+// COLOR is hot-reloadable; WIDTH_FRAC + LENGTH_MIN_FRAC + STADIUM_SEGMENTS
+// affect geometry and require a rebuild.
 export const ASPHALT = map({
-  COLOR:           '#1a1d28',
-  WIDTH_FRAC:      0.6,        // asphalt width = street width × this
-  LENGTH_MIN_FRAC: 0.2         // asphalt length floor = street length × this
+  COLOR:            '#1a1d28',
+  WIDTH_FRAC:       0.6,        // asphalt width = street width × this
+  LENGTH_MIN_FRAC:  0.2,        // asphalt length floor = street length × this
+  STADIUM_SEGMENTS: 16          // arc segments around each rounded street cap
 });
 
 // ─── Sidewalk tints ────────────────────────────────────────────────────────
@@ -45,10 +46,8 @@ export const LABEL_TYPOGRAPHY = map({
   TEXT_BASELINE:     'middle',
   // Y elevation (world units) of the label plane above the asphalt.
   // Tiny lift to avoid coplanar z-fighting with the road below.
-  ELEVATION:         0.5
+  ELEVATION:         0.5,
+  // Hysteresis for the camera-orbit label-flip decision (see main.js
+  // _orientLabelsForCamera). Hot-reloadable, read each frame.
+  FLIP_HYSTERESIS:   0.15
 });
-
-// ─── Stadium / pill geometry segments ──────────────────────────────────────
-// Number of segments used to round the street's cap arcs. Higher = smoother
-// rounded ends, lower = polygonal. Rebuild-required.
-export const STREET_GEOMETRY = atom({ STADIUM_SEGMENTS: 16 });
