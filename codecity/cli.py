@@ -84,7 +84,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
     manifest = _scan_from_args(args)
 
-    server, port, shutdown = start_server(manifest, port=args.port)
+    _, port, shutdown = start_server(manifest, port=args.port)
     url = f"http://127.0.0.1:{port}/"
     print(f"[codecity] serving on {url}", file=sys.stderr)
 
@@ -100,7 +100,11 @@ def cmd_serve(args: argparse.Namespace) -> int:
         return 0
 
     try:
-        launch(url, title=f"CodeCity — {Path(args.path).name}")
+        launch(
+            url,
+            title=f"CodeCity — {Path(args.path).name}",
+            debug=getattr(args, "debug", False),
+        )
     finally:
         shutdown()
     return 0
@@ -117,7 +121,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
 
     manifest = _scan_from_args(args)
 
-    server, port, shutdown = start_server(manifest, port=DEFAULT_API_PORT)
+    _, port, shutdown = start_server(manifest, port=DEFAULT_API_PORT)
     print(f"[codecity] api server on http://127.0.0.1:{port}", file=sys.stderr)
 
     vite_proc = subprocess.Popen(
@@ -135,6 +139,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
         launch(
             f"http://127.0.0.1:{VITE_PORT}/",
             title=f"CodeCity (dev) — {Path(args.path).name}",
+            debug=getattr(args, "debug", False),
         )
     finally:
         if vite_proc.poll() is None:
@@ -179,10 +184,16 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip opening the PyWebView window; serve only.",
     )
+    p_serve.add_argument(
+        "--debug",
+        action="store_true",
+        help="Open the PyWebView window with developer tools enabled.",
+    )
     p_serve.set_defaults(func=cmd_serve)
 
     p_dev = sub.add_parser("dev", help="Run with Vite dev server + HMR.")
     _add_scan_args(p_dev)
+    p_dev.add_argument("--debug", action="store_true", help="Enable webview dev tools.")
     p_dev.set_defaults(func=cmd_dev)
 
     p_scan = sub.add_parser("scan", help="Emit the scanned manifest as JSON.")
