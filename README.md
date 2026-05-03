@@ -1,30 +1,50 @@
-# CodeCity AI
+# CodeCity
 
-CodeCity AI is an AI plugin that visualizes codebases as 3D cities. Give an agent a directory and it walks the tree, collects file metadata and git history, then assembles a single self-contained HTML file you can open in any browser. Directories become streets — wide boulevards for large directories, narrow alleys for small ones. Files become buildings whose shape and color encode information: how big the file is, how old it is, when it was last touched, and what language it is written in.
+CodeCity visualizes a codebase as an isometric 3D city. Point it at a directory and it walks the tree, collects file metadata + git history, and opens a desktop window where directories are streets and files are buildings. Building shape and color encode size, line count, language, and how recently the code changed.
 
 ## Quick start
 
-Install as a Claude Code plugin:
+```sh
+uv tool install codecity            # or: pipx install codecity
+codecity /path/to/your/repo
+```
+
+A window opens with the city. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help.
+
+## How it works
+
+- **Scan** — Python walks the tree once, gathers stat + git metadata in memory.
+- **Serve** — A local HTTP server (`127.0.0.1:<random-port>`) hands the manifest to the frontend at `/api/manifest`.
+- **Render** — A PyWebView window loads the bundled three.js renderer from the same server. Nothing leaves your machine.
+
+## CLI
 
 ```sh
-claude plugin add github:thalida/codecity-ai
+codecity PATH                       # shorthand for: codecity serve PATH
+codecity serve PATH [--port N] [--no-window]
+codecity dev   PATH                 # Vite + HMR for frontend dev
+codecity scan  PATH [--output FILE] # emit the manifest as JSON
+
+codecity --help
+codecity --version
 ```
 
-Then either run the slash command or ask naturally:
+Every subcommand accepts the same scan flags:
 
-```text
-/codecity
-/codecity ./src --depth 3
-show me the city for this repo
-```
+| Flag             | Default   | Meaning                                  |
+| ---------------- | --------- | ---------------------------------------- |
+| `--depth N`      | unlimited | Max directory depth                      |
+| `--include PAT`  | —         | Only filenames matching this glob        |
+| `--exclude PAT`  | —         | Skip filenames matching this glob        |
+| `--no-gitignore` | off       | Include files even if `.gitignored`      |
 
-The agent will ask a few clarifying questions (what to scan, how deep, where to save the output), generate the HTML file, and tell you where to open it.
+Git timestamps are preferred over filesystem timestamps when the scanned directory is a git repository.
 
-## Building properties
+## Building visual encoding
 
-Each file in the tree becomes a building. Visual properties map directly to file data:
+Each file becomes a building. Visual properties map directly to data:
 
-| Property   | Data source           | Meaning                                                            |
+| Property   | Source                | Meaning                                                            |
 | ---------- | --------------------- | ------------------------------------------------------------------ |
 | Height     | Line count            | Taller = more lines of code                                        |
 | Width      | File size (bytes)     | Wider = larger file on disk                                        |
@@ -33,63 +53,58 @@ Each file in the tree becomes a building. Visual properties map directly to file
 | Saturation | File age (created)    | Vivid = newer file, faded = older file                             |
 | Lightness  | Last modified date    | Bright = recently changed, dim = long untouched                    |
 
-Git timestamps are preferred over filesystem timestamps when the scanned directory is a git repository.
+Tweak any of these live from the in-app Controls pane (left sidebar → gear icon).
 
-## Configuration
+## Requirements
 
-Flags can be passed directly to the invocation:
+- Python ≥ 3.11
+- Git (optional — only used when the scanned dir is a repo)
+- For `dev` mode: Node.js + npm
 
-```text
-/codecity ./src --depth 2
-/codecity --output ~/Desktop --exclude "*.test.*"
-/codecity --no-gitignore --include "*.ts"
-```
-
-| Flag                  | Default        | Description                              |
-| --------------------- | -------------- | ---------------------------------------- |
-| `--root <path>`       | cwd            | Directory to scan                        |
-| `--depth <n>`         | unlimited      | Max directory levels                     |
-| `--output <path>`     | `~/.codecity/` | Where to write the HTML file             |
-| `--exclude <pattern>` | —              | Skip files matching this pattern         |
-| `--include <pattern>` | —              | Only include files matching this pattern |
-| `--no-gitignore`      | —              | Disable `.gitignore` filtering           |
-
-Color overrides live in `src/defaults.json`. Ask the agent to tweak a hue for a specific extension and it will edit that file.
-
-## Installation on other platforms
-
-### Cursor
-
-Copy or symlink the plugin directory into your Cursor rules folder, then reference `skills/codecity/SKILL.md` from your project's `.cursor/rules`.
-
-### Codex
-
-```sh
-ln -s /path/to/codecity-ai ~/.codex/plugins/codecity-ai
-```
-
-### OpenCode
-
-Add the plugin path to your OpenCode configuration under the `plugins` key.
-
-### Gemini
-
-Place the plugin directory where Gemini can resolve it as a tool and reference `skills/codecity/SKILL.md` as the skill definition.
+PyWebView pulls its system webview backend automatically (Cocoa on macOS, GTK or Qt on Linux, Edge WebView2 on Windows).
 
 ## Development
 
-Requirements: `python3 ≥ 3.9` and `git`. Node + vite only for `npm run dev` / `npm run build`.
-
-```bash
-npm run dev        # scan cwd, launch vite HMR against src/
-npm run build      # rebuild the shipped plugin artifact
-npm test           # vitest + script tests + build-drift check
+```sh
+git clone https://github.com/thalida/codecity-ai.git
+cd codecity-ai
+uv sync                  # python deps
+npm install              # frontend deps
+npm run build            # build frontend → codecity/static/
+uv run codecity .        # smoke test against this repo
 ```
 
-Generate an HTML directly without the agent:
+Hot-reload loop while editing the frontend:
 
-```bash
-python3 src/codecity.py --root /path/to/project --output out.html
+```sh
+uv run codecity dev .
+```
+
+That spawns Vite on `:5173` and the Python API on `:8765`, opens the window pointed at Vite, and tears both down when you close the window.
+
+### Tests
+
+```sh
+npm test                 # vitest (web/tests/)
+uv run pytest            # pytest (codecity/tests/)
+```
+
+### Layout
+
+```text
+codecity/        # python package
+  cli.py         # argparse + dispatcher
+  scan.py        # filesystem + git walker
+  server.py      # stdlib http server + /api routes
+  webview.py     # pywebview launcher
+  static/        # vite build output (committed)
+  tests/         # pytest
+
+web/             # vite frontend source
+  index.html
+  main.js
+  components/, scene/, config/
+  tests/         # vitest
 ```
 
 ## License
