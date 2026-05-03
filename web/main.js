@@ -137,13 +137,12 @@ function startRenderLoop(canvas, manifest) {
   });
   sidebarVisible = appHeader.isRightVisible();
 
-  // X button inside the sidebar's own header = "hide me". This used to
-  // also clear the selection; it no longer does — selection survives a
-  // hide/show round-trip.
+  // X button inside the sidebar's own header = "deselect". Clears the
+  // selection but leaves visibility alone, so the panel snaps to the
+  // empty state instead of disappearing. (Same shape as Esc / click-empty;
+  // the X is just another route to the same neutral state.)
   setSidebarCloseHandler(function () {
-    sidebarVisible = false;
-    appHeader.setRightVisible(false);   // keeps the header icon in sync
-    _renderSidebar();
+    _setSelection(null);
   });
 
   for (var i = 0; i < layout.buildings.length; i++) {

@@ -48,10 +48,10 @@ export function initAppHeader(opts) {
     rightBtn.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
   }
 
-  // Defaults on first run: left sidebar visible (it's the navigator),
-  // right sidebar hidden (it's the inspector — empty until you select).
+  // Both sidebars default to visible on first run. The right starts in
+  // its empty state (no selection); the left starts on its tree pane.
   var leftHidden  = _loadFlag(STORAGE_LEFT,  false);
-  var rightHidden = _loadFlag(STORAGE_RIGHT, true);
+  var rightHidden = _loadFlag(STORAGE_RIGHT, false);
   document.body.classList.toggle('left-hidden',  leftHidden);
   document.body.classList.toggle('right-hidden', rightHidden);
   _renderLeftIcon(leftHidden);
