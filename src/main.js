@@ -287,6 +287,13 @@ function startRenderLoop(canvas, manifest) {
     RIGHT:  THREE.MOUSE.PAN
   };
 
+  // Snapshot the true default pose BEFORE the persistence block can
+  // overwrite camera.position / controls.target with a saved pose.
+  // resetView() animates back to these values, so they must reflect
+  // the freshly-fitted defaults, not whatever the user last navigated to.
+  var initialCamPos = camera.position.clone();
+  var initialTarget = controls.target.clone();
+
   // ---- Camera pose persistence ----
   // Snapshot camera + orbit target to localStorage when the user stops
   // changing them, so reload picks up where they left off. Uses a
@@ -336,9 +343,6 @@ function startRenderLoop(canvas, manifest) {
   // Click vs. drag: track pointerdown→pointerup with a movement + time threshold.
   var downX = 0, downY = 0, downTime = 0;
 
-  // Reusable infinite ground plane (Y=0) for raycasting empty space.
-  var groundPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
-  var groundHit    = new THREE.Vector3();
   var camAnimToken = 0;
 
   var _orders = RENDER_ORDERS;
@@ -858,16 +862,11 @@ function startRenderLoop(canvas, manifest) {
     outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
   }
 
-  // Initial camera pose — captured here so the Controls panel's "Reset View"
-  // button can return to it after the user has navigated away.
-  var initialCamPos = camera.position.clone();
-  var initialTarget = controls.target.clone();
-
   // Double-click + F dispatch by what's under the cursor:
   //   - building → frame the door face head-on
   //   - street   → square the street to screen-horizontal and zoom in for
   //                navigating it
-  //   - empty    → recenter pivot to ground point (slide camera with delta)
+  //   - empty    → ignored (focus only acts on real pickable objects)
   canvas.addEventListener('dblclick', function (e) {
     var rect = canvas.getBoundingClientRect();
     var ndcX =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
@@ -880,28 +879,23 @@ function startRenderLoop(canvas, manifest) {
     raycaster.setFromCamera(pointer, camera);
 
     var hits = raycaster.intersectObjects(getPickables(), false);
-    if (hits.length > 0) {
-      var hit = hits[0];
-      var ud  = hit.object.userData;
-      if (ud.type === NODE_KIND.GEM) {       // dblclick gem also resets view
-        resetView();
-        return;
-      }
-      if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
-        _focusOnBuilding(hit.object, ud.building);
-        return;
-      }
-      if (ud.street) {
-        _focusOnStreet(ud.street, hit.point);
-        return;
-      }
-      _recenterPivotToPoint(new THREE.Vector3(hit.point.x, 0, hit.point.z));
+    if (hits.length === 0) return;
+
+    var hit = hits[0];
+    var ud  = hit.object.userData;
+    if (ud.type === NODE_KIND.GEM) {       // dblclick gem also resets view
+      resetView();
       return;
     }
-
-    if (raycaster.ray.intersectPlane(groundPlane, groundHit)) {
-      _recenterPivotToPoint(groundHit.clone());
+    if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
+      _focusOnBuilding(hit.object, ud.building);
+      return;
     }
+    if (ud.street) {
+      _focusOnStreet(ud.street, hit.point);
+      return;
+    }
+    _recenterPivotToPoint(new THREE.Vector3(hit.point.x, 0, hit.point.z));
   }
 
   // _recenterPivotToPoint(p) — slide pivot to p; camera shifts by the same
@@ -1090,6 +1084,13 @@ function startRenderLoop(canvas, manifest) {
   }
 
   function resetView() {
+    // Clear any persisted pose so this is a true "fresh start" — cancel
+    // pending save first, since the animation's 'change' events will
+    // schedule a new save (with the default pose, which is correct).
+    if (_saveCameraTimer) { clearTimeout(_saveCameraTimer); _saveCameraTimer = 0; }
+    try {
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
+    } catch (_) { /* private mode / unavailable — ignore */ }
     camera.up.set(0, 1, 0);           // back to default world-up
     _animateCamera(initialTarget.clone(), initialCamPos.clone(), CAMERA_ANIMATION.get().RESET_DURATION_MS);
   }
@@ -1155,6 +1156,8 @@ function startRenderLoop(canvas, manifest) {
     // Hover commit: debounced. If the candidate already matches what's
     // committed (or what's pending), nothing to do. Otherwise restart
     // the timer — only stable hovers (held > HOVER.commit_ms) commit.
+    // Empty-space (newHover = null) goes through the same timer so
+    // sweeping across a gap between two targets doesn't flicker off.
     if (_sameHover(newHover, currentHover)) {
       // Cursor returned to the already-committed target — drop any
       // pending change so we don't rebound to a stale candidate.
