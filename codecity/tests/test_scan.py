@@ -1,25 +1,14 @@
-"""Unit tests for src/scripts/scan.py.
-
-Run with:
-    python3 -m unittest discover -s tests/scripts -p 'test_*.py'
-    python3 -m unittest tests.scripts.test_scan
-"""
+"""Unit tests for codecity/scan.py."""
 
 from __future__ import annotations
 
 import os
 import subprocess
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-# Put src/ on the path so `from scripts.scan import ...` works from repo root.
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SRC_DIR = REPO_ROOT / "src"
-sys.path.insert(0, str(SRC_DIR))
-
-from scripts.scan import (  # noqa: E402
+from codecity.scan import (
     _extension,
     _is_binary,
     scan_tree,
@@ -29,15 +18,14 @@ from scripts.scan import (  # noqa: E402
 # Silence progress logs during tests.
 os.environ["CODECITY_QUIET"] = "1"
 
-FIXTURE = REPO_ROOT / "tests" / "fixtures" / "sample-repo"
+FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
+FIXTURE = FIXTURES_DIR / "sample-repo"
 
 
 def _ensure_fixture() -> None:
-    """Make sure tests/fixtures/setup.sh has been run."""
+    """Make sure fixtures/setup.sh has been run."""
     if not (FIXTURE / ".git").is_dir():
-        subprocess.check_call(
-            ["bash", str(REPO_ROOT / "tests" / "fixtures" / "setup.sh")]
-        )
+        subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
 
 
 class ExtensionTests(unittest.TestCase):
