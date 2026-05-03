@@ -5,8 +5,8 @@ import {
   getLightness,
   getDateRanges,
   getBuildingColor,
-} from '../../src/scene/colors.js';
-import { BUILDING_PALETTE } from '../../src/config/index.js';
+} from '../../scene/colors.js';
+import { BUILDING_PALETTE } from '../../config/index.js';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDING_PALETTE store by beforeEach; restored by afterEach.

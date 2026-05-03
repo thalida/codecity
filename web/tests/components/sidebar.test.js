@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarCloseHandler } from '../../src/components/sidebar.js';
+import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarCloseHandler } from '../../components/sidebar.js';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';

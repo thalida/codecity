@@ -39,11 +39,10 @@ export const STREET_AXIS = Object.freeze({
 
 // Top-level DOM element IDs the renderer + components target.
 export const DOM_IDS = Object.freeze({
-  CANVAS:            'city',
-  TREE_SIDEBAR:      'tree-sidebar',
-  FILE_SIDEBAR:      'sidebar',
-  EMBEDDED_MANIFEST: 'codecity-manifest',
-  HOVER_TOOLTIP:     'hover-tooltip'
+  CANVAS:        'city',
+  TREE_SIDEBAR:  'tree-sidebar',
+  FILE_SIDEBAR:  'sidebar',
+  HOVER_TOOLTIP: 'hover-tooltip'
 });
 
 // Left-sidebar tab IDs.

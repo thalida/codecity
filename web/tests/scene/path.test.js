@@ -4,7 +4,7 @@ import {
   streetChainForDirPath,
   computePathPoints,
   streetEndOpposite
-} from '../../src/scene/path.js';
+} from '../../scene/path.js';
 
 // Synthetic streets for chain tests. Layout:
 //   root (x-orientation, centerline at z=0, extends 0..L)

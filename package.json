@@ -1,28 +1,20 @@
 {
-  "name": "codecity-ai",
+  "name": "codecity",
   "version": "1.0.0",
-  "description": "CodeCity AI is an AI plugin that visualizes codebases as 3D cities. Give an agent a directory and it walks the tree, collects file metadata and git history, then assembles a single self-contained HTML file you can open in any browser. Directories become streets — wide boulevards for large directories, narrow alleys for small ones. Files become buildings whose shape and color encode information: how big the file is, how old it is, when it was last touched, and what language it is written in.",
-  "main": "index.js",
-  "directories": {
-    "doc": "docs"
-  },
+  "description": "Visualize any codebase as an isometric 3D city. Frontend (Vite) for the codecity Python package.",
+  "private": true,
   "scripts": {
-    "dev": "python3 src/codecity.py --dev --root .",
+    "dev": "vite",
     "build": "vite build",
-    "test": "vitest run && npm run test:scripts && npm run test:drift",
-    "test:unit": "vitest run",
-    "test:scripts": "bash tests/scripts/run-all.sh",
-    "test:drift": "bash tests/scripts/test-drift.sh",
+    "test": "vitest run",
     "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/thalida/codecity-ai.git"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
+  "license": "AGPL-3.0",
+  "type": "module",
   "bugs": {
     "url": "https://github.com/thalida/codecity-ai/issues"
   },
@@ -31,7 +23,6 @@
     "jsdom": "^29.0.2",
     "three": "^0.184.0",
     "vite": "^8.0.8",
-    "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.4"
   },
   "dependencies": {

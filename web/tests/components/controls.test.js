@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildControlsPane } from '../../src/components/controls.js';
+import { buildControlsPane } from '../../components/controls.js';
 
 describe('buildControlsPane', () => {
   it('returns a pane with the Controls header + View section', () => {

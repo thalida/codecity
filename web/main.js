@@ -1,7 +1,6 @@
-// main.js — Entry point. Reads MANIFEST embedded in index.html, pulls
-// shipping defaults from src/defaults.js, lays out the city, builds the
-// scene, and starts the render loop with orbit/pan/zoom controls and
-// raycast picking.
+// main.js — Entry point. Fetches the manifest from the local Python server
+// at /api/manifest, lays out the city, builds the scene, and starts the
+// render loop with orbit/pan/zoom controls and raycast picking.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -1809,29 +1808,18 @@ function _resizeRendererToCanvas(renderer, canvas) {
 }
 
 
-// Exported for testability. Reads a <script type="application/json" id="X">
-// tag and parses its contents. index.html holds these as placeholder text
-// (filled by build.sh at skill runtime, or by the vite dev plugin at dev time).
-export function readEmbeddedJson(id) {
-  var el = document.getElementById(id);
-  if (!el) throw new Error('readEmbeddedJson: missing <script id="' + id + '">');
-  try {
-    return JSON.parse(el.textContent);
-  } catch (e) {
-    throw new Error('readEmbeddedJson: invalid JSON in <script id="' + id + '">: ' + e.message);
-  }
-}
-
-// Boot. If main.js is imported from a test, the top-level code still runs
-// but typical test environments won't have the script tags + canvas wired up,
-// so tests should import only { readEmbeddedJson } and not trigger the boot.
-// We guard with a feature check to make that safe.
+// Boot. Guarded by a canvas check so unit tests can import this module
+// without triggering any DOM/network side effects.
 var _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
-  var manifest = readEmbeddedJson(DOM_IDS.EMBEDDED_MANIFEST);
-  // Hydrate every config store from localStorage BEFORE scene build so
-  // any user tweaks from prior sessions take effect during the initial
-  // layout/render. Config namespace import provides every named store.
-  attachPersistence(Config);
-  startRenderLoop(_canvas, manifest);
+  (async function boot() {
+    var resp = await fetch('/api/manifest');
+    if (!resp.ok) throw new Error('manifest fetch failed: ' + resp.status);
+    var manifest = await resp.json();
+    // Hydrate every config store from localStorage BEFORE scene build so
+    // any user tweaks from prior sessions take effect during the initial
+    // layout/render.
+    attachPersistence(Config);
+    startRenderLoop(_canvas, manifest);
+  })();
 }

@@ -5,8 +5,8 @@ import {
   layoutCity,
   sortForRendering,
   computeLineStats,
-} from '../../src/scene/layout.js';
-import { BUILDING_DIMENSIONS } from '../../src/config/index.js';
+} from '../../scene/layout.js';
+import { BUILDING_DIMENSIONS } from '../../config/index.js';
 
 const TEST_TIERS = [
   { min_descendants: 0,  width: 10 },

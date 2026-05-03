@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   buildTree,
   buildTreePane,
-} from '../../src/components/tree.js';
+} from '../../components/tree.js';
 
 const TEST_TREE = {
   name: "project", type: "directory", path: ".",
