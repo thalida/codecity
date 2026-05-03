@@ -5,7 +5,7 @@
 - [x] interactive streets
 - [ ] labels on hover
 - [ ] billboard media files
-- [ ] treeview interact with scene rendering
+- [x] treeview interact with scene rendering
 - [ ] building / rendering data in sidebar
 - [x] clean up blocks and hitTestBlock
 - [x] rounded street ends

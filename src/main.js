@@ -471,6 +471,19 @@ function startRenderLoop(canvas, manifest) {
     }
   }
 
+  // Lookup: file path → { mesh, building }. Lets the tree pane resolve
+  // a clicked row back to the same {mesh, data, file} shape the canvas
+  // pick handler builds, so tree → city selection flows through the
+  // identical _setSelection path.
+  var buildingsByPath = {};
+  for (var bpi = 0; bpi < buildingMeshes.length; bpi++) {
+    var _bpm = buildingMeshes[bpi];
+    var _bpb = _bpm.userData.building;
+    if (_bpb && _bpb.file && _bpb.file.path != null) {
+      buildingsByPath[_bpb.file.path] = { mesh: _bpm, building: _bpb };
+    }
+  }
+
   // Building-to-street connector strips, grouped by parent dir path so
   // they can be tinted alongside their street's sidewalk (selected /
   // hover colors).
@@ -917,7 +930,15 @@ function startRenderLoop(canvas, manifest) {
     _updatePathLine();
     _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _saveSelection(sel);
+    _syncTreeSelection(sel);
   }
+
+  // City → tree: mirror the active selection into the left tree pane so
+  // the highlighted row always matches what's outlined in the scene.
+  // Defined as a no-op until the left sidebar is built (initial scene
+  // setup runs before showLeftSidebar; _refreshSidewalkTints can fire
+  // _setSelection during that window via the saved-selection restore).
+  var _syncTreeSelection = function () {};
 
   // _setHover(h) — single entry point for hover. Independent of selection
   // (you can hover one thing while selecting another); coordinates via
@@ -934,7 +955,14 @@ function startRenderLoop(canvas, manifest) {
     }
     _refreshSidewalkTints();
     _updateHoverPathLine();
+    _syncTreeHover(h);
   }
+
+  // City → tree hover mirror. Same late-binding pattern as
+  // _syncTreeSelection: scene init can fire _setHover before the left
+  // sidebar has been built, so start as a no-op and replace once the
+  // sidebar's api is available.
+  var _syncTreeHover = function () {};
 
   // Any path that closes the sidebar (X button, Esc, click-empty) clears
   // selection AND hover too. Single source of truth — every close path
@@ -1346,10 +1374,103 @@ function startRenderLoop(canvas, manifest) {
     }
   });
 
-  showLeftSidebar(manifest, {
-    onResetView: resetView,
-    applyTheme:  applyTheme
+  // Tree → city: a click on a tree row routes through the SAME _setSelection
+  // / showFileSidebar / showDirSidebar entry points the canvas pick handler
+  // uses, so visual state (outlines, sidewalk tints, neon path line, persisted
+  // selection) stays consistent regardless of which surface drove the click.
+  // Double-click delegates to _focusOnBuilding / _focusOnStreet — same as
+  // the canvas dblclick handler.
+  function _onTreeSelect(node) {
+    if (!node) return;
+    if (node.type === NODE_KIND.FILE) {
+      var b = buildingsByPath[node.path];
+      if (!b) return;
+      _setSelection({
+        kind: NODE_KIND.FILE,
+        mesh: b.mesh,
+        data: b.building,
+        file: b.building.file
+      });
+      showFileSidebar(b.building.file);
+    } else if (node.type === NODE_KIND.DIRECTORY) {
+      var sw = sidewalksByDirPath[node.path];
+      var st = streetsByDirPath[node.path];
+      if (!sw || !st || !st.dir) return;
+      _setSelection({
+        kind:     NODE_KIND.DIRECTORY,
+        sidewalk: sw,
+        street:   st,
+        dir:      st.dir
+      });
+      showDirSidebar(st.dir);
+    }
+  }
+  function _onTreeFocus(node) {
+    if (!node) return;
+    if (node.type === NODE_KIND.FILE) {
+      var b = buildingsByPath[node.path];
+      if (b) _focusOnBuilding(b.mesh, b.building);
+    } else if (node.type === NODE_KIND.DIRECTORY) {
+      var st = streetsByDirPath[node.path];
+      if (st) _focusOnStreet(st);
+    }
+  }
+  // Tree hover routes through _setHover so the SAME cascade fade /
+  // outline / sidewalk-tint pipeline that responds to canvas hover also
+  // responds to tree hover. No debounce: tree hover is a deliberate UI
+  // gesture, not a noisy pointermove stream.
+  function _onTreeHover(node) {
+    if (!node) return;
+    if (node.type === NODE_KIND.FILE) {
+      var b = buildingsByPath[node.path];
+      if (!b) return;
+      _setHover({
+        kind: NODE_KIND.FILE,
+        mesh: b.mesh,
+        data: b.building,
+        file: b.building.file
+      });
+    } else if (node.type === NODE_KIND.DIRECTORY) {
+      var sw = sidewalksByDirPath[node.path];
+      var st = streetsByDirPath[node.path];
+      if (!sw || !st || !st.dir) return;
+      _setHover({
+        kind:     NODE_KIND.DIRECTORY,
+        sidewalk: sw,
+        street:   st,
+        dir:      st.dir
+      });
+    }
+  }
+  function _onTreeHoverEnd() {
+    _setHover(null);
+  }
+
+  var leftSidebarApi = showLeftSidebar(manifest, {
+    onResetView:    resetView,
+    applyTheme:     applyTheme,
+    onTreeSelect:   _onTreeSelect,
+    onTreeFocus:    _onTreeFocus,
+    onTreeHover:    _onTreeHover,
+    onTreeHoverEnd: _onTreeHoverEnd
   });
+  _syncTreeSelection = function (sel) {
+    if (!leftSidebarApi || !leftSidebarApi.setSelectedTreePath) return;
+    if (!sel)                                  leftSidebarApi.setSelectedTreePath(null);
+    else if (sel.kind === NODE_KIND.FILE)      leftSidebarApi.setSelectedTreePath(sel.file && sel.file.path);
+    else if (sel.kind === NODE_KIND.DIRECTORY) leftSidebarApi.setSelectedTreePath(sel.dir  && sel.dir.path);
+  };
+  _syncTreeHover = function (h) {
+    if (!leftSidebarApi || !leftSidebarApi.setHoveredTreePath) return;
+    if (!h)                                  leftSidebarApi.setHoveredTreePath(null);
+    else if (h.kind === NODE_KIND.FILE)      leftSidebarApi.setHoveredTreePath(h.file && h.file.path);
+    else if (h.kind === NODE_KIND.DIRECTORY) leftSidebarApi.setHoveredTreePath(h.dir  && h.dir.path);
+  };
+  // Push the existing selection (if any was set during scene init) into the
+  // freshly-built tree so visual state is consistent before saved-selection
+  // restore runs below.
+  _syncTreeSelection(currentSelection);
+  _syncTreeHover(currentHover);
 
   // ---- Restore the previously-selected file/dir, if any ----
   // Runs AFTER showLeftSidebar so the right-hand sidebar is wired up too.

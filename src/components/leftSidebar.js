@@ -16,20 +16,34 @@ var SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';
 var SIDEBAR_MIN_WIDTH = 280;
 var SIDEBAR_MAX_WIDTH = 600;
 
-// showLeftSidebar(manifest, opts)
+// showLeftSidebar(manifest, opts) -> { setSelectedTreePath, setHoveredTreePath }
 //
 // opts:
-//   applyTheme — fn() the Settings UI calls after mutating any imported
-//                theme constant — flushes the change through to live materials.
-//   initialTab — 'tree' | 'controls' (default 'tree')
+//   applyTheme        — fn() the Settings UI calls after mutating any imported
+//                       theme constant — flushes the change through to live materials.
+//   initialTab        — 'tree' | 'controls' (default 'tree')
+//   onTreeSelect      — fn(node) called when the user single-clicks a tree row.
+//                       Host wires to _setSelection so tree → city selection
+//                       flows through the same channel as a canvas click.
+//   onTreeFocus       — fn(node) called when the user double-clicks a tree row.
+//                       Host wires to _focusOnBuilding/_focusOnStreet.
+//   onTreeHover       — fn(node) on row mouseenter. Host wires to _setHover
+//                       so hovering a tree row mirrors into the scene.
+//   onTreeHoverEnd    — fn(node) on row mouseleave. Host calls _setHover(null).
+//
+// Returns an api the host uses to drive the REVERSE direction (city → tree):
+//   setSelectedTreePath(path) — keep tree highlight in sync with scene
+//                               currentSelection.
+//   setHoveredTreePath(path)  — mirror scene hover state to the tree row.
 //
 // (No onResetView callback: the Controls panel's View section shows a
 // kbd table with R/Esc/etc. The R key is wired in main.js's keydown
 // handler, so this component doesn't need its own callback.)
 export function showLeftSidebar(manifest, opts) {
   opts = opts || {};
+  var noop = function () {};
   var container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
-  if (!container) return;
+  if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
 
   while (container.firstChild) container.removeChild(container.firstChild);
 
@@ -47,8 +61,15 @@ export function showLeftSidebar(manifest, opts) {
   // any absolute-positioning math). Clicking either calls _setCollapsed
   // — same effect as clicking the active activity-bar icon a second time.
   var paneOnClose = function () { _setCollapsed(true); };
+  var treeBundle = buildTreePane(manifest, {
+    onClose:    paneOnClose,
+    onSelect:   opts.onTreeSelect,
+    onFocus:    opts.onTreeFocus,
+    onHover:    opts.onTreeHover,
+    onHoverEnd: opts.onTreeHoverEnd
+  });
   var panes = {};
-  panes[SIDEBAR_TAB.TREE]     = buildTreePane(manifest, { onClose: paneOnClose });
+  panes[SIDEBAR_TAB.TREE]     = treeBundle.pane;
   panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
     applyTheme: opts.applyTheme,
     onClose:    paneOnClose
@@ -138,6 +159,11 @@ export function showLeftSidebar(manifest, opts) {
   container.appendChild(activityBar);
   container.appendChild(panel);
   container.appendChild(_buildResizeHandle(container));
+
+  return {
+    setSelectedTreePath: treeBundle.api.setSelectedPath,
+    setHoveredTreePath:  treeBundle.api.setHoveredPath
+  };
 }
 
 // _buildResizeHandle(sidebar) — a thin invisible strip on the sidebar's

@@ -1094,7 +1094,9 @@ canvas {
 }
 
 .tree-root.tree-list {
-  padding-left: 8px;
+  /* The root folder row already brings its own .tree-row 8px padding;
+     no need to indent the root list itself. */
+  padding-left: 0;
 }
 
 .tree-item {
@@ -1102,7 +1104,7 @@ canvas {
   padding: 0;
 }
 
-.tree-toggle {
+.tree-row {
   display: flex;
   align-items: center;
   gap: 4px;
@@ -1113,15 +1115,34 @@ canvas {
   user-select: none;
 }
 
-.tree-toggle:hover {
+.tree-row:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
-.tree-file {
-  display: flex;
+/* Hover mirror: pushed in by leftSidebarApi.setHoveredTreePath from
+   _setHover so hovering a building/street in the city visually highlights
+   the matching row. Same look as the native :hover bg so the source of the
+   hover (cursor vs. city) is visually identical. */
+.tree-item.tree-hovered > .tree-row {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Selection highlight: pushed in by leftSidebarApi.setSelectedTreePath
+   from _setSelection so the tree mirrors the city's currentSelection.
+   Wins over the hover background since the .tree-selected rule is
+   declared after .tree-hovered. */
+.tree-item.tree-selected > .tree-row {
+  background: rgba(108, 138, 255, 0.18);
+}
+.tree-item.tree-selected > .tree-row:hover,
+.tree-item.tree-selected.tree-hovered > .tree-row {
+  background: rgba(108, 138, 255, 0.24);
+}
+
+.tree-chevron {
+  display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px 3px 8px;
+  flex-shrink: 0;
 }
 
 .tree-icon {
@@ -1149,11 +1170,11 @@ canvas {
   text-overflow: ellipsis;
 }
 
-.tree-dir > .tree-toggle > .tree-label {
+.tree-dir > .tree-row > .tree-label {
   color: #c0c4d8;
   font-weight: 500;
 }
 
-.tree-file > .tree-label {
+.tree-file > .tree-row > .tree-label {
   color: #8a8ea0;
 }
