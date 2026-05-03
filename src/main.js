@@ -30,9 +30,11 @@ var UNIT_BOX_EDGE_POSITIONS = [
   -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
 ];
 
+import * as Config from './config/index.js';
 import {
   BUILDING_PALETTE,
   SCENE_COLORS,
+  ASPHALT,
   SIDEWALK_COLORS,
   BUILDING_OUTLINE,
   BUILDING_FADE,
@@ -49,6 +51,7 @@ import {
   TRANSPARENCY,
   LABEL_FLIP_HYSTERESIS
 } from './config/index.js';
+import { attachPersistence } from './config/_persist.js';
 import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT } from './constants.js';
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
@@ -1540,7 +1543,9 @@ export function readEmbeddedJson(id) {
 var _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
   var manifest = readEmbeddedJson(DOM_IDS.EMBEDDED_MANIFEST);
-  // Visual config lives in src/defaults.js — every consumer imports
-  // directly from there, so the boot site only needs the manifest.
+  // Hydrate every config store from localStorage BEFORE scene build so
+  // any user tweaks from prior sessions take effect during the initial
+  // layout/render. Config namespace import provides every named store.
+  attachPersistence(Config);
   startRenderLoop(_canvas, manifest);
 }
