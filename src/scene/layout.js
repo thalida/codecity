@@ -13,6 +13,7 @@ import {
   GEM_SIZING
 } from '../config/index.js';
 import { NODE_KIND, BUILDING_ORIENT, STREET_AXIS } from '../constants.js';
+import { parentDirPath } from './path.js';
 
 // getStreetWidth(count, tiers?) -> number
 //
@@ -157,6 +158,13 @@ export function layoutCity(manifest) {
     }
   }
 
+  // For each non-root street, figure out which end joins its parent — the
+  // renderer flattens that end and only rounds the open end. Computed
+  // from world coordinates rather than tracked through the recursion's
+  // mirror flags, since post-processing is simpler than threading the
+  // bookkeeping through every transform step.
+  _markJoinSides(result.streets);
+
   // Compute paths from each building's door to the adjacent street.
   // Length stretches to bridge the full gap; width stays a thin walkway
   // (so widening the building-to-sidewalk gap makes the path LONGER, not
@@ -189,6 +197,58 @@ function _streetWidthForDir(dir) {
   // to direct children_count for shallow trees / older manifests.
   var count = (dir && (dir.descendants_count || dir.children_count)) || 0;
   return getStreetWidth(count, STREET_TIERS.get());
+}
+
+
+// -----------------------------------------------------------------------------
+// _markJoinSides(streets) — for every non-root street, stash whether its
+// JOINING endpoint is the LOW or HIGH end of its orientation axis. The
+// renderer uses this to flatten the joining end (so it merges cleanly
+// into the parent T-intersection) while keeping the open end rounded.
+//
+// We figure it out by comparing each endpoint's distance to the parent
+// street's centerline — the closer one is touching the parent. That's
+// simpler than trying to track mirror-flag transformations through the
+// recursive layout, and works regardless of negate flags.
+// -----------------------------------------------------------------------------
+function _markJoinSides(streets) {
+  var byPath = {};
+  for (var i = 0; i < streets.length; i++) {
+    var s = streets[i];
+    if (s.dir && s.dir.path != null) byPath[s.dir.path] = s;
+  }
+
+  for (var j = 0; j < streets.length; j++) {
+    var s2 = streets[j];
+    if (s2.isRoot) continue;
+    if (!s2.dir || s2.dir.path == null) continue;
+    var pPath = parentDirPath(s2.dir.path);
+    if (pPath == null) continue;
+    var parent = byPath[pPath];
+    if (!parent) continue;
+
+    // Child's two endpoints along its length axis (in world coords).
+    var lowEnd, highEnd;
+    if (s2.orientation === STREET_AXIS.X) {
+      lowEnd  = s2.x - s2.length / 2;
+      highEnd = s2.x + s2.length / 2;
+    } else {
+      lowEnd  = s2.y - s2.length / 2;
+      highEnd = s2.y + s2.length / 2;
+    }
+
+    // For a parent + child meeting at a T-intersection, the parent runs
+    // perpendicular to the child. The child's joining endpoint sits ON the
+    // parent's CENTERLINE, which is a constant value of the parent's
+    // CROSS-AXIS (parent.y for x-orient parent, parent.x for y-orient
+    // parent). For perpendicular orientations, the parent's cross-axis is
+    // the child's LENGTH axis — so we compare each child endpoint along
+    // its length axis to the parent's centerline value.
+    var parentCrossAxis = (parent.orientation === STREET_AXIS.X) ? parent.y : parent.x;
+    var dLow  = Math.abs(lowEnd  - parentCrossAxis);
+    var dHigh = Math.abs(highEnd - parentCrossAxis);
+    s2.joinSide = (dLow < dHigh) ? 'low' : 'high';
+  }
 }
 
 
@@ -279,19 +339,35 @@ function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidt
   // the parent intersection.
   var myStreetWidth = _streetWidthForDir(dir);
   var bldgOffset    = myStreetWidth / 2 + bldgStreetGap;
-  var endPad        = parentStreetWidth
+
+  // The street's rounded cap takes up streetWidth/2 of the length at the
+  // OPEN end. To keep the last building (and its path connector) clear
+  // of the curve, the open-end pad must be at least cap radius + a small
+  // buffer (re-using bldgStreetGap so the buffer matches the building↔
+  // sidewalk gap visually). Joining ends are flat — they don't need this.
+  var openEndPad     = myStreetWidth / 2 + bldgStreetGap;
+  var joinEndBaseline = parentStreetWidth
     ? parentStreetWidth / 2 + parentJoinPad
     : rootEndPad;
-  // Root gets an asymmetric extra pad at its ORIGIN end only. That cap area
-  // is kept clear of buildings so the root gem can float over it — the road
-  // itself serves as the gem's plaza. Pad = half-width (cap center) + gem
-  // radius + clearance. Non-root streets use endPad on both ends as before.
+
+  // endPad is applied at the CHILD'S local-high end (the open end after
+  // mirroring/transform). For non-root streets this end is always rounded,
+  // so it must clear the cap. For the root, both ends are open / rounded,
+  // so we'll also widen its origin-end pad below.
+  var endPad = parentStreetWidth
+    ? Math.max(joinEndBaseline, openEndPad)
+    : Math.max(rootEndPad, openEndPad);
+
+  // Root gets an asymmetric extra pad at its ORIGIN end so the gem has
+  // dead space to float over (the cap area doubles as the gem's plaza).
+  // Non-root origin ends are FLAT (joining the parent), so they only need
+  // joinEndBaseline.
   var gemSizing     = GEM_SIZING.get();
   var gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
   var gemClearance  = gemSizing.BUILDING_CLEARANCE;
   var originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
-    : endPad;
+    : joinEndBaseline;
 
   // ---- Sort children alphabetically (files + dirs intermingled) -----------
   var children = (dir.children || [])

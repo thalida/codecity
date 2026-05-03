@@ -94,23 +94,31 @@ function _setIcon(span, name) {
 }
 
 
-// buildTreePane(manifest) -> HTMLElement
+// buildTreePane(manifest, opts) -> HTMLElement
 //
 // Returns the Tree tab's content as a single DOM element, ready to be
 // inserted into the left sidebar's panel area. Owned by the parent shell
 // (leftSidebar.js) — this function does not touch #tree-sidebar directly.
-export function buildTreePane(manifest) {
+//
+// opts.onClose — fn() invoked when the user clicks the × in the header.
+//                Optional; if omitted, no close button is rendered.
+export function buildTreePane(manifest, opts) {
+  opts = opts || {};
   var pane = document.createElement('div');
   pane.className = 'left-pane tree-pane';
 
   var header = document.createElement('div');
-  header.className = 'tree-header';
+  header.className = 'tree-header pane-header';
 
   var title = document.createElement('h3');
   title.className = 'tree-title';
   var tree = manifest.tree || manifest;
   title.textContent = tree.name || 'Project';
   header.appendChild(title);
+
+  if (typeof opts.onClose === 'function') {
+    header.appendChild(_buildPaneCloseButton(opts.onClose));
+  }
 
   pane.appendChild(header);
 
@@ -119,4 +127,15 @@ export function buildTreePane(manifest) {
   pane.appendChild(treeEl);
 
   return pane;
+}
+
+function _buildPaneCloseButton(onClose) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'pane-header-close';
+  btn.title = 'Hide sidebar';
+  btn.setAttribute('aria-label', 'Hide sidebar');
+  btn.appendChild(makeLucideIcon('x'));
+  btn.addEventListener('click', function () { onClose(); });
+  return btn;
 }

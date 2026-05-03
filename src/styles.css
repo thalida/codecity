@@ -390,6 +390,41 @@ canvas {
   background: rgba(108, 138, 255, 0.25);
 }
 
+/* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
+ * (set by the resize handle) is overridden by !important so we get the
+ * narrow width without having to clear/restore the inline style on
+ * every toggle. */
+#tree-sidebar.is-collapsed {
+  width: 44px !important;
+  min-width: 44px;
+}
+#tree-sidebar.is-collapsed .left-panel,
+#tree-sidebar.is-collapsed .sidebar-resize-handle {
+  display: none;
+}
+
+/* "×" close button rendered inside each pane's header. Flexbox in the
+ * header takes care of vertical centering against the title — this rule
+ * just provides the button's own visual shell. */
+.pane-header-close {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+.pane-header-close:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
@@ -467,11 +502,20 @@ canvas {
   overflow: hidden;
 }
 
+/* Pane headers — title on the left, × close button on the right.
+ * Flexbox keeps the two vertically centered against each other regardless
+ * of the title's font metrics or the button's size; no manual top/left
+ * positioning math needed. */
 .tree-header,
-.controls-header {
-  padding: 16px 16px 12px;
+.controls-header,
+.pane-header {
+  padding: 12px 12px 12px 16px;
   border-bottom: 1px solid #1e2030;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 .tree-title,

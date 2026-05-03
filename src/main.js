@@ -8,6 +8,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LineSegments2 }      from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial }       from 'three/addons/lines/LineMaterial.js';
+import { listenKeys } from 'nanostores';
 import './styles.css';
 
 
@@ -73,7 +74,7 @@ function _stepOpacity(cur, target, cfg) {
   if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
   return next;
 }
-import { buildCityScene } from './scene/engine.js';
+import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
 import { showFileSidebar, showDirSidebar, closeSidebar, setSidebarPalette, setSidebarCloseHandler } from './components/sidebar.js';
@@ -114,6 +115,17 @@ function startRenderLoop(canvas, manifest) {
   var buildingMeshes  = built.buildingMeshes;
   var streetPickables = built.streetPickables;
   var streetLabels    = built.streetLabels;
+  // Hot-reload the label fill color: FILL is baked into the CanvasTexture
+  // at scene-build, so a "live" change requires regenerating each label's
+  // texture. listenKeys fires only when FILL specifically changes (not on
+  // every applyTheme call), so unrelated tweaks don't pay the texture
+  // regen cost. Other label-typography keys (font size, padding, stroke
+  // width) change canvas dimensions too — those stay rebuild-required.
+  listenKeys(LABEL_TYPOGRAPHY, ['FILL'], function () {
+    for (var li = 0; li < streetLabels.length; li++) {
+      regenerateLabelTexture(streetLabels[li]);
+    }
+  });
   var pathMeshes      = built.pathMeshes || [];
   var asphaltMeshes   = built.asphaltMeshes || [];
   var rootGem         = built.rootGem;

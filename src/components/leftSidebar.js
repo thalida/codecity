@@ -1,7 +1,9 @@
 // leftSidebar.js — Mounts the left-side activity bar (VSCode-style) and the
-// stacked panes it switches between. Owns the active-tab state and the
-// drag-to-resize handle on the sidebar's right edge (width persists in
-// localStorage).
+// stacked panes it switches between. Owns:
+//   - active-tab state
+//   - collapsed/expanded state (clicking the active icon collapses; the ×
+//     in the panel header also collapses; persisted in localStorage)
+//   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
 import { buildTreePane } from './tree.js';
 import { buildControlsPane } from './controls.js';
@@ -9,7 +11,8 @@ import {
   DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS
 } from '../constants.js';
 
-var SIDEBAR_WIDTH_STORAGE_KEY = 'cc.sidebarWidth';
+var SIDEBAR_WIDTH_STORAGE_KEY     = 'cc.sidebarWidth';
+var SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';
 var SIDEBAR_MIN_WIDTH = 280;
 var SIDEBAR_MAX_WIDTH = 600;
 
@@ -39,10 +42,16 @@ export function showLeftSidebar(manifest, opts) {
   var panel = document.createElement('div');
   panel.className = 'left-panel';
 
+  // Each pane renders its own × close button inside its header (flexbox
+  // layout in the header keeps title + button vertically aligned without
+  // any absolute-positioning math). Clicking either calls _setCollapsed
+  // — same effect as clicking the active activity-bar icon a second time.
+  var paneOnClose = function () { _setCollapsed(true); };
   var panes = {};
-  panes[SIDEBAR_TAB.TREE]     = buildTreePane(manifest);
+  panes[SIDEBAR_TAB.TREE]     = buildTreePane(manifest, { onClose: paneOnClose });
   panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
-    applyTheme: opts.applyTheme
+    applyTheme: opts.applyTheme,
+    onClose:    paneOnClose
   });
 
   for (var key in panes) {
@@ -52,6 +61,7 @@ export function showLeftSidebar(manifest, opts) {
   }
 
   var activeTab = (opts.initialTab === SIDEBAR_TAB.CONTROLS) ? SIDEBAR_TAB.CONTROLS : SIDEBAR_TAB.TREE;
+  var collapsed = _loadCollapsed();
   var iconBtns = {};
 
   var iconBase = LUCIDE_ICON_BASE_URL;
@@ -74,27 +84,56 @@ export function showLeftSidebar(manifest, opts) {
     iconBtns[tab.id] = btn;
 
     (function (tabId) {
-      btn.addEventListener('click', function () { _setActive(tabId); });
+      btn.addEventListener('click', function () { _onIconClick(tabId); });
     })(tab.id);
 
     activityBar.appendChild(btn);
   }
 
+  // _onIconClick — the same icon while expanded collapses; any other
+  // icon (or any icon while collapsed) opens the sidebar with that tab.
+  function _onIconClick(tabId) {
+    if (!panes[tabId]) return;
+    if (!collapsed && tabId === activeTab) {
+      _setCollapsed(true);
+      return;
+    }
+    if (collapsed) _setCollapsed(false);
+    _setActive(tabId);
+  }
+
   function _setActive(tabId) {
     if (!panes[tabId]) return;
     activeTab = tabId;
+    _refreshActiveStates();
+  }
+
+  function _setCollapsed(value) {
+    collapsed = value;
+    container.classList.toggle('is-collapsed', collapsed);
+    _refreshActiveStates();
+    _persistCollapsed(collapsed);
+  }
+
+  // Sync the visible state of all panes + activity-bar icons against
+  // the (activeTab, collapsed) tuple. When collapsed, NO icon shows as
+  // active — the user is parked at "no pane visible".
+  function _refreshActiveStates() {
     for (var id in panes) {
-      if (Object.prototype.hasOwnProperty.call(panes, id)) {
-        panes[id].style.display = (id === tabId) ? '' : 'none';
-        if (iconBtns[id]) {
-          iconBtns[id].classList.toggle('active', id === tabId);
-          iconBtns[id].setAttribute('aria-pressed', String(id === tabId));
-        }
-      }
+      if (!Object.prototype.hasOwnProperty.call(panes, id)) continue;
+      panes[id].style.display = (id === activeTab) ? '' : 'none';
+    }
+    for (var iid in iconBtns) {
+      if (!Object.prototype.hasOwnProperty.call(iconBtns, iid)) continue;
+      var isActive = !collapsed && iid === activeTab;
+      iconBtns[iid].classList.toggle('active', isActive);
+      iconBtns[iid].setAttribute('aria-pressed', String(isActive));
     }
   }
 
-  _setActive(activeTab);
+  _refreshActiveStates();
+
+  container.classList.toggle('is-collapsed', collapsed);
 
   container.appendChild(activityBar);
   container.appendChild(panel);
@@ -152,4 +191,18 @@ function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
   try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w)); }
   catch (_) { /* quota / private — drop */ }
+}
+
+function _loadCollapsed() {
+  if (typeof localStorage === 'undefined') return false;
+  try { return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'; }
+  catch (_) { return false; }
+}
+
+function _persistCollapsed(value) {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    if (value) localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, 'true');
+    else       localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+  } catch (_) { /* drop */ }
 }

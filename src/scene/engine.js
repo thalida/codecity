@@ -391,30 +391,65 @@ function _flatMat(color, renderOrderLayer) {
 
 
 // -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// _buildStadiumGeometry(length, width, orientation) -> THREE.ShapeGeometry
+// _buildStadiumGeometry(length, width, orientation, capStyle) -> ShapeGeometry
 //
-// A stadium/pill shape: a rectangle with two full semicircular end caps of
-// radius width/2. The shape lives in the XY plane and is meant to be rotated
-// -PI/2 around X to lie flat on the world XZ plane. `orientation` picks
-// which 2D axis the long direction runs along so the street's long axis
-// ends up along world-X or world-Z.
+// A pill / stadium / rectangle-with-rounded-ends shape, lying in the XY
+// plane (intended to be rotated -π/2 around X to lie flat on world XZ).
+// `orientation` picks which 2D axis the long direction runs along.
+//
+// `capStyle` controls which ends are rounded:
+//   'both' — semicircular caps at both ends (the classic pill; used for
+//            the root street, which has no parent intersection)
+//   'high' — rounded only at the +length end; flat at the −length end
+//            (used by non-root children whose joining endpoint is at
+//            local low — they merge cleanly into the parent there)
+//   'low'  — rounded only at the −length end; flat at the +length end
+//
+// In all three cases the shape's extent along the long axis is exactly
+// `length`, centered at 0, so the caller's positioning math doesn't
+// change with cap style.
 // -----------------------------------------------------------------------------
-function _buildStadiumGeometry(length, width, orientation) {
+function _buildStadiumGeometry(length, width, orientation, capStyle) {
+  capStyle = capStyle || 'both';
+  // capStyle is specified in WORLD-axis terms ('low' = round the world-low
+  // end, 'high' = the world-high end). The mesh is rotated -π/2 around X
+  // to lie flat: local x maps directly to world X (no flip), but local y
+  // maps to world -z (flipped). So for y-orient streets, "world low" is
+  // at LOCAL HIGH and vice versa — invert capStyle here so the geometry
+  // construction below stays in plain local-axis terms.
+  if (orientation === STREET_AXIS.Y) {
+    if      (capStyle === 'low')  capStyle = 'high';
+    else if (capStyle === 'high') capStyle = 'low';
+  }
   var r = width / 2;
-  var halfStraight = Math.max(0, length / 2 - r);
+  var roundLow  = capStyle === 'both' || capStyle === 'low';
+  var roundHigh = capStyle === 'both' || capStyle === 'high';
+  // The straight section's long-axis range. When a side is rounded, the
+  // straight section ends r before the world edge; when flat, it extends
+  // all the way out to the world edge.
+  var lo = roundLow  ? -length / 2 + r :  -length / 2;
+  var hi = roundHigh ?  length / 2 - r :   length / 2;
+  if (lo > hi) lo = hi = 0;   // degenerate: width > length, collapse to 0
+
   var shape = new THREE.Shape();
   if (orientation === STREET_AXIS.X) {
-    shape.moveTo(-halfStraight, -r);
-    shape.lineTo(halfStraight, -r);
-    shape.absarc(halfStraight, 0, r, -Math.PI / 2, Math.PI / 2, false);
-    shape.lineTo(-halfStraight, r);
-    shape.absarc(-halfStraight, 0, r, Math.PI / 2, 3 * Math.PI / 2, false);
+    // Trace counter-clockwise: start at low-bottom corner, run along the
+    // bottom edge, round (or flat) the high end, run back along the top,
+    // and round (or flat) the low end. Auto-closes back to start.
+    shape.moveTo(lo, -r);
+    shape.lineTo(hi, -r);
+    if (roundHigh) shape.absarc(hi, 0, r, -Math.PI / 2, Math.PI / 2, false);
+    else           shape.lineTo(hi, r);
+    shape.lineTo(lo, r);
+    if (roundLow)  shape.absarc(lo, 0, r, Math.PI / 2, 3 * Math.PI / 2, false);
+    else           shape.lineTo(lo, -r);
   } else {
-    shape.moveTo(-r, -halfStraight);
-    shape.absarc(0, -halfStraight, r, Math.PI, 2 * Math.PI, false);
-    shape.lineTo(r, halfStraight);
-    shape.absarc(0, halfStraight, r, 0, Math.PI, false);
+    shape.moveTo(-r, lo);
+    if (roundLow)  shape.absarc(0, lo, r, Math.PI, 2 * Math.PI, false);
+    else           shape.lineTo(r, lo);
+    shape.lineTo(r, hi);
+    if (roundHigh) shape.absarc(0, hi, r, 0, Math.PI, false);
+    else           shape.lineTo(-r, hi);
   }
   return new THREE.ShapeGeometry(shape, STADIUM_SEGMENTS);
 }
@@ -445,11 +480,22 @@ function createStreetMesh(street, yBase) {
   var sidewalkStrip = (street.width - asphaltWidth) / 2;
   var asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
 
+  // Cap style: the root has rounded caps both sides; non-root streets are
+  // FLAT at their joining end (so they merge cleanly into the parent at
+  // the T-intersection) and rounded only at the open end. layout.js stamps
+  // each non-root street with `joinSide` ('low' | 'high') after layout.
+  // Same capStyle is passed to BOTH sidewalk + asphalt so their flat ends
+  // line up and the visible sidewalk strip stays uniform around the cap.
+  var capStyle;
+  if (street.isRoot)                  capStyle = 'both';
+  else if (street.joinSide === 'high') capStyle = 'low';   // round the low/open end
+  else                                 capStyle = 'high';  // round the high/open end
+
   // Sidewalk — the clickable target for street picking. renderOrder=1
   // means all sidewalks across the city draw first, as a single bottom layer.
   var orders = RENDER_ORDERS;
   var sidewalk = new THREE.Mesh(
-    _buildStadiumGeometry(street.length, street.width, street.orientation),
+    _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
     _flatMat(sidewalkCfg.DEFAULT, orders.SIDEWALK)
   );
   sidewalk.rotation.x = -Math.PI / 2;
@@ -461,7 +507,7 @@ function createStreetMesh(street, yBase) {
 
   // Asphalt — narrower, always draws on top of every sidewalk.
   var asphalt = new THREE.Mesh(
-    _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation),
+    _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyle),
     _flatMat(asphaltCfg.COLOR, orders.ASPHALT)
   );
   asphalt.rotation.x = -Math.PI / 2;
@@ -604,6 +650,26 @@ function createPathMesh(path, yBase) {
 // userData so the render loop can flip it 180° around scene-Y when the
 // camera orbits to the "upside-down" side.
 // -----------------------------------------------------------------------------
+// regenerateLabelTexture(group) — rebuild a single label's CanvasTexture
+// from the current LABEL_TYPOGRAPHY.FILL / STROKE / FONT settings, swap
+// it onto the existing plane material, and dispose the old one. Used by
+// applyTheme to make the label fill color hot-reloadable without a full
+// rebuild. Only safe to call when canvas dimensions haven't changed —
+// FILL/STROKE colors are fine, but font-size / padding / stroke-width
+// changes the texture aspect, which would also need a plane geometry
+// update (those keys stay rebuild-required).
+export function regenerateLabelTexture(group) {
+  var street = group && group.userData && group.userData.street;
+  if (!street || !street.label) return;
+  var plane = group.children && group.children[0];
+  if (!plane || !plane.material) return;
+  if (plane.material.map) plane.material.map.dispose();
+  var info = _buildLabelTexture(street.label);
+  plane.material.map = info.texture;
+  plane.material.needsUpdate = true;
+  group.userData.textureAspect = info.aspect;
+}
+
 function _buildLabelTexture(text) {
   // High source resolution so close-zoom doesn't reveal bilinear blur.
   // The world-space plane size is unchanged — we're just packing more

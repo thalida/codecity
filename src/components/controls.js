@@ -38,6 +38,8 @@ import { makeLucideIcon } from './icon.js';
 // opts:
 //   applyTheme — fn() invoked after any hot-reloadable mutation; flushes
 //                the change through to live materials. Optional.
+//   onClose    — fn() invoked when the user clicks the × in the header.
+//                Optional; if omitted, no close button is rendered.
 //
 // (onResetView is no longer used — the View section shows a kbd shortcut
 // table including R, which the existing keydown handler in main.js wires
@@ -50,11 +52,21 @@ export function buildControlsPane(opts) {
   pane.className = 'left-pane controls-pane';
 
   var header = document.createElement('div');
-  header.className = 'controls-header';
+  header.className = 'controls-header pane-header';
   var title = document.createElement('h3');
   title.className = 'controls-title';
   title.textContent = 'Controls';
   header.appendChild(title);
+  if (typeof opts.onClose === 'function') {
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'pane-header-close';
+    closeBtn.title = 'Hide sidebar';
+    closeBtn.setAttribute('aria-label', 'Hide sidebar');
+    closeBtn.appendChild(makeLucideIcon('x'));
+    closeBtn.addEventListener('click', function () { opts.onClose(); });
+    header.appendChild(closeBtn);
+  }
   pane.appendChild(header);
 
   var body = document.createElement('div');
@@ -178,9 +190,9 @@ function _buildStreetsSection(applyTheme) {
 
   // Street labels
   section.appendChild(_subgroup('Street labels', [
-    _color ('Fill',                 LABEL_TYPOGRAPHY, 'FILL', {
-      tip: 'Text color of the names painted on each road. Baked into the label texture, so a rebuild is required.',
-      rebuild: true
+    _color ('Fill', LABEL_TYPOGRAPHY, 'FILL', {
+      tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
+      onChange: applyTheme
     }),
     _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
       tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down.',
