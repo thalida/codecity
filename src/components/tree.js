@@ -1,12 +1,11 @@
 // tree.js — Left sidebar tree view. Renders a collapsible folder/file tree.
 
-import { GLYPHS, UI_TEXT } from '../config/index.js';
 import { NODE_KIND } from '../constants.js';
+import { makeLucideIcon } from './icon.js';
 
 export function buildTree(node) {
   var ul = document.createElement('ul');
   ul.className = 'tree-list';
-  var glyphs = GLYPHS.get();
 
   var children = node.children || [];
   // Sort: directories first, then files, alphabetically within each group
@@ -28,9 +27,9 @@ export function buildTree(node) {
       var toggle = document.createElement('span');
       toggle.className = 'tree-toggle';
 
-      var icon = document.createElement('span');
-      icon.className = 'tree-icon tree-icon-dir';
-      icon.textContent = glyphs.TREE_COLLAPSED;
+      // Chevron flips between right (collapsed) and down (expanded). Both
+      // share the same icon span so we just swap the mask URL on toggle.
+      var icon = makeLucideIcon('chevron-right', { class: 'tree-icon tree-icon-dir' });
 
       var label = document.createElement('span');
       label.className = 'tree-label';
@@ -49,28 +48,25 @@ export function buildTree(node) {
       (function(toggleEl, subtreeEl, iconEl, liEl) {
         toggleEl.addEventListener('click', function(e) {
           e.stopPropagation();
-          var g = GLYPHS.get();
           var isCollapsed = liEl.classList.contains('tree-collapsed');
           if (isCollapsed) {
             liEl.classList.remove('tree-collapsed');
             liEl.classList.add('tree-expanded');
             subtreeEl.style.display = '';
-            iconEl.textContent = g.TREE_EXPANDED;
+            _setIcon(iconEl, 'chevron-down');
           } else {
             liEl.classList.add('tree-collapsed');
             liEl.classList.remove('tree-expanded');
             subtreeEl.style.display = 'none';
-            iconEl.textContent = g.TREE_COLLAPSED;
+            _setIcon(iconEl, 'chevron-right');
           }
         });
       })(toggle, subtree, icon, li);
     } else {
-      // File leaf node
+      // File leaf node — small file icon next to the name.
       li.classList.add('tree-file');
 
-      var fileIcon = document.createElement('span');
-      fileIcon.className = 'tree-icon tree-icon-file';
-      fileIcon.textContent = glyphs.TREE_FILE;
+      var fileIcon = makeLucideIcon('file', { class: 'tree-icon tree-icon-file' });
 
       var fileLabel = document.createElement('span');
       fileLabel.className = 'tree-label';
@@ -84,6 +80,17 @@ export function buildTree(node) {
   }
 
   return ul;
+}
+
+
+// _setIcon(span, name) — swap the mask-image URL of an existing lucide-icon
+// span so we don't have to rebuild the DOM node on every toggle.
+function _setIcon(span, name) {
+  var base = span.style.maskImage || span.style.webkitMaskImage;
+  // Both URLs share the prefix up through ".../icons/"; swap the last segment.
+  var u = base.replace(/[^/]+\.svg/, name + '.svg');
+  span.style.maskImage = u;
+  span.style.webkitMaskImage = u;
 }
 
 
@@ -102,7 +109,7 @@ export function buildTreePane(manifest) {
   var title = document.createElement('h3');
   title.className = 'tree-title';
   var tree = manifest.tree || manifest;
-  title.textContent = tree.name || UI_TEXT.get().DEFAULT_PROJECT_NAME;
+  title.textContent = tree.name || 'Project';
   header.appendChild(title);
 
   pane.appendChild(header);

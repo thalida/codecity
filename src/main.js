@@ -45,13 +45,17 @@ import {
   CAMERA_CONTROLS,
   CAMERA_ANIMATION,
   INPUT_TIMING,
-  PIVOT_PING,
   PATH_LINE,
-  RAINBOW,
-  RENDER_ORDERS
+  RAINBOW
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
-import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT } from './constants.js';
+import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from './constants.js';
+
+// ─── Sightline-search internals (algorithm tuning, not designer dials) ────
+// _focusOnBuilding tries head-on, then tilts up if the view is obstructed.
+var SIGHTLINE_STEP_DEG     = 20;     // elevation step between attempts
+var SIGHTLINE_MAX_ATTEMPTS = 5;      // give up after this many tilts
+var SIGHTLINE_FAR_OFFSET   = 0.5;    // shrink raycast.far so it doesn't self-hit
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
@@ -131,7 +135,7 @@ function startRenderLoop(canvas, manifest) {
   for (var bli = 0; bli < buildingMeshes.length; bli++) {
     var _bm = buildingMeshes[bli];
     var _bd = _bm.userData.building;
-    var _bcol = new THREE.Color(_bd.color || BUILDING_PALETTE.get().FALLBACK_COLOR);
+    var _bcol = new THREE.Color(_bd.color);
 
     var _olGeo = new LineSegmentsGeometry();
     _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
@@ -266,28 +270,7 @@ function startRenderLoop(canvas, manifest) {
   var groundHit    = new THREE.Vector3();
   var camAnimToken = 0;
 
-  // Pivot ping: a brief expanding-ring "ping" at the new pivot location,
-  // shown only at the moment focus changes (dblclick / F / reset). No
-  // persistent indicator — that's not how Blender, Maya, SketchUp, or
-  // Google Earth do it; rotation pivot is implicit during normal navigation.
-  // The ping is feedback for "your pivot moved here" then disappears.
-  var pingCfg = PIVOT_PING.get();
-  var _orders = RENDER_ORDERS.get();
-  var pivotPing = new THREE.Mesh(
-    new THREE.RingGeometry(pingCfg.INNER_RADIUS, pingCfg.OUTER_RADIUS, pingCfg.SEGMENTS),
-    new THREE.MeshBasicMaterial({
-      color:       new THREE.Color(pingCfg.COLOR),
-      transparent: true,
-      opacity:     0.0,         // hidden by default
-      depthWrite:  false,
-      side:        THREE.DoubleSide
-    })
-  );
-  pivotPing.rotation.x  = -Math.PI / 2;   // lay flat on XZ
-  pivotPing.renderOrder = _orders.PIVOT_PING;
-  pivotPing.position.y  = pingCfg.HEIGHT;
-  pivotPing.visible     = false;
-  scene.add(pivotPing);
+  var _orders = RENDER_ORDERS;
 
   // Hover + selection outlines for buildings: ONE shared mesh per state,
   // retransformed to whichever building is currently hovered / selected.
@@ -654,36 +637,6 @@ function startRenderLoop(canvas, manifest) {
   var currentSelection = null;
   var currentHover     = null;
 
-  var pingToken = 0;
-  function _pingPivot(worldPos) {
-    var token = ++pingToken;
-    pivotPing.position.x = worldPos.x;
-    pivotPing.position.z = worldPos.z;
-    pivotPing.visible = true;
-    var pcfg = PIVOT_PING.get();
-    var t0 = performance.now();
-    var duration = pcfg.DURATION_MS;
-    var startScale = pcfg.START_SCALE;
-    var endScale   = pcfg.END_SCALE;
-    var startOpacity = pcfg.START_OPACITY;
-    function step() {
-      if (pingToken !== token) return;       // newer ping superseded this one
-      var elapsed = performance.now() - t0;
-      var t = elapsed / duration;
-      if (t >= 1) {
-        pivotPing.visible = false;
-        pivotPing.material.opacity = 0;
-        return;
-      }
-      var eased = 1 - Math.pow(1 - t, CAMERA_ANIMATION.get().PAN_EASING_POWER);
-      var s = startScale + (endScale - startScale) * eased;
-      pivotPing.scale.set(s, s, s);
-      pivotPing.material.opacity = startOpacity * (1 - t);
-      requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
   canvas.addEventListener('pointerdown', function (e) {
     downX = e.clientX;
     downY = e.clientY;
@@ -856,7 +809,6 @@ function startRenderLoop(canvas, manifest) {
     camera.up.set(0, 1, 0);
     var delta = p.clone().sub(controls.target);
     _animateCamera(p, camera.position.clone().add(delta), CAMERA_ANIMATION.get().RECENTER_DURATION_MS);
-    _pingPivot(p);
   }
 
   // _focusOnBuilding(mesh, b) — frame the building's door face head-on.
@@ -892,8 +844,8 @@ function startRenderLoop(canvas, manifest) {
 
     // Try head-on first; raise camera SIGHTLINE_STEP_DEG at a time if obstructed.
     var newCamPos = null;
-    for (var attempt = 0; attempt < camAnim.BUILDING_FOCUS_SIGHTLINE_ATTEMPTS; attempt++) {
-      var elev = (attempt * camAnim.BUILDING_FOCUS_SIGHTLINE_STEP_DEG) * Math.PI / 180;
+    for (var attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
+      var elev = (attempt * SIGHTLINE_STEP_DEG) * Math.PI / 180;
       var horiz = dist * Math.cos(elev);
       var vert  = b.h / 2 + dist * Math.sin(elev);
       var candidate = new THREE.Vector3(
@@ -909,7 +861,6 @@ function startRenderLoop(canvas, manifest) {
     }
 
     _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
-    _pingPivot(newTarget);
   }
 
   // _isSightClear(camPos, target, focusedMesh) — does a ray from camPos to
@@ -918,7 +869,7 @@ function startRenderLoop(canvas, manifest) {
   function _isSightClear(camPos, target, focusedMesh) {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
-    _xrayRay.far = camPos.distanceTo(target) - CAMERA_ANIMATION.get().SIGHT_CHECK_FAR_OFFSET;
+    _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
     var hits = _xrayRay.intersectObjects(buildingMeshes, false);
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].object !== focusedMesh) return false;
@@ -1015,7 +966,6 @@ function startRenderLoop(canvas, manifest) {
       tz + offZ * horizDist
     );
     _animateCamera(newTarget, newCamPos, camAnim.STREET_FOCUS_DURATION_MS);
-    _pingPivot(newTarget);
   }
 
   function _animateCamera(newTarget, newCamPos, duration) {
@@ -1041,7 +991,6 @@ function startRenderLoop(canvas, manifest) {
   function resetView() {
     camera.up.set(0, 1, 0);           // back to default world-up
     _animateCamera(initialTarget.clone(), initialCamPos.clone(), CAMERA_ANIMATION.get().RESET_DURATION_MS);
-    _pingPivot(initialTarget);
   }
 
   // Hover pipeline: pointermove fires faster than render frames, so we
@@ -1187,39 +1136,9 @@ function startRenderLoop(canvas, manifest) {
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
   var labelRight = new THREE.Vector3();
-  // Reusable scratch objects for sight-line check + screen-space X-ray.
+  // Reusable scratch objects for the sight-line raycast in _isSightClear.
   var _xrayRay = new THREE.Raycaster();
   var _xrayDir = new THREE.Vector3();
-  var _boxA    = new THREE.Box3();
-  var _boxB    = new THREE.Box3();
-  var _scratchCenter = new THREE.Vector3();
-  var _corners = [
-    new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(),
-    new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()
-  ];
-
-  // _projectBoxToNDC(box) -> { minX, maxX, minY, maxY }
-  // Project all 8 corners of a world Box3 into NDC and return their
-  // screen-aligned bounding rect. Used to test silhouette overlap.
-  function _projectBoxToNDC(box) {
-    _corners[0].set(box.min.x, box.min.y, box.min.z);
-    _corners[1].set(box.max.x, box.min.y, box.min.z);
-    _corners[2].set(box.min.x, box.max.y, box.min.z);
-    _corners[3].set(box.max.x, box.max.y, box.min.z);
-    _corners[4].set(box.min.x, box.min.y, box.max.z);
-    _corners[5].set(box.max.x, box.min.y, box.max.z);
-    _corners[6].set(box.min.x, box.max.y, box.max.z);
-    _corners[7].set(box.max.x, box.max.y, box.max.z);
-    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (var i = 0; i < 8; i++) {
-      _corners[i].project(camera);
-      if (_corners[i].x < minX) minX = _corners[i].x;
-      if (_corners[i].x > maxX) maxX = _corners[i].x;
-      if (_corners[i].y < minY) minY = _corners[i].y;
-      if (_corners[i].y > maxY) maxY = _corners[i].y;
-    }
-    return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
-  }
 
   // _updateXRayAndOutlines() — runs every frame. Two jobs:
   //   1. X-ray: while a building is focused, fade ANY building whose
@@ -1303,10 +1222,8 @@ function startRenderLoop(canvas, manifest) {
     var TIER_OTHER_OUTLN = fadeCfg.TIER_FAR_OUTLINE;
     var TIER_OTHER_GHOST = fadeCfg.TIER_FAR_GHOST;
 
-    // Obstruction detection disabled for now — selected building relies
-    // purely on the tiered fade. Re-enable by un-commenting and restoring
-    // the obstructor-fade block in the per-building loop below.
-    var obstructorIds = null;
+    // Obstruction detection (NDC silhouette overlap) was previously here;
+    // tiered fade alone covers the visibility need, so it was deleted.
 
     for (var bi = 0; bi < buildingMeshes.length; bi++) {
       var m = buildingMeshes[bi];
@@ -1342,13 +1259,6 @@ function startRenderLoop(canvas, manifest) {
           ghostDim   = TIER_OTHER_GHOST;
         }
       }
-      // Obstructor fade: when a building is selected, anything closer to
-      // the camera that visually overlaps it gets EXTRA fade so the
-      // selected building stays visible at any rotation/zoom. Applies on
-      // top of the tier above (multiplies it down).
-      // Obstructor detection is currently disabled (`obstructorIds` is
-      // always null below); when re-enabled it'd dim obstructors here.
-      // Tier values were removed from BUILDING_FADE since they were dead.
       // Hover restore: a hovered building never drops below HOVER_MIN_OPACITY.
       if (m === hoverMesh && target < fadeCfg.HOVER_MIN_OPACITY) {
         target = fadeCfg.HOVER_MIN_OPACITY;

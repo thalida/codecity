@@ -1,38 +1,43 @@
 // config/building.js — Everything visual about a building: dimensions,
-// palette, facade rendering, outline, and selection-driven fade tiers.
+// palette, outline, and selection-driven fade tiers.
 //
-// DIMENSIONS + PALETTE + FACADE changes are rebuild-required (regenerate
-// per-building geometry / facade textures). OUTLINE + FADE are hot-reloadable.
+// DIMENSIONS + PALETTE changes are rebuild-required (regenerate per-building
+// geometry / facade textures). OUTLINE + FADE are hot-reloadable.
 
 import { map } from 'nanostores';
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
-// Floors = sqrt-normalized across the project's own line-count range; width
-// = log-normalized against SIZE_CEILING_BYTES.
+// Floors and width are BOTH normalized against the project's own range:
+// smallest file → MIN, largest → MAX. Floors uses sqrt-interpolation across
+// line counts, width uses log-interpolation across byte sizes (file sizes
+// span many orders of magnitude). Both auto-adapt per project — no absolute
+// "size ceiling" anchor that punishes small repos with thin buildings or
+// crushes large repos to all-the-same width.
+//
+// STREET_GAP is the empty space a building leaves around itself toward the
+// adjacent sidewalk. The path connector strip's length AND width are both
+// derived from this — the strip is square, exactly bridging the gap.
 export const BUILDING_DIMENSIONS = map({
-  MIN_FLOORS:         1,
-  MAX_FLOORS:         50,
-  FLOOR_HEIGHT:       10,            // scene units per floor
-  SIZE_CEILING_BYTES: 10485760,      // file size at which width caps at MAX_WIDTH
-  MIN_WIDTH:          6,
-  MAX_WIDTH:          40
+  MIN_FLOORS:   1,
+  MAX_FLOORS:   50,
+  FLOOR_HEIGHT: 10,           // scene units per floor
+  MIN_WIDTH:    6,
+  MAX_WIDTH:    40,
+  STREET_GAP:   4             // gap between building wall and adjacent sidewalk
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
 // Hue comes from HUE_EXT_MAP keyed by file extension; saturation and
 // lightness come from these ranges (older files are more muted, newer ones
-// brighter). FALLBACK_COLOR / DIRECTORY_COLOR are used when a file has no
-// extension match or for non-file (directory) buildings.
+// brighter). DIRECTORY_COLOR is used for directory buildings.
 export const BUILDING_PALETTE = map({
-  SATURATION_MIN: 20,
-  SATURATION_MAX: 100,
-  LIGHTNESS_MIN:  25,
-  LIGHTNESS_MAX:  70,
+  SATURATION_MIN:   20,
+  SATURATION_MAX:   100,
+  LIGHTNESS_MIN:    25,
+  LIGHTNESS_MAX:    70,
   // (When a file has no creation/modification date, getSaturation /
   // getLightness fall back to the midpoint of the range above so the
-  // building reads as "average" rather than crushed to either extreme.
-  // No separate config keys — the midpoint is derived in colors.js.)
-  FALLBACK_COLOR:  'hsl(220, 10%, 40%)',   // when building.color is null
+  // building reads as "average" rather than crushed to either extreme.)
   DIRECTORY_COLOR: 'hsl(220, 15%, 25%)',   // dim slab for directory entries
   HUE_EXT_MAP: {
     '.js':   220, '.ts':   215, '.jsx':   225, '.tsx': 210, '.mjs': 220,
@@ -46,58 +51,13 @@ export const BUILDING_PALETTE = map({
   }
 });
 
-// ─── Color derivation (palette → wall / slab / window / door / roof) ──────
-// Each building's base palette color is shaded into 7 derivatives drawn
-// onto its facade texture. These are the multipliers / hue shifts that
-// produce wall vs side vs slab vs window vs door from the same root color.
-//   *_LIGHTNESS_DELTA — additive lightness shift (in HSL %, can be negative)
-//   *_HUE_SHIFT       — hue rotation in degrees
-//   *_DARKEN_RATIO    — multiplicative darkening (1.0 = unchanged, 0.5 = 50%)
-//   *_LIGHTNESS_FLOOR — clamp floor so very dim files don't crush to black
-export const BUILDING_SHADING = map({
-  WALL_FRONT_LIGHTNESS_DELTA:  -5,
-  WALL_FRONT_HUE_SHIFT:        18,
-  WALL_SIDE_DARKEN_RATIO:      0.55,
-  WALL_SIDE_LIGHTNESS_DELTA:   -10,
-  WALL_SIDE_LIGHTNESS_FLOOR:   14,
-  SLAB_FRONT_LIGHTNESS_DELTA:  -15,
-  SLAB_FRONT_HUE_SHIFT:        18,
-  SLAB_SIDE_DARKEN_RATIO:      0.40,
-  SLAB_SIDE_LIGHTNESS_DELTA:   -10,
-  SLAB_SIDE_LIGHTNESS_FLOOR:   10,
-  WINDOW_LIGHTNESS_DELTA:      20,
-  DOOR_LIGHTNESS_DELTA:        -55,
-  ROOF_BORDER_LIGHTNESS_DELTA: -15
-});
-
-// ─── Facade rendering ──────────────────────────────────────────────────────
-// Per-building facade is painted onto a CanvasTexture: walls, slab bands at
-// each floor, a grid of windows, optionally a door on the ground floor.
-// Rebuild-required (textures are baked once at scene build).
-export const BUILDING_FACADE = map({
-  TEXTURE_MIN_WIDTH_PX:        128,
-  TEXTURE_WIDTH_PER_COL_MULT:  128,
-  TEXTURE_MIN_HEIGHT_PX:       64,
-  TEXTURE_HEIGHT_PER_FLOOR_MULT: 64,
-  ANISOTROPY:                  8,
-  SLAB_BAND_MIN_PX:            3,      // floor on slab pixel height for tiny textures
-  SLAB_HEIGHT_FRAC:            0.12,   // slab band height = floor height × this
-  WINDOW_MARGIN_FRAC:          0.08,
-  WINDOW_WIDTH_FRAC:           0.45,
-  WINDOW_HEIGHT_FRAC:          0.45,
-  WINDOW_COLS_SIZE_DIVISOR:    8,
-  WINDOW_COLS_MAX:             5,
-  DOOR_WIDTH_FRAC:             0.14,
-  DOOR_HEIGHT_FRAC:            0.7
-});
-
 // ─── Wireframe outlines ────────────────────────────────────────────────────
 // Per-building outline stays invisible until the building fades; HOVER +
 // SELECTED outlines are dedicated overlays painted over the active building.
 // One shared WIDTH for all three outlines — hover/selected differentiate
 // via color (white for hover, animated rainbow for selected) rather than
 // thickness. The chasing-rainbow effect on selected uses RAINBOW (shared
-// with the path line) — see config/animation.js.
+// with the path line) — see config/effects.js.
 export const BUILDING_OUTLINE = map({
   WIDTH:            3,            // shared by default + hover + selected
   HOVER_COLOR:      '#ffffff',

@@ -12,16 +12,67 @@ import {
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
-  BUILDING_PALETTE,
-  BUILDING_SHADING,
-  BUILDING_FACADE,
   GEM_SIZING,
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
-  GEM_ANIMATION,
-  RENDER_ORDERS
+  GEM_ANIMATION
 } from '../config/index.js';
-import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT } from '../constants.js';
+import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../constants.js';
+
+// ─── Renderer-internal constants (not designer-tunable) ────────────────────
+// These shape facade textures, color derivation, and stadium tessellation.
+// Changing them changes the look of every building, but they're not user
+// dials — leaving them as plain consts keeps the user-facing config surface
+// (sliders/colors in the Settings UI) free of implementation noise.
+
+// Facade canvas / window math.
+var FACADE = Object.freeze({
+  TEXTURE_MIN_WIDTH_PX:        128,
+  TEXTURE_WIDTH_PER_COL_MULT:  128,
+  TEXTURE_MIN_HEIGHT_PX:       64,
+  TEXTURE_HEIGHT_PER_FLOOR_MULT: 64,
+  ANISOTROPY:                  8,
+  SLAB_BAND_MIN_PX:            3,
+  SLAB_HEIGHT_FRAC:            0.12,
+  WINDOW_MARGIN_FRAC:          0.08,
+  WINDOW_WIDTH_FRAC:           0.45,
+  WINDOW_HEIGHT_FRAC:          0.45,
+  WINDOW_COLS_SIZE_DIVISOR:    8,
+  WINDOW_COLS_MAX:             5,
+  DOOR_WIDTH_FRAC:             0.14,
+  DOOR_HEIGHT_FRAC:            0.7
+});
+
+// Per-face palette derivation: front/side/slab/window/door/roof shifts off
+// the building's base color.
+//   *_LIGHTNESS_DELTA — additive lightness shift in HSL %
+//   *_HUE_SHIFT       — hue rotation in degrees
+//   *_DARKEN_RATIO    — multiplicative darkening (1.0 = unchanged)
+//   *_LIGHTNESS_FLOOR — clamp floor so dim files don't crush to black
+var SHADING = Object.freeze({
+  WALL_FRONT_LIGHTNESS_DELTA:  -5,
+  WALL_FRONT_HUE_SHIFT:        18,
+  WALL_SIDE_DARKEN_RATIO:      0.55,
+  WALL_SIDE_LIGHTNESS_DELTA:   -10,
+  WALL_SIDE_LIGHTNESS_FLOOR:   14,
+  SLAB_FRONT_LIGHTNESS_DELTA:  -15,
+  SLAB_FRONT_HUE_SHIFT:        18,
+  SLAB_SIDE_DARKEN_RATIO:      0.40,
+  SLAB_SIDE_LIGHTNESS_DELTA:   -10,
+  SLAB_SIDE_LIGHTNESS_FLOOR:   10,
+  WINDOW_LIGHTNESS_DELTA:      20,
+  DOOR_LIGHTNESS_DELTA:        -55,
+  ROOF_BORDER_LIGHTNESS_DELTA: -15
+});
+
+// Stadium-cap tessellation count for the asphalt + sidewalk shapes.
+var STADIUM_SEGMENTS = 16;
+
+// Label canvas drawing internals — must stay 'center'/'middle' for the
+// centered draw math, and label texture filtering anisotropy.
+var LABEL_TEXT_ALIGN    = 'center';
+var LABEL_TEXT_BASELINE = 'middle';
+var LABEL_ANISOTROPY    = 16;
 
 
 // _toPow2(n) — round n UP to the next power of two. Used so canvas-backed
@@ -48,7 +99,7 @@ function _toPow2(n) {
 // building mesh are real-world units — the texture stretches to fit.
 // -----------------------------------------------------------------------------
 function _buildFacadeTexture(opts) {
-  var facade     = BUILDING_FACADE.get();
+  var facade     = FACADE;
   var floors     = opts.floors;
   var cols       = opts.cols;
   var wallColor  = opts.wallColor;
@@ -145,7 +196,7 @@ function _buildFacadeTexture(opts) {
 // border so it reads as a roof slab rather than a featureless cap.
 // -----------------------------------------------------------------------------
 function _buildRoofTexture(opts) {
-  var facade = BUILDING_FACADE.get();
+  var facade = FACADE;
   // Roof texture is a small fixed-size pixel canvas — we use the facade
   // anisotropy so roof + walls share the same min/mag filter feel. The
   // 128px canvas + 4/2/124 border insets are visual constants of the
@@ -189,9 +240,8 @@ function _buildRoofTexture(opts) {
 export function createBuildingMesh(building) {
   var w = building.w;
   var d = building.d;
-  var palette = BUILDING_PALETTE.get();
-  var shading = BUILDING_SHADING.get();
-  var color = building.color || palette.FALLBACK_COLOR;
+  var shading = SHADING;
+  var color = building.color;
 
   // Floor count + height come straight from layout (layout is the source of
   // truth for the lines→floors mapping and snaps h to floor_height boundaries).
@@ -206,9 +256,8 @@ export function createBuildingMesh(building) {
   // Window-column counts scale with each face's horizontal extent:
   //   ±X faces (east/west walls)   have horizontal extent = d
   //   ±Z faces (north/south walls) have horizontal extent = w
-  var facade = BUILDING_FACADE.get();
-  var colsEW = Math.max(1, Math.min(facade.WINDOW_COLS_MAX, Math.floor(d / facade.WINDOW_COLS_SIZE_DIVISOR)));
-  var colsNS = Math.max(1, Math.min(facade.WINDOW_COLS_MAX, Math.floor(w / facade.WINDOW_COLS_SIZE_DIVISOR)));
+  var colsEW = Math.max(1, Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(d / FACADE.WINDOW_COLS_SIZE_DIVISOR)));
+  var colsNS = Math.max(1, Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(w / FACADE.WINDOW_COLS_SIZE_DIVISOR)));
 
   // Palette — opposing faces share a color so the building looks symmetric
   // as the camera orbits. Front/back faces use a slight absolute lightness
@@ -341,7 +390,7 @@ function _buildStadiumGeometry(length, width, orientation) {
     shape.lineTo(r, halfStraight);
     shape.absarc(0, halfStraight, r, 0, Math.PI, false);
   }
-  return new THREE.ShapeGeometry(shape, ASPHALT.get().STADIUM_SEGMENTS);
+  return new THREE.ShapeGeometry(shape, STADIUM_SEGMENTS);
 }
 
 
@@ -372,7 +421,7 @@ function createStreetMesh(street, yBase) {
 
   // Sidewalk — the clickable target for street picking. renderOrder=1
   // means all sidewalks across the city draw first, as a single bottom layer.
-  var orders = RENDER_ORDERS.get();
+  var orders = RENDER_ORDERS;
   var sidewalk = new THREE.Mesh(
     _buildStadiumGeometry(street.length, street.width, street.orientation),
     _flatMat(sidewalkCfg.DEFAULT, orders.SIDEWALK)
@@ -499,7 +548,7 @@ function createRootGem(street) {
 function createPathMesh(path, yBase) {
   // Paths sit between sidewalks and asphalts so they extend the sidewalk
   // all the way to the building without overdrawing the asphalt.
-  var pathOrder = RENDER_ORDERS.get().PATH_CONNECTOR;
+  var pathOrder = RENDER_ORDERS.PATH_CONNECTOR;
   var mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(path.w, path.d),
     _flatMat(SIDEWALK_COLORS.get().DEFAULT, pathOrder)
@@ -539,8 +588,8 @@ function _buildLabelTexture(text) {
   canvas.height = label.FONT_SIZE_PX + label.CANVAS_PADDING_PX * 2;
   var ctx = canvas.getContext('2d');
   ctx.font = fontSpec;
-  ctx.textAlign    = label.TEXT_ALIGN;
-  ctx.textBaseline = label.TEXT_BASELINE;
+  ctx.textAlign    = LABEL_TEXT_ALIGN;
+  ctx.textBaseline = LABEL_TEXT_BASELINE;
 
   ctx.lineWidth   = label.STROKE_WIDTH_PX;
   ctx.strokeStyle = label.STROKE;
@@ -550,7 +599,7 @@ function _buildLabelTexture(text) {
 
   var tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = label.ANISOTROPY;
+  tex.anisotropy = LABEL_ANISOTROPY;
   return { texture: tex, aspect: canvas.width / canvas.height };
 }
 
@@ -559,7 +608,7 @@ function createStreetLabels(street) {
   if (!text) return [];
 
   var label  = LABEL_TYPOGRAPHY.get();
-  var orders = RENDER_ORDERS.get();
+  var orders = RENDER_ORDERS;
   var info   = _buildLabelTexture(text);
 
   // Label sizing scales with street width — narrow alleys get small text,

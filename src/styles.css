@@ -354,11 +354,16 @@ canvas {
 
 /* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
 
+/* Default width is set inline by leftSidebar.js after reading localStorage,
+ * so users can drag the right-edge handle to resize and the chosen width
+ * persists across reloads. The CSS fallback is the no-localStorage default. */
 #tree-sidebar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 304px;            /* 44px activity bar + 260px panel */
+  width: 360px;            /* 44px activity bar + 316px panel; resizable */
+  min-width: 280px;
+  max-width: 600px;
   height: 100%;
   background: #10111a;
   border-right: 1px solid #1e2030;
@@ -366,6 +371,23 @@ canvas {
   flex-direction: row;
   z-index: 90;
   overflow: hidden;
+}
+
+/* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
+ * 6px hit zone makes it easy to grab. */
+.sidebar-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -3px;             /* sit half-on, half-off the edge for an easier grab */
+  width: 6px;
+  height: 100%;
+  cursor: ew-resize;
+  background: transparent;
+  z-index: 91;
+}
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging {
+  background: rgba(108, 138, 255, 0.25);
 }
 
 .activity-bar {
@@ -405,10 +427,13 @@ canvas {
   background: rgba(108, 138, 255, 0.06);
 }
 
-.activity-bar-glyph {
-  display: block;
-  width: 20px;
-  height: 20px;
+/* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
+ * Each consumer sets its own size + color via parent CSS. .activity-bar-glyph
+ * keeps its 20px footprint; .lucide-icon is the smaller inline default for
+ * tree rows + buttons. */
+.activity-bar-glyph,
+.lucide-icon {
+  display: inline-block;
   background-color: currentColor;
   -webkit-mask-size: contain;
   mask-size: contain;
@@ -416,6 +441,16 @@ canvas {
   mask-repeat: no-repeat;
   -webkit-mask-position: center;
   mask-position: center;
+}
+.activity-bar-glyph {
+  display: block;
+  width: 20px;
+  height: 20px;
+}
+.lucide-icon {
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
 }
 
 .left-panel {
@@ -621,6 +656,25 @@ canvas {
   justify-content: flex-end;
 }
 
+/* "↻" reload-required badge after a label.  Sits inline so it's visible
+ * without truncating the row title. Hover shows the full explanation via
+ * the parent row's title attribute. */
+.theme-row-rebuild-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 6px;
+  padding: 0 4px;
+  height: 14px;
+  font-size: 10px;
+  line-height: 1;
+  color: rgba(220, 180, 100, 0.85);
+  background: rgba(220, 180, 100, 0.10);
+  border: 1px solid rgba(220, 180, 100, 0.35);
+  border-radius: 3px;
+  cursor: help;
+}
+
 /* Color swatch — small native color picker */
 .theme-color {
   -webkit-appearance: none;
@@ -699,14 +753,16 @@ canvas {
 }
 
 /* Dual-thumb range — two stacked native sliders with their tracks
- * collapsed onto one row. Each slider's thumb stays interactive while the
- * track itself is transparent so the lower slider doesn't visually
- * obscure the upper one. */
+ * collapsed onto one row. Each slider's thumb stays interactive while
+ * the track itself is transparent so the lower slider doesn't visually
+ * obscure the upper one. The two thumbs are drawn as a subtle "[" / "]"
+ * bracket pair so they read as a min/max range rather than overlapping
+ * dots when they're close together. */
 .theme-range-pair {
   position: relative;
   flex: 1;
-  height: 14px;
-  margin: 0 4px;
+  height: 16px;
+  margin: 0 6px;
 }
 .theme-range-pair input[type=range] {
   position: absolute;
@@ -714,51 +770,65 @@ canvas {
   right: 0;
   top: 0;
   width: 100%;
-  height: 14px;
+  height: 16px;
   background: none;
   pointer-events: none;
   -webkit-appearance: none;
   appearance: none;
   margin: 0;
 }
-/* The fill track sits BEHIND the two range inputs so we can paint a
- * highlighted segment between the thumbs. */
+/* Resting track BEHIND both inputs. */
 .theme-range-pair-track {
   position: absolute;
-  top: 5px;
+  top: 6px;
   left: 0;
   right: 0;
   height: 4px;
   background: #1a1c28;
   border-radius: 2px;
 }
+/* Highlighted segment BETWEEN the two thumbs. */
 .theme-range-pair-fill {
   position: absolute;
-  top: 5px;
+  top: 6px;
   height: 4px;
-  background: rgba(108, 138, 255, 0.55);
+  background: linear-gradient(90deg, rgba(108, 138, 255, 0.85), rgba(108, 138, 255, 0.55));
   border-radius: 2px;
   pointer-events: none;
+  box-shadow: 0 0 6px rgba(108, 138, 255, 0.35);
 }
+
+/* Shared thumb shape. The lo thumb gets a left-bracket cap and the hi
+ * thumb gets a right-bracket cap (via a subtle inset shadow) so the
+ * range reads as a span even when the thumbs touch. */
 .theme-range-pair input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 12px;
-  height: 12px;
-  background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  width: 14px;
+  height: 14px;
+  background: #6c8aff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 .theme-range-pair input[type=range]::-moz-range-thumb {
-  width: 12px;
-  height: 12px;
-  background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  width: 14px;
+  height: 14px;
+  background: #6c8aff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+/* Distinguish the lo thumb (slightly darker, looks like the "bottom" anchor). */
+.theme-range-pair input.theme-range-pair-lo::-webkit-slider-thumb {
+  background: #4d6fef;
+}
+.theme-range-pair input.theme-range-pair-lo::-moz-range-thumb {
+  background: #4d6fef;
 }
 .theme-range-pair input[type=range]::-webkit-slider-runnable-track {
   background: transparent;
@@ -767,6 +837,14 @@ canvas {
 .theme-range-pair input[type=range]::-moz-range-track {
   background: transparent;
   height: 4px;
+}
+.theme-range-pair input[type=range]:focus {
+  outline: none;
+}
+
+/* Wider readout for the dual-thumb slider so "lo–hi" doesn't truncate. */
+.theme-slider-wrap > .theme-range-pair + .theme-slider-readout {
+  flex: 0 0 84px;
 }
 
 /* Scrollbar for tree */

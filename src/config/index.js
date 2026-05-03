@@ -1,14 +1,7 @@
-// config/index.js — barrel re-export for convenient bulk import.
-//
-// Each domain module (layout, scene, street, building, gem, camera,
-// interaction, sidebar) owns its own configuration as nanostores `map()` /
-// `atom()` stores. Consumers can import either from this barrel:
-//
-//   import { SIDEWALK_COLORS, BUILDING_FADE } from './config';
-//
-// or directly from the domain file (better for tree-shaking + locality):
-//
-//   import { SIDEWALK_COLORS } from './config/street.js';
+// config/index.js — Barrel re-export. Each domain module owns its own
+// nanostore(s) and exports them by name; this file just lets callers do a
+// single bulk `import * as Config` for persistence wiring, or pull named
+// imports for direct use.
 //
 // Reading values:
 //   const sc = SIDEWALK_COLORS.get();   // → { DEFAULT, HOVER, SELECTED, PATH }
@@ -21,17 +14,14 @@
 //   import { listenKeys } from 'nanostores';
 //   listenKeys(SIDEWALK_COLORS, ['HOVER'], state => { ... });
 //   SIDEWALK_COLORS.subscribe(state => { ... });   // any change
+//
+// Implementation constants that aren't user-tunable (RENDER_ORDERS, sightline
+// raycast epsilons, facade-texture pixel math, lucide-icon CDN URL, activity-
+// bar tab list, etc.) live OUTSIDE this barrel — see src/constants.js or
+// inlined private consts in their consumer module.
 
-export * from './layout.js';
-export * from './scene.js';
-export * from './street.js';
-export * from './building.js';
-export * from './gem.js';
-export * from './camera.js';
-export * from './interaction.js';
-export * from './rendering.js';
-export * from './animation.js';
-export * from './ui.js';
-export * from './formatting.js';
-// (sidebar badge styling lives in CSS as custom properties — JS only
-//  sets `--badge-hue` per file; see styles.css `.ext-badge`.)
+export * from './view.js';        // sky color, camera, input, tooltip
+export * from './street.js';      // asphalt, sidewalks, labels, path line, tiers, packing
+export * from './building.js';    // dimensions, palette, outlines, fade
+export * from './gem.js';         // root-of-repo landmark
+export * from './effects.js';     // shared visual effects (rainbow)

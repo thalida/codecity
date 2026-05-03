@@ -1,7 +1,7 @@
-// config/animation.js — Cross-cutting animation effects shared between
-// multiple consumers. Keeping these in one place means tweaking the look
-// (e.g. "make all rainbows slower") doesn't require chasing the same
-// values through multiple per-target stores.
+// config/effects.js — Cross-cutting visual effects shared between multiple
+// consumers. Keeping these in one place means tweaking the look (e.g. "make
+// all rainbows slower") doesn't require chasing the same values through
+// multiple per-target stores.
 
 import { map } from 'nanostores';
 

@@ -19,13 +19,11 @@ const TEST_TIERS = [
 // Test-time config for getBuildingDimensions / layoutCity. Mutated into
 // the BUILDING_DIMENSIONS store by beforeEach; restored by afterEach.
 const TEST_BUILDING_DIMS = {
-  LINES_PER_FLOOR:    20,
-  MIN_FLOORS:         1,
-  MAX_FLOORS:         30,
-  FLOOR_HEIGHT:       10,
-  SIZE_CEILING_BYTES: 10485760,
-  MIN_WIDTH:          6,
-  MAX_WIDTH:          40
+  MIN_FLOORS:   1,
+  MAX_FLOORS:   30,
+  FLOOR_HEIGHT: 10,
+  MIN_WIDTH:    6,
+  MAX_WIDTH:    40
 };
 
 let _origBuildingDims = null;
@@ -146,6 +144,41 @@ describe('getBuildingDimensions', () => {
     BUILDING_DIMENSIONS.setKey('MAX_FLOORS', 5);
     const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, { min: 1, max: 100000 });
     expect(dim.floors).toBeLessThanOrEqual(5);
+  });
+
+  // ---- Width / byteStats ----
+  // Width is log-normalized over the project's own byte range, mirroring
+  // the floors-from-lines mapping.
+  it('without byteStats falls back to MIN_WIDTH', () => {
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, { min: 10, max: 1000 });
+    expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
+  });
+
+  it('smallest file in the byte range maps to MIN_WIDTH', () => {
+    const dim = getBuildingDimensions(
+      { lines: 80, size: 100 },
+      { min: 10, max: 1000 },
+      { min: 100, max: 100000 }
+    );
+    expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
+  });
+
+  it('largest file in the byte range maps to MAX_WIDTH', () => {
+    const dim = getBuildingDimensions(
+      { lines: 80, size: 100000 },
+      { min: 10, max: 1000 },
+      { min: 100, max: 100000 }
+    );
+    expect(dim.w).toBe(TEST_BUILDING_DIMS.MAX_WIDTH);
+  });
+
+  it('byteStats with min == max collapses width to MIN_WIDTH', () => {
+    const dim = getBuildingDimensions(
+      { lines: 80, size: 500 },
+      { min: 10, max: 1000 },
+      { min: 500, max: 500 }
+    );
+    expect(dim.w).toBe(TEST_BUILDING_DIMS.MIN_WIDTH);
   });
 });
 

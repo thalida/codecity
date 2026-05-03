@@ -7,7 +7,7 @@
 // restore in teardown — keeps the production callsites argument-free.
 
 import {
-  LAYOUT_GAPS,
+  STREET_LAYOUT,
   STREET_TIERS,
   BUILDING_DIMENSIONS,
   GEM_SIZING
@@ -31,68 +31,83 @@ export function getStreetWidth(count, tiers) {
 }
 
 
-// computeLineStats(tree) -> { min, max }
+// computeFileStats(tree) -> { lines: { min, max }, bytes: { min, max } }
 //
-// Walks the manifest once and returns the smallest and largest non-zero line
-// counts across every file. Compact-mode height computation needs both ends of
-// the project's actual range so it can sqrt-normalize files into the
-// [min_floors, max_floors] band. Empty tree → { min: 1, max: 1 } (single-file
-// fallback so the renderer doesn't divide by zero).
-export function computeLineStats(tree) {
-  var minLines = Infinity;
-  var maxLines = -Infinity;
+// Walks the manifest once and returns the project's own range for both
+// non-zero line counts and non-zero file sizes. Both are needed up front so
+// every building can be normalized into the project's actual range (smallest
+// → MIN_*, largest → MAX_*) instead of against an absolute global anchor.
+// Empty / degenerate trees return { min: 1, max: 1 } so the renderer never
+// divides by zero.
+export function computeFileStats(tree) {
+  var minLines = Infinity, maxLines = -Infinity;
+  var minBytes = Infinity, maxBytes = -Infinity;
   function walk(node) {
     if (!node) return;
-    if (node.type === NODE_KIND.FILE && node.lines && node.lines > 0) {
-      if (node.lines < minLines) minLines = node.lines;
-      if (node.lines > maxLines) maxLines = node.lines;
+    if (node.type === NODE_KIND.FILE) {
+      if (node.lines && node.lines > 0) {
+        if (node.lines < minLines) minLines = node.lines;
+        if (node.lines > maxLines) maxLines = node.lines;
+      }
+      if (node.size && node.size > 0) {
+        if (node.size < minBytes) minBytes = node.size;
+        if (node.size > maxBytes) maxBytes = node.size;
+      }
     }
     if (node.children) {
       for (var i = 0; i < node.children.length; i++) walk(node.children[i]);
     }
   }
   walk(tree);
-  if (minLines === Infinity) return { min: 1, max: 1 };
-  return { min: minLines, max: maxLines };
+  return {
+    lines: minLines === Infinity ? { min: 1, max: 1 } : { min: minLines, max: maxLines },
+    bytes: minBytes === Infinity ? { min: 1, max: 1 } : { min: minBytes, max: maxBytes }
+  };
+}
+
+// computeLineStats(tree) — kept for back-compat with tests that only need
+// the line-count range. New callers should use computeFileStats.
+export function computeLineStats(tree) {
+  return computeFileStats(tree).lines;
 }
 
 
-// getBuildingDimensions(file, lineStats?) -> { w, d, h, floors }
+// getBuildingDimensions(file, lineStats?, byteStats?) -> { w, d, h, floors }
 //
-// Floors are sqrt-normalized across the project's own line-count range:
-// smallest file → MIN_FLOORS, largest → MAX_FLOORS, everything else
-// distributed by sqrt — visibly spreads the bottom of the range while
-// compressing the long tail so a 100k-line file doesn't dwarf the rest
-// of the city.
-//
-// `lineStats` (the project's { min, max } line counts) is required to
-// normalize. When it's missing or degenerate (single file / all
-// identical), every building lands at MIN_FLOORS as a safe default.
-export function getBuildingDimensions(file, lineStats) {
+// Floors and width are BOTH project-relative: the smallest file lands at
+// MIN_*, the largest at MAX_*, everything else interpolated. Floors uses
+// sqrt to spread the bottom of the range while compressing the long tail;
+// width uses log (file sizes span many orders of magnitude). Without a
+// stats object, the corresponding dimension falls back to MIN_*.
+export function getBuildingDimensions(file, lineStats, byteStats) {
   var dims = BUILDING_DIMENSIONS.get();
-  var lines = (file.lines && file.lines > 0) ? file.lines : 1;
   var maxFloorsCap = (dims.MAX_FLOORS != null) ? dims.MAX_FLOORS : 30;
 
+  // ---- Floors from line count (sqrt-normalized over project range) ----
+  var lines = (file.lines && file.lines > 0) ? file.lines : 1;
   var floors = dims.MIN_FLOORS;
   if (lineStats && lineStats.max > lineStats.min) {
     var sMin   = Math.sqrt(lineStats.min);
     var sMax   = Math.sqrt(lineStats.max);
     var sLines = Math.sqrt(lines);
-    var t = (sLines - sMin) / (sMax - sMin);
-    if (t < 0) t = 0; else if (t > 1) t = 1;
-    floors = Math.round(dims.MIN_FLOORS + t * (maxFloorsCap - dims.MIN_FLOORS));
+    var tH = (sLines - sMin) / (sMax - sMin);
+    if (tH < 0) tH = 0; else if (tH > 1) tH = 1;
+    floors = Math.round(dims.MIN_FLOORS + tH * (maxFloorsCap - dims.MIN_FLOORS));
     if (floors < dims.MIN_FLOORS) floors = dims.MIN_FLOORS;
   }
   var height = floors * dims.FLOOR_HEIGHT;
 
-  // ---- Width from file size in bytes ----------------------------------------
-  // Log-scaled because file sizes legitimately span many orders of magnitude.
+  // ---- Width from byte size (log-normalized over project range) ----
   var bytes = (file.size && file.size > 0) ? file.size : 1;
-  var logBytes    = Math.log(bytes);
-  var logBytesMax = Math.log(dims.SIZE_CEILING_BYTES);
-  var tW = Math.max(0, Math.min(1, logBytes / logBytesMax));
-  var width = dims.MIN_WIDTH + tW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
-  width = Math.max(dims.MIN_WIDTH, Math.min(dims.MAX_WIDTH, width));
+  var width = dims.MIN_WIDTH;
+  if (byteStats && byteStats.max > byteStats.min) {
+    var lMin   = Math.log(byteStats.min);
+    var lMax   = Math.log(byteStats.max);
+    var lBytes = Math.log(bytes);
+    var tW = (lBytes - lMin) / (lMax - lMin);
+    if (tW < 0) tW = 0; else if (tW > 1) tW = 1;
+    width = dims.MIN_WIDTH + tW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
+  }
 
   // Depth == width keeps footprints square so tall thin towers don't
   // become deep slabs.
@@ -124,13 +139,14 @@ export function layoutCity(manifest) {
   var tree = manifest.tree || manifest;
   var result = { streets: [], buildings: [], paths: [] };
 
-  // Compute the project's line-count range once and stash it on `result`
-  // so the recursion below can pass it to every getBuildingDimensions
-  // call (and callers can keep it for later use).
-  var lineStats = computeLineStats(tree);
-  result.lineStats = lineStats;
+  // Compute the project's own ranges once and stash on `result` so the
+  // recursion below can pass them to every getBuildingDimensions call
+  // (and callers can keep them for later use).
+  var stats = computeFileStats(tree);
+  result.lineStats = stats.lines;
+  result.byteStats = stats.bytes;
 
-  _layoutDir(tree, 0, 0, STREET_AXIS.X, result, undefined, lineStats);
+  _layoutDir(tree, 0, 0, STREET_AXIS.X, result, undefined, stats.lines, stats.bytes);
 
   // Mark the root-dir street so the renderer can draw a distinct "start of
   // repo" marker at its origin end.
@@ -141,12 +157,12 @@ export function layoutCity(manifest) {
     }
   }
 
-  // Compute paths from each building's door to the adjacent street. Path
-  // length equals LAYOUT_GAPS.BLDG_STREET_GAP so it exactly bridges the
-  // building face to the street edge.
-  var gaps       = LAYOUT_GAPS.get();
-  var pathWidth  = gaps.PATH_WIDTH;
-  var pathLength = gaps.BLDG_STREET_GAP;
+  // Compute paths from each building's door to the adjacent street. Both
+  // length AND width come from BUILDING_DIMENSIONS.STREET_GAP — the strip
+  // is square, exactly filling the gap between building face and street edge.
+  var streetGap  = BUILDING_DIMENSIONS.get().STREET_GAP;
+  var pathLength = streetGap;
+  var pathWidth  = streetGap;
   for (var pi = 0; pi < result.buildings.length; pi++) {
     var bForPath = result.buildings[pi];
     var path = _pathForBuilding(bForPath, pathWidth, pathLength);
@@ -181,7 +197,7 @@ function _streetWidthForDir(dir) {
 //
 // Returns a thin sidewalk-colored strip connecting the building's door (on its
 // front face) to the adjacent street's sidewalk. `pathLength` should equal
-// LAYOUT_GAPS.BLDG_STREET_GAP so the path exactly bridges the gap between
+// BUILDING_DIMENSIONS.STREET_GAP so the path exactly bridges the gap between
 // building face and street edge; `pathWidth` is the walkway's narrow dim.
 // -----------------------------------------------------------------------------
 function _pathForBuilding(b, pathWidth, pathLength) {
@@ -247,14 +263,16 @@ function _pathForBuilding(b, pathWidth, pathLength) {
 // Door faces back toward the street when visible (orient='s' or 'e'); when
 // the file is on the secondary side the door is on a hidden face ('n' or 'w').
 // -----------------------------------------------------------------------------
-function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidth, lineStats) {
-  // User-tunable gaps. Read fresh from the store each call so tests /
+function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidth, lineStats, byteStats) {
+  // User-tunable gaps. Read fresh from the stores each call so tests /
   // runtime mutations take effect without reseating the recursion.
-  var gaps            = LAYOUT_GAPS.get();
-  var childGap        = gaps.CHILD_GAP;
-  var bldgStreetGap   = gaps.BLDG_STREET_GAP;
-  var parentJoinPad   = gaps.PARENT_JOIN_PAD;
-  var rootEndPad      = gaps.ROOT_END_PAD;
+  // Street-packing gaps live in STREET_LAYOUT; the building-to-sidewalk
+  // gap belongs to BUILDING_DIMENSIONS (it's a building-side concept).
+  var streetLayout    = STREET_LAYOUT.get();
+  var childGap        = streetLayout.CHILD_GAP;
+  var parentJoinPad   = streetLayout.PARENT_JOIN_PAD;
+  var rootEndPad      = streetLayout.ROOT_END_PAD;
+  var bldgStreetGap   = BUILDING_DIMENSIONS.get().STREET_GAP;
 
   // Widths — this street's visual width comes from its descendants count, and
   // end-padding depends on the PARENT street's width so children don't cross
@@ -294,7 +312,7 @@ function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidt
   for (var i = 0; i < children.length; i++) {
     if (children[i].type === NODE_KIND.DIRECTORY) {
       var localResult = { streets: [], buildings: [] };
-      _layoutDir(children[i], 0, 0, subOrient, localResult, myStreetWidth, lineStats);
+      _layoutDir(children[i], 0, 0, subOrient, localResult, myStreetWidth, lineStats, byteStats);
       subLayouts[i] = {
         result: localResult,
         bbox: _computeBbox(localResult)
@@ -324,7 +342,7 @@ function _layoutDir(dir, originX, originY, orientation, result, parentStreetWidt
     var child = children[ci];
 
     if (child.type === NODE_KIND.FILE) {
-      var dim = getBuildingDimensions(child, lineStats);
+      var dim = getBuildingDimensions(child, lineStats, byteStats);
       var alongStreet = dim.w;
       var perpStreet  = dim.d;
       var sideIdx = preferredFileSide;

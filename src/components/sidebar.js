@@ -1,13 +1,27 @@
 // sidebar.js — Right-side detail panel for buildings (files) and streets (directories).
 
 import { getHue } from '../scene/colors.js';
-import {
-  GLYPHS,
-  UI_TIMING,
-  BYTE_FORMATTING,
-  DATE_FORMAT_OPTIONS
-} from '../config/index.js';
 import { DOM_IDS } from '../constants.js';
+import { makeLucideIcon } from './icon.js';
+
+// How long the "Copied!" badge lingers after the copy button is clicked.
+var COPY_FEEDBACK_DURATION_MS = 1500;
+
+// Binary-unit thresholds for human-readable file size formatting.
+var BYTES_PER_KB = 1024;
+var BYTES_PER_MB = 1024 * 1024;
+
+// Em-dash text fallback shown when a file/directory has no value for a
+// stat (e.g. no creation date, no line count).
+var MISSING_VALUE = '—';
+
+// Display options for ISO-date formatting in the sidebar. Fixed structural
+// choice — every date renders as "Apr 18, 2026".
+var DATE_FORMAT_OPTIONS = {
+  year:  'numeric',
+  month: 'short',
+  day:   'numeric'
+};
 
 // Palette injected from main.js (config.building.hue_ext_map). Empty object
 // means "no palette configured" — getHue will fall back to its hash.
@@ -66,7 +80,8 @@ export function showFileSidebar(file) {
   var closeBtn = document.createElement('button');
   closeBtn.className = 'sidebar-close';
   closeBtn.type = 'button';
-  closeBtn.textContent = GLYPHS.get().CLOSE_BUTTON;
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
   closeBtn.addEventListener('click', closeSidebar);
   header.appendChild(closeBtn);
 
@@ -115,7 +130,7 @@ export function showFileSidebar(file) {
   statsGrid.className = 'sidebar-stats';
 
   _appendStatItem(statsGrid, 'Size', formatBytes(file.size || 0));
-  _appendStatItem(statsGrid, 'Lines', String(file.lines != null ? file.lines : GLYPHS.get().MISSING_VALUE));
+  _appendStatItem(statsGrid, 'Lines', String(file.lines != null ? file.lines : MISSING_VALUE));
 
   var hasGit = file.git && (file.git.created || file.git.modified);
   var createdDate   = (file.git && file.git.created)  || file.created  || null;
@@ -161,7 +176,8 @@ export function showDirSidebar(dir) {
   var closeBtn = document.createElement('button');
   closeBtn.className = 'sidebar-close';
   closeBtn.type = 'button';
-  closeBtn.textContent = GLYPHS.get().CLOSE_BUTTON;
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
   closeBtn.addEventListener('click', closeSidebar);
   header.appendChild(closeBtn);
 
@@ -263,7 +279,7 @@ function copyToClipboard(text, button) {
     button.textContent = 'Copied!';
     setTimeout(function () {
       button.textContent = original;
-    }, UI_TIMING.get().COPY_FEEDBACK_DURATION_MS);
+    }, COPY_FEEDBACK_DURATION_MS);
   }
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -284,14 +300,9 @@ function copyToClipboard(text, button) {
  * @returns {string} e.g. "512 B", "3.4 KB", "1.2 MB"
  */
 function formatBytes(bytes) {
-  var t = BYTE_FORMATTING.get();
-  if (bytes < t.KB_THRESHOLD) {
-    return bytes + ' B';
-  }
-  if (bytes < t.MB_THRESHOLD) {
-    return (bytes / t.KB_THRESHOLD).toFixed(1) + ' KB';
-  }
-  return (bytes / t.MB_THRESHOLD).toFixed(1) + ' MB';
+  if (bytes < BYTES_PER_KB) return bytes + ' B';
+  if (bytes < BYTES_PER_MB) return (bytes / BYTES_PER_KB).toFixed(1) + ' KB';
+  return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
 }
 
 /**
@@ -301,10 +312,10 @@ function formatBytes(bytes) {
  * @returns {string} e.g. "Apr 18, 2026"
  */
 function formatDate(isoString) {
-  if (!isoString) return GLYPHS.get().MISSING_VALUE;
+  if (!isoString) return MISSING_VALUE;
   var d = new Date(isoString);
   if (isNaN(d.getTime())) return isoString;
-  return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS.get());
+  return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

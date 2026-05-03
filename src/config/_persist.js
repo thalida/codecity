@@ -30,9 +30,12 @@ function _safeSet(name, value) {
 
 // Hydrate one store from localStorage if a value is persisted, then start
 // streaming future changes back. Works for both `map()` (object value) and
-// `atom()` (any value — primitive, array, or object).
+// `atom()` (any value — primitive, array, or object). Plain consts (no
+// `subscribe`) are silently skipped so callers can sweep `import * as Config`
+// blindly.
 export function persistStore(name, store) {
   if (typeof localStorage === 'undefined') return;
+  if (!store || typeof store.subscribe !== 'function') return;
   var saved = _safeGet(name);
   if (saved !== null) {
     if (typeof store.setKey === 'function' && saved && typeof saved === 'object' && !Array.isArray(saved)) {
