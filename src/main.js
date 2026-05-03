@@ -1232,12 +1232,17 @@ function startRenderLoop(canvas, manifest) {
       } else if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
         var f = ud.building.file;
         newHover = { kind: NODE_KIND.FILE, mesh: h0.object, data: ud.building, file: f };
-        tooltipText = f.name + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
+        var fpath = f.path || f.name || 'file';
+        tooltipText = fpath + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
       } else if (ud.street && ud.street.dir) {
         var d = ud.street.dir;
-        var n = (d.descendants_count != null) ? d.descendants_count : (d.children_count || 0);
+        var dpath = d.path || d.name || 'directory';
+        var fileCount = (d.descendants_file_count != null) ? d.descendants_file_count : 0;
+        var dirCount  = (d.descendants_dir_count  != null) ? d.descendants_dir_count  : 0;
+        var counts = fileCount + ' file' + (fileCount === 1 ? '' : 's') +
+                     ', '      + dirCount  + ' dir'  + (dirCount  === 1 ? '' : 's');
         newHover = { kind: NODE_KIND.DIRECTORY, sidewalk: h0.object, street: ud.street, dir: d };
-        tooltipText = (d.name || 'directory') + '  ·  ' + n + ' items';
+        tooltipText = dpath + '  ·  ' + counts;
       }
     }
 

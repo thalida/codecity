@@ -66,7 +66,7 @@ export const PATH_LINE = map({
 // selection (would just overlap the rainbow line).
 export const HOVER_PATH_LINE = map({
   ENABLED:   true,
-  LINEWIDTH: 3,
+  LINEWIDTH: 5,
   COLOR:     '#ffffff',
   OPACITY:   0.35,
   ELEVATION: 0.25    // sits just below PATH_LINE so the rainbow stays on top
