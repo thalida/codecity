@@ -16,6 +16,10 @@ Thumbs.db
 # Dependencies
 node_modules/
 
+# Vite caches
+.vite/
+web/.vite/
+
 # Python
 __pycache__/
 *.pyc

@@ -65,13 +65,15 @@ PyWebView pulls its system webview backend automatically (Cocoa on macOS, GTK or
 
 ## Development
 
+Two trees, cleanly separated: Python lives at the repo root, the frontend lives in `web/`.
+
 ```sh
 git clone https://github.com/thalida/codecity-ai.git
 cd codecity-ai
-uv sync                  # python deps
-npm install              # frontend deps
-npm run build            # build frontend → codecity/static/
-uv run codecity .        # smoke test against this repo
+uv sync                          # python deps  (run from repo root)
+( cd web && npm install )        # frontend deps
+( cd web && npm run build )      # → codecity/static/
+uv run codecity .                # smoke test against this repo
 ```
 
 Hot-reload loop while editing the frontend:
@@ -85,26 +87,27 @@ That spawns Vite on `:5173` and the Python API on `:8765`, opens the window poin
 ### Tests
 
 ```sh
-npm test                 # vitest (web/tests/)
-uv run pytest            # pytest (codecity/tests/)
+( cd web && npm test )           # vitest
+uv run pytest                    # pytest  (run from repo root)
 ```
 
 ### Layout
 
 ```text
-codecity/        # python package
-  cli.py         # argparse + dispatcher
-  scan.py        # filesystem + git walker
-  server.py      # stdlib http server + /api routes
-  webview.py     # pywebview launcher
-  static/        # vite build output (committed)
-  tests/         # pytest
+codecity/                # python package
+  cli.py                 # argparse + dispatcher
+  scan.py                # filesystem + git walker
+  server.py              # stdlib http server + /api routes
+  webview.py             # pywebview launcher
+  static/                # vite build output (committed)
+  tests/                 # pytest
+pyproject.toml, uv.lock  # python tooling
 
-web/             # vite frontend source
-  index.html
-  main.js
+web/                     # frontend, fully self-contained
+  package.json, vite.config.js, vitest.config.js
+  index.html, main.js, styles.css
   components/, scene/, config/
-  tests/         # vitest
+  tests/                 # vitest
 ```
 
 ## License

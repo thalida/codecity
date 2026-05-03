@@ -27,6 +27,7 @@ from codecity.scan import scan_tree
 from codecity.server import start_server
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+WEB_DIR = REPO_ROOT / "web"
 DEFAULT_API_PORT = 8765
 VITE_PORT = 5173
 VITE_READY_TIMEOUT = 30  # seconds
@@ -126,7 +127,7 @@ def cmd_dev(args: argparse.Namespace) -> int:
 
     vite_proc = subprocess.Popen(
         ["npm", "run", "dev"],
-        cwd=str(REPO_ROOT),
+        cwd=str(WEB_DIR),
         stdout=sys.stderr,
         stderr=sys.stderr,
         start_new_session=True,
