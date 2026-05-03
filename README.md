@@ -1,6 +1,6 @@
 # CodeCity
 
-CodeCity visualizes a codebase as an isometric 3D city. Point it at a directory and it walks the tree, collects file metadata + git history, and opens a desktop window where directories are streets and files are buildings. Building shape and color encode size, line count, language, and how recently the code changed.
+CodeCity visualizes a codebase as an isometric 3D city. Point it at a directory and it walks the tree, collects file metadata + git history, then opens the city in your default browser. Directories become streets, files become buildings; shape and color encode size, line count, language, and how recently the code changed.
 
 ## Quick start
 
@@ -9,19 +9,19 @@ uv tool install codecity            # or: pipx install codecity
 codecity /path/to/your/repo
 ```
 
-A window opens with the city. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help.
+Your default browser opens to a local URL with the city. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help. Ctrl-C in the terminal to stop the server.
 
 ## How it works
 
 - **Scan** — Python walks the tree once, gathers stat + git metadata in memory.
-- **Serve** — A local HTTP server (`127.0.0.1:<random-port>`) hands the manifest to the frontend at `/api/manifest`.
-- **Render** — A PyWebView window loads the bundled three.js renderer from the same server. Nothing leaves your machine.
+- **Serve** — A local HTTP server (`127.0.0.1:<random-port>`) hands the manifest to the frontend at `/api/manifest` and streams individual files at `/api/file?path=…` for the in-app preview.
+- **Render** — Your browser loads the bundled three.js renderer from the same server. Nothing leaves your machine.
 
 ## CLI
 
 ```sh
 codecity PATH                       # shorthand for: codecity serve PATH
-codecity serve PATH [--dev] [--port N] [--no-window] [--debug]
+codecity serve PATH [--dev] [--port N] [--no-window]
 codecity scan  PATH [--output FILE] # emit the manifest as JSON
 
 codecity --help
@@ -59,10 +59,9 @@ Tweak any of these live from the in-app Controls pane (left sidebar → gear ico
 ## Requirements
 
 - Python ≥ 3.11
+- A modern browser (Chrome, Safari, Firefox, Edge — anything with WebGL2 support)
 - Git (optional — only used when the scanned dir is a repo)
-- For `dev` mode: Node.js + npm
-
-PyWebView pulls its system webview backend automatically (Cocoa on macOS, GTK or Qt on Linux, Edge WebView2 on Windows).
+- For `--dev` mode: Node.js + npm
 
 ## Development
 
@@ -83,7 +82,7 @@ Hot-reload loop while editing the frontend:
 uv run codecity --dev .
 ```
 
-That spawns Vite on `:5173` and the Python API on `:8765`, opens the window pointed at Vite, and tears both down when you close the window.
+That spawns Vite on `:5173` and the Python API on `:8765`, opens your browser at the Vite URL (which proxies `/api/*` back to Python), and tears both down on Ctrl-C.
 
 ### Tests
 
@@ -101,7 +100,6 @@ codecity/                # python package
   cli.py                 # argparse + dispatcher
   scan.py                # filesystem + git walker
   server.py              # stdlib http server + /api routes
-  webview.py             # pywebview launcher
   static/                # vite build output (committed)
   tests/                 # pytest
 pyproject.toml, uv.lock  # python tooling

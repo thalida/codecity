@@ -9,9 +9,7 @@ description = "Visualize any codebase as an isometric 3D city"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.11"
-dependencies = [
-    "pywebview>=5",
-]
+dependencies = []
 
 [project.scripts]
 codecity = "codecity.cli:main"

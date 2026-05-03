@@ -2,11 +2,11 @@
 
 Commands:
     codecity PATH [--dev] [...]         shorthand for: codecity serve PATH
-    codecity serve PATH [--dev] [...]   scan, serve, open pywebview window
+    codecity serve PATH [--dev] [...]   scan, start local server, open browser
     codecity scan PATH [--output FILE]  debug — emit manifest JSON
 
-Pass --dev to spawn Vite (HMR) instead of serving the committed static
-build.
+Pass --dev to spawn Vite (frontend HMR) instead of serving the committed
+static build.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import webbrowser
 from pathlib import Path
 from typing import Optional
 
@@ -91,8 +92,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def _serve_prod(args: argparse.Namespace) -> int:
-    from codecity.webview import launch
-
+    """Scan, start the local Python server, open it in the user's browser."""
     manifest = _scan_from_args(args)
     scan_root = Path(args.path).resolve()
 
@@ -100,42 +100,24 @@ def _serve_prod(args: argparse.Namespace) -> int:
     url = f"http://127.0.0.1:{port}/"
     print(f"[codecity] serving on {url}", file=sys.stderr)
 
-    if args.no_window:
-        print("[codecity] running headless — Ctrl-C to stop", file=sys.stderr)
-        try:
-            while True:
-                time.sleep(3600)
-        except KeyboardInterrupt:
-            pass
-        finally:
-            shutdown()
-        return 0
+    if not args.no_window:
+        webbrowser.open(url)
 
+    print("[codecity] Ctrl-C to stop", file=sys.stderr)
     try:
-        launch(
-            url,
-            title=f"CodeCity — {Path(args.path).resolve().name}",
-            debug=getattr(args, "debug", False),
-        )
+        # Block forever; Ctrl-C wakes us via KeyboardInterrupt.
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        print("\n[codecity] stopping…", file=sys.stderr)
     finally:
         shutdown()
     return 0
 
 
 def _serve_dev(args: argparse.Namespace) -> int:
-    """Spawn Vite + Python server, point pywebview at Vite (HMR-enabled).
-
-    Cleanup is layered so Vite always dies with us:
-      - signal handlers for SIGINT/SIGTERM that kill the Vite process group
-        and exit immediately (pywebview's macOS event loop swallows
-        Python-level KeyboardInterrupt, so the regular try/finally path
-        wouldn't run on Ctrl-C);
-      - atexit hook as a last-resort backstop for any other exit path;
-      - the original try/finally still handles the normal "user closed the
-        window" exit, where the cleanup is graceful + waits for Vite.
-    """
-    from codecity.webview import launch
-
+    """Spawn Vite + Python server, open the Vite URL in the browser.
+    Vite proxies /api/* back to the Python server."""
     if shutil.which("npm") is None:
         print("error: 'npm' not found on PATH; required for --dev", file=sys.stderr)
         return 2
@@ -174,10 +156,8 @@ def _serve_dev(args: argparse.Namespace) -> int:
         start_new_session=True,
     )
 
-    # Belt-and-suspenders cleanup: signal handlers + atexit. The signal
-    # handlers cover Ctrl-C / `kill PID` (which pywebview's run loop
-    # otherwise eats); atexit covers everything else (uncaught exception,
-    # interpreter shutdown).
+    # Cleanup: idempotent so signal-handler, atexit, and the trailing
+    # finally can all call it safely.
     def _cleanup() -> None:
         _kill_vite(vite_proc)
         try:
@@ -196,16 +176,15 @@ def _serve_dev(args: argparse.Namespace) -> int:
     try:
         if not _wait_for_vite(f"http://127.0.0.1:{VITE_PORT}/", vite_proc):
             return 3
-        launch(
-            f"http://127.0.0.1:{VITE_PORT}/",
-            title=f"CodeCity (dev) — {Path(args.path).resolve().name}",
-            debug=getattr(args, "debug", False),
-            # Critical on macOS: pywebview exits via NSApplication.terminate()
-            # which skips Python's atexit + finally. We have to tear down Vite
-            # from inside pywebview's own closed event, otherwise the Vite
-            # process group survives as an orphan on :5173.
-            on_closed=_cleanup,
-        )
+        url = f"http://127.0.0.1:{VITE_PORT}/"
+        if not args.no_window:
+            webbrowser.open(url)
+        print(f"[codecity] open {url} — Ctrl-C to stop", file=sys.stderr)
+        # Block forever; signal handlers handle teardown on Ctrl-C.
+        while True:
+            time.sleep(3600)
+    except KeyboardInterrupt:
+        pass
     finally:
         _cleanup()
     return 0
@@ -293,18 +272,13 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub = p.add_subparsers(dest="command")
 
-    p_serve = sub.add_parser("serve", help="Scan and open a window (default action).")
+    p_serve = sub.add_parser("serve", help="Scan, serve, open in browser (default action).")
     _add_scan_args(p_serve)
     p_serve.add_argument("--port", type=int, default=0, help="HTTP port (0 = OS picks).")
     p_serve.add_argument(
         "--no-window",
         action="store_true",
-        help="Skip opening the PyWebView window; serve only.",
-    )
-    p_serve.add_argument(
-        "--debug",
-        action="store_true",
-        help="Open the PyWebView window with developer tools enabled.",
+        help="Don't auto-open the browser; just print the URL and serve.",
     )
     p_serve.add_argument(
         "--dev",
