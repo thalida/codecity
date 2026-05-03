@@ -12,6 +12,7 @@ build.
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
 import os
 import shutil
@@ -122,7 +123,17 @@ def _serve_prod(args: argparse.Namespace) -> int:
 
 
 def _serve_dev(args: argparse.Namespace) -> int:
-    """Spawn Vite + Python server, point pywebview at Vite (HMR-enabled)."""
+    """Spawn Vite + Python server, point pywebview at Vite (HMR-enabled).
+
+    Cleanup is layered so Vite always dies with us:
+      - signal handlers for SIGINT/SIGTERM that kill the Vite process group
+        and exit immediately (pywebview's macOS event loop swallows
+        Python-level KeyboardInterrupt, so the regular try/finally path
+        wouldn't run on Ctrl-C);
+      - atexit hook as a last-resort backstop for any other exit path;
+      - the original try/finally still handles the normal "user closed the
+        window" exit, where the cleanup is graceful + waits for Vite.
+    """
     from codecity.webview import launch
 
     if shutil.which("npm") is None:
@@ -134,6 +145,17 @@ def _serve_dev(args: argparse.Namespace) -> int:
             file=sys.stderr,
         )
         return 2
+
+    # Pre-flight: surface a clear error (with PID if we can find it) when
+    # something else is holding 5173 instead of letting Vite fail opaquely.
+    holder = _port_holder(VITE_PORT)
+    if holder is not None:
+        print(
+            f"error: port {VITE_PORT} is held by PID {holder}. "
+            f"Free it with: kill {holder}",
+            file=sys.stderr,
+        )
+        return 4
 
     manifest = _scan_from_args(args)
     scan_root = Path(args.path).resolve()
@@ -152,6 +174,25 @@ def _serve_dev(args: argparse.Namespace) -> int:
         start_new_session=True,
     )
 
+    # Belt-and-suspenders cleanup: signal handlers + atexit. The signal
+    # handlers cover Ctrl-C / `kill PID` (which pywebview's run loop
+    # otherwise eats); atexit covers everything else (uncaught exception,
+    # interpreter shutdown).
+    def _cleanup() -> None:
+        _kill_vite(vite_proc)
+        try:
+            shutdown()
+        except Exception:  # pylint: disable=broad-except
+            pass
+
+    def _signal_handler(signum: int, _frame) -> None:  # noqa: ANN001
+        _cleanup()
+        os._exit(130 if signum == signal.SIGINT else 143)
+
+    atexit.register(_cleanup)
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
+
     try:
         if not _wait_for_vite(f"http://127.0.0.1:{VITE_PORT}/", vite_proc):
             return 3
@@ -161,14 +202,48 @@ def _serve_dev(args: argparse.Namespace) -> int:
             debug=getattr(args, "debug", False),
         )
     finally:
-        if vite_proc.poll() is None:
-            try:
-                os.killpg(os.getpgid(vite_proc.pid), signal.SIGTERM)
-                vite_proc.wait(timeout=5)
-            except (ProcessLookupError, subprocess.TimeoutExpired):
-                pass
-        shutdown()
+        _cleanup()
     return 0
+
+
+def _kill_vite(vite_proc: subprocess.Popen) -> None:
+    """Tear down the Vite process group. Idempotent, exception-safe."""
+    if vite_proc.poll() is not None:
+        return
+    try:
+        pgid = os.getpgid(vite_proc.pid)
+    except ProcessLookupError:
+        return
+    try:
+        os.killpg(pgid, signal.SIGTERM)
+        vite_proc.wait(timeout=5)
+    except (ProcessLookupError, subprocess.TimeoutExpired):
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def _port_holder(port: int) -> int | None:
+    """Return the PID currently bound to ``port`` on 127.0.0.1, or None.
+
+    Uses ``lsof`` since it's universally available on macOS / most Linux
+    distros and gives us the PID directly. Falls back silently when lsof
+    isn't on PATH — caller treats that as "port is free, let Vite try"."""
+    if shutil.which("lsof") is None:
+        return None
+    try:
+        out = subprocess.run(
+            ["lsof", "-ti", f"tcp:{port}", "-sTCP:LISTEN"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=2,
+        )
+    except (subprocess.TimeoutExpired, OSError):
+        return None
+    pids = [int(p) for p in out.stdout.split() if p.strip().isdigit()]
+    return pids[0] if pids else None
 
 
 def _wait_for_vite(url: str, vite_proc: subprocess.Popen) -> bool:
