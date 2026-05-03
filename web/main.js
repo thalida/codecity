@@ -145,6 +145,11 @@ function startRenderLoop(canvas, manifest) {
     _setSelection(null);
   });
 
+  // Initial render so the boot state matches sidebarVisible. Without this
+  // a visible-by-default right sidebar would still show as 0-width on
+  // first load (no .open class until something fires _renderSidebar).
+  _renderSidebar();
+
   for (var i = 0; i < layout.buildings.length; i++) {
     var b = layout.buildings[i];
     if (b.file && b.file.type === NODE_KIND.FILE) {
