@@ -1244,24 +1244,6 @@ canvas {
   border: none;
 }
 
-.sidebar-preview-text {
-  margin: 0;
-  padding: 10px 12px;
-  overflow: auto;
-  max-height: 60vh;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #c0c4d8;
-  white-space: pre;
-  tab-size: 4;
-}
-
-.sidebar-preview-text > code {
-  font-family: inherit;
-  white-space: inherit;
-}
-
 .sidebar-preview-note {
   padding: 14px;
   font-size: 11px;
@@ -1269,3 +1251,94 @@ canvas {
   text-align: center;
   font-style: italic;
 }
+
+
+/* ── Code editor (text preview) ─────────────────────────────────────────
+   Two-column flex: a sticky line-number gutter on the left and a
+   horizontally-scrollable <pre><code> on the right. Both share the
+   13.6px line-height so gutter numbers line up exactly with their
+   source lines. Theme is hand-rolled to match the city's dark UI;
+   tokens are styled via .hljs-* selectors below. */
+
+.code-editor {
+  display: flex;
+  align-items: stretch;
+  max-height: 60vh;
+  overflow: auto;
+  background: #0a0b10;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  tab-size: 4;
+}
+
+.code-editor-gutter {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px 10px 10px;
+  background: #0c0d14;
+  border-right: 1px solid #1a1c28;
+  color: #44485e;
+  text-align: right;
+  user-select: none;
+  /* The gutter's width is content-driven (3 digits + padding) and stays
+     pinned at the left of the visible area while the code scrolls
+     horizontally underneath. */
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+
+.code-editor-ln {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5em;
+}
+
+.code-editor-pre {
+  margin: 0;
+  padding: 10px 12px;
+  flex: 1 1 auto;
+  white-space: pre;
+  background: transparent;
+  color: #c0c4d8;
+}
+
+.code-editor-code {
+  font-family: inherit;
+  white-space: inherit;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+/* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
+.hljs                  { color: #c0c4d8; background: transparent; }
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section,
+.hljs-link            { color: #c084fc; }            /* purple */
+.hljs-string,
+.hljs-attr,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-meta-string     { color: #86efac; }            /* green */
+.hljs-number,
+.hljs-quote,
+.hljs-template-tag,
+.hljs-type            { color: #fbbf24; }            /* amber */
+.hljs-title,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class  { color: #6c8aff; }            /* brand blue */
+.hljs-built_in,
+.hljs-builtin-name    { color: #38bdf8; }            /* sky */
+.hljs-variable,
+.hljs-template-variable { color: #fda4af; }          /* rose */
+.hljs-comment,
+.hljs-meta            { color: #5b6178; font-style: italic; }
+.hljs-deletion        { color: #fca5a5; background: rgba(252, 165, 165, 0.08); }
+.hljs-addition        { color: #86efac; background: rgba(134, 239, 172, 0.08); }
+.hljs-emphasis        { font-style: italic; }
+.hljs-strong          { font-weight: 600; }

@@ -1,5 +1,6 @@
 // sidebar.js — Right-side detail panel for buildings (files) and streets (directories).
 
+import hljs from 'highlight.js/lib/common';
 import { getHue } from '../scene/colors.js';
 import { DOM_IDS } from '../constants.js';
 import { makeLucideIcon } from './icon.js';
@@ -390,6 +391,56 @@ var VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
 var AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
 var PDF_EXTS   = ['.pdf'];
 
+// hljs language hints by extension. Falls through to auto-detection if a
+// file doesn't match anything here. Matches the languages bundled in
+// highlight.js/lib/common (~37 langs).
+var EXT_LANG = {
+  '.js':   'javascript',  '.mjs':  'javascript',  '.cjs':  'javascript',
+  '.ts':   'typescript',  '.tsx':  'typescript',  '.jsx':  'javascript',
+  '.py':   'python',
+  '.rb':   'ruby',
+  '.go':   'go',
+  '.rs':   'rust',
+  '.java': 'java',
+  '.kt':   'kotlin',
+  '.swift':'swift',
+  '.c':    'c',           '.h':    'c',
+  '.cpp':  'cpp',         '.hpp':  'cpp',         '.cc':   'cpp',
+  '.cs':   'csharp',
+  '.php':  'php',
+  '.sh':   'bash',        '.bash': 'bash',        '.zsh':  'bash',
+  '.fish': 'shell',
+  '.html': 'xml',         '.htm':  'xml',         '.xml':  'xml',
+  '.css':  'css',         '.scss': 'scss',        '.less': 'less',
+  '.json': 'json',
+  '.yaml': 'yaml',        '.yml':  'yaml',
+  '.toml': 'ini',
+  '.ini':  'ini',
+  '.md':   'markdown',    '.markdown': 'markdown',
+  '.sql':  'sql',
+  '.dockerfile': 'dockerfile',
+  '.diff': 'diff',        '.patch': 'diff',
+  '.lua':  'lua',
+  '.r':    'r',
+  '.pl':   'perl',
+  '.scala':'scala',
+};
+
+// Filename-only hints (no extension or special-cased). Lower-cased keys.
+var NAME_LANG = {
+  'dockerfile':         'dockerfile',
+  'makefile':           'makefile',
+  'gnumakefile':        'makefile',
+  '.gitignore':         'plaintext',
+  '.gitattributes':     'plaintext',
+  '.dockerignore':      'plaintext',
+  '.npmignore':         'plaintext',
+  '.editorconfig':      'ini',
+  '.env':               'bash',
+  'license':            'plaintext',
+  'readme':             'markdown',
+};
+
 function _previewKind(file) {
   var ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.indexOf(ext) !== -1) return 'image';
@@ -470,24 +521,35 @@ function _makePreviewSection(file) {
     return section;
   }
 
+  // Code-editor-style scaffold: a flex row with a line-number gutter and a
+  // <pre><code> for the highlighted source. Both share the same line-height
+  // so the gutter numbers align with their source lines.
+  var editor = document.createElement('div');
+  editor.className = 'code-editor';
+
+  var gutter = document.createElement('div');
+  gutter.className = 'code-editor-gutter';
+
   var pre = document.createElement('pre');
-  pre.className = 'sidebar-preview-text';
+  pre.className = 'code-editor-pre';
   var code = document.createElement('code');
+  code.className = 'code-editor-code';
   code.textContent = 'Loading…';
   pre.appendChild(code);
-  body.appendChild(pre);
+
+  editor.appendChild(gutter);
+  editor.appendChild(pre);
+  body.appendChild(editor);
 
   fetch(url).then(function (resp) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var ctype = resp.headers.get('Content-Type') || '';
-    // If the server tagged it as image/audio/etc. without an extension we
-    // recognised, swap to a "binary" note instead of dumping bytes.
     if (!/^text\/|json|xml|javascript|yaml|toml/i.test(ctype)) {
       throw new Error('binary');
     }
     return resp.text();
   }).then(function (text) {
-    code.textContent = text;
+    _renderCode(code, gutter, text, file);
   }).catch(function (err) {
     code.textContent = err && err.message === 'binary'
       ? 'Binary file — preview not available.'
@@ -495,6 +557,54 @@ function _makePreviewSection(file) {
   });
 
   return section;
+}
+
+function _renderCode(codeEl, gutterEl, text, file) {
+  // Pick the language hint up-front; fall back to hljs auto-detect.
+  var lang = _languageFor(file);
+  var html;
+  try {
+    if (lang && hljs.getLanguage(lang)) {
+      html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+    } else {
+      html = hljs.highlightAuto(text).value;
+    }
+  } catch (_) {
+    // Highlighter blew up — fall back to plain escaped text.
+    html = _escapeHtml(text);
+  }
+  codeEl.innerHTML = html;
+  codeEl.classList.add('hljs');
+
+  // Line-number gutter: one <span> per source line. textContent counts work
+  // off the original raw text (NOT the highlighted HTML, which has injected
+  // <span> tags but should preserve newlines).
+  var lineCount = text.length === 0
+    ? 1
+    : (text.split('\n').length - (text.endsWith('\n') ? 1 : 0)) || 1;
+  var frag = document.createDocumentFragment();
+  for (var i = 1; i <= lineCount; i++) {
+    var ln = document.createElement('span');
+    ln.className = 'code-editor-ln';
+    ln.textContent = String(i);
+    frag.appendChild(ln);
+  }
+  gutterEl.appendChild(frag);
+}
+
+function _languageFor(file) {
+  var ext = (file.extension || '').toLowerCase();
+  if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
+  var name = (file.name || '').toLowerCase();
+  if (NAME_LANG[name]) return NAME_LANG[name];
+  return null;
+}
+
+function _escapeHtml(s) {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 // ── Resize handle ─────────────────────────────────────────────────────────────

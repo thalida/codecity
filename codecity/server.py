@@ -20,6 +20,8 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
+from codecity.scan import _is_binary
+
 # Cap individual /api/file responses so a stray symlink to a giant blob
 # doesn't try to load 10 GB into the browser.
 MAX_FILE_BYTES = 100 * 1024 * 1024
@@ -92,8 +94,12 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
         return
 
     ctype, _ = mimetypes.guess_type(str(target))
-    if ctype is None:
-        ctype = "application/octet-stream"
+    # Many textual files have no extension (LICENSE, Makefile, Dockerfile)
+    # or a shell-only one (.gitignore, .env). mimetypes returns None or
+    # octet-stream for those, which the frontend then renders as "Binary
+    # file." Fall back to a byte-level sniff so we tag them as text.
+    if ctype is None or ctype == "application/octet-stream":
+        ctype = "application/octet-stream" if _is_binary(target) else "text/plain; charset=utf-8"
 
     body = target.read_bytes()
     handler.send_response(HTTPStatus.OK)
