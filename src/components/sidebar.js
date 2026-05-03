@@ -1,6 +1,14 @@
 // sidebar.js — Right-side detail panel for buildings (files) and streets (directories).
 
 import { getHue } from '../scene/colors.js';
+import {
+  SIDEBAR_BADGE,
+  GLYPHS,
+  UI_TIMING,
+  BYTE_FORMATTING,
+  DATE_FORMAT_OPTIONS
+} from '../config/index.js';
+import { DOM_IDS } from '../constants.js';
 
 // Palette injected from main.js (config.building.hue_ext_map). Empty object
 // means "no palette configured" — getHue will fall back to its hash.
@@ -44,7 +52,7 @@ export function setSidebarCloseHandler(fn) {
  * @param {Object} file - File node from the scanner manifest.
  */
 export function showFileSidebar(file) {
-  var sidebar = document.getElementById('sidebar');
+  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
   // Clear previous content
@@ -59,7 +67,7 @@ export function showFileSidebar(file) {
   var closeBtn = document.createElement('button');
   closeBtn.className = 'sidebar-close';
   closeBtn.type = 'button';
-  closeBtn.textContent = '\u00D7';
+  closeBtn.textContent = GLYPHS.get().CLOSE_BUTTON;
   closeBtn.addEventListener('click', closeSidebar);
   header.appendChild(closeBtn);
 
@@ -77,9 +85,10 @@ export function showFileSidebar(file) {
     badge.textContent = file.extension;
 
     var hue = getHue(file.extension, _huePalette);
-    badge.style.backgroundColor = 'hsl(' + hue + ', 60%, 40%)';
-    badge.style.color = 'hsl(' + hue + ', 20%, 90%)';
-    badge.style.borderColor = 'hsl(' + hue + ', 60%, 50%)';
+    var bg = SIDEBAR_BADGE.get();
+    badge.style.backgroundColor = 'hsl(' + hue + ', ' + bg.BG_SATURATION     + '%, ' + bg.BG_LIGHTNESS     + '%)';
+    badge.style.color           = 'hsl(' + hue + ', ' + bg.TEXT_SATURATION   + '%, ' + bg.TEXT_LIGHTNESS   + '%)';
+    badge.style.borderColor     = 'hsl(' + hue + ', ' + bg.BORDER_SATURATION + '%, ' + bg.BORDER_LIGHTNESS + '%)';
     titleRow.appendChild(badge);
   }
 
@@ -108,7 +117,7 @@ export function showFileSidebar(file) {
   statsGrid.className = 'sidebar-stats';
 
   _appendStatItem(statsGrid, 'Size', formatBytes(file.size || 0));
-  _appendStatItem(statsGrid, 'Lines', String(file.lines != null ? file.lines : '\u2014'));
+  _appendStatItem(statsGrid, 'Lines', String(file.lines != null ? file.lines : GLYPHS.get().MISSING_VALUE));
 
   var hasGit = file.git && (file.git.created || file.git.modified);
   var createdDate   = (file.git && file.git.created)  || file.created  || null;
@@ -139,7 +148,7 @@ export function showFileSidebar(file) {
  * @param {Object} dir - Directory node from the scanner manifest.
  */
 export function showDirSidebar(dir) {
-  var sidebar = document.getElementById('sidebar');
+  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
   // Clear previous content
@@ -154,7 +163,7 @@ export function showDirSidebar(dir) {
   var closeBtn = document.createElement('button');
   closeBtn.className = 'sidebar-close';
   closeBtn.type = 'button';
-  closeBtn.textContent = '\u00D7';
+  closeBtn.textContent = GLYPHS.get().CLOSE_BUTTON;
   closeBtn.addEventListener('click', closeSidebar);
   header.appendChild(closeBtn);
 
@@ -233,7 +242,7 @@ export function showDirSidebar(dir) {
  * clean up linked state (e.g. scene-level selection visuals).
  */
 export function closeSidebar() {
-  var sidebar = document.getElementById('sidebar');
+  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (sidebar) {
     sidebar.classList.remove('open');
   }
@@ -256,7 +265,7 @@ function copyToClipboard(text, button) {
     button.textContent = 'Copied!';
     setTimeout(function () {
       button.textContent = original;
-    }, 1500);
+    }, UI_TIMING.get().COPY_FEEDBACK_DURATION_MS);
   }
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -277,13 +286,14 @@ function copyToClipboard(text, button) {
  * @returns {string} e.g. "512 B", "3.4 KB", "1.2 MB"
  */
 function formatBytes(bytes) {
-  if (bytes < 1024) {
+  var t = BYTE_FORMATTING.get();
+  if (bytes < t.KB_THRESHOLD) {
     return bytes + ' B';
   }
-  if (bytes < 1048576) {
-    return (bytes / 1024).toFixed(1) + ' KB';
+  if (bytes < t.MB_THRESHOLD) {
+    return (bytes / t.KB_THRESHOLD).toFixed(1) + ' KB';
   }
-  return (bytes / 1048576).toFixed(1) + ' MB';
+  return (bytes / t.MB_THRESHOLD).toFixed(1) + ' MB';
 }
 
 /**
@@ -293,14 +303,10 @@ function formatBytes(bytes) {
  * @returns {string} e.g. "Apr 18, 2026"
  */
 function formatDate(isoString) {
-  if (!isoString) return '—';
+  if (!isoString) return GLYPHS.get().MISSING_VALUE;
   var d = new Date(isoString);
   if (isNaN(d.getTime())) return isoString;
-  return d.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
+  return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS.get());
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────

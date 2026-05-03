@@ -30,7 +30,26 @@ var UNIT_BOX_EDGE_POSITIONS = [
   -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
 ];
 
-import { DEFAULTS_CONFIG } from './defaults.js';
+import {
+  BUILDING_PALETTE,
+  SCENE_COLORS,
+  SIDEWALK_COLORS,
+  BUILDING_OUTLINE,
+  BUILDING_FADE,
+  HOVER,
+  GEM_ANIMATION,
+  GEM_EDGE_COLOR,
+  CAMERA_PERSPECTIVE,
+  CAMERA_CONTROLS,
+  CAMERA_ANIMATION,
+  CLICK,
+  PIVOT_PING,
+  PATH_LINE,
+  RENDER_ORDERS,
+  TRANSPARENCY,
+  LABEL_FLIP_HYSTERESIS
+} from './config/index.js';
+import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT } from './constants.js';
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
@@ -44,65 +63,39 @@ import {
 } from './scene/path.js';
 
 
-function startRenderLoop(canvas, manifest, config) {
-  // -- 0. Resolve scene config knobs ------------------------------------------
-  // Every visual tunable below is sourced from config.scene.*; literals here
-  // are fallbacks for missing keys so the renderer still works without a
-  // config (e.g. tests). Anything tweak-worthy lives in src/defaults.js as
-  // a named export — DO NOT inline new color/opacity/linewidth literals;
-  // surface them through that module so the Settings UI can mutate them.
-  var sceneCfg     = (config && config.scene) || {};
-  var sidewalkCfg  = sceneCfg.sidewalk || {};
-  var outlineCfg   = sceneCfg.outline  || {};
-  var fadeCfg      = sceneCfg.fade     || {};
-  var fadeNear     = fadeCfg.tier_near || {};
-  var fadeFar      = fadeCfg.tier_far  || {};
-  var CFG_SIDEWALK_HOVER    = sidewalkCfg.hover    || '#d0d2da';
-  var CFG_SIDEWALK_SELECTED = sidewalkCfg.selected || '#ffffff';
-  var CFG_SIDEWALK_PATH     = sidewalkCfg.path     || '#4a4c54';
-  var CFG_OUTLINE_HOVER_COLOR    = outlineCfg.hover_color        || '#ffffff';
-  var CFG_OUTLINE_DEFAULT_LW     = outlineCfg.default_linewidth  || 3;
-  var CFG_OUTLINE_HOVER_LW       = outlineCfg.hover_linewidth    || 2;
-  var CFG_OUTLINE_SELECTED_LW    = outlineCfg.selected_linewidth || 4;
-  var CFG_FADE_LERP    = (fadeCfg.lerp_speed != null)  ? fadeCfg.lerp_speed  : 0.18;
-  var CFG_FADE_TOP     = (fadeCfg.fade_top != null)    ? fadeCfg.fade_top    : 1.0;
-  var CFG_FADE_BOTTOM  = (fadeCfg.fade_bottom != null) ? fadeCfg.fade_bottom : 0.7;
-  var CFG_TIER_NEAR    = {
-    body:    (fadeNear.body    != null) ? fadeNear.body    : 0.65,
-    outline: (fadeNear.outline != null) ? fadeNear.outline : 0.40,
-    ghost:   (fadeNear.ghost   != null) ? fadeNear.ghost   : 0.85
-  };
-  var CFG_TIER_FAR     = {
-    body:    (fadeFar.body    != null) ? fadeFar.body    : 0.18,
-    outline: (fadeFar.outline != null) ? fadeFar.outline : 0.12,
-    ghost:   (fadeFar.ghost   != null) ? fadeFar.ghost   : 0.20
-  };
-  var CFG_HOVER_COMMIT_MS = (sceneCfg.hover_commit_ms != null)
-    ? sceneCfg.hover_commit_ms : 35;
+function startRenderLoop(canvas, manifest) {
+  // Every visual / layout tunable comes from the named exports of
+  // src/defaults.js. Render-loop code reads them fresh each frame (or
+  // each event), so the Settings UI can mutate the imported objects in
+  // place and changes take effect immediately. Material-level
+  // applications (line widths, hex color caches, scene background) are
+  // re-synced via applyTheme() — exposed to the Settings UI through
+  // showLeftSidebar().
 
   // -- 1. Layout + colors ------------------------------------------------------
-  var layout     = layoutCity(manifest.tree, config);
+  var layout     = layoutCity(manifest.tree);
   var dateRanges = getDateRanges(manifest.tree);
-  var hueExtMap  = (config.building && config.building.hue_ext_map) || {};
-  setSidebarPalette(hueExtMap);
+  setSidebarPalette(BUILDING_PALETTE.get().HUE_EXT_MAP || {});
 
   for (var i = 0; i < layout.buildings.length; i++) {
     var b = layout.buildings[i];
-    if (b.file && b.file.type === 'file') {
-      b.color = getBuildingColor(b.file, hueExtMap, dateRanges, config);
+    if (b.file && b.file.type === NODE_KIND.FILE) {
+      b.color = getBuildingColor(b.file, dateRanges);
     } else {
-      b.color = 'hsl(220, 15%, 25%)';
+      b.color = BUILDING_PALETTE.get().DIRECTORY_COLOR;
     }
   }
 
   // -- 2. Scene ----------------------------------------------------------------
-  var built = buildCityScene(layout, config);
+  var built = buildCityScene(layout);
   var scene = built.scene;
   var buildingMeshes  = built.buildingMeshes;
   var streetPickables = built.streetPickables;
   var streetLabels    = built.streetLabels;
   var pathMeshes      = built.pathMeshes || [];
+  var asphaltMeshes   = built.asphaltMeshes || [];
   var rootGem         = built.rootGem;
+  var rootGemEdges    = built.rootGemEdges || null;
   // pickables is rebuilt on every height-mode toggle (since building meshes
   // are disposed + replaced), so we wrap the array in a getter-style closure
   // and pass `getPickables()` to the raycaster.
@@ -112,7 +105,7 @@ function startRenderLoop(canvas, manifest, config) {
   if (rootGem) {
     var gemBody = rootGem.children && rootGem.children[0];
     if (gemBody) {
-      gemBody.userData.type = 'root-gem';
+      gemBody.userData.type = NODE_KIND.GEM;
       pickables.push(gemBody);
     }
   }
@@ -136,13 +129,13 @@ function startRenderLoop(canvas, manifest, config) {
   for (var bli = 0; bli < buildingMeshes.length; bli++) {
     var _bm = buildingMeshes[bli];
     var _bd = _bm.userData.building;
-    var _bcol = new THREE.Color(_bd.color || '#888888');
+    var _bcol = new THREE.Color(_bd.color || BUILDING_PALETTE.get().FALLBACK_COLOR);
 
     var _olGeo = new LineSegmentsGeometry();
     _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
     var _olMat = new LineMaterial({
       color:       _bcol.clone(),
-      linewidth:   CFG_OUTLINE_DEFAULT_LW,
+      linewidth:   BUILDING_OUTLINE.get().DEFAULT_LINEWIDTH,
       transparent: true,
       opacity:     0.0,
       depthTest:   true,
@@ -186,7 +179,14 @@ function startRenderLoop(canvas, manifest, config) {
   // -- 4. Camera ---------------------------------------------------------------
   var W = canvas.clientWidth;
   var H = canvas.clientHeight;
-  var camera = new THREE.PerspectiveCamera(45, W / Math.max(1, H), 1, 20000);
+  var perspective = CAMERA_PERSPECTIVE.get();
+  var cameraControlsCfg = CAMERA_CONTROLS.get();
+  var camera = new THREE.PerspectiveCamera(
+    perspective.FOV,
+    W / Math.max(1, H),
+    perspective.NEAR,
+    perspective.FAR
+  );
 
   // Isometric framing from the -X/+Y/+Z octant. Orbit pivot sits ON THE
   // GROUND at the center of the ROOT STREET (the main road) — anchored to
@@ -207,7 +207,7 @@ function startRenderLoop(canvas, manifest, config) {
   var gemWorldPos = null;
   if (rootStreet) {
     gemWorldPos = new THREE.Vector3();
-    if (rootStreet.orientation === 'x') {
+    if (rootStreet.orientation === STREET_AXIS.X) {
       gemWorldPos.set(
         rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2,
         0,
@@ -224,14 +224,13 @@ function startRenderLoop(canvas, manifest, config) {
 
   // Camera distance: framed from the orbit pivot, sized to the FARTHEST bbox
   // corner relative to the pivot — guarantees every building fits even when
-  // the pivot is offset from bbox center. 0.95 multiplier gives the city
-  // tight, comfortable framing (1.4 was overly padded — city was lost in
-  // black space).
+  // the pivot is offset from bbox center. INITIAL_DISTANCE_MULT shrinks the
+  // fitted distance to give the city tight, comfortable framing.
   var farX = Math.max(Math.abs(bbox.max.x - groundCenter.x), Math.abs(bbox.min.x - groundCenter.x));
   var farY = Math.max(Math.abs(bbox.max.y - groundCenter.y), Math.abs(bbox.min.y - groundCenter.y));
   var farZ = Math.max(Math.abs(bbox.max.z - groundCenter.z), Math.abs(bbox.min.z - groundCenter.z));
   var radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
-  var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * 0.95;
+  var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
   var dir = new THREE.Vector3(-1, 1, 1).normalize();
   camera.position.copy(groundCenter).add(dir.multiplyScalar(dist));
@@ -241,12 +240,12 @@ function startRenderLoop(canvas, manifest, config) {
   var controls = new OrbitControls(camera, canvas);
   controls.target.copy(groundCenter);
   controls.enableDamping = true;
-  controls.dampingFactor = 0.08;
+  controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
   controls.screenSpacePanning = false;
   controls.zoomToCursor = true;
-  controls.maxPolarAngle = Math.PI * 0.49;
-  controls.minDistance = 30;
-  controls.maxDistance = dist * 4;
+  controls.maxPolarAngle = Math.PI * cameraControlsCfg.MAX_POLAR_ANGLE_FRAC;
+  controls.minDistance = cameraControlsCfg.MIN_DISTANCE;
+  controls.maxDistance = dist * cameraControlsCfg.MAX_DISTANCE_MULT;
   controls.mouseButtons = {
     LEFT:   THREE.MOUSE.ROTATE,
     MIDDLE: THREE.MOUSE.DOLLY,
@@ -259,8 +258,6 @@ function startRenderLoop(canvas, manifest, config) {
 
   // Click vs. drag: track pointerdown→pointerup with a movement + time threshold.
   var downX = 0, downY = 0, downTime = 0;
-  var CLICK_MOVE_THRESHOLD_SQ = 5 * 5;
-  var CLICK_TIME_THRESHOLD    = 400;
 
   // Reusable infinite ground plane (Y=0) for raycasting empty space.
   var groundPlane  = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
@@ -272,10 +269,11 @@ function startRenderLoop(canvas, manifest, config) {
   // persistent indicator — that's not how Blender, Maya, SketchUp, or
   // Google Earth do it; rotation pivot is implicit during normal navigation.
   // The ping is feedback for "your pivot moved here" then disappears.
+  var pingCfg = PIVOT_PING.get();
   var pivotPing = new THREE.Mesh(
-    new THREE.RingGeometry(0.6, 1.0, 48),
+    new THREE.RingGeometry(pingCfg.INNER_RADIUS, pingCfg.OUTER_RADIUS, pingCfg.SEGMENTS),
     new THREE.MeshBasicMaterial({
-      color:       0x8ea4ff,
+      color:       new THREE.Color(pingCfg.COLOR),
       transparent: true,
       opacity:     0.0,         // hidden by default
       depthWrite:  false,
@@ -283,8 +281,8 @@ function startRenderLoop(canvas, manifest, config) {
     })
   );
   pivotPing.rotation.x  = -Math.PI / 2;   // lay flat on XZ
-  pivotPing.renderOrder = 4;
-  pivotPing.position.y  = 0.6;
+  pivotPing.renderOrder = _orders.PIVOT_PING;
+  pivotPing.position.y  = pingCfg.HEIGHT;
   pivotPing.visible     = false;
   scene.add(pivotPing);
 
@@ -297,30 +295,32 @@ function startRenderLoop(canvas, manifest, config) {
   var _unitEdgesGeo = new LineSegmentsGeometry();
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
 
+  var _bo = BUILDING_OUTLINE.get();
+  var _orders = RENDER_ORDERS.get();
   var hoverLineMat = new LineMaterial({
-    color:      new THREE.Color(CFG_OUTLINE_HOVER_COLOR),
-    linewidth:  CFG_OUTLINE_HOVER_LW,
+    color:      new THREE.Color(_bo.HOVER_COLOR),
+    linewidth:  _bo.HOVER_LINEWIDTH,
     transparent: true,
-    opacity:    0.85,
+    opacity:    _bo.HOVER_OPACITY,
     depthTest:  true,
     worldUnits: false
   });
   hoverLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
   var hoverOutline = new LineSegments2(_unitEdgesGeo, hoverLineMat);
   hoverOutline.visible = false;
-  hoverOutline.renderOrder = 5;
+  hoverOutline.renderOrder = _orders.HOVER_OUTLINE;
   scene.add(hoverOutline);
 
-  // Selected: 3px Line2 outline with per-segment vertex colors so the 12
-  // box edges show different hues that ROTATE around the wheel each frame
-  // — a chasing-rainbow neon effect. Each segment's start and end share
-  // one hue (so the segment is solid-colored), but neighboring segments
-  // are offset by 1/12 of the wheel.
+  // Selected: Line2 outline with per-segment vertex colors so the 12 box
+  // edges show different hues that ROTATE around the wheel each frame —
+  // a chasing-rainbow neon effect. Each segment's start and end share one
+  // hue (so the segment is solid-colored), but neighboring segments are
+  // offset by 1/12 of the wheel.
   var selectedLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth:    CFG_OUTLINE_SELECTED_LW,
+    linewidth:    _bo.SELECTED_LINEWIDTH,
     transparent:  true,
-    opacity:      1.0,
+    opacity:      _bo.SELECTED_OPACITY,
     depthTest:    true,
     worldUnits:   false
   });
@@ -339,7 +339,7 @@ function startRenderLoop(canvas, manifest, config) {
 
   var selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
-  selectedOutline.renderOrder = 7;
+  selectedOutline.renderOrder = _orders.SELECTED_OUTLINE;
   scene.add(selectedOutline);
 
   // _dirTreeDistance(file, dir) — tree distance from `file`'s parent
@@ -369,12 +369,13 @@ function startRenderLoop(canvas, manifest, config) {
   // is responsible for copying _selectedColors → _selColorBuf.array once
   // after all segments are written, and flagging needsUpdate.
   function _setSegHueGradient(segIdx, hueStart, hueEnd) {
+    var rb = BUILDING_OUTLINE.get();
     var k = segIdx * 6;
-    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, 1.0, 0.6);
+    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
     _selectedColors[k]     = _tmpHsl.r;
     _selectedColors[k + 1] = _tmpHsl.g;
     _selectedColors[k + 2] = _tmpHsl.b;
-    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, 1.0, 0.6);
+    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
     _selectedColors[k + 3] = _tmpHsl.r;
     _selectedColors[k + 4] = _tmpHsl.g;
     _selectedColors[k + 5] = _tmpHsl.b;
@@ -385,14 +386,15 @@ function startRenderLoop(canvas, manifest, config) {
   // config.scene.sidewalk; we mutate material.color directly on hover/select
   // and restore from sidewalk.userData.origColor (lazily captured first time
   // we touch the material).
-  // Sidewalk tint variants for hover/selected/path lineage. Sourced from
-  // config.scene.sidewalk.{hover,selected,path}; see the CFG_SIDEWALK_*
-  // resolution at the top of startRenderLoop. THREE.Color() accepts both
-  // hex literals (0xRRGGBB) and CSS color strings, so the JSON values
-  // come through unchanged.
-  var SIDEWALK_HOVER_COLOR    = new THREE.Color(CFG_SIDEWALK_HOVER).getHex();
-  var SIDEWALK_SELECTED_COLOR = new THREE.Color(CFG_SIDEWALK_SELECTED).getHex();
-  var SIDEWALK_PATH_COLOR     = new THREE.Color(CFG_SIDEWALK_PATH).getHex();
+  // Sidewalk tint hex caches. SIDEWALK_COLORS holds CSS strings; we
+  // pre-convert to numeric hex so the per-frame tint loop can call
+  // material.color.setHex() without re-parsing every frame. applyTheme()
+  // refreshes these whenever the Settings UI mutates SIDEWALK_COLORS.
+  var _swc0 = SIDEWALK_COLORS.get();
+  var SIDEWALK_HOVER_COLOR    = new THREE.Color(_swc0.HOVER).getHex();
+  var SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
+  var SIDEWALK_PATH_COLOR     = new THREE.Color(_swc0.PATH).getHex();
+  var SIDEWALK_DEFAULT_COLOR  = new THREE.Color(_swc0.DEFAULT).getHex();
 
   // Lookup: directory path → sidewalk mesh / street object. Used to walk
   // the parent chain from a selected dir/file back to root, which lets us
@@ -427,13 +429,13 @@ function startRenderLoop(canvas, manifest, config) {
   // STILL traces the path; the sidewalk tint reinforces the lineage so
   // the user can see which streets are on the chain at a glance.
   function _expectedSidewalkTint(sw) {
-    if (currentSelection && currentSelection.kind === 'directory' &&
+    if (currentSelection && currentSelection.kind === NODE_KIND.DIRECTORY &&
         currentSelection.sidewalk === sw) {
       return SIDEWALK_SELECTED_COLOR;
     }
     // Hover wins over path tint so parent roads still show a hover response
     // when you mouse over them. Selection still wins over hover above.
-    if (currentHover && currentHover.kind === 'directory' &&
+    if (currentHover && currentHover.kind === NODE_KIND.DIRECTORY &&
         currentHover.sidewalk === sw) {
       return SIDEWALK_HOVER_COLOR;
     }
@@ -449,7 +451,7 @@ function startRenderLoop(canvas, manifest, config) {
   function _pathSidewalksForSelection(sel) {
     if (!sel) return [];
     var dirPath, includeLast;
-    if (sel.kind === 'directory') {
+    if (sel.kind === NODE_KIND.DIRECTORY) {
       dirPath = sel.dir.path;
       includeLast = false;            // selected dir's own sidewalk: SELECTED tint
     } else {
@@ -493,15 +495,64 @@ function startRenderLoop(canvas, manifest, config) {
     }
   }
 
+  // applyTheme() — hot-apply the current values from src/config/* to every
+  // material / cache that's set once at scene-build time. The Settings UI
+  // mutates the config stores (SIDEWALK_COLORS, BUILDING_OUTLINE, etc.)
+  // and calls this to flush the changes through. Render-loop values
+  // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
+  // don't need anything here.
+  function applyTheme() {
+    var sidewalk = SIDEWALK_COLORS.get();
+    var sceneCol = SCENE_COLORS.get();
+    var outline  = BUILDING_OUTLINE.get();
+
+    // Sidewalk hex caches + every sidewalk mesh's resting color. We update
+    // userData.origColor too so a state-driven recolor (hover/selected)
+    // restores to the new default when it lifts.
+    SIDEWALK_HOVER_COLOR    = new THREE.Color(sidewalk.HOVER).getHex();
+    SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
+    SIDEWALK_PATH_COLOR     = new THREE.Color(sidewalk.PATH).getHex();
+    SIDEWALK_DEFAULT_COLOR  = new THREE.Color(sidewalk.DEFAULT).getHex();
+    for (var si = 0; si < streetPickables.length; si++) {
+      streetPickables[si].userData.origColor = SIDEWALK_DEFAULT_COLOR;
+    }
+    _refreshSidewalkTints();
+
+    // Asphalt: each street's inner stripe.
+    var asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
+    for (var ai = 0; ai < asphaltMeshes.length; ai++) {
+      asphaltMeshes[ai].material.color.setHex(asphaltHex);
+    }
+
+    // Scene background (the void behind everything).
+    scene.background = new THREE.Color(sceneCol.GROUND);
+
+    // Hover + selected outline overlays.
+    hoverLineMat.color.set(outline.HOVER_COLOR);
+    hoverLineMat.linewidth    = outline.HOVER_LINEWIDTH;
+    selectedLineMat.linewidth = outline.SELECTED_LINEWIDTH;
+    // Per-building default outlines (the colored wireframes that fade in
+    // as the building dims out).
+    for (var oi = 0; oi < buildingOutlineMats.length; oi++) {
+      buildingOutlineMats[oi].linewidth = outline.DEFAULT_LINEWIDTH;
+    }
+
+    // Root gem edges color.
+    if (rootGemEdges && rootGemEdges.material && rootGemEdges.material.color) {
+      rootGemEdges.material.color.set(GEM_EDGE_COLOR.get());
+    }
+  }
+
   // ---- Neon path line: gem → ... → selection ----
   // Built from independent line segments (LineSegments2) — one segment
   // per leg of the path. Tried Line2 (polyline) first but its mitered
   // bends silently dropped subsequent legs in dynamic updates; segments
   // are more robust. Per-segment vertex colors cycle through the rainbow
   // each frame for the same chasing-neon effect as the building outline.
+  var _pl = PATH_LINE.get();
   var pathLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth:    5,
+    linewidth:    _pl.LINEWIDTH,
     transparent:  true,
     opacity:      0.0,
     depthTest:    true,            // buildings occlude the line
@@ -513,11 +564,10 @@ function startRenderLoop(canvas, manifest, config) {
   pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
   var pathLine = new LineSegments2(pathLineGeo, pathLineMat);
   pathLine.visible = false;
-  // Render BEFORE labels (which sit at renderOrder 6) so the labels'
-  // alpha-blended text composites cleanly on top — opaque glyph pixels
-  // cover the path while transparent regions (letter loops in O, D, etc.)
-  // still reveal the neon line running underneath.
-  pathLine.renderOrder = 4;
+  // Render BEFORE labels so labels' alpha-blended text composites cleanly
+  // on top — opaque glyph pixels cover the path while transparent regions
+  // (letter loops in O, D, etc.) still reveal the neon line underneath.
+  pathLine.renderOrder = _orders.PATH_LINE;
   scene.add(pathLine);
 
   var pathSegmentCount = 0;            // tracks how many segments are live
@@ -544,11 +594,12 @@ function startRenderLoop(canvas, manifest, config) {
     }
     // LineSegments2 wants PAIRS of vertices — one segment per pair. So
     // duplicate intermediate points: [p0,p1, p1,p2, p2,p3, ...].
+    var elev = PATH_LINE.get().ELEVATION;
     var flat = [];
     for (var i = 0; i < pts.length - 1; i++) {
       var a = pts[i];
       var b = pts[i + 1];
-      flat.push(a.x, 0.3, a.z, b.x, 0.3, b.z);
+      flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
     // RECREATE the geometry on every update — empirically Three.js's
     // LineSegmentsGeometry.setPositions can leave stale instance state
@@ -563,22 +614,23 @@ function startRenderLoop(canvas, manifest, config) {
       _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
     }
     pathLine.visible = true;
-    pathLineMat.opacity = 0.95;
+    pathLineMat.opacity = PATH_LINE.get().OPACITY;
   }
 
   // _updatePathRainbow(t) — per-frame chase: each segment's start+end
   // hues are offset by 1/N around the wheel; t advances every frame.
   function _updatePathRainbow(t) {
     if (!pathLine.visible || pathSegmentCount === 0) return;
+    var rb = PATH_LINE.get();
     var n = pathSegmentCount;
     for (var s = 0; s < n; s++) {
       var h1 = ((t + s       / n) % 1 + 1) % 1;
       var h2 = ((t + (s + 1) / n) % 1 + 1) % 1;
-      _pathHsl.setHSL(h1, 1.0, 0.65);
+      _pathHsl.setHSL(h1, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
       _pathColorsBuf[s * 6]     = _pathHsl.r;
       _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
       _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
-      _pathHsl.setHSL(h2, 1.0, 0.65);
+      _pathHsl.setHSL(h2, rb.RAINBOW_SATURATION, rb.RAINBOW_LIGHTNESS);
       _pathColorsBuf[s * 6 + 3] = _pathHsl.r;
       _pathColorsBuf[s * 6 + 4] = _pathHsl.g;
       _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
@@ -589,8 +641,8 @@ function startRenderLoop(canvas, manifest, config) {
   // ---- Selection + hover state (single source of truth) ----
   //
   // Both `currentSelection` and `currentHover` are EITHER null OR an object:
-  //   { kind: 'file',      mesh, data, file }       — a file building
-  //   { kind: 'directory', sidewalk, street, dir }  — a directory street
+  //   { kind: NODE_KIND.FILE,      mesh, data, file }       — a file building
+  //   { kind: NODE_KIND.DIRECTORY, sidewalk, street, dir }  — a directory street
   //
   // All visuals (outlines, sidewalk tints, X-ray fades, sidebar contents,
   // tooltip) derive from these two values. State changes go through
@@ -606,11 +658,12 @@ function startRenderLoop(canvas, manifest, config) {
     pivotPing.position.x = worldPos.x;
     pivotPing.position.z = worldPos.z;
     pivotPing.visible = true;
+    var pcfg = PIVOT_PING.get();
     var t0 = performance.now();
-    var duration = 700;
-    var startScale = 0.7;
-    var endScale   = 4.0;
-    var startOpacity = 0.85;
+    var duration = pcfg.DURATION_MS;
+    var startScale = pcfg.START_SCALE;
+    var endScale   = pcfg.END_SCALE;
+    var startOpacity = pcfg.START_OPACITY;
     function step() {
       if (pingToken !== token) return;       // newer ping superseded this one
       var elapsed = performance.now() - t0;
@@ -620,7 +673,7 @@ function startRenderLoop(canvas, manifest, config) {
         pivotPing.material.opacity = 0;
         return;
       }
-      var eased = 1 - Math.pow(1 - t, 2);    // ease-out quad
+      var eased = 1 - Math.pow(1 - t, CAMERA_ANIMATION.get().PAN_EASING_POWER);
       var s = startScale + (endScale - startScale) * eased;
       pivotPing.scale.set(s, s, s);
       pivotPing.material.opacity = startOpacity * (1 - t);
@@ -640,8 +693,10 @@ function startRenderLoop(canvas, manifest, config) {
     var dx = e.clientX - downX;
     var dy = e.clientY - downY;
     var dtime = Date.now() - downTime;
-    if (dx * dx + dy * dy > CLICK_MOVE_THRESHOLD_SQ) return;
-    if (dtime > CLICK_TIME_THRESHOLD) return;
+    var clickCfg = CLICK.get();
+    var moveSq = clickCfg.MOVE_THRESHOLD_PX * clickCfg.MOVE_THRESHOLD_PX;
+    if (dx * dx + dy * dy > moveSq) return;
+    if (dtime > clickCfg.TIME_THRESHOLD_MS) return;
     _handlePick(e.clientX, e.clientY);
   });
 
@@ -659,19 +714,19 @@ function startRenderLoop(canvas, manifest, config) {
       // Gem click → reset view only. Doesn't select anything (just gets
       // the user back to the default home framing with whatever sidebar
       // state they had cleared).
-      if (ud.type === 'root-gem') {
+      if (ud.type === NODE_KIND.GEM) {
         closeSidebar();    // close handler clears selection too
         resetView();
         return;
       }
       if (ud.building && ud.building.file) {
-        if (ud.building.file.type === 'directory') {
+        if (ud.building.file.type === NODE_KIND.DIRECTORY) {
           // Directory buildings aren't actually rendered (engine.js skips
           // them), but if the data ever shows up just open the sidebar.
           showDirSidebar(ud.building.file);
         } else {
           _setSelection({
-            kind: 'file',
+            kind: NODE_KIND.FILE,
             mesh: hit.object,
             data: ud.building,
             file: ud.building.file
@@ -702,13 +757,13 @@ function startRenderLoop(canvas, manifest, config) {
   // delegates ALL sidewalk colors to _refreshSidewalkTints(). No manual
   // tint bookkeeping — every street's color is derived from current state.
   function _setSelection(sel) {
-    if (currentSelection && currentSelection.kind === 'file') {
+    if (currentSelection && currentSelection.kind === NODE_KIND.FILE) {
       selectedOutline.visible = false;
     }
     currentSelection = sel;
     if (sel) {
       sel._pathSidewalks = _pathSidewalksForSelection(sel);
-      if (sel.kind === 'file') {
+      if (sel.kind === NODE_KIND.FILE) {
         _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
         selectedOutline.visible = true;
       }
@@ -721,11 +776,11 @@ function startRenderLoop(canvas, manifest, config) {
   // (you can hover one thing while selecting another); coordinates via
   // _refreshSidewalkTints() which picks the right per-street tint.
   function _setHover(h) {
-    if (currentHover && currentHover.kind === 'file') {
+    if (currentHover && currentHover.kind === NODE_KIND.FILE) {
       hoverOutline.visible = false;
     }
     currentHover = h;
-    if (h && h.kind === 'file' &&
+    if (h && h.kind === NODE_KIND.FILE &&
         (!currentSelection || currentSelection.mesh !== h.mesh)) {
       _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
       hoverOutline.visible = true;
@@ -772,11 +827,11 @@ function startRenderLoop(canvas, manifest, config) {
     if (hits.length > 0) {
       var hit = hits[0];
       var ud  = hit.object.userData;
-      if (ud.type === 'root-gem') {       // dblclick gem also resets view
+      if (ud.type === NODE_KIND.GEM) {       // dblclick gem also resets view
         resetView();
         return;
       }
-      if (ud.building && ud.building.file && ud.building.file.type === 'file') {
+      if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
         _focusOnBuilding(hit.object, ud.building);
         return;
       }
@@ -798,7 +853,7 @@ function startRenderLoop(canvas, manifest, config) {
   function _recenterPivotToPoint(p) {
     camera.up.set(0, 1, 0);
     var delta = p.clone().sub(controls.target);
-    _animateCamera(p, camera.position.clone().add(delta), 350);
+    _animateCamera(p, camera.position.clone().add(delta), CAMERA_ANIMATION.get().RECENTER_DURATION_MS);
     _pingPivot(p);
   }
 
@@ -815,27 +870,28 @@ function startRenderLoop(canvas, manifest, config) {
   // always gives an unobstructed look at the target.
   function _focusOnBuilding(mesh, b) {
     camera.up.set(0, 1, 0);   // reset (street focus may have changed it)
+    var camAnim = CAMERA_ANIMATION.get();
     var doorDX = 0, doorDZ = 0, faceW;
-    if      (b.orient === 's') { doorDZ =  1; faceW = b.w; }
-    else if (b.orient === 'n') { doorDZ = -1; faceW = b.w; }
-    else if (b.orient === 'e') { doorDX =  1; faceW = b.d; }
-    else if (b.orient === 'w') { doorDX = -1; faceW = b.d; }
-    else                       { doorDZ =  1; faceW = b.w; }
+    if      (b.orient === BUILDING_ORIENT.SOUTH) { doorDZ =  1; faceW = b.w; }
+    else if (b.orient === BUILDING_ORIENT.NORTH) { doorDZ = -1; faceW = b.w; }
+    else if (b.orient === BUILDING_ORIENT.EAST)  { doorDX =  1; faceW = b.d; }
+    else if (b.orient === BUILDING_ORIENT.WEST)  { doorDX = -1; faceW = b.d; }
+    else                                          { doorDZ =  1; faceW = b.w; }
     var faceH = b.h;
 
     var halfV = (camera.fov * Math.PI / 180) / 2;
     var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
     var distForH = (faceH / 2) / Math.tan(halfV);
     var distForW = (faceW / 2) / Math.tan(halfH);
-    var dist = Math.max(distForH, distForW) * 1.6 + 4;
+    var dist = Math.max(distForH, distForW) * camAnim.BUILDING_FOCUS_DISTANCE_MULT + camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
 
-    var halfDepth = (b.orient === 'e' || b.orient === 'w') ? b.w / 2 : b.d / 2;
+    var halfDepth = (b.orient === BUILDING_ORIENT.EAST || b.orient === BUILDING_ORIENT.WEST) ? b.w / 2 : b.d / 2;
     var newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
 
-    // Try head-on first; raise camera 20° at a time if obstructed.
+    // Try head-on first; raise camera SIGHTLINE_STEP_DEG at a time if obstructed.
     var newCamPos = null;
-    for (var attempt = 0; attempt < 5; attempt++) {
-      var elev = (attempt * 20) * Math.PI / 180;
+    for (var attempt = 0; attempt < camAnim.BUILDING_FOCUS_SIGHTLINE_ATTEMPTS; attempt++) {
+      var elev = (attempt * camAnim.BUILDING_FOCUS_SIGHTLINE_STEP_DEG) * Math.PI / 180;
       var horiz = dist * Math.cos(elev);
       var vert  = b.h / 2 + dist * Math.sin(elev);
       var candidate = new THREE.Vector3(
@@ -850,7 +906,7 @@ function startRenderLoop(canvas, manifest, config) {
       newCamPos = candidate;   // keep the highest attempt as fallback
     }
 
-    _animateCamera(newTarget, newCamPos, 600);
+    _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
     _pingPivot(newTarget);
   }
 
@@ -860,7 +916,7 @@ function startRenderLoop(canvas, manifest, config) {
   function _isSightClear(camPos, target, focusedMesh) {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
-    _xrayRay.far = camPos.distanceTo(target) - 0.5;
+    _xrayRay.far = camPos.distanceTo(target) - CAMERA_ANIMATION.get().SIGHT_CHECK_FAR_OFFSET;
     var hits = _xrayRay.intersectObjects(buildingMeshes, false);
     for (var i = 0; i < hits.length; i++) {
       if (hits[i].object !== focusedMesh) return false;
@@ -936,17 +992,19 @@ function startRenderLoop(canvas, manifest, config) {
       if (bh > maxBldgH) maxBldgH = bh;
     }
 
+    var camAnim = CAMERA_ANIMATION.get();
     var halfV = (camera.fov * Math.PI / 180) / 2;
     var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    var distForLength = (s.length * 0.65 / 2) / Math.tan(halfH);
-    var distForWidth  = (s.width * 4   / 2) / Math.tan(halfV);
-    var altitude = Math.max(distForLength, distForWidth, maxBldgH * 1.4 + 50);
+    var distForLength = (s.length * camAnim.STREET_FOCUS_LENGTH_FRAC / 2) / Math.tan(halfH);
+    var distForWidth  = (s.width  * camAnim.STREET_FOCUS_WIDTH_MULT  / 2) / Math.tan(halfV);
+    var altitude = Math.max(distForLength, distForWidth,
+                            maxBldgH * camAnim.STREET_FOCUS_ALTITUDE_BLDG_MULT + camAnim.STREET_FOCUS_ALTITUDE_FLOOR);
 
-    // Near-90° elevation (87°) — well within OrbitControls' polar limit
-    // (~88°) so the camera doesn't snap on the next update. Camera sits
-    // at +offX / +offZ horizontal offset; with default world-up, screen-up
-    // is the OPPOSITE direction (target's "far side" appears at top).
-    var elev = 87 * Math.PI / 180;
+    // Near-vertical elevation — just under OrbitControls' polar limit so
+    // the camera doesn't snap on the next update. Camera sits at +offX /
+    // +offZ horizontal offset; with default world-up, screen-up is the
+    // OPPOSITE direction (target's "far side" appears at top).
+    var elev = camAnim.STREET_FOCUS_ELEVATION_DEG * Math.PI / 180;
     var horizDist = altitude / Math.tan(elev);
 
     var newCamPos = new THREE.Vector3(
@@ -954,7 +1012,7 @@ function startRenderLoop(canvas, manifest, config) {
       altitude,
       tz + offZ * horizDist
     );
-    _animateCamera(newTarget, newCamPos, 600);
+    _animateCamera(newTarget, newCamPos, camAnim.STREET_FOCUS_DURATION_MS);
     _pingPivot(newTarget);
   }
 
@@ -963,13 +1021,14 @@ function startRenderLoop(canvas, manifest, config) {
     var startTarget = controls.target.clone();
     var startCamPos = camera.position.clone();
     var t0 = performance.now();
+    var easingPower = CAMERA_ANIMATION.get().EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;       // superseded by a newer animation
       var elapsed = performance.now() - t0;
       var t = elapsed / duration;
       if (t >= 1) t = 1;
-      var eased = 1 - Math.pow(1 - t, 3);       // ease-out cubic
+      var eased = 1 - Math.pow(1 - t, easingPower);
       controls.target.lerpVectors(startTarget, newTarget, eased);
       camera.position.lerpVectors(startCamPos, newCamPos, eased);
       if (t < 1) requestAnimationFrame(step);
@@ -979,19 +1038,18 @@ function startRenderLoop(canvas, manifest, config) {
 
   function resetView() {
     camera.up.set(0, 1, 0);           // back to default world-up
-    _animateCamera(initialTarget.clone(), initialCamPos.clone(), 500);
+    _animateCamera(initialTarget.clone(), initialCamPos.clone(), CAMERA_ANIMATION.get().RESET_DURATION_MS);
     _pingPivot(initialTarget);
   }
 
   // Hover pipeline: pointermove fires faster than render frames, so we
   // coalesce events into one raycast per rAF tick. The raycast result
   // then sits in a short commit-delay buffer — only after the cursor
-  // hovers a target for HOVER_COMMIT_MS does the heavy cascade fade
+  // hovers a target for HOVER.commit_ms does the heavy cascade fade
   // engage. Brief brushes (mouse sweeping across the scene) never
   // commit, which keeps the city stable instead of strobing tiers.
   // Tooltip + cursor still update on every coalesced raycast for
   // responsiveness — only the fade-cascade is debounced.
-  var HOVER_COMMIT_MS = CFG_HOVER_COMMIT_MS;
   var _hoverRafId      = 0;
   var _hoverLastEvt    = null;
   var _hoverPending    = null;   // candidate hover awaiting commit
@@ -1017,18 +1075,18 @@ function startRenderLoop(canvas, manifest, config) {
     if (hits.length > 0) {
       var h0 = hits[0];
       var ud = h0.object.userData;
-      if (ud.type === 'root-gem') {
-        newHover = { kind: 'gem' };
+      if (ud.type === NODE_KIND.GEM) {
+        newHover = { kind: NODE_KIND.GEM };
         var rootName = (rootStreet && rootStreet.dir && rootStreet.dir.name) || 'root';
         tooltipText = 'root  ·  ' + rootName;
-      } else if (ud.building && ud.building.file && ud.building.file.type === 'file') {
+      } else if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
         var f = ud.building.file;
-        newHover = { kind: 'file', mesh: h0.object, data: ud.building, file: f };
+        newHover = { kind: NODE_KIND.FILE, mesh: h0.object, data: ud.building, file: f };
         tooltipText = f.name + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
       } else if (ud.street && ud.street.dir) {
         var d = ud.street.dir;
         var n = (d.descendants_count != null) ? d.descendants_count : (d.children_count || 0);
-        newHover = { kind: 'directory', sidewalk: h0.object, street: ud.street, dir: d };
+        newHover = { kind: NODE_KIND.DIRECTORY, sidewalk: h0.object, street: ud.street, dir: d };
         tooltipText = (d.name || 'directory') + '  ·  ' + n + ' items';
       }
     }
@@ -1044,7 +1102,7 @@ function startRenderLoop(canvas, manifest, config) {
 
     // Hover commit: debounced. If the candidate already matches what's
     // committed (or what's pending), nothing to do. Otherwise restart
-    // the timer — only stable hovers (held > HOVER_COMMIT_MS) commit.
+    // the timer — only stable hovers (held > HOVER.commit_ms) commit.
     if (_sameHover(newHover, currentHover)) {
       // Cursor returned to the already-committed target — drop any
       // pending change so we don't rebound to a stale candidate.
@@ -1060,16 +1118,16 @@ function startRenderLoop(canvas, manifest, config) {
       var toCommit = _hoverPending;
       _hoverPending = null;
       if (!_sameHover(toCommit, currentHover)) _setHover(toCommit);
-    }, HOVER_COMMIT_MS);
+    }, HOVER.get().COMMIT_MS);
   }
 
   function _sameHover(a, b) {
     if (a === b) return true;
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
-    if (a.kind === 'file')      return a.mesh === b.mesh;
-    if (a.kind === 'directory') return a.sidewalk === b.sidewalk;
-    if (a.kind === 'gem')       return true;     // singleton
+    if (a.kind === NODE_KIND.FILE)      return a.mesh === b.mesh;
+    if (a.kind === NODE_KIND.DIRECTORY) return a.sidewalk === b.sidewalk;
+    if (a.kind === NODE_KIND.GEM)       return true;     // singleton
     return false;
   }
 
@@ -1120,7 +1178,8 @@ function startRenderLoop(canvas, manifest, config) {
   });
 
   showLeftSidebar(manifest, {
-    onResetView: resetView
+    onResetView: resetView,
+    applyTheme:  applyTheme
   });
 
   // -- 8. Render loop --------------------------------------------------------
@@ -1192,13 +1251,13 @@ function startRenderLoop(canvas, manifest, config) {
     // as the "neighborhood" so the user sees siblings + descendants
     // exactly like a street selection. The selected building itself
     // stays fully solid on top.
-    var bldgTarget = (currentSelection && currentSelection.kind === 'file')
+    var bldgTarget = (currentSelection && currentSelection.kind === NODE_KIND.FILE)
       ? currentSelection.mesh : null;
     var dirTarget = null;
     if (currentSelection) {
-      if (currentSelection.kind === 'directory') {
+      if (currentSelection.kind === NODE_KIND.DIRECTORY) {
         dirTarget = currentSelection.dir;
-      } else if (currentSelection.kind === 'file') {
+      } else if (currentSelection.kind === NODE_KIND.FILE) {
         var parentPath = parentDirPath(currentSelection.file.path);
         if (parentPath != null) {
           var parentStreet = streetsByDirPath[parentPath];
@@ -1214,10 +1273,10 @@ function startRenderLoop(canvas, manifest, config) {
     // before committing; when the mouse leaves, fade snaps back to the
     // selection.
     if (currentHover) {
-      if (currentHover.kind === 'directory' &&
+      if (currentHover.kind === NODE_KIND.DIRECTORY &&
           currentHover.street && currentHover.street.dir) {
         dirTarget = currentHover.street.dir;
-      } else if (currentHover.kind === 'file' && currentHover.file) {
+      } else if (currentHover.kind === NODE_KIND.FILE && currentHover.file) {
         var hoverParent = parentDirPath(currentHover.file.path);
         if (hoverParent != null) {
           var hoverStreet = streetsByDirPath[hoverParent];
@@ -1225,7 +1284,7 @@ function startRenderLoop(canvas, manifest, config) {
         }
       }
     }
-    var hoverMesh  = (currentHover && currentHover.kind === 'file')
+    var hoverMesh  = (currentHover && currentHover.kind === NODE_KIND.FILE)
       ? currentHover.mesh : null;
 
     // Two faded tiers, both windowless (the GHOST_THRESHOLD below is set
@@ -1234,12 +1293,13 @@ function startRenderLoop(canvas, manifest, config) {
     // for "1 step away"; FAR collapses to essentially just an outline.
     // Tier opacities + dim multipliers; sourced from config.scene.fade.
     var TIER_DIRECT      = 1.0;
-    var TIER_DESC        = CFG_TIER_NEAR.body;
-    var TIER_DESC_OUTLN  = CFG_TIER_NEAR.outline;
-    var TIER_DESC_GHOST  = CFG_TIER_NEAR.ghost;
-    var TIER_OTHER       = CFG_TIER_FAR.body;
-    var TIER_OTHER_OUTLN = CFG_TIER_FAR.outline;
-    var TIER_OTHER_GHOST = CFG_TIER_FAR.ghost;
+    var fadeCfg = BUILDING_FADE.get();
+    var TIER_DESC        = fadeCfg.TIER_NEAR_BODY;
+    var TIER_DESC_OUTLN  = fadeCfg.TIER_NEAR_OUTLINE;
+    var TIER_DESC_GHOST  = fadeCfg.TIER_NEAR_GHOST;
+    var TIER_OTHER       = fadeCfg.TIER_FAR_BODY;
+    var TIER_OTHER_OUTLN = fadeCfg.TIER_FAR_OUTLINE;
+    var TIER_OTHER_GHOST = fadeCfg.TIER_FAR_GHOST;
 
     // Obstruction detection disabled for now — selected building relies
     // purely on the tiered fade. Re-enable by un-commenting and restoring
@@ -1285,20 +1345,20 @@ function startRenderLoop(canvas, manifest, config) {
       // selected building stays visible at any rotation/zoom. Applies on
       // top of the tier above (multiplies it down).
       if (bldgTarget && m !== bldgTarget && obstructorIds && obstructorIds[m.id]) {
-        target     = Math.min(target, 0.10);
-        outlineDim = Math.min(outlineDim, 0.20);
-        ghostDim   = Math.min(ghostDim, 0.20);
+        target     = Math.min(target, fadeCfg.OBSTRUCTOR_MIN);
+        outlineDim = Math.min(outlineDim, fadeCfg.OBSTRUCTOR_OUTLINE_MIN);
+        ghostDim   = Math.min(ghostDim, fadeCfg.OBSTRUCTOR_GHOST_MIN);
       }
-      // Hover restore: a hovered building never drops below 0.7.
-      if (m === hoverMesh && target < 0.7) {
-        target = 0.7;
+      // Hover restore: a hovered building never drops below HOVER_MIN_OPACITY.
+      if (m === hoverMesh && target < fadeCfg.HOVER_MIN_OPACITY) {
+        target = fadeCfg.HOVER_MIN_OPACITY;
         outlineDim = 1.0;
         ghostDim   = 1.0;
       }
       var cur = m.userData.opacityCurrent;
       if (cur !== target) {
-        cur += (target - cur) * CFG_FADE_LERP;
-        if (Math.abs(cur - target) < 0.005) cur = target;
+        cur += (target - cur) * fadeCfg.LERP_SPEED;
+        if (Math.abs(cur - target) < fadeCfg.SNAP_THRESHOLD) cur = target;
         m.userData.opacityCurrent = cur;
       }
 
@@ -1311,8 +1371,8 @@ function startRenderLoop(canvas, manifest, config) {
       // windows. FADE_TOP at 1.0 gives the widest window-fade ramp,
       // and smoothstep easing softens the start/end of the reveal so
       // it doesn't pop in.
-      var FADE_TOP    = CFG_FADE_TOP;
-      var FADE_BOTTOM = CFG_FADE_BOTTOM;
+      var FADE_TOP    = fadeCfg.FADE_TOP;
+      var FADE_BOTTOM = fadeCfg.FADE_BOTTOM;
       var blend;   // 1.0 = textured wins, 0.0 = ghost wins
       if      (cur >= FADE_TOP)    blend = 1.0;
       else if (cur <= FADE_BOTTOM) blend = 0.0;
@@ -1328,7 +1388,7 @@ function startRenderLoop(canvas, manifest, config) {
       // have one material per face). Material.transparent flag triggers
       // a shader recompile, so only flip it when it actually changed.
       var mats = Array.isArray(m.material) ? m.material : [m.material];
-      var transparent = texturedAlpha < 0.999;
+      var transparent = texturedAlpha < TRANSPARENCY.get().OPAQUE_THRESHOLD;
       for (var ki = 0; ki < mats.length; ki++) {
         var mat = mats[ki];
         if (mat.transparent !== transparent) {
@@ -1366,7 +1426,7 @@ function startRenderLoop(canvas, manifest, config) {
     }
 
     // ---- 2. Outlines (sync + flowing rainbow color update) ----
-    if (currentSelection && currentSelection.kind === 'file') {
+    if (currentSelection && currentSelection.kind === NODE_KIND.FILE) {
       _syncOutlineToBuilding(selectedOutline, currentSelection.mesh, currentSelection.data);
       // Bottom (segments 0-3) and top (4-7) form continuous 4-edge loops
       // around the box. Each segment gets a START hue matching the previous
@@ -1375,7 +1435,7 @@ function startRenderLoop(canvas, manifest, config) {
       // building. Vertical edges (8-11) take a single hue from their
       // corresponding bottom corner so the verticals colors-match the loop
       // they connect to.
-      var t = performance.now() * 0.00045;
+      var t = performance.now() * BUILDING_OUTLINE.get().RAINBOW_SPEED;
       _setSegHueGradient(0, t + 0.00, t + 0.25);  // bottom: back  edge
       _setSegHueGradient(1, t + 0.25, t + 0.50);  // bottom: right edge
       _setSegHueGradient(2, t + 0.50, t + 0.75);  // bottom: front edge
@@ -1391,7 +1451,7 @@ function startRenderLoop(canvas, manifest, config) {
       _selColorBuf.array.set(_selectedColors);
       _selColorBuf.needsUpdate = true;
     }
-    if (currentHover && currentHover.kind === 'file' &&
+    if (currentHover && currentHover.kind === NODE_KIND.FILE &&
         (!currentSelection || currentSelection.mesh !== currentHover.mesh)) {
       _syncOutlineToBuilding(hoverOutline, currentHover.mesh, currentHover.data);
     }
@@ -1400,16 +1460,17 @@ function startRenderLoop(canvas, manifest, config) {
   function animate() {
     controls.update();
     _updateXRayAndOutlines();
-    _updatePathRainbow(performance.now() * 0.0006);
+    _updatePathRainbow(performance.now() * PATH_LINE.get().RAINBOW_SPEED);
     _orientLabelsForCamera(streetLabels, camera, labelRight);
     if (rootGem) {
+      var gemAnim = GEM_ANIMATION.get();
       var t = (performance.now() - startTime) / 1000;
-      rootGem.rotation.y = t * 0.6;
-      rootGem.position.y = rootGem.userData.baseY + Math.sin(t * 1.8) * rootGem.userData.bobAmp;
+      rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
+      rootGem.position.y = rootGem.userData.baseY + Math.sin(t * gemAnim.BOB_FREQUENCY) * rootGem.userData.bobAmp;
       // Scale-up affordance on hover so the gem reads as clickable.
-      var gemTargetScale = (currentHover && currentHover.kind === 'gem') ? 1.25 : 1.0;
+      var gemTargetScale = (currentHover && currentHover.kind === NODE_KIND.GEM) ? gemAnim.HOVER_SCALE : 1.0;
       var curS = rootGem.scale.x;
-      var nextS = curS + (gemTargetScale - curS) * 0.18;
+      var nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
     }
     renderer.render(scene, camera);
@@ -1427,17 +1488,17 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   var rightX = labelRight.x;
   var rightZ = labelRight.z;
 
-  // Hysteresis: only flip when the relevant axis crosses ±0.15, not 0.
+  // Hysteresis: only flip when the relevant axis crosses ±THRESH, not 0.
   // Without this, near-top-down camera positions (where rightX/rightZ are
   // near zero) cause floating-point jitter from OrbitControls' damping to
   // flip labels back and forth every frame.
-  var THRESH = 0.15;
+  var THRESH = LABEL_FLIP_HYSTERESIS.get().THRESHOLD;
 
   for (var i = 0; i < labels.length; i++) {
     var lbl = labels[i];
     var street = lbl.userData.street;
     var base = lbl.userData.baseRotY || 0;
-    var axis  = (street.orientation === 'x') ? rightX : rightZ;
+    var axis  = (street.orientation === STREET_AXIS.X) ? rightX : rightZ;
     var flipped = lbl.userData.flipped || false;
     if (flipped) {
       // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
@@ -1476,10 +1537,10 @@ export function readEmbeddedJson(id) {
 // but typical test environments won't have the script tags + canvas wired up,
 // so tests should import only { readEmbeddedJson } and not trigger the boot.
 // We guard with a feature check to make that safe.
-var _canvas = document.getElementById('city');
+var _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
-  var manifest = readEmbeddedJson('codecity-manifest');
-  // Visual config now lives in src/defaults.js (single source of truth);
-  // the manifest is the only thing the Python scanner injects per-project.
-  startRenderLoop(_canvas, manifest, DEFAULTS_CONFIG);
+  var manifest = readEmbeddedJson(DOM_IDS.EMBEDDED_MANIFEST);
+  // Visual config lives in src/defaults.js — every consumer imports
+  // directly from there, so the boot site only needs the manifest.
+  startRenderLoop(_canvas, manifest);
 }

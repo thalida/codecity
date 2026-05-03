@@ -7,13 +7,13 @@
     "doc": "docs"
   },
   "scripts": {
-    "dev":          "python3 src/codecity.py --dev --root .",
-    "build":        "vite build",
-    "test":         "vitest run && npm run test:scripts && npm run test:drift",
-    "test:unit":    "vitest run",
+    "dev": "python3 src/codecity.py --dev --root .",
+    "build": "vite build",
+    "test": "vitest run && npm run test:scripts && npm run test:drift",
+    "test:unit": "vitest run",
     "test:scripts": "bash tests/scripts/run-all.sh",
-    "test:drift":   "bash tests/scripts/test-drift.sh",
-    "test:watch":   "vitest"
+    "test:drift": "bash tests/scripts/test-drift.sh",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
@@ -33,5 +33,8 @@
     "vite": "^8.0.8",
     "vite-plugin-singlefile": "^2.3.3",
     "vitest": "^4.1.4"
+  },
+  "dependencies": {
+    "nanostores": "^1.3.0"
   }
 }

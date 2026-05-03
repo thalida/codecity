@@ -1,12 +1,19 @@
-// controls.js — "Controls" tab in the left sidebar. Hosts view-mode toggles.
-// Future toggles (color mode, label density, etc.) should be added here as
-// new sections beside the existing View section.
+// controls.js — "Controls" tab in the left sidebar. Holds:
+//   - View section (Reset View button + keyboard hints)
+//   - (Future: Theme + Advanced sections — to be rebuilt against the
+//     new src/config/* nanostores so the Settings UI can mutate
+//     stores via .setKey() and the renderer auto-reapplies via
+//     subscribe() listeners.)
+
+import { UI_TEXT } from '../config/index.js';
 
 // buildControlsPane(opts) -> HTMLElement
 //
 // opts:
 //   onResetView — fn() called when the user clicks "Reset View".
-//                 Should restore the default camera pose.
+//   applyTheme  — fn() the Settings UI calls after mutating any config
+//                 store; flushes the change through to live materials.
+//                 (Reserved for the upcoming Theme/Advanced sections.)
 export function buildControlsPane(opts) {
   opts = opts || {};
   var onReset = opts.onResetView || function () {};
@@ -19,7 +26,7 @@ export function buildControlsPane(opts) {
 
   var title = document.createElement('h3');
   title.className = 'controls-title';
-  title.textContent = 'Controls';
+  title.textContent = UI_TEXT.get().CONTROLS_TITLE;
   header.appendChild(title);
   pane.appendChild(header);
 

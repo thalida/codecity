@@ -2,6 +2,11 @@
 //   Hue        → file extension  (palette, deterministic hash for unknowns)
 //   Saturation → creation age    (newer = vivid, older = faded)
 //   Lightness  → last modified   (recent = bright, untouched = dim)
+//
+// Tunables come from BUILDING_PALETTE in src/config/building.js. Tests
+// mutate the store via .setKey() in setup + restore in teardown.
+
+import { BUILDING_PALETTE } from '../config/index.js';
 
 /**
  * Map a file extension to a hue value (0–359).
@@ -47,7 +52,7 @@ export function getHue(extension, palette) {
 export function getSaturation(createdDate, minDate, maxDate, config) {
   // Fallback: no date available → mid-point
   if (!createdDate) {
-    return 60;
+    return BUILDING_PALETTE.get().SATURATION_MISSING_DATE_FALLBACK;
   }
 
   var created = Date.parse(createdDate);
@@ -86,7 +91,7 @@ export function getSaturation(createdDate, minDate, maxDate, config) {
 export function getLightness(modifiedDate, minDate, maxDate, config) {
   // Fallback: no date available → mid-point
   if (!modifiedDate) {
-    return 45;
+    return BUILDING_PALETTE.get().LIGHTNESS_MISSING_DATE_FALLBACK;
   }
 
   var modified = Date.parse(modifiedDate);
@@ -183,22 +188,24 @@ export function getDateRanges(manifestTree) {
 // ── Building color ────────────────────────────────────────────────────────────
 
 /**
- * Compute the full HSL color string for a single file building.
+ * Compute the full HSL color string for a single file building. Pulls
+ * palette + saturation/lightness ranges from BUILDING in defaults.js.
  *
  * @param {Object} file       - File node from the scanner manifest.
- * @param {Object} palette    - Extension → hue map from defaults.js.
  * @param {Object} dateRanges - Output of getDateRanges().
- * @param {Object} config     - Color config with { saturation: {min,max}, lightness: {min,max} }.
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
-export function getBuildingColor(file, palette, dateRanges, config) {
+export function getBuildingColor(file, dateRanges) {
   // Prefer git dates, fall back to filesystem dates
   var created  = (file.git && file.git.created)  || file.created  || null;
   var modified = (file.git && file.git.modified) || file.modified || null;
 
-  var h = getHue(file.extension || "", palette);
-  var s = getSaturation(created,  dateRanges.createdMin,  dateRanges.createdMax,  config.building.saturation);
-  var l = getLightness(modified,  dateRanges.modifiedMin, dateRanges.modifiedMax, config.building.lightness);
+  var palette = BUILDING_PALETTE.get();
+  var h = getHue(file.extension || "", palette.HUE_EXT_MAP);
+  var s = getSaturation(created,  dateRanges.createdMin,  dateRanges.createdMax,
+                        { min: palette.SATURATION_MIN, max: palette.SATURATION_MAX });
+  var l = getLightness(modified,  dateRanges.modifiedMin, dateRanges.modifiedMax,
+                        { min: palette.LIGHTNESS_MIN,  max: palette.LIGHTNESS_MAX });
 
   return "hsl(" + h + ", " + s + "%, " + l + "%)";
 }

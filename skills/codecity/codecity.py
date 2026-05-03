@@ -132,7 +132,7 @@ def main(argv: list[str]) -> int:
 
         _log("starting vite dev server (Ctrl-C to stop)…")
         os.chdir(repo_root)
-        os.execvp("npx", ["npx", "vite"])
+        os.execvp("npx", ["npx", "vite", "--host"])
         # execvp replaces this process; unreached.
         return 0
 

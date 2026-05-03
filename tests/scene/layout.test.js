@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
   getStreetWidth,
   getBuildingDimensions,
@@ -6,6 +6,7 @@ import {
   sortForRendering,
   computeLineStats,
 } from '../../src/scene/layout.js';
+import { BUILDING_DIMENSIONS } from '../../src/config/index.js';
 
 const TEST_TIERS = [
   { min_descendants: 0,  width: 10 },
@@ -15,27 +16,30 @@ const TEST_TIERS = [
   { min_descendants: 31, width: 52 }
 ];
 
-const TEST_CONFIG = {
-  layout: {
-    child_gap: 5,
-    bldg_street_gap: 4,
-    path_width: 3,
-    street_tiers: TEST_TIERS
-  },
-  building: {
-    lines_per_floor: 20,
-    min_floors: 1,
-    max_floors: 30,
-    floor_height: 10,
-    size_ceiling_bytes: 10485760,
-    min_width: 6,
-    max_width: 40,
-    saturation: { min: 20, max: 100 },
-    lightness:  { min: 25, max: 70 },
-    hue_ext_map: { ".ts": 215, ".js": 220, ".md": 275, ".json": 50, ".png": 30 }
-  },
-  scene: { asphalt: '#1a1d28', sidewalk: { default: '#2a3050' }, ground: '#0a0b10' }
+// Test-time config for getBuildingDimensions / layoutCity. Mutated into
+// the BUILDING_DIMENSIONS store by beforeEach; restored by afterEach.
+const TEST_BUILDING_DIMS = {
+  LINES_PER_FLOOR:    20,
+  MIN_FLOORS:         1,
+  MAX_FLOORS:         30,
+  FLOOR_HEIGHT:       10,
+  SIZE_CEILING_BYTES: 10485760,
+  MIN_WIDTH:          6,
+  MAX_WIDTH:          40
 };
+
+let _origBuildingDims = null;
+beforeEach(() => {
+  _origBuildingDims = { ...BUILDING_DIMENSIONS.get() };
+  for (const [k, v] of Object.entries(TEST_BUILDING_DIMS)) {
+    BUILDING_DIMENSIONS.setKey(k, v);
+  }
+});
+afterEach(() => {
+  for (const [k, v] of Object.entries(_origBuildingDims)) {
+    BUILDING_DIMENSIONS.setKey(k, v);
+  }
+});
 
 const TEST_TREE = {
   name: "project", type: "directory", path: ".", fullPath: "/tmp/project",
@@ -90,57 +94,57 @@ describe('getStreetWidth', () => {
 // Without lineStats, the safe default is min_floors.
 describe('getBuildingDimensions', () => {
   it('null/zero data returns min_floors and min width', () => {
-    const dim = getBuildingDimensions({ lines: null, size: null }, TEST_CONFIG);
+    const dim = getBuildingDimensions({ lines: null, size: null });
     expect(dim.floors).toBe(1);
     expect(dim.h).toBe(10);
     expect(dim.w).toBe(6);
   });
 
   it('depth == width (square footprint)', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, { min: 10, max: 1000 });
     expect(dim.d).toBe(dim.w);
   });
 
   it('zero lines treated as 1 (no -Infinity)', () => {
-    const dim = getBuildingDimensions({ lines: 0, size: 0 }, TEST_CONFIG);
+    const dim = getBuildingDimensions({ lines: 0, size: 0 });
     expect(dim.floors).toBe(1);
     expect(dim.h).toBe(10);
     expect(dim.w).toBe(6);
   });
 
   it('smallest file in the project maps to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 10, size: 100 }, TEST_CONFIG, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 10, size: 100 }, { min: 10, max: 1000 });
     expect(dim.floors).toBe(1);
   });
 
   it('largest file in the project maps to max_floors', () => {
-    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, TEST_CONFIG, { min: 10, max: 1000 });
-    expect(dim.floors).toBe(TEST_CONFIG.building.max_floors);
+    const dim = getBuildingDimensions({ lines: 1000, size: 10000 }, { min: 10, max: 1000 });
+    expect(dim.floors).toBe(TEST_BUILDING_DIMS.MAX_FLOORS);
   });
 
   it('midrange file uses sqrt-interpolated floors', () => {
     // sMin=sqrt(10)=3.162, sMax=sqrt(1000)=31.62, sLines=sqrt(100)=10
     // t = (10 - 3.162) / (31.62 - 3.162) ≈ 0.240
     // floors ≈ round(1 + 0.240 * 29) = round(7.96) = 8
-    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, TEST_CONFIG, { min: 10, max: 1000 });
+    const dim = getBuildingDimensions({ lines: 100, size: 1000 }, { min: 10, max: 1000 });
     expect(dim.floors).toBe(8);
   });
 
   it('without lineStats falls back to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 80, size: 2000 }, TEST_CONFIG);
-    expect(dim.floors).toBe(TEST_CONFIG.building.min_floors);
+    const dim = getBuildingDimensions({ lines: 80, size: 2000 });
+    expect(dim.floors).toBe(TEST_BUILDING_DIMS.MIN_FLOORS);
   });
 
   it('lineStats with min == max collapses everyone to min_floors', () => {
-    const dim = getBuildingDimensions({ lines: 50, size: 500 }, TEST_CONFIG, { min: 50, max: 50 });
+    const dim = getBuildingDimensions({ lines: 50, size: 500 }, { min: 50, max: 50 });
     expect(dim.floors).toBe(1);
   });
 
   it('huge files cap at max_floors (no runaway towers)', () => {
     // Without an upper cap the tallest file would dwarf the rest of the
     // city. Verify the cap is still enforced.
-    const tinyMax = { ...TEST_CONFIG, building: { ...TEST_CONFIG.building, max_floors: 5 } };
-    const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, tinyMax, { min: 1, max: 100000 });
+    BUILDING_DIMENSIONS.setKey('MAX_FLOORS', 5);
+    const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, { min: 1, max: 100000 });
     expect(dim.floors).toBeLessThanOrEqual(5);
   });
 });
@@ -173,24 +177,24 @@ describe('computeLineStats', () => {
 // ---- layoutCity ----
 describe('layoutCity', () => {
   it('returns { streets, buildings, paths } arrays', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     expect(Array.isArray(layout.streets)).toBe(true);
     expect(Array.isArray(layout.buildings)).toBe(true);
     expect(Array.isArray(layout.paths)).toBe(true);
   });
 
   it('has at least 1 street', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
   });
 
   it('produces 3 file buildings for the test tree', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     expect(layout.buildings.length).toBe(3);
   });
 
   it('every building has x, y, w, d, h, file, orient', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     for (const b of layout.buildings) {
       expect(typeof b.x).toBe('number');
       expect(typeof b.y).toBe('number');
@@ -203,14 +207,14 @@ describe('layoutCity', () => {
   });
 
   it('every building starts with color = null', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     for (const b of layout.buildings) {
       expect(b.color).toBeNull();
     }
   });
 
   it('every street has x, y, length, width, orientation, label, dir', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     for (const s of layout.streets) {
       expect(typeof s.x).toBe('number');
       expect(typeof s.y).toBe('number');
@@ -225,7 +229,7 @@ describe('layoutCity', () => {
   });
 
   it('at least one street has a non-empty label', () => {
-    const layout = layoutCity({ tree: TEST_TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TEST_TREE });
     const hasLabel = layout.streets.some(s => s.label && s.label.length > 0);
     expect(hasLabel).toBe(true);
   });
@@ -267,7 +271,7 @@ describe('orient correctness for mirrored subtrees', () => {
   // For each building, verify its door-facing direction actually points at its
   // adjacent street. We find the nearest street and check the direction matches.
   it('every building has orient pointing toward its adjacent street', () => {
-    const layout = layoutCity({ tree: TREE }, TEST_CONFIG);
+    const layout = layoutCity({ tree: TREE });
 
     for (const b of layout.buildings) {
       // Compute the door-face direction in world coords from orient.

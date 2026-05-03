@@ -1,14 +1,18 @@
 // tree.js — Left sidebar tree view. Renders a collapsible folder/file tree.
 
+import { GLYPHS, UI_TEXT } from '../config/index.js';
+import { NODE_KIND } from '../constants.js';
+
 export function buildTree(node) {
   var ul = document.createElement('ul');
   ul.className = 'tree-list';
+  var glyphs = GLYPHS.get();
 
   var children = node.children || [];
   // Sort: directories first, then files, alphabetically within each group
   var sorted = children.slice().sort(function(a, b) {
-    if (a.type === 'directory' && b.type !== 'directory') return -1;
-    if (a.type !== 'directory' && b.type === 'directory') return 1;
+    if (a.type === NODE_KIND.DIRECTORY && b.type !== NODE_KIND.DIRECTORY) return -1;
+    if (a.type !== NODE_KIND.DIRECTORY && b.type === NODE_KIND.DIRECTORY) return 1;
     return (a.name || '').localeCompare(b.name || '');
   });
 
@@ -17,7 +21,7 @@ export function buildTree(node) {
     var li = document.createElement('li');
     li.className = 'tree-item';
 
-    if (child.type === 'directory') {
+    if (child.type === NODE_KIND.DIRECTORY) {
       li.classList.add('tree-dir');
       li.classList.add('tree-collapsed');
 
@@ -26,7 +30,7 @@ export function buildTree(node) {
 
       var icon = document.createElement('span');
       icon.className = 'tree-icon tree-icon-dir';
-      icon.textContent = '\u25B6'; // right-pointing triangle
+      icon.textContent = glyphs.TREE_COLLAPSED;
 
       var label = document.createElement('span');
       label.className = 'tree-label';
@@ -45,17 +49,18 @@ export function buildTree(node) {
       (function(toggleEl, subtreeEl, iconEl, liEl) {
         toggleEl.addEventListener('click', function(e) {
           e.stopPropagation();
+          var g = GLYPHS.get();
           var isCollapsed = liEl.classList.contains('tree-collapsed');
           if (isCollapsed) {
             liEl.classList.remove('tree-collapsed');
             liEl.classList.add('tree-expanded');
             subtreeEl.style.display = '';
-            iconEl.textContent = '\u25BC'; // down-pointing triangle
+            iconEl.textContent = g.TREE_EXPANDED;
           } else {
             liEl.classList.add('tree-collapsed');
             liEl.classList.remove('tree-expanded');
             subtreeEl.style.display = 'none';
-            iconEl.textContent = '\u25B6'; // right-pointing triangle
+            iconEl.textContent = g.TREE_COLLAPSED;
           }
         });
       })(toggle, subtree, icon, li);
@@ -65,7 +70,7 @@ export function buildTree(node) {
 
       var fileIcon = document.createElement('span');
       fileIcon.className = 'tree-icon tree-icon-file';
-      fileIcon.textContent = '\u25CB'; // circle (file indicator)
+      fileIcon.textContent = glyphs.TREE_FILE;
 
       var fileLabel = document.createElement('span');
       fileLabel.className = 'tree-label';
@@ -97,7 +102,7 @@ export function buildTreePane(manifest) {
   var title = document.createElement('h3');
   title.className = 'tree-title';
   var tree = manifest.tree || manifest;
-  title.textContent = tree.name || 'Project';
+  title.textContent = tree.name || UI_TEXT.get().DEFAULT_PROJECT_NAME;
   header.appendChild(title);
 
   pane.appendChild(header);

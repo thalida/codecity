@@ -12,25 +12,21 @@
 
 import { buildTreePane } from './tree.js';
 import { buildControlsPane } from './controls.js';
-
-
-// Lucide icons fetched at runtime — same CDN pattern as Three.js. CSS uses
-// these as mask-image so the icon stroke takes the button's text color.
-var ICON_BASE = 'https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/';
-var TABS = [
-  { id: 'tree',     icon: 'folder-tree.svg',        title: 'Tree'     },
-  { id: 'controls', icon: 'sliders-horizontal.svg', title: 'Controls' }
-];
+import { LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS } from '../config/index.js';
+import { DOM_IDS, SIDEBAR_TAB } from '../constants.js';
 
 
 // showLeftSidebar(manifest, opts)
 //
 // opts:
 //   onResetView — fn() invoked when the Controls panel's Reset button fires
+//   applyTheme  — fn() the Settings UI calls after mutating any imported
+//                 theme constant (SIDEWALK_COLORS, OUTLINE, etc.) — flushes
+//                 the change through to live materials.
 //   initialTab  — 'tree' | 'controls' (default 'tree')
 export function showLeftSidebar(manifest, opts) {
   opts = opts || {};
-  var container = document.getElementById('tree-sidebar');
+  var container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
   if (!container) return;
 
   while (container.firstChild) container.removeChild(container.firstChild);
@@ -41,12 +37,12 @@ export function showLeftSidebar(manifest, opts) {
   var panel = document.createElement('div');
   panel.className = 'left-panel';
 
-  var panes = {
-    tree:     buildTreePane(manifest),
-    controls: buildControlsPane({
-      onResetView: opts.onResetView
-    })
-  };
+  var panes = {};
+  panes[SIDEBAR_TAB.TREE]     = buildTreePane(manifest);
+  panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
+    onResetView: opts.onResetView,
+    applyTheme:  opts.applyTheme
+  });
 
   for (var key in panes) {
     if (Object.prototype.hasOwnProperty.call(panes, key)) {
@@ -54,11 +50,13 @@ export function showLeftSidebar(manifest, opts) {
     }
   }
 
-  var activeTab = (opts.initialTab === 'controls') ? 'controls' : 'tree';
+  var activeTab = (opts.initialTab === SIDEBAR_TAB.CONTROLS) ? SIDEBAR_TAB.CONTROLS : SIDEBAR_TAB.TREE;
   var iconBtns = {};
 
-  for (var i = 0; i < TABS.length; i++) {
-    var tab = TABS[i];
+  var iconBase = LUCIDE_ICON_BASE_URL.get();
+  var tabs = ACTIVITY_BAR_TABS.get();
+  for (var i = 0; i < tabs.length; i++) {
+    var tab = tabs[i];
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'activity-bar-icon';
@@ -68,8 +66,8 @@ export function showLeftSidebar(manifest, opts) {
 
     var glyph = document.createElement('span');
     glyph.className = 'activity-bar-glyph';
-    glyph.style.maskImage         = 'url(' + ICON_BASE + tab.icon + ')';
-    glyph.style.webkitMaskImage   = 'url(' + ICON_BASE + tab.icon + ')';
+    glyph.style.maskImage       = 'url(' + iconBase + tab.icon + ')';
+    glyph.style.webkitMaskImage = 'url(' + iconBase + tab.icon + ')';
     btn.appendChild(glyph);
 
     iconBtns[tab.id] = btn;
