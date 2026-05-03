@@ -1349,6 +1349,13 @@ function startRenderLoop(canvas, manifest) {
     }
   }
   window.addEventListener('resize', onResize);
+  // Sidebars now share horizontal space with the canvas via flexbox (3-pane
+  // layout), so opening, closing, or dragging either sidebar changes the
+  // canvas size without firing a window resize event. ResizeObserver fills
+  // that gap — it fires whenever the canvas's box dimensions change.
+  if (typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(onResize).observe(canvas);
+  }
 
   document.addEventListener('keydown', function (e) {
     // Don't intercept hotkeys while the user is typing in an input/textarea

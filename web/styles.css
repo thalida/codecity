@@ -33,6 +33,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Three-pane layout: tree sidebar | city canvas | file sidebar.
+   Each pane is a direct flex child; the center grows/shrinks instead of
+   the sidebars overlaying it. */
+body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+}
+
+#center-pane {
+  flex: 1 1 0;
+  min-width: 0;       /* allow the canvas to shrink below its intrinsic 0 size */
+  position: relative; /* canvas fills this box */
+  overflow: hidden;
+}
+
 canvas {
   display: block;
   width: 100%;
@@ -43,26 +59,31 @@ canvas {
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
 
 #sidebar {
-  position: fixed;
-  top: 0;
-  right: 0;
-  width: 360px;
-  min-width: 280px;
-  max-width: 70vw;
+  position: relative;
+  flex: 0 0 auto;
+  /* Closed by default — width 0, animates open via the .open rule below.
+     The persisted/dragged width lives on a CSS variable so the resize
+     handle can mutate it without fighting the open/close transitions. */
+  width: 0;
   height: 100%;
   background: #12131a;
   border-left: 1px solid #1e2030;
-  transform: translateX(100%);
-  /* Only the slide animation transitions; width must stay exact during drag,
-     otherwise the resize handle visibly lags behind the cursor. */
-  transition: transform 0.3s ease;
+  /* No transition during drag (would lag the cursor); transition is added
+     by .is-animating which we toggle around open/close. */
   display: flex;
   flex-direction: column;
+  overflow: hidden;
   z-index: 100;
 }
 
 #sidebar.open {
-  transform: translateX(0);
+  width: var(--sidebar-width, 360px);
+  min-width: 280px;
+  max-width: 70vw;
+}
+
+#sidebar.is-animating {
+  transition: width 0.25s ease;
 }
 
 /* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
@@ -82,40 +103,26 @@ canvas {
   background: rgba(108, 138, 255, 0.25);
 }
 
-/* ── Editor tab bar ─────────────────────────────────────────────────────── */
-/* Single open "tab" representing the currently inspected file. Filename +
- * extension chip + close button. Mirrors VSCode's tab strip at low fidelity
- * (one tab; no dragging; no overflow) so the panel reads as an editor. */
+/* ── Editor header ──────────────────────────────────────────────────────
+   Single 30px row carrying chip + breadcrumb + copy + close. Replaces
+   the old tab-bar + breadcrumb stack since only one file can be open at
+   a time — the breadcrumb's leaf segment IS the filename, no tab strip
+   needed. */
 
-.editor-tab-bar {
+.editor-header {
   flex: 0 0 auto;
   display: flex;
-  align-items: stretch;
-  background: #0c0d14;
-  border-bottom: 1px solid #1e2030;
-  height: 36px;
-  /* Trim by 1px on the inside edges so the resize handle's hit zone isn't
-     buried under the tab. */
-  padding-left: 6px;
-}
-
-.editor-tab {
-  display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 0 10px 0 12px;
-  background: #12131a;
-  color: #e0e4f5;
-  font-size: 12px;
-  font-weight: 500;
-  border-right: 1px solid #1e2030;
-  /* Active-tab indicator: a 1.5px brand-blue strip across the bottom. */
+  padding: 0 8px 0 12px;
+  height: 30px;
+  background: #0c0d14;
+  border-bottom: 1px solid #1e2030;
+  /* Active-pane underline — subtle, brand-blue. */
   position: relative;
   min-width: 0;
-  flex: 0 1 auto;
-  max-width: 100%;
 }
-.editor-tab.is-active::after {
+.editor-header::after {
   content: '';
   position: absolute;
   left: 0;
@@ -125,14 +132,40 @@ canvas {
   background: #6c8aff;
 }
 
-.editor-tab-name {
+/* The breadcrumb fills the middle of the header. RTL trick truncates from
+   the LEFT (so the leaf filename always stays visible) while the segments
+   themselves stay LTR. */
+.editor-header-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11px;
+  color: #6a7090;
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
+  direction: rtl;
+  text-align: left;
+}
+.editor-header-path > * { direction: ltr; }
+.editor-header-path::-webkit-scrollbar { height: 0; }
+
+.editor-header-segment {
+  flex: 0 0 auto;
+}
+.editor-header-segment.is-leaf {
+  color: #e0e4f5;
+  font-weight: 500;
+}
+.editor-header-sep {
+  flex: 0 0 auto;
+  color: #44485e;
+  font-size: 12px;
 }
 
-/* Per-extension chip rendered inline with the tab name. Hue comes from JS. */
+/* Per-extension chip in the header. Hue comes from JS. */
 .editor-tab-chip {
   flex: 0 0 auto;
   display: inline-block;
@@ -152,14 +185,15 @@ canvas {
   color: #5ac8b4;
 }
 
-.editor-tab-close {
+/* Header trailing icons (copy + close). Same shape, slightly different
+   hover affordance. */
+.editor-header-icon {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-left: 4px;
+  width: 22px;
+  height: 22px;
   background: none;
   border: none;
   color: #6a7090;
@@ -167,60 +201,10 @@ canvas {
   border-radius: 3px;
   font-size: 13px;
 }
-.editor-tab-close:hover {
+.editor-header-icon .lucide-icon { font-size: 12px; }
+.editor-header-icon:hover {
   color: #e0e4f5;
   background: rgba(255, 255, 255, 0.08);
-}
-
-/* ── Breadcrumb (under the tab) ────────────────────────────────────────── */
-
-.editor-breadcrumb {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 12px;
-  height: 26px;
-  background: #0a0b10;
-  border-bottom: 1px solid #1a1c28;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
-  color: #6a7090;
-  overflow-x: auto;
-  white-space: nowrap;
-}
-.editor-breadcrumb::-webkit-scrollbar { height: 0; }
-
-.editor-breadcrumb-segment {
-  flex: 0 0 auto;
-}
-.editor-breadcrumb-segment.is-leaf {
-  color: #c0c4d8;
-}
-.editor-breadcrumb-sep {
-  flex: 0 0 auto;
-  color: #44485e;
-  font-size: 12px;
-}
-
-.editor-breadcrumb-copy {
-  flex: 0 0 auto;
-  margin-left: auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 18px;
-  background: none;
-  border: none;
-  color: #44485e;
-  cursor: pointer;
-  border-radius: 3px;
-}
-.editor-breadcrumb-copy .lucide-icon { font-size: 12px; }
-.editor-breadcrumb-copy:hover {
-  color: #c0c4d8;
-  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
@@ -394,9 +378,8 @@ canvas {
  * so users can drag the right-edge handle to resize and the chosen width
  * persists across reloads. The CSS fallback is the no-localStorage default. */
 #tree-sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
+  position: relative;
+  flex: 0 0 auto;
   width: 360px;            /* 44px activity bar + 316px panel; resizable */
   min-width: 280px;
   max-width: 600px;

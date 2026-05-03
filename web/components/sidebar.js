@@ -77,13 +77,11 @@ export function showFileSidebar(file) {
   _clearContent(sidebar);
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
+  _animateOpen(sidebar);
 
-  // Tab bar \u2014 name + ext chip + close. Like a single open editor tab.
+  // Single compact header row: ext chip \u00b7 breadcrumb (path) \u00b7 copy \u00b7 close.
   var extChip = file.extension ? _makeExtChip(file.extension) : null;
-  sidebar.appendChild(_makeTabBar(file.name || '', extChip));
-
-  // Breadcrumb under the tab.
-  sidebar.appendChild(_makeBreadcrumb(file.path || file.fullPath || ''));
+  sidebar.appendChild(_makeEditorHeader(extChip, file.path || file.fullPath || ''));
 
   // Editor body \u2014 the preview fills the panel.
   var body = document.createElement('div');
@@ -116,9 +114,9 @@ export function showDirSidebar(dir) {
   _clearContent(sidebar);
   _ensureResizeHandle(sidebar);
   _applyPersistedWidth(sidebar);
+  _animateOpen(sidebar);
 
-  sidebar.appendChild(_makeTabBar(dir.name || '', _makeDirChip()));
-  sidebar.appendChild(_makeBreadcrumb(dir.path || dir.fullPath || ''));
+  sidebar.appendChild(_makeEditorHeader(_makeDirChip(), dir.path || dir.fullPath || ''));
 
   // Body: a compact info panel — directories don't have an editor view.
   var body = document.createElement('div');
@@ -138,9 +136,31 @@ export function showDirSidebar(dir) {
 export function closeSidebar() {
   var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (sidebar) {
-    sidebar.classList.remove('open');
+    _animateClose(sidebar);
   }
   if (_onClose) _onClose();
+}
+
+// is-animating gates the CSS width transition. We only want it active for
+// the duration of an open/close — drag-resizes should be instant.
+var _animateTimer = 0;
+function _animateOpen(sidebar) {
+  if (_animateTimer) clearTimeout(_animateTimer);
+  sidebar.classList.add('is-animating');
+  sidebar.classList.add('open');
+  _animateTimer = setTimeout(function () {
+    sidebar.classList.remove('is-animating');
+    _animateTimer = 0;
+  }, 280);
+}
+function _animateClose(sidebar) {
+  if (_animateTimer) clearTimeout(_animateTimer);
+  sidebar.classList.add('is-animating');
+  sidebar.classList.remove('open');
+  _animateTimer = setTimeout(function () {
+    sidebar.classList.remove('is-animating');
+    _animateTimer = 0;
+  }, 280);
 }
 
 /**
@@ -198,40 +218,10 @@ function formatDate(isoString) {
   return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
 }
 
-// ── IDE chrome (tab bar / breadcrumb / status bar) ────────────────────────────
+// ── IDE chrome (single header row + status bar) ───────────────────────────────
 
 /**
- * Single editor tab: filename, optional ext-color chip, close button.
- */
-function _makeTabBar(name, chipEl) {
-  var bar = document.createElement('div');
-  bar.className = 'editor-tab-bar';
-
-  var tab = document.createElement('div');
-  tab.className = 'editor-tab is-active';
-
-  if (chipEl) tab.appendChild(chipEl);
-
-  var nameEl = document.createElement('span');
-  nameEl.className = 'editor-tab-name';
-  nameEl.textContent = name;
-  nameEl.title = name;  // long names get truncated; tooltip restores them
-  tab.appendChild(nameEl);
-
-  var closeBtn = document.createElement('button');
-  closeBtn.className = 'editor-tab-close';
-  closeBtn.type = 'button';
-  closeBtn.setAttribute('aria-label', 'Close');
-  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
-  closeBtn.addEventListener('click', closeSidebar);
-  tab.appendChild(closeBtn);
-
-  bar.appendChild(tab);
-  return bar;
-}
-
-/**
- * Per-extension hue chip rendered inside the tab. Visually telegraphs
+ * Per-extension hue chip rendered inside the header. Visually telegraphs
  * the file's language family without a dedicated icon set.
  */
 function _makeExtChip(extension) {
@@ -251,37 +241,50 @@ function _makeDirChip() {
 }
 
 /**
- * Breadcrumb under the tab. Splits the path on / and renders each segment
- * as plain text joined by ›. Tail of the row holds a small Copy button.
+ * Single compact header row: chip + breadcrumb path + copy + close.
+ *
+ * Replaces the old two-row tab+breadcrumb chrome — only one file can be
+ * open at a time, so a separate "tab" strip carries no information the
+ * breadcrumb's leaf segment doesn't already convey. The leaf segment is
+ * styled brighter so it still reads as the filename at a glance.
  */
-function _makeBreadcrumb(pathText) {
-  var bar = document.createElement('div');
-  bar.className = 'editor-breadcrumb';
+function _makeEditorHeader(chipEl, pathText) {
+  var header = document.createElement('div');
+  header.className = 'editor-header';
+
+  if (chipEl) header.appendChild(chipEl);
+
+  var crumbs = document.createElement('div');
+  crumbs.className = 'editor-header-path';
 
   var segments = (pathText || '').split('/').filter(Boolean);
   if (segments.length === 0) {
     var none = document.createElement('span');
-    none.className = 'editor-breadcrumb-segment';
+    none.className = 'editor-header-segment is-leaf';
     none.textContent = pathText || '/';
-    bar.appendChild(none);
+    crumbs.appendChild(none);
   } else {
     for (var i = 0; i < segments.length; i++) {
       var seg = document.createElement('span');
-      seg.className = 'editor-breadcrumb-segment';
+      seg.className = 'editor-header-segment';
       if (i === segments.length - 1) seg.classList.add('is-leaf');
       seg.textContent = segments[i];
-      bar.appendChild(seg);
+      crumbs.appendChild(seg);
       if (i < segments.length - 1) {
         var sep = document.createElement('span');
-        sep.className = 'editor-breadcrumb-sep';
+        sep.className = 'editor-header-sep';
         sep.textContent = '›';
-        bar.appendChild(sep);
+        crumbs.appendChild(sep);
       }
     }
   }
 
+  // Tooltip the full path on hover — useful when the row truncates.
+  crumbs.title = pathText || '';
+  header.appendChild(crumbs);
+
   var copyBtn = document.createElement('button');
-  copyBtn.className = 'editor-breadcrumb-copy';
+  copyBtn.className = 'editor-header-icon';
   copyBtn.type = 'button';
   copyBtn.title = 'Copy path';
   copyBtn.setAttribute('aria-label', 'Copy path');
@@ -289,9 +292,18 @@ function _makeBreadcrumb(pathText) {
   copyBtn.addEventListener('click', function () {
     copyToClipboard(pathText, copyBtn);
   });
-  bar.appendChild(copyBtn);
+  header.appendChild(copyBtn);
 
-  return bar;
+  var closeBtn = document.createElement('button');
+  closeBtn.className = 'editor-header-icon';
+  closeBtn.type = 'button';
+  closeBtn.title = 'Close';
+  closeBtn.setAttribute('aria-label', 'Close');
+  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
+  closeBtn.addEventListener('click', closeSidebar);
+  header.appendChild(closeBtn);
+
+  return header;
 }
 
 /**
@@ -637,6 +649,8 @@ function _ensureResizeHandle(sidebar) {
   handle.title = 'Drag to resize';
 
   var dragging = false;
+  var liveWidth = 0;  // tracked across pointermove so we can persist on up
+
   handle.addEventListener('pointerdown', function (e) {
     dragging = true;
     handle.classList.add('dragging');
@@ -645,20 +659,22 @@ function _ensureResizeHandle(sidebar) {
   });
   handle.addEventListener('pointermove', function (e) {
     if (!dragging) return;
-    // Cursor X measured from viewport left → sidebar width is what's to the
-    // right of the cursor.
     var w = window.innerWidth - e.clientX;
     var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > maxW)              w = maxW;
-    sidebar.style.width = w + 'px';
+    liveWidth = w;
+    // Drive width via the CSS variable so the open/close rule
+    // `width: var(--sidebar-width)` keeps working without an inline width
+    // override fighting the .open/.is-animating transitions.
+    sidebar.style.setProperty('--sidebar-width', w + 'px');
   });
   handle.addEventListener('pointerup', function (e) {
     if (!dragging) return;
     dragging = false;
     handle.classList.remove('dragging');
     handle.releasePointerCapture(e.pointerId);
-    _persistWidth(parseFloat(sidebar.style.width) || sidebar.offsetWidth);
+    _persistWidth(liveWidth || sidebar.offsetWidth);
   });
 
   sidebar.appendChild(handle);
@@ -674,7 +690,7 @@ function _applyPersistedWidth(sidebar) {
     var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > maxW)              w = maxW;
-    sidebar.style.width = w + 'px';
+    sidebar.style.setProperty('--sidebar-width', w + 'px');
   } catch (_) { /* private mode / no storage — fall back to CSS default */ }
 }
 
