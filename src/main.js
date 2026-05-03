@@ -270,6 +270,7 @@ function startRenderLoop(canvas, manifest) {
   // Google Earth do it; rotation pivot is implicit during normal navigation.
   // The ping is feedback for "your pivot moved here" then disappears.
   var pingCfg = PIVOT_PING.get();
+  var _orders = RENDER_ORDERS.get();
   var pivotPing = new THREE.Mesh(
     new THREE.RingGeometry(pingCfg.INNER_RADIUS, pingCfg.OUTER_RADIUS, pingCfg.SEGMENTS),
     new THREE.MeshBasicMaterial({
@@ -296,7 +297,6 @@ function startRenderLoop(canvas, manifest) {
   _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
 
   var _bo = BUILDING_OUTLINE.get();
-  var _orders = RENDER_ORDERS.get();
   var hoverLineMat = new LineMaterial({
     color:      new THREE.Color(_bo.HOVER_COLOR),
     linewidth:  _bo.HOVER_LINEWIDTH,
