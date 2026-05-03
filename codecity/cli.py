@@ -200,6 +200,11 @@ def _serve_dev(args: argparse.Namespace) -> int:
             f"http://127.0.0.1:{VITE_PORT}/",
             title=f"CodeCity (dev) — {Path(args.path).resolve().name}",
             debug=getattr(args, "debug", False),
+            # Critical on macOS: pywebview exits via NSApplication.terminate()
+            # which skips Python's atexit + finally. We have to tear down Vite
+            # from inside pywebview's own closed event, otherwise the Vite
+            # process group survives as an orphan on :5173.
+            on_closed=_cleanup,
         )
     finally:
         _cleanup()
