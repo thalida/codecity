@@ -849,9 +849,18 @@ function startRenderLoop(canvas, manifest) {
   }
 
   // Any path that closes the sidebar (X button, Esc, click-empty) clears
-  // selection too. Single source of truth — every close path behaves the
-  // same way.
-  setSidebarCloseHandler(function () { _setSelection(null); });
+  // selection AND hover too. Single source of truth — every close path
+  // produces a fully neutral state. (If the cursor is still over a real
+  // pickable, the next pointermove re-establishes hover after the normal
+  // commit debounce — this just clears whatever was visible at close time.)
+  setSidebarCloseHandler(function () {
+    _setSelection(null);
+    if (_hoverRafId)    { cancelAnimationFrame(_hoverRafId); _hoverRafId = 0; }
+    if (_hoverCommitId) { clearTimeout(_hoverCommitId);      _hoverCommitId = 0; }
+    _hoverPending = null;
+    _hoverLastEvt = null;
+    _setHover(null);
+  });
 
   // _syncOutlineToBuilding(outline, mesh, b, scaleFactor=1) — match outline's
   // transform to a building's CURRENT visual size. scaleFactor > 1 expands
@@ -1165,7 +1174,12 @@ function startRenderLoop(canvas, manifest) {
       _hoverPending = null;
       return;
     }
-    if (_sameHover(newHover, _hoverPending)) return;   // already queued
+    // Already-queued check: gate on _hoverCommitId being live, since
+    // _hoverPending is null both when idle AND when "pending null is
+    // about to commit." Without the gate, currentHover=building +
+    // newHover=null + idle pending matches as "already queued" and
+    // hover gets stuck on the building.
+    if (_hoverCommitId && _sameHover(newHover, _hoverPending)) return;
     _hoverPending = newHover;
     if (_hoverCommitId) clearTimeout(_hoverCommitId);
     _hoverCommitId = setTimeout(function () {
