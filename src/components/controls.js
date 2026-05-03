@@ -1,15 +1,20 @@
 // controls.js — "Controls" tab in the left sidebar.
 //
-// Layout: a header, a View section (Reset View + keyboard hints), then one
-// section PER scene element (Background, Streets, Buildings, Gem, Camera,
-// Input feel, Effects). Within each section, rows are mixed: hot-reloadable
-// rows apply immediately via applyTheme(), rebuild-required rows show a "↻"
-// badge so the user knows to click "Apply & Reload" at the bottom.
+// Layout:
+//   .controls-pane (flex column)
+//     .controls-header   — title
+//     .controls-body     — scrollable column of sections (one per scene element)
+//     .controls-actions  — sticky bottom bar: "Reload" + "Reset all"
+//
+// Per-row affordances:
+//   ↻ rebuild badge — appears next to labels for rebuild-required knobs
+//   reset icon      — appears in the row's control area ONLY when the
+//                     value differs from its default; click resets that
+//                     key (and removes its localStorage entry)
 //
 // Why one section per scene element instead of Theme/Advanced split?
 // Because the user thinks "I want to change something about street labels",
-// not "I want to change a hot-reloadable thing." Grouping by what's being
-// styled keeps related knobs together.
+// not "I want to change a hot-reloadable thing."
 
 import {
   // Background
@@ -27,18 +32,23 @@ import {
   // Effects
   RAINBOW
 } from '../config/index.js';
-import { clearPersistence } from '../config/_persist.js';
+import {
+  clearPersistence, getDefault, resetKey, hasAnyOverrides, onAnyChange
+} from '../config/_persist.js';
+import { makeLucideIcon } from './icon.js';
 
 // buildControlsPane(opts) -> HTMLElement
 //
 // opts:
-//   onResetView — fn() invoked when the user clicks "Reset View"
-//   applyTheme  — fn() invoked after any hot-reloadable mutation; flushes
-//                 the change through to live materials. Optional.
+//   applyTheme — fn() invoked after any hot-reloadable mutation; flushes
+//                the change through to live materials. Optional.
+//
+// (onResetView is no longer used — the View section shows a kbd shortcut
+// table including R, which the existing keydown handler in main.js wires
+// to resetView. The "Reset camera" button is gone.)
 export function buildControlsPane(opts) {
   opts = opts || {};
-  var onReset    = opts.onResetView || function () {};
-  var applyTheme = opts.applyTheme  || function () {};
+  var applyTheme = opts.applyTheme || function () {};
 
   var pane = document.createElement('div');
   pane.className = 'left-pane controls-pane';
@@ -54,7 +64,7 @@ export function buildControlsPane(opts) {
   var body = document.createElement('div');
   body.className = 'controls-body';
 
-  body.appendChild(_buildViewSection(onReset));
+  body.appendChild(_buildViewSection());
   body.appendChild(_buildBackgroundSection(applyTheme));
   body.appendChild(_buildStreetsSection(applyTheme));
   body.appendChild(_buildBuildingsSection(applyTheme));
@@ -62,33 +72,74 @@ export function buildControlsPane(opts) {
   body.appendChild(_buildCameraSection(applyTheme));
   body.appendChild(_buildInputSection(applyTheme));
   body.appendChild(_buildEffectsSection(applyTheme));
-  body.appendChild(_buildActionsSection());
 
   pane.appendChild(body);
+  pane.appendChild(_buildActionsSection());   // sticky bottom — sibling of body
   return pane;
 }
 
 
 // ─── View ──────────────────────────────────────────────────────────────────
-function _buildViewSection(onReset) {
+// No "Reset camera" button — the R key already covers that, and surfacing
+// the full shortcut list as a table makes the rest of the controls
+// (orbit / pan / zoom / focus / select) discoverable too.
+function _buildViewSection() {
   var section = _section('View',
-    'Camera + scene controls. Pivot follows what you point at.');
+    'Pivot follows what you point at. The selected building stays solid; everything else fades by directory-tree distance from the selection.');
 
-  var hint = document.createElement('div');
-  hint.className = 'controls-section-hint';
-  hint.innerHTML =
-    'Double-click or press <kbd>F</kbd> to pivot rotation on what your cursor is over. ' +
-    'Press <kbd>R</kbd> to reset the view.';
-  section.appendChild(hint);
-
-  var btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'controls-button';
-  btn.textContent = 'Reset View';
-  btn.addEventListener('click', function () { onReset(); });
-  section.appendChild(btn);
+  section.appendChild(_buildShortcutsList([
+    { kbd: ['R'],   action: 'Reset the camera framing' },
+    { kbd: ['Esc'], action: 'Close the sidebar / clear selection' },
+    null,        // section break
+    { mouse: 'Left drag',    action: 'Orbit' },
+    { mouse: 'Right drag',   action: 'Pan' },
+    { mouse: 'Middle drag',  action: 'Dolly (zoom)' },
+    { mouse: 'Scroll',       action: 'Zoom toward cursor' },
+    null,
+    { mouse: 'Click',        action: 'Select building / street / gem' },
+    { mouse: 'Double-click', action: 'Focus camera on the target' }
+  ]));
 
   return section;
+}
+
+function _buildShortcutsList(items) {
+  var dl = document.createElement('dl');
+  dl.className = 'shortcuts-list';
+  for (var i = 0; i < items.length; i++) {
+    var item = items[i];
+    if (item == null) {
+      var divider = document.createElement('div');
+      divider.className = 'shortcuts-divider';
+      dl.appendChild(divider);
+      continue;
+    }
+    var dt = document.createElement('dt');
+    if (item.kbd) {
+      for (var k = 0; k < item.kbd.length; k++) {
+        if (k > 0) dt.appendChild(document.createTextNode(' '));
+        var key = document.createElement('kbd');
+        key.textContent = item.kbd[k];
+        dt.appendChild(key);
+      }
+      if (item.or) {
+        var or = document.createElement('span');
+        or.className = 'shortcuts-or';
+        or.textContent = ' ' + item.or;
+        dt.appendChild(or);
+      }
+    } else if (item.mouse) {
+      var ms = document.createElement('span');
+      ms.className = 'shortcuts-mouse';
+      ms.textContent = item.mouse;
+      dt.appendChild(ms);
+    }
+    var dd = document.createElement('dd');
+    dd.textContent = item.action;
+    dl.appendChild(dt);
+    dl.appendChild(dd);
+  }
+  return dl;
 }
 
 
@@ -104,29 +155,27 @@ function _buildBackgroundSection(applyTheme) {
 
 
 // ─── Streets ───────────────────────────────────────────────────────────────
-// Asphalt + sidewalks + street-labels + the gem→selection neon path. All
-// lumped together because they share a real-world referent: roads.
 function _buildStreetsSection(applyTheme) {
   var section = _section('Streets',
     'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.');
 
   // Asphalt
   section.appendChild(_subgroup('Asphalt', [
-    _color('Color',                ASPHALT, 'COLOR', {
+    _color('Color',          ASPHALT, 'COLOR', {
       tip: 'Color of the inner road stripe. Live.',
       onChange: applyTheme
     }),
-    _slider('Width × street width', ASPHALT, 'WIDTH_FRAC', 0.1, 1, 0.05, {
-      tip: 'Asphalt width as a fraction of the street width — the rest is sidewalk strip on each side.',
+    _slider('Stripe width',  ASPHALT, 'WIDTH_FRAC', 0.1, 1, 0.05, {
+      tip: 'Asphalt stripe width as a fraction of the street width — the sidewalk fills the rest on each side.',
       rebuild: true
     }),
-    _slider('Length floor × street length', ASPHALT, 'LENGTH_MIN_FRAC', 0, 1, 0.05, {
-      tip: 'Floor on the asphalt length so very short streets still show some asphalt.',
+    _slider('Min length',    ASPHALT, 'LENGTH_MIN_FRAC', 0, 1, 0.05, {
+      tip: 'Floor on the asphalt length, as a fraction of the street length, so very short streets still show some asphalt.',
       rebuild: true
     })
   ]));
 
-  // Sidewalks (state-driven tints)
+  // Sidewalks
   section.appendChild(_subgroup('Sidewalk colors', [
     _color('Default',  SIDEWALK_COLORS, 'DEFAULT',  { tip: 'Resting tint on every sidewalk.', onChange: applyTheme }),
     _color('Hover',    SIDEWALK_COLORS, 'HOVER',    { tip: 'When the cursor is over a street.', onChange: applyTheme }),
@@ -134,7 +183,7 @@ function _buildStreetsSection(applyTheme) {
     _color('Path',     SIDEWALK_COLORS, 'PATH',     { tip: 'Streets in the lineage from the root gem to the current selection.', onChange: applyTheme })
   ]));
 
-  // Street labels (typography + flip)
+  // Street labels
   section.appendChild(_subgroup('Street labels', [
     _color ('Fill',                 LABEL_TYPOGRAPHY, 'FILL', {
       tip: 'Text color of the names painted on each road.',
@@ -160,11 +209,11 @@ function _buildStreetsSection(applyTheme) {
       tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
       rebuild: true
     }),
-    _slider('Repeat spacing × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
+    _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
       tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
       rebuild: true
     }),
-    _number('Repeat spacing floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
+    _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
       tip: 'Minimum repeat distance in world units (so tiny labels do not pile up).',
       rebuild: true
     }),
@@ -174,7 +223,7 @@ function _buildStreetsSection(applyTheme) {
     })
   ]));
 
-  // Path line (gem → selection)
+  // Path line
   section.appendChild(_subgroup('Selection path line', [
     _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
       tip: 'Pixel thickness of the rainbow line that traces gem → selected file.',
@@ -186,7 +235,7 @@ function _buildStreetsSection(applyTheme) {
     })
   ]));
 
-  // Street layout / packing (rebuild-required)
+  // Layout
   section.appendChild(_subgroup('Layout', [
     _number('Sibling gap',         STREET_LAYOUT, 'CHILD_GAP',       0, 50, 1, {
       tip: 'Distance between sibling children (file or subdir) packed along a street.',
@@ -211,7 +260,6 @@ function _buildBuildingsSection(applyTheme) {
   var section = _section('Buildings',
     'Per-file boxes — height from line count, width from byte size, color from extension + age.');
 
-  // Dimensions
   section.appendChild(_subgroup('Size', [
     _rangePair('Floors range',  BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
       tip: 'Smallest file in the project lands at MIN floors; largest at MAX. Everything else interpolated by sqrt of line count.',
@@ -226,12 +274,11 @@ function _buildBuildingsSection(applyTheme) {
       rebuild: true
     }),
     _number('Sidewalk gap',     BUILDING_DIMENSIONS, 'STREET_GAP', 0, 50, 1, {
-      tip: 'Empty space the building leaves between its wall and the adjacent sidewalk. The path connector strip exactly bridges this gap.',
+      tip: 'Empty space the building leaves between its wall and the adjacent sidewalk. The path connector strip exactly bridges this gap; the door is sized to ~80% of it.',
       rebuild: true
     })
   ]));
 
-  // Palette
   section.appendChild(_subgroup('Color palette (HSL)', [
     _rangePair('Saturation range', BUILDING_PALETTE, 'SATURATION_MIN', 'SATURATION_MAX', 0, 100, 5, {
       tip: 'HSL saturation range — older files tend to MIN, newly-created tend to MAX.',
@@ -247,7 +294,6 @@ function _buildBuildingsSection(applyTheme) {
     })
   ]));
 
-  // Outlines (live)
   section.appendChild(_subgroup('Outlines', [
     _number('Linewidth',        BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
       tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
@@ -264,7 +310,6 @@ function _buildBuildingsSection(applyTheme) {
     })
   ]));
 
-  // Fade (live)
   section.appendChild(_subgroup('Selection fade', [
     _slider('Fade speed',         BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
       tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
@@ -414,7 +459,7 @@ function _buildInputSection(applyTheme) {
     'Pointer click-vs-drag thresholds, hover commit timing, tooltip placement.');
 
   section.appendChild(_subgroup('Pointer', [
-    _number('Hover commit (ms)',   INPUT_TIMING, 'HOVER_COMMIT_MS',         0,   500, 5, {
+    _number('Hover commit (ms)',         INPUT_TIMING, 'HOVER_COMMIT_MS',         0,   500, 5, {
       tip: 'How long the cursor must hold on a target before the heavy fade cascade engages. Brief brushes never commit.',
       onChange: applyTheme
     }),
@@ -461,32 +506,49 @@ function _buildEffectsSection(applyTheme) {
 }
 
 
-// ─── Action buttons ────────────────────────────────────────────────────────
+// ─── Sticky bottom action bar ──────────────────────────────────────────────
+// "Rebuild" button (matches the small refresh-cw icon shown next to rows
+// that need a rebuild) + a small "Reset all" link. Per-row reset icons
+// cover the common case; "Reset all" stays understated as the global panic
+// button.
 function _buildActionsSection() {
   var actions = document.createElement('div');
   actions.className = 'controls-actions';
 
-  var applyBtn = document.createElement('button');
-  applyBtn.type = 'button';
-  applyBtn.className = 'controls-button';
-  applyBtn.textContent = 'Apply & Reload';
-  applyBtn.title = 'Reload the page so rebuild-required changes (marked ↻) take effect. Your tweaks persist across reloads.';
-  applyBtn.addEventListener('click', function () {
+  var rebuildBtn = document.createElement('button');
+  rebuildBtn.type = 'button';
+  rebuildBtn.className = 'controls-button';
+  rebuildBtn.appendChild(makeLucideIcon('refresh-cw', { class: 'controls-button-icon' }));
+  rebuildBtn.appendChild(document.createTextNode('Rebuild'));
+  rebuildBtn.title = 'Reload the page so rows marked with the rebuild icon take effect. Your tweaks persist.';
+  rebuildBtn.addEventListener('click', function () {
     if (typeof location !== 'undefined') location.reload();
   });
-  actions.appendChild(applyBtn);
+  actions.appendChild(rebuildBtn);
 
-  var resetBtn = document.createElement('button');
-  resetBtn.type = 'button';
-  resetBtn.className = 'controls-button controls-button-secondary';
-  resetBtn.textContent = 'Reset to Defaults';
-  resetBtn.title = 'Wipe all overrides and reload.';
-  resetBtn.addEventListener('click', function () {
+  // Reset all — secondary button. Disabled when there's nothing to reset
+  // (no overrides persisted), so the affordance only invites clicking when
+  // there's actually something to do.
+  var resetAll = document.createElement('button');
+  resetAll.type = 'button';
+  resetAll.className = 'controls-button controls-button-secondary';
+  resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
+  resetAll.appendChild(document.createTextNode('Reset all'));
+  resetAll.title = 'Wipe every override and reload. (Per-row reset icons restore single values.)';
+  resetAll.addEventListener('click', function () {
+    if (resetAll.disabled) return;
     if (!confirm('Reset every override and reload?')) return;
     clearPersistence();
     if (typeof location !== 'undefined') location.reload();
   });
-  actions.appendChild(resetBtn);
+  actions.appendChild(resetAll);
+
+  // Live enable/disable as values are tweaked or reset.
+  function refreshResetAll() {
+    resetAll.disabled = !hasAnyOverrides();
+  }
+  refreshResetAll();
+  onAnyChange(refreshResetAll);
 
   return actions;
 }
@@ -523,10 +585,14 @@ function _subgroup(name, rows) {
   return wrap;
 }
 
-// _row(labelText, control, opts) -> <label>
+// _row(labelText, control, store, keys, opts) -> <label>
+//   store     — nanostore the control writes into; null skips the reset icon
+//   keys      — array of keys this row covers (1 for single widgets, 2 for
+//               rangePair). The reset icon shows when ANY key differs from
+//               its registered default.
 //   opts.tip      — full hover text (added to the row's title attribute)
 //   opts.rebuild  — true → render a "↻" badge meaning "needs reload"
-function _row(labelText, control, opts) {
+function _row(labelText, control, store, keys, opts) {
   opts = opts || {};
   var row = document.createElement('label');
   row.className = 'theme-row';
@@ -543,25 +609,67 @@ function _row(labelText, control, opts) {
   row.appendChild(span);
 
   if (opts.rebuild) {
-    var badge = document.createElement('span');
-    badge.className = 'theme-row-rebuild-badge';
-    badge.textContent = '↻';
-    badge.title = 'Reload required';
+    // Subtle refresh-cw glyph next to the label — same icon as the
+    // "Rebuild" button at the bottom, so the visual link is obvious:
+    // "rows like this become live when you click Rebuild."
+    var badge = makeLucideIcon('refresh-cw', {
+      class: 'theme-row-rebuild-badge',
+      title: 'Reload required to apply'
+    });
     span.appendChild(badge);
   }
 
   var ctrlWrap = document.createElement('span');
   ctrlWrap.className = 'theme-row-control';
   ctrlWrap.appendChild(control);
+
+  if (store && keys && keys.length) {
+    var resetBtn = _makeResetButton(store, keys, opts);
+    ctrlWrap.appendChild(resetBtn);
+  }
+
   row.appendChild(ctrlWrap);
   return row;
 }
 
-// onChange resolution: hot-reload rows pass `applyTheme` as opts.onChange;
-// rebuild rows just persist (no immediate handler).
-function _resolveChange(opts) {
-  if (opts && typeof opts.onChange === 'function') return opts.onChange;
-  return function () {};
+// _makeResetButton(store, keys, opts) -> <button>
+// Visible only when at least one of `keys` differs from its registered
+// default. Click resets all listed keys, removes the matching localStorage
+// entries (via _persist.js's resetKey), and fires opts.onChange so the
+// scene/UI catches up immediately.
+function _makeResetButton(store, keys, opts) {
+  var onChange = (opts && typeof opts.onChange === 'function') ? opts.onChange : function () {};
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'theme-row-reset';
+  btn.title = 'Reset to default';
+  btn.setAttribute('aria-label', 'Reset to default');
+  btn.appendChild(makeLucideIcon('rotate-ccw'));
+  btn.addEventListener('click', function (e) {
+    e.preventDefault();
+    e.stopPropagation();
+    for (var i = 0; i < keys.length; i++) resetKey(store, keys[i]);
+    onChange();
+  });
+
+  function refresh() {
+    var state = store.get();
+    var changed = false;
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      if (!_isEqual(state[k], getDefault(store, k))) { changed = true; break; }
+    }
+    btn.classList.toggle('is-visible', changed);
+  }
+  refresh();
+  store.subscribe(refresh);
+  return btn;
+}
+
+function _isEqual(a, b) {
+  if (a === b) return true;
+  try { return JSON.stringify(a) === JSON.stringify(b); }
+  catch (_) { return false; }
 }
 
 
@@ -577,7 +685,12 @@ function _color(label, store, key, opts) {
     store.setKey(key, input.value);
     onChange();
   });
-  return _row(label, input, opts);
+  // Reflect outside changes (e.g. reset-to-default) back into the input.
+  store.subscribe(function (state) {
+    var hex = _toHexInputValue(state[key]);
+    if (input.value.toLowerCase() !== hex) input.value = hex;
+  });
+  return _row(label, input, store, [key], opts);
 }
 
 function _number(label, store, key, min, max, step, opts) {
@@ -596,26 +709,34 @@ function _number(label, store, key, min, max, step, opts) {
       onChange();
     }
   });
-  return _row(label, input, opts);
+  store.subscribe(function (state) {
+    var s = String(state[key]);
+    if (input.value !== s && document.activeElement !== input) input.value = s;
+  });
+  return _row(label, input, store, [key], opts);
 }
 
 function _slider(label, store, key, min, max, step, opts) {
   var onChange = _resolveChange(opts);
+  var refs = {};
   var control = _sliderWidget(store.get()[key], min, max, step, function (v) {
     store.setKey(key, v);
     onChange();
+  }, refs);
+  // Reflect outside changes (reset-to-default) back into the slider + readout.
+  store.subscribe(function (state) {
+    var v = state[key];
+    if (parseFloat(refs.range.value) !== v) {
+      refs.range.value = String(v);
+      refs.readout.textContent = _formatNumberForStep(v, step);
+    }
   });
-  return _row(label, control, opts);
+  return _row(label, control, store, [key], opts);
 }
 
-// _rangePair — dual-thumb slider for paired MIN/MAX values. Two stacked
-// native range inputs share a track; the fill bar between thumbs is
-// repainted on every input event.
 function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
   var onChange = _resolveChange(opts);
   var current = store.get();
-  var loVal = current[minKey];
-  var hiVal = current[maxKey];
 
   var pair = document.createElement('span');
   pair.className = 'theme-range-pair';
@@ -637,9 +758,9 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
     r.value = String(value);
     return r;
   }
-  var loRange = makeRange(loVal);
+  var loRange = makeRange(current[minKey]);
   loRange.classList.add('theme-range-pair-lo');
-  var hiRange = makeRange(hiVal);
+  var hiRange = makeRange(current[maxKey]);
   hiRange.classList.add('theme-range-pair-hi');
   pair.appendChild(loRange);
   pair.appendChild(hiRange);
@@ -672,15 +793,31 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
   hiRange.addEventListener('input', commit);
   paint();
 
+  // Reflect outside changes (reset-to-default) back into both thumbs.
+  store.subscribe(function (state) {
+    var changed = false;
+    if (parseFloat(loRange.value) !== state[minKey]) {
+      loRange.value = String(state[minKey]);
+      changed = true;
+    }
+    if (parseFloat(hiRange.value) !== state[maxKey]) {
+      hiRange.value = String(state[maxKey]);
+      changed = true;
+    }
+    if (changed) paint();
+  });
+
   var wrap = document.createElement('span');
   wrap.className = 'theme-slider-wrap';
   wrap.appendChild(pair);
   wrap.appendChild(readout);
-  return _row(label, wrap, opts);
+  return _row(label, wrap, store, [minKey, maxKey], opts);
 }
 
-// Shared slider+readout DOM construction.
-function _sliderWidget(initialValue, min, max, step, onCommit) {
+// Shared slider+readout DOM construction. Returns the wrapper; the caller
+// passes a `refs` object to receive the {range, readout} inner nodes (so
+// store.subscribe can drive them on external value changes).
+function _sliderWidget(initialValue, min, max, step, onCommit, refs) {
   var wrap = document.createElement('span');
   wrap.className = 'theme-slider-wrap';
 
@@ -705,7 +842,15 @@ function _sliderWidget(initialValue, min, max, step, onCommit) {
 
   wrap.appendChild(range);
   wrap.appendChild(readout);
+  if (refs) { refs.range = range; refs.readout = readout; }
   return wrap;
+}
+
+// onChange resolution: hot-reload rows pass `applyTheme` as opts.onChange;
+// rebuild rows just persist (no immediate handler).
+function _resolveChange(opts) {
+  if (opts && typeof opts.onChange === 'function') return opts.onChange;
+  return function () {};
 }
 
 // Color <input type="color"> only accepts #RRGGBB. Convert from any CSS
@@ -735,7 +880,6 @@ function _formatNumberForStep(v, step) {
   if (!Number.isFinite(v)) return String(v);
   var s = Math.abs(step);
   if (s >= 1) return v.toFixed(0);
-  // Count digits after the decimal point in the step.
   var stepStr = String(step);
   var dot = stepStr.indexOf('.');
   var decimals = dot === -1 ? 0 : (stepStr.length - dot - 1);

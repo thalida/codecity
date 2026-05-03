@@ -16,10 +16,13 @@ var SIDEBAR_MAX_WIDTH = 600;
 // showLeftSidebar(manifest, opts)
 //
 // opts:
-//   onResetView — fn() invoked when the Controls panel's Reset button fires
-//   applyTheme  — fn() the Settings UI calls after mutating any imported
-//                 theme constant — flushes the change through to live materials.
-//   initialTab  — 'tree' | 'controls' (default 'tree')
+//   applyTheme — fn() the Settings UI calls after mutating any imported
+//                theme constant — flushes the change through to live materials.
+//   initialTab — 'tree' | 'controls' (default 'tree')
+//
+// (No onResetView callback: the Controls panel's View section shows a
+// kbd table with R/Esc/etc. The R key is wired in main.js's keydown
+// handler, so this component doesn't need its own callback.)
 export function showLeftSidebar(manifest, opts) {
   opts = opts || {};
   var container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
@@ -39,8 +42,7 @@ export function showLeftSidebar(manifest, opts) {
   var panes = {};
   panes[SIDEBAR_TAB.TREE]     = buildTreePane(manifest);
   panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
-    onResetView: opts.onResetView,
-    applyTheme:  opts.applyTheme
+    applyTheme: opts.applyTheme
   });
 
   for (var key in panes) {

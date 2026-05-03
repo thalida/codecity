@@ -1119,10 +1119,6 @@ function startRenderLoop(canvas, manifest) {
 
     if (e.key === 'Escape') {
       closeSidebar();                 // close handler clears selection + focus
-    } else if (e.key === 'f' || e.key === 'F') {
-      // Focus pivot on whatever the cursor is currently pointing at — same
-      // result as a double-click, but no need to release-press-press.
-      _focusAtPointer(pointer.x, pointer.y);
     } else if (e.key === 'r' || e.key === 'R' || e.key === 'Home') {
       resetView();
     }

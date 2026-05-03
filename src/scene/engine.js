@@ -12,6 +12,7 @@ import {
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
+  BUILDING_DIMENSIONS,
   GEM_SIZING,
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
@@ -25,7 +26,10 @@ import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../const
 // dials — leaving them as plain consts keeps the user-facing config surface
 // (sliders/colors in the Settings UI) free of implementation noise.
 
-// Facade canvas / window math.
+// Facade canvas / window math. Door WIDTH is no longer in here — it's
+// derived per-building from BUILDING_DIMENSIONS.STREET_GAP at render time
+// (see DOOR_WIDTH_OF_PATH below) so doors visually match the path strip
+// that connects the building to its sidewalk.
 var FACADE = Object.freeze({
   TEXTURE_MIN_WIDTH_PX:        128,
   TEXTURE_WIDTH_PER_COL_MULT:  128,
@@ -39,9 +43,13 @@ var FACADE = Object.freeze({
   WINDOW_HEIGHT_FRAC:          0.45,
   WINDOW_COLS_SIZE_DIVISOR:    8,
   WINDOW_COLS_MAX:             5,
-  DOOR_WIDTH_FRAC:             0.14,
   DOOR_HEIGHT_FRAC:            0.7
 });
+
+// Door world width = STREET_GAP × this. Keeps the door visually matched
+// to the path connector strip (which is also STREET_GAP wide) so the
+// "walk out the door onto the path" reading lands.
+var DOOR_WIDTH_OF_PATH = 0.8;
 
 // Per-face palette derivation: front/side/slab/window/door/roof shifts off
 // the building's base color.
@@ -164,9 +172,15 @@ function _buildFacadeTexture(opts) {
     }
   }
 
-  // Door — centered on the ground floor, on the door face.
+  // Door — centered on the ground floor, on the door face. Pixel width
+  // comes from the caller's requested WORLD width × (canvas pixels per
+  // world unit on this face). Caller passes faceWorldWidth + the desired
+  // doorWorldWidth so the door visually matches the path connector strip.
   if (hasDoor) {
-    var doorW = Math.floor(width      * facade.DOOR_WIDTH_FRAC);
+    var pxPerWorldUnit = width / opts.faceWorldWidth;
+    var doorW = Math.floor(opts.doorWorldWidth * pxPerWorldUnit);
+    if (doorW < 1) doorW = 1;
+    if (doorW > width) doorW = width;
     var doorH = Math.floor(pxPerFloor * facade.DOOR_HEIGHT_FRAC);
     var doorX = Math.floor((width - doorW) / 2);
     var doorY = height - doorH;
@@ -292,8 +306,15 @@ export function createBuildingMesh(building) {
 
   var geometry = new THREE.BoxGeometry(w, renderH, d);
 
+  // Door world width = path connector width × DOOR_WIDTH_OF_PATH so the
+  // door visually matches the path strip leading away from it.
+  var doorWorldWidth = BUILDING_DIMENSIONS.get().STREET_GAP * DOOR_WIDTH_OF_PATH;
+
   // One material per face, in BoxGeometry order: [+X, -X, +Y, -Y, +Z, -Z].
-  function facadeMat(cols, hasDoor, wallColor, slabColor) {
+  // EW faces (east/west walls) span the building's depth `d`; NS faces span
+  // its width `w`. faceWorldWidth tells the texture builder how to convert
+  // the requested doorWorldWidth into pixels for this face's canvas.
+  function facadeMat(cols, hasDoor, wallColor, slabColor, faceWorldWidth) {
     var tex = _buildFacadeTexture({
       floors: floors,
       cols: cols,
@@ -301,7 +322,9 @@ export function createBuildingMesh(building) {
       slabColor: slabColor,
       winColor: winColor,
       doorColor: doorColor,
-      hasDoor: hasDoor
+      hasDoor: hasDoor,
+      faceWorldWidth: faceWorldWidth,
+      doorWorldWidth: doorWorldWidth
     });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
@@ -315,13 +338,16 @@ export function createBuildingMesh(building) {
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(wallEW) });
   }
 
+  // EW faces (±X walls) span the building's depth `d` along their canvas;
+  // NS faces (±Z walls) span the width `w`. Pass each face's world width
+  // through so the door texture can size itself in world units.
   var materials = [
-    facadeMat(colsEW, orient === BUILDING_ORIENT.EAST,  wallEW, slabEW),   // +X (east)
-    facadeMat(colsEW, orient === BUILDING_ORIENT.WEST,  wallEW, slabEW),   // -X (west)
-    roofMat(),                                            // +Y (roof)
-    bottomMat(),                                          // -Y (bottom)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.SOUTH, wallNS, slabNS),   // +Z (south)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.NORTH, wallNS, slabNS)    // -Z (north)
+    facadeMat(colsEW, orient === BUILDING_ORIENT.EAST,  wallEW, slabEW, d),   // +X (east)
+    facadeMat(colsEW, orient === BUILDING_ORIENT.WEST,  wallEW, slabEW, d),   // -X (west)
+    roofMat(),                                                                // +Y (roof)
+    bottomMat(),                                                              // -Y (bottom)
+    facadeMat(colsNS, orient === BUILDING_ORIENT.SOUTH, wallNS, slabNS, w),   // +Z (south)
+    facadeMat(colsNS, orient === BUILDING_ORIENT.NORTH, wallNS, slabNS, w)    // -Z (north)
   ];
 
   var mesh = new THREE.Mesh(geometry, materials);

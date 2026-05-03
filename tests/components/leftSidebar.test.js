@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { showLeftSidebar } from '../../src/components/leftSidebar.js';
 
 const TEST_TREE = {
@@ -46,14 +46,6 @@ describe('showLeftSidebar', () => {
     expect(container.querySelector('.tree-pane').style.display).toBe('none');
     expect(container.querySelector('.controls-pane').style.display).toBe('');
     expect(controlsBtn.classList.contains('active')).toBe(true);
-  });
-
-  it('forwards reset-view clicks from the controls pane', () => {
-    const handler = vi.fn();
-    showLeftSidebar({ tree: TEST_TREE }, { onResetView: handler });
-    container.querySelector('.activity-bar-icon[data-tab="controls"]').click();
-    container.querySelector('.controls-button').click();
-    expect(handler).toHaveBeenCalledTimes(1);
   });
 
   it('respects initialTab=controls', () => {

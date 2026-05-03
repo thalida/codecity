@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '../../src/components/controls.js';
 
 describe('buildControlsPane', () => {
@@ -9,19 +9,19 @@ describe('buildControlsPane', () => {
     expect(pane.querySelector('.controls-section-label').textContent).toBe('View');
   });
 
-  it('renders a Reset View button that fires onResetView', () => {
-    const handler = vi.fn();
-    const pane = buildControlsPane({ onResetView: handler });
-    const resetBtn = pane.querySelector('.controls-button');
-    expect(resetBtn).not.toBeNull();
-    expect(resetBtn.textContent).toBe('Reset View');
-    resetBtn.click();
-    expect(handler).toHaveBeenCalledTimes(1);
+  it('renders a shortcuts list in the View section (no Reset camera button)', () => {
+    const pane = buildControlsPane({});
+    const shortcuts = pane.querySelector('.shortcuts-list');
+    expect(shortcuts).not.toBeNull();
+    // Must include both keyboard and mouse rows.
+    expect(pane.querySelector('.shortcuts-list kbd')).not.toBeNull();
+    expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
   });
 
-  it('does nothing if onResetView is omitted', () => {
+  it('renders a Rebuild button in the sticky action bar', () => {
     const pane = buildControlsPane({});
-    const resetBtn = pane.querySelector('.controls-button');
-    expect(() => resetBtn.click()).not.toThrow();
+    const rebuildBtn = pane.querySelector('.controls-actions .controls-button');
+    expect(rebuildBtn).not.toBeNull();
+    expect(rebuildBtn.textContent).toBe('Rebuild');
   });
 });
