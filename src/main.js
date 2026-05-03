@@ -1,6 +1,7 @@
-// main.js — Entry point. Reads MANIFEST/CONFIG embedded in index.html,
-// lays out the city, builds the scene, and starts the render loop with
-// orbit/pan/zoom controls and raycast picking.
+// main.js — Entry point. Reads MANIFEST embedded in index.html, pulls
+// shipping defaults from src/defaults.js, lays out the city, builds the
+// scene, and starts the render loop with orbit/pan/zoom controls and
+// raycast picking.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -29,6 +30,7 @@ var UNIT_BOX_EDGE_POSITIONS = [
   -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
 ];
 
+import { DEFAULTS_CONFIG } from './defaults.js';
 import { buildCityScene } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
@@ -46,9 +48,9 @@ function startRenderLoop(canvas, manifest, config) {
   // -- 0. Resolve scene config knobs ------------------------------------------
   // Every visual tunable below is sourced from config.scene.*; literals here
   // are fallbacks for missing keys so the renderer still works without a
-  // config (e.g. tests). Anything tweak-worthy lives in defaults.json under
-  // `scene.*` — DO NOT inline new color/opacity/linewidth literals; surface
-  // them through this block so designers can adjust without code edits.
+  // config (e.g. tests). Anything tweak-worthy lives in src/defaults.js as
+  // a named export — DO NOT inline new color/opacity/linewidth literals;
+  // surface them through that module so the Settings UI can mutate them.
   var sceneCfg     = (config && config.scene) || {};
   var sidewalkCfg  = sceneCfg.sidewalk || {};
   var outlineCfg   = sceneCfg.outline  || {};
@@ -66,12 +68,12 @@ function startRenderLoop(canvas, manifest, config) {
   var CFG_FADE_TOP     = (fadeCfg.fade_top != null)    ? fadeCfg.fade_top    : 1.0;
   var CFG_FADE_BOTTOM  = (fadeCfg.fade_bottom != null) ? fadeCfg.fade_bottom : 0.7;
   var CFG_TIER_NEAR    = {
-    main:    (fadeNear.main    != null) ? fadeNear.main    : 0.65,
+    body:    (fadeNear.body    != null) ? fadeNear.body    : 0.65,
     outline: (fadeNear.outline != null) ? fadeNear.outline : 0.40,
     ghost:   (fadeNear.ghost   != null) ? fadeNear.ghost   : 0.85
   };
   var CFG_TIER_FAR     = {
-    main:    (fadeFar.main    != null) ? fadeFar.main    : 0.18,
+    body:    (fadeFar.body    != null) ? fadeFar.body    : 0.18,
     outline: (fadeFar.outline != null) ? fadeFar.outline : 0.12,
     ghost:   (fadeFar.ghost   != null) ? fadeFar.ghost   : 0.20
   };
@@ -1232,10 +1234,10 @@ function startRenderLoop(canvas, manifest, config) {
     // for "1 step away"; FAR collapses to essentially just an outline.
     // Tier opacities + dim multipliers; sourced from config.scene.fade.
     var TIER_DIRECT      = 1.0;
-    var TIER_DESC        = CFG_TIER_NEAR.main;
+    var TIER_DESC        = CFG_TIER_NEAR.body;
     var TIER_DESC_OUTLN  = CFG_TIER_NEAR.outline;
     var TIER_DESC_GHOST  = CFG_TIER_NEAR.ghost;
-    var TIER_OTHER       = CFG_TIER_FAR.main;
+    var TIER_OTHER       = CFG_TIER_FAR.body;
     var TIER_OTHER_OUTLN = CFG_TIER_FAR.outline;
     var TIER_OTHER_GHOST = CFG_TIER_FAR.ghost;
 
@@ -1477,6 +1479,7 @@ export function readEmbeddedJson(id) {
 var _canvas = document.getElementById('city');
 if (_canvas) {
   var manifest = readEmbeddedJson('codecity-manifest');
-  var config   = readEmbeddedJson('codecity-config');
-  startRenderLoop(_canvas, manifest, config);
+  // Visual config now lives in src/defaults.js (single source of truth);
+  // the manifest is the only thing the Python scanner injects per-project.
+  startRenderLoop(_canvas, manifest, DEFAULTS_CONFIG);
 }

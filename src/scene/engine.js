@@ -426,11 +426,12 @@ function createRootGem(street, gemCfg) {
   // Gem size scales with the street's width. The layout reserves extra dead
   // space at the root street's origin end (see config.scene.root_gem), so the
   // origin cap has no buildings overlapping it — the road's rounded cap IS
-  // the plaza. radius_frac MUST match what layout.js used to reserve that pad.
-  var radiusFrac = (gemCfg.radius_frac != null) ? gemCfg.radius_frac : 0.35;
-  var minRadius  = (gemCfg.min_radius  != null) ? gemCfg.min_radius  : 5;
-  var hoverFrac  = (gemCfg.hover_frac  != null) ? gemCfg.hover_frac  : 0.3;
-  var bobFrac    = (gemCfg.bob_frac    != null) ? gemCfg.bob_frac    : 0.5;
+  // the plaza. radius_as_street_frac MUST match what layout.js used to
+  // reserve that pad.
+  var radiusFrac = (gemCfg.radius_as_street_frac != null) ? gemCfg.radius_as_street_frac : 0.35;
+  var minRadius  = (gemCfg.min_radius             != null) ? gemCfg.min_radius             : 5;
+  var hoverFrac  = (gemCfg.hover_lift_frac        != null) ? gemCfg.hover_lift_frac        : 0.3;
+  var bobFrac    = (gemCfg.bob_amplitude_frac     != null) ? gemCfg.bob_amplitude_frac     : 0.5;
 
   var radius = street.width * radiusFrac;
   if (radius < minRadius) radius = minRadius;

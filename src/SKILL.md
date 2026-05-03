@@ -15,8 +15,8 @@ allowed-tools: [Read, Bash, AskUserQuestion]
 Everything you need lives next to this file:
 
 - `codecity.py`   — single entry point; scans + builds in one call.
-- `defaults.json` — default palette and building/saturation/lightness config.
-- `template.html` — the prebuilt renderer (vite output, committed).
+- `template.html` — the prebuilt renderer (vite output, committed). Visual
+                    defaults are bundled into the JS module inside it.
 - `scripts/`      — internal helpers (`scan.py`, `build.py`) that
                     `codecity.py` imports. You do not call these directly.
 
@@ -41,9 +41,11 @@ questions whose answer is already on the command line.
 2. **How deep?** — default: unlimited.
 3. **Filters?** — default: `.gitignore` on, no custom patterns.
 4. **Where to save?** — default: `~/.codecity/`.
-5. **Palette overrides?** — default: use `defaults.json` as-is. If the
-   user wants custom colors, edit `defaults.json` in the plugin
-   directory. There is no CLI flag.
+5. **Palette overrides?** — default: use the bundled defaults. End-users
+   adjust live via the in-app Settings panel (Controls tab in the rendered
+   HTML). To change the *shipping* defaults instead, edit
+   `src/defaults.js` in the source repo and re-run `npm run build`.
+   There is no CLI flag.
 
 ---
 

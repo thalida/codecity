@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # test-build.sh — CLI integration tests for src/scripts/build.py
 #
-# Invokes build.py as a subprocess with a fabricated template + manifest +
-# config, then asserts the output HTML has all three placeholders replaced
-# and surrounding content is preserved.
+# Invokes build.py as a subprocess with a fabricated template + manifest,
+# then asserts the output HTML has both placeholders replaced and
+# surrounding content is preserved.
 
 set -euo pipefail
 
@@ -48,7 +48,7 @@ export CODECITY_QUIET=1
 
 _run_build() {
   python3 "$BUILD_PY" \
-    --project "$1" --manifest "$2" --config "$3" --template "$4" --output "$5"
+    --project "$1" --manifest "$2" --template "$3" --output "$4"
 }
 
 TMPDIR=$(mktemp -d)
@@ -57,7 +57,6 @@ trap 'rm -rf "$TMPDIR"' EXIT
 # ── Inputs ────────────────────────────────────────────────────────────────────
 TEMPLATE="$TMPDIR/template.html"
 MANIFEST_FILE="$TMPDIR/manifest.json"
-CONFIG_FILE="$TMPDIR/config.json"
 OUTPUT="$TMPDIR/out.html"
 
 cat > "$TEMPLATE" <<'EOF'
@@ -66,27 +65,23 @@ cat > "$TEMPLATE" <<'EOF'
 <body>
   <canvas id="city"></canvas>
   <script type="application/json" id="codecity-manifest">__MANIFEST__</script>
-  <script type="application/json" id="codecity-config">__CONFIG__</script>
 </body></html>
 EOF
 
 echo '{"root":"test","tree":{"name":"test","children":[]}}' > "$MANIFEST_FILE"
-echo '{"palette":{".ts":215}}' > "$CONFIG_FILE"
 
 # ── Happy path ────────────────────────────────────────────────────────────────
 echo ""
 echo "build.py: happy path"
 
-_run_build "MyProject" "$MANIFEST_FILE" "$CONFIG_FILE" "$TEMPLATE" "$OUTPUT"
+_run_build "MyProject" "$MANIFEST_FILE" "$TEMPLATE" "$OUTPUT"
 OUT=$(cat "$OUTPUT")
 
 assert_contains     "project name substituted" "$OUT" "CodeCity — MyProject"
 assert_contains     "canvas id preserved"      "$OUT" 'id="city"'
 assert_contains     "manifest embedded"        "$OUT" '"root":"test"'
-assert_contains     "config embedded"          "$OUT" '".ts":215'
 assert_not_contains "no stray __PROJECT_NAME__" "$OUT" '__PROJECT_NAME__'
 assert_not_contains "no stray __MANIFEST__"    "$OUT" '__MANIFEST__'
-assert_not_contains "no stray __CONFIG__"      "$OUT" '__CONFIG__'
 
 # ── Script tag wrappers preserved ─────────────────────────────────────────────
 echo ""
@@ -94,7 +89,6 @@ echo "build.py: script tag wrappers"
 
 assert_contains "codecity-manifest script tag open"  "$OUT" '<script type="application/json" id="codecity-manifest">'
 assert_contains "codecity-manifest script tag close" "$OUT" '"root":"test","tree":{"name":"test","children":[]}}</script>'
-assert_contains "codecity-config script tag open"    "$OUT" '<script type="application/json" id="codecity-config">'
 
 # ── Special JSON characters survive ───────────────────────────────────────────
 echo ""
@@ -104,7 +98,7 @@ cat > "$MANIFEST_FILE" <<'EOF'
 {"root":"te\\st","tree":{"name":"a & b","children":[]}}
 EOF
 
-_run_build "p&amp" "$MANIFEST_FILE" "$CONFIG_FILE" "$TEMPLATE" "$OUTPUT"
+_run_build "p&amp" "$MANIFEST_FILE" "$TEMPLATE" "$OUTPUT"
 OUT=$(cat "$OUTPUT")
 assert_contains "backslash preserved" "$OUT" 'te\\st'
 assert_contains "ampersand preserved" "$OUT" '"a & b"'
@@ -113,13 +107,13 @@ assert_contains "ampersand preserved" "$OUT" '"a & b"'
 echo ""
 echo "build.py: error paths"
 
-if _run_build "p" "/does/not/exist.json" "$CONFIG_FILE" "$TEMPLATE" "$OUTPUT" 2>/dev/null; then
+if _run_build "p" "/does/not/exist.json" "$TEMPLATE" "$OUTPUT" 2>/dev/null; then
   echo "  ✗ missing manifest should fail"; FAIL=$((FAIL + 1))
 else
   echo "  ✓ missing manifest fails"; PASS=$((PASS + 1))
 fi
 
-if _run_build "p" "$MANIFEST_FILE" "$CONFIG_FILE" "/does/not/exist.html" "$OUTPUT" 2>/dev/null; then
+if _run_build "p" "$MANIFEST_FILE" "/does/not/exist.html" "$OUTPUT" 2>/dev/null; then
   echo "  ✗ missing template should fail"; FAIL=$((FAIL + 1))
 else
   echo "  ✓ missing template fails"; PASS=$((PASS + 1))

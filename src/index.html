@@ -21,11 +21,12 @@
   }
   </script>
 
-  <!-- MANIFEST + CONFIG are injected as JSON text here.
-         dev:  vite plugin fills the tokens with dev-fixture content.
-         build: vite leaves the tokens in place; build.sh replaces them at skill runtime. -->
+  <!-- MANIFEST is injected as JSON text here.
+         dev:  vite plugin fills the token with the dev-fixture manifest.
+         build: vite leaves the token in place; codecity.py replaces it at
+                skill runtime. The visual config now lives in src/defaults.js
+                and is bundled into the JS module. -->
   <script type="application/json" id="codecity-manifest">__MANIFEST__</script>
-  <script type="application/json" id="codecity-config">__CONFIG__</script>
 
   <script type="module" src="./main.js"></script>
 </body>

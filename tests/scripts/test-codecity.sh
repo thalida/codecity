@@ -64,11 +64,9 @@ assert_contains     "has <canvas id=\"city\">"          "$OUT" 'id="city"'
 assert_contains     "has tree sidebar container"         "$OUT" 'id="tree-sidebar"'
 assert_contains     "has project name from basename"     "$OUT" 'CodeCity — sample-repo'
 assert_contains     "embeds manifest script tag"         "$OUT" 'id="codecity-manifest"'
-assert_contains     "embeds config script tag"           "$OUT" 'id="codecity-config"'
 assert_contains     "manifest contains sample-repo root" "$OUT" 'sample-repo'
 assert_not_contains "no unreplaced __PROJECT_NAME__"     "$OUT" '__PROJECT_NAME__'
 assert_not_contains "no unreplaced __MANIFEST__"         "$OUT" '__MANIFEST__'
-assert_not_contains "no unreplaced __CONFIG__"           "$OUT" '__CONFIG__'
 
 # ── Usage ────────────────────────────────────────────────────────────────────
 echo ""

@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
-"""build.py — Fill the three placeholders in template.html and write output.
+"""build.py — Fill the two placeholders in template.html and write output.
 
-Replaces __MANIFEST__, __CONFIG__, __PROJECT_NAME__ via str.replace — no
-regex, no awk, no subprocess. JSON special chars (backslash, ampersand)
-pass through unchanged.
+Replaces __MANIFEST__ and __PROJECT_NAME__ via str.replace — no regex, no
+awk, no subprocess. JSON special chars (backslash, ampersand) pass through
+unchanged. Visual config is bundled into the JS module (src/defaults.js)
+and lives inside the template already, so no __CONFIG__ flow.
 
 Invoked by codecity.py, or directly as a CLI:
 
-    python3 build.py --project <name> --manifest <path> --config <path>
+    python3 build.py --project <name> --manifest <path>
                      --template <path> --output <path>
 """
 
@@ -27,7 +28,6 @@ def _log(msg: str) -> None:
 def build_html(
     project: str,
     manifest_file: Path,
-    config_file: Path,
     template_file: Path,
     output_file: Path,
 ) -> None:
@@ -37,31 +37,24 @@ def build_html(
     """
     template_file = Path(template_file)
     manifest_file = Path(manifest_file)
-    config_file = Path(config_file)
     output_file = Path(output_file)
 
     if not template_file.is_file():
         raise FileNotFoundError(f"template not found: {template_file}")
     if not manifest_file.is_file():
         raise FileNotFoundError(f"manifest not found: {manifest_file}")
-    if not config_file.is_file():
-        raise FileNotFoundError(f"config not found: {config_file}")
 
     _log(f"reading template ({template_file})")
     template = template_file.read_text()
 
     manifest_size = manifest_file.stat().st_size
-    config_size = config_file.stat().st_size
     _log(f"inlining manifest ({manifest_size} bytes)")
     manifest = manifest_file.read_text().rstrip()
-    _log(f"inlining config ({config_size} bytes)")
-    config = config_file.read_text().rstrip()
 
     _log(f"substituting project name ({project})")
     html = (
         template
         .replace("__MANIFEST__", manifest)
-        .replace("__CONFIG__", config)
         .replace("__PROJECT_NAME__", project)
     )
 
@@ -75,7 +68,6 @@ def _cli() -> int:
     )
     p.add_argument("--project",  required=True, help="Name shown in <title>.")
     p.add_argument("--manifest", required=True, type=Path, help="Manifest JSON path.")
-    p.add_argument("--config",   required=True, type=Path, help="Config JSON path.")
     p.add_argument("--template", required=True, type=Path, help="Template HTML path.")
     p.add_argument("--output",   required=True, type=Path, help="Output HTML path.")
     args = p.parse_args()
@@ -84,7 +76,6 @@ def _cli() -> int:
         build_html(
             args.project,
             args.manifest,
-            args.config,
             args.template,
             args.output,
         )

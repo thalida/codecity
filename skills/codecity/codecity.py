@@ -8,8 +8,9 @@ Usage:
 
     python3 src/codecity.py --dev --root <path> [filter flags]      # dev only
 
-One-shot mode: scans the target, fills template.html with the manifest +
-defaults.json, writes a self-contained HTML to --output.
+One-shot mode: scans the target, fills template.html with the manifest, and
+writes a self-contained HTML to --output. Visual defaults are bundled into
+the JS module (src/defaults.js) — no separate config file flows through.
 
 Dev mode: scans once into build/ (gitignored) and exec's `npx vite` with
 CODECITY_* env vars set so vite's dev-inject plugin can read them.
@@ -22,7 +23,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shutil
 import sys
 import tempfile
 import time
@@ -80,15 +80,11 @@ def main(argv: list[str]) -> int:
     args = _parse_args(argv)
 
     # codecity.py runs from either:
-    #   • src/codecity.py              (dev — scripts/*, defaults.json siblings)
+    #   • src/codecity.py              (dev — scripts/* siblings)
     #   • skills/codecity/codecity.py  (shipped — plus template.html)
     here = Path(__file__).resolve().parent
-    defaults = here / "defaults.json"
     template = here / "template.html"
 
-    if not defaults.is_file():
-        print(f"defaults.json not found: {defaults}", file=sys.stderr)
-        return 3
     if not args.dev and not template.is_file():
         print(f"template.html not found: {template}", file=sys.stderr)
         print("One-shot mode needs the shipped template. Run 'npm run build' or use --dev.",
@@ -123,18 +119,15 @@ def main(argv: list[str]) -> int:
     dirs = tree.get("descendants_dir_count", "?")
     _log(f"scanned  {files} files, {dirs} dirs ({scan_dt}s)")
 
-    # ── Dev mode: write manifest + config to build/, exec vite ─────────────
+    # ── Dev mode: write manifest to build/, exec vite ─────────────
     if args.dev:
         repo_root = here.parent
         dev_dir = repo_root / "build"
         dev_dir.mkdir(parents=True, exist_ok=True)
         manifest_file = dev_dir / "manifest.json"
-        config_file = dev_dir / "config.json"
         manifest_file.write_text(json.dumps(manifest, separators=(",", ":")))
-        shutil.copyfile(defaults, config_file)
 
         os.environ["CODECITY_MANIFEST"] = str(manifest_file)
-        os.environ["CODECITY_CONFIG"] = str(config_file)
         os.environ["CODECITY_PROJECT"] = project
 
         _log("starting vite dev server (Ctrl-C to stop)…")
@@ -147,13 +140,11 @@ def main(argv: list[str]) -> int:
     with tempfile.TemporaryDirectory() as tmpdir_str:
         tmpdir = Path(tmpdir_str)
         manifest_file = tmpdir / "manifest.json"
-        config_file = tmpdir / "config.json"
         manifest_file.write_text(json.dumps(manifest, separators=(",", ":")))
-        shutil.copyfile(defaults, config_file)
 
         _log("writing HTML…")
         build_start = time.monotonic()
-        build_html(project, manifest_file, config_file, template, Path(args.output))
+        build_html(project, manifest_file, template, Path(args.output))
         out_size = Path(args.output).stat().st_size
         build_dt = int(time.monotonic() - build_start)
         _log(f"built    {args.output} ({out_size // 1024} KB, {build_dt}s)")

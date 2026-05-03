@@ -12,7 +12,7 @@
  *
  * @param {string} extension - File extension including the dot, e.g. ".ts".
  *                             Pass an empty string for files with no extension.
- * @param {Object} palette   - Map of extension → hue from defaults.json.
+ * @param {Object} palette   - Map of extension → hue from defaults.js.
  * @returns {number} Integer hue in [0, 359].
  */
 export function getHue(extension, palette) {
@@ -186,7 +186,7 @@ export function getDateRanges(manifestTree) {
  * Compute the full HSL color string for a single file building.
  *
  * @param {Object} file       - File node from the scanner manifest.
- * @param {Object} palette    - Extension → hue map from defaults.json.
+ * @param {Object} palette    - Extension → hue map from defaults.js.
  * @param {Object} dateRanges - Output of getDateRanges().
  * @param {Object} config     - Color config with { saturation: {min,max}, lightness: {min,max} }.
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".

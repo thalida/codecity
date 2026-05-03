@@ -16,7 +16,7 @@ var _onClose = null;
 
 /**
  * Inject the extension→hue palette so badge colors match the building palette
- * configured in defaults.json.
+ * configured in defaults.js.
  *
  * @param {Object} palette - Map of extension → hue (e.g. { ".ts": 215 }).
  */

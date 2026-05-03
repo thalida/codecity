@@ -27,7 +27,7 @@ const TEST_CONFIG = {
     min_floors: 1,
     max_floors: 30,
     floor_height: 10,
-    byte_ceiling: 10485760,
+    size_ceiling_bytes: 10485760,
     min_width: 6,
     max_width: 40,
     saturation: { min: 20, max: 100 },

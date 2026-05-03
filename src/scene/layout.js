@@ -84,7 +84,7 @@ export function getBuildingDimensions(file, config, lineStats) {
   // Log-scaled because file sizes legitimately span many orders of magnitude.
   var bytes = (file.size && file.size > 0) ? file.size : 1;
   var logBytes    = Math.log(bytes);
-  var logBytesMax = Math.log(bc.byte_ceiling);
+  var logBytesMax = Math.log(bc.size_ceiling_bytes);
   var tW = Math.max(0, Math.min(1, logBytes / logBytesMax));
   var width = bc.min_width + tW * (bc.max_width - bc.min_width);
   width = Math.max(bc.min_width, Math.min(bc.max_width, width));
@@ -280,8 +280,8 @@ function _layoutDir(dir, config, originX, originY, orientation, result, parentSt
   // itself serves as the gem's plaza. Pad = half-width (cap center) + gem
   // radius + clearance. Non-root streets use endPad on both ends as before.
   var gemCfg       = (config && config.scene && config.scene.root_gem) || {};
-  var gemRadiusFrac = (gemCfg.radius_frac != null) ? gemCfg.radius_frac : ROOT_GEM_RADIUS_FRAC_DEFAULT;
-  var gemClearance  = (gemCfg.clearance   != null) ? gemCfg.clearance   : ROOT_GEM_CLEARANCE_DEFAULT;
+  var gemRadiusFrac = (gemCfg.radius_as_street_frac != null) ? gemCfg.radius_as_street_frac : ROOT_GEM_RADIUS_FRAC_DEFAULT;
+  var gemClearance  = (gemCfg.building_clearance    != null) ? gemCfg.building_clearance    : ROOT_GEM_CLEARANCE_DEFAULT;
   var originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : endPad;

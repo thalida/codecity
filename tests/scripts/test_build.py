@@ -28,7 +28,6 @@ TEMPLATE_TEXT = """<!DOCTYPE html>
 <body>
   <canvas id="city"></canvas>
   <script type="application/json" id="codecity-manifest">__MANIFEST__</script>
-  <script type="application/json" id="codecity-config">__CONFIG__</script>
 </body></html>
 """
 
@@ -39,35 +38,30 @@ class BuildHtmlTests(unittest.TestCase):
         self.addCleanup(self._cleanup)
         self.template = self.tmpdir / "template.html"
         self.manifest = self.tmpdir / "manifest.json"
-        self.config = self.tmpdir / "config.json"
         self.output = self.tmpdir / "out.html"
         self.template.write_text(TEMPLATE_TEXT)
         self.manifest.write_text('{"root":"test","tree":{"name":"test","children":[]}}')
-        self.config.write_text('{"palette":{".ts":215}}')
 
     def _cleanup(self):
         import shutil
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
-    def test_replaces_all_three_tokens(self):
-        build_html("MyProject", self.manifest, self.config, self.template, self.output)
+    def test_replaces_both_tokens(self):
+        build_html("MyProject", self.manifest, self.template, self.output)
         html = self.output.read_text()
         self.assertIn("CodeCity — MyProject", html)
         self.assertIn('"root":"test"', html)
-        self.assertIn('".ts":215', html)
         self.assertNotIn("__PROJECT_NAME__", html)
         self.assertNotIn("__MANIFEST__", html)
-        self.assertNotIn("__CONFIG__", html)
 
-    def test_script_tag_wrappers_survive(self):
-        build_html("p", self.manifest, self.config, self.template, self.output)
+    def test_script_tag_wrapper_survives(self):
+        build_html("p", self.manifest, self.template, self.output)
         html = self.output.read_text()
         self.assertIn('<script type="application/json" id="codecity-manifest">', html)
-        self.assertIn('<script type="application/json" id="codecity-config">', html)
 
     def test_json_special_chars_preserved(self):
         self.manifest.write_text(r'{"root":"te\\st","tree":{"name":"a & b","children":[]}}')
-        build_html("p&amp", self.manifest, self.config, self.template, self.output)
+        build_html("p&amp", self.manifest, self.template, self.output)
         html = self.output.read_text()
         self.assertIn(r"te\\st", html)
         self.assertIn('"a & b"', html)
@@ -76,21 +70,16 @@ class BuildHtmlTests(unittest.TestCase):
     def test_raises_for_missing_template(self):
         bogus = self.tmpdir / "does-not-exist.html"
         with self.assertRaises(FileNotFoundError):
-            build_html("p", self.manifest, self.config, bogus, self.output)
+            build_html("p", self.manifest, bogus, self.output)
 
     def test_raises_for_missing_manifest(self):
         bogus = self.tmpdir / "does-not-exist.json"
         with self.assertRaises(FileNotFoundError):
-            build_html("p", bogus, self.config, self.template, self.output)
-
-    def test_raises_for_missing_config(self):
-        bogus = self.tmpdir / "does-not-exist.json"
-        with self.assertRaises(FileNotFoundError):
-            build_html("p", self.manifest, bogus, self.template, self.output)
+            build_html("p", bogus, self.template, self.output)
 
     def test_creates_output_parent_dir(self):
         nested = self.tmpdir / "a" / "b" / "out.html"
-        build_html("p", self.manifest, self.config, self.template, nested)
+        build_html("p", self.manifest, self.template, nested)
         self.assertTrue(nested.is_file())
 
 

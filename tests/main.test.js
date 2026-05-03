@@ -27,12 +27,12 @@ describe('readEmbeddedJson', () => {
   it('throws a clear error when the JSON is malformed', () => {
     const el = document.createElement('script');
     el.type = 'application/json';
-    el.id = 'codecity-config';
+    el.id = 'codecity-manifest';
     el.textContent = '{ not: "valid json"';
     document.body.appendChild(el);
 
-    expect(() => readEmbeddedJson('codecity-config'))
-      .toThrow(/invalid JSON in <script id="codecity-config">/);
+    expect(() => readEmbeddedJson('codecity-manifest'))
+      .toThrow(/invalid JSON in <script id="codecity-manifest">/);
   });
 
   it('handles the placeholder case — raw token, not JSON — as a parse error', () => {
