@@ -9,9 +9,6 @@ docs/superpowers/
 #   run `bash codecity/tests/fixtures/setup.sh` to regenerate
 codecity/tests/fixtures/sample-repo/
 
-# Dev-mode scratch (codecity.py --dev writes manifest/config here)
-build/
-
 # OS
 .DS_Store
 Thumbs.db
