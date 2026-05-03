@@ -91,6 +91,8 @@ That spawns Vite on `:5173` and the Python API on `:8765`, opens the window poin
 uv run pytest                    # pytest  (run from repo root)
 ```
 
+`pytest` includes a **drift check** (`codecity/tests/test_drift.py`) that does a fresh `npm run build` into a tempdir and fails if the result differs from the committed `codecity/static/`. That guarantees the bundled frontend on PyPI matches `web/` source. The check skips automatically when `npm` or `web/node_modules/` are missing.
+
 ### Layout
 
 ```text
@@ -109,6 +111,34 @@ web/                     # frontend, fully self-contained
   components/, scene/, config/
   tests/                 # vitest
 ```
+
+## Release
+
+Cut a release from `main` after the drift test is green:
+
+```sh
+# 1. Rebuild the frontend if web/ has changed since the last commit.
+( cd web && npm run build )
+git add codecity/static
+git commit -m "chore: rebuild frontend"   # only if anything changed
+
+# 2. Bump the version in BOTH places (they must match):
+#    pyproject.toml     →  version = "X.Y.Z"
+#    codecity/__init__.py →  __version__ = "X.Y.Z"
+git commit -am "chore: release vX.Y.Z"
+git tag vX.Y.Z
+
+# 3. Build sdist + wheel into dist/.
+uv build
+
+# 4. Publish to PyPI. One-time setup: export UV_PUBLISH_TOKEN=<pypi-token>.
+uv publish
+
+# 5. Push the release commit + tag.
+git push && git push --tags
+```
+
+Why two version strings? `pyproject.toml` is the source of truth for `pip` / `uv` install resolution; `codecity/__init__.py.__version__` is what `codecity --version` prints at runtime. Keeping them in lockstep is a manual contract — drift here would surface as the CLI reporting a stale version after install.
 
 ## License
 
