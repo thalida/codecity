@@ -14,19 +14,21 @@ import { map } from 'nanostores';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// PATH_LENGTH and PATH_WIDTH define the connector strip running from the
-// building's door to the adjacent sidewalk: LENGTH is the gap perpendicular
-// to the street (also the empty space between building wall and sidewalk),
-// WIDTH is the strip's lateral size parallel to the street. The door is
-// sized off PATH_WIDTH so "walk out the door, onto the path" reads visually.
+// PATH_LENGTH is the gap perpendicular to the street (between the building
+// wall and the adjacent sidewalk) — an absolute world distance shared by
+// every building. PATH_WIDTH_FRAC is a per-building fraction of that
+// building's own width: a 40-unit building with frac 0.4 gets a 16-unit-
+// wide path, while a 6-unit building gets a 2.4-unit path. The door is
+// sized off the same per-building path width so "walk out the door, onto
+// the path" reads visually no matter how big the building is.
 export const BUILDING_DIMENSIONS = map({
-  MIN_FLOORS:   1,
-  MAX_FLOORS:   50,
-  FLOOR_HEIGHT: 10,           // scene units per floor
-  MIN_WIDTH:    6,
-  MAX_WIDTH:    40,
-  PATH_LENGTH:  4,            // connector strip length (building wall → sidewalk)
-  PATH_WIDTH:   3             // connector strip width (also drives door width)
+  MIN_FLOORS:      1,
+  MAX_FLOORS:      50,
+  FLOOR_HEIGHT:    10,        // scene units per floor
+  MIN_WIDTH:       6,
+  MAX_WIDTH:       40,
+  PATH_LENGTH:     4,         // connector strip length (building wall → sidewalk)
+  PATH_WIDTH_FRAC: 0.4        // per-building: pathWidth = building.w × this; also drives door width
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
@@ -101,7 +103,7 @@ export const BUILDING_FADE = map({
   DEFAULT_OUTLINE_OPACITY: 1.0,
 
   // Level 1 — one hop from selection along the directory spine.
-  NEAR_DETAIL:          'full',
+  NEAR_DETAIL:          'silhouette',
   NEAR_OUTLINE:         true,
   NEAR_BODY_OPACITY:    0.65,
   NEAR_OUTLINE_OPACITY: 0.65,
@@ -109,6 +111,6 @@ export const BUILDING_FADE = map({
   // Level 2+ — anything farther.
   FAR_DETAIL:          'silhouette',
   FAR_OUTLINE:         true,
-  FAR_BODY_OPACITY:    0.18,
+  FAR_BODY_OPACITY:    0.10,
   FAR_OUTLINE_OPACITY: 0.18
 });

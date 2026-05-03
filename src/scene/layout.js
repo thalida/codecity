@@ -166,13 +166,16 @@ export function layoutCity(manifest) {
   _markJoinSides(result.streets);
 
   // Compute paths from each building's door to the adjacent street.
-  // Length bridges the building-to-sidewalk gap; width is a separate
-  // designer knob (and also drives door size — see engine.js).
-  var dimsCfg    = BUILDING_DIMENSIONS.get();
-  var pathLength = dimsCfg.PATH_LENGTH;
-  var pathWidth  = dimsCfg.PATH_WIDTH;
+  // Length bridges the building-to-sidewalk gap (absolute units); width
+  // is a per-building fraction of that building's own width, so big
+  // buildings get proportionally chunkier paths. Same per-building
+  // width also drives door size — see engine.js.
+  var dimsCfg       = BUILDING_DIMENSIONS.get();
+  var pathLength    = dimsCfg.PATH_LENGTH;
+  var pathWidthFrac = dimsCfg.PATH_WIDTH_FRAC;
   for (var pi = 0; pi < result.buildings.length; pi++) {
     var bForPath = result.buildings[pi];
+    var pathWidth = bForPath.w * pathWidthFrac;
     var path = _pathForBuilding(bForPath, pathWidth, pathLength);
     if (path) {
       // Stamp the building's file so the renderer can match each path
@@ -258,8 +261,8 @@ function _markJoinSides(streets) {
 // Returns a thin sidewalk-colored strip connecting the building's door (on its
 // front face) to the adjacent street's sidewalk. `pathLength` is
 // BUILDING_DIMENSIONS.PATH_LENGTH (bridges the gap between building face and
-// street edge); `pathWidth` is BUILDING_DIMENSIONS.PATH_WIDTH (also drives
-// door size — see engine.js).
+// street edge); `pathWidth` is the caller-provided per-building width
+// (= building.w × PATH_WIDTH_FRAC; also drives door size — see engine.js).
 // -----------------------------------------------------------------------------
 function _pathForBuilding(b, pathWidth, pathLength) {
   if (b.orient === BUILDING_ORIENT.SOUTH) {

@@ -280,8 +280,8 @@ function _buildBuildingsSection(applyTheme) {
       tip: 'Distance from the building\'s wall to the adjacent sidewalk. The path connector strip bridges this gap.',
       rebuild: true
     }),
-    _number('Building path width',  BUILDING_DIMENSIONS, 'PATH_WIDTH', 0, 50, 1, {
-      tip: 'Lateral width of the path connector strip running between building and sidewalk. The door is sized to ~80% of this.',
+    _slider('Building path width',  BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
+      tip: 'Width of the path connector strip, as a fraction of the building\'s own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.',
       rebuild: true
     })
   ]));
@@ -311,7 +311,11 @@ function _buildBuildingsSection(applyTheme) {
     huePaletteRows.push(_nestedSlider(
       hueExtensions[ei],
       BUILDING_PALETTE, 'HUE_EXT_MAP', hueExtensions[ei],
-      0, 359, 1, { tip: 'Hue (0–359°) for files with this extension.', rebuild: true }
+      0, 359, 1, {
+        tip: 'Hue (0–359°) for files with this extension.',
+        rebuild: true,
+        previewHue: true
+      }
     ));
   }
   section.appendChild(_subgroup('Extension hues (0–359°)', huePaletteRows));
@@ -469,6 +473,19 @@ function _buildEffectsSection(applyTheme) {
 // that need a rebuild) + a small "Reset all" link. Per-row reset icons
 // cover the common case; "Reset all" stays understated as the global panic
 // button.
+//
+// Both buttons clear the persisted camera pose ('cc.cameraPose', set by
+// main.js) before reloading so the user lands at the freshly-fitted
+// default view rather than wherever they last navigated. Hardcoded here
+// instead of imported to avoid coupling controls UI to render-loop state.
+var SAVED_CAMERA_KEY = 'cc.cameraPose';
+
+function _clearSavedCameraPose() {
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
+  } catch (_) { /* private mode / unavailable — ignore */ }
+}
+
 function _buildActionsSection() {
   var actions = document.createElement('div');
   actions.className = 'controls-actions';
@@ -478,8 +495,9 @@ function _buildActionsSection() {
   rebuildBtn.className = 'controls-button';
   rebuildBtn.appendChild(makeLucideIcon('refresh-cw', { class: 'controls-button-icon' }));
   rebuildBtn.appendChild(document.createTextNode('Rebuild'));
-  rebuildBtn.title = 'Reload the page so rows marked with the rebuild icon take effect. Your tweaks persist.';
+  rebuildBtn.title = 'Reload the page so rows marked with the rebuild icon take effect. Resets the camera too. Your tweaks persist.';
   rebuildBtn.addEventListener('click', function () {
+    _clearSavedCameraPose();
     if (typeof location !== 'undefined') location.reload();
   });
   actions.appendChild(rebuildBtn);
@@ -492,11 +510,12 @@ function _buildActionsSection() {
   resetAll.className = 'controls-button controls-button-secondary';
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
-  resetAll.title = 'Wipe every override and reload. (Per-row reset icons restore single values.)';
+  resetAll.title = 'Wipe every override (and reset the camera) and reload. (Per-row reset icons restore single values.)';
   resetAll.addEventListener('click', function () {
     if (resetAll.disabled) return;
     if (!confirm('Reset every override and reload?')) return;
     clearPersistence();
+    _clearSavedCameraPose();
     if (typeof location !== 'undefined') location.reload();
   });
   actions.appendChild(resetAll);
@@ -696,10 +715,21 @@ function _slider(label, store, key, min, max, step, opts) {
 // Writes go through `store.setKey(parentKey, { ...current, [subKey]: v })` so other
 // sub-keys are preserved. The row's reset icon resets just `subKey` back to its
 // registered default (not the whole map). Used for HUE_EXT_MAP per-extension rows.
+//
+// opts.previewHue — if true, appends a small HSL swatch that previews the
+// current value as a hue (assumes the slider's value range is degrees).
 function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
   var onChange = _resolveChange(opts);
   var refs = {};
   var initial = (store.get()[parentKey] || {})[subKey];
+
+  var swatch = null;
+  if (opts && opts.previewHue) {
+    swatch = document.createElement('span');
+    swatch.className = 'theme-hue-preview';
+    swatch.style.background = 'hsl(' + initial + ', 80%, 55%)';
+  }
+
   var control = _sliderWidget(initial, min, max, step, function (v) {
     var current = store.get()[parentKey] || {};
     var next = {};
@@ -708,6 +738,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
     }
     next[subKey] = v;
     store.setKey(parentKey, next);
+    if (swatch) swatch.style.background = 'hsl(' + v + ', 80%, 55%)';
     onChange();
   }, refs);
 
@@ -716,6 +747,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
       refs.readout.textContent = _formatNumberForStep(v, step);
+      if (swatch) swatch.style.background = 'hsl(' + v + ', 80%, 55%)';
     }
   });
 
@@ -726,6 +758,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
 
   var row = _row(label, control, null, null, rowOpts);
   var ctrlWrap = row.querySelector('.theme-row-control');
+  if (swatch) ctrlWrap.appendChild(swatch);
   var resetBtn = _makeNestedResetButton(store, parentKey, subKey, opts);
   ctrlWrap.appendChild(resetBtn);
   return row;
