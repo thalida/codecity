@@ -41,6 +41,7 @@ import {
   BUILDING_FADE,
   GEM_ANIMATION,
   GEM_APPEARANCE,
+  GEM_SIZING,
   CAMERA_PERSPECTIVE,
   CAMERA_CONTROLS,
   CAMERA_ANIMATION,
@@ -64,7 +65,6 @@ import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
 import {
   parentDirPath,
-  streetChainForDirPath,
   computePathPoints
 } from './scene/path.js';
 
@@ -101,6 +101,7 @@ function startRenderLoop(canvas, manifest) {
   var pathMeshes      = built.pathMeshes || [];
   var asphaltMeshes   = built.asphaltMeshes || [];
   var rootGem         = built.rootGem;
+  var rootGemBody     = built.rootGemBody  || null;
   var rootGemEdges    = built.rootGemEdges || null;
   // pickables is rebuilt on every height-mode toggle (since building meshes
   // are disposed + replaced), so we wrap the array in a getter-style closure
@@ -378,7 +379,6 @@ function startRenderLoop(canvas, manifest) {
   var _swc0 = SIDEWALK_COLORS.get();
   var SIDEWALK_HOVER_COLOR    = new THREE.Color(_swc0.HOVER).getHex();
   var SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
-  var SIDEWALK_PATH_COLOR     = new THREE.Color(_swc0.PATH).getHex();
   var SIDEWALK_DEFAULT_COLOR  = new THREE.Color(_swc0.DEFAULT).getHex();
 
   // Lookup: directory path → sidewalk mesh / street object. Used to walk
@@ -398,7 +398,7 @@ function startRenderLoop(canvas, manifest) {
 
   // Building-to-street connector strips, grouped by parent dir path so
   // they can be tinted alongside their street's sidewalk (selected /
-  // hover / path lineage colors).
+  // hover colors).
   var pathMeshesByDirPath = {};
   for (var pmi = 0; pmi < pathMeshes.length; pmi++) {
     var _pm = pathMeshes[pmi];
@@ -409,49 +409,19 @@ function startRenderLoop(canvas, manifest) {
     pathMeshesByDirPath[_pmDir].push(_pm);
   }
 
-  // _expectedSidewalkTint(sw) — selected / path / hover color, or null for
-  // default. Selected wins over path; path wins over hover. The neon line
-  // STILL traces the path; the sidewalk tint reinforces the lineage so
-  // the user can see which streets are on the chain at a glance.
+  // _expectedSidewalkTint(sw) — selected / hover color, or null for the
+  // resting tint. Selection wins over hover. (No "path" tint anymore —
+  // the gem→selection lineage is shown only by the neon path line.)
   function _expectedSidewalkTint(sw) {
     if (currentSelection && currentSelection.kind === NODE_KIND.DIRECTORY &&
         currentSelection.sidewalk === sw) {
       return SIDEWALK_SELECTED_COLOR;
     }
-    // Hover wins over path tint so parent roads still show a hover response
-    // when you mouse over them. Selection still wins over hover above.
     if (currentHover && currentHover.kind === NODE_KIND.DIRECTORY &&
         currentHover.sidewalk === sw) {
       return SIDEWALK_HOVER_COLOR;
     }
-    if (currentSelection && currentSelection._pathSidewalks &&
-        currentSelection._pathSidewalks.indexOf(sw) !== -1) {
-      return SIDEWALK_PATH_COLOR;
-    }
     return null;
-  }
-
-  // Compute the sidewalks on the path from root → selection (excluding the
-  // selected sidewalk itself, which gets its own SELECTED tint).
-  function _pathSidewalksForSelection(sel) {
-    if (!sel) return [];
-    var dirPath, includeLast;
-    if (sel.kind === NODE_KIND.DIRECTORY) {
-      dirPath = sel.dir.path;
-      includeLast = false;            // selected dir's own sidewalk: SELECTED tint
-    } else {
-      dirPath = parentDirPath(sel.file.path);
-      includeLast = true;             // file's parent street: PATH tint
-    }
-    if (dirPath == null) return [];
-    var chain = streetChainForDirPath(dirPath, streetsByDirPath);
-    var stop = includeLast ? chain.length : chain.length - 1;
-    var path = [];
-    for (var i = 0; i < stop; i++) {
-      var sw = sidewalksByDirPath[chain[i].dir.path];
-      if (sw) path.push(sw);
-    }
-    return path;
   }
 
   function _refreshSidewalkTints() {
@@ -496,7 +466,6 @@ function startRenderLoop(canvas, manifest) {
     // restores to the new default when it lifts.
     SIDEWALK_HOVER_COLOR    = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
-    SIDEWALK_PATH_COLOR     = new THREE.Color(sidewalk.PATH).getHex();
     SIDEWALK_DEFAULT_COLOR  = new THREE.Color(sidewalk.DEFAULT).getHex();
     for (var si = 0; si < streetPickables.length; si++) {
       streetPickables[si].userData.origColor = SIDEWALK_DEFAULT_COLOR;
@@ -515,16 +484,55 @@ function startRenderLoop(canvas, manifest) {
     // Hover + selected outline overlays.
     hoverLineMat.color.set(outline.HOVER_COLOR);
     hoverLineMat.linewidth    = outline.WIDTH;
+    hoverLineMat.opacity      = outline.HOVER_OPACITY;
     selectedLineMat.linewidth = outline.WIDTH;
+    selectedLineMat.opacity   = outline.SELECTED_OPACITY;
     // Per-building default outlines (the colored wireframes that fade in
     // as the building dims out).
     for (var oi = 0; oi < buildingOutlineMats.length; oi++) {
       buildingOutlineMats[oi].linewidth = outline.WIDTH;
     }
+    // Selection path line linewidth + opacity. Both must be applied here so
+    // tweaks land immediately even when no selection change is happening
+    // (without this, opacity only refreshed inside _updatePathLine which
+    // fires on selection change). When no path is visible, _updatePathLine
+    // already sets opacity to 0 — guard so we don't override that.
+    var plCfg = PATH_LINE.get();
+    pathLineMat.linewidth = plCfg.LINEWIDTH;
+    if (pathLine.visible) pathLineMat.opacity = plCfg.OPACITY;
 
-    // Root gem edges color.
+    // Root gem — edge color + body opacity. Body color is per-vertex
+    // (palette baked into the geometry) so we don't recolor it here.
+    var gemAppearance = GEM_APPEARANCE.get();
     if (rootGemEdges && rootGemEdges.material && rootGemEdges.material.color) {
-      rootGemEdges.material.color.set(GEM_APPEARANCE.get().EDGE_COLOR);
+      rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
+    }
+    if (rootGemBody && rootGemBody.material) {
+      rootGemBody.material.opacity = gemAppearance.BODY_OPACITY;
+    }
+
+    // Root gem hover-lift. baseY = radius + streetWidth × HOVER_LIFT_FRAC.
+    // Both ingredients were stashed on rootGem.userData at scene-build time.
+    // Render loop adds the bob offset on top of baseY each frame, so we just
+    // update baseY and the next frame picks up the new resting height.
+    if (rootGem && rootGem.userData.streetWidth != null) {
+      var hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
+      rootGem.userData.baseY = rootGem.userData.radius +
+                               rootGem.userData.streetWidth * hoverFrac;
+    }
+
+    // Street labels — ELEVATION (group Y position) and HEIGHT_FRAC (plane
+    // size, scaled relative to the original frac so the texture stays
+    // pixel-correct). Both stashed on each label group's userData.
+    var labelCfg = LABEL_TYPOGRAPHY.get();
+    for (var li = 0; li < streetLabels.length; li++) {
+      var lg = streetLabels[li];
+      lg.position.y = labelCfg.ELEVATION;
+      var origFrac = lg.userData.origHeightFrac;
+      if (origFrac && lg.children[0]) {
+        var s = labelCfg.HEIGHT_FRAC / origFrac;
+        lg.children[0].scale.set(s, s, 1);
+      }
     }
   }
 
@@ -716,12 +724,9 @@ function startRenderLoop(canvas, manifest) {
       selectedOutline.visible = false;
     }
     currentSelection = sel;
-    if (sel) {
-      sel._pathSidewalks = _pathSidewalksForSelection(sel);
-      if (sel.kind === NODE_KIND.FILE) {
-        _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
-        selectedOutline.visible = true;
-      }
+    if (sel && sel.kind === NODE_KIND.FILE) {
+      _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
+      selectedOutline.visible = true;
     }
     _refreshSidewalkTints();
     _updatePathLine();

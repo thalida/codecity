@@ -439,11 +439,11 @@ function createStreetMesh(street, yBase) {
   // For concentric caps the asphalt must be shorter by exactly the sidewalk
   // strip width (= (width - asphaltWidth) / 2 per side). That makes the two
   // cap circles share a center and the annular sidewalk strip keep constant
-  // thickness around the curve. Floor at LENGTH_MIN_FRAC of length so very
-  // short streets still show some asphalt.
+  // thickness around the curve — the cap stays correctly rounded at any
+  // street length. Floor at 0 so degenerate streets don't try to render
+  // a negative-length stadium.
   var sidewalkStrip = (street.width - asphaltWidth) / 2;
-  var asphaltLength = Math.max(street.length * asphaltCfg.LENGTH_MIN_FRAC,
-                               street.length - 2 * sidewalkStrip);
+  var asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
 
   // Sidewalk — the clickable target for street picking. renderOrder=1
   // means all sidewalks across the city draw first, as a single bottom layer.
@@ -557,6 +557,10 @@ function createRootGem(street) {
   gem.userData.baseY = hoverY;
   gem.userData.bobAmp = radius * bobFrac;
   gem.userData.type = NODE_KIND.GEM;
+  // Stashed for live applyTheme updates of HOVER_LIFT_FRAC: needed to
+  // recompute baseY = radius + streetWidth × frac.
+  gem.userData.streetWidth = street.width;
+  gem.userData.radius      = radius;
 
   group.add(gem);
   group.userData.gem = gem;
@@ -685,6 +689,11 @@ function createStreetLabels(street) {
     group.rotation.y = group.userData.baseRotY;
     group.userData.street = street;
     group.userData.type = NODE_KIND.LABEL;
+    // Stashed for live applyTheme updates: ELEVATION (group.position.y),
+    // and HEIGHT_FRAC (plane.scale recomputed from streetWidth × frac).
+    group.userData.streetWidth   = street.width;
+    group.userData.textureAspect = info.aspect;
+    group.userData.origHeightFrac = label.HEIGHT_FRAC;
     labels.push(group);
   }
   return labels;
@@ -705,6 +714,7 @@ export function buildCityScene(layout) {
   var asphaltMeshes   = [];
   var streetLabels = [];
   var rootGem = null;
+  var rootGemBody = null;
   var rootGemEdges = null;
   for (var si = 0; si < streets.length; si++) {
     var sg = createStreetMesh(streets[si], 0);
@@ -718,15 +728,17 @@ export function buildCityScene(layout) {
       streetLabels.push(labels[li]);
     }
 
-    // Root-of-repo landmark at the street's origin end.
+    // Root-of-repo landmark at the street's origin end. The gem group
+    // wraps two children: [0] body (the colored octahedron) and [1]
+    // edges (the dark separator lines). Both are exposed so the Settings
+    // UI can hot-update color + opacity.
     if (streets[si].isRoot) {
       var gemGroup = createRootGem(streets[si]);
       scene.add(gemGroup);
       rootGem = gemGroup.userData.gem;
-      // Edges mesh sits at index 1 of the gem group (body is index 0).
-      // Exposed so the Settings UI can hot-recolor the gem outline.
-      if (rootGem && rootGem.children && rootGem.children[1]) {
-        rootGemEdges = rootGem.children[1];
+      if (rootGem && rootGem.children) {
+        rootGemBody  = rootGem.children[0] || null;
+        rootGemEdges = rootGem.children[1] || null;
       }
     }
   }
@@ -766,6 +778,7 @@ export function buildCityScene(layout) {
     pathMeshes: pathMeshes,
     asphaltMeshes: asphaltMeshes,
     rootGem: rootGem,
+    rootGemBody: rootGemBody,
     rootGemEdges: rootGemEdges,
     bbox: bbox
   };

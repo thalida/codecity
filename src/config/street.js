@@ -6,22 +6,25 @@
 import { atom, map } from 'nanostores';
 
 // ─── Asphalt (the inner stripe of every street) ──────────────────────────
-// COLOR is hot-reloadable; geometry fractions affect the baked stadium
-// shape and require a rebuild.
+// COLOR is hot-reloadable. Width and length are derived: width = street
+// width × WIDTH_FRAC; length is whatever keeps the asphalt cap circle
+// concentric with the sidewalk cap circle (length - 2 × sidewalkStrip).
+// Both are designer constants — not surfaced as UI controls because they
+// shape geometry and the user should never break concentric caps.
 export const ASPHALT = map({
-  COLOR:           '#1a1d28',
-  WIDTH_FRAC:      0.6,        // asphalt width = street width × this
-  LENGTH_MIN_FRAC: 0.2         // asphalt length floor = street length × this
+  COLOR:      '#1a1d28',
+  WIDTH_FRAC: 0.6
 });
 
 // ─── Sidewalk tints ────────────────────────────────────────────────────────
-// DEFAULT is the resting tint; HOVER / SELECTED / PATH are state-driven
-// recolors (hover, current selection, ancestor lineage). All hot-reloadable.
+// DEFAULT is the resting tint; HOVER / SELECTED are state-driven recolors
+// (cursor, current selection). All hot-reloadable. Lineage from the root
+// gem to the current selection is shown only by the neon path line — no
+// sidewalk recolor for path streets.
 export const SIDEWALK_COLORS = map({
   DEFAULT:  '#2c2e36',
   HOVER:    '#d0d2da',
-  SELECTED: '#ffffff',
-  PATH:     '#4a4c54'
+  SELECTED: '#ffffff'
 });
 
 // ─── Street label typography ──────────────────────────────────────────────

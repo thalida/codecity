@@ -4,7 +4,7 @@
 // imports for direct use.
 //
 // Reading values:
-//   const sc = SIDEWALK_COLORS.get();   // → { DEFAULT, HOVER, SELECTED, PATH }
+//   const sc = SIDEWALK_COLORS.get();   // → { DEFAULT, HOVER, SELECTED }
 //   sc.HOVER                            // → '#d0d2da'
 //
 // Mutating (Settings UI / tests):

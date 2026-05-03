@@ -25,10 +25,6 @@ import {
   BUILDING_DIMENSIONS, BUILDING_PALETTE, BUILDING_OUTLINE, BUILDING_FADE,
   // Gem
   GEM_SIZING, GEM_APPEARANCE, GEM_ANIMATION,
-  // Camera
-  CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION,
-  // Input feel
-  INPUT_TIMING, TOOLTIP,
   // Effects
   RAINBOW
 } from '../config/index.js';
@@ -64,13 +60,17 @@ export function buildControlsPane(opts) {
   var body = document.createElement('div');
   body.className = 'controls-body';
 
+  // Sections are organized by what the user is *looking at* (background,
+  // streets, buildings, gem) plus shared visual effects. Camera lens /
+  // orbit / animation timings and input-feel knobs (hover commit, click
+  // thresholds, tooltip placement) intentionally aren't surfaced — they're
+  // designer-level constants that already have natural in-scene controls
+  // (mouse to orbit, kbd to reset). See View > shortcuts list.
   body.appendChild(_buildViewSection());
   body.appendChild(_buildBackgroundSection(applyTheme));
   body.appendChild(_buildStreetsSection(applyTheme));
   body.appendChild(_buildBuildingsSection(applyTheme));
   body.appendChild(_buildGemSection(applyTheme));
-  body.appendChild(_buildCameraSection(applyTheme));
-  body.appendChild(_buildInputSection(applyTheme));
   body.appendChild(_buildEffectsSection(applyTheme));
 
   pane.appendChild(body);
@@ -159,35 +159,28 @@ function _buildStreetsSection(applyTheme) {
   var section = _section('Streets',
     'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.');
 
-  // Asphalt
+  // Asphalt — color only. Width is a designer-level geometry knob; length
+  // is derived to keep the cap circles concentric.
   section.appendChild(_subgroup('Asphalt', [
-    _color('Color',          ASPHALT, 'COLOR', {
+    _color('Color', ASPHALT, 'COLOR', {
       tip: 'Color of the inner road stripe. Live.',
       onChange: applyTheme
-    }),
-    _slider('Stripe width',  ASPHALT, 'WIDTH_FRAC', 0.1, 1, 0.05, {
-      tip: 'Asphalt stripe width as a fraction of the street width — the sidewalk fills the rest on each side.',
-      rebuild: true
-    }),
-    _slider('Min length',    ASPHALT, 'LENGTH_MIN_FRAC', 0, 1, 0.05, {
-      tip: 'Floor on the asphalt length, as a fraction of the street length, so very short streets still show some asphalt.',
-      rebuild: true
     })
   ]));
 
-  // Sidewalks
+  // Sidewalks. (No "Path" tint — the lineage from gem→selection is shown
+  // by the rainbow neon line alone, see "Selection path line" below.)
   section.appendChild(_subgroup('Sidewalk colors', [
     _color('Default',  SIDEWALK_COLORS, 'DEFAULT',  { tip: 'Resting tint on every sidewalk.', onChange: applyTheme }),
     _color('Hover',    SIDEWALK_COLORS, 'HOVER',    { tip: 'When the cursor is over a street.', onChange: applyTheme }),
-    _color('Selected', SIDEWALK_COLORS, 'SELECTED', { tip: 'When a street (directory) is selected.', onChange: applyTheme }),
-    _color('Path',     SIDEWALK_COLORS, 'PATH',     { tip: 'Streets in the lineage from the root gem to the current selection.', onChange: applyTheme })
+    _color('Selected', SIDEWALK_COLORS, 'SELECTED', { tip: 'When a street (directory) is selected.', onChange: applyTheme })
   ]));
 
   // Street labels
   section.appendChild(_subgroup('Street labels', [
     _color ('Fill',                 LABEL_TYPOGRAPHY, 'FILL', {
-      tip: 'Text color of the names painted on each road.',
-      onChange: applyTheme
+      tip: 'Text color of the names painted on each road. Baked into the label texture, so a rebuild is required.',
+      rebuild: true
     }),
     _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
       tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down.',
@@ -207,7 +200,7 @@ function _buildStreetsSection(applyTheme) {
     }),
     _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
       tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
-      rebuild: true
+      onChange: applyTheme
     }),
     _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
       tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
@@ -219,17 +212,19 @@ function _buildStreetsSection(applyTheme) {
     }),
     _slider('Lift above asphalt',   LABEL_TYPOGRAPHY, 'ELEVATION', 0, 5, 0.1, {
       tip: 'Vertical offset of the label plane above the road, to avoid z-fighting.',
-      rebuild: true
+      onChange: applyTheme
     })
   ]));
 
-  // Path line
+  // Selection path line — the neon line tracing gem → current selection
+  // through the road network. Color cycle is shared with the building
+  // outline; tweak Effects > Rainbow.
   section.appendChild(_subgroup('Selection path line', [
     _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-      tip: 'Pixel thickness of the rainbow line that traces gem → selected file.',
+      tip: 'Pixel thickness of the rainbow line.',
       onChange: applyTheme
     }),
-    _slider('Opacity',   PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+    _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
       tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
       onChange: applyTheme
     })
@@ -357,7 +352,7 @@ function _buildGemSection(applyTheme) {
     }),
     _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
       tip: 'Extra vertical lift above the road, on top of the gem radius.',
-      rebuild: true
+      onChange: applyTheme
     }),
     _number('Plaza clearance',       GEM_SIZING, 'BUILDING_CLEARANCE', 0, 100, 1, {
       tip: 'Dead-space pad past the gem at the root street\'s origin end.',
@@ -392,94 +387,6 @@ function _buildGemSection(applyTheme) {
     }),
     _slider('Hover lerp',     GEM_ANIMATION, 'SCALE_LERP_SPEED', 0.01, 1, 0.01, {
       tip: 'Per-frame ease toward the hover scale.',
-      onChange: applyTheme
-    })
-  ]));
-
-  return section;
-}
-
-
-// ─── Camera ────────────────────────────────────────────────────────────────
-function _buildCameraSection(applyTheme) {
-  var section = _section('Camera',
-    'Perspective lens, orbit controls, and animation timings.');
-
-  section.appendChild(_subgroup('Perspective', [
-    _number('FOV (deg)', CAMERA_PERSPECTIVE, 'FOV',  10, 120, 1, {
-      tip: 'Vertical field-of-view. Lower = telephoto compression; higher = wide-angle distortion.',
-      rebuild: true
-    }),
-    _number('Near clip', CAMERA_PERSPECTIVE, 'NEAR', 0.1, 100, 0.1, { rebuild: true }),
-    _number('Far clip',  CAMERA_PERSPECTIVE, 'FAR',  1000, 100000, 1000, { rebuild: true })
-  ]));
-
-  section.appendChild(_subgroup('Orbit + zoom', [
-    _slider('Damping',                CAMERA_CONTROLS, 'DAMPING_FACTOR',        0, 1, 0.01, {
-      tip: 'OrbitControls inertia. Higher = snappier; lower = floatier.',
-      rebuild: true
-    }),
-    _slider('Polar limit × π',         CAMERA_CONTROLS, 'MAX_POLAR_ANGLE_FRAC',  0, 0.5, 0.01, {
-      tip: 'How close to vertical the orbit can go (× π radians).',
-      rebuild: true
-    }),
-    _number('Min zoom distance',      CAMERA_CONTROLS, 'MIN_DISTANCE',          1, 1000, 1, { rebuild: true }),
-    _slider('Initial framing',        CAMERA_CONTROLS, 'INITIAL_DISTANCE_MULT', 0.1, 3, 0.05, {
-      tip: 'Tightness on boot — 1.0 fits exactly; <1.0 is tighter; >1.0 leaves headroom.',
-      rebuild: true
-    })
-  ]));
-
-  section.appendChild(_subgroup('Animation timings', [
-    _number('Recenter (ms)',        CAMERA_ANIMATION, 'RECENTER_DURATION_MS',     50, 2000, 50, { onChange: applyTheme }),
-    _number('Reset (ms)',           CAMERA_ANIMATION, 'RESET_DURATION_MS',        50, 2000, 50, { onChange: applyTheme }),
-    _number('Building focus (ms)',  CAMERA_ANIMATION, 'BUILDING_FOCUS_DURATION_MS', 50, 2000, 50, { onChange: applyTheme }),
-    _number('Street focus (ms)',    CAMERA_ANIMATION, 'STREET_FOCUS_DURATION_MS',   50, 2000, 50, { onChange: applyTheme }),
-    _slider('Street view length',   CAMERA_ANIMATION, 'STREET_FOCUS_LENGTH_FRAC',  0.1, 1.5, 0.05, {
-      tip: 'Visible portion of the street when "focus on street" fires, as a fraction of full length.',
-      onChange: applyTheme
-    }),
-    _number('Street view width ×',  CAMERA_ANIMATION, 'STREET_FOCUS_WIDTH_MULT',   1, 20, 1, {
-      tip: 'Visible width = street width × this.',
-      onChange: applyTheme
-    }),
-    _number('Street view elevation (deg)', CAMERA_ANIMATION, 'STREET_FOCUS_ELEVATION_DEG', 30, 89, 1, {
-      tip: 'Camera elevation when focused on a street. 90° is straight down.',
-      onChange: applyTheme
-    })
-  ]));
-
-  return section;
-}
-
-
-// ─── Input feel ────────────────────────────────────────────────────────────
-function _buildInputSection(applyTheme) {
-  var section = _section('Input feel',
-    'Pointer click-vs-drag thresholds, hover commit timing, tooltip placement.');
-
-  section.appendChild(_subgroup('Pointer', [
-    _number('Hover commit (ms)',         INPUT_TIMING, 'HOVER_COMMIT_MS',         0,   500, 5, {
-      tip: 'How long the cursor must hold on a target before the heavy fade cascade engages. Brief brushes never commit.',
-      onChange: applyTheme
-    }),
-    _number('Click move threshold (px)', INPUT_TIMING, 'CLICK_MOVE_THRESHOLD_PX', 1, 50, 1, {
-      tip: 'Pointer must move less than this between down + up to count as a click vs. a drag.',
-      onChange: applyTheme
-    }),
-    _number('Click time threshold (ms)', INPUT_TIMING, 'CLICK_TIME_THRESHOLD_MS', 100, 1000, 50, {
-      tip: 'Pointer must release within this window of pressing for it to count as a click.',
-      onChange: applyTheme
-    })
-  ]));
-
-  section.appendChild(_subgroup('Tooltip', [
-    _number('Cursor offset (px)',    TOOLTIP, 'OFFSET_PX',          0, 40, 1, {
-      tip: 'Distance from the cursor to the tooltip\'s edge.',
-      onChange: applyTheme
-    }),
-    _number('Viewport margin (px)',  TOOLTIP, 'VIEWPORT_MARGIN_PX', 0, 20, 1, {
-      tip: 'Safety margin from the viewport edges so the tooltip never clips off-screen.',
       onChange: applyTheme
     })
   ]));

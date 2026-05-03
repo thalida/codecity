@@ -157,12 +157,12 @@ export function layoutCity(manifest) {
     }
   }
 
-  // Compute paths from each building's door to the adjacent street. Both
-  // length AND width come from BUILDING_DIMENSIONS.STREET_GAP — the strip
-  // is square, exactly filling the gap between building face and street edge.
-  var streetGap  = BUILDING_DIMENSIONS.get().STREET_GAP;
-  var pathLength = streetGap;
-  var pathWidth  = streetGap;
+  // Compute paths from each building's door to the adjacent street.
+  // Length stretches to bridge the full gap; width stays a thin walkway
+  // (so widening the building-to-sidewalk gap makes the path LONGER, not
+  // wider — it's a path, not a plaza).
+  var pathLength = BUILDING_DIMENSIONS.get().STREET_GAP;
+  var pathWidth  = 3;
   for (var pi = 0; pi < result.buildings.length; pi++) {
     var bForPath = result.buildings[pi];
     var path = _pathForBuilding(bForPath, pathWidth, pathLength);
