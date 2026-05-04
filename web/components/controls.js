@@ -4,17 +4,14 @@
 //   .controls-pane (flex column)
 //     .controls-header   — title
 //     .controls-body     — scrollable column of sections (one per scene element)
-//     .controls-actions  — sticky bottom bar: "Reload" + "Reset all"
+//     .controls-actions  — sticky bottom bar: "Reset all"
 //
-// Per-row affordances:
-//   ↻ rebuild badge — appears next to labels for rebuild-required knobs
-//   reset icon      — appears in the row's control area ONLY when the
-//                     value differs from its default; click resets that
-//                     key (and removes its localStorage entry)
-//
-// Why one section per scene element instead of Theme/Advanced split?
-// Because the user thinks "I want to change something about street labels",
-// not "I want to change a hot-reloadable thing."
+// Per-row affordance: a reset icon appears in the row's control area
+// ONLY when the value differs from its default; click resets that
+// key (and removes its localStorage entry). Every row is hot-reloadable —
+// changes flow through config/hotReload.js, which dispatches each
+// store mutation to either applyTheme() (live material refresh) or
+// cityScene.applyManifest() (debounced re-layout + re-render).
 
 import {
   // Background
@@ -104,7 +101,7 @@ function _buildUpdatesSection() {
     'Re-render the city automatically when the underlying files change.');
   section.appendChild(_subgroup('Live updates', [
     _toggle('Enabled', LIVE_UPDATES, 'ENABLED', {
-      tip: 'When on, the page reloads every poll interval if the scanned tree\'s mtime/size signature changed.'
+      tip: 'When on, the city re-renders in place every poll interval if the scanned tree\'s mtime/size signature changed.'
     }),
     _number('Poll interval (s)', LIVE_UPDATES, 'POLL_SECONDS', 1, 60, 1, {
       tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server.'
@@ -224,15 +221,15 @@ function _buildStreetsSection(applyTheme) {
     }),
     _number('Font size (px)',       LABEL_TYPOGRAPHY, 'FONT_SIZE_PX',      32, 512, 8, {
       tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
-      rebuild: true
+
     }),
     _number('Padding (px)',         LABEL_TYPOGRAPHY, 'CANVAS_PADDING_PX', 0, 200, 4, {
       tip: 'Whitespace around each label inside its texture canvas.',
-      rebuild: true
+
     }),
     _number('Stroke width (px)',    LABEL_TYPOGRAPHY, 'STROKE_WIDTH_PX',   0, 100, 1, {
       tip: 'Thickness of the dark outline behind the label fill.',
-      rebuild: true
+
     }),
     _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
       tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
@@ -240,11 +237,11 @@ function _buildStreetsSection(applyTheme) {
     }),
     _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
       tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
-      rebuild: true
+
     }),
     _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
       tip: 'Minimum repeat distance in world units (so tiny labels do not pile up).',
-      rebuild: true
+
     })
   ]));
 
@@ -289,15 +286,15 @@ function _buildStreetsSection(applyTheme) {
   section.appendChild(_subgroup('Layout', [
     _number('Sibling gap',         STREET_LAYOUT, 'CHILD_GAP',       0, 50, 1, {
       tip: 'Distance between sibling children (file or subdir) packed along a street.',
-      rebuild: true
+
     }),
     _number('Root end pad',        STREET_LAYOUT, 'ROOT_END_PAD',    0, 50, 1, {
       tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
-      rebuild: true
+
     }),
     _number('Parent join pad',     STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 20, 1, {
       tip: 'Extra clear space where a child street meets its parent.',
-      rebuild: true
+
     })
   ]));
 
@@ -313,38 +310,38 @@ function _buildBuildingsSection(applyTheme) {
   section.appendChild(_subgroup('Size', [
     _rangePair('Floors range',  BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
       tip: 'How tall a building gets — represents the file\'s line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.',
-      rebuild: true
+
     }),
     _number('Floor height',     BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
       tip: 'Vertical world units per floor (multiplier on the floor count above).',
-      rebuild: true
+
     }),
     _rangePair('Width range',   BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
       tip: 'How wide a building\'s footprint is — represents the file\'s byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).',
-      rebuild: true
+
     }),
     _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
       tip: 'Distance from the building\'s wall to the adjacent sidewalk. The path connector strip bridges this gap.',
-      rebuild: true
+
     }),
     _slider('Building path width',  BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
       tip: 'Width of the path connector strip, as a fraction of the building\'s own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.',
-      rebuild: true
+
     })
   ]));
 
   section.appendChild(_subgroup('Color palette (HSL)', [
     _rangePair('Saturation range', BUILDING_PALETTE, 'SATURATION_MIN', 'SATURATION_MAX', 0, 100, 5, {
       tip: 'HSL saturation range — older files tend to MIN, newly-created tend to MAX.',
-      rebuild: true
+
     }),
     _rangePair('Lightness range',  BUILDING_PALETTE, 'LIGHTNESS_MIN',  'LIGHTNESS_MAX',  0, 100, 5, {
       tip: 'HSL lightness range — recently-modified files tend to MAX (brighter); stale files tend to MIN.',
-      rebuild: true
+
     }),
     _color('Directory color',  BUILDING_PALETTE, 'DIRECTORY_COLOR', {
       tip: 'Solid color for any building representing a directory rather than a file.',
-      rebuild: true
+
     })
   ]));
 
@@ -360,7 +357,7 @@ function _buildBuildingsSection(applyTheme) {
       BUILDING_PALETTE, 'HUE_EXT_MAP', hueExtensions[ei],
       0, 359, 1, {
         tip: 'Hue (0–359°) for files with this extension.',
-        rebuild: true,
+
         previewHue: true
       }
     ));
@@ -446,11 +443,11 @@ function _buildGemSection(applyTheme) {
   section.appendChild(_subgroup('Sizing + plaza', [
     _slider('Radius × street width', GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, {
       tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
-      rebuild: true
+
     }),
     _number('Min radius',            GEM_SIZING, 'MIN_RADIUS', 1, 50, 1, {
       tip: 'Floor for narrow root streets so the gem stays visible.',
-      rebuild: true
+
     }),
     _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
       tip: 'Extra vertical lift above the road, on top of the gem radius.',
@@ -458,7 +455,7 @@ function _buildGemSection(applyTheme) {
     }),
     _number('Plaza clearance',       GEM_SIZING, 'BUILDING_CLEARANCE', 0, 100, 1, {
       tip: 'Dead-space pad past the gem at the root street\'s origin end.',
-      rebuild: true
+
     })
   ]));
 
@@ -516,54 +513,24 @@ function _buildEffectsSection(applyTheme) {
 
 
 // ─── Sticky bottom action bar ──────────────────────────────────────────────
-// "Rebuild" button (matches the small refresh-cw icon shown next to rows
-// that need a rebuild) + a small "Reset all" link. Per-row reset icons
-// cover the common case; "Reset all" stays understated as the global panic
-// button.
-//
-// Both buttons clear the persisted camera pose ('cc.cameraPose', set by
-// main.js) before reloading so the user lands at the freshly-fitted
-// default view rather than wherever they last navigated. Hardcoded here
-// instead of imported to avoid coupling controls UI to render-loop state.
-var SAVED_CAMERA_KEY = 'cc.cameraPose';
-
-function _clearSavedCameraPose() {
-  try {
-    if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
-  } catch (_) { /* private mode / unavailable — ignore */ }
-}
-
+// "Reset all" — the global panic button. Per-row reset icons cover the
+// common case. Wiping the persisted overrides triggers each store's
+// hot-reload subscription, so the city snaps back to defaults without
+// a page reload.
 function _buildActionsSection() {
   var actions = document.createElement('div');
   actions.className = 'controls-actions';
 
-  var rebuildBtn = document.createElement('button');
-  rebuildBtn.type = 'button';
-  rebuildBtn.className = 'controls-button';
-  rebuildBtn.appendChild(makeLucideIcon('refresh-cw', { class: 'controls-button-icon' }));
-  rebuildBtn.appendChild(document.createTextNode('Rebuild'));
-  rebuildBtn.title = 'Reload the page so rows marked with the rebuild icon take effect. Resets the camera too. Your tweaks persist.';
-  rebuildBtn.addEventListener('click', function () {
-    _clearSavedCameraPose();
-    if (typeof location !== 'undefined') location.reload();
-  });
-  actions.appendChild(rebuildBtn);
-
-  // Reset all — secondary button. Disabled when there's nothing to reset
-  // (no overrides persisted), so the affordance only invites clicking when
-  // there's actually something to do.
   var resetAll = document.createElement('button');
   resetAll.type = 'button';
   resetAll.className = 'controls-button controls-button-secondary';
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
-  resetAll.title = 'Wipe every override (and reset the camera) and reload. (Per-row reset icons restore single values.)';
+  resetAll.title = 'Wipe every override. (Per-row reset icons restore single values.)';
   resetAll.addEventListener('click', function () {
     if (resetAll.disabled) return;
-    if (!confirm('Reset every override and reload?')) return;
+    if (!confirm('Reset every override?')) return;
     clearPersistence();
-    _clearSavedCameraPose();
-    if (typeof location !== 'undefined') location.reload();
   });
   actions.appendChild(resetAll);
 
@@ -615,15 +582,13 @@ function _subgroup(name, rows) {
 //               rangePair). The reset icon shows when ANY key differs from
 //               its registered default.
 //   opts.tip      — full hover text (added to the row's title attribute)
-//   opts.rebuild  — true → render a "↻" badge meaning "needs reload"
 function _row(labelText, control, store, keys, opts) {
   opts = opts || {};
   var row = document.createElement('label');
   row.className = 'theme-row';
 
   var fullTip = labelText;
-  if (opts.tip)     fullTip += ' — ' + opts.tip;
-  if (opts.rebuild) fullTip += ' (Reload required for this change to take effect.)';
+  if (opts.tip) fullTip += ' — ' + opts.tip;
   row.title = fullTip;
 
   var span = document.createElement('span');
@@ -631,17 +596,6 @@ function _row(labelText, control, store, keys, opts) {
   span.textContent = labelText;
   span.title = fullTip;
   row.appendChild(span);
-
-  if (opts.rebuild) {
-    // Subtle refresh-cw glyph next to the label — same icon as the
-    // "Rebuild" button at the bottom, so the visual link is obvious:
-    // "rows like this become live when you click Rebuild."
-    var badge = makeLucideIcon('refresh-cw', {
-      class: 'theme-row-rebuild-badge',
-      title: 'Reload required to apply'
-    });
-    span.appendChild(badge);
-  }
 
   var ctrlWrap = document.createElement('span');
   ctrlWrap.className = 'theme-row-control';

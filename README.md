@@ -34,9 +34,12 @@ codecity --version
 
 `PATH` defaults to the current directory. Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build. Pass `--clone URL` (with optional `--branch NAME`) to mirror a remote repo into `~/.cache/codecity/clones/<hash>/` and render that — re-running with the same URL fetches and resets the existing checkout instead of re-cloning.
 
-## Live updates
+## Live updates and hot-reload
 
-In the left sidebar's Controls pane, toggle **Updates → Live updates** to make the page reload whenever the scanned tree changes. The poll interval is user-tunable (clamped to 1–60 s). Default off so the server isn't re-walking the tree when you aren't actively editing.
+The city re-renders **in place** as you edit:
+
+- **Filesystem changes** — when **Updates → Live updates** is on (default), the frontend polls `/api/manifest` on a user-tunable interval (clamped to 1–60 s); when the tree's mtime/size signature changes, new buildings grow in and shifted siblings slide to make room. The camera position and your current selection survive the rebuild.
+- **Config tweaks** — every slider, color, and toggle in the Controls pane is hot-reloadable. Hot-reloadable configs (sidewalk colors, gem appearance, path-line opacity, …) update materials live; rebuild-required configs (building dimensions, layout gaps, palette mappings, …) trigger a debounced in-place re-layout. There's no "Rebuild" button to press — every change takes effect immediately.
 
 Every subcommand accepts the same scan flags:
 

@@ -18,10 +18,17 @@ describe('buildControlsPane', () => {
     expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
   });
 
-  it('renders a Rebuild button in the sticky action bar', () => {
+  it('renders a Reset-all button in the sticky action bar (no Rebuild)', () => {
     const pane = buildControlsPane({});
-    const rebuildBtn = pane.querySelector('.controls-actions .controls-button');
-    expect(rebuildBtn).not.toBeNull();
-    expect(rebuildBtn.textContent).toBe('Rebuild');
+    const buttons = pane.querySelectorAll('.controls-actions .controls-button');
+    expect(buttons.length).toBe(1);
+    expect(buttons[0].textContent).toBe('Reset all');
+    // No "Rebuild" surface anywhere — every config hot-reloads.
+    expect(pane.textContent).not.toContain('Rebuild');
+  });
+
+  it('does not render any rebuild badges on rows', () => {
+    const pane = buildControlsPane({});
+    expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
   });
 });
