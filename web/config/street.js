@@ -12,8 +12,8 @@ import { atom, map } from 'nanostores';
 // Both are designer constants — not surfaced as UI controls because they
 // shape geometry and the user should never break concentric caps.
 export const ASPHALT = map({
-  COLOR:      '#1a1d28',
-  WIDTH_FRAC: 0.6
+  COLOR: '#1a1d28',
+  WIDTH_FRAC: 0.6,
 });
 
 // ─── Sidewalk tints ────────────────────────────────────────────────────────
@@ -22,9 +22,9 @@ export const ASPHALT = map({
 // gem to the current selection is shown only by the neon path line — no
 // sidewalk recolor for path streets.
 export const SIDEWALK_COLORS = map({
-  DEFAULT:  '#2c2e36',
-  HOVER:    '#d0d2da',
-  SELECTED: '#ffffff'
+  DEFAULT: '#2c2e36',
+  HOVER: '#d0d2da',
+  SELECTED: '#ffffff',
 });
 
 // ─── Street label typography ──────────────────────────────────────────────
@@ -34,18 +34,18 @@ export const SIDEWALK_COLORS = map({
 //   FLIP_HYSTERESIS is hot-reloadable: it's the camera-orbit dead zone
 //   before labels rotate 180° to stay readable.
 export const LABEL_TYPOGRAPHY = map({
-  FILL:              '#f4f6ff',
-  STROKE:            'rgba(8, 9, 14, 0.95)',
-  FONT_FAMILY:       'Inter, "SF Mono", sans-serif',
-  FONT_WEIGHT:       700,
-  FONT_SIZE_PX:      192,
+  FILL: '#f4f6ff',
+  STROKE: 'rgba(8, 9, 14, 0.95)',
+  FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
+  FONT_WEIGHT: 700,
+  FONT_SIZE_PX: 192,
   CANVAS_PADDING_PX: 48,
-  STROKE_WIDTH_PX:   32,
-  HEIGHT_FRAC:       0.45,     // label plane height = street width × this
-  SPACING_MULT:      3.5,      // repeat spacing = label width × this
-  SPACING_FLOOR:     200,      // …or this floor (world units), whichever is larger
-  ELEVATION:         0,        // lift above asphalt (rarely tweaked; not in UI)
-  FLIP_HYSTERESIS:   0.15      // dead zone before camera-orbit flip
+  STROKE_WIDTH_PX: 32,
+  HEIGHT_FRAC: 0.45, // label plane height = street width × this
+  SPACING_MULT: 3.5, // repeat spacing = label width × this
+  SPACING_FLOOR: 200, // …or this floor (world units), whichever is larger
+  ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
+  FLIP_HYSTERESIS: 0.15, // dead zone before camera-orbit flip
 });
 
 // ─── Neon path line (gem → selection) ──────────────────────────────────────
@@ -54,8 +54,8 @@ export const LABEL_TYPOGRAPHY = map({
 // outline — see RAINBOW in config/effects.js.
 export const PATH_LINE = map({
   LINEWIDTH: 5,
-  ELEVATION: 0.3,    // Y position above ground
-  OPACITY:   0.95
+  ELEVATION: 0.3, // Y position above ground
+  OPACITY: 0.95,
 });
 
 // ─── Hover preview path line (gem → hovered target) ───────────────────────
@@ -65,11 +65,11 @@ export const PATH_LINE = map({
 // committed selection. Suppressed when hover matches the current
 // selection (would just overlap the rainbow line).
 export const HOVER_PATH_LINE = map({
-  ENABLED:   true,
+  ENABLED: true,
   LINEWIDTH: 5,
-  COLOR:     '#ffffff',
-  OPACITY:   0.35,
-  ELEVATION: 0.25    // sits just below PATH_LINE so the rainbow stays on top
+  COLOR: '#ffffff',
+  OPACITY: 0.35,
+  ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
 });
 
 // ─── Street width tiers ────────────────────────────────────────────────────
@@ -78,11 +78,11 @@ export const HOVER_PATH_LINE = map({
 // important directories from the air. Stored as an atom because it's an
 // ordered array, not a key/value map.
 export const STREET_TIERS = atom([
-  { min_descendants: 0,  width: 10 },
-  { min_descendants: 4,  width: 16 },
-  { min_descendants: 8,  width: 24 },
+  { min_descendants: 0, width: 10 },
+  { min_descendants: 4, width: 16 },
+  { min_descendants: 8, width: 24 },
   { min_descendants: 16, width: 32 },
-  { min_descendants: 32, width: 64 }
+  { min_descendants: 32, width: 64 },
 ]);
 
 // ─── Street layout / packing distances (world units) ──────────────────────
@@ -93,7 +93,7 @@ export const STREET_TIERS = atom([
 //   PARENT_JOIN_PAD  — extra clear space where a child street meets its parent
 // All rebuild-required (changing any of these reshapes the entire layout).
 export const STREET_LAYOUT = map({
-  CHILD_GAP:       5,
-  ROOT_END_PAD:    8,
-  PARENT_JOIN_PAD: 3
+  CHILD_GAP: 5,
+  ROOT_END_PAD: 8,
+  PARENT_JOIN_PAD: 3,
 });

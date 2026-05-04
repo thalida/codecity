@@ -1,12 +1,12 @@
 // hsl.js — Pure HSL color helpers. No Three.js, no DOM. Unit-testable in jsdom.
 
 export function hslToComponents(hslString) {
-  var inner = hslString.replace(/^hsl\(/i, '').replace(/\)$/, '');
-  var parts = inner.split(',');
+  const inner = hslString.replace(/^hsl\(/i, '').replace(/\)$/, '');
+  const parts = inner.split(',');
   return {
     h: parseFloat(parts[0].trim()),
     s: parseFloat(parts[1].trim()),
-    l: parseFloat(parts[2].trim())
+    l: parseFloat(parts[2].trim()),
   };
 }
 
@@ -15,16 +15,16 @@ export function componentsToHsl(h, s, l) {
 }
 
 export function shadeColor(hslString, amount) {
-  var c = hslToComponents(hslString);
-  var newL = Math.max(0, Math.min(100, c.l + amount));
+  const c = hslToComponents(hslString);
+  const newL = Math.max(0, Math.min(100, c.l + amount));
   return componentsToHsl(c.h, c.s, newL);
 }
 
 export function shadeAndShiftHue(hslString, lightnessDelta, hueDelta, minLightness) {
-  var c = hslToComponents(hslString);
-  var floor = (minLightness != null) ? minLightness : 0;
-  var newL = Math.max(floor, Math.min(100, c.l + lightnessDelta));
-  var newH = ((c.h + hueDelta) % 360 + 360) % 360;
+  const c = hslToComponents(hslString);
+  const floor = minLightness != null ? minLightness : 0;
+  const newL = Math.max(floor, Math.min(100, c.l + lightnessDelta));
+  const newH = (((c.h + hueDelta) % 360) + 360) % 360;
   return componentsToHsl(newH, c.s, newL);
 }
 
@@ -32,8 +32,8 @@ export function shadeAndShiftHue(hslString, lightnessDelta, hueDelta, minLightne
 // contrast against the front face scales with the base lightness — dim files
 // still get visibly darker sides without crushing to black.
 export function shadeByRatio(hslString, ratio, hueDelta, floor) {
-  var c = hslToComponents(hslString);
-  var newL = Math.max(floor, c.l * ratio);
-  var newH = ((c.h + hueDelta) % 360 + 360) % 360;
+  const c = hslToComponents(hslString);
+  const newL = Math.max(floor, c.l * ratio);
+  const newH = (((c.h + hueDelta) % 360) + 360) % 360;
   return componentsToHsl(newH, c.s, newL);
 }

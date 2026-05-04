@@ -41,22 +41,21 @@ import { NODE_KIND } from '../constants.js';
 // up via the Config barrel re-export.
 export const PICKER_SELECTION_KEY = atom(null);
 
-
 export function createPicker({ canvas, camera, cityScene }) {
-  var hover = atom(null);
-  var selection = atom(null);
+  const hover = atom(null);
+  const selection = atom(null);
 
-  var raycaster = new THREE.Raycaster();
-  var pointer = new THREE.Vector2();
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
 
   // Cached pickables list, refreshed on cityScene.onChange so per-frame
   // raycasts don't allocate a new array.
-  var pickables = [];
+  let pickables = [];
   function _refreshPickables() {
     pickables = cityScene.getBuildings().concat(cityScene.getStreetPickables());
-    var gem = cityScene.getRootGem();
+    const gem = cityScene.getRootGem();
     if (gem) {
-      var gemBody = gem.children && gem.children[0];
+      const gemBody = gem.children && gem.children[0];
       if (gemBody) pickables.push(gemBody);
     }
   }
@@ -65,7 +64,7 @@ export function createPicker({ canvas, camera, cityScene }) {
   // selection is the source of truth. Any time it changes, we recompute
   // PICKER_SELECTION_KEY so the persistence layer sees the new key.
   // No code path writes to both atoms simultaneously.
-  var _suspendKeyDerive = false;
+  let _suspendKeyDerive = false;
   selection.subscribe(function (sel) {
     if (_suspendKeyDerive) return;
     if (!sel) {
@@ -88,8 +87,8 @@ export function createPicker({ canvas, camera, cityScene }) {
   // selected node survives across rebuilds when its path still exists,
   // and clears cleanly when it doesn't.
   function _resolveKeyToSelection() {
-    var key = PICKER_SELECTION_KEY.get();
-    _refreshPickables();   // also refresh pickables on every rebuild
+    const key = PICKER_SELECTION_KEY.get();
+    _refreshPickables(); // also refresh pickables on every rebuild
 
     if (!key) {
       // Drop selection in case it referred to disposed meshes.
@@ -99,7 +98,7 @@ export function createPicker({ canvas, camera, cityScene }) {
       return;
     }
     if (key.kind === 'file') {
-      var b = cityScene.getBuildingByPath(key.path);
+      const b = cityScene.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
       if (b) {
         selection.set({
@@ -116,8 +115,8 @@ export function createPicker({ canvas, camera, cityScene }) {
       return;
     }
     if (key.kind === 'directory') {
-      var sw = cityScene.getSidewalkByDir(key.path);
-      var st = cityScene.getStreetByDir(key.path);
+      const sw = cityScene.getSidewalkByDir(key.path);
+      const st = cityScene.getStreetByDir(key.path);
       _suspendKeyDerive = true;
       if (sw && st && st.dir) {
         selection.set({
@@ -140,7 +139,7 @@ export function createPicker({ canvas, camera, cityScene }) {
     hover.set(null);
   }
 
-  var _unsubResolve = cityScene.onChange(function () {
+  const _unsubResolve = cityScene.onChange(function () {
     _clearHoverOnRebuild();
     _resolveKeyToSelection();
   });
@@ -149,15 +148,19 @@ export function createPicker({ canvas, camera, cityScene }) {
   _resolveKeyToSelection();
 
   // ── Public setters ─────────────────────────────────────────────────
-  function setHover(h)        { hover.set(h); }
-  function setSelection(sel)  { selection.set(sel); }
+  function setHover(h) {
+    hover.set(h);
+  }
+  function setSelection(sel) {
+    selection.set(sel);
+  }
 
   // Resolve a path string (file or directory) to a live target and set
   // it as the selection. Used by tree-row clicks and breadcrumb-segment
   // clicks. No-op if the path doesn't match anything.
   function selectByPath(path) {
     if (!path) return;
-    var b = cityScene.getBuildingByPath(path);
+    const b = cityScene.getBuildingByPath(path);
     if (b) {
       setSelection({
         kind: NODE_KIND.FILE,
@@ -167,8 +170,8 @@ export function createPicker({ canvas, camera, cityScene }) {
       });
       return;
     }
-    var sw = cityScene.getSidewalkByDir(path);
-    var st = cityScene.getStreetByDir(path);
+    const sw = cityScene.getSidewalkByDir(path);
+    const st = cityScene.getStreetByDir(path);
     if (sw && st && st.dir) {
       setSelection({
         kind: NODE_KIND.DIRECTORY,
@@ -184,11 +187,11 @@ export function createPicker({ canvas, camera, cityScene }) {
   // the first hit or null. Pickables list is cached and refreshed on
   // cityScene rebuild.
   function pickAt(clientX, clientY) {
-    var rect = canvas.getBoundingClientRect();
-    pointer.x = ((clientX - rect.left) / rect.width)  * 2 - 1;
-    pointer.y = -((clientY - rect.top)  / rect.height) * 2 + 1;
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    var hits = raycaster.intersectObjects(pickables, false);
+    const hits = raycaster.intersectObjects(pickables, false);
     return hits.length > 0 ? hits[0] : null;
   }
 
@@ -198,12 +201,12 @@ export function createPicker({ canvas, camera, cityScene }) {
   // userData.type populated for picking).
   function interpretHit(hit) {
     if (!hit || !hit.object) return null;
-    var ud = hit.object.userData;
+    const ud = hit.object.userData;
     if (ud.type === NODE_KIND.GEM) {
       return { kind: NODE_KIND.GEM };
     }
     if (ud.building && ud.building.file) {
-      var f = ud.building.file;
+      const f = ud.building.file;
       if (f.type === NODE_KIND.DIRECTORY) {
         return { kind: NODE_KIND.DIRECTORY, sidewalk: null, street: null, dir: f };
       }

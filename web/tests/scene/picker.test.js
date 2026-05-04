@@ -8,38 +8,61 @@ import { NODE_KIND } from '../../constants.js';
 
 // Minimal cityScene stub with the accessors picker actually reads.
 function makeFakeCityScene(initialBuildings, initialStreets) {
-  var buildingMap = {};
-  var streetMap = {};
-  var sidewalkMap = {};
-  var listeners = [];
-  var rootGem = null;
+  let buildingMap = {};
+  let streetMap = {};
+  let sidewalkMap = {};
+  const listeners = [];
+  const rootGem = null;
 
   function setSnapshot(buildings, streets) {
     buildingMap = {};
     streetMap = {};
     sidewalkMap = {};
-    for (var i = 0; i < (buildings || []).length; i++) {
-      var b = buildings[i];
-      buildingMap[b.path] = { mesh: b.mesh, building: { file: { path: b.path, type: NODE_KIND.FILE } } };
+    for (let i = 0; i < (buildings || []).length; i++) {
+      const b = buildings[i];
+      buildingMap[b.path] = {
+        mesh: b.mesh,
+        building: { file: { path: b.path, type: NODE_KIND.FILE } },
+      };
     }
-    for (var j = 0; j < (streets || []).length; j++) {
-      var s = streets[j];
-      streetMap[s.path]   = { dir: { path: s.path }, length: 100, width: 10, x: 0, y: 0 };
+    for (let j = 0; j < (streets || []).length; j++) {
+      const s = streets[j];
+      streetMap[s.path] = { dir: { path: s.path }, length: 100, width: 10, x: 0, y: 0 };
       sidewalkMap[s.path] = s.sidewalk;
     }
-    for (var k = 0; k < listeners.length; k++) listeners[k]({ entering: {}, exiting: {}, staying: {} });
+    for (let k = 0; k < listeners.length; k++)
+      listeners[k]({ entering: {}, exiting: {}, staying: {} });
   }
   setSnapshot(initialBuildings, initialStreets);
 
   return {
-    getBuildings:        function () { return Object.keys(buildingMap).map(function (p) { return buildingMap[p].mesh; }); },
-    getStreetPickables:  function () { return Object.keys(sidewalkMap).map(function (p) { return sidewalkMap[p]; }); },
-    getRootGem:          function () { return rootGem; },
-    getBuildingByPath:   function (p) { return buildingMap[p] || null; },
-    getSidewalkByDir:    function (p) { return sidewalkMap[p] || null; },
-    getStreetByDir:      function (p) { return streetMap[p] || null; },
-    onChange:            function (cb) { listeners.push(cb); return function () {}; },
-    setSnapshot:         setSnapshot,
+    getBuildings: function () {
+      return Object.keys(buildingMap).map(function (p) {
+        return buildingMap[p].mesh;
+      });
+    },
+    getStreetPickables: function () {
+      return Object.keys(sidewalkMap).map(function (p) {
+        return sidewalkMap[p];
+      });
+    },
+    getRootGem: function () {
+      return rootGem;
+    },
+    getBuildingByPath: function (p) {
+      return buildingMap[p] || null;
+    },
+    getSidewalkByDir: function (p) {
+      return sidewalkMap[p] || null;
+    },
+    getStreetByDir: function (p) {
+      return streetMap[p] || null;
+    },
+    onChange: function (cb) {
+      listeners.push(cb);
+      return function () {};
+    },
+    setSnapshot: setSnapshot,
   };
 }
 
@@ -106,10 +129,7 @@ describe('createPicker', () => {
 
   it('selectByPath looks up a building by path and selects it', () => {
     const meshA = { name: 'meshA' };
-    const fakeScene = makeFakeCityScene(
-      [{ path: 'a.js', mesh: meshA }],
-      [],
-    );
+    const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: meshA }], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
     p.selectByPath('a.js');
     expect(p.selection.get().kind).toBe(NODE_KIND.FILE);
@@ -130,10 +150,7 @@ describe('createPicker', () => {
 
   it('cityScene rebuild re-resolves selectionKey to a fresh selection', () => {
     const oldMesh = { id: 'old' };
-    const fakeScene = makeFakeCityScene(
-      [{ path: 'a.js', mesh: oldMesh }],
-      [],
-    );
+    const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: oldMesh }], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
     p.selectByPath('a.js');
     expect(p.selection.get().mesh).toBe(oldMesh);
@@ -152,7 +169,7 @@ describe('createPicker', () => {
     p.selectByPath('a.js');
     expect(p.selection.get()).not.toBeNull();
 
-    fakeScene.setSnapshot([], []);   // path no longer exists
+    fakeScene.setSnapshot([], []); // path no longer exists
 
     expect(p.selection.get()).toBeNull();
     expect(p.selectionKey.get()).toBeNull();

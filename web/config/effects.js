@@ -10,7 +10,7 @@ import { map } from 'nanostores';
 // at SPEED rad/ms; SATURATION + LIGHTNESS set the palette intensity.
 // Hot-reloadable; both consumers read fresh per frame.
 export const RAINBOW = map({
-  SPEED:      0.0005,    // hue cycles per millisecond
+  SPEED: 0.0005, // hue cycles per millisecond
   SATURATION: 1.0,
-  LIGHTNESS:  0.625
+  LIGHTNESS: 0.625,
 });

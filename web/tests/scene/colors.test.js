@@ -10,18 +10,18 @@ import { BUILDING_PALETTE } from '../../config/index.js';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDING_PALETTE store by beforeEach; restored by afterEach.
-const TEST_HUE_EXT_MAP = { ".ts": 215, ".js": 220, ".md": 275, ".json": 50, ".png": 30 };
+const TEST_HUE_EXT_MAP = { '.ts': 215, '.js': 220, '.md': 275, '.json': 50, '.png': 30 };
 const TEST_SAT_RANGE = { min: 20, max: 100 };
 const TEST_LIGHT_RANGE = { min: 25, max: 70 };
 
 let _origPalette = null;
 beforeEach(() => {
   _origPalette = { ...BUILDING_PALETTE.get() };
-  BUILDING_PALETTE.setKey('HUE_EXT_MAP',    TEST_HUE_EXT_MAP);
+  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP);
   BUILDING_PALETTE.setKey('SATURATION_MIN', TEST_SAT_RANGE.min);
   BUILDING_PALETTE.setKey('SATURATION_MAX', TEST_SAT_RANGE.max);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MIN',  TEST_LIGHT_RANGE.min);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MAX',  TEST_LIGHT_RANGE.max);
+  BUILDING_PALETTE.setKey('LIGHTNESS_MIN', TEST_LIGHT_RANGE.min);
+  BUILDING_PALETTE.setKey('LIGHTNESS_MAX', TEST_LIGHT_RANGE.max);
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(_origPalette)) {
@@ -30,31 +30,88 @@ afterEach(() => {
 });
 
 const TEST_TREE = {
-  name: "project", type: "directory", path: ".", fullPath: "/tmp/project",
-  children_count: 3, children_file_count: 2, children_dir_count: 1,
-  descendants_count: 4, descendants_file_count: 3, descendants_dir_count: 1,
+  name: 'project',
+  type: 'directory',
+  path: '.',
+  fullPath: '/tmp/project',
+  children_count: 3,
+  children_file_count: 2,
+  children_dir_count: 1,
+  descendants_count: 4,
+  descendants_file_count: 3,
+  descendants_dir_count: 1,
   descendants_size: 5000,
   children: [
-    { name: "index.ts", type: "file", path: "index.ts", fullPath: "/tmp/project/index.ts",
-      extension: ".ts", size: 2000, lines: 80, binary: false,
-      created: "2024-01-10T09:00:00Z", modified: "2024-03-22T14:30:00Z",
-      git: { created: "2024-01-10T09:00:00Z", modified: "2024-03-22T14:30:00Z", commits: 5, contributors: ["alice"] } },
-    { name: "README.md", type: "file", path: "README.md", fullPath: "/tmp/project/README.md",
-      extension: ".md", size: 500, lines: 20, binary: false,
-      created: "2024-01-10T09:00:00Z", modified: "2024-01-10T09:00:00Z",
-      git: { created: "2024-01-10T09:00:00Z", modified: "2024-01-10T09:00:00Z", commits: 1, contributors: ["alice"] } },
-    { name: "src", type: "directory", path: "src", fullPath: "/tmp/project/src",
-      children_count: 1, children_file_count: 1, children_dir_count: 0,
-      descendants_count: 1, descendants_file_count: 1, descendants_dir_count: 0,
+    {
+      name: 'index.ts',
+      type: 'file',
+      path: 'index.ts',
+      fullPath: '/tmp/project/index.ts',
+      extension: '.ts',
+      size: 2000,
+      lines: 80,
+      binary: false,
+      created: '2024-01-10T09:00:00Z',
+      modified: '2024-03-22T14:30:00Z',
+      git: {
+        created: '2024-01-10T09:00:00Z',
+        modified: '2024-03-22T14:30:00Z',
+        commits: 5,
+        contributors: ['alice'],
+      },
+    },
+    {
+      name: 'README.md',
+      type: 'file',
+      path: 'README.md',
+      fullPath: '/tmp/project/README.md',
+      extension: '.md',
+      size: 500,
+      lines: 20,
+      binary: false,
+      created: '2024-01-10T09:00:00Z',
+      modified: '2024-01-10T09:00:00Z',
+      git: {
+        created: '2024-01-10T09:00:00Z',
+        modified: '2024-01-10T09:00:00Z',
+        commits: 1,
+        contributors: ['alice'],
+      },
+    },
+    {
+      name: 'src',
+      type: 'directory',
+      path: 'src',
+      fullPath: '/tmp/project/src',
+      children_count: 1,
+      children_file_count: 1,
+      children_dir_count: 0,
+      descendants_count: 1,
+      descendants_file_count: 1,
+      descendants_dir_count: 0,
       descendants_size: 800,
       children: [
-        { name: "utils.ts", type: "file", path: "src/utils.ts", fullPath: "/tmp/project/src/utils.ts",
-          extension: ".ts", size: 800, lines: 30, binary: false,
-          created: "2024-02-15T10:00:00Z", modified: "2024-03-20T12:00:00Z",
-          git: { created: "2024-02-15T10:00:00Z", modified: "2024-03-20T12:00:00Z", commits: 3, contributors: ["bob"] } }
-      ]
-    }
-  ]
+        {
+          name: 'utils.ts',
+          type: 'file',
+          path: 'src/utils.ts',
+          fullPath: '/tmp/project/src/utils.ts',
+          extension: '.ts',
+          size: 800,
+          lines: 30,
+          binary: false,
+          created: '2024-02-15T10:00:00Z',
+          modified: '2024-03-20T12:00:00Z',
+          git: {
+            created: '2024-02-15T10:00:00Z',
+            modified: '2024-03-20T12:00:00Z',
+            commits: 3,
+            contributors: ['bob'],
+          },
+        },
+      ],
+    },
+  ],
 };
 
 // ---- getHue ----
@@ -98,21 +155,15 @@ describe('getSaturation', () => {
   const cfg = TEST_SAT_RANGE;
 
   it('returns min saturation for oldest file', () => {
-    expect(getSaturation(
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-02-15T10:00:00Z',
-      cfg
-    )).toBe(20);
+    expect(
+      getSaturation('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)
+    ).toBe(20);
   });
 
   it('returns max saturation for newest file', () => {
-    expect(getSaturation(
-      '2024-02-15T10:00:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-02-15T10:00:00Z',
-      cfg
-    )).toBe(100);
+    expect(
+      getSaturation('2024-02-15T10:00:00Z', '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)
+    ).toBe(100);
   });
 
   it('interpolates linearly for midpoint', () => {
@@ -126,17 +177,14 @@ describe('getSaturation', () => {
   });
 
   it('returns midpoint of the saturation range for null date', () => {
-    var midpoint = Math.round((cfg.min + cfg.max) / 2);
+    const midpoint = Math.round((cfg.min + cfg.max) / 2);
     expect(getSaturation(null, '2024-01-10T09:00:00Z', '2024-02-15T10:00:00Z', cfg)).toBe(midpoint);
   });
 
   it('returns max for degenerate range', () => {
-    expect(getSaturation(
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      cfg
-    )).toBe(100);
+    expect(
+      getSaturation('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', cfg)
+    ).toBe(100);
   });
 });
 
@@ -145,21 +193,15 @@ describe('getLightness', () => {
   const cfg = TEST_LIGHT_RANGE;
 
   it('returns max lightness for most recently modified', () => {
-    expect(getLightness(
-      '2024-03-22T14:30:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-03-22T14:30:00Z',
-      cfg
-    )).toBe(70);
+    expect(
+      getLightness('2024-03-22T14:30:00Z', '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)
+    ).toBe(70);
   });
 
   it('returns min lightness for longest untouched', () => {
-    expect(getLightness(
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-03-22T14:30:00Z',
-      cfg
-    )).toBe(25);
+    expect(
+      getLightness('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)
+    ).toBe(25);
   });
 
   it('interpolates linearly for midpoint', () => {
@@ -172,17 +214,14 @@ describe('getLightness', () => {
   });
 
   it('returns midpoint of the lightness range for null date', () => {
-    var midpoint = Math.round((cfg.min + cfg.max) / 2);
+    const midpoint = Math.round((cfg.min + cfg.max) / 2);
     expect(getLightness(null, '2024-01-10T09:00:00Z', '2024-03-22T14:30:00Z', cfg)).toBe(midpoint);
   });
 
   it('returns max for degenerate range', () => {
-    expect(getLightness(
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      '2024-01-10T09:00:00Z',
-      cfg
-    )).toBe(70);
+    expect(
+      getLightness('2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', '2024-01-10T09:00:00Z', cfg)
+    ).toBe(70);
   });
 });
 
@@ -206,11 +245,17 @@ describe('getDateRanges', () => {
 
   it('handles single file tree', () => {
     const single = {
-      name: 'root', type: 'directory', path: '.',
+      name: 'root',
+      type: 'directory',
+      path: '.',
       children: [
-        { name: 'only.ts', type: 'file', extension: '.ts',
-          git: { created: '2024-06-01T00:00:00Z', modified: '2024-06-15T00:00:00Z' } }
-      ]
+        {
+          name: 'only.ts',
+          type: 'file',
+          extension: '.ts',
+          git: { created: '2024-06-01T00:00:00Z', modified: '2024-06-15T00:00:00Z' },
+        },
+      ],
     };
     const dr = getDateRanges(single);
     expect(dr.createdMin).toBe(dr.createdMax);
@@ -241,9 +286,12 @@ describe('getBuildingColor', () => {
   it('handles unknown extension', () => {
     const dateRanges = getDateRanges(TEST_TREE);
     const unknownFile = {
-      name: 'foo.xyz', type: 'file', extension: '.xyz',
-      size: 1000, lines: 10,
-      git: { created: '2024-01-10T09:00:00Z', modified: '2024-03-22T14:30:00Z' }
+      name: 'foo.xyz',
+      type: 'file',
+      extension: '.xyz',
+      size: 1000,
+      lines: 10,
+      git: { created: '2024-01-10T09:00:00Z', modified: '2024-03-22T14:30:00Z' },
     };
     const color = getBuildingColor(unknownFile, dateRanges);
     expect(color).toMatch(/^hsl\(/);

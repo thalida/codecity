@@ -27,34 +27,29 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import {
-  CAMERA_PERSPECTIVE,
-  CAMERA_CONTROLS,
-  CAMERA_ANIMATION
-} from '../config/index.js';
+import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '../config/index.js';
 import { BUILDING_ORIENT } from '../constants.js';
 
 // _focusBuilding tries head-on, then tilts up if the view is obstructed.
-var SIGHTLINE_STEP_DEG     = 20;
-var SIGHTLINE_MAX_ATTEMPTS = 5;
-var SIGHTLINE_FAR_OFFSET   = 0.5;
+const SIGHTLINE_STEP_DEG = 20;
+const SIGHTLINE_MAX_ATTEMPTS = 5;
+const SIGHTLINE_FAR_OFFSET = 0.5;
 
-var SAVED_CAMERA_KEY = 'cc.cameraPose';
-
+const SAVED_CAMERA_KEY = 'cc.cameraPose';
 
 export function createCameraRig({ canvas, cityScene }) {
-  var perspective = CAMERA_PERSPECTIVE.get();
-  var W = canvas.clientWidth;
-  var H = canvas.clientHeight;
-  var camera = new THREE.PerspectiveCamera(
+  const perspective = CAMERA_PERSPECTIVE.get();
+  const W = canvas.clientWidth;
+  const H = canvas.clientHeight;
+  const camera = new THREE.PerspectiveCamera(
     perspective.FOV,
     W / Math.max(1, H),
     perspective.NEAR,
     perspective.FAR
   );
 
-  var cameraControlsCfg = CAMERA_CONTROLS.get();
-  var controls = new OrbitControls(camera, canvas);
+  const cameraControlsCfg = CAMERA_CONTROLS.get();
+  const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
   controls.screenSpacePanning = false;
@@ -62,26 +57,31 @@ export function createCameraRig({ canvas, cityScene }) {
   controls.maxPolarAngle = Math.PI * cameraControlsCfg.MAX_POLAR_ANGLE_FRAC;
   controls.minDistance = cameraControlsCfg.MIN_DISTANCE;
   controls.mouseButtons = {
-    LEFT:   THREE.MOUSE.ROTATE,
+    LEFT: THREE.MOUSE.ROTATE,
     MIDDLE: THREE.MOUSE.DOLLY,
-    RIGHT:  THREE.MOUSE.PAN
+    RIGHT: THREE.MOUSE.PAN,
   };
 
-  var firstFrame = true;
-  var initialCamPos = null;
-  var initialTarget = null;
+  let firstFrame = true;
+  let initialCamPos = null;
+  let initialTarget = null;
 
-  var _saveCameraTimer = 0;
-  var _changeListenerAttached = false;
+  let _saveCameraTimer = 0;
+  let _changeListenerAttached = false;
 
   function _saveCameraPose() {
     if (typeof localStorage === 'undefined') return;
     try {
-      localStorage.setItem(SAVED_CAMERA_KEY, JSON.stringify({
-        pos:    { x: camera.position.x,  y: camera.position.y,  z: camera.position.z  },
-        target: { x: controls.target.x,  y: controls.target.y,  z: controls.target.z  }
-      }));
-    } catch (_) { /* private mode / quota — ignore */ }
+      localStorage.setItem(
+        SAVED_CAMERA_KEY,
+        JSON.stringify({
+          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+          target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
+        })
+      );
+    } catch (_) {
+      /* private mode / quota — ignore */
+    }
   }
   function _scheduleCameraSave() {
     if (_saveCameraTimer) clearTimeout(_saveCameraTimer);
@@ -93,30 +93,41 @@ export function createCameraRig({ canvas, cityScene }) {
 
   // Animation cancellation token. Each new focus/reset animation bumps
   // this; in-flight rAF steps abort if their token doesn't match.
-  var camAnimToken = 0;
+  let camAnimToken = 0;
 
   // Reusable scratch for sight-line raycasting.
-  var _xrayRay = new THREE.Raycaster();
-  var _xrayDir = new THREE.Vector3();
+  const _xrayRay = new THREE.Raycaster();
+  const _xrayDir = new THREE.Vector3();
 
   function _frameToBbox() {
-    var bbox = cityScene.getBbox();
+    const bbox = cityScene.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
 
-    var center = new THREE.Vector3();
+    const center = new THREE.Vector3();
     bbox.getCenter(center);
-    var groundCenter = new THREE.Vector3(center.x, 0, center.z);
+    const groundCenter = new THREE.Vector3(center.x, 0, center.z);
 
     // Camera distance: sized to the FARTHEST bbox corner relative to
     // the orbit pivot — guarantees every building fits even when the
     // pivot is offset from bbox center.
-    var farX = Math.max(Math.abs(bbox.max.x - groundCenter.x), Math.abs(bbox.min.x - groundCenter.x));
-    var farY = Math.max(Math.abs(bbox.max.y - groundCenter.y), Math.abs(bbox.min.y - groundCenter.y));
-    var farZ = Math.max(Math.abs(bbox.max.z - groundCenter.z), Math.abs(bbox.min.z - groundCenter.z));
-    var radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
-    var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    const farX = Math.max(
+      Math.abs(bbox.max.x - groundCenter.x),
+      Math.abs(bbox.min.x - groundCenter.x)
+    );
+    const farY = Math.max(
+      Math.abs(bbox.max.y - groundCenter.y),
+      Math.abs(bbox.min.y - groundCenter.y)
+    );
+    const farZ = Math.max(
+      Math.abs(bbox.max.z - groundCenter.z),
+      Math.abs(bbox.min.z - groundCenter.z)
+    );
+    const radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
+    const dist =
+      (radius / Math.sin((camera.fov * Math.PI) / 180 / 2)) *
+      cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
-    var dir = new THREE.Vector3(-1, 1, 1).normalize();
+    const dir = new THREE.Vector3(-1, 1, 1).normalize();
     camera.position.copy(groundCenter).add(dir.multiplyScalar(dist));
     camera.lookAt(groundCenter);
 
@@ -132,16 +143,18 @@ export function createCameraRig({ canvas, cityScene }) {
     // listener so the restore itself doesn't trigger a re-save.
     try {
       if (typeof localStorage !== 'undefined') {
-        var savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
+        const savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
         if (savedPoseRaw) {
-          var p = JSON.parse(savedPoseRaw);
+          const p = JSON.parse(savedPoseRaw);
           if (p && p.pos && p.target) {
             camera.position.set(p.pos.x, p.pos.y, p.pos.z);
             controls.target.set(p.target.x, p.target.y, p.target.z);
           }
         }
       }
-    } catch (_) { /* corrupt JSON / unavailable storage — stay at default */ }
+    } catch (_) {
+      /* corrupt JSON / unavailable storage — stay at default */
+    }
 
     if (!_changeListenerAttached) {
       controls.addEventListener('change', _scheduleCameraSave);
@@ -158,18 +171,18 @@ export function createCameraRig({ canvas, cityScene }) {
   }
 
   function _animateCamera(newTarget, newCamPos, duration) {
-    var token = ++camAnimToken;
-    var startTarget = controls.target.clone();
-    var startCamPos = camera.position.clone();
-    var t0 = performance.now();
-    var easingPower = CAMERA_ANIMATION.get().EASING_POWER;
+    const token = ++camAnimToken;
+    const startTarget = controls.target.clone();
+    const startCamPos = camera.position.clone();
+    const t0 = performance.now();
+    const easingPower = CAMERA_ANIMATION.get().EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;
-      var elapsed = performance.now() - t0;
-      var t = elapsed / duration;
+      const elapsed = performance.now() - t0;
+      let t = elapsed / duration;
       if (t >= 1) t = 1;
-      var eased = 1 - Math.pow(1 - t, easingPower);
+      const eased = 1 - Math.pow(1 - t, easingPower);
       controls.target.lerpVectors(startTarget, newTarget, eased);
       camera.position.lerpVectors(startCamPos, newCamPos, eased);
       if (t < 1) requestAnimationFrame(step);
@@ -179,10 +192,15 @@ export function createCameraRig({ canvas, cityScene }) {
 
   function reset() {
     if (!initialCamPos || !initialTarget) return;
-    if (_saveCameraTimer) { clearTimeout(_saveCameraTimer); _saveCameraTimer = 0; }
+    if (_saveCameraTimer) {
+      clearTimeout(_saveCameraTimer);
+      _saveCameraTimer = 0;
+    }
     try {
       if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
-    } catch (_) { /* private mode / unavailable — ignore */ }
+    } catch (_) {
+      /* private mode / unavailable — ignore */
+    }
     camera.up.set(0, 1, 0);
     _animateCamera(
       initialTarget.clone(),
@@ -195,7 +213,7 @@ export function createCameraRig({ canvas, cityScene }) {
   // scene doesn't zoom or rotate, just slides under.
   function recenterTo(p) {
     camera.up.set(0, 1, 0);
-    var delta = p.clone().sub(controls.target);
+    const delta = p.clone().sub(controls.target);
     _animateCamera(
       p.clone(),
       camera.position.clone().add(delta),
@@ -207,8 +225,8 @@ export function createCameraRig({ canvas, cityScene }) {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    var hits = _xrayRay.intersectObjects(cityScene.getBuildings(), false);
-    for (var i = 0; i < hits.length; i++) {
+    const hits = _xrayRay.intersectObjects(cityScene.getBuildings(), false);
+    for (let i = 0; i < hits.length; i++) {
       if (hits[i].object !== focusedMesh) return false;
     }
     return true;
@@ -219,30 +237,46 @@ export function createCameraRig({ canvas, cityScene }) {
   // increasing elevations until the sightline is unobstructed.
   function focusBuilding(mesh, b) {
     camera.up.set(0, 1, 0);
-    var camAnim = CAMERA_ANIMATION.get();
-    var doorDX = 0, doorDZ = 0, faceW;
-    if      (b.orient === BUILDING_ORIENT.SOUTH) { doorDZ =  1; faceW = b.w; }
-    else if (b.orient === BUILDING_ORIENT.NORTH) { doorDZ = -1; faceW = b.w; }
-    else if (b.orient === BUILDING_ORIENT.EAST)  { doorDX =  1; faceW = b.d; }
-    else if (b.orient === BUILDING_ORIENT.WEST)  { doorDX = -1; faceW = b.d; }
-    else                                         { doorDZ =  1; faceW = b.w; }
-    var faceH = b.h;
+    const camAnim = CAMERA_ANIMATION.get();
+    let doorDX = 0,
+      doorDZ = 0,
+      faceW;
+    if (b.orient === BUILDING_ORIENT.SOUTH) {
+      doorDZ = 1;
+      faceW = b.w;
+    } else if (b.orient === BUILDING_ORIENT.NORTH) {
+      doorDZ = -1;
+      faceW = b.w;
+    } else if (b.orient === BUILDING_ORIENT.EAST) {
+      doorDX = 1;
+      faceW = b.d;
+    } else if (b.orient === BUILDING_ORIENT.WEST) {
+      doorDX = -1;
+      faceW = b.d;
+    } else {
+      doorDZ = 1;
+      faceW = b.w;
+    }
+    const faceH = b.h;
 
-    var halfV = (camera.fov * Math.PI / 180) / 2;
-    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    var distForH = (faceH / 2) / Math.tan(halfV);
-    var distForW = (faceW / 2) / Math.tan(halfH);
-    var dist = Math.max(distForH, distForW) * camAnim.BUILDING_FOCUS_DISTANCE_MULT + camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
+    const halfV = (camera.fov * Math.PI) / 180 / 2;
+    const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+    const distForH = faceH / 2 / Math.tan(halfV);
+    const distForW = faceW / 2 / Math.tan(halfH);
+    const dist =
+      Math.max(distForH, distForW) * camAnim.BUILDING_FOCUS_DISTANCE_MULT +
+      camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
 
-    var halfDepth = (b.orient === BUILDING_ORIENT.EAST || b.orient === BUILDING_ORIENT.WEST) ? b.w / 2 : b.d / 2;
-    var newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
+    const halfDepth =
+      b.orient === BUILDING_ORIENT.EAST || b.orient === BUILDING_ORIENT.WEST ? b.w / 2 : b.d / 2;
+    const newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
 
-    var newCamPos = null;
-    for (var attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
-      var elev = (attempt * SIGHTLINE_STEP_DEG) * Math.PI / 180;
-      var horiz = dist * Math.cos(elev);
-      var vert  = b.h / 2 + dist * Math.sin(elev);
-      var candidate = new THREE.Vector3(
+    let newCamPos = null;
+    for (let attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
+      const elev = (attempt * SIGHTLINE_STEP_DEG * Math.PI) / 180;
+      const horiz = dist * Math.cos(elev);
+      const vert = b.h / 2 + dist * Math.sin(elev);
+      const candidate = new THREE.Vector3(
         b.x + doorDX * (halfDepth + horiz),
         vert,
         b.y + doorDZ * (halfDepth + horiz)
@@ -261,14 +295,16 @@ export function createCameraRig({ canvas, cityScene }) {
   // zoom in to a navigable distance. See main.js's original block for
   // the full geometric reasoning — kept verbatim here.
   function focusStreet(s, hitPoint) {
-    var tx = s.x, tz = s.y;
+    let tx = s.x,
+      tz = s.y;
     if (hitPoint) {
       if (s.orientation === 'x') tx = hitPoint.x;
-      else                       tz = hitPoint.z;
+      else tz = hitPoint.z;
     }
-    var newTarget = new THREE.Vector3(tx, 0, tz);
+    const newTarget = new THREE.Vector3(tx, 0, tz);
 
-    var offX = 0, offZ = 0;
+    let offX = 0,
+      offZ = 0;
     if (s.orientation === 'x') {
       offZ = 1;
     } else {
@@ -278,31 +314,30 @@ export function createCameraRig({ canvas, cityScene }) {
 
     // Camera altitude clears every building. Factor in any current
     // scale.y from in-progress entry/exit tweens.
-    var maxBldgH = 0;
-    var buildingMeshes = cityScene.getBuildings();
-    for (var i = 0; i < buildingMeshes.length; i++) {
-      var mb = buildingMeshes[i].userData.building;
-      var sy = buildingMeshes[i].scale.y || 1;
-      var bh = (mb && mb.h ? mb.h : 0) * sy;
+    let maxBldgH = 0;
+    const buildingMeshes = cityScene.getBuildings();
+    for (let i = 0; i < buildingMeshes.length; i++) {
+      const mb = buildingMeshes[i].userData.building;
+      const sy = buildingMeshes[i].scale.y || 1;
+      const bh = (mb && mb.h ? mb.h : 0) * sy;
       if (bh > maxBldgH) maxBldgH = bh;
     }
 
-    var camAnim = CAMERA_ANIMATION.get();
-    var halfV = (camera.fov * Math.PI / 180) / 2;
-    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    var distForLength = (s.length * camAnim.STREET_FOCUS_LENGTH_FRAC / 2) / Math.tan(halfH);
-    var distForWidth  = (s.width  * camAnim.STREET_FOCUS_WIDTH_MULT  / 2) / Math.tan(halfV);
-    var altitude = Math.max(distForLength, distForWidth,
-                            maxBldgH * camAnim.STREET_FOCUS_ALTITUDE_BLDG_MULT + camAnim.STREET_FOCUS_ALTITUDE_FLOOR);
-
-    var elev = camAnim.STREET_FOCUS_ELEVATION_DEG * Math.PI / 180;
-    var horizDist = altitude / Math.tan(elev);
-
-    var newCamPos = new THREE.Vector3(
-      tx + offX * horizDist,
-      altitude,
-      tz + offZ * horizDist
+    const camAnim = CAMERA_ANIMATION.get();
+    const halfV = (camera.fov * Math.PI) / 180 / 2;
+    const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
+    const distForLength = (s.length * camAnim.STREET_FOCUS_LENGTH_FRAC) / 2 / Math.tan(halfH);
+    const distForWidth = (s.width * camAnim.STREET_FOCUS_WIDTH_MULT) / 2 / Math.tan(halfV);
+    const altitude = Math.max(
+      distForLength,
+      distForWidth,
+      maxBldgH * camAnim.STREET_FOCUS_ALTITUDE_BLDG_MULT + camAnim.STREET_FOCUS_ALTITUDE_FLOOR
     );
+
+    const elev = (camAnim.STREET_FOCUS_ELEVATION_DEG * Math.PI) / 180;
+    const horizDist = altitude / Math.tan(elev);
+
+    const newCamPos = new THREE.Vector3(tx + offX * horizDist, altitude, tz + offZ * horizDist);
     _animateCamera(newTarget, newCamPos, camAnim.STREET_FOCUS_DURATION_MS);
   }
 
@@ -311,7 +346,10 @@ export function createCameraRig({ canvas, cityScene }) {
       controls.removeEventListener('change', _scheduleCameraSave);
       _changeListenerAttached = false;
     }
-    if (_saveCameraTimer) { clearTimeout(_saveCameraTimer); _saveCameraTimer = 0; }
+    if (_saveCameraTimer) {
+      clearTimeout(_saveCameraTimer);
+      _saveCameraTimer = 0;
+    }
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 
@@ -323,6 +361,6 @@ export function createCameraRig({ canvas, cityScene }) {
     recenterTo: recenterTo,
     focusBuilding: focusBuilding,
     focusStreet: focusStreet,
-    dispose: dispose
+    dispose: dispose,
   };
 }

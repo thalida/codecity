@@ -27,8 +27,8 @@ export function getHue(extension, palette) {
   }
 
   // Deterministic hash for unknown extensions
-  var hash = 0;
-  for (var i = 0; i < extension.length; i++) {
+  let hash = 0;
+  for (let i = 0; i < extension.length; i++) {
     hash = extension.charCodeAt(i) + ((hash << 5) - hash);
   }
   return Math.abs(hash) % 360;
@@ -55,9 +55,9 @@ export function getSaturation(createdDate, minDate, maxDate, config) {
     return Math.round((config.min + config.max) / 2);
   }
 
-  var created = Date.parse(createdDate);
-  var min     = Date.parse(minDate);
-  var max     = Date.parse(maxDate);
+  const created = Date.parse(createdDate);
+  const min = Date.parse(minDate);
+  const max = Date.parse(maxDate);
 
   // Guard: if all files share the same date (or range is degenerate), use max
   if (!min || !max || max === min) {
@@ -65,7 +65,7 @@ export function getSaturation(createdDate, minDate, maxDate, config) {
   }
 
   // t=0 → oldest (min saturation), t=1 → newest (max saturation)
-  var t = (created - min) / (max - min);
+  let t = (created - min) / (max - min);
 
   // Clamp t to [0, 1] in case dates fall outside the observed range
   t = Math.max(0, Math.min(1, t));
@@ -94,9 +94,9 @@ export function getLightness(modifiedDate, minDate, maxDate, config) {
     return Math.round((config.min + config.max) / 2);
   }
 
-  var modified = Date.parse(modifiedDate);
-  var min      = Date.parse(minDate);
-  var max      = Date.parse(maxDate);
+  const modified = Date.parse(modifiedDate);
+  const min = Date.parse(minDate);
+  const max = Date.parse(maxDate);
 
   // Guard: degenerate range → use max (treat as recently modified)
   if (!min || !max || max === min) {
@@ -104,7 +104,7 @@ export function getLightness(modifiedDate, minDate, maxDate, config) {
   }
 
   // t=0 → oldest modification (min lightness), t=1 → newest (max lightness)
-  var t = (modified - min) / (max - min);
+  let t = (modified - min) / (max - min);
 
   // Clamp to [0, 1]
   t = Math.max(0, Math.min(1, t));
@@ -126,10 +126,10 @@ export function getLightness(modifiedDate, minDate, maxDate, config) {
  *             modifiedMin: string|null, modifiedMax: string|null }}
  */
 export function getDateRanges(manifestTree) {
-  var createdMin  = null;
-  var createdMax  = null;
-  var modifiedMin = null;
-  var modifiedMax = null;
+  let createdMin = null;
+  let createdMax = null;
+  let modifiedMin = null;
+  let modifiedMax = null;
 
   /**
    * Compare two ISO-8601 strings and return the earlier one.
@@ -156,20 +156,20 @@ export function getDateRanges(manifestTree) {
    * @param {Object} node - A file or directory node.
    */
   function visit(node) {
-    if (node.type === "file") {
+    if (node.type === 'file') {
       // Prefer git dates, fall back to filesystem dates
-      var created  = (node.git && node.git.created)  || node.created  || null;
-      var modified = (node.git && node.git.modified) || node.modified || null;
+      const created = (node.git && node.git.created) || node.created || null;
+      const modified = (node.git && node.git.modified) || node.modified || null;
 
-      createdMin  = earlier(createdMin,  created);
-      createdMax  = later(createdMax,    created);
+      createdMin = earlier(createdMin, created);
+      createdMax = later(createdMax, created);
       modifiedMin = earlier(modifiedMin, modified);
-      modifiedMax = later(modifiedMax,   modified);
+      modifiedMax = later(modifiedMax, modified);
     }
 
     // Recurse into directory children
     if (node.children && node.children.length > 0) {
-      for (var i = 0; i < node.children.length; i++) {
+      for (let i = 0; i < node.children.length; i++) {
         visit(node.children[i]);
       }
     }
@@ -178,10 +178,10 @@ export function getDateRanges(manifestTree) {
   visit(manifestTree);
 
   return {
-    createdMin:  createdMin,
-    createdMax:  createdMax,
+    createdMin: createdMin,
+    createdMax: createdMax,
     modifiedMin: modifiedMin,
-    modifiedMax: modifiedMax
+    modifiedMax: modifiedMax,
   };
 }
 
@@ -197,15 +197,19 @@ export function getDateRanges(manifestTree) {
  */
 export function getBuildingColor(file, dateRanges) {
   // Prefer git dates, fall back to filesystem dates
-  var created  = (file.git && file.git.created)  || file.created  || null;
-  var modified = (file.git && file.git.modified) || file.modified || null;
+  const created = (file.git && file.git.created) || file.created || null;
+  const modified = (file.git && file.git.modified) || file.modified || null;
 
-  var palette = BUILDING_PALETTE.get();
-  var h = getHue(file.extension || "", palette.HUE_EXT_MAP);
-  var s = getSaturation(created,  dateRanges.createdMin,  dateRanges.createdMax,
-                        { min: palette.SATURATION_MIN, max: palette.SATURATION_MAX });
-  var l = getLightness(modified,  dateRanges.modifiedMin, dateRanges.modifiedMax,
-                        { min: palette.LIGHTNESS_MIN,  max: palette.LIGHTNESS_MAX });
+  const palette = BUILDING_PALETTE.get();
+  const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
+  const s = getSaturation(created, dateRanges.createdMin, dateRanges.createdMax, {
+    min: palette.SATURATION_MIN,
+    max: palette.SATURATION_MAX,
+  });
+  const l = getLightness(modified, dateRanges.modifiedMin, dateRanges.modifiedMax, {
+    min: palette.LIGHTNESS_MIN,
+    max: palette.LIGHTNESS_MAX,
+  });
 
-  return "hsl(" + h + ", " + s + "%, " + l + "%)";
+  return 'hsl(' + h + ', ' + s + '%, ' + l + '%)';
 }

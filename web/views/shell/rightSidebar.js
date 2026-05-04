@@ -13,9 +13,9 @@
 import { DOM_IDS } from '../../constants.js';
 
 // Persistent width range (in px) for the right sidebar drag handle.
-var SIDEBAR_MIN_WIDTH = 280;
-var SIDEBAR_MAX_WIDTH_RATIO = 0.7;  // fraction of viewport width
-var SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
+const SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
 
 /**
  * Mount `pane` (a DOM element) into the right sidebar slot and open the
@@ -25,7 +25,7 @@ var SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
  * @param {HTMLElement} pane
  */
 export function showRightSidebar(pane) {
-  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
+  const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
   _ensureResizeHandle(sidebar);
@@ -45,15 +45,15 @@ export function showRightSidebar(pane) {
  * without rebuilding.
  */
 export function hideRightSidebar() {
-  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
+  const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (sidebar) sidebar.classList.remove('open');
 }
 
 // _currentPane(sidebar) — return the currently mounted pane element (the
 // non-resize-handle child), or null if nothing is mounted yet.
 function _currentPane(sidebar) {
-  var children = sidebar.children;
-  for (var i = 0; i < children.length; i++) {
+  const children = sidebar.children;
+  for (let i = 0; i < children.length; i++) {
     if (!children[i].classList.contains('sidebar-resize-handle-right')) {
       return children[i];
     }
@@ -64,8 +64,8 @@ function _currentPane(sidebar) {
 function _clearMountedPane(sidebar) {
   // Keep .sidebar-resize-handle-right across pane swaps so we don't have
   // to re-bind drag listeners on every selection change.
-  var children = Array.prototype.slice.call(sidebar.children);
-  for (var i = 0; i < children.length; i++) {
+  const children = Array.prototype.slice.call(sidebar.children);
+  for (let i = 0; i < children.length; i++) {
     if (!children[i].classList.contains('sidebar-resize-handle-right')) {
       sidebar.removeChild(children[i]);
     }
@@ -75,14 +75,14 @@ function _clearMountedPane(sidebar) {
 function _ensureResizeHandle(sidebar) {
   if (sidebar.querySelector('.sidebar-resize-handle-right')) return;
 
-  var handle = document.createElement('div');
+  const handle = document.createElement('div');
   handle.className = 'sidebar-resize-handle-right';
   handle.setAttribute('role', 'separator');
   handle.setAttribute('aria-orientation', 'vertical');
   handle.title = 'Drag to resize';
 
-  var dragging = false;
-  var liveWidth = 0;  // tracked across pointermove so we can persist on up
+  let dragging = false;
+  let liveWidth = 0; // tracked across pointermove so we can persist on up
 
   handle.addEventListener('pointerdown', function (e) {
     dragging = true;
@@ -92,10 +92,10 @@ function _ensureResizeHandle(sidebar) {
   });
   handle.addEventListener('pointermove', function (e) {
     if (!dragging) return;
-    var w = window.innerWidth - e.clientX;
-    var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    let w = window.innerWidth - e.clientX;
+    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > maxW)              w = maxW;
+    if (w > maxW) w = maxW;
     liveWidth = w;
     // Drive width via the CSS variable so the open/close rule
     // `width: var(--sidebar-width)` keeps working without an inline width
@@ -116,19 +116,24 @@ function _ensureResizeHandle(sidebar) {
 function _applyPersistedWidth(sidebar) {
   if (typeof localStorage === 'undefined') return;
   try {
-    var raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
     if (raw == null) return;
-    var w = parseFloat(raw);
+    let w = parseFloat(raw);
     if (!Number.isFinite(w)) return;
-    var maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > maxW)              w = maxW;
+    if (w > maxW) w = maxW;
     sidebar.style.setProperty('--sidebar-width', w + 'px');
-  } catch (_) { /* private mode / no storage — fall back to CSS default */ }
+  } catch (_) {
+    /* private mode / no storage — fall back to CSS default */
+  }
 }
 
 function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
-  try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w)); }
-  catch (_) { /* drop */ }
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w));
+  } catch (_) {
+    /* drop */
+  }
 }

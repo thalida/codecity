@@ -11,12 +11,12 @@ import { LUCIDE_ICON_BASE_URL } from '../../constants.js';
 //   opts.title  — tooltip shown on hover (sets the title attr).
 export function makeLucideIcon(name, opts) {
   opts = opts || {};
-  var span = document.createElement('span');
+  const span = document.createElement('span');
   span.className = 'lucide-icon' + (opts.class ? ' ' + opts.class : '');
   span.setAttribute('aria-hidden', 'true');
   if (opts.title) span.title = opts.title;
-  var url = "url(" + LUCIDE_ICON_BASE_URL + name + ".svg)";
-  span.style.maskImage       = url;
+  const url = 'url(' + LUCIDE_ICON_BASE_URL + name + '.svg)';
+  span.style.maskImage = url;
   span.style.webkitMaskImage = url;
   return span;
 }

@@ -24,11 +24,11 @@ import { map } from 'nanostores';
 export const BUILDING_DIMENSIONS = map({
   MIN_FLOORS: 1,
   MAX_FLOORS: 50,
-  FLOOR_HEIGHT: 10,        // scene units per floor
+  FLOOR_HEIGHT: 10, // scene units per floor
   MIN_WIDTH: 5,
   MAX_WIDTH: 40,
-  PATH_LENGTH: 4,         // connector strip length (building wall → sidewalk)
-  PATH_WIDTH_FRAC: 0.4        // per-building: pathWidth = building.w × this; also drives door width
+  PATH_LENGTH: 4, // connector strip length (building wall → sidewalk)
+  PATH_WIDTH_FRAC: 0.4, // per-building: pathWidth = building.w × this; also drives door width
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
@@ -43,17 +43,36 @@ export const BUILDING_PALETTE = map({
   // (When a file has no creation/modification date, getSaturation /
   // getLightness fall back to the midpoint of the range above so the
   // building reads as "average" rather than crushed to either extreme.)
-  DIRECTORY_COLOR: 'hsl(220, 15%, 25%)',   // dim slab for directory entries
+  DIRECTORY_COLOR: 'hsl(220, 15%, 25%)', // dim slab for directory entries
   HUE_EXT_MAP: {
-    '.js': 220, '.ts': 215, '.jsx': 225, '.tsx': 210, '.mjs': 220,
-    '.py': 15, '.pyx': 20, '.pyi': 10,
-    '.css': 150, '.scss': 145, '.less': 155, '.sass': 148,
-    '.html': 175, '.vue': 170, '.svelte': 180,
-    '.json': 50, '.yaml': 55, '.toml': 45, '.ini': 52,
-    '.md': 275, '.txt': 280, '.rst': 270,
-    '.sh': 35, '.bash': 38, '.zsh': 32,
-    '.go': 185, '.rs': 5
-  }
+    '.js': 220,
+    '.ts': 215,
+    '.jsx': 225,
+    '.tsx': 210,
+    '.mjs': 220,
+    '.py': 15,
+    '.pyx': 20,
+    '.pyi': 10,
+    '.css': 150,
+    '.scss': 145,
+    '.less': 155,
+    '.sass': 148,
+    '.html': 175,
+    '.vue': 170,
+    '.svelte': 180,
+    '.json': 50,
+    '.yaml': 55,
+    '.toml': 45,
+    '.ini': 52,
+    '.md': 275,
+    '.txt': 280,
+    '.rst': 270,
+    '.sh': 35,
+    '.bash': 38,
+    '.zsh': 32,
+    '.go': 185,
+    '.rs': 5,
+  },
 });
 
 // ─── Wireframe outlines ────────────────────────────────────────────────────
@@ -64,10 +83,10 @@ export const BUILDING_PALETTE = map({
 // thickness. The chasing-rainbow effect on selected uses RAINBOW (shared
 // with the path line) — see config/effects.js.
 export const BUILDING_OUTLINE = map({
-  WIDTH: 2,            // shared by default + hover + selected
+  WIDTH: 2, // shared by default + hover + selected
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.85,
-  SELECTED_OPACITY: 1.0
+  SELECTED_OPACITY: 1.0,
 });
 
 // ─── Visibility / selection-driven fade ────────────────────────────────────
@@ -111,6 +130,6 @@ export const BUILDING_FADE = map({
   // Level 2+ — anything farther.
   FAR_DETAIL: 'hidden',
   FAR_OUTLINE: true,
-  FAR_BODY_OPACITY: 0.10,
-  FAR_OUTLINE_OPACITY: 0.18
+  FAR_BODY_OPACITY: 0.1,
+  FAR_OUTLINE_OPACITY: 0.18,
 });

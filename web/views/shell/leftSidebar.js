@@ -8,14 +8,12 @@
 import { buildTreePane } from '../panes/treePane.js';
 import { buildInfoPane } from '../panes/infoPane.js';
 import { buildControlsPane } from '../panes/controlsPane.js';
-import {
-  DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS
-} from '../../constants.js';
+import { DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS } from '../../constants.js';
 
-var SIDEBAR_WIDTH_STORAGE_KEY     = 'cc.sidebarWidth';
-var SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';
-var SIDEBAR_MIN_WIDTH = 280;
-var SIDEBAR_MAX_WIDTH = 600;
+const SIDEBAR_WIDTH_STORAGE_KEY = 'cc.sidebarWidth';
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';
+const SIDEBAR_MIN_WIDTH = 280;
+const SIDEBAR_MAX_WIDTH = 600;
 
 // showLeftSidebar(manifest, opts) -> { setSelectedTreePath, setHoveredTreePath }
 //
@@ -42,8 +40,8 @@ var SIDEBAR_MAX_WIDTH = 600;
 // handler, so this component doesn't need its own callback.)
 export function showLeftSidebar(manifest, opts) {
   opts = opts || {};
-  var noop = function () {};
-  var container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
+  const noop = function () {};
+  const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
   if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
 
   while (container.firstChild) container.removeChild(container.firstChild);
@@ -51,64 +49,69 @@ export function showLeftSidebar(manifest, opts) {
   // Restore persisted width, if any.
   _applyPersistedWidth(container);
 
-  var activityBar = document.createElement('div');
+  const activityBar = document.createElement('div');
   activityBar.className = 'activity-bar';
 
-  var panel = document.createElement('div');
+  const panel = document.createElement('div');
   panel.className = 'left-panel';
 
   // Each pane renders its own × close button inside its header (flexbox
   // layout in the header keeps title + button vertically aligned without
   // any absolute-positioning math). Clicking either calls _setCollapsed
   // — same effect as clicking the active activity-bar icon a second time.
-  var paneOnClose = function () { _setCollapsed(true); };
-  var treeBundle = buildTreePane(manifest, {
-    onClose:    paneOnClose,
-    onSelect:   opts.onTreeSelect,
-    onFocus:    opts.onTreeFocus,
-    onHover:    opts.onTreeHover,
-    onHoverEnd: opts.onTreeHoverEnd
+  const paneOnClose = function () {
+    _setCollapsed(true);
+  };
+  const treeBundle = buildTreePane(manifest, {
+    onClose: paneOnClose,
+    onSelect: opts.onTreeSelect,
+    onFocus: opts.onTreeFocus,
+    onHover: opts.onTreeHover,
+    onHoverEnd: opts.onTreeHoverEnd,
   });
-  var infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
-  var panes = {};
-  panes[SIDEBAR_TAB.TREE]     = treeBundle.pane;
-  panes[SIDEBAR_TAB.INFO]     = infoBundle.pane;
+  const infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
+  const panes = {};
+  panes[SIDEBAR_TAB.TREE] = treeBundle.pane;
+  panes[SIDEBAR_TAB.INFO] = infoBundle.pane;
   panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
     applyTheme: opts.applyTheme,
-    onClose:    paneOnClose
+    onClose: paneOnClose,
   });
 
-  for (var key in panes) {
+  for (const key in panes) {
     if (Object.prototype.hasOwnProperty.call(panes, key)) {
       panel.appendChild(panes[key]);
     }
   }
 
-  var activeTab = (opts.initialTab === SIDEBAR_TAB.CONTROLS) ? SIDEBAR_TAB.CONTROLS : SIDEBAR_TAB.TREE;
-  var collapsed = _loadCollapsed();
-  var iconBtns = {};
+  let activeTab =
+    opts.initialTab === SIDEBAR_TAB.CONTROLS ? SIDEBAR_TAB.CONTROLS : SIDEBAR_TAB.TREE;
+  let collapsed = _loadCollapsed();
+  const iconBtns = {};
 
-  var iconBase = LUCIDE_ICON_BASE_URL;
-  var tabs = ACTIVITY_BAR_TABS;
-  for (var i = 0; i < tabs.length; i++) {
-    var tab = tabs[i];
-    var btn = document.createElement('button');
+  const iconBase = LUCIDE_ICON_BASE_URL;
+  const tabs = ACTIVITY_BAR_TABS;
+  for (let i = 0; i < tabs.length; i++) {
+    const tab = tabs[i];
+    const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'activity-bar-icon';
     btn.dataset.tab = tab.id;
     btn.title = tab.title;
     btn.setAttribute('aria-label', tab.title);
 
-    var glyph = document.createElement('span');
+    const glyph = document.createElement('span');
     glyph.className = 'activity-bar-glyph';
-    glyph.style.maskImage       = 'url(' + iconBase + tab.icon + ')';
+    glyph.style.maskImage = 'url(' + iconBase + tab.icon + ')';
     glyph.style.webkitMaskImage = 'url(' + iconBase + tab.icon + ')';
     btn.appendChild(glyph);
 
     iconBtns[tab.id] = btn;
 
     (function (tabId) {
-      btn.addEventListener('click', function () { _onIconClick(tabId); });
+      btn.addEventListener('click', function () {
+        _onIconClick(tabId);
+      });
     })(tab.id);
 
     activityBar.appendChild(btn);
@@ -143,13 +146,13 @@ export function showLeftSidebar(manifest, opts) {
   // the (activeTab, collapsed) tuple. When collapsed, NO icon shows as
   // active — the user is parked at "no pane visible".
   function _refreshActiveStates() {
-    for (var id in panes) {
+    for (const id in panes) {
       if (!Object.prototype.hasOwnProperty.call(panes, id)) continue;
-      panes[id].style.display = (id === activeTab) ? '' : 'none';
+      panes[id].style.display = id === activeTab ? '' : 'none';
     }
-    for (var iid in iconBtns) {
+    for (const iid in iconBtns) {
       if (!Object.prototype.hasOwnProperty.call(iconBtns, iid)) continue;
-      var isActive = !collapsed && iid === activeTab;
+      const isActive = !collapsed && iid === activeTab;
       iconBtns[iid].classList.toggle('active', isActive);
       iconBtns[iid].setAttribute('aria-pressed', String(isActive));
     }
@@ -165,8 +168,8 @@ export function showLeftSidebar(manifest, opts) {
 
   return {
     setSelectedTreePath: treeBundle.api.setSelectedPath,
-    setHoveredTreePath:  treeBundle.api.setHoveredPath,
-    setInfoManifest:     infoBundle.api.setManifest
+    setHoveredTreePath: treeBundle.api.setHoveredPath,
+    setInfoManifest: infoBundle.api.setManifest,
   };
 }
 
@@ -174,13 +177,13 @@ export function showLeftSidebar(manifest, opts) {
 // right edge. Drag to resize; the chosen width is clamped to [MIN, MAX]
 // and persisted in localStorage.
 function _buildResizeHandle(sidebar) {
-  var handle = document.createElement('div');
+  const handle = document.createElement('div');
   handle.className = 'sidebar-resize-handle';
   handle.setAttribute('role', 'separator');
   handle.setAttribute('aria-orientation', 'vertical');
   handle.title = 'Drag to resize';
 
-  var dragging = false;
+  let dragging = false;
   handle.addEventListener('pointerdown', function (e) {
     dragging = true;
     handle.classList.add('dragging');
@@ -189,7 +192,7 @@ function _buildResizeHandle(sidebar) {
   });
   handle.addEventListener('pointermove', function (e) {
     if (!dragging) return;
-    var w = e.clientX;
+    let w = e.clientX;
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
     sidebar.style.width = w + 'px';
@@ -207,32 +210,42 @@ function _buildResizeHandle(sidebar) {
 function _applyPersistedWidth(sidebar) {
   if (typeof localStorage === 'undefined') return;
   try {
-    var raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
     if (raw == null) return;
-    var w = parseFloat(raw);
+    let w = parseFloat(raw);
     if (!Number.isFinite(w)) return;
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
     sidebar.style.width = w + 'px';
-  } catch (_) { /* private mode / no storage — silently fall back to CSS default */ }
+  } catch (_) {
+    /* private mode / no storage — silently fall back to CSS default */
+  }
 }
 
 function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
-  try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w)); }
-  catch (_) { /* quota / private — drop */ }
+  try {
+    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w));
+  } catch (_) {
+    /* quota / private — drop */
+  }
 }
 
 function _loadCollapsed() {
   if (typeof localStorage === 'undefined') return false;
-  try { return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true'; }
-  catch (_) { return false; }
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+  } catch (_) {
+    return false;
+  }
 }
 
 function _persistCollapsed(value) {
   if (typeof localStorage === 'undefined') return;
   try {
     if (value) localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, 'true');
-    else       localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
-  } catch (_) { /* drop */ }
+    else localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+  } catch (_) {
+    /* drop */
+  }
 }

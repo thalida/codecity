@@ -16,10 +16,9 @@ import {
   GEM_ANIMATION,
   GEM_APPEARANCE,
   GEM_SIZING,
-  INPUT_TIMING,
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
-  POLL_SECONDS_MAX
+  POLL_SECONDS_MAX,
 } from './config/index.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
@@ -37,7 +36,6 @@ import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 
-
 function startRenderLoop(canvas, manifest) {
   // Every visual / layout tunable comes from the named exports of
   // src/defaults.js. Render-loop code reads them fresh each frame (or
@@ -47,14 +45,14 @@ function startRenderLoop(canvas, manifest) {
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
 
-  var huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+  const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
 
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
   // in scene/cityScene.js. main.js no longer caches mesh refs locally —
   // every other module reads cityScene directly through accessors.
-  var cityScene = createCityScene(canvas);
-  var scene = cityScene.scene;
+  const cityScene = createCityScene(canvas);
+  const scene = cityScene.scene;
   cityScene.applyManifest(manifest);
 
   // Hot-reload the label fill color: FILL is baked into the CanvasTexture
@@ -64,17 +62,17 @@ function startRenderLoop(canvas, manifest) {
   // regen cost. Reads streetLabels fresh from cityScene each fire so
   // it works after applyManifest rebinds the array.
   listenKeys(LABEL_TYPOGRAPHY, ['FILL'], function () {
-    var labels = cityScene.getStreetLabels();
-    for (var li = 0; li < labels.length; li++) {
+    const labels = cityScene.getStreetLabels();
+    for (let li = 0; li < labels.length; li++) {
       regenerateLabelTexture(labels[li]);
     }
   });
 
   // -- 3. Renderer -------------------------------------------------------------
-  var renderer = new THREE.WebGLRenderer({
+  const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
     antialias: true,
-    alpha: false
+    alpha: false,
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
@@ -83,8 +81,8 @@ function startRenderLoop(canvas, manifest) {
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  var rig = createCameraRig({ canvas: canvas, cityScene: cityScene });
-  var camera = rig.camera;
+  const rig = createCameraRig({ canvas: canvas, cityScene: cityScene });
+  const camera = rig.camera;
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
@@ -92,7 +90,7 @@ function startRenderLoop(canvas, manifest) {
   // Selection persistence is wired in the boot block before startRenderLoop
   // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
   // before this picker resolves it against the freshly-built city.
-  var picker = createPicker({ canvas: canvas, camera: camera, cityScene: cityScene });
+  const picker = createPicker({ canvas: canvas, camera: camera, cityScene: cityScene });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
   // Three siblings, all subscribed to picker / cityScene so they react
@@ -101,25 +99,33 @@ function startRenderLoop(canvas, manifest) {
   // outlineRenderer reads outlineOp/ghostOp from userData and writes
   // outline + ghost opacity → pathLineRenderer ticks the rainbow chase
   // on the selection line.
-  var fader            = createBuildingFader({ cityScene: cityScene, picker: picker });
-  var outlineRenderer  = createOutlineRenderer({
-    canvas: canvas, scene: scene, cityScene: cityScene, picker: picker,
+  const fader = createBuildingFader({ cityScene: cityScene, picker: picker });
+  const outlineRenderer = createOutlineRenderer({
+    canvas: canvas,
+    scene: scene,
+    cityScene: cityScene,
+    picker: picker,
   });
-  var pathLineRenderer = createPathLineRenderer({
-    canvas: canvas, scene: scene, cityScene: cityScene, picker: picker,
+  const pathLineRenderer = createPathLineRenderer({
+    canvas: canvas,
+    scene: scene,
+    cityScene: cityScene,
+    picker: picker,
   });
 
   // Tween queue for entering / staying transitions on cityScene.onChange.
   // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
   // material.opacity), so they cannot conflict by construction.
-  var animator = createAnimator({ cityScene: cityScene });
+  const animator = createAnimator({ cityScene: cityScene });
 
   // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
-  var sidebars = createCoordinator({
-    cityScene: cityScene, picker: picker, rig: rig,
+  createCoordinator({
+    cityScene: cityScene,
+    picker: picker,
+    rig: rig,
     huePalette: huePalette,
     applyTheme: applyTheme,
   });
@@ -128,36 +134,36 @@ function startRenderLoop(canvas, manifest) {
   // the per-frame tint loop calls material.color.setHex() without
   // re-parsing every frame. applyTheme() refreshes these whenever the
   // Settings UI mutates SIDEWALK_COLORS.
-  var _swc0 = SIDEWALK_COLORS.get();
-  var SIDEWALK_HOVER_COLOR    = new THREE.Color(_swc0.HOVER).getHex();
-  var SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
-  var SIDEWALK_DEFAULT_COLOR  = new THREE.Color(_swc0.DEFAULT).getHex();
+  const _swc0 = SIDEWALK_COLORS.get();
+  let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.HOVER).getHex();
+  let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
+  let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
   // based on the current picker.selection / picker.hover state. Building
   // connector strips for the same dir follow the same tint.
   function _refreshSidewalkTints() {
-    var sel = picker.selection.get();
-    var hov = picker.hover.get();
-    var streetPickables = cityScene.getStreetPickables();
-    for (var ri = 0; ri < streetPickables.length; ri++) {
-      var sw = streetPickables[ri];
+    const sel = picker.selection.get();
+    const hov = picker.hover.get();
+    const streetPickables = cityScene.getStreetPickables();
+    for (let ri = 0; ri < streetPickables.length; ri++) {
+      const sw = streetPickables[ri];
       if (sw.userData.origColor == null) {
         sw.userData.origColor = sw.material.color.getHex();
       }
-      var expected = null;
+      let expected = null;
       if (sel && sel.kind === NODE_KIND.DIRECTORY && sel.sidewalk === sw) {
         expected = SIDEWALK_SELECTED_COLOR;
       } else if (hov && hov.kind === NODE_KIND.DIRECTORY && hov.sidewalk === sw) {
         expected = SIDEWALK_HOVER_COLOR;
       }
-      var swColor = expected != null ? expected : sw.userData.origColor;
+      const swColor = expected != null ? expected : sw.userData.origColor;
       sw.material.color.setHex(swColor);
-      var swDir = sw.userData.street && sw.userData.street.dir;
-      var connectors = swDir ? cityScene.getPathConnectorsByDir(swDir.path) : null;
+      const swDir = sw.userData.street && sw.userData.street.dir;
+      const connectors = swDir ? cityScene.getPathConnectorsByDir(swDir.path) : null;
       if (connectors) {
-        for (var ci = 0; ci < connectors.length; ci++) {
-          var pm = connectors[ci];
+        for (let ci = 0; ci < connectors.length; ci++) {
+          const pm = connectors[ci];
           if (pm.userData.origColor == null) {
             pm.userData.origColor = pm.material.color.getHex();
           }
@@ -174,21 +180,21 @@ function startRenderLoop(canvas, manifest) {
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
   function applyTheme() {
-    var sidewalk = SIDEWALK_COLORS.get();
-    var sceneCol = SCENE_COLORS.get();
+    const sidewalk = SIDEWALK_COLORS.get();
+    const sceneCol = SCENE_COLORS.get();
 
-    SIDEWALK_HOVER_COLOR    = new THREE.Color(sidewalk.HOVER).getHex();
+    SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
-    SIDEWALK_DEFAULT_COLOR  = new THREE.Color(sidewalk.DEFAULT).getHex();
-    var streetPickables = cityScene.getStreetPickables();
-    for (var si = 0; si < streetPickables.length; si++) {
+    SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.DEFAULT).getHex();
+    const streetPickables = cityScene.getStreetPickables();
+    for (let si = 0; si < streetPickables.length; si++) {
       streetPickables[si].userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
     _refreshSidewalkTints();
 
-    var asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
-    var asphaltMeshes = cityScene.getAsphaltMeshes();
-    for (var ai = 0; ai < asphaltMeshes.length; ai++) {
+    const asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
+    const asphaltMeshes = cityScene.getAsphaltMeshes();
+    for (let ai = 0; ai < asphaltMeshes.length; ai++) {
       asphaltMeshes[ai].material.color.setHex(asphaltHex);
     }
 
@@ -197,10 +203,10 @@ function startRenderLoop(canvas, manifest) {
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
 
-    var gemAppearance = GEM_APPEARANCE.get();
-    var rootGemEdges = cityScene.getRootGemEdges();
-    var rootGemBody  = cityScene.getRootGemBody();
-    var rootGem      = cityScene.getRootGem();
+    const gemAppearance = GEM_APPEARANCE.get();
+    const rootGemEdges = cityScene.getRootGemEdges();
+    const rootGemBody = cityScene.getRootGemBody();
+    const rootGem = cityScene.getRootGem();
     if (rootGemEdges && rootGemEdges.material && rootGemEdges.material.color) {
       rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
     }
@@ -208,18 +214,17 @@ function startRenderLoop(canvas, manifest) {
       rootGemBody.material.opacity = gemAppearance.BODY_OPACITY;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
-      var hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
-      rootGem.userData.baseY = rootGem.userData.radius +
-                               rootGem.userData.streetWidth * hoverFrac;
+      const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
+      rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
     }
 
-    var labelCfg = LABEL_TYPOGRAPHY.get();
-    var streetLabels = cityScene.getStreetLabels();
-    for (var li = 0; li < streetLabels.length; li++) {
-      var lg = streetLabels[li];
-      var origFrac = lg.userData.origHeightFrac;
+    const labelCfg = LABEL_TYPOGRAPHY.get();
+    const streetLabels = cityScene.getStreetLabels();
+    for (let li = 0; li < streetLabels.length; li++) {
+      const lg = streetLabels[li];
+      const origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
-        var s = labelCfg.HEIGHT_FRAC / origFrac;
+        const s = labelCfg.HEIGHT_FRAC / origFrac;
         lg.children[0].scale.set(s, s, 1);
       }
     }
@@ -231,9 +236,14 @@ function startRenderLoop(canvas, manifest) {
   // It calls picker.setHover/setSelection on hits and rig.reset/focus on
   // gestures, with no other dependencies into main.
   createInputHandlers({
-    canvas: canvas, picker: picker, rig: rig,
-    renderer: renderer, camera: camera, scene: scene,
-    showTooltip: showTooltip, hideTooltip: hideTooltip,
+    canvas: canvas,
+    picker: picker,
+    rig: rig,
+    renderer: renderer,
+    camera: camera,
+    scene: scene,
+    showTooltip: showTooltip,
+    hideTooltip: hideTooltip,
     onResize: function () {
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
@@ -242,36 +252,41 @@ function startRenderLoop(canvas, manifest) {
 
   // Sidewalk tints are scene-state that follow selection / hover. Subscribe
   // directly to picker so the tint refresh fires alongside the renderers.
-  picker.selection.subscribe(function () { _refreshSidewalkTints(); });
-  picker.hover.subscribe(function ()     { _refreshSidewalkTints(); });
+  picker.selection.subscribe(function () {
+    _refreshSidewalkTints();
+  });
+  picker.hover.subscribe(function () {
+    _refreshSidewalkTints();
+  });
 
   // -- 8. Render loop --------------------------------------------------------
-  var startTime = performance.now();
-  var labelRight = new THREE.Vector3();
+  const startTime = performance.now();
+  const labelRight = new THREE.Vector3();
 
   function animate() {
-    rig.update(0);                     // first-call: bbox-frames camera
+    rig.update(0); // first-call: bbox-frames camera
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
     // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
-    animator.update(0);                // entering / staying tweens (scale, position)
-    fader.update(0);                   // body opacity per fade tier
-    outlineRenderer.update(0);         // outline + ghost opacity, hover/selected outlines, rainbow chase
-    pathLineRenderer.update(0);        // selection path line rainbow chase
+    animator.update(0); // entering / staying tweens (scale, position)
+    fader.update(0); // body opacity per fade tier
+    outlineRenderer.update(0); // outline + ghost opacity, hover/selected outlines, rainbow chase
+    pathLineRenderer.update(0); // selection path line rainbow chase
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
-    var rootGem = cityScene.getRootGem();
+    const rootGem = cityScene.getRootGem();
     if (rootGem) {
-      var gemAnim = GEM_ANIMATION.get();
-      var t = (performance.now() - startTime) / 1000;
+      const gemAnim = GEM_ANIMATION.get();
+      const t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
-      rootGem.position.y = rootGem.userData.baseY + Math.sin(t * gemAnim.BOB_FREQUENCY) * rootGem.userData.bobAmp;
+      rootGem.position.y =
+        rootGem.userData.baseY + Math.sin(t * gemAnim.BOB_FREQUENCY) * rootGem.userData.bobAmp;
       // Scale-up affordance on hover so the gem reads as clickable.
-      var hov = picker.hover.get();
-      var gemTargetScale = (hov && hov.kind === NODE_KIND.GEM) ? gemAnim.HOVER_SCALE : 1.0;
-      var curS = rootGem.scale.x;
-      var nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
+      const hov = picker.hover.get();
+      const gemTargetScale = hov && hov.kind === NODE_KIND.GEM ? gemAnim.HOVER_SCALE : 1.0;
+      const curS = rootGem.scale.x;
+      const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
     }
     renderer.render(scene, camera);
@@ -285,27 +300,26 @@ function startRenderLoop(canvas, manifest) {
   return { cityScene: cityScene, applyTheme: applyTheme };
 }
 
-
 // Keep flat street labels readable at any orbit. Flip decision comes from the
 // camera's world-right vector (matrixWorld column 0), not position — at top-down
 // the camera can sit over center yet still be rotated 180° around Y.
 function _orientLabelsForCamera(labels, camera, labelRight) {
   labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
-  var rightX = labelRight.x;
-  var rightZ = labelRight.z;
+  const rightX = labelRight.x;
+  const rightZ = labelRight.z;
 
   // Hysteresis: only flip when the relevant axis crosses ±THRESH, not 0.
   // Without this, near-top-down camera positions (where rightX/rightZ are
   // near zero) cause floating-point jitter from OrbitControls' damping to
   // flip labels back and forth every frame.
-  var THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
+  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
 
-  for (var i = 0; i < labels.length; i++) {
-    var lbl = labels[i];
-    var street = lbl.userData.street;
-    var base = lbl.userData.baseRotY || 0;
-    var axis  = (street.orientation === STREET_AXIS.X) ? rightX : rightZ;
-    var flipped = lbl.userData.flipped || false;
+  for (let i = 0; i < labels.length; i++) {
+    const lbl = labels[i];
+    const street = lbl.userData.street;
+    const base = lbl.userData.baseRotY || 0;
+    const axis = street.orientation === STREET_AXIS.X ? rightX : rightZ;
+    let flipped = lbl.userData.flipped || false;
     if (flipped) {
       // Currently flipped — only un-flip when axis clearly crosses POSITIVE.
       if (axis > THRESH) flipped = false;
@@ -318,20 +332,18 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   }
 }
 
-
 function _resizeRendererToCanvas(renderer, canvas) {
-  var cw = canvas.clientWidth;
-  var ch = canvas.clientHeight;
+  const cw = canvas.clientWidth;
+  const ch = canvas.clientHeight;
   renderer.setSize(cw, ch, false);
 }
-
 
 // Build the /api/manifest URL from the current page's query params.
 // CLI opens the page with either ?path=… or ?clone=…&branch=… so the
 // server knows what to scan; we just forward those through.
 function manifestUrl() {
-  var qp = new URLSearchParams(window.location.search);
-  var u = new URL('/api/manifest', window.location.origin);
+  const qp = new URLSearchParams(window.location.search);
+  const u = new URL('/api/manifest', window.location.origin);
   if (qp.has('clone')) {
     u.searchParams.set('clone', qp.get('clone'));
     if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
@@ -340,7 +352,6 @@ function manifestUrl() {
   }
   return u.toString();
 }
-
 
 // Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
 // re-fetching the manifest at the user-configured interval; when its
@@ -355,48 +366,57 @@ function _clampPollSeconds(s) {
 }
 
 function setupLiveUpdates(handle, initialSignature) {
-  var lastSignature = initialSignature || '';
-  var timer = null;
-  var inFlight = false;
+  let lastSignature = initialSignature || '';
+  let timer = null;
+  let inFlight = false;
 
   function tick() {
     if (inFlight) return;
     inFlight = true;
     fetch(manifestUrl())
-      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (r) {
+        return r.ok ? r.json() : null;
+      })
       .then(function (m) {
         if (m && m.signature && m.signature !== lastSignature) {
           lastSignature = m.signature;
           handle.cityScene.applyManifest(m);
         }
       })
-      .catch(function () { /* keep polling on transient errors */ })
-      .finally(function () { inFlight = false; });
+      .catch(function () {
+        /* keep polling on transient errors */
+      })
+      .finally(function () {
+        inFlight = false;
+      });
   }
 
   function start() {
     stop();
-    var seconds = _clampPollSeconds(LIVE_UPDATES.get().POLL_SECONDS);
+    const seconds = _clampPollSeconds(LIVE_UPDATES.get().POLL_SECONDS);
     timer = window.setInterval(tick, seconds * 1000);
   }
   function stop() {
-    if (timer != null) { window.clearInterval(timer); timer = null; }
+    if (timer != null) {
+      window.clearInterval(timer);
+      timer = null;
+    }
   }
 
   LIVE_UPDATES.subscribe(function (val) {
-    if (val.ENABLED) start(); else stop();
+    if (val.ENABLED) start();
+    else stop();
   });
 }
 
-
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
-var _canvas = document.getElementById(DOM_IDS.CANVAS);
+const _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
   (async function boot() {
-    var resp = await fetch(manifestUrl());
+    const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error('manifest fetch failed: ' + resp.status);
-    var manifest = await resp.json();
+    const manifest = await resp.json();
     // Hydrate every config store from localStorage BEFORE scene build so
     // any user tweaks from prior sessions take effect during the initial
     // layout/render.
@@ -405,9 +425,9 @@ if (_canvas) {
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
     persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
-    var handle = startRenderLoop(_canvas, manifest);
+    const handle = startRenderLoop(_canvas, manifest);
     attachHotReload({
-      cityScene:  handle.cityScene,
+      cityScene: handle.cityScene,
       applyTheme: handle.applyTheme,
     });
     setupLiveUpdates(handle, manifest.signature);

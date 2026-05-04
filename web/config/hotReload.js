@@ -33,23 +33,22 @@ import {
 // 50 ms debounce so a continuous slider drag (e.g. dragging
 // BUILDING_DIMENSIONS.MAX_FLOORS through 30 → 200) coalesces into one
 // rebuild after the user stops, instead of one rebuild per slider tick.
-var REBUILD_DEBOUNCE_MS = 50;
-
+const REBUILD_DEBOUNCE_MS = 50;
 
 export function attachHotReload({ cityScene, applyTheme }) {
   // nanostores `.subscribe()` fires synchronously with the current
   // value when called. We wait until all subscriptions are wired
   // before allowing reactions to run, so the initial fire doesn't
   // trigger a wasteful rebuild.
-  var armed = false;
+  let armed = false;
 
-  var rebuildTimer = 0;
+  let rebuildTimer = 0;
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
     rebuildTimer = setTimeout(function () {
       rebuildTimer = 0;
-      var manifest = cityScene.getManifest();
+      const manifest = cityScene.getManifest();
       if (manifest) cityScene.applyManifest(manifest);
     }, REBUILD_DEBOUNCE_MS);
   }
@@ -59,7 +58,7 @@ export function attachHotReload({ cityScene, applyTheme }) {
     applyTheme();
   }
 
-  var rebuildStores = [
+  const rebuildStores = [
     BUILDING_DIMENSIONS,
     BUILDING_PALETTE,
     STREET_LAYOUT,
@@ -72,7 +71,7 @@ export function attachHotReload({ cityScene, applyTheme }) {
     LABEL_TYPOGRAPHY,
   ];
 
-  var hotStores = [
+  const hotStores = [
     SCENE_COLORS,
     SIDEWALK_COLORS,
     ASPHALT,
@@ -82,21 +81,27 @@ export function attachHotReload({ cityScene, applyTheme }) {
     GEM_APPEARANCE,
   ];
 
-  var unsubs = [];
-  for (var i = 0; i < rebuildStores.length; i++) {
+  const unsubs = [];
+  for (let i = 0; i < rebuildStores.length; i++) {
     unsubs.push(rebuildStores[i].subscribe(scheduleRebuild));
   }
-  for (var j = 0; j < hotStores.length; j++) {
+  for (let j = 0; j < hotStores.length; j++) {
     unsubs.push(hotStores[j].subscribe(refreshMaterials));
   }
   armed = true;
 
   return function dispose() {
     armed = false;
-    if (rebuildTimer) { clearTimeout(rebuildTimer); rebuildTimer = 0; }
-    for (var k = 0; k < unsubs.length; k++) {
-      try { if (typeof unsubs[k] === 'function') unsubs[k](); }
-      catch (_) { /* noop */ }
+    if (rebuildTimer) {
+      clearTimeout(rebuildTimer);
+      rebuildTimer = 0;
+    }
+    for (let k = 0; k < unsubs.length; k++) {
+      try {
+        if (typeof unsubs[k] === 'function') unsubs[k]();
+      } catch (_) {
+        /* noop */
+      }
     }
     unsubs.length = 0;
   };

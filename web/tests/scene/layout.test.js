@@ -9,21 +9,21 @@ import {
 import { BUILDING_DIMENSIONS } from '../../config/index.js';
 
 const TEST_TIERS = [
-  { min_descendants: 0,  width: 10 },
-  { min_descendants: 4,  width: 16 },
-  { min_descendants: 9,  width: 24 },
+  { min_descendants: 0, width: 10 },
+  { min_descendants: 4, width: 16 },
+  { min_descendants: 9, width: 24 },
   { min_descendants: 16, width: 36 },
-  { min_descendants: 31, width: 52 }
+  { min_descendants: 31, width: 52 },
 ];
 
 // Test-time config for getBuildingDimensions / layoutCity. Mutated into
 // the BUILDING_DIMENSIONS store by beforeEach; restored by afterEach.
 const TEST_BUILDING_DIMS = {
-  MIN_FLOORS:   1,
-  MAX_FLOORS:   30,
+  MIN_FLOORS: 1,
+  MAX_FLOORS: 30,
   FLOOR_HEIGHT: 10,
-  MIN_WIDTH:    6,
-  MAX_WIDTH:    40
+  MIN_WIDTH: 6,
+  MAX_WIDTH: 40,
 };
 
 let _origBuildingDims = null;
@@ -40,44 +40,101 @@ afterEach(() => {
 });
 
 const TEST_TREE = {
-  name: "project", type: "directory", path: ".", fullPath: "/tmp/project",
-  children_count: 3, children_file_count: 2, children_dir_count: 1,
-  descendants_count: 4, descendants_file_count: 3, descendants_dir_count: 1,
+  name: 'project',
+  type: 'directory',
+  path: '.',
+  fullPath: '/tmp/project',
+  children_count: 3,
+  children_file_count: 2,
+  children_dir_count: 1,
+  descendants_count: 4,
+  descendants_file_count: 3,
+  descendants_dir_count: 1,
   descendants_size: 5000,
   children: [
-    { name: "index.ts", type: "file", path: "index.ts", fullPath: "/tmp/project/index.ts",
-      extension: ".ts", size: 2000, lines: 80, binary: false,
-      created: "2024-01-10T09:00:00Z", modified: "2024-03-22T14:30:00Z",
-      git: { created: "2024-01-10T09:00:00Z", modified: "2024-03-22T14:30:00Z", commits: 5, contributors: ["alice"] } },
-    { name: "README.md", type: "file", path: "README.md", fullPath: "/tmp/project/README.md",
-      extension: ".md", size: 500, lines: 20, binary: false,
-      created: "2024-01-10T09:00:00Z", modified: "2024-01-10T09:00:00Z",
-      git: { created: "2024-01-10T09:00:00Z", modified: "2024-01-10T09:00:00Z", commits: 1, contributors: ["alice"] } },
-    { name: "src", type: "directory", path: "src", fullPath: "/tmp/project/src",
-      children_count: 1, children_file_count: 1, children_dir_count: 0,
-      descendants_count: 1, descendants_file_count: 1, descendants_dir_count: 0,
+    {
+      name: 'index.ts',
+      type: 'file',
+      path: 'index.ts',
+      fullPath: '/tmp/project/index.ts',
+      extension: '.ts',
+      size: 2000,
+      lines: 80,
+      binary: false,
+      created: '2024-01-10T09:00:00Z',
+      modified: '2024-03-22T14:30:00Z',
+      git: {
+        created: '2024-01-10T09:00:00Z',
+        modified: '2024-03-22T14:30:00Z',
+        commits: 5,
+        contributors: ['alice'],
+      },
+    },
+    {
+      name: 'README.md',
+      type: 'file',
+      path: 'README.md',
+      fullPath: '/tmp/project/README.md',
+      extension: '.md',
+      size: 500,
+      lines: 20,
+      binary: false,
+      created: '2024-01-10T09:00:00Z',
+      modified: '2024-01-10T09:00:00Z',
+      git: {
+        created: '2024-01-10T09:00:00Z',
+        modified: '2024-01-10T09:00:00Z',
+        commits: 1,
+        contributors: ['alice'],
+      },
+    },
+    {
+      name: 'src',
+      type: 'directory',
+      path: 'src',
+      fullPath: '/tmp/project/src',
+      children_count: 1,
+      children_file_count: 1,
+      children_dir_count: 0,
+      descendants_count: 1,
+      descendants_file_count: 1,
+      descendants_dir_count: 0,
       descendants_size: 800,
       children: [
-        { name: "utils.ts", type: "file", path: "src/utils.ts", fullPath: "/tmp/project/src/utils.ts",
-          extension: ".ts", size: 800, lines: 30, binary: false,
-          created: "2024-02-15T10:00:00Z", modified: "2024-03-20T12:00:00Z",
-          git: { created: "2024-02-15T10:00:00Z", modified: "2024-03-20T12:00:00Z", commits: 3, contributors: ["bob"] } }
-      ]
-    }
-  ]
+        {
+          name: 'utils.ts',
+          type: 'file',
+          path: 'src/utils.ts',
+          fullPath: '/tmp/project/src/utils.ts',
+          extension: '.ts',
+          size: 800,
+          lines: 30,
+          binary: false,
+          created: '2024-02-15T10:00:00Z',
+          modified: '2024-03-20T12:00:00Z',
+          git: {
+            created: '2024-02-15T10:00:00Z',
+            modified: '2024-03-20T12:00:00Z',
+            commits: 3,
+            contributors: ['bob'],
+          },
+        },
+      ],
+    },
+  ],
 };
 
 // ---- getStreetWidth ----
 describe('getStreetWidth', () => {
-  it('count 0 → first tier width (10)',   () => expect(getStreetWidth(0,   TEST_TIERS)).toBe(10));
-  it('count 3 → first tier width (10)',   () => expect(getStreetWidth(3,   TEST_TIERS)).toBe(10));
-  it('count 4 → second tier width (16)',  () => expect(getStreetWidth(4,   TEST_TIERS)).toBe(16));
-  it('count 8 → second tier width (16)',  () => expect(getStreetWidth(8,   TEST_TIERS)).toBe(16));
-  it('count 9 → third tier width (24)',   () => expect(getStreetWidth(9,   TEST_TIERS)).toBe(24));
-  it('count 15 → third tier width (24)',  () => expect(getStreetWidth(15,  TEST_TIERS)).toBe(24));
-  it('count 16 → fourth tier width (36)', () => expect(getStreetWidth(16,  TEST_TIERS)).toBe(36));
-  it('count 30 → fourth tier width (36)', () => expect(getStreetWidth(30,  TEST_TIERS)).toBe(36));
-  it('count 31 → fifth tier width (52)',  () => expect(getStreetWidth(31,  TEST_TIERS)).toBe(52));
+  it('count 0 → first tier width (10)', () => expect(getStreetWidth(0, TEST_TIERS)).toBe(10));
+  it('count 3 → first tier width (10)', () => expect(getStreetWidth(3, TEST_TIERS)).toBe(10));
+  it('count 4 → second tier width (16)', () => expect(getStreetWidth(4, TEST_TIERS)).toBe(16));
+  it('count 8 → second tier width (16)', () => expect(getStreetWidth(8, TEST_TIERS)).toBe(16));
+  it('count 9 → third tier width (24)', () => expect(getStreetWidth(9, TEST_TIERS)).toBe(24));
+  it('count 15 → third tier width (24)', () => expect(getStreetWidth(15, TEST_TIERS)).toBe(24));
+  it('count 16 → fourth tier width (36)', () => expect(getStreetWidth(16, TEST_TIERS)).toBe(36));
+  it('count 30 → fourth tier width (36)', () => expect(getStreetWidth(30, TEST_TIERS)).toBe(36));
+  it('count 31 → fifth tier width (52)', () => expect(getStreetWidth(31, TEST_TIERS)).toBe(52));
   it('count 100 → fifth tier width (52)', () => expect(getStreetWidth(100, TEST_TIERS)).toBe(52));
   it('falls back to built-in tiers if none provided', () => {
     expect(getStreetWidth(0)).toBe(10);
@@ -197,11 +254,13 @@ describe('computeLineStats', () => {
 
   it('ignores files with null/zero line counts', () => {
     const tree = {
-      name: 'r', type: 'directory', children: [
+      name: 'r',
+      type: 'directory',
+      children: [
         { name: 'a.js', type: 'file', lines: 0 },
         { name: 'b.js', type: 'file', lines: null },
-        { name: 'c.js', type: 'file', lines: 50 }
-      ]
+        { name: 'c.js', type: 'file', lines: 50 },
+      ],
     };
     expect(computeLineStats(tree)).toEqual({ min: 50, max: 50 });
   });
@@ -263,7 +322,7 @@ describe('layoutCity', () => {
 
   it('at least one street has a non-empty label', () => {
     const layout = layoutCity({ tree: TEST_TREE });
-    const hasLabel = layout.streets.some(s => s.label && s.label.length > 0);
+    const hasLabel = layout.streets.some((s) => s.label && s.label.length > 0);
     expect(hasLabel).toBe(true);
   });
 });
@@ -276,15 +335,27 @@ describe('layoutCity', () => {
 // orient still points toward its own street after all the coordinate flips.
 describe('orient correctness for mirrored subtrees', () => {
   function makeFile(name) {
-    return { name, type: 'file', path: name, extension: '.ts',
-             size: 500, lines: 20, created: '2024-01-01T00:00:00Z',
-             modified: '2024-01-01T00:00:00Z' };
+    return {
+      name,
+      type: 'file',
+      path: name,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    };
   }
   function makeDir(name, children) {
-    return { name, type: 'directory', path: name,
-             children_count: children.length,
-             descendants_count: children.length + children.filter(c => c.type === 'directory').length,
-             descendants_size: 1000, children };
+    return {
+      name,
+      type: 'directory',
+      path: name,
+      children_count: children.length,
+      descendants_count: children.length + children.filter((c) => c.type === 'directory').length,
+      descendants_size: 1000,
+      children,
+    };
   }
 
   // Tree: root has several subdirs spanning all sideIdx combinations.
@@ -295,10 +366,10 @@ describe('orient correctness for mirrored subtrees', () => {
   // bbbb/ (ci=1) -> secondary side of root: no mirror
   //   f3.ts
   const TREE = makeDir('root', [
-    makeDir('aaaa', [ makeDir('inner', [ makeFile('f1.ts'), makeFile('f2.ts') ]) ]),
-    makeDir('bbbb', [ makeFile('f3.ts') ]),
-    makeDir('cccc', [ makeFile('f4.ts') ]),
-    makeDir('dddd', [ makeFile('f5.ts') ]),
+    makeDir('aaaa', [makeDir('inner', [makeFile('f1.ts'), makeFile('f2.ts')])]),
+    makeDir('bbbb', [makeFile('f3.ts')]),
+    makeDir('cccc', [makeFile('f4.ts')]),
+    makeDir('dddd', [makeFile('f5.ts')]),
   ]);
 
   // For each building, verify its door-facing direction actually points at its
@@ -308,15 +379,18 @@ describe('orient correctness for mirrored subtrees', () => {
 
     for (const b of layout.buildings) {
       // Compute the door-face direction in world coords from orient.
-      let doorDX = 0, doorDY = 0;
-      if (b.orient === 's') doorDY =  1;   // +y
+      let doorDX = 0,
+        doorDY = 0;
+      if (b.orient === 's')
+        doorDY = 1; // +y
       else if (b.orient === 'n') doorDY = -1;
-      else if (b.orient === 'e') doorDX =  1;   // +x
+      else if (b.orient === 'e')
+        doorDX = 1; // +x
       else if (b.orient === 'w') doorDX = -1;
 
       // Building edge in the direction of the door.
-      const edgeX = b.x + doorDX * b.w / 2;
-      const edgeY = b.y + doorDY * b.d / 2;
+      const edgeX = b.x + (doorDX * b.w) / 2;
+      const edgeY = b.y + (doorDY * b.d) / 2;
 
       // Find the closest street AHEAD OF the door along its facing direction.
       // The door should be within a few units of some street's footprint.
@@ -327,11 +401,15 @@ describe('orient correctness for mirrored subtrees', () => {
         const halfW = s.width / 2;
         let sx1, sx2, sy1, sy2;
         if (s.orientation === 'x') {
-          sx1 = s.x - halfL; sx2 = s.x + halfL;
-          sy1 = s.y - halfW; sy2 = s.y + halfW;
+          sx1 = s.x - halfL;
+          sx2 = s.x + halfL;
+          sy1 = s.y - halfW;
+          sy2 = s.y + halfW;
         } else {
-          sx1 = s.x - halfW; sx2 = s.x + halfW;
-          sy1 = s.y - halfL; sy2 = s.y + halfL;
+          sx1 = s.x - halfW;
+          sx2 = s.x + halfW;
+          sy1 = s.y - halfL;
+          sy2 = s.y + halfL;
         }
         // Probe a point a few units in front of the door.
         const probeX = edgeX + doorDX * 5;

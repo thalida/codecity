@@ -6,11 +6,11 @@
 import { getHue } from '../../scene/colors.js';
 import { makeLucideIcon } from './icon.js';
 
-var STORAGE_LEFT  = 'cc.appLeftHidden';
-var STORAGE_RIGHT = 'cc.appRightHidden';
+const STORAGE_LEFT = 'cc.appLeftHidden';
+const STORAGE_RIGHT = 'cc.appRightHidden';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
-var COPY_FEEDBACK_DURATION_MS = 1500;
+const COPY_FEEDBACK_DURATION_MS = 1500;
 
 /**
  * Initialise the sitewide header. Renders icons into the existing toggle
@@ -30,40 +30,44 @@ var COPY_FEEDBACK_DURATION_MS = 1500;
  */
 export function initAppHeader(opts) {
   opts = opts || {};
-  var huePalette     = opts.huePalette     || {};
-  var rootLabel      = opts.rootLabel      || '';
-  var rootPath       = opts.rootPath       || '';
-  var onSegmentClick = typeof opts.onSegmentClick === 'function' ? opts.onSegmentClick : null;
-  var onRightToggle  = typeof opts.onRightToggle  === 'function' ? opts.onRightToggle  : null;
-  var onLeftToggle   = typeof opts.onLeftToggle   === 'function' ? opts.onLeftToggle   : null;
+  const huePalette = opts.huePalette || {};
+  const rootLabel = opts.rootLabel || '';
+  const rootPath = opts.rootPath || '';
+  const onSegmentClick = typeof opts.onSegmentClick === 'function' ? opts.onSegmentClick : null;
+  const onRightToggle = typeof opts.onRightToggle === 'function' ? opts.onRightToggle : null;
+  const onLeftToggle = typeof opts.onLeftToggle === 'function' ? opts.onLeftToggle : null;
 
-  var leftBtn  = document.getElementById('toggle-left-sidebar');
-  var rightBtn = document.getElementById('toggle-right-sidebar');
-  var titleEl  = document.getElementById('app-title');
+  const leftBtn = document.getElementById('toggle-left-sidebar');
+  const rightBtn = document.getElementById('toggle-right-sidebar');
+  const titleEl = document.getElementById('app-title');
   if (!leftBtn || !rightBtn || !titleEl) {
-    return { setSelection: function () {}, setLeftVisible: function () {},
-             setRightVisible: function () {}, isLeftVisible: function () { return true; },
-             isRightVisible: function () { return true; } };
+    return {
+      setSelection: function () {},
+      setLeftVisible: function () {},
+      setRightVisible: function () {},
+      isLeftVisible: function () {
+        return true;
+      },
+      isRightVisible: function () {
+        return true;
+      },
+    };
   }
 
   function _renderLeftIcon(hidden) {
-    leftBtn.replaceChildren(
-      makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close')
-    );
+    leftBtn.replaceChildren(makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close'));
     leftBtn.title = hidden ? 'Show left sidebar' : 'Hide left sidebar';
   }
   function _renderRightIcon(hidden) {
-    rightBtn.replaceChildren(
-      makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close')
-    );
+    rightBtn.replaceChildren(makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close'));
     rightBtn.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
   }
 
   // Both sidebars default to visible on first run. The right starts in
   // its empty state (no selection); the left starts on its tree pane.
-  var leftHidden  = _loadFlag(STORAGE_LEFT,  false);
-  var rightHidden = _loadFlag(STORAGE_RIGHT, false);
-  document.body.classList.toggle('left-hidden',  leftHidden);
+  let leftHidden = _loadFlag(STORAGE_LEFT, false);
+  let rightHidden = _loadFlag(STORAGE_RIGHT, false);
+  document.body.classList.toggle('left-hidden', leftHidden);
   document.body.classList.toggle('right-hidden', rightHidden);
   _renderLeftIcon(leftHidden);
   _renderRightIcon(rightHidden);
@@ -104,7 +108,7 @@ export function initAppHeader(opts) {
    */
   function setSelection(sel) {
     titleEl.replaceChildren();
-    var hasSel = !!(sel && sel.path && sel.path !== rootPath);
+    const hasSel = !!(sel && sel.path && sel.path !== rootPath);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection.
@@ -114,20 +118,20 @@ export function initAppHeader(opts) {
       titleEl.appendChild(_makeChip(null, true));
     }
 
-    var crumbs = document.createElement('div');
+    const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = hasSel ? (rootLabel + '/' + sel.path) : rootLabel;
+    crumbs.title = hasSel ? rootLabel + '/' + sel.path : rootLabel;
 
     // Always lead with the root.
     crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
 
     if (hasSel) {
-      var segs = sel.path.split('/').filter(Boolean);
-      var acc = '';
-      for (var i = 0; i < segs.length; i++) {
-        acc = acc ? (acc + '/' + segs[i]) : segs[i];
-        var isLeaf = (i === segs.length - 1);
-        var sep = document.createElement('span');
+      const segs = sel.path.split('/').filter(Boolean);
+      let acc = '';
+      for (let i = 0; i < segs.length; i++) {
+        acc = acc ? acc + '/' + segs[i] : segs[i];
+        const isLeaf = i === segs.length - 1;
+        const sep = document.createElement('span');
         sep.className = 'app-header-sep';
         sep.textContent = '›';
         crumbs.appendChild(sep);
@@ -145,7 +149,7 @@ export function initAppHeader(opts) {
   }
 
   function _makeChip(extension, isDir) {
-    var chip = document.createElement('span');
+    const chip = document.createElement('span');
     chip.className = 'app-header-chip';
     if (isDir) {
       chip.classList.add('is-dir');
@@ -158,7 +162,7 @@ export function initAppHeader(opts) {
   }
 
   function _makeSegment(label, path, isLeaf) {
-    var seg = document.createElement('button');
+    const seg = document.createElement('button');
     seg.type = 'button';
     seg.className = 'app-header-segment';
     if (isLeaf) seg.classList.add('is-leaf');
@@ -170,28 +174,38 @@ export function initAppHeader(opts) {
   }
 
   function _makeCopyButton(path) {
-    var btn = document.createElement('button');
+    const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'app-header-icon';
     btn.title = 'Copy path';
     btn.setAttribute('aria-label', 'Copy path');
     btn.appendChild(makeLucideIcon('copy'));
-    btn.addEventListener('click', function () { _copy(path, btn); });
+    btn.addEventListener('click', function () {
+      _copy(path, btn);
+    });
     return btn;
   }
 
   return {
     setSelection: setSelection,
-    setLeftVisible:  function (visible) { _setLeftHidden(!visible); },
-    setRightVisible: function (visible) { _setRightHidden(!visible); },
-    isLeftVisible:   function () { return !leftHidden;  },
-    isRightVisible:  function () { return !rightHidden; },
+    setLeftVisible: function (visible) {
+      _setLeftHidden(!visible);
+    },
+    setRightVisible: function (visible) {
+      _setRightHidden(!visible);
+    },
+    isLeftVisible: function () {
+      return !leftHidden;
+    },
+    isRightVisible: function () {
+      return !rightHidden;
+    },
   };
 }
 
 function _loadFlag(key, defaultVal) {
   try {
-    var v = localStorage.getItem(key);
+    const v = localStorage.getItem(key);
     if (v == null) return defaultVal;
     return v === '1';
   } catch (_) {
@@ -202,30 +216,43 @@ function _loadFlag(key, defaultVal) {
 function _saveFlag(key, on) {
   try {
     if (on) localStorage.setItem(key, '1');
-    else    localStorage.removeItem(key);
-  } catch (_) { /* private mode — drop */ }
+    else localStorage.removeItem(key);
+  } catch (_) {
+    /* private mode — drop */
+  }
 }
 
 function _copy(text, btn) {
   function flash() {
     if (!btn) return;
     btn.classList.add('is-copied');
-    setTimeout(function () { btn.classList.remove('is-copied'); }, COPY_FEEDBACK_DURATION_MS);
+    setTimeout(function () {
+      btn.classList.remove('is-copied');
+    }, COPY_FEEDBACK_DURATION_MS);
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(flash, function () { _legacyCopy(text); flash(); });
+    navigator.clipboard.writeText(text).then(flash, function () {
+      _legacyCopy(text);
+      flash();
+    });
   } else {
-    _legacyCopy(text); flash();
+    _legacyCopy(text);
+    flash();
   }
 }
 
 function _legacyCopy(text) {
-  var ta = document.createElement('textarea');
+  const ta = document.createElement('textarea');
   ta.value = text;
   ta.style.position = 'fixed';
   ta.style.opacity = '0';
   document.body.appendChild(ta);
-  ta.focus(); ta.select();
-  try { document.execCommand('copy'); } catch (_) { /* fallback unavailable */ }
+  ta.focus();
+  ta.select();
+  try {
+    document.execCommand('copy');
+  } catch (_) {
+    /* fallback unavailable */
+  }
   document.body.removeChild(ta);
 }

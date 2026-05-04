@@ -2,10 +2,9 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { showLeftSidebar } from '../../../views/shell/leftSidebar.js';
 
 const TEST_TREE = {
-  name: 'project', type: 'directory',
-  children: [
-    { name: 'a.ts', type: 'file', extension: '.ts', size: 100, lines: 10 }
-  ]
+  name: 'project',
+  type: 'directory',
+  children: [{ name: 'a.ts', type: 'file', extension: '.ts', size: 100, lines: 10 }],
 };
 
 describe('showLeftSidebar', () => {
@@ -32,11 +31,13 @@ describe('showLeftSidebar', () => {
 
   it('shows the tree pane by default and hides the controls pane', () => {
     showLeftSidebar({ tree: TEST_TREE }, {});
-    const treePane     = container.querySelector('.tree-pane');
+    const treePane = container.querySelector('.tree-pane');
     const controlsPane = container.querySelector('.controls-pane');
     expect(treePane.style.display).toBe('');
     expect(controlsPane.style.display).toBe('none');
-    expect(container.querySelector('.activity-bar-icon[data-tab="tree"]').classList.contains('active')).toBe(true);
+    expect(
+      container.querySelector('.activity-bar-icon[data-tab="tree"]').classList.contains('active')
+    ).toBe(true);
   });
 
   it('switches panes when an icon is clicked', () => {

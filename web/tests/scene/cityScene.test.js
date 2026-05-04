@@ -18,7 +18,7 @@ function makeManifest(name, files) {
     size: f.size,
     lines: f.lines,
     binary: false,
-    created:  '2024-01-10T09:00:00Z',
+    created: '2024-01-10T09:00:00Z',
     modified: '2024-03-22T14:30:00Z',
     git: null,
   }));
@@ -46,12 +46,13 @@ function makeManifest(name, files) {
 // Minimal building-dimension config so layoutCity has knobs to read
 // without needing the full app boot.
 const TEST_DIMS = {
-  MIN_FLOORS: 1, MAX_FLOORS: 5, FLOOR_HEIGHT: 10,
-  MIN_WIDTH: 4,  MAX_WIDTH: 12,
+  MIN_FLOORS: 1,
+  MAX_FLOORS: 5,
+  FLOOR_HEIGHT: 10,
+  MIN_WIDTH: 4,
+  MAX_WIDTH: 12,
 };
-const TEST_TIERS = [
-  { min_descendants: 0, width: 10 }
-];
+const TEST_TIERS = [{ min_descendants: 0, width: 10 }];
 
 // Stub 2D canvas context — jsdom returns null from getContext('2d') and
 // engine.js uses it for label texture generation. Just enough surface
@@ -66,34 +67,40 @@ function _stubCanvasContext() {
     if (type === '2d') {
       const noop = () => {};
       const getImageData = () => ({ data: new Uint8ClampedArray(4) });
-      return new Proxy({
-        font: '',
-        fillStyle: '',
-        strokeStyle: '',
-        textAlign: '',
-        textBaseline: '',
-        lineWidth: 0,
-        globalAlpha: 1,
-        globalCompositeOperation: 'source-over',
-        canvas: { width: 256, height: 64 },
-        measureText: (text) => ({
-          width: text.length * 6,
-          actualBoundingBoxAscent: 8,
-          actualBoundingBoxDescent: 2,
-        }),
-        getImageData,
-        createImageData: () => ({ data: new Uint8ClampedArray(4) }),
-        putImageData: noop,
-      }, {
-        // Any method we haven't defined falls through as a noop. Saves
-        // listing every Canvas2D rendering call (strokeRect, fillRect,
-        // beginPath, drawImage, etc.) one by one.
-        get(target, prop) {
-          if (prop in target) return target[prop];
-          return noop;
+      return new Proxy(
+        {
+          font: '',
+          fillStyle: '',
+          strokeStyle: '',
+          textAlign: '',
+          textBaseline: '',
+          lineWidth: 0,
+          globalAlpha: 1,
+          globalCompositeOperation: 'source-over',
+          canvas: { width: 256, height: 64 },
+          measureText: (text) => ({
+            width: text.length * 6,
+            actualBoundingBoxAscent: 8,
+            actualBoundingBoxDescent: 2,
+          }),
+          getImageData,
+          createImageData: () => ({ data: new Uint8ClampedArray(4) }),
+          putImageData: noop,
         },
-        set(target, prop, value) { target[prop] = value; return true; },
-      });
+        {
+          // Any method we haven't defined falls through as a noop. Saves
+          // listing every Canvas2D rendering call (strokeRect, fillRect,
+          // beginPath, drawImage, etc.) one by one.
+          get(target, prop) {
+            if (prop in target) return target[prop];
+            return noop;
+          },
+          set(target, prop, value) {
+            target[prop] = value;
+            return true;
+          },
+        }
+      );
     }
     return orig ? orig.call(this, type) : null;
   };
@@ -105,10 +112,10 @@ let canvas = null;
 
 beforeEach(() => {
   _stubCanvasContext();
-  _origDims  = { ...BUILDING_DIMENSIONS.get() };
+  _origDims = { ...BUILDING_DIMENSIONS.get() };
   _origTiers = STREET_TIERS.get();
   for (const [k, v] of Object.entries(TEST_DIMS)) BUILDING_DIMENSIONS.setKey(k, v);
-  STREET_TIERS.set(TEST_TIERS);   // STREET_TIERS is an atom(), not a map()
+  STREET_TIERS.set(TEST_TIERS); // STREET_TIERS is an atom(), not a map()
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
@@ -165,24 +172,24 @@ describe('createCityScene', () => {
     cs.applyManifest(m1);
 
     let captured = null;
-    cs.onChange((diff) => { captured = diff; });
+    cs.onChange((diff) => {
+      captured = diff;
+    });
 
     const m2 = makeManifest('two', [
-      { path: 'a.js', size: 100, lines: 5 },     // staying (same path)
-      { path: 'c.js', size: 300, lines: 15 },    // entering (new path)
+      { path: 'a.js', size: 100, lines: 5 }, // staying (same path)
+      { path: 'c.js', size: 300, lines: 15 }, // entering (new path)
     ]);
     cs.applyManifest(m2);
 
     expect(captured).not.toBeNull();
     const stayingPaths = captured.staying.buildings.map(
-      (e) => e.newMesh.userData.building.file.path,
+      (e) => e.newMesh.userData.building.file.path
     );
     const enteringPaths = captured.entering.buildings.map(
-      (e) => e.mesh.userData.building.file.path,
+      (e) => e.mesh.userData.building.file.path
     );
-    const exitingPaths = captured.exiting.buildings.map(
-      (e) => e.mesh.userData.building.file.path,
-    );
+    const exitingPaths = captured.exiting.buildings.map((e) => e.mesh.userData.building.file.path);
     expect(stayingPaths.sort()).toEqual(['a.js']);
     expect(enteringPaths.sort()).toEqual(['c.js']);
     expect(exitingPaths.sort()).toEqual(['b.js']);

@@ -21,14 +21,13 @@
 
 // Default durations (ms). Subjective; smoke-tested for "snappy but
 // readable" on file-save bursts.
-var ENTER_MS = 400;
-var STAY_MS  = 350;
+const ENTER_MS = 400;
+const STAY_MS = 350;
 
 function easeOutCubic(t) {
-  var u = 1 - t;
+  const u = 1 - t;
   return 1 - u * u * u;
 }
-
 
 export function createAnimator({ cityScene }) {
   // Tween queue: each tween is { mesh, kind, prop, fromX/Y/Z, toX/Y/Z,
@@ -36,25 +35,29 @@ export function createAnimator({ cityScene }) {
   // We support two prop kinds: 'scaleY' (number) and 'position' (vec3).
   // Keying by (mesh, kind) so a fresh tween supersedes any in-flight
   // one on the same target+kind without stacking.
-  var tweens = [];
+  const tweens = [];
 
   function _findTween(mesh, kind) {
-    for (var i = 0; i < tweens.length; i++) {
+    for (let i = 0; i < tweens.length; i++) {
       if (tweens[i].mesh === mesh && tweens[i].kind === kind) return i;
     }
     return -1;
   }
 
   function _addOrUpdate(t) {
-    var idx = _findTween(t.mesh, t.kind);
+    const idx = _findTween(t.mesh, t.kind);
     if (idx >= 0) {
       // Supersede in-flight tween with new target. Retain startedAt so
       // the animation doesn't restart from scratch on rapid edits.
-      var existing = tweens[idx];
+      const existing = tweens[idx];
       existing.toVal = t.toVal;
-      existing.toX = t.toX; existing.toY = t.toY; existing.toZ = t.toZ;
+      existing.toX = t.toX;
+      existing.toY = t.toY;
+      existing.toZ = t.toZ;
       existing.fromVal = t.fromVal;
-      existing.fromX = t.fromX; existing.fromY = t.fromY; existing.fromZ = t.fromZ;
+      existing.fromX = t.fromX;
+      existing.fromY = t.fromY;
+      existing.fromZ = t.fromZ;
       existing.durationMs = t.durationMs;
       existing.easing = t.easing;
       // Keep existing.startedAt so the elapsed time persists.
@@ -65,11 +68,14 @@ export function createAnimator({ cityScene }) {
 
   function _tweenScaleY(mesh, fromVal, toVal, durationMs) {
     if (fromVal === toVal) return;
-    mesh.scale.y = fromVal;   // snap to start so the first frame is correct
+    mesh.scale.y = fromVal; // snap to start so the first frame is correct
     _addOrUpdate({
-      mesh: mesh, kind: 'scaleY',
-      fromVal: fromVal, toVal: toVal,
-      durationMs: durationMs, easing: easeOutCubic,
+      mesh: mesh,
+      kind: 'scaleY',
+      fromVal: fromVal,
+      toVal: toVal,
+      durationMs: durationMs,
+      easing: easeOutCubic,
       startedAt: performance.now(),
     });
   }
@@ -78,57 +84,66 @@ export function createAnimator({ cityScene }) {
     if (fromVec.x === toVec.x && fromVec.y === toVec.y && fromVec.z === toVec.z) return;
     mesh.position.copy(fromVec);
     _addOrUpdate({
-      mesh: mesh, kind: 'position',
-      fromX: fromVec.x, fromY: fromVec.y, fromZ: fromVec.z,
-      toX:   toVec.x,   toY:   toVec.y,   toZ:   toVec.z,
-      durationMs: durationMs, easing: easeOutCubic,
+      mesh: mesh,
+      kind: 'position',
+      fromX: fromVec.x,
+      fromY: fromVec.y,
+      fromZ: fromVec.z,
+      toX: toVec.x,
+      toY: toVec.y,
+      toZ: toVec.z,
+      durationMs: durationMs,
+      easing: easeOutCubic,
       startedAt: performance.now(),
     });
   }
 
   function _onChange(diff) {
     // Entering: start small, grow to layout height.
-    for (var ei = 0; ei < diff.entering.buildings.length; ei++) {
-      var e = diff.entering.buildings[ei];
+    for (let ei = 0; ei < diff.entering.buildings.length; ei++) {
+      const e = diff.entering.buildings[ei];
       if (!e.mesh) continue;
-      var newY = (typeof e.newScaleY === 'number') ? e.newScaleY : 1;
+      const newY = typeof e.newScaleY === 'number' ? e.newScaleY : 1;
       _tweenScaleY(e.mesh, 0.0001, newY, ENTER_MS);
     }
     // Staying with shifted position / scale: animate to new transform.
-    for (var si = 0; si < diff.staying.buildings.length; si++) {
-      var s = diff.staying.buildings[si];
+    for (let si = 0; si < diff.staying.buildings.length; si++) {
+      const s = diff.staying.buildings[si];
       if (!s.newMesh || !s.oldPosition) continue;
       _tweenPosition(s.newMesh, s.oldPosition, s.newPosition, STAY_MS);
-      if (typeof s.oldScaleY === 'number' && typeof s.newScaleY === 'number'
-          && s.oldScaleY !== s.newScaleY) {
+      if (
+        typeof s.oldScaleY === 'number' &&
+        typeof s.newScaleY === 'number' &&
+        s.oldScaleY !== s.newScaleY
+      ) {
         _tweenScaleY(s.newMesh, s.oldScaleY, s.newScaleY, STAY_MS);
       }
     }
   }
 
-  var _unsub = cityScene.onChange(_onChange);
+  const _unsub = cityScene.onChange(_onChange);
 
   function update(_dtMs) {
     if (tweens.length === 0) return;
-    var now = performance.now();
+    const now = performance.now();
     // Iterate backwards so we can splice completed tweens cheaply.
-    for (var i = tweens.length - 1; i >= 0; i--) {
-      var tw = tweens[i];
+    for (let i = tweens.length - 1; i >= 0; i--) {
+      const tw = tweens[i];
       // Defensive: if the mesh was disposed between frames, drop the tween.
       if (tw.mesh.userData && tw.mesh.userData.disposed) {
         tweens.splice(i, 1);
         continue;
       }
-      var t = (now - tw.startedAt) / tw.durationMs;
+      let t = (now - tw.startedAt) / tw.durationMs;
       if (t >= 1) t = 1;
-      var eased = tw.easing(t);
+      const eased = tw.easing(t);
       if (tw.kind === 'scaleY') {
         tw.mesh.scale.y = tw.fromVal + (tw.toVal - tw.fromVal) * eased;
       } else if (tw.kind === 'position') {
         tw.mesh.position.set(
           tw.fromX + (tw.toX - tw.fromX) * eased,
           tw.fromY + (tw.toY - tw.fromY) * eased,
-          tw.fromZ + (tw.toZ - tw.fromZ) * eased,
+          tw.fromZ + (tw.toZ - tw.fromZ) * eased
         );
       }
       if (t >= 1) tweens.splice(i, 1);

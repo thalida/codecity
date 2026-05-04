@@ -16,7 +16,7 @@ import {
   GEM_SIZING,
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
-  GEM_ANIMATION
+  GEM_ANIMATION,
 } from '../config/index.js';
 import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../constants.js';
 
@@ -30,27 +30,27 @@ import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../const
 // derived per-building from the building's own width × PATH_WIDTH_FRAC
 // (see DOOR_WIDTH_OF_PATH below) so doors visually match the path strip
 // that connects the building to its sidewalk.
-var FACADE = Object.freeze({
-  TEXTURE_MIN_WIDTH_PX:        128,
-  TEXTURE_WIDTH_PER_COL_MULT:  128,
-  TEXTURE_MIN_HEIGHT_PX:       64,
+const FACADE = Object.freeze({
+  TEXTURE_MIN_WIDTH_PX: 128,
+  TEXTURE_WIDTH_PER_COL_MULT: 128,
+  TEXTURE_MIN_HEIGHT_PX: 64,
   TEXTURE_HEIGHT_PER_FLOOR_MULT: 64,
-  ANISOTROPY:                  8,
-  SLAB_BAND_MIN_PX:            3,
-  SLAB_HEIGHT_FRAC:            0.12,
-  WINDOW_MARGIN_FRAC:          0.08,
-  WINDOW_WIDTH_FRAC:           0.45,
-  WINDOW_HEIGHT_FRAC:          0.45,
-  WINDOW_COLS_SIZE_DIVISOR:    8,
-  WINDOW_COLS_MAX:             5,
-  DOOR_HEIGHT_FRAC:            0.7
+  ANISOTROPY: 8,
+  SLAB_BAND_MIN_PX: 3,
+  SLAB_HEIGHT_FRAC: 0.12,
+  WINDOW_MARGIN_FRAC: 0.08,
+  WINDOW_WIDTH_FRAC: 0.45,
+  WINDOW_HEIGHT_FRAC: 0.45,
+  WINDOW_COLS_SIZE_DIVISOR: 8,
+  WINDOW_COLS_MAX: 5,
+  DOOR_HEIGHT_FRAC: 0.7,
 });
 
 // Door world width = (building.w × PATH_WIDTH_FRAC) × this. Keeps the
 // door visually matched to its path connector strip (which is the same
 // per-building width) so the "walk out the door onto the path" reading
 // lands regardless of how big the building is.
-var DOOR_WIDTH_OF_PATH = 0.8;
+const DOOR_WIDTH_OF_PATH = 0.8;
 
 // Per-face palette derivation: front/side/slab/window/door/roof shifts off
 // the building's base color.
@@ -58,41 +58,39 @@ var DOOR_WIDTH_OF_PATH = 0.8;
 //   *_HUE_SHIFT       — hue rotation in degrees
 //   *_DARKEN_RATIO    — multiplicative darkening (1.0 = unchanged)
 //   *_LIGHTNESS_FLOOR — clamp floor so dim files don't crush to black
-var SHADING = Object.freeze({
-  WALL_FRONT_LIGHTNESS_DELTA:  -5,
-  WALL_FRONT_HUE_SHIFT:        18,
-  WALL_SIDE_DARKEN_RATIO:      0.55,
-  WALL_SIDE_LIGHTNESS_DELTA:   -10,
-  WALL_SIDE_LIGHTNESS_FLOOR:   14,
-  SLAB_FRONT_LIGHTNESS_DELTA:  -15,
-  SLAB_FRONT_HUE_SHIFT:        18,
-  SLAB_SIDE_DARKEN_RATIO:      0.40,
-  SLAB_SIDE_LIGHTNESS_DELTA:   -10,
-  SLAB_SIDE_LIGHTNESS_FLOOR:   10,
-  WINDOW_LIGHTNESS_DELTA:      20,
-  DOOR_LIGHTNESS_DELTA:        -55,
-  ROOF_BORDER_LIGHTNESS_DELTA: -15
+const SHADING = Object.freeze({
+  WALL_FRONT_LIGHTNESS_DELTA: -5,
+  WALL_FRONT_HUE_SHIFT: 18,
+  WALL_SIDE_DARKEN_RATIO: 0.55,
+  WALL_SIDE_LIGHTNESS_DELTA: -10,
+  WALL_SIDE_LIGHTNESS_FLOOR: 14,
+  SLAB_FRONT_LIGHTNESS_DELTA: -15,
+  SLAB_FRONT_HUE_SHIFT: 18,
+  SLAB_SIDE_DARKEN_RATIO: 0.4,
+  SLAB_SIDE_LIGHTNESS_DELTA: -10,
+  SLAB_SIDE_LIGHTNESS_FLOOR: 10,
+  WINDOW_LIGHTNESS_DELTA: 20,
+  DOOR_LIGHTNESS_DELTA: -55,
+  ROOF_BORDER_LIGHTNESS_DELTA: -15,
 });
 
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
-var STADIUM_SEGMENTS = 16;
+const STADIUM_SEGMENTS = 16;
 
 // Label canvas drawing internals — must stay 'center'/'middle' for the
 // centered draw math, and label texture filtering anisotropy.
-var LABEL_TEXT_ALIGN    = 'center';
-var LABEL_TEXT_BASELINE = 'middle';
-var LABEL_ANISOTROPY    = 16;
-
+const LABEL_TEXT_ALIGN = 'center';
+const LABEL_TEXT_BASELINE = 'middle';
+const LABEL_ANISOTROPY = 16;
 
 // _toPow2(n) — round n UP to the next power of two. Used so canvas-backed
 // textures get mipmaps (Three.js requires power-of-2 dims for guaranteed
 // mipmap support across all WebGL profiles).
 function _toPow2(n) {
-  var p = 1;
+  let p = 1;
   while (p < n) p *= 2;
   return p;
 }
-
 
 // -----------------------------------------------------------------------------
 // _buildFacadeTexture(opts) -> THREE.CanvasTexture
@@ -108,14 +106,14 @@ function _toPow2(n) {
 // building mesh are real-world units — the texture stretches to fit.
 // -----------------------------------------------------------------------------
 function _buildFacadeTexture(opts) {
-  var facade     = FACADE;
-  var floors     = opts.floors;
-  var cols       = opts.cols;
-  var wallColor  = opts.wallColor;
-  var slabColor  = opts.slabColor;
-  var winColor   = opts.winColor;
-  var doorColor  = opts.doorColor;
-  var hasDoor    = !!opts.hasDoor;
+  const facade = FACADE;
+  const floors = opts.floors;
+  const cols = opts.cols;
+  const wallColor = opts.wallColor;
+  const slabColor = opts.slabColor;
+  const winColor = opts.winColor;
+  const doorColor = opts.doorColor;
+  const hasDoor = !!opts.hasDoor;
 
   // Pixel canvas — round dimensions UP to the next power of two so Three.js
   // can generate mipmaps. Without mipmaps, zoomed-out facades shimmer/blur
@@ -124,14 +122,18 @@ function _buildFacadeTexture(opts) {
   // floors and columns fill the canvas evenly — otherwise the drawing
   // (which anchors floors at the bottom) would leave a huge blank stripe
   // at the top of the texture, making the building look half-empty.
-  var width  = _toPow2(Math.max(facade.TEXTURE_MIN_WIDTH_PX,  facade.TEXTURE_WIDTH_PER_COL_MULT  * cols));
-  var height = _toPow2(Math.max(facade.TEXTURE_MIN_HEIGHT_PX, facade.TEXTURE_HEIGHT_PER_FLOOR_MULT * floors));
-  var pxPerFloor = height / floors;
+  const width = _toPow2(
+    Math.max(facade.TEXTURE_MIN_WIDTH_PX, facade.TEXTURE_WIDTH_PER_COL_MULT * cols)
+  );
+  const height = _toPow2(
+    Math.max(facade.TEXTURE_MIN_HEIGHT_PX, facade.TEXTURE_HEIGHT_PER_FLOOR_MULT * floors)
+  );
+  const pxPerFloor = height / floors;
 
-  var canvas = document.createElement('canvas');
-  canvas.width  = width;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
   canvas.height = height;
-  var ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d');
 
   // Base wall color
   ctx.fillStyle = wallColor;
@@ -139,36 +141,39 @@ function _buildFacadeTexture(opts) {
 
   // Slab band at the top of every floor (a thin horizontal stripe)
   ctx.fillStyle = slabColor;
-  var slabPx = Math.max(facade.SLAB_BAND_MIN_PX, Math.floor(pxPerFloor * facade.SLAB_HEIGHT_FRAC));
-  for (var fi = 0; fi < floors; fi++) {
+  const slabPx = Math.max(
+    facade.SLAB_BAND_MIN_PX,
+    Math.floor(pxPerFloor * facade.SLAB_HEIGHT_FRAC)
+  );
+  for (let fi = 0; fi < floors; fi++) {
     // Texture Y=0 is the TOP of the face. Floor `fi` (counting from the
     // ground) occupies texture rows [height - (fi+1)*pxPerFloor, height - fi*pxPerFloor].
     // The slab sits at the top of that span.
-    var bandTop = height - (fi + 1) * pxPerFloor;
+    const bandTop = height - (fi + 1) * pxPerFloor;
     ctx.fillRect(0, bandTop, width, slabPx);
   }
 
   // Windows — one row per floor, `cols` columns across, inset within a
   // margin on each face edge.
-  var marginX = Math.floor(width  * facade.WINDOW_MARGIN_FRAC);
-  var cellW   = (width - 2 * marginX) / cols;
-  var winW    = Math.floor(cellW       * facade.WINDOW_WIDTH_FRAC);
-  var winH    = Math.floor(pxPerFloor  * facade.WINDOW_HEIGHT_FRAC);
+  const marginX = Math.floor(width * facade.WINDOW_MARGIN_FRAC);
+  const cellW = (width - 2 * marginX) / cols;
+  const winW = Math.floor(cellW * facade.WINDOW_WIDTH_FRAC);
+  const winH = Math.floor(pxPerFloor * facade.WINDOW_HEIGHT_FRAC);
 
   ctx.fillStyle = winColor;
-  for (var f = 0; f < floors; f++) {
-    var floorBottomPx = height - f * pxPerFloor;
-    var floorTopPx    = floorBottomPx - pxPerFloor;
+  for (let f = 0; f < floors; f++) {
+    const floorBottomPx = height - f * pxPerFloor;
+    const floorTopPx = floorBottomPx - pxPerFloor;
     // Window row sits roughly centered in the floor, above the slab band.
-    var winCenterY    = floorTopPx + slabPx + (pxPerFloor - slabPx) / 2;
-    var winY          = Math.floor(winCenterY - winH / 2);
+    const winCenterY = floorTopPx + slabPx + (pxPerFloor - slabPx) / 2;
+    const winY = Math.floor(winCenterY - winH / 2);
 
     // Skip this floor's window row on the door face, ground floor only.
     if (hasDoor && f === 0) continue;
 
-    for (var c = 0; c < cols; c++) {
-      var cellCenterX = marginX + cellW * (c + 0.5);
-      var winX        = Math.floor(cellCenterX - winW / 2);
+    for (let c = 0; c < cols; c++) {
+      const cellCenterX = marginX + cellW * (c + 0.5);
+      const winX = Math.floor(cellCenterX - winW / 2);
       ctx.fillRect(winX, winY, winW, winH);
     }
   }
@@ -178,18 +183,18 @@ function _buildFacadeTexture(opts) {
   // world unit on this face). Caller passes faceWorldWidth + the desired
   // doorWorldWidth so the door visually matches the path connector strip.
   if (hasDoor) {
-    var pxPerWorldUnit = width / opts.faceWorldWidth;
-    var doorW = Math.floor(opts.doorWorldWidth * pxPerWorldUnit);
+    const pxPerWorldUnit = width / opts.faceWorldWidth;
+    let doorW = Math.floor(opts.doorWorldWidth * pxPerWorldUnit);
     if (doorW < 1) doorW = 1;
     if (doorW > width) doorW = width;
-    var doorH = Math.floor(pxPerFloor * facade.DOOR_HEIGHT_FRAC);
-    var doorX = Math.floor((width - doorW) / 2);
-    var doorY = height - doorH;
+    const doorH = Math.floor(pxPerFloor * facade.DOOR_HEIGHT_FRAC);
+    const doorX = Math.floor((width - doorW) / 2);
+    const doorY = height - doorH;
     ctx.fillStyle = doorColor;
     ctx.fillRect(doorX, doorY, doorW, doorH);
   }
 
-  var tex = new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = facade.ANISOTROPY;
   // mag = Nearest, min = NearestMipmapLinear: pixel-perfect crispness at
@@ -197,12 +202,11 @@ function _buildFacadeTexture(opts) {
   // sharp; linear blending BETWEEN mipmap levels prevents shimmer when
   // small/distant. (LinearMipmapLinear was tried first but smoothed the
   // window pixels into a soft blur — wrong for the blocky pixel-art look.)
-  tex.magFilter   = THREE.NearestFilter;
-  tex.minFilter   = THREE.NearestMipmapLinearFilter;
+  tex.magFilter = THREE.NearestFilter;
+  tex.minFilter = THREE.NearestMipmapLinearFilter;
   tex.generateMipmaps = true;
   return tex;
 }
-
 
 // -----------------------------------------------------------------------------
 // _buildRoofTexture(opts) -> THREE.CanvasTexture
@@ -211,23 +215,23 @@ function _buildFacadeTexture(opts) {
 // border so it reads as a roof slab rather than a featureless cap.
 // -----------------------------------------------------------------------------
 function _buildRoofTexture(opts) {
-  var facade = FACADE;
+  const facade = FACADE;
   // Roof texture is a small fixed-size pixel canvas — we use the facade
   // anisotropy so roof + walls share the same min/mag filter feel. The
   // 128px canvas + 4/2/124 border insets are visual constants of the
   // simple solid-color-with-border design (changing them doesn't change
   // appearance because the texture stretches to the roof face anyway),
   // so they stay inline.
-  var canvas = document.createElement('canvas');
-  canvas.width  = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
   canvas.height = 128;
-  var ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d');
   ctx.fillStyle = opts.roofColor;
   ctx.fillRect(0, 0, 128, 128);
   ctx.strokeStyle = opts.borderColor;
   ctx.lineWidth = 4;
   ctx.strokeRect(2, 2, 124, 124);
-  var tex = new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = facade.ANISOTROPY;
   tex.magFilter = THREE.NearestFilter;
@@ -235,7 +239,6 @@ function _buildRoofTexture(opts) {
   tex.generateMipmaps = true;
   return tex;
 }
-
 
 // -----------------------------------------------------------------------------
 // createBuildingMesh(building) -> THREE.Mesh
@@ -253,15 +256,15 @@ function _buildRoofTexture(opts) {
 // look the original building object back up.
 // -----------------------------------------------------------------------------
 export function createBuildingMesh(building) {
-  var w = building.w;
-  var d = building.d;
-  var shading = SHADING;
-  var color = building.color;
+  const w = building.w;
+  const d = building.d;
+  const shading = SHADING;
+  const color = building.color;
 
   // Floor count + height come straight from layout (layout is the source of
   // truth for the lines→floors mapping and snaps h to floor_height boundaries).
-  var floors  = Math.max(1, building.floors || 1);
-  var renderH = building.h;
+  const floors = Math.max(1, building.floors || 1);
+  const renderH = building.h;
 
   // Scene convention: Three.js Y is up. Layout coords (x, y) map to scene
   // (x, z) with building height along scene-Y. So a BoxGeometry(w, renderH, d)
@@ -271,8 +274,14 @@ export function createBuildingMesh(building) {
   // Window-column counts scale with each face's horizontal extent:
   //   ±X faces (east/west walls)   have horizontal extent = d
   //   ±Z faces (north/south walls) have horizontal extent = w
-  var colsEW = Math.max(1, Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(d / FACADE.WINDOW_COLS_SIZE_DIVISOR)));
-  var colsNS = Math.max(1, Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(w / FACADE.WINDOW_COLS_SIZE_DIVISOR)));
+  const colsEW = Math.max(
+    1,
+    Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(d / FACADE.WINDOW_COLS_SIZE_DIVISOR))
+  );
+  const colsNS = Math.max(
+    1,
+    Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(w / FACADE.WINDOW_COLS_SIZE_DIVISOR))
+  );
 
   // Palette — opposing faces share a color so the building looks symmetric
   // as the camera orbits. Front/back faces use a slight absolute lightness
@@ -280,14 +289,32 @@ export function createBuildingMesh(building) {
   // proportionally darker than the front regardless of the base lightness,
   // with an absolute floor that keeps them from crushing to pure black on
   // dim files (old/untouched) and blending into the dark background.
-  var wallFront  = shadeAndShiftHue(color, shading.WALL_FRONT_LIGHTNESS_DELTA,  shading.WALL_FRONT_HUE_SHIFT);
-  var wallSide   = shadeByRatio(color, shading.WALL_SIDE_DARKEN_RATIO, shading.WALL_SIDE_LIGHTNESS_DELTA, shading.WALL_SIDE_LIGHTNESS_FLOOR);
-  var slabFront  = shadeAndShiftHue(color, shading.SLAB_FRONT_LIGHTNESS_DELTA,  shading.SLAB_FRONT_HUE_SHIFT);
-  var slabSide   = shadeByRatio(color, shading.SLAB_SIDE_DARKEN_RATIO, shading.SLAB_SIDE_LIGHTNESS_DELTA, shading.SLAB_SIDE_LIGHTNESS_FLOOR);
-  var winColor   = shadeColor(color, shading.WINDOW_LIGHTNESS_DELTA);
-  var doorColor  = shadeAndShiftHue(color, shading.DOOR_LIGHTNESS_DELTA, 0);
-  var roofColor  = color;
-  var roofBorder = shadeAndShiftHue(color, shading.ROOF_BORDER_LIGHTNESS_DELTA, 0);
+  const wallFront = shadeAndShiftHue(
+    color,
+    shading.WALL_FRONT_LIGHTNESS_DELTA,
+    shading.WALL_FRONT_HUE_SHIFT
+  );
+  const wallSide = shadeByRatio(
+    color,
+    shading.WALL_SIDE_DARKEN_RATIO,
+    shading.WALL_SIDE_LIGHTNESS_DELTA,
+    shading.WALL_SIDE_LIGHTNESS_FLOOR
+  );
+  const slabFront = shadeAndShiftHue(
+    color,
+    shading.SLAB_FRONT_LIGHTNESS_DELTA,
+    shading.SLAB_FRONT_HUE_SHIFT
+  );
+  const slabSide = shadeByRatio(
+    color,
+    shading.SLAB_SIDE_DARKEN_RATIO,
+    shading.SLAB_SIDE_LIGHTNESS_DELTA,
+    shading.SLAB_SIDE_LIGHTNESS_FLOOR
+  );
+  const winColor = shadeColor(color, shading.WINDOW_LIGHTNESS_DELTA);
+  const doorColor = shadeAndShiftHue(color, shading.DOOR_LIGHTNESS_DELTA, 0);
+  const roofColor = color;
+  const roofBorder = shadeAndShiftHue(color, shading.ROOF_BORDER_LIGHTNESS_DELTA, 0);
 
   // Door face mapping. Layout orient describes which face actually points at
   // the adjacent street; scene maps layout-y to scene-z.
@@ -295,29 +322,29 @@ export function createBuildingMesh(building) {
   //   NORTH → door on layout -y = scene -Z (material index 5)
   //   EAST  → door on layout +x = scene +X (material index 0)
   //   WEST  → door on layout -x = scene -X (material index 1)
-  var orient = building.orient || BUILDING_ORIENT.SOUTH;
-  var doorOnEW = (orient === BUILDING_ORIENT.EAST || orient === BUILDING_ORIENT.WEST);
+  const orient = building.orient || BUILDING_ORIENT.SOUTH;
+  const doorOnEW = orient === BUILDING_ORIENT.EAST || orient === BUILDING_ORIENT.WEST;
 
   // Assign the lighter "front" palette to the pair of faces that contains
   // the door; the other pair gets the darker "side" palette.
-  var wallNS = doorOnEW ? wallSide  : wallFront;
-  var wallEW = doorOnEW ? wallFront : wallSide;
-  var slabNS = doorOnEW ? slabSide  : slabFront;
-  var slabEW = doorOnEW ? slabFront : slabSide;
+  const wallNS = doorOnEW ? wallSide : wallFront;
+  const wallEW = doorOnEW ? wallFront : wallSide;
+  const slabNS = doorOnEW ? slabSide : slabFront;
+  const slabEW = doorOnEW ? slabFront : slabSide;
 
-  var geometry = new THREE.BoxGeometry(w, renderH, d);
+  const geometry = new THREE.BoxGeometry(w, renderH, d);
 
   // Door world width = path connector width × DOOR_WIDTH_OF_PATH so the
   // door visually matches the path strip leading away from it. The path
   // strip is per-building (= w × PATH_WIDTH_FRAC).
-  var doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_OF_PATH;
+  const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_OF_PATH;
 
   // One material per face, in BoxGeometry order: [+X, -X, +Y, -Y, +Z, -Z].
   // EW faces (east/west walls) span the building's depth `d`; NS faces span
   // its width `w`. faceWorldWidth tells the texture builder how to convert
   // the requested doorWorldWidth into pixels for this face's canvas.
   function facadeMat(cols, hasDoor, wallColor, slabColor, faceWorldWidth) {
-    var tex = _buildFacadeTexture({
+    const tex = _buildFacadeTexture({
       floors: floors,
       cols: cols,
       wallColor: wallColor,
@@ -326,13 +353,13 @@ export function createBuildingMesh(building) {
       doorColor: doorColor,
       hasDoor: hasDoor,
       faceWorldWidth: faceWorldWidth,
-      doorWorldWidth: doorWorldWidth
+      doorWorldWidth: doorWorldWidth,
     });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
   function roofMat() {
-    var tex = _buildRoofTexture({ roofColor: roofColor, borderColor: roofBorder });
+    const tex = _buildRoofTexture({ roofColor: roofColor, borderColor: roofBorder });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
@@ -343,16 +370,16 @@ export function createBuildingMesh(building) {
   // EW faces (±X walls) span the building's depth `d` along their canvas;
   // NS faces (±Z walls) span the width `w`. Pass each face's world width
   // through so the door texture can size itself in world units.
-  var materials = [
-    facadeMat(colsEW, orient === BUILDING_ORIENT.EAST,  wallEW, slabEW, d),   // +X (east)
-    facadeMat(colsEW, orient === BUILDING_ORIENT.WEST,  wallEW, slabEW, d),   // -X (west)
-    roofMat(),                                                                // +Y (roof)
-    bottomMat(),                                                              // -Y (bottom)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.SOUTH, wallNS, slabNS, w),   // +Z (south)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.NORTH, wallNS, slabNS, w)    // -Z (north)
+  const materials = [
+    facadeMat(colsEW, orient === BUILDING_ORIENT.EAST, wallEW, slabEW, d), // +X (east)
+    facadeMat(colsEW, orient === BUILDING_ORIENT.WEST, wallEW, slabEW, d), // -X (west)
+    roofMat(), // +Y (roof)
+    bottomMat(), // -Y (bottom)
+    facadeMat(colsNS, orient === BUILDING_ORIENT.SOUTH, wallNS, slabNS, w), // +Z (south)
+    facadeMat(colsNS, orient === BUILDING_ORIENT.NORTH, wallNS, slabNS, w), // -Z (north)
   ];
 
-  var mesh = new THREE.Mesh(geometry, materials);
+  const mesh = new THREE.Mesh(geometry, materials);
 
   // Position: building center in XY plane, base sits on z=0.
   // We use Three.js default Y-up internally but position Y to be "up" in the
@@ -368,7 +395,6 @@ export function createBuildingMesh(building) {
   return mesh;
 }
 
-
 // -----------------------------------------------------------------------------
 // Ground-plane materials — all the flat pieces (sidewalk, asphalt, paths)
 // sit at the same world Y. `polygonOffset` alone isn't enough to kill
@@ -380,17 +406,16 @@ export function createBuildingMesh(building) {
 // Ground planes still `depthTest` so buildings occlude them correctly.
 // -----------------------------------------------------------------------------
 function _flatMat(color, renderOrderLayer) {
-  var mat = new THREE.MeshBasicMaterial({
+  const mat = new THREE.MeshBasicMaterial({
     color: color,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -renderOrderLayer,
-    polygonOffsetUnits: -renderOrderLayer
+    polygonOffsetUnits: -renderOrderLayer,
   });
   mat.userData.renderOrderLayer = renderOrderLayer;
   return mat;
 }
-
 
 // -----------------------------------------------------------------------------
 // _buildStadiumGeometry(length, width, orientation, capStyle) -> ShapeGeometry
@@ -420,20 +445,20 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
   // at LOCAL HIGH and vice versa — invert capStyle here so the geometry
   // construction below stays in plain local-axis terms.
   if (orientation === STREET_AXIS.Y) {
-    if      (capStyle === 'low')  capStyle = 'high';
+    if (capStyle === 'low') capStyle = 'high';
     else if (capStyle === 'high') capStyle = 'low';
   }
-  var r = width / 2;
-  var roundLow  = capStyle === 'both' || capStyle === 'low';
-  var roundHigh = capStyle === 'both' || capStyle === 'high';
+  const r = width / 2;
+  const roundLow = capStyle === 'both' || capStyle === 'low';
+  const roundHigh = capStyle === 'both' || capStyle === 'high';
   // The straight section's long-axis range. When a side is rounded, the
   // straight section ends r before the world edge; when flat, it extends
   // all the way out to the world edge.
-  var lo = roundLow  ? -length / 2 + r :  -length / 2;
-  var hi = roundHigh ?  length / 2 - r :   length / 2;
-  if (lo > hi) lo = hi = 0;   // degenerate: width > length, collapse to 0
+  let lo = roundLow ? -length / 2 + r : -length / 2;
+  let hi = roundHigh ? length / 2 - r : length / 2;
+  if (lo > hi) lo = hi = 0; // degenerate: width > length, collapse to 0
 
-  var shape = new THREE.Shape();
+  const shape = new THREE.Shape();
   if (orientation === STREET_AXIS.X) {
     // Trace counter-clockwise: start at low-bottom corner, run along the
     // bottom edge, round (or flat) the high end, run back along the top,
@@ -441,21 +466,20 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
     shape.moveTo(lo, -r);
     shape.lineTo(hi, -r);
     if (roundHigh) shape.absarc(hi, 0, r, -Math.PI / 2, Math.PI / 2, false);
-    else           shape.lineTo(hi, r);
+    else shape.lineTo(hi, r);
     shape.lineTo(lo, r);
-    if (roundLow)  shape.absarc(lo, 0, r, Math.PI / 2, 3 * Math.PI / 2, false);
-    else           shape.lineTo(lo, -r);
+    if (roundLow) shape.absarc(lo, 0, r, Math.PI / 2, (3 * Math.PI) / 2, false);
+    else shape.lineTo(lo, -r);
   } else {
     shape.moveTo(-r, lo);
-    if (roundLow)  shape.absarc(0, lo, r, Math.PI, 2 * Math.PI, false);
-    else           shape.lineTo(r, lo);
+    if (roundLow) shape.absarc(0, lo, r, Math.PI, 2 * Math.PI, false);
+    else shape.lineTo(r, lo);
     shape.lineTo(r, hi);
     if (roundHigh) shape.absarc(0, hi, r, 0, Math.PI, false);
-    else           shape.lineTo(-r, hi);
+    else shape.lineTo(-r, hi);
   }
   return new THREE.ShapeGeometry(shape, STADIUM_SEGMENTS);
 }
-
 
 // -----------------------------------------------------------------------------
 // createStreetMesh(street) -> THREE.Group
@@ -469,18 +493,18 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
 // directory this street represents.
 // -----------------------------------------------------------------------------
 function createStreetMesh(street, yBase) {
-  var asphaltCfg = ASPHALT.get();
-  var sidewalkCfg = SIDEWALK_COLORS.get();
-  var group = new THREE.Group();
-  var asphaltWidth = street.width * asphaltCfg.WIDTH_FRAC;
+  const asphaltCfg = ASPHALT.get();
+  const sidewalkCfg = SIDEWALK_COLORS.get();
+  const group = new THREE.Group();
+  const asphaltWidth = street.width * asphaltCfg.WIDTH_FRAC;
   // For concentric caps the asphalt must be shorter by exactly the sidewalk
   // strip width (= (width - asphaltWidth) / 2 per side). That makes the two
   // cap circles share a center and the annular sidewalk strip keep constant
   // thickness around the curve — the cap stays correctly rounded at any
   // street length. Floor at 0 so degenerate streets don't try to render
   // a negative-length stadium.
-  var sidewalkStrip = (street.width - asphaltWidth) / 2;
-  var asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
+  const sidewalkStrip = (street.width - asphaltWidth) / 2;
+  const asphaltLength = Math.max(0, street.length - 2 * sidewalkStrip);
 
   // Cap style: the root has rounded caps both sides; non-root streets are
   // FLAT at their joining end (so they merge cleanly into the parent at
@@ -488,15 +512,16 @@ function createStreetMesh(street, yBase) {
   // each non-root street with `joinSide` ('low' | 'high') after layout.
   // Same capStyle is passed to BOTH sidewalk + asphalt so their flat ends
   // line up and the visible sidewalk strip stays uniform around the cap.
-  var capStyle;
-  if (street.isRoot)                  capStyle = 'both';
-  else if (street.joinSide === 'high') capStyle = 'low';   // round the low/open end
-  else                                 capStyle = 'high';  // round the high/open end
+  let capStyle;
+  if (street.isRoot) capStyle = 'both';
+  else if (street.joinSide === 'high')
+    capStyle = 'low'; // round the low/open end
+  else capStyle = 'high'; // round the high/open end
 
   // Sidewalk — the clickable target for street picking. renderOrder=1
   // means all sidewalks across the city draw first, as a single bottom layer.
-  var orders = RENDER_ORDERS;
-  var sidewalk = new THREE.Mesh(
+  const orders = RENDER_ORDERS;
+  const sidewalk = new THREE.Mesh(
     _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
     _flatMat(sidewalkCfg.DEFAULT, orders.SIDEWALK)
   );
@@ -508,7 +533,7 @@ function createStreetMesh(street, yBase) {
   group.add(sidewalk);
 
   // Asphalt — narrower, always draws on top of every sidewalk.
-  var asphalt = new THREE.Mesh(
+  const asphalt = new THREE.Mesh(
     _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyle),
     _flatMat(asphaltCfg.COLOR, orders.ASPHALT)
   );
@@ -518,12 +543,11 @@ function createStreetMesh(street, yBase) {
   group.add(asphalt);
 
   group.userData.street = street;
-  group.userData.sidewalk = sidewalk;   // exposed so callers can pick on it
-  group.userData.asphalt  = asphalt;    // exposed for live theme recolor
+  group.userData.sidewalk = sidewalk; // exposed so callers can pick on it
+  group.userData.asphalt = asphalt; // exposed for live theme recolor
   group.userData.type = NODE_KIND.DIRECTORY;
   return group;
 }
-
 
 // -----------------------------------------------------------------------------
 // createRootGem(street) -> THREE.Group
@@ -540,29 +564,29 @@ function createStreetMesh(street, yBase) {
 // nearby building colors and the gem reads as an unambiguous "root"
 // beacon regardless of what's around it.
 function createRootGem(street) {
-  var sizing    = GEM_SIZING.get();
-  var appearance = GEM_APPEARANCE.get();
-  var edgeColor  = appearance.EDGE_COLOR;
-  var group     = new THREE.Group();
+  const sizing = GEM_SIZING.get();
+  const appearance = GEM_APPEARANCE.get();
+  const edgeColor = appearance.EDGE_COLOR;
+  const group = new THREE.Group();
 
   // Gem size scales with the street's width. The layout reserves extra dead
   // space at the root street's origin end (see GEM_SIZING), so the origin
   // cap has no buildings overlapping it — the road's rounded cap IS the
   // plaza. RADIUS_AS_STREET_FRAC MUST match what layout.js uses to reserve
   // that pad.
-  var radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
-  var minRadius  = sizing.MIN_RADIUS;
-  var hoverFrac  = sizing.HOVER_LIFT_FRAC;
-  var bobFrac    = GEM_ANIMATION.get().BOB_AMPLITUDE_FRAC;
+  const radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
+  const minRadius = sizing.MIN_RADIUS;
+  const hoverFrac = sizing.HOVER_LIFT_FRAC;
+  const bobFrac = GEM_ANIMATION.get().BOB_AMPLITUDE_FRAC;
 
-  var radius = street.width * radiusFrac;
+  let radius = street.width * radiusFrac;
   if (radius < minRadius) radius = minRadius;
-  var hoverY = radius + street.width * hoverFrac;
+  const hoverY = radius + street.width * hoverFrac;
 
   // Gem hovers at the center of the road's origin-end cap. For a stadium of
   // length L and width W, the origin cap circle is centered at a distance
   // W/2 inward from the tip.
-  var gemX, gemZ;
+  let gemX, gemZ;
   if (street.orientation === 'x') {
     gemX = street.x - street.length / 2 + street.width / 2;
     gemZ = street.y;
@@ -572,33 +596,36 @@ function createRootGem(street) {
   }
 
   // ---- Gem: per-face colored octahedron -------------------------------------
-  var geo = new THREE.OctahedronGeometry(radius, 0);
-  var faces = GEM_FACE_PALETTE.get();
-  var colorAttr = new Float32Array(geo.attributes.position.count * 3);
-  for (var f = 0; f < faces.length; f++) {
-    var fc = faces[f];
-    for (var v = 0; v < 3; v++) {
-      var idx = (f * 3 + v) * 3;
-      colorAttr[idx]     = fc[0];
+  const geo = new THREE.OctahedronGeometry(radius, 0);
+  const faces = GEM_FACE_PALETTE.get();
+  const colorAttr = new Float32Array(geo.attributes.position.count * 3);
+  for (let f = 0; f < faces.length; f++) {
+    const fc = faces[f];
+    for (let v = 0; v < 3; v++) {
+      const idx = (f * 3 + v) * 3;
+      colorAttr[idx] = fc[0];
       colorAttr[idx + 1] = fc[1];
       colorAttr[idx + 2] = fc[2];
     }
   }
   geo.setAttribute('color', new THREE.BufferAttribute(colorAttr, 3));
 
-  var body = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
-    vertexColors: true,
-    transparent: true,
-    opacity:     appearance.BODY_OPACITY,
-    depthWrite:  false
-  }));
+  const body = new THREE.Mesh(
+    geo,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: appearance.BODY_OPACITY,
+      depthWrite: false,
+    })
+  );
 
-  var edges = new THREE.LineSegments(
+  const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geo),
     new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor) })
   );
 
-  var gem = new THREE.Group();
+  const gem = new THREE.Group();
   gem.add(body);
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
@@ -608,13 +635,12 @@ function createRootGem(street) {
   // Stashed for live applyTheme updates of HOVER_LIFT_FRAC: needed to
   // recompute baseY = radius + streetWidth × frac.
   gem.userData.streetWidth = street.width;
-  gem.userData.radius      = radius;
+  gem.userData.radius = radius;
 
   group.add(gem);
   group.userData.gem = gem;
   return group;
 }
-
 
 // -----------------------------------------------------------------------------
 // createPathMesh(path) -> THREE.Mesh
@@ -626,8 +652,8 @@ function createRootGem(street) {
 function createPathMesh(path, yBase) {
   // Paths sit between sidewalks and asphalts so they extend the sidewalk
   // all the way to the building without overdrawing the asphalt.
-  var pathOrder = RENDER_ORDERS.PATH_CONNECTOR;
-  var mesh = new THREE.Mesh(
+  const pathOrder = RENDER_ORDERS.PATH_CONNECTOR;
+  const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(path.w, path.d),
     _flatMat(SIDEWALK_COLORS.get().DEFAULT, pathOrder)
   );
@@ -637,7 +663,6 @@ function createPathMesh(path, yBase) {
   mesh.userData.file = path.file || null;
   return mesh;
 }
-
 
 // -----------------------------------------------------------------------------
 // createStreetLabels(street) -> THREE.Group[]
@@ -661,12 +686,12 @@ function createPathMesh(path, yBase) {
 // changes the texture aspect, which would also need a plane geometry
 // update (those keys stay rebuild-required).
 export function regenerateLabelTexture(group) {
-  var street = group && group.userData && group.userData.street;
+  const street = group && group.userData && group.userData.street;
   if (!street || !street.label) return;
-  var plane = group.children && group.children[0];
+  const plane = group.children && group.children[0];
   if (!plane || !plane.material) return;
   if (plane.material.map) plane.material.map.dispose();
-  var info = _buildLabelTexture(street.label);
+  const info = _buildLabelTexture(street.label);
   plane.material.map = info.texture;
   plane.material.needsUpdate = true;
   group.userData.textureAspect = info.aspect;
@@ -676,90 +701,91 @@ function _buildLabelTexture(text) {
   // High source resolution so close-zoom doesn't reveal bilinear blur.
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
-  var label = LABEL_TYPOGRAPHY.get();
-  var fontSpec = label.FONT_WEIGHT + ' ' + label.FONT_SIZE_PX + 'px ' + label.FONT_FAMILY;
-  var measure = document.createElement('canvas').getContext('2d');
+  const label = LABEL_TYPOGRAPHY.get();
+  const fontSpec = label.FONT_WEIGHT + ' ' + label.FONT_SIZE_PX + 'px ' + label.FONT_FAMILY;
+  const measure = document.createElement('canvas').getContext('2d');
   measure.font = fontSpec;
-  var textW = Math.ceil(measure.measureText(text).width);
-  var canvas = document.createElement('canvas');
-  canvas.width  = textW + label.CANVAS_PADDING_PX * 2;
+  const textW = Math.ceil(measure.measureText(text).width);
+  const canvas = document.createElement('canvas');
+  canvas.width = textW + label.CANVAS_PADDING_PX * 2;
   canvas.height = label.FONT_SIZE_PX + label.CANVAS_PADDING_PX * 2;
-  var ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d');
   ctx.font = fontSpec;
-  ctx.textAlign    = LABEL_TEXT_ALIGN;
+  ctx.textAlign = LABEL_TEXT_ALIGN;
   ctx.textBaseline = LABEL_TEXT_BASELINE;
 
-  ctx.lineWidth   = label.STROKE_WIDTH_PX;
+  ctx.lineWidth = label.STROKE_WIDTH_PX;
   ctx.strokeStyle = label.STROKE;
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   ctx.fillStyle = label.FILL;
   ctx.fillText(text, canvas.width / 2, canvas.height / 2);
 
-  var tex = new THREE.CanvasTexture(canvas);
+  const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = LABEL_ANISOTROPY;
   return { texture: tex, aspect: canvas.width / canvas.height };
 }
 
 function createStreetLabels(street) {
-  var text = street.label || '';
+  const text = street.label || '';
   if (!text) return [];
 
-  var label  = LABEL_TYPOGRAPHY.get();
-  var orders = RENDER_ORDERS;
-  var info   = _buildLabelTexture(text);
+  const label = LABEL_TYPOGRAPHY.get();
+  const orders = RENDER_ORDERS;
+  const info = _buildLabelTexture(text);
 
   // Label sizing scales with street width — narrow alleys get small text,
   // wide boulevards get large text — so the label always fits its asphalt
   // and reads at a consistent proportion of the street it's labeling.
-  var worldH = street.width * label.HEIGHT_FRAC;
-  var worldW = worldH * info.aspect;
+  const worldH = street.width * label.HEIGHT_FRAC;
+  const worldW = worldH * info.aspect;
 
   // Repetition: spacing scales with the label's own rendered width so long
   // names ("codecity") don't pile up on wide streets while short names
   // ("src") still repeat often enough to always have one near the viewport.
   // A minimum floor keeps tiny labels from repeating every few units.
-  var spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);
-  var count   = Math.max(1, Math.floor(street.length / spacing));
+  const spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);
+  const count = Math.max(1, Math.floor(street.length / spacing));
 
-  var labels = [];
-  for (var i = 0; i < count; i++) {
-    var t = (count === 1) ? 0.5 : (i + 0.5) / count;
-    var offset = (t - 0.5) * street.length;
-    var sx = street.x, sz = street.y;
+  const labels = [];
+  for (let i = 0; i < count; i++) {
+    const t = count === 1 ? 0.5 : (i + 0.5) / count;
+    const offset = (t - 0.5) * street.length;
+    let sx = street.x,
+      sz = street.y;
     if (street.orientation === STREET_AXIS.X) sx += offset;
-    else                                       sz += offset;
+    else sz += offset;
 
-    var mat = new THREE.MeshBasicMaterial({
+    const mat = new THREE.MeshBasicMaterial({
       map: info.texture,
       transparent: true,
       // Don't write depth — otherwise the plane's transparent canvas pixels
       // z-block the neon path running underneath, leaving a visible
       // bbox-shaped hole. With depthWrite off, opaque glyph pixels still
       // alpha-blend over the path, but letter loops (O, D, P) reveal it.
-      depthWrite: false
+      depthWrite: false,
     });
-    var plane = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), mat);
-    plane.rotation.x = -Math.PI / 2;   // lay flat
+    const plane = new THREE.Mesh(new THREE.PlaneGeometry(worldW, worldH), mat);
+    plane.rotation.x = -Math.PI / 2; // lay flat
     // Render AFTER the neon path line so the label composites on top.
     plane.renderOrder = orders.STREET_LABEL;
 
     // Wrap in a group so we can apply a single rotation.y for camera-follow
     // flipping without fighting the Euler order of the flattened plane.
-    var group = new THREE.Group();
+    const group = new THREE.Group();
     group.add(plane);
     // Lift a tiny amount off the asphalt to avoid coplanar z-fighting, while
     // staying well below building tops so buildings still occlude the label.
     group.position.set(sx, label.ELEVATION, sz);
     // Base rotation per orientation. For y-streets the label's reading
     // direction needs to run along scene-Z, so rotate the group 90°.
-    group.userData.baseRotY = (street.orientation === STREET_AXIS.Y) ? -Math.PI / 2 : 0;
+    group.userData.baseRotY = street.orientation === STREET_AXIS.Y ? -Math.PI / 2 : 0;
     group.rotation.y = group.userData.baseRotY;
     group.userData.street = street;
     group.userData.type = NODE_KIND.LABEL;
     // Stashed for live applyTheme updates: ELEVATION (group.position.y),
     // and HEIGHT_FRAC (plane.scale recomputed from streetWidth × frac).
-    group.userData.streetWidth   = street.width;
+    group.userData.streetWidth = street.width;
     group.userData.textureAspect = info.aspect;
     group.userData.origHeightFrac = label.HEIGHT_FRAC;
     labels.push(group);
@@ -767,31 +793,30 @@ function createStreetLabels(street) {
   return labels;
 }
 
-
 export function buildCityScene(layout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of src/defaults.js
   // imported at the top of this module. No per-call config plumbing.
 
-  var scene = new THREE.Scene();
+  const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
   // Streets + their labels
-  var streets = layout.streets || [];
-  var streetPickables = [];
-  var asphaltMeshes   = [];
-  var streetLabels = [];
-  var rootGem = null;
-  var rootGemBody = null;
-  var rootGemEdges = null;
-  for (var si = 0; si < streets.length; si++) {
-    var sg = createStreetMesh(streets[si], 0);
+  const streets = layout.streets || [];
+  const streetPickables = [];
+  const asphaltMeshes = [];
+  const streetLabels = [];
+  let rootGem = null;
+  let rootGemBody = null;
+  let rootGemEdges = null;
+  for (let si = 0; si < streets.length; si++) {
+    const sg = createStreetMesh(streets[si], 0);
     scene.add(sg);
     streetPickables.push(sg.userData.sidewalk);
     if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt);
 
-    var labels = createStreetLabels(streets[si]);
-    for (var li = 0; li < labels.length; li++) {
+    const labels = createStreetLabels(streets[si]);
+    for (let li = 0; li < labels.length; li++) {
       scene.add(labels[li]);
       streetLabels.push(labels[li]);
     }
@@ -801,39 +826,39 @@ export function buildCityScene(layout) {
     // edges (the dark separator lines). Both are exposed so the Settings
     // UI can hot-update color + opacity.
     if (streets[si].isRoot) {
-      var gemGroup = createRootGem(streets[si]);
+      const gemGroup = createRootGem(streets[si]);
       scene.add(gemGroup);
       rootGem = gemGroup.userData.gem;
       if (rootGem && rootGem.children) {
-        rootGemBody  = rootGem.children[0] || null;
+        rootGemBody = rootGem.children[0] || null;
         rootGemEdges = rootGem.children[1] || null;
       }
     }
   }
 
   // Paths
-  var pathMeshes = [];
-  var paths = layout.paths || [];
-  for (var pi = 0; pi < paths.length; pi++) {
-    var pm = createPathMesh(paths[pi], 0);
+  const pathMeshes = [];
+  const paths = layout.paths || [];
+  for (let pi = 0; pi < paths.length; pi++) {
+    const pm = createPathMesh(paths[pi], 0);
     scene.add(pm);
     pathMeshes.push(pm);
   }
 
   // Buildings
-  var buildingMeshes = [];
-  var buildings = layout.buildings || [];
-  for (var bi = 0; bi < buildings.length; bi++) {
-    var b = buildings[bi];
+  const buildingMeshes = [];
+  const buildings = layout.buildings || [];
+  for (let bi = 0; bi < buildings.length; bi++) {
+    const b = buildings[bi];
     if (b.file && b.file.type === 'directory') continue;
-    var mesh = createBuildingMesh(b);
+    const mesh = createBuildingMesh(b);
     scene.add(mesh);
     buildingMeshes.push(mesh);
   }
 
   // Bounding box of the whole city (in scene coords). Used by the caller to
   // frame the camera.
-  var bbox = new THREE.Box3().setFromObject(scene);
+  const bbox = new THREE.Box3().setFromObject(scene);
   if (bbox.isEmpty()) {
     bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
   }
@@ -848,6 +873,6 @@ export function buildCityScene(layout) {
     rootGem: rootGem,
     rootGemBody: rootGemBody,
     rootGemEdges: rootGemEdges,
-    bbox: bbox
+    bbox: bbox,
   };
 }

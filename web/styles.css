@@ -4,7 +4,6 @@
    crisp monospace for code metadata, subtle transitions.
    ============================================================================= */
 
-
 /* ── Reset ──────────────────────────────────────────────────────────────────── */
 
 *,
@@ -15,7 +14,6 @@
   box-sizing: border-box;
 }
 
-
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 
 html,
@@ -25,8 +23,15 @@ body {
   overflow: hidden;
   background: #0a0b10;
   color: #e0e0e0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI',
-               Roboto, Oxygen, Ubuntu, sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    Roboto,
+    Oxygen,
+    Ubuntu,
+    sans-serif;
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -53,7 +58,7 @@ body {
 
 #center-pane {
   flex: 1 1 0;
-  min-width: 0;       /* allow the canvas to shrink below its intrinsic 0 size */
+  min-width: 0; /* allow the canvas to shrink below its intrinsic 0 size */
   position: relative; /* canvas fills this box */
   overflow: hidden;
 }
@@ -71,7 +76,7 @@ body {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 11px;
   color: #c0c4d8;
-  -webkit-app-region: drag;       /* in pywebview's native frame this lets you drag */
+  -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
 }
 
@@ -114,8 +119,12 @@ body {
 
 /* When toggled off via the header buttons, hide the entire sidebar (not
    the same as the activity-bar collapse). */
-body.left-hidden #tree-sidebar { display: none; }
-body.right-hidden #sidebar      { display: none; }
+body.left-hidden #tree-sidebar {
+  display: none;
+}
+body.right-hidden #sidebar {
+  display: none;
+}
 
 canvas {
   display: block;
@@ -125,7 +134,6 @@ canvas {
      in instead of flashing. */
   background: #0a0b10;
 }
-
 
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
 
@@ -186,7 +194,7 @@ canvas {
   text-transform: lowercase;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   background: hsl(var(--badge-hue, 0), 60%, 35%);
-  color:      hsl(var(--badge-hue, 0), 30%, 92%);
+  color: hsl(var(--badge-hue, 0), 30%, 92%);
   white-space: nowrap;
   -webkit-app-region: no-drag;
 }
@@ -239,14 +247,14 @@ canvas {
 
 .app-header-icon.is-copied {
   color: #4ade80;
-  background: rgba(74, 222, 128, 0.10);
+  background: rgba(74, 222, 128, 0.1);
 }
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
 .editor-body {
   flex: 1 1 auto;
-  min-height: 0;          /* let children scroll inside the flex */
+  min-height: 0; /* let children scroll inside the flex */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -282,8 +290,12 @@ canvas {
   white-space: nowrap;
   overflow-x: auto;
 }
-#app-footer::-webkit-scrollbar { height: 0; }
-#app-footer:empty { /* keeps the bar itself present even with no selection */ }
+#app-footer::-webkit-scrollbar {
+  height: 0;
+}
+#app-footer:empty {
+  /* keeps the bar itself present even with no selection */
+}
 
 .app-footer-item {
   flex: 0 0 auto;
@@ -293,7 +305,6 @@ canvas {
   color: #44485e;
   font-size: 9.5px;
 }
-
 
 /* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
 
@@ -321,7 +332,6 @@ canvas {
   scrollbar-color: #252838 transparent;
 }
 
-
 /* ── Selected building glow (applied by interactions.js) ────────────────────── */
 
 /* interactions.js adds .building-selected to a canvas overlay element if one
@@ -347,7 +357,6 @@ canvas {
   opacity: 1;
 }
 
-
 /* ── Hover tooltip ─────────────────────────────────────────────────────────── */
 
 #hover-tooltip {
@@ -365,12 +374,16 @@ canvas {
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
 }
 
-
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {
   position: absolute;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
   font-size: 10px;
   font-weight: 500;
   color: rgba(140, 160, 200, 0.7);
@@ -380,7 +393,6 @@ canvas {
   user-select: none;
 }
 
-
 /* ── Left sidebar shell (activity bar + tab panel) ─────────────────────────── */
 
 /* Default width is set inline by leftSidebar.js after reading localStorage,
@@ -389,7 +401,7 @@ canvas {
 #tree-sidebar {
   position: relative;
   flex: 0 0 auto;
-  width: 360px;            /* 44px activity bar + 316px panel; resizable */
+  width: 360px; /* 44px activity bar + 316px panel; resizable */
   min-width: 280px;
   max-width: 600px;
   height: 100%;
@@ -403,14 +415,16 @@ canvas {
 /* Until showLeftSidebar populates the tree, the empty container would
    show as a lighter strip on the left during the manifest fetch / scene
    build. Hide it while empty so the initial paint is just the header. */
-#tree-sidebar:empty { display: none; }
+#tree-sidebar:empty {
+  display: none;
+}
 
 /* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
  * 6px hit zone makes it easy to grab. */
 .sidebar-resize-handle {
   position: absolute;
   top: 0;
-  right: -3px;             /* sit half-on, half-off the edge for an easier grab */
+  right: -3px; /* sit half-on, half-off the edge for an easier grab */
   width: 6px;
   height: 100%;
   cursor: ew-resize;
@@ -479,7 +493,10 @@ canvas {
   justify-content: center;
   cursor: pointer;
   border-left: 2px solid transparent;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
   padding: 0;
 }
 
@@ -602,8 +619,8 @@ canvas {
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
   display: inline-block;
-  background: rgba(108, 138, 255, 0.10);
-  border: 1px solid rgba(108, 138, 255, 0.30);
+  background: rgba(108, 138, 255, 0.1);
+  border: 1px solid rgba(108, 138, 255, 0.3);
   border-radius: 3px;
   color: #c0c4d8;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -666,7 +683,9 @@ canvas {
   padding: 6px 10px;
   cursor: pointer;
   border-radius: 4px;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 
 .segmented-option:hover {
@@ -682,7 +701,7 @@ canvas {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  background: rgba(108, 138, 255, 0.10);
+  background: rgba(108, 138, 255, 0.1);
   border: 1px solid rgba(108, 138, 255, 0.25);
   border-radius: 5px;
   color: #c0c4d8;
@@ -691,7 +710,10 @@ canvas {
   font-weight: 500;
   padding: 8px 10px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s,
+    border-color 0.15s;
 }
 
 .controls-button:hover {
@@ -712,10 +734,10 @@ canvas {
  * it sits beside the primary "Rebuild" button without competing visually. */
 .controls-button-secondary {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.10);
+  border-color: rgba(255, 255, 255, 0.1);
 }
 .controls-button-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.10);
+  background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.25);
   color: #e0e4f5;
 }
@@ -828,7 +850,7 @@ canvas {
   border-color: rgba(108, 138, 255, 0.45);
 }
 .theme-row-reset:not(:disabled):active {
-  background: rgba(108, 138, 255, 0.30);
+  background: rgba(108, 138, 255, 0.3);
 }
 .theme-row-reset:disabled {
   cursor: default;
@@ -847,9 +869,17 @@ canvas {
   border-radius: 4px;
   cursor: pointer;
 }
-.theme-color::-webkit-color-swatch-wrapper { padding: 0; }
-.theme-color::-webkit-color-swatch { border: none; border-radius: 3px; }
-.theme-color::-moz-color-swatch    { border: none; border-radius: 3px; }
+.theme-color::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+.theme-color::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+.theme-color::-moz-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
 
 /* Hue preview — sits at the right end of a hue slider row, showing the
  * current hue as a solid swatch (S/L are fixed mid-range so it reads
@@ -882,7 +912,9 @@ canvas {
   font-size: 10px;
   padding: 3px 8px;
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition:
+    color 0.15s,
+    background 0.15s;
 }
 .theme-select-option:last-child {
   border-right: none;
@@ -950,7 +982,7 @@ canvas {
   width: 12px;
   height: 12px;
   background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -958,7 +990,7 @@ canvas {
   width: 12px;
   height: 12px;
   background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.20);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -1012,7 +1044,7 @@ canvas {
  * is transparent (we draw the visible track above), so each input only
  * contributes its thumb to the visual. pointer-events:none on the input
  * lets clicks pass through except where the thumb itself sits. */
-.theme-range-pair input[type=range] {
+.theme-range-pair input[type='range'] {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1024,7 +1056,7 @@ canvas {
   margin: 0;
   padding: 0;
 }
-.theme-range-pair input[type=range]:focus {
+.theme-range-pair input[type='range']:focus {
   outline: none;
 }
 
@@ -1032,12 +1064,12 @@ canvas {
  * on the runnable-track midline, so a full-height track means the thumb's
  * vertical center aligns with the input's vertical center — and that's
  * the same center as our visible track element above. */
-.theme-range-pair input[type=range]::-webkit-slider-runnable-track {
+.theme-range-pair input[type='range']::-webkit-slider-runnable-track {
   background: transparent;
   height: 100%;
   border: none;
 }
-.theme-range-pair input[type=range]::-moz-range-track {
+.theme-range-pair input[type='range']::-moz-range-track {
   background: transparent;
   height: 100%;
   border: none;
@@ -1047,7 +1079,7 @@ canvas {
  * sit centered on a track of the same height — but since we set the
  * runnable-track to fill the input, the natural centering takes over and
  * no margin nudge is needed. */
-.theme-range-pair input[type=range]::-webkit-slider-thumb {
+.theme-range-pair input[type='range']::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   width: 14px;
@@ -1059,7 +1091,7 @@ canvas {
   pointer-events: auto;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
-.theme-range-pair input[type=range]::-moz-range-thumb {
+.theme-range-pair input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   background: #6c8aff;
@@ -1189,7 +1221,6 @@ canvas {
   color: #8a8ea0;
 }
 
-
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
    Renders the project root README's markdown. Layout matches the other
    panes: header on top, scrollable body underneath. The body's empty /
@@ -1234,12 +1265,30 @@ canvas {
 .info-markdown h3:first-child {
   margin-top: 0;
 }
-.info-markdown h1 { font-size: 20px; padding-bottom: 6px; border-bottom: 1px solid #1e2030; }
-.info-markdown h2 { font-size: 17px; padding-bottom: 4px; border-bottom: 1px solid #1a1c28; }
-.info-markdown h3 { font-size: 14px; }
-.info-markdown h4 { font-size: 13px; color: #c0c4d8; }
+.info-markdown h1 {
+  font-size: 20px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #1e2030;
+}
+.info-markdown h2 {
+  font-size: 17px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #1a1c28;
+}
+.info-markdown h3 {
+  font-size: 14px;
+}
+.info-markdown h4 {
+  font-size: 13px;
+  color: #c0c4d8;
+}
 .info-markdown h5,
-.info-markdown h6 { font-size: 12px; color: #8a8fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+.info-markdown h6 {
+  font-size: 12px;
+  color: #8a8fa8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
 .info-markdown p {
   margin: 8px 0;
@@ -1253,8 +1302,14 @@ canvas {
   text-decoration: underline;
 }
 
-.info-markdown strong { color: #e0e4f5; font-weight: 700; }
-.info-markdown em     { color: #d0d4e8; font-style: italic; }
+.info-markdown strong {
+  color: #e0e4f5;
+  font-weight: 700;
+}
+.info-markdown em {
+  color: #d0d4e8;
+  font-style: italic;
+}
 
 .info-markdown ul,
 .info-markdown ol {
@@ -1335,11 +1390,10 @@ canvas {
   color: #e0e4f5;
 }
 
-.info-markdown input[type="checkbox"] {
+.info-markdown input[type='checkbox'] {
   margin: 0 6px 0 0;
   accent-color: #6c8aff;
 }
-
 
 /* ── File preview elements (children of .editor-body) ───────────────────
    Each preview kind drops directly into the editor body and grabs the
@@ -1356,7 +1410,11 @@ canvas {
     linear-gradient(45deg, transparent 75%, #0c0d14 75%),
     linear-gradient(-45deg, transparent 75%, #0c0d14 75%);
   background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+  background-position:
+    0 0,
+    0 8px,
+    8px -8px,
+    -8px 0;
 }
 
 .preview-media {
@@ -1402,7 +1460,12 @@ canvas {
   padding: 32px 20px;
   color: #6a7090;
   text-align: center;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
 }
 .preview-state .lucide-icon {
   font-size: 28px;
@@ -1422,7 +1485,6 @@ canvas {
   line-height: 1.5;
   color: #6a7090;
 }
-
 
 /* ── Code editor (text preview) ─────────────────────────────────────────
    Two-column flex: a sticky line-number gutter on the left and a
@@ -1485,32 +1547,60 @@ canvas {
 }
 
 /* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
-.hljs                  { color: #c0c4d8; background: transparent; }
+.hljs {
+  color: #c0c4d8;
+  background: transparent;
+}
 .hljs-keyword,
 .hljs-selector-tag,
 .hljs-literal,
 .hljs-section,
-.hljs-link            { color: #c084fc; }            /* purple */
+.hljs-link {
+  color: #c084fc;
+} /* purple */
 .hljs-string,
 .hljs-attr,
 .hljs-symbol,
 .hljs-bullet,
-.hljs-meta-string     { color: #86efac; }            /* green */
+.hljs-meta-string {
+  color: #86efac;
+} /* green */
 .hljs-number,
 .hljs-quote,
 .hljs-template-tag,
-.hljs-type            { color: #fbbf24; }            /* amber */
+.hljs-type {
+  color: #fbbf24;
+} /* amber */
 .hljs-title,
 .hljs-name,
 .hljs-selector-id,
-.hljs-selector-class  { color: #6c8aff; }            /* brand blue */
+.hljs-selector-class {
+  color: #6c8aff;
+} /* brand blue */
 .hljs-built_in,
-.hljs-builtin-name    { color: #38bdf8; }            /* sky */
+.hljs-builtin-name {
+  color: #38bdf8;
+} /* sky */
 .hljs-variable,
-.hljs-template-variable { color: #fda4af; }          /* rose */
+.hljs-template-variable {
+  color: #fda4af;
+} /* rose */
 .hljs-comment,
-.hljs-meta            { color: #5b6178; font-style: italic; }
-.hljs-deletion        { color: #fca5a5; background: rgba(252, 165, 165, 0.08); }
-.hljs-addition        { color: #86efac; background: rgba(134, 239, 172, 0.08); }
-.hljs-emphasis        { font-style: italic; }
-.hljs-strong          { font-weight: 600; }
+.hljs-meta {
+  color: #5b6178;
+  font-style: italic;
+}
+.hljs-deletion {
+  color: #fca5a5;
+  background: rgba(252, 165, 165, 0.08);
+}
+.hljs-addition {
+  color: #86efac;
+  background: rgba(134, 239, 172, 0.08);
+}
+.hljs-emphasis {
+  font-style: italic;
+}
+.hljs-strong {
+  font-weight: 600;
+}

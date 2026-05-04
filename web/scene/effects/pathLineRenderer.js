@@ -17,74 +17,73 @@ import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '../../config/index.js';
 import { NODE_KIND, RENDER_ORDERS } from '../../constants.js';
 import { computePathPoints } from '../path.js';
 
-
 export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
-  var _pl = PATH_LINE.get();
-  var pathLineMat = new LineMaterial({
+  const _pl = PATH_LINE.get();
+  const pathLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth:    _pl.LINEWIDTH,
-    transparent:  true,
-    opacity:      0.0,
-    depthTest:    true,
-    depthWrite:   false,
-    worldUnits:   false,
+    linewidth: _pl.LINEWIDTH,
+    transparent: true,
+    opacity: 0.0,
+    depthTest: true,
+    depthWrite: false,
+    worldUnits: false,
   });
   pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  var pathLineGeo = new LineSegmentsGeometry();
+  let pathLineGeo = new LineSegmentsGeometry();
   pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
-  var pathLine = new LineSegments2(pathLineGeo, pathLineMat);
+  const pathLine = new LineSegments2(pathLineGeo, pathLineMat);
   pathLine.visible = false;
   pathLine.renderOrder = RENDER_ORDERS.PATH_LINE;
   scene.add(pathLine);
 
-  var pathSegmentCount = 0;
-  var _pathColorsBuf = new Float32Array(0);
-  var _pathHsl = new THREE.Color();
+  let pathSegmentCount = 0;
+  let _pathColorsBuf = new Float32Array(0);
+  const _pathHsl = new THREE.Color();
 
   // ── Hover preview path line (single solid color, faded) ────────────
-  var _hpl = HOVER_PATH_LINE.get();
-  var hoverPathLineMat = new LineMaterial({
-    color:       _hpl.COLOR,
-    linewidth:   _hpl.LINEWIDTH,
+  const _hpl = HOVER_PATH_LINE.get();
+  const hoverPathLineMat = new LineMaterial({
+    color: _hpl.COLOR,
+    linewidth: _hpl.LINEWIDTH,
     transparent: true,
-    opacity:     0.0,
-    depthTest:   true,
-    depthWrite:  false,
-    worldUnits:  false,
+    opacity: 0.0,
+    depthTest: true,
+    depthWrite: false,
+    worldUnits: false,
   });
   hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  var hoverPathLineGeo = new LineSegmentsGeometry();
+  let hoverPathLineGeo = new LineSegmentsGeometry();
   hoverPathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);
-  var hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
+  const hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
   hoverPathLine.visible = false;
   hoverPathLine.renderOrder = RENDER_ORDERS.PATH_LINE;
   scene.add(hoverPathLine);
 
   function _isHoverSameAsSelection() {
-    var hov = picker.hover.get();
-    var sel = picker.selection.get();
+    const hov = picker.hover.get();
+    const sel = picker.selection.get();
     if (!hov || !sel) return false;
     if (hov.kind !== sel.kind) return false;
-    if (hov.kind === NODE_KIND.FILE)      return hov.mesh === sel.mesh;
+    if (hov.kind === NODE_KIND.FILE) return hov.mesh === sel.mesh;
     if (hov.kind === NODE_KIND.DIRECTORY) return hov.street === sel.street;
-    if (hov.kind === NODE_KIND.GEM)       return true;
+    if (hov.kind === NODE_KIND.GEM) return true;
     return false;
   }
 
   function _updatePathLine() {
-    var sel = picker.selection.get();
-    var gemPos = cityScene.getGemWorldPos();
+    const sel = picker.selection.get();
+    const gemPos = cityScene.getGemWorldPos();
     if (!gemPos || !sel) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
       pathSegmentCount = 0;
       return;
     }
-    var pts = computePathPoints(
+    const pts = computePathPoints(
       sel,
       { x: gemPos.x, z: gemPos.z },
-      cityScene.getStreetsByDirMap(),
+      cityScene.getStreetsByDirMap()
     );
     if (pts.length < 2) {
       pathLine.visible = false;
@@ -92,10 +91,11 @@ export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
       pathSegmentCount = 0;
       return;
     }
-    var elev = PATH_LINE.get().ELEVATION;
-    var flat = [];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var a = pts[i], b = pts[i + 1];
+    const elev = PATH_LINE.get().ELEVATION;
+    const flat = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i],
+        b = pts[i + 1];
       flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
     // Recreate the geometry on every update — LineSegmentsGeometry's
@@ -115,23 +115,27 @@ export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
   }
 
   function _updateHoverPathLine() {
-    var hov = picker.hover.get();
-    var gemPos = cityScene.getGemWorldPos();
-    var cfg = HOVER_PATH_LINE.get();
-    function hide() { hoverPathLine.visible = false; hoverPathLineMat.opacity = 0; }
-    if (!cfg.ENABLED || !gemPos || !hov)            return hide();
-    if (hov.kind === NODE_KIND.GEM)                 return hide();
-    if (_isHoverSameAsSelection())                  return hide();
-    var pts = computePathPoints(
+    const hov = picker.hover.get();
+    const gemPos = cityScene.getGemWorldPos();
+    const cfg = HOVER_PATH_LINE.get();
+    function hide() {
+      hoverPathLine.visible = false;
+      hoverPathLineMat.opacity = 0;
+    }
+    if (!cfg.ENABLED || !gemPos || !hov) return hide();
+    if (hov.kind === NODE_KIND.GEM) return hide();
+    if (_isHoverSameAsSelection()) return hide();
+    const pts = computePathPoints(
       hov,
       { x: gemPos.x, z: gemPos.z },
-      cityScene.getStreetsByDirMap(),
+      cityScene.getStreetsByDirMap()
     );
     if (pts.length < 2) return hide();
-    var elev = cfg.ELEVATION;
-    var flat = [];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var a = pts[i], b = pts[i + 1];
+    const elev = cfg.ELEVATION;
+    const flat = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i],
+        b = pts[i + 1];
       flat.push(a.x, elev, a.z, b.x, elev, b.z);
     }
     if (hoverPathLineGeo && hoverPathLineGeo.dispose) hoverPathLineGeo.dispose();
@@ -143,21 +147,29 @@ export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
   }
 
   // Reactive: rebuild geometry on selection / hover / cityScene change.
-  picker.selection.subscribe(function () { _updatePathLine(); _updateHoverPathLine(); });
-  picker.hover.subscribe(function ()     { _updateHoverPathLine(); });
-  cityScene.onChange(function ()         { _updatePathLine(); _updateHoverPathLine(); });
+  picker.selection.subscribe(function () {
+    _updatePathLine();
+    _updateHoverPathLine();
+  });
+  picker.hover.subscribe(function () {
+    _updateHoverPathLine();
+  });
+  cityScene.onChange(function () {
+    _updatePathLine();
+    _updateHoverPathLine();
+  });
 
   // ── Per-frame: rainbow chase on the selection line ─────────────────
   function update(_dtMs) {
     if (pathSegmentCount <= 0 || !pathLine.visible) return;
-    var rb = RAINBOW.get();
-    var t = performance.now() * rb.SPEED;
-    var n = pathSegmentCount;
-    for (var s = 0; s < n; s++) {
-      var h1 = ((t + s       / n) % 1 + 1) % 1;
-      var h2 = ((t + (s + 1) / n) % 1 + 1) % 1;
+    const rb = RAINBOW.get();
+    const t = performance.now() * rb.SPEED;
+    const n = pathSegmentCount;
+    for (let s = 0; s < n; s++) {
+      const h1 = (((t + s / n) % 1) + 1) % 1;
+      const h2 = (((t + (s + 1) / n) % 1) + 1) % 1;
       _pathHsl.setHSL(h1, rb.SATURATION, rb.LIGHTNESS);
-      _pathColorsBuf[s * 6]     = _pathHsl.r;
+      _pathColorsBuf[s * 6] = _pathHsl.r;
       _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
       _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
       _pathHsl.setHSL(h2, rb.SATURATION, rb.LIGHTNESS);
@@ -169,10 +181,10 @@ export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
   }
 
   function refreshMaterials() {
-    var pl = PATH_LINE.get();
+    const pl = PATH_LINE.get();
     pathLineMat.linewidth = pl.LINEWIDTH;
     if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
-    var hpl = HOVER_PATH_LINE.get();
+    const hpl = HOVER_PATH_LINE.get();
     hoverPathLineMat.color.set(hpl.COLOR);
     hoverPathLineMat.linewidth = hpl.LINEWIDTH;
     _updateHoverPathLine();

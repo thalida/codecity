@@ -10,18 +10,16 @@ import { makeLucideIcon } from '../shell/icon.js';
 // state (path → li registry, callbacks). `node` is the tree node being
 // expanded; pass the manifest root to start.
 function _buildList(node, ctx) {
-  var ul = document.createElement('ul');
+  const ul = document.createElement('ul');
   ul.className = 'tree-list';
 
   // Match layout.js sort: alphabetical, files + directories intermingled.
   // Keeps the tree's visual order identical to the city's road layout.
-  var children = (node.children || [])
-    .slice()
-    .sort(function (a, b) {
-      return (a.name || '').localeCompare(b.name || '');
-    });
+  const children = (node.children || []).slice().sort(function (a, b) {
+    return (a.name || '').localeCompare(b.name || '');
+  });
 
-  for (var i = 0; i < children.length; i++) {
+  for (let i = 0; i < children.length; i++) {
     ul.appendChild(_buildItem(children[i], ctx));
   }
 
@@ -29,14 +27,14 @@ function _buildList(node, ctx) {
 }
 
 function _buildItem(child, ctx) {
-  var li = document.createElement('li');
+  const li = document.createElement('li');
   li.className = 'tree-item';
   if (child.path != null) li.dataset.path = child.path;
 
-  var row = document.createElement('div');
+  const row = document.createElement('div');
   row.className = 'tree-row';
 
-  var label = document.createElement('span');
+  const label = document.createElement('span');
   label.className = 'tree-label';
   label.textContent = child.name || '';
 
@@ -45,30 +43,30 @@ function _buildItem(child, ctx) {
 
     // Chevron flips between right (collapsed) and down (expanded). Both
     // share the same icon span so we just swap the mask URL on toggle.
-    var chevron = document.createElement('span');
+    const chevron = document.createElement('span');
     chevron.className = 'tree-chevron';
-    var chevronIcon = makeLucideIcon('chevron-right', { class: 'tree-icon tree-icon-dir' });
+    const chevronIcon = makeLucideIcon('chevron-right', { class: 'tree-icon tree-icon-dir' });
     chevron.appendChild(chevronIcon);
     row.appendChild(chevron);
     row.appendChild(label);
     li.appendChild(row);
 
-    var subtree = _buildList(child, ctx);
+    const subtree = _buildList(child, ctx);
     subtree.style.display = 'none';
     li.appendChild(subtree);
 
     chevron.addEventListener('click', function (e) {
-      e.stopPropagation();   // selecting via the chevron is intentionally a no-op
+      e.stopPropagation(); // selecting via the chevron is intentionally a no-op
       // Single-branch invariant: expanding a directory closes any other
       // open branch so only one chain from root is ever exposed at a time.
       // Collapsing only collapses this dir — invariant trivially holds.
-      var isCollapsed = li.classList.contains('tree-collapsed');
+      const isCollapsed = li.classList.contains('tree-collapsed');
       if (isCollapsed) _openOnlyChain(li, ctx.rootList);
-      else             _collapseDir(li, subtree, chevronIcon);
+      else _collapseDir(li, subtree, chevronIcon);
     });
   } else {
     li.classList.add('tree-file');
-    var fileIcon = makeLucideIcon('file', { class: 'tree-icon tree-icon-file' });
+    const fileIcon = makeLucideIcon('file', { class: 'tree-icon tree-icon-file' });
     row.appendChild(fileIcon);
     row.appendChild(label);
     li.appendChild(row);
@@ -122,11 +120,11 @@ function _collapseDir(li, subtree, chevronIcon) {
 // from `li` up to (and not including) `root`'s parent. Used by
 // _openOnlyChain to know which dirs to spare from the bulk collapse.
 function _ancestorChain(li, root) {
-  var chain = new Set();
-  var p = li.parentElement;
+  const chain = new Set();
+  let p = li.parentElement;
   while (p && p !== root) {
     if (p.classList && p.classList.contains('tree-list')) {
-      var parentLi = p.parentElement;
+      const parentLi = p.parentElement;
       if (parentLi && parentLi.classList.contains('tree-dir')) chain.add(parentLi);
     }
     p = p.parentElement;
@@ -140,11 +138,11 @@ function _ancestorChain(li, root) {
 // contents should be visible — that's the user's "current branch".
 function _openOnlyChain(target, rootList) {
   if (!rootList) return;
-  var chain = _ancestorChain(target, rootList);
-  var allDirs = rootList.querySelectorAll('.tree-dir');
-  for (var i = 0; i < allDirs.length; i++) {
-    var dirLi = allDirs[i];
-    var shouldBeExpanded = chain.has(dirLi) || dirLi === target;
+  const chain = _ancestorChain(target, rootList);
+  const allDirs = rootList.querySelectorAll('.tree-dir');
+  for (let i = 0; i < allDirs.length; i++) {
+    const dirLi = allDirs[i];
+    const shouldBeExpanded = chain.has(dirLi) || dirLi === target;
     _setDirExpanded(dirLi, shouldBeExpanded);
   }
 }
@@ -152,8 +150,8 @@ function _openOnlyChain(target, rootList) {
 // _setDirExpanded(li, expanded) — apply expand/collapse to a directory <li>
 // without callers needing to look up its own subtree + chevron icon.
 function _setDirExpanded(li, expanded) {
-  var sub  = li.querySelector(':scope > .tree-list');
-  var chev = li.querySelector(':scope > .tree-row > .tree-chevron > .tree-icon');
+  const sub = li.querySelector(':scope > .tree-list');
+  const chev = li.querySelector(':scope > .tree-row > .tree-chevron > .tree-icon');
   if (!sub || !chev) return;
   if (expanded) {
     if (li.classList.contains('tree-expanded')) return;
@@ -164,17 +162,15 @@ function _setDirExpanded(li, expanded) {
   }
 }
 
-
 // _setIcon(span, name) — swap the mask-image URL of an existing lucide-icon
 // span so we don't have to rebuild the DOM node on every toggle.
 function _setIcon(span, name) {
-  var base = span.style.maskImage || span.style.webkitMaskImage;
+  const base = span.style.maskImage || span.style.webkitMaskImage;
   // Both URLs share the prefix up through ".../icons/"; swap the last segment.
-  var u = base.replace(/[^/]+\.svg/, name + '.svg');
+  const u = base.replace(/[^/]+\.svg/, name + '.svg');
   span.style.maskImage = u;
   span.style.webkitMaskImage = u;
 }
-
 
 // buildTree(node) — bare <ul> for `node`'s children with no event handlers.
 // Used by tests; production callers should use buildTreePane to get the
@@ -182,7 +178,6 @@ function _setIcon(span, name) {
 export function buildTree(node) {
   return _buildList(node, { byPath: {}, onSelect: null, onFocus: null });
 }
-
 
 // buildTreePane(manifest, opts) -> { pane, api }
 //
@@ -207,13 +202,13 @@ export function buildTree(node) {
 //                             cosmetic mirror, not a navigation gesture.
 export function buildTreePane(manifest, opts) {
   opts = opts || {};
-  var pane = document.createElement('div');
+  const pane = document.createElement('div');
   pane.className = 'left-pane tree-pane';
 
-  var header = document.createElement('div');
+  const header = document.createElement('div');
   header.className = 'tree-header pane-header';
 
-  var title = document.createElement('h3');
+  const title = document.createElement('h3');
   title.className = 'tree-title';
   // Generic "Explorer" label so it doesn't duplicate the root folder name
   // shown right below it in the list (mirrors VSCode's section header).
@@ -226,31 +221,31 @@ export function buildTreePane(manifest, opts) {
 
   pane.appendChild(header);
 
-  var ctx = {
-    byPath:     {},
-    rootList:   null,             // populated below; chevron click reads it
-    rootDirLi:  null,             // set after the root folder li is built
-    onSelect:   opts.onSelect,
-    onFocus:    opts.onFocus,
-    onHover:    opts.onHover,
-    onHoverEnd: opts.onHoverEnd
+  const ctx = {
+    byPath: {},
+    rootList: null, // populated below; chevron click reads it
+    rootDirLi: null, // set after the root folder li is built
+    onSelect: opts.onSelect,
+    onFocus: opts.onFocus,
+    onHover: opts.onHover,
+    onHoverEnd: opts.onHoverEnd,
   };
 
   // Wrap the manifest root in a single top-level folder li (instead of
   // splatting its children into the list) so the project root is itself
   // hoverable / selectable / focusable. Hovering or selecting the root
   // street in the city now has a matching row to highlight.
-  var tree = manifest.tree || manifest;
-  var listEl = document.createElement('ul');
+  const tree = manifest.tree || manifest;
+  const listEl = document.createElement('ul');
   listEl.className = 'tree-list tree-root';
   ctx.rootList = listEl;
-  var rootItem = _buildItem(tree, ctx);
+  const rootItem = _buildItem(tree, ctx);
   ctx.rootDirLi = rootItem;
   listEl.appendChild(rootItem);
   pane.appendChild(listEl);
 
-  var currentSelectedLi = null;
-  var currentHoveredLi  = null;
+  let currentSelectedLi = null;
+  let currentHoveredLi = null;
 
   function setSelectedPath(path) {
     if (currentSelectedLi) {
@@ -263,7 +258,7 @@ export function buildTreePane(manifest, opts) {
       if (ctx.rootDirLi) _openOnlyChain(ctx.rootDirLi, listEl);
       return;
     }
-    var entry = ctx.byPath[path];
+    const entry = ctx.byPath[path];
     if (!entry) return;
     entry.li.classList.add('tree-selected');
     currentSelectedLi = entry.li;
@@ -281,7 +276,7 @@ export function buildTreePane(manifest, opts) {
       currentHoveredLi = null;
     }
     if (path == null) return;
-    var entry = ctx.byPath[path];
+    const entry = ctx.byPath[path];
     if (!entry) return;
     entry.li.classList.add('tree-hovered');
     currentHoveredLi = entry.li;
@@ -289,20 +284,22 @@ export function buildTreePane(manifest, opts) {
 
   return {
     pane: pane,
-    api:  {
+    api: {
       setSelectedPath: setSelectedPath,
-      setHoveredPath:  setHoveredPath
-    }
+      setHoveredPath: setHoveredPath,
+    },
   };
 }
 
 function _buildPaneCloseButton(onClose) {
-  var btn = document.createElement('button');
+  const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'pane-header-close';
   btn.title = 'Hide sidebar';
   btn.setAttribute('aria-label', 'Hide sidebar');
   btn.appendChild(makeLucideIcon('x'));
-  btn.addEventListener('click', function () { onClose(); });
+  btn.addEventListener('click', function () {
+    onClose();
+  });
   return btn;
 }

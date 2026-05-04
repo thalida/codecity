@@ -12,8 +12,8 @@
 import { map } from 'nanostores';
 
 export const LIVE_UPDATES = map({
-  ENABLED:      true,
-  POLL_SECONDS: 3
+  ENABLED: true,
+  POLL_SECONDS: 3,
 });
 
 // Hidden bounds (not exposed in the controls UI, just clamped on read).

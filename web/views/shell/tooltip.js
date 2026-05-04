@@ -7,7 +7,7 @@
 import { TOOLTIP } from '../../config/index.js';
 import { DOM_IDS } from '../../constants.js';
 
-var _el = null;
+let _el = null;
 
 function _ensure() {
   // Re-create if the element was removed (test teardown, hot-reload, etc.)
@@ -22,7 +22,7 @@ function _ensure() {
 // showTooltip(text, x, y) — show with the given text, positioned near cursor
 // (with auto-clamp to viewport so it doesn't bleed off-screen).
 export function showTooltip(text, x, y) {
-  var el = _ensure();
+  const el = _ensure();
   el.textContent = text;
   el.style.display = 'block';
   moveTooltip(x, y);
@@ -32,19 +32,19 @@ export function showTooltip(text, x, y) {
 // on every pointermove.
 export function moveTooltip(x, y) {
   if (!_el) return;
-  var cfg = TOOLTIP.get();
-  var OFFSET = cfg.OFFSET_PX;
-  var MARGIN = cfg.VIEWPORT_MARGIN_PX;
-  var w = _el.offsetWidth;
-  var h = _el.offsetHeight;
-  var vw = window.innerWidth;
-  var vh = window.innerHeight;
-  var px = x + OFFSET;
-  var py = y + OFFSET;
+  const cfg = TOOLTIP.get();
+  const OFFSET = cfg.OFFSET_PX;
+  const MARGIN = cfg.VIEWPORT_MARGIN_PX;
+  const w = _el.offsetWidth;
+  const h = _el.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  let px = x + OFFSET;
+  let py = y + OFFSET;
   if (px + w + MARGIN > vw) px = x - OFFSET - w;
   if (py + h + MARGIN > vh) py = y - OFFSET - h;
   _el.style.left = px + 'px';
-  _el.style.top  = py + 'px';
+  _el.style.top = py + 'px';
 }
 
 export function hideTooltip() {
