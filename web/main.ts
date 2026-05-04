@@ -1,4 +1,4 @@
-// main.js — Entry point. Fetches the manifest from the local Python server
+// main.ts — Entry point. Fetches the manifest from the local Python server
 // at /api/manifest, lays out the city, builds the scene, and starts the
 // render loop with orbit/pan/zoom controls and raycast picking.
 

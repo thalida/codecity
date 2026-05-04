@@ -1,4 +1,4 @@
-// coordinator.js — top-level orchestrator. The only module that imports
+// coordinator.ts — top-level orchestrator. The only module that imports
 // from both views/ and scene/. Owns the lifecycle of appHeader,
 // appFooter, leftSidebar, and the right-sidebar's mounted file-preview
 // pane, plus the picker → views synchronization.
@@ -23,7 +23,21 @@ import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.j
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { NODE_KIND } from './constants.js';
 
-export function createCoordinator({ cityScene, picker, rig, huePalette, applyTheme }) {
+interface CoordinatorOpts {
+  cityScene: any;
+  picker: any;
+  rig: any;
+  huePalette: Record<string, number>;
+  applyTheme: () => void;
+}
+
+export function createCoordinator({
+  cityScene,
+  picker,
+  rig,
+  huePalette,
+  applyTheme,
+}: CoordinatorOpts) {
   let sidebarVisible = false;
 
   // Build the right-sidebar's file-preview pane once. The shell mounts
