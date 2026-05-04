@@ -21,12 +21,13 @@ describe('showLeftSidebar', () => {
     document.body.removeChild(container);
   });
 
-  it('mounts an activity bar with both tab icons', () => {
+  it('mounts an activity bar with one icon per tab', () => {
     showLeftSidebar({ tree: TEST_TREE }, {});
     const icons = container.querySelectorAll('.activity-bar .activity-bar-icon');
-    expect(icons.length).toBe(2);
+    expect(icons.length).toBe(3);
     expect(icons[0].dataset.tab).toBe('tree');
-    expect(icons[1].dataset.tab).toBe('controls');
+    expect(icons[1].dataset.tab).toBe('info');
+    expect(icons[2].dataset.tab).toBe('controls');
   });
 
   it('shows the tree pane by default and hides the controls pane', () => {

@@ -17,7 +17,8 @@ import {
   // Background
   SCENE_COLORS,
   // Streets
-  ASPHALT, SIDEWALK_COLORS, LABEL_TYPOGRAPHY, PATH_LINE, HOVER_PATH_LINE, STREET_LAYOUT,
+  ASPHALT, SIDEWALK_COLORS, LABEL_TYPOGRAPHY, PATH_LINE, HOVER_PATH_LINE,
+  STREET_LAYOUT, STREET_TIERS,
   // Buildings
   BUILDING_DIMENSIONS, BUILDING_PALETTE, BUILDING_OUTLINE, BUILDING_FADE,
   // Gem
@@ -281,6 +282,18 @@ function _buildStreetsSection(applyTheme) {
       onChange: applyTheme
     })
   ]));
+
+  // Width tiers — step-function mapping a directory's descendant count to
+  // its street width. One slider per tier so the user can fatten or thin
+  // any specific road class without touching the others. min_descendants
+  // thresholds aren't user-tunable (would shuffle the whole layout); only
+  // the world-unit width per tier.
+  var tierRows = [];
+  var tierDefaults = STREET_TIERS.get();
+  for (var ti = 0; ti < tierDefaults.length; ti++) {
+    tierRows.push(_tierWidthSlider(ti, tierDefaults[ti].min_descendants));
+  }
+  section.appendChild(_subgroup('Width tiers', tierRows));
 
   // Layout
   section.appendChild(_subgroup('Layout', [
@@ -787,6 +800,70 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
   var resetBtn = _makeNestedResetButton(store, parentKey, subKey, opts);
   ctrlWrap.appendChild(resetBtn);
   return row;
+}
+
+// _tierWidthSlider — slider bound to STREET_TIERS[index].width. The atom
+// holds a frozen-shape array of { min_descendants, width }; this widget
+// rewrites the array with one tier's width changed, leaving the rest
+// (and every other tier's min_descendants) intact. Reset goes back to
+// the registered default's width for that index.
+function _tierWidthSlider(index, minDescendants) {
+  var refs = {};
+  var label = minDescendants + '+ descendants';
+  var initial = (STREET_TIERS.get()[index] || {}).width;
+
+  var control = _sliderWidget(initial, 1, 100, 1, function (v) {
+    var current = STREET_TIERS.get();
+    var next = current.slice();
+    next[index] = { min_descendants: current[index].min_descendants, width: v };
+    STREET_TIERS.set(next);
+  }, refs);
+
+  STREET_TIERS.subscribe(function (state) {
+    var v = (state[index] || {}).width;
+    if (parseFloat(refs.range.value) !== v) {
+      refs.range.value = String(v);
+      refs.readout.textContent = _formatNumberForStep(v, 1);
+    }
+  });
+
+  var rowOpts = {
+    tip: 'World-unit width for streets in this descendant-count tier.'
+  };
+  var row = _row(label, control, null, null, rowOpts);
+  row.querySelector('.theme-row-control')
+     .appendChild(_makeTierWidthResetButton(index));
+  return row;
+}
+
+function _makeTierWidthResetButton(index) {
+  var btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'theme-row-reset';
+  btn.setAttribute('aria-label', 'Reset to default');
+  btn.appendChild(makeLucideIcon('rotate-ccw'));
+
+  var defaultArr = getDefault(STREET_TIERS) || [];
+  var defaultVal = (defaultArr[index] || {}).width;
+  btn.title = 'Default: ' + _formatDefaultValue(defaultVal);
+
+  btn.addEventListener('click', function (e) {
+    if (btn.disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+    var current = STREET_TIERS.get();
+    var next = current.slice();
+    next[index] = { min_descendants: current[index].min_descendants, width: defaultVal };
+    STREET_TIERS.set(next);
+  });
+
+  function refresh() {
+    var v = (STREET_TIERS.get()[index] || {}).width;
+    btn.disabled = _isEqual(v, defaultVal);
+  }
+  refresh();
+  STREET_TIERS.subscribe(refresh);
+  return btn;
 }
 
 function _makeNestedResetButton(store, parentKey, subKey, opts) {

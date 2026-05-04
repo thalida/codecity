@@ -23,6 +23,9 @@ var _DEFAULTS_BY_NAME = {};
 // Map from store reference → its registered name (so callers that already
 // hold a store ref can ask "what's the default for this key?").
 var _NAME_BY_STORE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+// Reverse lookup so Reset-all can push defaults back into every registered
+// store without needing a separate registry from callers.
+var _STORE_BY_NAME = {};
 
 // Listeners notified after ANY config store changes its persisted state.
 // The Reset-all button uses this to update its enabled/disabled state in
@@ -82,6 +85,7 @@ export function persistStore(name, store) {
   // restores to and what the diff-vs-default check compares against.
   var defaults = _clone(store.get());
   _DEFAULTS_BY_NAME[name] = defaults;
+  _STORE_BY_NAME[name] = store;
   if (_NAME_BY_STORE) _NAME_BY_STORE.set(store, name);
 
   var saved = _safeGet(name);
@@ -197,11 +201,27 @@ export function onAnyChange(cb) {
 // Wipe every persisted config slot — the panic "reset everything" path.
 // Only touches stores we registered, so UI prefs (e.g. cc.sidebarWidth)
 // survive a Reset-all.
+//
+// Pushes defaults back into each store rather than just nuking localStorage:
+// the store's subscribe handler then drops the localStorage entry on its own,
+// AND consumers (live-poll loop, scene, controls UI) see the change live
+// instead of waiting for a page reload.
 export function clearPersistence() {
-  if (typeof localStorage === 'undefined') return;
   for (var name in _DEFAULTS_BY_NAME) {
-    if (Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) {
-      _safeRemove(name);
+    if (!Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) continue;
+    var store = _STORE_BY_NAME[name];
+    var defaults = _DEFAULTS_BY_NAME[name];
+    if (!store) continue;
+    if (typeof store.setKey === 'function'
+        && defaults && typeof defaults === 'object'
+        && !Array.isArray(defaults)) {
+      for (var k in defaults) {
+        if (Object.prototype.hasOwnProperty.call(defaults, k)) {
+          store.setKey(k, _clone(defaults[k]));
+        }
+      }
+    } else {
+      store.set(_clone(defaults));
     }
   }
 }

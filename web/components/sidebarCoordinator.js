@@ -162,9 +162,19 @@ export function createSidebarCoordinator({
     }
   });
 
+  // Push the freshly-applied manifest into the Info pane so an edited
+  // README on disk re-renders without a page reload (live-update poll
+  // fires applyManifest, which fires onChange).
+  var _changeUnsub = cityScene.onChange(function () {
+    if (leftSidebarApi.setInfoManifest) {
+      leftSidebarApi.setInfoManifest(cityScene.getManifest());
+    }
+  });
+
   function dispose() {
     if (typeof _selUnsub === 'function') _selUnsub();
     if (typeof _hovUnsub === 'function') _hovUnsub();
+    if (typeof _changeUnsub === 'function') _changeUnsub();
   }
 
   return {

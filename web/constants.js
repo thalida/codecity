@@ -48,6 +48,7 @@ export const DOM_IDS = Object.freeze({
 // Left-sidebar tab IDs.
 export const SIDEBAR_TAB = Object.freeze({
   TREE:     'tree',
+  INFO:     'info',
   CONTROLS: 'controls'
 });
 
@@ -61,6 +62,7 @@ export const LUCIDE_ICON_BASE_URL =
 // tunable — these are part of the app's structural definition.
 export const ACTIVITY_BAR_TABS = Object.freeze([
   { id: 'tree',     icon: 'folder-tree.svg',        title: 'Tree'     },
+  { id: 'info',     icon: 'info.svg',               title: 'Info'     },
   { id: 'controls', icon: 'sliders-horizontal.svg', title: 'Controls' }
 ]);
 

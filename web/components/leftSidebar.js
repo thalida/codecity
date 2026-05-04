@@ -6,6 +6,7 @@
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
 import { buildTreePane } from './tree.js';
+import { buildInfoPane } from './info.js';
 import { buildControlsPane } from './controls.js';
 import {
   DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS
@@ -68,8 +69,10 @@ export function showLeftSidebar(manifest, opts) {
     onHover:    opts.onTreeHover,
     onHoverEnd: opts.onTreeHoverEnd
   });
+  var infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
   var panes = {};
   panes[SIDEBAR_TAB.TREE]     = treeBundle.pane;
+  panes[SIDEBAR_TAB.INFO]     = infoBundle.pane;
   panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
     applyTheme: opts.applyTheme,
     onClose:    paneOnClose
@@ -162,7 +165,8 @@ export function showLeftSidebar(manifest, opts) {
 
   return {
     setSelectedTreePath: treeBundle.api.setSelectedPath,
-    setHoveredTreePath:  treeBundle.api.setHoveredPath
+    setHoveredTreePath:  treeBundle.api.setHoveredPath,
+    setInfoManifest:     infoBundle.api.setManifest
   };
 }
 

@@ -721,8 +721,8 @@ canvas {
 }
 
 /* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
- * so it stays visible while the form scrolls. The primary "Rebuild" button
- * grows to fill; the secondary "Reset all" button takes its natural width. */
+ * so it stays visible while the form scrolls. Buttons inside stretch to
+ * fill the bar's width. */
 .controls-actions {
   flex: 0 0 auto;
   display: flex;
@@ -733,14 +733,11 @@ canvas {
   border-top: 1px solid #1e2030;
 }
 .controls-actions .controls-button {
-  width: auto;
+  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-}
-.controls-actions .controls-button:not(.controls-button-secondary) {
-  flex: 1;
 }
 .controls-button-icon {
   width: 14px;
@@ -1190,6 +1187,157 @@ canvas {
 
 .tree-file > .tree-row > .tree-label {
   color: #8a8ea0;
+}
+
+
+/* ── Info pane (Info tab in left sidebar) ───────────────────────────────
+   Renders the project root README's markdown. Layout matches the other
+   panes: header on top, scrollable body underneath. The body's empty /
+   error states reuse the .preview-state helper from the file sidebar. */
+
+.info-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+.info-body > .preview-state {
+  flex: 1 1 auto;
+}
+#tree-sidebar .info-body {
+  scrollbar-width: thin;
+  scrollbar-color: #252838 transparent;
+}
+
+.info-markdown {
+  padding: 16px 18px 24px;
+  color: #c0c4d8;
+  font-size: 13px;
+  line-height: 1.6;
+  word-wrap: break-word;
+}
+
+.info-markdown h1,
+.info-markdown h2,
+.info-markdown h3,
+.info-markdown h4,
+.info-markdown h5,
+.info-markdown h6 {
+  color: #e0e4f5;
+  font-weight: 700;
+  margin: 18px 0 8px;
+  line-height: 1.3;
+}
+.info-markdown h1:first-child,
+.info-markdown h2:first-child,
+.info-markdown h3:first-child {
+  margin-top: 0;
+}
+.info-markdown h1 { font-size: 20px; padding-bottom: 6px; border-bottom: 1px solid #1e2030; }
+.info-markdown h2 { font-size: 17px; padding-bottom: 4px; border-bottom: 1px solid #1a1c28; }
+.info-markdown h3 { font-size: 14px; }
+.info-markdown h4 { font-size: 13px; color: #c0c4d8; }
+.info-markdown h5,
+.info-markdown h6 { font-size: 12px; color: #8a8fa8; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.info-markdown p {
+  margin: 8px 0;
+}
+
+.info-markdown a {
+  color: #6c8aff;
+  text-decoration: none;
+}
+.info-markdown a:hover {
+  text-decoration: underline;
+}
+
+.info-markdown strong { color: #e0e4f5; font-weight: 700; }
+.info-markdown em     { color: #d0d4e8; font-style: italic; }
+
+.info-markdown ul,
+.info-markdown ol {
+  margin: 8px 0;
+  padding-left: 22px;
+}
+.info-markdown li {
+  margin: 3px 0;
+}
+.info-markdown li > p {
+  margin: 0;
+}
+
+.info-markdown blockquote {
+  margin: 10px 0;
+  padding: 4px 12px;
+  border-left: 3px solid #2a3050;
+  color: #8a8fa8;
+  background: rgba(108, 138, 255, 0.04);
+}
+.info-markdown blockquote > p {
+  margin: 4px 0;
+}
+
+.info-markdown hr {
+  border: none;
+  border-top: 1px solid #1e2030;
+  margin: 16px 0;
+}
+
+.info-markdown code {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  background: rgba(108, 138, 255, 0.08);
+  border: 1px solid rgba(108, 138, 255, 0.18);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: #d8dceb;
+}
+
+.info-markdown pre {
+  background: #0c0d14;
+  border: 1px solid #1a1c28;
+  border-radius: 5px;
+  padding: 10px 12px;
+  margin: 10px 0;
+  overflow-x: auto;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.info-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #c0c4d8;
+  font-size: inherit;
+}
+
+.info-markdown img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.info-markdown table {
+  border-collapse: collapse;
+  margin: 10px 0;
+  font-size: 12px;
+}
+.info-markdown th,
+.info-markdown td {
+  border: 1px solid #1e2030;
+  padding: 5px 10px;
+  text-align: left;
+}
+.info-markdown th {
+  background: #0c0d14;
+  color: #e0e4f5;
+}
+
+.info-markdown input[type="checkbox"] {
+  margin: 0 6px 0 0;
+  accent-color: #6c8aff;
 }
 
 
