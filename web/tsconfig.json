@@ -5,6 +5,10 @@
     "moduleResolution": "bundler",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
 
+    // Strict flags will be flipped one at a time in a follow-up PR
+    // (Phase 3 of the migration plan). Each flag will surface a few
+    // hundred annotations and is best reviewed in isolation. See
+    // ~/.claude/plans/codecity-ts-eslint-prettier.md.
     "strict": false,
     "noImplicitAny": false,
     "strictNullChecks": false,
