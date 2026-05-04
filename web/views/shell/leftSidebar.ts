@@ -38,8 +38,7 @@ const SIDEBAR_MAX_WIDTH = 600;
 // (No onResetView callback: the Controls panel's View section shows a
 // kbd table with R/Esc/etc. The R key is wired in main.js's keydown
 // handler, so this component doesn't need its own callback.)
-export function showLeftSidebar(manifest, opts) {
-  opts = opts || {};
+export function showLeftSidebar(manifest: any, opts: any = {}) {
   const noop = function () {};
   const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
   if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };

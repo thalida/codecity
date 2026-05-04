@@ -17,7 +17,7 @@ import { parentDirPath } from './path.js';
 // Each tier entry is { min_descendants, width }. Walk the list and pick
 // the tier with the highest min_descendants that `count` meets. The last
 // tier (largest min_descendants) acts as the catch-all for big directories.
-export function getStreetWidth(count, tiers) {
+export function getStreetWidth(count: number, tiers?: any[]): number {
   const arr = tiers && tiers.length ? tiers : STREET_TIERS.get();
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
@@ -75,7 +75,7 @@ export function computeLineStats(tree) {
 // sqrt to spread the bottom of the range while compressing the long tail;
 // width uses log (file sizes span many orders of magnitude). Without a
 // stats object, the corresponding dimension falls back to MIN_*.
-export function getBuildingDimensions(file, lineStats, byteStats) {
+export function getBuildingDimensions(file: any, lineStats?: any, byteStats?: any): any {
   const dims = BUILDING_DIMENSIONS.get();
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 

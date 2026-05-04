@@ -80,8 +80,8 @@ describe('buildTree', () => {
 
   it('directories have nested subtrees hidden', () => {
     const ul = buildTree(TEST_TREE);
-    const dir = ul.querySelector('.tree-dir');
-    const subtree = dir.querySelector('.tree-list');
+    const dir = ul.querySelector<HTMLElement>('.tree-dir');
+    const subtree = dir.querySelector<HTMLElement>('.tree-list');
     expect(subtree).not.toBeNull();
     expect(subtree.style.display).toBe('none');
   });
@@ -108,7 +108,7 @@ describe('buildTree', () => {
   it('stamps each item with its data path', () => {
     const ul = buildTree(TEST_TREE);
     const paths = [];
-    const items = ul.querySelectorAll('li.tree-item');
+    const items = ul.querySelectorAll<HTMLLIElement>('li.tree-item');
     for (let i = 0; i < items.length; i++) paths.push(items[i].dataset.path);
     expect(paths).toContain('index.ts');
     expect(paths).toContain('src');
@@ -117,7 +117,7 @@ describe('buildTree', () => {
 
   it('handles empty children array', () => {
     const ul = buildTree({ name: 'empty', type: 'directory', children: [] });
-    const items = ul.querySelectorAll('li');
+    const items = ul.querySelectorAll<HTMLLIElement>('li');
     expect(items.length).toBe(0);
   });
 
@@ -126,9 +126,9 @@ describe('buildTree', () => {
     // responsibility), so the chevron's accordion-style expand needs a
     // pane-built tree. Validate the toggle behavior here instead.
     const bundle = buildTreePane(TEST_TREE);
-    const dir = bundle.pane.querySelector('.tree-dir');
-    const chevron = dir.querySelector(':scope > .tree-row > .tree-chevron');
-    const subtree = dir.querySelector(':scope > .tree-list');
+    const dir = bundle.pane.querySelector<HTMLElement>('.tree-dir');
+    const chevron = dir.querySelector<HTMLElement>(':scope > .tree-row > .tree-chevron');
+    const subtree = dir.querySelector<HTMLElement>(':scope > .tree-list');
 
     expect(dir.classList.contains('tree-collapsed')).toBe(true);
     expect(subtree.style.display).toBe('none');
@@ -162,7 +162,7 @@ describe('buildTreePane', () => {
     // folder below — duplicating the name in the header would be redundant).
     expect(title.textContent).toBe('Explorer');
 
-    const items = bundle.pane.querySelectorAll('.tree-item');
+    const items = bundle.pane.querySelectorAll<HTMLLIElement>('.tree-item');
     expect(items.length).toBeGreaterThan(0);
 
     expect(typeof bundle.api.setSelectedPath).toBe('function');
@@ -177,7 +177,7 @@ describe('buildTreePane', () => {
   it('renders the manifest root as a top-level folder', () => {
     const bundle = buildTreePane(TEST_TREE);
     const rootList = bundle.pane.querySelector('ul.tree-root');
-    const topLevelItems = rootList.querySelectorAll(':scope > li');
+    const topLevelItems = rootList!.querySelectorAll<HTMLLIElement>(':scope > li');
     // Exactly one top-level li — the root folder. Its children live nested
     // inside that li's own subtree.
     expect(topLevelItems.length).toBe(1);
@@ -191,7 +191,7 @@ describe('buildTreePane', () => {
   it('with no selection, only the root folder is expanded', () => {
     const bundle = buildTreePane(TEST_TREE);
     bundle.api.setSelectedPath(null);
-    const expanded = bundle.pane.querySelectorAll('.tree-dir.tree-expanded');
+    const expanded = bundle.pane.querySelectorAll<HTMLLIElement>('.tree-dir.tree-expanded');
     expect(expanded.length).toBe(1);
     expect(expanded[0].dataset.path).toBe('.');
   });
@@ -203,7 +203,7 @@ describe('buildTreePane', () => {
         picked = node;
       },
     });
-    const fileRow = bundle.pane.querySelector('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
     fileRow.click();
     expect(picked).not.toBeNull();
     expect(picked.type).toBe('file');
@@ -216,7 +216,7 @@ describe('buildTreePane', () => {
         focused = node;
       },
     });
-    const fileRow = bundle.pane.querySelector('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
     const ev = new window.MouseEvent('dblclick', { bubbles: true, cancelable: true });
     fileRow.dispatchEvent(ev);
     expect(focused).not.toBeNull();
@@ -314,8 +314,12 @@ describe('buildTreePane', () => {
       ],
     };
     const bundle = buildTreePane(multiBranch);
-    const chevA = bundle.pane.querySelector('[data-path="a"] > .tree-row > .tree-chevron');
-    const chevB = bundle.pane.querySelector('[data-path="b"] > .tree-row > .tree-chevron');
+    const chevA = bundle.pane.querySelector<HTMLElement>(
+      '[data-path="a"] > .tree-row > .tree-chevron'
+    )!;
+    const chevB = bundle.pane.querySelector<HTMLElement>(
+      '[data-path="b"] > .tree-row > .tree-chevron'
+    )!;
 
     chevA.click();
     expect(bundle.pane.querySelector('[data-path="a"]').classList.contains('tree-expanded')).toBe(
@@ -342,7 +346,7 @@ describe('buildTreePane', () => {
         ended = node;
       },
     });
-    const fileRow = bundle.pane.querySelector('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
     fileRow.dispatchEvent(new window.MouseEvent('mouseenter', { bubbles: false }));
     expect(hovered).not.toBeNull();
     expect(hovered.type).toBe('file');

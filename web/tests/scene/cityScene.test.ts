@@ -59,7 +59,7 @@ const TEST_TIERS = [{ min_descendants: 0, width: 10 }];
 // for createStreetLabels to run without throwing; we don't assert on
 // pixel output.
 function _stubCanvasContext() {
-  const proto = HTMLCanvasElement.prototype;
+  const proto = HTMLCanvasElement.prototype as any;
   if (proto.__codecityStubbed) return;
   proto.__codecityStubbed = true;
   const orig = proto.getContext;
@@ -114,14 +114,14 @@ beforeEach(() => {
   _stubCanvasContext();
   _origDims = { ...BUILDING_DIMENSIONS.get() };
   _origTiers = STREET_TIERS.get();
-  for (const [k, v] of Object.entries(TEST_DIMS)) BUILDING_DIMENSIONS.setKey(k, v);
+  for (const [k, v] of Object.entries(TEST_DIMS)) BUILDING_DIMENSIONS.setKey(k as any, v);
   STREET_TIERS.set(TEST_TIERS); // STREET_TIERS is an atom(), not a map()
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
 });
 afterEach(() => {
-  for (const [k, v] of Object.entries(_origDims)) BUILDING_DIMENSIONS.setKey(k, v);
+  for (const [k, v] of Object.entries(_origDims)) BUILDING_DIMENSIONS.setKey(k as any, v as any);
   if (_origTiers) STREET_TIERS.set(_origTiers);
 });
 

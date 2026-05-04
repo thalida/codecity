@@ -17,7 +17,7 @@ const TEST_LIGHT_RANGE = { min: 25, max: 70 };
 let _origPalette = null;
 beforeEach(() => {
   _origPalette = { ...BUILDING_PALETTE.get() };
-  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP);
+  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP as any);
   BUILDING_PALETTE.setKey('SATURATION_MIN', TEST_SAT_RANGE.min);
   BUILDING_PALETTE.setKey('SATURATION_MAX', TEST_SAT_RANGE.max);
   BUILDING_PALETTE.setKey('LIGHTNESS_MIN', TEST_LIGHT_RANGE.min);
@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(_origPalette)) {
-    BUILDING_PALETTE.setKey(k, v);
+    BUILDING_PALETTE.setKey(k as any, v as any);
   }
 });
 

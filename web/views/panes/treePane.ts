@@ -175,7 +175,7 @@ function _setIcon(span, name) {
 // buildTree(node) — bare <ul> for `node`'s children with no event handlers.
 // Used by tests; production callers should use buildTreePane to get the
 // click/dblclick handlers + selection api wired up.
-export function buildTree(node) {
+export function buildTree(node: any): HTMLUListElement {
   return _buildList(node, { byPath: {}, onSelect: null, onFocus: null });
 }
 
@@ -200,8 +200,7 @@ export function buildTree(node) {
 //                             matching `path` (or clear if null). Does not
 //                             change expansion — hover is a transient
 //                             cosmetic mirror, not a navigation gesture.
-export function buildTreePane(manifest, opts) {
-  opts = opts || {};
+export function buildTreePane(manifest: any, opts: any = {}) {
   const pane = document.createElement('div');
   pane.className = 'left-pane tree-pane';
 

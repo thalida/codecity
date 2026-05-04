@@ -30,12 +30,12 @@ let _origBuildingDims = null;
 beforeEach(() => {
   _origBuildingDims = { ...BUILDING_DIMENSIONS.get() };
   for (const [k, v] of Object.entries(TEST_BUILDING_DIMS)) {
-    BUILDING_DIMENSIONS.setKey(k, v);
+    BUILDING_DIMENSIONS.setKey(k as any, v as any);
   }
 });
 afterEach(() => {
   for (const [k, v] of Object.entries(_origBuildingDims)) {
-    BUILDING_DIMENSIONS.setKey(k, v);
+    BUILDING_DIMENSIONS.setKey(k as any, v as any);
   }
 });
 
