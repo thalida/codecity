@@ -148,8 +148,16 @@ function startRenderLoop(canvas, manifest) {
 
   // Sitewide footer — the per-file/dir status strip. Used to live inside
   // the right sidebar; lifted out so it's always visible and doesn't get
-  // torn down when the right sidebar collapses.
+  // torn down when the right sidebar collapses. Boots showing the root
+  // dir's totals so the bar is never blank, even before a selection.
   var appFooter = initAppFooter();
+  var rootDir = manifest.tree || {};
+  appFooter.setSelection({
+    kind:  'directory',
+    files: rootDir.descendants_file_count || 0,
+    dirs:  rootDir.descendants_dir_count  || 0,
+    size:  rootDir.descendants_size       || 0,
+  });
 
   // Initial render so the boot state matches sidebarVisible. Without this
   // a visible-by-default right sidebar would still show as 0-width on
@@ -1000,10 +1008,9 @@ function startRenderLoop(canvas, manifest) {
 
     // Footer mirrors the selection's metadata. Files: language · lines ·
     // size · modified · created. Directories: file/dir counts + total
-    // bytes. Null selection clears it.
-    if (!sel) {
-      appFooter.setSelection(null);
-    } else if (sel.kind === NODE_KIND.FILE) {
+    // bytes. Null selection falls back to the project root's totals so
+    // the footer is always populated with something useful.
+    if (sel && sel.kind === NODE_KIND.FILE) {
       var f = sel.file || {};
       var hasGit = f.git && (f.git.created || f.git.modified);
       appFooter.setSelection({
@@ -1015,8 +1022,11 @@ function startRenderLoop(canvas, manifest) {
         created:    (f.git && f.git.created)  || f.created  || null,
         dateSource: hasGit ? 'git' : 'fs',
       });
-    } else if (sel.kind === NODE_KIND.DIRECTORY) {
-      var d = sel.dir || {};
+    } else {
+      // Both `null` (no selection) and dir selections render the same
+      // shape — a directory's totals. For the no-selection case we use
+      // the project root.
+      var d = (sel && sel.dir) || manifest.tree || {};
       appFooter.setSelection({
         kind:  'directory',
         files: d.descendants_file_count || 0,

@@ -102,17 +102,16 @@ export function showEmptySidebar() {
   _applyPersistedWidth(sidebar);
   sidebar.classList.add('open');
 
+  // Same shape as the preview's error / "too large" state — one helper,
+  // one set of styles for every "centered icon + headline + subtitle"
+  // moment in the panel.
   var body = document.createElement('div');
-  body.className = 'editor-body editor-body-empty';
-
-  var hint = document.createElement('div');
-  hint.className = 'editor-empty-hint';
-  hint.appendChild(makeLucideIcon('mouse-pointer-click'));
-  var msg = document.createElement('p');
-  msg.textContent = 'Select a file or folder in the city to inspect it here.';
-  hint.appendChild(msg);
-  body.appendChild(hint);
-
+  body.className = 'editor-body';
+  body.appendChild(_makeStateMessage(
+    'mouse-pointer-click',
+    'Nothing to preview',
+    'Select a file in the city to inspect it here.'
+  ));
   sidebar.appendChild(body);
 }
 
@@ -275,14 +274,60 @@ function _makePreviewSection(file) {
   // Text path: skip the fetch entirely if the file is too big.
   var size = typeof file.size === 'number' ? file.size : null;
   if (size != null && size > TEXT_PREVIEW_MAX_BYTES) {
-    var note = document.createElement('div');
-    note.className = 'preview-note';
-    note.textContent = 'File too large to preview (' + formatBytes(size) + ').';
-    return note;
+    return _makeStateMessage(
+      'file-x',
+      'File too large to preview',
+      'Cap is ' + formatBytes(TEXT_PREVIEW_MAX_BYTES) +
+        ' — this file is ' + formatBytes(size) + '.'
+    );
   }
 
-  // Code-editor scaffold: gutter + <pre><code>. Both share the line-height
-  // so gutter numbers line up with their source lines.
+  // A shell that swaps content based on fetch outcome — code editor on
+  // success, error state on failure. Built this way (instead of mounting
+  // an empty editor scaffold up-front) so the line-number gutter and
+  // <pre><code> never linger empty next to an error message.
+  var shell = document.createElement('div');
+  shell.className = 'preview-shell';
+
+  fetch(url).then(function (resp) {
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    return resp.text();
+  }).then(function (text) {
+    shell.replaceChildren(_buildCodeEditor(text, file));
+  }).catch(function (err) {
+    shell.replaceChildren(_makeStateMessage(
+      'file-warning',
+      'Couldn’t load this file',
+      (err && err.message) ? err.message : 'Unknown error'
+    ));
+  });
+
+  return shell;
+}
+
+/**
+ * Centered icon + headline + subtitle. Used for the "file too large",
+ * "couldn't load this file", and (via showEmptySidebar) "select a file"
+ * states. Same shape as .editor-empty-hint.
+ */
+function _makeStateMessage(iconName, title, subtitle) {
+  var box = document.createElement('div');
+  box.className = 'preview-state';
+  box.appendChild(makeLucideIcon(iconName));
+  var h = document.createElement('p');
+  h.className = 'preview-state-title';
+  h.textContent = title;
+  box.appendChild(h);
+  if (subtitle) {
+    var sub = document.createElement('p');
+    sub.className = 'preview-state-sub';
+    sub.textContent = subtitle;
+    box.appendChild(sub);
+  }
+  return box;
+}
+
+function _buildCodeEditor(text, file) {
   var editor = document.createElement('div');
   editor.className = 'code-editor';
 
@@ -293,30 +338,11 @@ function _makePreviewSection(file) {
   pre.className = 'code-editor-pre';
   var code = document.createElement('code');
   code.className = 'code-editor-code';
-  code.textContent = 'Loading…';
   pre.appendChild(code);
 
   editor.appendChild(gutter);
   editor.appendChild(pre);
 
-  // Aggressive text rendering, IDE-style: any non-media file is fetched
-  // and rendered. The server already coerces non-media content-types to
-  // text/plain, and resp.text() decodes whatever bytes it gets (using the
-  // � replacement char for invalid UTF-8 sequences) — same as opening a
-  // binary in any text editor.
-  fetch(url).then(function (resp) {
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    return resp.text();
-  }).then(function (text) {
-    _renderCode(code, gutter, text, file);
-  }).catch(function (err) {
-    code.textContent = 'Failed to load preview: ' + (err && err.message);
-  });
-
-  return editor;
-}
-
-function _renderCode(codeEl, gutterEl, text, file) {
   // Pick the language hint up-front; fall back to hljs auto-detect.
   var lang = _languageFor(file);
   var html;
@@ -330,12 +356,12 @@ function _renderCode(codeEl, gutterEl, text, file) {
     // Highlighter blew up — fall back to plain escaped text.
     html = _escapeHtml(text);
   }
-  codeEl.innerHTML = html;
-  codeEl.classList.add('hljs');
+  code.innerHTML = html;
+  code.classList.add('hljs');
 
-  // Line-number gutter: one <span> per source line. textContent counts work
-  // off the original raw text (NOT the highlighted HTML, which has injected
-  // <span> tags but should preserve newlines).
+  // Line-number gutter: one <span> per source line. textContent counts
+  // work off the raw text (NOT the highlighted HTML — newlines are
+  // preserved through the highlighter).
   var lineCount = text.length === 0
     ? 1
     : (text.split('\n').length - (text.endsWith('\n') ? 1 : 0)) || 1;
@@ -346,7 +372,9 @@ function _renderCode(codeEl, gutterEl, text, file) {
     ln.textContent = String(i);
     frag.appendChild(ln);
   }
-  gutterEl.appendChild(frag);
+  gutter.appendChild(frag);
+
+  return editor;
 }
 
 function _languageFor(file) {

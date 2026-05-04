@@ -258,33 +258,8 @@ canvas {
   min-height: 0;
 }
 
-/* Empty-state body — shown when the right sidebar is open without a
-   file selection (no selection, OR a directory is selected since dirs
-   aren't previewable). */
-.editor-body-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.editor-empty-hint {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-  padding: 20px;
-  color: #44485e;
-  text-align: center;
-}
-.editor-empty-hint .lucide-icon {
-  font-size: 28px;
-  opacity: 0.5;
-}
-.editor-empty-hint p {
-  margin: 0;
-  max-width: 240px;
-  font-size: 12px;
-  line-height: 1.5;
-}
+/* Empty/error/too-large states all use the .preview-state helper below
+   (centered icon + headline + subtitle). */
 
 /* ── Sitewide footer (status bar) ───────────────────────────────────────
    Lives at the bottom of the app shell (sibling of #app-header /
@@ -1270,12 +1245,53 @@ canvas {
   border: none;
 }
 
-.preview-note {
-  padding: 24px;
-  font-size: 12px;
+/* Wrapper that holds either the code editor (on success) or a centered
+   state message (loading / too-large / fetch-failed). Exists so we can
+   swap between those two without leaving an empty gutter behind. */
+.preview-shell {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+.preview-shell:empty::before {
+  /* Subtle "loading" placeholder while the fetch is in flight. */
+  content: '';
+  flex: 1 1 auto;
+}
+
+/* Centered state message (matches .editor-empty-hint shape). Used for
+   load errors, file-too-large notices, etc. */
+.preview-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px 20px;
   color: #6a7090;
   text-align: center;
-  font-style: italic;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+.preview-state .lucide-icon {
+  font-size: 28px;
+  opacity: 0.55;
+  margin-bottom: 4px;
+}
+.preview-state-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #c0c4d8;
+}
+.preview-state-sub {
+  margin: 0;
+  max-width: 280px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6a7090;
 }
 
 

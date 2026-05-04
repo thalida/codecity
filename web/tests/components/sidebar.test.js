@@ -81,7 +81,7 @@ describe('showDirSidebar', () => {
   it('shows the empty-state hint (directories are not previewable)', () => {
     showDirSidebar(DIR_NODE);
     expect(document.querySelector('.editor-header')).toBeNull();
-    expect(document.querySelector('.editor-empty-hint')).not.toBeNull();
+    expect(document.querySelector('.preview-state')).not.toBeNull();
   });
 });
 
@@ -91,7 +91,7 @@ describe('showEmptySidebar', () => {
   it('opens the panel with the empty-state hint', () => {
     showEmptySidebar();
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
-    expect(document.querySelector('.editor-empty-hint')).not.toBeNull();
+    expect(document.querySelector('.preview-state')).not.toBeNull();
   });
 });
 
