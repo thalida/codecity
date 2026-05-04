@@ -1002,6 +1002,7 @@ function startRenderLoop(canvas, manifest) {
     var node = sel && (sel.file || sel.dir);
     appHeader.setSelection(node ? {
       path:      node.path || node.fullPath || node.name || '',
+      fullPath:  node.fullPath || '',  // copy-button copies the abs path
       extension: node.extension || '',
       isDir:     sel.kind === NODE_KIND.DIRECTORY,
     } : null);

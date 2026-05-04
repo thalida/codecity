@@ -137,7 +137,10 @@ export function initAppHeader(opts) {
     titleEl.appendChild(crumbs);
 
     if (hasSel) {
-      titleEl.appendChild(_makeCopyButton(sel.path));
+      // Copy button copies the absolute filesystem path so users can
+      // paste it into a terminal / editor; the breadcrumb display
+      // stays project-relative for readability.
+      titleEl.appendChild(_makeCopyButton(sel.fullPath || sel.path));
     }
   }
 
