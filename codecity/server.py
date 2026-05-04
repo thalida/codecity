@@ -20,11 +20,23 @@ from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
-from codecity.scan import _is_binary
-
 # Cap individual /api/file responses so a stray symlink to a giant blob
 # doesn't try to load 10 GB into the browser.
 MAX_FILE_BYTES = 100 * 1024 * 1024
+
+# Content-Types we keep verbatim — the browser uses real <img>/<video>/etc.
+# tags for these. Everything else gets coerced to text/plain so the
+# frontend's preview pane renders the bytes as code, IDE-style.
+_MEDIA_PREFIXES = ("image/", "video/", "audio/")
+_MEDIA_EXACT = {"application/pdf"}
+
+
+def _is_media(ctype: str | None) -> bool:
+    if not ctype:
+        return False
+    if ctype in _MEDIA_EXACT:
+        return True
+    return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
 
 # Where the Vite build output lives. Resolved at import time so tests can
 # spin up a server without an installed wheel layout.
@@ -94,12 +106,14 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
         return
 
     ctype, _ = mimetypes.guess_type(str(target))
-    # Many textual files have no extension (LICENSE, Makefile, Dockerfile)
-    # or a shell-only one (.gitignore, .env). mimetypes returns None or
-    # octet-stream for those, which the frontend then renders as "Binary
-    # file." Fall back to a byte-level sniff so we tag them as text.
-    if ctype is None or ctype == "application/octet-stream":
-        ctype = "application/octet-stream" if _is_binary(target) else "text/plain; charset=utf-8"
+    # Media types (image/video/audio/pdf) keep their guessed MIME so the
+    # browser can hand them to <img>/<video>/<embed> directly. Everything
+    # else — including extensionless files (LICENSE, Makefile), shell-only
+    # extensions (.gitignore, .env), executables (.sh → application/x-sh),
+    # and binaries the user wants to peek at — gets coerced to text/plain
+    # so the preview pane renders the bytes as code, IDE-style.
+    if not _is_media(ctype):
+        ctype = "text/plain; charset=utf-8"
 
     body = target.read_bytes()
     handler.send_response(HTTPStatus.OK)

@@ -77,8 +77,9 @@ function _stepOpacity(cur, target, cfg) {
 import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
 import { layoutCity } from './scene/layout.js';
 import { getBuildingColor, getDateRanges } from './scene/colors.js';
-import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar } from './components/sidebar.js';
+import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, humanLanguageFor } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
+import { initAppFooter } from './components/appFooter.js';
 import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
 import {
@@ -128,9 +129,12 @@ function startRenderLoop(canvas, manifest) {
   // Sitewide header owns the chip + clickable breadcrumb + copy + the
   // show/hide-sidebar toggles. Breadcrumb segment clicks come back here
   // so we can route them through _setSelection (the same entry point
-  // canvas / tree clicks use).
+  // canvas / tree clicks use). The breadcrumb always leads with the
+  // project root (manifest.tree.name → segment with path manifest.tree.path).
   var appHeader = initAppHeader({
-    huePalette: huePalette,
+    huePalette:     huePalette,
+    rootLabel:      (manifest.tree && manifest.tree.name) || '',
+    rootPath:       (manifest.tree && manifest.tree.path) || '',
     onSegmentClick: function (path) { _selectByPath(path); },
     onRightToggle: function (hidden) {
       sidebarVisible = !hidden;
@@ -138,6 +142,14 @@ function startRenderLoop(canvas, manifest) {
     },
   });
   sidebarVisible = appHeader.isRightVisible();
+  // Initial header render so the root segment is visible from boot
+  // (before any selection happens).
+  appHeader.setSelection(null);
+
+  // Sitewide footer — the per-file/dir status strip. Used to live inside
+  // the right sidebar; lifted out so it's always visible and doesn't get
+  // torn down when the right sidebar collapses.
+  var appFooter = initAppFooter();
 
   // Initial render so the boot state matches sidebarVisible. Without this
   // a visible-by-default right sidebar would still show as 0-width on
@@ -985,6 +997,33 @@ function startRenderLoop(canvas, manifest) {
       extension: node.extension || '',
       isDir:     sel.kind === NODE_KIND.DIRECTORY,
     } : null);
+
+    // Footer mirrors the selection's metadata. Files: language · lines ·
+    // size · modified · created. Directories: file/dir counts + total
+    // bytes. Null selection clears it.
+    if (!sel) {
+      appFooter.setSelection(null);
+    } else if (sel.kind === NODE_KIND.FILE) {
+      var f = sel.file || {};
+      var hasGit = f.git && (f.git.created || f.git.modified);
+      appFooter.setSelection({
+        kind:       'file',
+        language:   humanLanguageFor(f),
+        lines:      f.lines,
+        size:       f.size || 0,
+        modified:   (f.git && f.git.modified) || f.modified || null,
+        created:    (f.git && f.git.created)  || f.created  || null,
+        dateSource: hasGit ? 'git' : 'fs',
+      });
+    } else if (sel.kind === NODE_KIND.DIRECTORY) {
+      var d = sel.dir || {};
+      appFooter.setSelection({
+        kind:  'directory',
+        files: d.descendants_file_count || 0,
+        dirs:  d.descendants_dir_count  || 0,
+        size:  d.descendants_size       || 0,
+      });
+    }
 
     // Sidebar visibility is the user's call (header toggle) — selecting
     // something doesn't override it. The panel updates its content if

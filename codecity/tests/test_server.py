@@ -158,8 +158,7 @@ class FileApiTests(unittest.TestCase):
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_extensionless_textfile_returns_text(self) -> None:
-        # LICENSE, Makefile, Dockerfile, .gitignore — mimetypes can't help;
-        # the byte sniff has to recognize them as text.
+        # LICENSE, Makefile, Dockerfile, .gitignore — mimetypes can't help.
         license_path = self.scan_root / "LICENSE"
         license_path.write_text("MIT License\n\nCopyright (c) ...")
         status, body, ctype = _get(self.base + f"/api/file?path={license_path}")
@@ -167,12 +166,25 @@ class FileApiTests(unittest.TestCase):
         self.assertTrue(ctype.startswith("text/plain"))
         self.assertIn(b"MIT License", body)
 
-    def test_actual_binary_still_octet_stream(self) -> None:
+    def test_shell_script_returns_text_not_octet_stream(self) -> None:
+        # mimetypes guesses .sh as 'application/x-sh' — neither media nor
+        # text. We want shell scripts (and friends) shown as code.
+        sh_path = self.scan_root / "build.sh"
+        sh_path.write_text("#!/bin/bash\necho hi\n")
+        status, body, ctype = _get(self.base + f"/api/file?path={sh_path}")
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertTrue(ctype.startswith("text/plain"))
+        self.assertIn(b"echo hi", body)
+
+    def test_aggressive_text_rendering_for_unknown_binaries(self) -> None:
+        # Even files that look binary get served as text/plain so the
+        # frontend renders the bytes IDE-style. (Truly-binary content
+        # decodes with replacement chars in the browser; that's fine.)
         bin_path = self.scan_root / "blob.dat"
-        bin_path.write_bytes(b"\x00\x01\x02\x03" * 200)  # nulls → binary
+        bin_path.write_bytes(b"\x00\x01\x02\x03" * 200)
         status, _, ctype = _get(self.base + f"/api/file?path={bin_path}")
         self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(ctype, "application/octet-stream")
+        self.assertTrue(ctype.startswith("text/plain"))
 
 
 if __name__ == "__main__":

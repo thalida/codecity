@@ -57,13 +57,6 @@ describe('showFileSidebar', () => {
     expect(document.querySelector('.editor-body')).not.toBeNull();
   });
 
-  it('shows size + line count in the status bar', () => {
-    showFileSidebar(FILE_NODE);
-    const text = document.querySelector('.editor-status-bar').textContent;
-    expect(text).toContain('1.5 KB');
-    expect(text).toContain('50 lines');
-  });
-
   it('clears existing content on re-open', () => {
     showFileSidebar(FILE_NODE);
     showFileSidebar({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
@@ -85,19 +78,10 @@ describe('showDirSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders the dir-info panel without header chrome', () => {
+  it('shows the empty-state hint (directories are not previewable)', () => {
     showDirSidebar(DIR_NODE);
     expect(document.querySelector('.editor-header')).toBeNull();
-    expect(document.querySelector('.dir-info')).not.toBeNull();
-  });
-
-  it('renders children + descendants stats in the body', () => {
-    showDirSidebar(DIR_NODE);
-    const text = document.querySelector('.dir-info').textContent;
-    expect(text).toContain('3');  // direct children total
-    expect(text).toContain('2');  // direct children files
-    expect(text).toContain('5');  // recursive total
-    expect(text).toContain('4');  // recursive files
+    expect(document.querySelector('.editor-empty-hint')).not.toBeNull();
   });
 });
 

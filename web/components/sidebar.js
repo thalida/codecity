@@ -15,18 +15,6 @@ var SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
 var BYTES_PER_KB = 1024;
 var BYTES_PER_MB = 1024 * 1024;
 
-// Em-dash text fallback shown when a file/directory has no value for a
-// stat (e.g. no creation date, no line count).
-var MISSING_VALUE = '—';
-
-// Display options for ISO-date formatting in the sidebar. Fixed structural
-// choice — every date renders as "Apr 18, 2026".
-var DATE_FORMAT_OPTIONS = {
-  year:  'numeric',
-  month: 'short',
-  day:   'numeric'
-};
-
 
 /**
  * Show the sidebar populated with metadata for a file node.
@@ -47,14 +35,13 @@ export function showFileSidebar(file) {
   sidebar.classList.add('open');
 
   // The right sidebar is purely a preview pane now \u2014 chip / breadcrumb /
-  // copy live in the sitewide header; no per-pane header chrome here.
+  // copy live in the sitewide header; status (language \u00b7 lines \u00b7 size \u00b7 \u2026)
+  // lives in the sitewide footer. No per-pane chrome here.
   var body = document.createElement('div');
   body.className = 'editor-body';
   var previewSection = _makePreviewSection(file);
   if (previewSection) body.appendChild(previewSection);
   sidebar.appendChild(body);
-
-  sidebar.appendChild(_makeFileStatusBar(file));
 }
 
 /**
@@ -68,23 +55,12 @@ export function showFileSidebar(file) {
  *
  * @param {Object} dir - Directory node from the scanner manifest.
  */
-export function showDirSidebar(dir) {
-  var sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
-  if (!sidebar) return;
-
-  _clearContent(sidebar);
-  _ensureResizeHandle(sidebar);
-  _applyPersistedWidth(sidebar);
-  sidebar.classList.add('open');
-
-  // Directories don't have a preview, so the body is a compact info
-  // panel. The sitewide header carries the dir's chip + breadcrumb.
-  var body = document.createElement('div');
-  body.className = 'editor-body editor-body-info';
-  body.appendChild(_makeDirInfoPanel(dir));
-  sidebar.appendChild(body);
-
-  sidebar.appendChild(_makeDirStatusBar(dir));
+export function showDirSidebar(_dir) {
+  // Directories aren't previewable — the right pane is a file viewer.
+  // Render the empty-state hint so the panel still has *something* to
+  // look at when a dir is selected. The dir's metadata lives in the
+  // sitewide header (chip + breadcrumb) and the global footer.
+  showEmptySidebar();
 }
 
 /**
@@ -152,111 +128,15 @@ function formatBytes(bytes) {
   return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
 }
 
+// ── Language detection (used by both the syntax highlighter and the
+//    sitewide footer's language label) ───────────────────────────────────────
+
 /**
- * Format an ISO-8601 date string into a human-readable date.
- *
- * @param {string} isoString - e.g. "2026-04-18T10:30:00Z"
- * @returns {string} e.g. "Apr 18, 2026"
+ * Map a file node to a human-readable language label. Used by the
+ * sitewide footer too — exported so callers don't have to duplicate
+ * the EXT_LANG / NAME_LANG inference.
  */
-function formatDate(isoString) {
-  if (!isoString) return MISSING_VALUE;
-  var d = new Date(isoString);
-  if (isNaN(d.getTime())) return isoString;
-  return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
-}
-
-// ── IDE chrome (single header row + status bar) ───────────────────────────────
-
-/**
-/**
- * Status bar — `language · 1234 lines · 33.7 KB · modified Apr 18 (git)`.
- * Mirrors VSCode's bottom bar but rendered per-file instead of global.
- */
-function _makeFileStatusBar(file) {
-  var bar = document.createElement('div');
-  bar.className = 'editor-status-bar';
-
-  var lang = _humanLanguageFor(file);
-  if (lang) bar.appendChild(_statusItem(lang));
-
-  if (file.lines != null) {
-    bar.appendChild(_statusItem(String(file.lines) + ' lines'));
-  }
-
-  bar.appendChild(_statusItem(formatBytes(file.size || 0)));
-
-  var hasGit = file.git && (file.git.created || file.git.modified);
-  var modified = (file.git && file.git.modified) || file.modified || null;
-  var created  = (file.git && file.git.created)  || file.created  || null;
-  var src = hasGit ? 'git' : 'fs';
-  if (modified) {
-    bar.appendChild(_statusItem('modified ' + formatDate(modified), src));
-  }
-  if (created) {
-    bar.appendChild(_statusItem('created ' + formatDate(created), src));
-  }
-  return bar;
-}
-
-function _makeDirStatusBar(dir) {
-  var bar = document.createElement('div');
-  bar.className = 'editor-status-bar';
-  bar.appendChild(_statusItem('Directory'));
-  bar.appendChild(_statusItem((dir.descendants_file_count || 0) + ' files'));
-  bar.appendChild(_statusItem((dir.descendants_dir_count || 0) + ' dirs'));
-  bar.appendChild(_statusItem(formatBytes(dir.descendants_size || 0)));
-  return bar;
-}
-
-function _statusItem(text, source) {
-  var item = document.createElement('span');
-  item.className = 'editor-status-item';
-  item.textContent = text;
-  if (source) {
-    var src = document.createElement('span');
-    src.className = 'editor-status-source';
-    src.textContent = '(' + source + ')';
-    item.appendChild(src);
-  }
-  return item;
-}
-
-/**
- * Compact info body for directories — two pairs of stat rows shown
- * inline rather than the previous full-section grid. The status bar
- * already carries the high-level totals.
- */
-function _makeDirInfoPanel(dir) {
-  var panel = document.createElement('div');
-  panel.className = 'dir-info';
-
-  var rows = [
-    ['Direct children',  String(dir.children_count       || 0)],
-    ['  Files',          String(dir.children_file_count  || 0)],
-    ['  Dirs',           String(dir.children_dir_count   || 0)],
-    ['Recursive total',  String(dir.descendants_count    || 0)],
-    ['  Files',          String(dir.descendants_file_count || 0)],
-    ['  Dirs',           String(dir.descendants_dir_count  || 0)],
-    ['  Size',           formatBytes(dir.descendants_size || 0)],
-  ];
-
-  for (var i = 0; i < rows.length; i++) {
-    var row = document.createElement('div');
-    row.className = 'dir-info-row';
-    var k = document.createElement('span');
-    k.className = 'dir-info-key';
-    k.textContent = rows[i][0];
-    var v = document.createElement('span');
-    v.className = 'dir-info-value';
-    v.textContent = rows[i][1];
-    row.appendChild(k);
-    row.appendChild(v);
-    panel.appendChild(row);
-  }
-  return panel;
-}
-
-function _humanLanguageFor(file) {
+export function humanLanguageFor(file) {
   var key = _languageFor(file);
   if (!key) {
     if (file.extension) return file.extension.replace(/^\./, '').toUpperCase();
@@ -419,19 +299,18 @@ function _makePreviewSection(file) {
   editor.appendChild(gutter);
   editor.appendChild(pre);
 
+  // Aggressive text rendering, IDE-style: any non-media file is fetched
+  // and rendered. The server already coerces non-media content-types to
+  // text/plain, and resp.text() decodes whatever bytes it gets (using the
+  // � replacement char for invalid UTF-8 sequences) — same as opening a
+  // binary in any text editor.
   fetch(url).then(function (resp) {
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    var ctype = resp.headers.get('Content-Type') || '';
-    if (!/^text\/|json|xml|javascript|yaml|toml/i.test(ctype)) {
-      throw new Error('binary');
-    }
     return resp.text();
   }).then(function (text) {
     _renderCode(code, gutter, text, file);
   }).catch(function (err) {
-    code.textContent = err && err.message === 'binary'
-      ? 'Binary file — preview not available.'
-      : 'Failed to load preview: ' + (err && err.message);
+    code.textContent = 'Failed to load preview: ' + (err && err.message);
   });
 
   return editor;

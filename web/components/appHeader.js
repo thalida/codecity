@@ -19,6 +19,10 @@ var COPY_FEEDBACK_DURATION_MS = 1500;
  *
  * @param {Object} [opts]
  * @param {Object}   [opts.huePalette]    extension → hue map for the chip color
+ * @param {string}   [opts.rootLabel]     project name shown as the leftmost
+ *   breadcrumb segment (clicking it selects the project root)
+ * @param {string}   [opts.rootPath]      the path string the segment-click
+ *   handler should receive when the root is clicked (e.g. "." or "")
  * @param {Function} [opts.onSegmentClick] fn(path:string) — fires when the
  *   user clicks a breadcrumb segment. Caller selects the matching node.
  * @param {Function} [opts.onLeftToggle]   fn(hidden:boolean)
@@ -27,6 +31,8 @@ var COPY_FEEDBACK_DURATION_MS = 1500;
 export function initAppHeader(opts) {
   opts = opts || {};
   var huePalette     = opts.huePalette     || {};
+  var rootLabel      = opts.rootLabel      || '';
+  var rootPath       = opts.rootPath       || '';
   var onSegmentClick = typeof opts.onSegmentClick === 'function' ? opts.onSegmentClick : null;
   var onRightToggle  = typeof opts.onRightToggle  === 'function' ? opts.onRightToggle  : null;
   var onLeftToggle   = typeof opts.onLeftToggle   === 'function' ? opts.onLeftToggle   : null;
@@ -88,39 +94,51 @@ export function initAppHeader(opts) {
    * Render the title slot for a selection.
    *
    * sel shape:
-   *   null                                   → empty (placeholder shows "CodeCity")
+   *   null                                   → just the root segment (the
+   *                                            project name) with a dir chip
    *   { path, extension, isDir }             → chip + breadcrumb + copy
    *
-   * `path` is the project-relative path, e.g. "web/components/sidebar.js".
-   * Each "/" segment becomes a clickable button that fires onSegmentClick
-   * with that segment's accumulated path.
+   * The breadcrumb is always prefixed by the root segment (clickable —
+   * fires onSegmentClick with rootPath). When sel is null we show only
+   * the root.
    */
   function setSelection(sel) {
     titleEl.replaceChildren();
-    if (!sel || !sel.path) return;
+    var hasSel = !!(sel && sel.path && sel.path !== rootPath);
 
-    titleEl.appendChild(_makeChip(sel.extension, sel.isDir));
+    // Chip mirrors the leaf: file-ext when a file is selected, dir badge
+    // for the root or any directory selection.
+    if (hasSel && !sel.isDir) {
+      titleEl.appendChild(_makeChip(sel.extension, false));
+    } else {
+      titleEl.appendChild(_makeChip(null, true));
+    }
 
     var crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = sel.path;
+    crumbs.title = hasSel ? (rootLabel + '/' + sel.path) : rootLabel;
 
-    var segs = sel.path.split('/').filter(Boolean);
-    var acc = '';
-    for (var i = 0; i < segs.length; i++) {
-      acc = acc ? (acc + '/' + segs[i]) : segs[i];
-      var isLeaf = (i === segs.length - 1);
-      crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
-      if (!isLeaf) {
+    // Always lead with the root.
+    crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
+
+    if (hasSel) {
+      var segs = sel.path.split('/').filter(Boolean);
+      var acc = '';
+      for (var i = 0; i < segs.length; i++) {
+        acc = acc ? (acc + '/' + segs[i]) : segs[i];
+        var isLeaf = (i === segs.length - 1);
         var sep = document.createElement('span');
         sep.className = 'app-header-sep';
         sep.textContent = '›';
         crumbs.appendChild(sep);
+        crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
       }
     }
     titleEl.appendChild(crumbs);
 
-    titleEl.appendChild(_makeCopyButton(sel.path));
+    if (hasSel) {
+      titleEl.appendChild(_makeCopyButton(sel.path));
+    }
   }
 
   function _makeChip(extension, isDir) {
