@@ -1,0 +1,28 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codecity"
+version = "0.1.0"
+description = "Visualize any codebase as an isometric 3D city"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+codecity = "codecity.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["codecity"]
+exclude = ["codecity/tests"]
+artifacts = ["codecity/static/**"]
+
+[tool.pytest.ini_options]
+testpaths = ["codecity/tests"]

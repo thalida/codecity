@@ -6,11 +6,8 @@
 docs/superpowers/
 
 # Generated test fixtures
-#   run `bash tests/fixtures/setup.sh` to regenerate
-tests/fixtures/sample-repo/
-
-# Dev-mode scratch (codecity.py --dev writes manifest/config here)
-build/
+#   run `bash codecity/tests/fixtures/setup.sh` to regenerate
+codecity/tests/fixtures/sample-repo/
 
 # OS
 .DS_Store
@@ -19,9 +16,19 @@ Thumbs.db
 # Dependencies
 node_modules/
 
+# Vite caches
+.vite/
+web/.vite/
+
 # Python
 __pycache__/
 *.pyc
+.venv/
+dist/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # Editors
 *.swp
