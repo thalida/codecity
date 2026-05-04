@@ -1,10 +1,10 @@
-// tree.js — Left sidebar tree view. Renders a collapsible folder/file tree
-// that mirrors the city's layout (alphabetical, files+dirs intermingled —
-// see layout.js _layoutDir) and stays bidirectionally synced with the
-// scene's current selection.
+// views/panes/treePane.js — Left sidebar tree view. Renders a collapsible
+// folder/file tree that mirrors the city's layout (alphabetical,
+// files+dirs intermingled — see layout.js _layoutDir) and stays
+// bidirectionally synced with the scene's current selection.
 
-import { NODE_KIND } from '../constants.js';
-import { makeLucideIcon } from './icon.js';
+import { NODE_KIND } from '../../constants.js';
+import { makeLucideIcon } from '../shell/icon.js';
 
 // Build a <ul> for `node`'s children. `ctx` carries the per-tree mutable
 // state (path → li registry, callbacks). `node` is the tree node being

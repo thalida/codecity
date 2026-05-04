@@ -1,6 +1,6 @@
-// interaction/picker.js — owns the raycaster + the hover and selection
+// scene/picker.js — owns the raycaster + the hover and selection
 // state machine. State rides on nanostores atoms so consumers
-// (outlineRenderer, pathLineRenderer, buildingFader, sidebarCoordinator)
+// (outlineRenderer, pathLineRenderer, buildingFader, coordinator)
 // use the same `subscribe` / `get` idiom they already use for every
 // config store.
 //

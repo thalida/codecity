@@ -1,4 +1,4 @@
-// config/_persist.js — Mirrors every config store to localStorage so the
+// config/persist.js — Mirrors every config store to localStorage so the
 // Settings UI's tweaks survive a page reload. localStorage holds ONLY values
 // that differ from the original defaults, so a fresh / cleared install starts
 // with no entries at all and resetting a value back to its default removes

@@ -1,9 +1,9 @@
-// appHeader.js — Sitewide top header. Owns the current-selection display
-// (chip + clickable breadcrumb + copy-path button) and the two
-// show/hide-sidebar toggles. Visibility state is persisted in
-// localStorage so the preference survives reloads.
+// views/shell/appHeader.js — Sitewide top header. Owns the
+// current-selection display (chip + clickable breadcrumb + copy-path
+// button) and the two show/hide-sidebar toggles. Visibility state is
+// persisted in localStorage so the preference survives reloads.
 
-import { getHue } from '../scene/colors.js';
+import { getHue } from '../../scene/colors.js';
 import { makeLucideIcon } from './icon.js';
 
 var STORAGE_LEFT  = 'cc.appLeftHidden';

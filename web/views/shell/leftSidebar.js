@@ -1,16 +1,16 @@
-// leftSidebar.js — Mounts the left-side activity bar (VSCode-style) and the
-// stacked panes it switches between. Owns:
+// views/shell/leftSidebar.js — Mounts the left-side activity bar
+// (VSCode-style) and the stacked panes it switches between. Owns:
 //   - active-tab state
 //   - collapsed/expanded state (clicking the active icon collapses; the ×
 //     in the panel header also collapses; persisted in localStorage)
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
-import { buildTreePane } from './tree.js';
-import { buildInfoPane } from './info.js';
-import { buildControlsPane } from './controls.js';
+import { buildTreePane } from '../panes/treePane.js';
+import { buildInfoPane } from '../panes/infoPane.js';
+import { buildControlsPane } from '../panes/controlsPane.js';
 import {
   DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS
-} from '../constants.js';
+} from '../../constants.js';
 
 var SIDEBAR_WIDTH_STORAGE_KEY     = 'cc.sidebarWidth';
 var SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';

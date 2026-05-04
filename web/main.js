@@ -21,7 +21,7 @@ import {
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX
 } from './config/index.js';
-import { attachPersistence, persistStore } from './config/_persist.js';
+import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { NODE_KIND, DOM_IDS, STREET_AXIS } from './constants.js';
 
@@ -29,13 +29,13 @@ import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
-import { createPicker, PICKER_SELECTION_KEY } from './interaction/picker.js';
-import { createBuildingFader } from './interaction/buildingFader.js';
-import { createOutlineRenderer } from './interaction/outlineRenderer.js';
-import { createPathLineRenderer } from './interaction/pathLineRenderer.js';
-import { createInputHandlers } from './interaction/inputHandlers.js';
-import { createSidebarCoordinator } from './components/sidebarCoordinator.js';
-import { showTooltip, hideTooltip } from './components/tooltip.js';
+import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
+import { createInputHandlers } from './scene/inputHandlers.js';
+import { createBuildingFader } from './scene/effects/buildingFader.js';
+import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
+import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
+import { createCoordinator } from './coordinator.js';
+import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 
 
 function startRenderLoop(canvas, manifest) {
@@ -118,7 +118,7 @@ function startRenderLoop(canvas, manifest) {
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
-  var sidebars = createSidebarCoordinator({
+  var sidebars = createCoordinator({
     cityScene: cityScene, picker: picker, rig: rig,
     huePalette: huePalette,
     applyTheme: applyTheme,
@@ -227,7 +227,7 @@ function startRenderLoop(canvas, manifest) {
 
   // -- 8. Pointer / keyboard / resize wiring ----------------------------------
   // All canvas DOM events, the keyboard shortcuts, the resize observer,
-  // and the hover-commit pipeline live in interaction/inputHandlers.js.
+  // and the hover-commit pipeline live in scene/inputHandlers.js.
   // It calls picker.setHover/setSelection on hits and rig.reset/focus on
   // gestures, with no other dependencies into main.
   createInputHandlers({

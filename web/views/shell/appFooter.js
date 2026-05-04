@@ -1,4 +1,4 @@
-// appFooter.js — Sitewide bottom status bar. Shows the current
+// views/shell/appFooter.js — Sitewide bottom status bar. Shows the current
 // selection's metadata (language · lines · size · created · modified
 // for files; file/dir counts + size for directories). Empty when there
 // is no selection.

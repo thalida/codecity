@@ -1,11 +1,11 @@
-// info.js — "Info" tab in the left sidebar. Shows the rendered markdown
-// of the project's root README (if any) — README.md, README.markdown,
-// README, etc. Re-fetches and re-renders whenever the manifest is
-// re-applied (which happens on live-update polling), so an edit to the
-// README on disk shows up here without a page reload.
+// views/panes/infoPane.js — "Info" tab in the left sidebar. Shows the
+// rendered markdown of the project's root README (if any) — README.md,
+// README.markdown, README, etc. Re-fetches and re-renders whenever the
+// manifest is re-applied (which happens on live-update polling), so an
+// edit to the README on disk shows up here without a page reload.
 
 import { marked } from 'marked';
-import { makeLucideIcon } from './icon.js';
+import { makeLucideIcon } from '../shell/icon.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.

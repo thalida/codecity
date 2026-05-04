@@ -1,8 +1,8 @@
-// components/icon.js — Tiny helper for inline Lucide icons. The icon is
+// views/shell/icon.js — Tiny helper for inline Lucide icons. The icon is
 // painted via a CSS mask so it automatically picks up the parent's
 // currentColor. Sizing comes from the parent's font-size (1em × 1em).
 
-import { LUCIDE_ICON_BASE_URL } from '../constants.js';
+import { LUCIDE_ICON_BASE_URL } from '../../constants.js';
 
 // makeLucideIcon(name, opts) -> HTMLSpanElement
 //

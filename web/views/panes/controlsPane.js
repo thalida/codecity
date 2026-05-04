@@ -1,4 +1,4 @@
-// controls.js — "Controls" tab in the left sidebar.
+// views/panes/controlsPane.js — "Controls" tab in the left sidebar.
 //
 // Layout:
 //   .controls-pane (flex column)
@@ -27,11 +27,11 @@ import {
   RAINBOW,
   // Live updates
   LIVE_UPDATES
-} from '../config/index.js';
+} from '../../config/index.js';
 import {
   clearPersistence, getDefault, resetKey, hasAnyOverrides, onAnyChange
-} from '../config/_persist.js';
-import { makeLucideIcon } from './icon.js';
+} from '../../config/persist.js';
+import { makeLucideIcon } from '../shell/icon.js';
 
 // buildControlsPane(opts) -> HTMLElement
 //
@@ -626,7 +626,7 @@ function _row(labelText, control, store, keys, opts) {
 // _makeResetButton(store, keys, opts) -> <button>
 // Visible only when at least one of `keys` differs from its registered
 // default. Click resets all listed keys, removes the matching localStorage
-// entries (via _persist.js's resetKey), and fires opts.onChange so the
+// entries (via persist.js's resetKey), and fires opts.onChange so the
 // scene/UI catches up immediately.
 function _makeResetButton(store, keys, opts) {
   var onChange = (opts && typeof opts.onChange === 'function') ? opts.onChange : function () {};

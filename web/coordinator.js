@@ -1,41 +1,49 @@
-// components/sidebarCoordinator.js — owns the lifecycle of appHeader,
-// appFooter, and leftSidebar, plus the picker → sidebar synchronization.
+// coordinator.js — top-level orchestrator. The only module that imports
+// from both views/ and scene/. Owns the lifecycle of appHeader,
+// appFooter, leftSidebar, and the right-sidebar's mounted file-preview
+// pane, plus the picker → views synchronization.
 //
 // Subscribes to picker.selection / picker.hover and updates breadcrumb,
-// status strip, file/dir details pane, and the tree pane's highlight.
-// Also wires tree-row clicks / hovers / focus dispatches back into
-// picker + cameraRig so tree-driven actions take the same code path
-// canvas-driven actions do.
+// status strip, file-preview pane, and the tree pane's highlight. Also
+// wires tree-row clicks / hovers / focus dispatches back into picker +
+// cameraRig so tree-driven actions take the same code path canvas-driven
+// actions do.
 //
 // Public:
-//   const coord = createSidebarCoordinator({
+//   const coord = createCoordinator({
 //     cityScene, picker, rig,
 //     huePalette, applyTheme,
 //   });
 //   coord.dispose();
 
-import { initAppHeader } from './appHeader.js';
-import { initAppFooter } from './appFooter.js';
-import { showLeftSidebar } from './leftSidebar.js';
-import {
-  showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar,
-  humanLanguageFor,
-} from './sidebar.js';
-import { NODE_KIND } from '../constants.js';
+import { initAppHeader } from './views/shell/appHeader.js';
+import { initAppFooter } from './views/shell/appFooter.js';
+import { showLeftSidebar } from './views/shell/leftSidebar.js';
+import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
+import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
+import { NODE_KIND } from './constants.js';
 
 
-export function createSidebarCoordinator({
+export function createCoordinator({
   cityScene, picker, rig,
   huePalette, applyTheme,
 }) {
   var sidebarVisible = false;
 
+  // Build the right-sidebar's file-preview pane once. The shell mounts
+  // it on first show; subsequent selection changes just push a new file
+  // target into it via the pane's setFile API.
+  var filePreview = buildFilePreviewPane();
+
   function _renderSidebar() {
+    if (!sidebarVisible) { hideRightSidebar(); return; }
+    showRightSidebar(filePreview.pane);
     var sel = picker.selection.get();
-    if (!sidebarVisible) { hideSidebar(); return; }
-    if (!sel) { showEmptySidebar(); return; }
-    if (sel.kind === NODE_KIND.FILE)      showFileSidebar(sel.file);
-    else if (sel.kind === NODE_KIND.DIRECTORY) showDirSidebar(sel.dir);
+    // Directories collapse to the same empty "select a file" state as
+    // no-selection — the file-preview pane has nothing to show for a
+    // directory pick.
+    if (sel && sel.kind === NODE_KIND.FILE) filePreview.api.setFile(sel.file);
+    else                                    filePreview.api.setFile(null);
   }
 
   // ── App header (breadcrumb + L/R sidebar toggles) ──────────────────
