@@ -3,7 +3,6 @@
 // render loop with orbit/pan/zoom controls and raycast picking.
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { LineSegments2 }      from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial }       from 'three/addons/lines/LineMaterial.js';
@@ -27,9 +26,6 @@ import {
   GEM_ANIMATION,
   GEM_APPEARANCE,
   GEM_SIZING,
-  CAMERA_PERSPECTIVE,
-  CAMERA_CONTROLS,
-  CAMERA_ANIMATION,
   INPUT_TIMING,
   PATH_LINE,
   HOVER_PATH_LINE,
@@ -39,13 +35,7 @@ import {
   POLL_SECONDS_MAX
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
-import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from './constants.js';
-
-// ─── Sightline-search internals (algorithm tuning, not designer dials) ────
-// _focusOnBuilding tries head-on, then tilts up if the view is obstructed.
-var SIGHTLINE_STEP_DEG     = 20;     // elevation step between attempts
-var SIGHTLINE_MAX_ATTEMPTS = 5;      // give up after this many tilts
-var SIGHTLINE_FAR_OFFSET   = 0.5;    // shrink raycast.far so it doesn't self-hit
+import { NODE_KIND, DOM_IDS, STREET_AXIS, RENDER_ORDERS } from './constants.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
 // Just below 1.0 so any faded tier flips to true transparency. Internal
@@ -64,6 +54,7 @@ function _stepOpacity(cur, target, cfg) {
 }
 import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene, UNIT_BOX_EDGE_POSITIONS } from './scene/cityScene.js';
+import { createCameraRig } from './scene/cameraRig.js';
 import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, humanLanguageFor } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { initAppFooter } from './components/appFooter.js';
@@ -220,128 +211,12 @@ function startRenderLoop(canvas, manifest) {
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
 
-  // -- 4. Camera ---------------------------------------------------------------
-  var W = canvas.clientWidth;
-  var H = canvas.clientHeight;
-  var perspective = CAMERA_PERSPECTIVE.get();
-  var cameraControlsCfg = CAMERA_CONTROLS.get();
-  var camera = new THREE.PerspectiveCamera(
-    perspective.FOV,
-    W / Math.max(1, H),
-    perspective.NEAR,
-    perspective.FAR
-  );
-
-  // Isometric framing from the -X/+Y/+Z octant. Orbit pivot sits ON THE
-  // GROUND at the bbox center so the city is visually centered in the
-  // canvas (an asymmetric layout — long branches on one side — would
-  // otherwise drift off-screen if we anchored to the root street).
-  var center = new THREE.Vector3();
-  bbox.getCenter(center);
-
-  var rootStreet = (layout.streets || []).filter(function (s) { return s.isRoot; })[0];
-  var groundCenter = new THREE.Vector3(center.x, 0, center.z);
-
-  // Gem world position (origin end of the root street). Used by street
-  // focus to orient the camera so the gem reliably sits at the top of the
-  // frame — gives the user a fixed landmark for spatial orientation no
-  // matter which street they jump to.
-  var gemWorldPos = null;
-  if (rootStreet) {
-    gemWorldPos = new THREE.Vector3();
-    if (rootStreet.orientation === STREET_AXIS.X) {
-      gemWorldPos.set(
-        rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2,
-        0,
-        rootStreet.y
-      );
-    } else {
-      gemWorldPos.set(
-        rootStreet.x,
-        0,
-        rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2
-      );
-    }
-  }
-
-  // Camera distance: framed from the orbit pivot, sized to the FARTHEST bbox
-  // corner relative to the pivot — guarantees every building fits even when
-  // the pivot is offset from bbox center. INITIAL_DISTANCE_MULT shrinks the
-  // fitted distance to give the city tight, comfortable framing.
-  var farX = Math.max(Math.abs(bbox.max.x - groundCenter.x), Math.abs(bbox.min.x - groundCenter.x));
-  var farY = Math.max(Math.abs(bbox.max.y - groundCenter.y), Math.abs(bbox.min.y - groundCenter.y));
-  var farZ = Math.max(Math.abs(bbox.max.z - groundCenter.z), Math.abs(bbox.min.z - groundCenter.z));
-  var radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
-  var dist = radius / Math.sin((camera.fov * Math.PI / 180) / 2) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-
-  var dir = new THREE.Vector3(-1, 1, 1).normalize();
-  camera.position.copy(groundCenter).add(dir.multiplyScalar(dist));
-  camera.lookAt(groundCenter);
-
-  // -- 5. Controls -------------------------------------------------------------
-  var controls = new OrbitControls(camera, canvas);
-  controls.target.copy(groundCenter);
-  controls.enableDamping = true;
-  controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
-  controls.screenSpacePanning = false;
-  controls.zoomToCursor = true;
-  controls.maxPolarAngle = Math.PI * cameraControlsCfg.MAX_POLAR_ANGLE_FRAC;
-  controls.minDistance = cameraControlsCfg.MIN_DISTANCE;
-  controls.maxDistance = dist * cameraControlsCfg.MAX_DISTANCE_MULT;
-  controls.mouseButtons = {
-    LEFT:   THREE.MOUSE.ROTATE,
-    MIDDLE: THREE.MOUSE.DOLLY,
-    RIGHT:  THREE.MOUSE.PAN
-  };
-
-  // Snapshot the true default pose BEFORE the persistence block can
-  // overwrite camera.position / controls.target with a saved pose.
-  // resetView() animates back to these values, so they must reflect
-  // the freshly-fitted defaults, not whatever the user last navigated to.
-  var initialCamPos = camera.position.clone();
-  var initialTarget = controls.target.clone();
-
-  // ---- Camera pose persistence ----
-  // Snapshot camera + orbit target to localStorage when the user stops
-  // changing them, so reload picks up where they left off. Uses a
-  // 500ms debounce off OrbitControls' 'change' event — fires for both
-  // user drags AND programmatic animations (resetView, focus-on-X), since
-  // both end up calling controls.update() and detecting position changes.
-  var SAVED_CAMERA_KEY = 'cc.cameraPose';
-  var _saveCameraTimer = 0;
-  function _saveCameraPose() {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      localStorage.setItem(SAVED_CAMERA_KEY, JSON.stringify({
-        pos:    { x: camera.position.x,  y: camera.position.y,  z: camera.position.z  },
-        target: { x: controls.target.x,  y: controls.target.y,  z: controls.target.z  }
-      }));
-    } catch (_) { /* private mode / quota — drop silently */ }
-  }
-  function _scheduleCameraSave() {
-    if (_saveCameraTimer) clearTimeout(_saveCameraTimer);
-    _saveCameraTimer = setTimeout(function () {
-      _saveCameraTimer = 0;
-      _saveCameraPose();
-    }, 500);
-  }
-
-  // Restore saved camera pose on boot, BEFORE attaching the change listener
-  // so the load itself doesn't immediately re-trigger a save.
-  try {
-    if (typeof localStorage !== 'undefined') {
-      var savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
-      if (savedPoseRaw) {
-        var p = JSON.parse(savedPoseRaw);
-        if (p && p.pos && p.target) {
-          camera.position.set(p.pos.x, p.pos.y, p.pos.z);
-          controls.target.set(p.target.x, p.target.y, p.target.z);
-        }
-      }
-    }
-  } catch (_) { /* corrupt JSON / unavailable storage — stay at default */ }
-
-  controls.addEventListener('change', _scheduleCameraSave);
+  // -- 4. Camera + controls ----------------------------------------------------
+  // Camera, OrbitControls, pose persistence, framing, and the focus/reset
+  // animations all live in scene/cameraRig.js. Local aliases are kept for
+  // brevity in event handlers and resize logic below.
+  var rig = createCameraRig({ canvas: canvas, cityScene: cityScene });
+  var camera = rig.camera;
 
   // -- 6. Raycaster picking ----------------------------------------------------
   var raycaster = new THREE.Raycaster();
@@ -349,8 +224,6 @@ function startRenderLoop(canvas, manifest) {
 
   // Click vs. drag: track pointerdown→pointerup with a movement + time threshold.
   var downX = 0, downY = 0, downTime = 0;
-
-  var camAnimToken = 0;
 
   var _orders = RENDER_ORDERS;
 
@@ -1044,202 +917,12 @@ function startRenderLoop(canvas, manifest) {
     _recenterPivotToPoint(new THREE.Vector3(hit.point.x, 0, hit.point.z));
   }
 
-  // _recenterPivotToPoint(p) — slide pivot to p; camera shifts by the same
-  // delta so the visible scene doesn't zoom or rotate, just slides under.
-  function _recenterPivotToPoint(p) {
-    camera.up.set(0, 1, 0);
-    var delta = p.clone().sub(controls.target);
-    _animateCamera(p, camera.position.clone().add(delta), CAMERA_ANIMATION.get().RECENTER_DURATION_MS);
-  }
-
-  // _focusOnBuilding(mesh, b) — frame the building's door face head-on.
-  // Pivot is the building centroid (b.x, b.h/2, b.y) so subsequent orbit
-  // circles around the building. Camera sits along the door's outward
-  // normal at a distance that fits the visible face (width × height) in
-  // the viewport with modest padding. Stores the mesh as the X-ray focus
-  // so the per-frame pass fades obstructors between camera and building.
-  //
-  // To avoid landing the camera with another building blocking the view,
-  // we test sight-line at increasing elevations (0°, 20°, 40°, ...) and
-  // use the first clear angle. Combined with per-frame X-ray, this almost
-  // always gives an unobstructed look at the target.
-  function _focusOnBuilding(mesh, b) {
-    camera.up.set(0, 1, 0);   // reset (street focus may have changed it)
-    var camAnim = CAMERA_ANIMATION.get();
-    var doorDX = 0, doorDZ = 0, faceW;
-    if      (b.orient === BUILDING_ORIENT.SOUTH) { doorDZ =  1; faceW = b.w; }
-    else if (b.orient === BUILDING_ORIENT.NORTH) { doorDZ = -1; faceW = b.w; }
-    else if (b.orient === BUILDING_ORIENT.EAST)  { doorDX =  1; faceW = b.d; }
-    else if (b.orient === BUILDING_ORIENT.WEST)  { doorDX = -1; faceW = b.d; }
-    else                                          { doorDZ =  1; faceW = b.w; }
-    var faceH = b.h;
-
-    var halfV = (camera.fov * Math.PI / 180) / 2;
-    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    var distForH = (faceH / 2) / Math.tan(halfV);
-    var distForW = (faceW / 2) / Math.tan(halfH);
-    var dist = Math.max(distForH, distForW) * camAnim.BUILDING_FOCUS_DISTANCE_MULT + camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
-
-    var halfDepth = (b.orient === BUILDING_ORIENT.EAST || b.orient === BUILDING_ORIENT.WEST) ? b.w / 2 : b.d / 2;
-    var newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
-
-    // Try head-on first; raise camera SIGHTLINE_STEP_DEG at a time if obstructed.
-    var newCamPos = null;
-    for (var attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
-      var elev = (attempt * SIGHTLINE_STEP_DEG) * Math.PI / 180;
-      var horiz = dist * Math.cos(elev);
-      var vert  = b.h / 2 + dist * Math.sin(elev);
-      var candidate = new THREE.Vector3(
-        b.x + doorDX * (halfDepth + horiz),
-        vert,
-        b.y + doorDZ * (halfDepth + horiz)
-      );
-      if (_isSightClear(candidate, newTarget, mesh)) {
-        newCamPos = candidate;
-        break;
-      }
-      newCamPos = candidate;   // keep the highest attempt as fallback
-    }
-
-    _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
-  }
-
-  // _isSightClear(camPos, target, focusedMesh) — does a ray from camPos to
-  // target hit any building besides focusedMesh? Used by _focusOnBuilding
-  // to pick a camera position with an unobstructed view.
-  function _isSightClear(camPos, target, focusedMesh) {
-    _xrayDir.subVectors(target, camPos).normalize();
-    _xrayRay.set(camPos, _xrayDir);
-    _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    var hits = _xrayRay.intersectObjects(buildingMeshes, false);
-    for (var i = 0; i < hits.length; i++) {
-      if (hits[i].object !== focusedMesh) return false;
-    }
-    return true;
-  }
-
-  // _focusOnStreet(s) — orient camera so the street runs left-right across
-  // the screen and zoom in to a navigable distance. Camera offset is along
-  // the street's PERPENDICULAR axis on whichever side the camera currently
-  // sits, so the transition is short and the user keeps their bearings.
-  function _focusOnStreet(s, hitPoint) {
-    // If the user double-clicked a specific spot, center above THAT spot
-    // (clamped to the street's centerline along its long axis so the road
-    // still runs cleanly horizontal). Without a hit point, fall back to
-    // the street's geometric center.
-    var tx = s.x, tz = s.y;
-    if (hitPoint) {
-      if (s.orientation === 'x') tx = hitPoint.x;   // slide along X
-      else                       tz = hitPoint.z;   // slide along Z
-    }
-    var newTarget = new THREE.Vector3(tx, 0, tz);
-
-    // True top-down framing. Camera nearly vertical, well above the
-    // tallest building so nothing can obstruct the street from this angle.
-    //
-    // Camera orientation rules:
-    //   1. Road runs HORIZONTAL on screen (always). camera.up must be
-    //      perpendicular to the road's long axis in the XZ plane.
-    //   2. Gem appears at TOP of screen. Camera.up sign is chosen so the
-    //      gem's perpendicular component lands on the +screen-up side.
-    //   3. If gem is purely along the road axis (no perpendicular
-    //      component), default sign +1 — gem will appear at LEFT or
-    //      RIGHT instead of TOP.
-    // OrbitControls computes its up-quaternion ONCE at init and ignores
-    // later camera.up changes — so we can't use camera.up to spin the
-    // screen. Instead keep camera.up = world Y always, and control screen
-    // orientation via the camera's horizontal OFFSET direction.
-    //
-    // With default up + top-down view: screen-up direction in world =
-    // OPPOSITE of camera's horizontal offset direction (camera tilts
-    // back toward target, so the "far" side of target is at top of frame).
-    // Screen-right axis follows from that.
-    //
-    // Rules (gem must end up at TOP or LEFT, road horizontal):
-    //   x-street (road along X): camera offset is on Z axis. Sign chosen so:
-    //     - perpendicular gem (gem.z ≠ s.y): offset OPPOSITE of gem.z
-    //       → gem ends up at TOP.
-    //     - along-axis gem  (gem.z = s.y, e.g. focusing on root street
-    //       itself): offset = +Z if gem.x ≤ s.x (smaller X = LEFT under
-    //       this orientation), else -Z (flips screen so larger X = LEFT).
-    //   y-street: mirror with X/Z swapped.
-    // Uniform compass: road horizontal, gem at WEST (x-streets) or
-    // NORTH (y-streets). With default world-up, camera at +offset puts
-    // smaller world coords on the +screen-up / +screen-right SIDE of the
-    // frame closer to the gem (which lives near origin = -X relative to
-    // most focused streets). Always-positive offsets give that.
-    var offX = 0, offZ = 0;
-    if (s.orientation === 'x') {
-      offZ = 1;    // gem at west (left)
-    } else {
-      offX = 1;    // gem at north (top)
-    }
-    camera.up.set(0, 1, 0);             // stay world-up for OrbitControls
-
-    // Camera altitude must clear every building. Compute max building
-    // height (factoring in current scale.y from any in-progress toggle).
-    var maxBldgH = 0;
-    for (var i = 0; i < buildingMeshes.length; i++) {
-      var mb = buildingMeshes[i].userData.building;
-      var sy = buildingMeshes[i].scale.y || 1;
-      var bh = (mb && mb.h ? mb.h : 0) * sy;
-      if (bh > maxBldgH) maxBldgH = bh;
-    }
-
-    var camAnim = CAMERA_ANIMATION.get();
-    var halfV = (camera.fov * Math.PI / 180) / 2;
-    var halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    var distForLength = (s.length * camAnim.STREET_FOCUS_LENGTH_FRAC / 2) / Math.tan(halfH);
-    var distForWidth  = (s.width  * camAnim.STREET_FOCUS_WIDTH_MULT  / 2) / Math.tan(halfV);
-    var altitude = Math.max(distForLength, distForWidth,
-                            maxBldgH * camAnim.STREET_FOCUS_ALTITUDE_BLDG_MULT + camAnim.STREET_FOCUS_ALTITUDE_FLOOR);
-
-    // Near-vertical elevation — just under OrbitControls' polar limit so
-    // the camera doesn't snap on the next update. Camera sits at +offX /
-    // +offZ horizontal offset; with default world-up, screen-up is the
-    // OPPOSITE direction (target's "far side" appears at top).
-    var elev = camAnim.STREET_FOCUS_ELEVATION_DEG * Math.PI / 180;
-    var horizDist = altitude / Math.tan(elev);
-
-    var newCamPos = new THREE.Vector3(
-      tx + offX * horizDist,
-      altitude,
-      tz + offZ * horizDist
-    );
-    _animateCamera(newTarget, newCamPos, camAnim.STREET_FOCUS_DURATION_MS);
-  }
-
-  function _animateCamera(newTarget, newCamPos, duration) {
-    var token = ++camAnimToken;
-    var startTarget = controls.target.clone();
-    var startCamPos = camera.position.clone();
-    var t0 = performance.now();
-    var easingPower = CAMERA_ANIMATION.get().EASING_POWER;
-
-    function step() {
-      if (camAnimToken !== token) return;       // superseded by a newer animation
-      var elapsed = performance.now() - t0;
-      var t = elapsed / duration;
-      if (t >= 1) t = 1;
-      var eased = 1 - Math.pow(1 - t, easingPower);
-      controls.target.lerpVectors(startTarget, newTarget, eased);
-      camera.position.lerpVectors(startCamPos, newCamPos, eased);
-      if (t < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
-  function resetView() {
-    // Clear any persisted pose so this is a true "fresh start" — cancel
-    // pending save first, since the animation's 'change' events will
-    // schedule a new save (with the default pose, which is correct).
-    if (_saveCameraTimer) { clearTimeout(_saveCameraTimer); _saveCameraTimer = 0; }
-    try {
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
-    } catch (_) { /* private mode / unavailable — ignore */ }
-    camera.up.set(0, 1, 0);           // back to default world-up
-    _animateCamera(initialTarget.clone(), initialCamPos.clone(), CAMERA_ANIMATION.get().RESET_DURATION_MS);
-  }
+  // resetView / recenterTo / focusBuilding / focusStreet now live on
+  // cameraRig. Aliases so existing call sites read like the originals.
+  var resetView              = function ()        { rig.reset(); };
+  var _recenterPivotToPoint  = function (p)       { rig.recenterTo(p); };
+  var _focusOnBuilding       = function (mesh, b) { rig.focusBuilding(mesh, b); };
+  var _focusOnStreet         = function (s, hp)   { rig.focusStreet(s, hp); };
 
   // Hover pipeline: pointermove fires faster than render frames, so we
   // coalesce events into one raycast per rAF tick. The raycast result
@@ -1547,9 +1230,6 @@ function startRenderLoop(canvas, manifest) {
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
   var labelRight = new THREE.Vector3();
-  // Reusable scratch objects for the sight-line raycast in _isSightClear.
-  var _xrayRay = new THREE.Raycaster();
-  var _xrayDir = new THREE.Vector3();
 
   // _updateXRayAndOutlines() — runs every frame. Two jobs:
   //   1. X-ray: while a building is focused, fade ANY building whose
@@ -1778,7 +1458,7 @@ function startRenderLoop(canvas, manifest) {
   }
 
   function animate() {
-    controls.update();
+    rig.update(0);    // also runs first-frame bbox framing on first call
     _updateXRayAndOutlines();
     _updatePathRainbow(performance.now() * RAINBOW.get().SPEED);
     _orientLabelsForCamera(streetLabels, camera, labelRight);
