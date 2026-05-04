@@ -107,7 +107,10 @@ export function buildInfoPane(manifest, opts) {
     // sandbox is the local file's own contents — nothing the renderer
     // injects that the user didn't already have on disk — so we render
     // as-is.
-    article.innerHTML = marked.parse(text);
+    // marked.parse returns string | Promise<string> in its types, but
+    // the sync overload (no async option / no walkTokens) always returns
+    // a string. Cast to keep the synchronous render flow.
+    article.innerHTML = marked.parse(text) as string;
     body.replaceChildren(article);
   }
 

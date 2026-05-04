@@ -809,7 +809,7 @@ function _number(label, store, key, min, max, step, opts) {
 
 function _slider(label, store, key, min, max, step, opts) {
   const onChange = _resolveChange(opts);
-  const refs = {};
+  const refs: SliderRefs = {};
   const control = _sliderWidget(
     store.get()[key],
     min,
@@ -841,7 +841,7 @@ function _slider(label, store, key, min, max, step, opts) {
 // current value as a hue (assumes the slider's value range is degrees).
 function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
   const onChange = _resolveChange(opts);
-  const refs = {};
+  const refs: SliderRefs = {};
   const initial = (store.get()[parentKey] || {})[subKey];
 
   let swatch = null;
@@ -898,7 +898,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
 // (and every other tier's min_descendants) intact. Reset goes back to
 // the registered default's width for that index.
 function _tierWidthSlider(index, minDescendants) {
-  const refs = {};
+  const refs: SliderRefs = {};
   const label = minDescendants + '+ descendants';
   const initial = (STREET_TIERS.get()[index] || {}).width;
 
@@ -1142,7 +1142,19 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
 // Shared slider+readout DOM construction. Returns the wrapper; the caller
 // passes a `refs` object to receive the {range, readout} inner nodes (so
 // store.subscribe can drive them on external value changes).
-function _sliderWidget(initialValue, min, max, step, onCommit, refs) {
+interface SliderRefs {
+  range?: HTMLInputElement;
+  readout?: HTMLSpanElement;
+}
+
+function _sliderWidget(
+  initialValue: number,
+  min: number,
+  max: number,
+  step: number,
+  onCommit: (v: number) => void,
+  refs?: SliderRefs
+): HTMLSpanElement {
   const wrap = document.createElement('span');
   wrap.className = 'theme-slider-wrap';
 

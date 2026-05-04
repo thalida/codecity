@@ -17,7 +17,7 @@ export function initAppFooter() {
   const footer = document.getElementById('app-footer');
   if (!footer) return { setSelection: function () {} };
 
-  function setSelection(sel) {
+  function setSelection(sel: any) {
     footer.replaceChildren();
     if (!sel) return;
 
@@ -40,7 +40,7 @@ export function initAppFooter() {
   return { setSelection: setSelection };
 }
 
-function _item(text, source) {
+function _item(text: string, source?: string): HTMLSpanElement {
   const span = document.createElement('span');
   span.className = 'app-footer-item';
   span.textContent = text;
@@ -55,14 +55,18 @@ function _item(text, source) {
 
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
-function _formatBytes(bytes) {
+function _formatBytes(bytes: number): string {
   if (bytes < BYTES_PER_KB) return bytes + ' B';
   if (bytes < BYTES_PER_MB) return (bytes / BYTES_PER_KB).toFixed(1) + ' KB';
   return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
 }
 
-const DATE_FORMAT_OPTIONS = { year: 'numeric', month: 'short', day: 'numeric' };
-function _formatDate(isoString) {
+const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric',
+};
+function _formatDate(isoString: string | null | undefined): string {
   if (!isoString) return '—';
   const d = new Date(isoString);
   if (isNaN(d.getTime())) return isoString;

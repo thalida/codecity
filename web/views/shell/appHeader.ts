@@ -156,7 +156,7 @@ export function initAppHeader(opts) {
       chip.textContent = 'dir';
     } else {
       chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
-      chip.style.setProperty('--badge-hue', getHue(extension, huePalette));
+      chip.style.setProperty('--badge-hue', String(getHue(extension, huePalette)));
     }
     return chip;
   }
