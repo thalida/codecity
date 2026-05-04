@@ -11,24 +11,9 @@ import { listenKeys } from 'nanostores';
 import './styles.css';
 
 
-// 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
-// Used by the Line2 outlines, which render as triangle strips so the
-// linewidth can be set in pixels (regular LineBasicMaterial is locked to
-// 1px in WebGL).
-var UNIT_BOX_EDGE_POSITIONS = [
-  -0.5,-0.5,-0.5,  0.5,-0.5,-0.5,
-   0.5,-0.5,-0.5,  0.5,-0.5, 0.5,
-   0.5,-0.5, 0.5, -0.5,-0.5, 0.5,
-  -0.5,-0.5, 0.5, -0.5,-0.5,-0.5,
-  -0.5, 0.5,-0.5,  0.5, 0.5,-0.5,
-   0.5, 0.5,-0.5,  0.5, 0.5, 0.5,
-   0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
-  -0.5, 0.5, 0.5, -0.5, 0.5,-0.5,
-  -0.5,-0.5,-0.5, -0.5, 0.5,-0.5,
-   0.5,-0.5,-0.5,  0.5, 0.5,-0.5,
-   0.5,-0.5, 0.5,  0.5, 0.5, 0.5,
-  -0.5,-0.5, 0.5, -0.5, 0.5, 0.5
-];
+// UNIT_BOX_EDGE_POSITIONS lives in scene/cityScene.js (its heaviest user)
+// and is re-imported below for the hover/selected outline meshes that
+// stay in main.js for now.
 
 import * as Config from './config/index.js';
 import {
@@ -77,9 +62,8 @@ function _stepOpacity(cur, target, cfg) {
   if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
   return next;
 }
-import { buildCityScene, regenerateLabelTexture } from './scene/engine.js';
-import { layoutCity } from './scene/layout.js';
-import { getBuildingColor, getDateRanges } from './scene/colors.js';
+import { regenerateLabelTexture } from './scene/engine.js';
+import { createCityScene, UNIT_BOX_EDGE_POSITIONS } from './scene/cityScene.js';
 import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, humanLanguageFor } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { initAppFooter } from './components/appFooter.js';
@@ -100,9 +84,7 @@ function startRenderLoop(canvas, manifest) {
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
 
-  // -- 1. Layout + colors ------------------------------------------------------
-  var layout     = layoutCity(manifest.tree);
-  var dateRanges = getDateRanges(manifest.tree);
+  // -- 1. Config + sidebar pump ------------------------------------------------
   var huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
 
   // ── Sidebar render pump ───────────────────────────────────────────────
@@ -167,107 +149,67 @@ function startRenderLoop(canvas, manifest) {
   // first load (no .open class until something fires _renderSidebar).
   _renderSidebar();
 
-  for (var i = 0; i < layout.buildings.length; i++) {
-    var b = layout.buildings[i];
-    if (b.file && b.file.type === NODE_KIND.FILE) {
-      b.color = getBuildingColor(b.file, dateRanges);
-    } else {
-      b.color = BUILDING_PALETTE.get().DIRECTORY_COLOR;
+  // -- 2. City scene + meshes --------------------------------------------------
+  // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
+  // in scene/cityScene.js. main.js holds local cached views of the alive
+  // arrays, refreshed via cityScene.onChange after each applyManifest.
+  // These caches are a transitional pattern: subsequent commits migrate
+  // their consumers (picker, fader, outlineRenderer, …) into modules
+  // that read cityScene directly, eliminating these refs.
+  var cityScene = createCityScene(canvas);
+  var scene = cityScene.scene;
+
+  var buildingMeshes, streetPickables, streetLabels, pathMeshes, asphaltMeshes;
+  var rootGem, rootGemBody, rootGemEdges, rootStreet, gemWorldPos, bbox;
+  var layout, dateRanges;
+  var buildingOutlines, buildingOutlineMats, buildingGhosts;
+  var pickables;
+  var sidewalksByDirPath, streetsByDirPath, buildingsByPath, pathMeshesByDirPath;
+
+  function _syncFromCityScene() {
+    buildingMeshes      = cityScene.getBuildings();
+    streetPickables     = cityScene.getStreetPickables();
+    streetLabels        = cityScene.getStreetLabels();
+    pathMeshes          = cityScene.getPathMeshes();
+    asphaltMeshes       = cityScene.getAsphaltMeshes();
+    rootGem             = cityScene.getRootGem();
+    rootGemBody         = cityScene.getRootGemBody();
+    rootGemEdges        = cityScene.getRootGemEdges();
+    rootStreet          = cityScene.getRootStreet();
+    gemWorldPos         = cityScene.getGemWorldPos();
+    bbox                = cityScene.getBbox();
+    layout              = cityScene.getLayout();
+    dateRanges          = cityScene.getDateRanges();
+    buildingOutlines    = cityScene.getBuildingOutlines();
+    buildingOutlineMats = cityScene.getBuildingOutlineMats();
+    buildingGhosts      = cityScene.getBuildingGhosts();
+    sidewalksByDirPath  = cityScene.getSidewalksByDirMap();
+    streetsByDirPath    = cityScene.getStreetsByDirMap();
+    buildingsByPath     = cityScene.getBuildingsByPath();
+    pathMeshesByDirPath = cityScene.getPathConnectorsMap();
+    pickables           = buildingMeshes.concat(streetPickables);
+    if (rootGem) {
+      var gemBody = rootGem.children && rootGem.children[0];
+      if (gemBody) pickables.push(gemBody);
     }
   }
+  cityScene.onChange(_syncFromCityScene);
+  cityScene.applyManifest(manifest);    // populates state via onChange above
 
-  // -- 2. Scene ----------------------------------------------------------------
-  var built = buildCityScene(layout);
-  var scene = built.scene;
-  var buildingMeshes  = built.buildingMeshes;
-  var streetPickables = built.streetPickables;
-  var streetLabels    = built.streetLabels;
+  function getPickables() { return pickables; }
+
   // Hot-reload the label fill color: FILL is baked into the CanvasTexture
   // at scene-build, so a "live" change requires regenerating each label's
   // texture. listenKeys fires only when FILL specifically changes (not on
   // every applyTheme call), so unrelated tweaks don't pay the texture
-  // regen cost. Other label-typography keys (font size, padding, stroke
-  // width) change canvas dimensions too — those stay rebuild-required.
+  // regen cost. Reads streetLabels fresh from cityScene each fire so
+  // it works after applyManifest rebinds the array.
   listenKeys(LABEL_TYPOGRAPHY, ['FILL'], function () {
-    for (var li = 0; li < streetLabels.length; li++) {
-      regenerateLabelTexture(streetLabels[li]);
+    var labels = cityScene.getStreetLabels();
+    for (var li = 0; li < labels.length; li++) {
+      regenerateLabelTexture(labels[li]);
     }
   });
-  var pathMeshes      = built.pathMeshes || [];
-  var asphaltMeshes   = built.asphaltMeshes || [];
-  var rootGem         = built.rootGem;
-  var rootGemBody     = built.rootGemBody  || null;
-  var rootGemEdges    = built.rootGemEdges || null;
-  // pickables is rebuilt on every height-mode toggle (since building meshes
-  // are disposed + replaced), so we wrap the array in a getter-style closure
-  // and pass `getPickables()` to the raycaster.
-  var pickables = buildingMeshes.concat(streetPickables);
-  // Gem is also clickable — click acts as a "reset view to start" gesture
-  // (city's signature landmark doubles as a home button).
-  if (rootGem) {
-    var gemBody = rootGem.children && rootGem.children[0];
-    if (gemBody) {
-      gemBody.userData.type = NODE_KIND.GEM;
-      pickables.push(gemBody);
-    }
-  }
-  function getPickables() { return pickables; }
-  var bbox = built.bbox;
-
-  // Per-building wireframe outlines + solid-color "ghost" bodies. Both are
-  // always in the scene; visibility/opacity is driven by the per-frame fade.
-  //
-  //   outline: visible inversely to building opacity → silhouette stays
-  //            readable when the building fades out. Uses LineSegments2 +
-  //            LineMaterial so linewidth is settable in pixels (Three.js's
-  //            LineBasicMaterial is locked to 1px hairline in WebGL).
-  //   ghost:   used INSTEAD of the textured mesh below a fade threshold,
-  //            to remove window noise on heavily-faded buildings (Cities-
-  //            Skylines-style "data view" — silhouette + color, no detail).
-  var _unitBoxGeo   = new THREE.BoxGeometry(1, 1, 1);
-  var buildingOutlines      = [];   // parallel to buildingMeshes
-  var buildingOutlineMats   = [];   // each LineMaterial needs resolution updates on resize
-  var buildingGhosts        = [];
-  for (var bli = 0; bli < buildingMeshes.length; bli++) {
-    var _bm = buildingMeshes[bli];
-    var _bd = _bm.userData.building;
-    var _bcol = new THREE.Color(_bd.color);
-
-    var _olGeo = new LineSegmentsGeometry();
-    _olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-    var _olMat = new LineMaterial({
-      color:       _bcol.clone(),
-      linewidth:   BUILDING_OUTLINE.get().WIDTH,
-      transparent: true,
-      opacity:     0.0,
-      depthTest:   true,
-      depthWrite:  false,
-      worldUnits:  false
-    });
-    _olMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-    var _ol = new LineSegments2(_olGeo, _olMat);
-    _ol.renderOrder = 5;
-    _ol.scale.set(_bd.w, _bd.h * (_bm.scale.y || 1), _bd.d);
-    _ol.position.copy(_bm.position);
-    scene.add(_ol);
-    buildingOutlines.push(_ol);
-    buildingOutlineMats.push(_olMat);
-
-    var _gh = new THREE.Mesh(
-      _unitBoxGeo,
-      new THREE.MeshBasicMaterial({
-        color:       _bcol.clone(),
-        transparent: true,
-        opacity:     0.0,
-        depthWrite:  false
-      })
-    );
-    _gh.visible = false;
-    _gh.scale.set(_bd.w, _bd.h * (_bm.scale.y || 1), _bd.d);
-    _gh.position.copy(_bm.position);
-    scene.add(_gh);
-    buildingGhosts.push(_gh);
-  }
 
   // -- 3. Renderer -------------------------------------------------------------
   var renderer = new THREE.WebGLRenderer({
@@ -520,46 +462,10 @@ function startRenderLoop(canvas, manifest) {
   var SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
   var SIDEWALK_DEFAULT_COLOR  = new THREE.Color(_swc0.DEFAULT).getHex();
 
-  // Lookup: directory path → sidewalk mesh / street object. Used to walk
-  // the parent chain from a selected dir/file back to root, which lets us
-  // draw the neon path line through the road network.
-  var sidewalksByDirPath = {};
-  var streetsByDirPath   = {};
-  for (var spi = 0; spi < streetPickables.length; spi++) {
-    var _sw = streetPickables[spi];
-    var _swStreet = _sw.userData.street;
-    var _swDir    = _swStreet && _swStreet.dir;
-    if (_swDir && _swDir.path != null) {
-      sidewalksByDirPath[_swDir.path] = _sw;
-      streetsByDirPath[_swDir.path]   = _swStreet;
-    }
-  }
-
-  // Lookup: file path → { mesh, building }. Lets the tree pane resolve
-  // a clicked row back to the same {mesh, data, file} shape the canvas
-  // pick handler builds, so tree → city selection flows through the
-  // identical _setSelection path.
-  var buildingsByPath = {};
-  for (var bpi = 0; bpi < buildingMeshes.length; bpi++) {
-    var _bpm = buildingMeshes[bpi];
-    var _bpb = _bpm.userData.building;
-    if (_bpb && _bpb.file && _bpb.file.path != null) {
-      buildingsByPath[_bpb.file.path] = { mesh: _bpm, building: _bpb };
-    }
-  }
-
-  // Building-to-street connector strips, grouped by parent dir path so
-  // they can be tinted alongside their street's sidewalk (selected /
-  // hover colors).
-  var pathMeshesByDirPath = {};
-  for (var pmi = 0; pmi < pathMeshes.length; pmi++) {
-    var _pm = pathMeshes[pmi];
-    var _pmFile = _pm.userData.file;
-    var _pmDir  = _pmFile && _pmFile.path != null ? parentDirPath(_pmFile.path) : null;
-    if (_pmDir == null) continue;
-    if (!pathMeshesByDirPath[_pmDir]) pathMeshesByDirPath[_pmDir] = [];
-    pathMeshesByDirPath[_pmDir].push(_pm);
-  }
+  // Lookup maps (sidewalksByDirPath, streetsByDirPath, buildingsByPath,
+  // pathMeshesByDirPath) live on cityScene and are mirrored into local
+  // vars by _syncFromCityScene above. The neon path line, tree-click
+  // routing, and selection-restore logic all read those locals.
 
   // _expectedSidewalkTint(sw) — selected / hover color, or null for the
   // resting tint. Selection wins over hover. (No "path" tint anymore —

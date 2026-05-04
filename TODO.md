@@ -12,3 +12,4 @@
 - [x] rename .dev to build or dist
 - [x] Update README.md
 - [ ] Add typescript
+- [ ] Add about panel if project root has a readme
