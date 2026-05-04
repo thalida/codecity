@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { showFileSidebar, showDirSidebar, hideSidebar, closeSidebar, setSidebarCloseHandler } from '../../components/sidebar.js';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { showFileSidebar, showDirSidebar, hideSidebar, showEmptySidebar } from '../../components/sidebar.js';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';
@@ -43,18 +43,18 @@ describe('showFileSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders the filename in the header', () => {
+  it('renders no header chrome — preview pane only', () => {
     showFileSidebar(FILE_NODE);
-    const name = document.querySelector('.editor-header-name');
-    expect(name).not.toBeNull();
-    expect(name.textContent).toBe('index.ts');
+    // Header / chip / close-button live in the sitewide app header now,
+    // not inside the right sidebar.
+    expect(document.querySelector('.editor-header')).toBeNull();
+    expect(document.querySelector('.app-header-chip')).toBeNull();
+    expect(document.querySelector('.editor-header-icon')).toBeNull();
   });
 
-  it('renders an extension chip in the header', () => {
+  it('renders the editor body (preview)', () => {
     showFileSidebar(FILE_NODE);
-    const chip = document.querySelector('.editor-tab-chip');
-    expect(chip).not.toBeNull();
-    expect(chip.textContent).toBe('ts');  // leading dot stripped
+    expect(document.querySelector('.editor-body')).not.toBeNull();
   });
 
   it('shows size + line count in the status bar', () => {
@@ -67,9 +67,8 @@ describe('showFileSidebar', () => {
   it('clears existing content on re-open', () => {
     showFileSidebar(FILE_NODE);
     showFileSidebar({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
-    const names = document.querySelectorAll('.editor-header-name');
-    expect(names.length).toBe(1);
-    expect(names[0].textContent).toBe('utils.ts');
+    const bodies = document.querySelectorAll('.editor-body');
+    expect(bodies.length).toBe(1);
   });
 
   it('does nothing if #sidebar is missing', () => {
@@ -86,10 +85,10 @@ describe('showDirSidebar', () => {
     expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
   });
 
-  it('renders directory name in the header + dir chip', () => {
+  it('renders the dir-info panel without header chrome', () => {
     showDirSidebar(DIR_NODE);
-    expect(document.querySelector('.editor-header-name').textContent).toBe('src');
-    expect(document.querySelector('.editor-tab-chip-dir').textContent).toBe('dir');
+    expect(document.querySelector('.editor-header')).toBeNull();
+    expect(document.querySelector('.dir-info')).not.toBeNull();
   });
 
   it('renders children + descendants stats in the body', () => {
@@ -99,6 +98,16 @@ describe('showDirSidebar', () => {
     expect(text).toContain('2');  // direct children files
     expect(text).toContain('5');  // recursive total
     expect(text).toContain('4');  // recursive files
+  });
+});
+
+describe('showEmptySidebar', () => {
+  beforeEach(resetDom);
+
+  it('opens the panel with the empty-state hint', () => {
+    showEmptySidebar();
+    expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
+    expect(document.querySelector('.editor-empty-hint')).not.toBeNull();
   });
 });
 
@@ -115,36 +124,5 @@ describe('hideSidebar', () => {
   it('does nothing if #sidebar is missing', () => {
     document.body.innerHTML = '';
     expect(() => hideSidebar()).not.toThrow();
-  });
-});
-
-describe('closeSidebar', () => {
-  beforeEach(resetDom);
-
-  it('does NOT mutate the DOM (visibility is owned by the host)', () => {
-    showFileSidebar(FILE_NODE);
-    setSidebarCloseHandler(null);
-    closeSidebar();
-    expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
-  });
-});
-
-describe('setSidebarCloseHandler', () => {
-  beforeEach(resetDom);
-
-  it('fires the registered handler when closeSidebar is called', () => {
-    var handler = vi.fn();
-    setSidebarCloseHandler(handler);
-    closeSidebar();
-    expect(handler).toHaveBeenCalledTimes(1);
-    setSidebarCloseHandler(null);   // cleanup
-  });
-
-  it('passing null clears the handler', () => {
-    var handler = vi.fn();
-    setSidebarCloseHandler(handler);
-    setSidebarCloseHandler(null);
-    closeSidebar();
-    expect(handler).not.toHaveBeenCalled();
   });
 });

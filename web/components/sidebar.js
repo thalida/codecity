@@ -1,12 +1,10 @@
-// sidebar.js — Right-side detail panel for buildings (files) and streets (directories).
+// sidebar.js — Right-side preview pane. The pane has no header chrome of
+// its own (chip + breadcrumb + copy live in the sitewide app header) — it
+// renders just the preview body and a small status bar.
 
 import hljs from 'highlight.js/lib/common';
-import { getHue } from '../scene/colors.js';
 import { DOM_IDS } from '../constants.js';
 import { makeLucideIcon } from './icon.js';
-
-// How long the "Copied!" badge lingers after the copy button is clicked.
-var COPY_FEEDBACK_DURATION_MS = 1500;
 
 // Persistent width range (in px) for the right sidebar drag handle.
 var SIDEBAR_MIN_WIDTH = 280;
@@ -29,38 +27,6 @@ var DATE_FORMAT_OPTIONS = {
   day:   'numeric'
 };
 
-// Palette injected from main.js (config.building.hue_ext_map). Empty object
-// means "no palette configured" — getHue will fall back to its hash.
-var _huePalette = {};
-
-// Optional handler invoked AFTER closeSidebar runs. main.js wires this to
-// clear scene-level selection state (outlines, sidewalk tints) so any path
-// that closes the sidebar — close button, Esc, click-empty — also clears
-// the selection visuals automatically.
-var _onClose = null;
-
-// ── Public API ────────────────────────────────────────────────────────────────
-
-/**
- * Inject the extension→hue palette so badge colors match the building palette
- * configured in defaults.js.
- *
- * @param {Object} palette - Map of extension → hue (e.g. { ".ts": 215 }).
- */
-export function setSidebarPalette(palette) {
-  _huePalette = palette || {};
-}
-
-/**
- * Register a callback to fire whenever the sidebar closes. Used by main.js
- * to clear scene-level selection state in lockstep with the sidebar.
- *
- * @param {Function} fn - Callback. Pass null to clear.
- */
-export function setSidebarCloseHandler(fn) {
-  _onClose = fn || null;
-}
-
 
 /**
  * Show the sidebar populated with metadata for a file node.
@@ -80,24 +46,14 @@ export function showFileSidebar(file) {
   _applyPersistedWidth(sidebar);
   sidebar.classList.add('open');
 
-  // Single compact header row: ext chip \u00b7 filename \u00b7 copy \u00b7 close.
-  // Path lives in the sitewide header up top; copy button still copies
-  // the full relative path even though it's not displayed here.
-  var extChip = file.extension ? _makeExtChip(file.extension) : null;
-  sidebar.appendChild(_makeEditorHeader(
-    extChip,
-    file.name || '',
-    file.path || file.fullPath || ''
-  ));
-
-  // Editor body \u2014 the preview fills the panel.
+  // The right sidebar is purely a preview pane now \u2014 chip / breadcrumb /
+  // copy live in the sitewide header; no per-pane header chrome here.
   var body = document.createElement('div');
   body.className = 'editor-body';
   var previewSection = _makePreviewSection(file);
   if (previewSection) body.appendChild(previewSection);
   sidebar.appendChild(body);
 
-  // Status bar \u2014 file metadata as VSCode-style chips.
   sidebar.appendChild(_makeFileStatusBar(file));
 }
 
@@ -121,13 +77,8 @@ export function showDirSidebar(dir) {
   _applyPersistedWidth(sidebar);
   sidebar.classList.add('open');
 
-  sidebar.appendChild(_makeEditorHeader(
-    _makeDirChip(),
-    dir.name || '',
-    dir.path || dir.fullPath || ''
-  ));
-
-  // Body: a compact info panel — directories don't have an editor view.
+  // Directories don't have a preview, so the body is a compact info
+  // panel. The sitewide header carries the dir's chip + breadcrumb.
   var body = document.createElement('div');
   body.className = 'editor-body editor-body-info';
   body.appendChild(_makeDirInfoPanel(dir));
@@ -190,36 +141,6 @@ export function showEmptySidebar() {
 }
 
 /**
- * Copy text to the clipboard with a brief visual confirmation on the trigger button.
- *
- * Uses navigator.clipboard (modern) with fallback to the legacy execCommand API
- * for environments that don't support the Clipboard API (e.g. non-HTTPS, older browsers).
- *
- * @param {string} text    - The text to copy.
- * @param {Element} button - The button element that triggered the copy action.
- */
-function copyToClipboard(text, button) {
-  function showFeedback() {
-    if (!button) return;
-    var original = button.textContent;
-    button.textContent = 'Copied!';
-    setTimeout(function () {
-      button.textContent = original;
-    }, COPY_FEEDBACK_DURATION_MS);
-  }
-
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(showFeedback, function () {
-      _legacyCopy(text);
-      showFeedback();
-    });
-  } else {
-    _legacyCopy(text);
-    showFeedback();
-  }
-}
-
-/**
  * Format a byte count into a human-readable string.
  *
  * @param {number} bytes
@@ -247,72 +168,6 @@ function formatDate(isoString) {
 // ── IDE chrome (single header row + status bar) ───────────────────────────────
 
 /**
- * Per-extension hue chip rendered inside the header. Visually telegraphs
- * the file's language family without a dedicated icon set.
- */
-function _makeExtChip(extension) {
-  var chip = document.createElement('span');
-  chip.className = 'editor-tab-chip';
-  chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
-  var hue = getHue(extension, _huePalette);
-  chip.style.setProperty('--badge-hue', hue);
-  return chip;
-}
-
-function _makeDirChip() {
-  var chip = document.createElement('span');
-  chip.className = 'editor-tab-chip editor-tab-chip-dir';
-  chip.textContent = 'dir';
-  return chip;
-}
-
-/**
- * Single compact header row: chip + name + copy + spacer + close.
- *
- * The full path lives in the sitewide app header up top; this row carries
- * just the filename. The copy button still operates on the full path
- * (passed in separately) so users can grab it without reading it.
- */
-function _makeEditorHeader(chipEl, name, pathForCopy) {
-  var header = document.createElement('div');
-  header.className = 'editor-header';
-
-  if (chipEl) header.appendChild(chipEl);
-
-  var nameEl = document.createElement('div');
-  nameEl.className = 'editor-header-name';
-  nameEl.textContent = name || '';
-  nameEl.title = pathForCopy || name || '';  // tooltip exposes the path
-  header.appendChild(nameEl);
-
-  var copyBtn = document.createElement('button');
-  copyBtn.className = 'editor-header-icon';
-  copyBtn.type = 'button';
-  copyBtn.title = 'Copy path';
-  copyBtn.setAttribute('aria-label', 'Copy path');
-  copyBtn.appendChild(makeLucideIcon('copy', { title: 'Copy path' }));
-  copyBtn.addEventListener('click', function () {
-    copyToClipboard(pathForCopy || '', copyBtn);
-  });
-  header.appendChild(copyBtn);
-
-  // Spacer pushes the close button to the far right.
-  var spacer = document.createElement('span');
-  spacer.className = 'editor-header-spacer';
-  header.appendChild(spacer);
-
-  var closeBtn = document.createElement('button');
-  closeBtn.className = 'editor-header-icon';
-  closeBtn.type = 'button';
-  closeBtn.title = 'Close';
-  closeBtn.setAttribute('aria-label', 'Close');
-  closeBtn.appendChild(makeLucideIcon('x', { title: 'Close' }));
-  closeBtn.addEventListener('click', closeSidebar);
-  header.appendChild(closeBtn);
-
-  return header;
-}
-
 /**
  * Status bar — `language · 1234 lines · 33.7 KB · modified Apr 18 (git)`.
  * Mirrors VSCode's bottom bar but rendered per-file instead of global.
@@ -705,22 +560,4 @@ function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
   try { localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w)); }
   catch (_) { /* drop */ }
-}
-
-function _legacyCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.top = '0';
-  ta.style.left = '0';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  try {
-    document.execCommand('copy');
-  } catch (e) {
-    // Silent fallback — nothing we can do without clipboard access
-  }
-  document.body.removeChild(ta);
 }

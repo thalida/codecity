@@ -1,40 +1,45 @@
-// appHeader.js — Sitewide top header. Carries the current selection
-// title and two toggles (show/hide left sidebar, show/hide right
-// sidebar). Visibility state is persisted in localStorage so the
-// preference survives reloads.
+// appHeader.js — Sitewide top header. Owns the current-selection display
+// (chip + clickable breadcrumb + copy-path button) and the two
+// show/hide-sidebar toggles. Visibility state is persisted in
+// localStorage so the preference survives reloads.
 
+import { getHue } from '../scene/colors.js';
 import { makeLucideIcon } from './icon.js';
 
 var STORAGE_LEFT  = 'cc.appLeftHidden';
 var STORAGE_RIGHT = 'cc.appRightHidden';
 
+// How long the "Copied!" badge lingers after the copy button is clicked.
+var COPY_FEEDBACK_DURATION_MS = 1500;
+
 /**
- * Initialise the sitewide header. Adds Lucide icons to the existing
- * toggle buttons in index.html and wires their click handlers; restores
- * persisted hidden state from localStorage. Returns a small API the
- * caller uses to push the current selection title and to react to the
- * user toggling either sidebar.
+ * Initialise the sitewide header. Renders icons into the existing toggle
+ * buttons in index.html, populates the title slot with chip + breadcrumb
+ * + copy widgets, restores persisted visibility from localStorage.
  *
  * @param {Object} [opts]
- * @param {Function} [opts.onRightToggle]  fn(hidden:boolean) — fires after
- *   the user clicks the right-sidebar toggle. Caller can show an empty
- *   state when un-hiding with no current selection, etc.
+ * @param {Object}   [opts.huePalette]    extension → hue map for the chip color
+ * @param {Function} [opts.onSegmentClick] fn(path:string) — fires when the
+ *   user clicks a breadcrumb segment. Caller selects the matching node.
  * @param {Function} [opts.onLeftToggle]   fn(hidden:boolean)
+ * @param {Function} [opts.onRightToggle]  fn(hidden:boolean)
  */
 export function initAppHeader(opts) {
   opts = opts || {};
-  var onRightToggle = typeof opts.onRightToggle === 'function' ? opts.onRightToggle : null;
-  var onLeftToggle  = typeof opts.onLeftToggle  === 'function' ? opts.onLeftToggle  : null;
+  var huePalette     = opts.huePalette     || {};
+  var onSegmentClick = typeof opts.onSegmentClick === 'function' ? opts.onSegmentClick : null;
+  var onRightToggle  = typeof opts.onRightToggle  === 'function' ? opts.onRightToggle  : null;
+  var onLeftToggle   = typeof opts.onLeftToggle   === 'function' ? opts.onLeftToggle   : null;
+
   var leftBtn  = document.getElementById('toggle-left-sidebar');
   var rightBtn = document.getElementById('toggle-right-sidebar');
   var titleEl  = document.getElementById('app-title');
   if (!leftBtn || !rightBtn || !titleEl) {
-    return { setTitle: function () {} };
+    return { setSelection: function () {}, setLeftVisible: function () {},
+             setRightVisible: function () {}, isLeftVisible: function () { return true; },
+             isRightVisible: function () { return true; } };
   }
 
-  // Initial icons match the current visibility — panel-left/right when
-  // visible (clicking them hides), panel-left-open/right-open when
-  // hidden (clicking restores).
   function _renderLeftIcon(hidden) {
     leftBtn.replaceChildren(
       makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close')
@@ -79,13 +84,83 @@ export function initAppHeader(opts) {
     _saveFlag(STORAGE_RIGHT, rightHidden);
   }
 
+  /**
+   * Render the title slot for a selection.
+   *
+   * sel shape:
+   *   null                                   → empty (placeholder shows "CodeCity")
+   *   { path, extension, isDir }             → chip + breadcrumb + copy
+   *
+   * `path` is the project-relative path, e.g. "web/components/sidebar.js".
+   * Each "/" segment becomes a clickable button that fires onSegmentClick
+   * with that segment's accumulated path.
+   */
+  function setSelection(sel) {
+    titleEl.replaceChildren();
+    if (!sel || !sel.path) return;
+
+    titleEl.appendChild(_makeChip(sel.extension, sel.isDir));
+
+    var crumbs = document.createElement('div');
+    crumbs.className = 'app-header-crumbs';
+    crumbs.title = sel.path;
+
+    var segs = sel.path.split('/').filter(Boolean);
+    var acc = '';
+    for (var i = 0; i < segs.length; i++) {
+      acc = acc ? (acc + '/' + segs[i]) : segs[i];
+      var isLeaf = (i === segs.length - 1);
+      crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
+      if (!isLeaf) {
+        var sep = document.createElement('span');
+        sep.className = 'app-header-sep';
+        sep.textContent = '›';
+        crumbs.appendChild(sep);
+      }
+    }
+    titleEl.appendChild(crumbs);
+
+    titleEl.appendChild(_makeCopyButton(sel.path));
+  }
+
+  function _makeChip(extension, isDir) {
+    var chip = document.createElement('span');
+    chip.className = 'app-header-chip';
+    if (isDir) {
+      chip.classList.add('is-dir');
+      chip.textContent = 'dir';
+    } else {
+      chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
+      chip.style.setProperty('--badge-hue', getHue(extension, huePalette));
+    }
+    return chip;
+  }
+
+  function _makeSegment(label, path, isLeaf) {
+    var seg = document.createElement('button');
+    seg.type = 'button';
+    seg.className = 'app-header-segment';
+    if (isLeaf) seg.classList.add('is-leaf');
+    seg.textContent = label;
+    seg.addEventListener('click', function () {
+      if (onSegmentClick) onSegmentClick(path);
+    });
+    return seg;
+  }
+
+  function _makeCopyButton(path) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'app-header-icon';
+    btn.title = 'Copy path';
+    btn.setAttribute('aria-label', 'Copy path');
+    btn.appendChild(makeLucideIcon('copy'));
+    btn.addEventListener('click', function () { _copy(path, btn); });
+    return btn;
+  }
+
   return {
-    setTitle: function (text) {
-      titleEl.textContent = text || '';
-    },
-    // Programmatic visibility — used when the user clicks the X inside
-    // the sidebar's own header so the sitewide button stays in sync.
-    // Doesn't fire onLeftToggle / onRightToggle (caller already knows).
+    setSelection: setSelection,
     setLeftVisible:  function (visible) { _setLeftHidden(!visible); },
     setRightVisible: function (visible) { _setRightHidden(!visible); },
     isLeftVisible:   function () { return !leftHidden;  },
@@ -108,4 +183,28 @@ function _saveFlag(key, on) {
     if (on) localStorage.setItem(key, '1');
     else    localStorage.removeItem(key);
   } catch (_) { /* private mode — drop */ }
+}
+
+function _copy(text, btn) {
+  function flash() {
+    if (!btn) return;
+    btn.classList.add('is-copied');
+    setTimeout(function () { btn.classList.remove('is-copied'); }, COPY_FEEDBACK_DURATION_MS);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash, function () { _legacyCopy(text); flash(); });
+  } else {
+    _legacyCopy(text); flash();
+  }
+}
+
+function _legacyCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try { document.execCommand('copy'); } catch (_) { /* fallback unavailable */ }
+  document.body.removeChild(ta);
 }

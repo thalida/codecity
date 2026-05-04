@@ -77,10 +77,11 @@ body {
 
 #app-title {
   flex: 1 1 auto;
-  text-align: center;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
   letter-spacing: 0.02em;
   color: #8a8fa8;
 }
@@ -169,55 +170,12 @@ canvas {
   background: rgba(108, 138, 255, 0.25);
 }
 
-/* ── Editor header ──────────────────────────────────────────────────────
-   Single 30px row carrying chip + breadcrumb + copy + close. Replaces
-   the old tab-bar + breadcrumb stack since only one file can be open at
-   a time — the breadcrumb's leaf segment IS the filename, no tab strip
-   needed. */
+/* ── Sitewide header content (chip + breadcrumb + copy) ──────────────────
+   Lives inside #app-title (see the #app-title rule above for the flex
+   shell). Pushed there from main._setSelection via
+   appHeader.setSelection({path, extension, isDir}). */
 
-.editor-header {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 0 8px 0 12px;
-  height: 30px;
-  background: #0c0d14;
-  border-bottom: 1px solid #1e2030;
-  /* Active-pane underline — subtle, brand-blue. */
-  position: relative;
-  min-width: 0;
-}
-.editor-header::after {
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -1px;
-  height: 1.5px;
-  background: #6c8aff;
-}
-
-/* Filename next to the chip. The full path lives up in the sitewide
-   header — this row is intentionally name-only so the chrome stays
-   compact. Long names truncate with ellipsis; tooltip restores them. */
-.editor-header-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
-  font-weight: 500;
-  color: #e0e4f5;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.editor-header-spacer {
-  flex: 1 1 auto;
-}
-
-/* Per-extension chip in the header. Hue comes from JS. */
-.editor-tab-chip {
+.app-header-chip {
   flex: 0 0 auto;
   display: inline-block;
   padding: 1px 6px;
@@ -230,32 +188,58 @@ canvas {
   background: hsl(var(--badge-hue, 0), 60%, 35%);
   color:      hsl(var(--badge-hue, 0), 30%, 92%);
   white-space: nowrap;
+  -webkit-app-region: no-drag;
 }
-.editor-tab-chip-dir {
+.app-header-chip.is-dir {
   background: rgba(90, 200, 180, 0.2);
   color: #5ac8b4;
 }
 
-/* Header trailing icons (copy + close). Same shape, slightly different
-   hover affordance. */
-.editor-header-icon {
-  flex: 0 0 auto;
-  display: inline-flex;
+.app-header-crumbs {
+  flex: 0 1 auto;
+  min-width: 0;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
+  gap: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-header-segment {
+  flex: 0 0 auto;
   background: none;
   border: none;
-  color: #6a7090;
+  padding: 1px 4px;
+  margin: 0;
+  font: inherit;
+  color: #8a8fa8;
   cursor: pointer;
   border-radius: 3px;
-  font-size: 13px;
+  -webkit-app-region: no-drag;
 }
-.editor-header-icon .lucide-icon { font-size: 12px; }
-.editor-header-icon:hover {
+.app-header-segment:hover {
   color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-header-segment.is-leaf {
+  color: #e0e4f5;
+  cursor: default;
+}
+.app-header-segment.is-leaf:hover {
+  background: transparent;
+}
+
+.app-header-sep {
+  flex: 0 0 auto;
+  color: #44485e;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+.app-header-icon.is-copied {
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.10);
 }
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
