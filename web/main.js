@@ -270,6 +270,10 @@ function startRenderLoop(canvas, manifest) {
     requestAnimationFrame(animate);
   }
   animate();
+
+  // Expose cityScene to the boot block so setupLiveUpdates can swap
+  // in fresh manifests without restarting the renderer.
+  return { cityScene: cityScene };
 }
 
 
@@ -331,16 +335,17 @@ function manifestUrl() {
 
 // Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
 // re-fetching the manifest at the user-configured interval; when its
-// signature changes vs. the last render, we reload the page so the
-// scene rebuilds against the new state. A full reload is correct and
-// simple — camera/selection aren't persisted across CLI runs anyway,
-// so this stays consistent with that behavior.
+// signature changes vs. the last render, we hand the new manifest to
+// cityScene.applyManifest, which rebuilds the city in place. Camera +
+// selection survive because picker.selectionKey is persisted and
+// re-resolved on every cityScene rebuild, and cameraRig keeps its pose
+// across applyManifest calls (no re-frame).
 function _clampPollSeconds(s) {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
 }
 
-function setupLiveUpdates(initialSignature) {
+function setupLiveUpdates(handle, initialSignature) {
   var lastSignature = initialSignature || '';
   var timer = null;
   var inFlight = false;
@@ -352,8 +357,8 @@ function setupLiveUpdates(initialSignature) {
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (m) {
         if (m && m.signature && m.signature !== lastSignature) {
-          // Reload — boot will rerender against the fresh manifest.
-          window.location.reload();
+          lastSignature = m.signature;
+          handle.cityScene.applyManifest(m);
         }
       })
       .catch(function () { /* keep polling on transient errors */ })
@@ -391,7 +396,7 @@ if (_canvas) {
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
     persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
-    startRenderLoop(_canvas, manifest);
-    setupLiveUpdates(manifest.signature);
+    var handle = startRenderLoop(_canvas, manifest);
+    setupLiveUpdates(handle, manifest.signature);
   })();
 }
