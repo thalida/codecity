@@ -22,6 +22,7 @@ import {
   POLL_SECONDS_MAX
 } from './config/index.js';
 import { attachPersistence, persistStore } from './config/_persist.js';
+import { attachHotReload } from './config/hotReload.js';
 import { NODE_KIND, DOM_IDS, STREET_AXIS } from './constants.js';
 
 import { regenerateLabelTexture } from './scene/engine.js';
@@ -271,9 +272,10 @@ function startRenderLoop(canvas, manifest) {
   }
   animate();
 
-  // Expose cityScene to the boot block so setupLiveUpdates can swap
-  // in fresh manifests without restarting the renderer.
-  return { cityScene: cityScene };
+  // Expose cityScene + applyTheme to the boot block so setupLiveUpdates
+  // can swap in fresh manifests, and attachHotReload can dispatch
+  // material refreshes without restarting the renderer.
+  return { cityScene: cityScene, applyTheme: applyTheme };
 }
 
 
@@ -397,6 +399,10 @@ if (_canvas) {
     // lets the picker's first key→selection resolve see the saved key.
     persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
     var handle = startRenderLoop(_canvas, manifest);
+    attachHotReload({
+      cityScene:  handle.cityScene,
+      applyTheme: handle.applyTheme,
+    });
     setupLiveUpdates(handle, manifest.signature);
   })();
 }
