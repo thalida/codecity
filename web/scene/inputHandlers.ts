@@ -1,4 +1,4 @@
-// scene/inputHandlers.js — pointer / dblclick / keydown / resize
+// scene/inputHandlers.ts — pointer / dblclick / keydown / resize
 // wiring. Translates DOM events into picker and cameraRig calls.
 //
 // Public contract:
@@ -23,6 +23,16 @@ export function createInputHandlers({
   showTooltip,
   hideTooltip,
   onResize,
+}: {
+  canvas: HTMLCanvasElement;
+  picker: any;
+  rig: any;
+  renderer: any;
+  camera: any;
+  scene: any;
+  showTooltip: (text: string, x: number, y: number) => void;
+  hideTooltip: () => void;
+  onResize: () => void;
 }) {
   // Click vs. drag: pointerdown→pointerup with movement + time threshold.
   let downX = 0,

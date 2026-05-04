@@ -1,4 +1,4 @@
-// scene/cameraRig.js — owns the perspective camera, OrbitControls,
+// scene/cameraRig.ts — owns the perspective camera, OrbitControls,
 // camera-pose persistence, initial framing, and the focus/reset
 // animations (R key reset, F key focus-on-selection, dblclick focus).
 //
@@ -37,7 +37,13 @@ const SIGHTLINE_FAR_OFFSET = 0.5;
 
 const SAVED_CAMERA_KEY = 'cc.cameraPose';
 
-export function createCameraRig({ canvas, cityScene }) {
+export function createCameraRig({
+  canvas,
+  cityScene,
+}: {
+  canvas: HTMLCanvasElement;
+  cityScene: any;
+}) {
   const perspective = CAMERA_PERSPECTIVE.get();
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;

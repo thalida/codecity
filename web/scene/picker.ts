@@ -1,4 +1,4 @@
-// scene/picker.js — owns the raycaster + the hover and selection
+// scene/picker.ts — owns the raycaster + the hover and selection
 // state machine. State rides on nanostores atoms so consumers
 // (outlineRenderer, pathLineRenderer, buildingFader, coordinator)
 // use the same `subscribe` / `get` idiom they already use for every
@@ -37,13 +37,23 @@ import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { NODE_KIND } from '../constants.js';
 
+import type { PickerSelectionKey } from '../types';
+
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
-export const PICKER_SELECTION_KEY = atom(null);
+export const PICKER_SELECTION_KEY = atom<PickerSelectionKey | null>(null);
 
-export function createPicker({ canvas, camera, cityScene }) {
-  const hover = atom(null);
-  const selection = atom(null);
+export function createPicker({
+  canvas,
+  camera,
+  cityScene,
+}: {
+  canvas: HTMLCanvasElement;
+  camera: any;
+  cityScene: any;
+}) {
+  const hover = atom<any>(null);
+  const selection = atom<any>(null);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
