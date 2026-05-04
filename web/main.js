@@ -55,6 +55,8 @@ function _stepOpacity(cur, target, cfg) {
 import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene, UNIT_BOX_EDGE_POSITIONS } from './scene/cityScene.js';
 import { createCameraRig } from './scene/cameraRig.js';
+import { createPicker, PICKER_SELECTION_KEY } from './interaction/picker.js';
+import { persistStore } from './config/_persist.js';
 import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, humanLanguageFor } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { initAppFooter } from './components/appFooter.js';
@@ -154,7 +156,6 @@ function startRenderLoop(canvas, manifest) {
   var rootGem, rootGemBody, rootGemEdges, rootStreet, gemWorldPos, bbox;
   var layout, dateRanges;
   var buildingOutlines, buildingOutlineMats, buildingGhosts;
-  var pickables;
   var sidewalksByDirPath, streetsByDirPath, buildingsByPath, pathMeshesByDirPath;
 
   function _syncFromCityScene() {
@@ -178,16 +179,9 @@ function startRenderLoop(canvas, manifest) {
     streetsByDirPath    = cityScene.getStreetsByDirMap();
     buildingsByPath     = cityScene.getBuildingsByPath();
     pathMeshesByDirPath = cityScene.getPathConnectorsMap();
-    pickables           = buildingMeshes.concat(streetPickables);
-    if (rootGem) {
-      var gemBody = rootGem.children && rootGem.children[0];
-      if (gemBody) pickables.push(gemBody);
-    }
   }
   cityScene.onChange(_syncFromCityScene);
   cityScene.applyManifest(manifest);    // populates state via onChange above
-
-  function getPickables() { return pickables; }
 
   // Hot-reload the label fill color: FILL is baked into the CanvasTexture
   // at scene-build, so a "live" change requires regenerating each label's
@@ -218,9 +212,13 @@ function startRenderLoop(canvas, manifest) {
   var rig = createCameraRig({ canvas: canvas, cityScene: cityScene });
   var camera = rig.camera;
 
-  // -- 6. Raycaster picking ----------------------------------------------------
-  var raycaster = new THREE.Raycaster();
-  var pointer   = new THREE.Vector2();
+  // -- 5. Picker (raycaster + hover/selection state) --------------------------
+  // Picker owns the hover + selection atoms (consumed below by the
+  // outline / path-line / fader / sidebar code via subscription).
+  // Selection persistence is wired in the boot block before startRenderLoop
+  // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
+  // before this picker resolves it against the freshly-built city.
+  var picker = createPicker({ canvas: canvas, camera: camera, cityScene: cityScene });
 
   // Click vs. drag: track pointerdown→pointerup with a movement + time threshold.
   var downX = 0, downY = 0, downTime = 0;
@@ -680,93 +678,33 @@ function startRenderLoop(canvas, manifest) {
   });
 
   function _handlePick(clientX, clientY) {
-    var rect = canvas.getBoundingClientRect();
-    pointer.x = ((clientX - rect.left) / rect.width)  * 2 - 1;
-    pointer.y = -((clientY - rect.top)  / rect.height) * 2 + 1;
-
-    raycaster.setFromCamera(pointer, camera);
-    var hits = raycaster.intersectObjects(getPickables(), false);
-
-    if (hits.length > 0) {
-      var hit = hits[0];
-      var ud  = hit.object.userData;
-      // Gem click → reset view + clear selection. The sidebar's
-      // visibility is the user's call; we just clear what's shown.
-      if (ud.type === NODE_KIND.GEM) {
-        _setSelection(null);
-        resetView();
-        return;
-      }
-      if (ud.building && ud.building.file) {
-        if (ud.building.file.type === NODE_KIND.DIRECTORY) {
-          // Directory buildings aren't actually rendered (engine.js skips
-          // them); if one ever does show up, treat it like a directory.
-          _setSelection({
-            kind: NODE_KIND.DIRECTORY,
-            sidewalk: null,
-            street: null,
-            dir: ud.building.file,
-          });
-        } else {
-          _setSelection({
-            kind: NODE_KIND.FILE,
-            mesh: hit.object,
-            data: ud.building,
-            file: ud.building.file
-          });
-        }
-        return;
-      }
-      if (ud.street && ud.street.dir) {
-        _setSelection({
-          kind:     'directory',
-          sidewalk: hit.object,
-          street:   ud.street,
-          dir:      ud.street.dir
-        });
-        return;
-      }
+    var hit = picker.pickAt(clientX, clientY);
+    if (!hit) {
+      picker.setSelection(null);
+      return;
     }
-    _setSelection(null);
+    // Gem click → reset view + clear selection. The sidebar's
+    // visibility is the user's call; we just clear what's shown.
+    if (hit.object.userData.type === NODE_KIND.GEM) {
+      picker.setSelection(null);
+      resetView();
+      return;
+    }
+    var target = picker.interpretHit(hit);
+    picker.setSelection(target);
   }
 
-  // ---- Selection persistence ----
-  // Saved by file.path or dir.path (the only stable identifiers across
-  // reloads — mesh references can't survive). On boot, after the scene's
-  // path lookups are built, _restoreSavedSelection() walks the saved kind
-  // back into a real {kind, mesh, data, file} or {kind, sidewalk, street,
-  // dir} object and re-runs the selection flow.
-  var SAVED_SELECTION_KEY = 'cc.selection';
-  function _saveSelection(sel) {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      if (!sel) {
-        localStorage.removeItem(SAVED_SELECTION_KEY);
-        return;
-      }
-      var snap;
-      if (sel.kind === NODE_KIND.FILE && sel.file && sel.file.path != null) {
-        snap = { kind: 'file', path: sel.file.path };
-      } else if (sel.kind === NODE_KIND.DIRECTORY && sel.dir && sel.dir.path != null) {
-        snap = { kind: 'directory', path: sel.dir.path };
-      } else {
-        return;
-      }
-      localStorage.setItem(SAVED_SELECTION_KEY, JSON.stringify(snap));
-    } catch (_) { /* private mode / quota — drop silently */ }
-  }
+  // _setSelection is now a thin wrapper around picker.setSelection. The
+  // side effects (outline updates, sidewalk tints, path lines, header /
+  // footer / sidebar refresh) live in _onSelectionChanged below, wired
+  // via picker.selection.subscribe. Persistence rides on the picker's
+  // selectionKey atom, hooked into localStorage by the boot block.
+  function _setSelection(sel) { picker.setSelection(sel); }
 
-  // _setSelection(sel) — single entry point for changing what's selected.
-  // sel is null OR { kind:'file', mesh, data, file } OR
-  //                { kind:'directory', sidewalk, street, dir }.
-  //
-  // Updates the live outlines + sidewalk tints + neon path line, then
-  // persists the selection (by path) so a reload picks it back up.
-  function _setSelection(sel) {
-    if (currentSelection && currentSelection.kind === NODE_KIND.FILE) {
+  function _onSelectionChanged(sel, prev) {
+    if (prev && prev.kind === NODE_KIND.FILE) {
       selectedOutline.visible = false;
     }
-    currentSelection = sel;
     if (sel && sel.kind === NODE_KIND.FILE) {
       _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
       selectedOutline.visible = true;
@@ -774,17 +712,13 @@ function startRenderLoop(canvas, manifest) {
     _refreshSidewalkTints();
     _updatePathLine();
     _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
-    _saveSelection(sel);
     _syncTreeSelection(sel);
 
-    // Sitewide header mirrors the selection: chip + clickable breadcrumb
-    // + copy. Sel shape:
-    //   file:      { kind:'file',      mesh, data, file: {name,path,extension,...} }
-    //   directory: { kind:'directory', sidewalk, street, dir:  {name,path,...} }
+    // Sitewide header mirrors the selection
     var node = sel && (sel.file || sel.dir);
     appHeader.setSelection(node ? {
       path:      node.path || node.fullPath || node.name || '',
-      fullPath:  node.fullPath || '',  // copy-button copies the abs path
+      fullPath:  node.fullPath || '',
       extension: node.extension || '',
       isDir:     sel.kind === NODE_KIND.DIRECTORY,
     } : null);
@@ -806,9 +740,6 @@ function startRenderLoop(canvas, manifest) {
         dateSource: hasGit ? 'git' : 'fs',
       });
     } else {
-      // Both `null` (no selection) and dir selections render the same
-      // shape — a directory's totals. For the no-selection case we use
-      // the project root.
       var d = (sel && sel.dir) || manifest.tree || {};
       appFooter.setSelection({
         kind:  'directory',
@@ -818,28 +749,12 @@ function startRenderLoop(canvas, manifest) {
       });
     }
 
-    // Sidebar visibility is the user's call (header toggle) — selecting
-    // something doesn't override it. The panel updates its content if
-    // currently visible; otherwise it just stays hidden with the new
-    // selection ready behind it.
     _renderSidebar();
   }
 
   // Breadcrumb-segment click → resolve the path to a building or street
-  // and route through _setSelection so all the usual side-effects fire.
-  function _selectByPath(path) {
-    if (!path) return;
-    var b = buildingsByPath[path];
-    if (b) {
-      _setSelection({ kind: NODE_KIND.FILE, mesh: b.mesh, data: b.building, file: b.building.file });
-      return;
-    }
-    var sw = sidewalksByDirPath[path];
-    var st = streetsByDirPath[path];
-    if (sw && st && st.dir) {
-      _setSelection({ kind: NODE_KIND.DIRECTORY, sidewalk: sw, street: st, dir: st.dir });
-    }
-  }
+  // and route through picker.setSelection so all the usual side-effects fire.
+  function _selectByPath(path) { picker.selectByPath(path); }
 
   // City → tree: mirror the active selection into the left tree pane so
   // the highlighted row always matches what's outlined in the scene.
@@ -851,11 +766,14 @@ function startRenderLoop(canvas, manifest) {
   // _setHover(h) — single entry point for hover. Independent of selection
   // (you can hover one thing while selecting another); coordinates via
   // _refreshSidewalkTints() which picks the right per-street tint.
-  function _setHover(h) {
-    if (currentHover && currentHover.kind === NODE_KIND.FILE) {
+  // Thin wrapper around picker.setHover. Side effects live in
+  // _onHoverChanged below, wired via picker.hover.subscribe.
+  function _setHover(h) { picker.setHover(h); }
+
+  function _onHoverChanged(h, prev) {
+    if (prev && prev.kind === NODE_KIND.FILE) {
       hoverOutline.visible = false;
     }
-    currentHover = h;
     if (h && h.kind === NODE_KIND.FILE &&
         (!currentSelection || currentSelection.mesh !== h.mesh)) {
       _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
@@ -865,6 +783,23 @@ function startRenderLoop(canvas, manifest) {
     _updateHoverPathLine();
     _syncTreeHover(h);
   }
+
+  // Subscribe to picker AFTER all the dependencies _onSelectionChanged /
+  // _onHoverChanged need (selectedOutline, hoverOutline, appHeader,
+  // appFooter, _renderSidebar, etc.) are in scope. Subscribers fire
+  // immediately with the current atom value, which lets a saved
+  // selection (resolved by picker on cityScene rebuild) light up the
+  // city automatically without a separate restore block.
+  picker.selection.subscribe(function (sel) {
+    var prev = currentSelection;
+    currentSelection = sel;
+    _onSelectionChanged(sel, prev);
+  });
+  picker.hover.subscribe(function (h) {
+    var prev = currentHover;
+    currentHover = h;
+    _onHoverChanged(h, prev);
+  });
 
   // City → tree hover mirror. Same late-binding pattern as
   // _syncTreeSelection: scene init can fire _setHover before the left
@@ -887,21 +822,13 @@ function startRenderLoop(canvas, manifest) {
   //                navigating it
   //   - empty    → ignored (focus only acts on real pickable objects)
   canvas.addEventListener('dblclick', function (e) {
-    var rect = canvas.getBoundingClientRect();
-    var ndcX =  ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-    var ndcY = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-    _focusAtPointer(ndcX, ndcY);
+    _focusAtPointer(e.clientX, e.clientY);
   });
 
-  function _focusAtPointer(ndcX, ndcY) {
-    pointer.set(ndcX, ndcY);
-    raycaster.setFromCamera(pointer, camera);
-
-    var hits = raycaster.intersectObjects(getPickables(), false);
-    if (hits.length === 0) return;
-
-    var hit = hits[0];
-    var ud  = hit.object.userData;
+  function _focusAtPointer(clientX, clientY) {
+    var hit = picker.pickAt(clientX, clientY);
+    if (!hit) return;
+    var ud = hit.object.userData;
     if (ud.type === NODE_KIND.GEM) {       // dblclick gem also resets view
       resetView();
       return;
@@ -947,36 +874,14 @@ function startRenderLoop(canvas, manifest) {
     _hoverRafId = 0;
     var e = _hoverLastEvt;
     if (!e) return;
-    var rect = canvas.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width)  * 2 - 1;
-    pointer.y = -((e.clientY - rect.top)  / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    var hits = raycaster.intersectObjects(getPickables(), false);
-
-    var newHover = null, tooltipText = null;
-    if (hits.length > 0) {
-      var h0 = hits[0];
-      var ud = h0.object.userData;
-      if (ud.type === NODE_KIND.GEM) {
-        newHover = { kind: NODE_KIND.GEM };
-        var rootName = (rootStreet && rootStreet.dir && rootStreet.dir.name) || 'root';
-        tooltipText = 'root  ·  ' + rootName;
-      } else if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
-        var f = ud.building.file;
-        newHover = { kind: NODE_KIND.FILE, mesh: h0.object, data: ud.building, file: f };
-        var fpath = f.path || f.name || 'file';
-        tooltipText = fpath + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
-      } else if (ud.street && ud.street.dir) {
-        var d = ud.street.dir;
-        var dpath = d.path || d.name || 'directory';
-        var fileCount = (d.descendants_file_count != null) ? d.descendants_file_count : 0;
-        var dirCount  = (d.descendants_dir_count  != null) ? d.descendants_dir_count  : 0;
-        var counts = fileCount + ' file' + (fileCount === 1 ? '' : 's') +
-                     ', '      + dirCount  + ' dir'  + (dirCount  === 1 ? '' : 's');
-        newHover = { kind: NODE_KIND.DIRECTORY, sidewalk: h0.object, street: ud.street, dir: d };
-        tooltipText = dpath + '  ·  ' + counts;
-      }
+    var hit = picker.pickAt(e.clientX, e.clientY);
+    var newHover = picker.interpretHit(hit);
+    // Filter: directory-shaped targets that came from a building (file
+    // tree happens to mark this; we treat as no hover).
+    if (newHover && newHover.kind === NODE_KIND.DIRECTORY && !newHover.sidewalk) {
+      newHover = null;
     }
+    var tooltipText = _tooltipForHover(newHover);
 
     // Tooltip + cursor: immediate (lightweight, want responsiveness).
     if (tooltipText) {
@@ -1013,6 +918,30 @@ function startRenderLoop(canvas, manifest) {
       _hoverPending = null;
       if (!_sameHover(toCommit, currentHover)) _setHover(toCommit);
     }, INPUT_TIMING.get().HOVER_COMMIT_MS);
+  }
+
+  function _tooltipForHover(target) {
+    if (!target) return null;
+    if (target.kind === NODE_KIND.GEM) {
+      var rs = cityScene.getRootStreet();
+      var rootName = (rs && rs.dir && rs.dir.name) || 'root';
+      return 'root  ·  ' + rootName;
+    }
+    if (target.kind === NODE_KIND.FILE && target.file) {
+      var f = target.file;
+      var fpath = f.path || f.name || 'file';
+      return fpath + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
+    }
+    if (target.kind === NODE_KIND.DIRECTORY && target.dir) {
+      var d = target.dir;
+      var dpath = d.path || d.name || 'directory';
+      var fileCount = (d.descendants_file_count != null) ? d.descendants_file_count : 0;
+      var dirCount  = (d.descendants_dir_count  != null) ? d.descendants_dir_count  : 0;
+      var counts = fileCount + ' file' + (fileCount === 1 ? '' : 's') +
+                   ', '      + dirCount  + ' dir'  + (dirCount  === 1 ? '' : 's');
+      return dpath + '  ·  ' + counts;
+    }
+    return null;
   }
 
   function _sameHover(a, b) {
@@ -1182,50 +1111,12 @@ function startRenderLoop(canvas, manifest) {
     else if (h.kind === NODE_KIND.FILE)      leftSidebarApi.setHoveredTreePath(h.file && h.file.path);
     else if (h.kind === NODE_KIND.DIRECTORY) leftSidebarApi.setHoveredTreePath(h.dir  && h.dir.path);
   };
-  // Push the existing selection (if any was set during scene init) into the
-  // freshly-built tree so visual state is consistent before saved-selection
-  // restore runs below.
+  // Sync the (possibly already-restored) selection / hover into the
+  // freshly-built tree pane. picker resolves persisted selection on
+  // every cityScene rebuild via its own subscription, so no separate
+  // restore block is needed here.
   _syncTreeSelection(currentSelection);
   _syncTreeHover(currentHover);
-
-  // ---- Restore the previously-selected file/dir, if any ----
-  // Runs AFTER showLeftSidebar so the right-hand sidebar is wired up too.
-  // If the saved path no longer matches anything in the current tree
-  // (file renamed/moved/deleted), drop the entry and start fresh — no
-  // way to recover and we don't want stale paths lingering in storage.
-  try {
-    if (typeof localStorage !== 'undefined') {
-      var savedSelRaw = localStorage.getItem(SAVED_SELECTION_KEY);
-      if (savedSelRaw) {
-        var savedSel = JSON.parse(savedSelRaw);
-        var restored = false;
-        if (savedSel && savedSel.kind === 'file' && savedSel.path != null) {
-          for (var rsi = 0; rsi < buildingMeshes.length; rsi++) {
-            var _rm = buildingMeshes[rsi];
-            var _rb = _rm.userData.building;
-            if (_rb && _rb.file && _rb.file.path === savedSel.path) {
-              _setSelection({ kind: NODE_KIND.FILE, mesh: _rm, data: _rb, file: _rb.file });
-              restored = true;
-              break;
-            }
-          }
-        } else if (savedSel && savedSel.kind === 'directory' && savedSel.path != null) {
-          var sw = sidewalksByDirPath[savedSel.path];
-          var sStreet = streetsByDirPath[savedSel.path];
-          if (sw && sStreet && sStreet.dir) {
-            _setSelection({
-              kind:     NODE_KIND.DIRECTORY,
-              sidewalk: sw,
-              street:   sStreet,
-              dir:      sStreet.dir
-            });
-            restored = true;
-          }
-        }
-        if (!restored) localStorage.removeItem(SAVED_SELECTION_KEY);
-      }
-    }
-  } catch (_) { /* corrupt JSON — ignore */ }
 
   // -- 8. Render loop --------------------------------------------------------
   var startTime = performance.now();
@@ -1594,6 +1485,10 @@ if (_canvas) {
     // any user tweaks from prior sessions take effect during the initial
     // layout/render.
     attachPersistence(Config);
+    // Picker's selectionKey atom isn't part of the Config barrel, so
+    // wire its persistence directly. Hydrating BEFORE startRenderLoop
+    // lets the picker's first key→selection resolve see the saved key.
+    persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
     startRenderLoop(_canvas, manifest);
     setupLiveUpdates(manifest.signature);
   })();
