@@ -1,4 +1,4 @@
-// engine.js — Three.js scene builder. Turns layout output into a Scene of meshes.
+// engine.ts — Three.js scene builder. Turns layout output into a Scene of meshes.
 //
 // World axes: X east-west, Y north-south, Z up. Buildings are BoxGeometry with
 // per-face CanvasTextures (floor bands, windows, ground-floor door). Streets
@@ -255,7 +255,7 @@ function _buildRoofTexture(opts) {
 // `building.file` is attached to `mesh.userData.building` so raycast hits can
 // look the original building object back up.
 // -----------------------------------------------------------------------------
-export function createBuildingMesh(building) {
+export function createBuildingMesh(building: any): any {
   const w = building.w;
   const d = building.d;
   const shading = SHADING;
@@ -685,7 +685,7 @@ function createPathMesh(path, yBase) {
 // FILL/STROKE colors are fine, but font-size / padding / stroke-width
 // changes the texture aspect, which would also need a plane geometry
 // update (those keys stay rebuild-required).
-export function regenerateLabelTexture(group) {
+export function regenerateLabelTexture(group: any): void {
   const street = group && group.userData && group.userData.street;
   if (!street || !street.label) return;
   const plane = group.children && group.children[0];
@@ -793,7 +793,7 @@ function createStreetLabels(street) {
   return labels;
 }
 
-export function buildCityScene(layout) {
+export function buildCityScene(layout: any): any {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of src/defaults.js
   // imported at the top of this module. No per-call config plumbing.

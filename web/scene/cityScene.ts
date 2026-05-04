@@ -1,4 +1,4 @@
-// scene/cityScene.js — owns the persistent THREE.Scene plus every
+// scene/cityScene.ts — owns the persistent THREE.Scene plus every
 // manifest-bound mesh (buildings, streets, labels, paths, asphalt, root
 // gem) and the lookup maps consumers use to reach them by path.
 //
@@ -52,7 +52,7 @@ export const UNIT_BOX_EDGE_POSITIONS = [
   0.5,
 ];
 
-export function createCityScene(canvas) {
+export function createCityScene(canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);

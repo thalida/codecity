@@ -1,4 +1,4 @@
-// scene/animator.js — tween queue for entering / staying transitions
+// scene/animator.ts — tween queue for entering / staying transitions
 // when cityScene.applyManifest swaps in a new manifest.
 //
 // Subscribes to cityScene.onChange. For every entering building, starts
@@ -24,12 +24,12 @@
 const ENTER_MS = 400;
 const STAY_MS = 350;
 
-function easeOutCubic(t) {
+function easeOutCubic(t: number): number {
   const u = 1 - t;
   return 1 - u * u * u;
 }
 
-export function createAnimator({ cityScene }) {
+export function createAnimator({ cityScene }: { cityScene: any }) {
   // Tween queue: each tween is { mesh, kind, prop, fromX/Y/Z, toX/Y/Z,
   // fromVal, toVal, durationMs, easing, startedAt, onComplete }.
   // We support two prop kinds: 'scaleY' (number) and 'position' (vec3).
