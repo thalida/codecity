@@ -5,12 +5,11 @@ from __future__ import annotations
 import io
 import json
 import os
-import sys
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-from codecity.cli import main
+from codecity.cli import _normalize_argv, main
 
 # Reuse the sample-repo fixture that test_scan.py builds.
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "sample-repo"
@@ -35,12 +34,14 @@ class CliTests(unittest.TestCase):
             main(["--version"])
         self.assertIn(__version__, buf.getvalue())
 
-    def test_no_args_prints_help_and_returns_1(self) -> None:
-        # main([]) should print help and return non-zero rather than crash.
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            rc = main([])
-        self.assertEqual(rc, 1)
+    def test_no_args_normalizes_to_serve(self) -> None:
+        # `codecity` with no args means "serve the current directory".
+        # We don't actually invoke main([]) here because cmd_serve blocks
+        # the event loop forever; assertion is on the argv normalizer.
+        self.assertEqual(_normalize_argv([]), ["serve"])
+        self.assertEqual(_normalize_argv(["."]), ["serve", "."])
+        self.assertEqual(_normalize_argv(["scan", "."]), ["scan", "."])
+        self.assertEqual(_normalize_argv(["--help"]), ["--help"])
 
     def test_scan_subcommand_emits_valid_json(self) -> None:
         buf = io.StringIO()

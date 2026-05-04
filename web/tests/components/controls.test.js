@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '../../components/controls.js';
 
 describe('buildControlsPane', () => {
-  it('returns a pane with the Controls header + View section', () => {
+  it('returns a pane with the Controls header + View section first', () => {
     const pane = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector('.controls-title').textContent).toBe('Controls');

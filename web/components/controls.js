@@ -26,7 +26,9 @@ import {
   // Gem
   GEM_SIZING, GEM_APPEARANCE, GEM_ANIMATION,
   // Effects
-  RAINBOW
+  RAINBOW,
+  // Live updates
+  LIVE_UPDATES
 } from '../config/index.js';
 import {
   clearPersistence, getDefault, resetKey, hasAnyOverrides, onAnyChange
@@ -79,6 +81,7 @@ export function buildControlsPane(opts) {
   // designer-level constants that already have natural in-scene controls
   // (mouse to orbit, kbd to reset). See View > shortcuts list.
   body.appendChild(_buildViewSection());
+  body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildBackgroundSection(applyTheme));
   body.appendChild(_buildStreetsSection(applyTheme));
   body.appendChild(_buildBuildingsSection(applyTheme));
@@ -88,6 +91,26 @@ export function buildControlsPane(opts) {
   pane.appendChild(body);
   pane.appendChild(_buildActionsSection());   // sticky bottom — sibling of body
   return pane;
+}
+
+
+// ─── Updates ───────────────────────────────────────────────────────────────
+// Toggle "live" filesystem polling. Default off so the server isn't
+// re-walking the tree when nobody's editing. The polling cadence is
+// user-tunable; main.js clamps to a hidden [1s, 60s] band on read so an
+// over-eager value can't ddos the local server.
+function _buildUpdatesSection() {
+  var section = _section('Updates',
+    'Re-render the city automatically when the underlying files change.');
+  section.appendChild(_subgroup('Live updates', [
+    _toggle('Enabled', LIVE_UPDATES, 'ENABLED', {
+      tip: 'When on, the page reloads every poll interval if the scanned tree\'s mtime/size signature changed.'
+    }),
+    _number('Poll interval (s)', LIVE_UPDATES, 'POLL_SECONDS', 1, 60, 1, {
+      tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server.'
+    })
+  ]));
+  return section;
 }
 
 

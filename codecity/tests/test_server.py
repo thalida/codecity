@@ -4,14 +4,21 @@ from __future__ import annotations
 
 import http.client
 import json
+import os
 import unittest
 import urllib.error
+import urllib.parse
 import urllib.request
 from http import HTTPStatus
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from codecity import server as server_mod
 from codecity.server import start_server
+
+
+# Silence scan progress logs.
+os.environ["CODECITY_QUIET"] = "1"
 
 
 def _get(url: str) -> tuple[int, bytes, str]:
@@ -27,15 +34,18 @@ class ServerTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        static = Path(self.tmp.name)
+        static = Path(self.tmp.name) / "static"
+        static.mkdir()
         (static / "index.html").write_text("<html><body>hi</body></html>")
         (static / "assets").mkdir()
         (static / "assets" / "main.js").write_text("console.log('ok')")
 
-        self.manifest = {"project": "demo", "tree": {"name": "demo"}}
-        self.server, self.port, self.shutdown = start_server(
-            self.manifest, port=0, static_dir=static
-        )
+        # A small directory we can scan in the manifest test.
+        self.project = Path(self.tmp.name) / "project"
+        self.project.mkdir()
+        (self.project / "README.md").write_text("# demo\n")
+
+        self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
         self.addCleanup(self.shutdown)
         self.base = f"http://127.0.0.1:{self.port}"
 
@@ -45,11 +55,31 @@ class ServerTests(unittest.TestCase):
         self.assertIn("application/json", ctype)
         self.assertEqual(json.loads(body), {"ok": True})
 
-    def test_manifest_route_returns_state(self) -> None:
-        status, body, ctype = _get(self.base + "/api/manifest")
+    def test_manifest_route_scans_query_path(self) -> None:
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        status, body, ctype = _get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertIn("application/json", ctype)
-        self.assertEqual(json.loads(body), self.manifest)
+        payload = json.loads(body)
+        self.assertEqual(payload["tree"]["name"], "project")
+        self.assertIn("signature", payload)
+        # Successful scan must register the root.
+        self.assertIn(self.project.resolve(), server_mod._State.allowed_roots)
+
+    def test_manifest_missing_query_returns_400(self) -> None:
+        status, body, _ = _get(self.base + "/api/manifest")
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+        self.assertIn("missing", json.loads(body)["error"])
+
+    def test_manifest_both_path_and_clone_returns_400(self) -> None:
+        q = urllib.parse.urlencode({"path": str(self.project), "clone": "x"})
+        status, _, _ = _get(self.base + f"/api/manifest?{q}")
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+
+    def test_manifest_nonexistent_path_returns_404(self) -> None:
+        q = urllib.parse.urlencode({"path": str(self.project / "nope")})
+        status, _, _ = _get(self.base + f"/api/manifest?{q}")
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_root_serves_index_html(self) -> None:
         status, body, ctype = _get(self.base + "/")
@@ -110,11 +140,12 @@ class FileApiTests(unittest.TestCase):
         static.mkdir()
         (static / "index.html").write_text("ok")
 
-        self.server, self.port, self.shutdown = start_server(
-            {}, port=0, static_dir=static, scan_root=self.scan_root
-        )
+        self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
         self.addCleanup(self.shutdown)
         self.base = f"http://127.0.0.1:{self.port}"
+        # Prime the trust set directly — we're unit-testing /api/file, not
+        # the manifest path that normally registers the root.
+        server_mod._State.allowed_roots.add(self.scan_root.resolve())
 
     def test_returns_text_with_correct_mime(self) -> None:
         status, body, ctype = _get(

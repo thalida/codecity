@@ -4,30 +4,28 @@
 Walks a directory tree, collects file/directory metadata + git history
 (created/modified dates only), and emits a nested JSON manifest.
 
-Invoked by codecity.py, or directly as a CLI:
+Invoked by the server's /api/manifest handler, or directly as a CLI:
 
     python3 scan.py --root <path>
-                    [--depth <N>] [--include <glob>] [--exclude <glob>]
-                    [--no-gitignore]
 
 Outputs manifest JSON on stdout; progress on stderr. Silence progress
 with CODECITY_QUIET=1.
 
-This script replaces the previous scan.sh + jq pipeline. In-memory
-Python assembly is ~20× faster than the bash version was.
+In a git repo, only tracked files are scanned (parents of tracked files
+are walked but unstaged additions and gitignored paths are skipped).
 """
 
 from __future__ import annotations
 
 import argparse
-import fnmatch
+import hashlib
 import json
 import os
 import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 
 # ── Progress logging ─────────────────────────────────────────────────────────
@@ -89,11 +87,11 @@ def _epoch_to_iso(epoch: float) -> str:
     )
 
 
-def _stat_fields(entry: os.DirEntry) -> tuple[int, str, str]:
+def _stat_fields(entry: os.DirEntry) -> tuple[int, str, str, float]:
     st = entry.stat()
     # macOS has st_birthtime; Linux doesn't, fall back to st_ctime
     birth = getattr(st, "st_birthtime", st.st_ctime)
-    return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime)
+    return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime), st.st_mtime
 
 
 def _line_count(path: Path) -> int:
@@ -195,9 +193,10 @@ def _file_node(
     is_git_repo: bool,
     git_created: dict[str, str],
     git_modified: dict[str, str],
+    sig: Any,
 ) -> dict:
     abs_path = entry.path
-    size, created, modified = _stat_fields(entry)
+    size, created, modified, mtime = _stat_fields(entry)
     path_obj = Path(abs_path)
 
     binary = _is_binary(path_obj)
@@ -209,6 +208,16 @@ def _file_node(
             "created": git_created.get(rel_path) or None,
             "modified": git_modified.get(rel_path) or None,
         }
+
+    # Feed (rel_path, size, mtime) into the live signature so the manifest
+    # carries a cheap fingerprint of the tree's mtime+size state. Used by
+    # the frontend's live-update poll to decide whether to rebuild.
+    sig.update(rel_path.encode("utf-8"))
+    sig.update(b"\0")
+    sig.update(str(size).encode("ascii"))
+    sig.update(b"\0")
+    sig.update(repr(mtime).encode("ascii"))
+    sig.update(b"\0")
 
     return {
         "name": entry.name,
@@ -222,24 +231,6 @@ def _file_node(
         "created": created,
         "modified": modified,
         "git": git_block,
-    }
-
-
-def _dir_stub(entry: os.DirEntry, rel_path: str) -> dict:
-    """A directory node emitted without recursing (depth limit)."""
-    return {
-        "name": entry.name,
-        "type": "directory",
-        "path": rel_path,
-        "fullPath": entry.path,
-        "children_count": 0,
-        "children_file_count": 0,
-        "children_dir_count": 0,
-        "descendants_count": 0,
-        "descendants_file_count": 0,
-        "descendants_dir_count": 0,
-        "descendants_size": 0,
-        "children": [],
     }
 
 
@@ -262,17 +253,12 @@ def _tick_heartbeat() -> None:
 def _build_tree(
     abs_dir: str,
     rel_dir: str,
-    current_depth: int,
     *,
-    depth: Optional[int],
-    include: Optional[str],
-    exclude: Optional[str],
-    gitignore: bool,
     is_git_repo: bool,
     git_created: dict[str, str],
     git_modified: dict[str, str],
     tracked_files: set[str],
-    root_abs: str,
+    sig: Any,
 ) -> dict:
     name = os.path.basename(abs_dir)
 
@@ -295,39 +281,32 @@ def _build_tree(
 
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
 
-        # .gitignore filter: in a git repo, only include tracked paths.
-        if is_git_repo and gitignore and entry_rel not in tracked_files:
+        # In a git repo, skip anything not tracked (covers .gitignore + uncommitted
+        # additions). Outside a repo, the tracked set is empty so this is a no-op.
+        if is_git_repo and entry_rel not in tracked_files:
             continue
 
         if entry.is_file(follow_symlinks=False):
-            if include and not fnmatch.fnmatch(entry.name, include):
-                continue
-            if exclude and fnmatch.fnmatch(entry.name, exclude):
-                continue
-            node = _file_node(entry, entry_rel, is_git_repo, git_created, git_modified)
+            node = _file_node(
+                entry, entry_rel, is_git_repo, git_created, git_modified, sig
+            )
             files.append(node)
             descendants_count += 1
             descendants_file_count += 1
             descendants_size += node["size"]
             _tick_heartbeat()
         elif entry.is_dir(follow_symlinks=False):
-            if depth is not None and current_depth + 1 >= depth:
-                dirs.append(_dir_stub(entry, entry_rel))
-                descendants_count += 1
-                descendants_dir_count += 1
-            else:
-                subtree = _build_tree(
-                    entry.path, entry_rel, current_depth + 1,
-                    depth=depth, include=include, exclude=exclude,
-                    gitignore=gitignore, is_git_repo=is_git_repo,
-                    git_created=git_created, git_modified=git_modified,
-                    tracked_files=tracked_files, root_abs=root_abs,
-                )
-                dirs.append(subtree)
-                descendants_count += 1 + subtree["descendants_count"]
-                descendants_file_count += subtree["descendants_file_count"]
-                descendants_dir_count += 1 + subtree["descendants_dir_count"]
-                descendants_size += subtree["descendants_size"]
+            subtree = _build_tree(
+                entry.path, entry_rel,
+                is_git_repo=is_git_repo,
+                git_created=git_created, git_modified=git_modified,
+                tracked_files=tracked_files, sig=sig,
+            )
+            dirs.append(subtree)
+            descendants_count += 1 + subtree["descendants_count"]
+            descendants_file_count += subtree["descendants_file_count"]
+            descendants_dir_count += 1 + subtree["descendants_dir_count"]
+            descendants_size += subtree["descendants_size"]
 
     children = files + dirs
     return {
@@ -349,14 +328,7 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(
-    root: str,
-    *,
-    depth: Optional[int] = None,
-    include: Optional[str] = None,
-    exclude: Optional[str] = None,
-    gitignore: bool = True,
-) -> dict:
+def scan_tree(root: str) -> dict:
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -375,19 +347,19 @@ def scan_tree(
 
     _reset_heartbeat()
     _log("walking tree…")
+    sig = hashlib.blake2b(digest_size=16)
     tree = _build_tree(
-        root_abs, ".", 0,
-        depth=depth, include=include, exclude=exclude,
-        gitignore=gitignore, is_git_repo=is_git_repo,
+        root_abs, ".",
+        is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, root_abs=root_abs,
+        tracked_files=tracked_files, sig=sig,
     )
     _log(f"walked {_FILES_SEEN} files; emitting manifest")
 
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "depth": depth,
+        "signature": sig.hexdigest(),
         "tree": tree,
     }
 
@@ -398,21 +370,9 @@ def scan_tree(
 def _cli() -> int:
     p = argparse.ArgumentParser(description="Walk a directory tree and emit a JSON manifest.")
     p.add_argument("--root", required=True, help="Directory to scan.")
-    p.add_argument("--depth", type=int, default=None, help="Max directory depth (unlimited by default).")
-    p.add_argument("--include", default=None, help="Only include filenames matching this glob.")
-    p.add_argument("--exclude", default=None, help="Exclude filenames matching this glob.")
-    p.add_argument("--no-gitignore", dest="gitignore", action="store_false",
-                   help="Include files even if .gitignored.")
-    p.set_defaults(gitignore=True)
     args = p.parse_args()
 
-    manifest = scan_tree(
-        args.root,
-        depth=args.depth,
-        include=args.include,
-        exclude=args.exclude,
-        gitignore=args.gitignore,
-    )
+    manifest = scan_tree(args.root)
     json.dump(manifest, sys.stdout, separators=(",", ":"))
     sys.stdout.write("\n")
     return 0
