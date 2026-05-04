@@ -80,9 +80,9 @@ export const HOVER_PATH_LINE = map({
 export const STREET_TIERS = atom([
   { min_descendants: 0,  width: 10 },
   { min_descendants: 4,  width: 16 },
-  { min_descendants: 9,  width: 24 },
-  { min_descendants: 16, width: 36 },
-  { min_descendants: 31, width: 52 }
+  { min_descendants: 8,  width: 24 },
+  { min_descendants: 16, width: 32 },
+  { min_descendants: 32, width: 64 }
 ]);
 
 // ─── Street layout / packing distances (world units) ──────────────────────

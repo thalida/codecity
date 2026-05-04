@@ -81,7 +81,7 @@ describe('getStreetWidth', () => {
   it('count 100 → fifth tier width (52)', () => expect(getStreetWidth(100, TEST_TIERS)).toBe(52));
   it('falls back to built-in tiers if none provided', () => {
     expect(getStreetWidth(0)).toBe(10);
-    expect(getStreetWidth(100)).toBe(52);
+    expect(getStreetWidth(100)).toBe(64);
   });
 });
 
