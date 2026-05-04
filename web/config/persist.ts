@@ -1,4 +1,4 @@
-// config/persist.js — Mirrors every config store to localStorage so the
+// config/persist.ts — Mirrors every config store to localStorage so the
 // Settings UI's tweaks survive a page reload. localStorage holds ONLY values
 // that differ from the original defaults, so a fresh / cleared install starts
 // with no entries at all and resetting a value back to its default removes
@@ -19,18 +19,23 @@ const STORAGE_PREFIX = 'cc.';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
 // "reset to default" UI restores to and what the diff-vs-default check uses.
-const _DEFAULTS_BY_NAME = {};
+// `any` here is deliberate: each store has a different value shape and
+// the diff/reset code is generic across all of them. Tightening to a
+// `Record<string, MapStore | Atom>` would require carrying through generic
+// parameters that don't actually buy us anything at the boundary.
+const _DEFAULTS_BY_NAME: Record<string, any> = {};
 // Map from store reference → its registered name (so callers that already
 // hold a store ref can ask "what's the default for this key?").
-const _NAME_BY_STORE = typeof WeakMap !== 'undefined' ? new WeakMap() : null;
+const _NAME_BY_STORE: WeakMap<object, string> | null =
+  typeof WeakMap !== 'undefined' ? new WeakMap() : null;
 // Reverse lookup so Reset-all can push defaults back into every registered
 // store without needing a separate registry from callers.
-const _STORE_BY_NAME = {};
+const _STORE_BY_NAME: Record<string, any> = {};
 
 // Listeners notified after ANY config store changes its persisted state.
 // The Reset-all button uses this to update its enabled/disabled state in
 // real time as values are tweaked or reset.
-const _changeListeners = [];
+const _changeListeners: Array<() => void> = [];
 
 function _emitChange() {
   for (let i = 0; i < _changeListeners.length; i++) {
@@ -42,7 +47,7 @@ function _emitChange() {
   }
 }
 
-function _safeGet(name) {
+function _safeGet(name: string): unknown {
   try {
     const raw = localStorage.getItem(STORAGE_PREFIX + name);
     return raw == null ? null : JSON.parse(raw);
@@ -51,7 +56,7 @@ function _safeGet(name) {
   }
 }
 
-function _safeSet(name, value) {
+function _safeSet(name: string, value: unknown): void {
   try {
     localStorage.setItem(STORAGE_PREFIX + name, JSON.stringify(value));
   } catch (_) {
@@ -59,7 +64,7 @@ function _safeSet(name, value) {
   }
 }
 
-function _safeRemove(name) {
+function _safeRemove(name: string): void {
   try {
     localStorage.removeItem(STORAGE_PREFIX + name);
   } catch (_) {
@@ -70,7 +75,7 @@ function _safeRemove(name) {
 // Deep value-equality good enough for our config values: primitives, plain
 // objects, arrays. JSON round-trip avoids hand-rolling a comparator and
 // handles every shape we put in stores.
-function _equal(a, b) {
+function _equal(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   try {
     return JSON.stringify(a) === JSON.stringify(b);
@@ -79,7 +84,7 @@ function _equal(a, b) {
   }
 }
 
-function _clone(v) {
+function _clone<T>(v: T): T {
   try {
     return JSON.parse(JSON.stringify(v));
   } catch (_) {
@@ -90,7 +95,7 @@ function _clone(v) {
 // Hydrate one store from localStorage if a value is persisted, then start
 // streaming future changes back. Plain consts (no `subscribe`) are silently
 // skipped so callers can sweep `import * as Config` blindly.
-export function persistStore(name, store) {
+export function persistStore(name: string, store: any): void {
   if (typeof localStorage === 'undefined') return;
   if (!store || typeof store.subscribe !== 'function') return;
 
@@ -152,7 +157,7 @@ export function persistStore(name, store) {
 
 // Bind every config store to localStorage. Call once at boot, BEFORE
 // startRenderLoop so consumers see hydrated values during scene build.
-export function attachPersistence(stores) {
+export function attachPersistence(stores: Record<string, any>): void {
   for (const name in stores) {
     if (Object.prototype.hasOwnProperty.call(stores, name)) {
       persistStore(name, stores[name]);
@@ -164,7 +169,7 @@ export function attachPersistence(stores) {
 //   For map() stores: pass the key name. Returns the keyed default.
 //   For atom() stores: omit `key`. Returns the whole default value.
 // Returns undefined if the store wasn't registered via persistStore.
-export function getDefault(store, key) {
+export function getDefault(store: any, key?: string): any {
   if (!_NAME_BY_STORE) return undefined;
   const name = _NAME_BY_STORE.get(store);
   if (!name) return undefined;
@@ -176,7 +181,7 @@ export function getDefault(store, key) {
 // resetKey(store, key) — restore a single key (map) or the whole atom to
 // its registered default. The store's subscribe handler installed above
 // then removes the localStorage entry if no keys differ anymore.
-export function resetKey(store, key) {
+export function resetKey(store: any, key?: string): void {
   const defaultVal = getDefault(store, key);
   if (defaultVal === undefined) return;
   if (typeof store.setKey === 'function' && key !== undefined) {
@@ -190,7 +195,7 @@ export function resetKey(store, key) {
 // non-default value. The Reset-all button uses this to decide whether it
 // should be enabled. Scoped to the stores we actually registered, so
 // unrelated cc.* keys (e.g. cc.sidebarWidth) don't influence it.
-export function hasAnyOverrides() {
+export function hasAnyOverrides(): boolean {
   if (typeof localStorage === 'undefined') return false;
   for (const name in _DEFAULTS_BY_NAME) {
     if (!Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) continue;
@@ -206,7 +211,7 @@ export function hasAnyOverrides() {
 // onAnyChange(cb) — call cb() any time any registered config store's
 // persisted state changes (including being reset back to default).
 // Returns an unsubscribe function.
-export function onAnyChange(cb) {
+export function onAnyChange(cb: () => void): () => void {
   if (typeof cb !== 'function') return function () {};
   _changeListeners.push(cb);
   return function () {
@@ -223,7 +228,7 @@ export function onAnyChange(cb) {
 // the store's subscribe handler then drops the localStorage entry on its own,
 // AND consumers (live-poll loop, scene, controls UI) see the change live
 // instead of waiting for a page reload.
-export function clearPersistence() {
+export function clearPersistence(): void {
   for (const name in _DEFAULTS_BY_NAME) {
     if (!Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) continue;
     const store = _STORE_BY_NAME[name];

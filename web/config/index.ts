@@ -1,4 +1,4 @@
-// config/index.js — Barrel re-export. Each domain module owns its own
+// config/index.ts — Barrel re-export. Each domain module owns its own
 // nanostore(s) and exports them by name; this file just lets callers do a
 // single bulk `import * as Config` for persistence wiring, or pull named
 // imports for direct use.

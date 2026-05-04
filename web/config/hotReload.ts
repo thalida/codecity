@@ -1,4 +1,4 @@
-// config/hotReload.js — every config store classified as either
+// config/hotReload.ts — every config store classified as either
 // "rebuild-required" or "hot-reloadable", and wired to the matching
 // reaction:
 //
@@ -35,7 +35,15 @@ import {
 // rebuild after the user stops, instead of one rebuild per slider tick.
 const REBUILD_DEBOUNCE_MS = 50;
 
-export function attachHotReload({ cityScene, applyTheme }) {
+interface HotReloadOpts {
+  cityScene: {
+    getManifest(): unknown;
+    applyManifest(m: unknown): void;
+  };
+  applyTheme: () => void;
+}
+
+export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () => void {
   // nanostores `.subscribe()` fires synchronously with the current
   // value when called. We wait until all subscriptions are wired
   // before allowing reactions to run, so the initial fire doesn't
@@ -81,7 +89,7 @@ export function attachHotReload({ cityScene, applyTheme }) {
     GEM_APPEARANCE,
   ];
 
-  const unsubs = [];
+  const unsubs: Array<() => void> = [];
   for (let i = 0; i < rebuildStores.length; i++) {
     unsubs.push(rebuildStores[i].subscribe(scheduleRebuild));
   }
