@@ -80,8 +80,8 @@ export function buildControlsPane(opts) {
   // thresholds, tooltip placement) intentionally aren't surfaced — they're
   // designer-level constants that already have natural in-scene controls
   // (mouse to orbit, kbd to reset). See View > shortcuts list.
-  body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildViewSection());
+  body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildBackgroundSection(applyTheme));
   body.appendChild(_buildStreetsSection(applyTheme));
   body.appendChild(_buildBuildingsSection(applyTheme));

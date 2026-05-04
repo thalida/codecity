@@ -2,13 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '../../components/controls.js';
 
 describe('buildControlsPane', () => {
-  it('returns a pane with the Controls header + Updates section first', () => {
+  it('returns a pane with the Controls header + View section first', () => {
     const pane = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector('.controls-title').textContent).toBe('Controls');
-    // Updates leads since "live updates on?" is a higher-level decision
-    // than any visual tweak below it.
-    expect(pane.querySelector('.controls-section-label').textContent).toBe('Updates');
+    expect(pane.querySelector('.controls-section-label').textContent).toBe('View');
   });
 
   it('renders a shortcuts list in the View section (no Reset camera button)', () => {

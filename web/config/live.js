@@ -12,7 +12,7 @@
 import { map } from 'nanostores';
 
 export const LIVE_UPDATES = map({
-  ENABLED:      false,
+  ENABLED:      true,
   POLL_SECONDS: 3
 });
 
