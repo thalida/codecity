@@ -800,10 +800,6 @@ canvas {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.theme-row-label > .theme-row-rebuild-badge {
-  flex: 0 0 auto;
-}
-
 .theme-row-control {
   flex: 1 1 auto;
   min-width: 0;
@@ -814,9 +810,7 @@ canvas {
 }
 
 /* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
- * row's value differs from its default, fades in on hover. Brighter than
- * the rebuild badge because users actually click this, while the badge
- * is purely informational. */
+ * row's value differs from its default, fades in on hover. */
 .theme-row-reset {
   flex: 0 0 auto;
   display: inline-flex;
@@ -842,19 +836,6 @@ canvas {
 .theme-row-reset:disabled {
   cursor: default;
   color: rgba(108, 138, 255, 0.22);
-}
-
-/* Rebuild badge: SUBTLE and informational. Just the refresh-cw glyph
- * next to the label, no background or border. The same icon appears
- * (larger, prominent) on the "Rebuild" button at the bottom of the
- * pane — visually saying "rows marked like this go live when you
- * click Rebuild." Hover via the row title carries the explanation. */
-.theme-row-rebuild-badge {
-  width: 11px;
-  height: 11px;
-  color: rgba(140, 145, 165, 0.55);
-  cursor: help;
-  vertical-align: -1px;
 }
 
 /* Color swatch — small native color picker */
