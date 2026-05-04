@@ -1,4 +1,4 @@
-// interaction/outlineRenderer.js — owns:
+// scene/effects/outlineRenderer.js — owns:
 //   • the shared hover outline mesh (sky-blue Line2 box around hovered building)
 //   • the shared selected outline mesh (rainbow-chasing Line2 box)
 //   • per-frame application of mesh.userData.{outlineOp, ghostOp} (set
@@ -20,9 +20,9 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDING_OUTLINE, RAINBOW } from '../config/index.js';
-import { NODE_KIND, RENDER_ORDERS } from '../constants.js';
-import { UNIT_BOX_EDGE_POSITIONS } from '../scene/cityScene.js';
+import { BUILDING_OUTLINE, RAINBOW } from '../../config/index.js';
+import { NODE_KIND, RENDER_ORDERS } from '../../constants.js';
+import { UNIT_BOX_EDGE_POSITIONS } from '../cityScene.js';
 
 var OPAQUE_THRESHOLD = 0.999;
 

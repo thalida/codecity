@@ -1,4 +1,4 @@
-// interaction/buildingFader.js — per-frame opacity tier logic for the
+// scene/effects/buildingFader.js — per-frame opacity tier logic for the
 // per-building body. Decides which fade tier each building belongs to
 // based on selection/hover state, lerps three opacity layers
 // (body / ghost / outline) toward the tier's targets, and applies
@@ -14,9 +14,9 @@
 // The `userData.{bodyOp, ghostOp, outlineOp}` fields are intermediate
 // state owned by buildingFader; outlineRenderer reads them as inputs.
 
-import { BUILDING_FADE } from '../config/index.js';
-import { NODE_KIND } from '../constants.js';
-import { parentDirPath } from '../scene/path.js';
+import { BUILDING_FADE } from '../../config/index.js';
+import { NODE_KIND } from '../../constants.js';
+import { parentDirPath } from '../path.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
 // Just below 1.0 so any faded tier flips to true transparency.

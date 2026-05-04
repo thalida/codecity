@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { showLeftSidebar } from '../../components/leftSidebar.js';
+import { showLeftSidebar } from '../../../views/shell/leftSidebar.js';
 
 const TEST_TREE = {
   name: 'project', type: 'directory',

@@ -3,7 +3,7 @@
 // re-resolution from key → selection on cityScene rebuild.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '../../interaction/picker.js';
+import { createPicker, PICKER_SELECTION_KEY } from '../../scene/picker.js';
 import { NODE_KIND } from '../../constants.js';
 
 // Minimal cityScene stub with the accessors picker actually reads.

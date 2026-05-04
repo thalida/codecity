@@ -1,10 +1,11 @@
-// tooltip.js — Tiny floating label that follows the cursor on hover. Shown
-// when the user is hovering a building/street; hidden otherwise. Inspired by
-// Cities: Skylines / SimCity — every interactive object has a brief name
-// label so the city feels alive without forcing a sidebar open.
+// views/shell/tooltip.js — Tiny floating label that follows the cursor
+// on hover. Shown when the user is hovering a building/street; hidden
+// otherwise. Inspired by Cities: Skylines / SimCity — every interactive
+// object has a brief name label so the city feels alive without forcing
+// a sidebar open.
 
-import { TOOLTIP } from '../config/index.js';
-import { DOM_IDS } from '../constants.js';
+import { TOOLTIP } from '../../config/index.js';
+import { DOM_IDS } from '../../constants.js';
 
 var _el = null;
 
