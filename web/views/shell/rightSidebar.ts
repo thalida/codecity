@@ -64,10 +64,9 @@ function _currentPane(sidebar) {
 function _clearMountedPane(sidebar) {
   // Keep .sidebar-resize-handle-right across pane swaps so we don't have
   // to re-bind drag listeners on every selection change.
-  const children = Array.prototype.slice.call(sidebar.children);
-  for (let i = 0; i < children.length; i++) {
-    if (!children[i].classList.contains('sidebar-resize-handle-right')) {
-      sidebar.removeChild(children[i]);
+  for (const child of [...sidebar.children]) {
+    if (!child.classList.contains('sidebar-resize-handle-right')) {
+      sidebar.removeChild(child);
     }
   }
 }
@@ -84,13 +83,13 @@ function _ensureResizeHandle(sidebar) {
   let dragging = false;
   let liveWidth = 0; // tracked across pointermove so we can persist on up
 
-  handle.addEventListener('pointerdown', function (e) {
+  handle.addEventListener('pointerdown', (e) => {
     dragging = true;
     handle.classList.add('dragging');
     handle.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
-  handle.addEventListener('pointermove', function (e) {
+  handle.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     let w = window.innerWidth - e.clientX;
     const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
@@ -100,9 +99,9 @@ function _ensureResizeHandle(sidebar) {
     // Drive width via the CSS variable so the open/close rule
     // `width: var(--sidebar-width)` keeps working without an inline width
     // override fighting the .open/.is-animating transitions.
-    sidebar.style.setProperty('--sidebar-width', w + 'px');
+    sidebar.style.setProperty('--sidebar-width', `${w}px`);
   });
-  handle.addEventListener('pointerup', function (e) {
+  handle.addEventListener('pointerup', (e) => {
     if (!dragging) return;
     dragging = false;
     handle.classList.remove('dragging');
@@ -123,7 +122,7 @@ function _applyPersistedWidth(sidebar) {
     const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > maxW) w = maxW;
-    sidebar.style.setProperty('--sidebar-width', w + 'px');
+    sidebar.style.setProperty('--sidebar-width', `${w}px`);
   } catch (_) {
     /* private mode / no storage — fall back to CSS default */
   }

@@ -54,7 +54,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
-    rebuildTimer = setTimeout(function () {
+    rebuildTimer = setTimeout(() => {
       rebuildTimer = 0;
       const manifest = cityScene.getManifest();
       if (manifest) cityScene.applyManifest(manifest);
@@ -90,11 +90,11 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   ];
 
   const unsubs: Array<() => void> = [];
-  for (let i = 0; i < rebuildStores.length; i++) {
-    unsubs.push(rebuildStores[i].subscribe(scheduleRebuild));
+  for (const store of rebuildStores) {
+    unsubs.push(store.subscribe(scheduleRebuild));
   }
-  for (let j = 0; j < hotStores.length; j++) {
-    unsubs.push(hotStores[j].subscribe(refreshMaterials));
+  for (const store of hotStores) {
+    unsubs.push(store.subscribe(refreshMaterials));
   }
   armed = true;
 
@@ -104,9 +104,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
       clearTimeout(rebuildTimer);
       rebuildTimer = 0;
     }
-    for (let k = 0; k < unsubs.length; k++) {
+    for (const unsub of unsubs) {
       try {
-        if (typeof unsubs[k] === 'function') unsubs[k]();
+        if (typeof unsub === 'function') unsub();
       } catch (_) {
         /* noop */
       }

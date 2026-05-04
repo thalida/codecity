@@ -31,8 +31,7 @@ function _findRootReadme(manifest) {
 //   re-fetches and re-renders. If only the contents changed (same path),
 //   we still re-fetch — the manifest signature already proved something
 //   on disk moved.
-export function buildInfoPane(manifest, opts) {
-  opts = opts || {};
+export function buildInfoPane(manifest: any, opts: any = {}) {
   const pane = document.createElement('div');
   pane.className = 'left-pane info-pane';
 
@@ -49,7 +48,7 @@ export function buildInfoPane(manifest, opts) {
     closeBtn.title = 'Hide sidebar';
     closeBtn.setAttribute('aria-label', 'Hide sidebar');
     closeBtn.appendChild(makeLucideIcon('x'));
-    closeBtn.addEventListener('click', function () {
+    closeBtn.addEventListener('click', () => {
       opts.onClose();
     });
     header.appendChild(closeBtn);
@@ -121,17 +120,17 @@ export function buildInfoPane(manifest, opts) {
       return;
     }
     const myReq = ++reqId;
-    const url = '/api/file?path=' + encodeURIComponent(readme.fullPath);
+    const url = `/api/file?path=${encodeURIComponent(readme.fullPath)}`;
     fetch(url)
-      .then(function (resp) {
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      .then((resp) => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         return resp.text();
       })
-      .then(function (text) {
+      .then((text) => {
         if (myReq !== reqId) return; // stale — newer render in flight
         _renderMarkdown(text);
       })
-      .catch(function (err) {
+      .catch((err) => {
         if (myReq !== reqId) return;
         _renderError((err && err.message) || 'Unknown error');
       });
@@ -140,9 +139,9 @@ export function buildInfoPane(manifest, opts) {
   render(manifest);
 
   return {
-    pane: pane,
+    pane,
     api: {
-      setManifest: function (m) {
+      setManifest(m) {
         render(m);
       },
     },

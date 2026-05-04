@@ -61,16 +61,16 @@ function startRenderLoop(canvas, manifest) {
   // every applyTheme call), so unrelated tweaks don't pay the texture
   // regen cost. Reads streetLabels fresh from cityScene each fire so
   // it works after applyManifest rebinds the array.
-  listenKeys(LABEL_TYPOGRAPHY, ['FILL'], function () {
+  listenKeys(LABEL_TYPOGRAPHY, ['FILL'], () => {
     const labels = cityScene.getStreetLabels();
-    for (let li = 0; li < labels.length; li++) {
-      regenerateLabelTexture(labels[li]);
+    for (const label of labels) {
+      regenerateLabelTexture(label);
     }
   });
 
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
-    canvas: canvas,
+    canvas,
     antialias: true,
     alpha: false,
   });
@@ -81,7 +81,7 @@ function startRenderLoop(canvas, manifest) {
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  const rig = createCameraRig({ canvas: canvas, cityScene: cityScene });
+  const rig = createCameraRig({ canvas, cityScene });
   const camera = rig.camera;
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
@@ -90,7 +90,7 @@ function startRenderLoop(canvas, manifest) {
   // Selection persistence is wired in the boot block before startRenderLoop
   // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
   // before this picker resolves it against the freshly-built city.
-  const picker = createPicker({ canvas: canvas, camera: camera, cityScene: cityScene });
+  const picker = createPicker({ canvas, camera, cityScene });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
   // Three siblings, all subscribed to picker / cityScene so they react
@@ -99,35 +99,35 @@ function startRenderLoop(canvas, manifest) {
   // outlineRenderer reads outlineOp/ghostOp from userData and writes
   // outline + ghost opacity → pathLineRenderer ticks the rainbow chase
   // on the selection line.
-  const fader = createBuildingFader({ cityScene: cityScene, picker: picker });
+  const fader = createBuildingFader({ cityScene, picker });
   const outlineRenderer = createOutlineRenderer({
-    canvas: canvas,
-    scene: scene,
-    cityScene: cityScene,
-    picker: picker,
+    canvas,
+    scene,
+    cityScene,
+    picker,
   });
   const pathLineRenderer = createPathLineRenderer({
-    canvas: canvas,
-    scene: scene,
-    cityScene: cityScene,
-    picker: picker,
+    canvas,
+    scene,
+    cityScene,
+    picker,
   });
 
   // Tween queue for entering / staying transitions on cityScene.onChange.
   // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
   // material.opacity), so they cannot conflict by construction.
-  const animator = createAnimator({ cityScene: cityScene });
+  const animator = createAnimator({ cityScene });
 
   // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
   createCoordinator({
-    cityScene: cityScene,
-    picker: picker,
-    rig: rig,
-    huePalette: huePalette,
-    applyTheme: applyTheme,
+    cityScene,
+    picker,
+    rig,
+    huePalette,
+    applyTheme,
   });
 
   // SIDEWALK_COLORS holds CSS strings; we pre-convert to numeric hex so
@@ -146,24 +146,22 @@ function startRenderLoop(canvas, manifest) {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
     const streetPickables = cityScene.getStreetPickables();
-    for (let ri = 0; ri < streetPickables.length; ri++) {
-      const sw = streetPickables[ri];
+    for (const sw of streetPickables) {
       if (sw.userData.origColor == null) {
         sw.userData.origColor = sw.material.color.getHex();
       }
       let expected = null;
-      if (sel && sel.kind === NODE_KIND.DIRECTORY && sel.sidewalk === sw) {
+      if (sel?.kind === NODE_KIND.DIRECTORY && sel.sidewalk === sw) {
         expected = SIDEWALK_SELECTED_COLOR;
-      } else if (hov && hov.kind === NODE_KIND.DIRECTORY && hov.sidewalk === sw) {
+      } else if (hov?.kind === NODE_KIND.DIRECTORY && hov.sidewalk === sw) {
         expected = SIDEWALK_HOVER_COLOR;
       }
-      const swColor = expected != null ? expected : sw.userData.origColor;
+      const swColor = expected ?? sw.userData.origColor;
       sw.material.color.setHex(swColor);
-      const swDir = sw.userData.street && sw.userData.street.dir;
+      const swDir = sw.userData.street?.dir;
       const connectors = swDir ? cityScene.getPathConnectorsByDir(swDir.path) : null;
       if (connectors) {
-        for (let ci = 0; ci < connectors.length; ci++) {
-          const pm = connectors[ci];
+        for (const pm of connectors) {
           if (pm.userData.origColor == null) {
             pm.userData.origColor = pm.material.color.getHex();
           }
@@ -187,15 +185,15 @@ function startRenderLoop(canvas, manifest) {
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
     SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.DEFAULT).getHex();
     const streetPickables = cityScene.getStreetPickables();
-    for (let si = 0; si < streetPickables.length; si++) {
-      streetPickables[si].userData.origColor = SIDEWALK_DEFAULT_COLOR;
+    for (const sw of streetPickables) {
+      sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
     _refreshSidewalkTints();
 
     const asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
     const asphaltMeshes = cityScene.getAsphaltMeshes();
-    for (let ai = 0; ai < asphaltMeshes.length; ai++) {
-      asphaltMeshes[ai].material.color.setHex(asphaltHex);
+    for (const mesh of asphaltMeshes) {
+      mesh.material.color.setHex(asphaltHex);
     }
 
     scene.background = new THREE.Color(sceneCol.GROUND);
@@ -207,10 +205,10 @@ function startRenderLoop(canvas, manifest) {
     const rootGemEdges = cityScene.getRootGemEdges();
     const rootGemBody = cityScene.getRootGemBody();
     const rootGem = cityScene.getRootGem();
-    if (rootGemEdges && rootGemEdges.material && rootGemEdges.material.color) {
+    if (rootGemEdges?.material?.color) {
       rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
     }
-    if (rootGemBody && rootGemBody.material) {
+    if (rootGemBody?.material) {
       rootGemBody.material.opacity = gemAppearance.BODY_OPACITY;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
@@ -220,8 +218,7 @@ function startRenderLoop(canvas, manifest) {
 
     const labelCfg = LABEL_TYPOGRAPHY.get();
     const streetLabels = cityScene.getStreetLabels();
-    for (let li = 0; li < streetLabels.length; li++) {
-      const lg = streetLabels[li];
+    for (const lg of streetLabels) {
       const origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
         const s = labelCfg.HEIGHT_FRAC / origFrac;
@@ -236,15 +233,15 @@ function startRenderLoop(canvas, manifest) {
   // It calls picker.setHover/setSelection on hits and rig.reset/focus on
   // gestures, with no other dependencies into main.
   createInputHandlers({
-    canvas: canvas,
-    picker: picker,
-    rig: rig,
-    renderer: renderer,
-    camera: camera,
-    scene: scene,
-    showTooltip: showTooltip,
-    hideTooltip: hideTooltip,
-    onResize: function () {
+    canvas,
+    picker,
+    rig,
+    renderer,
+    camera,
+    scene,
+    showTooltip,
+    hideTooltip,
+    onResize() {
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
     },
@@ -252,10 +249,10 @@ function startRenderLoop(canvas, manifest) {
 
   // Sidewalk tints are scene-state that follow selection / hover. Subscribe
   // directly to picker so the tint refresh fires alongside the renderers.
-  picker.selection.subscribe(function () {
+  picker.selection.subscribe(() => {
     _refreshSidewalkTints();
   });
-  picker.hover.subscribe(function () {
+  picker.hover.subscribe(() => {
     _refreshSidewalkTints();
   });
 
@@ -297,7 +294,7 @@ function startRenderLoop(canvas, manifest) {
   // Expose cityScene + applyTheme to the boot block so setupLiveUpdates
   // can swap in fresh manifests, and attachHotReload can dispatch
   // material refreshes without restarting the renderer.
-  return { cityScene: cityScene, applyTheme: applyTheme };
+  return { cityScene, applyTheme };
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the
@@ -314,8 +311,7 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   // flip labels back and forth every frame.
   const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
 
-  for (let i = 0; i < labels.length; i++) {
-    const lbl = labels[i];
+  for (const lbl of labels) {
     const street = lbl.userData.street;
     const base = lbl.userData.baseRotY || 0;
     const axis = street.orientation === STREET_AXIS.X ? rightX : rightZ;
@@ -374,19 +370,19 @@ function setupLiveUpdates(handle, initialSignature) {
     if (inFlight) return;
     inFlight = true;
     fetch(manifestUrl())
-      .then(function (r) {
+      .then((r) => {
         return r.ok ? r.json() : null;
       })
-      .then(function (m) {
-        if (m && m.signature && m.signature !== lastSignature) {
+      .then((m) => {
+        if (m?.signature && m.signature !== lastSignature) {
           lastSignature = m.signature;
           handle.cityScene.applyManifest(m);
         }
       })
-      .catch(function () {
+      .catch(() => {
         /* keep polling on transient errors */
       })
-      .finally(function () {
+      .finally(() => {
         inFlight = false;
       });
   }
@@ -403,7 +399,7 @@ function setupLiveUpdates(handle, initialSignature) {
     }
   }
 
-  LIVE_UPDATES.subscribe(function (val) {
+  LIVE_UPDATES.subscribe((val) => {
     if (val.ENABLED) start();
     else stop();
   });
@@ -415,7 +411,7 @@ const _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
   (async function boot() {
     const resp = await fetch(manifestUrl());
-    if (!resp.ok) throw new Error('manifest fetch failed: ' + resp.status);
+    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest = await resp.json();
     // Hydrate every config store from localStorage BEFORE scene build so
     // any user tweaks from prior sessions take effect during the initial

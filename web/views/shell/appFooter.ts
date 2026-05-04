@@ -15,7 +15,7 @@
  */
 export function initAppFooter() {
   const footer = document.getElementById('app-footer');
-  if (!footer) return { setSelection: function () {} };
+  if (!footer) return { setSelection() {} };
 
   function setSelection(sel: any) {
     footer.replaceChildren();
@@ -23,21 +23,21 @@ export function initAppFooter() {
 
     if (sel.kind === 'file') {
       if (sel.language) footer.appendChild(_item(sel.language));
-      if (sel.lines != null) footer.appendChild(_item(sel.lines + ' lines'));
+      if (sel.lines != null) footer.appendChild(_item(`${sel.lines} lines`));
       if (sel.size != null) footer.appendChild(_item(_formatBytes(sel.size)));
       if (sel.modified)
-        footer.appendChild(_item('modified ' + _formatDate(sel.modified), sel.dateSource));
+        footer.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
       if (sel.created)
-        footer.appendChild(_item('created ' + _formatDate(sel.created), sel.dateSource));
+        footer.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === 'directory') {
       footer.appendChild(_item('Directory'));
-      if (sel.files != null) footer.appendChild(_item(sel.files + ' files'));
-      if (sel.dirs != null) footer.appendChild(_item(sel.dirs + ' dirs'));
+      if (sel.files != null) footer.appendChild(_item(`${sel.files} files`));
+      if (sel.dirs != null) footer.appendChild(_item(`${sel.dirs} dirs`));
       if (sel.size != null) footer.appendChild(_item(_formatBytes(sel.size)));
     }
   }
 
-  return { setSelection: setSelection };
+  return { setSelection };
 }
 
 function _item(text: string, source?: string): HTMLSpanElement {
@@ -47,7 +47,7 @@ function _item(text: string, source?: string): HTMLSpanElement {
   if (source) {
     const src = document.createElement('span');
     src.className = 'app-footer-source';
-    src.textContent = '(' + source + ')';
+    src.textContent = `(${source})`;
     span.appendChild(src);
   }
   return span;
@@ -56,9 +56,9 @@ function _item(text: string, source?: string): HTMLSpanElement {
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
 function _formatBytes(bytes: number): string {
-  if (bytes < BYTES_PER_KB) return bytes + ' B';
-  if (bytes < BYTES_PER_MB) return (bytes / BYTES_PER_KB).toFixed(1) + ' KB';
-  return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
+  if (bytes < BYTES_PER_KB) return `${bytes} B`;
+  if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
+  return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {

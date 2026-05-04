@@ -16,10 +16,10 @@ interface IconOpts {
  */
 export function makeLucideIcon(name: string, opts: IconOpts = {}): HTMLSpanElement {
   const span = document.createElement('span');
-  span.className = 'lucide-icon' + (opts.class ? ' ' + opts.class : '');
+  span.className = `lucide-icon${opts.class ? ` ${opts.class}` : ''}`;
   span.setAttribute('aria-hidden', 'true');
   if (opts.title) span.title = opts.title;
-  const url = 'url(' + LUCIDE_ICON_BASE_URL + name + '.svg)';
+  const url = `url(${LUCIDE_ICON_BASE_URL}${name}.svg)`;
   span.style.maskImage = url;
   span.style.webkitMaskImage = url;
   return span;

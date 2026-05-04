@@ -100,7 +100,7 @@ export function createOutlineRenderer({
   }
 
   // ── Reactive: show/hide outlines on selection / hover changes ───────
-  picker.selection.subscribe(function (sel) {
+  picker.selection.subscribe((sel) => {
     if (sel && sel.kind === NODE_KIND.FILE) {
       _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
       selectedOutline.visible = true;
@@ -109,7 +109,7 @@ export function createOutlineRenderer({
     }
   });
 
-  picker.hover.subscribe(function (h) {
+  picker.hover.subscribe((h) => {
     const sel = picker.selection.get();
     if (h && h.kind === NODE_KIND.FILE && (!sel || sel.mesh !== h.mesh)) {
       _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
@@ -196,8 +196,8 @@ export function createOutlineRenderer({
     selectedLineMat.linewidth = outline.WIDTH;
     selectedLineMat.opacity = outline.SELECTED_OPACITY;
     const perBldgMats = cityScene.getBuildingOutlineMats();
-    for (let oi = 0; oi < perBldgMats.length; oi++) {
-      perBldgMats[oi].linewidth = outline.WIDTH;
+    for (const mat of perBldgMats) {
+      mat.linewidth = outline.WIDTH;
     }
   }
 
@@ -209,8 +209,8 @@ export function createOutlineRenderer({
     hoverLineMat.resolution.set(w, h);
     selectedLineMat.resolution.set(w, h);
     const perBldgMats = cityScene.getBuildingOutlineMats();
-    for (let oi = 0; oi < perBldgMats.length; oi++) {
-      perBldgMats[oi].resolution.set(w, h);
+    for (const mat of perBldgMats) {
+      mat.resolution.set(w, h);
     }
   }
 
@@ -224,11 +224,11 @@ export function createOutlineRenderer({
   }
 
   return {
-    update: update,
-    refreshMaterials: refreshMaterials,
-    onResize: onResize,
-    dispose: dispose,
-    hoverOutline: hoverOutline,
-    selectedOutline: selectedOutline,
+    update,
+    refreshMaterials,
+    onResize,
+    dispose,
+    hoverOutline,
+    selectedOutline,
   };
 }

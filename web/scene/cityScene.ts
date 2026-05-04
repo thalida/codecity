@@ -95,10 +95,9 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   function _emit(arr, payload) {
     // Snapshot to allow listeners to unsubscribe themselves mid-emit
     // without disturbing iteration.
-    const snap = arr.slice();
-    for (let i = 0; i < snap.length; i++) {
+    for (const cb of [...arr]) {
       try {
-        snap[i](payload);
+        cb(payload);
       } catch (e) {
         console.error('[cityScene] listener error', e);
       }
@@ -125,17 +124,16 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // property of each material whose value is a THREE.Texture. Idempotent
   // via userData.disposed.
   function _disposeObject(obj) {
-    if (!obj || (obj.userData && obj.userData.disposed)) return;
-    if (obj.geometry && obj.geometry.dispose) obj.geometry.dispose();
+    if (!obj || obj.userData?.disposed) return;
+    if (obj.geometry?.dispose) obj.geometry.dispose();
     const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
-    for (let i = 0; i < mats.length; i++) {
-      const m = mats[i];
+    for (const m of mats) {
       if (!m) continue;
       // Dispose any texture attached to this material.
       for (const key in m) {
-        if (!Object.prototype.hasOwnProperty.call(m, key)) continue;
+        if (!Object.hasOwn(m, key)) continue;
         const v = m[key];
-        if (v && v.isTexture && typeof v.dispose === 'function') v.dispose();
+        if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
       }
       if (typeof m.dispose === 'function') m.dispose();
     }
@@ -166,16 +164,16 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   function _disposeAllManifestState() {
     // Drop refs to outline/ghost from each building's userData first so
     // the per-mesh "paired" pointers don't outlive their targets.
-    for (let i = 0; i < buildingMeshes.length; i++) {
-      if (buildingMeshes[i].userData) buildingMeshes[i].userData.paired = null;
+    for (const bm of buildingMeshes) {
+      if (bm.userData) bm.userData.paired = null;
     }
-    for (let bi = 0; bi < buildingMeshes.length; bi++) _removeAndDispose(buildingMeshes[bi]);
-    for (let si = 0; si < streetPickables.length; si++) _removeAndDispose(streetPickables[si]);
-    for (let li = 0; li < streetLabels.length; li++) _removeAndDispose(streetLabels[li]);
-    for (let pi = 0; pi < pathMeshes.length; pi++) _removeAndDispose(pathMeshes[pi]);
-    for (let ai = 0; ai < asphaltMeshes.length; ai++) _removeAndDispose(asphaltMeshes[ai]);
-    for (let oi = 0; oi < buildingOutlines.length; oi++) _removeAndDispose(buildingOutlines[oi]);
-    for (let gi = 0; gi < buildingGhosts.length; gi++) _removeAndDispose(buildingGhosts[gi]);
+    for (const m of buildingMeshes) _removeAndDispose(m);
+    for (const m of streetPickables) _removeAndDispose(m);
+    for (const m of streetLabels) _removeAndDispose(m);
+    for (const m of pathMeshes) _removeAndDispose(m);
+    for (const m of asphaltMeshes) _removeAndDispose(m);
+    for (const m of buildingOutlines) _removeAndDispose(m);
+    for (const m of buildingGhosts) _removeAndDispose(m);
     if (rootGem) {
       if (rootGem.parent) rootGem.parent.remove(rootGem);
       rootGem.traverse(_disposeObject);
@@ -188,8 +186,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     buildingGhosts = [];
     const lineWidth = BUILDING_OUTLINE.get().WIDTH;
 
-    for (let bi = 0; bi < buildingMeshes.length; bi++) {
-      const bm = buildingMeshes[bi];
+    for (const bm of buildingMeshes) {
       const bd = bm.userData.building;
       const bcol = new THREE.Color(bd.color);
 
@@ -237,30 +234,27 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   function _buildLookups() {
     sidewalksByDirPath = {};
     streetsByDirPath = {};
-    for (let spi = 0; spi < streetPickables.length; spi++) {
-      const sw = streetPickables[spi];
+    for (const sw of streetPickables) {
       const swStreet = sw.userData.street;
-      const swDir = swStreet && swStreet.dir;
-      if (swDir && swDir.path != null) {
+      const swDir = swStreet?.dir;
+      if (swDir?.path != null) {
         sidewalksByDirPath[swDir.path] = sw;
         streetsByDirPath[swDir.path] = swStreet;
       }
     }
 
     buildingsByPath = {};
-    for (let bpi = 0; bpi < buildingMeshes.length; bpi++) {
-      const bm = buildingMeshes[bpi];
+    for (const bm of buildingMeshes) {
       const bd = bm.userData.building;
-      if (bd && bd.file && bd.file.path != null) {
+      if (bd?.file?.path != null) {
         buildingsByPath[bd.file.path] = { mesh: bm, building: bd };
       }
     }
 
     pathMeshesByDirPath = {};
-    for (let pmi = 0; pmi < pathMeshes.length; pmi++) {
-      const pm = pathMeshes[pmi];
+    for (const pm of pathMeshes) {
       const pmFile = pm.userData.file;
-      const pmDir = pmFile && pmFile.path != null ? parentDirPath(pmFile.path) : null;
+      const pmDir = pmFile?.path != null ? parentDirPath(pmFile.path) : null;
       if (pmDir == null) continue;
       if (!pathMeshesByDirPath[pmDir]) pathMeshesByDirPath[pmDir] = [];
       pathMeshesByDirPath[pmDir].push(pm);
@@ -268,10 +262,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   }
 
   function _computeRootStreetAndGem() {
-    rootStreet =
-      ((layout && layout.streets) || []).filter(function (s) {
-        return s.isRoot;
-      })[0] || null;
+    rootStreet = (layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
     if (!rootStreet) {
       gemWorldPos = null;
       return;
@@ -290,16 +281,13 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // animator (commit 9) consumes this to drive entry/exit tweens.
   function _computeDiff(prev) {
     const prevBuildings = {};
-    for (let i = 0; i < (prev.buildings || []).length; i++) {
-      const bm = prev.buildings[i];
-      const fp =
-        bm.userData.building && bm.userData.building.file && bm.userData.building.file.path;
+    for (const bm of prev.buildings ?? []) {
+      const fp = bm.userData.building?.file?.path;
       if (fp != null) prevBuildings[fp] = bm;
     }
     const prevStreets = {};
-    for (let s = 0; s < (prev.streetPickables || []).length; s++) {
-      const sw = prev.streetPickables[s];
-      const dp = sw.userData.street && sw.userData.street.dir && sw.userData.street.dir.path;
+    for (const sw of prev.streetPickables ?? []) {
+      const dp = sw.userData.street?.dir?.path;
       if (dp != null) prevStreets[dp] = sw;
     }
 
@@ -307,12 +295,10 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     const exiting = { buildings: [], streets: [] };
     const staying = { buildings: [], streets: [] };
 
-    for (let bi = 0; bi < buildingMeshes.length; bi++) {
-      const nbm = buildingMeshes[bi];
-      const nfp =
-        nbm.userData.building && nbm.userData.building.file && nbm.userData.building.file.path;
+    for (const nbm of buildingMeshes) {
+      const nfp = nbm.userData.building?.file?.path;
       if (nfp == null) continue;
-      if (Object.prototype.hasOwnProperty.call(prevBuildings, nfp)) {
+      if (Object.hasOwn(prevBuildings, nfp)) {
         staying.buildings.push({ oldMesh: prevBuildings[nfp], newMesh: nbm });
         delete prevBuildings[nfp];
       } else {
@@ -320,16 +306,15 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       }
     }
     for (const ek in prevBuildings) {
-      if (Object.prototype.hasOwnProperty.call(prevBuildings, ek)) {
+      if (Object.hasOwn(prevBuildings, ek)) {
         exiting.buildings.push({ mesh: prevBuildings[ek] });
       }
     }
 
-    for (let sj = 0; sj < streetPickables.length; sj++) {
-      const nsw = streetPickables[sj];
-      const ndp = nsw.userData.street && nsw.userData.street.dir && nsw.userData.street.dir.path;
+    for (const nsw of streetPickables) {
+      const ndp = nsw.userData.street?.dir?.path;
       if (ndp == null) continue;
-      if (Object.prototype.hasOwnProperty.call(prevStreets, ndp)) {
+      if (Object.hasOwn(prevStreets, ndp)) {
         staying.streets.push({ oldMesh: prevStreets[ndp], newMesh: nsw });
         delete prevStreets[ndp];
       } else {
@@ -337,24 +322,24 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       }
     }
     for (const sk in prevStreets) {
-      if (Object.prototype.hasOwnProperty.call(prevStreets, sk)) {
+      if (Object.hasOwn(prevStreets, sk)) {
         exiting.streets.push({ mesh: prevStreets[sk] });
       }
     }
 
-    return { entering: entering, exiting: exiting, staying: staying };
+    return { entering, exiting, staying };
   }
 
   function applyManifest(newManifest) {
     const prev = {
       buildings: buildingMeshes,
-      streetPickables: streetPickables,
-      streetLabels: streetLabels,
-      pathMeshes: pathMeshes,
-      asphaltMeshes: asphaltMeshes,
-      rootGem: rootGem,
-      manifest: manifest,
-      layout: layout,
+      streetPickables,
+      streetLabels,
+      pathMeshes,
+      asphaltMeshes,
+      rootGem,
+      manifest,
+      layout,
     };
 
     _emit(beforeChangeCbs, prev);
@@ -363,10 +348,9 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     // can tween "staying" meshes from their old position to the new
     // one without a snap. Keyed by file.path — stable across rebuilds.
     const prevBuildingTransforms = {};
-    for (let pi = 0; pi < buildingMeshes.length; pi++) {
-      const pm = buildingMeshes[pi];
-      const pf = pm.userData.building && pm.userData.building.file;
-      if (pf && pf.path != null) {
+    for (const pm of buildingMeshes) {
+      const pf = pm.userData.building?.file;
+      if (pf?.path != null) {
         prevBuildingTransforms[pf.path] = {
           position: pm.position.clone(),
           scaleY: pm.scale.y,
@@ -382,14 +366,9 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
     // Color buildings before mesh creation — buildCityScene reads b.color.
     const dirColor = BUILDING_PALETTE.get().DIRECTORY_COLOR;
-    const buildings = (layout && layout.buildings) || [];
-    for (let i = 0; i < buildings.length; i++) {
-      const b = buildings[i];
-      if (b.file && b.file.type === NODE_KIND.FILE) {
-        b.color = getBuildingColor(b.file, dateRanges);
-      } else {
-        b.color = dirColor;
-      }
+    const buildings = layout?.buildings ?? [];
+    for (const b of buildings) {
+      b.color = b.file?.type === NODE_KIND.FILE ? getBuildingColor(b.file, dateRanges) : dirColor;
     }
 
     const built = buildCityScene(layout);
@@ -405,14 +384,13 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
     // Migrate built scene's children into the persistent scene. Iterate
     // a copy because re-parenting to scene mutates built.scene.children.
-    const newKids = built.scene.children.slice();
-    for (let k = 0; k < newKids.length; k++) scene.add(newKids[k]);
+    for (const child of [...built.scene.children]) scene.add(child);
     // buildCityScene also set its own scene.background; mirror onto ours.
     scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
     // Stamp the gem body so it can participate in raycast picking.
     if (rootGem) {
-      const gemBody = rootGem.children && rootGem.children[0];
+      const gemBody = rootGem.children?.[0];
       if (gemBody) gemBody.userData.type = NODE_KIND.GEM;
     }
 
@@ -424,22 +402,20 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     // Attach transform snapshots so the animator can tween from the
     // previous mesh's resting place. For entering meshes, no prev
     // exists, so just expose the target. For staying, both.
-    for (let ei = 0; ei < diff.entering.buildings.length; ei++) {
-      const em = diff.entering.buildings[ei].mesh;
-      diff.entering.buildings[ei].newPosition = em.position.clone();
-      diff.entering.buildings[ei].newScaleY = em.scale.y;
+    for (const entry of diff.entering.buildings) {
+      entry.newPosition = entry.mesh.position.clone();
+      entry.newScaleY = entry.mesh.scale.y;
     }
-    for (let si = 0; si < diff.staying.buildings.length; si++) {
-      const nm = diff.staying.buildings[si].newMesh;
-      const fp =
-        nm.userData.building && nm.userData.building.file && nm.userData.building.file.path;
+    for (const entry of diff.staying.buildings) {
+      const nm = entry.newMesh;
+      const fp = nm.userData.building?.file?.path;
       const oldT = fp != null ? prevBuildingTransforms[fp] : null;
       if (oldT) {
-        diff.staying.buildings[si].oldPosition = oldT.position;
-        diff.staying.buildings[si].oldScaleY = oldT.scaleY;
+        entry.oldPosition = oldT.position;
+        entry.oldScaleY = oldT.scaleY;
       }
-      diff.staying.buildings[si].newPosition = nm.position.clone();
-      diff.staying.buildings[si].newScaleY = nm.scale.y;
+      entry.newPosition = nm.position.clone();
+      entry.newScaleY = nm.scale.y;
     }
 
     _emit(changeCbs, diff);
@@ -447,84 +423,84 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
   function dispose() {
     _disposeAllManifestState();
-    if (_ghostBoxGeo && _ghostBoxGeo.dispose) _ghostBoxGeo.dispose();
+    _ghostBoxGeo?.dispose?.();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
   }
 
   return {
-    scene: scene,
-    applyManifest: applyManifest,
-    dispose: dispose,
-    onBeforeChange: onBeforeChange,
-    onChange: onChange,
-    disposeMesh: disposeMesh,
+    scene,
+    applyManifest,
+    dispose,
+    onBeforeChange,
+    onChange,
+    disposeMesh,
 
-    getManifest: function () {
+    getManifest() {
       return manifest;
     },
-    getLayout: function () {
+    getLayout() {
       return layout;
     },
-    getBbox: function () {
+    getBbox() {
       return bbox;
     },
-    getRoot: function () {
+    getRoot() {
       return manifest && manifest.tree;
     },
-    getDateRanges: function () {
+    getDateRanges() {
       return dateRanges;
     },
-    getBuildings: function () {
+    getBuildings() {
       return buildingMeshes;
     },
-    getStreetPickables: function () {
+    getStreetPickables() {
       return streetPickables;
     },
-    getStreetLabels: function () {
+    getStreetLabels() {
       return streetLabels;
     },
-    getPathMeshes: function () {
+    getPathMeshes() {
       return pathMeshes;
     },
-    getAsphaltMeshes: function () {
+    getAsphaltMeshes() {
       return asphaltMeshes;
     },
-    getRootGem: function () {
+    getRootGem() {
       return rootGem;
     },
-    getRootGemBody: function () {
+    getRootGemBody() {
       return rootGemBody;
     },
-    getRootGemEdges: function () {
+    getRootGemEdges() {
       return rootGemEdges;
     },
-    getRootStreet: function () {
+    getRootStreet() {
       return rootStreet;
     },
-    getGemWorldPos: function () {
+    getGemWorldPos() {
       return gemWorldPos;
     },
-    getBuildingOutlines: function () {
+    getBuildingOutlines() {
       return buildingOutlines;
     },
-    getBuildingOutlineMats: function () {
+    getBuildingOutlineMats() {
       return buildingOutlineMats;
     },
-    getBuildingGhosts: function () {
+    getBuildingGhosts() {
       return buildingGhosts;
     },
 
-    getBuildingByPath: function (p) {
+    getBuildingByPath(p) {
       return buildingsByPath[p] || null;
     },
-    getSidewalkByDir: function (p) {
+    getSidewalkByDir(p) {
       return sidewalksByDirPath[p] || null;
     },
-    getStreetByDir: function (p) {
+    getStreetByDir(p) {
       return streetsByDirPath[p] || null;
     },
-    getPathConnectorsByDir: function (p) {
+    getPathConnectorsByDir(p) {
       return pathMeshesByDirPath[p] || [];
     },
 
@@ -534,16 +510,16 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     // existing callers (e.g. computePathPoints in scene/path.js) take
     // a whole `{ dirPath: street }` map. New consumers should prefer
     // the per-key getters above.
-    getBuildingsByPath: function () {
+    getBuildingsByPath() {
       return buildingsByPath;
     },
-    getSidewalksByDirMap: function () {
+    getSidewalksByDirMap() {
       return sidewalksByDirPath;
     },
-    getStreetsByDirMap: function () {
+    getStreetsByDirMap() {
       return streetsByDirPath;
     },
-    getPathConnectorsMap: function () {
+    getPathConnectorsMap() {
       return pathMeshesByDirPath;
     },
   };

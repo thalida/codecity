@@ -43,8 +43,8 @@ export function moveTooltip(x, y) {
   let py = y + OFFSET;
   if (px + w + MARGIN > vw) px = x - OFFSET - w;
   if (py + h + MARGIN > vh) py = y - OFFSET - h;
-  _el.style.left = px + 'px';
-  _el.style.top = py + 'px';
+  _el.style.left = `${px}px`;
+  _el.style.top = `${py}px`;
 }
 
 export function hideTooltip() {

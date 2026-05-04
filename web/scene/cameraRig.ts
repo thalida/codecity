@@ -91,7 +91,7 @@ export function createCameraRig({
   }
   function _scheduleCameraSave() {
     if (_saveCameraTimer) clearTimeout(_saveCameraTimer);
-    _saveCameraTimer = setTimeout(function () {
+    _saveCameraTimer = setTimeout(() => {
       _saveCameraTimer = 0;
       _saveCameraPose();
     }, 500);
@@ -152,7 +152,7 @@ export function createCameraRig({
         const savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
         if (savedPoseRaw) {
           const p = JSON.parse(savedPoseRaw);
-          if (p && p.pos && p.target) {
+          if (p?.pos && p?.target) {
             camera.position.set(p.pos.x, p.pos.y, p.pos.z);
             controls.target.set(p.target.x, p.target.y, p.target.z);
           }
@@ -360,13 +360,13 @@ export function createCameraRig({
   }
 
   return {
-    camera: camera,
-    controls: controls,
-    update: update,
-    reset: reset,
-    recenterTo: recenterTo,
-    focusBuilding: focusBuilding,
-    focusStreet: focusStreet,
-    dispose: dispose,
+    camera,
+    controls,
+    update,
+    reset,
+    recenterTo,
+    focusBuilding,
+    focusStreet,
+    dispose,
   };
 }

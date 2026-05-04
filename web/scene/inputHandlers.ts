@@ -60,22 +60,17 @@ export function createInputHandlers({
     if (target.kind === NODE_KIND.FILE && target.file) {
       const f = target.file;
       const fpath = f.path || f.name || 'file';
-      return fpath + (f.lines != null ? '  ·  ' + f.lines + ' lines' : '');
+      return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
     }
     if (target.kind === NODE_KIND.DIRECTORY && target.dir) {
       const d = target.dir;
       const dpath = d.path || d.name || 'directory';
       const fileCount = d.descendants_file_count != null ? d.descendants_file_count : 0;
       const dirCount = d.descendants_dir_count != null ? d.descendants_dir_count : 0;
-      const counts =
-        fileCount +
-        ' file' +
-        (fileCount === 1 ? '' : 's') +
-        ', ' +
-        dirCount +
-        ' dir' +
-        (dirCount === 1 ? '' : 's');
-      return dpath + '  ·  ' + counts;
+      const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
+        dirCount === 1 ? '' : 's'
+      }`;
+      return `${dpath}  ·  ${counts}`;
     }
     return null;
   }
@@ -123,7 +118,7 @@ export function createInputHandlers({
     if (_hoverCommitId && _sameHover(newHover, _hoverPending)) return;
     _hoverPending = newHover;
     if (_hoverCommitId) clearTimeout(_hoverCommitId);
-    _hoverCommitId = setTimeout(function () {
+    _hoverCommitId = setTimeout(() => {
       _hoverCommitId = 0;
       const toCommit = _hoverPending;
       _hoverPending = null;
@@ -168,18 +163,18 @@ export function createInputHandlers({
   let _disposers = [];
   function _on(target, event, fn) {
     target.addEventListener(event, fn);
-    _disposers.push(function () {
+    _disposers.push(() => {
       target.removeEventListener(event, fn);
     });
   }
 
-  _on(canvas, 'pointerdown', function (e) {
+  _on(canvas, 'pointerdown', (e) => {
     downX = e.clientX;
     downY = e.clientY;
     downTime = Date.now();
   });
 
-  _on(canvas, 'pointerup', function (e) {
+  _on(canvas, 'pointerup', (e) => {
     if (e.button !== 0) return;
     const dx = e.clientX - downX;
     const dy = e.clientY - downY;
@@ -191,13 +186,13 @@ export function createInputHandlers({
     _handlePick(e.clientX, e.clientY);
   });
 
-  _on(canvas, 'pointermove', function (e) {
+  _on(canvas, 'pointermove', (e) => {
     _hoverLastEvt = e;
     if (_hoverRafId) return;
     _hoverRafId = requestAnimationFrame(_processHoverRaf);
   });
 
-  _on(canvas, 'pointerleave', function () {
+  _on(canvas, 'pointerleave', () => {
     hideTooltip();
     if (_hoverRafId) {
       cancelAnimationFrame(_hoverRafId);
@@ -211,11 +206,11 @@ export function createInputHandlers({
     picker.setHover(null);
   });
 
-  _on(canvas, 'dblclick', function (e) {
+  _on(canvas, 'dblclick', (e) => {
     _focusAtPointer(e.clientX, e.clientY);
   });
 
-  _on(document, 'keydown', function (e) {
+  _on(document, 'keydown', (e) => {
     const tag = (e.target && e.target.tagName) || '';
     if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
 
@@ -255,7 +250,7 @@ export function createInputHandlers({
   if (typeof ResizeObserver !== 'undefined') {
     _resizeObs = new ResizeObserver(_resize);
     _resizeObs.observe(canvas);
-    _disposers.push(function () {
+    _disposers.push(() => {
       _resizeObs.disconnect();
     });
   }
@@ -273,5 +268,5 @@ export function createInputHandlers({
     if (_hoverCommitId) clearTimeout(_hoverCommitId);
   }
 
-  return { dispose: dispose };
+  return { dispose };
 }

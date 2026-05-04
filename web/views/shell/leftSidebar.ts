@@ -39,7 +39,7 @@ const SIDEBAR_MAX_WIDTH = 600;
 // kbd table with R/Esc/etc. The R key is wired in main.js's keydown
 // handler, so this component doesn't need its own callback.)
 export function showLeftSidebar(manifest: any, opts: any = {}) {
-  const noop = function () {};
+  const noop = () => {};
   const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
   if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
 
@@ -58,9 +58,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
   // layout in the header keeps title + button vertically aligned without
   // any absolute-positioning math). Clicking either calls _setCollapsed
   // — same effect as clicking the active activity-bar icon a second time.
-  const paneOnClose = function () {
-    _setCollapsed(true);
-  };
+  const paneOnClose = () => _setCollapsed(true);
   const treeBundle = buildTreePane(manifest, {
     onClose: paneOnClose,
     onSelect: opts.onTreeSelect,
@@ -78,7 +76,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
   });
 
   for (const key in panes) {
-    if (Object.prototype.hasOwnProperty.call(panes, key)) {
+    if (Object.hasOwn(panes, key)) {
       panel.appendChild(panes[key]);
     }
   }
@@ -101,14 +99,14 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
 
     const glyph = document.createElement('span');
     glyph.className = 'activity-bar-glyph';
-    glyph.style.maskImage = 'url(' + iconBase + tab.icon + ')';
-    glyph.style.webkitMaskImage = 'url(' + iconBase + tab.icon + ')';
+    glyph.style.maskImage = `url(${iconBase}${tab.icon})`;
+    glyph.style.webkitMaskImage = `url(${iconBase}${tab.icon})`;
     btn.appendChild(glyph);
 
     iconBtns[tab.id] = btn;
 
     (function (tabId) {
-      btn.addEventListener('click', function () {
+      btn.addEventListener('click', () => {
         _onIconClick(tabId);
       });
     })(tab.id);
@@ -146,11 +144,11 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
   // active — the user is parked at "no pane visible".
   function _refreshActiveStates() {
     for (const id in panes) {
-      if (!Object.prototype.hasOwnProperty.call(panes, id)) continue;
+      if (!Object.hasOwn(panes, id)) continue;
       panes[id].style.display = id === activeTab ? '' : 'none';
     }
     for (const iid in iconBtns) {
-      if (!Object.prototype.hasOwnProperty.call(iconBtns, iid)) continue;
+      if (!Object.hasOwn(iconBtns, iid)) continue;
       const isActive = !collapsed && iid === activeTab;
       iconBtns[iid].classList.toggle('active', isActive);
       iconBtns[iid].setAttribute('aria-pressed', String(isActive));
@@ -183,20 +181,20 @@ function _buildResizeHandle(sidebar) {
   handle.title = 'Drag to resize';
 
   let dragging = false;
-  handle.addEventListener('pointerdown', function (e) {
+  handle.addEventListener('pointerdown', (e) => {
     dragging = true;
     handle.classList.add('dragging');
     handle.setPointerCapture(e.pointerId);
     e.preventDefault();
   });
-  handle.addEventListener('pointermove', function (e) {
+  handle.addEventListener('pointermove', (e) => {
     if (!dragging) return;
     let w = e.clientX;
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
-    sidebar.style.width = w + 'px';
+    sidebar.style.width = `${w}px`;
   });
-  handle.addEventListener('pointerup', function (e) {
+  handle.addEventListener('pointerup', (e) => {
     if (!dragging) return;
     dragging = false;
     handle.classList.remove('dragging');
@@ -215,7 +213,7 @@ function _applyPersistedWidth(sidebar) {
     if (!Number.isFinite(w)) return;
     if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
     if (w > SIDEBAR_MAX_WIDTH) w = SIDEBAR_MAX_WIDTH;
-    sidebar.style.width = w + 'px';
+    sidebar.style.width = `${w}px`;
   } catch (_) {
     /* private mode / no storage — silently fall back to CSS default */
   }

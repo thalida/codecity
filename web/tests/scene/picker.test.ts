@@ -36,33 +36,33 @@ function makeFakeCityScene(initialBuildings, initialStreets) {
   setSnapshot(initialBuildings, initialStreets);
 
   return {
-    getBuildings: function () {
-      return Object.keys(buildingMap).map(function (p) {
+    getBuildings() {
+      return Object.keys(buildingMap).map((p) => {
         return buildingMap[p].mesh;
       });
     },
-    getStreetPickables: function () {
-      return Object.keys(sidewalkMap).map(function (p) {
+    getStreetPickables() {
+      return Object.keys(sidewalkMap).map((p) => {
         return sidewalkMap[p];
       });
     },
-    getRootGem: function () {
+    getRootGem() {
       return rootGem;
     },
-    getBuildingByPath: function (p) {
+    getBuildingByPath(p) {
       return buildingMap[p] || null;
     },
-    getSidewalkByDir: function (p) {
+    getSidewalkByDir(p) {
       return sidewalkMap[p] || null;
     },
-    getStreetByDir: function (p) {
+    getStreetByDir(p) {
       return streetMap[p] || null;
     },
-    onChange: function (cb) {
+    onChange(cb) {
       listeners.push(cb);
       return function () {};
     },
-    setSnapshot: setSnapshot,
+    setSnapshot,
   };
 }
 

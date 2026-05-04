@@ -15,7 +15,7 @@ function _buildList(node, ctx) {
 
   // Match layout.js sort: alphabetical, files + directories intermingled.
   // Keeps the tree's visual order identical to the city's road layout.
-  const children = (node.children || []).slice().sort(function (a, b) {
+  const children = (node.children || []).slice().sort((a, b) => {
     return (a.name || '').localeCompare(b.name || '');
   });
 
@@ -55,7 +55,7 @@ function _buildItem(child, ctx) {
     subtree.style.display = 'none';
     li.appendChild(subtree);
 
-    chevron.addEventListener('click', function (e) {
+    chevron.addEventListener('click', (e) => {
       e.stopPropagation(); // selecting via the chevron is intentionally a no-op
       // Single-branch invariant: expanding a directory closes any other
       // open branch so only one chain from root is ever exposed at a time.
@@ -72,17 +72,17 @@ function _buildItem(child, ctx) {
     li.appendChild(row);
   }
 
-  if (child.path != null) ctx.byPath[child.path] = { li: li, node: child };
+  if (child.path != null) ctx.byPath[child.path] = { li, node: child };
 
   // Single click selects, double click focuses — mirrors the canvas
   // pointerup + dblclick handlers in main.js. The browser fires both
   // click events that make up a dblclick, which is fine: select is
   // idempotent, then focus runs on top.
-  row.addEventListener('click', function (e) {
+  row.addEventListener('click', (e) => {
     e.stopPropagation();
     if (typeof ctx.onSelect === 'function') ctx.onSelect(child);
   });
-  row.addEventListener('dblclick', function (e) {
+  row.addEventListener('dblclick', (e) => {
     e.stopPropagation();
     if (typeof ctx.onFocus === 'function') ctx.onFocus(child);
   });
@@ -90,10 +90,10 @@ function _buildItem(child, ctx) {
   // because they don't bubble: each row owns its own hover signal so
   // moving row→row produces a clean leave-then-enter pair without the
   // child-element churn pointerover sees.
-  row.addEventListener('mouseenter', function () {
+  row.addEventListener('mouseenter', () => {
     if (typeof ctx.onHover === 'function') ctx.onHover(child);
   });
-  row.addEventListener('mouseleave', function () {
+  row.addEventListener('mouseleave', () => {
     if (typeof ctx.onHoverEnd === 'function') ctx.onHoverEnd(child);
   });
 
@@ -167,7 +167,7 @@ function _setDirExpanded(li, expanded) {
 function _setIcon(span, name) {
   const base = span.style.maskImage || span.style.webkitMaskImage;
   // Both URLs share the prefix up through ".../icons/"; swap the last segment.
-  const u = base.replace(/[^/]+\.svg/, name + '.svg');
+  const u = base.replace(/[^/]+\.svg/, `${name}.svg`);
   span.style.maskImage = u;
   span.style.webkitMaskImage = u;
 }
@@ -282,10 +282,10 @@ export function buildTreePane(manifest: any, opts: any = {}) {
   }
 
   return {
-    pane: pane,
+    pane,
     api: {
-      setSelectedPath: setSelectedPath,
-      setHoveredPath: setHoveredPath,
+      setSelectedPath,
+      setHoveredPath,
     },
   };
 }
@@ -297,7 +297,7 @@ function _buildPaneCloseButton(onClose) {
   btn.title = 'Hide sidebar';
   btn.setAttribute('aria-label', 'Hide sidebar');
   btn.appendChild(makeLucideIcon('x'));
-  btn.addEventListener('click', function () {
+  btn.addEventListener('click', () => {
     onClose();
   });
   return btn;

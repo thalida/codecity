@@ -157,14 +157,14 @@ export function createPathLineRenderer({
   }
 
   // Reactive: rebuild geometry on selection / hover / cityScene change.
-  picker.selection.subscribe(function () {
+  picker.selection.subscribe(() => {
     _updatePathLine();
     _updateHoverPathLine();
   });
-  picker.hover.subscribe(function () {
+  picker.hover.subscribe(() => {
     _updateHoverPathLine();
   });
-  cityScene.onChange(function () {
+  cityScene.onChange(() => {
     _updatePathLine();
     _updateHoverPathLine();
   });
@@ -215,9 +215,9 @@ export function createPathLineRenderer({
   }
 
   return {
-    update: update,
-    refreshMaterials: refreshMaterials,
-    onResize: onResize,
-    dispose: dispose,
+    update,
+    refreshMaterials,
+    onResize,
+    dispose,
   };
 }

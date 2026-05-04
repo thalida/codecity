@@ -22,14 +22,14 @@ import { BUILDING_PALETTE } from '../config/index.js';
  */
 export function getHue(extension: string, palette: Record<string, number>): number {
   // Direct palette lookup
-  if (palette && Object.prototype.hasOwnProperty.call(palette, extension)) {
+  if (palette && Object.hasOwn(palette, extension)) {
     return palette[extension];
   }
 
   // Deterministic hash for unknown extensions
   let hash = 0;
-  for (let i = 0; i < extension.length; i++) {
-    hash = extension.charCodeAt(i) + ((hash << 5) - hash);
+  for (const ch of extension) {
+    hash = ch.charCodeAt(0) + ((hash << 5) - hash);
   }
   return Math.abs(hash) % 360;
 }
@@ -178,20 +178,18 @@ export function getDateRanges(manifestTree: any): DateRangeStrings {
     }
 
     // Recurse into directory children
-    if (node.children && node.children.length > 0) {
-      for (let i = 0; i < node.children.length; i++) {
-        visit(node.children[i]);
-      }
+    if (node.children?.length) {
+      for (const child of node.children) visit(child);
     }
   }
 
   visit(manifestTree);
 
   return {
-    createdMin: createdMin,
-    createdMax: createdMax,
-    modifiedMin: modifiedMin,
-    modifiedMax: modifiedMax,
+    createdMin,
+    createdMax,
+    modifiedMin,
+    modifiedMax,
   };
 }
 
@@ -221,5 +219,5 @@ export function getBuildingColor(file: any, dateRanges: DateRangeStrings): strin
     max: palette.LIGHTNESS_MAX,
   });
 
-  return 'hsl(' + h + ', ' + s + '%, ' + l + '%)';
+  return `hsl(${h}, ${s}%, ${l}%)`;
 }

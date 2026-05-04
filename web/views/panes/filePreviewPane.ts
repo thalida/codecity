@@ -126,7 +126,7 @@ export function buildFilePreviewPane() {
 
   return {
     pane: body,
-    api: { setFile: setFile },
+    api: { setFile },
   };
 }
 
@@ -186,17 +186,17 @@ export function humanLanguageFor(file) {
  * @returns {string} e.g. "512 B", "3.4 KB", "1.2 MB"
  */
 function formatBytes(bytes) {
-  if (bytes < BYTES_PER_KB) return bytes + ' B';
-  if (bytes < BYTES_PER_MB) return (bytes / BYTES_PER_KB).toFixed(1) + ' KB';
-  return (bytes / BYTES_PER_MB).toFixed(1) + ' MB';
+  if (bytes < BYTES_PER_KB) return `${bytes} B`;
+  if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
+  return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
 function _previewKind(file) {
   const ext = (file.extension || '').toLowerCase();
-  if (IMAGE_EXTS.indexOf(ext) !== -1) return 'image';
-  if (VIDEO_EXTS.indexOf(ext) !== -1) return 'video';
-  if (AUDIO_EXTS.indexOf(ext) !== -1) return 'audio';
-  if (PDF_EXTS.indexOf(ext) !== -1) return 'pdf';
+  if (IMAGE_EXTS.includes(ext)) return 'image';
+  if (VIDEO_EXTS.includes(ext)) return 'video';
+  if (AUDIO_EXTS.includes(ext)) return 'audio';
+  if (PDF_EXTS.includes(ext)) return 'pdf';
   // Anything else: try as text. The Preview helper will swap to a "Binary"
   // notice if the response isn't decodable as UTF-8.
   return 'text';
@@ -204,7 +204,7 @@ function _previewKind(file) {
 
 function _fileApiUrl(file) {
   const p = file.fullPath || '';
-  return '/api/file?path=' + encodeURIComponent(p);
+  return `/api/file?path=${encodeURIComponent(p)}`;
 }
 
 function _makePreviewSection(file) {
@@ -251,7 +251,7 @@ function _makePreviewSection(file) {
     return _makeStateMessage(
       'file-x',
       'File too large to preview',
-      'Cap is ' + formatBytes(TEXT_PREVIEW_MAX_BYTES) + ' — this file is ' + formatBytes(size) + '.'
+      `Cap is ${formatBytes(TEXT_PREVIEW_MAX_BYTES)} — this file is ${formatBytes(size)}.`
     );
   }
 
@@ -263,14 +263,14 @@ function _makePreviewSection(file) {
   shell.className = 'preview-shell';
 
   fetch(url)
-    .then(function (resp) {
-      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    .then((resp) => {
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.text();
     })
-    .then(function (text) {
+    .then((text) => {
       shell.replaceChildren(_buildCodeEditor(text, file));
     })
-    .catch(function (err) {
+    .catch((err) => {
       shell.replaceChildren(
         _makeStateMessage(
           'file-warning',

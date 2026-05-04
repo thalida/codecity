@@ -22,7 +22,11 @@ import { parentDirPath } from '../path.js';
 // Just below 1.0 so any faded tier flips to true transparency.
 const OPAQUE_THRESHOLD = 0.999;
 
-function _stepOpacity(cur: number, target: number, cfg: { LERP_SPEED: number; SNAP_THRESHOLD: number }): number {
+function _stepOpacity(
+  cur: number,
+  target: number,
+  cfg: { LERP_SPEED: number; SNAP_THRESHOLD: number }
+): number {
   if (cur === target) return cur;
   let next = cur + (target - cur) * cfg.LERP_SPEED;
   if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
@@ -56,7 +60,7 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
       }
     }
     if (hov) {
-      if (hov.kind === NODE_KIND.DIRECTORY && hov.street && hov.street.dir) {
+      if (hov.kind === NODE_KIND.DIRECTORY && hov.street?.dir) {
         dirTarget = hov.street.dir;
       } else if (hov.kind === NODE_KIND.FILE && hov.file) {
         const hp = parentDirPath(hov.file.path);
@@ -80,9 +84,7 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
     const fadeCfg = BUILDING_FADE.get();
     const buildings = cityScene.getBuildings();
 
-    for (let bi = 0; bi < buildings.length; bi++) {
-      const m = buildings[bi];
-
+    for (const m of buildings) {
       // Init per-layer lerp state. Each layer animates toward its
       // tier-derived target independently.
       if (m.userData.bodyOp == null) m.userData.bodyOp = 1.0;
@@ -144,8 +146,7 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
       const bodyOp = m.userData.bodyOp;
       const mats = Array.isArray(m.material) ? m.material : [m.material];
       const bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
-      for (let ki = 0; ki < mats.length; ki++) {
-        const mat = mats[ki];
+      for (const mat of mats) {
         if (!mat) continue;
         if (mat.transparent !== bodyTransparent) {
           mat.transparent = bodyTransparent;
@@ -158,5 +159,5 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
     }
   }
 
-  return { update: update };
+  return { update };
 }

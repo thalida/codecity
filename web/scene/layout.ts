@@ -113,7 +113,7 @@ export function getBuildingDimensions(file: any, lineStats?: any, byteStats?: an
     w: Math.round(width * 10) / 10,
     d: Math.round(width * 10) / 10,
     h: Math.round(height * 10) / 10,
-    floors: floors,
+    floors,
   };
 }
 
@@ -147,9 +147,9 @@ export function layoutCity(manifest: any): any {
 
   // Mark the root-dir street so the renderer can draw a distinct "start of
   // repo" marker at its origin end.
-  for (let ri = 0; ri < result.streets.length; ri++) {
-    if (result.streets[ri].dir === tree) {
-      result.streets[ri].isRoot = true;
+  for (const street of result.streets) {
+    if (street.dir === tree) {
+      street.isRoot = true;
       break;
     }
   }
@@ -169,8 +169,7 @@ export function layoutCity(manifest: any): any {
   const dimsCfg = BUILDING_DIMENSIONS.get();
   const pathLength = dimsCfg.PATH_LENGTH;
   const pathWidthFrac = dimsCfg.PATH_WIDTH_FRAC;
-  for (let pi = 0; pi < result.buildings.length; pi++) {
-    const bForPath = result.buildings[pi];
+  for (const bForPath of result.buildings) {
     const pathWidth = bForPath.w * pathWidthFrac;
     const path = _pathForBuilding(bForPath, pathWidth, pathLength);
     if (path) {
@@ -372,11 +371,11 @@ function _layoutDir(
 
   // ---- Sort children alphabetically (files + dirs intermingled) -----------
   const children = (dir.children || [])
-    .filter(function (c) {
+    .filter((c) => {
       return c.type === NODE_KIND.FILE || c.type === NODE_KIND.DIRECTORY;
     })
     .slice()
-    .sort(function (a, b) {
+    .sort((a, b) => {
       return (a.name || '').localeCompare(b.name || '');
     });
 
@@ -465,7 +464,7 @@ function _layoutDir(
         floors: dim.floors,
         file: child,
         color: null,
-        orient: orient,
+        orient,
       });
 
       cursor[sideIdx] = startPos + alongStreet + childGap;
@@ -559,9 +558,9 @@ function _layoutDir(
     y: streetCenterY,
     length: streetLength,
     width: myStreetWidth,
-    orientation: orientation,
+    orientation,
     label: dir.name || '',
-    dir: dir,
+    dir,
   });
 
   for (let bi2 = 0; bi2 < fileBuildings.length; bi2++) {
@@ -638,7 +637,7 @@ function _computeBbox(layout) {
   if (minX === Infinity) {
     return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
   }
-  return { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+  return { minX, maxX, minY, maxY };
 }
 
 // -----------------------------------------------------------------------------
@@ -649,7 +648,7 @@ function _computeBbox(layout) {
 // -----------------------------------------------------------------------------
 export function sortForRendering(buildings) {
   const sorted = buildings.slice();
-  sorted.sort(function (a, b) {
+  sorted.sort((a, b) => {
     // Ascending: lowest x+y drawn first.
     // In our projection sx=(x-y)*cos30, sy=(x+y)*sin30-z:
     //   Lower x+y = higher on screen (north-west) = behind

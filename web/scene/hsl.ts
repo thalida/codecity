@@ -17,7 +17,7 @@ export function hslToComponents(hslString: string): HslComponents {
 }
 
 export function componentsToHsl(h: number, s: number, l: number): string {
-  return 'hsl(' + Math.round(h) + ', ' + s.toFixed(1) + '%, ' + l.toFixed(1) + '%)';
+  return `hsl(${Math.round(h)}, ${s.toFixed(1)}%, ${l.toFixed(1)}%)`;
 }
 
 export function shadeColor(hslString: string, amount: number): string {

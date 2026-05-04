@@ -345,21 +345,21 @@ export function createBuildingMesh(building: any): any {
   // the requested doorWorldWidth into pixels for this face's canvas.
   function facadeMat(cols, hasDoor, wallColor, slabColor, faceWorldWidth) {
     const tex = _buildFacadeTexture({
-      floors: floors,
-      cols: cols,
-      wallColor: wallColor,
-      slabColor: slabColor,
-      winColor: winColor,
-      doorColor: doorColor,
-      hasDoor: hasDoor,
-      faceWorldWidth: faceWorldWidth,
-      doorWorldWidth: doorWorldWidth,
+      floors,
+      cols,
+      wallColor,
+      slabColor,
+      winColor,
+      doorColor,
+      hasDoor,
+      faceWorldWidth,
+      doorWorldWidth,
     });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
   function roofMat() {
-    const tex = _buildRoofTexture({ roofColor: roofColor, borderColor: roofBorder });
+    const tex = _buildRoofTexture({ roofColor, borderColor: roofBorder });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
@@ -407,7 +407,7 @@ export function createBuildingMesh(building: any): any {
 // -----------------------------------------------------------------------------
 function _flatMat(color, renderOrderLayer) {
   const mat = new THREE.MeshBasicMaterial({
-    color: color,
+    color,
     depthWrite: false,
     polygonOffset: true,
     polygonOffsetFactor: -renderOrderLayer,
@@ -702,7 +702,7 @@ function _buildLabelTexture(text) {
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
   const label = LABEL_TYPOGRAPHY.get();
-  const fontSpec = label.FONT_WEIGHT + ' ' + label.FONT_SIZE_PX + 'px ' + label.FONT_FAMILY;
+  const fontSpec = `${label.FONT_WEIGHT} ${label.FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d');
   measure.font = fontSpec;
   const textW = Math.ceil(measure.measureText(text).width);
@@ -809,24 +809,24 @@ export function buildCityScene(layout: any): any {
   let rootGem = null;
   let rootGemBody = null;
   let rootGemEdges = null;
-  for (let si = 0; si < streets.length; si++) {
-    const sg = createStreetMesh(streets[si], 0);
+  for (const street of streets) {
+    const sg = createStreetMesh(street, 0);
     scene.add(sg);
     streetPickables.push(sg.userData.sidewalk);
     if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt);
 
-    const labels = createStreetLabels(streets[si]);
-    for (let li = 0; li < labels.length; li++) {
-      scene.add(labels[li]);
-      streetLabels.push(labels[li]);
+    const labels = createStreetLabels(street);
+    for (const label of labels) {
+      scene.add(label);
+      streetLabels.push(label);
     }
 
     // Root-of-repo landmark at the street's origin end. The gem group
     // wraps two children: [0] body (the colored octahedron) and [1]
     // edges (the dark separator lines). Both are exposed so the Settings
     // UI can hot-update color + opacity.
-    if (streets[si].isRoot) {
-      const gemGroup = createRootGem(streets[si]);
+    if (street.isRoot) {
+      const gemGroup = createRootGem(street);
       scene.add(gemGroup);
       rootGem = gemGroup.userData.gem;
       if (rootGem && rootGem.children) {
@@ -839,8 +839,8 @@ export function buildCityScene(layout: any): any {
   // Paths
   const pathMeshes = [];
   const paths = layout.paths || [];
-  for (let pi = 0; pi < paths.length; pi++) {
-    const pm = createPathMesh(paths[pi], 0);
+  for (const path of paths) {
+    const pm = createPathMesh(path, 0);
     scene.add(pm);
     pathMeshes.push(pm);
   }
@@ -848,8 +848,7 @@ export function buildCityScene(layout: any): any {
   // Buildings
   const buildingMeshes = [];
   const buildings = layout.buildings || [];
-  for (let bi = 0; bi < buildings.length; bi++) {
-    const b = buildings[bi];
+  for (const b of buildings) {
     if (b.file && b.file.type === 'directory') continue;
     const mesh = createBuildingMesh(b);
     scene.add(mesh);
@@ -864,15 +863,15 @@ export function buildCityScene(layout: any): any {
   }
 
   return {
-    scene: scene,
-    buildingMeshes: buildingMeshes,
-    streetPickables: streetPickables,
-    streetLabels: streetLabels,
-    pathMeshes: pathMeshes,
-    asphaltMeshes: asphaltMeshes,
-    rootGem: rootGem,
-    rootGemBody: rootGemBody,
-    rootGemEdges: rootGemEdges,
-    bbox: bbox,
+    scene,
+    buildingMeshes,
+    streetPickables,
+    streetLabels,
+    pathMeshes,
+    asphaltMeshes,
+    rootGem,
+    rootGemBody,
+    rootGemEdges,
+    bbox,
   };
 }

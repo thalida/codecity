@@ -58,9 +58,8 @@ import { makeLucideIcon } from '../shell/icon.js';
 // (onResetView is no longer used — the View section shows a kbd shortcut
 // table including R, which the existing keydown handler in main.js wires
 // to resetView. The "Reset camera" button is gone.)
-export function buildControlsPane(opts) {
-  opts = opts || {};
-  const applyTheme = opts.applyTheme || function () {};
+export function buildControlsPane(opts: any = {}) {
+  const applyTheme = opts.applyTheme ?? (() => {});
 
   const pane = document.createElement('div');
   pane.className = 'left-pane controls-pane';
@@ -78,7 +77,7 @@ export function buildControlsPane(opts) {
     closeBtn.title = 'Hide sidebar';
     closeBtn.setAttribute('aria-label', 'Hide sidebar');
     closeBtn.appendChild(makeLucideIcon('x'));
-    closeBtn.addEventListener('click', function () {
+    closeBtn.addEventListener('click', () => {
       opts.onClose();
     });
     header.appendChild(closeBtn);
@@ -162,8 +161,7 @@ function _buildViewSection() {
 function _buildShortcutsList(items) {
   const dl = document.createElement('dl');
   dl.className = 'shortcuts-list';
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i];
+  for (const item of items) {
     if (item == null) {
       const divider = document.createElement('div');
       divider.className = 'shortcuts-divider';
@@ -172,16 +170,16 @@ function _buildShortcutsList(items) {
     }
     const dt = document.createElement('dt');
     if (item.kbd) {
-      for (let k = 0; k < item.kbd.length; k++) {
+      item.kbd.forEach((label, k) => {
         if (k > 0) dt.appendChild(document.createTextNode(' '));
         const key = document.createElement('kbd');
-        key.textContent = item.kbd[k];
+        key.textContent = label;
         dt.appendChild(key);
-      }
+      });
       if (item.or) {
         const or = document.createElement('span');
         or.className = 'shortcuts-or';
-        or.textContent = ' ' + item.or;
+        or.textContent = ` ${item.or}`;
         dt.appendChild(or);
       }
     } else if (item.mouse) {
@@ -326,11 +324,8 @@ function _buildStreetsSection(applyTheme) {
   // any specific road class without touching the others. min_descendants
   // thresholds aren't user-tunable (would shuffle the whole layout); only
   // the world-unit width per tier.
-  const tierRows = [];
   const tierDefaults = STREET_TIERS.get();
-  for (let ti = 0; ti < tierDefaults.length; ti++) {
-    tierRows.push(_tierWidthSlider(ti, tierDefaults[ti].min_descendants));
-  }
+  const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
   section.appendChild(_subgroup('Width tiers', tierRows));
 
   // Layout
@@ -407,22 +402,13 @@ function _buildBuildingsSection(applyTheme) {
   const huePaletteRows = [];
   const hueDefaults = getDefault(BUILDING_PALETTE, 'HUE_EXT_MAP') || {};
   const hueExtensions = Object.keys(hueDefaults).sort();
-  for (let ei = 0; ei < hueExtensions.length; ei++) {
+  for (const ext of hueExtensions) {
     huePaletteRows.push(
-      _nestedSlider(
-        hueExtensions[ei],
-        BUILDING_PALETTE,
-        'HUE_EXT_MAP',
-        hueExtensions[ei],
-        0,
-        359,
-        1,
-        {
-          tip: 'Hue (0–359°) for files with this extension.',
+      _nestedSlider(ext, BUILDING_PALETTE, 'HUE_EXT_MAP', ext, 0, 359, 1, {
+        tip: 'Hue (0–359°) for files with this extension.',
 
-          previewHue: true,
-        }
-      )
+        previewHue: true,
+      })
     );
   }
   section.appendChild(_subgroup('Extension hues (0–359°)', huePaletteRows));
@@ -612,7 +598,7 @@ function _buildActionsSection() {
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
   resetAll.title = 'Wipe every override. (Per-row reset icons restore single values.)';
-  resetAll.addEventListener('click', function () {
+  resetAll.addEventListener('click', () => {
     if (resetAll.disabled) return;
     if (!confirm('Reset every override?')) return;
     clearPersistence();
@@ -656,7 +642,7 @@ function _subgroup(name, rows) {
   h.className = 'theme-subgroup-label';
   h.textContent = name;
   wrap.appendChild(h);
-  for (let i = 0; i < rows.length; i++) wrap.appendChild(rows[i]);
+  for (const row of rows) wrap.appendChild(row);
   return wrap;
 }
 
@@ -666,13 +652,12 @@ function _subgroup(name, rows) {
 //               rangePair). The reset icon shows when ANY key differs from
 //               its registered default.
 //   opts.tip      — full hover text (added to the row's title attribute)
-function _row(labelText, control, store, keys, opts) {
-  opts = opts || {};
+function _row(labelText, control, store, keys, opts: any = {}) {
   const row = document.createElement('label');
   row.className = 'theme-row';
 
   let fullTip = labelText;
-  if (opts.tip) fullTip += ' — ' + opts.tip;
+  if (opts.tip) fullTip += ` — ${opts.tip}`;
   row.title = fullTip;
 
   const span = document.createElement('span');
@@ -700,18 +685,18 @@ function _row(labelText, control, store, keys, opts) {
 // entries (via persist.js's resetKey), and fires opts.onChange so the
 // scene/UI catches up immediately.
 function _makeResetButton(store, keys, opts) {
-  const onChange = opts && typeof opts.onChange === 'function' ? opts.onChange : function () {};
+  const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
   btn.title = _formatDefaultTooltip(store, keys);
   btn.setAttribute('aria-label', 'Reset to default');
   btn.appendChild(makeLucideIcon('rotate-ccw'));
-  btn.addEventListener('click', function (e) {
+  btn.addEventListener('click', (e) => {
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    for (let i = 0; i < keys.length; i++) resetKey(store, keys[i]);
+    for (const k of keys) resetKey(store, k);
     onChange();
   });
 
@@ -720,15 +705,7 @@ function _makeResetButton(store, keys, opts) {
   // something to reset.
   function refresh() {
     const state = store.get();
-    let changed = false;
-    for (let i = 0; i < keys.length; i++) {
-      const k = keys[i];
-      if (!_isEqual(state[k], getDefault(store, k))) {
-        changed = true;
-        break;
-      }
-    }
-    btn.disabled = !changed;
+    btn.disabled = keys.every((k) => _isEqual(state[k], getDefault(store, k)));
   }
   refresh();
   store.subscribe(refresh);
@@ -741,12 +718,12 @@ function _makeResetButton(store, keys, opts) {
 function _formatDefaultTooltip(store, keys) {
   if (!keys || keys.length === 0) return 'Reset to default';
   if (keys.length === 1) {
-    return 'Default: ' + _formatDefaultValue(getDefault(store, keys[0]));
+    return `Default: ${_formatDefaultValue(getDefault(store, keys[0]))}`;
   }
   // rangePair (2 keys: min, max)
   const lo = getDefault(store, keys[0]);
   const hi = getDefault(store, keys[1]);
-  return 'Default: ' + _formatDefaultValue(lo) + ' – ' + _formatDefaultValue(hi);
+  return `Default: ${_formatDefaultValue(lo)} – ${_formatDefaultValue(hi)}`;
 }
 
 function _formatDefaultValue(v) {
@@ -772,12 +749,12 @@ function _color(label, store, key, opts) {
   input.type = 'color';
   input.className = 'theme-color';
   input.value = _toHexInputValue(store.get()[key]);
-  input.addEventListener('input', function () {
+  input.addEventListener('input', () => {
     store.setKey(key, input.value);
     onChange();
   });
   // Reflect outside changes (e.g. reset-to-default) back into the input.
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     const hex = _toHexInputValue(state[key]);
     if (input.value.toLowerCase() !== hex) input.value = hex;
   });
@@ -793,14 +770,14 @@ function _number(label, store, key, min, max, step, opts) {
   input.step = String(step);
   input.value = String(store.get()[key]);
   input.className = 'theme-number';
-  input.addEventListener('input', function () {
+  input.addEventListener('input', () => {
     const v = parseFloat(input.value);
     if (Number.isFinite(v)) {
       store.setKey(key, v);
       onChange();
     }
   });
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     const s = String(state[key]);
     if (input.value !== s && document.activeElement !== input) input.value = s;
   });
@@ -815,14 +792,14 @@ function _slider(label, store, key, min, max, step, opts) {
     min,
     max,
     step,
-    function (v) {
+    (v) => {
       store.setKey(key, v);
       onChange();
     },
     refs
   );
   // Reflect outside changes (reset-to-default) back into the slider + readout.
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     const v = state[key];
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
@@ -848,7 +825,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
   if (opts && opts.previewHue) {
     swatch = document.createElement('span');
     swatch.className = 'theme-hue-preview';
-    swatch.style.background = 'hsl(' + initial + ', 80%, 55%)';
+    swatch.style.background = `hsl(${initial}, 80%, 55%)`;
   }
 
   const control = _sliderWidget(
@@ -856,33 +833,33 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
     min,
     max,
     step,
-    function (v) {
+    (v) => {
       const current = store.get()[parentKey] || {};
       const next = {};
       for (const k in current) {
-        if (Object.prototype.hasOwnProperty.call(current, k)) next[k] = current[k];
+        if (Object.hasOwn(current, k)) next[k] = current[k];
       }
       next[subKey] = v;
       store.setKey(parentKey, next);
-      if (swatch) swatch.style.background = 'hsl(' + v + ', 80%, 55%)';
+      if (swatch) swatch.style.background = `hsl(${v}, 80%, 55%)`;
       onChange();
     },
     refs
   );
 
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     const v = (state[parentKey] || {})[subKey];
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
       refs.readout.textContent = _formatNumberForStep(v, step);
-      if (swatch) swatch.style.background = 'hsl(' + v + ', 80%, 55%)';
+      if (swatch) swatch.style.background = `hsl(${v}, 80%, 55%)`;
     }
   });
 
   // Reset icon: visible when this sub-key differs from its registered default.
   // Click resets only this sub-key.
   const rowOpts = {};
-  for (const ok in opts) if (Object.prototype.hasOwnProperty.call(opts, ok)) rowOpts[ok] = opts[ok];
+  for (const ok in opts) if (Object.hasOwn(opts, ok)) rowOpts[ok] = opts[ok];
 
   const row = _row(label, control, null, null, rowOpts);
   const ctrlWrap = row.querySelector('.theme-row-control');
@@ -899,7 +876,7 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
 // the registered default's width for that index.
 function _tierWidthSlider(index, minDescendants) {
   const refs: SliderRefs = {};
-  const label = minDescendants + '+ descendants';
+  const label = `${minDescendants}+ descendants`;
   const initial = (STREET_TIERS.get()[index] || {}).width;
 
   const control = _sliderWidget(
@@ -907,7 +884,7 @@ function _tierWidthSlider(index, minDescendants) {
     1,
     100,
     1,
-    function (v) {
+    (v) => {
       const current = STREET_TIERS.get();
       const next = current.slice();
       next[index] = { min_descendants: current[index].min_descendants, width: v };
@@ -916,7 +893,7 @@ function _tierWidthSlider(index, minDescendants) {
     refs
   );
 
-  STREET_TIERS.subscribe(function (state) {
+  STREET_TIERS.subscribe((state) => {
     const v = (state[index] || {}).width;
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
@@ -941,9 +918,9 @@ function _makeTierWidthResetButton(index) {
 
   const defaultArr = getDefault(STREET_TIERS) || [];
   const defaultVal = (defaultArr[index] || {}).width;
-  btn.title = 'Default: ' + _formatDefaultValue(defaultVal);
+  btn.title = `Default: ${_formatDefaultValue(defaultVal)}`;
 
-  btn.addEventListener('click', function (e) {
+  btn.addEventListener('click', (e) => {
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
@@ -963,7 +940,7 @@ function _makeTierWidthResetButton(index) {
 }
 
 function _makeNestedResetButton(store, parentKey, subKey, opts) {
-  const onChange = opts && typeof opts.onChange === 'function' ? opts.onChange : function () {};
+  const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
@@ -972,16 +949,16 @@ function _makeNestedResetButton(store, parentKey, subKey, opts) {
 
   const defaultMap = getDefault(store, parentKey) || {};
   const defaultVal = defaultMap[subKey];
-  btn.title = 'Default: ' + _formatDefaultValue(defaultVal);
+  btn.title = `Default: ${_formatDefaultValue(defaultVal)}`;
 
-  btn.addEventListener('click', function (e) {
+  btn.addEventListener('click', (e) => {
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
     const current = store.get()[parentKey] || {};
     const next = {};
     for (const k in current) {
-      if (Object.prototype.hasOwnProperty.call(current, k)) next[k] = current[k];
+      if (Object.hasOwn(current, k)) next[k] = current[k];
     }
     next[subKey] = defaultVal;
     store.setKey(parentKey, next);
@@ -1005,29 +982,25 @@ function _select(label, store, key, options, opts) {
   const wrap = document.createElement('span');
   wrap.className = 'theme-select';
 
-  const buttons = [];
-  for (let i = 0; i < options.length; i++) {
-    const opt = options[i];
+  const buttons = options.map((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'theme-select-option';
     btn.dataset.value = opt.value;
     btn.textContent = opt.label;
-    (function (value) {
-      btn.addEventListener('click', function (e) {
-        e.preventDefault();
-        store.setKey(key, value);
-        onChange();
-      });
-    })(opt.value);
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      store.setKey(key, opt.value);
+      onChange();
+    });
     wrap.appendChild(btn);
-    buttons.push(btn);
-  }
+    return btn;
+  });
 
   function refresh() {
     const current = store.get()[key];
-    for (let j = 0; j < buttons.length; j++) {
-      buttons[j].classList.toggle('is-active', buttons[j].dataset.value === current);
+    for (const btn of buttons) {
+      btn.classList.toggle('is-active', btn.dataset.value === current);
     }
   }
   refresh();
@@ -1042,11 +1015,11 @@ function _toggle(label, store, key, opts) {
   input.type = 'checkbox';
   input.className = 'theme-toggle';
   input.checked = !!store.get()[key];
-  input.addEventListener('change', function () {
+  input.addEventListener('change', () => {
     store.setKey(key, input.checked);
     onChange();
   });
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     const v = !!state[key];
     if (input.checked !== v) input.checked = v;
   });
@@ -1091,9 +1064,9 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
     const l = parseFloat(loRange.value);
     const h = parseFloat(hiRange.value);
     const span = hi - lo || 1;
-    fill.style.left = ((l - lo) / span) * 100 + '%';
-    fill.style.right = ((hi - h) / span) * 100 + '%';
-    readout.textContent = _formatNumberForStep(l, step) + ' – ' + _formatNumberForStep(h, step);
+    fill.style.left = `${((l - lo) / span) * 100}%`;
+    fill.style.right = `${((hi - h) / span) * 100}%`;
+    readout.textContent = `${_formatNumberForStep(l, step)} – ${_formatNumberForStep(h, step)}`;
   }
 
   function commit() {
@@ -1119,7 +1092,7 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
   paint();
 
   // Reflect outside changes (reset-to-default) back into both thumbs.
-  store.subscribe(function (state) {
+  store.subscribe((state) => {
     let changed = false;
     if (parseFloat(loRange.value) !== state[minKey]) {
       loRange.value = String(state[minKey]);
@@ -1170,7 +1143,7 @@ function _sliderWidget(
   readout.className = 'theme-slider-readout';
   readout.textContent = _formatNumberForStep(initialValue, step);
 
-  range.addEventListener('input', function () {
+  range.addEventListener('input', () => {
     const v = parseFloat(range.value);
     if (!Number.isFinite(v)) return;
     readout.textContent = _formatNumberForStep(v, step);
@@ -1210,7 +1183,7 @@ function _toHexInputValue(cssColor) {
   const r = parseInt(m[1], 10).toString(16).padStart(2, '0');
   const g = parseInt(m[2], 10).toString(16).padStart(2, '0');
   const b = parseInt(m[3], 10).toString(16).padStart(2, '0');
-  return '#' + r + g + b;
+  return `#${r}${g}${b}`;
 }
 
 // _formatNumberForStep(v, step) — derive readout precision from the slider

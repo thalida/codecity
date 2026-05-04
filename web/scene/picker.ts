@@ -75,17 +75,17 @@ export function createPicker({
   // PICKER_SELECTION_KEY so the persistence layer sees the new key.
   // No code path writes to both atoms simultaneously.
   let _suspendKeyDerive = false;
-  selection.subscribe(function (sel) {
+  selection.subscribe((sel) => {
     if (_suspendKeyDerive) return;
     if (!sel) {
       PICKER_SELECTION_KEY.set(null);
       return;
     }
-    if (sel.kind === NODE_KIND.FILE && sel.file && sel.file.path != null) {
+    if (sel.kind === NODE_KIND.FILE && sel.file?.path != null) {
       PICKER_SELECTION_KEY.set({ kind: 'file', path: sel.file.path });
       return;
     }
-    if (sel.kind === NODE_KIND.DIRECTORY && sel.dir && sel.dir.path != null) {
+    if (sel.kind === NODE_KIND.DIRECTORY && sel.dir?.path != null) {
       PICKER_SELECTION_KEY.set({ kind: 'directory', path: sel.dir.path });
       return;
     }
@@ -149,7 +149,7 @@ export function createPicker({
     hover.set(null);
   }
 
-  const _unsubResolve = cityScene.onChange(function () {
+  const _unsubResolve = cityScene.onChange(() => {
     _clearHoverOnRebuild();
     _resolveKeyToSelection();
   });
@@ -238,14 +238,14 @@ export function createPicker({
   }
 
   return {
-    hover: hover,
-    selection: selection,
+    hover,
+    selection,
     selectionKey: PICKER_SELECTION_KEY,
-    setHover: setHover,
-    setSelection: setSelection,
-    selectByPath: selectByPath,
-    pickAt: pickAt,
-    interpretHit: interpretHit,
-    dispose: dispose,
+    setHover,
+    setSelection,
+    selectByPath,
+    pickAt,
+    interpretHit,
+    dispose,
   };
 }

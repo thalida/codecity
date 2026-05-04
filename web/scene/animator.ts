@@ -38,10 +38,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
   const tweens = [];
 
   function _findTween(mesh, kind) {
-    for (let i = 0; i < tweens.length; i++) {
-      if (tweens[i].mesh === mesh && tweens[i].kind === kind) return i;
-    }
-    return -1;
+    return tweens.findIndex((t) => t.mesh === mesh && t.kind === kind);
   }
 
   function _addOrUpdate(t) {
@@ -70,11 +67,11 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     if (fromVal === toVal) return;
     mesh.scale.y = fromVal; // snap to start so the first frame is correct
     _addOrUpdate({
-      mesh: mesh,
+      mesh,
       kind: 'scaleY',
-      fromVal: fromVal,
-      toVal: toVal,
-      durationMs: durationMs,
+      fromVal,
+      toVal,
+      durationMs,
       easing: easeOutCubic,
       startedAt: performance.now(),
     });
@@ -84,7 +81,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     if (fromVec.x === toVec.x && fromVec.y === toVec.y && fromVec.z === toVec.z) return;
     mesh.position.copy(fromVec);
     _addOrUpdate({
-      mesh: mesh,
+      mesh,
       kind: 'position',
       fromX: fromVec.x,
       fromY: fromVec.y,
@@ -92,7 +89,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
       toX: toVec.x,
       toY: toVec.y,
       toZ: toVec.z,
-      durationMs: durationMs,
+      durationMs,
       easing: easeOutCubic,
       startedAt: performance.now(),
     });
@@ -100,15 +97,13 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
 
   function _onChange(diff) {
     // Entering: start small, grow to layout height.
-    for (let ei = 0; ei < diff.entering.buildings.length; ei++) {
-      const e = diff.entering.buildings[ei];
+    for (const e of diff.entering.buildings) {
       if (!e.mesh) continue;
       const newY = typeof e.newScaleY === 'number' ? e.newScaleY : 1;
       _tweenScaleY(e.mesh, 0.0001, newY, ENTER_MS);
     }
     // Staying with shifted position / scale: animate to new transform.
-    for (let si = 0; si < diff.staying.buildings.length; si++) {
-      const s = diff.staying.buildings[si];
+    for (const s of diff.staying.buildings) {
       if (!s.newMesh || !s.oldPosition) continue;
       _tweenPosition(s.newMesh, s.oldPosition, s.newPosition, STAY_MS);
       if (
@@ -155,5 +150,5 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     tweens.length = 0;
   }
 
-  return { update: update, dispose: dispose };
+  return { update, dispose };
 }

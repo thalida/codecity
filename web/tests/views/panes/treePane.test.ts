@@ -199,7 +199,7 @@ describe('buildTreePane', () => {
   it('row click invokes onSelect with the node', () => {
     let picked = null;
     const bundle = buildTreePane(TEST_TREE, {
-      onSelect: function (node) {
+      onSelect(node) {
         picked = node;
       },
     });
@@ -212,7 +212,7 @@ describe('buildTreePane', () => {
   it('row dblclick invokes onFocus with the node', () => {
     let focused = null;
     const bundle = buildTreePane(TEST_TREE, {
-      onFocus: function (node) {
+      onFocus(node) {
         focused = node;
       },
     });
@@ -339,10 +339,10 @@ describe('buildTreePane', () => {
     let hovered = null;
     let ended = null;
     const bundle = buildTreePane(TEST_TREE, {
-      onHover: function (node) {
+      onHover(node) {
         hovered = node;
       },
-      onHoverEnd: function (node) {
+      onHoverEnd(node) {
         ended = node;
       },
     });

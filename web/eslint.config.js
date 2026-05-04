@@ -25,6 +25,12 @@ export default tseslint.config(
       'no-var': 'error',
       'prefer-const': 'error',
       eqeqeq: ['error', 'smart'],
+      // ES6+ modernization (autofix-able)
+      'object-shorthand': ['error', 'always'],
+      'prefer-template': 'error',
+      'prefer-arrow-callback': ['error', { allowNamedFunctions: true }],
+      'prefer-object-has-own': 'error',
+      'no-useless-concat': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
         { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },

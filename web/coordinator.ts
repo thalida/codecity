@@ -65,10 +65,10 @@ export function createCoordinator({
     huePalette: huePalette || {},
     rootLabel: rootNode.name || '',
     rootPath: rootNode.path || '',
-    onSegmentClick: function (path) {
+    onSegmentClick(path) {
       picker.selectByPath(path);
     },
-    onRightToggle: function (hidden) {
+    onRightToggle(hidden) {
       sidebarVisible = !hidden;
       _renderSidebar();
     },
@@ -133,7 +133,7 @@ export function createCoordinator({
   }
 
   const leftSidebarApi = showLeftSidebar(cityScene.getManifest(), {
-    onResetView: function () {
+    onResetView() {
       rig.reset();
     },
     applyTheme: applyTheme || function () {},
@@ -151,7 +151,7 @@ export function createCoordinator({
   }
 
   // ── picker → sidebar reactions ─────────────────────────────────────
-  const _selUnsub = picker.selection.subscribe(function (sel) {
+  const _selUnsub = picker.selection.subscribe((sel) => {
     // Tree highlight follows selection.
     if (leftSidebarApi.setSelectedTreePath) {
       leftSidebarApi.setSelectedTreePath(_pathOf(sel));
@@ -196,7 +196,7 @@ export function createCoordinator({
     _renderSidebar();
   });
 
-  const _hovUnsub = picker.hover.subscribe(function (h) {
+  const _hovUnsub = picker.hover.subscribe((h) => {
     if (leftSidebarApi.setHoveredTreePath) {
       leftSidebarApi.setHoveredTreePath(_pathOf(h));
     }
@@ -205,7 +205,7 @@ export function createCoordinator({
   // Push the freshly-applied manifest into the Info pane so an edited
   // README on disk re-renders without a page reload (live-update poll
   // fires applyManifest, which fires onChange).
-  const _changeUnsub = cityScene.onChange(function () {
+  const _changeUnsub = cityScene.onChange(() => {
     if (leftSidebarApi.setInfoManifest) {
       leftSidebarApi.setInfoManifest(cityScene.getManifest());
     }
@@ -218,9 +218,9 @@ export function createCoordinator({
   }
 
   return {
-    appHeader: appHeader,
-    appFooter: appFooter,
-    leftSidebarApi: leftSidebarApi,
-    dispose: dispose,
+    appHeader,
+    appFooter,
+    leftSidebarApi,
+    dispose,
   };
 }

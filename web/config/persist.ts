@@ -38,9 +38,9 @@ const _STORE_BY_NAME: Record<string, any> = {};
 const _changeListeners: Array<() => void> = [];
 
 function _emitChange() {
-  for (let i = 0; i < _changeListeners.length; i++) {
+  for (const listener of _changeListeners) {
     try {
-      _changeListeners[i]();
+      listener();
     } catch (_) {
       /* noop */
     }
@@ -122,19 +122,19 @@ export function persistStore(name: string, store: any): void {
     // live store).
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
       for (const k in saved) {
-        if (!Object.prototype.hasOwnProperty.call(saved, k)) continue;
-        if (!Object.prototype.hasOwnProperty.call(defaults, k)) continue;
+        if (!Object.hasOwn(saved, k)) continue;
+        if (!Object.hasOwn(defaults, k)) continue;
         store.setKey(k, saved[k]);
       }
     }
     // On change, write the diff (only keys that exist in defaults AND
     // differ from them). Same skip-unknown-keys rule.
-    store.subscribe(function (state) {
+    store.subscribe((state) => {
       const diff = {};
       let any = false;
       for (const sk in state) {
-        if (!Object.prototype.hasOwnProperty.call(state, sk)) continue;
-        if (!Object.prototype.hasOwnProperty.call(defaults, sk)) continue;
+        if (!Object.hasOwn(state, sk)) continue;
+        if (!Object.hasOwn(defaults, sk)) continue;
         if (!_equal(state[sk], defaults[sk])) {
           diff[sk] = state[sk];
           any = true;
@@ -147,7 +147,7 @@ export function persistStore(name: string, store: any): void {
   } else {
     // atom() — single value. Saved replaces the whole thing.
     if (saved !== null) store.set(saved);
-    store.subscribe(function (v) {
+    store.subscribe((v) => {
       if (_equal(v, defaults)) _safeRemove(name);
       else _safeSet(name, v);
       _emitChange();
@@ -159,7 +159,7 @@ export function persistStore(name: string, store: any): void {
 // startRenderLoop so consumers see hydrated values during scene build.
 export function attachPersistence(stores: Record<string, any>): void {
   for (const name in stores) {
-    if (Object.prototype.hasOwnProperty.call(stores, name)) {
+    if (Object.hasOwn(stores, name)) {
       persistStore(name, stores[name]);
     }
   }
@@ -198,7 +198,7 @@ export function resetKey(store: any, key?: string): void {
 export function hasAnyOverrides(): boolean {
   if (typeof localStorage === 'undefined') return false;
   for (const name in _DEFAULTS_BY_NAME) {
-    if (!Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) continue;
+    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
     try {
       if (localStorage.getItem(STORAGE_PREFIX + name) != null) return true;
     } catch (_) {
@@ -230,7 +230,7 @@ export function onAnyChange(cb: () => void): () => void {
 // instead of waiting for a page reload.
 export function clearPersistence(): void {
   for (const name in _DEFAULTS_BY_NAME) {
-    if (!Object.prototype.hasOwnProperty.call(_DEFAULTS_BY_NAME, name)) continue;
+    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
     const store = _STORE_BY_NAME[name];
     const defaults = _DEFAULTS_BY_NAME[name];
     if (!store) continue;
@@ -241,7 +241,7 @@ export function clearPersistence(): void {
       !Array.isArray(defaults)
     ) {
       for (const k in defaults) {
-        if (Object.prototype.hasOwnProperty.call(defaults, k)) {
+        if (Object.hasOwn(defaults, k)) {
           store.setKey(k, _clone(defaults[k]));
         }
       }

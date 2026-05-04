@@ -28,27 +28,28 @@ const COPY_FEEDBACK_DURATION_MS = 1500;
  * @param {Function} [opts.onLeftToggle]   fn(hidden:boolean)
  * @param {Function} [opts.onRightToggle]  fn(hidden:boolean)
  */
-export function initAppHeader(opts) {
-  opts = opts || {};
-  const huePalette = opts.huePalette || {};
-  const rootLabel = opts.rootLabel || '';
-  const rootPath = opts.rootPath || '';
-  const onSegmentClick = typeof opts.onSegmentClick === 'function' ? opts.onSegmentClick : null;
-  const onRightToggle = typeof opts.onRightToggle === 'function' ? opts.onRightToggle : null;
-  const onLeftToggle = typeof opts.onLeftToggle === 'function' ? opts.onLeftToggle : null;
+export function initAppHeader(opts: any = {}) {
+  const {
+    huePalette = {},
+    rootLabel = '',
+    rootPath = '',
+    onSegmentClick = null,
+    onRightToggle = null,
+    onLeftToggle = null,
+  } = opts;
 
   const leftBtn = document.getElementById('toggle-left-sidebar');
   const rightBtn = document.getElementById('toggle-right-sidebar');
   const titleEl = document.getElementById('app-title');
   if (!leftBtn || !rightBtn || !titleEl) {
     return {
-      setSelection: function () {},
-      setLeftVisible: function () {},
-      setRightVisible: function () {},
-      isLeftVisible: function () {
+      setSelection() {},
+      setLeftVisible() {},
+      setRightVisible() {},
+      isLeftVisible() {
         return true;
       },
-      isRightVisible: function () {
+      isRightVisible() {
         return true;
       },
     };
@@ -72,11 +73,11 @@ export function initAppHeader(opts) {
   _renderLeftIcon(leftHidden);
   _renderRightIcon(rightHidden);
 
-  leftBtn.addEventListener('click', function () {
+  leftBtn.addEventListener('click', () => {
     _setLeftHidden(!leftHidden);
     if (onLeftToggle) onLeftToggle(leftHidden);
   });
-  rightBtn.addEventListener('click', function () {
+  rightBtn.addEventListener('click', () => {
     _setRightHidden(!rightHidden);
     if (onRightToggle) onRightToggle(rightHidden);
   });
@@ -108,7 +109,7 @@ export function initAppHeader(opts) {
    */
   function setSelection(sel) {
     titleEl.replaceChildren();
-    const hasSel = !!(sel && sel.path && sel.path !== rootPath);
+    const hasSel = !!(sel?.path && sel.path !== rootPath);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection.
@@ -120,7 +121,7 @@ export function initAppHeader(opts) {
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = hasSel ? rootLabel + '/' + sel.path : rootLabel;
+    crumbs.title = hasSel ? `${rootLabel}/${sel.path}` : rootLabel;
 
     // Always lead with the root.
     crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
@@ -129,7 +130,7 @@ export function initAppHeader(opts) {
       const segs = sel.path.split('/').filter(Boolean);
       let acc = '';
       for (let i = 0; i < segs.length; i++) {
-        acc = acc ? acc + '/' + segs[i] : segs[i];
+        acc = acc ? `${acc}/${segs[i]}` : segs[i];
         const isLeaf = i === segs.length - 1;
         const sep = document.createElement('span');
         sep.className = 'app-header-sep';
@@ -167,7 +168,7 @@ export function initAppHeader(opts) {
     seg.className = 'app-header-segment';
     if (isLeaf) seg.classList.add('is-leaf');
     seg.textContent = label;
-    seg.addEventListener('click', function () {
+    seg.addEventListener('click', () => {
       if (onSegmentClick) onSegmentClick(path);
     });
     return seg;
@@ -180,24 +181,24 @@ export function initAppHeader(opts) {
     btn.title = 'Copy path';
     btn.setAttribute('aria-label', 'Copy path');
     btn.appendChild(makeLucideIcon('copy'));
-    btn.addEventListener('click', function () {
+    btn.addEventListener('click', () => {
       _copy(path, btn);
     });
     return btn;
   }
 
   return {
-    setSelection: setSelection,
-    setLeftVisible: function (visible) {
+    setSelection,
+    setLeftVisible(visible) {
       _setLeftHidden(!visible);
     },
-    setRightVisible: function (visible) {
+    setRightVisible(visible) {
       _setRightHidden(!visible);
     },
-    isLeftVisible: function () {
+    isLeftVisible() {
       return !leftHidden;
     },
-    isRightVisible: function () {
+    isRightVisible() {
       return !rightHidden;
     },
   };
@@ -226,12 +227,12 @@ function _copy(text, btn) {
   function flash() {
     if (!btn) return;
     btn.classList.add('is-copied');
-    setTimeout(function () {
+    setTimeout(() => {
       btn.classList.remove('is-copied');
     }, COPY_FEEDBACK_DURATION_MS);
   }
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(flash, function () {
+    navigator.clipboard.writeText(text).then(flash, () => {
       _legacyCopy(text);
       flash();
     });
