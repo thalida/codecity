@@ -1,4 +1,4 @@
-// layout.js — Street/building placement algorithm. Pure data output, no DOM or Three.js.
+// layout.ts — Street/building placement algorithm. Pure data output, no DOM or Three.js.
 //   Building: { x, y, w, d, h, color, file, orient }
 //   Street:   { x, y, w, d, label, dir }
 //
@@ -132,9 +132,9 @@ export function getBuildingDimensions(file, lineStats, byteStats) {
 //
 // `color` starts as null — the renderer must call getBuildingColor before drawing.
 // -----------------------------------------------------------------------------
-export function layoutCity(manifest) {
+export function layoutCity(manifest: any): any {
   const tree = manifest.tree || manifest;
-  const result = { streets: [], buildings: [], paths: [] };
+  const result: any = { streets: [], buildings: [], paths: [] };
 
   // Compute the project's own ranges once and stash on `result` so the
   // recursion below can pass them to every getBuildingDimensions call
@@ -255,7 +255,7 @@ function _markJoinSides(streets) {
 // street edge); `pathWidth` is the caller-provided per-building width
 // (= building.w × PATH_WIDTH_FRAC; also drives door size — see engine.js).
 // -----------------------------------------------------------------------------
-function _pathForBuilding(b, pathWidth, pathLength) {
+function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
   if (b.orient === BUILDING_ORIENT.SOUTH) {
     return {
       x: b.x,

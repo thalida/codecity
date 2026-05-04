@@ -1,4 +1,4 @@
-// colors.js — HSL mapping from file metadata.
+// colors.ts — HSL mapping from file metadata.
 //   Hue        → file extension  (palette, deterministic hash for unknowns)
 //   Saturation → creation age    (newer = vivid, older = faded)
 //   Lightness  → last modified   (recent = bright, untouched = dim)
@@ -20,7 +20,7 @@ import { BUILDING_PALETTE } from '../config/index.js';
  * @param {Object} palette   - Map of extension → hue from defaults.js.
  * @returns {number} Integer hue in [0, 359].
  */
-export function getHue(extension, palette) {
+export function getHue(extension: string, palette: Record<string, number>): number {
   // Direct palette lookup
   if (palette && Object.prototype.hasOwnProperty.call(palette, extension)) {
     return palette[extension];
@@ -49,7 +49,17 @@ export function getHue(extension, palette) {
  * @param {Object}      config      - { min: number, max: number } (e.g. { min: 20, max: 100 }).
  * @returns {number} Saturation percentage, clamped to [config.min, config.max].
  */
-export function getSaturation(createdDate, minDate, maxDate, config) {
+interface MinMaxRange {
+  min: number;
+  max: number;
+}
+
+export function getSaturation(
+  createdDate: string | null,
+  minDate: string | null,
+  maxDate: string | null,
+  config: MinMaxRange
+): number {
   // Fallback: no date available → mid-point of the configured range
   if (!createdDate) {
     return Math.round((config.min + config.max) / 2);
@@ -88,7 +98,12 @@ export function getSaturation(createdDate, minDate, maxDate, config) {
  * @param {Object}      config       - { min: number, max: number } (e.g. { min: 25, max: 70 }).
  * @returns {number} Lightness percentage, clamped to [config.min, config.max].
  */
-export function getLightness(modifiedDate, minDate, maxDate, config) {
+export function getLightness(
+  modifiedDate: string | null,
+  minDate: string | null,
+  maxDate: string | null,
+  config: MinMaxRange
+): number {
   // Fallback: no date available → mid-point of the configured range
   if (!modifiedDate) {
     return Math.round((config.min + config.max) / 2);
@@ -125,37 +140,32 @@ export function getLightness(modifiedDate, minDate, maxDate, config) {
  * @returns {{ createdMin: string|null, createdMax: string|null,
  *             modifiedMin: string|null, modifiedMax: string|null }}
  */
-export function getDateRanges(manifestTree) {
-  let createdMin = null;
-  let createdMax = null;
-  let modifiedMin = null;
-  let modifiedMax = null;
+export interface DateRangeStrings {
+  createdMin: string | null;
+  createdMax: string | null;
+  modifiedMin: string | null;
+  modifiedMax: string | null;
+}
 
-  /**
-   * Compare two ISO-8601 strings and return the earlier one.
-   * Null values are ignored (non-null always wins).
-   */
-  function earlier(a, b) {
+export function getDateRanges(manifestTree: any): DateRangeStrings {
+  let createdMin: string | null = null;
+  let createdMax: string | null = null;
+  let modifiedMin: string | null = null;
+  let modifiedMax: string | null = null;
+
+  function earlier(a: string | null, b: string | null): string | null {
     if (!a) return b;
     if (!b) return a;
     return a < b ? a : b;
   }
 
-  /**
-   * Compare two ISO-8601 strings and return the later one.
-   * Null values are ignored (non-null always wins).
-   */
-  function later(a, b) {
+  function later(a: string | null, b: string | null): string | null {
     if (!a) return b;
     if (!b) return a;
     return a > b ? a : b;
   }
 
-  /**
-   * Recursively visit every node in the tree.
-   * @param {Object} node - A file or directory node.
-   */
-  function visit(node) {
+  function visit(node: any): void {
     if (node.type === 'file') {
       // Prefer git dates, fall back to filesystem dates
       const created = (node.git && node.git.created) || node.created || null;
@@ -195,7 +205,7 @@ export function getDateRanges(manifestTree) {
  * @param {Object} dateRanges - Output of getDateRanges().
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
-export function getBuildingColor(file, dateRanges) {
+export function getBuildingColor(file: any, dateRanges: DateRangeStrings): string {
   // Prefer git dates, fall back to filesystem dates
   const created = (file.git && file.git.created) || file.created || null;
   const modified = (file.git && file.git.modified) || file.modified || null;

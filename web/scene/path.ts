@@ -1,4 +1,4 @@
-// path.js — Pure helpers for the "path from gem to selection" line.
+// path.ts — Pure helpers for the "path from gem to selection" line.
 // Extracted from main.js so it can be tested in isolation. No DOM, no
 // Three.js scene access — just data → data.
 
@@ -7,7 +7,7 @@
 //   "src/scene/colors.js" → "src/scene"
 //   "src"                 → "."
 //   "."                   → null
-export function parentDirPath(p) {
+export function parentDirPath(p: string | null | undefined): string | null {
   if (!p || p === '.' || p === '') return null;
   const idx = p.lastIndexOf('/');
   return idx >= 0 ? p.slice(0, idx) : '.';
@@ -19,8 +19,11 @@ export function parentDirPath(p) {
 // ROOT-FIRST order. `streetsByDirPath` is a map from directory path to its
 // street object (each street has at minimum {x, y, length, width,
 // orientation, dir}). Streets not present in the map are skipped silently.
-export function streetChainForDirPath(dirPath, streetsByDirPath) {
-  const chain = [];
+export function streetChainForDirPath(
+  dirPath: string | null,
+  streetsByDirPath: Record<string, any>
+): any[] {
+  const chain: any[] = [];
   let p = dirPath;
   while (p != null) {
     const s = streetsByDirPath[p];
@@ -35,7 +38,11 @@ export function streetChainForDirPath(dirPath, streetsByDirPath) {
 // The far end of `street`'s centerline — the cap-center coordinate
 // FARTHER from (awayFromX, awayFromZ). Used to extend the path line
 // across the selected street's full remaining length.
-export function streetEndOpposite(street, awayFromX, awayFromZ) {
+export function streetEndOpposite(
+  street: any,
+  awayFromX: number,
+  awayFromZ: number
+): { x: number; z: number } {
   const halfL = street.length / 2;
   const halfW = street.width / 2;
   if (street.orientation === 'x') {
@@ -63,7 +70,11 @@ export function streetEndOpposite(street, awayFromX, awayFromZ) {
 // `gem` shape: { x, z }
 //
 // Returns []if sel/gem missing or chain is empty.
-export function computePathPoints(sel, gem, streetsByDirPath) {
+export function computePathPoints(
+  sel: any,
+  gem: { x: number; z: number } | null | undefined,
+  streetsByDirPath: Record<string, any>
+): Array<{ x: number; z: number }> {
   if (!sel || !gem) return [];
   const dirPath = sel.kind === 'directory' ? sel.dir.path : parentDirPath(sel.file.path);
   if (dirPath == null) return [];
@@ -71,7 +82,7 @@ export function computePathPoints(sel, gem, streetsByDirPath) {
   const chain = streetChainForDirPath(dirPath, streetsByDirPath);
   if (chain.length === 0) return [];
 
-  const pts = [];
+  const pts: Array<{ x: number; z: number }> = [];
   pts.push({ x: gem.x, z: gem.z });
 
   for (let i = 0; i < chain.length; i++) {
