@@ -372,11 +372,20 @@ export function createCityScene(canvas) {
 
     _emit(beforeChangeCbs, prev);
 
-    // Phase 1 keeps the simple "dispose old, build new" behavior. The
-    // animator (commit 9) will refactor this to keep dying meshes
-    // around briefly while their exit tweens play out. The diff is
-    // computed AFTER the new build (against `prev`) so the animator can
-    // still match by path even though the old meshes are gone.
+    // Capture old building transforms BEFORE disposal so the animator
+    // can tween "staying" meshes from their old position to the new
+    // one without a snap. Keyed by file.path — stable across rebuilds.
+    var prevBuildingTransforms = {};
+    for (var pi = 0; pi < buildingMeshes.length; pi++) {
+      var pm = buildingMeshes[pi];
+      var pf = pm.userData.building && pm.userData.building.file;
+      if (pf && pf.path != null) {
+        prevBuildingTransforms[pf.path] = {
+          position: pm.position.clone(),
+          scaleY:   pm.scale.y,
+        };
+      }
+    }
 
     _disposeAllManifestState();
 
@@ -424,7 +433,28 @@ export function createCityScene(canvas) {
     _buildLookups();
     _computeRootStreetAndGem();
 
-    _emit(changeCbs, _computeDiff(prev));
+    var diff = _computeDiff(prev);
+    // Attach transform snapshots so the animator can tween from the
+    // previous mesh's resting place. For entering meshes, no prev
+    // exists, so just expose the target. For staying, both.
+    for (var ei = 0; ei < diff.entering.buildings.length; ei++) {
+      var em = diff.entering.buildings[ei].mesh;
+      diff.entering.buildings[ei].newPosition = em.position.clone();
+      diff.entering.buildings[ei].newScaleY   = em.scale.y;
+    }
+    for (var si = 0; si < diff.staying.buildings.length; si++) {
+      var nm = diff.staying.buildings[si].newMesh;
+      var fp = nm.userData.building && nm.userData.building.file && nm.userData.building.file.path;
+      var oldT = fp != null ? prevBuildingTransforms[fp] : null;
+      if (oldT) {
+        diff.staying.buildings[si].oldPosition = oldT.position;
+        diff.staying.buildings[si].oldScaleY   = oldT.scaleY;
+      }
+      diff.staying.buildings[si].newPosition = nm.position.clone();
+      diff.staying.buildings[si].newScaleY   = nm.scale.y;
+    }
+
+    _emit(changeCbs, diff);
   }
 
   function dispose() {

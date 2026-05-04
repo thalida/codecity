@@ -28,6 +28,7 @@ import { NODE_KIND, DOM_IDS, STREET_AXIS } from './constants.js';
 import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
 import { createCameraRig } from './scene/cameraRig.js';
+import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './interaction/picker.js';
 import { createBuildingFader } from './interaction/buildingFader.js';
 import { createOutlineRenderer } from './interaction/outlineRenderer.js';
@@ -107,6 +108,11 @@ function startRenderLoop(canvas, manifest) {
   var pathLineRenderer = createPathLineRenderer({
     canvas: canvas, scene: scene, cityScene: cityScene, picker: picker,
   });
+
+  // Tween queue for entering / staying transitions on cityScene.onChange.
+  // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
+  // material.opacity), so they cannot conflict by construction.
+  var animator = createAnimator({ cityScene: cityScene });
 
   // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
   // Owns the lifecycle of the three component panes and wires picker
@@ -250,6 +256,7 @@ function startRenderLoop(canvas, manifest) {
     // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
+    animator.update(0);                // entering / staying tweens (scale, position)
     fader.update(0);                   // body opacity per fade tier
     outlineRenderer.update(0);         // outline + ghost opacity, hover/selected outlines, rainbow chase
     pathLineRenderer.update(0);        // selection path line rainbow chase
