@@ -3,16 +3,8 @@
 // render loop with orbit/pan/zoom controls and raycast picking.
 
 import * as THREE from 'three';
-import { LineSegments2 }      from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { LineMaterial }       from 'three/addons/lines/LineMaterial.js';
 import { listenKeys } from 'nanostores';
 import './styles.css';
-
-
-// UNIT_BOX_EDGE_POSITIONS lives in scene/cityScene.js (its heaviest user)
-// and is re-imported below for the hover/selected outline meshes that
-// stay in main.js for now.
 
 import * as Config from './config/index.js';
 import {
@@ -21,51 +13,29 @@ import {
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
-  BUILDING_OUTLINE,
-  BUILDING_FADE,
   GEM_ANIMATION,
   GEM_APPEARANCE,
   GEM_SIZING,
   INPUT_TIMING,
-  PATH_LINE,
-  HOVER_PATH_LINE,
-  RAINBOW,
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX
 } from './config/index.js';
-import { attachPersistence } from './config/_persist.js';
-import { NODE_KIND, DOM_IDS, STREET_AXIS, RENDER_ORDERS } from './constants.js';
+import { attachPersistence, persistStore } from './config/_persist.js';
+import { NODE_KIND, DOM_IDS, STREET_AXIS } from './constants.js';
 
-// material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
-// Just below 1.0 so any faded tier flips to true transparency. Internal
-// implementation detail — flipping mat.transparent triggers a shader
-// recompile, so we delay the flip until we're truly under 1.0.
-var OPAQUE_THRESHOLD = 0.999;
-
-// _stepOpacity(cur, target, cfg) — one-frame lerp toward target with a
-// snap-to-target threshold so we don't keep reassigning materials forever
-// once we're effectively at the goal.
-function _stepOpacity(cur, target, cfg) {
-  if (cur === target) return cur;
-  var next = cur + (target - cur) * cfg.LERP_SPEED;
-  if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
-  return next;
-}
 import { regenerateLabelTexture } from './scene/engine.js';
-import { createCityScene, UNIT_BOX_EDGE_POSITIONS } from './scene/cityScene.js';
+import { createCityScene } from './scene/cityScene.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createPicker, PICKER_SELECTION_KEY } from './interaction/picker.js';
-import { persistStore } from './config/_persist.js';
+import { createBuildingFader } from './interaction/buildingFader.js';
+import { createOutlineRenderer } from './interaction/outlineRenderer.js';
+import { createPathLineRenderer } from './interaction/pathLineRenderer.js';
 import { showFileSidebar, showDirSidebar, showEmptySidebar, hideSidebar, humanLanguageFor } from './components/sidebar.js';
 import { initAppHeader } from './components/appHeader.js';
 import { initAppFooter } from './components/appFooter.js';
 import { showLeftSidebar } from './components/leftSidebar.js';
 import { showTooltip, hideTooltip } from './components/tooltip.js';
-import {
-  parentDirPath,
-  computePathPoints
-} from './scene/path.js';
 
 
 function startRenderLoop(canvas, manifest) {
@@ -220,105 +190,29 @@ function startRenderLoop(canvas, manifest) {
   // before this picker resolves it against the freshly-built city.
   var picker = createPicker({ canvas: canvas, camera: camera, cityScene: cityScene });
 
+  // -- 6. Per-frame visual modules ---------------------------------------------
+  // Three siblings, all subscribed to picker / cityScene so they react
+  // to selection / hover / manifest changes on their own. Animate loop
+  // drives them in field-ownership order: fader writes body opacity →
+  // outlineRenderer reads outlineOp/ghostOp from userData and writes
+  // outline + ghost opacity → pathLineRenderer ticks the rainbow chase
+  // on the selection line.
+  var fader            = createBuildingFader({ cityScene: cityScene, picker: picker });
+  var outlineRenderer  = createOutlineRenderer({
+    canvas: canvas, scene: scene, cityScene: cityScene, picker: picker,
+  });
+  var pathLineRenderer = createPathLineRenderer({
+    canvas: canvas, scene: scene, cityScene: cityScene, picker: picker,
+  });
+
   // Click vs. drag: track pointerdown→pointerup with a movement + time threshold.
   var downX = 0, downY = 0, downTime = 0;
 
-  var _orders = RENDER_ORDERS;
-
-  // Hover + selection outlines for buildings: ONE shared mesh per state,
-  // retransformed to whichever building is currently hovered / selected.
-  // LineSegments2 (vs the regular LineSegments) renders as triangle strips
-  // so linewidth can actually be set in pixels — regular WebGL lines are
-  // locked to 1px, which reads as a faint hairline. ~3px feels much more
-  // like a Cities-Skylines selection outline.
-  var _unitEdgesGeo = new LineSegmentsGeometry();
-  _unitEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-
-  var _bo = BUILDING_OUTLINE.get();
-  var hoverLineMat = new LineMaterial({
-    color:      new THREE.Color(_bo.HOVER_COLOR),
-    linewidth:  _bo.WIDTH,
-    transparent: true,
-    opacity:    _bo.HOVER_OPACITY,
-    depthTest:  true,
-    worldUnits: false
-  });
-  hoverLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  var hoverOutline = new LineSegments2(_unitEdgesGeo, hoverLineMat);
-  hoverOutline.visible = false;
-  hoverOutline.renderOrder = _orders.HOVER_OUTLINE;
-  scene.add(hoverOutline);
-
-  // Selected: Line2 outline with per-segment vertex colors so the 12 box
-  // edges show different hues that ROTATE around the wheel each frame —
-  // a chasing-rainbow neon effect. Each segment's start and end share one
-  // hue (so the segment is solid-colored), but neighboring segments are
-  // offset by 1/12 of the wheel.
-  var selectedLineMat = new LineMaterial({
-    vertexColors: true,
-    linewidth:    _bo.WIDTH,
-    transparent:  true,
-    opacity:      _bo.SELECTED_OPACITY,
-    depthTest:    true,
-    worldUnits:   false
-  });
-  selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-
-  // Each outline needs its OWN geometry instance because instance colors
-  // are stored on the geometry, not the material. Hover keeps the shared
-  // geometry; selected gets its own with the color buffer attached.
-  var _selectedEdgesGeo = new LineSegmentsGeometry();
-  _selectedEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-  var _selectedColors = new Float32Array(12 * 6);   // 12 segments × (startRGB + endRGB)
-  for (var ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
-  _selectedEdgesGeo.setColors(_selectedColors);
-  var _selColorBuf = _selectedEdgesGeo.attributes.instanceColorStart.data;
-  var _tmpHsl      = new THREE.Color();
-
-  var selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
-  selectedOutline.visible = false;
-  selectedOutline.renderOrder = _orders.SELECTED_OUTLINE;
-  scene.add(selectedOutline);
-
-  // _dirTreeDistance(file, dir) — tree distance from `file`'s parent
-  // directory to `dir`, measured as edges in the directory tree (LCA
-  // distance). Drives the hover/selected fade tiers:
-  //   0  → file lives directly in dir (the "neighborhood")
-  //   1  → file lives one level up (dir's parent's other files —
-  //         direct ancestor) OR one level down (dir's direct subdir's
-  //         files — direct descendant). Always lies on dir's spine.
-  //   ≥2 → off-spine: cousins (1 up + 1 down), grandparent's files,
-  //         deeper descendants, etc. Gets the outline-only treatment.
-  // Returns Infinity if either input is missing.
-  function _dirTreeDistance(file, dir) {
-    if (!file || !file.path || !dir || dir.path == null) return Infinity;
-    var parent = parentDirPath(file.path);
-    if (parent == null) parent = '.';
-    if (parent === dir.path) return 0;
-    var ap = (parent === '.' || parent === '') ? [] : parent.split('/');
-    var dp = (dir.path === '.' || dir.path === '') ? [] : dir.path.split('/');
-    var lca = 0;
-    while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
-    return (ap.length - lca) + (dp.length - lca);
-  }
-
-  // _setSegHueGradient(segIdx, hueStart, hueEnd) — write a HSL gradient into
-  // segment segIdx's start+end colors. Wraps hue values via mod 1. Caller
-  // is responsible for copying _selectedColors → _selColorBuf.array once
-  // after all segments are written, and flagging needsUpdate.
-  function _setSegHueGradient(segIdx, hueStart, hueEnd) {
-    var rb = RAINBOW.get();
-    var k = segIdx * 6;
-    _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
-    _selectedColors[k]     = _tmpHsl.r;
-    _selectedColors[k + 1] = _tmpHsl.g;
-    _selectedColors[k + 2] = _tmpHsl.b;
-    _tmpHsl.setHSL(((hueEnd   % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
-    _selectedColors[k + 3] = _tmpHsl.r;
-    _selectedColors[k + 4] = _tmpHsl.g;
-    _selectedColors[k + 5] = _tmpHsl.b;
-  }
-
+  // Hover + selected outline meshes, per-building outline + ghost
+  // updates, and the rainbow chase live in interaction/outlineRenderer.js.
+  // The fade-tier decision (which buildings dim, which stay opaque)
+  // lives in interaction/buildingFader.js. The neon path line lives in
+  // interaction/pathLineRenderer.js.
 
   // Sidewalk tint colors. Each street's sidewalk material starts at
   // config.scene.sidewalk; we mutate material.color directly on hover/select
@@ -388,7 +282,6 @@ function startRenderLoop(canvas, manifest) {
   function applyTheme() {
     var sidewalk = SIDEWALK_COLORS.get();
     var sceneCol = SCENE_COLORS.get();
-    var outline  = BUILDING_OUTLINE.get();
 
     // Sidewalk hex caches + every sidewalk mesh's resting color. We update
     // userData.origColor too so a state-driven recolor (hover/selected)
@@ -410,33 +303,13 @@ function startRenderLoop(canvas, manifest) {
     // Scene background (the void behind everything).
     scene.background = new THREE.Color(sceneCol.GROUND);
 
-    // Hover + selected outline overlays.
-    hoverLineMat.color.set(outline.HOVER_COLOR);
-    hoverLineMat.linewidth    = outline.WIDTH;
-    hoverLineMat.opacity      = outline.HOVER_OPACITY;
-    selectedLineMat.linewidth = outline.WIDTH;
-    selectedLineMat.opacity   = outline.SELECTED_OPACITY;
-    // Per-building default outlines (the colored wireframes that fade in
-    // as the building dims out).
-    for (var oi = 0; oi < buildingOutlineMats.length; oi++) {
-      buildingOutlineMats[oi].linewidth = outline.WIDTH;
-    }
-    // Selection path line linewidth + opacity. Both must be applied here so
-    // tweaks land immediately even when no selection change is happening
-    // (without this, opacity only refreshed inside _updatePathLine which
-    // fires on selection change). When no path is visible, _updatePathLine
-    // already sets opacity to 0 — guard so we don't override that.
-    var plCfg = PATH_LINE.get();
-    pathLineMat.linewidth = plCfg.LINEWIDTH;
-    if (pathLine.visible) pathLineMat.opacity = plCfg.OPACITY;
-
-    // Hover preview line — color/linewidth always live; the visibility +
-    // opacity get re-evaluated by _updateHoverPathLine below in case the
-    // ENABLED toggle just flipped.
-    var hplCfg = HOVER_PATH_LINE.get();
-    hoverPathLineMat.color.set(hplCfg.COLOR);
-    hoverPathLineMat.linewidth = hplCfg.LINEWIDTH;
-    _updateHoverPathLine();
+    // Hover/selected outlines + per-building outlines: outlineRenderer
+    // owns those materials.
+    outlineRenderer.refreshMaterials();
+    // Selection path line + hover preview path line: pathLineRenderer
+    // owns those materials and re-evaluates the hover line's visibility
+    // (in case HOVER_PATH_LINE.ENABLED just flipped).
+    pathLineRenderer.refreshMaterials();
 
     // Root gem — edge color + body opacity. Body color is per-vertex
     // (palette baked into the geometry) so we don't recolor it here.
@@ -473,177 +346,12 @@ function startRenderLoop(canvas, manifest) {
     }
   }
 
-  // ---- Neon path line: gem → ... → selection ----
-  // Built from independent line segments (LineSegments2) — one segment
-  // per leg of the path. Tried Line2 (polyline) first but its mitered
-  // bends silently dropped subsequent legs in dynamic updates; segments
-  // are more robust. Per-segment vertex colors cycle through the rainbow
-  // each frame for the same chasing-neon effect as the building outline.
-  var _pl = PATH_LINE.get();
-  var pathLineMat = new LineMaterial({
-    vertexColors: true,
-    linewidth:    _pl.LINEWIDTH,
-    transparent:  true,
-    opacity:      0.0,
-    depthTest:    true,            // buildings occlude the line
-    depthWrite:   false,           // don't pollute depth for later passes
-    worldUnits:   false
-  });
-  pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  var pathLineGeo = new LineSegmentsGeometry();
-  pathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
-  var pathLine = new LineSegments2(pathLineGeo, pathLineMat);
-  pathLine.visible = false;
-  // Render BEFORE labels so labels' alpha-blended text composites cleanly
-  // on top — opaque glyph pixels cover the path while transparent regions
-  // (letter loops in O, D, etc.) still reveal the neon line underneath.
-  pathLine.renderOrder = _orders.PATH_LINE;
-  scene.add(pathLine);
-
-  var pathSegmentCount = 0;            // tracks how many segments are live
-  var _pathColorsBuf   = new Float32Array(0);
-  var _pathHsl         = new THREE.Color();
-
-  // Hover preview path — same chain logic as the rainbow selection line,
-  // but solid (single-color) and faded so it reads as a draft. Drawn at
-  // a slightly lower elevation than PATH_LINE so the rainbow stays on
-  // top when hover and selection overlap (we also explicitly suppress
-  // hover when hover === selection, but the elevation order is the
-  // safety net for any near-misses).
-  var _hpl = HOVER_PATH_LINE.get();
-  var hoverPathLineMat = new LineMaterial({
-    color:        _hpl.COLOR,
-    linewidth:    _hpl.LINEWIDTH,
-    transparent:  true,
-    opacity:      0.0,
-    depthTest:    true,
-    depthWrite:   false,
-    worldUnits:   false
-  });
-  hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-  var hoverPathLineGeo = new LineSegmentsGeometry();
-  hoverPathLineGeo.setPositions([0, 0, 0, 0, 0, 0]);   // placeholder
-  var hoverPathLine = new LineSegments2(hoverPathLineGeo, hoverPathLineMat);
-  hoverPathLine.visible = false;
-  hoverPathLine.renderOrder = _orders.PATH_LINE;       // same layer as PATH_LINE
-  scene.add(hoverPathLine);
-
-  function _updatePathLine() {
-    if (!gemWorldPos || !currentSelection) {
-      pathLine.visible = false;
-      pathLineMat.opacity = 0;
-      pathSegmentCount = 0;
-      return;
-    }
-    var pts = computePathPoints(
-      currentSelection,
-      { x: gemWorldPos.x, z: gemWorldPos.z },
-      streetsByDirPath
-    );
-    if (pts.length < 2) {
-      pathLine.visible = false;
-      pathLineMat.opacity = 0;
-      pathSegmentCount = 0;
-      return;
-    }
-    // LineSegments2 wants PAIRS of vertices — one segment per pair. So
-    // duplicate intermediate points: [p0,p1, p1,p2, p2,p3, ...].
-    var elev = PATH_LINE.get().ELEVATION;
-    var flat = [];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var a = pts[i];
-      var b = pts[i + 1];
-      flat.push(a.x, elev, a.z, b.x, elev, b.z);
-    }
-    // RECREATE the geometry on every update — empirically Three.js's
-    // LineSegmentsGeometry.setPositions can leave stale instance state
-    // when segment count changes between calls (segments silently dropped).
-    if (pathLineGeo && pathLineGeo.dispose) pathLineGeo.dispose();
-    pathLineGeo = new LineSegmentsGeometry();
-    pathLineGeo.setPositions(flat);
-    pathLine.geometry = pathLineGeo;
-
-    pathSegmentCount = pts.length - 1;
-    if (_pathColorsBuf.length !== pathSegmentCount * 6) {
-      _pathColorsBuf = new Float32Array(pathSegmentCount * 6);
-    }
-    pathLine.visible = true;
-    pathLineMat.opacity = PATH_LINE.get().OPACITY;
-  }
-
-  // _updatePathRainbow(t) — per-frame chase: each segment's start+end
-  // hues are offset by 1/N around the wheel; t advances every frame.
-  function _updatePathRainbow(t) {
-    if (!pathLine.visible || pathSegmentCount === 0) return;
-    var rb = RAINBOW.get();
-    var n = pathSegmentCount;
-    for (var s = 0; s < n; s++) {
-      var h1 = ((t + s       / n) % 1 + 1) % 1;
-      var h2 = ((t + (s + 1) / n) % 1 + 1) % 1;
-      _pathHsl.setHSL(h1, rb.SATURATION, rb.LIGHTNESS);
-      _pathColorsBuf[s * 6]     = _pathHsl.r;
-      _pathColorsBuf[s * 6 + 1] = _pathHsl.g;
-      _pathColorsBuf[s * 6 + 2] = _pathHsl.b;
-      _pathHsl.setHSL(h2, rb.SATURATION, rb.LIGHTNESS);
-      _pathColorsBuf[s * 6 + 3] = _pathHsl.r;
-      _pathColorsBuf[s * 6 + 4] = _pathHsl.g;
-      _pathColorsBuf[s * 6 + 5] = _pathHsl.b;
-    }
-    pathLineGeo.setColors(_pathColorsBuf);
-  }
-
-  // _updateHoverPathLine() — preview path: same chain logic as the
-  // selection line, but driven by `currentHover` instead of selection.
-  // Suppressed when (a) the feature is disabled, (b) no hover, (c)
-  // hover is over the gem (no path makes sense), or (d) hover matches
-  // the current selection (the rainbow line already covers it).
-  function _updateHoverPathLine() {
-    var cfg = HOVER_PATH_LINE.get();
-    function hide() {
-      hoverPathLine.visible = false;
-      hoverPathLineMat.opacity = 0;
-    }
-    if (!cfg.ENABLED || !gemWorldPos || !currentHover) return hide();
-    if (currentHover.kind === NODE_KIND.GEM) return hide();
-    if (_isHoverSameAsSelection()) return hide();
-    // currentHover for a file has { kind:'file', file, data }; for a
-    // directory has { kind:'directory', dir } — both shapes are exactly
-    // what computePathPoints accepts, so we pass it through directly.
-    var pts = computePathPoints(
-      currentHover,
-      { x: gemWorldPos.x, z: gemWorldPos.z },
-      streetsByDirPath
-    );
-    if (pts.length < 2) return hide();
-    var elev = cfg.ELEVATION;
-    var flat = [];
-    for (var i = 0; i < pts.length - 1; i++) {
-      var a = pts[i];
-      var b = pts[i + 1];
-      flat.push(a.x, elev, a.z, b.x, elev, b.z);
-    }
-    if (hoverPathLineGeo && hoverPathLineGeo.dispose) hoverPathLineGeo.dispose();
-    hoverPathLineGeo = new LineSegmentsGeometry();
-    hoverPathLineGeo.setPositions(flat);
-    hoverPathLine.geometry = hoverPathLineGeo;
-    hoverPathLine.visible = true;
-    hoverPathLineMat.opacity = cfg.OPACITY;
-  }
-
-  // True when `currentHover` and `currentSelection` point at the same
-  // target (same building mesh OR same street). Used to suppress the
-  // hover preview line when it would just overlap the rainbow one.
-  function _isHoverSameAsSelection() {
-    if (!currentHover || !currentSelection) return false;
-    if (currentHover.kind !== currentSelection.kind) return false;
-    if (currentHover.kind === NODE_KIND.FILE) {
-      return currentHover.mesh === currentSelection.mesh;
-    }
-    if (currentHover.kind === NODE_KIND.DIRECTORY) {
-      return currentHover.street === currentSelection.street;
-    }
-    return false;
-  }
+  // The neon selection path line, the hover preview path line, and the
+  // rainbow chase live in interaction/pathLineRenderer.js. Building-fade
+  // tier logic lives in interaction/buildingFader.js. Hover/selected
+  // outline meshes + per-building outline + ghost updates live in
+  // interaction/outlineRenderer.js. All three subscribe to picker /
+  // cityScene directly and run their own per-frame work via update().
 
   // ---- Selection + hover state (single source of truth) ----
   //
@@ -701,17 +409,10 @@ function startRenderLoop(canvas, manifest) {
   // selectionKey atom, hooked into localStorage by the boot block.
   function _setSelection(sel) { picker.setSelection(sel); }
 
-  function _onSelectionChanged(sel, prev) {
-    if (prev && prev.kind === NODE_KIND.FILE) {
-      selectedOutline.visible = false;
-    }
-    if (sel && sel.kind === NODE_KIND.FILE) {
-      _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
-      selectedOutline.visible = true;
-    }
+  function _onSelectionChanged(sel, _prev) {
+    // outlineRenderer + pathLineRenderer subscribe to picker directly;
+    // they own the outline visibility and path-line geometry.
     _refreshSidewalkTints();
-    _updatePathLine();
-    _updateHoverPathLine();   // selection change can flip the same-as-selection suppression
     _syncTreeSelection(sel);
 
     // Sitewide header mirrors the selection
@@ -770,17 +471,11 @@ function startRenderLoop(canvas, manifest) {
   // _onHoverChanged below, wired via picker.hover.subscribe.
   function _setHover(h) { picker.setHover(h); }
 
-  function _onHoverChanged(h, prev) {
-    if (prev && prev.kind === NODE_KIND.FILE) {
-      hoverOutline.visible = false;
-    }
-    if (h && h.kind === NODE_KIND.FILE &&
-        (!currentSelection || currentSelection.mesh !== h.mesh)) {
-      _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
-      hoverOutline.visible = true;
-    }
+  function _onHoverChanged(h, _prev) {
+    // outlineRenderer + pathLineRenderer subscribe to picker.hover
+    // directly; they own the hover outline visibility and hover
+    // preview path line.
     _refreshSidewalkTints();
-    _updateHoverPathLine();
     _syncTreeHover(h);
   }
 
@@ -806,15 +501,6 @@ function startRenderLoop(canvas, manifest) {
   // sidebar has been built, so start as a no-op and replace once the
   // sidebar's api is available.
   var _syncTreeHover = function () {};
-
-  // _syncOutlineToBuilding(outline, mesh, b, scaleFactor=1) — match outline's
-  // transform to a building's CURRENT visual size. scaleFactor > 1 expands
-  // outward for the "halo" outline that sits just outside the building edges.
-  function _syncOutlineToBuilding(outline, mesh, b, scaleFactor) {
-    var s = scaleFactor || 1;
-    outline.scale.set(b.w * s, b.h * mesh.scale.y * s, b.d * s);
-    outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
-  }
 
   // Double-click + F dispatch by what's under the cursor:
   //   - building → frame the door face head-on
@@ -973,14 +659,9 @@ function startRenderLoop(canvas, manifest) {
     var ch = canvas.clientHeight;
     camera.aspect = cw / Math.max(1, ch);
     camera.updateProjectionMatrix();
-    // LineMaterial.resolution must match viewport for pixel-accurate width.
-    hoverLineMat.resolution.set(cw, ch);
-    selectedLineMat.resolution.set(cw, ch);
-    pathLineMat.resolution.set(cw, ch);
-    hoverPathLineMat.resolution.set(cw, ch);
-    for (var rmi = 0; rmi < buildingOutlineMats.length; rmi++) {
-      buildingOutlineMats[rmi].resolution.set(cw, ch);
-    }
+    // LineMaterial.resolution updates live in each renderer module.
+    outlineRenderer.onResize();
+    pathLineRenderer.onResize();
     // Paint the resized canvas synchronously so the browser doesn't show
     // a blank/cleared frame between the resize and the next animate() tick.
     renderer.render(scene, camera);
@@ -1123,235 +804,16 @@ function startRenderLoop(canvas, manifest) {
   var labelRight = new THREE.Vector3();
 
   // _updateXRayAndOutlines() — runs every frame. Two jobs:
-  //   1. X-ray: while a building is focused, fade ANY building whose
-  //      screen-space silhouette overlaps the focused building's silhouette
-  //      AND is closer to the camera. This catches every visually-blocking
-  //      building, regardless of where they sit in 3D — much more robust
-  //      than ray sampling, which misses obstructors that don't happen to
-  //      lie on the test rays.
-  //   2. Outlines: keep hover + selected outlines synced to their mesh's
-  //      current visual size.
-  function _updateXRayAndOutlines() {
-    // CRITICAL: refresh world matrices before projecting. controls.update()
-    // moved the camera but matrixWorldInverse is stale until renderer.render
-    // runs at end-of-frame. Without this, .project() returns wrong NDC and
-    // the screen-space obstructor test misses everything.
+  function animate() {
+    rig.update(0);                     // first-call: bbox-frames camera
+    // Per-frame world-matrix refresh. controls.update() moves the camera
+    // but matrixWorldInverse is stale until renderer.render runs; modules
+    // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
-
-    // ---- 1. Visibility ----
-    // Building selected/focused: fade obstructors only (buildings whose
-    //   silhouette overlaps the selected building's silhouette AND are
-    //   closer in NDC depth). Selected stays at 1.0; clear buildings stay
-    //   at 1.0; only obstructors fade.
-    // Street selected: TIERED fade based on directory tree (SimCity 2013
-    //   "data view" pattern):
-    //     direct children files      → 1.00
-    //     descendants (sub-dirs)     → 0.45
-    //     unrelated                  → 0.10
-    // Read fade targets from the unified selection state. Building
-    // selection ALSO triggers tiered fade — the file's parent dir acts
-    // as the "neighborhood" so the user sees siblings + descendants
-    // exactly like a street selection. The selected building itself
-    // stays fully solid on top.
-    var bldgTarget = (currentSelection && currentSelection.kind === NODE_KIND.FILE)
-      ? currentSelection.mesh : null;
-    var dirTarget = null;
-    if (currentSelection) {
-      if (currentSelection.kind === NODE_KIND.DIRECTORY) {
-        dirTarget = currentSelection.dir;
-      } else if (currentSelection.kind === NODE_KIND.FILE) {
-        var parentPath = parentDirPath(currentSelection.file.path);
-        if (parentPath != null) {
-          var parentStreet = streetsByDirPath[parentPath];
-          if (parentStreet) dirTarget = parentStreet.dir;
-        }
-      }
-    }
-    // Hover preview: hovering a street OR a building previews the EXACT
-    // same fade that a click would produce. For a building, the file's
-    // parent dir becomes the dirTarget — same lookup the selection path
-    // uses. Wins over the active selection's dirTarget while hovering,
-    // so the user can see what's down THAT street / around THAT building
-    // before committing; when the mouse leaves, fade snaps back to the
-    // selection.
-    if (currentHover) {
-      if (currentHover.kind === NODE_KIND.DIRECTORY &&
-          currentHover.street && currentHover.street.dir) {
-        dirTarget = currentHover.street.dir;
-      } else if (currentHover.kind === NODE_KIND.FILE && currentHover.file) {
-        var hoverParent = parentDirPath(currentHover.file.path);
-        if (hoverParent != null) {
-          var hoverStreet = streetsByDirPath[hoverParent];
-          if (hoverStreet) dirTarget = hoverStreet.dir;
-        }
-      }
-    }
-    var hoverMesh  = (currentHover && currentHover.kind === NODE_KIND.FILE)
-      ? currentHover.mesh : null;
-
-    // Two faded tiers, both windowless (the GHOST_THRESHOLD below is set
-    // Per-tier style: detail (full / silhouette / hidden) + outline (on/off)
-    // + opacity (overall multiplier). Fetched once per frame.
-    var fadeCfg = BUILDING_FADE.get();
-
-    // Obstruction detection (NDC silhouette overlap) was previously here;
-    // tiered fade alone covers the visibility need, so it was deleted.
-
-    for (var bi = 0; bi < buildingMeshes.length; bi++) {
-      var m = buildingMeshes[bi];
-
-      // Init per-layer lerp state. Each layer (body / ghost / outline)
-      // animates independently toward its tier-derived target; that lets
-      // a tier with detail='silhouette' smoothly fade body→0 + ghost→opacity
-      // when the user makes a new selection.
-      if (m.userData.bodyOp    == null) m.userData.bodyOp    = 1.0;
-      if (m.userData.ghostOp   == null) m.userData.ghostOp   = 0.0;
-      if (m.userData.outlineOp == null) m.userData.outlineOp = 0.0;
-
-      // ---- Decide which tier this building falls into ----
-      var detail, outlineOn, bodyOpacity, outlineOpacity;
-      if (m === bldgTarget) {
-        // Selected file building: always full, opaque, no default outline
-        // (selectedOutline draws the rainbow chasing on its own pass).
-        detail         = 'full';
-        outlineOn      = false;
-        bodyOpacity    = 1.0;
-        outlineOpacity = 0;
-      } else if (dirTarget) {
-        // Tier by directory-tree distance from the building's parent dir
-        // to the selected/hovered dir: 0 = sibling, 1 = one hop, ≥2 = far.
-        var f = m.userData.building && m.userData.building.file;
-        var dist = _dirTreeDistance(f, dirTarget);
-        if (dist === 0) {
-          detail = fadeCfg.DEFAULT_DETAIL;  outlineOn = fadeCfg.DEFAULT_OUTLINE;
-          bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
-          outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-        } else if (dist === 1) {
-          detail = fadeCfg.NEAR_DETAIL;     outlineOn = fadeCfg.NEAR_OUTLINE;
-          bodyOpacity    = fadeCfg.NEAR_BODY_OPACITY;
-          outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
-        } else {
-          detail = fadeCfg.FAR_DETAIL;      outlineOn = fadeCfg.FAR_OUTLINE;
-          bodyOpacity    = fadeCfg.FAR_BODY_OPACITY;
-          outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
-        }
-      } else {
-        // No selection — uniform Default look.
-        detail         = fadeCfg.DEFAULT_DETAIL;
-        outlineOn      = fadeCfg.DEFAULT_OUTLINE;
-        bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
-        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-      }
-
-      // Hover preview: a hovered file building is rendered using the
-      // DEFAULT tier styling regardless of which tier it would otherwise
-      // sit in. Hover acts as a "preview the selection" state — single
-      // source of truth, no separate hover-floor knob.
-      if (m === hoverMesh) {
-        detail         = fadeCfg.DEFAULT_DETAIL;
-        outlineOn      = fadeCfg.DEFAULT_OUTLINE;
-        bodyOpacity    = fadeCfg.DEFAULT_BODY_OPACITY;
-        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-      }
-
-      // ---- Translate (detail, outline, opacities) → per-layer targets ----
-      var bodyTarget    = (detail === 'full')       ? bodyOpacity    : 0;
-      var ghostTarget   = (detail === 'silhouette') ? bodyOpacity    : 0;
-      var outlineTarget = outlineOn                 ? outlineOpacity : 0;
-
-      // Lerp each layer toward its target. SNAP_THRESHOLD lets us stop
-      // animating once we're close enough — saves redundant material updates.
-      m.userData.bodyOp    = _stepOpacity(m.userData.bodyOp,    bodyTarget,    fadeCfg);
-      m.userData.ghostOp   = _stepOpacity(m.userData.ghostOp,   ghostTarget,   fadeCfg);
-      m.userData.outlineOp = _stepOpacity(m.userData.outlineOp, outlineTarget, fadeCfg);
-
-      var b = m.userData.building;
-
-      // ---- Body (textured mesh: walls, windows, doors) ----
-      // Per-material — buildings have one material per face. material.transparent
-      // triggers a shader recompile, so only flip it when it actually changed.
-      var bodyOp = m.userData.bodyOp;
-      var mats = Array.isArray(m.material) ? m.material : [m.material];
-      var bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
-      for (var ki = 0; ki < mats.length; ki++) {
-        var mat = mats[ki];
-        if (mat.transparent !== bodyTransparent) {
-          mat.transparent = bodyTransparent;
-          mat.depthWrite  = !bodyTransparent;
-          mat.needsUpdate = true;
-        }
-        mat.opacity = bodyOp;
-      }
-      m.visible = bodyOp > 0;
-
-      // ---- Outline (per-building wireframe) ----
-      var outline = buildingOutlines[bi];
-      if (outline) {
-        outline.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
-        outline.position.copy(m.position);
-        outline.material.opacity = m.userData.outlineOp;
-        outline.visible = m.userData.outlineOp > 0;
-      }
-
-      // ---- Ghost (windowless solid silhouette) ----
-      // When the silhouette is fully opaque it MUST write depth — same
-      // logic as the body above. Without this, Level 1 / Level 2+ tiers
-      // at body opacity 1.0 look solid but are still transparent under
-      // the hood, letting outlines and labels of buildings BEHIND show
-      // through them.
-      var ghost = buildingGhosts[bi];
-      if (ghost) {
-        ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
-        ghost.position.copy(m.position);
-        var ghostOp = m.userData.ghostOp;
-        var ghostTransparent = ghostOp < OPAQUE_THRESHOLD;
-        if (ghost.material.transparent !== ghostTransparent) {
-          ghost.material.transparent = ghostTransparent;
-          ghost.material.depthWrite  = !ghostTransparent;
-          ghost.material.needsUpdate = true;
-        }
-        ghost.material.opacity = ghostOp;
-        ghost.visible = ghostOp > 0;
-      }
-    }
-
-    // ---- 2. Outlines (sync + flowing rainbow color update) ----
-    if (currentSelection && currentSelection.kind === NODE_KIND.FILE) {
-      _syncOutlineToBuilding(selectedOutline, currentSelection.mesh, currentSelection.data);
-      // Bottom (segments 0-3) and top (4-7) form continuous 4-edge loops
-      // around the box. Each segment gets a START hue matching the previous
-      // segment's END hue, so colors flow seamlessly around the loop. The
-      // shared `t` advances every frame → entire spectrum chases around the
-      // building. Vertical edges (8-11) take a single hue from their
-      // corresponding bottom corner so the verticals colors-match the loop
-      // they connect to.
-      var t = performance.now() * RAINBOW.get().SPEED;
-      _setSegHueGradient(0, t + 0.00, t + 0.25);  // bottom: back  edge
-      _setSegHueGradient(1, t + 0.25, t + 0.50);  // bottom: right edge
-      _setSegHueGradient(2, t + 0.50, t + 0.75);  // bottom: front edge
-      _setSegHueGradient(3, t + 0.75, t + 1.00);  // bottom: left  edge
-      _setSegHueGradient(4, t + 0.00, t + 0.25);  // top:    back  edge
-      _setSegHueGradient(5, t + 0.25, t + 0.50);  // top:    right edge
-      _setSegHueGradient(6, t + 0.50, t + 0.75);  // top:    front edge
-      _setSegHueGradient(7, t + 0.75, t + 1.00);  // top:    left  edge
-      _setSegHueGradient(8,  t + 0.00, t + 0.00); // vertical: back-left
-      _setSegHueGradient(9,  t + 0.25, t + 0.25); // vertical: back-right
-      _setSegHueGradient(10, t + 0.50, t + 0.50); // vertical: front-right
-      _setSegHueGradient(11, t + 0.75, t + 0.75); // vertical: front-left
-      _selColorBuf.array.set(_selectedColors);
-      _selColorBuf.needsUpdate = true;
-    }
-    if (currentHover && currentHover.kind === NODE_KIND.FILE &&
-        (!currentSelection || currentSelection.mesh !== currentHover.mesh)) {
-      _syncOutlineToBuilding(hoverOutline, currentHover.mesh, currentHover.data);
-    }
-  }
-
-  function animate() {
-    rig.update(0);    // also runs first-frame bbox framing on first call
-    _updateXRayAndOutlines();
-    _updatePathRainbow(performance.now() * RAINBOW.get().SPEED);
+    fader.update(0);                   // body opacity per fade tier
+    outlineRenderer.update(0);         // outline + ghost opacity, hover/selected outlines, rainbow chase
+    pathLineRenderer.update(0);        // selection path line rainbow chase
     _orientLabelsForCamera(streetLabels, camera, labelRight);
     if (rootGem) {
       var gemAnim = GEM_ANIMATION.get();
