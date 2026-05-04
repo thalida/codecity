@@ -1,4 +1,4 @@
-// scene/effects/pathLineRenderer.js — owns the neon selection path line
+// scene/effects/pathLineRenderer.ts — owns the neon selection path line
 // (gem → selected node, rainbow chasing) and the faded hover-preview
 // path line (gem → hovered node).
 //
@@ -17,7 +17,17 @@ import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '../../config/index.js';
 import { NODE_KIND, RENDER_ORDERS } from '../../constants.js';
 import { computePathPoints } from '../path.js';
 
-export function createPathLineRenderer({ canvas, scene, cityScene, picker }) {
+export function createPathLineRenderer({
+  canvas,
+  scene,
+  cityScene,
+  picker,
+}: {
+  canvas: HTMLCanvasElement;
+  scene: any;
+  cityScene: any;
+  picker: any;
+}) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = PATH_LINE.get();
   const pathLineMat = new LineMaterial({

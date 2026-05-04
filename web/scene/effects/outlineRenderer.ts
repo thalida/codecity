@@ -1,4 +1,4 @@
-// scene/effects/outlineRenderer.js — owns:
+// scene/effects/outlineRenderer.ts — owns:
 //   • the shared hover outline mesh (sky-blue Line2 box around hovered building)
 //   • the shared selected outline mesh (rainbow-chasing Line2 box)
 //   • per-frame application of mesh.userData.{outlineOp, ghostOp} (set
@@ -26,7 +26,17 @@ import { UNIT_BOX_EDGE_POSITIONS } from '../cityScene.js';
 
 const OPAQUE_THRESHOLD = 0.999;
 
-export function createOutlineRenderer({ canvas, scene, cityScene, picker }) {
+export function createOutlineRenderer({
+  canvas,
+  scene,
+  cityScene,
+  picker,
+}: {
+  canvas: HTMLCanvasElement;
+  scene: any;
+  cityScene: any;
+  picker: any;
+}) {
   const _bo = BUILDING_OUTLINE.get();
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
@@ -61,14 +71,16 @@ export function createOutlineRenderer({ canvas, scene, cityScene, picker }) {
   const _selectedColors = new Float32Array(12 * 6); // 12 segments × (startRGB + endRGB)
   for (let ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
   _selectedEdgesGeo.setColors(_selectedColors);
-  const _selColorBuf = _selectedEdgesGeo.attributes.instanceColorStart.data;
+  // The InstancedInterleavedBuffer is exposed as an InterleavedBufferAttribute
+  // here; .data is the underlying typed array. Cast to access it.
+  const _selColorBuf = (_selectedEdgesGeo.attributes.instanceColorStart as any).data;
   const _tmpHsl = new THREE.Color();
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_OUTLINE;
   scene.add(selectedOutline);
 
-  function _setSegHueGradient(segIdx, hueStart, hueEnd) {
+  function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {
     const rb = RAINBOW.get();
     const k = segIdx * 6;
     _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
@@ -81,7 +93,7 @@ export function createOutlineRenderer({ canvas, scene, cityScene, picker }) {
     _selectedColors[k + 5] = _tmpHsl.b;
   }
 
-  function _syncOutlineToBuilding(outline, mesh, b, scaleFactor) {
+  function _syncOutlineToBuilding(outline: any, mesh: any, b: any, scaleFactor?: number): void {
     const s = scaleFactor || 1;
     outline.scale.set(b.w * s, b.h * mesh.scale.y * s, b.d * s);
     outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);

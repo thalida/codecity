@@ -1,4 +1,4 @@
-// scene/effects/buildingFader.js — per-frame opacity tier logic for the
+// scene/effects/buildingFader.ts — per-frame opacity tier logic for the
 // per-building body. Decides which fade tier each building belongs to
 // based on selection/hover state, lerps three opacity layers
 // (body / ghost / outline) toward the tier's targets, and applies
@@ -22,14 +22,14 @@ import { parentDirPath } from '../path.js';
 // Just below 1.0 so any faded tier flips to true transparency.
 const OPAQUE_THRESHOLD = 0.999;
 
-function _stepOpacity(cur, target, cfg) {
+function _stepOpacity(cur: number, target: number, cfg: { LERP_SPEED: number; SNAP_THRESHOLD: number }): number {
   if (cur === target) return cur;
   let next = cur + (target - cur) * cfg.LERP_SPEED;
   if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
   return next;
 }
 
-function _dirTreeDistance(file, dir) {
+function _dirTreeDistance(file: any, dir: any): number {
   if (!file || !file.path || !dir || dir.path == null) return Infinity;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
@@ -41,8 +41,8 @@ function _dirTreeDistance(file, dir) {
   return ap.length - lca + (dp.length - lca);
 }
 
-export function createBuildingFader({ cityScene, picker }) {
-  function _resolveDirTarget(sel, hov) {
+export function createBuildingFader({ cityScene, picker }: { cityScene: any; picker: any }) {
+  function _resolveDirTarget(sel: any, hov: any): any {
     let dirTarget = null;
     if (sel) {
       if (sel.kind === NODE_KIND.DIRECTORY) {
