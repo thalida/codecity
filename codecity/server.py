@@ -1,12 +1,18 @@
-"""Local HTTP server backing the PyWebView window.
+"""Local HTTP server backing the browser-served frontend.
 
-Serves the Vite-built frontend out of `codecity/static/` and the scanned
-manifest at `/api/manifest`. Bound to 127.0.0.1 only — no remote access.
+Serves the Vite-built frontend out of `codecity/static/` and computes a
+scan manifest on demand at `/api/manifest?path=…` (or `?clone=URL` for a
+remote repo). Bound to 127.0.0.1 only — no remote access.
 
-Threading: ``ThreadingHTTPServer`` so the manifest fetch and any
-sub-resource requests don't serialize on each other. The server runs on
-a daemon thread (started by `start_server`) so the main thread can host
-the PyWebView event loop on macOS.
+Threading: ``ThreadingHTTPServer`` so concurrent /api/file fetches and a
+manifest scan don't serialize on each other. The server runs on a daemon
+thread so the main thread can stay responsive (and let Ctrl-C land).
+
+Trust model: every successful manifest scan registers its absolute root
+in ``_State.allowed_roots``. ``/api/file`` then validates that the
+requested file resolves under at least one of those roots. This means a
+client can only fetch files from directories it has previously asked the
+server to scan — there's no global filesystem read.
 """
 
 from __future__ import annotations
@@ -19,6 +25,9 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
+
+from codecity.clone import CloneError, ensure_clone
+from codecity.scan import scan_tree
 
 # Cap individual /api/file responses so a stray symlink to a giant blob
 # doesn't try to load 10 GB into the browser.
@@ -45,11 +54,14 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 class _State:
     """Module-level state shared by every handler instance."""
-    manifest: dict[str, Any] = {}
     static_dir: Path = STATIC_DIR
-    # Absolute path of the directory the user asked us to scan. /api/file
-    # rejects any request whose target resolves outside this root.
-    scan_root: Path | None = None
+    # Every absolute path that has been successfully scanned this session.
+    # /api/file uses this as its trust set.
+    allowed_roots: set[Path] = set()
+    # Serializes clone-or-update so two concurrent manifest requests for
+    # the same URL don't race the working tree. ensure_clone is the cache
+    # itself (filesystem-backed); the lock just keeps it consistent.
+    clone_lock: threading.Lock = threading.Lock()
 
 
 def _send_json(handler: BaseHTTPRequestHandler, status: int, body: Any) -> None:
@@ -61,21 +73,81 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: Any) -> None:
     handler.wfile.write(payload)
 
 
+def _resolve_clone(url: str, branch: str | None) -> Path:
+    """Clone-or-update under the cache lock so concurrent requests for the
+    same (url, branch) don't trample each other's working tree. Always
+    runs ensure_clone so upstream commits are pulled even on cache hits."""
+    with _State.clone_lock:
+        return ensure_clone(url, branch)
+
+
+def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Compute and return the scan manifest for the requested path or clone."""
+    params = parse_qs(query)
+    raw_path = params.get("path", [""])[0]
+    raw_clone = params.get("clone", [""])[0]
+    raw_branch = params.get("branch", [""])[0] or None
+
+    if raw_clone and raw_path:
+        _send_json(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "pass either 'path' or 'clone', not both"},
+        )
+        return
+    if not raw_clone and not raw_path:
+        _send_json(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "missing 'path' or 'clone' query param"},
+        )
+        return
+
+    if raw_clone:
+        try:
+            target = _resolve_clone(raw_clone, raw_branch)
+        except CloneError as e:
+            _send_json(handler, HTTPStatus.BAD_GATEWAY, {"error": str(e)})
+            return
+        scan_target = target
+    else:
+        try:
+            scan_target = Path(raw_path).resolve(strict=True)
+        except (OSError, RuntimeError):
+            _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "path not found"})
+            return
+        if not scan_target.is_dir():
+            _send_json(
+                handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
+            )
+            return
+
+    try:
+        manifest = scan_tree(str(scan_target))
+    except Exception as e:  # pylint: disable=broad-except
+        _send_json(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"scan failed: {e}"})
+        return
+
+    _State.allowed_roots.add(scan_target.resolve())
+    _send_json(handler, HTTPStatus.OK, manifest)
+
+
 def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
     """Serve a file from the user's filesystem, restricted to paths inside
-    ``_State.scan_root``. Path-traversal and symlink-escape attempts are
-    caught by ``Path.resolve()`` + ``relative_to()``."""
+    any directory that has been successfully scanned this session.
+    Path-traversal and symlink-escape attempts are caught by
+    ``Path.resolve()`` + ``relative_to()``."""
     params = parse_qs(query)
     raw = params.get("path", [""])[0]
     if not raw:
         _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'path' param"})
         return
 
-    if _State.scan_root is None:
+    if not _State.allowed_roots:
         _send_json(
             handler,
-            HTTPStatus.INTERNAL_SERVER_ERROR,
-            {"error": "server not initialized with a scan root"},
+            HTTPStatus.FORBIDDEN,
+            {"error": "no scan root registered yet — fetch /api/manifest first"},
         )
         return
 
@@ -85,10 +157,16 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
         _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "not found"})
         return
 
-    root = _State.scan_root.resolve()
-    try:
-        target.relative_to(root)
-    except ValueError:
+    # Allow if the target is under ANY registered root.
+    inside = False
+    for root in _State.allowed_roots:
+        try:
+            target.relative_to(root)
+        except ValueError:
+            continue
+        inside = True
+        break
+    if not inside:
         _send_json(handler, HTTPStatus.FORBIDDEN, {"error": "outside scan root"})
         return
 
@@ -105,15 +183,14 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
         )
         return
 
-    ctype, _ = mimetypes.guess_type(str(target))
+    guessed, _ = mimetypes.guess_type(str(target))
     # Media types (image/video/audio/pdf) keep their guessed MIME so the
     # browser can hand them to <img>/<video>/<embed> directly. Everything
     # else — including extensionless files (LICENSE, Makefile), shell-only
     # extensions (.gitignore, .env), executables (.sh → application/x-sh),
     # and binaries the user wants to peek at — gets coerced to text/plain
     # so the preview pane renders the bytes as code, IDE-style.
-    if not _is_media(ctype):
-        ctype = "text/plain; charset=utf-8"
+    ctype = guessed if _is_media(guessed) and guessed else "text/plain; charset=utf-8"
 
     body = target.read_bytes()
     handler.send_response(HTTPStatus.OK)
@@ -168,7 +245,7 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         if path == "/api/manifest":
-            _send_json(self, HTTPStatus.OK, _State.manifest)
+            _serve_manifest(self, parsed.query)
             return
 
         if path == "/api/file":
@@ -184,24 +261,23 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def start_server(
-    manifest: dict[str, Any],
     port: int = 0,
     static_dir: Path | None = None,
-    scan_root: Path | None = None,
 ) -> tuple[ThreadingHTTPServer, int, Callable[[], None]]:
     """Start the server on a background daemon thread.
 
     Returns ``(server, bound_port, shutdown_fn)``. ``port=0`` lets the OS
     pick a free port; the bound port is returned so the caller can point
-    the webview at the right URL.
+    the browser at the right URL.
 
-    ``scan_root`` is required if /api/file should serve anything — it's
-    the trust boundary for path validation.
+    The server has no startup state — every manifest is computed on
+    demand from the query params on `/api/manifest`.
     """
     if static_dir is not None:
         _State.static_dir = static_dir
-    _State.manifest = manifest
-    _State.scan_root = scan_root
+    # Each call gets a fresh trust set so tests don't leak roots between
+    # cases. Production only ever calls start_server once per process.
+    _State.allowed_roots = set()
 
     server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
     bound_port = server.server_address[1]

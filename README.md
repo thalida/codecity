@@ -6,35 +6,42 @@ CodeCity visualizes a codebase as an isometric 3D city. Point it at a directory 
 
 ```sh
 uv tool install codecity            # or: pipx install codecity
-codecity /path/to/your/repo
+codecity                            # current directory
+codecity /path/to/your/repo         # any local path
+codecity --clone https://github.com/user/repo.git   # clones into ~/.cache/codecity/
 ```
 
 Your default browser opens to a local URL with the city. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help. Ctrl-C in the terminal to stop the server.
 
+The path being rendered lives in the page URL (`?path=…` or `?clone=…&branch=…`), so you can switch projects without restarting the server by editing the address bar.
+
 ## How it works
 
-- **Scan** — Python walks the tree once, gathers stat + git metadata in memory.
-- **Serve** — A local HTTP server (`127.0.0.1:<random-port>`) hands the manifest to the frontend at `/api/manifest` and streams individual files at `/api/file?path=…` for the in-app preview.
+- **Scan** — Python walks the tree on every `/api/manifest` request, gathering stat + git metadata in memory.
+- **Serve** — A local HTTP server (`127.0.0.1:<random-port>`) computes a fresh manifest per request and streams individual files at `/api/file?path=…` for the in-app preview.
 - **Render** — Your browser loads the bundled three.js renderer from the same server. Nothing leaves your machine.
 
 ## CLI
 
 ```sh
-codecity PATH                       # shorthand for: codecity serve PATH
-codecity serve PATH [--dev] [--port N] [--no-window]
-codecity scan  PATH [--output FILE] # emit the manifest as JSON
+codecity [PATH] [--dev] [--port N] [--no-window]
+codecity serve [PATH] [--clone URL [--branch B]] [--dev] [--port N] [--no-window]
+codecity scan  [PATH] [--output FILE]   # emit the manifest as JSON
 
 codecity --help
 codecity --version
 ```
 
-Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build.
+`PATH` defaults to the current directory. Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build. Pass `--clone URL` (with optional `--branch NAME`) to mirror a remote repo into `~/.cache/codecity/clones/<hash>/` and render that — re-running with the same URL fetches and resets the existing checkout instead of re-cloning.
+
+## Live updates
+
+In the left sidebar's Controls pane, toggle **Updates → Live updates** to make the page reload whenever the scanned tree changes. The poll interval is user-tunable (clamped to 1–60 s). Default off so the server isn't re-walking the tree when you aren't actively editing.
 
 Every subcommand accepts the same scan flags:
 
 | Flag             | Default   | Meaning                                  |
 | ---------------- | --------- | ---------------------------------------- |
-| `--depth N`      | unlimited | Max directory depth                      |
 | `--include PAT`  | —         | Only filenames matching this glob        |
 | `--exclude PAT`  | —         | Skip filenames matching this glob        |
 | `--no-gitignore` | off       | Include files even if `.gitignored`      |
@@ -68,8 +75,8 @@ Tweak any of these live from the in-app Controls pane (left sidebar → gear ico
 Two trees, cleanly separated: Python lives at the repo root, the frontend lives in `web/`.
 
 ```sh
-git clone https://github.com/thalida/codecity-ai.git
-cd codecity-ai
+git clone https://github.com/thalida/codecity.git
+cd codecity
 uv sync                          # python deps  (run from repo root)
 ( cd web && npm install )        # frontend deps
 ( cd web && npm run build )      # → codecity/static/

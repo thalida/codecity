@@ -716,7 +716,7 @@ function createStreetLabels(street) {
   var worldW = worldH * info.aspect;
 
   // Repetition: spacing scales with the label's own rendered width so long
-  // names ("codecity-ai") don't pile up on wide streets while short names
+  // names ("codecity") don't pile up on wide streets while short names
   // ("src") still repeat often enough to always have one near the viewport.
   // A minimum floor keeps tiny labels from repeating every few units.
   var spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);

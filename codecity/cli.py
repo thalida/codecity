@@ -1,12 +1,18 @@
 """codecity CLI.
 
 Commands:
-    codecity PATH [--dev] [...]         shorthand for: codecity serve PATH
-    codecity serve PATH [--dev] [...]   scan, start local server, open browser
-    codecity scan PATH [--output FILE]  debug — emit manifest JSON
+    codecity [PATH] [--dev] [...]              shorthand for: codecity serve [PATH]
+    codecity serve [PATH] [--dev] [...]        start local server, open browser
+    codecity serve --clone URL [--branch B]    clone-or-update, then serve
+    codecity scan PATH [--output FILE]         debug — emit manifest JSON
 
-Pass --dev to spawn Vite (frontend HMR) instead of serving the committed
-static build.
+PATH defaults to the current directory. Pass --dev to spawn Vite (frontend
+HMR) instead of serving the committed static build.
+
+The server itself is path-agnostic — every manifest is computed on demand
+from the page URL's query params (`?path=…` or `?clone=…&branch=…`). The
+CLI's only job here is to start the server and point the browser at the
+right initial URL.
 """
 
 from __future__ import annotations
@@ -21,12 +27,14 @@ import subprocess
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import webbrowser
 from pathlib import Path
 from typing import Optional
 
 from codecity import __version__
+from codecity.clone import CloneError, ensure_clone
 from codecity.scan import scan_tree
 from codecity.server import start_server
 
@@ -46,27 +54,16 @@ _PASSTHROUGH = {"-h", "--help", "--version"}
 
 
 def _add_scan_args(p: argparse.ArgumentParser) -> None:
-    p.add_argument("path", help="Directory to scan.")
-    p.add_argument("--depth", type=int, default=None, help="Max directory depth.")
-    p.add_argument("--include", default=None, help="Only include filenames matching this glob.")
-    p.add_argument("--exclude", default=None, help="Skip filenames matching this glob.")
     p.add_argument(
-        "--no-gitignore",
-        dest="gitignore",
-        action="store_false",
-        help="Include files even if .gitignored.",
+        "path",
+        nargs="?",
+        default=".",
+        help="Directory to scan. Defaults to the current working directory.",
     )
-    p.set_defaults(gitignore=True)
 
 
 def _scan_from_args(args: argparse.Namespace) -> dict:
-    return scan_tree(
-        args.path,
-        depth=args.depth,
-        include=args.include,
-        exclude=args.exclude,
-        gitignore=args.gitignore,
-    )
+    return scan_tree(args.path)
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────
@@ -83,21 +80,44 @@ def cmd_scan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _initial_query(args: argparse.Namespace) -> str:
+    """Build the `?path=…` or `?clone=…&branch=…` query string for the
+    initial browser URL. Resolves clones eagerly so the user gets a clear
+    error in the terminal instead of a silent 502 in the browser."""
+    if args.clone:
+        try:
+            local = ensure_clone(args.clone, args.branch)
+        except CloneError as e:
+            print(f"error: {e}", file=sys.stderr)
+            raise SystemExit(2)
+        print(f"[codecity] clone ready at {local}", file=sys.stderr)
+        params = {"clone": args.clone}
+        if args.branch:
+            params["branch"] = args.branch
+        return "?" + urllib.parse.urlencode(params)
+    abs_path = str(Path(args.path).resolve())
+    return "?" + urllib.parse.urlencode({"path": abs_path})
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     """Default action. With --dev, runs Vite + HMR; otherwise serves the
     committed static build."""
+    if args.clone and args.path != ".":
+        # The default-`.` makes `codecity --clone URL` work, but a user-supplied
+        # path alongside --clone is ambiguous.
+        print("error: pass either PATH or --clone, not both", file=sys.stderr)
+        return 2
+
     if getattr(args, "dev", False):
         return _serve_dev(args)
     return _serve_prod(args)
 
 
 def _serve_prod(args: argparse.Namespace) -> int:
-    """Scan, start the local Python server, open it in the user's browser."""
-    manifest = _scan_from_args(args)
-    scan_root = Path(args.path).resolve()
-
-    _, port, shutdown = start_server(manifest, port=args.port, scan_root=scan_root)
-    url = f"http://127.0.0.1:{port}/"
+    """Start the local Python server, open it in the user's browser."""
+    query = _initial_query(args)
+    _, port, shutdown = start_server(port=args.port)
+    url = f"http://127.0.0.1:{port}/{query}"
     print(f"[codecity] serving on {url}", file=sys.stderr)
 
     if not args.no_window:
@@ -139,12 +159,8 @@ def _serve_dev(args: argparse.Namespace) -> int:
         )
         return 4
 
-    manifest = _scan_from_args(args)
-    scan_root = Path(args.path).resolve()
-
-    _, port, shutdown = start_server(
-        manifest, port=DEFAULT_API_PORT, scan_root=scan_root
-    )
+    query = _initial_query(args)
+    _, port, shutdown = start_server(port=DEFAULT_API_PORT)
     print(f"[codecity] api server on http://127.0.0.1:{port}", file=sys.stderr)
     print(f"[codecity] starting Vite on :{VITE_PORT}…", file=sys.stderr)
 
@@ -176,7 +192,7 @@ def _serve_dev(args: argparse.Namespace) -> int:
     try:
         if not _wait_for_vite(f"http://127.0.0.1:{VITE_PORT}/", vite_proc):
             return 3
-        url = f"http://127.0.0.1:{VITE_PORT}/"
+        url = f"http://127.0.0.1:{VITE_PORT}/{query}"
         if not args.no_window:
             webbrowser.open(url)
         print(f"[codecity] open {url} — Ctrl-C to stop", file=sys.stderr)
@@ -272,8 +288,18 @@ def _build_parser() -> argparse.ArgumentParser:
 
     sub = p.add_subparsers(dest="command")
 
-    p_serve = sub.add_parser("serve", help="Scan, serve, open in browser (default action).")
+    p_serve = sub.add_parser("serve", help="Start the server, open the browser (default action).")
     _add_scan_args(p_serve)
+    p_serve.add_argument(
+        "--clone",
+        default=None,
+        help="Git URL to clone (or update) into ~/.cache/codecity/clones/ instead of using PATH.",
+    )
+    p_serve.add_argument(
+        "--branch",
+        default=None,
+        help="Branch to check out when --clone is used. Defaults to the remote's default branch.",
+    )
     p_serve.add_argument("--port", type=int, default=0, help="HTTP port (0 = OS picks).")
     p_serve.add_argument(
         "--no-window",
@@ -302,9 +328,10 @@ def _build_parser() -> argparse.ArgumentParser:
 def _normalize_argv(argv: list[str]) -> list[str]:
     """If the first arg looks like a path (not a subcommand or top-level
     flag), rewrite to `serve PATH ...` so `codecity .` works as shorthand
-    for `codecity serve .`."""
+    for `codecity serve .`. With no args at all, default to `serve` so
+    `codecity` opens the cwd."""
     if not argv:
-        return argv
+        return ["serve"]
     first = argv[0]
     if first in _SUBCOMMANDS or first in _PASSTHROUGH:
         return argv

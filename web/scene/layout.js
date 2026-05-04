@@ -196,8 +196,6 @@ export function layoutCity(manifest) {
 // its street. Larger directories get wider boulevards.
 // -----------------------------------------------------------------------------
 function _streetWidthForDir(dir) {
-  // Prefer descendants_count (total files+dirs under this node); fall back
-  // to direct children_count for shallow trees / older manifests.
   var count = (dir && (dir.descendants_count || dir.children_count)) || 0;
   return getStreetWidth(count, STREET_TIERS.get());
 }

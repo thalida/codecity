@@ -48,7 +48,10 @@ import {
   INPUT_TIMING,
   PATH_LINE,
   HOVER_PATH_LINE,
-  RAINBOW
+  RAINBOW,
+  LIVE_UPDATES,
+  POLL_SECONDS_MIN,
+  POLL_SECONDS_MAX
 } from './config/index.js';
 import { attachPersistence } from './config/_persist.js';
 import { NODE_KIND, DOM_IDS, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from './constants.js';
@@ -1931,12 +1934,74 @@ function _resizeRendererToCanvas(renderer, canvas) {
 }
 
 
+// Build the /api/manifest URL from the current page's query params.
+// CLI opens the page with either ?path=… or ?clone=…&branch=… so the
+// server knows what to scan; we just forward those through.
+function manifestUrl() {
+  var qp = new URLSearchParams(window.location.search);
+  var u = new URL('/api/manifest', window.location.origin);
+  if (qp.has('clone')) {
+    u.searchParams.set('clone', qp.get('clone'));
+    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
+  } else if (qp.has('path')) {
+    u.searchParams.set('path', qp.get('path'));
+  }
+  return u.toString();
+}
+
+
+// Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
+// re-fetching the manifest at the user-configured interval; when its
+// signature changes vs. the last render, we reload the page so the
+// scene rebuilds against the new state. A full reload is correct and
+// simple — camera/selection aren't persisted across CLI runs anyway,
+// so this stays consistent with that behavior.
+function _clampPollSeconds(s) {
+  if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
+  return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
+}
+
+function setupLiveUpdates(initialSignature) {
+  var lastSignature = initialSignature || '';
+  var timer = null;
+  var inFlight = false;
+
+  function tick() {
+    if (inFlight) return;
+    inFlight = true;
+    fetch(manifestUrl())
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (m) {
+        if (m && m.signature && m.signature !== lastSignature) {
+          // Reload — boot will rerender against the fresh manifest.
+          window.location.reload();
+        }
+      })
+      .catch(function () { /* keep polling on transient errors */ })
+      .finally(function () { inFlight = false; });
+  }
+
+  function start() {
+    stop();
+    var seconds = _clampPollSeconds(LIVE_UPDATES.get().POLL_SECONDS);
+    timer = window.setInterval(tick, seconds * 1000);
+  }
+  function stop() {
+    if (timer != null) { window.clearInterval(timer); timer = null; }
+  }
+
+  LIVE_UPDATES.subscribe(function (val) {
+    if (val.ENABLED) start(); else stop();
+  });
+}
+
+
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
 var _canvas = document.getElementById(DOM_IDS.CANVAS);
 if (_canvas) {
   (async function boot() {
-    var resp = await fetch('/api/manifest');
+    var resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error('manifest fetch failed: ' + resp.status);
     var manifest = await resp.json();
     // Hydrate every config store from localStorage BEFORE scene build so
@@ -1944,5 +2009,6 @@ if (_canvas) {
     // layout/render.
     attachPersistence(Config);
     startRenderLoop(_canvas, manifest);
+    setupLiveUpdates(manifest.signature);
   })();
 }

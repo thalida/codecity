@@ -11,14 +11,14 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/thalida/codecity-ai.git"
+    "url": "git+https://github.com/thalida/codecity.git"
   },
   "license": "AGPL-3.0",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/thalida/codecity-ai/issues"
+    "url": "https://github.com/thalida/codecity/issues"
   },
-  "homepage": "https://github.com/thalida/codecity-ai#readme",
+  "homepage": "https://github.com/thalida/codecity#readme",
   "devDependencies": {
     "jsdom": "^29.0.2",
     "three": "^0.184.0",

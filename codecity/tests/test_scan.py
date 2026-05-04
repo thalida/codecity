@@ -96,28 +96,12 @@ class ScanTreeIntegrationTests(unittest.TestCase):
         self.assertEqual(tree["descendants_count"], 13)
         self.assertGreater(tree["descendants_size"], 0)
 
-    def test_depth_limit_stubs_subdirectories(self):
-        m = scan_tree(str(FIXTURE), depth=1)
-        # Top-level still sees 6 children…
-        self.assertEqual(m["tree"]["children_count"], 6)
-        # …but each subdir is a stub with no children.
-        for child in m["tree"]["children"]:
-            if child["type"] == "directory":
-                self.assertEqual(child["children_count"], 0)
-                self.assertEqual(child["children"], [])
-
-    def test_include_filter(self):
-        m = scan_tree(str(FIXTURE), include="*.ts")
-        names = [n["name"] for n in _walk_files(m["tree"])]
-        self.assertIn("index.ts", names)
-        self.assertNotIn("README.md", names)
-        self.assertNotIn("logo.png", names)
-
-    def test_exclude_filter(self):
-        m = scan_tree(str(FIXTURE), exclude="*.ts")
-        names = [n["name"] for n in _walk_files(m["tree"])]
-        self.assertNotIn("index.ts", names)
-        self.assertIn("README.md", names)
+    def test_signature_present_and_stable(self):
+        m1 = scan_tree(str(FIXTURE))
+        m2 = scan_tree(str(FIXTURE))
+        self.assertIn("signature", m1)
+        self.assertIsInstance(m1["signature"], str)
+        self.assertEqual(m1["signature"], m2["signature"])
 
     def test_git_dates_present_on_tracked_file(self):
         m = scan_tree(str(FIXTURE))
@@ -142,20 +126,15 @@ class ScanTreeIntegrationTests(unittest.TestCase):
                 return
         self.fail("logo.png not found in manifest")
 
-    def test_no_gitignore_includes_untracked(self):
-        # Create an untracked sibling file in the fixture, scan, clean up.
+    def test_untracked_files_excluded_from_git_repo(self):
+        # In a git repo we always honor the tracked set — uncommitted files
+        # don't appear in the manifest.
         untracked = FIXTURE / "untracked-temp.txt"
         untracked.write_text("not tracked")
         try:
-            # with gitignore on → excluded
-            m_on = scan_tree(str(FIXTURE), gitignore=True)
-            on_names = [n["name"] for n in _walk_files(m_on["tree"])]
-            self.assertNotIn("untracked-temp.txt", on_names)
-
-            # with gitignore off → included
-            m_off = scan_tree(str(FIXTURE), gitignore=False)
-            off_names = [n["name"] for n in _walk_files(m_off["tree"])]
-            self.assertIn("untracked-temp.txt", off_names)
+            m = scan_tree(str(FIXTURE))
+            names = [n["name"] for n in _walk_files(m["tree"])]
+            self.assertNotIn("untracked-temp.txt", names)
         finally:
             untracked.unlink(missing_ok=True)
 
