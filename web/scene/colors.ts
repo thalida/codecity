@@ -8,6 +8,25 @@
 
 import { BUILDING_PALETTE } from '../config/index.js';
 
+// Structural shapes match what real Manifest tree / FileNode supply but
+// also accommodate test mocks that omit unrelated fields. Real callers
+// pass full TreeNode / FileNode instances — both are structurally
+// compatible with these.
+interface FileLike {
+  type: string;
+  extension?: string;
+  git?: { created?: string | null; modified?: string | null } | null;
+  created?: string | null;
+  modified?: string | null;
+  // Open shape: real FileNode/DirNode have many other fields the helpers
+  // don't read (name, path, etc). Index signature keeps inline test
+  // mocks structurally compatible.
+  [k: string]: unknown;
+}
+interface TreeNodeLike extends FileLike {
+  children?: TreeNodeLike[];
+}
+
 /**
  * Map a file extension to a hue value (0–359).
  *
@@ -147,7 +166,7 @@ export interface DateRangeStrings {
   modifiedMax: string | null;
 }
 
-export function getDateRanges(manifestTree: any): DateRangeStrings {
+export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
   let createdMin: string | null = null;
   let createdMax: string | null = null;
   let modifiedMin: string | null = null;
@@ -165,7 +184,7 @@ export function getDateRanges(manifestTree: any): DateRangeStrings {
     return a > b ? a : b;
   }
 
-  function visit(node: any): void {
+  function visit(node: TreeNodeLike): void {
     if (node.type === 'file') {
       // Prefer git dates, fall back to filesystem dates
       const created = (node.git && node.git.created) || node.created || null;
@@ -183,7 +202,7 @@ export function getDateRanges(manifestTree: any): DateRangeStrings {
     }
   }
 
-  visit(manifestTree);
+  visit(tree);
 
   return {
     createdMin,
@@ -203,7 +222,7 @@ export function getDateRanges(manifestTree: any): DateRangeStrings {
  * @param {Object} dateRanges - Output of getDateRanges().
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
-export function getBuildingColor(file: any, dateRanges: DateRangeStrings): string {
+export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): string {
   // Prefer git dates, fall back to filesystem dates
   const created = (file.git && file.git.created) || file.created || null;
   const modified = (file.git && file.git.modified) || file.modified || null;

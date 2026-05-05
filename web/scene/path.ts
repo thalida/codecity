@@ -1,6 +1,12 @@
 // path.ts — Pure helpers for the "path from gem to selection" line.
 // Extracted from main.js so it can be tested in isolation. No DOM, no
 // Three.js scene access — just data → data.
+//
+// Types are deliberately STRUCTURAL (only the fields these helpers
+// actually read) so unit tests can pass minimal mock objects without
+// having to construct a full Street / PickTarget. Real callers in the
+// scene module pass full Street / PickTarget instances; structural
+// compatibility makes that work without casts.
 
 // parentDirPath(p) — return the parent directory path for a manifest path.
 // Returns null for root ('.' / ''). Examples:
@@ -13,17 +19,39 @@ export function parentDirPath(p: string | null | undefined): string | null {
   return idx >= 0 ? p.slice(0, idx) : '.';
 }
 
+/** Minimal street shape these helpers read. Real Streets satisfy this. */
+interface StreetLike {
+  x: number;
+  y: number;
+  length: number;
+  width: number;
+  orientation: string;
+}
+
+/**
+ * Minimal selection shape these helpers read. Real PickTargets satisfy
+ * this. `kind` is `string` (not a literal union) so test mocks declared
+ * inline don't need `as const`; we still narrow on the values 'directory'
+ * / 'file' inside the function body.
+ */
+interface SelLike {
+  kind: string;
+  dir?: { path: string };
+  file?: { path: string };
+  data?: { x: number; y: number; w: number; d: number };
+}
+
 // streetChainForDirPath(dirPath, streetsByDirPath) -> street[]
 //
 // Walk the parent chain from `dirPath` up to root, returning the chain in
 // ROOT-FIRST order. `streetsByDirPath` is a map from directory path to its
 // street object (each street has at minimum {x, y, length, width,
 // orientation, dir}). Streets not present in the map are skipped silently.
-export function streetChainForDirPath(
+export function streetChainForDirPath<S extends StreetLike>(
   dirPath: string | null,
-  streetsByDirPath: Record<string, any>
-): any[] {
-  const chain: any[] = [];
+  streetsByDirPath: Record<string, S>
+): S[] {
+  const chain: S[] = [];
   let p = dirPath;
   while (p != null) {
     const s = streetsByDirPath[p];
@@ -39,7 +67,7 @@ export function streetChainForDirPath(
 // FARTHER from (awayFromX, awayFromZ). Used to extend the path line
 // across the selected street's full remaining length.
 export function streetEndOpposite(
-  street: any,
+  street: StreetLike,
   awayFromX: number,
   awayFromZ: number
 ): { x: number; z: number } {
@@ -71,12 +99,19 @@ export function streetEndOpposite(
 //
 // Returns []if sel/gem missing or chain is empty.
 export function computePathPoints(
-  sel: any,
+  sel: SelLike | null | undefined,
   gem: { x: number; z: number } | null | undefined,
-  streetsByDirPath: Record<string, any>
+  streetsByDirPath: Record<string, StreetLike>
 ): Array<{ x: number; z: number }> {
   if (!sel || !gem) return [];
-  const dirPath = sel.kind === 'directory' ? sel.dir.path : parentDirPath(sel.file.path);
+  let dirPath: string | null;
+  if (sel.kind === 'directory' && sel.dir) {
+    dirPath = sel.dir.path;
+  } else if (sel.kind === 'file' && sel.file) {
+    dirPath = parentDirPath(sel.file.path);
+  } else {
+    return [];
+  }
   if (dirPath == null) return [];
 
   const chain = streetChainForDirPath(dirPath, streetsByDirPath);
@@ -99,7 +134,7 @@ export function computePathPoints(
       // Last leg: extend across the selected street's full remaining length.
       const prev = pts[pts.length - 1];
       pts.push(streetEndOpposite(street, prev.x, prev.z));
-    } else {
+    } else if (sel.kind === 'file' && sel.data) {
       // File selection: walk along the street to building's coordinate
       // along the road's long axis, THEN turn 90° to building's road-side
       // edge (NOT centroid — that would tunnel into the building).

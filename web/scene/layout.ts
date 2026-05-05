@@ -7,8 +7,36 @@
 // restore in teardown — keeps the production callsites argument-free.
 
 import { STREET_LAYOUT, STREET_TIERS, BUILDING_DIMENSIONS, GEM_SIZING } from '../config/index.js';
+import type { StreetTier } from '../config/street.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '../types';
+import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '../types';
 import { parentDirPath } from './path.js';
+
+// Structural shapes — kept lenient so test fixtures (which omit fields the
+// helpers don't read, like name/path on intermediate nodes) stay
+// compatible. Real callers pass full Manifest / TreeNode / FileNode
+// instances which structurally satisfy these.
+interface FileLike {
+  type?: string;
+  name?: string;
+  lines?: number;
+  size?: number;
+  [k: string]: unknown;
+}
+interface DirLike {
+  type?: string;
+  name?: string;
+  path?: string;
+  children?: TreeLike[];
+  descendants_count?: number;
+  children_count?: number;
+  [k: string]: unknown;
+}
+type TreeLike = FileLike | DirLike;
+interface ManifestLike {
+  tree?: DirLike;
+  [k: string]: unknown;
+}
 
 // getStreetWidth(count, tiers?) -> number
 //
@@ -17,7 +45,7 @@ import { parentDirPath } from './path.js';
 // Each tier entry is { min_descendants, width }. Walk the list and pick
 // the tier with the highest min_descendants that `count` meets. The last
 // tier (largest min_descendants) acts as the catch-all for big directories.
-export function getStreetWidth(count: number, tiers?: any[]): number {
+export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
   const arr = tiers && tiers.length ? tiers : STREET_TIERS.get();
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
@@ -34,25 +62,27 @@ export function getStreetWidth(count: number, tiers?: any[]): number {
 // → MIN_*, largest → MAX_*) instead of against an absolute global anchor.
 // Empty / degenerate trees return { min: 1, max: 1 } so the renderer never
 // divides by zero.
-export function computeFileStats(tree) {
+export function computeFileStats(tree: TreeLike): { lines: RangeStat; bytes: RangeStat } {
   let minLines = Infinity,
     maxLines = -Infinity;
   let minBytes = Infinity,
     maxBytes = -Infinity;
-  function walk(node) {
+  function walk(node: TreeLike | null | undefined): void {
     if (!node) return;
     if (node.type === NodeKind.File) {
-      if (node.lines && node.lines > 0) {
-        if (node.lines < minLines) minLines = node.lines;
-        if (node.lines > maxLines) maxLines = node.lines;
+      const f = node as FileLike;
+      if (f.lines && f.lines > 0) {
+        if (f.lines < minLines) minLines = f.lines;
+        if (f.lines > maxLines) maxLines = f.lines;
       }
-      if (node.size && node.size > 0) {
-        if (node.size < minBytes) minBytes = node.size;
-        if (node.size > maxBytes) maxBytes = node.size;
+      if (f.size && f.size > 0) {
+        if (f.size < minBytes) minBytes = f.size;
+        if (f.size > maxBytes) maxBytes = f.size;
       }
     }
-    if (node.children) {
-      for (let i = 0; i < node.children.length; i++) walk(node.children[i]);
+    const children = (node as DirLike).children;
+    if (children) {
+      for (let i = 0; i < children.length; i++) walk(children[i]);
     }
   }
   walk(tree);
@@ -64,7 +94,7 @@ export function computeFileStats(tree) {
 
 // computeLineStats(tree) — kept for back-compat with tests that only need
 // the line-count range. New callers should use computeFileStats.
-export function computeLineStats(tree) {
+export function computeLineStats(tree: TreeLike): RangeStat {
   return computeFileStats(tree).lines;
 }
 
@@ -75,7 +105,11 @@ export function computeLineStats(tree) {
 // sqrt to spread the bottom of the range while compressing the long tail;
 // width uses log (file sizes span many orders of magnitude). Without a
 // stats object, the corresponding dimension falls back to MIN_*.
-export function getBuildingDimensions(file: any, lineStats?: any, byteStats?: any): any {
+export function getBuildingDimensions(
+  file: FileLike,
+  lineStats?: RangeStat,
+  byteStats?: RangeStat
+): { w: number; d: number; h: number; floors: number } {
   const dims = BUILDING_DIMENSIONS.get();
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 
@@ -132,9 +166,15 @@ export function getBuildingDimensions(file: any, lineStats?: any, byteStats?: an
 //
 // `color` starts as null — the renderer must call getBuildingColor before drawing.
 // -----------------------------------------------------------------------------
-export function layoutCity(manifest: any): any {
-  const tree = manifest.tree || manifest;
-  const result: any = { streets: [], buildings: [], paths: [] };
+export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
+  const tree = ((manifest as ManifestLike).tree as DirLike | undefined) || (manifest as DirLike);
+  const result: CityLayout = {
+    streets: [],
+    buildings: [],
+    paths: [],
+    lineStats: { min: 1, max: 1 },
+    byteStats: { min: 1, max: 1 },
+  };
 
   // Compute the project's own ranges once and stash on `result` so the
   // recursion below can pass them to every getBuildingDimensions call
@@ -148,7 +188,7 @@ export function layoutCity(manifest: any): any {
   // Mark the root-dir street so the renderer can draw a distinct "start of
   // repo" marker at its origin end.
   for (const street of result.streets) {
-    if (street.dir === tree) {
+    if ((street.dir as unknown) === (tree as unknown)) {
       street.isRoot = true;
       break;
     }
@@ -175,8 +215,8 @@ export function layoutCity(manifest: any): any {
     if (path) {
       // Stamp the building's file so the renderer can match each path
       // mesh back to its parent street's sidewalk for color updates.
-      path.file = bForPath.file;
-      result.paths.push(path);
+      const bp: BuildingPath = { ...path, file: bForPath.file };
+      result.paths.push(bp);
     }
   }
 
@@ -189,7 +229,7 @@ export function layoutCity(manifest: any): any {
 // Maps a directory's descendants to a tier and returns the visual width of
 // its street. Larger directories get wider boulevards.
 // -----------------------------------------------------------------------------
-function _streetWidthForDir(dir) {
+function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
   return getStreetWidth(count, STREET_TIERS.get());
 }
@@ -205,8 +245,13 @@ function _streetWidthForDir(dir) {
 // simpler than trying to track mirror-flag transformations through the
 // recursive layout, and works regardless of negate flags.
 // -----------------------------------------------------------------------------
-function _markJoinSides(streets) {
-  const byPath = {};
+// Streets in this internal helper carry a transient `joinSide` flag stamped
+// after layout. The Street type doesn't model that field (it's only used
+// inside engine.js for cap-style selection), so we widen here.
+type StreetWithJoin = Street & { joinSide?: 'low' | 'high' };
+
+function _markJoinSides(streets: StreetWithJoin[]): void {
+  const byPath: Record<string, StreetWithJoin> = {};
   for (let i = 0; i < streets.length; i++) {
     const s = streets[i];
     if (s.dir && s.dir.path != null) byPath[s.dir.path] = s;
@@ -254,7 +299,11 @@ function _markJoinSides(streets) {
 // street edge); `pathWidth` is the caller-provided per-building width
 // (= building.w × PATH_WIDTH_FRAC; also drives door size — see engine.js).
 // -----------------------------------------------------------------------------
-function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
+function _pathForBuilding(
+  b: Building,
+  pathWidth: number,
+  pathLength: number
+): { x: number; y: number; w: number; d: number } | null {
   if (b.orient === BuildingOrient.South) {
     return {
       x: b.x,
@@ -317,15 +366,15 @@ function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
 // the file is on the secondary side the door is on a hidden face ('n' or 'w').
 // -----------------------------------------------------------------------------
 function _layoutDir(
-  dir,
-  originX,
-  originY,
-  orientation,
-  result,
-  parentStreetWidth,
-  lineStats,
-  byteStats
-) {
+  dir: DirLike,
+  originX: number,
+  originY: number,
+  orientation: StreetAxis,
+  result: { streets: Street[]; buildings: Building[]; paths?: BuildingPath[] },
+  parentStreetWidth: number | undefined,
+  lineStats: RangeStat,
+  byteStats: RangeStat
+): void {
   // User-tunable gaps. Read fresh from the stores each call so tests /
   // runtime mutations take effect without reseating the recursion.
   // Street-packing gaps live in STREET_LAYOUT; the building-to-sidewalk
@@ -386,11 +435,29 @@ function _layoutDir(
   // packed without overlap. Local layout has subdir's street at (0,0) extending
   // in +subOrient. Pass myStreetWidth down so the child's own endPad respects
   // this (parent) street's footprint.
-  const subLayouts = {};
+  const subLayouts: Record<
+    number,
+    {
+      result: { streets: Street[]; buildings: Building[] };
+      bbox: { minX: number; maxX: number; minY: number; maxY: number };
+    }
+  > = {};
   for (let i = 0; i < children.length; i++) {
     if (children[i].type === NodeKind.Directory) {
-      const localResult = { streets: [], buildings: [] };
-      _layoutDir(children[i], 0, 0, subOrient, localResult, myStreetWidth, lineStats, byteStats);
+      const localResult: { streets: Street[]; buildings: Building[] } = {
+        streets: [],
+        buildings: [],
+      };
+      _layoutDir(
+        children[i] as DirLike,
+        0,
+        0,
+        subOrient,
+        localResult,
+        myStreetWidth,
+        lineStats,
+        byteStats
+      );
       subLayouts[i] = {
         result: localResult,
         bbox: _computeBbox(localResult),
@@ -414,13 +481,13 @@ function _layoutDir(
   let alphaCursor = originPad;
   let subdirCount = 0;
   let preferredFileSide = 0;
-  const fileBuildings = [];
+  const fileBuildings: Building[] = [];
 
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
 
     if (child.type === NodeKind.File) {
-      const dim = getBuildingDimensions(child, lineStats, byteStats);
+      const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       const alongStreet = dim.w;
       const perpStreet = dim.d;
       const sideIdx = preferredFileSide;
@@ -462,8 +529,10 @@ function _layoutDir(
         d: bldgD,
         h: dim.h,
         floors: dim.floors,
-        file: child,
-        color: null,
+        file: child as unknown as Building['file'],
+        // color is filled in by cityScene.applyManifest (via getBuildingColor)
+        // before any mesh is created. Layout itself never reads it.
+        color: null as unknown as string,
         orient,
       });
 
@@ -522,7 +591,7 @@ function _layoutDir(
           floors: b.floors,
           file: b.file,
           color: b.color,
-          orient: _mirrorOrient(b.orient, negateX, negateY),
+          orient: _mirrorOrient(b.orient, negateX, negateY) as BuildingOrient,
         });
       }
 
@@ -560,7 +629,7 @@ function _layoutDir(
     width: myStreetWidth,
     orientation,
     label: dir.name || '',
-    dir,
+    dir: dir as unknown as Street['dir'],
   });
 
   for (let bi2 = 0; bi2 < fileBuildings.length; bi2++) {
@@ -576,7 +645,7 @@ function _layoutDir(
 // the building ends up on the opposite side of its own street with its door
 // pointing away.
 // -----------------------------------------------------------------------------
-function _mirrorOrient(orient, negateX, negateY) {
+function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolean): BuildingOrient {
   if (negateX) {
     if (orient === BuildingOrient.East) orient = BuildingOrient.West;
     else if (orient === BuildingOrient.West) orient = BuildingOrient.East;
@@ -594,7 +663,12 @@ function _mirrorOrient(orient, negateX, negateY) {
 // Computes the axis-aligned bounding box (in world or local coords, depending
 // on what the layout is in) covering all streets and buildings.
 // -----------------------------------------------------------------------------
-function _computeBbox(layout) {
+function _computeBbox(layout: { streets: Street[]; buildings: Building[] }): {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+} {
   let minX = Infinity,
     maxX = -Infinity;
   let minY = Infinity,
@@ -646,7 +720,7 @@ function _computeBbox(layout) {
 // Painter's algorithm: sorts buildings so that those further from the viewer
 // (higher x + y sum) are drawn first. Returns a new sorted array.
 // -----------------------------------------------------------------------------
-export function sortForRendering(buildings) {
+export function sortForRendering<T extends { x: number; y: number }>(buildings: T[]): T[] {
   const sorted = buildings.slice();
   sorted.sort((a, b) => {
     // Ascending: lowest x+y drawn first.

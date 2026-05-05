@@ -12,6 +12,9 @@
 import * as THREE from 'three';
 import { INPUT_TIMING } from '../config/index.js';
 import { NodeKind } from '../types';
+import type { PickTarget } from '../types';
+import type { createPicker } from './picker.js';
+import type { createCameraRig } from './cameraRig.js';
 
 export function createInputHandlers({
   canvas,
@@ -25,11 +28,11 @@ export function createInputHandlers({
   onResize,
 }: {
   canvas: HTMLCanvasElement;
-  picker: any;
-  rig: any;
-  renderer: any;
-  camera: any;
-  scene: any;
+  picker: ReturnType<typeof createPicker>;
+  rig: ReturnType<typeof createCameraRig>;
+  renderer: THREE.WebGLRenderer;
+  camera: THREE.PerspectiveCamera;
+  scene: THREE.Scene;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
@@ -50,7 +53,7 @@ export function createInputHandlers({
   let _hoverPending = null;
   let _hoverCommitId = 0;
 
-  function _tooltipForHover(target) {
+  function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;
     if (target.kind === NodeKind.Gem) {
       // Resolve via picker → cityScene only as needed; we don't keep a
@@ -75,12 +78,13 @@ export function createInputHandlers({
     return null;
   }
 
-  function _sameHover(a, b) {
+  function _sameHover(a: PickTarget | null, b: PickTarget | null): boolean {
     if (a === b) return true;
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
-    if (a.kind === NodeKind.File) return a.mesh === b.mesh;
-    if (a.kind === NodeKind.Directory) return a.sidewalk === b.sidewalk;
+    // a.kind === b.kind is established; narrow b alongside a for member access.
+    if (a.kind === NodeKind.File) return a.mesh === (b as typeof a).mesh;
+    if (a.kind === NodeKind.Directory) return a.sidewalk === (b as typeof a).sidewalk;
     if (a.kind === NodeKind.Gem) return true;
     return false;
   }
@@ -126,7 +130,7 @@ export function createInputHandlers({
     }, INPUT_TIMING.get().HOVER_COMMIT_MS);
   }
 
-  function _handlePick(clientX, clientY) {
+  function _handlePick(clientX: number, clientY: number): void {
     const hit = picker.pickAt(clientX, clientY);
     if (!hit) {
       picker.setSelection(null);
@@ -140,7 +144,7 @@ export function createInputHandlers({
     picker.setSelection(picker.interpretHit(hit));
   }
 
-  function _focusAtPointer(clientX, clientY) {
+  function _focusAtPointer(clientX: number, clientY: number): void {
     const hit = picker.pickAt(clientX, clientY);
     if (!hit) return;
     const ud = hit.object.userData;
@@ -160,34 +164,39 @@ export function createInputHandlers({
   }
 
   // ── Bindings ───────────────────────────────────────────────────────
-  let _disposers = [];
-  function _on(target, event, fn) {
+  let _disposers: Array<() => void> = [];
+  // The native EventTarget.addEventListener overloads are tightly typed
+  // by event name; this helper is generic across canvas/document/window
+  // and several event kinds, so the parameter types intentionally widen.
+  function _on(target: EventTarget, event: string, fn: (e: Event) => void): void {
     target.addEventListener(event, fn);
     _disposers.push(() => {
       target.removeEventListener(event, fn);
     });
   }
 
-  _on(canvas, 'pointerdown', (e) => {
-    downX = e.clientX;
-    downY = e.clientY;
+  _on(canvas, 'pointerdown', (e: Event) => {
+    const ev = e as PointerEvent;
+    downX = ev.clientX;
+    downY = ev.clientY;
     downTime = Date.now();
   });
 
-  _on(canvas, 'pointerup', (e) => {
-    if (e.button !== 0) return;
-    const dx = e.clientX - downX;
-    const dy = e.clientY - downY;
+  _on(canvas, 'pointerup', (e: Event) => {
+    const ev = e as PointerEvent;
+    if (ev.button !== 0) return;
+    const dx = ev.clientX - downX;
+    const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
     const input = INPUT_TIMING.get();
     const moveSq = input.CLICK_MOVE_THRESHOLD_PX * input.CLICK_MOVE_THRESHOLD_PX;
     if (dx * dx + dy * dy > moveSq) return;
     if (dtime > input.CLICK_TIME_THRESHOLD_MS) return;
-    _handlePick(e.clientX, e.clientY);
+    _handlePick(ev.clientX, ev.clientY);
   });
 
-  _on(canvas, 'pointermove', (e) => {
-    _hoverLastEvt = e;
+  _on(canvas, 'pointermove', (e: Event) => {
+    _hoverLastEvt = e as PointerEvent;
     if (_hoverRafId) return;
     _hoverRafId = requestAnimationFrame(_processHoverRaf);
   });
@@ -206,26 +215,29 @@ export function createInputHandlers({
     picker.setHover(null);
   });
 
-  _on(canvas, 'dblclick', (e) => {
-    _focusAtPointer(e.clientX, e.clientY);
+  _on(canvas, 'dblclick', (e: Event) => {
+    const ev = e as MouseEvent;
+    _focusAtPointer(ev.clientX, ev.clientY);
   });
 
-  _on(document, 'keydown', (e) => {
-    const tag = (e.target && e.target.tagName) || '';
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || (e.target && e.target.isContentEditable)) return;
+  _on(document, 'keydown', (e: Event) => {
+    const ev = e as KeyboardEvent;
+    const targetEl = ev.target as (HTMLElement & { isContentEditable?: boolean }) | null;
+    const tag = (targetEl && targetEl.tagName) || '';
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || (targetEl && targetEl.isContentEditable)) return;
 
-    if (e.key === 'Escape') {
+    if (ev.key === 'Escape') {
       picker.setSelection(null);
       picker.setHover(null);
-    } else if (e.key === 'r' || e.key === 'R' || e.key === 'Home') {
+    } else if (ev.key === 'r' || ev.key === 'R' || ev.key === 'Home') {
       rig.reset();
-    } else if (e.key === 'f' || e.key === 'F') {
+    } else if (ev.key === 'f' || ev.key === 'F') {
       const sel = picker.selection.get();
       if (!sel) return;
       if (sel.kind === NodeKind.File) {
         rig.focusBuilding(sel.mesh, sel.data);
       } else if (sel.kind === NodeKind.Directory) {
-        rig.focusStreet(sel.street);
+        rig.focusStreet(sel.street, null);
       }
     }
   });

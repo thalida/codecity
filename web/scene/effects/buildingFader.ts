@@ -16,7 +16,10 @@
 
 import { BUILDING_FADE } from '../../config/index.js';
 import { FadeDetail, NodeKind } from '../../types';
+import type { DirNode, FileNode, PickTarget } from '../../types';
 import { parentDirPath } from '../path.js';
+import type { createCityScene } from '../cityScene.js';
+import type { createPicker } from '../picker.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
 // Just below 1.0 so any faded tier flips to true transparency.
@@ -33,7 +36,7 @@ function _stepOpacity(
   return next;
 }
 
-function _dirTreeDistance(file: any, dir: any): number {
+function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
   if (!file || !file.path || !dir || dir.path == null) return Infinity;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
@@ -45,9 +48,15 @@ function _dirTreeDistance(file: any, dir: any): number {
   return ap.length - lca + (dp.length - lca);
 }
 
-export function createBuildingFader({ cityScene, picker }: { cityScene: any; picker: any }) {
-  function _resolveDirTarget(sel: any, hov: any): any {
-    let dirTarget = null;
+export function createBuildingFader({
+  cityScene,
+  picker,
+}: {
+  cityScene: ReturnType<typeof createCityScene>;
+  picker: ReturnType<typeof createPicker>;
+}) {
+  function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {
+    let dirTarget: DirNode | null = null;
     if (sel) {
       if (sel.kind === NodeKind.Directory) {
         dirTarget = sel.dir;
@@ -73,7 +82,7 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
     return dirTarget;
   }
 
-  function update(_dtMs) {
+  function update(_dtMs: number): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
 

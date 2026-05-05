@@ -23,7 +23,10 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { BUILDING_OUTLINE, RAINBOW } from '../../config/index.js';
 import { RENDER_ORDERS } from '../../constants';
 import { NodeKind } from '../../types';
+import type { Building } from '../../types';
 import { UNIT_BOX_EDGE_POSITIONS } from '../cityScene.js';
+import type { createCityScene } from '../cityScene.js';
+import type { createPicker } from '../picker.js';
 
 const OPAQUE_THRESHOLD = 0.999;
 
@@ -34,9 +37,9 @@ export function createOutlineRenderer({
   picker,
 }: {
   canvas: HTMLCanvasElement;
-  scene: any;
-  cityScene: any;
-  picker: any;
+  scene: THREE.Scene;
+  cityScene: ReturnType<typeof createCityScene>;
+  picker: ReturnType<typeof createPicker>;
 }) {
   const _bo = BUILDING_OUTLINE.get();
 
@@ -94,7 +97,12 @@ export function createOutlineRenderer({
     _selectedColors[k + 5] = _tmpHsl.b;
   }
 
-  function _syncOutlineToBuilding(outline: any, mesh: any, b: any, scaleFactor?: number): void {
+  function _syncOutlineToBuilding(
+    outline: LineSegments2,
+    mesh: THREE.Mesh,
+    b: Building,
+    scaleFactor?: number
+  ): void {
     const s = scaleFactor || 1;
     outline.scale.set(b.w * s, b.h * mesh.scale.y * s, b.d * s);
     outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
@@ -121,7 +129,7 @@ export function createOutlineRenderer({
   });
 
   // ── Per-frame ───────────────────────────────────────────────────────
-  function update(_dtMs) {
+  function update(_dtMs: number): void {
     const buildings = cityScene.getBuildings();
     const outlines = cityScene.getBuildingOutlines();
     const ghosts = cityScene.getBuildingGhosts();
@@ -189,7 +197,7 @@ export function createOutlineRenderer({
 
   // applyTheme() coordinator hook: push fresh BUILDING_OUTLINE values
   // into every outline material we own (hover/selected + per-building).
-  function refreshMaterials() {
+  function refreshMaterials(): void {
     const outline = BUILDING_OUTLINE.get();
     hoverLineMat.color.set(outline.HOVER_COLOR);
     hoverLineMat.linewidth = outline.WIDTH;
@@ -204,7 +212,7 @@ export function createOutlineRenderer({
 
   // Window-resize hook. LineMaterial needs the current canvas size for
   // its pixel-based linewidth shader.
-  function onResize() {
+  function onResize(): void {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
     hoverLineMat.resolution.set(w, h);

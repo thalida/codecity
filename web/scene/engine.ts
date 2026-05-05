@@ -20,6 +20,26 @@ import {
 } from '../config/index.js';
 import { RENDER_ORDERS } from '../constants';
 import { BuildingOrient, NodeKind, StreetAxis } from '../types';
+import type { Building, BuildingPath, CityLayout, Street } from '../types';
+
+// Internal-only types for engine helpers.
+interface FacadeOpts {
+  floors: number;
+  cols: number;
+  wallColor: string;
+  slabColor: string;
+  winColor: string;
+  doorColor: string;
+  hasDoor: boolean;
+  faceWorldWidth: number;
+  doorWorldWidth: number;
+}
+interface RoofOpts {
+  roofColor: string;
+  borderColor: string;
+}
+type CapStyle = 'both' | 'low' | 'high';
+type StreetWithJoin = Street & { joinSide?: 'low' | 'high' };
 
 // ─── Renderer-internal constants (not designer-tunable) ────────────────────
 // These shape facade textures, color derivation, and stadium tessellation.
@@ -87,7 +107,7 @@ const LABEL_ANISOTROPY = 16;
 // _toPow2(n) — round n UP to the next power of two. Used so canvas-backed
 // textures get mipmaps (Three.js requires power-of-2 dims for guaranteed
 // mipmap support across all WebGL profiles).
-function _toPow2(n) {
+function _toPow2(n: number): number {
   let p = 1;
   while (p < n) p *= 2;
   return p;
@@ -106,7 +126,7 @@ function _toPow2(n) {
 // The texture is sampled across the full face, so widths/heights in the
 // building mesh are real-world units — the texture stretches to fit.
 // -----------------------------------------------------------------------------
-function _buildFacadeTexture(opts) {
+function _buildFacadeTexture(opts: FacadeOpts): THREE.CanvasTexture {
   const facade = FACADE;
   const floors = opts.floors;
   const cols = opts.cols;
@@ -215,7 +235,7 @@ function _buildFacadeTexture(opts) {
 // A simple texture for the top face: flat roof color with a faint darker
 // border so it reads as a roof slab rather than a featureless cap.
 // -----------------------------------------------------------------------------
-function _buildRoofTexture(opts) {
+function _buildRoofTexture(opts: RoofOpts): THREE.CanvasTexture {
   const facade = FACADE;
   // Roof texture is a small fixed-size pixel canvas — we use the facade
   // anisotropy so roof + walls share the same min/mag filter feel. The
@@ -226,7 +246,7 @@ function _buildRoofTexture(opts) {
   const canvas = document.createElement('canvas');
   canvas.width = 128;
   canvas.height = 128;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d')!;
   ctx.fillStyle = opts.roofColor;
   ctx.fillRect(0, 0, 128, 128);
   ctx.strokeStyle = opts.borderColor;
@@ -256,7 +276,7 @@ function _buildRoofTexture(opts) {
 // `building.file` is attached to `mesh.userData.building` so raycast hits can
 // look the original building object back up.
 // -----------------------------------------------------------------------------
-export function createBuildingMesh(building: any): any {
+export function createBuildingMesh(building: Building): THREE.Mesh {
   const w = building.w;
   const d = building.d;
   const shading = SHADING;
@@ -344,7 +364,13 @@ export function createBuildingMesh(building: any): any {
   // EW faces (east/west walls) span the building's depth `d`; NS faces span
   // its width `w`. faceWorldWidth tells the texture builder how to convert
   // the requested doorWorldWidth into pixels for this face's canvas.
-  function facadeMat(cols, hasDoor, wallColor, slabColor, faceWorldWidth) {
+  function facadeMat(
+    cols: number,
+    hasDoor: boolean,
+    wallColor: string,
+    slabColor: string,
+    faceWorldWidth: number
+  ): THREE.MeshBasicMaterial {
     const tex = _buildFacadeTexture({
       floors,
       cols,
@@ -359,12 +385,12 @@ export function createBuildingMesh(building: any): any {
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
-  function roofMat() {
+  function roofMat(): THREE.MeshBasicMaterial {
     const tex = _buildRoofTexture({ roofColor, borderColor: roofBorder });
     return new THREE.MeshBasicMaterial({ map: tex });
   }
 
-  function bottomMat() {
+  function bottomMat(): THREE.MeshBasicMaterial {
     return new THREE.MeshBasicMaterial({ color: new THREE.Color(wallEW) });
   }
 
@@ -406,7 +432,7 @@ export function createBuildingMesh(building: any): any {
 //
 // Ground planes still `depthTest` so buildings occlude them correctly.
 // -----------------------------------------------------------------------------
-function _flatMat(color, renderOrderLayer) {
+function _flatMat(color: string | number, renderOrderLayer: number): THREE.MeshBasicMaterial {
   const mat = new THREE.MeshBasicMaterial({
     color,
     depthWrite: false,
@@ -437,7 +463,12 @@ function _flatMat(color, renderOrderLayer) {
 // `length`, centered at 0, so the caller's positioning math doesn't
 // change with cap style.
 // -----------------------------------------------------------------------------
-function _buildStadiumGeometry(length, width, orientation, capStyle) {
+function _buildStadiumGeometry(
+  length: number,
+  width: number,
+  orientation: StreetAxis,
+  capStyle: CapStyle
+): THREE.ShapeGeometry {
   capStyle = capStyle || 'both';
   // capStyle is specified in WORLD-axis terms ('low' = round the world-low
   // end, 'high' = the world-high end). The mesh is rotated -π/2 around X
@@ -493,7 +524,7 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
 // points back to the layout street so raycaster hits can recover the
 // directory this street represents.
 // -----------------------------------------------------------------------------
-function createStreetMesh(street, yBase) {
+function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
   const asphaltCfg = ASPHALT.get();
   const sidewalkCfg = SIDEWALK_COLORS.get();
   const group = new THREE.Group();
@@ -513,7 +544,7 @@ function createStreetMesh(street, yBase) {
   // each non-root street with `joinSide` ('low' | 'high') after layout.
   // Same capStyle is passed to BOTH sidewalk + asphalt so their flat ends
   // line up and the visible sidewalk strip stays uniform around the cap.
-  let capStyle;
+  let capStyle: CapStyle;
   if (street.isRoot) capStyle = 'both';
   else if (street.joinSide === 'high')
     capStyle = 'low'; // round the low/open end
@@ -564,7 +595,7 @@ function createStreetMesh(street, yBase) {
 // saturation hues spaced around the color wheel so no face blends with
 // nearby building colors and the gem reads as an unambiguous "root"
 // beacon regardless of what's around it.
-function createRootGem(street) {
+function createRootGem(street: Street): THREE.Group {
   const sizing = GEM_SIZING.get();
   const appearance = GEM_APPEARANCE.get();
   const edgeColor = appearance.EDGE_COLOR;
@@ -587,8 +618,8 @@ function createRootGem(street) {
   // Gem hovers at the center of the road's origin-end cap. For a stadium of
   // length L and width W, the origin cap circle is centered at a distance
   // W/2 inward from the tip.
-  let gemX, gemZ;
-  if (street.orientation === 'x') {
+  let gemX: number, gemZ: number;
+  if (street.orientation === StreetAxis.X) {
     gemX = street.x - street.length / 2 + street.width / 2;
     gemZ = street.y;
   } else {
@@ -650,7 +681,10 @@ function createRootGem(street) {
 // street. Sits between the sidewalk and asphalt layers via polygonOffset so
 // it doesn't z-fight at intersections with either.
 // -----------------------------------------------------------------------------
-function createPathMesh(path, yBase) {
+function createPathMesh(
+  path: BuildingPath,
+  yBase: number
+): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
   // Paths sit between sidewalks and asphalts so they extend the sidewalk
   // all the way to the building without overdrawing the asphalt.
   const pathOrder = RENDER_ORDERS.PATH_CONNECTOR;
@@ -686,34 +720,35 @@ function createPathMesh(path, yBase) {
 // FILL/STROKE colors are fine, but font-size / padding / stroke-width
 // changes the texture aspect, which would also need a plane geometry
 // update (those keys stay rebuild-required).
-export function regenerateLabelTexture(group: any): void {
+export function regenerateLabelTexture(group: THREE.Group): void {
   const street = group && group.userData && group.userData.street;
   if (!street || !street.label) return;
-  const plane = group.children && group.children[0];
+  const plane = group.children && (group.children[0] as THREE.Mesh);
   if (!plane || !plane.material) return;
-  if (plane.material.map) plane.material.map.dispose();
+  const mat = plane.material as THREE.MeshBasicMaterial;
+  if (mat.map) mat.map.dispose();
   const info = _buildLabelTexture(street.label);
-  plane.material.map = info.texture;
-  plane.material.needsUpdate = true;
+  mat.map = info.texture;
+  mat.needsUpdate = true;
   group.userData.textureAspect = info.aspect;
 }
 
-function _buildLabelTexture(text) {
+function _buildLabelTexture(text: string): { texture: THREE.CanvasTexture; aspect: number } {
   // High source resolution so close-zoom doesn't reveal bilinear blur.
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
   const label = LABEL_TYPOGRAPHY.get();
   const fontSpec = `${label.FONT_WEIGHT} ${label.FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
-  const measure = document.createElement('canvas').getContext('2d');
+  const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
   const textW = Math.ceil(measure.measureText(text).width);
   const canvas = document.createElement('canvas');
   canvas.width = textW + label.CANVAS_PADDING_PX * 2;
   canvas.height = label.FONT_SIZE_PX + label.CANVAS_PADDING_PX * 2;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d')!;
   ctx.font = fontSpec;
-  ctx.textAlign = LABEL_TEXT_ALIGN;
-  ctx.textBaseline = LABEL_TEXT_BASELINE;
+  ctx.textAlign = LABEL_TEXT_ALIGN as CanvasTextAlign;
+  ctx.textBaseline = LABEL_TEXT_BASELINE as CanvasTextBaseline;
 
   ctx.lineWidth = label.STROKE_WIDTH_PX;
   ctx.strokeStyle = label.STROKE;
@@ -727,7 +762,7 @@ function _buildLabelTexture(text) {
   return { texture: tex, aspect: canvas.width / canvas.height };
 }
 
-function createStreetLabels(street) {
+function createStreetLabels(street: Street): THREE.Group[] {
   const text = street.label || '';
   if (!text) return [];
 
@@ -748,7 +783,7 @@ function createStreetLabels(street) {
   const spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);
   const count = Math.max(1, Math.floor(street.length / spacing));
 
-  const labels = [];
+  const labels: THREE.Group[] = [];
   for (let i = 0; i < count; i++) {
     const t = count === 1 ? 0.5 : (i + 0.5) / count;
     const offset = (t - 0.5) * street.length;
@@ -794,7 +829,7 @@ function createStreetLabels(street) {
   return labels;
 }
 
-export function buildCityScene(layout: any): any {
+export function buildCityScene(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of src/defaults.js
   // imported at the top of this module. No per-call config plumbing.
@@ -804,17 +839,18 @@ export function buildCityScene(layout: any): any {
 
   // Streets + their labels
   const streets = layout.streets || [];
-  const streetPickables = [];
-  const asphaltMeshes = [];
-  const streetLabels = [];
-  let rootGem = null;
-  let rootGemBody = null;
-  let rootGemEdges = null;
+  type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  const streetPickables: FlatMesh[] = [];
+  const asphaltMeshes: FlatMesh[] = [];
+  const streetLabels: THREE.Group[] = [];
+  let rootGem: THREE.Group | null = null;
+  let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
+  let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
   for (const street of streets) {
     const sg = createStreetMesh(street, 0);
     scene.add(sg);
-    streetPickables.push(sg.userData.sidewalk);
-    if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt);
+    streetPickables.push(sg.userData.sidewalk as FlatMesh);
+    if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt as FlatMesh);
 
     const labels = createStreetLabels(street);
     for (const label of labels) {
@@ -829,16 +865,22 @@ export function buildCityScene(layout: any): any {
     if (street.isRoot) {
       const gemGroup = createRootGem(street);
       scene.add(gemGroup);
-      rootGem = gemGroup.userData.gem;
+      rootGem = (gemGroup.userData.gem as THREE.Group) || null;
       if (rootGem && rootGem.children) {
-        rootGemBody = rootGem.children[0] || null;
-        rootGemEdges = rootGem.children[1] || null;
+        rootGemBody =
+          (rootGem.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>) ||
+          null;
+        rootGemEdges =
+          (rootGem.children[1] as THREE.LineSegments<
+            THREE.BufferGeometry,
+            THREE.LineBasicMaterial
+          >) || null;
       }
     }
   }
 
   // Paths
-  const pathMeshes = [];
+  const pathMeshes: FlatMesh[] = [];
   const paths = layout.paths || [];
   for (const path of paths) {
     const pm = createPathMesh(path, 0);
@@ -847,10 +889,10 @@ export function buildCityScene(layout: any): any {
   }
 
   // Buildings
-  const buildingMeshes = [];
+  const buildingMeshes: THREE.Mesh[] = [];
   const buildings = layout.buildings || [];
   for (const b of buildings) {
-    if (b.file && b.file.type === 'directory') continue;
+    if (b.file && (b.file.type as string) === 'directory') continue;
     const mesh = createBuildingMesh(b);
     scene.add(mesh);
     buildingMeshes.push(mesh);

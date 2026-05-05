@@ -30,6 +30,8 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '../config/index.js';
 import { STORAGE_KEYS } from '../constants';
 import { BuildingOrient } from '../types';
+import type { Building, Street } from '../types';
+import type { createCityScene } from './cityScene.js';
 
 // _focusBuilding tries head-on, then tilts up if the view is obstructed.
 const SIGHTLINE_STEP_DEG = 20;
@@ -41,7 +43,7 @@ export function createCameraRig({
   cityScene,
 }: {
   canvas: HTMLCanvasElement;
-  cityScene: any;
+  cityScene: ReturnType<typeof createCityScene>;
 }) {
   const perspective = CAMERA_PERSPECTIVE.get();
   const W = canvas.clientWidth;
@@ -68,8 +70,8 @@ export function createCameraRig({
   };
 
   let firstFrame = true;
-  let initialCamPos = null;
-  let initialTarget = null;
+  let initialCamPos: THREE.Vector3 | null = null;
+  let initialTarget: THREE.Vector3 | null = null;
 
   let _saveCameraTimer = 0;
   let _changeListenerAttached = false;
@@ -168,14 +170,18 @@ export function createCameraRig({
     return true;
   }
 
-  function update(_dtMs) {
+  function update(_dtMs: number): void {
     if (firstFrame) {
       if (_frameToBbox()) firstFrame = false;
     }
     controls.update();
   }
 
-  function _animateCamera(newTarget, newCamPos, duration) {
+  function _animateCamera(
+    newTarget: THREE.Vector3,
+    newCamPos: THREE.Vector3,
+    duration: number
+  ): void {
     const token = ++camAnimToken;
     const startTarget = controls.target.clone();
     const startCamPos = camera.position.clone();
@@ -216,7 +222,7 @@ export function createCameraRig({
 
   // Slide pivot to p; camera shifts by the same delta so the visible
   // scene doesn't zoom or rotate, just slides under.
-  function recenterTo(p) {
+  function recenterTo(p: THREE.Vector3): void {
     camera.up.set(0, 1, 0);
     const delta = p.clone().sub(controls.target);
     _animateCamera(
@@ -226,7 +232,11 @@ export function createCameraRig({
     );
   }
 
-  function _isSightClear(camPos, target, focusedMesh) {
+  function _isSightClear(
+    camPos: THREE.Vector3,
+    target: THREE.Vector3,
+    focusedMesh: THREE.Object3D
+  ): boolean {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
@@ -240,12 +250,12 @@ export function createCameraRig({
   // Frame the building's door face head-on. Pivot is the building
   // centroid so subsequent orbit circles around the building. Tries
   // increasing elevations until the sightline is unobstructed.
-  function focusBuilding(mesh, b) {
+  function focusBuilding(mesh: THREE.Object3D, b: Building): void {
     camera.up.set(0, 1, 0);
     const camAnim = CAMERA_ANIMATION.get();
     let doorDX = 0,
       doorDZ = 0,
-      faceW;
+      faceW: number;
     if (b.orient === BuildingOrient.South) {
       doorDZ = 1;
       faceW = b.w;
@@ -276,7 +286,7 @@ export function createCameraRig({
       b.orient === BuildingOrient.East || b.orient === BuildingOrient.West ? b.w / 2 : b.d / 2;
     const newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
 
-    let newCamPos = null;
+    let newCamPos: THREE.Vector3 | null = null;
     for (let attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
       const elev = (attempt * SIGHTLINE_STEP_DEG * Math.PI) / 180;
       const horiz = dist * Math.cos(elev);
@@ -293,13 +303,15 @@ export function createCameraRig({
       newCamPos = candidate;
     }
 
-    _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
+    if (newCamPos) {
+      _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
+    }
   }
 
   // Orient camera so the street runs left-right across the screen and
   // zoom in to a navigable distance. See main.js's original block for
   // the full geometric reasoning — kept verbatim here.
-  function focusStreet(s, hitPoint) {
+  function focusStreet(s: Street, hitPoint: THREE.Vector3 | null): void {
     let tx = s.x,
       tz = s.y;
     if (hitPoint) {

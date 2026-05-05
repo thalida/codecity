@@ -39,6 +39,20 @@ import { parentDirPath } from './path.js';
 import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '../config/index.js';
 import { RENDER_ORDERS } from '../constants';
 import { NodeKind, StreetAxis } from '../types';
+import type { Building, CityLayout, DateRanges, Manifest, Street } from '../types';
+
+// Snapshot of the prior manifest state captured at the top of
+// applyManifest, used by the diff and the change-listener payload.
+interface PrevState {
+  buildings: THREE.Mesh[];
+  streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
+  streetLabels: THREE.Group[];
+  pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
+  asphaltMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
+  rootGem: THREE.Group | null;
+  manifest: Manifest | null;
+  layout: CityLayout | null;
+}
 
 // 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
 // Used by Line2 outlines (rendered as triangle strips so linewidth is
@@ -64,36 +78,52 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   const _ghostBoxGeo = new THREE.BoxGeometry(1, 1, 1);
 
   // Manifest-bound state. Reassigned on each applyManifest.
-  let manifest = null;
-  let layout = null;
-  let dateRanges = null;
-  let bbox = null;
-  let rootStreet = null;
-  let gemWorldPos = null;
+  let manifest: Manifest | null = null;
+  let layout: CityLayout | null = null;
+  let dateRanges: DateRanges | null = null;
+  let bbox: THREE.Box3 | null = null;
+  let rootStreet: Street | null = null;
+  let gemWorldPos: THREE.Vector3 | null = null;
 
-  let buildingMeshes = [];
-  let streetPickables = [];
-  let streetLabels = [];
-  let pathMeshes = [];
-  let asphaltMeshes = [];
-  let rootGem = null;
-  let rootGemBody = null;
-  let rootGemEdges = null;
+  // The flat ground meshes (sidewalks, paths, asphalt) all use single
+  // MeshBasicMaterial; main.ts's color-update path reads
+  // `mesh.material.color` directly. Typing them with a single material
+  // (rather than the default `Material | Material[]`) keeps that
+  // callsite's `.material.color` access working.
+  type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-  let buildingOutlines = [];
-  let buildingOutlineMats = [];
-  let buildingGhosts = [];
+  let buildingMeshes: THREE.Mesh[] = [];
+  let streetPickables: FlatMesh[] = [];
+  let streetLabels: THREE.Group[] = [];
+  let pathMeshes: FlatMesh[] = [];
+  let asphaltMeshes: FlatMesh[] = [];
+  let rootGem: THREE.Group | null = null;
+  // rootGem children expose `.material.{color,opacity}` directly to the
+  // applyTheme code in main.ts; type with single-material variants so
+  // those member accesses remain checked rather than `Material |
+  // Material[]`-shaped.
+  let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
+  let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
 
-  let sidewalksByDirPath = {};
-  let streetsByDirPath = {};
-  let buildingsByPath = {};
-  let pathMeshesByDirPath = {};
+  let buildingOutlines: LineSegments2[] = [];
+  let buildingOutlineMats: LineMaterial[] = [];
+  let buildingGhosts: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] = [];
+
+  let sidewalksByDirPath: Record<string, FlatMesh> = {};
+  let streetsByDirPath: Record<string, Street> = {};
+  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building }> = {};
+  let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Listeners
-  const beforeChangeCbs = [];
-  const changeCbs = [];
 
-  function _emit(arr, payload) {
+  const beforeChangeCbs: Array<(prev: PrevState) => void> = [];
+  // The change diff is structurally complex; consumers (animator, picker,
+  // outlineRenderer, etc.) each look at a different slice. Typed `any`
+  // here, but each consumer narrows it locally.
+
+  const changeCbs: Array<(diff: any) => void> = [];
+
+  function _emit<T>(arr: Array<(p: T) => void>, payload: T): void {
     // Snapshot to allow listeners to unsubscribe themselves mid-emit
     // without disturbing iteration.
     for (const cb of [...arr]) {
@@ -105,7 +135,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     }
   }
 
-  function onBeforeChange(cb) {
+  function onBeforeChange(cb: (prev: PrevState) => void): () => void {
     beforeChangeCbs.push(cb);
     return function unsubscribe() {
       const idx = beforeChangeCbs.indexOf(cb);
@@ -113,7 +143,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     };
   }
 
-  function onChange(cb) {
+  function onChange(cb: (diff: any) => void): () => void {
     changeCbs.push(cb);
     return function unsubscribe() {
       const idx = changeCbs.indexOf(cb);
@@ -124,16 +154,26 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // Generic three.js disposer. Walks geometry → materials → any own
   // property of each material whose value is a THREE.Texture. Idempotent
   // via userData.disposed.
-  function _disposeObject(obj) {
+  function _disposeObject(obj: THREE.Object3D | null): void {
     if (!obj || obj.userData?.disposed) return;
-    if (obj.geometry?.dispose) obj.geometry.dispose();
-    const mats = Array.isArray(obj.material) ? obj.material : obj.material ? [obj.material] : [];
+    // Disposable shape: any object that may carry .geometry / .material
+    // (Mesh, Line, LineSegments2, Group). Use a structural cast since
+    // _disposeObject is intentionally generic across all of them.
+    interface DisposableObj {
+      geometry?: { dispose?: () => void };
+      material?:
+        | { dispose?: () => void; [k: string]: unknown }
+        | Array<{ dispose?: () => void; [k: string]: unknown }>;
+    }
+    const d = obj as unknown as DisposableObj;
+    if (d.geometry?.dispose) d.geometry.dispose();
+    const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
     for (const m of mats) {
       if (!m) continue;
       // Dispose any texture attached to this material.
       for (const key in m) {
         if (!Object.hasOwn(m, key)) continue;
-        const v = m[key];
+        const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
         if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
       }
       if (typeof m.dispose === 'function') m.dispose();
@@ -141,7 +181,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     if (obj.userData) obj.userData.disposed = true;
   }
 
-  function _removeAndDispose(obj) {
+  function _removeAndDispose(obj: THREE.Object3D | null): void {
     if (!obj) return;
     if (obj.parent) obj.parent.remove(obj);
     _disposeObject(obj);
@@ -149,7 +189,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
   // Public idempotent disposal — animator's onComplete calls this when
   // an exit-tween finishes. A second call on the same mesh no-ops.
-  function disposeMesh(mesh) {
+  function disposeMesh(mesh: THREE.Mesh): void {
     if (!mesh || (mesh.userData && mesh.userData.disposed)) return;
     if (mesh.parent) mesh.parent.remove(mesh);
     // For a building mesh, also dispose its paired outline + ghost so
@@ -280,21 +320,39 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // before disposal) using the stable identity {file.path, dir.path,
   // file.path} for buildings/streets/paths. Phase-1 callers may ignore;
   // animator (commit 9) consumes this to drive entry/exit tweens.
-  function _computeDiff(prev) {
-    const prevBuildings = {};
+  function _computeDiff(prev: PrevState) {
+    const prevBuildings: Record<string, THREE.Mesh> = {};
     for (const bm of prev.buildings ?? []) {
       const fp = bm.userData.building?.file?.path;
       if (fp != null) prevBuildings[fp] = bm;
     }
-    const prevStreets = {};
+    const prevStreets: Record<string, THREE.Mesh> = {};
     for (const sw of prev.streetPickables ?? []) {
       const dp = sw.userData.street?.dir?.path;
       if (dp != null) prevStreets[dp] = sw;
     }
 
-    const entering = { buildings: [], streets: [] };
-    const exiting = { buildings: [], streets: [] };
-    const staying = { buildings: [], streets: [] };
+    interface DiffEntry {
+      mesh?: THREE.Mesh;
+      oldMesh?: THREE.Mesh;
+      newMesh?: THREE.Mesh;
+      newPosition?: THREE.Vector3;
+      newScaleY?: number;
+      oldPosition?: THREE.Vector3;
+      oldScaleY?: number;
+    }
+    const entering: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+      buildings: [],
+      streets: [],
+    };
+    const exiting: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+      buildings: [],
+      streets: [],
+    };
+    const staying: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+      buildings: [],
+      streets: [],
+    };
 
     for (const nbm of buildingMeshes) {
       const nfp = nbm.userData.building?.file?.path;
@@ -331,8 +389,12 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     return { entering, exiting, staying };
   }
 
-  function applyManifest(newManifest) {
-    const prev = {
+  // Manifest is typed loosely because cityScene.test.ts builds mock
+  // manifests with string `type` fields rather than the literal
+  // 'directory'/'file'. Real callers (the scanner/IPC path) hand us
+  // proper Manifest objects.
+  function applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): void {
+    const prev: PrevState = {
       buildings: buildingMeshes,
       streetPickables,
       streetLabels,
@@ -348,7 +410,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     // Capture old building transforms BEFORE disposal so the animator
     // can tween "staying" meshes from their old position to the new
     // one without a snap. Keyed by file.path — stable across rebuilds.
-    const prevBuildingTransforms = {};
+    const prevBuildingTransforms: Record<string, { position: THREE.Vector3; scaleY: number }> = {};
     for (const pm of buildingMeshes) {
       const pf = pm.userData.building?.file;
       if (pf?.path != null) {
@@ -361,15 +423,24 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
     _disposeAllManifestState();
 
-    manifest = newManifest;
-    layout = layoutCity(manifest.tree);
-    dateRanges = getDateRanges(manifest.tree);
+    manifest = newManifest as Manifest;
+    // layoutCity / getDateRanges accept the structural-shape variants
+    // (DirLike / TreeNodeLike). DirNode satisfies them at runtime; the
+    // explicit cast keeps the type checker happy across the boundary.
+    layout = layoutCity(manifest.tree as unknown as Parameters<typeof layoutCity>[0]);
+    dateRanges = getDateRanges(manifest.tree as unknown as Parameters<typeof getDateRanges>[0]);
 
     // Color buildings before mesh creation — buildCityScene reads b.color.
     const dirColor = BUILDING_PALETTE.get().DIRECTORY_COLOR;
     const buildings = layout?.buildings ?? [];
     for (const b of buildings) {
-      b.color = b.file?.type === NodeKind.File ? getBuildingColor(b.file, dateRanges) : dirColor;
+      b.color =
+        b.file?.type === NodeKind.File
+          ? getBuildingColor(
+              b.file as unknown as Parameters<typeof getBuildingColor>[0],
+              dateRanges
+            )
+          : dirColor;
     }
 
     const built = buildCityScene(layout);

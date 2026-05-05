@@ -19,7 +19,45 @@
 // buildingFader owns material.opacity. They write to disjoint fields
 // so they cannot conflict by construction.
 
+import * as THREE from 'three';
 import { TweenKind } from '../types';
+import type { createCityScene } from './cityScene.js';
+
+interface Tween {
+  mesh: THREE.Mesh;
+  kind: TweenKind;
+  // ScaleY tweens use fromVal/toVal; Position tweens use fromX/toX/etc.
+  // The fields are unioned because a single tween record uses one set or
+  // the other depending on `kind`.
+  fromVal?: number;
+  toVal?: number;
+  fromX?: number;
+  fromY?: number;
+  fromZ?: number;
+  toX?: number;
+  toY?: number;
+  toZ?: number;
+  durationMs: number;
+  easing: (t: number) => number;
+  startedAt: number;
+}
+
+// Diff payload published by cityScene.onChange. Only the fields the
+// animator reads are typed here; the actual payload may carry more.
+interface AnimatorDiff {
+  entering: {
+    buildings: Array<{ mesh: THREE.Mesh; newScaleY?: number }>;
+  };
+  staying: {
+    buildings: Array<{
+      newMesh: THREE.Mesh;
+      oldPosition?: THREE.Vector3;
+      newPosition: THREE.Vector3;
+      oldScaleY?: number;
+      newScaleY?: number;
+    }>;
+  };
+}
 
 // Default durations (ms). Subjective; smoke-tested for "snappy but
 // readable" on file-save bursts.
@@ -31,19 +69,19 @@ function easeOutCubic(t: number): number {
   return 1 - u * u * u;
 }
 
-export function createAnimator({ cityScene }: { cityScene: any }) {
+export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof createCityScene> }) {
   // Tween queue: each tween is { mesh, kind, prop, fromX/Y/Z, toX/Y/Z,
   // fromVal, toVal, durationMs, easing, startedAt, onComplete }.
   // We support two prop kinds: 'scaleY' (number) and 'position' (vec3).
   // Keying by (mesh, kind) so a fresh tween supersedes any in-flight
   // one on the same target+kind without stacking.
-  const tweens = [];
+  const tweens: Tween[] = [];
 
-  function _findTween(mesh, kind) {
+  function _findTween(mesh: THREE.Mesh, kind: TweenKind): number {
     return tweens.findIndex((t) => t.mesh === mesh && t.kind === kind);
   }
 
-  function _addOrUpdate(t) {
+  function _addOrUpdate(t: Tween): void {
     const idx = _findTween(t.mesh, t.kind);
     if (idx >= 0) {
       // Supersede in-flight tween with new target. Retain startedAt so
@@ -65,7 +103,12 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     }
   }
 
-  function _tweenScaleY(mesh, fromVal, toVal, durationMs) {
+  function _tweenScaleY(
+    mesh: THREE.Mesh,
+    fromVal: number,
+    toVal: number,
+    durationMs: number
+  ): void {
     if (fromVal === toVal) return;
     mesh.scale.y = fromVal; // snap to start so the first frame is correct
     _addOrUpdate({
@@ -79,7 +122,12 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     });
   }
 
-  function _tweenPosition(mesh, fromVec, toVec, durationMs) {
+  function _tweenPosition(
+    mesh: THREE.Mesh,
+    fromVec: THREE.Vector3,
+    toVec: THREE.Vector3,
+    durationMs: number
+  ): void {
     if (fromVec.x === toVec.x && fromVec.y === toVec.y && fromVec.z === toVec.z) return;
     mesh.position.copy(fromVec);
     _addOrUpdate({
@@ -97,7 +145,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     });
   }
 
-  function _onChange(diff) {
+  function _onChange(diff: AnimatorDiff): void {
     // Entering: start small, grow to layout height.
     for (const e of diff.entering.buildings) {
       if (!e.mesh) continue;
@@ -120,7 +168,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
 
   const _unsub = cityScene.onChange(_onChange);
 
-  function update(_dtMs) {
+  function update(_dtMs: number): void {
     if (tweens.length === 0) return;
     const now = performance.now();
     // Iterate backwards so we can splice completed tweens cheaply.
@@ -135,12 +183,12 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
       if (t >= 1) t = 1;
       const eased = tw.easing(t);
       if (tw.kind === TweenKind.ScaleY) {
-        tw.mesh.scale.y = tw.fromVal + (tw.toVal - tw.fromVal) * eased;
+        tw.mesh.scale.y = tw.fromVal! + (tw.toVal! - tw.fromVal!) * eased;
       } else if (tw.kind === TweenKind.Position) {
         tw.mesh.position.set(
-          tw.fromX + (tw.toX - tw.fromX) * eased,
-          tw.fromY + (tw.toY - tw.fromY) * eased,
-          tw.fromZ + (tw.toZ - tw.fromZ) * eased
+          tw.fromX! + (tw.toX! - tw.fromX!) * eased,
+          tw.fromY! + (tw.toY! - tw.fromY!) * eased,
+          tw.fromZ! + (tw.toZ! - tw.fromZ!) * eased
         );
       }
       if (t >= 1) tweens.splice(i, 1);

@@ -17,6 +17,8 @@ import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '../../config/index.js';
 import { RENDER_ORDERS } from '../../constants';
 import { NodeKind } from '../../types';
 import { computePathPoints } from '../path.js';
+import type { createCityScene } from '../cityScene.js';
+import type { createPicker } from '../picker.js';
 
 export function createPathLineRenderer({
   canvas,
@@ -25,9 +27,9 @@ export function createPathLineRenderer({
   picker,
 }: {
   canvas: HTMLCanvasElement;
-  scene: any;
-  cityScene: any;
-  picker: any;
+  scene: THREE.Scene;
+  cityScene: ReturnType<typeof createCityScene>;
+  picker: ReturnType<typeof createPicker>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
   const _pl = PATH_LINE.get();
@@ -71,7 +73,7 @@ export function createPathLineRenderer({
   hoverPathLine.renderOrder = RENDER_ORDERS.PATH_LINE;
   scene.add(hoverPathLine);
 
-  function _isHoverSameAsSelection() {
+  function _isHoverSameAsSelection(): boolean {
     const hov = picker.hover.get();
     const sel = picker.selection.get();
     if (!hov || !sel) return false;
@@ -82,7 +84,7 @@ export function createPathLineRenderer({
     return false;
   }
 
-  function _updatePathLine() {
+  function _updatePathLine(): void {
     const sel = picker.selection.get();
     const gemPos = cityScene.getGemWorldPos();
     if (!gemPos || !sel) {
@@ -103,7 +105,7 @@ export function createPathLineRenderer({
       return;
     }
     const elev = PATH_LINE.get().ELEVATION;
-    const flat = [];
+    const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
         b = pts[i + 1];
@@ -125,7 +127,7 @@ export function createPathLineRenderer({
     pathLine.visible = true;
   }
 
-  function _updateHoverPathLine() {
+  function _updateHoverPathLine(): void {
     const hov = picker.hover.get();
     const gemPos = cityScene.getGemWorldPos();
     const cfg = HOVER_PATH_LINE.get();
@@ -143,7 +145,7 @@ export function createPathLineRenderer({
     );
     if (pts.length < 2) return hide();
     const elev = cfg.ELEVATION;
-    const flat = [];
+    const flat: number[] = [];
     for (let i = 0; i < pts.length - 1; i++) {
       const a = pts[i],
         b = pts[i + 1];
@@ -171,7 +173,7 @@ export function createPathLineRenderer({
   });
 
   // ── Per-frame: rainbow chase on the selection line ─────────────────
-  function update(_dtMs) {
+  function update(_dtMs: number): void {
     if (pathSegmentCount <= 0 || !pathLine.visible) return;
     const rb = RAINBOW.get();
     const t = performance.now() * rb.SPEED;
@@ -191,7 +193,7 @@ export function createPathLineRenderer({
     pathLineGeo.setColors(_pathColorsBuf);
   }
 
-  function refreshMaterials() {
+  function refreshMaterials(): void {
     const pl = PATH_LINE.get();
     pathLineMat.linewidth = pl.LINEWIDTH;
     if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
@@ -201,7 +203,7 @@ export function createPathLineRenderer({
     _updateHoverPathLine();
   }
 
-  function onResize() {
+  function onResize(): void {
     pathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
     hoverPathLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
   }
