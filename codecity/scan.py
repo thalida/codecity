@@ -28,6 +28,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .cache import (
+    cache_load_files,
+    cache_load_git_history,
+    cache_save_files,
+    cache_save_git_history,
+)
 from .types import (
     DirNode,
     FileNode,
@@ -180,7 +186,7 @@ def _collect_git_dates(root: Path, *log_args: str) -> dict[str, str]:
 
 
 def _collect_git_metadata(
-    root: Path,
+    root: Path, *, use_cache: bool = True,
 ) -> tuple[dict[str, str], dict[str, str], set[str]]:
     """Return (created_map, modified_map, tracked_set).
 
@@ -189,10 +195,17 @@ def _collect_git_metadata(
     - tracked_set        = all tracked paths + their parent dirs (for gitignore filter)
 
     The two `git log` walks are independent and run in parallel via a
-    ThreadPoolExecutor. The tracked-set query runs serially after — it's
-    cheap (one `git ls-files`) and the caller may need it before the
-    other two complete anyway.
+    ThreadPoolExecutor. With ``use_cache=True`` (default), the HEAD-keyed
+    git-history cache short-circuits both walks when HEAD hasn't moved.
     """
+    head_sha = _run_git(root, "rev-parse", "HEAD").strip()
+    if use_cache and head_sha:
+        cached = cache_load_git_history(root, head_sha)
+        if cached is not None:
+            created, modified = cached
+            tracked = _collect_tracked_set(root)
+            return created, modified, tracked
+
     _log("  collecting creation + modified dates (parallel git log walks)…")
     with ThreadPoolExecutor(max_workers=2) as pool:
         created_future = pool.submit(
@@ -206,6 +219,14 @@ def _collect_git_metadata(
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
+
+    if use_cache and head_sha:
+        try:
+            cache_save_git_history(root, head_sha, created, modified)
+        except OSError:
+            # Cache failures (disk full, permission denied, read-only fs)
+            # must never block a scan. The next run will retry the write.
+            pass
 
     return created, modified, tracked
 
@@ -482,6 +503,7 @@ def scan_tree(
     *,
     include_all: bool = False,
     respect_skip_list: bool = True,
+    use_cache: bool = True,
 ) -> Manifest:
     """Scan a directory and return the full manifest.
 
@@ -512,7 +534,7 @@ def scan_tree(
     if is_git_repo:
         _log("git repo detected — collecting metadata…")
         git_created, git_modified, tracked_files = _collect_git_metadata(
-            Path(root_abs)
+            Path(root_abs), use_cache=use_cache,
         )
         repo_info = _collect_repo_info(Path(root_abs))
     else:
@@ -611,6 +633,7 @@ def signature_tree(
     *,
     include_all: bool = False,
     respect_skip_list: bool = True,
+    use_cache: bool = True,
 ) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
     but without building the full manifest.
@@ -623,6 +646,12 @@ def signature_tree(
 
     With ``include_all=True``, skips the tracked-files lookup as well —
     the filter isn't applied so we don't need to compute it.
+
+    ``use_cache`` is accepted for API symmetry with scan_tree (so both
+    /api/manifest and /api/manifest/signature take the same query
+    params) but is a no-op here — signature_tree doesn't compute
+    per-file lines/binary or per-file git history, so there's nothing
+    to cache.
     """
     root_abs = str(Path(root).resolve())
     root_path = Path(root_abs)

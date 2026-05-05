@@ -407,10 +407,107 @@ class GitMetadataParallelTests(unittest.TestCase):
             return original_run(args, **kwargs)
 
         with patch("codecity.scan.subprocess.run", side_effect=counting_run):
-            _collect_git_metadata(FIXTURE)
+            _collect_git_metadata(FIXTURE, use_cache=False)
 
         self.assertEqual(len(log_calls), 2,
                          f"expected exactly 2 git log calls, got: {log_calls}")
+
+
+class GitHistoryCacheTests(unittest.TestCase):
+    """When HEAD hasn't moved, _collect_git_metadata should hit the
+    persistent cache and skip the two `git log` walks entirely."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def setUp(self) -> None:
+        from codecity import cache as cache_mod
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self._original_root = cache_mod.CACHE_ROOT
+        cache_mod.CACHE_ROOT = Path(self._tmp.name)
+        self.addCleanup(self._restore_root)
+
+    def _restore_root(self) -> None:
+        from codecity import cache as cache_mod
+        cache_mod.CACHE_ROOT = self._original_root
+
+    def test_warm_run_skips_git_log(self):
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        # Cold run: populates cache.
+        _collect_git_metadata(FIXTURE, use_cache=True)
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if isinstance(args, list) and "log" in args:
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        # Warm run: must not invoke `git log` at all.
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE, use_cache=True)
+        self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
+
+    def test_use_cache_false_bypasses(self):
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        _collect_git_metadata(FIXTURE, use_cache=True)  # populate
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if isinstance(args, list) and "log" in args:
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE, use_cache=False)
+        self.assertEqual(len(log_calls), 2, "use_cache=False must run both log walks")
+
+    def test_cache_invalidated_after_new_commit(self):
+        # Make a commit, confirm next call re-walks history.
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        _collect_git_metadata(FIXTURE, use_cache=True)
+
+        # Commit something to move HEAD.
+        new_file = FIXTURE / "cache-bust.txt"
+        new_file.write_text("bust")
+        try:
+            subprocess.check_call(
+                ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
+            )
+            subprocess.check_call(
+                ["git", "-C", str(FIXTURE), "commit", "-q", "-m", "cache-bust"]
+            )
+
+            original_run = subprocess.run
+            log_calls: list[list[str]] = []
+
+            def counting_run(args, **kwargs):
+                if isinstance(args, list) and "log" in args:
+                    log_calls.append(list(args))
+                return original_run(args, **kwargs)
+
+            with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+                _collect_git_metadata(FIXTURE, use_cache=True)
+            self.assertEqual(len(log_calls), 2,
+                             "HEAD moved -> must re-walk")
+        finally:
+            # Reset fixture: undo the commit and remove the file.
+            subprocess.run(
+                ["git", "-C", str(FIXTURE), "reset", "--hard", "HEAD~1"],
+                check=False, capture_output=True,
+            )
+            new_file.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
