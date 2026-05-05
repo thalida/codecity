@@ -341,12 +341,12 @@ function _resizeRendererToCanvas(renderer: THREE.WebGLRenderer, canvas: HTMLCanv
   renderer.setSize(cw, ch, false);
 }
 
-// Build the /api/manifest URL from the current page's query params.
+// Build a /api/<endpoint> URL from the current page's query params.
 // CLI opens the page with either ?path=… or ?clone=…&branch=… so the
 // server knows what to scan; we just forward those through.
-function manifestUrl() {
+function _apiUrl(endpoint: string): string {
   const qp = new URLSearchParams(window.location.search);
-  const u = new URL('/api/manifest', window.location.origin);
+  const u = new URL(endpoint, window.location.origin);
   if (qp.has('clone')) {
     u.searchParams.set('clone', qp.get('clone'));
     if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
@@ -356,6 +356,14 @@ function manifestUrl() {
   return u.toString();
 }
 
+function manifestUrl(): string {
+  return _apiUrl('/api/manifest');
+}
+
+function signatureUrl(): string {
+  return _apiUrl('/api/manifest/signature');
+}
+
 // Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
 // re-fetching the manifest at the user-configured interval; when its
 // signature changes vs. the last render, we hand the new manifest to
@@ -363,6 +371,14 @@ function manifestUrl() {
 // selection survive because picker.selectionKey is persisted and
 // re-resolved on every cityScene rebuild, and cameraRig keeps its pose
 // across applyManifest calls (no re-frame).
+//
+// Two-stage poll: each tick first hits /api/manifest/signature (cheap —
+// stat-only walk, no file content reads, no per-file git history) and
+// only fetches the full /api/manifest when the signature has changed.
+// On a large repo the no-op poll cost drops by ~10×. IS_RELOADING is
+// only set during the actual manifest fetch so the footer's "reloading…"
+// indicator doesn't flicker on every cheap signature check; concurrent
+// ticks are gated by the local `inFlight` flag.
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
@@ -373,29 +389,43 @@ interface LiveUpdateHandle {
   applyTheme: () => void;
 }
 
+interface SignatureResponse {
+  root: string;
+  scanned_at: string;
+  signature: string;
+}
+
 function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): void {
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
+  let inFlight = false;
 
-  function tick(): void {
-    if (IS_RELOADING.get()) return;
-    IS_RELOADING.set(true);
-    fetch(manifestUrl())
-      .then((r) => {
-        return r.ok ? r.json() : null;
-      })
-      .then((m: Manifest | null) => {
+  async function tick(): Promise<void> {
+    if (inFlight) return;
+    inFlight = true;
+    try {
+      const sigResp = await fetch(signatureUrl());
+      if (!sigResp.ok) return;
+      const sig: SignatureResponse | null = await sigResp.json();
+      if (!sig?.signature || sig.signature === lastSignature) return;
+
+      IS_RELOADING.set(true);
+      try {
+        const mResp = await fetch(manifestUrl());
+        if (!mResp.ok) return;
+        const m: Manifest | null = await mResp.json();
         if (m?.signature && m.signature !== lastSignature) {
           lastSignature = m.signature;
           handle.cityScene.applyManifest(m);
         }
-      })
-      .catch(() => {
-        /* keep polling on transient errors */
-      })
-      .finally(() => {
+      } finally {
         IS_RELOADING.set(false);
-      });
+      }
+    } catch {
+      /* keep polling on transient errors */
+    } finally {
+      inFlight = false;
+    }
   }
 
   function start(): void {

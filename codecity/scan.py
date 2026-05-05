@@ -27,7 +27,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .types import DirNode, FileNode, GitMeta, Manifest, NodeKind, RepoInfo
+from .types import (
+    DirNode,
+    FileNode,
+    GitMeta,
+    Manifest,
+    NodeKind,
+    RepoInfo,
+    SignatureResponse,
+)
 
 
 # ── Progress logging ─────────────────────────────────────────────────────────
@@ -172,15 +180,7 @@ def _collect_git_metadata(root: Path) -> tuple[dict[str, str], dict[str, str], s
 
     # Tracked set (for .gitignore filter) — includes parent dirs.
     _log("  listing tracked files…")
-    out = _run_git(root, "ls-files")
-    for line in out.splitlines():
-        if not line:
-            continue
-        tracked.add(line)
-        # Mark every parent dir as tracked too.
-        parts = line.split("/")
-        for i in range(1, len(parts)):
-            tracked.add("/".join(parts[:i]))
+    tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
     return created, modified, tracked
@@ -256,6 +256,28 @@ def _collect_repo_info(root: Path) -> RepoInfo:
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
+# Both scan_tree and signature_tree feed bytes into the same hash; keeping
+# the per-file and per-repo contributions in dedicated helpers is the
+# contract that lets the cheap signature endpoint match the full scan's
+# signature exactly. Don't inline these — drift here breaks live updates.
+def _hash_file_entry(sig: Any, rel_path: str, size: int, mtime: float) -> None:
+    sig.update(rel_path.encode("utf-8"))
+    sig.update(b"\0")
+    sig.update(str(size).encode("ascii"))
+    sig.update(b"\0")
+    sig.update(repr(mtime).encode("ascii"))
+    sig.update(b"\0")
+
+
+def _hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
+    sig.update(
+        (
+            f"{repo_info['branch']}|{repo_info['remote_url']}|"
+            f"{repo_info['head_sha']}|{repo_info['dirty']}"
+        ).encode("utf-8")
+    )
+
+
 def _file_node(
     entry: os.DirEntry[str],
     rel_path: str,
@@ -278,15 +300,7 @@ def _file_node(
             "modified": git_modified.get(rel_path) or None,
         }
 
-    # Feed (rel_path, size, mtime) into the live signature so the manifest
-    # carries a cheap fingerprint of the tree's mtime+size state. Used by
-    # the frontend's live-update poll to decide whether to rebuild.
-    sig.update(rel_path.encode("utf-8"))
-    sig.update(b"\0")
-    sig.update(str(size).encode("ascii"))
-    sig.update(b"\0")
-    sig.update(repr(mtime).encode("ascii"))
-    sig.update(b"\0")
+    _hash_file_entry(sig, rel_path, size, mtime)
 
     return {
         "name": entry.name,
@@ -431,12 +445,7 @@ def scan_tree(root: str) -> Manifest:
     # signature so the footer's "live" indicator catches a checkout or
     # commit without waiting for file mtimes to shift.
     if repo_info is not None:
-        sig.update(
-            (
-                f"{repo_info['branch']}|{repo_info['remote_url']}|"
-                f"{repo_info['head_sha']}|{repo_info['dirty']}"
-            ).encode("utf-8")
-        )
+        _hash_repo_info(sig, repo_info)
 
     return {
         "root": root_abs,
@@ -444,6 +453,100 @@ def scan_tree(root: str) -> Manifest:
         "signature": sig.hexdigest(),
         "tree": tree,
         "repo": repo_info,
+    }
+
+
+def _collect_tracked_set(root: Path) -> set[str]:
+    """Just the tracked-files set from `git ls-files` (no per-file history).
+
+    Cheaper subset of _collect_git_metadata for callers that only need
+    the gitignore filter, not the per-file created/modified maps. The
+    returned set includes parent directories of every tracked file.
+    """
+    tracked: set[str] = set()
+    out = _run_git(root, "ls-files")
+    for line in out.splitlines():
+        if not line:
+            continue
+        tracked.add(line)
+        parts = line.split("/")
+        for i in range(1, len(parts)):
+            tracked.add("/".join(parts[:i]))
+    return tracked
+
+
+def _walk_for_signature(
+    abs_dir: str,
+    rel_dir: str,
+    *,
+    is_git_repo: bool,
+    tracked_files: set[str],
+    sig: Any,
+) -> None:
+    """Stat-only walk that feeds the live signature without building nodes.
+
+    Mirrors _build_tree's iteration order and gitignore filter so the
+    bytes it pushes into `sig` are byte-identical to scan_tree's output.
+    Skips _is_binary, _line_count, and per-file git history — that's
+    where the cost lives on a large repo.
+    """
+    try:
+        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
+    except OSError:
+        return
+
+    for entry in entries:
+        if entry.name == ".git":
+            continue
+        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+        if is_git_repo and entry_rel not in tracked_files:
+            continue
+        if entry.is_file(follow_symlinks=False):
+            size, _created, _modified, mtime = _stat_fields(entry)
+            _hash_file_entry(sig, entry_rel, size, mtime)
+        elif entry.is_dir(follow_symlinks=False):
+            _walk_for_signature(
+                entry.path, entry_rel,
+                is_git_repo=is_git_repo,
+                tracked_files=tracked_files,
+                sig=sig,
+            )
+
+
+def signature_tree(root: str) -> SignatureResponse:
+    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
+    but without building the full manifest.
+
+    Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
+    plus repo-level git fields (branch / remote / head / dirty). Skips
+    file content reads and the two `git log` walks scan_tree uses for
+    per-file created/modified history; both are cost-dominant on a big
+    repo and don't feed the signature anyway.
+    """
+    root_abs = str(Path(root).resolve())
+    root_path = Path(root_abs)
+    is_git_repo = _is_git_repo(root_path)
+    tracked_files: set[str] = set()
+    repo_info: RepoInfo | None = None
+
+    if is_git_repo:
+        tracked_files = _collect_tracked_set(root_path)
+        repo_info = _collect_repo_info(root_path)
+
+    sig = hashlib.blake2b(digest_size=16)
+    _walk_for_signature(
+        root_abs, ".",
+        is_git_repo=is_git_repo,
+        tracked_files=tracked_files,
+        sig=sig,
+    )
+    if repo_info is not None:
+        _hash_repo_info(sig, repo_info)
+
+    return {
+        "root": root_abs,
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "signature": sig.hexdigest(),
     }
 
 

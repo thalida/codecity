@@ -25,8 +25,5 @@
 - [ ] identify and add something special to test files
 - [ ] python cli make it more professional
 - [ ] add back gitignore flag -- make it a user facing config option
-- [ ]
 
 ## Pending Agent Prompts
-
-- is polling better than watching and pushing updates? it could have a websocket or something?

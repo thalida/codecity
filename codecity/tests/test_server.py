@@ -81,6 +81,31 @@ class ServerTests(unittest.TestCase):
         status, _, _ = _get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
+    def test_signature_route_matches_manifest_signature(self) -> None:
+        # The contract powering the cheap-poll: the signature endpoint
+        # returns the same digest the full manifest would have produced.
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        m_status, m_body, _ = _get(self.base + f"/api/manifest?{q}")
+        s_status, s_body, s_ctype = _get(self.base + f"/api/manifest/signature?{q}")
+        self.assertEqual(m_status, HTTPStatus.OK)
+        self.assertEqual(s_status, HTTPStatus.OK)
+        self.assertIn("application/json", s_ctype)
+        manifest = json.loads(m_body)
+        sig = json.loads(s_body)
+        self.assertEqual(sig["signature"], manifest["signature"])
+        # Lean shape — no tree / repo fields on the signature endpoint.
+        self.assertNotIn("tree", sig)
+        self.assertNotIn("repo", sig)
+
+    def test_signature_route_missing_query_returns_400(self) -> None:
+        status, _, _ = _get(self.base + "/api/manifest/signature")
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+
+    def test_signature_route_nonexistent_path_returns_404(self) -> None:
+        q = urllib.parse.urlencode({"path": str(self.project / "nope")})
+        status, _, _ = _get(self.base + f"/api/manifest/signature?{q}")
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
+
     def test_root_serves_index_html(self) -> None:
         status, body, ctype = _get(self.base + "/")
         self.assertEqual(status, HTTPStatus.OK)

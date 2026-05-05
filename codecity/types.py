@@ -95,6 +95,19 @@ class Manifest(TypedDict):
     repo: RepoInfo | None
 
 
+class SignatureResponse(TypedDict):
+    """Cheap fingerprint of the tree, returned by /api/manifest/signature.
+
+    Equivalent to Manifest's top-level minus `tree` and `repo`. The
+    signature value is byte-identical to the one scan_tree() produces
+    for the same root — that's the contract the live-update poll relies
+    on."""
+
+    root: str
+    scanned_at: str
+    signature: str
+
+
 # ── Server response shapes ──────────────────────────────────────────────
 
 

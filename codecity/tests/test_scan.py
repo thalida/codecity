@@ -12,6 +12,7 @@ from codecity.scan import (
     _extension,
     _is_binary,
     scan_tree,
+    signature_tree,
 )
 
 
@@ -137,6 +138,48 @@ class ScanTreeIntegrationTests(unittest.TestCase):
             self.assertNotIn("untracked-temp.txt", names)
         finally:
             untracked.unlink(missing_ok=True)
+
+
+class SignatureTreeTests(unittest.TestCase):
+    """signature_tree() must produce the same digest as scan_tree() does
+    for the same root — that's the contract the live-update poll relies
+    on. Drift here means every poll triggers a full reload."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_signature_matches_scan_tree(self):
+        m = scan_tree(str(FIXTURE))
+        s = signature_tree(str(FIXTURE))
+        self.assertEqual(s["signature"], m["signature"])
+
+    def test_signature_response_shape(self):
+        s = signature_tree(str(FIXTURE))
+        self.assertIn("root", s)
+        self.assertIn("scanned_at", s)
+        self.assertIn("signature", s)
+        self.assertIsInstance(s["signature"], str)
+        # No tree / repo fields — that's the whole point.
+        self.assertNotIn("tree", s)
+        self.assertNotIn("repo", s)
+
+    def test_signature_changes_when_tracked_file_changes(self):
+        # Add a tracked file, signature must shift; remove it, restored.
+        before = signature_tree(str(FIXTURE))["signature"]
+        new_file = FIXTURE / "sig-test-temp.txt"
+        new_file.write_text("hello")
+        try:
+            subprocess.check_call(["git", "-C", str(FIXTURE), "add", str(new_file.name)])
+            after_add = signature_tree(str(FIXTURE))["signature"]
+            self.assertNotEqual(before, after_add)
+        finally:
+            subprocess.run(
+                ["git", "-C", str(FIXTURE), "reset", "HEAD", new_file.name],
+                check=False,
+                capture_output=True,
+            )
+            new_file.unlink(missing_ok=True)
 
 
 def _walk_files(node):

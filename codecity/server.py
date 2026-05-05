@@ -27,12 +27,13 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from codecity.clone import CloneError, ensure_clone
-from codecity.scan import scan_tree
+from codecity.scan import scan_tree, signature_tree
 from codecity.types import (
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
     Manifest,
+    SignatureResponse,
 )
 
 # Cap individual /api/file responses so a stray symlink to a giant blob
@@ -70,7 +71,9 @@ class _State:
     clone_lock: threading.Lock = threading.Lock()
 
 
-JsonBody = Manifest | ErrorResponse | FileTooLargeResponse | HealthResponse
+JsonBody = (
+    Manifest | SignatureResponse | ErrorResponse | FileTooLargeResponse | HealthResponse
+)
 
 
 def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> None:
@@ -90,8 +93,15 @@ def _resolve_clone(url: str, branch: str | None) -> Path:
         return ensure_clone(url, branch)
 
 
-def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """Compute and return the scan manifest for the requested path or clone."""
+def _resolve_scan_target(
+    handler: BaseHTTPRequestHandler, query: str
+) -> Path | None:
+    """Parse ?path=… / ?clone=…&branch=… and return the resolved scan root.
+
+    Sends the appropriate 4xx/5xx JSON error and returns None if the
+    params are missing/conflicting, the path doesn't resolve, or the
+    clone fails. Shared by /api/manifest and /api/manifest/signature.
+    """
     params = parse_qs(query)
     raw_path = params.get("path", [""])[0]
     raw_clone = params.get("clone", [""])[0]
@@ -103,33 +113,40 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             HTTPStatus.BAD_REQUEST,
             {"error": "pass either 'path' or 'clone', not both"},
         )
-        return
+        return None
     if not raw_clone and not raw_path:
         _send_json(
             handler,
             HTTPStatus.BAD_REQUEST,
             {"error": "missing 'path' or 'clone' query param"},
         )
-        return
+        return None
 
     if raw_clone:
         try:
-            target = _resolve_clone(raw_clone, raw_branch)
+            return _resolve_clone(raw_clone, raw_branch)
         except CloneError as e:
             _send_json(handler, HTTPStatus.BAD_GATEWAY, {"error": str(e)})
-            return
-        scan_target = target
-    else:
-        try:
-            scan_target = Path(raw_path).resolve(strict=True)
-        except (OSError, RuntimeError):
-            _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "path not found"})
-            return
-        if not scan_target.is_dir():
-            _send_json(
-                handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
-            )
-            return
+            return None
+
+    try:
+        scan_target = Path(raw_path).resolve(strict=True)
+    except (OSError, RuntimeError):
+        _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "path not found"})
+        return None
+    if not scan_target.is_dir():
+        _send_json(
+            handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
+        )
+        return None
+    return scan_target
+
+
+def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Compute and return the scan manifest for the requested path or clone."""
+    scan_target = _resolve_scan_target(handler, query)
+    if scan_target is None:
+        return
 
     try:
         manifest = scan_tree(str(scan_target))
@@ -139,6 +156,31 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     _State.allowed_roots.add(scan_target.resolve())
     _send_json(handler, HTTPStatus.OK, manifest)
+
+
+def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Cheap variant of /api/manifest — returns just {root, scanned_at, signature}.
+
+    Used by the frontend's live-update poll: hitting this every few
+    seconds avoids paying for per-file content reads and per-file git
+    history walks on every tick. The client only fetches the full
+    manifest when the signature changes.
+    """
+    scan_target = _resolve_scan_target(handler, query)
+    if scan_target is None:
+        return
+
+    try:
+        sig = signature_tree(str(scan_target))
+    except Exception as e:  # pylint: disable=broad-except
+        _send_json(
+            handler,
+            HTTPStatus.INTERNAL_SERVER_ERROR,
+            {"error": f"signature failed: {e}"},
+        )
+        return
+
+    _send_json(handler, HTTPStatus.OK, sig)
 
 
 def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
@@ -255,6 +297,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/manifest":
             _serve_manifest(self, parsed.query)
+            return
+
+        if path == "/api/manifest/signature":
+            _serve_manifest_signature(self, parsed.query)
             return
 
         if path == "/api/file":
