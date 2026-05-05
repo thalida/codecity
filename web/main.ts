@@ -19,6 +19,7 @@ import {
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
+  SCAN_FILTERS,
 } from './config/index.js';
 import { IS_RELOADING } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
@@ -38,6 +39,7 @@ import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
 import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
+import { buildApiUrl } from './url.js';
 
 function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -341,27 +343,22 @@ function _resizeRendererToCanvas(renderer: THREE.WebGLRenderer, canvas: HTMLCanv
   renderer.setSize(cw, ch, false);
 }
 
-// Build a /api/<endpoint> URL from the current page's query params.
-// CLI opens the page with either ?path=… or ?clone=…&branch=… so the
-// server knows what to scan; we just forward those through.
-function _apiUrl(endpoint: string): string {
-  const qp = new URLSearchParams(window.location.search);
-  const u = new URL(endpoint, window.location.origin);
-  if (qp.has('clone')) {
-    u.searchParams.set('clone', qp.get('clone'));
-    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
-  } else if (qp.has('path')) {
-    u.searchParams.set('path', qp.get('path'));
-  }
-  return u.toString();
-}
-
+// URL builders delegate to the pure helper in web/url.ts so tests can
+// exercise the query-param logic without faking out window.*.
 function manifestUrl(): string {
-  return _apiUrl('/api/manifest');
+  return buildApiUrl(
+    '/api/manifest',
+    window.location.search,
+    window.location.origin
+  );
 }
 
 function signatureUrl(): string {
-  return _apiUrl('/api/manifest/signature');
+  return buildApiUrl(
+    '/api/manifest/signature',
+    window.location.search,
+    window.location.origin
+  );
 }
 
 // Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
@@ -399,30 +396,64 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
   let inFlight = false;
+  let needsRefresh = false;
 
+  // Single fetch+apply path. Always sets IS_RELOADING for the duration —
+  // both the poll's "signature changed" branch and the toggle handler
+  // funnel through here so the footer indicator behaves identically.
+  async function refreshManifest(): Promise<void> {
+    IS_RELOADING.set(true);
+    try {
+      const resp = await fetch(manifestUrl());
+      if (!resp.ok) return;
+      const m: Manifest | null = await resp.json();
+      if (m?.signature) {
+        lastSignature = m.signature;
+        handle.cityScene.applyManifest(m);
+      }
+    } finally {
+      IS_RELOADING.set(false);
+    }
+  }
+
+  // Poll tick: cheap signature first, full manifest only on change.
+  // After a refresh, re-check needsRefresh in case a toggle fired
+  // mid-flight and queued itself.
   async function tick(): Promise<void> {
     if (inFlight) return;
     inFlight = true;
     try {
-      const sigResp = await fetch(signatureUrl());
-      if (!sigResp.ok) return;
-      const sig: SignatureResponse | null = await sigResp.json();
-      if (!sig?.signature || sig.signature === lastSignature) return;
-
-      IS_RELOADING.set(true);
-      try {
-        const mResp = await fetch(manifestUrl());
-        if (!mResp.ok) return;
-        const m: Manifest | null = await mResp.json();
-        if (m?.signature && m.signature !== lastSignature) {
-          lastSignature = m.signature;
-          handle.cityScene.applyManifest(m);
-        }
-      } finally {
-        IS_RELOADING.set(false);
-      }
+      do {
+        needsRefresh = false;
+        const sigResp = await fetch(signatureUrl());
+        if (!sigResp.ok) break;
+        const sig: SignatureResponse | null = await sigResp.json();
+        if (!sig?.signature || sig.signature === lastSignature) break;
+        await refreshManifest();
+      } while (needsRefresh);
     } catch {
       /* keep polling on transient errors */
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  // Toggle handler: bypass the cheap check (the manifest WILL differ),
+  // but defer to the polling closure's inFlight gate so the two paths
+  // can't trample each other.
+  async function refreshFromToggle(): Promise<void> {
+    if (inFlight) {
+      needsRefresh = true;
+      return;
+    }
+    inFlight = true;
+    try {
+      do {
+        needsRefresh = false;
+        await refreshManifest();
+      } while (needsRefresh);
+    } catch {
+      /* keep polling */
     } finally {
       inFlight = false;
     }
@@ -444,6 +475,20 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
     if (val.ENABLED) start();
     else stop();
   });
+
+  // Toggling SHOW_ALL_FILES ALWAYS triggers a refresh, regardless of
+  // whether live polling is enabled — the user explicitly asked for a
+  // different scan and should see it immediately.
+  let _scanFiltersBootstrapped = false;
+  SCAN_FILTERS.subscribe(() => {
+    // Skip the first synchronous fire from .subscribe() so we don't
+    // double-fetch on initial hydration.
+    if (!_scanFiltersBootstrapped) {
+      _scanFiltersBootstrapped = true;
+      return;
+    }
+    refreshFromToggle();
+  });
 }
 
 // Boot. Guarded by a canvas check so unit tests can import this module
@@ -451,17 +496,19 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
-    const resp = await fetch(manifestUrl());
-    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
-    const manifest: Manifest = await resp.json();
-    // Hydrate every config store from localStorage BEFORE scene build so
-    // any user tweaks from prior sessions take effect during the initial
-    // layout/render.
+    // Hydrate every config store from localStorage BEFORE the initial
+    // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
+    // manifestUrl) reflects the user's persisted toggle from a prior
+    // session — otherwise the first paint ignores the saved value and
+    // only corrects itself on the next poll.
     attachPersistence(Config);
     // Picker's selectionKey atom isn't part of the Config barrel, so
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
     persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
+    const resp = await fetch(manifestUrl());
+    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
+    const manifest: Manifest = await resp.json();
     const handle = startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,

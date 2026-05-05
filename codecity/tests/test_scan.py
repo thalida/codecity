@@ -140,6 +140,80 @@ class ScanTreeIntegrationTests(unittest.TestCase):
             untracked.unlink(missing_ok=True)
 
 
+    def test_include_all_returns_untracked_files(self):
+        # Default scan: untracked file is hidden (existing behavior).
+        # include_all=True: untracked file appears in the tree.
+        untracked = FIXTURE / "untracked-include-all.txt"
+        untracked.write_text("hello include_all")
+        try:
+            m_default = scan_tree(str(FIXTURE))
+            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
+            self.assertNotIn("untracked-include-all.txt", names_default)
+
+            m_all = scan_tree(str(FIXTURE), include_all=True)
+            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
+            self.assertIn("untracked-include-all.txt", names_all)
+
+            # Untracked file has no git history.
+            for node in _walk_files(m_all["tree"]):
+                if node["name"] == "untracked-include-all.txt":
+                    self.assertIsNotNone(node["git"])
+                    self.assertIsNone(node["git"]["created"])
+                    self.assertIsNone(node["git"]["modified"])
+                    return
+            self.fail("untracked-include-all.txt not found in include_all manifest")
+        finally:
+            untracked.unlink(missing_ok=True)
+
+    def test_include_all_returns_gitignored_files(self):
+        # Default scan: gitignored file is hidden (existing behavior).
+        # include_all=True: gitignored file appears in the tree.
+        # The fixture's .gitignore must list the path for git ls-files
+        # to drop it; we restore it after.
+        gitignore_path = FIXTURE / ".gitignore"
+        original_gitignore = gitignore_path.read_text() if gitignore_path.exists() else ""
+        ignored_file = FIXTURE / "ignored-include-all.txt"
+        ignored_file.write_text("hidden by .gitignore")
+        try:
+            gitignore_path.write_text(
+                original_gitignore + "\nignored-include-all.txt\n"
+            )
+
+            m_default = scan_tree(str(FIXTURE))
+            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
+            self.assertNotIn("ignored-include-all.txt", names_default)
+
+            m_all = scan_tree(str(FIXTURE), include_all=True)
+            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
+            self.assertIn("ignored-include-all.txt", names_all)
+        finally:
+            ignored_file.unlink(missing_ok=True)
+            if original_gitignore:
+                gitignore_path.write_text(original_gitignore)
+            else:
+                gitignore_path.unlink(missing_ok=True)
+
+    def test_include_all_no_op_outside_git_repo(self):
+        # In a non-git directory, the tracked-files filter never engages,
+        # so include_all should be a no-op (signature + tree shape match).
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "a.txt").write_text("a")
+            (Path(tmp) / "b.txt").write_text("b")
+            m_default = scan_tree(tmp)
+            m_all = scan_tree(tmp, include_all=True)
+            self.assertEqual(m_default["signature"], m_all["signature"])
+            self.assertEqual(
+                m_default["tree"]["descendants_file_count"],
+                m_all["tree"]["descendants_file_count"],
+            )
+
+    def test_git_dir_still_excluded_with_include_all(self):
+        # .git/ is excluded independent of the tracked-files filter.
+        m = scan_tree(str(FIXTURE), include_all=True)
+        names = [n["name"] for n in _walk_dirs(m["tree"])]
+        self.assertNotIn(".git", names)
+
+
 class SignatureTreeTests(unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does
     for the same root — that's the contract the live-update poll relies
@@ -180,6 +254,25 @@ class SignatureTreeTests(unittest.TestCase):
                 capture_output=True,
             )
             new_file.unlink(missing_ok=True)
+
+    def test_include_all_signature_matches_full_scan(self):
+        # Parity contract still holds in include_all mode.
+        m = scan_tree(str(FIXTURE), include_all=True)
+        s = signature_tree(str(FIXTURE), include_all=True)
+        self.assertEqual(s["signature"], m["signature"])
+
+    def test_include_all_signature_differs_from_default(self):
+        # Adding files that only show up under include_all must change
+        # the signature relative to the default scan, otherwise the
+        # frontend would never re-render after the toggle flips.
+        untracked = FIXTURE / "sig-temp-include-all.txt"
+        untracked.write_text("payload")
+        try:
+            default_sig = signature_tree(str(FIXTURE))["signature"]
+            all_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertNotEqual(default_sig, all_sig)
+        finally:
+            untracked.unlink(missing_ok=True)
 
 
 def _walk_files(node):
