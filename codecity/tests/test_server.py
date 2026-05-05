@@ -17,6 +17,25 @@ from codecity import server as server_mod
 from codecity.server import start_server
 
 
+class _CacheRedirectMixin:
+    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    tempdir so server-side calls into scan_tree() / signature_tree()
+    don't pollute the user's actual ~/.cache/codecity/ during tests."""
+
+    def setUp(self) -> None:
+        super().setUp()  # cooperative chaining
+        from codecity import cache as cache_mod
+        self._cache_tmp = TemporaryDirectory()
+        self.addCleanup(self._cache_tmp.cleanup)
+        self._original_cache_root = cache_mod.CACHE_ROOT
+        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
+        self.addCleanup(self._restore_cache_root)
+
+    def _restore_cache_root(self) -> None:
+        from codecity import cache as cache_mod
+        cache_mod.CACHE_ROOT = self._original_cache_root
+
+
 # Silence scan progress logs.
 os.environ["CODECITY_QUIET"] = "1"
 
@@ -30,8 +49,9 @@ def _get(url: str) -> tuple[int, bytes, str]:
     return resp.status, resp.read(), resp.headers.get("Content-Type", "")
 
 
-class ServerTests(unittest.TestCase):
+class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def setUp(self) -> None:
+        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         static = Path(self.tmp.name) / "static"
@@ -294,10 +314,11 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(_parse_no_skip_list(""))
 
 
-class FileApiTests(unittest.TestCase):
+class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
 
     def setUp(self) -> None:
+        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.scan_root = Path(self.tmp.name) / "project"
