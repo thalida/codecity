@@ -227,6 +227,72 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(_parse_include_all(""))
         self.assertFalse(_parse_include_all("path=/tmp"))
 
+    def test_manifest_route_honors_no_skip_list(self) -> None:
+        # Init a git repo, create node_modules/foo, commit ONLY README.
+        # node_modules is untracked, so it appears only with include_all.
+        # With include_all=true alone, the skip list excludes it. With
+        # include_all=true&no_skip_list=true, it's included.
+        import subprocess
+        subprocess.run(
+            ["git", "-C", str(self.project), "init", "-q"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.name", "t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", "README.md"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
+            check=True,
+        )
+        nm = self.project / "node_modules"
+        nm.mkdir()
+        (nm / "x.js").write_text("x")
+
+        q_skipped = urllib.parse.urlencode({
+            "path": str(self.project), "include_all": "true",
+        })
+        _, body_skipped, _ = _get(self.base + f"/api/manifest?{q_skipped}")
+        names_skipped = [
+            c["name"] for c in json.loads(body_skipped)["tree"]["children"]
+        ]
+        self.assertNotIn("node_modules", names_skipped)
+
+        q_full = urllib.parse.urlencode({
+            "path": str(self.project),
+            "include_all": "true",
+            "no_skip_list": "true",
+        })
+        _, body_full, _ = _get(self.base + f"/api/manifest?{q_full}")
+        names_full = [
+            c["name"] for c in json.loads(body_full)["tree"]["children"]
+        ]
+        self.assertIn("node_modules", names_full)
+
+    def test_no_cache_query_param_truthy_parsing(self) -> None:
+        from codecity.server import _parse_no_cache
+        self.assertTrue(_parse_no_cache("no_cache=true"))
+        self.assertTrue(_parse_no_cache("no_cache=TRUE"))
+        self.assertTrue(_parse_no_cache("no_cache=1"))
+        self.assertFalse(_parse_no_cache("no_cache=false"))
+        self.assertFalse(_parse_no_cache("no_cache=0"))
+        self.assertFalse(_parse_no_cache(""))
+        self.assertFalse(_parse_no_cache("path=/tmp"))
+
+    def test_no_skip_list_query_param_truthy_parsing(self) -> None:
+        from codecity.server import _parse_no_skip_list
+        self.assertTrue(_parse_no_skip_list("no_skip_list=true"))
+        self.assertTrue(_parse_no_skip_list("no_skip_list=1"))
+        self.assertFalse(_parse_no_skip_list("no_skip_list=false"))
+        self.assertFalse(_parse_no_skip_list("no_skip_list=yes"))
+        self.assertFalse(_parse_no_skip_list(""))
+
 
 class FileApiTests(unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
