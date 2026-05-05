@@ -19,6 +19,8 @@
 // buildingFader owns material.opacity. They write to disjoint fields
 // so they cannot conflict by construction.
 
+import { TweenKind } from '../types';
+
 // Default durations (ms). Subjective; smoke-tested for "snappy but
 // readable" on file-save bursts.
 const ENTER_MS = 400;
@@ -68,7 +70,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     mesh.scale.y = fromVal; // snap to start so the first frame is correct
     _addOrUpdate({
       mesh,
-      kind: 'scaleY',
+      kind: TweenKind.ScaleY,
       fromVal,
       toVal,
       durationMs,
@@ -82,7 +84,7 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
     mesh.position.copy(fromVec);
     _addOrUpdate({
       mesh,
-      kind: 'position',
+      kind: TweenKind.Position,
       fromX: fromVec.x,
       fromY: fromVec.y,
       fromZ: fromVec.z,
@@ -132,9 +134,9 @@ export function createAnimator({ cityScene }: { cityScene: any }) {
       let t = (now - tw.startedAt) / tw.durationMs;
       if (t >= 1) t = 1;
       const eased = tw.easing(t);
-      if (tw.kind === 'scaleY') {
+      if (tw.kind === TweenKind.ScaleY) {
         tw.mesh.scale.y = tw.fromVal + (tw.toVal - tw.fromVal) * eased;
-      } else if (tw.kind === 'position') {
+      } else if (tw.kind === TweenKind.Position) {
         tw.mesh.position.set(
           tw.fromX + (tw.toX - tw.fromX) * eased,
           tw.fromY + (tw.toY - tw.fromY) * eased,

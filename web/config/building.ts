@@ -5,6 +5,7 @@
 // geometry / facade textures). OUTLINE + FADE are hot-reloadable.
 
 import { map } from 'nanostores';
+import { FadeDetail } from '../types';
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
 // Floors and width are BOTH normalized against the project's own range:
@@ -21,7 +22,17 @@ import { map } from 'nanostores';
 // wide path, while a 6-unit building gets a 2.4-unit path. The door is
 // sized off the same per-building path width so "walk out the door, onto
 // the path" reads visually no matter how big the building is.
-export const BUILDING_DIMENSIONS = map({
+export interface BuildingDimensionsConfig {
+  MIN_FLOORS: number;
+  MAX_FLOORS: number;
+  FLOOR_HEIGHT: number;
+  MIN_WIDTH: number;
+  MAX_WIDTH: number;
+  PATH_LENGTH: number;
+  PATH_WIDTH_FRAC: number;
+}
+
+export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   MIN_FLOORS: 1,
   MAX_FLOORS: 50,
   FLOOR_HEIGHT: 10, // scene units per floor
@@ -35,7 +46,16 @@ export const BUILDING_DIMENSIONS = map({
 // Hue comes from HUE_EXT_MAP keyed by file extension; saturation and
 // lightness come from these ranges (older files are more muted, newer ones
 // brighter). DIRECTORY_COLOR is used for directory buildings.
-export const BUILDING_PALETTE = map({
+export interface BuildingPaletteConfig {
+  SATURATION_MIN: number;
+  SATURATION_MAX: number;
+  LIGHTNESS_MIN: number;
+  LIGHTNESS_MAX: number;
+  DIRECTORY_COLOR: string;
+  HUE_EXT_MAP: Record<string, number>;
+}
+
+export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   SATURATION_MIN: 10,
   SATURATION_MAX: 100,
   LIGHTNESS_MIN: 25,
@@ -82,7 +102,14 @@ export const BUILDING_PALETTE = map({
 // via color (white for hover, animated rainbow for selected) rather than
 // thickness. The chasing-rainbow effect on selected uses RAINBOW (shared
 // with the path line) — see config/effects.js.
-export const BUILDING_OUTLINE = map({
+export interface BuildingOutlineConfig {
+  WIDTH: number;
+  HOVER_COLOR: string;
+  HOVER_OPACITY: number;
+  SELECTED_OPACITY: number;
+}
+
+export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
   WIDTH: 2, // shared by default + hover + selected
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.85,
@@ -110,25 +137,42 @@ export const BUILDING_OUTLINE = map({
 // it would otherwise sit in — hover acts as a "preview the selection" state.
 //
 // All hot-reloadable.
-export const BUILDING_FADE = map({
+export interface BuildingFadeConfig {
+  LERP_SPEED: number;
+  SNAP_THRESHOLD: number;
+  DEFAULT_DETAIL: FadeDetail;
+  DEFAULT_OUTLINE: boolean;
+  DEFAULT_BODY_OPACITY: number;
+  DEFAULT_OUTLINE_OPACITY: number;
+  NEAR_DETAIL: FadeDetail;
+  NEAR_OUTLINE: boolean;
+  NEAR_BODY_OPACITY: number;
+  NEAR_OUTLINE_OPACITY: number;
+  FAR_DETAIL: FadeDetail;
+  FAR_OUTLINE: boolean;
+  FAR_BODY_OPACITY: number;
+  FAR_OUTLINE_OPACITY: number;
+}
+
+export const BUILDING_FADE = map<BuildingFadeConfig>({
   // Animation
   LERP_SPEED: 0.18,
   SNAP_THRESHOLD: 0.005,
 
   // Default tier — siblings of selection, and the no-selection resting state.
-  DEFAULT_DETAIL: 'full',
+  DEFAULT_DETAIL: FadeDetail.Full,
   DEFAULT_OUTLINE: false,
   DEFAULT_BODY_OPACITY: 1.0,
   DEFAULT_OUTLINE_OPACITY: 1.0,
 
   // Level 1 — one hop from selection along the directory spine.
-  NEAR_DETAIL: 'silhouette',
+  NEAR_DETAIL: FadeDetail.Silhouette,
   NEAR_OUTLINE: true,
   NEAR_BODY_OPACITY: 0.65,
   NEAR_OUTLINE_OPACITY: 0.65,
 
   // Level 2+ — anything farther.
-  FAR_DETAIL: 'hidden',
+  FAR_DETAIL: FadeDetail.Hidden,
   FAR_OUTLINE: true,
   FAR_BODY_OPACITY: 0.1,
   FAR_OUTLINE_OPACITY: 0.18,

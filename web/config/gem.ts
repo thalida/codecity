@@ -9,7 +9,14 @@ import { map, atom } from 'nanostores';
 // ─── Sizing + landing zone ────────────────────────────────────────────────
 // Layout reserves dead space around the gem based on these — changing any
 // requires a re-layout.
-export const GEM_SIZING = map({
+export interface GemSizingConfig {
+  RADIUS_AS_STREET_FRAC: number;
+  MIN_RADIUS: number;
+  HOVER_LIFT_FRAC: number;
+  BUILDING_CLEARANCE: number;
+}
+
+export const GEM_SIZING = map<GemSizingConfig>({
   RADIUS_AS_STREET_FRAC: 0.35, // gem radius = root street width × this
   MIN_RADIUS: 5, // floor for narrow root streets
   HOVER_LIFT_FRAC: 0.3, // gem hovers above road = radius × this
@@ -20,7 +27,10 @@ export const GEM_SIZING = map({
 // 8 vivid faces in a prismatic palette, spaced around the color wheel so
 // no face blends with nearby building colors. Each entry is [r, g, b] in
 // 0–1 range. Hot-reloadable.
-export const GEM_FACE_PALETTE = atom([
+/** RGB triple in 0–1 range. */
+export type RgbTriple = [number, number, number];
+
+export const GEM_FACE_PALETTE = atom<RgbTriple[]>([
   [1.0, 0.2, 0.55], // hot pink
   [0.15, 0.9, 1.0], // cyan
   [0.75, 1.0, 0.2], // chartreuse
@@ -35,14 +45,27 @@ export const GEM_FACE_PALETTE = atom([
 // Edge color = neutral separator line drawn around the faces. Body opacity
 // keeps the gem semi-transparent so the colored faces have a jewel-like
 // quality (fully opaque feels like a plastic toy). Both hot-reloadable.
-export const GEM_APPEARANCE = map({
+export interface GemAppearanceConfig {
+  EDGE_COLOR: string;
+  BODY_OPACITY: number;
+}
+
+export const GEM_APPEARANCE = map<GemAppearanceConfig>({
   EDGE_COLOR: '#f0f0ff',
   BODY_OPACITY: 0.9,
 });
 
 // ─── Animation ─────────────────────────────────────────────────────────────
 // Read fresh each frame in the render loop, so changes apply immediately.
-export const GEM_ANIMATION = map({
+export interface GemAnimationConfig {
+  ROTATION_SPEED: number;
+  BOB_FREQUENCY: number;
+  BOB_AMPLITUDE_FRAC: number;
+  HOVER_SCALE: number;
+  SCALE_LERP_SPEED: number;
+}
+
+export const GEM_ANIMATION = map<GemAnimationConfig>({
   ROTATION_SPEED: 0.6, // radians/sec multiplier
   BOB_FREQUENCY: 1.8, // bob cycles/sec multiplier
   BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this

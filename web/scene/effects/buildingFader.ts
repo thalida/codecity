@@ -15,7 +15,7 @@
 // state owned by buildingFader; outlineRenderer reads them as inputs.
 
 import { BUILDING_FADE } from '../../config/index.js';
-import { NodeKind } from '../../types';
+import { FadeDetail, NodeKind } from '../../types';
 import { parentDirPath } from '../path.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
@@ -94,7 +94,7 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
       // Tier decision.
       let detail, outlineOn, bodyOpacity, outlineOpacity;
       if (m === bldgTarget) {
-        detail = 'full';
+        detail = FadeDetail.Full;
         outlineOn = false;
         bodyOpacity = 1.0;
         outlineOpacity = 0;
@@ -133,8 +133,8 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
       }
 
       // Translate (detail, outline, opacities) → per-layer targets.
-      const bodyTarget = detail === 'full' ? bodyOpacity : 0;
-      const ghostTarget = detail === 'silhouette' ? bodyOpacity : 0;
+      const bodyTarget = detail === FadeDetail.Full ? bodyOpacity : 0;
+      const ghostTarget = detail === FadeDetail.Silhouette ? bodyOpacity : 0;
       const outlineTarget = outlineOn ? outlineOpacity : 0;
 
       m.userData.bodyOp = _stepOpacity(m.userData.bodyOp, bodyTarget, fadeCfg);

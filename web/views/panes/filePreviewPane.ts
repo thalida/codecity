@@ -10,6 +10,7 @@
 // views/shell/rightSidebar.js.
 
 import hljs from 'highlight.js/lib/common';
+import { PreviewKind } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
@@ -191,15 +192,15 @@ function formatBytes(bytes) {
   return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
-function _previewKind(file) {
+function _previewKind(file): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
-  if (IMAGE_EXTS.includes(ext)) return 'image';
-  if (VIDEO_EXTS.includes(ext)) return 'video';
-  if (AUDIO_EXTS.includes(ext)) return 'audio';
-  if (PDF_EXTS.includes(ext)) return 'pdf';
+  if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;
+  if (VIDEO_EXTS.includes(ext)) return PreviewKind.Video;
+  if (AUDIO_EXTS.includes(ext)) return PreviewKind.Audio;
+  if (PDF_EXTS.includes(ext)) return PreviewKind.Pdf;
   // Anything else: try as text. The Preview helper will swap to a "Binary"
   // notice if the response isn't decodable as UTF-8.
-  return 'text';
+  return PreviewKind.Text;
 }
 
 function _fileApiUrl(file) {
@@ -213,7 +214,7 @@ function _makePreviewSection(file) {
   const url = _fileApiUrl(file);
   const kind = _previewKind(file);
 
-  if (kind === 'image') {
+  if (kind === PreviewKind.Image) {
     const img = document.createElement('img');
     img.className = 'preview-image';
     img.src = url;
@@ -221,7 +222,7 @@ function _makePreviewSection(file) {
     return img;
   }
 
-  if (kind === 'video') {
+  if (kind === PreviewKind.Video) {
     const vid = document.createElement('video');
     vid.className = 'preview-media';
     vid.src = url;
@@ -229,7 +230,7 @@ function _makePreviewSection(file) {
     return vid;
   }
 
-  if (kind === 'audio') {
+  if (kind === PreviewKind.Audio) {
     const aud = document.createElement('audio');
     aud.className = 'preview-media';
     aud.src = url;
@@ -237,7 +238,7 @@ function _makePreviewSection(file) {
     return aud;
   }
 
-  if (kind === 'pdf') {
+  if (kind === PreviewKind.Pdf) {
     const emb = document.createElement('embed');
     emb.className = 'preview-pdf';
     emb.type = 'application/pdf';

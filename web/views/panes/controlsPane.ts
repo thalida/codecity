@@ -45,6 +45,7 @@ import {
   hasAnyOverrides,
   onAnyChange,
 } from '../../config/persist.js';
+import { FadeDetail } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // buildControlsPane(opts) -> HTMLElement
@@ -448,9 +449,9 @@ function _buildBuildingsSection(applyTheme) {
   );
 
   const DETAIL_OPTIONS = [
-    { value: 'full', label: 'Full' },
-    { value: 'silhouette', label: 'Silhouette' },
-    { value: 'hidden', label: 'Hidden' },
+    { value: FadeDetail.Full, label: 'Full' },
+    { value: FadeDetail.Silhouette, label: 'Silhouette' },
+    { value: FadeDetail.Hidden, label: 'Hidden' },
   ];
 
   section.appendChild(

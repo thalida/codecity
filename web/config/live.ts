@@ -11,7 +11,12 @@
 
 import { map } from 'nanostores';
 
-export const LIVE_UPDATES = map({
+export interface LiveUpdatesConfig {
+  ENABLED: boolean;
+  POLL_SECONDS: number;
+}
+
+export const LIVE_UPDATES = map<LiveUpdatesConfig>({
   ENABLED: true,
   POLL_SECONDS: 3,
 });

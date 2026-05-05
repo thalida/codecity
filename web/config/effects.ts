@@ -9,7 +9,13 @@ import { map } from 'nanostores';
 // outline and the gem→selection neon path line. Both consumers cycle hue
 // at SPEED rad/ms; SATURATION + LIGHTNESS set the palette intensity.
 // Hot-reloadable; both consumers read fresh per frame.
-export const RAINBOW = map({
+export interface RainbowConfig {
+  SPEED: number;
+  SATURATION: number;
+  LIGHTNESS: number;
+}
+
+export const RAINBOW = map<RainbowConfig>({
   SPEED: 0.0005, // hue cycles per millisecond
   SATURATION: 1.0,
   LIGHTNESS: 0.625,

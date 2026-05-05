@@ -11,19 +11,37 @@ import { map } from 'nanostores';
 
 // ─── Sky / scene background ────────────────────────────────────────────────
 // The void color drawn behind everything. Hot-reloadable.
-export const SCENE_COLORS = map({
+export interface SceneColorsConfig {
+  GROUND: string;
+}
+
+export const SCENE_COLORS = map<SceneColorsConfig>({
   GROUND: '#0a0b10',
 });
 
 // ─── Camera lens ───────────────────────────────────────────────────────────
-export const CAMERA_PERSPECTIVE = map({
+export interface CameraPerspectiveConfig {
+  FOV: number;
+  NEAR: number;
+  FAR: number;
+}
+
+export const CAMERA_PERSPECTIVE = map<CameraPerspectiveConfig>({
   FOV: 45, // vertical field-of-view in degrees
   NEAR: 1,
   FAR: 20000,
 });
 
 // ─── Camera orbit + zoom controls ──────────────────────────────────────────
-export const CAMERA_CONTROLS = map({
+export interface CameraControlsConfig {
+  DAMPING_FACTOR: number;
+  MAX_POLAR_ANGLE_FRAC: number;
+  MIN_DISTANCE: number;
+  MAX_DISTANCE_MULT: number;
+  INITIAL_DISTANCE_MULT: number;
+}
+
+export const CAMERA_CONTROLS = map<CameraControlsConfig>({
   DAMPING_FACTOR: 0.08, // OrbitControls inertia (higher = snappier)
   MAX_POLAR_ANGLE_FRAC: 0.49, // × Math.PI; how close to vertical orbit can go
   MIN_DISTANCE: 30, // closest zoom (world units)
@@ -36,7 +54,22 @@ export const CAMERA_CONTROLS = map({
 // immediately without restart. (Sightline-search internals — step deg,
 // max attempts, ray epsilon — are inlined as private consts in main.js;
 // they're algorithm tuning, not designer dials.)
-export const CAMERA_ANIMATION = map({
+export interface CameraAnimationConfig {
+  EASING_POWER: number;
+  RECENTER_DURATION_MS: number;
+  RESET_DURATION_MS: number;
+  BUILDING_FOCUS_DURATION_MS: number;
+  BUILDING_FOCUS_DISTANCE_MULT: number;
+  BUILDING_FOCUS_DISTANCE_OFFSET: number;
+  STREET_FOCUS_DURATION_MS: number;
+  STREET_FOCUS_LENGTH_FRAC: number;
+  STREET_FOCUS_WIDTH_MULT: number;
+  STREET_FOCUS_ALTITUDE_BLDG_MULT: number;
+  STREET_FOCUS_ALTITUDE_FLOOR: number;
+  STREET_FOCUS_ELEVATION_DEG: number;
+}
+
+export const CAMERA_ANIMATION = map<CameraAnimationConfig>({
   EASING_POWER: 3, // ease-out exponent (1 - (1-t)^P) for all camera animations
   RECENTER_DURATION_MS: 350,
   RESET_DURATION_MS: 500,
@@ -54,7 +87,13 @@ export const CAMERA_ANIMATION = map({
 // ─── Pointer input timing ──────────────────────────────────────────────────
 // Click vs drag detection + hover stickiness. Read per-event so the Settings
 // UI's tweaks apply immediately.
-export const INPUT_TIMING = map({
+export interface InputTimingConfig {
+  CLICK_MOVE_THRESHOLD_PX: number;
+  CLICK_TIME_THRESHOLD_MS: number;
+  HOVER_COMMIT_MS: number;
+}
+
+export const INPUT_TIMING = map<InputTimingConfig>({
   CLICK_MOVE_THRESHOLD_PX: 5, // pointer must move < this px to count as a click
   CLICK_TIME_THRESHOLD_MS: 400, // …and release within this window
   HOVER_COMMIT_MS: 35, // ms cursor must stay on a target before
@@ -62,7 +101,12 @@ export const INPUT_TIMING = map({
 });
 
 // ─── Tooltip placement ─────────────────────────────────────────────────────
-export const TOOLTIP = map({
+export interface TooltipConfig {
+  OFFSET_PX: number;
+  VIEWPORT_MARGIN_PX: number;
+}
+
+export const TOOLTIP = map<TooltipConfig>({
   OFFSET_PX: 14, // distance from cursor
   VIEWPORT_MARGIN_PX: 4, // safety margin from viewport edges
 });

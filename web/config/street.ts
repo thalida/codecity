@@ -11,7 +11,12 @@ import { atom, map } from 'nanostores';
 // concentric with the sidewalk cap circle (length - 2 × sidewalkStrip).
 // Both are designer constants — not surfaced as UI controls because they
 // shape geometry and the user should never break concentric caps.
-export const ASPHALT = map({
+export interface AsphaltConfig {
+  COLOR: string;
+  WIDTH_FRAC: number;
+}
+
+export const ASPHALT = map<AsphaltConfig>({
   COLOR: '#1a1d28',
   WIDTH_FRAC: 0.6,
 });
@@ -21,7 +26,13 @@ export const ASPHALT = map({
 // (cursor, current selection). All hot-reloadable. Lineage from the root
 // gem to the current selection is shown only by the neon path line — no
 // sidewalk recolor for path streets.
-export const SIDEWALK_COLORS = map({
+export interface SidewalkColorsConfig {
+  DEFAULT: string;
+  HOVER: string;
+  SELECTED: string;
+}
+
+export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
   DEFAULT: '#2c2e36',
   HOVER: '#d0d2da',
   SELECTED: '#ffffff',
@@ -33,7 +44,22 @@ export const SIDEWALK_COLORS = map({
 // are rebuild-required since the canvas dims depend on them.
 //   FLIP_HYSTERESIS is hot-reloadable: it's the camera-orbit dead zone
 //   before labels rotate 180° to stay readable.
-export const LABEL_TYPOGRAPHY = map({
+export interface LabelTypographyConfig {
+  FILL: string;
+  STROKE: string;
+  FONT_FAMILY: string;
+  FONT_WEIGHT: number;
+  FONT_SIZE_PX: number;
+  CANVAS_PADDING_PX: number;
+  STROKE_WIDTH_PX: number;
+  HEIGHT_FRAC: number;
+  SPACING_MULT: number;
+  SPACING_FLOOR: number;
+  ELEVATION: number;
+  FLIP_HYSTERESIS: number;
+}
+
+export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   FILL: '#f4f6ff',
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
@@ -52,7 +78,13 @@ export const LABEL_TYPOGRAPHY = map({
 // Tracing the lineage from the root gem through each parent street to the
 // current selection. Rainbow color cycle is shared with the selected building
 // outline — see RAINBOW in config/effects.js.
-export const PATH_LINE = map({
+export interface PathLineConfig {
+  LINEWIDTH: number;
+  ELEVATION: number;
+  OPACITY: number;
+}
+
+export const PATH_LINE = map<PathLineConfig>({
   LINEWIDTH: 5,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
@@ -64,7 +96,15 @@ export const PATH_LINE = map({
 // color (not rainbow) and faded so it reads as a preview, not the
 // committed selection. Suppressed when hover matches the current
 // selection (would just overlap the rainbow line).
-export const HOVER_PATH_LINE = map({
+export interface HoverPathLineConfig {
+  ENABLED: boolean;
+  LINEWIDTH: number;
+  COLOR: string;
+  OPACITY: number;
+  ELEVATION: number;
+}
+
+export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
   ENABLED: true,
   LINEWIDTH: 5,
   COLOR: '#ffffff',
@@ -77,7 +117,12 @@ export const HOVER_PATH_LINE = map({
 // The first matching tier from the top wins. Wider streets read as more
 // important directories from the air. Stored as an atom because it's an
 // ordered array, not a key/value map.
-export const STREET_TIERS = atom([
+export interface StreetTier {
+  min_descendants: number;
+  width: number;
+}
+
+export const STREET_TIERS = atom<StreetTier[]>([
   { min_descendants: 0, width: 10 },
   { min_descendants: 4, width: 16 },
   { min_descendants: 8, width: 24 },
@@ -92,7 +137,13 @@ export const STREET_TIERS = atom([
 //                      has no parent intersection to size against)
 //   PARENT_JOIN_PAD  — extra clear space where a child street meets its parent
 // All rebuild-required (changing any of these reshapes the entire layout).
-export const STREET_LAYOUT = map({
+export interface StreetLayoutConfig {
+  CHILD_GAP: number;
+  ROOT_END_PAD: number;
+  PARENT_JOIN_PAD: number;
+}
+
+export const STREET_LAYOUT = map<StreetLayoutConfig>({
   CHILD_GAP: 5,
   ROOT_END_PAD: 8,
   PARENT_JOIN_PAD: 3,
