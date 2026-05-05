@@ -37,6 +37,7 @@ import {
   RAINBOW,
   // Live updates
   LIVE_UPDATES,
+  SCAN_FILTERS,
 } from '@/config/index.js';
 import {
   clearPersistence,
@@ -142,15 +143,22 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   return pane;
 }
 
-// ─── Updates ───────────────────────────────────────────────────────────────
-// Toggle "live" filesystem polling. Default off so the server isn't
-// re-walking the tree when nobody's editing. The polling cadence is
-// user-tunable; main.js clamps to a hidden [1s, 60s] band on read so an
-// over-eager value can't ddos the local server.
+// ─── Scan ──────────────────────────────────────────────────────────────────
+// What the scanner picks up + when to re-scan. SHOW_ALL_FILES bypasses
+// the tracked-files-only filter (default OFF — current behavior); live
+// updates polls /api/manifest/signature on a clamped [1s, 60s] interval
+// so an over-eager value can't ddos the local server.
 function _buildUpdatesSection(): HTMLElement {
   const section = _section(
-    'Updates',
-    'Re-render the city automatically when the underlying files change.'
+    'Scan',
+    'What the scanner picks up, and how it stays in sync.'
+  );
+  section.appendChild(
+    _subgroup('Filters', [
+      _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
+        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Toggling re-fetches the manifest.',
+      }),
+    ])
   );
   section.appendChild(
     _subgroup('Live updates', [
