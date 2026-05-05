@@ -227,6 +227,25 @@ class SignatureTreeTests(unittest.TestCase):
             )
             new_file.unlink(missing_ok=True)
 
+    def test_include_all_signature_matches_full_scan(self):
+        # Parity contract still holds in include_all mode.
+        m = scan_tree(str(FIXTURE), include_all=True)
+        s = signature_tree(str(FIXTURE), include_all=True)
+        self.assertEqual(s["signature"], m["signature"])
+
+    def test_include_all_signature_differs_from_default(self):
+        # Adding files that only show up under include_all must change
+        # the signature relative to the default scan, otherwise the
+        # frontend would never re-render after the toggle flips.
+        untracked = FIXTURE / "sig-temp-include-all.txt"
+        untracked.write_text("payload")
+        try:
+            default_sig = signature_tree(str(FIXTURE))["signature"]
+            all_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertNotEqual(default_sig, all_sig)
+        finally:
+            untracked.unlink(missing_ok=True)
+
 
 def _walk_files(node):
     """Yield every file node in the tree."""

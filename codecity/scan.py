@@ -495,6 +495,7 @@ def _walk_for_signature(
     *,
     is_git_repo: bool,
     tracked_files: set[str],
+    include_all: bool,
     sig: Any,
 ) -> None:
     """Stat-only walk that feeds the live signature without building nodes.
@@ -513,7 +514,7 @@ def _walk_for_signature(
         if entry.name == ".git":
             continue
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
-        if is_git_repo and entry_rel not in tracked_files:
+        if is_git_repo and not include_all and entry_rel not in tracked_files:
             continue
         if entry.is_file(follow_symlinks=False):
             size, _created, _modified, mtime = _stat_fields(entry)
@@ -523,12 +524,13 @@ def _walk_for_signature(
                 entry.path, entry_rel,
                 is_git_repo=is_git_repo,
                 tracked_files=tracked_files,
+                include_all=include_all,
                 sig=sig,
             )
 
 
-def signature_tree(root: str) -> SignatureResponse:
-    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
+def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse:
+    """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
     but without building the full manifest.
 
     Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
@@ -536,6 +538,9 @@ def signature_tree(root: str) -> SignatureResponse:
     file content reads and the two `git log` walks scan_tree uses for
     per-file created/modified history; both are cost-dominant on a big
     repo and don't feed the signature anyway.
+
+    With ``include_all=True``, skips the tracked-files lookup as well —
+    the filter isn't applied so we don't need to compute it.
     """
     root_abs = str(Path(root).resolve())
     root_path = Path(root_abs)
@@ -544,7 +549,10 @@ def signature_tree(root: str) -> SignatureResponse:
     repo_info: RepoInfo | None = None
 
     if is_git_repo:
-        tracked_files = _collect_tracked_set(root_path)
+        # Tracked set is only used by the filter; skip the git call when
+        # include_all bypasses the filter.
+        if not include_all:
+            tracked_files = _collect_tracked_set(root_path)
         repo_info = _collect_repo_info(root_path)
 
     sig = hashlib.blake2b(digest_size=16)
@@ -552,6 +560,7 @@ def signature_tree(root: str) -> SignatureResponse:
         root_abs, ".",
         is_git_repo=is_git_repo,
         tracked_files=tracked_files,
+        include_all=include_all,
         sig=sig,
     )
     if repo_info is not None:
