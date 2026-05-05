@@ -19,6 +19,7 @@ import {
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
+  SCAN_FILTERS,
 } from './config/index.js';
 import { IS_RELOADING } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
@@ -395,30 +396,64 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
   let inFlight = false;
+  let needsRefresh = false;
 
+  // Single fetch+apply path. Always sets IS_RELOADING for the duration —
+  // both the poll's "signature changed" branch and the toggle handler
+  // funnel through here so the footer indicator behaves identically.
+  async function refreshManifest(): Promise<void> {
+    IS_RELOADING.set(true);
+    try {
+      const resp = await fetch(manifestUrl());
+      if (!resp.ok) return;
+      const m: Manifest | null = await resp.json();
+      if (m?.signature) {
+        lastSignature = m.signature;
+        handle.cityScene.applyManifest(m);
+      }
+    } finally {
+      IS_RELOADING.set(false);
+    }
+  }
+
+  // Poll tick: cheap signature first, full manifest only on change.
+  // After a refresh, re-check needsRefresh in case a toggle fired
+  // mid-flight and queued itself.
   async function tick(): Promise<void> {
     if (inFlight) return;
     inFlight = true;
     try {
-      const sigResp = await fetch(signatureUrl());
-      if (!sigResp.ok) return;
-      const sig: SignatureResponse | null = await sigResp.json();
-      if (!sig?.signature || sig.signature === lastSignature) return;
-
-      IS_RELOADING.set(true);
-      try {
-        const mResp = await fetch(manifestUrl());
-        if (!mResp.ok) return;
-        const m: Manifest | null = await mResp.json();
-        if (m?.signature && m.signature !== lastSignature) {
-          lastSignature = m.signature;
-          handle.cityScene.applyManifest(m);
-        }
-      } finally {
-        IS_RELOADING.set(false);
-      }
+      do {
+        needsRefresh = false;
+        const sigResp = await fetch(signatureUrl());
+        if (!sigResp.ok) break;
+        const sig: SignatureResponse | null = await sigResp.json();
+        if (!sig?.signature || sig.signature === lastSignature) break;
+        await refreshManifest();
+      } while (needsRefresh);
     } catch {
       /* keep polling on transient errors */
+    } finally {
+      inFlight = false;
+    }
+  }
+
+  // Toggle handler: bypass the cheap check (the manifest WILL differ),
+  // but defer to the polling closure's inFlight gate so the two paths
+  // can't trample each other.
+  async function refreshFromToggle(): Promise<void> {
+    if (inFlight) {
+      needsRefresh = true;
+      return;
+    }
+    inFlight = true;
+    try {
+      do {
+        needsRefresh = false;
+        await refreshManifest();
+      } while (needsRefresh);
+    } catch {
+      /* keep polling */
     } finally {
       inFlight = false;
     }
@@ -439,6 +474,20 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   LIVE_UPDATES.subscribe((val) => {
     if (val.ENABLED) start();
     else stop();
+  });
+
+  // Toggling SHOW_ALL_FILES ALWAYS triggers a refresh, regardless of
+  // whether live polling is enabled — the user explicitly asked for a
+  // different scan and should see it immediately.
+  let _scanFiltersBootstrapped = false;
+  SCAN_FILTERS.subscribe(() => {
+    // Skip the first synchronous fire from .subscribe() so we don't
+    // double-fetch on initial hydration.
+    if (!_scanFiltersBootstrapped) {
+      _scanFiltersBootstrapped = true;
+      return;
+    }
+    refreshFromToggle();
   });
 }
 
