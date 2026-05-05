@@ -23,6 +23,7 @@ import json
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -155,46 +156,53 @@ def _is_git_repo(root: Path) -> bool:
     return _run_git(root, "rev-parse", "--git-dir").strip() != ""
 
 
-def _collect_git_metadata(root: Path) -> tuple[dict[str, str], dict[str, str], set[str]]:
+def _collect_git_dates(root: Path, *log_args: str) -> dict[str, str]:
+    """Walk one `git log` invocation, return {path: ISO-date}.
+
+    The two callers in _collect_git_metadata both use the COMMIT:<date>
+    + --name-only protocol; this helper centralizes the parser so they
+    can run concurrently in a thread pool without duplicating logic.
+
+    First occurrence wins — caller controls direction via `--reverse`."""
+    out = _run_git(
+        root, "log",
+        "--format=COMMIT:%aI", "--name-only",
+        *log_args,
+    )
+    result: dict[str, str] = {}
+    current_date = ""
+    for line in out.splitlines():
+        if line.startswith("COMMIT:"):
+            current_date = line[len("COMMIT:"):]
+        elif line and line not in result:
+            result[line] = current_date
+    return result
+
+
+def _collect_git_metadata(
+    root: Path,
+) -> tuple[dict[str, str], dict[str, str], set[str]]:
     """Return (created_map, modified_map, tracked_set).
 
     - created_map[path]  = earliest add-commit ISO date
     - modified_map[path] = most recent commit-that-touched-it ISO date
     - tracked_set        = all tracked paths + their parent dirs (for gitignore filter)
+
+    The two `git log` walks are independent and run in parallel via a
+    ThreadPoolExecutor. The tracked-set query runs serially after — it's
+    cheap (one `git ls-files`) and the caller may need it before the
+    other two complete anyway.
     """
-    created: dict[str, str] = {}
-    modified: dict[str, str] = {}
-    tracked: set[str] = set()
+    _log("  collecting creation + modified dates (parallel git log walks)…")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        created_future = pool.submit(
+            _collect_git_dates, root, "--reverse", "--diff-filter=A",
+        )
+        modified_future = pool.submit(_collect_git_dates, root)
+        created = created_future.result()
+        modified = modified_future.result()
+    _log(f"    {len(created)} created, {len(modified)} modified")
 
-    # Created: walk in chronological order, first occurrence wins (oldest).
-    _log("  collecting creation dates (one git log walk)…")
-    out = _run_git(
-        root, "log", "--reverse",
-        "--format=COMMIT:%aI", "--name-only", "--diff-filter=A",
-    )
-    current_date = ""
-    for line in out.splitlines():
-        if line.startswith("COMMIT:"):
-            current_date = line[len("COMMIT:"):]
-        elif line and line not in created:
-            created[line] = current_date
-    _log(f"    {len(created)} files")
-
-    # Modified: reverse-chron (git default), first occurrence wins (most recent).
-    _log("  collecting modified dates (one git log walk)…")
-    out = _run_git(
-        root, "log",
-        "--format=COMMIT:%aI", "--name-only",
-    )
-    current_date = ""
-    for line in out.splitlines():
-        if line.startswith("COMMIT:"):
-            current_date = line[len("COMMIT:"):]
-        elif line and line not in modified:
-            modified[line] = current_date
-    _log(f"    {len(modified)} files")
-
-    # Tracked set (for .gitignore filter) — includes parent dirs.
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")

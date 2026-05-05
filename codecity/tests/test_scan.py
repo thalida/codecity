@@ -380,5 +380,38 @@ def _walk_dirs(node):
         yield from _walk_dirs(c)
 
 
+class GitMetadataParallelTests(unittest.TestCase):
+    """The two git log walks (created + modified) are independent and
+    should run concurrently."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_parallel_invocation_count_matches_serial(self):
+        # The parallelized version must invoke `git log` exactly twice
+        # (one --reverse --diff-filter=A, one without). No extra calls.
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if (
+                isinstance(args, list)
+                and args[:2] == ["git", "-C"]
+                and "log" in args
+            ):
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE)
+
+        self.assertEqual(len(log_calls), 2,
+                         f"expected exactly 2 git log calls, got: {log_calls}")
+
+
 if __name__ == "__main__":
     unittest.main()
