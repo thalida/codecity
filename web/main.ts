@@ -22,7 +22,8 @@ import {
 } from './config/index.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
-import { NODE_KIND, DOM_IDS, STREET_AXIS } from './constants.js';
+import { DOM_IDS } from './constants';
+import { NodeKind, StreetAxis } from './types';
 
 import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
@@ -151,9 +152,9 @@ function startRenderLoop(canvas, manifest) {
         sw.userData.origColor = sw.material.color.getHex();
       }
       let expected = null;
-      if (sel?.kind === NODE_KIND.DIRECTORY && sel.sidewalk === sw) {
+      if (sel?.kind === NodeKind.Directory && sel.sidewalk === sw) {
         expected = SIDEWALK_SELECTED_COLOR;
-      } else if (hov?.kind === NODE_KIND.DIRECTORY && hov.sidewalk === sw) {
+      } else if (hov?.kind === NodeKind.Directory && hov.sidewalk === sw) {
         expected = SIDEWALK_HOVER_COLOR;
       }
       const swColor = expected ?? sw.userData.origColor;
@@ -281,7 +282,7 @@ function startRenderLoop(canvas, manifest) {
         rootGem.userData.baseY + Math.sin(t * gemAnim.BOB_FREQUENCY) * rootGem.userData.bobAmp;
       // Scale-up affordance on hover so the gem reads as clickable.
       const hov = picker.hover.get();
-      const gemTargetScale = hov && hov.kind === NODE_KIND.GEM ? gemAnim.HOVER_SCALE : 1.0;
+      const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;
       const curS = rootGem.scale.x;
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
@@ -314,7 +315,7 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   for (const lbl of labels) {
     const street = lbl.userData.street;
     const base = lbl.userData.baseRotY || 0;
-    const axis = street.orientation === STREET_AXIS.X ? rightX : rightZ;
+    const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
     let flipped = lbl.userData.flipped || false;
     if (flipped) {
       // Currently flipped — only un-flip when axis clearly crosses POSITIVE.

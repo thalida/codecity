@@ -15,7 +15,7 @@
 // state owned by buildingFader; outlineRenderer reads them as inputs.
 
 import { BUILDING_FADE } from '../../config/index.js';
-import { NODE_KIND } from '../../constants.js';
+import { NodeKind } from '../../types';
 import { parentDirPath } from '../path.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
@@ -49,9 +49,9 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
   function _resolveDirTarget(sel: any, hov: any): any {
     let dirTarget = null;
     if (sel) {
-      if (sel.kind === NODE_KIND.DIRECTORY) {
+      if (sel.kind === NodeKind.Directory) {
         dirTarget = sel.dir;
-      } else if (sel.kind === NODE_KIND.FILE) {
+      } else if (sel.kind === NodeKind.File) {
         const pp = parentDirPath(sel.file.path);
         if (pp != null) {
           const ps = cityScene.getStreetByDir(pp);
@@ -60,9 +60,9 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
       }
     }
     if (hov) {
-      if (hov.kind === NODE_KIND.DIRECTORY && hov.street?.dir) {
+      if (hov.kind === NodeKind.Directory && hov.street?.dir) {
         dirTarget = hov.street.dir;
-      } else if (hov.kind === NODE_KIND.FILE && hov.file) {
+      } else if (hov.kind === NodeKind.File && hov.file) {
         const hp = parentDirPath(hov.file.path);
         if (hp != null) {
           const hs = cityScene.getStreetByDir(hp);
@@ -77,9 +77,9 @@ export function createBuildingFader({ cityScene, picker }: { cityScene: any; pic
     const sel = picker.selection.get();
     const hov = picker.hover.get();
 
-    const bldgTarget = sel && sel.kind === NODE_KIND.FILE ? sel.mesh : null;
+    const bldgTarget = sel && sel.kind === NodeKind.File ? sel.mesh : null;
     const dirTarget = _resolveDirTarget(sel, hov);
-    const hoverMesh = hov && hov.kind === NODE_KIND.FILE ? hov.mesh : null;
+    const hoverMesh = hov && hov.kind === NodeKind.File ? hov.mesh : null;
 
     const fadeCfg = BUILDING_FADE.get();
     const buildings = cityScene.getBuildings();

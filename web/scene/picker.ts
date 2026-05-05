@@ -19,9 +19,9 @@
 //
 // Target shape (the value held by hover / selection):
 //   null
-//   { kind: NODE_KIND.GEM }
-//   { kind: NODE_KIND.FILE,      mesh, data, file }
-//   { kind: NODE_KIND.DIRECTORY, sidewalk, street, dir }
+//   { kind: NodeKind.Gem }
+//   { kind: NodeKind.File,      mesh, data, file }
+//   { kind: NodeKind.Directory, sidewalk, street, dir }
 //
 // Selection persistence
 // ---------------------
@@ -35,7 +35,7 @@
 
 import * as THREE from 'three';
 import { atom } from 'nanostores';
-import { NODE_KIND } from '../constants.js';
+import { NodeKind } from '../types';
 
 import type { PickerSelectionKey } from '../types';
 
@@ -81,12 +81,12 @@ export function createPicker({
       PICKER_SELECTION_KEY.set(null);
       return;
     }
-    if (sel.kind === NODE_KIND.FILE && sel.file?.path != null) {
-      PICKER_SELECTION_KEY.set({ kind: 'file', path: sel.file.path });
+    if (sel.kind === NodeKind.File && sel.file?.path != null) {
+      PICKER_SELECTION_KEY.set({ kind: NodeKind.File, path: sel.file.path });
       return;
     }
-    if (sel.kind === NODE_KIND.DIRECTORY && sel.dir?.path != null) {
-      PICKER_SELECTION_KEY.set({ kind: 'directory', path: sel.dir.path });
+    if (sel.kind === NodeKind.Directory && sel.dir?.path != null) {
+      PICKER_SELECTION_KEY.set({ kind: NodeKind.Directory, path: sel.dir.path });
       return;
     }
   });
@@ -107,12 +107,12 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    if (key.kind === 'file') {
+    if (key.kind === NodeKind.File) {
       const b = cityScene.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
       if (b) {
         selection.set({
-          kind: NODE_KIND.FILE,
+          kind: NodeKind.File,
           mesh: b.mesh,
           data: b.building,
           file: b.building.file,
@@ -124,13 +124,13 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
-    if (key.kind === 'directory') {
+    if (key.kind === NodeKind.Directory) {
       const sw = cityScene.getSidewalkByDir(key.path);
       const st = cityScene.getStreetByDir(key.path);
       _suspendKeyDerive = true;
       if (sw && st && st.dir) {
         selection.set({
-          kind: NODE_KIND.DIRECTORY,
+          kind: NodeKind.Directory,
           sidewalk: sw,
           street: st,
           dir: st.dir,
@@ -173,7 +173,7 @@ export function createPicker({
     const b = cityScene.getBuildingByPath(path);
     if (b) {
       setSelection({
-        kind: NODE_KIND.FILE,
+        kind: NodeKind.File,
         mesh: b.mesh,
         data: b.building,
         file: b.building.file,
@@ -184,7 +184,7 @@ export function createPicker({
     const st = cityScene.getStreetByDir(path);
     if (sw && st && st.dir) {
       setSelection({
-        kind: NODE_KIND.DIRECTORY,
+        kind: NodeKind.Directory,
         sidewalk: sw,
         street: st,
         dir: st.dir,
@@ -212,19 +212,19 @@ export function createPicker({
   function interpretHit(hit) {
     if (!hit || !hit.object) return null;
     const ud = hit.object.userData;
-    if (ud.type === NODE_KIND.GEM) {
-      return { kind: NODE_KIND.GEM };
+    if (ud.type === NodeKind.Gem) {
+      return { kind: NodeKind.Gem };
     }
     if (ud.building && ud.building.file) {
       const f = ud.building.file;
-      if (f.type === NODE_KIND.DIRECTORY) {
-        return { kind: NODE_KIND.DIRECTORY, sidewalk: null, street: null, dir: f };
+      if (f.type === NodeKind.Directory) {
+        return { kind: NodeKind.Directory, sidewalk: null, street: null, dir: f };
       }
-      return { kind: NODE_KIND.FILE, mesh: hit.object, data: ud.building, file: f };
+      return { kind: NodeKind.File, mesh: hit.object, data: ud.building, file: f };
     }
     if (ud.street && ud.street.dir) {
       return {
-        kind: NODE_KIND.DIRECTORY,
+        kind: NodeKind.Directory,
         sidewalk: hit.object,
         street: ud.street,
         dir: ud.street.dir,

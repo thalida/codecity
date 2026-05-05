@@ -21,7 +21,8 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDING_OUTLINE, RAINBOW } from '../../config/index.js';
-import { NODE_KIND, RENDER_ORDERS } from '../../constants.js';
+import { RENDER_ORDERS } from '../../constants';
+import { NodeKind } from '../../types';
 import { UNIT_BOX_EDGE_POSITIONS } from '../cityScene.js';
 
 const OPAQUE_THRESHOLD = 0.999;
@@ -101,7 +102,7 @@ export function createOutlineRenderer({
 
   // ── Reactive: show/hide outlines on selection / hover changes ───────
   picker.selection.subscribe((sel) => {
-    if (sel && sel.kind === NODE_KIND.FILE) {
+    if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
       selectedOutline.visible = true;
     } else {
@@ -111,7 +112,7 @@ export function createOutlineRenderer({
 
   picker.hover.subscribe((h) => {
     const sel = picker.selection.get();
-    if (h && h.kind === NODE_KIND.FILE && (!sel || sel.mesh !== h.mesh)) {
+    if (h && h.kind === NodeKind.File && (!sel || sel.mesh !== h.mesh)) {
       _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
       hoverOutline.visible = true;
     } else {
@@ -162,7 +163,7 @@ export function createOutlineRenderer({
     // verticals take a single hue from their bottom corner so the loop
     // chase stays seamless.
     const sel = picker.selection.get();
-    if (sel && sel.kind === NODE_KIND.FILE) {
+    if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
       const t = performance.now() * RAINBOW.get().SPEED;
       _setSegHueGradient(0, t + 0.0, t + 0.25); // bottom: back  edge
@@ -181,7 +182,7 @@ export function createOutlineRenderer({
       _selColorBuf.needsUpdate = true;
     }
     const hov = picker.hover.get();
-    if (hov && hov.kind === NODE_KIND.FILE && (!sel || sel.mesh !== hov.mesh)) {
+    if (hov && hov.kind === NodeKind.File && (!sel || sel.mesh !== hov.mesh)) {
       _syncOutlineToBuilding(hoverOutline, hov.mesh, hov.data);
     }
   }

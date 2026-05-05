@@ -10,8 +10,7 @@
 // {type, baseRotY, flipped, …}, etc).
 
 import 'three';
-import type { Building, DirNode, FileNode, Street } from './types';
-import type { NodeKind } from './constants';
+import type { Building, DirNode, FileNode, NodeKind, Street } from './types';
 
 declare module 'three' {
   interface Object3DUserData {

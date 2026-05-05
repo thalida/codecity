@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { INPUT_TIMING } from '../config/index.js';
-import { NODE_KIND } from '../constants.js';
+import { NodeKind } from '../types';
 
 export function createInputHandlers({
   canvas,
@@ -52,17 +52,17 @@ export function createInputHandlers({
 
   function _tooltipForHover(target) {
     if (!target) return null;
-    if (target.kind === NODE_KIND.GEM) {
+    if (target.kind === NodeKind.Gem) {
       // Resolve via picker → cityScene only as needed; we don't keep a
       // direct cityScene ref here.
       return 'root';
     }
-    if (target.kind === NODE_KIND.FILE && target.file) {
+    if (target.kind === NodeKind.File && target.file) {
       const f = target.file;
       const fpath = f.path || f.name || 'file';
       return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
     }
-    if (target.kind === NODE_KIND.DIRECTORY && target.dir) {
+    if (target.kind === NodeKind.Directory && target.dir) {
       const d = target.dir;
       const dpath = d.path || d.name || 'directory';
       const fileCount = d.descendants_file_count != null ? d.descendants_file_count : 0;
@@ -79,9 +79,9 @@ export function createInputHandlers({
     if (a === b) return true;
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
-    if (a.kind === NODE_KIND.FILE) return a.mesh === b.mesh;
-    if (a.kind === NODE_KIND.DIRECTORY) return a.sidewalk === b.sidewalk;
-    if (a.kind === NODE_KIND.GEM) return true;
+    if (a.kind === NodeKind.File) return a.mesh === b.mesh;
+    if (a.kind === NodeKind.Directory) return a.sidewalk === b.sidewalk;
+    if (a.kind === NodeKind.Gem) return true;
     return false;
   }
 
@@ -94,7 +94,7 @@ export function createInputHandlers({
     // Filter: directory-shaped targets that came from a stray "directory
     // building" (engine.js typically skips these) don't have a sidewalk
     // — treat as no hover.
-    if (newHover && newHover.kind === NODE_KIND.DIRECTORY && !newHover.sidewalk) {
+    if (newHover && newHover.kind === NodeKind.Directory && !newHover.sidewalk) {
       newHover = null;
     }
     const tooltipText = _tooltipForHover(newHover);
@@ -132,7 +132,7 @@ export function createInputHandlers({
       picker.setSelection(null);
       return;
     }
-    if (hit.object.userData.type === NODE_KIND.GEM) {
+    if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
       rig.reset();
       return;
@@ -144,11 +144,11 @@ export function createInputHandlers({
     const hit = picker.pickAt(clientX, clientY);
     if (!hit) return;
     const ud = hit.object.userData;
-    if (ud.type === NODE_KIND.GEM) {
+    if (ud.type === NodeKind.Gem) {
       rig.reset();
       return;
     }
-    if (ud.building && ud.building.file && ud.building.file.type === NODE_KIND.FILE) {
+    if (ud.building && ud.building.file && ud.building.file.type === NodeKind.File) {
       rig.focusBuilding(hit.object, ud.building);
       return;
     }
@@ -222,9 +222,9 @@ export function createInputHandlers({
     } else if (e.key === 'f' || e.key === 'F') {
       const sel = picker.selection.get();
       if (!sel) return;
-      if (sel.kind === NODE_KIND.FILE) {
+      if (sel.kind === NodeKind.File) {
         rig.focusBuilding(sel.mesh, sel.data);
-      } else if (sel.kind === NODE_KIND.DIRECTORY) {
+      } else if (sel.kind === NodeKind.Directory) {
         rig.focusStreet(sel.street);
       }
     }

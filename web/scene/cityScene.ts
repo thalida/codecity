@@ -37,7 +37,8 @@ import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '../config/index.js';
-import { NODE_KIND, STREET_AXIS, RENDER_ORDERS } from '../constants.js';
+import { RENDER_ORDERS } from '../constants';
+import { NodeKind, StreetAxis } from '../types';
 
 // 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
 // Used by Line2 outlines (rendered as triangle strips so linewidth is
@@ -268,7 +269,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       return;
     }
     gemWorldPos = new THREE.Vector3();
-    if (rootStreet.orientation === STREET_AXIS.X) {
+    if (rootStreet.orientation === StreetAxis.X) {
       gemWorldPos.set(rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2, 0, rootStreet.y);
     } else {
       gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
@@ -368,7 +369,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     const dirColor = BUILDING_PALETTE.get().DIRECTORY_COLOR;
     const buildings = layout?.buildings ?? [];
     for (const b of buildings) {
-      b.color = b.file?.type === NODE_KIND.FILE ? getBuildingColor(b.file, dateRanges) : dirColor;
+      b.color = b.file?.type === NodeKind.File ? getBuildingColor(b.file, dateRanges) : dirColor;
     }
 
     const built = buildCityScene(layout);
@@ -391,7 +392,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     // Stamp the gem body so it can participate in raycast picking.
     if (rootGem) {
       const gemBody = rootGem.children?.[0];
-      if (gemBody) gemBody.userData.type = NODE_KIND.GEM;
+      if (gemBody) gemBody.userData.type = NodeKind.Gem;
     }
 
     _buildOutlinesAndGhosts();

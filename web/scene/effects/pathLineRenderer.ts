@@ -14,7 +14,8 @@ import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '../../config/index.js';
-import { NODE_KIND, RENDER_ORDERS } from '../../constants.js';
+import { RENDER_ORDERS } from '../../constants';
+import { NodeKind } from '../../types';
 import { computePathPoints } from '../path.js';
 
 export function createPathLineRenderer({
@@ -75,9 +76,9 @@ export function createPathLineRenderer({
     const sel = picker.selection.get();
     if (!hov || !sel) return false;
     if (hov.kind !== sel.kind) return false;
-    if (hov.kind === NODE_KIND.FILE) return hov.mesh === sel.mesh;
-    if (hov.kind === NODE_KIND.DIRECTORY) return hov.street === sel.street;
-    if (hov.kind === NODE_KIND.GEM) return true;
+    if (hov.kind === NodeKind.File) return hov.mesh === sel.mesh;
+    if (hov.kind === NodeKind.Directory) return hov.street === sel.street;
+    if (hov.kind === NodeKind.Gem) return true;
     return false;
   }
 
@@ -133,7 +134,7 @@ export function createPathLineRenderer({
       hoverPathLineMat.opacity = 0;
     }
     if (!cfg.ENABLED || !gemPos || !hov) return hide();
-    if (hov.kind === NODE_KIND.GEM) return hide();
+    if (hov.kind === NodeKind.Gem) return hide();
     if (_isHoverSameAsSelection()) return hide();
     const pts = computePathPoints(
       hov,

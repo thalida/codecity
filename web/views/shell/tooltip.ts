@@ -5,7 +5,7 @@
 // a sidebar open.
 
 import { TOOLTIP } from '../../config/index.js';
-import { DOM_IDS } from '../../constants.js';
+import { DOM_IDS } from '../../constants';
 
 let _el = null;
 

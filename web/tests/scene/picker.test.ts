@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '../../scene/picker.js';
-import { NODE_KIND } from '../../constants.js';
+import { NodeKind } from '../../types';
 
 // Minimal cityScene stub with the accessors picker actually reads.
 function makeFakeCityScene(initialBuildings, initialStreets) {
@@ -22,7 +22,7 @@ function makeFakeCityScene(initialBuildings, initialStreets) {
       const b = buildings[i];
       buildingMap[b.path] = {
         mesh: b.mesh,
-        building: { file: { path: b.path, type: NODE_KIND.FILE } },
+        building: { file: { path: b.path, type: NodeKind.File } },
       };
     }
     for (let j = 0; j < (streets || []).length; j++) {
@@ -96,7 +96,7 @@ describe('createPicker', () => {
     const fakeScene = makeFakeCityScene([], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
     p.setSelection({
-      kind: NODE_KIND.FILE,
+      kind: NodeKind.File,
       mesh: {},
       data: {},
       file: { path: 'src/index.js' },
@@ -109,7 +109,7 @@ describe('createPicker', () => {
     const fakeScene = makeFakeCityScene([], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
     p.setSelection({
-      kind: NODE_KIND.DIRECTORY,
+      kind: NodeKind.Directory,
       sidewalk: {},
       street: {},
       dir: { path: 'src/lib' },
@@ -121,7 +121,7 @@ describe('createPicker', () => {
   it('setSelection(null) clears selectionKey', () => {
     const fakeScene = makeFakeCityScene([], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setSelection({ kind: NODE_KIND.FILE, file: { path: 'a.js' } });
+    p.setSelection({ kind: NodeKind.File, file: { path: 'a.js' } });
     p.setSelection(null);
     expect(p.selectionKey.get()).toBeNull();
     p.dispose();
@@ -132,7 +132,7 @@ describe('createPicker', () => {
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: meshA }], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
     p.selectByPath('a.js');
-    expect(p.selection.get().kind).toBe(NODE_KIND.FILE);
+    expect(p.selection.get().kind).toBe(NodeKind.File);
     expect(p.selection.get().mesh).toBe(meshA);
     expect(p.selectionKey.get()).toEqual({ kind: 'file', path: 'a.js' });
     p.dispose();
@@ -179,7 +179,7 @@ describe('createPicker', () => {
   it('cityScene rebuild always clears hover (transient, can dangle on disposed mesh otherwise)', () => {
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setHover({ kind: NODE_KIND.FILE, mesh: { id: 'old' } });
+    p.setHover({ kind: NodeKind.File, mesh: { id: 'old' } });
     expect(p.hover.get()).not.toBeNull();
 
     fakeScene.setSnapshot([{ path: 'a.js', mesh: { id: 'new' } }], []);
@@ -187,11 +187,11 @@ describe('createPicker', () => {
     p.dispose();
   });
 
-  it('interpretHit returns NODE_KIND.GEM for a gem hit', () => {
+  it('interpretHit returns NodeKind.Gem for a gem hit', () => {
     const fakeScene = makeFakeCityScene([], []);
     const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    const target = p.interpretHit({ object: { userData: { type: NODE_KIND.GEM } } });
-    expect(target.kind).toBe(NODE_KIND.GEM);
+    const target = p.interpretHit({ object: { userData: { type: NodeKind.Gem } } });
+    expect(target.kind).toBe(NodeKind.Gem);
     p.dispose();
   });
 

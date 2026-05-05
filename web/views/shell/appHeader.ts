@@ -3,11 +3,9 @@
 // button) and the two show/hide-sidebar toggles. Visibility state is
 // persisted in localStorage so the preference survives reloads.
 
+import { STORAGE_KEYS } from '../../constants';
 import { getHue } from '../../scene/colors.js';
 import { makeLucideIcon } from './icon.js';
-
-const STORAGE_LEFT = 'cc.appLeftHidden';
-const STORAGE_RIGHT = 'cc.appRightHidden';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -66,8 +64,8 @@ export function initAppHeader(opts: any = {}) {
 
   // Both sidebars default to visible on first run. The right starts in
   // its empty state (no selection); the left starts on its tree pane.
-  let leftHidden = _loadFlag(STORAGE_LEFT, false);
-  let rightHidden = _loadFlag(STORAGE_RIGHT, false);
+  let leftHidden = _loadFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, false);
+  let rightHidden = _loadFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, false);
   document.body.classList.toggle('left-hidden', leftHidden);
   document.body.classList.toggle('right-hidden', rightHidden);
   _renderLeftIcon(leftHidden);
@@ -86,13 +84,13 @@ export function initAppHeader(opts: any = {}) {
     leftHidden = hidden;
     document.body.classList.toggle('left-hidden', leftHidden);
     _renderLeftIcon(leftHidden);
-    _saveFlag(STORAGE_LEFT, leftHidden);
+    _saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
   }
   function _setRightHidden(hidden) {
     rightHidden = hidden;
     document.body.classList.toggle('right-hidden', rightHidden);
     _renderRightIcon(rightHidden);
-    _saveFlag(STORAGE_RIGHT, rightHidden);
+    _saveFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, rightHidden);
   }
 
   /**

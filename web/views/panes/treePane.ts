@@ -3,7 +3,7 @@
 // files+dirs intermingled — see layout.js _layoutDir) and stays
 // bidirectionally synced with the scene's current selection.
 
-import { NODE_KIND } from '../../constants.js';
+import { NodeKind } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // Build a <ul> for `node`'s children. `ctx` carries the per-tree mutable
@@ -38,7 +38,7 @@ function _buildItem(child, ctx) {
   label.className = 'tree-label';
   label.textContent = child.name || '';
 
-  if (child.type === NODE_KIND.DIRECTORY) {
+  if (child.type === NodeKind.Directory) {
     li.classList.add('tree-dir', 'tree-collapsed');
 
     // Chevron flips between right (collapsed) and down (expanded). Both

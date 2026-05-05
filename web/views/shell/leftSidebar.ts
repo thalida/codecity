@@ -8,10 +8,9 @@
 import { buildTreePane } from '../panes/treePane.js';
 import { buildInfoPane } from '../panes/infoPane.js';
 import { buildControlsPane } from '../panes/controlsPane.js';
-import { DOM_IDS, SIDEBAR_TAB, LUCIDE_ICON_BASE_URL, ACTIVITY_BAR_TABS } from '../../constants.js';
+import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '../../constants';
+import { SidebarTab } from '../../types';
 
-const SIDEBAR_WIDTH_STORAGE_KEY = 'cc.sidebarWidth';
-const SIDEBAR_COLLAPSED_STORAGE_KEY = 'cc.sidebarCollapsed';
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
 
@@ -68,9 +67,9 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
   });
   const infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
   const panes = {};
-  panes[SIDEBAR_TAB.TREE] = treeBundle.pane;
-  panes[SIDEBAR_TAB.INFO] = infoBundle.pane;
-  panes[SIDEBAR_TAB.CONTROLS] = buildControlsPane({
+  panes[SidebarTab.Tree] = treeBundle.pane;
+  panes[SidebarTab.Info] = infoBundle.pane;
+  panes[SidebarTab.Controls] = buildControlsPane({
     applyTheme: opts.applyTheme,
     onClose: paneOnClose,
   });
@@ -81,8 +80,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
     }
   }
 
-  let activeTab =
-    opts.initialTab === SIDEBAR_TAB.CONTROLS ? SIDEBAR_TAB.CONTROLS : SIDEBAR_TAB.TREE;
+  let activeTab = opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
   let collapsed = _loadCollapsed();
   const iconBtns = {};
 
@@ -207,7 +205,7 @@ function _buildResizeHandle(sidebar) {
 function _applyPersistedWidth(sidebar) {
   if (typeof localStorage === 'undefined') return;
   try {
-    const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
     if (raw == null) return;
     let w = parseFloat(raw);
     if (!Number.isFinite(w)) return;
@@ -222,7 +220,7 @@ function _applyPersistedWidth(sidebar) {
 function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w));
+    localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
   } catch (_) {
     /* quota / private — drop */
   }
@@ -231,7 +229,7 @@ function _persistWidth(w) {
 function _loadCollapsed() {
   if (typeof localStorage === 'undefined') return false;
   try {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+    return localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === 'true';
   } catch (_) {
     return false;
   }
@@ -240,8 +238,8 @@ function _loadCollapsed() {
 function _persistCollapsed(value) {
   if (typeof localStorage === 'undefined') return;
   try {
-    if (value) localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, 'true');
-    else localStorage.removeItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    if (value) localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, 'true');
+    else localStorage.removeItem(STORAGE_KEYS.SIDEBAR_COLLAPSED);
   } catch (_) {
     /* drop */
   }

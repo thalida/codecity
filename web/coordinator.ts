@@ -21,7 +21,7 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
-import { NODE_KIND } from './constants.js';
+import { NodeKind } from './types';
 
 interface CoordinatorOpts {
   cityScene: any;
@@ -55,7 +55,7 @@ export function createCoordinator({
     // Directories collapse to the same empty "select a file" state as
     // no-selection — the file-preview pane has nothing to show for a
     // directory pick.
-    if (sel && sel.kind === NODE_KIND.FILE) filePreview.api.setFile(sel.file);
+    if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
     else filePreview.api.setFile(null);
   }
 
@@ -95,10 +95,10 @@ export function createCoordinator({
 
   function _onTreeFocus(node) {
     if (!node || !node.path) return;
-    if (node.type === NODE_KIND.FILE) {
+    if (node.type === NodeKind.File) {
       const b = cityScene.getBuildingByPath(node.path);
       if (b) rig.focusBuilding(b.mesh, b.building);
-    } else if (node.type === NODE_KIND.DIRECTORY) {
+    } else if (node.type === NodeKind.Directory) {
       const st = cityScene.getStreetByDir(node.path);
       if (st) rig.focusStreet(st);
     }
@@ -106,21 +106,21 @@ export function createCoordinator({
 
   function _onTreeHover(node) {
     if (!node || !node.path) return;
-    if (node.type === NODE_KIND.FILE) {
+    if (node.type === NodeKind.File) {
       const b = cityScene.getBuildingByPath(node.path);
       if (!b) return;
       picker.setHover({
-        kind: NODE_KIND.FILE,
+        kind: NodeKind.File,
         mesh: b.mesh,
         data: b.building,
         file: b.building.file,
       });
-    } else if (node.type === NODE_KIND.DIRECTORY) {
+    } else if (node.type === NodeKind.Directory) {
       const sw = cityScene.getSidewalkByDir(node.path);
       const st = cityScene.getStreetByDir(node.path);
       if (!sw || !st || !st.dir) return;
       picker.setHover({
-        kind: NODE_KIND.DIRECTORY,
+        kind: NodeKind.Directory,
         sidewalk: sw,
         street: st,
         dir: st.dir,
@@ -145,8 +145,8 @@ export function createCoordinator({
 
   function _pathOf(target) {
     if (!target) return null;
-    if (target.kind === NODE_KIND.FILE) return target.file && target.file.path;
-    if (target.kind === NODE_KIND.DIRECTORY) return target.dir && target.dir.path;
+    if (target.kind === NodeKind.File) return target.file && target.file.path;
+    if (target.kind === NodeKind.Directory) return target.dir && target.dir.path;
     return null;
   }
 
@@ -165,13 +165,13 @@ export function createCoordinator({
             path: node.path || node.fullPath || node.name || '',
             fullPath: node.fullPath || '',
             extension: node.extension || '',
-            isDir: sel.kind === NODE_KIND.DIRECTORY,
+            isDir: sel.kind === NodeKind.Directory,
           }
         : null
     );
 
     // Footer mirrors selection metadata
-    if (sel && sel.kind === NODE_KIND.FILE) {
+    if (sel && sel.kind === NodeKind.File) {
       const f = sel.file || {};
       const hasGit = f.git && (f.git.created || f.git.modified);
       appFooter.setSelection({

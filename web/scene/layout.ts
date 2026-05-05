@@ -7,7 +7,7 @@
 // restore in teardown — keeps the production callsites argument-free.
 
 import { STREET_LAYOUT, STREET_TIERS, BUILDING_DIMENSIONS, GEM_SIZING } from '../config/index.js';
-import { NODE_KIND, BUILDING_ORIENT, STREET_AXIS } from '../constants.js';
+import { BuildingOrient, NodeKind, StreetAxis } from '../types';
 import { parentDirPath } from './path.js';
 
 // getStreetWidth(count, tiers?) -> number
@@ -41,7 +41,7 @@ export function computeFileStats(tree) {
     maxBytes = -Infinity;
   function walk(node) {
     if (!node) return;
-    if (node.type === NODE_KIND.FILE) {
+    if (node.type === NodeKind.File) {
       if (node.lines && node.lines > 0) {
         if (node.lines < minLines) minLines = node.lines;
         if (node.lines > maxLines) maxLines = node.lines;
@@ -143,7 +143,7 @@ export function layoutCity(manifest: any): any {
   result.lineStats = stats.lines;
   result.byteStats = stats.bytes;
 
-  _layoutDir(tree, 0, 0, STREET_AXIS.X, result, undefined, stats.lines, stats.bytes);
+  _layoutDir(tree, 0, 0, StreetAxis.X, result, undefined, stats.lines, stats.bytes);
 
   // Mark the root-dir street so the renderer can draw a distinct "start of
   // repo" marker at its origin end.
@@ -223,7 +223,7 @@ function _markJoinSides(streets) {
 
     // Child's two endpoints along its length axis (in world coords).
     let lowEnd, highEnd;
-    if (s2.orientation === STREET_AXIS.X) {
+    if (s2.orientation === StreetAxis.X) {
       lowEnd = s2.x - s2.length / 2;
       highEnd = s2.x + s2.length / 2;
     } else {
@@ -238,7 +238,7 @@ function _markJoinSides(streets) {
     // parent). For perpendicular orientations, the parent's cross-axis is
     // the child's LENGTH axis — so we compare each child endpoint along
     // its length axis to the parent's centerline value.
-    const parentCrossAxis = parent.orientation === STREET_AXIS.X ? parent.y : parent.x;
+    const parentCrossAxis = parent.orientation === StreetAxis.X ? parent.y : parent.x;
     const dLow = Math.abs(lowEnd - parentCrossAxis);
     const dHigh = Math.abs(highEnd - parentCrossAxis);
     s2.joinSide = dLow < dHigh ? 'low' : 'high';
@@ -255,7 +255,7 @@ function _markJoinSides(streets) {
 // (= building.w × PATH_WIDTH_FRAC; also drives door size — see engine.js).
 // -----------------------------------------------------------------------------
 function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
-  if (b.orient === BUILDING_ORIENT.SOUTH) {
+  if (b.orient === BuildingOrient.South) {
     return {
       x: b.x,
       y: b.y + b.d / 2 + pathLength / 2,
@@ -263,7 +263,7 @@ function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
       d: pathLength,
     };
   }
-  if (b.orient === BUILDING_ORIENT.EAST) {
+  if (b.orient === BuildingOrient.East) {
     return {
       x: b.x + b.w / 2 + pathLength / 2,
       y: b.y,
@@ -271,7 +271,7 @@ function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
       d: pathWidth,
     };
   }
-  if (b.orient === BUILDING_ORIENT.NORTH) {
+  if (b.orient === BuildingOrient.North) {
     return {
       x: b.x,
       y: b.y - b.d / 2 - pathLength / 2,
@@ -279,7 +279,7 @@ function _pathForBuilding(b: any, pathWidth: number, pathLength: number): any {
       d: pathLength,
     };
   }
-  if (b.orient === BUILDING_ORIENT.WEST) {
+  if (b.orient === BuildingOrient.West) {
     return {
       x: b.x - b.w / 2 - pathLength / 2,
       y: b.y,
@@ -372,14 +372,14 @@ function _layoutDir(
   // ---- Sort children alphabetically (files + dirs intermingled) -----------
   const children = (dir.children || [])
     .filter((c) => {
-      return c.type === NODE_KIND.FILE || c.type === NODE_KIND.DIRECTORY;
+      return c.type === NodeKind.File || c.type === NodeKind.Directory;
     })
     .slice()
     .sort((a, b) => {
       return (a.name || '').localeCompare(b.name || '');
     });
 
-  const subOrient = orientation === STREET_AXIS.X ? STREET_AXIS.Y : STREET_AXIS.X;
+  const subOrient = orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X;
 
   // ---- Pre-compute each subdir's layout in its own local frame ------------
   // We need each subdir's bbox BEFORE positioning it, so siblings can be
@@ -388,7 +388,7 @@ function _layoutDir(
   // this (parent) street's footprint.
   const subLayouts = {};
   for (let i = 0; i < children.length; i++) {
-    if (children[i].type === NODE_KIND.DIRECTORY) {
+    if (children[i].type === NodeKind.Directory) {
       const localResult = { streets: [], buildings: [] };
       _layoutDir(children[i], 0, 0, subOrient, localResult, myStreetWidth, lineStats, byteStats);
       subLayouts[i] = {
@@ -419,7 +419,7 @@ function _layoutDir(
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
 
-    if (child.type === NODE_KIND.FILE) {
+    if (child.type === NodeKind.File) {
       const dim = getBuildingDimensions(child, lineStats, byteStats);
       const alongStreet = dim.w;
       const perpStreet = dim.d;
@@ -431,14 +431,14 @@ function _layoutDir(
       const centerPos = startPos + alongStreet / 2;
 
       let bx, by, bldgW, bldgD, orient;
-      if (orientation === STREET_AXIS.X) {
+      if (orientation === StreetAxis.X) {
         bx = originX + centerPos;
         if (sideIdx === 0) {
           by = originY - bldgOffset - perpStreet / 2;
-          orient = BUILDING_ORIENT.SOUTH;
+          orient = BuildingOrient.South;
         } else {
           by = originY + bldgOffset + perpStreet / 2;
-          orient = BUILDING_ORIENT.NORTH;
+          orient = BuildingOrient.North;
         }
         bldgW = alongStreet;
         bldgD = perpStreet;
@@ -446,10 +446,10 @@ function _layoutDir(
         by = originY + centerPos;
         if (sideIdx === 0) {
           bx = originX - bldgOffset - perpStreet / 2;
-          orient = BUILDING_ORIENT.EAST;
+          orient = BuildingOrient.East;
         } else {
           bx = originX + bldgOffset + perpStreet / 2;
-          orient = BUILDING_ORIENT.WEST;
+          orient = BuildingOrient.West;
         }
         bldgW = perpStreet;
         bldgD = alongStreet;
@@ -474,7 +474,7 @@ function _layoutDir(
       const sl = subLayouts[ci];
 
       let widthLow, widthHigh;
-      if (orientation === STREET_AXIS.X) {
+      if (orientation === StreetAxis.X) {
         widthLow = sl.bbox.minX;
         widthHigh = sl.bbox.maxX;
       } else {
@@ -487,11 +487,11 @@ function _layoutDir(
       const subStart = Math.max(cursor[subSide], alphaCursor);
       const subAnchorOffset = subStart + -widthLow;
 
-      const negateY = orientation === STREET_AXIS.X && subSide === 0;
-      const negateX = orientation === STREET_AXIS.Y && subSide === 0;
+      const negateY = orientation === StreetAxis.X && subSide === 0;
+      const negateX = orientation === StreetAxis.Y && subSide === 0;
 
       let subAnchorX, subAnchorY;
-      if (orientation === STREET_AXIS.X) {
+      if (orientation === StreetAxis.X) {
         subAnchorX = originX + subAnchorOffset;
         subAnchorY = originY;
       } else {
@@ -547,7 +547,7 @@ function _layoutDir(
 
   let streetCenterX = originX;
   let streetCenterY = originY;
-  if (orientation === STREET_AXIS.X) {
+  if (orientation === StreetAxis.X) {
     streetCenterX = originX + streetLength / 2;
   } else {
     streetCenterY = originY + streetLength / 2;
@@ -578,12 +578,12 @@ function _layoutDir(
 // -----------------------------------------------------------------------------
 function _mirrorOrient(orient, negateX, negateY) {
   if (negateX) {
-    if (orient === BUILDING_ORIENT.EAST) orient = BUILDING_ORIENT.WEST;
-    else if (orient === BUILDING_ORIENT.WEST) orient = BUILDING_ORIENT.EAST;
+    if (orient === BuildingOrient.East) orient = BuildingOrient.West;
+    else if (orient === BuildingOrient.West) orient = BuildingOrient.East;
   }
   if (negateY) {
-    if (orient === BUILDING_ORIENT.SOUTH) orient = BUILDING_ORIENT.NORTH;
-    else if (orient === BUILDING_ORIENT.NORTH) orient = BUILDING_ORIENT.SOUTH;
+    if (orient === BuildingOrient.South) orient = BuildingOrient.North;
+    else if (orient === BuildingOrient.North) orient = BuildingOrient.South;
   }
   return orient;
 }
@@ -605,7 +605,7 @@ function _computeBbox(layout) {
     const halfL = s.length / 2;
     const halfW = s.width / 2;
     let x1, x2, y1, y2;
-    if (s.orientation === STREET_AXIS.X) {
+    if (s.orientation === StreetAxis.X) {
       x1 = s.x - halfL;
       x2 = s.x + halfL;
       y1 = s.y - halfW;

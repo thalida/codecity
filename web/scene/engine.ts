@@ -18,7 +18,8 @@ import {
   GEM_APPEARANCE,
   GEM_ANIMATION,
 } from '../config/index.js';
-import { NODE_KIND, STREET_AXIS, BUILDING_ORIENT, RENDER_ORDERS } from '../constants.js';
+import { RENDER_ORDERS } from '../constants';
+import { BuildingOrient, NodeKind, StreetAxis } from '../types';
 
 // ─── Renderer-internal constants (not designer-tunable) ────────────────────
 // These shape facade textures, color derivation, and stadium tessellation.
@@ -322,8 +323,8 @@ export function createBuildingMesh(building: any): any {
   //   NORTH → door on layout -y = scene -Z (material index 5)
   //   EAST  → door on layout +x = scene +X (material index 0)
   //   WEST  → door on layout -x = scene -X (material index 1)
-  const orient = building.orient || BUILDING_ORIENT.SOUTH;
-  const doorOnEW = orient === BUILDING_ORIENT.EAST || orient === BUILDING_ORIENT.WEST;
+  const orient = building.orient || BuildingOrient.South;
+  const doorOnEW = orient === BuildingOrient.East || orient === BuildingOrient.West;
 
   // Assign the lighter "front" palette to the pair of faces that contains
   // the door; the other pair gets the darker "side" palette.
@@ -371,12 +372,12 @@ export function createBuildingMesh(building: any): any {
   // NS faces (±Z walls) span the width `w`. Pass each face's world width
   // through so the door texture can size itself in world units.
   const materials = [
-    facadeMat(colsEW, orient === BUILDING_ORIENT.EAST, wallEW, slabEW, d), // +X (east)
-    facadeMat(colsEW, orient === BUILDING_ORIENT.WEST, wallEW, slabEW, d), // -X (west)
+    facadeMat(colsEW, orient === BuildingOrient.East, wallEW, slabEW, d), // +X (east)
+    facadeMat(colsEW, orient === BuildingOrient.West, wallEW, slabEW, d), // -X (west)
     roofMat(), // +Y (roof)
     bottomMat(), // -Y (bottom)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.SOUTH, wallNS, slabNS, w), // +Z (south)
-    facadeMat(colsNS, orient === BUILDING_ORIENT.NORTH, wallNS, slabNS, w), // -Z (north)
+    facadeMat(colsNS, orient === BuildingOrient.South, wallNS, slabNS, w), // +Z (south)
+    facadeMat(colsNS, orient === BuildingOrient.North, wallNS, slabNS, w), // -Z (north)
   ];
 
   const mesh = new THREE.Mesh(geometry, materials);
@@ -391,7 +392,7 @@ export function createBuildingMesh(building: any): any {
   mesh.position.set(building.x, renderH / 2, building.y);
 
   mesh.userData.building = building;
-  mesh.userData.type = NODE_KIND.FILE;
+  mesh.userData.type = NodeKind.File;
   return mesh;
 }
 
@@ -444,7 +445,7 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
   // maps to world -z (flipped). So for y-orient streets, "world low" is
   // at LOCAL HIGH and vice versa — invert capStyle here so the geometry
   // construction below stays in plain local-axis terms.
-  if (orientation === STREET_AXIS.Y) {
+  if (orientation === StreetAxis.Y) {
     if (capStyle === 'low') capStyle = 'high';
     else if (capStyle === 'high') capStyle = 'low';
   }
@@ -459,7 +460,7 @@ function _buildStadiumGeometry(length, width, orientation, capStyle) {
   if (lo > hi) lo = hi = 0; // degenerate: width > length, collapse to 0
 
   const shape = new THREE.Shape();
-  if (orientation === STREET_AXIS.X) {
+  if (orientation === StreetAxis.X) {
     // Trace counter-clockwise: start at low-bottom corner, run along the
     // bottom edge, round (or flat) the high end, run back along the top,
     // and round (or flat) the low end. Auto-closes back to start.
@@ -529,7 +530,7 @@ function createStreetMesh(street, yBase) {
   sidewalk.position.set(street.x, yBase, street.y);
   sidewalk.renderOrder = orders.SIDEWALK;
   sidewalk.userData.street = street;
-  sidewalk.userData.type = NODE_KIND.DIRECTORY;
+  sidewalk.userData.type = NodeKind.Directory;
   group.add(sidewalk);
 
   // Asphalt — narrower, always draws on top of every sidewalk.
@@ -545,7 +546,7 @@ function createStreetMesh(street, yBase) {
   group.userData.street = street;
   group.userData.sidewalk = sidewalk; // exposed so callers can pick on it
   group.userData.asphalt = asphalt; // exposed for live theme recolor
-  group.userData.type = NODE_KIND.DIRECTORY;
+  group.userData.type = NodeKind.Directory;
   return group;
 }
 
@@ -631,7 +632,7 @@ function createRootGem(street) {
   gem.position.set(gemX, hoverY, gemZ);
   gem.userData.baseY = hoverY;
   gem.userData.bobAmp = radius * bobFrac;
-  gem.userData.type = NODE_KIND.GEM;
+  gem.userData.type = NodeKind.Gem;
   // Stashed for live applyTheme updates of HOVER_LIFT_FRAC: needed to
   // recompute baseY = radius + streetWidth × frac.
   gem.userData.streetWidth = street.width;
@@ -753,7 +754,7 @@ function createStreetLabels(street) {
     const offset = (t - 0.5) * street.length;
     let sx = street.x,
       sz = street.y;
-    if (street.orientation === STREET_AXIS.X) sx += offset;
+    if (street.orientation === StreetAxis.X) sx += offset;
     else sz += offset;
 
     const mat = new THREE.MeshBasicMaterial({
@@ -779,10 +780,10 @@ function createStreetLabels(street) {
     group.position.set(sx, label.ELEVATION, sz);
     // Base rotation per orientation. For y-streets the label's reading
     // direction needs to run along scene-Z, so rotate the group 90°.
-    group.userData.baseRotY = street.orientation === STREET_AXIS.Y ? -Math.PI / 2 : 0;
+    group.userData.baseRotY = street.orientation === StreetAxis.Y ? -Math.PI / 2 : 0;
     group.rotation.y = group.userData.baseRotY;
     group.userData.street = street;
-    group.userData.type = NODE_KIND.LABEL;
+    group.userData.type = NodeKind.Label;
     // Stashed for live applyTheme updates: ELEVATION (group.position.y),
     // and HEIGHT_FRAC (plane.scale recomputed from streetWidth × frac).
     group.userData.streetWidth = street.width;

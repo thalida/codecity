@@ -28,14 +28,13 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '../config/index.js';
-import { BUILDING_ORIENT } from '../constants.js';
+import { STORAGE_KEYS } from '../constants';
+import { BuildingOrient } from '../types';
 
 // _focusBuilding tries head-on, then tilts up if the view is obstructed.
 const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
-
-const SAVED_CAMERA_KEY = 'cc.cameraPose';
 
 export function createCameraRig({
   canvas,
@@ -79,7 +78,7 @@ export function createCameraRig({
     if (typeof localStorage === 'undefined') return;
     try {
       localStorage.setItem(
-        SAVED_CAMERA_KEY,
+        STORAGE_KEYS.CAMERA_POSE,
         JSON.stringify({
           pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
           target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
@@ -149,7 +148,7 @@ export function createCameraRig({
     // listener so the restore itself doesn't trigger a re-save.
     try {
       if (typeof localStorage !== 'undefined') {
-        const savedPoseRaw = localStorage.getItem(SAVED_CAMERA_KEY);
+        const savedPoseRaw = localStorage.getItem(STORAGE_KEYS.CAMERA_POSE);
         if (savedPoseRaw) {
           const p = JSON.parse(savedPoseRaw);
           if (p?.pos && p?.target) {
@@ -203,7 +202,7 @@ export function createCameraRig({
       _saveCameraTimer = 0;
     }
     try {
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(SAVED_CAMERA_KEY);
+      if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEYS.CAMERA_POSE);
     } catch (_) {
       /* private mode / unavailable — ignore */
     }
@@ -247,16 +246,16 @@ export function createCameraRig({
     let doorDX = 0,
       doorDZ = 0,
       faceW;
-    if (b.orient === BUILDING_ORIENT.SOUTH) {
+    if (b.orient === BuildingOrient.South) {
       doorDZ = 1;
       faceW = b.w;
-    } else if (b.orient === BUILDING_ORIENT.NORTH) {
+    } else if (b.orient === BuildingOrient.North) {
       doorDZ = -1;
       faceW = b.w;
-    } else if (b.orient === BUILDING_ORIENT.EAST) {
+    } else if (b.orient === BuildingOrient.East) {
       doorDX = 1;
       faceW = b.d;
-    } else if (b.orient === BUILDING_ORIENT.WEST) {
+    } else if (b.orient === BuildingOrient.West) {
       doorDX = -1;
       faceW = b.d;
     } else {
@@ -274,7 +273,7 @@ export function createCameraRig({
       camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
 
     const halfDepth =
-      b.orient === BUILDING_ORIENT.EAST || b.orient === BUILDING_ORIENT.WEST ? b.w / 2 : b.d / 2;
+      b.orient === BuildingOrient.East || b.orient === BuildingOrient.West ? b.w / 2 : b.d / 2;
     const newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
 
     let newCamPos = null;

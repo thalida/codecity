@@ -10,12 +10,11 @@
 // different pane swaps it. Body-level rendering lives in the pane, not
 // here — see views/panes/filePreviewPane.js.
 
-import { DOM_IDS } from '../../constants.js';
+import { DOM_IDS, STORAGE_KEYS } from '../../constants';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
-const SIDEBAR_WIDTH_STORAGE_KEY = 'cc.fileSidebarWidth';
 
 /**
  * Mount `pane` (a DOM element) into the right sidebar slot and open the
@@ -115,7 +114,7 @@ function _ensureResizeHandle(sidebar) {
 function _applyPersistedWidth(sidebar) {
   if (typeof localStorage === 'undefined') return;
   try {
-    const raw = localStorage.getItem(SIDEBAR_WIDTH_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH);
     if (raw == null) return;
     let w = parseFloat(raw);
     if (!Number.isFinite(w)) return;
@@ -131,7 +130,7 @@ function _applyPersistedWidth(sidebar) {
 function _persistWidth(w) {
   if (typeof localStorage === 'undefined') return;
   try {
-    localStorage.setItem(SIDEBAR_WIDTH_STORAGE_KEY, String(w));
+    localStorage.setItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH, String(w));
   } catch (_) {
     /* drop */
   }
