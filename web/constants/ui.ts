@@ -1,6 +1,6 @@
 // constants/ui.ts — UI metadata that isn't user-tunable.
 
-import { SidebarTab } from '../types/ui';
+import { SidebarTab } from '@/types/ui';
 
 /**
  * Lucide icon CDN base. Tree glyphs, activity-bar tabs, and the sidebar

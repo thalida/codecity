@@ -2,7 +2,7 @@
 // painted via a CSS mask so it automatically picks up the parent's
 // currentColor. Sizing comes from the parent's font-size (1em × 1em).
 
-import { LUCIDE_ICON_BASE_URL } from '../../constants';
+import { LUCIDE_ICON_BASE_URL } from '@/constants';
 
 interface IconOpts {
   /** Extra class added alongside `lucide-icon`. */

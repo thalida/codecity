@@ -21,7 +21,15 @@
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+
+    // Path alias mirrored in vite.config.js + vitest.config.js. `@/`
+    // maps to web/ so cross-directory imports stay short and survive
+    // file moves. Editor + tsc resolve through `paths`; bundler +
+    // tests resolve through `resolve.alias`.
+    "paths": {
+      "@/*": ["./*"]
+    }
   },
   "include": ["**/*.js", "**/*.ts", "tests/**/*"],
   "exclude": ["node_modules", "../codecity/static"]

@@ -17,10 +17,10 @@ import {
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_ANIMATION,
-} from '../config/index.js';
-import { RENDER_ORDERS } from '../constants';
-import { BuildingOrient, CapStyle, JoinSide, NodeKind, StreetAxis } from '../types';
-import type { Building, BuildingPath, CityLayout, Street } from '../types';
+} from '@/config/index.js';
+import { RENDER_ORDERS } from '@/constants';
+import { BuildingOrient, CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
+import type { Building, BuildingPath, CityLayout, Street } from '@/types';
 
 // Internal-only types for engine helpers.
 interface FacadeOpts {

@@ -10,7 +10,7 @@
 // different pane swaps it. Body-level rendering lives in the pane, not
 // here — see views/panes/filePreviewPane.js.
 
-import { DOM_IDS, STORAGE_KEYS } from '../../constants';
+import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;

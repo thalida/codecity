@@ -4,8 +4,8 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '../../scene/picker.js';
-import { NodeKind } from '../../types';
+import { createPicker, PICKER_SELECTION_KEY } from '@/scene/picker.js';
+import { NodeKind } from '@/types';
 import type {
   Building,
   DirNode,
@@ -14,7 +14,7 @@ import type {
   DirTarget,
   PickerCityScene,
   Street,
-} from '../../types';
+} from '@/types';
 
 // Minimal building / street fixture shapes for the fake scene.
 interface FakeBuildingFixture {

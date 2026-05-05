@@ -13,12 +13,12 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '../../config/index.js';
-import { RENDER_ORDERS } from '../../constants';
-import { NodeKind } from '../../types';
-import { computePathPoints } from '../path.js';
-import type { createCityScene } from '../cityScene.js';
-import type { createPicker } from '../picker.js';
+import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '@/config/index.js';
+import { RENDER_ORDERS } from '@/constants';
+import { NodeKind } from '@/types';
+import { computePathPoints } from '@/scene/path.js';
+import type { createCityScene } from '@/scene/cityScene.js';
+import type { createPicker } from '@/scene/picker.js';
 
 export function createPathLineRenderer({
   canvas,

@@ -5,9 +5,9 @@
 // edit to the README on disk shows up here without a page reload.
 
 import { marked } from 'marked';
-import { NodeKind } from '../../types';
-import type { DirNode, FileNode, Manifest } from '../../types';
-import { makeLucideIcon } from '../shell/icon.js';
+import { NodeKind } from '@/types';
+import type { DirNode, FileNode, Manifest } from '@/types';
+import { makeLucideIcon } from '@/views/shell/icon.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.

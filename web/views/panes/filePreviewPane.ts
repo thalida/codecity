@@ -10,9 +10,9 @@
 // views/shell/rightSidebar.js.
 
 import hljs from 'highlight.js/lib/common';
-import { PreviewKind } from '../../types';
-import type { FileNode } from '../../types';
-import { makeLucideIcon } from '../shell/icon.js';
+import { PreviewKind } from '@/types';
+import type { FileNode } from '@/types';
+import { makeLucideIcon } from '@/views/shell/icon.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;

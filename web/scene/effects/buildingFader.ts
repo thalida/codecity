@@ -14,12 +14,12 @@
 // The `userData.{bodyOp, ghostOp, outlineOp}` fields are intermediate
 // state owned by buildingFader; outlineRenderer reads them as inputs.
 
-import { BUILDING_FADE } from '../../config/index.js';
-import { FadeDetail, NodeKind } from '../../types';
-import type { DirNode, FileNode, PickTarget } from '../../types';
-import { parentDirPath } from '../path.js';
-import type { createCityScene } from '../cityScene.js';
-import type { createPicker } from '../picker.js';
+import { BUILDING_FADE } from '@/config/index.js';
+import { FadeDetail, NodeKind } from '@/types';
+import type { DirNode, FileNode, PickTarget } from '@/types';
+import { parentDirPath } from '@/scene/path.js';
+import type { createCityScene } from '@/scene/cityScene.js';
+import type { createPicker } from '@/scene/picker.js';
 
 // material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
 // Just below 1.0 so any faded tier flips to true transparency.

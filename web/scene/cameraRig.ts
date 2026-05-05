@@ -27,10 +27,10 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '../config/index.js';
-import { STORAGE_KEYS } from '../constants';
-import { BuildingOrient, StreetAxis } from '../types';
-import type { Building, Street } from '../types';
+import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '@/config/index.js';
+import { STORAGE_KEYS } from '@/constants';
+import { BuildingOrient, StreetAxis } from '@/types';
+import type { Building, Street } from '@/types';
 import type { createCityScene } from './cityScene.js';
 
 // _focusBuilding tries head-on, then tilts up if the view is obstructed.

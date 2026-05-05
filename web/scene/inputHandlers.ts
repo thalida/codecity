@@ -10,10 +10,10 @@
 //   handlers.dispose();
 
 import * as THREE from 'three';
-import { INPUT_TIMING } from '../config/index.js';
-import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '../constants';
-import { NodeKind } from '../types';
-import type { PickTarget } from '../types';
+import { INPUT_TIMING } from '@/config/index.js';
+import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants';
+import { NodeKind } from '@/types';
+import type { PickTarget } from '@/types';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
 

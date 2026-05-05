@@ -3,12 +3,12 @@
 // / staying buckets; disposeMesh is idempotent.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createCityScene } from '../../scene/cityScene.js';
-import { BUILDING_DIMENSIONS, STREET_TIERS } from '../../config/index.js';
-import type { BuildingDimensionsConfig } from '../../config/building.js';
-import type { StreetTier } from '../../config/street.js';
-import { NodeKind } from '../../types';
-import type { FileNode, Manifest } from '../../types';
+import { createCityScene } from '@/scene/cityScene.js';
+import { BUILDING_DIMENSIONS, STREET_TIERS } from '@/config/index.js';
+import type { BuildingDimensionsConfig } from '@/config/building.js';
+import type { StreetTier } from '@/config/street.js';
+import { NodeKind } from '@/types';
+import type { FileNode, Manifest } from '@/types';
 
 interface ManifestFileSpec {
   path: string;

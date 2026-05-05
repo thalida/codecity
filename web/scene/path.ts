@@ -8,7 +8,7 @@
 // scene module pass full Street / PickTarget instances; structural
 // compatibility makes that work without casts.
 
-import { NodeKind, StreetAxis } from '../types';
+import { NodeKind, StreetAxis } from '@/types';
 
 // parentDirPath(p) — return the parent directory path for a manifest path.
 // Returns null for root ('.' / ''). Examples:

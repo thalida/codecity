@@ -5,7 +5,7 @@
 // geometry / facade textures). OUTLINE + FADE are hot-reloadable.
 
 import { map } from 'nanostores';
-import { FadeDetail } from '../types';
+import { FadeDetail } from '@/types';
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
 // Floors and width are BOTH normalized against the project's own range:

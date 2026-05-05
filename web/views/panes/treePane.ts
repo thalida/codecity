@@ -3,9 +3,9 @@
 // files+dirs intermingled — see layout.js _layoutDir) and stays
 // bidirectionally synced with the scene's current selection.
 
-import { NodeKind } from '../../types';
-import type { DirNode, Manifest, TreeNode } from '../../types';
-import { makeLucideIcon } from '../shell/icon.js';
+import { NodeKind } from '@/types';
+import type { DirNode, Manifest, TreeNode } from '@/types';
+import { makeLucideIcon } from '@/views/shell/icon.js';
 
 interface TreeCtx {
   byPath: Record<string, { li: HTMLLIElement; node: TreeNode }>;

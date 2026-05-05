@@ -35,9 +35,9 @@
 
 import * as THREE from 'three';
 import { atom } from 'nanostores';
-import { NodeKind } from '../types';
+import { NodeKind } from '@/types';
 
-import type { PickTarget, PickerCityScene, PickerSelectionKey } from '../types';
+import type { PickTarget, PickerCityScene, PickerSelectionKey } from '@/types';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.

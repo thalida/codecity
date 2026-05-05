@@ -6,10 +6,10 @@
 // need different values mutate the stores via .setKey() in setup +
 // restore in teardown — keeps the production callsites argument-free.
 
-import { STREET_LAYOUT, STREET_TIERS, BUILDING_DIMENSIONS, GEM_SIZING } from '../config/index.js';
-import type { StreetTier } from '../config/street.js';
-import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '../types';
-import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '../types';
+import { STREET_LAYOUT, STREET_TIERS, BUILDING_DIMENSIONS, GEM_SIZING } from '@/config/index.js';
+import type { StreetTier } from '@/config/street.js';
+import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
+import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the

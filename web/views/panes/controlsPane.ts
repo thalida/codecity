@@ -37,17 +37,17 @@ import {
   RAINBOW,
   // Live updates
   LIVE_UPDATES,
-} from '../../config/index.js';
+} from '@/config/index.js';
 import {
   clearPersistence,
   getDefault,
   resetKey,
   hasAnyOverrides,
   onAnyChange,
-} from '../../config/persist.js';
-import { KEY_BINDINGS } from '../../constants';
-import { FadeDetail } from '../../types';
-import { makeLucideIcon } from '../shell/icon.js';
+} from '@/config/persist.js';
+import { KEY_BINDINGS } from '@/constants';
+import { FadeDetail } from '@/types';
+import { makeLucideIcon } from '@/views/shell/icon.js';
 
 // Structural store shape used by all the widget builders. Covers nanostores
 // `map<T>()` (with .setKey) and falls back to .set for atom-like stores.

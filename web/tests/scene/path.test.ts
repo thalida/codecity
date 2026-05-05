@@ -4,8 +4,8 @@ import {
   streetChainForDirPath,
   computePathPoints,
   streetEndOpposite,
-} from '../../scene/path.js';
-import { NodeKind, StreetAxis } from '../../types';
+} from '@/scene/path.js';
+import { NodeKind, StreetAxis } from '@/types';
 
 // Local minimal-shape type matches the StreetLike structural contract that
 // scene/path.ts reads (orientation, position, dimensions, dir.path).

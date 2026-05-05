@@ -15,7 +15,7 @@
 // Keep this module side-effect-free until `attachPersistence()` is called —
 // tests + non-browser environments shouldn't touch localStorage.
 
-import { STORAGE_PREFIX } from '../constants';
+import { STORAGE_PREFIX } from '@/constants';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
 // "reset to default" UI restores to and what the diff-vs-default check uses.

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { showLeftSidebar } from '../../../views/shell/leftSidebar.js';
-import { SidebarTab } from '../../../types';
+import { showLeftSidebar } from '@/views/shell/leftSidebar.js';
+import { SidebarTab } from '@/types';
 
 // TEST_TREE is structurally compatible with the
 // `{ tree: unknown; [k: string]: unknown }` branch that showLeftSidebar

@@ -5,12 +5,12 @@
 //     in the panel header also collapses; persisted in localStorage)
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
-import { buildTreePane } from '../panes/treePane.js';
-import { buildInfoPane } from '../panes/infoPane.js';
-import { buildControlsPane } from '../panes/controlsPane.js';
-import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '../../constants';
-import { SidebarTab } from '../../types';
-import type { Manifest, TreeNode } from '../../types';
+import { buildTreePane } from '@/views/panes/treePane.js';
+import { buildInfoPane } from '@/views/panes/infoPane.js';
+import { buildControlsPane } from '@/views/panes/controlsPane.js';
+import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
+import { SidebarTab } from '@/types';
+import type { Manifest, TreeNode } from '@/types';
 import { loadFlag, saveFlag } from './localFlag.js';
 
 const SIDEBAR_MIN_WIDTH = 280;

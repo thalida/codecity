@@ -20,8 +20,8 @@
 // so they cannot conflict by construction.
 
 import * as THREE from 'three';
-import { TweenKind } from '../types';
-import type { CitySceneDiff } from '../types';
+import { TweenKind } from '@/types';
+import type { CitySceneDiff } from '@/types';
 import type { createCityScene } from './cityScene.js';
 
 interface Tween {

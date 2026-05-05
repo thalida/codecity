@@ -5,11 +5,11 @@ import {
   layoutCity,
   sortForRendering,
   computeLineStats,
-} from '../../scene/layout.js';
-import { BUILDING_DIMENSIONS } from '../../config/index.js';
-import { NodeKind, StreetAxis } from '../../types';
-import type { BuildingDimensionsConfig } from '../../config/building.js';
-import type { StreetTier } from '../../config/street.js';
+} from '@/scene/layout.js';
+import { BUILDING_DIMENSIONS } from '@/config/index.js';
+import { NodeKind, StreetAxis } from '@/types';
+import type { BuildingDimensionsConfig } from '@/config/building.js';
+import type { StreetTier } from '@/config/street.js';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

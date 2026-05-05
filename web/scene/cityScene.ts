@@ -36,9 +36,9 @@ import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '../config/index.js';
-import { RENDER_ORDERS } from '../constants';
-import { NodeKind, StreetAxis } from '../types';
+import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '@/config/index.js';
+import { RENDER_ORDERS } from '@/constants';
+import { NodeKind, StreetAxis } from '@/types';
 import type {
   Building,
   CityLayout,
@@ -51,7 +51,7 @@ import type {
   StayingBuilding,
   StayingStreet,
   Street,
-} from '../types';
+} from '@/types';
 
 // Snapshot of the prior manifest state captured at the top of
 // applyManifest, used by the diff and the change-listener payload.

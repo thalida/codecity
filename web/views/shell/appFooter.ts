@@ -3,7 +3,7 @@
 // for files; file/dir counts + size for directories). Empty when there
 // is no selection.
 
-import { DateSource, NodeKind } from '../../types';
+import { DateSource, NodeKind } from '@/types';
 
 interface FooterFileSelection {
   kind: NodeKind.File;

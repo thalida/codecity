@@ -6,8 +6,8 @@
 // Tunables come from BUILDING_PALETTE in src/config/building.js. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
-import { BUILDING_PALETTE } from '../config/index.js';
-import { NodeKind } from '../types';
+import { BUILDING_PALETTE } from '@/config/index.js';
+import { NodeKind } from '@/types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but
 // also accommodate test mocks that omit unrelated fields. Real callers

@@ -5,11 +5,11 @@ import {
   getLightness,
   getDateRanges,
   getBuildingColor,
-} from '../../scene/colors.js';
-import { BUILDING_PALETTE } from '../../config/index.js';
-import type { BuildingPaletteConfig } from '../../config/building.js';
-import { NodeKind } from '../../types';
-import type { RangeStat } from '../../types';
+} from '@/scene/colors.js';
+import { BUILDING_PALETTE } from '@/config/index.js';
+import type { BuildingPaletteConfig } from '@/config/building.js';
+import { NodeKind } from '@/types';
+import type { RangeStat } from '@/types';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDING_PALETTE store by beforeEach; restored by afterEach.

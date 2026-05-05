@@ -20,13 +20,13 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDING_OUTLINE, RAINBOW } from '../../config/index.js';
-import { RENDER_ORDERS } from '../../constants';
-import { NodeKind } from '../../types';
-import type { Building } from '../../types';
-import { UNIT_BOX_EDGE_POSITIONS } from '../cityScene.js';
-import type { createCityScene } from '../cityScene.js';
-import type { createPicker } from '../picker.js';
+import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
+import { RENDER_ORDERS } from '@/constants';
+import { NodeKind } from '@/types';
+import type { Building } from '@/types';
+import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
+import type { createCityScene } from '@/scene/cityScene.js';
+import type { createPicker } from '@/scene/picker.js';
 
 const OPAQUE_THRESHOLD = 0.999;
 

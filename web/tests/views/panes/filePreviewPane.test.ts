@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildFilePreviewPane } from '../../../views/panes/filePreviewPane.js';
-import { showRightSidebar, hideRightSidebar } from '../../../views/shell/rightSidebar.js';
-import { NodeKind } from '../../../types';
-import type { FileNode } from '../../../types';
+import { buildFilePreviewPane } from '@/views/panes/filePreviewPane.js';
+import { showRightSidebar, hideRightSidebar } from '@/views/shell/rightSidebar.js';
+import { NodeKind } from '@/types';
+import type { FileNode } from '@/types';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';

@@ -4,8 +4,8 @@
 // object has a brief name label so the city feels alive without forcing
 // a sidebar open.
 
-import { TOOLTIP } from '../../config/index.js';
-import { DOM_IDS } from '../../constants';
+import { TOOLTIP } from '@/config/index.js';
+import { DOM_IDS } from '@/constants';
 
 let _el: HTMLElement | null = null;
 

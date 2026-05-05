@@ -3,8 +3,8 @@
 // button) and the two show/hide-sidebar toggles. Visibility state is
 // persisted in localStorage so the preference survives reloads.
 
-import { STORAGE_KEYS } from '../../constants';
-import { getHue } from '../../scene/colors.js';
+import { STORAGE_KEYS } from '@/constants';
+import { getHue } from '@/scene/colors.js';
 import { makeLucideIcon } from './icon.js';
 import { loadFlag, saveFlag } from './localFlag.js';
 

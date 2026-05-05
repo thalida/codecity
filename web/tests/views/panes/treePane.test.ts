@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildTree, buildTreePane } from '../../../views/panes/treePane.js';
-import type { TreeNode } from '../../../types';
+import { buildTree, buildTreePane } from '@/views/panes/treePane.js';
+import type { TreeNode } from '@/types';
 
 const TEST_TREE = {
   name: 'project',
