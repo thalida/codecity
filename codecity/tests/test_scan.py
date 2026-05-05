@@ -29,6 +29,25 @@ def _ensure_fixture() -> None:
         subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
 
 
+class _CacheRedirectMixin:
+    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    tempdir so calls to scan_tree() / signature_tree() / etc. don't
+    pollute the user's actual ~/.cache/codecity/ during tests."""
+
+    def setUp(self) -> None:
+        super().setUp()  # cooperative chaining for subclasses with their own setUp
+        from codecity import cache as cache_mod
+        self._cache_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._cache_tmp.cleanup)
+        self._original_cache_root = cache_mod.CACHE_ROOT
+        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
+        self.addCleanup(self._restore_cache_root)
+
+    def _restore_cache_root(self) -> None:
+        from codecity import cache as cache_mod
+        cache_mod.CACHE_ROOT = self._original_cache_root
+
+
 class ExtensionTests(unittest.TestCase):
     def test_plain_file(self):
         self.assertEqual(_extension("index.ts"), ".ts")
@@ -75,7 +94,7 @@ class BinaryDetectionTests(unittest.TestCase):
         self.assertTrue(_is_binary(p))
 
 
-class ScanTreeIntegrationTests(unittest.TestCase):
+class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         _ensure_fixture()
@@ -251,7 +270,7 @@ class ScanTreeIntegrationTests(unittest.TestCase):
         self.assertNotIn(".git", names)
 
 
-class SignatureTreeTests(unittest.TestCase):
+class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does
     for the same root — that's the contract the live-update poll relies
     on. Drift here means every poll triggers a full reload."""
@@ -380,7 +399,7 @@ def _walk_dirs(node):
         yield from _walk_dirs(c)
 
 
-class GitMetadataParallelTests(unittest.TestCase):
+class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     """The two git log walks (created + modified) are independent and
     should run concurrently."""
 
@@ -413,25 +432,13 @@ class GitMetadataParallelTests(unittest.TestCase):
                          f"expected exactly 2 git log calls, got: {log_calls}")
 
 
-class GitHistoryCacheTests(unittest.TestCase):
+class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """When HEAD hasn't moved, _collect_git_metadata should hit the
     persistent cache and skip the two `git log` walks entirely."""
 
     @classmethod
     def setUpClass(cls):
         _ensure_fixture()
-
-    def setUp(self) -> None:
-        from codecity import cache as cache_mod
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self._original_root = cache_mod.CACHE_ROOT
-        cache_mod.CACHE_ROOT = Path(self._tmp.name)
-        self.addCleanup(self._restore_root)
-
-    def _restore_root(self) -> None:
-        from codecity import cache as cache_mod
-        cache_mod.CACHE_ROOT = self._original_root
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
@@ -508,6 +515,89 @@ class GitHistoryCacheTests(unittest.TestCase):
                 check=False, capture_output=True,
             )
             new_file.unlink(missing_ok=True)
+
+
+class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
+    """Warm runs of scan_tree should hit the file-stat cache for
+    unchanged files and skip _is_binary + _line_count entirely."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_warm_run_skips_line_count(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # cold: populates cache
+
+        with patch("codecity.scan._line_count") as line_mock, \
+             patch("codecity.scan._is_binary") as binary_mock:
+            scan_tree(str(FIXTURE))  # warm: should not call either
+            self.assertEqual(line_mock.call_count, 0,
+                             "warm scan must not call _line_count")
+            self.assertEqual(binary_mock.call_count, 0,
+                             "warm scan must not call _is_binary")
+
+    def test_warm_run_signature_matches_cold_run(self):
+        cold = scan_tree(str(FIXTURE))
+        warm = scan_tree(str(FIXTURE))
+        self.assertEqual(cold["signature"], warm["signature"])
+        # And tree shape — confirm `lines` survives the cache roundtrip.
+        cold_lines = {
+            n["path"]: n["lines"] for n in _walk_files(cold["tree"])
+        }
+        warm_lines = {
+            n["path"]: n["lines"] for n in _walk_files(warm["tree"])
+        }
+        self.assertEqual(cold_lines, warm_lines)
+
+    def test_modified_file_recomputed(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # populate
+
+        # Change one file's mtime by writing to it.
+        target = next(
+            n for n in _walk_files(scan_tree(str(FIXTURE))["tree"])
+            if n["name"] == "index.ts"
+        )
+        target_path = Path(target["fullPath"])
+        original_text = target_path.read_text()
+        target_path.write_text(original_text + "\n// changed\n")
+
+        try:
+            line_calls: list[Path] = []
+            original_line_count = _line_count_real()
+
+            def counting_line_count(p):
+                line_calls.append(p)
+                return original_line_count(p)
+
+            with patch("codecity.scan._line_count", side_effect=counting_line_count):
+                scan_tree(str(FIXTURE))
+
+            # Only the modified file should be recomputed.
+            self.assertEqual(len(line_calls), 1)
+            self.assertEqual(line_calls[0], target_path)
+        finally:
+            target_path.write_text(original_text)
+
+    def test_use_cache_false_bypasses_file_cache(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # populate cache
+
+        with patch("codecity.scan._line_count", return_value=42) as line_mock:
+            scan_tree(str(FIXTURE), use_cache=False)
+            # use_cache=False -> every file gets re-read
+            self.assertGreater(line_mock.call_count, 0)
+
+
+def _line_count_real():
+    """Get the unwrapped _line_count for tests that want to call the
+    real implementation while also mocking it."""
+    from codecity.scan import _line_count
+    return _line_count
 
 
 if __name__ == "__main__":

@@ -29,6 +29,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .cache import (
+    FileEntry,
     cache_load_files,
     cache_load_git_history,
     cache_save_files,
@@ -414,21 +415,75 @@ def _read_file_metadata(path_obj: Path) -> tuple[bool, int]:
     return binary, lines
 
 
-def _populate_file_metadata(tree: DirNode) -> None:
+def _node_mtime(node: FileNode) -> float:
+    """Recover the float mtime for a FileNode by stat-ing fullPath.
+    The node's `modified` field is an ISO string (lossy for cache
+    comparison); the raw mtime feeds the cache directly."""
+    try:
+        return Path(node["fullPath"]).stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _populate_file_metadata(
+    tree: DirNode, abs_root: Path, *, use_cache: bool,
+) -> None:
     """Walk the skeleton tree and fill in `lines` + `binary` for every
-    FileNode. Reads run concurrently in a thread pool (GIL releases on
-    file I/O, so this is a real wall-clock win)."""
+    FileNode.
+
+    With ``use_cache=True``, looks up each file in the persistent
+    file-stat cache by (rel-path, size, mtime); cache hits skip the
+    read entirely. Misses run concurrently in a thread pool (GIL
+    releases on file I/O). The cache is union-merged at end-of-scan
+    so files we didn't visit (e.g. excluded by include_all=False)
+    keep their existing entries."""
     nodes: list[FileNode] = list(_iter_file_nodes(tree))
     if not nodes:
         return
 
-    paths = [Path(n["fullPath"]) for n in nodes]
-    with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
-        results = list(pool.map(_read_file_metadata, paths))
+    cache_entries: dict[str, FileEntry] = (
+        cache_load_files(abs_root) if use_cache else {}
+    )
 
-    for node, (binary, lines) in zip(nodes, results):
-        node["binary"] = binary
-        node["lines"] = lines
+    miss_indices: list[int] = []
+    miss_paths: list[Path] = []
+    for i, node in enumerate(nodes):
+        rel = node["path"]
+        cached = cache_entries.get(rel) if use_cache else None
+        if (
+            cached is not None
+            and cached["size"] == node["size"]
+            and cached["mtime"] == _node_mtime(node)
+        ):
+            node["binary"] = cached["binary"]
+            node["lines"] = cached["lines"]
+            continue
+        miss_indices.append(i)
+        miss_paths.append(Path(node["fullPath"]))
+
+    if miss_paths:
+        with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
+            results = list(pool.map(_read_file_metadata, miss_paths))
+        for idx, (binary, lines) in zip(miss_indices, results):
+            nodes[idx]["binary"] = binary
+            nodes[idx]["lines"] = lines
+
+    if use_cache:
+        # Union-merge: start from the loaded cache (preserves entries
+        # for files not visited this scan, e.g. when include_all flips)
+        # and overwrite with current values for everything we did visit.
+        for node in nodes:
+            cache_entries[node["path"]] = {
+                "size": node["size"],
+                "mtime": _node_mtime(node),
+                "lines": node["lines"],
+                "binary": node["binary"],
+                "ext": node["extension"],
+            }
+        try:
+            cache_save_files(abs_root, cache_entries)
+        except OSError:
+            pass  # cache save failures must never break scanning
 
 
 def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
@@ -592,7 +647,7 @@ def scan_tree(
         respect_skip_list=respect_skip_list, sig=sig,
     )
     _log(f"walked {_files_seen} files; resolving file metadata")
-    _populate_file_metadata(tree)
+    _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
     _log("emitting manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
