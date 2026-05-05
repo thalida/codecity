@@ -26,7 +26,7 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
 from .cache import (
     cache_load_files,
@@ -368,12 +368,12 @@ def _file_node(
     git_modified: dict[str, str],
     sig: Any,
 ) -> FileNode:
+    """Build a FileNode skeleton — `lines` and `binary` are placeholders
+    that get filled in by _populate_file_metadata after the walk
+    completes. Content I/O is deferred so it can be parallelized and
+    cache-resolved in a single batch."""
     abs_path = entry.path
     size, created, modified, mtime = _stat_fields(entry)
-    path_obj = Path(abs_path)
-
-    binary = _is_binary(path_obj)
-    lines = 0 if binary else _line_count(path_obj)
 
     git_block: GitMeta | None = None
     if is_git_repo:
@@ -391,12 +391,35 @@ def _file_node(
         "fullPath": abs_path,
         "extension": _extension(entry.name),
         "size": size,
-        "lines": lines,
-        "binary": binary,
+        "lines": 0,         # filled in by _populate_file_metadata
+        "binary": False,    # filled in by _populate_file_metadata
         "created": created,
         "modified": modified,
         "git": git_block,
     }
+
+
+def _populate_file_metadata(tree: DirNode) -> None:
+    """Walk the skeleton tree and fill in `lines` + `binary` for every
+    FileNode. Operates in-place on the tree's FileNode dicts.
+
+    Single-threaded for now; Task 8 parallelizes via ThreadPoolExecutor,
+    Task 9 adds the file-stat cache layer.
+    """
+    for node in _iter_file_nodes(tree):
+        path_obj = Path(node["fullPath"])
+        binary = _is_binary(path_obj)
+        node["binary"] = binary
+        node["lines"] = 0 if binary else _line_count(path_obj)
+
+
+def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
+    """Yield every FileNode in the tree (depth-first, alphabetical)."""
+    for child in tree["children"]:
+        if child["type"] == NodeKind.FILE:
+            yield child  # type: ignore[misc]
+        else:
+            yield from _iter_file_nodes(child)  # type: ignore[arg-type]
 
 
 # Global tracker for heartbeat logging during recursion.
@@ -550,7 +573,9 @@ def scan_tree(
         tracked_files=tracked_files, include_all=include_all,
         respect_skip_list=respect_skip_list, sig=sig,
     )
-    _log(f"walked {_files_seen} files; emitting manifest")
+    _log(f"walked {_files_seen} files; resolving file metadata")
+    _populate_file_metadata(tree)
+    _log("emitting manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
