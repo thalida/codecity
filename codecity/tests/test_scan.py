@@ -140,6 +140,52 @@ class ScanTreeIntegrationTests(unittest.TestCase):
             untracked.unlink(missing_ok=True)
 
 
+    def test_include_all_returns_untracked_files(self):
+        # Default scan: untracked file is hidden (existing behavior).
+        # include_all=True: untracked file appears in the tree.
+        untracked = FIXTURE / "untracked-include-all.txt"
+        untracked.write_text("hello include_all")
+        try:
+            m_default = scan_tree(str(FIXTURE))
+            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
+            self.assertNotIn("untracked-include-all.txt", names_default)
+
+            m_all = scan_tree(str(FIXTURE), include_all=True)
+            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
+            self.assertIn("untracked-include-all.txt", names_all)
+
+            # Untracked file has no git history.
+            for node in _walk_files(m_all["tree"]):
+                if node["name"] == "untracked-include-all.txt":
+                    self.assertIsNotNone(node["git"])
+                    self.assertIsNone(node["git"]["created"])
+                    self.assertIsNone(node["git"]["modified"])
+                    return
+            self.fail("untracked-include-all.txt not found in include_all manifest")
+        finally:
+            untracked.unlink(missing_ok=True)
+
+    def test_include_all_no_op_outside_git_repo(self):
+        # In a non-git directory, the tracked-files filter never engages,
+        # so include_all should be a no-op (signature + tree shape match).
+        with tempfile.TemporaryDirectory() as tmp:
+            (Path(tmp) / "a.txt").write_text("a")
+            (Path(tmp) / "b.txt").write_text("b")
+            m_default = scan_tree(tmp)
+            m_all = scan_tree(tmp, include_all=True)
+            self.assertEqual(m_default["signature"], m_all["signature"])
+            self.assertEqual(
+                m_default["tree"]["descendants_file_count"],
+                m_all["tree"]["descendants_file_count"],
+            )
+
+    def test_git_dir_still_excluded_with_include_all(self):
+        # .git/ is excluded independent of the tracked-files filter.
+        m = scan_tree(str(FIXTURE), include_all=True)
+        names = [n["name"] for n in _walk_dirs(m["tree"])]
+        self.assertNotIn(".git", names)
+
+
 class SignatureTreeTests(unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does
     for the same root — that's the contract the live-update poll relies

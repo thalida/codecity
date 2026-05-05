@@ -341,6 +341,7 @@ def _build_tree(
     git_created: dict[str, str],
     git_modified: dict[str, str],
     tracked_files: set[str],
+    include_all: bool,
     sig: Any,
 ) -> DirNode:
     name = os.path.basename(abs_dir)
@@ -365,8 +366,10 @@ def _build_tree(
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
 
         # In a git repo, skip anything not tracked (covers .gitignore + uncommitted
-        # additions). Outside a repo, the tracked set is empty so this is a no-op.
-        if is_git_repo and entry_rel not in tracked_files:
+        # additions) — unless include_all is on, the user's "show me everything"
+        # escape hatch. Outside a repo, the tracked set is empty so the
+        # default-OFF branch is a no-op.
+        if is_git_repo and not include_all and entry_rel not in tracked_files:
             continue
 
         if entry.is_file(follow_symlinks=False):
@@ -383,7 +386,7 @@ def _build_tree(
                 entry.path, entry_rel,
                 is_git_repo=is_git_repo,
                 git_created=git_created, git_modified=git_modified,
-                tracked_files=tracked_files, sig=sig,
+                tracked_files=tracked_files, include_all=include_all, sig=sig,
             )
             dirs.append(subtree)
             descendants_count += 1 + subtree["descendants_count"]
@@ -411,7 +414,18 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(root: str) -> Manifest:
+def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
+    """Scan a directory and return the full manifest.
+
+    With ``include_all=False`` (default), in a git repo the scanner walks
+    only paths in ``git ls-files`` — gitignored and untracked files are
+    hidden. With ``include_all=True``, the tracked-files filter is
+    skipped entirely; every file under ``root`` (except the ``.git``
+    directory itself) is emitted. ``.git`` is always excluded.
+
+    Outside a git repo, ``include_all`` has no effect — the tracked set
+    is empty either way.
+    """
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -437,7 +451,7 @@ def scan_tree(root: str) -> Manifest:
         root_abs, ".",
         is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, sig=sig,
+        tracked_files=tracked_files, include_all=include_all, sig=sig,
     )
     _log(f"walked {_files_seen} files; emitting manifest")
 
