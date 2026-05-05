@@ -213,6 +213,43 @@ class ScanTreeIntegrationTests(unittest.TestCase):
         names = [n["name"] for n in _walk_dirs(m["tree"])]
         self.assertNotIn(".git", names)
 
+    def test_skip_list_excludes_node_modules_under_include_all(self):
+        # node_modules/ should NOT appear with include_all=True (default
+        # respect_skip_list=True). It IS present on disk in the fixture
+        # for this test only.
+        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
+        nm_dir.mkdir(parents=True, exist_ok=True)
+        nm_file = nm_dir / "index.js"
+        nm_file.write_text("module.exports = {};")
+        try:
+            m_skipped = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m_skipped["tree"])]
+            self.assertNotIn("node_modules", names)
+
+            m_unskipped = scan_tree(
+                str(FIXTURE), include_all=True, respect_skip_list=False,
+            )
+            names_un = [n["name"] for n in _walk_dirs(m_unskipped["tree"])]
+            self.assertIn("node_modules", names_un)
+        finally:
+            nm_file.unlink(missing_ok=True)
+            nm_dir.rmdir()
+            (FIXTURE / "node_modules").rmdir()
+
+    def test_skip_list_does_not_affect_default_scan(self):
+        # In a default tracked-only scan, the skip list is moot because
+        # node_modules/ wouldn't be in git ls-files anyway. Confirm
+        # passing respect_skip_list=False doesn't change anything.
+        m_default = scan_tree(str(FIXTURE))
+        m_no_skip = scan_tree(str(FIXTURE), respect_skip_list=False)
+        self.assertEqual(m_default["signature"], m_no_skip["signature"])
+
+    def test_git_dir_excluded_even_with_no_skip_list(self):
+        # .git/ is special: always excluded, even when respect_skip_list=False.
+        m = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
+        names = [n["name"] for n in _walk_dirs(m["tree"])]
+        self.assertNotIn(".git", names)
+
 
 class SignatureTreeTests(unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does

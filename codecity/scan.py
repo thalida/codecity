@@ -253,6 +253,43 @@ def _collect_repo_info(root: Path) -> RepoInfo:
     return info
 
 
+# ── Skip list ────────────────────────────────────────────────────────────────
+
+# Directory names that get skipped even when include_all=True. Keeps
+# `Show all files` mode usable on a typical project — without this list
+# enabling include_all pulls in node_modules/, dist/, .venv/, etc. and
+# the city becomes useless noise.
+#
+# .git/ is excluded separately (always, even with respect_skip_list=False)
+# because we never want to walk into the object database.
+ALWAYS_SKIP: frozenset[str] = frozenset({
+    ".git", ".hg", ".svn",                          # VCS
+    "node_modules",                                 # JS
+    ".venv", "venv", "env", "__pycache__",          # Python
+    "target", ".cargo",                             # Rust
+    "dist", "build", "out",                         # generic build outputs
+    ".next", ".nuxt", ".svelte-kit",                # framework caches
+    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    ".tox", ".coverage", "htmlcov",                 # test/coverage
+    ".idea", ".vscode",                             # IDE state
+    ".DS_Store",                                    # macOS junk
+})
+
+
+def _should_skip(name: str, *, respect_skip_list: bool) -> bool:
+    """Whether to skip a directory entry by name during the walk.
+
+    .git/ is always excluded — we never walk into the object database.
+    Other entries in ALWAYS_SKIP are gated on respect_skip_list, which
+    is True by default but can be turned off for diagnostic walks
+    (--no-skip-list CLI flag, ?no_skip_list=true query param)."""
+    if name == ".git":
+        return True
+    if respect_skip_list and name in ALWAYS_SKIP:
+        return True
+    return False
+
+
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
@@ -342,6 +379,7 @@ def _build_tree(
     git_modified: dict[str, str],
     tracked_files: set[str],
     include_all: bool,
+    respect_skip_list: bool,
     sig: Any,
 ) -> DirNode:
     name = os.path.basename(abs_dir)
@@ -360,7 +398,7 @@ def _build_tree(
         entries = []
 
     for entry in entries:
-        if entry.name == ".git":
+        if _should_skip(entry.name, respect_skip_list=respect_skip_list):
             continue
 
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
@@ -386,7 +424,8 @@ def _build_tree(
                 entry.path, entry_rel,
                 is_git_repo=is_git_repo,
                 git_created=git_created, git_modified=git_modified,
-                tracked_files=tracked_files, include_all=include_all, sig=sig,
+                tracked_files=tracked_files, include_all=include_all,
+                respect_skip_list=respect_skip_list, sig=sig,
             )
             dirs.append(subtree)
             descendants_count += 1 + subtree["descendants_count"]
@@ -414,7 +453,12 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
+def scan_tree(
+    root: str,
+    *,
+    include_all: bool = False,
+    respect_skip_list: bool = True,
+) -> Manifest:
     """Scan a directory and return the full manifest.
 
     With ``include_all=False`` (default), in a git repo the scanner walks
@@ -425,6 +469,12 @@ def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
 
     Outside a git repo, ``include_all`` has no effect — the tracked set
     is empty either way.
+
+    ``respect_skip_list`` (default True) honors the ALWAYS_SKIP set
+    (``node_modules``, ``dist``, ``.venv``, etc.) even when
+    ``include_all=True``. Set to False (--no-skip-list CLI flag) to
+    walk into those dirs anyway. ``.git`` is always excluded
+    regardless.
     """
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
@@ -451,7 +501,8 @@ def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
         root_abs, ".",
         is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, include_all=include_all, sig=sig,
+        tracked_files=tracked_files, include_all=include_all,
+        respect_skip_list=respect_skip_list, sig=sig,
     )
     _log(f"walked {_files_seen} files; emitting manifest")
 
