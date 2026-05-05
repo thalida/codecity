@@ -104,19 +104,35 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
     return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime), st.st_mtime
 
 
+# Above this size, sample first 1 MB and extrapolate. Building height
+# is relative, so ±20% on a 6+ MB file is fine and saves megabytes
+# of read I/O per file.
+_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024   # 5 MB
+_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024     # 1 MB
+
+
 def _line_count(path: Path) -> int:
-    # Count b'\n' in chunks to avoid loading huge files into memory.
-    total = 0
     try:
+        size = path.stat().st_size
+        if size <= _LINE_COUNT_FULL_THRESHOLD:
+            # Exact path — count every newline in 1 MB chunks.
+            total = 0
+            with path.open("rb") as fh:
+                while True:
+                    chunk = fh.read(1 << 20)
+                    if not chunk:
+                        break
+                    total += chunk.count(b"\n")
+            return total
+        # Sample-extrapolate path.
         with path.open("rb") as fh:
-            while True:
-                chunk = fh.read(1 << 20)  # 1 MB
-                if not chunk:
-                    break
-                total += chunk.count(b"\n")
+            chunk = fh.read(_LINE_COUNT_SAMPLE_BYTES)
+            sampled = chunk.count(b"\n")
+        if sampled == 0:
+            return 0
+        return int(sampled * (size / _LINE_COUNT_SAMPLE_BYTES))
     except OSError:
         return 0
-    return total
 
 
 # ── Git metadata ─────────────────────────────────────────────────────────────

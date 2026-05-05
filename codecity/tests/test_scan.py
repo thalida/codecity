@@ -336,6 +336,34 @@ class SignatureTreeTests(unittest.TestCase):
             (FIXTURE / "node_modules").rmdir()
 
 
+class LineCountCapTests(unittest.TestCase):
+    """Above ~5 MB the line counter samples and extrapolates instead of
+    reading the entire file. Building height is a relative measure, so
+    an order-of-magnitude estimate is fine on huge files."""
+
+    def test_exact_count_below_threshold(self):
+        from codecity.scan import _line_count
+        with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
+            fh.write(b"line\n" * 1000)
+            small = Path(fh.name)
+        self.addCleanup(small.unlink, missing_ok=True)
+        self.assertEqual(_line_count(small), 1000)
+
+    def test_sample_extrapolation_above_threshold(self):
+        from codecity.scan import _line_count
+        # 6 MB file with one newline every 50 bytes -> ~125k lines true.
+        with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
+            line = b"x" * 49 + b"\n"  # 50 bytes, one newline
+            for _ in range(6 * 1024 * 1024 // 50):
+                fh.write(line)
+            big = Path(fh.name)
+        self.addCleanup(big.unlink, missing_ok=True)
+        result = _line_count(big)
+        # Sample-based estimate; allow ±20%.
+        self.assertGreater(result, 100_000)
+        self.assertLess(result, 150_000)
+
+
 def _walk_files(node):
     """Yield every file node in the tree."""
     if node.get("type") == "file":
