@@ -17,6 +17,7 @@ codecity = "codecity.cli:main"
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pyright>=1.1",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -26,3 +27,9 @@ artifacts = ["codecity/static/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["codecity/tests"]
+
+[tool.pyright]
+include = ["codecity"]
+exclude = ["codecity/static", "codecity/tests"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"

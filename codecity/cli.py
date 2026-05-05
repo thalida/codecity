@@ -31,12 +31,14 @@ import urllib.parse
 import urllib.request
 import webbrowser
 from pathlib import Path
+from types import FrameType
 from typing import Optional
 
 from codecity import __version__
 from codecity.clone import CloneError, ensure_clone
 from codecity.scan import scan_tree
 from codecity.server import start_server
+from codecity.types import Manifest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = REPO_ROOT / "web"
@@ -62,7 +64,7 @@ def _add_scan_args(p: argparse.ArgumentParser) -> None:
     )
 
 
-def _scan_from_args(args: argparse.Namespace) -> dict:
+def _scan_from_args(args: argparse.Namespace) -> Manifest:
     return scan_tree(args.path)
 
 
@@ -181,7 +183,7 @@ def _serve_dev(args: argparse.Namespace) -> int:
         except Exception:  # pylint: disable=broad-except
             pass
 
-    def _signal_handler(signum: int, _frame) -> None:  # noqa: ANN001
+    def _signal_handler(signum: int, _frame: FrameType | None) -> None:
         _cleanup()
         os._exit(130 if signum == signal.SIGINT else 143)
 
@@ -206,7 +208,7 @@ def _serve_dev(args: argparse.Namespace) -> int:
     return 0
 
 
-def _kill_vite(vite_proc: subprocess.Popen) -> None:
+def _kill_vite(vite_proc: subprocess.Popen[bytes]) -> None:
     """Tear down the Vite process group. Idempotent, exception-safe."""
     if vite_proc.poll() is not None:
         return
@@ -246,7 +248,7 @@ def _port_holder(port: int) -> int | None:
     return pids[0] if pids else None
 
 
-def _wait_for_vite(url: str, vite_proc: subprocess.Popen) -> bool:
+def _wait_for_vite(url: str, vite_proc: subprocess.Popen[bytes]) -> bool:
     """Block until Vite responds on ``url``, or until it exits early.
 
     Polling ``vite_proc.poll()`` lets us surface "Vite died on startup"

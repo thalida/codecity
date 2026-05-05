@@ -28,6 +28,12 @@ from urllib.parse import parse_qs, urlparse
 
 from codecity.clone import CloneError, ensure_clone
 from codecity.scan import scan_tree
+from codecity.types import (
+    ErrorResponse,
+    FileTooLargeResponse,
+    HealthResponse,
+    Manifest,
+)
 
 # Cap individual /api/file responses so a stray symlink to a giant blob
 # doesn't try to load 10 GB into the browser.
@@ -64,7 +70,10 @@ class _State:
     clone_lock: threading.Lock = threading.Lock()
 
 
-def _send_json(handler: BaseHTTPRequestHandler, status: int, body: Any) -> None:
+JsonBody = Manifest | ErrorResponse | FileTooLargeResponse | HealthResponse
+
+
+def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> None:
     payload = json.dumps(body).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
