@@ -5,11 +5,14 @@
 // edit to the README on disk shows up here without a page reload.
 
 import { marked } from 'marked';
+import { NodeKind } from '../../types';
 import type { DirNode, FileNode, Manifest } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
+const README_BASE_NAME = 'readme';
+
 function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
   if (!manifest) return null;
   const tree =
@@ -19,9 +22,9 @@ function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
   if (!tree || !('children' in tree) || !tree.children) return null;
   for (let i = 0; i < tree.children.length; i++) {
     const c = tree.children[i];
-    if (c.type !== 'file') continue;
+    if (c.type !== NodeKind.File) continue;
     const name = (c.name || '').toLowerCase();
-    if (name === 'readme' || name.indexOf('readme.') === 0) return c;
+    if (name === README_BASE_NAME || name.indexOf(`${README_BASE_NAME}.`) === 0) return c;
   }
   return null;
 }

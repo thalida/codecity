@@ -75,9 +75,12 @@ export function createOutlineRenderer({
   const _selectedColors = new Float32Array(12 * 6); // 12 segments × (startRGB + endRGB)
   for (let ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
   _selectedEdgesGeo.setColors(_selectedColors);
-  // The InstancedInterleavedBuffer is exposed as an InterleavedBufferAttribute
-  // here; .data is the underlying typed array. Cast to access it.
-  const _selColorBuf = (_selectedEdgesGeo.attributes.instanceColorStart as any).data;
+  // attributes.instanceColorStart is exposed as the BufferAttribute|InterleavedBufferAttribute
+  // union; LineSegmentsGeometry uses the interleaved variant, whose .data is the
+  // underlying InterleavedBuffer (carries .array + .needsUpdate).
+  const _selColorBuf = (
+    _selectedEdgesGeo.attributes.instanceColorStart as THREE.InterleavedBufferAttribute
+  ).data;
   const _tmpHsl = new THREE.Color();
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
@@ -120,7 +123,8 @@ export function createOutlineRenderer({
 
   picker.hover.subscribe((h) => {
     const sel = picker.selection.get();
-    if (h && h.kind === NodeKind.File && (!sel || sel.mesh !== h.mesh)) {
+    const selFileMesh = sel?.kind === NodeKind.File ? sel.mesh : null;
+    if (h && h.kind === NodeKind.File && selFileMesh !== h.mesh) {
       _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
       hoverOutline.visible = true;
     } else {
@@ -190,7 +194,8 @@ export function createOutlineRenderer({
       _selColorBuf.needsUpdate = true;
     }
     const hov = picker.hover.get();
-    if (hov && hov.kind === NodeKind.File && (!sel || sel.mesh !== hov.mesh)) {
+    const selFileMesh = sel?.kind === NodeKind.File ? sel.mesh : null;
+    if (hov && hov.kind === NodeKind.File && selFileMesh !== hov.mesh) {
       _syncOutlineToBuilding(hoverOutline, hov.mesh, hov.data);
     }
   }

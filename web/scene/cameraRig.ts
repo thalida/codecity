@@ -29,7 +29,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '../config/index.js';
 import { STORAGE_KEYS } from '../constants';
-import { BuildingOrient } from '../types';
+import { BuildingOrient, StreetAxis } from '../types';
 import type { Building, Street } from '../types';
 import type { createCityScene } from './cityScene.js';
 
@@ -315,14 +315,14 @@ export function createCameraRig({
     let tx = s.x,
       tz = s.y;
     if (hitPoint) {
-      if (s.orientation === 'x') tx = hitPoint.x;
+      if (s.orientation === StreetAxis.X) tx = hitPoint.x;
       else tz = hitPoint.z;
     }
     const newTarget = new THREE.Vector3(tx, 0, tz);
 
     let offX = 0,
       offZ = 0;
-    if (s.orientation === 'x') {
+    if (s.orientation === StreetAxis.X) {
       offZ = 1;
     } else {
       offX = 1;

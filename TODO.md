@@ -1,4 +1,4 @@
-# ToDo's
+# ToDo
 
 - [x] make building height <> num lines (floor is set # of lines)
 - [x] threejs
@@ -25,3 +25,8 @@
 - [ ] identify and add something special to test files
 - [ ] python cli make it more professional
 - [ ] add back gitignore flag -- make it a user facing config option
+- [ ]
+
+## Pending Agent Prompts
+
+- 1) does the python scanner or anything ever create a directory as a file? 2) audit all the outputs from the python side of things (the scan and manifiest generation, etc etc) to make sure the types all match up and align -- next we'll add types to the python.

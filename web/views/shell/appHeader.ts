@@ -6,6 +6,7 @@
 import { STORAGE_KEYS } from '../../constants';
 import { getHue } from '../../scene/colors.js';
 import { makeLucideIcon } from './icon.js';
+import { loadFlag, saveFlag } from './localFlag.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -73,8 +74,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   // Both sidebars default to visible on first run. The right starts in
   // its empty state (no selection); the left starts on its tree pane.
-  let leftHidden = _loadFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, false);
-  let rightHidden = _loadFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, false);
+  let leftHidden = loadFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, false);
+  let rightHidden = loadFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, false);
   document.body.classList.toggle('left-hidden', leftHidden);
   document.body.classList.toggle('right-hidden', rightHidden);
   _renderLeftIcon(leftHidden);
@@ -93,13 +94,13 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     leftHidden = hidden;
     document.body.classList.toggle('left-hidden', leftHidden);
     _renderLeftIcon(leftHidden);
-    _saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
+    saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
   }
   function _setRightHidden(hidden: boolean): void {
     rightHidden = hidden;
     document.body.classList.toggle('right-hidden', rightHidden);
     _renderRightIcon(rightHidden);
-    _saveFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, rightHidden);
+    saveFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, rightHidden);
   }
 
   /**
@@ -209,25 +210,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       return !rightHidden;
     },
   };
-}
-
-function _loadFlag(key: string, defaultVal: boolean): boolean {
-  try {
-    const v = localStorage.getItem(key);
-    if (v == null) return defaultVal;
-    return v === '1';
-  } catch (_) {
-    return defaultVal;
-  }
-}
-
-function _saveFlag(key: string, on: boolean): void {
-  try {
-    if (on) localStorage.setItem(key, '1');
-    else localStorage.removeItem(key);
-  } catch (_) {
-    /* private mode — drop */
-  }
 }
 
 function _copy(text: string, btn: HTMLButtonElement): void {

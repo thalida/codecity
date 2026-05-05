@@ -39,7 +39,19 @@ import { parentDirPath } from './path.js';
 import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '../config/index.js';
 import { RENDER_ORDERS } from '../constants';
 import { NodeKind, StreetAxis } from '../types';
-import type { Building, CityLayout, DateRanges, Manifest, Street } from '../types';
+import type {
+  Building,
+  CityLayout,
+  CitySceneDiff,
+  DateRanges,
+  EnteringBuilding,
+  EnteringStreet,
+  ExitingEntry,
+  Manifest,
+  StayingBuilding,
+  StayingStreet,
+  Street,
+} from '../types';
 
 // Snapshot of the prior manifest state captured at the top of
 // applyManifest, used by the diff and the change-listener payload.
@@ -121,7 +133,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // outlineRenderer, etc.) each look at a different slice. Typed `any`
   // here, but each consumer narrows it locally.
 
-  const changeCbs: Array<(diff: any) => void> = [];
+  const changeCbs: Array<(diff: CitySceneDiff) => void> = [];
 
   function _emit<T>(arr: Array<(p: T) => void>, payload: T): void {
     // Snapshot to allow listeners to unsubscribe themselves mid-emit
@@ -143,7 +155,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     };
   }
 
-  function onChange(cb: (diff: any) => void): () => void {
+  function onChange(cb: (diff: CitySceneDiff) => void): () => void {
     changeCbs.push(cb);
     return function unsubscribe() {
       const idx = changeCbs.indexOf(cb);
@@ -317,10 +329,14 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   }
 
   // Diff against the prior manifest state (already-stale arrays just
-  // before disposal) using the stable identity {file.path, dir.path,
-  // file.path} for buildings/streets/paths. Phase-1 callers may ignore;
-  // animator (commit 9) consumes this to drive entry/exit tweens.
-  function _computeDiff(prev: PrevState) {
+  // before disposal) using the stable identity {file.path, dir.path}
+  // for buildings/streets. Building entries carry the new transform;
+  // staying buildings also carry the old transform (when tracked) so
+  // the animator can tween between them.
+  function _computeDiff(
+    prev: PrevState,
+    prevBuildingTransforms: Record<string, { position: THREE.Vector3; scaleY: number }>
+  ): CitySceneDiff {
     const prevBuildings: Record<string, THREE.Mesh> = {};
     for (const bm of prev.buildings ?? []) {
       const fp = bm.userData.building?.file?.path;
@@ -332,24 +348,15 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       if (dp != null) prevStreets[dp] = sw;
     }
 
-    interface DiffEntry {
-      mesh?: THREE.Mesh;
-      oldMesh?: THREE.Mesh;
-      newMesh?: THREE.Mesh;
-      newPosition?: THREE.Vector3;
-      newScaleY?: number;
-      oldPosition?: THREE.Vector3;
-      oldScaleY?: number;
-    }
-    const entering: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+    const entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] } = {
       buildings: [],
       streets: [],
     };
-    const exiting: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+    const exiting: { buildings: ExitingEntry[]; streets: ExitingEntry[] } = {
       buildings: [],
       streets: [],
     };
-    const staying: { buildings: DiffEntry[]; streets: DiffEntry[] } = {
+    const staying: { buildings: StayingBuilding[]; streets: StayingStreet[] } = {
       buildings: [],
       streets: [],
     };
@@ -358,10 +365,22 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       const nfp = nbm.userData.building?.file?.path;
       if (nfp == null) continue;
       if (Object.hasOwn(prevBuildings, nfp)) {
-        staying.buildings.push({ oldMesh: prevBuildings[nfp], newMesh: nbm });
+        const oldT = prevBuildingTransforms[nfp];
+        staying.buildings.push({
+          oldMesh: prevBuildings[nfp],
+          newMesh: nbm,
+          newPosition: nbm.position.clone(),
+          newScaleY: nbm.scale.y,
+          oldPosition: oldT?.position,
+          oldScaleY: oldT?.scaleY,
+        });
         delete prevBuildings[nfp];
       } else {
-        entering.buildings.push({ mesh: nbm });
+        entering.buildings.push({
+          mesh: nbm,
+          newPosition: nbm.position.clone(),
+          newScaleY: nbm.scale.y,
+        });
       }
     }
     for (const ek in prevBuildings) {
@@ -470,26 +489,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
-    const diff = _computeDiff(prev);
-    // Attach transform snapshots so the animator can tween from the
-    // previous mesh's resting place. For entering meshes, no prev
-    // exists, so just expose the target. For staying, both.
-    for (const entry of diff.entering.buildings) {
-      entry.newPosition = entry.mesh.position.clone();
-      entry.newScaleY = entry.mesh.scale.y;
-    }
-    for (const entry of diff.staying.buildings) {
-      const nm = entry.newMesh;
-      const fp = nm.userData.building?.file?.path;
-      const oldT = fp != null ? prevBuildingTransforms[fp] : null;
-      if (oldT) {
-        entry.oldPosition = oldT.position;
-        entry.oldScaleY = oldT.scaleY;
-      }
-      entry.newPosition = nm.position.clone();
-      entry.newScaleY = nm.scale.y;
-    }
-
+    const diff = _computeDiff(prev, prevBuildingTransforms);
     _emit(changeCbs, diff);
   }
 

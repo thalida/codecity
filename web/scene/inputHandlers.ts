@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { INPUT_TIMING } from '../config/index.js';
+import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '../constants';
 import { NodeKind } from '../types';
 import type { PickTarget } from '../types';
 import type { createPicker } from './picker.js';
@@ -224,14 +225,14 @@ export function createInputHandlers({
     const ev = e as KeyboardEvent;
     const targetEl = ev.target as (HTMLElement & { isContentEditable?: boolean }) | null;
     const tag = (targetEl && targetEl.tagName) || '';
-    if (tag === 'INPUT' || tag === 'TEXTAREA' || (targetEl && targetEl.isContentEditable)) return;
+    if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
 
-    if (ev.key === 'Escape') {
+    if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);
       picker.setHover(null);
-    } else if (ev.key === 'r' || ev.key === 'R' || ev.key === 'Home') {
+    } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
       rig.reset();
-    } else if (ev.key === 'f' || ev.key === 'F') {
+    } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();
       if (!sel) return;
       if (sel.kind === NodeKind.File) {

@@ -19,7 +19,7 @@ import {
   GEM_ANIMATION,
 } from '../config/index.js';
 import { RENDER_ORDERS } from '../constants';
-import { BuildingOrient, NodeKind, StreetAxis } from '../types';
+import { BuildingOrient, CapStyle, JoinSide, NodeKind, StreetAxis } from '../types';
 import type { Building, BuildingPath, CityLayout, Street } from '../types';
 
 // Internal-only types for engine helpers.
@@ -38,8 +38,7 @@ interface RoofOpts {
   roofColor: string;
   borderColor: string;
 }
-type CapStyle = 'both' | 'low' | 'high';
-type StreetWithJoin = Street & { joinSide?: 'low' | 'high' };
+type StreetWithJoin = Street & { joinSide?: JoinSide };
 
 // ─── Renderer-internal constants (not designer-tunable) ────────────────────
 // These shape facade textures, color derivation, and stadium tessellation.
@@ -469,20 +468,20 @@ function _buildStadiumGeometry(
   orientation: StreetAxis,
   capStyle: CapStyle
 ): THREE.ShapeGeometry {
-  capStyle = capStyle || 'both';
-  // capStyle is specified in WORLD-axis terms ('low' = round the world-low
-  // end, 'high' = the world-high end). The mesh is rotated -π/2 around X
+  capStyle = capStyle || CapStyle.Both;
+  // capStyle is specified in WORLD-axis terms (Low = round the world-low
+  // end, High = the world-high end). The mesh is rotated -π/2 around X
   // to lie flat: local x maps directly to world X (no flip), but local y
   // maps to world -z (flipped). So for y-orient streets, "world low" is
   // at LOCAL HIGH and vice versa — invert capStyle here so the geometry
   // construction below stays in plain local-axis terms.
   if (orientation === StreetAxis.Y) {
-    if (capStyle === 'low') capStyle = 'high';
-    else if (capStyle === 'high') capStyle = 'low';
+    if (capStyle === CapStyle.Low) capStyle = CapStyle.High;
+    else if (capStyle === CapStyle.High) capStyle = CapStyle.Low;
   }
   const r = width / 2;
-  const roundLow = capStyle === 'both' || capStyle === 'low';
-  const roundHigh = capStyle === 'both' || capStyle === 'high';
+  const roundLow = capStyle === CapStyle.Both || capStyle === CapStyle.Low;
+  const roundHigh = capStyle === CapStyle.Both || capStyle === CapStyle.High;
   // The straight section's long-axis range. When a side is rounded, the
   // straight section ends r before the world edge; when flat, it extends
   // all the way out to the world edge.
@@ -541,14 +540,14 @@ function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
   // Cap style: the root has rounded caps both sides; non-root streets are
   // FLAT at their joining end (so they merge cleanly into the parent at
   // the T-intersection) and rounded only at the open end. layout.js stamps
-  // each non-root street with `joinSide` ('low' | 'high') after layout.
+  // each non-root street with `joinSide` after layout.
   // Same capStyle is passed to BOTH sidewalk + asphalt so their flat ends
   // line up and the visible sidewalk strip stays uniform around the cap.
   let capStyle: CapStyle;
-  if (street.isRoot) capStyle = 'both';
-  else if (street.joinSide === 'high')
-    capStyle = 'low'; // round the low/open end
-  else capStyle = 'high'; // round the high/open end
+  if (street.isRoot) capStyle = CapStyle.Both;
+  else if (street.joinSide === JoinSide.High)
+    capStyle = CapStyle.Low; // round the low/open end
+  else capStyle = CapStyle.High; // round the high/open end
 
   // Sidewalk — the clickable target for street picking. renderOrder=1
   // means all sidewalks across the city draw first, as a single bottom layer.
@@ -892,7 +891,6 @@ export function buildCityScene(layout: CityLayout) {
   const buildingMeshes: THREE.Mesh[] = [];
   const buildings = layout.buildings || [];
   for (const b of buildings) {
-    if (b.file && (b.file.type as string) === 'directory') continue;
     const mesh = createBuildingMesh(b);
     scene.add(mesh);
     buildingMeshes.push(mesh);

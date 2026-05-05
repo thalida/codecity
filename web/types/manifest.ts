@@ -23,7 +23,7 @@ export interface GitMeta {
 
 export interface FileNode {
   name: string;
-  type: 'file';
+  type: NodeKind.File;
   path: string;
   fullPath: string;
   extension: string;
@@ -37,7 +37,7 @@ export interface FileNode {
 
 export interface DirNode {
   name: string;
-  type: 'directory';
+  type: NodeKind.Directory;
   path: string;
   fullPath: string;
   children: TreeNode[];

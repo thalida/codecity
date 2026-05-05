@@ -11,6 +11,7 @@ import { buildControlsPane } from '../panes/controlsPane.js';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '../../constants';
 import { SidebarTab } from '../../types';
 import type { Manifest, TreeNode } from '../../types';
+import { loadFlag, saveFlag } from './localFlag.js';
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
@@ -18,8 +19,8 @@ const SIDEBAR_MAX_WIDTH = 600;
 interface ShowLeftSidebarOpts {
   /** fn() the Settings UI calls after mutating any imported theme constant — flushes the change through to live materials. */
   applyTheme?: () => void;
-  /** Initial active tab. Defaults to 'tree'. */
-  initialTab?: SidebarTab | 'tree' | 'info' | 'controls';
+  /** Initial active tab. Defaults to SidebarTab.Tree. */
+  initialTab?: SidebarTab;
   /** fn(node) called when the user single-clicks a tree row. */
   onTreeSelect?: (node: TreeNode) => void;
   /** fn(node) called when the user double-clicks a tree row. */
@@ -103,7 +104,7 @@ export function showLeftSidebar(
 
   let activeTab: SidebarTab =
     opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
-  let collapsed = _loadCollapsed();
+  let collapsed = loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
   const iconBtns: Record<string, HTMLButtonElement> = {};
 
   const iconBase = LUCIDE_ICON_BASE_URL;
@@ -156,7 +157,7 @@ export function showLeftSidebar(
     collapsed = value;
     container.classList.toggle('is-collapsed', collapsed);
     _refreshActiveStates();
-    _persistCollapsed(collapsed);
+    saveFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, collapsed);
   }
 
   // Sync the visible state of all panes + activity-bar icons against
@@ -248,21 +249,3 @@ function _persistWidth(w: number): void {
   }
 }
 
-function _loadCollapsed(): boolean {
-  if (typeof localStorage === 'undefined') return false;
-  try {
-    return localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === 'true';
-  } catch (_) {
-    return false;
-  }
-}
-
-function _persistCollapsed(value: boolean): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    if (value) localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, 'true');
-    else localStorage.removeItem(STORAGE_KEYS.SIDEBAR_COLLAPSED);
-  } catch (_) {
-    /* drop */
-  }
-}

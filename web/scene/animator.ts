@@ -21,6 +21,7 @@
 
 import * as THREE from 'three';
 import { TweenKind } from '../types';
+import type { CitySceneDiff } from '../types';
 import type { createCityScene } from './cityScene.js';
 
 interface Tween {
@@ -40,23 +41,6 @@ interface Tween {
   durationMs: number;
   easing: (t: number) => number;
   startedAt: number;
-}
-
-// Diff payload published by cityScene.onChange. Only the fields the
-// animator reads are typed here; the actual payload may carry more.
-interface AnimatorDiff {
-  entering: {
-    buildings: Array<{ mesh: THREE.Mesh; newScaleY?: number }>;
-  };
-  staying: {
-    buildings: Array<{
-      newMesh: THREE.Mesh;
-      oldPosition?: THREE.Vector3;
-      newPosition: THREE.Vector3;
-      oldScaleY?: number;
-      newScaleY?: number;
-    }>;
-  };
 }
 
 // Default durations (ms). Subjective; smoke-tested for "snappy but
@@ -145,22 +129,16 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     });
   }
 
-  function _onChange(diff: AnimatorDiff): void {
+  function _onChange(diff: CitySceneDiff): void {
     // Entering: start small, grow to layout height.
     for (const e of diff.entering.buildings) {
-      if (!e.mesh) continue;
-      const newY = typeof e.newScaleY === 'number' ? e.newScaleY : 1;
-      _tweenScaleY(e.mesh, 0.0001, newY, ENTER_MS);
+      _tweenScaleY(e.mesh, 0.0001, e.newScaleY, ENTER_MS);
     }
     // Staying with shifted position / scale: animate to new transform.
     for (const s of diff.staying.buildings) {
-      if (!s.newMesh || !s.oldPosition) continue;
+      if (!s.oldPosition) continue;
       _tweenPosition(s.newMesh, s.oldPosition, s.newPosition, STAY_MS);
-      if (
-        typeof s.oldScaleY === 'number' &&
-        typeof s.newScaleY === 'number' &&
-        s.oldScaleY !== s.newScaleY
-      ) {
+      if (typeof s.oldScaleY === 'number' && s.oldScaleY !== s.newScaleY) {
         _tweenScaleY(s.newMesh, s.oldScaleY, s.newScaleY, STAY_MS);
       }
     }

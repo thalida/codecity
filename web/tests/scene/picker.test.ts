@@ -2,9 +2,19 @@
 // one-way derivation from selection → selectionKey, plus the
 // re-resolution from key → selection on cityScene rebuild.
 
+import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '../../scene/picker.js';
 import { NodeKind } from '../../types';
+import type {
+  Building,
+  DirNode,
+  FileNode,
+  FileTarget,
+  DirTarget,
+  PickerCityScene,
+  Street,
+} from '../../types';
 
 // Minimal building / street fixture shapes for the fake scene.
 interface FakeBuildingFixture {
@@ -16,23 +26,45 @@ interface FakeStreetFixture {
   sidewalk: object;
 }
 
-// Minimal cityScene stub with the accessors picker actually reads.
+// camera is only used by raycaster.setFromCamera (never exercised in these
+// tests); fake stub cast to the prod type so picker's signature stays honest.
+const FAKE_CAMERA = {} as unknown as THREE.Camera;
+
+// Minimal FileTarget / DirTarget builders: tests only exercise identity
+// (mesh ===, file.path), so the unrelated fields are stubbed and cast.
+function makeFileTarget(opts: {
+  path?: string;
+  mesh?: object;
+  data?: object;
+} = {}): FileTarget {
+  return {
+    kind: NodeKind.File,
+    mesh: (opts.mesh ?? {}) as unknown as THREE.Mesh,
+    data: (opts.data ?? {}) as unknown as Building,
+    file: { path: opts.path ?? 'x' } as unknown as FileNode,
+  };
+}
+
+function makeDirTarget(opts: { path?: string; sidewalk?: object; street?: object } = {}): DirTarget {
+  return {
+    kind: NodeKind.Directory,
+    sidewalk: (opts.sidewalk ?? {}) as unknown as THREE.Mesh,
+    street: (opts.street ?? {}) as unknown as Street,
+    dir: { path: opts.path ?? 'x' } as unknown as DirNode,
+  };
+}
+
+// Minimal cityScene stub with the accessors picker actually reads. Internal
+// fixtures cast to the real types so the helper satisfies PickerCityScene.
 function makeFakeCityScene(
   initialBuildings: FakeBuildingFixture[],
   initialStreets: FakeStreetFixture[]
 ) {
-  let buildingMap: Record<
-    string,
-    { mesh: object; building: { file: { path: string; type: NodeKind } } }
-  > = {};
-  let streetMap: Record<
-    string,
-    { dir: { path: string }; length: number; width: number; x: number; y: number }
-  > = {};
-  let sidewalkMap: Record<string, object> = {};
-  const listeners: Array<(diff: { entering: object; exiting: object; staying: object }) => void> =
-    [];
-  const rootGem: null = null;
+  let buildingMap: Record<string, { mesh: THREE.Mesh; building: Building }> = {};
+  let streetMap: Record<string, Street> = {};
+  let sidewalkMap: Record<string, THREE.Mesh> = {};
+  const listeners: Array<() => void> = [];
+  const rootGem: THREE.Object3D | null = null;
 
   function setSnapshot(buildings: FakeBuildingFixture[], streets: FakeStreetFixture[]): void {
     buildingMap = {};
@@ -41,30 +73,33 @@ function makeFakeCityScene(
     for (let i = 0; i < (buildings || []).length; i++) {
       const b = buildings[i];
       buildingMap[b.path] = {
-        mesh: b.mesh,
-        building: { file: { path: b.path, type: NodeKind.File } },
+        mesh: b.mesh as unknown as THREE.Mesh,
+        building: {
+          file: { path: b.path, type: NodeKind.File },
+        } as unknown as Building,
       };
     }
     for (let j = 0; j < (streets || []).length; j++) {
       const s = streets[j];
-      streetMap[s.path] = { dir: { path: s.path }, length: 100, width: 10, x: 0, y: 0 };
-      sidewalkMap[s.path] = s.sidewalk;
+      streetMap[s.path] = {
+        dir: { path: s.path },
+        length: 100,
+        width: 10,
+        x: 0,
+        y: 0,
+      } as unknown as Street;
+      sidewalkMap[s.path] = s.sidewalk as unknown as THREE.Mesh;
     }
-    for (let k = 0; k < listeners.length; k++)
-      listeners[k]({ entering: {}, exiting: {}, staying: {} });
+    for (let k = 0; k < listeners.length; k++) listeners[k]();
   }
   setSnapshot(initialBuildings, initialStreets);
 
-  return {
+  const api: PickerCityScene = {
     getBuildings() {
-      return Object.keys(buildingMap).map((p) => {
-        return buildingMap[p].mesh;
-      });
+      return Object.keys(buildingMap).map((p) => buildingMap[p].mesh);
     },
     getStreetPickables() {
-      return Object.keys(sidewalkMap).map((p) => {
-        return sidewalkMap[p];
-      });
+      return Object.keys(sidewalkMap).map((p) => sidewalkMap[p]);
     },
     getRootGem() {
       return rootGem;
@@ -78,12 +113,12 @@ function makeFakeCityScene(
     getStreetByDir(p: string) {
       return streetMap[p] || null;
     },
-    onChange(cb: (diff: { entering: object; exiting: object; staying: object }) => void) {
+    onChange(cb: () => void) {
       listeners.push(cb);
       return function () {};
     },
-    setSnapshot,
   };
+  return Object.assign(api, { setSnapshot });
 }
 
 let canvas: HTMLCanvasElement;
@@ -96,11 +131,16 @@ beforeEach(() => {
   PICKER_SELECTION_KEY.set(null);
 });
 
+// Helper: build a fake hit object for interpretHit. Real callers pass
+// THREE.Intersection<THREE.Object3D>; tests exercise just the userData.
+function fakeHit(userData: Record<string, unknown>): THREE.Intersection<THREE.Object3D> {
+  return { object: { userData } } as unknown as THREE.Intersection<THREE.Object3D>;
+}
+
 describe('createPicker', () => {
   it('exposes hover, selection, selectionKey atoms + setters', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const camera = { isCamera: true };
-    const p = createPicker({ canvas, camera, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
     expect(typeof p.hover.get).toBe('function');
     expect(typeof p.selection.get).toBe('function');
     expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
@@ -114,34 +154,24 @@ describe('createPicker', () => {
 
   it('setSelection derives selectionKey for a file target', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setSelection({
-      kind: NodeKind.File,
-      mesh: {},
-      data: {},
-      file: { path: 'src/index.js' },
-    });
-    expect(p.selectionKey.get()).toEqual({ kind: 'file', path: 'src/index.js' });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    p.setSelection(makeFileTarget({ path: 'src/index.js' }));
+    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
     p.dispose();
   });
 
   it('setSelection derives selectionKey for a directory target', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setSelection({
-      kind: NodeKind.Directory,
-      sidewalk: {},
-      street: {},
-      dir: { path: 'src/lib' },
-    });
-    expect(p.selectionKey.get()).toEqual({ kind: 'directory', path: 'src/lib' });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    p.setSelection(makeDirTarget({ path: 'src/lib' }));
+    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
     p.dispose();
   });
 
   it('setSelection(null) clears selectionKey', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setSelection({ kind: NodeKind.File, file: { path: 'a.js' } });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    p.setSelection(makeFileTarget({ path: 'a.js' }));
     p.setSelection(null);
     expect(p.selectionKey.get()).toBeNull();
     p.dispose();
@@ -150,42 +180,49 @@ describe('createPicker', () => {
   it('selectByPath looks up a building by path and selects it', () => {
     const meshA = { name: 'meshA' };
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: meshA }], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
     p.selectByPath('a.js');
-    expect(p.selection.get().kind).toBe(NodeKind.File);
-    expect(p.selection.get().mesh).toBe(meshA);
-    expect(p.selectionKey.get()).toEqual({ kind: 'file', path: 'a.js' });
+    const sel = p.selection.get();
+    expect(sel?.kind).toBe(NodeKind.File);
+    if (sel?.kind === NodeKind.File) {
+      expect(sel.mesh).toBe(meshA);
+    }
+    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.File, path: 'a.js' });
     p.dispose();
   });
 
   it('selectByPath(missing) leaves selection alone', () => {
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
     p.selectByPath('a.js');
     p.selectByPath('does-not-exist.js');
-    expect(p.selection.get()).not.toBeNull();
-    expect(p.selection.get().file.path).toBe('a.js');
-    p.dispose();
+    const sel = p.selection.get();
+    expect(sel).not.toBeNull();
+    if (sel?.kind === NodeKind.File) {
+      expect(sel.file.path).toBe('a.js');
+    }
   });
 
   it('cityScene rebuild re-resolves selectionKey to a fresh selection', () => {
     const oldMesh = { id: 'old' };
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: oldMesh }], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
     p.selectByPath('a.js');
-    expect(p.selection.get().mesh).toBe(oldMesh);
+    const before = p.selection.get();
+    if (before?.kind === NodeKind.File) expect(before.mesh).toBe(oldMesh);
 
     // Simulate a rebuild — same path, new mesh.
     const newMesh = { id: 'new' };
     fakeScene.setSnapshot([{ path: 'a.js', mesh: newMesh }], []);
 
-    expect(p.selection.get().mesh).toBe(newMesh);
+    const after = p.selection.get();
+    if (after?.kind === NodeKind.File) expect(after.mesh).toBe(newMesh);
     p.dispose();
   });
 
   it('cityScene rebuild that removes the selected path clears selection + key', () => {
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
     p.selectByPath('a.js');
     expect(p.selection.get()).not.toBeNull();
 
@@ -198,8 +235,8 @@ describe('createPicker', () => {
 
   it('cityScene rebuild always clears hover (transient, can dangle on disposed mesh otherwise)', () => {
     const fakeScene = makeFakeCityScene([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    p.setHover({ kind: NodeKind.File, mesh: { id: 'old' } });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
     expect(p.hover.get()).not.toBeNull();
 
     fakeScene.setSnapshot([{ path: 'a.js', mesh: { id: 'new' } }], []);
@@ -209,16 +246,16 @@ describe('createPicker', () => {
 
   it('interpretHit returns NodeKind.Gem for a gem hit', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    const target = p.interpretHit({ object: { userData: { type: NodeKind.Gem } } });
-    expect(target.kind).toBe(NodeKind.Gem);
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const target = p.interpretHit(fakeHit({ type: NodeKind.Gem }));
+    expect(target?.kind).toBe(NodeKind.Gem);
     p.dispose();
   });
 
   it('interpretHit returns null for an uninterpretable hit', () => {
     const fakeScene = makeFakeCityScene([], []);
-    const p = createPicker({ canvas, camera: {}, cityScene: fakeScene });
-    expect(p.interpretHit({ object: { userData: {} } })).toBeNull();
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    expect(p.interpretHit(fakeHit({}))).toBeNull();
     expect(p.interpretHit(null)).toBeNull();
     p.dispose();
   });

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildFilePreviewPane } from '../../../views/panes/filePreviewPane.js';
 import { showRightSidebar, hideRightSidebar } from '../../../views/shell/rightSidebar.js';
+import { NodeKind } from '../../../types';
 import type { FileNode } from '../../../types';
 
 function resetDom() {
@@ -9,7 +10,7 @@ function resetDom() {
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
-  type: 'file',
+  type: NodeKind.File,
   path: 'src/index.ts',
   fullPath: '/tmp/project/src/index.ts',
   extension: '.ts',

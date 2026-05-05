@@ -21,7 +21,7 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
-import { NodeKind } from './types';
+import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createCityScene } from './scene/cityScene.js';
 import type { createPicker } from './scene/picker.js';
@@ -83,7 +83,7 @@ export function createCoordinator({
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter();
   appFooter.setSelection({
-    kind: 'directory',
+    kind: NodeKind.Directory,
     files: rootNode?.descendants_file_count ?? 0,
     dirs: rootNode?.descendants_dir_count ?? 0,
     size: rootNode?.descendants_size ?? 0,
@@ -186,19 +186,19 @@ export function createCoordinator({
       const f: FileNode = sel.file;
       const hasGit = !!(f.git && (f.git.created || f.git.modified));
       appFooter.setSelection({
-        kind: 'file',
+        kind: NodeKind.File,
         language: humanLanguageFor(f),
         lines: f.lines,
         size: f.size || 0,
         modified: (f.git && f.git.modified) || f.modified || null,
         created: (f.git && f.git.created) || f.created || null,
-        dateSource: hasGit ? 'git' : 'fs',
+        dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
       });
     } else {
       const d: DirNode | null =
         (sel && sel.kind === NodeKind.Directory ? sel.dir : null) || cityScene.getRoot();
       appFooter.setSelection({
-        kind: 'directory',
+        kind: NodeKind.Directory,
         files: d?.descendants_file_count ?? 0,
         dirs: d?.descendants_dir_count ?? 0,
         size: d?.descendants_size ?? 0,

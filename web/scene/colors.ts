@@ -7,13 +7,14 @@
 // mutate the store via .setKey() in setup + restore in teardown.
 
 import { BUILDING_PALETTE } from '../config/index.js';
+import { NodeKind } from '../types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but
 // also accommodate test mocks that omit unrelated fields. Real callers
 // pass full TreeNode / FileNode instances — both are structurally
 // compatible with these.
 interface FileLike {
-  type: string;
+  type: NodeKind;
   extension?: string;
   git?: { created?: string | null; modified?: string | null } | null;
   created?: string | null;
@@ -185,7 +186,7 @@ export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
   }
 
   function visit(node: TreeNodeLike): void {
-    if (node.type === 'file') {
+    if (node.type === NodeKind.File) {
       // Prefer git dates, fall back to filesystem dates
       const created = (node.git && node.git.created) || node.created || null;
       const modified = (node.git && node.git.modified) || node.modified || null;

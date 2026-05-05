@@ -5,6 +5,7 @@ import {
   computePathPoints,
   streetEndOpposite,
 } from '../../scene/path.js';
+import { NodeKind, StreetAxis } from '../../types';
 
 // Local minimal-shape type matches the StreetLike structural contract that
 // scene/path.ts reads (orientation, position, dimensions, dir.path).
@@ -13,7 +14,7 @@ interface TestStreet {
   y: number;
   length: number;
   width: number;
-  orientation: 'x' | 'y';
+  orientation: StreetAxis;
   dir: { path: string };
 }
 
@@ -27,7 +28,7 @@ const ROOT: TestStreet = {
   y: 0,
   length: 500,
   width: 50,
-  orientation: 'x',
+  orientation: StreetAxis.X,
   dir: { path: '.' },
 };
 const SRC: TestStreet = {
@@ -35,7 +36,7 @@ const SRC: TestStreet = {
   y: -50,
   length: 100,
   width: 30,
-  orientation: 'y',
+  orientation: StreetAxis.Y,
   dir: { path: 'src' },
 };
 const SCENE: TestStreet = {
@@ -43,7 +44,7 @@ const SCENE: TestStreet = {
   y: -50,
   length: 80,
   width: 20,
-  orientation: 'x',
+  orientation: StreetAxis.X,
   dir: { path: 'src/scene' },
 };
 const TESTS: TestStreet = {
@@ -51,7 +52,7 @@ const TESTS: TestStreet = {
   y: 50,
   length: 100,
   width: 30,
-  orientation: 'y',
+  orientation: StreetAxis.Y,
   dir: { path: 'tests' },
 };
 
@@ -127,11 +128,13 @@ describe('streetEndOpposite', () => {
 describe('computePathPoints', () => {
   it('returns [] when sel or gem is missing', () => {
     expect(computePathPoints(null, GEM, STREETS)).toEqual([]);
-    expect(computePathPoints({ kind: 'directory', dir: { path: '.' } }, null, STREETS)).toEqual([]);
+    expect(
+      computePathPoints({ kind: NodeKind.Directory, dir: { path: '.' } }, null, STREETS)
+    ).toEqual([]);
   });
 
   it('directory selection at root: gem → far end of root', () => {
-    const sel = { kind: 'directory', dir: { path: '.' } };
+    const sel = { kind: NodeKind.Directory, dir: { path: '.' } };
     const pts = computePathPoints(sel, GEM, STREETS);
     expect(pts).toEqual([
       { x: 25, z: 0 }, // gem
@@ -140,7 +143,7 @@ describe('computePathPoints', () => {
   });
 
   it('directory selection one-deep: gem → bend → far end of selected', () => {
-    const sel = { kind: 'directory', dir: { path: 'src' } };
+    const sel = { kind: NodeKind.Directory, dir: { path: 'src' } };
     const pts = computePathPoints(sel, GEM, STREETS);
     expect(pts.length).toBe(3);
     expect(pts[0]).toEqual({ x: 25, z: 0 }); // gem
@@ -150,7 +153,7 @@ describe('computePathPoints', () => {
   });
 
   it('directory selection two-deep: gem → bend → bend → far end', () => {
-    const sel = { kind: 'directory', dir: { path: 'src/scene' } };
+    const sel = { kind: NodeKind.Directory, dir: { path: 'src/scene' } };
     const pts = computePathPoints(sel, GEM, STREETS);
     expect(pts.length).toBe(4);
     expect(pts[0]).toEqual({ x: 25, z: 0 }); // gem
@@ -165,7 +168,7 @@ describe('computePathPoints', () => {
     // SCENE is x-orientation at z=-50. Building y=-30 > street.y=-50,
     // so road-side edge is b.y - b.d/2 = -35.
     const sel = {
-      kind: 'file',
+      kind: NodeKind.File,
       file: { path: 'src/scene/colors.js' },
       data: { x: 250, y: -30, w: 10, d: 10 },
     };
@@ -180,7 +183,7 @@ describe('computePathPoints', () => {
 
   it('file selection at root level: gem → walk along root → perpendicular to building', () => {
     const sel = {
-      kind: 'file',
+      kind: NodeKind.File,
       file: { path: 'README.md' },
       data: { x: 100, y: 30, w: 8, d: 8 },
     };
@@ -194,7 +197,7 @@ describe('computePathPoints', () => {
 
   it("file selection two-deep produces 4 segments (regression: chain shouldn't silently truncate)", () => {
     const sel = {
-      kind: 'file',
+      kind: NodeKind.File,
       file: { path: 'src/scene/colors.js' },
       data: { x: 250, y: -30, w: 10, d: 10 },
     };
@@ -205,16 +208,16 @@ describe('computePathPoints', () => {
 
   it('directory selection three-deep produces 4 segments (chain walks through all parents)', () => {
     // Add a deeper dir for this test
-    const INNER = {
+    const INNER: TestStreet = {
       x: 245,
       y: -75,
       length: 20,
       width: 10,
-      orientation: 'y',
+      orientation: StreetAxis.Y,
       dir: { path: 'src/scene/inner' },
     };
     const streets = { ...STREETS, 'src/scene/inner': INNER };
-    const sel = { kind: 'directory', dir: { path: 'src/scene/inner' } };
+    const sel = { kind: NodeKind.Directory, dir: { path: 'src/scene/inner' } };
     const pts = computePathPoints(sel, GEM, streets);
     // Chain = [root, src, scene, inner]. pts = [gem, bend1, bend2, bend3, end] = 5 points.
     expect(pts.length).toBe(5);

@@ -78,8 +78,9 @@ export function createPathLineRenderer({
     const sel = picker.selection.get();
     if (!hov || !sel) return false;
     if (hov.kind !== sel.kind) return false;
-    if (hov.kind === NodeKind.File) return hov.mesh === sel.mesh;
-    if (hov.kind === NodeKind.Directory) return hov.street === sel.street;
+    if (hov.kind === NodeKind.File && sel.kind === NodeKind.File) return hov.mesh === sel.mesh;
+    if (hov.kind === NodeKind.Directory && sel.kind === NodeKind.Directory)
+      return hov.street === sel.street;
     if (hov.kind === NodeKind.Gem) return true;
     return false;
   }

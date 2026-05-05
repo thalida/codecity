@@ -3,18 +3,20 @@
 // for files; file/dir counts + size for directories). Empty when there
 // is no selection.
 
+import { DateSource, NodeKind } from '../../types';
+
 interface FooterFileSelection {
-  kind: 'file';
+  kind: NodeKind.File;
   language?: string;
   lines?: number | null;
   size?: number | null;
   modified?: string | null;
   created?: string | null;
-  dateSource?: string;
+  dateSource?: DateSource;
 }
 
 interface FooterDirectorySelection {
-  kind: 'directory';
+  kind: NodeKind.Directory;
   files?: number | null;
   dirs?: number | null;
   size?: number | null;
@@ -28,9 +30,9 @@ export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
  *                           selection. Pass null to clear it.
  *
  * sel shape (file):
- *   { kind:'file', language, lines, size, modified, created, dateSource }
+ *   { kind: NodeKind.File, language, lines, size, modified, created, dateSource }
  * sel shape (directory):
- *   { kind:'directory', files, dirs, size }
+ *   { kind: NodeKind.Directory, files, dirs, size }
  */
 export function initAppFooter() {
   const footer = document.getElementById('app-footer');
@@ -40,7 +42,7 @@ export function initAppFooter() {
     footer.replaceChildren();
     if (!sel) return;
 
-    if (sel.kind === 'file') {
+    if (sel.kind === NodeKind.File) {
       if (sel.language) footer.appendChild(_item(sel.language));
       if (sel.lines != null) footer.appendChild(_item(`${sel.lines} lines`));
       if (sel.size != null) footer.appendChild(_item(_formatBytes(sel.size)));
@@ -48,7 +50,7 @@ export function initAppFooter() {
         footer.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
       if (sel.created)
         footer.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
-    } else if (sel.kind === 'directory') {
+    } else if (sel.kind === NodeKind.Directory) {
       footer.appendChild(_item('Directory'));
       if (sel.files != null) footer.appendChild(_item(`${sel.files} files`));
       if (sel.dirs != null) footer.appendChild(_item(`${sel.dirs} dirs`));

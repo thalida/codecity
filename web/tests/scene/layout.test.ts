@@ -7,6 +7,7 @@ import {
   computeLineStats,
 } from '../../scene/layout.js';
 import { BUILDING_DIMENSIONS } from '../../config/index.js';
+import { NodeKind, StreetAxis } from '../../types';
 import type { BuildingDimensionsConfig } from '../../config/building.js';
 import type { StreetTier } from '../../config/street.js';
 
@@ -45,7 +46,7 @@ afterEach(() => {
 
 const TEST_TREE = {
   name: 'project',
-  type: 'directory',
+  type: NodeKind.Directory,
   path: '.',
   fullPath: '/tmp/project',
   children_count: 3,
@@ -58,7 +59,7 @@ const TEST_TREE = {
   children: [
     {
       name: 'index.ts',
-      type: 'file',
+      type: NodeKind.File,
       path: 'index.ts',
       fullPath: '/tmp/project/index.ts',
       extension: '.ts',
@@ -76,7 +77,7 @@ const TEST_TREE = {
     },
     {
       name: 'README.md',
-      type: 'file',
+      type: NodeKind.File,
       path: 'README.md',
       fullPath: '/tmp/project/README.md',
       extension: '.md',
@@ -94,7 +95,7 @@ const TEST_TREE = {
     },
     {
       name: 'src',
-      type: 'directory',
+      type: NodeKind.Directory,
       path: 'src',
       fullPath: '/tmp/project/src',
       children_count: 1,
@@ -107,7 +108,7 @@ const TEST_TREE = {
       children: [
         {
           name: 'utils.ts',
-          type: 'file',
+          type: NodeKind.File,
           path: 'src/utils.ts',
           fullPath: '/tmp/project/src/utils.ts',
           extension: '.ts',
@@ -252,18 +253,18 @@ describe('computeLineStats', () => {
   });
 
   it('returns { min: 1, max: 1 } when no files have lines', () => {
-    const empty = { name: 'empty', type: 'directory', children: [] };
+    const empty = { name: 'empty', type: NodeKind.Directory, children: [] };
     expect(computeLineStats(empty)).toEqual({ min: 1, max: 1 });
   });
 
   it('ignores files with null/zero line counts', () => {
     const tree = {
       name: 'r',
-      type: 'directory',
+      type: NodeKind.Directory,
       children: [
-        { name: 'a.js', type: 'file', lines: 0 },
-        { name: 'b.js', type: 'file', lines: null },
-        { name: 'c.js', type: 'file', lines: 50 },
+        { name: 'a.js', type: NodeKind.File, lines: 0 },
+        { name: 'b.js', type: NodeKind.File, lines: null },
+        { name: 'c.js', type: NodeKind.File, lines: 50 },
       ],
     };
     expect(computeLineStats(tree)).toEqual({ min: 50, max: 50 });
@@ -318,7 +319,7 @@ describe('layoutCity', () => {
       expect(s.length).toBeGreaterThan(0);
       expect(typeof s.width).toBe('number');
       expect(s.width).toBeGreaterThan(0);
-      expect(s.orientation === 'x' || s.orientation === 'y').toBe(true);
+      expect(s.orientation === StreetAxis.X || s.orientation === StreetAxis.Y).toBe(true);
       expect(typeof s.label).toBe('string');
       expect(s.dir).toBeTruthy();
     }
@@ -341,7 +342,7 @@ describe('orient correctness for mirrored subtrees', () => {
   function makeFile(name) {
     return {
       name,
-      type: 'file',
+      type: NodeKind.File,
       path: name,
       extension: '.ts',
       size: 500,
@@ -353,10 +354,11 @@ describe('orient correctness for mirrored subtrees', () => {
   function makeDir(name, children) {
     return {
       name,
-      type: 'directory',
+      type: NodeKind.Directory,
       path: name,
       children_count: children.length,
-      descendants_count: children.length + children.filter((c) => c.type === 'directory').length,
+      descendants_count:
+        children.length + children.filter((c) => c.type === NodeKind.Directory).length,
       descendants_size: 1000,
       children,
     };
@@ -404,7 +406,7 @@ describe('orient correctness for mirrored subtrees', () => {
         const halfL = s.length / 2;
         const halfW = s.width / 2;
         let sx1, sx2, sy1, sy2;
-        if (s.orientation === 'x') {
+        if (s.orientation === StreetAxis.X) {
           sx1 = s.x - halfL;
           sx2 = s.x + halfL;
           sy1 = s.y - halfW;

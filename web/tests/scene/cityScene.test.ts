@@ -7,6 +7,7 @@ import { createCityScene } from '../../scene/cityScene.js';
 import { BUILDING_DIMENSIONS, STREET_TIERS } from '../../config/index.js';
 import type { BuildingDimensionsConfig } from '../../config/building.js';
 import type { StreetTier } from '../../config/street.js';
+import { NodeKind } from '../../types';
 import type { FileNode, Manifest } from '../../types';
 
 interface ManifestFileSpec {
@@ -21,7 +22,7 @@ function makeManifest(name: string, files: ManifestFileSpec[]): Manifest {
   // files: [{ path, size, lines, ext }, …]
   const children: FileNode[] = files.map((f) => ({
     name: f.path.split('/').pop() || f.path,
-    type: 'file',
+    type: NodeKind.File,
     path: f.path,
     fullPath: `/${f.path}`,
     extension: f.ext || '.js',
@@ -38,7 +39,7 @@ function makeManifest(name: string, files: ManifestFileSpec[]): Manifest {
     signature: `${name}:${files.map((f) => f.path).join(',')}`,
     tree: {
       name,
-      type: 'directory',
+      type: NodeKind.Directory,
       path: '.',
       fullPath: `/tmp/${name}`,
       children,

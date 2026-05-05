@@ -8,7 +8,7 @@
 
 import { STREET_LAYOUT, STREET_TIERS, BUILDING_DIMENSIONS, GEM_SIZING } from '../config/index.js';
 import type { StreetTier } from '../config/street.js';
-import { BuildingOrient, NodeKind, StreetAxis } from '../types';
+import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '../types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '../types';
 import { parentDirPath } from './path.js';
 
@@ -248,7 +248,7 @@ function _streetWidthForDir(dir: DirLike | null | undefined): number {
 // Streets in this internal helper carry a transient `joinSide` flag stamped
 // after layout. The Street type doesn't model that field (it's only used
 // inside engine.js for cap-style selection), so we widen here.
-type StreetWithJoin = Street & { joinSide?: 'low' | 'high' };
+type StreetWithJoin = Street & { joinSide?: JoinSide };
 
 function _markJoinSides(streets: StreetWithJoin[]): void {
   const byPath: Record<string, StreetWithJoin> = {};
@@ -286,7 +286,7 @@ function _markJoinSides(streets: StreetWithJoin[]): void {
     const parentCrossAxis = parent.orientation === StreetAxis.X ? parent.y : parent.x;
     const dLow = Math.abs(lowEnd - parentCrossAxis);
     const dHigh = Math.abs(highEnd - parentCrossAxis);
-    s2.joinSide = dLow < dHigh ? 'low' : 'high';
+    s2.joinSide = dLow < dHigh ? JoinSide.Low : JoinSide.High;
   }
 }
 

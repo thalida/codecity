@@ -26,7 +26,7 @@
 // Selection persistence
 // ---------------------
 // PICKER_SELECTION_KEY (exported, atom) holds the persistable form
-// `{ kind: 'file' | 'directory', path: string } | null`. It's hooked
+// `{ kind: NodeKind.File | NodeKind.Directory, path: string } | null`. It's hooked
 // into the existing attachPersistence system as `cc.PICKER_SELECTION_KEY`.
 // One-way derivation: selection is the source of truth; whenever it
 // changes, picker writes the matching key. On cityScene.onChange, the
@@ -37,7 +37,7 @@ import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { NodeKind } from '../types';
 
-import type { PickTarget, PickerSelectionKey } from '../types';
+import type { PickTarget, PickerCityScene, PickerSelectionKey } from '../types';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -49,24 +49,11 @@ export function createPicker({
   cityScene,
 }: {
   canvas: HTMLCanvasElement;
-  // camera and cityScene are kept loose because picker.test.ts passes
-  // minimal mock objects ({} for camera, a hand-rolled object with only
-  // the methods the picker calls for cityScene). Structural typing all
-  // the way down would force the tests to construct a full
-  // PerspectiveCamera and the entire createCityScene return shape.
-
-  camera: any;
-
-  cityScene: any;
+  camera: THREE.Camera;
+  cityScene: PickerCityScene;
 }) {
-  // Atoms are typed `any` because picker.test.ts reads
-  // `selection.get().mesh` / `.file` without first narrowing on `kind` —
-  // typing as `PickTarget | null` would require those tests to discriminate
-  // (and tests are out of scope for this typing pass).
-
-  const hover = atom<any>(null);
-
-  const selection = atom<any>(null);
+  const hover = atom<PickTarget | null>(null);
+  const selection = atom<PickTarget | null>(null);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -171,15 +158,11 @@ export function createPicker({
   _resolveKeyToSelection();
 
   // ── Public setters ─────────────────────────────────────────────────
-  // Setters accept PickTarget | null in production; tests pass partial
-  // mocks of those shapes, so the parameter is typed `any` (same reason
-  // as the atoms above).
-
-  function setHover(h: any): void {
+  function setHover(h: PickTarget | null): void {
     hover.set(h);
   }
 
-  function setSelection(sel: any): void {
+  function setSelection(sel: PickTarget | null): void {
     selection.set(sel);
   }
 
@@ -227,34 +210,18 @@ export function createPicker({
   // the same shape held by hover / selection atoms. Returns null for
   // hits that aren't selectable (e.g. street labels, which don't have
   // userData.type populated for picking).
-  // Hit shape: production hits are `THREE.Intersection`, tests pass a
-  // hand-rolled `{ object: { userData: {...} } }`. Parameter typed `any`
-  // so both work without forcing tests to construct full Three objects.
-
-  function interpretHit(hit: any): PickTarget | null {
+  function interpretHit(hit: THREE.Intersection<THREE.Object3D> | null): PickTarget | null {
     if (!hit || !hit.object) return null;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
     if (ud.building && ud.building.file) {
-      const f = ud.building.file;
-      if (f.type === NodeKind.Directory) {
-        // Stray directory-typed building: cityScene/engine normally skip
-        // these. Returned as a partially-formed DirTarget; inputHandlers
-        // filters it out via a missing-sidewalk check.
-        return {
-          kind: NodeKind.Directory,
-          sidewalk: null,
-          street: null,
-          dir: f,
-        } as unknown as PickTarget;
-      }
       return {
         kind: NodeKind.File,
         mesh: hit.object as THREE.Mesh,
         data: ud.building,
-        file: f,
+        file: ud.building.file,
       };
     }
     if (ud.street && ud.street.dir) {

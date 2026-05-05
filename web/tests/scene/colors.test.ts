@@ -8,6 +8,7 @@ import {
 } from '../../scene/colors.js';
 import { BUILDING_PALETTE } from '../../config/index.js';
 import type { BuildingPaletteConfig } from '../../config/building.js';
+import { NodeKind } from '../../types';
 import type { RangeStat } from '../../types';
 
 // Test palette + saturation/lightness ranges. Mutated into the
@@ -43,7 +44,7 @@ afterEach(() => {
 
 const TEST_TREE = {
   name: 'project',
-  type: 'directory',
+  type: NodeKind.Directory,
   path: '.',
   fullPath: '/tmp/project',
   children_count: 3,
@@ -56,7 +57,7 @@ const TEST_TREE = {
   children: [
     {
       name: 'index.ts',
-      type: 'file',
+      type: NodeKind.File,
       path: 'index.ts',
       fullPath: '/tmp/project/index.ts',
       extension: '.ts',
@@ -74,7 +75,7 @@ const TEST_TREE = {
     },
     {
       name: 'README.md',
-      type: 'file',
+      type: NodeKind.File,
       path: 'README.md',
       fullPath: '/tmp/project/README.md',
       extension: '.md',
@@ -92,7 +93,7 @@ const TEST_TREE = {
     },
     {
       name: 'src',
-      type: 'directory',
+      type: NodeKind.Directory,
       path: 'src',
       fullPath: '/tmp/project/src',
       children_count: 1,
@@ -105,7 +106,7 @@ const TEST_TREE = {
       children: [
         {
           name: 'utils.ts',
-          type: 'file',
+          type: NodeKind.File,
           path: 'src/utils.ts',
           fullPath: '/tmp/project/src/utils.ts',
           extension: '.ts',
@@ -248,7 +249,7 @@ describe('getDateRanges', () => {
   });
 
   it('returns nulls for empty tree', () => {
-    const dr = getDateRanges({ name: 'root', type: 'directory', children: [] });
+    const dr = getDateRanges({ name: 'root', type: NodeKind.Directory, children: [] });
     expect(dr.createdMin).toBeNull();
     expect(dr.createdMax).toBeNull();
     expect(dr.modifiedMin).toBeNull();
@@ -258,12 +259,12 @@ describe('getDateRanges', () => {
   it('handles single file tree', () => {
     const single = {
       name: 'root',
-      type: 'directory',
+      type: NodeKind.Directory,
       path: '.',
       children: [
         {
           name: 'only.ts',
-          type: 'file',
+          type: NodeKind.File,
           extension: '.ts',
           git: { created: '2024-06-01T00:00:00Z', modified: '2024-06-15T00:00:00Z' },
         },
@@ -299,7 +300,7 @@ describe('getBuildingColor', () => {
     const dateRanges = getDateRanges(TEST_TREE);
     const unknownFile = {
       name: 'foo.xyz',
-      type: 'file',
+      type: NodeKind.File,
       extension: '.xyz',
       size: 1000,
       lines: 10,

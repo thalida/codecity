@@ -39,3 +39,18 @@ export interface PickerSelectionKey {
   kind: NodeKind.File | NodeKind.Directory;
   path: string;
 }
+
+/**
+ * Subset of the cityScene API that the picker depends on. Real
+ * cityScene structurally satisfies this; tests can mock just these
+ * methods.
+ */
+export interface PickerCityScene {
+  getBuildings(): THREE.Object3D[];
+  getStreetPickables(): THREE.Object3D[];
+  getRootGem(): THREE.Object3D | null;
+  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building } | null;
+  getSidewalkByDir(path: string): THREE.Mesh | null;
+  getStreetByDir(path: string): Street | null;
+  onChange(cb: () => void): () => void;
+}

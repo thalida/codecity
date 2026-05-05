@@ -8,6 +8,8 @@
 // scene module pass full Street / PickTarget instances; structural
 // compatibility makes that work without casts.
 
+import { NodeKind, StreetAxis } from '../types';
+
 // parentDirPath(p) — return the parent directory path for a manifest path.
 // Returns null for root ('.' / ''). Examples:
 //   "src/scene/colors.js" → "src/scene"
@@ -25,17 +27,12 @@ interface StreetLike {
   y: number;
   length: number;
   width: number;
-  orientation: string;
+  orientation: StreetAxis;
 }
 
-/**
- * Minimal selection shape these helpers read. Real PickTargets satisfy
- * this. `kind` is `string` (not a literal union) so test mocks declared
- * inline don't need `as const`; we still narrow on the values 'directory'
- * / 'file' inside the function body.
- */
+/** Minimal selection shape these helpers read. Real PickTargets satisfy this. */
 interface SelLike {
-  kind: string;
+  kind: NodeKind;
   dir?: { path: string };
   file?: { path: string };
   data?: { x: number; y: number; w: number; d: number };
@@ -73,7 +70,7 @@ export function streetEndOpposite(
 ): { x: number; z: number } {
   const halfL = street.length / 2;
   const halfW = street.width / 2;
-  if (street.orientation === 'x') {
+  if (street.orientation === StreetAxis.X) {
     const ea = street.x - halfL + halfW;
     const eb = street.x + halfL - halfW;
     const fx = Math.abs(awayFromX - ea) > Math.abs(awayFromX - eb) ? ea : eb;
@@ -93,8 +90,8 @@ export function streetEndOpposite(
 // that bend at street intersections.
 //
 // `sel` shape:
-//   { kind: 'directory', dir: { path } }
-//   { kind: 'file',      file: { path }, data: { x, y, w, d } }
+//   { kind: NodeKind.Directory, dir: { path } }
+//   { kind: NodeKind.File,      file: { path }, data: { x, y, w, d } }
 // `gem` shape: { x, z }
 //
 // Returns []if sel/gem missing or chain is empty.
@@ -105,9 +102,9 @@ export function computePathPoints(
 ): Array<{ x: number; z: number }> {
   if (!sel || !gem) return [];
   let dirPath: string | null;
-  if (sel.kind === 'directory' && sel.dir) {
+  if (sel.kind === NodeKind.Directory && sel.dir) {
     dirPath = sel.dir.path;
-  } else if (sel.kind === 'file' && sel.file) {
+  } else if (sel.kind === NodeKind.File && sel.file) {
     dirPath = parentDirPath(sel.file.path);
   } else {
     return [];
@@ -125,21 +122,21 @@ export function computePathPoints(
     if (i + 1 < chain.length) {
       // Bend at intersection with next street in chain.
       const next = chain[i + 1];
-      if (street.orientation === 'x') {
+      if (street.orientation === StreetAxis.X) {
         pts.push({ x: next.x, z: street.y });
       } else {
         pts.push({ x: street.x, z: next.y });
       }
-    } else if (sel.kind === 'directory') {
+    } else if (sel.kind === NodeKind.Directory) {
       // Last leg: extend across the selected street's full remaining length.
       const prev = pts[pts.length - 1];
       pts.push(streetEndOpposite(street, prev.x, prev.z));
-    } else if (sel.kind === 'file' && sel.data) {
+    } else if (sel.kind === NodeKind.File && sel.data) {
       // File selection: walk along the street to building's coordinate
       // along the road's long axis, THEN turn 90° to building's road-side
       // edge (NOT centroid — that would tunnel into the building).
       const b = sel.data;
-      if (street.orientation === 'x') {
+      if (street.orientation === StreetAxis.X) {
         pts.push({ x: b.x, z: street.y });
         const edgeZ = b.y > street.y ? b.y - b.d / 2 : b.y + b.d / 2;
         pts.push({ x: b.x, z: edgeZ });
