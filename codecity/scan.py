@@ -399,18 +399,36 @@ def _file_node(
     }
 
 
+# Worker pool size for parallel file content reads. Capped at 32 to
+# avoid pool-construction overhead on machines with very high cpu_count;
+# doubling cpu_count gives oversubscription that helps when threads
+# block on read().
+_FILE_IO_POOL_SIZE = min(32, (os.cpu_count() or 1) * 2)
+
+
+def _read_file_metadata(path_obj: Path) -> tuple[bool, int]:
+    """Return (binary, lines) for one file. Worker function for
+    _populate_file_metadata's thread pool."""
+    binary = _is_binary(path_obj)
+    lines = 0 if binary else _line_count(path_obj)
+    return binary, lines
+
+
 def _populate_file_metadata(tree: DirNode) -> None:
     """Walk the skeleton tree and fill in `lines` + `binary` for every
-    FileNode. Operates in-place on the tree's FileNode dicts.
+    FileNode. Reads run concurrently in a thread pool (GIL releases on
+    file I/O, so this is a real wall-clock win)."""
+    nodes: list[FileNode] = list(_iter_file_nodes(tree))
+    if not nodes:
+        return
 
-    Single-threaded for now; Task 8 parallelizes via ThreadPoolExecutor,
-    Task 9 adds the file-stat cache layer.
-    """
-    for node in _iter_file_nodes(tree):
-        path_obj = Path(node["fullPath"])
-        binary = _is_binary(path_obj)
+    paths = [Path(n["fullPath"]) for n in nodes]
+    with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
+        results = list(pool.map(_read_file_metadata, paths))
+
+    for node, (binary, lines) in zip(nodes, results):
         node["binary"] = binary
-        node["lines"] = 0 if binary else _line_count(path_obj)
+        node["lines"] = lines
 
 
 def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
