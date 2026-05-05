@@ -277,7 +277,8 @@ canvas {
 
 #app-footer {
   flex: 0 0 auto;
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 14px;
   padding: 0 12px;
@@ -288,13 +289,27 @@ canvas {
   font-size: 10.5px;
   color: #8a8fa8;
   white-space: nowrap;
+}
+
+.app-footer-section {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+.app-footer-section.app-footer-left {
+  justify-self: start;
+}
+.app-footer-section.app-footer-center {
+  justify-self: center;
+  overflow: hidden;
+}
+.app-footer-section.app-footer-right {
+  justify-self: end;
   overflow-x: auto;
 }
-#app-footer::-webkit-scrollbar {
+.app-footer-section.app-footer-right::-webkit-scrollbar {
   height: 0;
-}
-#app-footer:empty {
-  /* keeps the bar itself present even with no selection */
 }
 
 .app-footer-item {
@@ -304,6 +319,79 @@ canvas {
   margin-left: 4px;
   color: #44485e;
   font-size: 9.5px;
+}
+
+/* ── Live-reload status indicator (left section) ──────────────────── */
+.app-footer-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.app-footer-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4ade80;
+  flex: 0 0 auto;
+}
+.app-footer-live.is-disabled .app-footer-live-dot {
+  background: #44485e;
+}
+.app-footer-live.is-reloading .app-footer-live-dot {
+  background: #fbbf24;
+  animation: app-footer-live-pulse 0.9s ease-in-out infinite;
+}
+.app-footer-live.is-disabled .app-footer-live-label {
+  color: #5d6280;
+}
+.app-footer-live-sep {
+  color: #44485e;
+}
+.app-footer-live-detail {
+  color: #6b7090;
+}
+@keyframes app-footer-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* ── Repo information (center section) ────────────────────────────── */
+.app-footer-repo {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  overflow: hidden;
+  min-width: 0;
+}
+.app-footer-repo-name {
+  color: #c4c8db;
+  flex: 0 0 auto;
+}
+.app-footer-repo-sep {
+  color: #44485e;
+  flex: 0 0 auto;
+}
+.app-footer-repo-branch {
+  color: #8a8fa8;
+  flex: 0 0 auto;
+}
+.app-footer-repo-branch.is-dirty {
+  color: #fbbf24;
+}
+.app-footer-repo-link {
+  color: #6b8eff;
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.app-footer-repo-link:hover {
+  text-decoration: underline;
 }
 
 /* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */

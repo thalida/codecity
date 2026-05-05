@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .types import DirNode, FileNode, GitMeta, Manifest, NodeKind
+from .types import DirNode, FileNode, GitMeta, Manifest, NodeKind, RepoInfo
 
 
 # ── Progress logging ─────────────────────────────────────────────────────────
@@ -186,6 +186,73 @@ def _collect_git_metadata(root: Path) -> tuple[dict[str, str], dict[str, str], s
     return created, modified, tracked
 
 
+def _normalize_remote_to_web_url(remote: str) -> str:
+    """Best-effort SSH/HTTPS remote → browseable web URL.
+
+    Handles the two forms git users actually have configured:
+      git@github.com:org/repo.git → https://github.com/org/repo
+      https://github.com/org/repo(.git) → https://github.com/org/repo
+    Anything that doesn't parse cleanly returns "" — the footer just
+    won't render a link in that case.
+    """
+    if not remote:
+        return ""
+    s = remote.strip()
+    # SSH form: git@host:path
+    if s.startswith("git@") and ":" in s:
+        host_path = s[len("git@"):]
+        host, _, path = host_path.partition(":")
+        if not host or not path:
+            return ""
+        s = f"https://{host}/{path}"
+    if s.endswith(".git"):
+        s = s[:-len(".git")]
+    if not (s.startswith("http://") or s.startswith("https://")):
+        return ""
+    return s
+
+
+def _collect_repo_info(root: Path) -> RepoInfo:
+    """Repo-level git metadata for the manifest's `repo` field.
+
+    Cheap-ish: one rev-parse, one symbolic-ref, one config read, one
+    log -1, and one porcelain status. The status walk dominates on
+    large dirty trees but is still a single git invocation.
+    """
+    info: RepoInfo = {
+        "branch": None,
+        "remote_url": None,
+        "head_sha": None,
+        "head_subject": None,
+        "dirty": False,
+    }
+
+    branch = _run_git(root, "rev-parse", "--abbrev-ref", "HEAD").strip()
+    if branch and branch != "HEAD":
+        info["branch"] = branch
+    elif branch == "HEAD":
+        # Detached: surface the short SHA so the footer isn't blank.
+        short = _run_git(root, "rev-parse", "--short", "HEAD").strip()
+        info["branch"] = f"detached @ {short}" if short else "detached HEAD"
+
+    remote = _run_git(root, "config", "--get", "remote.origin.url").strip()
+    info["remote_url"] = _normalize_remote_to_web_url(remote) or None
+
+    head_line = _run_git(root, "log", "-1", "--format=%h%x09%s").strip()
+    if head_line:
+        sha, _, subject = head_line.partition("\t")
+        info["head_sha"] = sha or None
+        info["head_subject"] = subject or None
+
+    # --porcelain prints one line per changed/untracked path; non-empty
+    # output means the working tree differs from HEAD or has untracked
+    # files. Matches what most prompts mean by "dirty".
+    status = _run_git(root, "status", "--porcelain")
+    info["dirty"] = bool(status.strip())
+
+    return info
+
+
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
@@ -338,12 +405,14 @@ def scan_tree(root: str) -> Manifest:
     git_modified: dict[str, str] = {}
     tracked_files: set[str] = set()
     is_git_repo = _is_git_repo(Path(root_abs))
+    repo_info: RepoInfo | None = None
 
     if is_git_repo:
         _log("git repo detected — collecting metadata…")
         git_created, git_modified, tracked_files = _collect_git_metadata(
             Path(root_abs)
         )
+        repo_info = _collect_repo_info(Path(root_abs))
     else:
         _log("not a git repo — filesystem dates only")
 
@@ -358,11 +427,23 @@ def scan_tree(root: str) -> Manifest:
     )
     _log(f"walked {_files_seen} files; emitting manifest")
 
+    # Repo-level metadata — branch, remote, head, dirty — feeds the
+    # signature so the footer's "live" indicator catches a checkout or
+    # commit without waiting for file mtimes to shift.
+    if repo_info is not None:
+        sig.update(
+            (
+                f"{repo_info['branch']}|{repo_info['remote_url']}|"
+                f"{repo_info['head_sha']}|{repo_info['dirty']}"
+            ).encode("utf-8")
+        )
+
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "signature": sig.hexdigest(),
         "tree": tree,
+        "repo": repo_info,
     }
 
 

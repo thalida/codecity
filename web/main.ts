@@ -20,6 +20,7 @@ import {
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
 } from './config/index.js';
+import { IS_RELOADING } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -375,11 +376,10 @@ interface LiveUpdateHandle {
 function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): void {
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
-  let inFlight = false;
 
   function tick(): void {
-    if (inFlight) return;
-    inFlight = true;
+    if (IS_RELOADING.get()) return;
+    IS_RELOADING.set(true);
     fetch(manifestUrl())
       .then((r) => {
         return r.ok ? r.json() : null;
@@ -394,7 +394,7 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
         /* keep polling on transient errors */
       })
       .finally(() => {
-        inFlight = false;
+        IS_RELOADING.set(false);
       });
   }
 

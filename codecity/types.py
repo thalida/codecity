@@ -71,6 +71,19 @@ class DirNode(TypedDict):
 TreeNode = FileNode | DirNode
 
 
+class RepoInfo(TypedDict):
+    """Repo-level git metadata surfaced in the footer (branch, remote
+    link, dirty marker, last commit). All fields nullable because a
+    fresh repo with no commits yet has no HEAD; a repo with no remote
+    has no URL. None for non-git roots — see Manifest.repo."""
+
+    branch: str | None
+    remote_url: str | None
+    head_sha: str | None
+    head_subject: str | None
+    dirty: bool
+
+
 class Manifest(TypedDict):
     """Top-level manifest emitted by scan_tree(). What /api/manifest
     returns and what the web app's CityScene.applyManifest consumes."""
@@ -79,6 +92,7 @@ class Manifest(TypedDict):
     scanned_at: str
     signature: str
     tree: DirNode
+    repo: RepoInfo | None
 
 
 # ── Server response shapes ──────────────────────────────────────────────

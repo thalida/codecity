@@ -21,8 +21,11 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
+import { LIVE_UPDATES } from './config/index.js';
+import { IS_RELOADING, LAST_UPDATED_AT } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
-import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
+import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
+import type { FooterRepoInfo } from './views/shell/appFooter.js';
 import type { createCityScene } from './scene/cityScene.js';
 import type { createPicker } from './scene/picker.js';
 import type { createCameraRig } from './scene/cameraRig.js';
@@ -82,12 +85,36 @@ export function createCoordinator({
 
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter();
+  const initialManifest = cityScene.getManifest();
+  appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({
     kind: NodeKind.Directory,
     files: rootNode?.descendants_file_count ?? 0,
     dirs: rootNode?.descendants_dir_count ?? 0,
     size: rootNode?.descendants_size ?? 0,
   });
+
+  // Seed the "last updated" stamp from the initial manifest apply that
+  // already happened in startRenderLoop — cityScene.onChange won't fire
+  // for that, so without this the footer would render "—" until the
+  // first poll lands a fresh manifest.
+  if (initialManifest) LAST_UPDATED_AT.set(Date.now());
+
+  function _refreshLiveStatus(): void {
+    appFooter.setLiveStatus({
+      enabled: LIVE_UPDATES.get().ENABLED,
+      reloading: IS_RELOADING.get(),
+      lastUpdatedAt: LAST_UPDATED_AT.get(),
+    });
+  }
+  _refreshLiveStatus();
+  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
+  const _reloadUnsub = IS_RELOADING.subscribe(_refreshLiveStatus);
+  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshLiveStatus);
+  // Re-render every second so the relative timestamp ("5s ago" → "6s
+  // ago") advances smoothly even when polls aren't firing — the
+  // store-based subscriptions only refresh on actual events.
+  const _tickHandle = window.setInterval(_refreshLiveStatus, 1000);
 
   _renderSidebar(); // initial paint
 
@@ -216,10 +243,15 @@ export function createCoordinator({
 
   // Push the freshly-applied manifest into the Info pane so an edited
   // README on disk re-renders without a page reload (live-update poll
-  // fires applyManifest, which fires onChange).
+  // fires applyManifest, which fires onChange). Also refresh the
+  // footer's repo info — branch / dirty / head can change between
+  // polls (commit, checkout, edit) so the footer follows the manifest.
   const _changeUnsub = cityScene.onChange(() => {
+    const m = cityScene.getManifest();
+    appFooter.setRepoInfo(_repoInfoFromManifest(m));
+    LAST_UPDATED_AT.set(Date.now());
     if (leftSidebarApi.setInfoManifest) {
-      leftSidebarApi.setInfoManifest(cityScene.getManifest());
+      leftSidebarApi.setInfoManifest(m);
     }
   });
 
@@ -227,6 +259,10 @@ export function createCoordinator({
     if (typeof _selUnsub === 'function') _selUnsub();
     if (typeof _hovUnsub === 'function') _hovUnsub();
     if (typeof _changeUnsub === 'function') _changeUnsub();
+    if (typeof _liveCfgUnsub === 'function') _liveCfgUnsub();
+    if (typeof _reloadUnsub === 'function') _reloadUnsub();
+    if (typeof _stampUnsub === 'function') _stampUnsub();
+    window.clearInterval(_tickHandle);
   }
 
   return {
@@ -234,5 +270,18 @@ export function createCoordinator({
     appFooter,
     leftSidebarApi,
     dispose,
+  };
+}
+
+function _repoInfoFromManifest(m: Manifest | null): FooterRepoInfo | null {
+  if (!m) return null;
+  return {
+    name: m.tree?.name || '',
+    root: m.root || '',
+    branch: m.repo?.branch ?? null,
+    remoteUrl: m.repo?.remote_url ?? null,
+    headSha: m.repo?.head_sha ?? null,
+    headSubject: m.repo?.head_subject ?? null,
+    dirty: !!m.repo?.dirty,
   };
 }

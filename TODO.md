@@ -17,9 +17,9 @@
 - [ ] make windows more irregular / dynamic
 - [ ] make buildings go on either side of the street
 - [ ] make fitting the side streets account for their irregular shape
-- [ ] in left of footer add live reload status + reloading state to the site footer
-- [ ] move file/directory information to right of footer
-- [ ] include repo information in center of footer
+- [x] in left of footer add live reload status + reloading state to the site footer
+- [x] move file/directory information to right of footer
+- [x] include repo information in center of footer
 - [ ] add file icon type to sidebar and roof of buildings
 - [ ] display images and videos as billboards? let users click to play billboard video
 - [ ] identify and add something special to test files
@@ -28,3 +28,5 @@
 - [ ]
 
 ## Pending Agent Prompts
+
+- is polling better than watching and pushing updates? it could have a websocket or something?

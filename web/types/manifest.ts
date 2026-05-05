@@ -52,11 +52,26 @@ export interface DirNode {
 
 export type TreeNode = FileNode | DirNode;
 
+/**
+ * Repo-level git metadata surfaced in the footer (branch, remote link,
+ * dirty marker, last commit). All fields nullable because a fresh repo
+ * with no commits yet has no HEAD; a repo with no remote has no URL.
+ * `null` for non-git roots — see `Manifest.repo`.
+ */
+export interface RepoInfo {
+  branch: string | null;
+  remote_url: string | null;
+  head_sha: string | null;
+  head_subject: string | null;
+  dirty: boolean;
+}
+
 export interface Manifest {
   root: string;
   scanned_at: string;
   signature: string;
   tree: DirNode;
+  repo: RepoInfo | null;
 }
 
 /**
