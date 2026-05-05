@@ -38,6 +38,7 @@ import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
 import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
+import { buildApiUrl } from './url.js';
 
 function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -341,27 +342,22 @@ function _resizeRendererToCanvas(renderer: THREE.WebGLRenderer, canvas: HTMLCanv
   renderer.setSize(cw, ch, false);
 }
 
-// Build a /api/<endpoint> URL from the current page's query params.
-// CLI opens the page with either ?path=… or ?clone=…&branch=… so the
-// server knows what to scan; we just forward those through.
-function _apiUrl(endpoint: string): string {
-  const qp = new URLSearchParams(window.location.search);
-  const u = new URL(endpoint, window.location.origin);
-  if (qp.has('clone')) {
-    u.searchParams.set('clone', qp.get('clone'));
-    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
-  } else if (qp.has('path')) {
-    u.searchParams.set('path', qp.get('path'));
-  }
-  return u.toString();
-}
-
+// URL builders delegate to the pure helper in web/url.ts so tests can
+// exercise the query-param logic without faking out window.*.
 function manifestUrl(): string {
-  return _apiUrl('/api/manifest');
+  return buildApiUrl(
+    '/api/manifest',
+    window.location.search,
+    window.location.origin
+  );
 }
 
 function signatureUrl(): string {
-  return _apiUrl('/api/manifest/signature');
+  return buildApiUrl(
+    '/api/manifest/signature',
+    window.location.search,
+    window.location.origin
+  );
 }
 
 // Live-update poll loop. When LIVE_UPDATES.ENABLED flips on we start
