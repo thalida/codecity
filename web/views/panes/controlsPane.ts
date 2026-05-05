@@ -48,6 +48,35 @@ import {
 import { FadeDetail } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
+// Structural store shape used by all the widget builders. Covers nanostores
+// `map<T>()` (with .setKey) and falls back to .set for atom-like stores.
+// Typed `any` payload because each widget binds to a different store shape;
+// runtime behavior reads/writes via this minimal interface.
+interface MapLikeStore {
+  get(): any;
+  set?(value: any): void;
+  setKey?(key: string, value: any): void;
+  subscribe(listener: (state: any) => void): () => void;
+}
+
+interface ControlOpts {
+  tip?: string;
+  onChange?: () => void;
+  previewHue?: boolean;
+}
+
+interface ShortcutItem {
+  kbd?: string[];
+  mouse?: string;
+  action: string;
+  or?: string;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
 // buildControlsPane(opts) -> HTMLElement
 //
 // opts:
@@ -59,7 +88,12 @@ import { makeLucideIcon } from '../shell/icon.js';
 // (onResetView is no longer used — the View section shows a kbd shortcut
 // table including R, which the existing keydown handler in main.js wires
 // to resetView. The "Reset camera" button is gone.)
-export function buildControlsPane(opts: any = {}) {
+interface BuildControlsPaneOpts {
+  applyTheme?: () => void;
+  onClose?: () => void;
+}
+
+export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
   const applyTheme = opts.applyTheme ?? (() => {});
 
   const pane = document.createElement('div');
@@ -112,7 +146,7 @@ export function buildControlsPane(opts: any = {}) {
 // re-walking the tree when nobody's editing. The polling cadence is
 // user-tunable; main.js clamps to a hidden [1s, 60s] band on read so an
 // over-eager value can't ddos the local server.
-function _buildUpdatesSection() {
+function _buildUpdatesSection(): HTMLElement {
   const section = _section(
     'Updates',
     'Re-render the city automatically when the underlying files change.'
@@ -134,7 +168,7 @@ function _buildUpdatesSection() {
 // No "Reset camera" button — the R key already covers that, and surfacing
 // the full shortcut list as a table makes the rest of the controls
 // (orbit / pan / zoom / focus / select) discoverable too.
-function _buildViewSection() {
+function _buildViewSection(): HTMLElement {
   const section = _section(
     'View',
     'Pivot follows what you point at. The selected building stays solid; everything else fades by directory-tree distance from the selection.'
@@ -159,7 +193,7 @@ function _buildViewSection() {
   return section;
 }
 
-function _buildShortcutsList(items) {
+function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElement {
   const dl = document.createElement('dl');
   dl.className = 'shortcuts-list';
   for (const item of items) {
@@ -198,7 +232,7 @@ function _buildShortcutsList(items) {
 }
 
 // ─── Background ────────────────────────────────────────────────────────────
-function _buildBackgroundSection(applyTheme) {
+function _buildBackgroundSection(applyTheme: () => void): HTMLElement {
   const section = _section('Background', 'The void behind everything.');
   section.appendChild(
     _color('Sky / ground', SCENE_COLORS, 'GROUND', {
@@ -210,7 +244,7 @@ function _buildBackgroundSection(applyTheme) {
 }
 
 // ─── Streets ───────────────────────────────────────────────────────────────
-function _buildStreetsSection(applyTheme) {
+function _buildStreetsSection(applyTheme: () => void): HTMLElement {
   const section = _section(
     'Streets',
     'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.'
@@ -348,7 +382,7 @@ function _buildStreetsSection(applyTheme) {
 }
 
 // ─── Buildings ─────────────────────────────────────────────────────────────
-function _buildBuildingsSection(applyTheme) {
+function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
   const section = _section(
     'Buildings',
     'Per-file boxes — height from line count, width from byte size, color from extension + age.'
@@ -505,7 +539,7 @@ function _buildBuildingsSection(applyTheme) {
 }
 
 // ─── Gem ───────────────────────────────────────────────────────────────────
-function _buildGemSection(applyTheme) {
+function _buildGemSection(applyTheme: () => void): HTMLElement {
   const section = _section('Root gem', 'The floating spinning octahedron above the root street.');
 
   section.appendChild(
@@ -567,7 +601,7 @@ function _buildGemSection(applyTheme) {
 }
 
 // ─── Effects ───────────────────────────────────────────────────────────────
-function _buildEffectsSection(applyTheme) {
+function _buildEffectsSection(applyTheme: () => void): HTMLElement {
   const section = _section('Effects', 'Shared visual effects.');
 
   section.appendChild(
@@ -589,7 +623,7 @@ function _buildEffectsSection(applyTheme) {
 // common case. Wiping the persisted overrides triggers each store's
 // hot-reload subscription, so the city snaps back to defaults without
 // a page reload.
-function _buildActionsSection() {
+function _buildActionsSection(): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'controls-actions';
 
@@ -618,7 +652,7 @@ function _buildActionsSection() {
 
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
-function _section(name, hint) {
+function _section(name: string, hint?: string): HTMLElement {
   const section = document.createElement('div');
   section.className = 'controls-section';
 
@@ -636,7 +670,7 @@ function _section(name, hint) {
   return section;
 }
 
-function _subgroup(name, rows) {
+function _subgroup(name: string, rows: HTMLElement[]): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'theme-subgroup';
   const h = document.createElement('div');
@@ -653,7 +687,13 @@ function _subgroup(name, rows) {
 //               rangePair). The reset icon shows when ANY key differs from
 //               its registered default.
 //   opts.tip      — full hover text (added to the row's title attribute)
-function _row(labelText, control, store, keys, opts: any = {}) {
+function _row(
+  labelText: string,
+  control: HTMLElement,
+  store: MapLikeStore | null,
+  keys: string[] | null,
+  opts: ControlOpts = {}
+): HTMLLabelElement {
   const row = document.createElement('label');
   row.className = 'theme-row';
 
@@ -685,7 +725,11 @@ function _row(labelText, control, store, keys, opts: any = {}) {
 // default. Click resets all listed keys, removes the matching localStorage
 // entries (via persist.js's resetKey), and fires opts.onChange so the
 // scene/UI catches up immediately.
-function _makeResetButton(store, keys, opts) {
+function _makeResetButton(
+  store: MapLikeStore,
+  keys: string[],
+  opts: ControlOpts
+): HTMLButtonElement {
   const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -716,7 +760,7 @@ function _makeResetButton(store, keys, opts) {
 // _formatDefaultTooltip(store, keys) -> "Default: <value>" / "Default: <lo> – <hi>"
 // Used as the reset icon's hover title so the user can see what they'd revert
 // to without clicking. Static — reads the registered default once.
-function _formatDefaultTooltip(store, keys) {
+function _formatDefaultTooltip(store: MapLikeStore, keys: string[] | null): string {
   if (!keys || keys.length === 0) return 'Reset to default';
   if (keys.length === 1) {
     return `Default: ${_formatDefaultValue(getDefault(store, keys[0]))}`;
@@ -727,13 +771,13 @@ function _formatDefaultTooltip(store, keys) {
   return `Default: ${_formatDefaultValue(lo)} – ${_formatDefaultValue(hi)}`;
 }
 
-function _formatDefaultValue(v) {
+function _formatDefaultValue(v: unknown): string {
   if (v === null || v === undefined) return '(none)';
   if (typeof v === 'boolean') return v ? 'on' : 'off';
   return String(v);
 }
 
-function _isEqual(a, b) {
+function _isEqual(a: unknown, b: unknown): boolean {
   if (a === b) return true;
   try {
     return JSON.stringify(a) === JSON.stringify(b);
@@ -744,7 +788,12 @@ function _isEqual(a, b) {
 
 // ─── Widget builders ───────────────────────────────────────────────────────
 
-function _color(label, store, key, opts) {
+function _color(
+  label: string,
+  store: MapLikeStore,
+  key: string,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'color';
@@ -762,7 +811,15 @@ function _color(label, store, key, opts) {
   return _row(label, input, store, [key], opts);
 }
 
-function _number(label, store, key, min, max, step, opts) {
+function _number(
+  label: string,
+  store: MapLikeStore,
+  key: string,
+  min: number,
+  max: number,
+  step: number,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'number';
@@ -785,9 +842,17 @@ function _number(label, store, key, min, max, step, opts) {
   return _row(label, input, store, [key], opts);
 }
 
-function _slider(label, store, key, min, max, step, opts) {
+function _slider(
+  label: string,
+  store: MapLikeStore,
+  key: string,
+  min: number,
+  max: number,
+  step: number,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
-  const refs: SliderRefs = {};
+  const refs = {} as SliderRefs;
   const control = _sliderWidget(
     store.get()[key],
     min,
@@ -817,12 +882,21 @@ function _slider(label, store, key, min, max, step, opts) {
 //
 // opts.previewHue — if true, appends a small HSL swatch that previews the
 // current value as a hue (assumes the slider's value range is degrees).
-function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
+function _nestedSlider(
+  label: string,
+  store: MapLikeStore,
+  parentKey: string,
+  subKey: string,
+  min: number,
+  max: number,
+  step: number,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
-  const refs: SliderRefs = {};
+  const refs = {} as SliderRefs;
   const initial = (store.get()[parentKey] || {})[subKey];
 
-  let swatch = null;
+  let swatch: HTMLSpanElement | null = null;
   if (opts && opts.previewHue) {
     swatch = document.createElement('span');
     swatch.className = 'theme-hue-preview';
@@ -859,11 +933,15 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
 
   // Reset icon: visible when this sub-key differs from its registered default.
   // Click resets only this sub-key.
-  const rowOpts = {};
-  for (const ok in opts) if (Object.hasOwn(opts, ok)) rowOpts[ok] = opts[ok];
+  const rowOpts: ControlOpts = {};
+  for (const ok in opts) {
+    if (Object.hasOwn(opts, ok)) {
+      (rowOpts as Record<string, unknown>)[ok] = (opts as Record<string, unknown>)[ok];
+    }
+  }
 
   const row = _row(label, control, null, null, rowOpts);
-  const ctrlWrap = row.querySelector('.theme-row-control');
+  const ctrlWrap = row.querySelector<HTMLElement>('.theme-row-control')!;
   if (swatch) ctrlWrap.appendChild(swatch);
   const resetBtn = _makeNestedResetButton(store, parentKey, subKey, opts);
   ctrlWrap.appendChild(resetBtn);
@@ -875,8 +953,8 @@ function _nestedSlider(label, store, parentKey, subKey, min, max, step, opts) {
 // rewrites the array with one tier's width changed, leaving the rest
 // (and every other tier's min_descendants) intact. Reset goes back to
 // the registered default's width for that index.
-function _tierWidthSlider(index, minDescendants) {
-  const refs: SliderRefs = {};
+function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelElement {
+  const refs = {} as SliderRefs;
   const label = `${minDescendants}+ descendants`;
   const initial = (STREET_TIERS.get()[index] || {}).width;
 
@@ -902,15 +980,17 @@ function _tierWidthSlider(index, minDescendants) {
     }
   });
 
-  const rowOpts = {
+  const rowOpts: ControlOpts = {
     tip: 'World-unit width for streets in this descendant-count tier.',
   };
   const row = _row(label, control, null, null, rowOpts);
-  row.querySelector('.theme-row-control').appendChild(_makeTierWidthResetButton(index));
+  row
+    .querySelector<HTMLElement>('.theme-row-control')!
+    .appendChild(_makeTierWidthResetButton(index));
   return row;
 }
 
-function _makeTierWidthResetButton(index) {
+function _makeTierWidthResetButton(index: number): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
@@ -940,7 +1020,12 @@ function _makeTierWidthResetButton(index) {
   return btn;
 }
 
-function _makeNestedResetButton(store, parentKey, subKey, opts) {
+function _makeNestedResetButton(
+  store: MapLikeStore,
+  parentKey: string,
+  subKey: string,
+  opts: ControlOpts
+): HTMLButtonElement {
   const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
@@ -978,7 +1063,13 @@ function _makeNestedResetButton(store, parentKey, subKey, opts) {
 // _select — segmented radio for an enum-valued key. `options` is an array
 // of { value, label }. Renders one button per option; clicking sets the
 // store key. The active option has .is-active.
-function _select(label, store, key, options, opts) {
+function _select(
+  label: string,
+  store: MapLikeStore,
+  key: string,
+  options: SelectOption[],
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
   const wrap = document.createElement('span');
   wrap.className = 'theme-select';
@@ -1010,7 +1101,12 @@ function _select(label, store, key, options, opts) {
 }
 
 // _toggle — boolean checkbox. Reflects external changes (reset-to-default).
-function _toggle(label, store, key, opts) {
+function _toggle(
+  label: string,
+  store: MapLikeStore,
+  key: string,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'checkbox';
@@ -1027,7 +1123,16 @@ function _toggle(label, store, key, opts) {
   return _row(label, input, store, [key], opts);
 }
 
-function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
+function _rangePair(
+  label: string,
+  store: MapLikeStore,
+  minKey: string,
+  maxKey: string,
+  lo: number,
+  hi: number,
+  step: number,
+  opts: ControlOpts
+): HTMLLabelElement {
   const onChange = _resolveChange(opts);
   const current = store.get();
 
@@ -1042,7 +1147,7 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
   fill.className = 'theme-range-pair-fill';
   pair.appendChild(fill);
 
-  function makeRange(value) {
+  function makeRange(value: number): HTMLInputElement {
     const r = document.createElement('input');
     r.type = 'range';
     r.min = String(lo);
@@ -1116,9 +1221,13 @@ function _rangePair(label, store, minKey, maxKey, lo, hi, step, opts) {
 // Shared slider+readout DOM construction. Returns the wrapper; the caller
 // passes a `refs` object to receive the {range, readout} inner nodes (so
 // store.subscribe can drive them on external value changes).
+// Fields are typed non-optional even though they start undefined: the
+// caller always passes `refs` through `_sliderWidget`, which populates
+// both fields synchronously before `_sliderWidget` returns. Subscribers
+// only ever read `refs` after that point.
 interface SliderRefs {
-  range?: HTMLInputElement;
-  readout?: HTMLSpanElement;
+  range: HTMLInputElement;
+  readout: HTMLSpanElement;
 }
 
 function _sliderWidget(
@@ -1127,7 +1236,7 @@ function _sliderWidget(
   max: number,
   step: number,
   onCommit: (v: number) => void,
-  refs?: SliderRefs
+  refs?: Partial<SliderRefs>
 ): HTMLSpanElement {
   const wrap = document.createElement('span');
   wrap.className = 'theme-slider-wrap';
@@ -1162,7 +1271,7 @@ function _sliderWidget(
 
 // onChange resolution: hot-reload rows pass `applyTheme` as opts.onChange;
 // rebuild rows just persist (no immediate handler).
-function _resolveChange(opts) {
+function _resolveChange(opts: ControlOpts | undefined): () => void {
   if (opts && typeof opts.onChange === 'function') return opts.onChange;
   return function () {};
 }
@@ -1170,7 +1279,7 @@ function _resolveChange(opts) {
 // Color <input type="color"> only accepts #RRGGBB. Convert from any CSS
 // color string (rgba, named, etc.) to that form by round-tripping through
 // a temporary DOM element so the browser does the parsing for us.
-function _toHexInputValue(cssColor) {
+function _toHexInputValue(cssColor: string | unknown): string {
   if (typeof cssColor !== 'string') return '#000000';
   if (/^#[0-9a-fA-F]{6}$/.test(cssColor)) return cssColor.toLowerCase();
   if (typeof document === 'undefined') return '#000000';
@@ -1190,7 +1299,7 @@ function _toHexInputValue(cssColor) {
 // _formatNumberForStep(v, step) — derive readout precision from the slider
 // step. A step of 0.0001 needs 4 decimals to render meaningful changes;
 // a step of 50 should render as an integer.
-function _formatNumberForStep(v, step) {
+function _formatNumberForStep(v: number, step: number): string {
   if (!Number.isFinite(v)) return String(v);
   const s = Math.abs(step);
   if (s >= 1) return v.toFixed(0);

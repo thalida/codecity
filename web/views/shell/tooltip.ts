@@ -7,9 +7,9 @@
 import { TOOLTIP } from '../../config/index.js';
 import { DOM_IDS } from '../../constants';
 
-let _el = null;
+let _el: HTMLElement | null = null;
 
-function _ensure() {
+function _ensure(): HTMLElement {
   // Re-create if the element was removed (test teardown, hot-reload, etc.)
   if (_el && _el.isConnected) return _el;
   _el = document.createElement('div');
@@ -21,7 +21,7 @@ function _ensure() {
 
 // showTooltip(text, x, y) — show with the given text, positioned near cursor
 // (with auto-clamp to viewport so it doesn't bleed off-screen).
-export function showTooltip(text, x, y) {
+export function showTooltip(text: string, x: number, y: number): void {
   const el = _ensure();
   el.textContent = text;
   el.style.display = 'block';
@@ -30,7 +30,7 @@ export function showTooltip(text, x, y) {
 
 // moveTooltip(x, y) — reposition without changing text. Cheap; safe to call
 // on every pointermove.
-export function moveTooltip(x, y) {
+export function moveTooltip(x: number, y: number): void {
   if (!_el) return;
   const cfg = TOOLTIP.get();
   const OFFSET = cfg.OFFSET_PX;
@@ -47,6 +47,6 @@ export function moveTooltip(x, y) {
   _el.style.top = `${py}px`;
 }
 
-export function hideTooltip() {
+export function hideTooltip(): void {
   if (_el) _el.style.display = 'none';
 }

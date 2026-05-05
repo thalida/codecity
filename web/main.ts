@@ -24,6 +24,7 @@ import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
+import type { Manifest } from './types';
 
 import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
@@ -37,7 +38,7 @@ import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 
-function startRenderLoop(canvas, manifest) {
+function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
   // src/defaults.js. Render-loop code reads them fresh each frame (or
   // each event), so the Settings UI can mutate the imported objects in
@@ -143,7 +144,7 @@ function startRenderLoop(canvas, manifest) {
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
   // based on the current picker.selection / picker.hover state. Building
   // connector strips for the same dir follow the same tint.
-  function _refreshSidewalkTints() {
+  function _refreshSidewalkTints(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
     const streetPickables = cityScene.getStreetPickables();
@@ -178,7 +179,7 @@ function startRenderLoop(canvas, manifest) {
   // and calls this to flush the changes through. Render-loop values
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
-  function applyTheme() {
+  function applyTheme(): void {
     const sidewalk = SIDEWALK_COLORS.get();
     const sceneCol = SCENE_COLORS.get();
 
@@ -301,7 +302,11 @@ function startRenderLoop(canvas, manifest) {
 // Keep flat street labels readable at any orbit. Flip decision comes from the
 // camera's world-right vector (matrixWorld column 0), not position — at top-down
 // the camera can sit over center yet still be rotated 180° around Y.
-function _orientLabelsForCamera(labels, camera, labelRight) {
+function _orientLabelsForCamera(
+  labels: THREE.Group[],
+  camera: THREE.PerspectiveCamera,
+  labelRight: THREE.Vector3
+): void {
   labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
   const rightX = labelRight.x;
   const rightZ = labelRight.z;
@@ -329,7 +334,7 @@ function _orientLabelsForCamera(labels, camera, labelRight) {
   }
 }
 
-function _resizeRendererToCanvas(renderer, canvas) {
+function _resizeRendererToCanvas(renderer: THREE.WebGLRenderer, canvas: HTMLCanvasElement): void {
   const cw = canvas.clientWidth;
   const ch = canvas.clientHeight;
   renderer.setSize(cw, ch, false);
@@ -357,24 +362,29 @@ function manifestUrl() {
 // selection survive because picker.selectionKey is persisted and
 // re-resolved on every cityScene rebuild, and cameraRig keeps its pose
 // across applyManifest calls (no re-frame).
-function _clampPollSeconds(s) {
+function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
 }
 
-function setupLiveUpdates(handle, initialSignature) {
+interface LiveUpdateHandle {
+  cityScene: ReturnType<typeof startRenderLoop>['cityScene'];
+  applyTheme: () => void;
+}
+
+function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): void {
   let lastSignature = initialSignature || '';
-  let timer = null;
+  let timer: number | null = null;
   let inFlight = false;
 
-  function tick() {
+  function tick(): void {
     if (inFlight) return;
     inFlight = true;
     fetch(manifestUrl())
       .then((r) => {
         return r.ok ? r.json() : null;
       })
-      .then((m) => {
+      .then((m: Manifest | null) => {
         if (m?.signature && m.signature !== lastSignature) {
           lastSignature = m.signature;
           handle.cityScene.applyManifest(m);
@@ -388,12 +398,12 @@ function setupLiveUpdates(handle, initialSignature) {
       });
   }
 
-  function start() {
+  function start(): void {
     stop();
     const seconds = _clampPollSeconds(LIVE_UPDATES.get().POLL_SECONDS);
     timer = window.setInterval(tick, seconds * 1000);
   }
-  function stop() {
+  function stop(): void {
     if (timer != null) {
       window.clearInterval(timer);
       timer = null;
@@ -408,12 +418,12 @@ function setupLiveUpdates(handle, initialSignature) {
 
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
-const _canvas = document.getElementById(DOM_IDS.CANVAS);
+const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
-    const manifest = await resp.json();
+    const manifest: Manifest = await resp.json();
     // Hydrate every config store from localStorage BEFORE scene build so
     // any user tweaks from prior sessions take effect during the initial
     // layout/render.

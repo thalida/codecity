@@ -10,9 +10,27 @@ import { buildInfoPane } from '../panes/infoPane.js';
 import { buildControlsPane } from '../panes/controlsPane.js';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '../../constants';
 import { SidebarTab } from '../../types';
+import type { Manifest, TreeNode } from '../../types';
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
+
+interface ShowLeftSidebarOpts {
+  /** fn() the Settings UI calls after mutating any imported theme constant — flushes the change through to live materials. */
+  applyTheme?: () => void;
+  /** Initial active tab. Defaults to 'tree'. */
+  initialTab?: SidebarTab | 'tree' | 'info' | 'controls';
+  /** fn(node) called when the user single-clicks a tree row. */
+  onTreeSelect?: (node: TreeNode) => void;
+  /** fn(node) called when the user double-clicks a tree row. */
+  onTreeFocus?: (node: TreeNode) => void;
+  /** fn(node) on row mouseenter. */
+  onTreeHover?: (node: TreeNode) => void;
+  /** fn(node) on row mouseleave. */
+  onTreeHoverEnd?: (node: TreeNode) => void;
+  /** Older callback kept accepted for compatibility with coordinator callsites. */
+  onResetView?: () => void;
+}
 
 // showLeftSidebar(manifest, opts) -> { setSelectedTreePath, setHoveredTreePath }
 //
@@ -37,7 +55,10 @@ const SIDEBAR_MAX_WIDTH = 600;
 // (No onResetView callback: the Controls panel's View section shows a
 // kbd table with R/Esc/etc. The R key is wired in main.js's keydown
 // handler, so this component doesn't need its own callback.)
-export function showLeftSidebar(manifest: any, opts: any = {}) {
+export function showLeftSidebar(
+  manifest: Manifest | { tree: unknown; [k: string]: unknown },
+  opts: ShowLeftSidebarOpts = {}
+) {
   const noop = () => {};
   const container = document.getElementById(DOM_IDS.TREE_SIDEBAR);
   if (!container) return { setSelectedTreePath: noop, setHoveredTreePath: noop };
@@ -66,7 +87,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
     onHoverEnd: opts.onTreeHoverEnd,
   });
   const infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
-  const panes = {};
+  const panes: Record<string, HTMLElement> = {};
   panes[SidebarTab.Tree] = treeBundle.pane;
   panes[SidebarTab.Info] = infoBundle.pane;
   panes[SidebarTab.Controls] = buildControlsPane({
@@ -80,9 +101,10 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
     }
   }
 
-  let activeTab = opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
+  let activeTab: SidebarTab =
+    opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
   let collapsed = _loadCollapsed();
-  const iconBtns = {};
+  const iconBtns: Record<string, HTMLButtonElement> = {};
 
   const iconBase = LUCIDE_ICON_BASE_URL;
   const tabs = ACTIVITY_BAR_TABS;
@@ -114,7 +136,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
 
   // _onIconClick — the same icon while expanded collapses; any other
   // icon (or any icon while collapsed) opens the sidebar with that tab.
-  function _onIconClick(tabId) {
+  function _onIconClick(tabId: string): void {
     if (!panes[tabId]) return;
     if (!collapsed && tabId === activeTab) {
       _setCollapsed(true);
@@ -124,13 +146,13 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
     _setActive(tabId);
   }
 
-  function _setActive(tabId) {
+  function _setActive(tabId: string): void {
     if (!panes[tabId]) return;
-    activeTab = tabId;
+    activeTab = tabId as SidebarTab;
     _refreshActiveStates();
   }
 
-  function _setCollapsed(value) {
+  function _setCollapsed(value: boolean): void {
     collapsed = value;
     container.classList.toggle('is-collapsed', collapsed);
     _refreshActiveStates();
@@ -171,7 +193,7 @@ export function showLeftSidebar(manifest: any, opts: any = {}) {
 // _buildResizeHandle(sidebar) — a thin invisible strip on the sidebar's
 // right edge. Drag to resize; the chosen width is clamped to [MIN, MAX]
 // and persisted in localStorage.
-function _buildResizeHandle(sidebar) {
+function _buildResizeHandle(sidebar: HTMLElement): HTMLDivElement {
   const handle = document.createElement('div');
   handle.className = 'sidebar-resize-handle';
   handle.setAttribute('role', 'separator');
@@ -202,7 +224,7 @@ function _buildResizeHandle(sidebar) {
   return handle;
 }
 
-function _applyPersistedWidth(sidebar) {
+function _applyPersistedWidth(sidebar: HTMLElement): void {
   if (typeof localStorage === 'undefined') return;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.SIDEBAR_WIDTH);
@@ -217,7 +239,7 @@ function _applyPersistedWidth(sidebar) {
   }
 }
 
-function _persistWidth(w) {
+function _persistWidth(w: number): void {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
@@ -226,7 +248,7 @@ function _persistWidth(w) {
   }
 }
 
-function _loadCollapsed() {
+function _loadCollapsed(): boolean {
   if (typeof localStorage === 'undefined') return false;
   try {
     return localStorage.getItem(STORAGE_KEYS.SIDEBAR_COLLAPSED) === 'true';
@@ -235,7 +257,7 @@ function _loadCollapsed() {
   }
 }
 
-function _persistCollapsed(value) {
+function _persistCollapsed(value: boolean): void {
   if (typeof localStorage === 'undefined') return;
   try {
     if (value) localStorage.setItem(STORAGE_KEYS.SIDEBAR_COLLAPSED, 'true');

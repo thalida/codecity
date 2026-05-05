@@ -3,6 +3,25 @@
 // for files; file/dir counts + size for directories). Empty when there
 // is no selection.
 
+interface FooterFileSelection {
+  kind: 'file';
+  language?: string;
+  lines?: number | null;
+  size?: number | null;
+  modified?: string | null;
+  created?: string | null;
+  dateSource?: string;
+}
+
+interface FooterDirectorySelection {
+  kind: 'directory';
+  files?: number | null;
+  dirs?: number | null;
+  size?: number | null;
+}
+
+export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
+
 /**
  * Initialise the sitewide footer. Returns a tiny API:
  *   setSelection({ ... }) — render the footer for a file or directory
@@ -15,9 +34,9 @@
  */
 export function initAppFooter() {
   const footer = document.getElementById('app-footer');
-  if (!footer) return { setSelection() {} };
+  if (!footer) return { setSelection(_sel: FooterSelection | null) {} };
 
-  function setSelection(sel: any) {
+  function setSelection(sel: FooterSelection | null): void {
     footer.replaceChildren();
     if (!sel) return;
 

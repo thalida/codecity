@@ -5,13 +5,18 @@
 // edit to the README on disk shows up here without a page reload.
 
 import { marked } from 'marked';
+import type { DirNode, FileNode, Manifest } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
-function _findRootReadme(manifest) {
-  const tree = (manifest && manifest.tree) || manifest;
-  if (!tree || !tree.children) return null;
+function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
+  if (!manifest) return null;
+  const tree =
+    'tree' in manifest && (manifest as Manifest).tree
+      ? (manifest as Manifest).tree
+      : (manifest as DirNode);
+  if (!tree || !('children' in tree) || !tree.children) return null;
   for (let i = 0; i < tree.children.length; i++) {
     const c = tree.children[i];
     if (c.type !== 'file') continue;
@@ -31,7 +36,14 @@ function _findRootReadme(manifest) {
 //   re-fetches and re-renders. If only the contents changed (same path),
 //   we still re-fetch — the manifest signature already proved something
 //   on disk moved.
-export function buildInfoPane(manifest: any, opts: any = {}) {
+interface BuildInfoPaneOpts {
+  onClose?: () => void;
+}
+
+export function buildInfoPane(
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null,
+  opts: BuildInfoPaneOpts = {}
+) {
   const pane = document.createElement('div');
   pane.className = 'left-pane info-pane';
 
@@ -64,7 +76,7 @@ export function buildInfoPane(manifest: any, opts: any = {}) {
   // fetch handler only commits if its captured id still matches.
   let reqId = 0;
 
-  function _renderEmptyState() {
+  function _renderEmptyState(): void {
     body.replaceChildren();
     const box = document.createElement('div');
     box.className = 'preview-state';
@@ -80,7 +92,7 @@ export function buildInfoPane(manifest: any, opts: any = {}) {
     body.appendChild(box);
   }
 
-  function _renderError(message) {
+  function _renderError(message: string): void {
     body.replaceChildren();
     const box = document.createElement('div');
     box.className = 'preview-state';
@@ -98,7 +110,7 @@ export function buildInfoPane(manifest: any, opts: any = {}) {
     body.appendChild(box);
   }
 
-  function _renderMarkdown(text) {
+  function _renderMarkdown(text: string): void {
     const article = document.createElement('article');
     article.className = 'info-markdown';
     // marked.parse is synchronous when given a string and produces a
@@ -113,8 +125,10 @@ export function buildInfoPane(manifest: any, opts: any = {}) {
     body.replaceChildren(article);
   }
 
-  function render(currentManifest) {
-    const readme = _findRootReadme(currentManifest);
+  function render(
+    currentManifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
+  ): void {
+    const readme = _findRootReadme(currentManifest as Manifest | DirNode | null);
     if (!readme || !readme.fullPath) {
       _renderEmptyState();
       return;
@@ -141,7 +155,7 @@ export function buildInfoPane(manifest: any, opts: any = {}) {
   return {
     pane,
     api: {
-      setManifest(m) {
+      setManifest(m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null) {
         render(m);
       },
     },

@@ -22,11 +22,15 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { NodeKind } from './types';
+import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
+import type { createCityScene } from './scene/cityScene.js';
+import type { createPicker } from './scene/picker.js';
+import type { createCameraRig } from './scene/cameraRig.js';
 
 interface CoordinatorOpts {
-  cityScene: any;
-  picker: any;
-  rig: any;
+  cityScene: ReturnType<typeof createCityScene>;
+  picker: ReturnType<typeof createPicker>;
+  rig: ReturnType<typeof createCameraRig>;
   huePalette: Record<string, number>;
   applyTheme: () => void;
 }
@@ -45,13 +49,13 @@ export function createCoordinator({
   // target into it via the pane's setFile API.
   const filePreview = buildFilePreviewPane();
 
-  function _renderSidebar() {
+  function _renderSidebar(): void {
     if (!sidebarVisible) {
       hideRightSidebar();
       return;
     }
     showRightSidebar(filePreview.pane);
-    const sel = picker.selection.get();
+    const sel: PickTarget | null = picker.selection.get();
     // Directories collapse to the same empty "select a file" state as
     // no-selection — the file-preview pane has nothing to show for a
     // directory pick.
@@ -60,15 +64,15 @@ export function createCoordinator({
   }
 
   // ── App header (breadcrumb + L/R sidebar toggles) ──────────────────
-  const rootNode = cityScene.getRoot() || {};
+  const rootNode: DirNode | null = cityScene.getRoot();
   const appHeader = initAppHeader({
     huePalette: huePalette || {},
-    rootLabel: rootNode.name || '',
-    rootPath: rootNode.path || '',
-    onSegmentClick(path) {
+    rootLabel: rootNode?.name || '',
+    rootPath: rootNode?.path || '',
+    onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
-    onRightToggle(hidden) {
+    onRightToggle(hidden: boolean) {
       sidebarVisible = !hidden;
       _renderSidebar();
     },
@@ -80,31 +84,31 @@ export function createCoordinator({
   const appFooter = initAppFooter();
   appFooter.setSelection({
     kind: 'directory',
-    files: rootNode.descendants_file_count || 0,
-    dirs: rootNode.descendants_dir_count || 0,
-    size: rootNode.descendants_size || 0,
+    files: rootNode?.descendants_file_count ?? 0,
+    dirs: rootNode?.descendants_dir_count ?? 0,
+    size: rootNode?.descendants_size ?? 0,
   });
 
   _renderSidebar(); // initial paint
 
   // ── Tree pane (left sidebar) ───────────────────────────────────────
-  function _onTreeSelect(node) {
+  function _onTreeSelect(node: TreeNode): void {
     if (!node || !node.path) return;
     picker.selectByPath(node.path);
   }
 
-  function _onTreeFocus(node) {
+  function _onTreeFocus(node: TreeNode): void {
     if (!node || !node.path) return;
     if (node.type === NodeKind.File) {
       const b = cityScene.getBuildingByPath(node.path);
       if (b) rig.focusBuilding(b.mesh, b.building);
     } else if (node.type === NodeKind.Directory) {
       const st = cityScene.getStreetByDir(node.path);
-      if (st) rig.focusStreet(st);
+      if (st) rig.focusStreet(st, null);
     }
   }
 
-  function _onTreeHover(node) {
+  function _onTreeHover(node: TreeNode): void {
     if (!node || !node.path) return;
     if (node.type === NodeKind.File) {
       const b = cityScene.getBuildingByPath(node.path);
@@ -128,11 +132,12 @@ export function createCoordinator({
     }
   }
 
-  function _onTreeHoverEnd() {
+  function _onTreeHoverEnd(): void {
     picker.setHover(null);
   }
 
-  const leftSidebarApi = showLeftSidebar(cityScene.getManifest(), {
+  const manifest = cityScene.getManifest();
+  const leftSidebarApi = showLeftSidebar(manifest!, {
     onResetView() {
       rig.reset();
     },
@@ -143,28 +148,34 @@ export function createCoordinator({
     onTreeHoverEnd: _onTreeHoverEnd,
   });
 
-  function _pathOf(target) {
+  function _pathOf(target: PickTarget | null): string | null {
     if (!target) return null;
-    if (target.kind === NodeKind.File) return target.file && target.file.path;
-    if (target.kind === NodeKind.Directory) return target.dir && target.dir.path;
+    if (target.kind === NodeKind.File) return target.file?.path ?? null;
+    if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
     return null;
   }
 
   // ── picker → sidebar reactions ─────────────────────────────────────
-  const _selUnsub = picker.selection.subscribe((sel) => {
+  const _selUnsub = picker.selection.subscribe((sel: PickTarget | null) => {
     // Tree highlight follows selection.
     if (leftSidebarApi.setSelectedTreePath) {
       leftSidebarApi.setSelectedTreePath(_pathOf(sel));
     }
 
     // Breadcrumb tail
-    const node = sel && (sel.file || sel.dir);
+    const node: FileNode | DirNode | null = sel
+      ? sel.kind === NodeKind.File
+        ? sel.file
+        : sel.kind === NodeKind.Directory
+          ? sel.dir
+          : null
+      : null;
     appHeader.setSelection(
-      node
+      node && sel
         ? {
             path: node.path || node.fullPath || node.name || '',
             fullPath: node.fullPath || '',
-            extension: node.extension || '',
+            extension: 'extension' in node ? node.extension || '' : '',
             isDir: sel.kind === NodeKind.Directory,
           }
         : null
@@ -172,8 +183,8 @@ export function createCoordinator({
 
     // Footer mirrors selection metadata
     if (sel && sel.kind === NodeKind.File) {
-      const f = sel.file || {};
-      const hasGit = f.git && (f.git.created || f.git.modified);
+      const f: FileNode = sel.file;
+      const hasGit = !!(f.git && (f.git.created || f.git.modified));
       appFooter.setSelection({
         kind: 'file',
         language: humanLanguageFor(f),
@@ -184,19 +195,20 @@ export function createCoordinator({
         dateSource: hasGit ? 'git' : 'fs',
       });
     } else {
-      const d = (sel && sel.dir) || cityScene.getRoot() || {};
+      const d: DirNode | null =
+        (sel && sel.kind === NodeKind.Directory ? sel.dir : null) || cityScene.getRoot();
       appFooter.setSelection({
         kind: 'directory',
-        files: d.descendants_file_count || 0,
-        dirs: d.descendants_dir_count || 0,
-        size: d.descendants_size || 0,
+        files: d?.descendants_file_count ?? 0,
+        dirs: d?.descendants_dir_count ?? 0,
+        size: d?.descendants_size ?? 0,
       });
     }
 
     _renderSidebar();
   });
 
-  const _hovUnsub = picker.hover.subscribe((h) => {
+  const _hovUnsub = picker.hover.subscribe((h: PickTarget | null) => {
     if (leftSidebarApi.setHoveredTreePath) {
       leftSidebarApi.setHoveredTreePath(_pathOf(h));
     }

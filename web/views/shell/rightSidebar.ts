@@ -20,10 +20,8 @@ const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
  * Mount `pane` (a DOM element) into the right sidebar slot and open the
  * panel. Idempotent: passing the already-mounted pane does NOT clear or
  * re-append. Passing a different pane swaps the mounted one.
- *
- * @param {HTMLElement} pane
  */
-export function showRightSidebar(pane) {
+export function showRightSidebar(pane: HTMLElement): void {
   const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (!sidebar) return;
 
@@ -43,14 +41,14 @@ export function showRightSidebar(pane) {
  * Pure DOM mutation; the mounted pane stays in the DOM so it can re-open
  * without rebuilding.
  */
-export function hideRightSidebar() {
+export function hideRightSidebar(): void {
   const sidebar = document.getElementById(DOM_IDS.FILE_SIDEBAR);
   if (sidebar) sidebar.classList.remove('open');
 }
 
 // _currentPane(sidebar) — return the currently mounted pane element (the
 // non-resize-handle child), or null if nothing is mounted yet.
-function _currentPane(sidebar) {
+function _currentPane(sidebar: HTMLElement): Element | null {
   const children = sidebar.children;
   for (let i = 0; i < children.length; i++) {
     if (!children[i].classList.contains('sidebar-resize-handle-right')) {
@@ -60,7 +58,7 @@ function _currentPane(sidebar) {
   return null;
 }
 
-function _clearMountedPane(sidebar) {
+function _clearMountedPane(sidebar: HTMLElement): void {
   // Keep .sidebar-resize-handle-right across pane swaps so we don't have
   // to re-bind drag listeners on every selection change.
   for (const child of [...sidebar.children]) {
@@ -70,7 +68,7 @@ function _clearMountedPane(sidebar) {
   }
 }
 
-function _ensureResizeHandle(sidebar) {
+function _ensureResizeHandle(sidebar: HTMLElement): void {
   if (sidebar.querySelector('.sidebar-resize-handle-right')) return;
 
   const handle = document.createElement('div');
@@ -111,7 +109,7 @@ function _ensureResizeHandle(sidebar) {
   sidebar.appendChild(handle);
 }
 
-function _applyPersistedWidth(sidebar) {
+function _applyPersistedWidth(sidebar: HTMLElement): void {
   if (typeof localStorage === 'undefined') return;
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH);
@@ -127,7 +125,7 @@ function _applyPersistedWidth(sidebar) {
   }
 }
 
-function _persistWidth(w) {
+function _persistWidth(w: number): void {
   if (typeof localStorage === 'undefined') return;
   try {
     localStorage.setItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH, String(w));

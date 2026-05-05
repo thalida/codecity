@@ -11,6 +11,7 @@
 
 import hljs from 'highlight.js/lib/common';
 import { PreviewKind } from '../../types';
+import type { FileNode } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
@@ -30,7 +31,7 @@ const PDF_EXTS = ['.pdf'];
 // hljs language hints by extension. Falls through to auto-detection if a
 // file doesn't match anything here. Matches the languages bundled in
 // highlight.js/lib/common (~37 langs).
-const EXT_LANG = {
+const EXT_LANG: Record<string, string> = {
   '.js': 'javascript',
   '.mjs': 'javascript',
   '.cjs': 'javascript',
@@ -79,7 +80,7 @@ const EXT_LANG = {
 };
 
 // Filename-only hints (no extension or special-cased). Lower-cased keys.
-const NAME_LANG = {
+const NAME_LANG: Record<string, string> = {
   dockerfile: 'dockerfile',
   makefile: 'makefile',
   gnumakefile: 'makefile',
@@ -107,7 +108,18 @@ export function buildFilePreviewPane() {
   const body = document.createElement('div');
   body.className = 'editor-body';
 
-  function setFile(file) {
+  function setFile(
+    file:
+      | FileNode
+      | {
+          name?: string;
+          extension?: string;
+          fullPath?: string;
+          size?: number;
+          [k: string]: unknown;
+        }
+      | null
+  ): void {
     body.replaceChildren();
     if (!file) {
       body.appendChild(
@@ -119,7 +131,7 @@ export function buildFilePreviewPane() {
       );
       return;
     }
-    const section = _makePreviewSection(file);
+    const section = _makePreviewSection(file as FileNode);
     if (section) body.appendChild(section);
   }
 
@@ -136,14 +148,14 @@ export function buildFilePreviewPane() {
  * sitewide footer too — exported so callers don't have to duplicate
  * the EXT_LANG / NAME_LANG inference.
  */
-export function humanLanguageFor(file) {
+export function humanLanguageFor(file: FileNode): string {
   const key = _languageFor(file);
   if (!key) {
     if (file.extension) return file.extension.replace(/^\./, '').toUpperCase();
     return 'Plain Text';
   }
   // Map hljs internal id → display name.
-  const labels = {
+  const labels: Record<string, string> = {
     javascript: 'JavaScript',
     typescript: 'TypeScript',
     python: 'Python',
@@ -181,18 +193,15 @@ export function humanLanguageFor(file) {
 }
 
 /**
- * Format a byte count into a human-readable string.
- *
- * @param {number} bytes
- * @returns {string} e.g. "512 B", "3.4 KB", "1.2 MB"
+ * Format a byte count into a human-readable string. e.g. "512 B", "3.4 KB", "1.2 MB"
  */
-function formatBytes(bytes) {
+function formatBytes(bytes: number): string {
   if (bytes < BYTES_PER_KB) return `${bytes} B`;
   if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
   return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
 }
 
-function _previewKind(file): PreviewKind {
+function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;
   if (VIDEO_EXTS.includes(ext)) return PreviewKind.Video;
@@ -203,12 +212,12 @@ function _previewKind(file): PreviewKind {
   return PreviewKind.Text;
 }
 
-function _fileApiUrl(file) {
+function _fileApiUrl(file: FileNode): string {
   const p = file.fullPath || '';
   return `/api/file?path=${encodeURIComponent(p)}`;
 }
 
-function _makePreviewSection(file) {
+function _makePreviewSection(file: FileNode | null): HTMLElement | null {
   if (!file || !file.fullPath) return null;
 
   const url = _fileApiUrl(file);
@@ -289,7 +298,7 @@ function _makePreviewSection(file) {
  * "couldn't load this file", and "select a file" empty states. Same
  * shape as .editor-empty-hint.
  */
-function _makeStateMessage(iconName, title, subtitle) {
+function _makeStateMessage(iconName: string, title: string, subtitle?: string): HTMLElement {
   const box = document.createElement('div');
   box.className = 'preview-state';
   box.appendChild(makeLucideIcon(iconName));
@@ -306,7 +315,7 @@ function _makeStateMessage(iconName, title, subtitle) {
   return box;
 }
 
-function _buildCodeEditor(text, file) {
+function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
   const editor = document.createElement('div');
   editor.className = 'code-editor';
 
@@ -324,7 +333,7 @@ function _buildCodeEditor(text, file) {
 
   // Pick the language hint up-front; fall back to hljs auto-detect.
   const lang = _languageFor(file);
-  let html;
+  let html: string;
   try {
     if (lang && hljs.getLanguage(lang)) {
       html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
@@ -355,7 +364,7 @@ function _buildCodeEditor(text, file) {
   return editor;
 }
 
-function _languageFor(file) {
+function _languageFor(file: { extension?: string; name?: string }): string | null {
   const ext = (file.extension || '').toLowerCase();
   if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
   const name = (file.name || '').toLowerCase();
@@ -363,6 +372,6 @@ function _languageFor(file) {
   return null;
 }
 
-function _escapeHtml(s) {
+function _escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

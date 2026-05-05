@@ -10,23 +10,32 @@ import { makeLucideIcon } from './icon.js';
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
 
+interface HeaderSelection {
+  path: string;
+  fullPath?: string;
+  extension?: string;
+  isDir?: boolean;
+}
+
+interface InitAppHeaderOpts {
+  /** extension → hue map for the chip color */
+  huePalette?: Record<string, number>;
+  /** project name shown as the leftmost breadcrumb segment (clicking it selects the project root) */
+  rootLabel?: string;
+  /** the path string the segment-click handler should receive when the root is clicked (e.g. "." or "") */
+  rootPath?: string;
+  /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
+  onSegmentClick?: ((path: string) => void) | null;
+  onLeftToggle?: ((hidden: boolean) => void) | null;
+  onRightToggle?: ((hidden: boolean) => void) | null;
+}
+
 /**
  * Initialise the sitewide header. Renders icons into the existing toggle
  * buttons in index.html, populates the title slot with chip + breadcrumb
  * + copy widgets, restores persisted visibility from localStorage.
- *
- * @param {Object} [opts]
- * @param {Object}   [opts.huePalette]    extension → hue map for the chip color
- * @param {string}   [opts.rootLabel]     project name shown as the leftmost
- *   breadcrumb segment (clicking it selects the project root)
- * @param {string}   [opts.rootPath]      the path string the segment-click
- *   handler should receive when the root is clicked (e.g. "." or "")
- * @param {Function} [opts.onSegmentClick] fn(path:string) — fires when the
- *   user clicks a breadcrumb segment. Caller selects the matching node.
- * @param {Function} [opts.onLeftToggle]   fn(hidden:boolean)
- * @param {Function} [opts.onRightToggle]  fn(hidden:boolean)
  */
-export function initAppHeader(opts: any = {}) {
+export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   const {
     huePalette = {},
     rootLabel = '',
@@ -41,9 +50,9 @@ export function initAppHeader(opts: any = {}) {
   const titleEl = document.getElementById('app-title');
   if (!leftBtn || !rightBtn || !titleEl) {
     return {
-      setSelection() {},
-      setLeftVisible() {},
-      setRightVisible() {},
+      setSelection(_sel: HeaderSelection | null) {},
+      setLeftVisible(_visible: boolean) {},
+      setRightVisible(_visible: boolean) {},
       isLeftVisible() {
         return true;
       },
@@ -53,13 +62,13 @@ export function initAppHeader(opts: any = {}) {
     };
   }
 
-  function _renderLeftIcon(hidden) {
-    leftBtn.replaceChildren(makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close'));
-    leftBtn.title = hidden ? 'Show left sidebar' : 'Hide left sidebar';
+  function _renderLeftIcon(hidden: boolean): void {
+    leftBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close'));
+    leftBtn!.title = hidden ? 'Show left sidebar' : 'Hide left sidebar';
   }
-  function _renderRightIcon(hidden) {
-    rightBtn.replaceChildren(makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close'));
-    rightBtn.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
+  function _renderRightIcon(hidden: boolean): void {
+    rightBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close'));
+    rightBtn!.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
   }
 
   // Both sidebars default to visible on first run. The right starts in
@@ -80,13 +89,13 @@ export function initAppHeader(opts: any = {}) {
     if (onRightToggle) onRightToggle(rightHidden);
   });
 
-  function _setLeftHidden(hidden) {
+  function _setLeftHidden(hidden: boolean): void {
     leftHidden = hidden;
     document.body.classList.toggle('left-hidden', leftHidden);
     _renderLeftIcon(leftHidden);
     _saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
   }
-  function _setRightHidden(hidden) {
+  function _setRightHidden(hidden: boolean): void {
     rightHidden = hidden;
     document.body.classList.toggle('right-hidden', rightHidden);
     _renderRightIcon(rightHidden);
@@ -105,26 +114,26 @@ export function initAppHeader(opts: any = {}) {
    * fires onSegmentClick with rootPath). When sel is null we show only
    * the root.
    */
-  function setSelection(sel) {
-    titleEl.replaceChildren();
+  function setSelection(sel: HeaderSelection | null): void {
+    titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection.
-    if (hasSel && !sel.isDir) {
-      titleEl.appendChild(_makeChip(sel.extension, false));
+    if (hasSel && sel && !sel.isDir) {
+      titleEl!.appendChild(_makeChip(sel.extension ?? null, false));
     } else {
-      titleEl.appendChild(_makeChip(null, true));
+      titleEl!.appendChild(_makeChip(null, true));
     }
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = hasSel ? `${rootLabel}/${sel.path}` : rootLabel;
+    crumbs.title = hasSel && sel ? `${rootLabel}/${sel.path}` : rootLabel;
 
     // Always lead with the root.
     crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
 
-    if (hasSel) {
+    if (hasSel && sel) {
       const segs = sel.path.split('/').filter(Boolean);
       let acc = '';
       for (let i = 0; i < segs.length; i++) {
@@ -137,17 +146,17 @@ export function initAppHeader(opts: any = {}) {
         crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
       }
     }
-    titleEl.appendChild(crumbs);
+    titleEl!.appendChild(crumbs);
 
-    if (hasSel) {
+    if (hasSel && sel) {
       // Copy button copies the absolute filesystem path so users can
       // paste it into a terminal / editor; the breadcrumb display
       // stays project-relative for readability.
-      titleEl.appendChild(_makeCopyButton(sel.fullPath || sel.path));
+      titleEl!.appendChild(_makeCopyButton(sel.fullPath || sel.path));
     }
   }
 
-  function _makeChip(extension, isDir) {
+  function _makeChip(extension: string | null, isDir: boolean): HTMLSpanElement {
     const chip = document.createElement('span');
     chip.className = 'app-header-chip';
     if (isDir) {
@@ -160,7 +169,7 @@ export function initAppHeader(opts: any = {}) {
     return chip;
   }
 
-  function _makeSegment(label, path, isLeaf) {
+  function _makeSegment(label: string, path: string, isLeaf: boolean): HTMLButtonElement {
     const seg = document.createElement('button');
     seg.type = 'button';
     seg.className = 'app-header-segment';
@@ -172,7 +181,7 @@ export function initAppHeader(opts: any = {}) {
     return seg;
   }
 
-  function _makeCopyButton(path) {
+  function _makeCopyButton(path: string): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'app-header-icon';
@@ -187,10 +196,10 @@ export function initAppHeader(opts: any = {}) {
 
   return {
     setSelection,
-    setLeftVisible(visible) {
+    setLeftVisible(visible: boolean) {
       _setLeftHidden(!visible);
     },
-    setRightVisible(visible) {
+    setRightVisible(visible: boolean) {
       _setRightHidden(!visible);
     },
     isLeftVisible() {
@@ -202,7 +211,7 @@ export function initAppHeader(opts: any = {}) {
   };
 }
 
-function _loadFlag(key, defaultVal) {
+function _loadFlag(key: string, defaultVal: boolean): boolean {
   try {
     const v = localStorage.getItem(key);
     if (v == null) return defaultVal;
@@ -212,7 +221,7 @@ function _loadFlag(key, defaultVal) {
   }
 }
 
-function _saveFlag(key, on) {
+function _saveFlag(key: string, on: boolean): void {
   try {
     if (on) localStorage.setItem(key, '1');
     else localStorage.removeItem(key);
@@ -221,7 +230,7 @@ function _saveFlag(key, on) {
   }
 }
 
-function _copy(text, btn) {
+function _copy(text: string, btn: HTMLButtonElement): void {
   function flash() {
     if (!btn) return;
     btn.classList.add('is-copied');
@@ -240,7 +249,7 @@ function _copy(text, btn) {
   }
 }
 
-function _legacyCopy(text) {
+function _legacyCopy(text: string): void {
   const ta = document.createElement('textarea');
   ta.value = text;
   ta.style.position = 'fixed';

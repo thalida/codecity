@@ -4,18 +4,33 @@
 // bidirectionally synced with the scene's current selection.
 
 import { NodeKind } from '../../types';
+import type { DirNode, Manifest, TreeNode } from '../../types';
 import { makeLucideIcon } from '../shell/icon.js';
+
+interface TreeCtx {
+  byPath: Record<string, { li: HTMLLIElement; node: TreeNode }>;
+  rootList: HTMLUListElement | null;
+  rootDirLi: HTMLLIElement | null;
+  onSelect?: ((node: TreeNode) => void) | null;
+  onFocus?: ((node: TreeNode) => void) | null;
+  onHover?: ((node: TreeNode) => void) | null;
+  onHoverEnd?: ((node: TreeNode) => void) | null;
+}
 
 // Build a <ul> for `node`'s children. `ctx` carries the per-tree mutable
 // state (path → li registry, callbacks). `node` is the tree node being
 // expanded; pass the manifest root to start.
-function _buildList(node, ctx) {
+function _buildList(node: DirNode | TreeNode, ctx: TreeCtx): HTMLUListElement {
   const ul = document.createElement('ul');
   ul.className = 'tree-list';
 
   // Match layout.js sort: alphabetical, files + directories intermingled.
   // Keeps the tree's visual order identical to the city's road layout.
-  const children = (node.children || []).slice().sort((a, b) => {
+  const rawChildren =
+    'children' in node && Array.isArray((node as DirNode).children)
+      ? (node as DirNode).children
+      : [];
+  const children = rawChildren.slice().sort((a, b) => {
     return (a.name || '').localeCompare(b.name || '');
   });
 
@@ -26,7 +41,7 @@ function _buildList(node, ctx) {
   return ul;
 }
 
-function _buildItem(child, ctx) {
+function _buildItem(child: TreeNode, ctx: TreeCtx): HTMLLIElement {
   const li = document.createElement('li');
   li.className = 'tree-item';
   if (child.path != null) li.dataset.path = child.path;
@@ -51,7 +66,7 @@ function _buildItem(child, ctx) {
     row.appendChild(label);
     li.appendChild(row);
 
-    const subtree = _buildList(child, ctx);
+    const subtree = _buildList(child as DirNode, ctx);
     subtree.style.display = 'none';
     li.appendChild(subtree);
 
@@ -100,14 +115,14 @@ function _buildItem(child, ctx) {
   return li;
 }
 
-function _expandDir(li, subtree, chevronIcon) {
+function _expandDir(li: HTMLElement, subtree: HTMLElement, chevronIcon: HTMLElement): void {
   li.classList.remove('tree-collapsed');
   li.classList.add('tree-expanded');
   subtree.style.display = '';
   _setIcon(chevronIcon, 'chevron-down');
 }
 
-function _collapseDir(li, subtree, chevronIcon) {
+function _collapseDir(li: HTMLElement, subtree: HTMLElement, chevronIcon: HTMLElement): void {
   li.classList.add('tree-collapsed');
   li.classList.remove('tree-expanded');
   subtree.style.display = 'none';
@@ -119,8 +134,8 @@ function _collapseDir(li, subtree, chevronIcon) {
 // Returns the set of <li class="tree-dir"> elements that are on the path
 // from `li` up to (and not including) `root`'s parent. Used by
 // _openOnlyChain to know which dirs to spare from the bulk collapse.
-function _ancestorChain(li, root) {
-  const chain = new Set();
+function _ancestorChain(li: HTMLElement, root: HTMLElement): Set<HTMLElement> {
+  const chain = new Set<HTMLElement>();
   let p = li.parentElement;
   while (p && p !== root) {
     if (p.classList && p.classList.contains('tree-list')) {
@@ -136,10 +151,10 @@ function _ancestorChain(li, root) {
 // collapse every dir not on `target`'s ancestor chain, expand the chain,
 // and (if `target` is itself a dir) expand it too. The selected dir's
 // contents should be visible — that's the user's "current branch".
-function _openOnlyChain(target, rootList) {
+function _openOnlyChain(target: HTMLElement, rootList: HTMLElement | null): void {
   if (!rootList) return;
   const chain = _ancestorChain(target, rootList);
-  const allDirs = rootList.querySelectorAll('.tree-dir');
+  const allDirs = rootList.querySelectorAll<HTMLElement>('.tree-dir');
   for (let i = 0; i < allDirs.length; i++) {
     const dirLi = allDirs[i];
     const shouldBeExpanded = chain.has(dirLi) || dirLi === target;
@@ -149,9 +164,9 @@ function _openOnlyChain(target, rootList) {
 
 // _setDirExpanded(li, expanded) — apply expand/collapse to a directory <li>
 // without callers needing to look up its own subtree + chevron icon.
-function _setDirExpanded(li, expanded) {
-  const sub = li.querySelector(':scope > .tree-list');
-  const chev = li.querySelector(':scope > .tree-row > .tree-chevron > .tree-icon');
+function _setDirExpanded(li: HTMLElement, expanded: boolean): void {
+  const sub = li.querySelector<HTMLElement>(':scope > .tree-list');
+  const chev = li.querySelector<HTMLElement>(':scope > .tree-row > .tree-chevron > .tree-icon');
   if (!sub || !chev) return;
   if (expanded) {
     if (li.classList.contains('tree-expanded')) return;
@@ -164,7 +179,7 @@ function _setDirExpanded(li, expanded) {
 
 // _setIcon(span, name) — swap the mask-image URL of an existing lucide-icon
 // span so we don't have to rebuild the DOM node on every toggle.
-function _setIcon(span, name) {
+function _setIcon(span: HTMLElement, name: string): void {
   const base = span.style.maskImage || span.style.webkitMaskImage;
   // Both URLs share the prefix up through ".../icons/"; swap the last segment.
   const u = base.replace(/[^/]+\.svg/, `${name}.svg`);
@@ -175,8 +190,16 @@ function _setIcon(span, name) {
 // buildTree(node) — bare <ul> for `node`'s children with no event handlers.
 // Used by tests; production callers should use buildTreePane to get the
 // click/dblclick handlers + selection api wired up.
-export function buildTree(node: any): HTMLUListElement {
-  return _buildList(node, { byPath: {}, onSelect: null, onFocus: null });
+export function buildTree(
+  node: TreeNode | DirNode | { children?: unknown[]; [k: string]: unknown }
+): HTMLUListElement {
+  return _buildList(node as DirNode, {
+    byPath: {},
+    rootList: null,
+    rootDirLi: null,
+    onSelect: null,
+    onFocus: null,
+  });
 }
 
 // buildTreePane(manifest, opts) -> { pane, api }
@@ -200,7 +223,18 @@ export function buildTree(node: any): HTMLUListElement {
 //                             matching `path` (or clear if null). Does not
 //                             change expansion — hover is a transient
 //                             cosmetic mirror, not a navigation gesture.
-export function buildTreePane(manifest: any, opts: any = {}) {
+interface BuildTreePaneOpts {
+  onClose?: () => void;
+  onSelect?: (node: TreeNode) => void;
+  onFocus?: (node: TreeNode) => void;
+  onHover?: (node: TreeNode) => void;
+  onHoverEnd?: (node: TreeNode) => void;
+}
+
+export function buildTreePane(
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown },
+  opts: BuildTreePaneOpts = {}
+) {
   const pane = document.createElement('div');
   pane.className = 'left-pane tree-pane';
 
@@ -220,7 +254,7 @@ export function buildTreePane(manifest: any, opts: any = {}) {
 
   pane.appendChild(header);
 
-  const ctx = {
+  const ctx: TreeCtx = {
     byPath: {},
     rootList: null, // populated below; chevron click reads it
     rootDirLi: null, // set after the root folder li is built
@@ -234,7 +268,8 @@ export function buildTreePane(manifest: any, opts: any = {}) {
   // splatting its children into the list) so the project root is itself
   // hoverable / selectable / focusable. Hovering or selecting the root
   // street in the city now has a matching row to highlight.
-  const tree = manifest.tree || manifest;
+  const m = manifest as { tree?: unknown };
+  const tree = (m.tree || manifest) as TreeNode;
   const listEl = document.createElement('ul');
   listEl.className = 'tree-list tree-root';
   ctx.rootList = listEl;
@@ -243,10 +278,10 @@ export function buildTreePane(manifest: any, opts: any = {}) {
   listEl.appendChild(rootItem);
   pane.appendChild(listEl);
 
-  let currentSelectedLi = null;
-  let currentHoveredLi = null;
+  let currentSelectedLi: HTMLLIElement | null = null;
+  let currentHoveredLi: HTMLLIElement | null = null;
 
-  function setSelectedPath(path) {
+  function setSelectedPath(path: string | null): void {
     if (currentSelectedLi) {
       currentSelectedLi.classList.remove('tree-selected');
       currentSelectedLi = null;
@@ -269,7 +304,7 @@ export function buildTreePane(manifest: any, opts: any = {}) {
     }
   }
 
-  function setHoveredPath(path) {
+  function setHoveredPath(path: string | null): void {
     if (currentHoveredLi) {
       currentHoveredLi.classList.remove('tree-hovered');
       currentHoveredLi = null;
@@ -290,7 +325,7 @@ export function buildTreePane(manifest: any, opts: any = {}) {
   };
 }
 
-function _buildPaneCloseButton(onClose) {
+function _buildPaneCloseButton(onClose: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'pane-header-close';
