@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // Strict flags will be flipped one at a time in a follow-up PR
+    // (Phase 3 of the migration plan). Each flag will surface a few
+    // hundred annotations and is best reviewed in isolation. See
+    // ~/.claude/plans/codecity-ts-eslint-prettier.md.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Path alias mirrored in vite.config.js + vitest.config.js. `@/`
+    // maps to web/ so cross-directory imports stay short and survive
+    // file moves. Editor + tsc resolve through `paths`; bundler +
+    // tests resolve through `resolve.alias`.
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": ["**/*.js", "**/*.ts", "tests/**/*"],
+  "exclude": ["node_modules", "../codecity/static"]
+}

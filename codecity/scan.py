@@ -27,6 +27,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .types import DirNode, FileNode, GitMeta, Manifest, NodeKind
+
 
 # ── Progress logging ─────────────────────────────────────────────────────────
 
@@ -87,7 +89,7 @@ def _epoch_to_iso(epoch: float) -> str:
     )
 
 
-def _stat_fields(entry: os.DirEntry) -> tuple[int, str, str, float]:
+def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
     st = entry.stat()
     # macOS has st_birthtime; Linux doesn't, fall back to st_ctime
     birth = getattr(st, "st_birthtime", st.st_ctime)
@@ -188,13 +190,13 @@ def _collect_git_metadata(root: Path) -> tuple[dict[str, str], dict[str, str], s
 
 
 def _file_node(
-    entry: os.DirEntry,
+    entry: os.DirEntry[str],
     rel_path: str,
     is_git_repo: bool,
     git_created: dict[str, str],
     git_modified: dict[str, str],
     sig: Any,
-) -> dict:
+) -> FileNode:
     abs_path = entry.path
     size, created, modified, mtime = _stat_fields(entry)
     path_obj = Path(abs_path)
@@ -202,7 +204,7 @@ def _file_node(
     binary = _is_binary(path_obj)
     lines = 0 if binary else _line_count(path_obj)
 
-    git_block = None
+    git_block: GitMeta | None = None
     if is_git_repo:
         git_block = {
             "created": git_created.get(rel_path) or None,
@@ -221,7 +223,7 @@ def _file_node(
 
     return {
         "name": entry.name,
-        "type": "file",
+        "type": NodeKind.FILE,
         "path": rel_path,
         "fullPath": abs_path,
         "extension": _extension(entry.name),
@@ -235,19 +237,19 @@ def _file_node(
 
 
 # Global tracker for heartbeat logging during recursion.
-_FILES_SEEN = 0
+_files_seen = 0
 
 
 def _reset_heartbeat() -> None:
-    global _FILES_SEEN
-    _FILES_SEEN = 0
+    global _files_seen
+    _files_seen = 0
 
 
 def _tick_heartbeat() -> None:
-    global _FILES_SEEN
-    _FILES_SEEN += 1
-    if _FILES_SEEN % 100 == 0:
-        _log(f"  walked {_FILES_SEEN} files so far…")
+    global _files_seen
+    _files_seen += 1
+    if _files_seen % 100 == 0:
+        _log(f"  walked {_files_seen} files so far…")
 
 
 def _build_tree(
@@ -259,11 +261,11 @@ def _build_tree(
     git_modified: dict[str, str],
     tracked_files: set[str],
     sig: Any,
-) -> dict:
+) -> DirNode:
     name = os.path.basename(abs_dir)
 
-    files: list[dict] = []
-    dirs: list[dict] = []
+    files: list[FileNode] = []
+    dirs: list[DirNode] = []
     descendants_count = 0
     descendants_file_count = 0
     descendants_dir_count = 0
@@ -308,10 +310,10 @@ def _build_tree(
             descendants_dir_count += 1 + subtree["descendants_dir_count"]
             descendants_size += subtree["descendants_size"]
 
-    children = files + dirs
+    children: list[FileNode | DirNode] = [*files, *dirs]
     return {
         "name": name,
-        "type": "directory",
+        "type": NodeKind.DIRECTORY,
         "path": rel_dir,
         "fullPath": abs_dir,
         "children_count": len(children),
@@ -328,7 +330,7 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(root: str) -> dict:
+def scan_tree(root: str) -> Manifest:
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -354,7 +356,7 @@ def scan_tree(root: str) -> dict:
         git_created=git_created, git_modified=git_modified,
         tracked_files=tracked_files, sig=sig,
     )
-    _log(f"walked {_FILES_SEEN} files; emitting manifest")
+    _log(f"walked {_files_seen} files; emitting manifest")
 
     return {
         "root": root_abs,

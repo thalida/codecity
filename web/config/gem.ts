@@ -1,0 +1,74 @@
+// config/gem.js — Root-of-repo gem: sizing (rebuild-required), face palette
+// (hot-reloadable via vertex color buffer rewrite), edge color (hot-reloadable),
+// and animation tuning (hot-reloadable, read fresh per frame).
+
+import { map, atom } from 'nanostores';
+// (atom kept for GEM_FACE_PALETTE — the others moved into the GEM_APPEARANCE
+// map below.)
+
+// ─── Sizing + landing zone ────────────────────────────────────────────────
+// Layout reserves dead space around the gem based on these — changing any
+// requires a re-layout.
+export interface GemSizingConfig {
+  RADIUS_AS_STREET_FRAC: number;
+  MIN_RADIUS: number;
+  HOVER_LIFT_FRAC: number;
+  BUILDING_CLEARANCE: number;
+}
+
+export const GEM_SIZING = map<GemSizingConfig>({
+  RADIUS_AS_STREET_FRAC: 0.35, // gem radius = root street width × this
+  MIN_RADIUS: 5, // floor for narrow root streets
+  HOVER_LIFT_FRAC: 0.3, // gem hovers above road = radius × this
+  BUILDING_CLEARANCE: 20, // dead-space pad past the gem
+});
+
+// ─── Face palette ──────────────────────────────────────────────────────────
+// 8 vivid faces in a prismatic palette, spaced around the color wheel so
+// no face blends with nearby building colors. Each entry is [r, g, b] in
+// 0–1 range. Hot-reloadable.
+/** RGB triple in 0–1 range. */
+export type RgbTriple = [number, number, number];
+
+export const GEM_FACE_PALETTE = atom<RgbTriple[]>([
+  [1.0, 0.2, 0.55], // hot pink
+  [0.15, 0.9, 1.0], // cyan
+  [0.75, 1.0, 0.2], // chartreuse
+  [0.6, 0.25, 1.0], // violet
+  [1.0, 0.55, 0.1], // orange
+  [1.0, 0.2, 0.9], // magenta
+  [0.15, 1.0, 0.75], // aqua
+  [0.4, 1.0, 0.3], // lime
+]);
+
+// ─── Appearance ────────────────────────────────────────────────────────────
+// Edge color = neutral separator line drawn around the faces. Body opacity
+// keeps the gem semi-transparent so the colored faces have a jewel-like
+// quality (fully opaque feels like a plastic toy). Both hot-reloadable.
+export interface GemAppearanceConfig {
+  EDGE_COLOR: string;
+  BODY_OPACITY: number;
+}
+
+export const GEM_APPEARANCE = map<GemAppearanceConfig>({
+  EDGE_COLOR: '#f0f0ff',
+  BODY_OPACITY: 0.9,
+});
+
+// ─── Animation ─────────────────────────────────────────────────────────────
+// Read fresh each frame in the render loop, so changes apply immediately.
+export interface GemAnimationConfig {
+  ROTATION_SPEED: number;
+  BOB_FREQUENCY: number;
+  BOB_AMPLITUDE_FRAC: number;
+  HOVER_SCALE: number;
+  SCALE_LERP_SPEED: number;
+}
+
+export const GEM_ANIMATION = map<GemAnimationConfig>({
+  ROTATION_SPEED: 0.6, // radians/sec multiplier
+  BOB_FREQUENCY: 1.8, // bob cycles/sec multiplier
+  BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this
+  HOVER_SCALE: 1.25, // gem grows by this factor on hover
+  SCALE_LERP_SPEED: 0.18, // per-frame ease toward HOVER_SCALE
+});
