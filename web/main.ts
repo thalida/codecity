@@ -496,17 +496,19 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
-    const resp = await fetch(manifestUrl());
-    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
-    const manifest: Manifest = await resp.json();
-    // Hydrate every config store from localStorage BEFORE scene build so
-    // any user tweaks from prior sessions take effect during the initial
-    // layout/render.
+    // Hydrate every config store from localStorage BEFORE the initial
+    // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
+    // manifestUrl) reflects the user's persisted toggle from a prior
+    // session — otherwise the first paint ignores the saved value and
+    // only corrects itself on the next poll.
     attachPersistence(Config);
     // Picker's selectionKey atom isn't part of the Config barrel, so
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
     persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
+    const resp = await fetch(manifestUrl());
+    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
+    const manifest: Manifest = await resp.json();
     const handle = startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,

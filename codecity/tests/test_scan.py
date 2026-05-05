@@ -165,6 +165,34 @@ class ScanTreeIntegrationTests(unittest.TestCase):
         finally:
             untracked.unlink(missing_ok=True)
 
+    def test_include_all_returns_gitignored_files(self):
+        # Default scan: gitignored file is hidden (existing behavior).
+        # include_all=True: gitignored file appears in the tree.
+        # The fixture's .gitignore must list the path for git ls-files
+        # to drop it; we restore it after.
+        gitignore_path = FIXTURE / ".gitignore"
+        original_gitignore = gitignore_path.read_text() if gitignore_path.exists() else ""
+        ignored_file = FIXTURE / "ignored-include-all.txt"
+        ignored_file.write_text("hidden by .gitignore")
+        try:
+            gitignore_path.write_text(
+                original_gitignore + "\nignored-include-all.txt\n"
+            )
+
+            m_default = scan_tree(str(FIXTURE))
+            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
+            self.assertNotIn("ignored-include-all.txt", names_default)
+
+            m_all = scan_tree(str(FIXTURE), include_all=True)
+            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
+            self.assertIn("ignored-include-all.txt", names_all)
+        finally:
+            ignored_file.unlink(missing_ok=True)
+            if original_gitignore:
+                gitignore_path.write_text(original_gitignore)
+            else:
+                gitignore_path.unlink(missing_ok=True)
+
     def test_include_all_no_op_outside_git_repo(self):
         # In a non-git directory, the tracked-files filter never engages,
         # so include_all should be a no-op (signature + tree shape match).
