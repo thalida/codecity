@@ -303,17 +303,22 @@ def _collect_repo_info(root: Path) -> RepoInfo:
 
 # Directory names that get skipped even when include_all=True. Keeps
 # `Show all files` mode usable on a typical project — without this list
-# enabling include_all pulls in node_modules/, dist/, .venv/, etc. and
-# the city becomes useless noise.
+# enabling include_all pulls in node_modules/, .venv/, etc. and the
+# city becomes useless noise.
 #
 # .git/ is excluded separately (always, even with respect_skip_list=False)
 # because we never want to walk into the object database.
+#
+# We deliberately do NOT include generic names like "dist", "build", "out".
+# Those collide with legitimate source directories in real projects (CMake
+# build configs, audio "out" stems, hand-written `dist/` source trees).
+# Framework-specific build dirs (.next, .nuxt, etc.) are unambiguous and
+# stay in the list.
 ALWAYS_SKIP: frozenset[str] = frozenset({
     ".git", ".hg", ".svn",                          # VCS
     "node_modules",                                 # JS
     ".venv", "venv", "env", "__pycache__",          # Python
     "target", ".cargo",                             # Rust
-    "dist", "build", "out",                         # generic build outputs
     ".next", ".nuxt", ".svelte-kit",                # framework caches
     ".pytest_cache", ".mypy_cache", ".ruff_cache",
     ".tox", ".coverage", "htmlcov",                 # test/coverage
