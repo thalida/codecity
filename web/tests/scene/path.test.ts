@@ -6,14 +6,39 @@ import {
   streetEndOpposite,
 } from '../../scene/path.js';
 
+// Local minimal-shape type matches the StreetLike structural contract that
+// scene/path.ts reads (orientation, position, dimensions, dir.path).
+interface TestStreet {
+  x: number;
+  y: number;
+  length: number;
+  width: number;
+  orientation: 'x' | 'y';
+  dir: { path: string };
+}
+
 // Synthetic streets for chain tests. Layout:
 //   root (x-orientation, centerline at z=0, extends 0..L)
 //     ├─ src   (y-orientation, branches at x=200, extends 0..-100)
 //     │    └─ scene (x-orientation, branches at z=-50, extends 200..280)
 //     └─ tests (y-orientation, branches at x=400, extends 0..+100)
-const ROOT = { x: 250, y: 0, length: 500, width: 50, orientation: 'x', dir: { path: '.' } };
-const SRC = { x: 200, y: -50, length: 100, width: 30, orientation: 'y', dir: { path: 'src' } };
-const SCENE = {
+const ROOT: TestStreet = {
+  x: 250,
+  y: 0,
+  length: 500,
+  width: 50,
+  orientation: 'x',
+  dir: { path: '.' },
+};
+const SRC: TestStreet = {
+  x: 200,
+  y: -50,
+  length: 100,
+  width: 30,
+  orientation: 'y',
+  dir: { path: 'src' },
+};
+const SCENE: TestStreet = {
   x: 240,
   y: -50,
   length: 80,
@@ -21,9 +46,16 @@ const SCENE = {
   orientation: 'x',
   dir: { path: 'src/scene' },
 };
-const TESTS = { x: 400, y: 50, length: 100, width: 30, orientation: 'y', dir: { path: 'tests' } };
+const TESTS: TestStreet = {
+  x: 400,
+  y: 50,
+  length: 100,
+  width: 30,
+  orientation: 'y',
+  dir: { path: 'tests' },
+};
 
-const STREETS = {
+const STREETS: Record<string, TestStreet> = {
   '.': ROOT,
   src: SRC,
   'src/scene': SCENE,

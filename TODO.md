@@ -22,4 +22,6 @@
 - [ ] include repo information in center of footer
 - [ ] add file icon type to sidebar and roof of buildings
 - [ ] display images and videos as billboards? let users click to play billboard video
-- [ ]
+- [ ] identify and add something special to test files
+- [ ] python cli make it more professional
+- [ ] add back gitignore flag -- make it a user facing config option

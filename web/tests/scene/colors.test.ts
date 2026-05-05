@@ -7,26 +7,38 @@ import {
   getBuildingColor,
 } from '../../scene/colors.js';
 import { BUILDING_PALETTE } from '../../config/index.js';
+import type { BuildingPaletteConfig } from '../../config/building.js';
+import type { RangeStat } from '../../types';
 
 // Test palette + saturation/lightness ranges. Mutated into the
 // BUILDING_PALETTE store by beforeEach; restored by afterEach.
-const TEST_HUE_EXT_MAP = { '.ts': 215, '.js': 220, '.md': 275, '.json': 50, '.png': 30 };
-const TEST_SAT_RANGE = { min: 20, max: 100 };
-const TEST_LIGHT_RANGE = { min: 25, max: 70 };
+const TEST_HUE_EXT_MAP: Record<string, number> = {
+  '.ts': 215,
+  '.js': 220,
+  '.md': 275,
+  '.json': 50,
+  '.png': 30,
+};
+const TEST_SAT_RANGE: RangeStat = { min: 20, max: 100 };
+const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 
-let _origPalette = null;
+let _origPalette: BuildingPaletteConfig | null = null;
 beforeEach(() => {
   _origPalette = { ...BUILDING_PALETTE.get() };
-  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP as any);
+  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP);
   BUILDING_PALETTE.setKey('SATURATION_MIN', TEST_SAT_RANGE.min);
   BUILDING_PALETTE.setKey('SATURATION_MAX', TEST_SAT_RANGE.max);
   BUILDING_PALETTE.setKey('LIGHTNESS_MIN', TEST_LIGHT_RANGE.min);
   BUILDING_PALETTE.setKey('LIGHTNESS_MAX', TEST_LIGHT_RANGE.max);
 });
 afterEach(() => {
-  for (const [k, v] of Object.entries(_origPalette)) {
-    BUILDING_PALETTE.setKey(k as any, v as any);
-  }
+  if (!_origPalette) return;
+  const palette = _origPalette;
+  (Object.keys(palette) as Array<keyof BuildingPaletteConfig>).forEach((k) => {
+    // setKey is per-key typed; cast value to never to satisfy the union-of-fields
+    // dispatch (each key has its own value type and TS can't narrow both at once).
+    BUILDING_PALETTE.setKey(k, palette[k] as never);
+  });
 });
 
 const TEST_TREE = {

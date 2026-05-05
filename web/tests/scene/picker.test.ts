@@ -6,15 +6,35 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { createPicker, PICKER_SELECTION_KEY } from '../../scene/picker.js';
 import { NodeKind } from '../../types';
 
-// Minimal cityScene stub with the accessors picker actually reads.
-function makeFakeCityScene(initialBuildings, initialStreets) {
-  let buildingMap = {};
-  let streetMap = {};
-  let sidewalkMap = {};
-  const listeners = [];
-  const rootGem = null;
+// Minimal building / street fixture shapes for the fake scene.
+interface FakeBuildingFixture {
+  path: string;
+  mesh: object;
+}
+interface FakeStreetFixture {
+  path: string;
+  sidewalk: object;
+}
 
-  function setSnapshot(buildings, streets) {
+// Minimal cityScene stub with the accessors picker actually reads.
+function makeFakeCityScene(
+  initialBuildings: FakeBuildingFixture[],
+  initialStreets: FakeStreetFixture[]
+) {
+  let buildingMap: Record<
+    string,
+    { mesh: object; building: { file: { path: string; type: NodeKind } } }
+  > = {};
+  let streetMap: Record<
+    string,
+    { dir: { path: string }; length: number; width: number; x: number; y: number }
+  > = {};
+  let sidewalkMap: Record<string, object> = {};
+  const listeners: Array<(diff: { entering: object; exiting: object; staying: object }) => void> =
+    [];
+  const rootGem: null = null;
+
+  function setSnapshot(buildings: FakeBuildingFixture[], streets: FakeStreetFixture[]): void {
     buildingMap = {};
     streetMap = {};
     sidewalkMap = {};
@@ -49,16 +69,16 @@ function makeFakeCityScene(initialBuildings, initialStreets) {
     getRootGem() {
       return rootGem;
     },
-    getBuildingByPath(p) {
+    getBuildingByPath(p: string) {
       return buildingMap[p] || null;
     },
-    getSidewalkByDir(p) {
+    getSidewalkByDir(p: string) {
       return sidewalkMap[p] || null;
     },
-    getStreetByDir(p) {
+    getStreetByDir(p: string) {
       return streetMap[p] || null;
     },
-    onChange(cb) {
+    onChange(cb: (diff: { entering: object; exiting: object; staying: object }) => void) {
       listeners.push(cb);
       return function () {};
     },
@@ -66,7 +86,7 @@ function makeFakeCityScene(initialBuildings, initialStreets) {
   };
 }
 
-let canvas;
+let canvas: HTMLCanvasElement;
 beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;

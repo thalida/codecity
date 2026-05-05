@@ -9,7 +9,7 @@ describe('tooltip', () => {
 
   it('showTooltip creates a #hover-tooltip element with the text', () => {
     showTooltip('hello.ts', 100, 200);
-    const el = document.getElementById('hover-tooltip');
+    const el = document.getElementById('hover-tooltip')!;
     expect(el).not.toBeNull();
     expect(el.textContent).toBe('hello.ts');
     expect(el.style.display).toBe('block');
@@ -17,7 +17,7 @@ describe('tooltip', () => {
 
   it('showTooltip positions near the cursor with a default offset', () => {
     showTooltip('foo', 50, 60);
-    const el = document.getElementById('hover-tooltip');
+    const el = document.getElementById('hover-tooltip')!;
     expect(el.style.left).toBe('64px'); // 50 + 14
     expect(el.style.top).toBe('74px'); // 60 + 14
   });
@@ -29,7 +29,7 @@ describe('tooltip', () => {
   it('hideTooltip sets display:none', () => {
     showTooltip('x', 0, 0);
     hideTooltip();
-    const el = document.getElementById('hover-tooltip');
+    const el = document.getElementById('hover-tooltip')!;
     expect(el.style.display).toBe('none');
   });
 
@@ -37,7 +37,7 @@ describe('tooltip', () => {
     showTooltip('first', 0, 0);
     const first = document.getElementById('hover-tooltip');
     showTooltip('second', 0, 0);
-    const second = document.getElementById('hover-tooltip');
+    const second = document.getElementById('hover-tooltip')!;
     expect(first).toBe(second);
     expect(second.textContent).toBe('second');
   });

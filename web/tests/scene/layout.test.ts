@@ -7,8 +7,10 @@ import {
   computeLineStats,
 } from '../../scene/layout.js';
 import { BUILDING_DIMENSIONS } from '../../config/index.js';
+import type { BuildingDimensionsConfig } from '../../config/building.js';
+import type { StreetTier } from '../../config/street.js';
 
-const TEST_TIERS = [
+const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },
   { min_descendants: 4, width: 16 },
   { min_descendants: 9, width: 24 },
@@ -18,7 +20,7 @@ const TEST_TIERS = [
 
 // Test-time config for getBuildingDimensions / layoutCity. Mutated into
 // the BUILDING_DIMENSIONS store by beforeEach; restored by afterEach.
-const TEST_BUILDING_DIMS = {
+const TEST_BUILDING_DIMS: Partial<BuildingDimensionsConfig> = {
   MIN_FLOORS: 1,
   MAX_FLOORS: 30,
   FLOOR_HEIGHT: 10,
@@ -26,17 +28,19 @@ const TEST_BUILDING_DIMS = {
   MAX_WIDTH: 40,
 };
 
-let _origBuildingDims = null;
+let _origBuildingDims: BuildingDimensionsConfig | null = null;
 beforeEach(() => {
   _origBuildingDims = { ...BUILDING_DIMENSIONS.get() };
-  for (const [k, v] of Object.entries(TEST_BUILDING_DIMS)) {
-    BUILDING_DIMENSIONS.setKey(k as any, v as any);
-  }
+  (Object.keys(TEST_BUILDING_DIMS) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
+    BUILDING_DIMENSIONS.setKey(k, TEST_BUILDING_DIMS[k]!);
+  });
 });
 afterEach(() => {
-  for (const [k, v] of Object.entries(_origBuildingDims)) {
-    BUILDING_DIMENSIONS.setKey(k as any, v as any);
-  }
+  if (!_origBuildingDims) return;
+  const dims = _origBuildingDims;
+  (Object.keys(dims) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
+    BUILDING_DIMENSIONS.setKey(k, dims[k]);
+  });
 });
 
 const TEST_TREE = {

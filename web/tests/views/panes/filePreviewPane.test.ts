@@ -1,12 +1,13 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildFilePreviewPane } from '../../../views/panes/filePreviewPane.js';
 import { showRightSidebar, hideRightSidebar } from '../../../views/shell/rightSidebar.js';
+import type { FileNode } from '../../../types';
 
 function resetDom() {
   document.body.innerHTML = '<div id="sidebar"></div>';
 }
 
-const FILE_NODE = {
+const FILE_NODE: FileNode = {
   name: 'index.ts',
   type: 'file',
   path: 'src/index.ts',
@@ -14,6 +15,7 @@ const FILE_NODE = {
   extension: '.ts',
   size: 1536,
   lines: 50,
+  binary: false,
   created: '2024-01-10T09:00:00Z',
   modified: '2024-03-20T10:00:00Z',
   git: {
@@ -67,7 +69,7 @@ describe('showRightSidebar / hideRightSidebar', () => {
   it('mounts a pane and adds .open to #sidebar', () => {
     const { pane } = buildFilePreviewPane();
     showRightSidebar(pane);
-    expect(document.getElementById('sidebar').classList.contains('open')).toBe(true);
+    expect(document.getElementById('sidebar')!.classList.contains('open')).toBe(true);
     expect(document.querySelector('#sidebar .editor-body')).toBe(pane);
   });
 
@@ -92,7 +94,7 @@ describe('showRightSidebar / hideRightSidebar', () => {
     const { pane } = buildFilePreviewPane();
     showRightSidebar(pane);
     hideRightSidebar();
-    expect(document.getElementById('sidebar').classList.contains('open')).toBe(false);
+    expect(document.getElementById('sidebar')!.classList.contains('open')).toBe(false);
     expect(document.querySelector('#sidebar .editor-body')).toBe(pane);
   });
 

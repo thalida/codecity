@@ -5,12 +5,22 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createCityScene } from '../../scene/cityScene.js';
 import { BUILDING_DIMENSIONS, STREET_TIERS } from '../../config/index.js';
+import type { BuildingDimensionsConfig } from '../../config/building.js';
+import type { StreetTier } from '../../config/street.js';
+import type { FileNode, Manifest } from '../../types';
+
+interface ManifestFileSpec {
+  path: string;
+  size: number;
+  lines: number;
+  ext?: string;
+}
 
 // Smallest manifest that exercises buildings + streets + a child dir.
-function makeManifest(name, files) {
+function makeManifest(name: string, files: ManifestFileSpec[]): Manifest {
   // files: [{ path, size, lines, ext }, …]
-  const children = files.map((f) => ({
-    name: f.path.split('/').pop(),
+  const children: FileNode[] = files.map((f) => ({
+    name: f.path.split('/').pop() || f.path,
     type: 'file',
     path: f.path,
     fullPath: `/${f.path}`,
@@ -45,25 +55,30 @@ function makeManifest(name, files) {
 
 // Minimal building-dimension config so layoutCity has knobs to read
 // without needing the full app boot.
-const TEST_DIMS = {
+const TEST_DIMS: Partial<BuildingDimensionsConfig> = {
   MIN_FLOORS: 1,
   MAX_FLOORS: 5,
   FLOOR_HEIGHT: 10,
   MIN_WIDTH: 4,
   MAX_WIDTH: 12,
 };
-const TEST_TIERS = [{ min_descendants: 0, width: 10 }];
+const TEST_TIERS: StreetTier[] = [{ min_descendants: 0, width: 10 }];
 
 // Stub 2D canvas context — jsdom returns null from getContext('2d') and
 // engine.js uses it for label texture generation. Just enough surface
 // for createStreetLabels to run without throwing; we don't assert on
 // pixel output.
 function _stubCanvasContext() {
-  const proto = HTMLCanvasElement.prototype as any;
+  // Genuinely monkey-patching the prototype — `as any` is intentional so
+  // we can stamp our own sentinel + replace getContext.
+  const proto = HTMLCanvasElement.prototype as unknown as {
+    __codecityStubbed?: boolean;
+    getContext: HTMLCanvasElement['getContext'];
+  };
   if (proto.__codecityStubbed) return;
   proto.__codecityStubbed = true;
   const orig = proto.getContext;
-  proto.getContext = function (type) {
+  proto.getContext = function (type: string) {
     if (type === '2d') {
       const noop = () => {};
       const getImageData = () => ({ data: new Uint8ClampedArray(4) });
@@ -78,7 +93,7 @@ function _stubCanvasContext() {
           globalAlpha: 1,
           globalCompositeOperation: 'source-over',
           canvas: { width: 256, height: 64 },
-          measureText: (text) => ({
+          measureText: (text: string) => ({
             width: text.length * 6,
             actualBoundingBoxAscent: 8,
             actualBoundingBoxDescent: 2,
@@ -86,16 +101,16 @@ function _stubCanvasContext() {
           getImageData,
           createImageData: () => ({ data: new Uint8ClampedArray(4) }),
           putImageData: noop,
-        },
+        } as Record<string, unknown>,
         {
           // Any method we haven't defined falls through as a noop. Saves
           // listing every Canvas2D rendering call (strokeRect, fillRect,
           // beginPath, drawImage, etc.) one by one.
-          get(target, prop) {
+          get(target, prop: string) {
             if (prop in target) return target[prop];
             return noop;
           },
-          set(target, prop, value) {
+          set(target, prop: string, value) {
             target[prop] = value;
             return true;
           },
@@ -103,25 +118,32 @@ function _stubCanvasContext() {
       );
     }
     return orig ? orig.call(this, type) : null;
-  };
+  } as HTMLCanvasElement['getContext'];
 }
 
-let _origDims = null;
-let _origTiers = null;
-let canvas = null;
+let _origDims: BuildingDimensionsConfig | null = null;
+let _origTiers: StreetTier[] | null = null;
+let canvas: HTMLCanvasElement;
 
 beforeEach(() => {
   _stubCanvasContext();
   _origDims = { ...BUILDING_DIMENSIONS.get() };
   _origTiers = STREET_TIERS.get();
-  for (const [k, v] of Object.entries(TEST_DIMS)) BUILDING_DIMENSIONS.setKey(k as any, v);
+  (Object.keys(TEST_DIMS) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
+    BUILDING_DIMENSIONS.setKey(k, TEST_DIMS[k]!);
+  });
   STREET_TIERS.set(TEST_TIERS); // STREET_TIERS is an atom(), not a map()
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
 });
 afterEach(() => {
-  for (const [k, v] of Object.entries(_origDims)) BUILDING_DIMENSIONS.setKey(k as any, v as any);
+  if (_origDims) {
+    const dims = _origDims;
+    (Object.keys(dims) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
+      BUILDING_DIMENSIONS.setKey(k, dims[k]);
+    });
+  }
   if (_origTiers) STREET_TIERS.set(_origTiers);
 });
 

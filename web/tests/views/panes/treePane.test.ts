@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildTree, buildTreePane } from '../../../views/panes/treePane.js';
+import type { TreeNode } from '../../../types';
 
 const TEST_TREE = {
   name: 'project',
@@ -160,7 +161,7 @@ describe('buildTreePane', () => {
     expect(title).not.toBeNull();
     // Generic section label, not the project name (root is rendered as a
     // folder below — duplicating the name in the header would be redundant).
-    expect(title.textContent).toBe('Explorer');
+    expect(title!.textContent).toBe('Explorer');
 
     const items = bundle.pane.querySelectorAll<HTMLLIElement>('.tree-item');
     expect(items.length).toBeGreaterThan(0);
@@ -171,7 +172,7 @@ describe('buildTreePane', () => {
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const bundle = buildTreePane(TEST_TREE);
     const title = bundle.pane.querySelector('.tree-title');
-    expect(title.textContent).toBe('Explorer');
+    expect(title!.textContent).toBe('Explorer');
   });
 
   it('renders the manifest root as a top-level folder', () => {
@@ -183,7 +184,7 @@ describe('buildTreePane', () => {
     expect(topLevelItems.length).toBe(1);
     expect(topLevelItems[0].classList.contains('tree-dir')).toBe(true);
     expect(topLevelItems[0].dataset.path).toBe('.');
-    expect(topLevelItems[0].querySelector(':scope > .tree-row > .tree-label').textContent).toBe(
+    expect(topLevelItems[0].querySelector(':scope > .tree-row > .tree-label')!.textContent).toBe(
       'project'
     );
   });
@@ -197,57 +198,57 @@ describe('buildTreePane', () => {
   });
 
   it('row click invokes onSelect with the node', () => {
-    let picked = null;
+    let picked: TreeNode | null = null;
     const bundle = buildTreePane(TEST_TREE, {
       onSelect(node) {
         picked = node;
       },
     });
-    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row')!;
     fileRow.click();
     expect(picked).not.toBeNull();
-    expect(picked.type).toBe('file');
+    expect(picked!.type).toBe('file');
   });
 
   it('row dblclick invokes onFocus with the node', () => {
-    let focused = null;
+    let focused: TreeNode | null = null;
     const bundle = buildTreePane(TEST_TREE, {
       onFocus(node) {
         focused = node;
       },
     });
-    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row')!;
     const ev = new window.MouseEvent('dblclick', { bubbles: true, cancelable: true });
     fileRow.dispatchEvent(ev);
     expect(focused).not.toBeNull();
-    expect(focused.type).toBe('file');
+    expect(focused!.type).toBe('file');
   });
 
   it('setSelectedPath highlights the matching row and expands ancestors', () => {
     const bundle = buildTreePane(TEST_TREE);
     bundle.api.setSelectedPath('src/utils.ts');
 
-    const srcDir = bundle.pane.querySelector('[data-path="src"]');
+    const srcDir = bundle.pane.querySelector('[data-path="src"]')!;
     expect(srcDir.classList.contains('tree-expanded')).toBe(true);
 
-    const leaf = bundle.pane.querySelector('[data-path="src/utils.ts"]');
+    const leaf = bundle.pane.querySelector('[data-path="src/utils.ts"]')!;
     expect(leaf.classList.contains('tree-selected')).toBe(true);
   });
 
   it('setSelectedPath(null) clears the highlight and collapses non-root branches', () => {
     const bundle = buildTreePane(TEST_TREE);
     bundle.api.setSelectedPath('src/utils.ts');
-    expect(bundle.pane.querySelector('[data-path="src"]').classList.contains('tree-expanded')).toBe(
-      true
-    );
+    expect(
+      bundle.pane.querySelector('[data-path="src"]')!.classList.contains('tree-expanded')
+    ).toBe(true);
 
     bundle.api.setSelectedPath(null);
     expect(bundle.pane.querySelectorAll('.tree-selected').length).toBe(0);
     // Root stays open as the project's entry point; everything else collapses.
     expect(
-      bundle.pane.querySelector('[data-path="src"]').classList.contains('tree-collapsed')
+      bundle.pane.querySelector('[data-path="src"]')!.classList.contains('tree-collapsed')
     ).toBe(true);
-    expect(bundle.pane.querySelector('[data-path="."]').classList.contains('tree-expanded')).toBe(
+    expect(bundle.pane.querySelector('[data-path="."]')!.classList.contains('tree-expanded')).toBe(
       true
     );
   });
@@ -276,19 +277,19 @@ describe('buildTreePane', () => {
     };
     const bundle = buildTreePane(multiBranch);
     bundle.api.setSelectedPath('a/a1.ts');
-    expect(bundle.pane.querySelector('[data-path="a"]').classList.contains('tree-expanded')).toBe(
+    expect(bundle.pane.querySelector('[data-path="a"]')!.classList.contains('tree-expanded')).toBe(
       true
     );
-    expect(bundle.pane.querySelector('[data-path="b"]').classList.contains('tree-collapsed')).toBe(
+    expect(bundle.pane.querySelector('[data-path="b"]')!.classList.contains('tree-collapsed')).toBe(
       true
     );
 
     // Switching to the other branch — `a` must close, `b` must open.
     bundle.api.setSelectedPath('b/b1.ts');
-    expect(bundle.pane.querySelector('[data-path="b"]').classList.contains('tree-expanded')).toBe(
+    expect(bundle.pane.querySelector('[data-path="b"]')!.classList.contains('tree-expanded')).toBe(
       true
     );
-    expect(bundle.pane.querySelector('[data-path="a"]').classList.contains('tree-collapsed')).toBe(
+    expect(bundle.pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(
       true
     );
   });
@@ -322,22 +323,22 @@ describe('buildTreePane', () => {
     )!;
 
     chevA.click();
-    expect(bundle.pane.querySelector('[data-path="a"]').classList.contains('tree-expanded')).toBe(
+    expect(bundle.pane.querySelector('[data-path="a"]')!.classList.contains('tree-expanded')).toBe(
       true
     );
 
     chevB.click();
-    expect(bundle.pane.querySelector('[data-path="b"]').classList.contains('tree-expanded')).toBe(
+    expect(bundle.pane.querySelector('[data-path="b"]')!.classList.contains('tree-expanded')).toBe(
       true
     );
-    expect(bundle.pane.querySelector('[data-path="a"]').classList.contains('tree-collapsed')).toBe(
+    expect(bundle.pane.querySelector('[data-path="a"]')!.classList.contains('tree-collapsed')).toBe(
       true
     );
   });
 
   it('row mouseenter/mouseleave invoke onHover / onHoverEnd', () => {
-    let hovered = null;
-    let ended = null;
+    let hovered: TreeNode | null = null;
+    let ended: TreeNode | null = null;
     const bundle = buildTreePane(TEST_TREE, {
       onHover(node) {
         hovered = node;
@@ -346,10 +347,10 @@ describe('buildTreePane', () => {
         ended = node;
       },
     });
-    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row');
+    const fileRow = bundle.pane.querySelector<HTMLElement>('.tree-file > .tree-row')!;
     fileRow.dispatchEvent(new window.MouseEvent('mouseenter', { bubbles: false }));
     expect(hovered).not.toBeNull();
-    expect(hovered.type).toBe('file');
+    expect(hovered!.type).toBe('file');
 
     fileRow.dispatchEvent(new window.MouseEvent('mouseleave', { bubbles: false }));
     expect(ended).not.toBeNull();
@@ -359,7 +360,7 @@ describe('buildTreePane', () => {
     const bundle = buildTreePane(TEST_TREE);
     bundle.api.setHoveredPath('index.ts');
     expect(
-      bundle.pane.querySelector('[data-path="index.ts"]').classList.contains('tree-hovered')
+      bundle.pane.querySelector('[data-path="index.ts"]')!.classList.contains('tree-hovered')
     ).toBe(true);
 
     bundle.api.setHoveredPath(null);
@@ -370,7 +371,7 @@ describe('buildTreePane', () => {
     // Hover is a transient cosmetic mirror — it must not fight the
     // single-branch-open rule that selection enforces.
     const bundle = buildTreePane(TEST_TREE);
-    const srcDir = bundle.pane.querySelector('[data-path="src"]');
+    const srcDir = bundle.pane.querySelector('[data-path="src"]')!;
     expect(srcDir.classList.contains('tree-collapsed')).toBe(true);
 
     bundle.api.setHoveredPath('src/utils.ts');
