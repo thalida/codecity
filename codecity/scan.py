@@ -547,6 +547,7 @@ def _walk_for_signature(
     is_git_repo: bool,
     tracked_files: set[str],
     include_all: bool,
+    respect_skip_list: bool,
     sig: Any,
 ) -> None:
     """Stat-only walk that feeds the live signature without building nodes.
@@ -562,7 +563,7 @@ def _walk_for_signature(
         return
 
     for entry in entries:
-        if entry.name == ".git":
+        if _should_skip(entry.name, respect_skip_list=respect_skip_list):
             continue
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
         if is_git_repo and not include_all and entry_rel not in tracked_files:
@@ -576,11 +577,17 @@ def _walk_for_signature(
                 is_git_repo=is_git_repo,
                 tracked_files=tracked_files,
                 include_all=include_all,
+                respect_skip_list=respect_skip_list,
                 sig=sig,
             )
 
 
-def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse:
+def signature_tree(
+    root: str,
+    *,
+    include_all: bool = False,
+    respect_skip_list: bool = True,
+) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
     but without building the full manifest.
 
@@ -612,6 +619,7 @@ def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse
         is_git_repo=is_git_repo,
         tracked_files=tracked_files,
         include_all=include_all,
+        respect_skip_list=respect_skip_list,
         sig=sig,
     )
     if repo_info is not None:

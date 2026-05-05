@@ -311,6 +311,30 @@ class SignatureTreeTests(unittest.TestCase):
         finally:
             untracked.unlink(missing_ok=True)
 
+    def test_signature_honors_respect_skip_list(self):
+        # Parity contract: signature_tree must agree with scan_tree on
+        # both respect_skip_list values.
+        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
+        nm_dir.mkdir(parents=True, exist_ok=True)
+        nm_file = nm_dir / "index.js"
+        nm_file.write_text("module.exports = {};")
+        try:
+            m1 = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=True)
+            s1 = signature_tree(str(FIXTURE), include_all=True, respect_skip_list=True)
+            self.assertEqual(s1["signature"], m1["signature"])
+
+            m2 = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
+            s2 = signature_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
+            self.assertEqual(s2["signature"], m2["signature"])
+
+            # And the two modes must produce different signatures (otherwise
+            # the toggle wouldn't trigger a reload).
+            self.assertNotEqual(s1["signature"], s2["signature"])
+        finally:
+            nm_file.unlink(missing_ok=True)
+            nm_dir.rmdir()
+            (FIXTURE / "node_modules").rmdir()
+
 
 def _walk_files(node):
     """Yield every file node in the tree."""
