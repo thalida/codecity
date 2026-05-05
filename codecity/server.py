@@ -93,6 +93,14 @@ def _resolve_clone(url: str, branch: str | None) -> Path:
         return ensure_clone(url, branch)
 
 
+def _parse_include_all(query: str) -> bool:
+    """Parse ?include_all=… as a boolean. Strict: only 'true' (any case)
+    and '1' count as on; absent or anything else is off. Used by both
+    /api/manifest and /api/manifest/signature."""
+    raw = parse_qs(query).get("include_all", [""])[0].strip().lower()
+    return raw in ("true", "1")
+
+
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
 ) -> Path | None:
@@ -147,9 +155,10 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     scan_target = _resolve_scan_target(handler, query)
     if scan_target is None:
         return
+    include_all = _parse_include_all(query)
 
     try:
-        manifest = scan_tree(str(scan_target))
+        manifest = scan_tree(str(scan_target), include_all=include_all)
     except Exception as e:  # pylint: disable=broad-except
         _send_json(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"scan failed: {e}"})
         return
@@ -169,9 +178,10 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     scan_target = _resolve_scan_target(handler, query)
     if scan_target is None:
         return
+    include_all = _parse_include_all(query)
 
     try:
-        sig = signature_tree(str(scan_target))
+        sig = signature_tree(str(scan_target), include_all=include_all)
     except Exception as e:  # pylint: disable=broad-except
         _send_json(
             handler,

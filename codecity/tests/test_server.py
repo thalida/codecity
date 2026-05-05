@@ -139,6 +139,94 @@ class ServerTests(unittest.TestCase):
         resp = conn.getresponse()
         self.assertIn(resp.status, (HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND))
 
+    def test_manifest_route_honors_include_all(self) -> None:
+        # Add an untracked file by initializing the project as a git repo
+        # and committing only README.md — anything else is "untracked",
+        # which the default scan filters out.
+        import subprocess
+        subprocess.run(
+            ["git", "-C", str(self.project), "init", "-q"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.name", "t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", "README.md"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
+            check=True,
+        )
+        (self.project / "untracked.txt").write_text("hidden by default")
+
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        _, body_default, _ = _get(self.base + f"/api/manifest?{q}")
+        names_default = [
+            c["name"] for c in json.loads(body_default)["tree"]["children"]
+        ]
+        self.assertNotIn("untracked.txt", names_default)
+
+        q_all = urllib.parse.urlencode(
+            {"path": str(self.project), "include_all": "true"}
+        )
+        _, body_all, _ = _get(self.base + f"/api/manifest?{q_all}")
+        names_all = [c["name"] for c in json.loads(body_all)["tree"]["children"]]
+        self.assertIn("untracked.txt", names_all)
+
+    def test_signature_route_honors_include_all(self) -> None:
+        # Reuses the project setup from the previous test — set up inline
+        # so this test runs independently if the order changes.
+        import subprocess
+        subprocess.run(
+            ["git", "-C", str(self.project), "init", "-q"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.name", "t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", "README.md"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
+            check=True,
+        )
+        (self.project / "untracked.txt").write_text("hidden by default")
+
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        _, body_default, _ = _get(self.base + f"/api/manifest/signature?{q}")
+        sig_default = json.loads(body_default)["signature"]
+
+        q_all = urllib.parse.urlencode(
+            {"path": str(self.project), "include_all": "true"}
+        )
+        _, body_all, _ = _get(self.base + f"/api/manifest/signature?{q_all}")
+        sig_all = json.loads(body_all)["signature"]
+
+        self.assertNotEqual(sig_default, sig_all)
+
+    def test_include_all_truthy_parsing(self) -> None:
+        # Accept 'true' (any case) and '1' as truthy; everything else
+        # (including absent) is false.
+        from codecity.server import _parse_include_all
+        self.assertTrue(_parse_include_all("include_all=true"))
+        self.assertTrue(_parse_include_all("include_all=TRUE"))
+        self.assertTrue(_parse_include_all("include_all=1"))
+        self.assertFalse(_parse_include_all("include_all=false"))
+        self.assertFalse(_parse_include_all("include_all=0"))
+        self.assertFalse(_parse_include_all("include_all=yes"))  # strict
+        self.assertFalse(_parse_include_all(""))
+        self.assertFalse(_parse_include_all("path=/tmp"))
+
 
 class FileApiTests(unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
