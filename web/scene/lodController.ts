@@ -54,6 +54,7 @@ export function createLodController(blocks: SceneBlock[], camera: THREE.Camera) 
       if (allBehindCamera) {
         block.detailMesh.visible = false;
         block.placeholderMesh.visible = false;
+        if (block.labelsMesh) block.labelsMesh.visible = false;
         block.lodCurrent = 'hidden';
         continue;
       }
@@ -70,10 +71,12 @@ export function createLodController(blocks: SceneBlock[], camera: THREE.Camera) 
       if (targetState === 'detail') {
         block.detailMesh.visible = true;
         block.placeholderMesh.visible = false;
+        if (block.labelsMesh) block.labelsMesh.visible = true;
         block.lodCurrent = 'detail';
       } else {
         block.detailMesh.visible = false;
         block.placeholderMesh.visible = true;
+        if (block.labelsMesh) block.labelsMesh.visible = false;
         block.lodCurrent = 'placeholder';
       }
     }
