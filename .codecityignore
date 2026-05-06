@@ -1,0 +1,12 @@
+# Per-project skip list for the codecity scanner. Augments the
+# hardcoded ALWAYS_SKIP set (node_modules, .venv, .git, etc.).
+#
+# Format:
+#   - Bare names match any dir/file with that name in the tree.
+#   - Lines containing '/' are relative-path matches anchored to repo root.
+#   - Lines starting with '#' are comments. Blank lines ignored.
+
+# Synthetic benchmark fixtures — gitignored, but surface under
+# `Show all files`. Hide them so the city stays focused on the codebase.
+codecity/tests/fixtures/large-repo
+codecity/tests/fixtures/sample-repo
