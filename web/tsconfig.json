@@ -32,5 +32,5 @@
     }
   },
   "include": ["**/*.js", "**/*.ts", "tests/**/*"],
-  "exclude": ["node_modules", "../codecity/static"]
+  "exclude": ["node_modules", "../codecity/static", "tests/visual/**/*"]
 }

@@ -5,7 +5,7 @@
 import { writeFileSync, mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { setupHarness, POSES } from './setup.js';
+import { setupHarness, makePoses } from './setup.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -16,7 +16,10 @@ const OUT_DIR = resolve(__dirname, 'references');
   mkdirSync(OUT_DIR, { recursive: true });
   const h = await setupHarness();
   try {
-    for (const { name, pose } of POSES) {
+    // I4: use makePoses() to get a top-down pose that targets the actual
+    // scene centre (read from __rig after the city has loaded), not world origin.
+    const poses = await makePoses(h.page);
+    for (const { name, pose } of poses) {
       await h.setCamera(pose);
       const png = await h.snapshot();
       writeFileSync(resolve(OUT_DIR, `${name}.png`), png);

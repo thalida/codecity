@@ -39,13 +39,28 @@ export async function setupHarness(port = 18765): Promise<VisualHarness> {
     { cwd: REPO_ROOT, stdio: ['ignore', 'pipe', 'pipe'] }
   );
   // Wait for "[codecity] serving on" line.
+  // C1 fix: clear the timeout on success so the event loop is not held open;
+  // kill the process + reject on both timeout and unexpected early exit so no
+  // zombie is left behind when something goes wrong.
   await new Promise<void>((res, rej) => {
     let buf = '';
-    server.stderr!.on('data', (chunk) => {
+    const timeout = setTimeout(() => {
+      server.kill('SIGTERM');
+      rej(new Error('server boot timeout'));
+    }, 5000);
+    const onData = (chunk: Buffer | string) => {
       buf += chunk.toString();
-      if (buf.includes('[codecity] serving on')) res();
+      if (buf.includes('[codecity] serving on')) {
+        clearTimeout(timeout);
+        server.stderr!.off('data', onData);
+        res();
+      }
+    };
+    server.stderr!.on('data', onData);
+    server.once('exit', (code) => {
+      clearTimeout(timeout);
+      rej(new Error(`server exited with code ${code} before ready: ${buf}`));
     });
-    setTimeout(() => rej(new Error('server boot timeout')), 5000);
   });
 
   const browser = await puppeteer.launch({
@@ -56,17 +71,32 @@ export async function setupHarness(port = 18765): Promise<VisualHarness> {
   });
   const page = await browser.newPage();
   await page.goto(`http://127.0.0.1:${port}/?path=${encodeURIComponent(FIXTURE_PATH)}`);
-  // Wait for the canvas to render at least once.
-  await page.waitForFunction(
-    () => !!document.querySelector('canvas')?.getContext('webgl2'),
-    { timeout: 5000 }
-  );
+
+  // I3 fix: wait for window.__rig (set in main.ts after startRenderLoop, which
+  // runs AFTER the manifest fetch + cityScene.applyManifest). Checking
+  // __rig.controls.target confirms OrbitControls is fully initialised.
+  // This is strictly stronger than just waiting for WebGL2 context, which
+  // resolves as soon as Three.js initialises — well before buildings are in
+  // the scene.
+  await page.waitForFunction(() => {
+    const w = window as any;
+    return !!document.querySelector('canvas')?.getContext('webgl2')
+        && !!w.__rig?.controls?.target;
+  }, { timeout: 10000 });
+
   // Freeze the gem-bob / rotation clock for deterministic captures.
-  // performance.now() is used only for time-driven animation (gem rotation
-  // speed, bob frequency) — pinning it to a fixed value stops those effects
-  // while leaving requestAnimationFrame and the main render loop running
-  // normally. The page continues to re-render; we're just freezing the
-  // animation state at t=1s.
+  // The gem animation in main.ts computes:
+  //   const t = (performance.now() - startTime) / 1000
+  // where `startTime` is captured at render-loop boot. Pinning
+  // performance.now() to a fixed value freezes t so gem rotation and bob
+  // are deterministic across runs.
+  //
+  // WARNING for future test authors: cameraRig.ts _animateCamera() also uses
+  // performance.now() to drive its LERP. With the freeze in place, calling
+  // rig.reset() or rig.focusBuilding() after this point would compute
+  // elapsed=0 forever and hang the rAF loop. Do NOT call those methods after
+  // this freeze — setCamera() directly assigns camera.position/controls.target
+  // and bypasses _animateCamera, so it is safe.
   await page.evaluate(() => {
     (window as any).performance.now = () => 1000;
   });
@@ -91,19 +121,55 @@ export async function setupHarness(port = 18765): Promise<VisualHarness> {
     return Buffer.from(await page.screenshot({ type: 'png' }));
   }
 
+  // C2 fix: use try/finally so the server is always killed even if
+  // browser.close() throws (e.g. if the browser was already disconnected).
   async function teardown(): Promise<void> {
-    await browser.close();
-    server.kill('SIGTERM');
+    try { await browser.close(); } finally { server.kill('SIGTERM'); }
   }
 
   return { browser, page, server, port, setCamera, snapshot, teardown };
 }
 
+// I4 fix: top-down pose reads the scene's auto-framed center from __rig
+// so the camera is directly above the actual city, not world origin.
+// orbit-30 and close-block are content-rich enough that they show buildings
+// regardless of the exact city offset.
+export async function makePoses(page: Page): Promise<CameraPose[]> {
+  const center = await page.evaluate(() => {
+    const r = (window as any).__rig;
+    return {
+      tX: r.controls.target.x as number,
+      tY: r.controls.target.y as number,
+      tZ: r.controls.target.z as number,
+    };
+  });
+
+  return [
+    // Top-down — positioned directly above the scene's auto-framed centre so
+    // the whole city is visible. Before this fix the target was world-origin
+    // and the render was mostly black.
+    {
+      name: 'top-down',
+      pose: {
+        posX: center.tX,
+        posY: 200,
+        posZ: center.tZ + 0.01,
+        tX: center.tX,
+        tY: center.tY,
+        tZ: center.tZ,
+      },
+    },
+    // 30° orbit — the typical first view.
+    { name: 'orbit-30', pose: { posX: 80, posY: 100, posZ: 80, tX: 0, tY: 0, tZ: 0 } },
+    // Close-up on one block — exposes window/door detail.
+    { name: 'close-block', pose: { posX: 15, posY: 25, posZ: 15, tX: 5, tY: 0, tZ: 5 } },
+  ];
+}
+
+// Legacy static export kept for callers that don't need the dynamic top-down
+// fix. capture-references.ts now uses makePoses() instead.
 export const POSES: CameraPose[] = [
-  // Top-down — sees the whole city.
   { name: 'top-down', pose: { posX: 0, posY: 200, posZ: 0.01, tX: 0, tY: 0, tZ: 0 } },
-  // 30° orbit — the typical first view.
   { name: 'orbit-30', pose: { posX: 80, posY: 100, posZ: 80, tX: 0, tY: 0, tZ: 0 } },
-  // Close-up on one block — exposes window/door detail.
   { name: 'close-block', pose: { posX: 15, posY: 25, posZ: 15, tX: 5, tY: 0, tZ: 5 } },
 ];

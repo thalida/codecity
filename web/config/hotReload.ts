@@ -50,7 +50,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // trigger a wasteful rebuild.
   let armed = false;
 
-  let rebuildTimer = 0;
+  let rebuildTimer: ReturnType<typeof setTimeout> | 0 = 0;
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);

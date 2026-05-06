@@ -52,7 +52,7 @@ export function createInputHandlers({
   let _hoverRafId = 0;
   let _hoverLastEvt = null;
   let _hoverPending = null;
-  let _hoverCommitId = 0;
+  let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
   function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;

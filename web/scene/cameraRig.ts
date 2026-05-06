@@ -73,7 +73,7 @@ export function createCameraRig({
   let initialCamPos: THREE.Vector3 | null = null;
   let initialTarget: THREE.Vector3 | null = null;
 
-  let _saveCameraTimer = 0;
+  let _saveCameraTimer: ReturnType<typeof setTimeout> | 0 = 0;
   let _changeListenerAttached = false;
 
   function _saveCameraPose() {
