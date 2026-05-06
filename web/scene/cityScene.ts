@@ -66,6 +66,7 @@ import type { SceneBlock } from './blocks.js';
 // applyManifest, used by the diff and the change-listener payload.
 interface PrevState {
   buildings: THREE.Object3D[];
+  blocks: SceneBlock[];
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
   pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
@@ -328,17 +329,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     }
   }
 
-  // Task 8: _computeDiff is simplified. The old per-building mesh diff is
-  // stubbed out; the diff payload carries empty buckets for buildings since
-  // animator (Task 9) will be rewritten to diff at the block / instance level.
-  // Street diff is preserved since streets are still per-mesh.
+  // Task 9: _computeDiff compares prev blocks vs new blocks at the
+  // per-instance (file.path key) level, producing entering / staying /
+  // exiting buckets that the animator uses to write instance matrices.
   //
-  // TODO(Task 9): rewrite this entire function for InstancedMesh semantics.
-  function _computeDiff(
-    prev: PrevState,
-  ): CitySceneDiff {
-    // Buildings diff: stub out — animator (Task 9) rewrites this.
-    // Return empty buckets so existing subscribers don't crash.
+  // Prev block transforms are read HERE (before _disposeAllManifestState
+  // is called) because disposal zeroes block.detailMesh. The snapshot is
+  // captured in PrevState.blocks — the array reference is stable across
+  // the disposal because we replace the module-level `blocks` binding
+  // but the snapshot still points at the old array.
+  function _computeDiff(prev: PrevState): CitySceneDiff {
     const entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] } = {
       buildings: [],
       streets: [],
@@ -352,13 +352,115 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       streets: [],
     };
 
-    // Street diff — still per-mesh, keep this working.
+    // --- Buildings diff (InstancedMesh semantics) ---
+    //
+    // Build a map from file.path → prior transform (scale + position)
+    // from the PREVIOUS blocks. We read the instance matrix directly from
+    // detailMesh to capture whatever the animator left it at (so a
+    // rapid edit doesn't snap to the layout position).
+    const prevTransforms = new Map<
+      string,
+      { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
+    >();
+    const _readMatrix = new THREE.Matrix4();
+    const _pos = new THREE.Vector3();
+    const _scale = new THREE.Vector3();
+    const _quat = new THREE.Quaternion();
+    for (const pb of prev.blocks) {
+      for (let i = 0; i < pb.buildings.length; i++) {
+        const b = pb.buildings[i];
+        if (!b.file?.path) continue;
+        if (pb.detailMesh) {
+          pb.detailMesh.getMatrixAt(i, _readMatrix);
+          _readMatrix.decompose(_pos, _quat, _scale);
+          prevTransforms.set(b.file.path, {
+            scaleX: _scale.x,
+            scaleY: _scale.y,
+            scaleZ: _scale.z,
+            posX: _pos.x,
+            posY: _pos.y,
+            posZ: _pos.z,
+          });
+        } else {
+          // No mesh (block was empty / not yet built): record layout values
+          // so staying buildings get a sensible from-transform.
+          prevTransforms.set(b.file.path, {
+            scaleX: b.w,
+            scaleY: b.h,
+            scaleZ: b.d,
+            posX: b.x,
+            posY: b.h / 2,
+            posZ: b.y,
+          });
+        }
+      }
+    }
+
+    // Walk new blocks and classify each instance as entering or staying.
+    for (const nb of blocks) {
+      for (let i = 0; i < nb.buildings.length; i++) {
+        const b = nb.buildings[i];
+        const newScaleX = b.w;
+        const newScaleY = b.h;
+        const newScaleZ = b.d;
+        const newPosX = b.x;
+        const newPosY = b.h / 2;
+        const newPosZ = b.y;
+
+        const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+        if (prior) {
+          staying.buildings.push({
+            block: nb,
+            instanceId: i,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+            oldScaleX: prior.scaleX,
+            oldScaleY: prior.scaleY,
+            oldScaleZ: prior.scaleZ,
+            oldPosX: prior.posX,
+            oldPosY: prior.posY,
+            oldPosZ: prior.posZ,
+          });
+        } else {
+          entering.buildings.push({
+            block: nb,
+            instanceId: i,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+          });
+        }
+      }
+    }
+
+    // Exiting buildings: paths present in prev but absent from new.
+    // V1: no exit animation — they just vanish when blocks are rebuilt.
+    // We still populate the exiting bucket so subscribers can track counts.
+    const newPaths = new Set<string>();
+    for (const nb of blocks) {
+      for (const b of nb.buildings) {
+        if (b.file?.path) newPaths.add(b.file.path);
+      }
+    }
+    for (const [path] of prevTransforms) {
+      if (!newPaths.has(path)) {
+        exiting.buildings.push({});
+      }
+    }
+
+    // --- Streets diff (still per-mesh) ---
     const prevStreets: Record<string, THREE.Mesh> = {};
     for (const sw of prev.streetPickables ?? []) {
       const dp = sw.userData.street?.dir?.path;
       if (dp != null) prevStreets[dp] = sw;
     }
-
     for (const nsw of streetPickables) {
       const ndp = nsw.userData.street?.dir?.path;
       if (ndp == null) continue;
@@ -385,6 +487,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): void {
     const prev: PrevState = {
       buildings: buildingMeshes,
+      blocks,
       streetPickables,
       streetLabels,
       pathMeshes,

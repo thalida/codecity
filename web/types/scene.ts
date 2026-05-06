@@ -5,6 +5,7 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { FileStats, RangeStat } from './manifest';
+import type { SceneBlock } from '../scene/blocks';
 
 /** Per-building connector strip from the door to the adjacent sidewalk. */
 export interface BuildingPath {
@@ -49,9 +50,16 @@ export type { FileStats, RangeStat };
 
 /** Building entering the scene this rebuild. Carries its target transform. */
 export interface EnteringBuilding {
-  mesh: THREE.Mesh;
-  newPosition: THREE.Vector3;
+  block: SceneBlock;
+  instanceId: number;
+  /** Full-size scale components (w, h, d). */
+  newScaleX: number;
   newScaleY: number;
+  newScaleZ: number;
+  /** World-space center position (x, h/2, z). */
+  newPosX: number;
+  newPosY: number;
+  newPosZ: number;
 }
 
 /** Street entering the scene this rebuild. */
@@ -59,24 +67,41 @@ export interface EnteringStreet {
   mesh: THREE.Mesh;
 }
 
-/** Mesh that disappeared this rebuild (for either buildings or streets). */
+/**
+ * Building or street that disappeared this rebuild. For streets this
+ * still carries a mesh reference; for buildings the exiting bucket is
+ * informational only (no exit animation in V1 — the instance is simply
+ * no longer drawn once its block is rebuilt).
+ */
 export interface ExitingEntry {
-  mesh: THREE.Mesh;
+  mesh?: THREE.Mesh;
 }
 
 /**
  * Building present in both the prior and current build. Always carries
- * the new transform; the old transform is set only when the prior mesh
- * had a tracked position (so first-render staying meshes don't get a
- * spurious tween from origin).
+ * the new transform; old transform fields are present when the prior
+ * manifest had this building (so first-render staying buildings don't
+ * get a spurious tween from zero).
  */
 export interface StayingBuilding {
-  oldMesh: THREE.Mesh;
-  newMesh: THREE.Mesh;
-  newPosition: THREE.Vector3;
+  block: SceneBlock;
+  instanceId: number;
+  /** New (post-rebuild) scale components (w, h, d). */
+  newScaleX: number;
   newScaleY: number;
-  oldPosition?: THREE.Vector3;
+  newScaleZ: number;
+  /** New world-space center position (x, h/2, z). */
+  newPosX: number;
+  newPosY: number;
+  newPosZ: number;
+  /** Prior scale components — undefined if no prior transform was captured. */
+  oldScaleX?: number;
   oldScaleY?: number;
+  oldScaleZ?: number;
+  /** Prior world-space center position — undefined if no prior transform. */
+  oldPosX?: number;
+  oldPosY?: number;
+  oldPosZ?: number;
 }
 
 /** Street present in both the prior and current build. */

@@ -190,43 +190,63 @@ describe('createCityScene', () => {
     cs.dispose();
   });
 
-  // TODO(Task 9): rewrite for InstancedMesh diff.
-  // The entering/staying/exiting diff for buildings was stubbed out in Task 8
-  // (cityScene.ts returns empty buckets). Task 9 rewrites the animator to use
-  // per-block InstancedMesh semantics and will restore this test.
-  //
-  // it('a second applyManifest fires onChange with entering/exiting/staying', () => {
-  //   const cs = createCityScene(canvas);
-  //   const m1 = makeManifest('two', [
-  //     { path: 'a.js', size: 100, lines: 5 },
-  //     { path: 'b.js', size: 200, lines: 10 },
-  //   ]);
-  //   cs.applyManifest(m1);
-  //
-  //   let captured = null;
-  //   cs.onChange((diff) => {
-  //     captured = diff;
-  //   });
-  //
-  //   const m2 = makeManifest('two', [
-  //     { path: 'a.js', size: 100, lines: 5 }, // staying (same path)
-  //     { path: 'c.js', size: 300, lines: 15 }, // entering (new path)
-  //   ]);
-  //   cs.applyManifest(m2);
-  //
-  //   expect(captured).not.toBeNull();
-  //   const stayingPaths = captured.staying.buildings.map(
-  //     (e) => e.newMesh.userData.building.file.path
-  //   );
-  //   const enteringPaths = captured.entering.buildings.map(
-  //     (e) => e.mesh.userData.building.file.path
-  //   );
-  //   const exitingPaths = captured.exiting.buildings.map((e) => e.mesh.userData.building.file.path);
-  //   expect(stayingPaths.sort()).toEqual(['a.js']);
-  //   expect(enteringPaths.sort()).toEqual(['c.js']);
-  //   expect(exitingPaths.sort()).toEqual(['b.js']);
-  //   cs.dispose();
-  // });
+  it('a second applyManifest fires onChange with entering/exiting/staying (InstancedMesh diff)', () => {
+    const cs = createCityScene(canvas);
+    const m1 = makeManifest('two', [
+      { path: 'a.js', size: 100, lines: 5 },
+      { path: 'b.js', size: 200, lines: 10 },
+    ]);
+    cs.applyManifest(m1);
+
+    let capturedDiff: Parameters<Parameters<typeof cs.onChange>[0]>[0] | null = null;
+    cs.onChange((diff) => {
+      capturedDiff = diff;
+    });
+
+    const m2 = makeManifest('two', [
+      { path: 'a.js', size: 100, lines: 5 }, // staying (same path)
+      { path: 'c.js', size: 300, lines: 15 }, // entering (new path)
+    ]);
+    cs.applyManifest(m2);
+
+    expect(capturedDiff).not.toBeNull();
+    const diff = capturedDiff!;
+
+    // Staying: a.js was present in m1 and m2.
+    const stayingPaths = diff.staying.buildings.map((e) => {
+      const b = cs.getBuildingByInstance(e.block, e.instanceId);
+      return b?.file?.path ?? null;
+    });
+    expect(stayingPaths.sort()).toEqual(['a.js']);
+
+    // Entering: c.js is new in m2.
+    const enteringPaths = diff.entering.buildings.map((e) => {
+      const b = cs.getBuildingByInstance(e.block, e.instanceId);
+      return b?.file?.path ?? null;
+    });
+    expect(enteringPaths.sort()).toEqual(['c.js']);
+
+    // Exiting: b.js was in m1 but not m2.
+    // V1 exit entries carry no path — just verify the count is correct.
+    expect(diff.exiting.buildings.length).toBe(1);
+
+    // Staying entries carry the new transform (positive scale) and old transform.
+    for (const s of diff.staying.buildings) {
+      expect(s.newScaleY).toBeGreaterThan(0);
+      expect(s.newScaleX).toBeGreaterThan(0);
+      expect(s.newScaleZ).toBeGreaterThan(0);
+    }
+
+    // Entering entries carry the new transform but no old transform.
+    for (const e of diff.entering.buildings) {
+      expect(e.newScaleY).toBeGreaterThan(0);
+      // EnteringBuilding has no old* fields — verify block + instanceId are valid.
+      expect(e.block).toBeDefined();
+      expect(e.instanceId).toBeGreaterThanOrEqual(0);
+    }
+
+    cs.dispose();
+  });
 
   // TODO(Task 11/12): rewrite for InstancedMesh.
   // getBuildings() now returns an empty stub array (per-building meshes no
