@@ -49,6 +49,7 @@
   "dependencies": {
     "highlight.js": "^11.11.1",
     "marked": "^18.0.3",
-    "nanostores": "^1.3.0"
+    "nanostores": "^1.3.0",
+    "three-mesh-bvh": "^0.9.9"
   }
 }

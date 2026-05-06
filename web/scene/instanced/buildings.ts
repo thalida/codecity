@@ -233,6 +233,15 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
   // culling (fires per-block since each InstancedMesh has its own sphere).
   mesh.computeBoundingSphere();
 
+  // Build a BVH on the cloned geometry so picker raycasts go from O(N
+  // instances) to O(log N). three-mesh-bvh installed via main.ts boot.
+  // Method is augmented onto BufferGeometry.prototype but not in Three's
+  // type declarations, so cast for the call site.
+  const geomWithBvh = mesh.geometry as unknown as { computeBoundsTree?: () => void };
+  if (typeof geomWithBvh.computeBoundsTree === 'function') {
+    geomWithBvh.computeBoundsTree();
+  }
+
   // Tag for picker (Task 10) and block back-reference.
   mesh.userData.kind = 'buildings';
   mesh.userData.block = block;
