@@ -27,3 +27,4 @@ export * from './gem.js'; // root-of-repo landmark
 export * from './effects.js'; // shared visual effects (rainbow)
 export * from './live.js'; // live-update polling toggle + interval
 export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
+export * from './lod.js'; // per-block LOD swap thresholds
