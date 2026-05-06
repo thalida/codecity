@@ -17,6 +17,7 @@ server to scan — there's no global filesystem read.
 
 from __future__ import annotations
 
+import gzip
 import json
 import mimetypes
 import threading
@@ -54,6 +55,34 @@ def _is_media(ctype: str | None) -> bool:
         return True
     return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
 
+
+# Bodies under this threshold skip compression — gzip's framing
+# overhead (~20 bytes header + trailer) exceeds the savings on small
+# responses. The typical hits are /api/health and small error JSON.
+_GZIP_MIN_BYTES = 256
+
+
+def _maybe_gzip(
+    handler: BaseHTTPRequestHandler, body: bytes,
+) -> tuple[bytes, str | None]:
+    """If the client advertised Accept-Encoding: gzip, gzip-encode body.
+
+    Returns ``(encoded, "gzip")`` when compression applies, ``(body,
+    None)`` otherwise. Caller is responsible for setting the
+    Content-Encoding header from the second element when non-None.
+
+    The Accept-Encoding parser is intentionally loose: a substring
+    check for "gzip" matches the typical "gzip, deflate" or
+    "gzip;q=1.0". It does not parse RFC 7231 q-values; ``q=0`` would
+    be misinterpreted as accept, but that's a vanishingly rare config
+    and the worst case is a successfully-decoded gzip response.
+    """
+    accept = handler.headers.get("Accept-Encoding", "")
+    if "gzip" not in accept.lower() or len(body) < _GZIP_MIN_BYTES:
+        return body, None
+    return gzip.compress(body, compresslevel=6), "gzip"
+
+
 # Where the Vite build output lives. Resolved at import time so tests can
 # spin up a server without an installed wheel layout.
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -78,8 +107,11 @@ JsonBody = (
 
 def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> None:
     payload = json.dumps(body).encode("utf-8")
+    payload, encoding = _maybe_gzip(handler, payload)
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
+    if encoding:
+        handler.send_header("Content-Encoding", encoding)
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
     handler.wfile.write(payload)
