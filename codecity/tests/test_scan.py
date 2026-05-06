@@ -233,41 +233,92 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertNotIn(".git", names)
 
     def test_skip_list_excludes_node_modules_under_include_all(self):
-        # node_modules/ should NOT appear with include_all=True (default
-        # respect_skip_list=True). It IS present on disk in the fixture
-        # for this test only.
+        # node_modules/ must NOT appear with include_all=True. ALWAYS_SKIP
+        # is hardcoded; there's no runtime escape hatch.
         nm_dir = FIXTURE / "node_modules" / "fake-pkg"
         nm_dir.mkdir(parents=True, exist_ok=True)
         nm_file = nm_dir / "index.js"
         nm_file.write_text("module.exports = {};")
         try:
-            m_skipped = scan_tree(str(FIXTURE), include_all=True)
-            names = [n["name"] for n in _walk_dirs(m_skipped["tree"])]
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("node_modules", names)
-
-            m_unskipped = scan_tree(
-                str(FIXTURE), include_all=True, respect_skip_list=False,
-            )
-            names_un = [n["name"] for n in _walk_dirs(m_unskipped["tree"])]
-            self.assertIn("node_modules", names_un)
         finally:
             nm_file.unlink(missing_ok=True)
             nm_dir.rmdir()
             (FIXTURE / "node_modules").rmdir()
 
-    def test_skip_list_does_not_affect_default_scan(self):
-        # In a default tracked-only scan, the skip list is moot because
-        # node_modules/ wouldn't be in git ls-files anyway. Confirm
-        # passing respect_skip_list=False doesn't change anything.
-        m_default = scan_tree(str(FIXTURE))
-        m_no_skip = scan_tree(str(FIXTURE), respect_skip_list=False)
-        self.assertEqual(m_default["signature"], m_no_skip["signature"])
+    def test_codecityignore_name_excludes_directory(self):
+        # A bare name in .codecityignore matches any dir/file with that
+        # name anywhere in the tree.
+        target_dir = FIXTURE / "noisy-fixture"
+        target_dir.mkdir(exist_ok=True)
+        (target_dir / "data.txt").write_text("noise")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("# project-specific\nnoisy-fixture\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("noisy-fixture", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target_dir / "data.txt").unlink(missing_ok=True)
+            target_dir.rmdir()
 
-    def test_git_dir_excluded_even_with_no_skip_list(self):
-        # .git/ is special: always excluded, even when respect_skip_list=False.
-        m = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
-        names = [n["name"] for n in _walk_dirs(m["tree"])]
-        self.assertNotIn(".git", names)
+    def test_codecityignore_path_excludes_specific_path_only(self):
+        # A line containing '/' is anchored to the scan root. A dir at
+        # a different relative path with the same final segment is NOT
+        # excluded.
+        target_a = FIXTURE / "stash" / "legacy"
+        target_b = FIXTURE / "legacy"  # same name, different path
+        target_a.mkdir(parents=True, exist_ok=True)
+        target_b.mkdir(exist_ok=True)
+        (target_a / "x.txt").write_text("a")
+        (target_b / "x.txt").write_text("b")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("stash/legacy\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            paths = [n["path"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("stash/legacy", paths)
+            # The other "legacy" at a different path stays visible.
+            self.assertIn("legacy", paths)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target_a / "x.txt").unlink(missing_ok=True)
+            target_a.rmdir()
+            (FIXTURE / "stash").rmdir()
+            (target_b / "x.txt").unlink(missing_ok=True)
+            target_b.rmdir()
+
+    def test_codecityignore_missing_is_ok(self):
+        # No file -> no error, scan proceeds normally.
+        ignore_file = FIXTURE / ".codecityignore"
+        self.assertFalse(ignore_file.exists())  # sanity
+        m = scan_tree(str(FIXTURE), include_all=True)
+        self.assertGreater(m["tree"]["descendants_file_count"], 0)
+
+    def test_codecityignore_comments_and_blanks(self):
+        # Comments and blank lines are silently dropped.
+        target = FIXTURE / "noisy-comment-test"
+        target.mkdir(exist_ok=True)
+        (target / "x.txt").write_text("x")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text(
+            "# leading comment\n"
+            "\n"
+            "noisy-comment-test\n"
+            "   \n"  # blank-with-whitespace
+            "# trailing comment\n"
+        )
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("noisy-comment-test", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target / "x.txt").unlink(missing_ok=True)
+            target.rmdir()
 
 
 class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
@@ -330,29 +381,31 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         finally:
             untracked.unlink(missing_ok=True)
 
-    def test_signature_honors_respect_skip_list(self):
-        # Parity contract: signature_tree must agree with scan_tree on
-        # both respect_skip_list values.
-        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
-        nm_dir.mkdir(parents=True, exist_ok=True)
-        nm_file = nm_dir / "index.js"
-        nm_file.write_text("module.exports = {};")
+    def test_signature_honors_codecityignore(self):
+        # Parity contract: editing .codecityignore must shift the
+        # signature returned by signature_tree (so the live-update poll
+        # actually triggers a reload), and that signature must match
+        # scan_tree's output for the same root.
+        target = FIXTURE / "sig-noise-fixture"
+        target.mkdir(exist_ok=True)
+        (target / "x.txt").write_text("x")
+        ignore_file = FIXTURE / ".codecityignore"
         try:
-            m1 = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=True)
-            s1 = signature_tree(str(FIXTURE), include_all=True, respect_skip_list=True)
-            self.assertEqual(s1["signature"], m1["signature"])
+            # Without ignore file, target is visible.
+            before_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            before_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertEqual(before_sig, before_full)
 
-            m2 = scan_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
-            s2 = signature_tree(str(FIXTURE), include_all=True, respect_skip_list=False)
-            self.assertEqual(s2["signature"], m2["signature"])
-
-            # And the two modes must produce different signatures (otherwise
-            # the toggle wouldn't trigger a reload).
-            self.assertNotEqual(s1["signature"], s2["signature"])
+            # Add ignore entry, both signatures must shift in lockstep.
+            ignore_file.write_text("sig-noise-fixture\n")
+            after_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            after_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertEqual(after_sig, after_full)
+            self.assertNotEqual(before_sig, after_sig)
         finally:
-            nm_file.unlink(missing_ok=True)
-            nm_dir.rmdir()
-            (FIXTURE / "node_modules").rmdir()
+            ignore_file.unlink(missing_ok=True)
+            (target / "x.txt").unlink(missing_ok=True)
+            target.rmdir()
 
 
 class LineCountCapTests(unittest.TestCase):

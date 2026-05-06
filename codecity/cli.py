@@ -75,22 +75,12 @@ def _add_perf_args(p: argparse.ArgumentParser) -> None:
             "suspect cache staleness."
         ),
     )
-    p.add_argument(
-        "--no-skip-list",
-        action="store_true",
-        help=(
-            "When --include-all (Show all files) is on, walk into "
-            "node_modules/, dist/, .venv/, etc. that would normally be "
-            "skipped. .git/ is still always excluded."
-        ),
-    )
 
 
 def _scan_from_args(args: argparse.Namespace) -> Manifest:
     return scan_tree(
         args.path,
         use_cache=not getattr(args, "no_cache", False),
-        respect_skip_list=not getattr(args, "no_skip_list", False),
     )
 
 
@@ -113,9 +103,9 @@ def _initial_query(args: argparse.Namespace) -> str:
     initial browser URL. Resolves clones eagerly so the user gets a clear
     error in the terminal instead of a silent 502 in the browser.
 
-    Forwards --no-cache and --no-skip-list as query params so the
-    frontend's URL builder picks them up alongside the path / clone
-    args, and the live-update poll inherits them."""
+    Forwards --no-cache as a query param so the frontend's URL builder
+    picks it up alongside the path / clone args, and the live-update
+    poll inherits it."""
     if args.clone:
         try:
             local = ensure_clone(args.clone, args.branch)
@@ -132,8 +122,6 @@ def _initial_query(args: argparse.Namespace) -> str:
 
     if getattr(args, "no_cache", False):
         params["no_cache"] = "true"
-    if getattr(args, "no_skip_list", False):
-        params["no_skip_list"] = "true"
     return "?" + urllib.parse.urlencode(params)
 
 

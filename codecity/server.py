@@ -108,13 +108,6 @@ def _parse_no_cache(query: str) -> bool:
     return raw in ("true", "1")
 
 
-def _parse_no_skip_list(query: str) -> bool:
-    """Parse ?no_skip_list=… as a boolean. Same strict semantics as
-    _parse_include_all. Maps to scan_tree(respect_skip_list=not <this>)."""
-    raw = parse_qs(query).get("no_skip_list", [""])[0].strip().lower()
-    return raw in ("true", "1")
-
-
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
 ) -> Path | None:
@@ -171,13 +164,11 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         return
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
-    respect_skip_list = not _parse_no_skip_list(query)
 
     try:
         manifest = scan_tree(
             str(scan_target),
             include_all=include_all,
-            respect_skip_list=respect_skip_list,
             use_cache=use_cache,
         )
     except Exception as e:  # pylint: disable=broad-except
@@ -201,13 +192,11 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
         return
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
-    respect_skip_list = not _parse_no_skip_list(query)
 
     try:
         sig = signature_tree(
             str(scan_target),
             include_all=include_all,
-            respect_skip_list=respect_skip_list,
             use_cache=use_cache,
         )
     except Exception as e:  # pylint: disable=broad-except

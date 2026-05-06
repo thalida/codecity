@@ -306,14 +306,15 @@ def _collect_repo_info(root: Path) -> RepoInfo:
 # enabling include_all pulls in node_modules/, .venv/, etc. and the
 # city becomes useless noise.
 #
-# .git/ is excluded separately (always, even with respect_skip_list=False)
-# because we never want to walk into the object database.
-#
 # We deliberately do NOT include generic names like "dist", "build", "out".
 # Those collide with legitimate source directories in real projects (CMake
 # build configs, audio "out" stems, hand-written `dist/` source trees).
 # Framework-specific build dirs (.next, .nuxt, etc.) are unambiguous and
 # stay in the list.
+#
+# Per-project additions go in `<scan-root>/.codecityignore` (see
+# _load_codecityignore). The skip list is always applied — there's no
+# runtime escape hatch beyond editing this file or .codecityignore.
 ALWAYS_SKIP: frozenset[str] = frozenset({
     ".git", ".hg", ".svn",                          # VCS
     "node_modules",                                 # JS
@@ -327,16 +328,56 @@ ALWAYS_SKIP: frozenset[str] = frozenset({
 })
 
 
-def _should_skip(name: str, *, respect_skip_list: bool) -> bool:
-    """Whether to skip a directory entry by name during the walk.
+def _load_codecityignore(root: Path) -> tuple[frozenset[str], frozenset[str]]:
+    """Load .codecityignore from the scan root, return (names, paths).
 
-    .git/ is always excluded — we never walk into the object database.
-    Other entries in ALWAYS_SKIP are gated on respect_skip_list, which
-    is True by default but can be turned off for diagnostic walks
-    (--no-skip-list CLI flag, ?no_skip_list=true query param)."""
-    if name == ".git":
+    Lines without a '/' match any directory/file with that name anywhere
+    in the tree (same semantic as ALWAYS_SKIP). Lines containing '/'
+    are relative-path matches anchored to the scan root.
+
+    Comments (#) and blank lines are ignored. Whitespace is stripped.
+    A leading '/' is dropped — paths are always relative to root.
+    Trailing '/' is stripped — directories vs files don't matter for
+    skipping. Missing file or unreadable contents → two empty sets, no
+    error (the file is optional)."""
+    names: set[str] = set()
+    paths: set[str] = set()
+    try:
+        text = (root / ".codecityignore").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return frozenset(), frozenset()
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = line.removeprefix("/").removesuffix("/")
+        if not line:
+            continue
+        if "/" in line:
+            paths.add(line)
+        else:
+            names.add(line)
+    return frozenset(names), frozenset(paths)
+
+
+def _should_skip(
+    name: str,
+    rel_path: str,
+    *,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+) -> bool:
+    """Whether to skip a directory entry during the walk.
+
+    Always-skipped: ALWAYS_SKIP set + any name in `ignore_names` (from
+    .codecityignore single-segment lines). Path-anchored skips: any
+    `rel_path` in `ignore_paths` (from .codecityignore lines containing
+    '/'). `.git/` is in ALWAYS_SKIP; no separate special case needed."""
+    if name in ALWAYS_SKIP:
         return True
-    if respect_skip_list and name in ALWAYS_SKIP:
+    if name in ignore_names:
+        return True
+    if rel_path in ignore_paths:
         return True
     return False
 
@@ -525,7 +566,8 @@ def _build_tree(
     git_modified: dict[str, str],
     tracked_files: set[str],
     include_all: bool,
-    respect_skip_list: bool,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
     sig: Any,
 ) -> DirNode:
     name = os.path.basename(abs_dir)
@@ -544,10 +586,13 @@ def _build_tree(
         entries = []
 
     for entry in entries:
-        if _should_skip(entry.name, respect_skip_list=respect_skip_list):
-            continue
-
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+
+        if _should_skip(
+            entry.name, entry_rel,
+            ignore_names=ignore_names, ignore_paths=ignore_paths,
+        ):
+            continue
 
         # In a git repo, skip anything not tracked (covers .gitignore + uncommitted
         # additions) — unless include_all is on, the user's "show me everything"
@@ -571,7 +616,8 @@ def _build_tree(
                 is_git_repo=is_git_repo,
                 git_created=git_created, git_modified=git_modified,
                 tracked_files=tracked_files, include_all=include_all,
-                respect_skip_list=respect_skip_list, sig=sig,
+                ignore_names=ignore_names, ignore_paths=ignore_paths,
+                sig=sig,
             )
             dirs.append(subtree)
             descendants_count += 1 + subtree["descendants_count"]
@@ -603,7 +649,6 @@ def scan_tree(
     root: str,
     *,
     include_all: bool = False,
-    respect_skip_list: bool = True,
     use_cache: bool = True,
 ) -> Manifest:
     """Scan a directory and return the full manifest.
@@ -611,17 +656,16 @@ def scan_tree(
     With ``include_all=False`` (default), in a git repo the scanner walks
     only paths in ``git ls-files`` — gitignored and untracked files are
     hidden. With ``include_all=True``, the tracked-files filter is
-    skipped entirely; every file under ``root`` (except the ``.git``
-    directory itself) is emitted. ``.git`` is always excluded.
+    skipped entirely; every file under ``root`` is emitted EXCEPT
+    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
+    or matched by the optional ``<root>/.codecityignore`` file.
 
     Outside a git repo, ``include_all`` has no effect — the tracked set
     is empty either way.
 
-    ``respect_skip_list`` (default True) honors the ALWAYS_SKIP set
-    (``node_modules``, ``dist``, ``.venv``, etc.) even when
-    ``include_all=True``. Set to False (--no-skip-list CLI flag) to
-    walk into those dirs anyway. ``.git`` is always excluded
-    regardless.
+    The skip list is always applied. Per-project additions go in
+    ``<root>/.codecityignore`` (one literal name per line, or relative
+    paths containing ``/``).
     """
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
@@ -641,6 +685,8 @@ def scan_tree(
     else:
         _log("not a git repo — filesystem dates only")
 
+    ignore_names, ignore_paths = _load_codecityignore(Path(root_abs))
+
     _reset_heartbeat()
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
@@ -649,7 +695,8 @@ def scan_tree(
         is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
         tracked_files=tracked_files, include_all=include_all,
-        respect_skip_list=respect_skip_list, sig=sig,
+        ignore_names=ignore_names, ignore_paths=ignore_paths,
+        sig=sig,
     )
     _log(f"walked {_files_seen} files; resolving file metadata")
     _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
@@ -696,7 +743,8 @@ def _walk_for_signature(
     is_git_repo: bool,
     tracked_files: set[str],
     include_all: bool,
-    respect_skip_list: bool,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
     sig: Any,
 ) -> None:
     """Stat-only walk that feeds the live signature without building nodes.
@@ -712,9 +760,12 @@ def _walk_for_signature(
         return
 
     for entry in entries:
-        if _should_skip(entry.name, respect_skip_list=respect_skip_list):
-            continue
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+        if _should_skip(
+            entry.name, entry_rel,
+            ignore_names=ignore_names, ignore_paths=ignore_paths,
+        ):
+            continue
         if is_git_repo and not include_all and entry_rel not in tracked_files:
             continue
         if entry.is_file(follow_symlinks=False):
@@ -726,7 +777,8 @@ def _walk_for_signature(
                 is_git_repo=is_git_repo,
                 tracked_files=tracked_files,
                 include_all=include_all,
-                respect_skip_list=respect_skip_list,
+                ignore_names=ignore_names,
+                ignore_paths=ignore_paths,
                 sig=sig,
             )
 
@@ -735,7 +787,6 @@ def signature_tree(
     root: str,
     *,
     include_all: bool = False,
-    respect_skip_list: bool = True,
     use_cache: bool = True,
 ) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
@@ -749,6 +800,9 @@ def signature_tree(
 
     With ``include_all=True``, skips the tracked-files lookup as well —
     the filter isn't applied so we don't need to compute it.
+
+    Honors the same skip list and ``<root>/.codecityignore`` file as
+    scan_tree, so signatures stay in lockstep.
 
     ``use_cache`` is accepted for API symmetry with scan_tree (so both
     /api/manifest and /api/manifest/signature take the same query
@@ -769,13 +823,16 @@ def signature_tree(
             tracked_files = _collect_tracked_set(root_path)
         repo_info = _collect_repo_info(root_path)
 
+    ignore_names, ignore_paths = _load_codecityignore(root_path)
+
     sig = hashlib.blake2b(digest_size=16)
     _walk_for_signature(
         root_abs, ".",
         is_git_repo=is_git_repo,
         tracked_files=tracked_files,
         include_all=include_all,
-        respect_skip_list=respect_skip_list,
+        ignore_names=ignore_names,
+        ignore_paths=ignore_paths,
         sig=sig,
     )
     if repo_info is not None:
