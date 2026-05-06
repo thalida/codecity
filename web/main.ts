@@ -274,6 +274,14 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
+    // Per-frame LOD audit (Task 21): _orientLabelsForCamera iterates the flat
+    // street-level road-text labels (THREE.Group from createStreetLabels), NOT
+    // per-block InstancedMesh labels. Street labels have no LOD concept — they
+    // are always-visible map-style text on the asphalt, so iterating all of them
+    // each frame is correct. Per-block label InstancedMeshes (block.labelsMesh)
+    // have their .visible flag managed by lodController.update(), and the
+    // renderer skips invisible meshes automatically — no O(N) work on hidden
+    // content. No block-level loops exist in animate(); all loops are O(visible).
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
     if (rootGem) {
