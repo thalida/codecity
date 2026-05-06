@@ -49,8 +49,9 @@
     "vite.config.js",
     "vitest.config.js",
     "tests/visual/**/*",
-    // Uses Node built-ins (fs/path/url) to read the GLSL source file at test
+    // Use Node built-ins (fs/path/url) to read GLSL source files at test
     // time — checked by tsconfig.node.json which adds @types/node.
-    "tests/scene/hsl-glsl-parity.test.ts"
+    "tests/scene/hsl-glsl-parity.test.ts",
+    "tests/scene/building-vert-shader.test.ts"
   ]
 }
