@@ -98,6 +98,9 @@ function makeFakeCityScene(
     getBuildings() {
       return Object.keys(buildingMap).map((p) => buildingMap[p].mesh);
     },
+    getBlocks() {
+      return [];
+    },
     getStreetPickables() {
       return Object.keys(sidewalkMap).map((p) => sidewalkMap[p]);
     },

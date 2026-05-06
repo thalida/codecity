@@ -52,6 +52,7 @@ export interface PickerSelectionKey {
  */
 export interface PickerCityScene {
   getBuildings(): THREE.Object3D[];
+  getBlocks(): SceneBlock[];
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
   getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; block?: SceneBlock; instanceId?: number } | null;
