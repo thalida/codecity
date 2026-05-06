@@ -40,11 +40,12 @@ export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import { buildLabelAtlas, createLabelsInstancedMesh } from './instanced/labels.js';
 import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { BUILDING_PALETTE, SCENE_COLORS } from '@/config/index.js';
+import { BUILDING_PALETTE, LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
 import { NodeKind } from '@/types';
 import type {
@@ -120,6 +121,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Tasks 11-12) don't crash; they will iterate an empty list.
   let blocks: SceneBlock[] = [];
   let blocksByDirPath: Record<string, SceneBlock> = {};
+  // Task 15: shared atlas CanvasTexture, recreated on each applyManifest call.
+  let _atlasTexture: THREE.CanvasTexture | null = null;
   // buildingMeshes stub — kept for the diff machinery during transition.
   // TODO(Task 9): remove once the diff is rewritten for InstancedMesh.
   let buildingMeshes: THREE.Object3D[] = [];
@@ -238,12 +241,21 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   }
 
   function _disposeAllManifestState() {
-    // Dispose per-block InstancedMeshes.
+    // Dispose per-block InstancedMeshes (buildings + labels).
     for (const block of blocks) {
       if (block.detailMesh) {
         _removeAndDispose(block.detailMesh);
         block.detailMesh = undefined;
       }
+      if (block.labelsMesh) {
+        _removeAndDispose(block.labelsMesh);
+        block.labelsMesh = undefined;
+      }
+    }
+    // Dispose the shared atlas texture (material is disposed via labelsMesh above).
+    if (_atlasTexture) {
+      _atlasTexture.dispose();
+      _atlasTexture = null;
     }
     blocks = [];
     blocksByDirPath = {};
@@ -543,13 +555,39 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       _disposeObject(bm);
     }
 
+    // Task 15: Remove old per-Group label meshes from buildCityScene — replaced
+    // by per-block label InstancedMeshes below.
+    for (const lg of built.streetLabels || []) {
+      if (lg.parent) lg.parent.remove(lg);
+      lg.traverse(_disposeObject);
+    }
+
     // Task 8: group buildings by directory → one InstancedMesh per block.
     const newBlocks = groupBuildingsByDirectory(layout.buildings, layout.streets);
+
+    // Task 15: build shared label atlas from all unique street label texts.
+    const uniqueTexts = Array.from(
+      new Set(
+        newBlocks
+          .map((b) => b.primaryStreet?.label)
+          .filter((t): t is string => Boolean(t)),
+      ),
+    );
+    const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
+    _atlasTexture = new THREE.CanvasTexture(atlas.canvas);
+
     for (const block of newBlocks) {
       if (block.buildings.length === 0) continue; // skip empty blocks
       const detailMesh = createBuildingsInstancedMesh(block);
       block.detailMesh = detailMesh;
       scene.add(detailMesh);
+
+      // Task 15: per-block label InstancedMesh.
+      const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTexture);
+      if (labelsMesh) {
+        block.labelsMesh = labelsMesh;
+        scene.add(labelsMesh);
+      }
     }
     blocks = newBlocks;
     blocksByDirPath = {};

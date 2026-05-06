@@ -3,7 +3,7 @@
 // render loop with orbit/pan/zoom controls and raycast picking.
 
 import * as THREE from 'three';
-import { listenKeys } from 'nanostores';
+
 import './styles.css';
 
 import * as Config from './config/index.js';
@@ -28,7 +28,6 @@ import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';
 
-import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
@@ -60,19 +59,6 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const cityScene = createCityScene(canvas);
   const scene = cityScene.scene;
   cityScene.applyManifest(manifest);
-
-  // Hot-reload the label fill color: FILL is baked into the CanvasTexture
-  // at scene-build, so a "live" change requires regenerating each label's
-  // texture. listenKeys fires only when FILL specifically changes (not on
-  // every applyTheme call), so unrelated tweaks don't pay the texture
-  // regen cost. Reads streetLabels fresh from cityScene each fire so
-  // it works after applyManifest rebinds the array.
-  listenKeys(LABEL_TYPOGRAPHY, ['FILL'], () => {
-    const labels = cityScene.getStreetLabels();
-    for (const label of labels) {
-      regenerateLabelTexture(label);
-    }
-  });
 
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
