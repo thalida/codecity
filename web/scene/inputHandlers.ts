@@ -159,12 +159,17 @@ export function createInputHandlers({
       rig.reset();
       return;
     }
-    if (ud.building && ud.building.file && ud.building.file.type === NodeKind.File) {
-      rig.focusBuilding(hit.object, ud.building);
+    // Use the picker's interpretHit so InstancedMesh hits (post-Task 8)
+    // resolve to a building/file the same way clicks do; without this,
+    // dblclick fell through to the recenter fallback because ud.building
+    // is only set on legacy per-building meshes.
+    const target = picker.interpretHit(hit);
+    if (target?.kind === NodeKind.File) {
+      rig.focusBuilding(target.mesh, target.data);
       return;
     }
-    if (ud.street) {
-      rig.focusStreet(ud.street, hit.point);
+    if (target?.kind === NodeKind.Directory) {
+      rig.focusStreet(target.street, hit.point);
       return;
     }
     rig.recenterTo(new THREE.Vector3(hit.point.x, 0, hit.point.z));
