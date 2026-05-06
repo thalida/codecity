@@ -40,7 +40,11 @@ export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
-import { buildLabelAtlas, createLabelsInstancedMesh } from './instanced/labels.js';
+import {
+  buildLabelAtlas,
+  createLabelsInstancedMesh,
+  disposeLabelMaterials,
+} from './instanced/labels.js';
 import { createPlaceholderMesh } from './instanced/placeholders.js';
 import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
@@ -122,8 +126,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Tasks 11-12) don't crash; they will iterate an empty list.
   let blocks: SceneBlock[] = [];
   let blocksByDirPath: Record<string, SceneBlock> = {};
-  // Task 15: shared atlas CanvasTexture, recreated on each applyManifest call.
-  let _atlasTexture: THREE.CanvasTexture | null = null;
+  // Task 15: shared atlas CanvasTextures (one per atlas page; multiple
+  // pages when a project has too many unique labels for a single texture).
+  let _atlasTextures: THREE.CanvasTexture[] = [];
   // buildingMeshes stub — kept for the diff machinery during transition.
   // TODO(Task 9): remove once the diff is rewritten for InstancedMesh.
   let buildingMeshes: THREE.Object3D[] = [];
@@ -257,11 +262,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         block.placeholderMesh = undefined;
       }
     }
-    // Dispose the shared atlas texture (material is disposed via labelsMesh above).
-    if (_atlasTexture) {
-      _atlasTexture.dispose();
-      _atlasTexture = null;
-    }
+    // Dispose all atlas page textures + their cached label materials.
+    for (const tex of _atlasTextures) tex.dispose();
+    _atlasTextures = [];
+    disposeLabelMaterials();
     blocks = [];
     blocksByDirPath = {};
     buildingMeshes = [];
@@ -579,7 +583,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       ),
     );
     const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
-    _atlasTexture = new THREE.CanvasTexture(atlas.canvas);
+    _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
 
     for (const block of newBlocks) {
       // Task 16: placeholder cuboid (created for ALL blocks, including empty
@@ -594,7 +598,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       scene.add(detailMesh);
 
       // Task 15: per-block label InstancedMesh.
-      const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTexture);
+      const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTextures);
       if (labelsMesh) {
         block.labelsMesh = labelsMesh;
         scene.add(labelsMesh);

@@ -9,27 +9,37 @@ import type { SceneBlock } from '../blocks.js';
 import labelVertSrc from '../shaders/label.vert.glsl?raw';
 import labelFragSrc from '../shaders/label.frag.glsl?raw';
 
+export interface LabelAtlasRect {
+  page: number;
+  u: number;
+  v: number;
+  w: number;
+  h: number;
+  aspect: number;
+}
+
 export interface LabelAtlasResult {
-  canvas: HTMLCanvasElement;
-  rectByText: Map<string, { u: number; v: number; w: number; h: number; aspect: number }>;
+  pages: HTMLCanvasElement[];
+  rectByText: Map<string, LabelAtlasRect>;
 }
 
 // WebGL2 guarantees MAX_TEXTURE_SIZE >= 2048; virtually all desktop GPUs
-// support 16384. 8192×16384 fits ~2700 labels at the default font; large
-// monorepos exceed 4096-wide. If a project genuinely overflows this, the
-// fallback should be a paged atlas, not a wider single texture.
+// support 8192. We pack labels into multiple pages of this size so a single
+// codebase can have arbitrarily many distinct directory names.
 const ATLAS_WIDTH = 8192;
-const ATLAS_HEIGHT_MAX = 16384;
+const ATLAS_HEIGHT_MAX = 8192;
+// Sanity bound. 16 pages of 8192×8192 = 1 GiB of texture memory if every
+// page is full-bleed RGBA; in practice each page renders only the rows it
+// uses, so memory tracks the actual label count. A real monorepo would
+// need >2000 unique directory names to push past page 1 at default font.
+const MAX_PAGES = 16;
 
 export function buildLabelAtlas(
   uniqueTexts: string[],
   typography: LabelTypographyConfig,
 ): LabelAtlasResult {
   if (uniqueTexts.length === 0) {
-    const canvas = document.createElement('canvas');
-    canvas.width = 1;
-    canvas.height = 1;
-    return { canvas, rectByText: new Map() };
+    return { pages: [], rectByText: new Map() };
   }
 
   // Step 1: measure each text.
@@ -43,41 +53,64 @@ export function buildLabelAtlas(
     return { text, w, h };
   });
 
-  // Step 2: shelf-fit pack. Sort by height desc; left-to-right with row wraps.
+  // Step 2: shelf-fit pack across multiple pages. Sort by height desc; place
+  // left-to-right with row wraps. When a row would overflow page height,
+  // start a new page.
   items.sort((a, b) => b.h - a.h);
+  type Placement = { text: string; page: number; x: number; y: number; w: number; h: number };
+  const placements: Placement[] = [];
+  let page = 0;
   let cursorX = 0;
   let cursorY = 0;
   let rowH = 0;
-  const placements: Array<{ text: string; x: number; y: number; w: number; h: number }> = [];
+  const pageHeights: number[] = [];
+
   for (const item of items) {
+    // Wrap to next row when the current row is full.
     if (cursorX + item.w > ATLAS_WIDTH) {
       cursorX = 0;
       cursorY += rowH;
       rowH = 0;
     }
+    // If the next row would overflow this page, start a new page.
     if (cursorY + item.h > ATLAS_HEIGHT_MAX) {
-      throw new Error(
-        `label atlas overflow at ${cursorY + item.h}px height (max ${ATLAS_HEIGHT_MAX}). ` +
-          `${uniqueTexts.length} unique labels — paged atlas not yet implemented.`,
-      );
+      pageHeights[page] = cursorY;
+      page += 1;
+      if (page >= MAX_PAGES) {
+        throw new Error(
+          `label atlas overflow: would need >${MAX_PAGES} pages of ` +
+            `${ATLAS_WIDTH}x${ATLAS_HEIGHT_MAX} for ${uniqueTexts.length} unique labels.`,
+        );
+      }
+      cursorX = 0;
+      cursorY = 0;
+      rowH = 0;
     }
-    placements.push({ text: item.text, x: cursorX, y: cursorY, w: item.w, h: item.h });
+    placements.push({ text: item.text, page, x: cursorX, y: cursorY, w: item.w, h: item.h });
     cursorX += item.w;
     rowH = Math.max(rowH, item.h);
   }
-  const atlasH = Math.max(1, cursorY + rowH);
+  pageHeights[page] = cursorY + rowH;
 
-  // Step 3: paint into the atlas canvas.
-  const canvas = document.createElement('canvas');
-  canvas.width = ATLAS_WIDTH;
-  canvas.height = atlasH;
-  const ctx = canvas.getContext('2d')!;
-  ctx.font = fontSpec;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  // Step 3: paint each page into its own canvas. Trim each canvas to the
+  // height actually used so we don't upload empty pixels to the GPU.
+  const pages: HTMLCanvasElement[] = [];
+  const pageContexts: CanvasRenderingContext2D[] = [];
+  for (let p = 0; p <= page; p++) {
+    const c = document.createElement('canvas');
+    c.width = ATLAS_WIDTH;
+    c.height = Math.max(1, pageHeights[p] ?? 1);
+    const ctx = c.getContext('2d')!;
+    ctx.font = fontSpec;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    pages.push(c);
+    pageContexts.push(ctx);
+  }
 
   const rectByText: LabelAtlasResult['rectByText'] = new Map();
   for (const p of placements) {
+    const ctx = pageContexts[p.page];
     const cx = p.x + p.w / 2;
     const cy = p.y + p.h / 2;
     ctx.lineWidth = typography.STROKE_WIDTH_PX;
@@ -85,15 +118,17 @@ export function buildLabelAtlas(
     ctx.strokeText(p.text, cx, cy);
     ctx.fillStyle = typography.FILL;
     ctx.fillText(p.text, cx, cy);
+    const pageH = pages[p.page].height;
     rectByText.set(p.text, {
+      page: p.page,
       u: p.x / ATLAS_WIDTH,
-      v: p.y / atlasH,
+      v: p.y / pageH,
       w: p.w / ATLAS_WIDTH,
-      h: p.h / atlasH,
+      h: p.h / pageH,
       aspect: p.w / p.h,
     });
   }
-  return { canvas, rectByText };
+  return { pages, rectByText };
 }
 
 // ---------------------------------------------------------------------------
@@ -104,27 +139,15 @@ export function buildLabelAtlas(
 // via instanceMatrix to produce the correctly-sized, correctly-positioned label.
 const _SHARED_LABEL_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 
-// Lazy singleton material. One ShaderMaterial per atlas texture.
-// Since there is exactly one atlas per applyManifest call the material
-// is recreated lazily whenever the atlas texture changes.
-let _sharedLabelMaterial: THREE.ShaderMaterial | null = null;
-let _sharedLabelTexture: THREE.CanvasTexture | null = null;
+// One ShaderMaterial per atlas texture (= per atlas page). Cached by the
+// CanvasTexture identity. cityScene owns the textures' lifetime; when it
+// disposes them it should also call disposeLabelMaterials() to evict.
+const _labelMaterials = new Map<THREE.CanvasTexture, THREE.ShaderMaterial>();
 
-/**
- * Get (or create) the shared label ShaderMaterial, updating it if the
- * provided atlasTexture is different from the one it was last built with.
- */
 function getLabelMaterial(atlasTexture: THREE.CanvasTexture): THREE.ShaderMaterial {
-  if (_sharedLabelMaterial && _sharedLabelTexture === atlasTexture) {
-    return _sharedLabelMaterial;
-  }
-  // Dispose old material if we're rebuilding (applyManifest called again).
-  if (_sharedLabelMaterial) {
-    _sharedLabelMaterial.dispose();
-    _sharedLabelMaterial = null;
-  }
-  _sharedLabelTexture = atlasTexture;
-  _sharedLabelMaterial = new THREE.ShaderMaterial({
+  const cached = _labelMaterials.get(atlasTexture);
+  if (cached) return cached;
+  const mat = new THREE.ShaderMaterial({
     vertexShader: labelVertSrc,
     fragmentShader: labelFragSrc,
     uniforms: {
@@ -134,7 +157,13 @@ function getLabelMaterial(atlasTexture: THREE.CanvasTexture): THREE.ShaderMateri
     depthWrite: false,
     side: THREE.DoubleSide,
   });
-  return _sharedLabelMaterial;
+  _labelMaterials.set(atlasTexture, mat);
+  return mat;
+}
+
+export function disposeLabelMaterials(): void {
+  for (const mat of _labelMaterials.values()) mat.dispose();
+  _labelMaterials.clear();
 }
 
 /**
@@ -239,12 +268,17 @@ export function buildLabelInstanceBuffer(
 export function createLabelsInstancedMesh(
   block: SceneBlock,
   atlas: LabelAtlasResult,
-  atlasTexture: THREE.CanvasTexture,
+  atlasTextures: THREE.CanvasTexture[],
 ): THREE.InstancedMesh | null {
   const buf = buildLabelInstanceBuffer(block, atlas);
   if (!buf || buf.count === 0) return null;
 
-  const material = getLabelMaterial(atlasTexture);
+  const text = block.primaryStreet?.label || '';
+  const rect = atlas.rectByText.get(text);
+  if (!rect) return null;
+  const texture = atlasTextures[rect.page];
+  if (!texture) return null;
+  const material = getLabelMaterial(texture);
   const mesh = new THREE.InstancedMesh(_SHARED_LABEL_GEOMETRY, material, buf.count);
 
   // Set instance transforms.
