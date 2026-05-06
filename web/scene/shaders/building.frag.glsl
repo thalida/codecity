@@ -267,12 +267,35 @@ vec4 renderBottomFace() {
   return vec4(bottomColor, vOpacity);
 }
 
+// Silhouette mode: render the proper face-shaded base color but skip
+// per-cell window/door/slab/roof-border math. Walls keep front-vs-side
+// shading so the building still reads as 3D; roof keeps its base color
+// without the border stroke.
+vec4 renderSilhouette() {
+  vec3 baseColor = linearToSrgb(vColor);
+  if (vFace == 2) {
+    // Roof — solid base color.
+    return vec4(baseColor, vOpacity);
+  }
+  if (vFace == 3) {
+    // Bottom — match the side-wall darkening so silhouette looks consistent
+    // with the wall sides if the camera ever sees underneath.
+    vec3 c = shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO,
+                          WALL_SIDE_LIGHTNESS_DELTA,
+                          WALL_SIDE_LIGHTNESS_FLOOR);
+    return vec4(c, vOpacity);
+  }
+  // Walls — front pair vs side pair shading, matching renderWallFace().
+  bool front = isFrontFacePair();
+  vec3 wallColor = front
+    ? shadeAndShiftHue(baseColor, WALL_FRONT_LIGHTNESS_DELTA, WALL_FRONT_HUE_SHIFT, -1.0)
+    : shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO, WALL_SIDE_LIGHTNESS_DELTA, WALL_SIDE_LIGHTNESS_FLOOR);
+  return vec4(wallColor, vOpacity);
+}
+
 void main() {
-  // Silhouette mode: render solid base color across the whole face.
-  // Used by the fader for far-LOD tiers where window/door detail would
-  // be sub-pixel anyway. Skips all per-cell math.
   if (vSilhouette > 0.5) {
-    gl_FragColor = vec4(linearToSrgb(vColor), vOpacity);
+    gl_FragColor = renderSilhouette();
     return;
   }
   if (vFace == 2)      gl_FragColor = renderRoofFace();

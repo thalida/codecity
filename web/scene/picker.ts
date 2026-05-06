@@ -63,12 +63,13 @@ export function createPicker({
   // raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
-    pickables = cityScene.getBuildings().concat(cityScene.getStreetPickables());
-    // Include each block's placeholder mesh so raycast hits it when the
-    // block is in placeholder LOD state. Three.js's intersectObjects
-    // automatically skips invisible meshes, so whichever of detailMesh /
-    // placeholderMesh is currently hidden will be bypassed at runtime.
+    pickables = cityScene.getStreetPickables().slice();
+    // Include each block's detailMesh (InstancedMesh of buildings) AND
+    // placeholderMesh. Three.js's intersectObjects automatically skips
+    // invisible meshes, so whichever of detailMesh / placeholderMesh
+    // the lodController has currently hidden will be bypassed at runtime.
     for (const block of cityScene.getBlocks()) {
+      if (block.detailMesh) pickables.push(block.detailMesh);
       if (block.placeholderMesh) pickables.push(block.placeholderMesh);
     }
     const gem = cityScene.getRootGem();
