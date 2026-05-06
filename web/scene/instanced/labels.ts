@@ -14,8 +14,12 @@ export interface LabelAtlasResult {
   rectByText: Map<string, { u: number; v: number; w: number; h: number; aspect: number }>;
 }
 
-const ATLAS_WIDTH = 4096;
-const ATLAS_HEIGHT_MAX = 8192;
+// WebGL2 guarantees MAX_TEXTURE_SIZE >= 2048; virtually all desktop GPUs
+// support 16384. 8192×16384 fits ~2700 labels at the default font; large
+// monorepos exceed 4096-wide. If a project genuinely overflows this, the
+// fallback should be a paged atlas, not a wider single texture.
+const ATLAS_WIDTH = 8192;
+const ATLAS_HEIGHT_MAX = 16384;
 
 export function buildLabelAtlas(
   uniqueTexts: string[],
