@@ -144,3 +144,85 @@ function orientToIndex(orient: BuildingOrient): number {
       return 0; // fallback: South
   }
 }
+
+// ---------------------------------------------------------------------------
+// Task 8: InstancedMesh creation
+// ---------------------------------------------------------------------------
+
+import buildingVertSrc from '../shaders/building.vert.glsl?raw';
+import buildingFragSrc from '../shaders/building.frag.glsl?raw';
+import hslGlslSrc from '../shaders/hsl.glsl?raw';
+
+// Shared unit box geometry — all blocks reference the same geometry for
+// the box vertices. Per-block attributes are attached to a CLONE of this
+// geometry (see mesh.geometry = mesh.geometry.clone() below) so they
+// don't bleed across blocks.
+const _SHARED_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
+
+// Lazy singleton material — created once and reused across all blocks.
+// applyManifest can be called multiple times (hot-reload); the singleton
+// pattern ensures we don't accumulate materials on each rebuild.
+let _sharedMaterial: THREE.ShaderMaterial | null = null;
+
+function getBuildingMaterial(): THREE.ShaderMaterial {
+  if (_sharedMaterial) return _sharedMaterial;
+  // Inline the hsl helpers into the fragment source at the placeholder
+  // comment the shader author left for exactly this purpose.
+  const fragSrc = buildingFragSrc.replace('#include <hsl_glsl_inline>', hslGlslSrc);
+  _sharedMaterial = new THREE.ShaderMaterial({
+    vertexShader: buildingVertSrc,
+    fragmentShader: fragSrc,
+    // transparent: true so iOpacity can fade buildings (Task 11).
+    transparent: true,
+  });
+  return _sharedMaterial;
+}
+
+/**
+ * Create a THREE.InstancedMesh for all buildings in a block.
+ *
+ * One mesh per directory block; shared geometry + shader material.
+ * Per-instance transforms (matrix), colors, and custom attributes
+ * (iCols, iFloors, iOrient, iDoorWidth, iOpacity) are sourced from
+ * buildBuildingInstanceBuffer.
+ *
+ * mesh.userData.kind = 'buildings' — used by the picker (Task 10).
+ * mesh.userData.block = block       — back-pointer for the picker.
+ */
+export function createBuildingsInstancedMesh(block: SceneBlock): THREE.InstancedMesh {
+  const n = block.buildings.length;
+  const buf = buildBuildingInstanceBuffer(block);
+  const mesh = new THREE.InstancedMesh(_SHARED_GEOMETRY, getBuildingMaterial(), n);
+
+  // Apply the matrix buffer.
+  const tmpM = new THREE.Matrix4();
+  for (let i = 0; i < n; i++) {
+    tmpM.fromArray(buf.matrix, i * 16);
+    mesh.setMatrixAt(i, tmpM);
+  }
+  mesh.instanceMatrix.needsUpdate = true;
+
+  // Per-instance color via Three's built-in path (sets USE_INSTANCING_COLOR
+  // on the shader automatically).
+  mesh.instanceColor = new THREE.InstancedBufferAttribute(buf.color, 3);
+  mesh.instanceColor.needsUpdate = true;
+
+  // Clone geometry so per-block custom attributes don't bleed across blocks.
+  // The shared _SHARED_GEOMETRY box vertices are still shared; only attribute
+  // slots are per-block after the clone.
+  mesh.geometry = mesh.geometry.clone();
+  mesh.geometry.setAttribute('iCols', new THREE.InstancedBufferAttribute(buf.cols, 2));
+  mesh.geometry.setAttribute('iFloors', new THREE.InstancedBufferAttribute(buf.floors, 1));
+  mesh.geometry.setAttribute('iOrient', new THREE.InstancedBufferAttribute(buf.orient, 1));
+  mesh.geometry.setAttribute('iDoorWidth', new THREE.InstancedBufferAttribute(buf.doorWidth, 1));
+  mesh.geometry.setAttribute('iOpacity', new THREE.InstancedBufferAttribute(buf.opacity, 1));
+
+  // Compute bounding sphere from instance positions for Three's frustum
+  // culling (fires per-block since each InstancedMesh has its own sphere).
+  mesh.computeBoundingSphere();
+
+  // Tag for picker (Task 10) and block back-reference.
+  mesh.userData.kind = 'buildings';
+  mesh.userData.block = block;
+  return mesh;
+}

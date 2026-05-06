@@ -1,98 +1,33 @@
 // engine.ts — Three.js scene builder. Turns layout output into a Scene of meshes.
 //
-// World axes: X east-west, Y north-south, Z up. Buildings are BoxGeometry with
-// per-face CanvasTextures (floor bands, windows, ground-floor door). Streets
-// are flat planes. The root of the tree gets a spinning gold octahedron on a
-// plaza.
+// World axes: X east-west, Y north-south, Z up. Streets are flat planes.
+// The root of the tree gets a spinning gold octahedron on a plaza.
+//
+// NOTE(Task 8): createBuildingMesh, _buildFacadeTexture, and _buildRoofTexture
+// have been removed. Buildings are now rendered as per-block InstancedMeshes
+// via web/scene/instanced/buildings.ts. buildCityScene still builds per-building
+// meshes internally (so layout positions are available) but cityScene.ts removes
+// them immediately and replaces them with InstancedMeshes.
 
 import * as THREE from 'three';
-import { shadeColor, shadeAndShiftHue, shadeByRatio } from './hsl.js';
 import {
   SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
-  BUILDING_DIMENSIONS,
   GEM_SIZING,
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_ANIMATION,
 } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
-import { BuildingOrient, CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Building, BuildingPath, CityLayout, Street } from '@/types';
+import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
+import type { BuildingPath, CityLayout, Street } from '@/types';
 
 // Internal-only types for engine helpers.
-interface FacadeOpts {
-  floors: number;
-  cols: number;
-  wallColor: string;
-  slabColor: string;
-  winColor: string;
-  doorColor: string;
-  hasDoor: boolean;
-  faceWorldWidth: number;
-  doorWorldWidth: number;
-}
-interface RoofOpts {
-  roofColor: string;
-  borderColor: string;
-}
 type StreetWithJoin = Street & { joinSide?: JoinSide };
 
 // ─── Renderer-internal constants (not designer-tunable) ────────────────────
-// These shape facade textures, color derivation, and stadium tessellation.
-// Changing them changes the look of every building, but they're not user
-// dials — leaving them as plain consts keeps the user-facing config surface
-// (sliders/colors in the Settings UI) free of implementation noise.
-
-// Facade canvas / window math. Door WIDTH is no longer in here — it's
-// derived per-building from the building's own width × PATH_WIDTH_FRAC
-// (see DOOR_WIDTH_OF_PATH below) so doors visually match the path strip
-// that connects the building to its sidewalk.
-const FACADE = Object.freeze({
-  TEXTURE_MIN_WIDTH_PX: 128,
-  TEXTURE_WIDTH_PER_COL_MULT: 128,
-  TEXTURE_MIN_HEIGHT_PX: 64,
-  TEXTURE_HEIGHT_PER_FLOOR_MULT: 64,
-  ANISOTROPY: 8,
-  SLAB_BAND_MIN_PX: 3,
-  SLAB_HEIGHT_FRAC: 0.12,
-  WINDOW_MARGIN_FRAC: 0.08,
-  WINDOW_WIDTH_FRAC: 0.45,
-  WINDOW_HEIGHT_FRAC: 0.45,
-  WINDOW_COLS_SIZE_DIVISOR: 8,
-  WINDOW_COLS_MAX: 5,
-  DOOR_HEIGHT_FRAC: 0.7,
-});
-
-// Door world width = (building.w × PATH_WIDTH_FRAC) × this. Keeps the
-// door visually matched to its path connector strip (which is the same
-// per-building width) so the "walk out the door onto the path" reading
-// lands regardless of how big the building is.
-const DOOR_WIDTH_OF_PATH = 0.8;
-
-// Per-face palette derivation: front/side/slab/window/door/roof shifts off
-// the building's base color.
-//   *_LIGHTNESS_DELTA — additive lightness shift in HSL %
-//   *_HUE_SHIFT       — hue rotation in degrees
-//   *_DARKEN_RATIO    — multiplicative darkening (1.0 = unchanged)
-//   *_LIGHTNESS_FLOOR — clamp floor so dim files don't crush to black
-const SHADING = Object.freeze({
-  WALL_FRONT_LIGHTNESS_DELTA: -5,
-  WALL_FRONT_HUE_SHIFT: 18,
-  WALL_SIDE_DARKEN_RATIO: 0.55,
-  WALL_SIDE_LIGHTNESS_DELTA: -10,
-  WALL_SIDE_LIGHTNESS_FLOOR: 14,
-  SLAB_FRONT_LIGHTNESS_DELTA: -15,
-  SLAB_FRONT_HUE_SHIFT: 18,
-  SLAB_SIDE_DARKEN_RATIO: 0.4,
-  SLAB_SIDE_LIGHTNESS_DELTA: -10,
-  SLAB_SIDE_LIGHTNESS_FLOOR: 10,
-  WINDOW_LIGHTNESS_DELTA: 20,
-  DOOR_LIGHTNESS_DELTA: -55,
-  ROOF_BORDER_LIGHTNESS_DELTA: -15,
-});
 
 // Stadium-cap tessellation count for the asphalt + sidewalk shapes.
 const STADIUM_SEGMENTS = 16;
@@ -103,323 +38,8 @@ const LABEL_TEXT_ALIGN = 'center';
 const LABEL_TEXT_BASELINE = 'middle';
 const LABEL_ANISOTROPY = 16;
 
-// _toPow2(n) — round n UP to the next power of two. Used so canvas-backed
-// textures get mipmaps (Three.js requires power-of-2 dims for guaranteed
-// mipmap support across all WebGL profiles).
-function _toPow2(n: number): number {
-  let p = 1;
-  while (p < n) p *= 2;
-  return p;
-}
-
 // -----------------------------------------------------------------------------
-// _buildFacadeTexture(opts) -> THREE.CanvasTexture
-//
-// Paints the side of a building onto a 2D canvas and returns it as a Three.js
-// texture. The texture encodes:
-//   - the wall base color
-//   - a thin darker slab band at each floor ceiling
-//   - a grid of lighter window rectangles, one row per floor
-//   - (optional) a door on the ground floor
-//
-// The texture is sampled across the full face, so widths/heights in the
-// building mesh are real-world units — the texture stretches to fit.
-// -----------------------------------------------------------------------------
-function _buildFacadeTexture(opts: FacadeOpts): THREE.CanvasTexture {
-  const facade = FACADE;
-  const floors = opts.floors;
-  const cols = opts.cols;
-  const wallColor = opts.wallColor;
-  const slabColor = opts.slabColor;
-  const winColor = opts.winColor;
-  const doorColor = opts.doorColor;
-  const hasDoor = !!opts.hasDoor;
-
-  // Pixel canvas — round dimensions UP to the next power of two so Three.js
-  // can generate mipmaps. Without mipmaps, zoomed-out facades shimmer/blur
-  // via single-texel sampling.
-  // pxPerFloor / pxPerCol are then RECOMPUTED from the rounded canvas so
-  // floors and columns fill the canvas evenly — otherwise the drawing
-  // (which anchors floors at the bottom) would leave a huge blank stripe
-  // at the top of the texture, making the building look half-empty.
-  const width = _toPow2(
-    Math.max(facade.TEXTURE_MIN_WIDTH_PX, facade.TEXTURE_WIDTH_PER_COL_MULT * cols)
-  );
-  const height = _toPow2(
-    Math.max(facade.TEXTURE_MIN_HEIGHT_PX, facade.TEXTURE_HEIGHT_PER_FLOOR_MULT * floors)
-  );
-  const pxPerFloor = height / floors;
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-
-  // Base wall color
-  ctx.fillStyle = wallColor;
-  ctx.fillRect(0, 0, width, height);
-
-  // Slab band at the top of every floor (a thin horizontal stripe)
-  ctx.fillStyle = slabColor;
-  const slabPx = Math.max(
-    facade.SLAB_BAND_MIN_PX,
-    Math.floor(pxPerFloor * facade.SLAB_HEIGHT_FRAC)
-  );
-  for (let fi = 0; fi < floors; fi++) {
-    // Texture Y=0 is the TOP of the face. Floor `fi` (counting from the
-    // ground) occupies texture rows [height - (fi+1)*pxPerFloor, height - fi*pxPerFloor].
-    // The slab sits at the top of that span.
-    const bandTop = height - (fi + 1) * pxPerFloor;
-    ctx.fillRect(0, bandTop, width, slabPx);
-  }
-
-  // Windows — one row per floor, `cols` columns across, inset within a
-  // margin on each face edge.
-  const marginX = Math.floor(width * facade.WINDOW_MARGIN_FRAC);
-  const cellW = (width - 2 * marginX) / cols;
-  const winW = Math.floor(cellW * facade.WINDOW_WIDTH_FRAC);
-  const winH = Math.floor(pxPerFloor * facade.WINDOW_HEIGHT_FRAC);
-
-  ctx.fillStyle = winColor;
-  for (let f = 0; f < floors; f++) {
-    const floorBottomPx = height - f * pxPerFloor;
-    const floorTopPx = floorBottomPx - pxPerFloor;
-    // Window row sits roughly centered in the floor, above the slab band.
-    const winCenterY = floorTopPx + slabPx + (pxPerFloor - slabPx) / 2;
-    const winY = Math.floor(winCenterY - winH / 2);
-
-    // Skip this floor's window row on the door face, ground floor only.
-    if (hasDoor && f === 0) continue;
-
-    for (let c = 0; c < cols; c++) {
-      const cellCenterX = marginX + cellW * (c + 0.5);
-      const winX = Math.floor(cellCenterX - winW / 2);
-      ctx.fillRect(winX, winY, winW, winH);
-    }
-  }
-
-  // Door — centered on the ground floor, on the door face. Pixel width
-  // comes from the caller's requested WORLD width × (canvas pixels per
-  // world unit on this face). Caller passes faceWorldWidth + the desired
-  // doorWorldWidth so the door visually matches the path connector strip.
-  if (hasDoor) {
-    const pxPerWorldUnit = width / opts.faceWorldWidth;
-    let doorW = Math.floor(opts.doorWorldWidth * pxPerWorldUnit);
-    if (doorW < 1) doorW = 1;
-    if (doorW > width) doorW = width;
-    const doorH = Math.floor(pxPerFloor * facade.DOOR_HEIGHT_FRAC);
-    const doorX = Math.floor((width - doorW) / 2);
-    const doorY = height - doorH;
-    ctx.fillStyle = doorColor;
-    ctx.fillRect(doorX, doorY, doorW, doorH);
-  }
-
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = facade.ANISOTROPY;
-  // mag = Nearest, min = NearestMipmapLinear: pixel-perfect crispness at
-  // every distance. Nearest sampling within each mipmap keeps window edges
-  // sharp; linear blending BETWEEN mipmap levels prevents shimmer when
-  // small/distant. (LinearMipmapLinear was tried first but smoothed the
-  // window pixels into a soft blur — wrong for the blocky pixel-art look.)
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  return tex;
-}
-
-// -----------------------------------------------------------------------------
-// _buildRoofTexture(opts) -> THREE.CanvasTexture
-//
-// A simple texture for the top face: flat roof color with a faint darker
-// border so it reads as a roof slab rather than a featureless cap.
-// -----------------------------------------------------------------------------
-function _buildRoofTexture(opts: RoofOpts): THREE.CanvasTexture {
-  const facade = FACADE;
-  // Roof texture is a small fixed-size pixel canvas — we use the facade
-  // anisotropy so roof + walls share the same min/mag filter feel. The
-  // 128px canvas + 4/2/124 border insets are visual constants of the
-  // simple solid-color-with-border design (changing them doesn't change
-  // appearance because the texture stretches to the roof face anyway),
-  // so they stay inline.
-  const canvas = document.createElement('canvas');
-  canvas.width = 128;
-  canvas.height = 128;
-  const ctx = canvas.getContext('2d')!;
-  ctx.fillStyle = opts.roofColor;
-  ctx.fillRect(0, 0, 128, 128);
-  ctx.strokeStyle = opts.borderColor;
-  ctx.lineWidth = 4;
-  ctx.strokeRect(2, 2, 124, 124);
-  const tex = new THREE.CanvasTexture(canvas);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = facade.ANISOTROPY;
-  tex.magFilter = THREE.NearestFilter;
-  tex.minFilter = THREE.NearestMipmapLinearFilter;
-  tex.generateMipmaps = true;
-  return tex;
-}
-
-// -----------------------------------------------------------------------------
-// createBuildingMesh(building) -> THREE.Mesh
-//
-// Builds a single building mesh from a layout Building object:
-//   { x, y, w, d, h, color, orient, file }
-//
-// Three.js box geometry has 6 faces; we assign a material per face with a
-// CanvasTexture that paints the right pattern for each side. Texture widths
-// are based on the number of window columns per face (so tall, thin buildings
-// get narrow one-window-wide textures and wide buildings get more columns).
-//
-// The mesh is positioned so its base sits on z=0 and its center is at (x, y).
-// `building.file` is attached to `mesh.userData.building` so raycast hits can
-// look the original building object back up.
-// -----------------------------------------------------------------------------
-export function createBuildingMesh(building: Building): THREE.Mesh {
-  const w = building.w;
-  const d = building.d;
-  const shading = SHADING;
-  const color = building.color;
-
-  // Floor count + height come straight from layout (layout is the source of
-  // truth for the lines→floors mapping and snaps h to floor_height boundaries).
-  const floors = Math.max(1, building.floors || 1);
-  const renderH = building.h;
-
-  // Scene convention: Three.js Y is up. Layout coords (x, y) map to scene
-  // (x, z) with building height along scene-Y. So a BoxGeometry(w, renderH, d)
-  // has its sides running along world-X and world-Z — exactly what we want.
-  //
-  // BoxGeometry material order: [+X, -X, +Y, -Y, +Z, -Z]
-  // Window-column counts scale with each face's horizontal extent:
-  //   ±X faces (east/west walls)   have horizontal extent = d
-  //   ±Z faces (north/south walls) have horizontal extent = w
-  const colsEW = Math.max(
-    1,
-    Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(d / FACADE.WINDOW_COLS_SIZE_DIVISOR))
-  );
-  const colsNS = Math.max(
-    1,
-    Math.min(FACADE.WINDOW_COLS_MAX, Math.floor(w / FACADE.WINDOW_COLS_SIZE_DIVISOR))
-  );
-
-  // Palette — opposing faces share a color so the building looks symmetric
-  // as the camera orbits. Front/back faces use a slight absolute lightness
-  // bump; side faces use a MULTIPLICATIVE darkening so they always read as
-  // proportionally darker than the front regardless of the base lightness,
-  // with an absolute floor that keeps them from crushing to pure black on
-  // dim files (old/untouched) and blending into the dark background.
-  const wallFront = shadeAndShiftHue(
-    color,
-    shading.WALL_FRONT_LIGHTNESS_DELTA,
-    shading.WALL_FRONT_HUE_SHIFT
-  );
-  const wallSide = shadeByRatio(
-    color,
-    shading.WALL_SIDE_DARKEN_RATIO,
-    shading.WALL_SIDE_LIGHTNESS_DELTA,
-    shading.WALL_SIDE_LIGHTNESS_FLOOR
-  );
-  const slabFront = shadeAndShiftHue(
-    color,
-    shading.SLAB_FRONT_LIGHTNESS_DELTA,
-    shading.SLAB_FRONT_HUE_SHIFT
-  );
-  const slabSide = shadeByRatio(
-    color,
-    shading.SLAB_SIDE_DARKEN_RATIO,
-    shading.SLAB_SIDE_LIGHTNESS_DELTA,
-    shading.SLAB_SIDE_LIGHTNESS_FLOOR
-  );
-  const winColor = shadeColor(color, shading.WINDOW_LIGHTNESS_DELTA);
-  const doorColor = shadeAndShiftHue(color, shading.DOOR_LIGHTNESS_DELTA, 0);
-  const roofColor = color;
-  const roofBorder = shadeAndShiftHue(color, shading.ROOF_BORDER_LIGHTNESS_DELTA, 0);
-
-  // Door face mapping. Layout orient describes which face actually points at
-  // the adjacent street; scene maps layout-y to scene-z.
-  //   SOUTH → door on layout +y = scene +Z (material index 4)
-  //   NORTH → door on layout -y = scene -Z (material index 5)
-  //   EAST  → door on layout +x = scene +X (material index 0)
-  //   WEST  → door on layout -x = scene -X (material index 1)
-  const orient = building.orient || BuildingOrient.South;
-  const doorOnEW = orient === BuildingOrient.East || orient === BuildingOrient.West;
-
-  // Assign the lighter "front" palette to the pair of faces that contains
-  // the door; the other pair gets the darker "side" palette.
-  const wallNS = doorOnEW ? wallSide : wallFront;
-  const wallEW = doorOnEW ? wallFront : wallSide;
-  const slabNS = doorOnEW ? slabSide : slabFront;
-  const slabEW = doorOnEW ? slabFront : slabSide;
-
-  const geometry = new THREE.BoxGeometry(w, renderH, d);
-
-  // Door world width = path connector width × DOOR_WIDTH_OF_PATH so the
-  // door visually matches the path strip leading away from it. The path
-  // strip is per-building (= w × PATH_WIDTH_FRAC).
-  const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_OF_PATH;
-
-  // One material per face, in BoxGeometry order: [+X, -X, +Y, -Y, +Z, -Z].
-  // EW faces (east/west walls) span the building's depth `d`; NS faces span
-  // its width `w`. faceWorldWidth tells the texture builder how to convert
-  // the requested doorWorldWidth into pixels for this face's canvas.
-  function facadeMat(
-    cols: number,
-    hasDoor: boolean,
-    wallColor: string,
-    slabColor: string,
-    faceWorldWidth: number
-  ): THREE.MeshBasicMaterial {
-    const tex = _buildFacadeTexture({
-      floors,
-      cols,
-      wallColor,
-      slabColor,
-      winColor,
-      doorColor,
-      hasDoor,
-      faceWorldWidth,
-      doorWorldWidth,
-    });
-    return new THREE.MeshBasicMaterial({ map: tex });
-  }
-
-  function roofMat(): THREE.MeshBasicMaterial {
-    const tex = _buildRoofTexture({ roofColor, borderColor: roofBorder });
-    return new THREE.MeshBasicMaterial({ map: tex });
-  }
-
-  function bottomMat(): THREE.MeshBasicMaterial {
-    return new THREE.MeshBasicMaterial({ color: new THREE.Color(wallEW) });
-  }
-
-  // EW faces (±X walls) span the building's depth `d` along their canvas;
-  // NS faces (±Z walls) span the width `w`. Pass each face's world width
-  // through so the door texture can size itself in world units.
-  const materials = [
-    facadeMat(colsEW, orient === BuildingOrient.East, wallEW, slabEW, d), // +X (east)
-    facadeMat(colsEW, orient === BuildingOrient.West, wallEW, slabEW, d), // -X (west)
-    roofMat(), // +Y (roof)
-    bottomMat(), // -Y (bottom)
-    facadeMat(colsNS, orient === BuildingOrient.South, wallNS, slabNS, w), // +Z (south)
-    facadeMat(colsNS, orient === BuildingOrient.North, wallNS, slabNS, w), // -Z (north)
-  ];
-
-  const mesh = new THREE.Mesh(geometry, materials);
-
-  // Position: building center in XY plane, base sits on z=0.
-  // We use Three.js default Y-up internally but position Y to be "up" in the
-  // scene as well — the camera is set up for that. World-space mapping from
-  // layout (x, y, z-up) to scene (x, y-up, z):
-  //     scene.x = layout.x
-  //     scene.y = layout.z (height)
-  //     scene.z = layout.y
-  mesh.position.set(building.x, renderH / 2, building.y);
-
-  mesh.userData.building = building;
-  mesh.userData.type = NodeKind.File;
-  return mesh;
-}
+// Ground-plane materials — all the flat pieces (sidewalk, asphalt, paths)
 
 // -----------------------------------------------------------------------------
 // Ground-plane materials — all the flat pieces (sidewalk, asphalt, paths)
@@ -887,14 +507,10 @@ export function buildCityScene(layout: CityLayout) {
     pathMeshes.push(pm);
   }
 
-  // Buildings
+  // Buildings are no longer built here — cityScene.ts removes any per-building
+  // meshes immediately and replaces them with per-block InstancedMeshes
+  // (Task 8). Return an empty array so cityScene.ts's disposal loop no-ops.
   const buildingMeshes: THREE.Mesh[] = [];
-  const buildings = layout.buildings || [];
-  for (const b of buildings) {
-    const mesh = createBuildingMesh(b);
-    scene.add(mesh);
-    buildingMeshes.push(mesh);
-  }
 
   // Bounding box of the whole city (in scene coords). Used by the caller to
   // frame the camera.

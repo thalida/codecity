@@ -150,21 +150,25 @@ export function createBuildingFader({
       m.userData.ghostOp = _stepOpacity(m.userData.ghostOp, ghostTarget, fadeCfg);
       m.userData.outlineOp = _stepOpacity(m.userData.outlineOp, outlineTarget, fadeCfg);
 
-      // Apply body opacity. material.transparent flip triggers a shader
-      // recompile, so only flip when it actually changed.
-      const bodyOp = m.userData.bodyOp;
-      const mats = Array.isArray(m.material) ? m.material : [m.material];
-      const bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
-      for (const mat of mats) {
-        if (!mat) continue;
-        if (mat.transparent !== bodyTransparent) {
-          mat.transparent = bodyTransparent;
-          mat.depthWrite = !bodyTransparent;
-          mat.needsUpdate = true;
-        }
-        mat.opacity = bodyOp;
-      }
-      m.visible = bodyOp > 0;
+      // TODO(Task 11): rewrite buildingFader for InstancedMesh.
+      // getBuildings() now returns THREE.Object3D[] (InstancedMesh stubs);
+      // .material does not exist on Object3D. The per-building material
+      // mutation below is replaced by per-instance iOpacity attribute
+      // writes in Task 11. Commenting out to unblock typecheck.
+      //
+      // const bodyOp = m.userData.bodyOp;
+      // const mats = Array.isArray(m.material) ? m.material : [m.material];
+      // const bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
+      // for (const mat of mats) {
+      //   if (!mat) continue;
+      //   if (mat.transparent !== bodyTransparent) {
+      //     mat.transparent = bodyTransparent;
+      //     mat.depthWrite = !bodyTransparent;
+      //     mat.needsUpdate = true;
+      //   }
+      //   mat.opacity = bodyOp;
+      // }
+      // m.visible = bodyOp > 0;
     }
   }
 
