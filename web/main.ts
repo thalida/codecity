@@ -30,6 +30,7 @@ import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
 import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
+import type { SceneBlock } from './scene/blocks.js';
 import { createLodController } from './scene/lodController.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
@@ -285,6 +286,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // renderer skips invisible meshes automatically — no O(N) work on hidden
     // content. No block-level loops exist in animate(); all loops are O(visible).
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
+    _orientBlockLabelsForCamera(cityScene.getBlocks(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
     if (rootGem) {
       const gemAnim = GEM_ANIMATION.get();
@@ -343,6 +345,43 @@ function _orientLabelsForCamera(
     }
     lbl.userData.flipped = flipped;
     lbl.rotation.y = base + (flipped ? Math.PI : 0);
+  }
+}
+
+// Per-block instanced-label sibling of _orientLabelsForCamera. Each block's
+// labelsMesh stores per-instance iFlip; we toggle 0/1 based on the camera's
+// world-right vector against the block's primary-street axis. Hysteresis state
+// piggybacks on labelsMesh.userData.flipped (same idea as the legacy Group path).
+function _orientBlockLabelsForCamera(
+  blocks: SceneBlock[],
+  camera: THREE.PerspectiveCamera,
+  labelRight: THREE.Vector3,
+): void {
+  labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
+  const rightX = labelRight.x;
+  const rightZ = labelRight.z;
+  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
+
+  for (const block of blocks) {
+    const mesh = block.labelsMesh;
+    if (!mesh) continue;
+    const street = block.primaryStreet;
+    if (!street) continue;
+    const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
+    let flipped: boolean = mesh.userData.flipped || false;
+    if (flipped) {
+      if (axis > THRESH) flipped = false;
+    } else {
+      if (axis < -THRESH) flipped = true;
+    }
+    if (flipped === mesh.userData.flipped) continue;
+    mesh.userData.flipped = flipped;
+    const flipAttr = mesh.geometry.getAttribute('iFlip') as THREE.InstancedBufferAttribute | undefined;
+    if (!flipAttr) continue;
+    const v = flipped ? 1 : 0;
+    const arr = flipAttr.array as Float32Array;
+    for (let i = 0; i < arr.length; i++) arr[i] = v;
+    flipAttr.needsUpdate = true;
   }
 }
 

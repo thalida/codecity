@@ -584,6 +584,27 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
     _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
 
+    // Diagnostic: dump (dir.path → primaryStreet.label) pairs and the atlas
+    // rect each block resolves to. Toggle with window.__labelDebug = true
+    // and reload the manifest. Surfaces label-to-street mismapping.
+    if (typeof window !== 'undefined' && (window as unknown as { __labelDebug?: boolean }).__labelDebug) {
+      const dump = newBlocks.map((b) => {
+        const text = b.primaryStreet?.label ?? '';
+        const rect = atlas.rectByText.get(text);
+        return {
+          dirPath: b.dir?.path ?? '<no-dir>',
+          dirName: b.dir?.name ?? '<no-name>',
+          label: text,
+          rectPage: rect?.page ?? null,
+          rectU: rect?.u ?? null,
+          rectV: rect?.v ?? null,
+        };
+      });
+      // eslint-disable-next-line no-console
+      console.table(dump);
+      (window as unknown as { __labelDebugDump?: unknown }).__labelDebugDump = dump;
+    }
+
     for (const block of newBlocks) {
       // Placeholders disabled: they caused hover ambiguity (one block's
       // placeholder cuboid intercepting rays meant for another block's

@@ -122,7 +122,13 @@ export function buildLabelAtlas(
     rectByText.set(p.text, {
       page: p.page,
       u: p.x / ATLAS_WIDTH,
-      v: p.y / pageH,
+      // CanvasTexture defaults flipY=true, so the GPU sees the canvas
+      // vertically inverted: a rect at canvas top (p.y=0) is at GL
+      // texture v=1, not v=0. With a single-row atlas this didn't matter
+      // (rect spanned v=0..1 either way); with multi-row atlases, rows
+      // sample from the wrong band — every block read its neighbor's
+      // text. Convert canvas-y → GL-v explicitly here.
+      v: 1 - (p.y + p.h) / pageH,
       w: p.w / ATLAS_WIDTH,
       h: p.h / pageH,
       aspect: p.w / p.h,

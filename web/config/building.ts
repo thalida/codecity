@@ -110,7 +110,7 @@ export interface BuildingOutlineConfig {
 }
 
 export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
-  WIDTH: 2, // shared by default + hover + selected
+  WIDTH: 4, // shared by default + hover + selected
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.85,
   SELECTED_OPACITY: 1.0,
