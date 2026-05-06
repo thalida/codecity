@@ -122,18 +122,18 @@ bool isFrontFacePair() {
 }
 
 // ---------------------------------------------------------------------------
-// Analytical AA helpers — fwidth-based smoothstep, no mipmaps needed.
+// Edge helpers — hard step to match the canvas-baked reference (NearestFilter
+// textures have no sub-pixel smoothing; hard step gives the same result).
 // ---------------------------------------------------------------------------
 
-// aastep: returns 0 below edge, 1 above edge, smooth over ~1 pixel.
+// aastep: hard step matching canvas NearestFilter (no sub-pixel smoothing).
 float aastep(float edge, float x) {
-  float w = fwidth(x);
-  return smoothstep(edge - w, edge + w, x);
+  return step(edge, x);
 }
 
-// aaband: returns 1 inside [a, b], 0 outside, with smooth edges at a and b.
+// aaband: returns 1 inside [a, b], 0 outside, hard edges.
 float aaband(float a, float b, float x) {
-  return aastep(a, x) * (1.0 - aastep(b, x));
+  return step(a, x) * (1.0 - step(b, x));
 }
 
 // ---------------------------------------------------------------------------
@@ -143,6 +143,18 @@ float aaband(float a, float b, float x) {
 vec4 renderWallFace() {
   bool front = isFrontFacePair();
 
+  // instanceColor arrives as linear-sRGB (Three.js Color.set() converts CSS
+  // sRGB strings to linear). The HSL shading helpers are ported from hsl.ts
+  // which works in sRGB percentage space.
+  //
+  // ShaderMaterial does NOT get Three.js's automatic linearToOutputTexel()
+  // injection, so gl_FragColor is written directly to the sRGB framebuffer
+  // (drawingBufferColorSpace = 'srgb'). We therefore:
+  //   1. Convert vColor linear → sRGB so HSL math works correctly.
+  //   2. Perform HSL shading in sRGB.
+  //   3. Write the sRGB result directly (no re-linearisation needed).
+  vec3 baseColor = linearToSrgb(vColor);
+
   // Wall color: front faces use additive lightness + hue shift;
   // side faces use multiplicative darkening with a lightness floor.
   // Mirrors engine.ts shadeAndShiftHue / shadeByRatio calls exactly.
@@ -151,13 +163,13 @@ vec4 renderWallFace() {
   // WALL_SIDE_LIGHTNESS_DELTA / SLAB_SIDE_LIGHTNESS_DELTA are the 3rd
   // positional arg (hueDelta) of shadeByRatio.
   vec3 wallColor = front
-    ? shadeAndShiftHue(vColor, WALL_FRONT_LIGHTNESS_DELTA, WALL_FRONT_HUE_SHIFT, -1.0)
-    : shadeByRatio(vColor, WALL_SIDE_DARKEN_RATIO, WALL_SIDE_LIGHTNESS_DELTA, WALL_SIDE_LIGHTNESS_FLOOR);
+    ? shadeAndShiftHue(baseColor, WALL_FRONT_LIGHTNESS_DELTA, WALL_FRONT_HUE_SHIFT, -1.0)
+    : shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO, WALL_SIDE_LIGHTNESS_DELTA, WALL_SIDE_LIGHTNESS_FLOOR);
   vec3 slabColor = front
-    ? shadeAndShiftHue(vColor, SLAB_FRONT_LIGHTNESS_DELTA, SLAB_FRONT_HUE_SHIFT, -1.0)
-    : shadeByRatio(vColor, SLAB_SIDE_DARKEN_RATIO, SLAB_SIDE_LIGHTNESS_DELTA, SLAB_SIDE_LIGHTNESS_FLOOR);
-  vec3 winColor  = shadeColor(vColor, WINDOW_LIGHTNESS_DELTA);
-  vec3 doorColor = shadeAndShiftHue(vColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0);
+    ? shadeAndShiftHue(baseColor, SLAB_FRONT_LIGHTNESS_DELTA, SLAB_FRONT_HUE_SHIFT, -1.0)
+    : shadeByRatio(baseColor, SLAB_SIDE_DARKEN_RATIO, SLAB_SIDE_LIGHTNESS_DELTA, SLAB_SIDE_LIGHTNESS_FLOOR);
+  vec3 winColor  = shadeColor(baseColor, WINDOW_LIGHTNESS_DELTA);
+  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0);
 
   // vCols.x = cols_ew (for ±X faces), vCols.y = cols_ns (for ±Z faces).
   float cols = (vFace == 0 || vFace == 1) ? vCols.x : vCols.y;
@@ -172,12 +184,12 @@ vec4 renderWallFace() {
   float uvEffX = (uv.x - WINDOW_MARGIN_FRAC) / (1.0 - 2.0 * WINDOW_MARGIN_FRAC);
 
   // Cell coordinates: integer cell index + intra-cell UV in [0,1].
-  float colF  = uvEffX * cols;
-  float col   = floor(colF);
-  float cellU = fract(colF);
-  float rowF  = uv.y * vFloors;
-  float row   = floor(rowF);
-  float cellV = fract(rowF);
+  float colF   = uvEffX * cols;
+  float colIdx = floor(colF);
+  float cellU  = fract(colF);
+  float rowF   = uv.y * vFloors;
+  float row    = floor(rowF);
+  float cellV  = fract(rowF);
 
   // Window rectangle within each cell, centered horizontally and
   // vertically above the slab band. Matches WINDOW_WIDTH_FRAC /
@@ -201,8 +213,8 @@ vec4 renderWallFace() {
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV);
 
   // Compose: slab overrides wall; window overrides slab+wall.
-  vec3 baseColor  = mix(wallColor, slabColor, slabMask);
-  vec3 withWindow = mix(baseColor, winColor, winMask);
+  vec3 wallOut  = mix(wallColor, slabColor, slabMask);
+  vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
   if (isDoorFace() && row < 0.5) {
@@ -216,18 +228,23 @@ vec4 renderWallFace() {
     float doorTopV     = DOOR_HEIGHT_FRAC / vFloors; // fraction of total face height
     float doorMask = aaband(doorLeft, doorRight, uv.x)
                    * aaband(0.0, doorTopV, uv.y);
-    withWindow = mix(withWindow, doorColor, doorMask);
+    withWin = mix(withWin, doorColor, doorMask);
   }
 
-  return vec4(withWindow, vOpacity);
+  // withWin is already in sRGB — write directly to the sRGB framebuffer.
+  return vec4(withWin, vOpacity);
 }
 
 vec4 renderRoofFace() {
   // Flat roof color with a darker border strip along all four edges.
   // Mirrors engine.ts _buildRoofTexture: strokeRect(2, 2, 124, 124) with
   // lineWidth=4 on a 128×128 canvas → border fraction ≈ 4/128 = 0.03125.
-  vec3 roofColor   = vColor;
-  vec3 borderColor = shadeAndShiftHue(vColor, ROOF_BORDER_LIGHTNESS_DELTA, 0.0, -1.0);
+  //
+  // Convert linear→sRGB for HSL math, write sRGB result directly to framebuffer
+  // (ShaderMaterial has no automatic linearToOutputTexel pass).
+  vec3 baseColor   = linearToSrgb(vColor);
+  vec3 roofColor   = baseColor;
+  vec3 borderColor = shadeAndShiftHue(baseColor, ROOF_BORDER_LIGHTNESS_DELTA, 0.0, -1.0);
   float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x)
                    * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y);
   float borderMask = 1.0 - innerMask;
@@ -239,7 +256,11 @@ vec4 renderBottomFace() {
   // Mirrors engine.ts bottomMat() which uses wallEW = wallSide when !doorOnEW,
   // or wallFront when doorOnEW. For simplicity we always use the side color
   // since it's the more conservative (darker) of the two.
-  vec3 bottomColor = shadeByRatio(vColor, WALL_SIDE_DARKEN_RATIO,
+  //
+  // Convert linear→sRGB for HSL math, write sRGB result directly to framebuffer
+  // (ShaderMaterial has no automatic linearToOutputTexel pass).
+  vec3 baseColor = linearToSrgb(vColor);
+  vec3 bottomColor = shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO,
                                   WALL_SIDE_LIGHTNESS_DELTA,
                                   WALL_SIDE_LIGHTNESS_FLOOR);
   return vec4(bottomColor, vOpacity);

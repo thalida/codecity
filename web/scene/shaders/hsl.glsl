@@ -95,3 +95,32 @@ vec3 shadeByRatio(vec3 rgb, float ratio, float deltaHueDeg, float floorPct) {
   hsl.z = max(newL, floorPct / 100.0);
   return _hslToRgb(hsl);
 }
+
+// ---------------------------------------------------------------------------
+// Gamma helpers — sRGB ↔ linear conversion for building.frag.glsl.
+//
+// instanceColor arrives in linear-sRGB (Three.js Color.set() converts sRGB
+// CSS strings to linear). The HSL shading functions above are ported from
+// hsl.ts which operates on sRGB percentages; applying them to linear values
+// produces incorrect (too-dark) output. These two helpers bookend all shading
+// calls so the math runs in sRGB and the final output is re-linearised for
+// the WebGLRenderer's sRGB output encoding pass.
+// ---------------------------------------------------------------------------
+
+// linearToSrgb — IEC 61966-2-1 transfer function (linear → gamma-encoded).
+vec3 linearToSrgb(vec3 c) {
+  return mix(
+    12.92 * c,
+    1.055 * pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.4)) - 0.055,
+    step(0.0031308, c)
+  );
+}
+
+// srgbToLinear — IEC 61966-2-1 inverse (gamma-encoded → linear).
+vec3 srgbToLinear(vec3 c) {
+  return mix(
+    c / 12.92,
+    pow(clamp((c + 0.055) / 1.055, 0.0, 1.0), vec3(2.4)),
+    step(0.04045, c)
+  );
+}
