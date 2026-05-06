@@ -23,10 +23,18 @@ import json
 import os
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 
+from .cache import (
+    FileEntry,
+    cache_load_files,
+    cache_load_git_history,
+    cache_save_files,
+    cache_save_git_history,
+)
 from .types import (
     DirNode,
     FileNode,
@@ -104,19 +112,35 @@ def _stat_fields(entry: os.DirEntry[str]) -> tuple[int, str, str, float]:
     return st.st_size, _epoch_to_iso(birth), _epoch_to_iso(st.st_mtime), st.st_mtime
 
 
+# Above this size, sample first 1 MB and extrapolate. Building height
+# is relative, so ±20% on a 6+ MB file is fine and saves megabytes
+# of read I/O per file.
+_LINE_COUNT_FULL_THRESHOLD = 5 * 1024 * 1024   # 5 MB
+_LINE_COUNT_SAMPLE_BYTES = 1 * 1024 * 1024     # 1 MB
+
+
 def _line_count(path: Path) -> int:
-    # Count b'\n' in chunks to avoid loading huge files into memory.
-    total = 0
     try:
+        size = path.stat().st_size
+        if size <= _LINE_COUNT_FULL_THRESHOLD:
+            # Exact path — count every newline in 1 MB chunks.
+            total = 0
+            with path.open("rb") as fh:
+                while True:
+                    chunk = fh.read(1 << 20)
+                    if not chunk:
+                        break
+                    total += chunk.count(b"\n")
+            return total
+        # Sample-extrapolate path.
         with path.open("rb") as fh:
-            while True:
-                chunk = fh.read(1 << 20)  # 1 MB
-                if not chunk:
-                    break
-                total += chunk.count(b"\n")
+            chunk = fh.read(_LINE_COUNT_SAMPLE_BYTES)
+            sampled = chunk.count(b"\n")
+        if sampled == 0:
+            return 0
+        return int(sampled * (size / _LINE_COUNT_SAMPLE_BYTES))
     except OSError:
         return 0
-    return total
 
 
 # ── Git metadata ─────────────────────────────────────────────────────────────
@@ -139,49 +163,71 @@ def _is_git_repo(root: Path) -> bool:
     return _run_git(root, "rev-parse", "--git-dir").strip() != ""
 
 
-def _collect_git_metadata(root: Path) -> tuple[dict[str, str], dict[str, str], set[str]]:
+def _collect_git_dates(root: Path, *log_args: str) -> dict[str, str]:
+    """Walk one `git log` invocation, return {path: ISO-date}.
+
+    The two callers in _collect_git_metadata both use the COMMIT:<date>
+    + --name-only protocol; this helper centralizes the parser so they
+    can run concurrently in a thread pool without duplicating logic.
+
+    First occurrence wins — caller controls direction via `--reverse`."""
+    out = _run_git(
+        root, "log",
+        "--format=COMMIT:%aI", "--name-only",
+        *log_args,
+    )
+    result: dict[str, str] = {}
+    current_date = ""
+    for line in out.splitlines():
+        if line.startswith("COMMIT:"):
+            current_date = line[len("COMMIT:"):]
+        elif line and line not in result:
+            result[line] = current_date
+    return result
+
+
+def _collect_git_metadata(
+    root: Path, *, use_cache: bool = True,
+) -> tuple[dict[str, str], dict[str, str], set[str]]:
     """Return (created_map, modified_map, tracked_set).
 
     - created_map[path]  = earliest add-commit ISO date
     - modified_map[path] = most recent commit-that-touched-it ISO date
     - tracked_set        = all tracked paths + their parent dirs (for gitignore filter)
+
+    The two `git log` walks are independent and run in parallel via a
+    ThreadPoolExecutor. With ``use_cache=True`` (default), the HEAD-keyed
+    git-history cache short-circuits both walks when HEAD hasn't moved.
     """
-    created: dict[str, str] = {}
-    modified: dict[str, str] = {}
-    tracked: set[str] = set()
+    head_sha = _run_git(root, "rev-parse", "HEAD").strip()
+    if use_cache and head_sha:
+        cached = cache_load_git_history(root, head_sha)
+        if cached is not None:
+            created, modified = cached
+            tracked = _collect_tracked_set(root)
+            return created, modified, tracked
 
-    # Created: walk in chronological order, first occurrence wins (oldest).
-    _log("  collecting creation dates (one git log walk)…")
-    out = _run_git(
-        root, "log", "--reverse",
-        "--format=COMMIT:%aI", "--name-only", "--diff-filter=A",
-    )
-    current_date = ""
-    for line in out.splitlines():
-        if line.startswith("COMMIT:"):
-            current_date = line[len("COMMIT:"):]
-        elif line and line not in created:
-            created[line] = current_date
-    _log(f"    {len(created)} files")
+    _log("  collecting creation + modified dates (parallel git log walks)…")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        created_future = pool.submit(
+            _collect_git_dates, root, "--reverse", "--diff-filter=A",
+        )
+        modified_future = pool.submit(_collect_git_dates, root)
+        created = created_future.result()
+        modified = modified_future.result()
+    _log(f"    {len(created)} created, {len(modified)} modified")
 
-    # Modified: reverse-chron (git default), first occurrence wins (most recent).
-    _log("  collecting modified dates (one git log walk)…")
-    out = _run_git(
-        root, "log",
-        "--format=COMMIT:%aI", "--name-only",
-    )
-    current_date = ""
-    for line in out.splitlines():
-        if line.startswith("COMMIT:"):
-            current_date = line[len("COMMIT:"):]
-        elif line and line not in modified:
-            modified[line] = current_date
-    _log(f"    {len(modified)} files")
-
-    # Tracked set (for .gitignore filter) — includes parent dirs.
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
+
+    if use_cache and head_sha:
+        try:
+            cache_save_git_history(root, head_sha, created, modified)
+        except OSError:
+            # Cache failures (disk full, permission denied, read-only fs)
+            # must never block a scan. The next run will retry the write.
+            pass
 
     return created, modified, tracked
 
@@ -253,6 +299,89 @@ def _collect_repo_info(root: Path) -> RepoInfo:
     return info
 
 
+# ── Skip list ────────────────────────────────────────────────────────────────
+
+# Directory names that get skipped even when include_all=True. Keeps
+# `Show all files` mode usable on a typical project — without this list
+# enabling include_all pulls in node_modules/, .venv/, etc. and the
+# city becomes useless noise.
+#
+# We deliberately do NOT include generic names like "dist", "build", "out".
+# Those collide with legitimate source directories in real projects (CMake
+# build configs, audio "out" stems, hand-written `dist/` source trees).
+# Framework-specific build dirs (.next, .nuxt, etc.) are unambiguous and
+# stay in the list.
+#
+# Per-project additions go in `<scan-root>/.codecityignore` (see
+# _load_codecityignore). The skip list is always applied — there's no
+# runtime escape hatch beyond editing this file or .codecityignore.
+ALWAYS_SKIP: frozenset[str] = frozenset({
+    ".git", ".hg", ".svn",                          # VCS
+    "node_modules",                                 # JS
+    ".venv", "venv", "env", "__pycache__",          # Python
+    "target", ".cargo",                             # Rust
+    ".next", ".nuxt", ".svelte-kit",                # framework caches
+    ".pytest_cache", ".mypy_cache", ".ruff_cache",
+    ".tox", ".coverage", "htmlcov",                 # test/coverage
+    ".idea", ".vscode",                             # IDE state
+    ".DS_Store",                                    # macOS junk
+})
+
+
+def _load_codecityignore(root: Path) -> tuple[frozenset[str], frozenset[str]]:
+    """Load .codecityignore from the scan root, return (names, paths).
+
+    Lines without a '/' match any directory/file with that name anywhere
+    in the tree (same semantic as ALWAYS_SKIP). Lines containing '/'
+    are relative-path matches anchored to the scan root.
+
+    Comments (#) and blank lines are ignored. Whitespace is stripped.
+    A leading '/' is dropped — paths are always relative to root.
+    Trailing '/' is stripped — directories vs files don't matter for
+    skipping. Missing file or unreadable contents → two empty sets, no
+    error (the file is optional)."""
+    names: set[str] = set()
+    paths: set[str] = set()
+    try:
+        text = (root / ".codecityignore").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return frozenset(), frozenset()
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        line = line.removeprefix("/").removesuffix("/")
+        if not line:
+            continue
+        if "/" in line:
+            paths.add(line)
+        else:
+            names.add(line)
+    return frozenset(names), frozenset(paths)
+
+
+def _should_skip(
+    name: str,
+    rel_path: str,
+    *,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
+) -> bool:
+    """Whether to skip a directory entry during the walk.
+
+    Always-skipped: ALWAYS_SKIP set + any name in `ignore_names` (from
+    .codecityignore single-segment lines). Path-anchored skips: any
+    `rel_path` in `ignore_paths` (from .codecityignore lines containing
+    '/'). `.git/` is in ALWAYS_SKIP; no separate special case needed."""
+    if name in ALWAYS_SKIP:
+        return True
+    if name in ignore_names:
+        return True
+    if rel_path in ignore_paths:
+        return True
+    return False
+
+
 # ── Tree walk ────────────────────────────────────────────────────────────────
 
 
@@ -286,12 +415,12 @@ def _file_node(
     git_modified: dict[str, str],
     sig: Any,
 ) -> FileNode:
+    """Build a FileNode skeleton — `lines` and `binary` are placeholders
+    that get filled in by _populate_file_metadata after the walk
+    completes. Content I/O is deferred so it can be parallelized and
+    cache-resolved in a single batch."""
     abs_path = entry.path
     size, created, modified, mtime = _stat_fields(entry)
-    path_obj = Path(abs_path)
-
-    binary = _is_binary(path_obj)
-    lines = 0 if binary else _line_count(path_obj)
 
     git_block: GitMeta | None = None
     if is_git_repo:
@@ -309,12 +438,107 @@ def _file_node(
         "fullPath": abs_path,
         "extension": _extension(entry.name),
         "size": size,
-        "lines": lines,
-        "binary": binary,
+        "lines": 0,         # filled in by _populate_file_metadata
+        "binary": False,    # filled in by _populate_file_metadata
         "created": created,
         "modified": modified,
         "git": git_block,
     }
+
+
+# Worker pool size for parallel file content reads. Capped at 32 to
+# avoid pool-construction overhead on machines with very high cpu_count;
+# doubling cpu_count gives oversubscription that helps when threads
+# block on read().
+_FILE_IO_POOL_SIZE = min(32, (os.cpu_count() or 1) * 2)
+
+
+def _read_file_metadata(path_obj: Path) -> tuple[bool, int]:
+    """Return (binary, lines) for one file. Worker function for
+    _populate_file_metadata's thread pool."""
+    binary = _is_binary(path_obj)
+    lines = 0 if binary else _line_count(path_obj)
+    return binary, lines
+
+
+def _node_mtime(node: FileNode) -> float:
+    """Recover the float mtime for a FileNode by stat-ing fullPath.
+    The node's `modified` field is an ISO string (lossy for cache
+    comparison); the raw mtime feeds the cache directly."""
+    try:
+        return Path(node["fullPath"]).stat().st_mtime
+    except OSError:
+        return 0.0
+
+
+def _populate_file_metadata(
+    tree: DirNode, abs_root: Path, *, use_cache: bool,
+) -> None:
+    """Walk the skeleton tree and fill in `lines` + `binary` for every
+    FileNode.
+
+    With ``use_cache=True``, looks up each file in the persistent
+    file-stat cache by (rel-path, size, mtime); cache hits skip the
+    read entirely. Misses run concurrently in a thread pool (GIL
+    releases on file I/O). The cache is union-merged at end-of-scan
+    so files we didn't visit (e.g. excluded by include_all=False)
+    keep their existing entries."""
+    nodes: list[FileNode] = list(_iter_file_nodes(tree))
+    if not nodes:
+        return
+
+    cache_entries: dict[str, FileEntry] = (
+        cache_load_files(abs_root) if use_cache else {}
+    )
+
+    miss_indices: list[int] = []
+    miss_paths: list[Path] = []
+    for i, node in enumerate(nodes):
+        rel = node["path"]
+        cached = cache_entries.get(rel) if use_cache else None
+        if (
+            cached is not None
+            and cached["size"] == node["size"]
+            and cached["mtime"] == _node_mtime(node)
+        ):
+            node["binary"] = cached["binary"]
+            node["lines"] = cached["lines"]
+            continue
+        miss_indices.append(i)
+        miss_paths.append(Path(node["fullPath"]))
+
+    if miss_paths:
+        with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
+            results = list(pool.map(_read_file_metadata, miss_paths))
+        for idx, (binary, lines) in zip(miss_indices, results):
+            nodes[idx]["binary"] = binary
+            nodes[idx]["lines"] = lines
+
+    if use_cache:
+        # Union-merge: start from the loaded cache (preserves entries
+        # for files not visited this scan, e.g. when include_all flips)
+        # and overwrite with current values for everything we did visit.
+        for node in nodes:
+            cache_entries[node["path"]] = {
+                "size": node["size"],
+                "mtime": _node_mtime(node),
+                "lines": node["lines"],
+                "binary": node["binary"],
+                "ext": node["extension"],
+            }
+        try:
+            cache_save_files(abs_root, cache_entries)
+        except OSError:
+            pass  # cache save failures must never break scanning
+
+
+def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
+    """Yield every FileNode in the tree (depth-first, alphabetical)."""
+    for child in tree["children"]:
+        if child["type"] == NodeKind.FILE:
+            yield child  # type: ignore[misc]
+        else:
+            yield from _iter_file_nodes(child)  # type: ignore[arg-type]
 
 
 # Global tracker for heartbeat logging during recursion.
@@ -342,6 +566,8 @@ def _build_tree(
     git_modified: dict[str, str],
     tracked_files: set[str],
     include_all: bool,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
     sig: Any,
 ) -> DirNode:
     name = os.path.basename(abs_dir)
@@ -360,10 +586,13 @@ def _build_tree(
         entries = []
 
     for entry in entries:
-        if entry.name == ".git":
-            continue
-
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+
+        if _should_skip(
+            entry.name, entry_rel,
+            ignore_names=ignore_names, ignore_paths=ignore_paths,
+        ):
+            continue
 
         # In a git repo, skip anything not tracked (covers .gitignore + uncommitted
         # additions) — unless include_all is on, the user's "show me everything"
@@ -386,7 +615,9 @@ def _build_tree(
                 entry.path, entry_rel,
                 is_git_repo=is_git_repo,
                 git_created=git_created, git_modified=git_modified,
-                tracked_files=tracked_files, include_all=include_all, sig=sig,
+                tracked_files=tracked_files, include_all=include_all,
+                ignore_names=ignore_names, ignore_paths=ignore_paths,
+                sig=sig,
             )
             dirs.append(subtree)
             descendants_count += 1 + subtree["descendants_count"]
@@ -414,17 +645,27 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
+def scan_tree(
+    root: str,
+    *,
+    include_all: bool = False,
+    use_cache: bool = True,
+) -> Manifest:
     """Scan a directory and return the full manifest.
 
     With ``include_all=False`` (default), in a git repo the scanner walks
     only paths in ``git ls-files`` — gitignored and untracked files are
     hidden. With ``include_all=True``, the tracked-files filter is
-    skipped entirely; every file under ``root`` (except the ``.git``
-    directory itself) is emitted. ``.git`` is always excluded.
+    skipped entirely; every file under ``root`` is emitted EXCEPT
+    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
+    or matched by the optional ``<root>/.codecityignore`` file.
 
     Outside a git repo, ``include_all`` has no effect — the tracked set
     is empty either way.
+
+    The skip list is always applied. Per-project additions go in
+    ``<root>/.codecityignore`` (one literal name per line, or relative
+    paths containing ``/``).
     """
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
@@ -438,11 +679,13 @@ def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
     if is_git_repo:
         _log("git repo detected — collecting metadata…")
         git_created, git_modified, tracked_files = _collect_git_metadata(
-            Path(root_abs)
+            Path(root_abs), use_cache=use_cache,
         )
         repo_info = _collect_repo_info(Path(root_abs))
     else:
         _log("not a git repo — filesystem dates only")
+
+    ignore_names, ignore_paths = _load_codecityignore(Path(root_abs))
 
     _reset_heartbeat()
     _log("walking tree…")
@@ -451,9 +694,13 @@ def scan_tree(root: str, *, include_all: bool = False) -> Manifest:
         root_abs, ".",
         is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, include_all=include_all, sig=sig,
+        tracked_files=tracked_files, include_all=include_all,
+        ignore_names=ignore_names, ignore_paths=ignore_paths,
+        sig=sig,
     )
-    _log(f"walked {_files_seen} files; emitting manifest")
+    _log(f"walked {_files_seen} files; resolving file metadata")
+    _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
+    _log("emitting manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
@@ -496,6 +743,8 @@ def _walk_for_signature(
     is_git_repo: bool,
     tracked_files: set[str],
     include_all: bool,
+    ignore_names: frozenset[str],
+    ignore_paths: frozenset[str],
     sig: Any,
 ) -> None:
     """Stat-only walk that feeds the live signature without building nodes.
@@ -511,9 +760,12 @@ def _walk_for_signature(
         return
 
     for entry in entries:
-        if entry.name == ".git":
-            continue
         entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
+        if _should_skip(
+            entry.name, entry_rel,
+            ignore_names=ignore_names, ignore_paths=ignore_paths,
+        ):
+            continue
         if is_git_repo and not include_all and entry_rel not in tracked_files:
             continue
         if entry.is_file(follow_symlinks=False):
@@ -525,11 +777,18 @@ def _walk_for_signature(
                 is_git_repo=is_git_repo,
                 tracked_files=tracked_files,
                 include_all=include_all,
+                ignore_names=ignore_names,
+                ignore_paths=ignore_paths,
                 sig=sig,
             )
 
 
-def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse:
+def signature_tree(
+    root: str,
+    *,
+    include_all: bool = False,
+    use_cache: bool = True,
+) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
     but without building the full manifest.
 
@@ -541,6 +800,15 @@ def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse
 
     With ``include_all=True``, skips the tracked-files lookup as well —
     the filter isn't applied so we don't need to compute it.
+
+    Honors the same skip list and ``<root>/.codecityignore`` file as
+    scan_tree, so signatures stay in lockstep.
+
+    ``use_cache`` is accepted for API symmetry with scan_tree (so both
+    /api/manifest and /api/manifest/signature take the same query
+    params) but is a no-op here — signature_tree doesn't compute
+    per-file lines/binary or per-file git history, so there's nothing
+    to cache.
     """
     root_abs = str(Path(root).resolve())
     root_path = Path(root_abs)
@@ -555,12 +823,16 @@ def signature_tree(root: str, *, include_all: bool = False) -> SignatureResponse
             tracked_files = _collect_tracked_set(root_path)
         repo_info = _collect_repo_info(root_path)
 
+    ignore_names, ignore_paths = _load_codecityignore(root_path)
+
     sig = hashlib.blake2b(digest_size=16)
     _walk_for_signature(
         root_abs, ".",
         is_git_repo=is_git_repo,
         tracked_files=tracked_files,
         include_all=include_all,
+        ignore_names=ignore_names,
+        ignore_paths=ignore_paths,
         sig=sig,
     )
     if repo_info is not None:

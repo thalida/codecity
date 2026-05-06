@@ -29,6 +29,25 @@ def _ensure_fixture() -> None:
         subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
 
 
+class _CacheRedirectMixin:
+    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    tempdir so calls to scan_tree() / signature_tree() / etc. don't
+    pollute the user's actual ~/.cache/codecity/ during tests."""
+
+    def setUp(self) -> None:
+        super().setUp()  # cooperative chaining for subclasses with their own setUp
+        from codecity import cache as cache_mod
+        self._cache_tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._cache_tmp.cleanup)
+        self._original_cache_root = cache_mod.CACHE_ROOT
+        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
+        self.addCleanup(self._restore_cache_root)
+
+    def _restore_cache_root(self) -> None:
+        from codecity import cache as cache_mod
+        cache_mod.CACHE_ROOT = self._original_cache_root
+
+
 class ExtensionTests(unittest.TestCase):
     def test_plain_file(self):
         self.assertEqual(_extension("index.ts"), ".ts")
@@ -75,7 +94,7 @@ class BinaryDetectionTests(unittest.TestCase):
         self.assertTrue(_is_binary(p))
 
 
-class ScanTreeIntegrationTests(unittest.TestCase):
+class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         _ensure_fixture()
@@ -213,8 +232,96 @@ class ScanTreeIntegrationTests(unittest.TestCase):
         names = [n["name"] for n in _walk_dirs(m["tree"])]
         self.assertNotIn(".git", names)
 
+    def test_skip_list_excludes_node_modules_under_include_all(self):
+        # node_modules/ must NOT appear with include_all=True. ALWAYS_SKIP
+        # is hardcoded; there's no runtime escape hatch.
+        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
+        nm_dir.mkdir(parents=True, exist_ok=True)
+        nm_file = nm_dir / "index.js"
+        nm_file.write_text("module.exports = {};")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("node_modules", names)
+        finally:
+            nm_file.unlink(missing_ok=True)
+            nm_dir.rmdir()
+            (FIXTURE / "node_modules").rmdir()
 
-class SignatureTreeTests(unittest.TestCase):
+    def test_codecityignore_name_excludes_directory(self):
+        # A bare name in .codecityignore matches any dir/file with that
+        # name anywhere in the tree.
+        target_dir = FIXTURE / "noisy-fixture"
+        target_dir.mkdir(exist_ok=True)
+        (target_dir / "data.txt").write_text("noise")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("# project-specific\nnoisy-fixture\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("noisy-fixture", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target_dir / "data.txt").unlink(missing_ok=True)
+            target_dir.rmdir()
+
+    def test_codecityignore_path_excludes_specific_path_only(self):
+        # A line containing '/' is anchored to the scan root. A dir at
+        # a different relative path with the same final segment is NOT
+        # excluded.
+        target_a = FIXTURE / "stash" / "legacy"
+        target_b = FIXTURE / "legacy"  # same name, different path
+        target_a.mkdir(parents=True, exist_ok=True)
+        target_b.mkdir(exist_ok=True)
+        (target_a / "x.txt").write_text("a")
+        (target_b / "x.txt").write_text("b")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("stash/legacy\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            paths = [n["path"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("stash/legacy", paths)
+            # The other "legacy" at a different path stays visible.
+            self.assertIn("legacy", paths)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target_a / "x.txt").unlink(missing_ok=True)
+            target_a.rmdir()
+            (FIXTURE / "stash").rmdir()
+            (target_b / "x.txt").unlink(missing_ok=True)
+            target_b.rmdir()
+
+    def test_codecityignore_missing_is_ok(self):
+        # No file -> no error, scan proceeds normally.
+        ignore_file = FIXTURE / ".codecityignore"
+        self.assertFalse(ignore_file.exists())  # sanity
+        m = scan_tree(str(FIXTURE), include_all=True)
+        self.assertGreater(m["tree"]["descendants_file_count"], 0)
+
+    def test_codecityignore_comments_and_blanks(self):
+        # Comments and blank lines are silently dropped.
+        target = FIXTURE / "noisy-comment-test"
+        target.mkdir(exist_ok=True)
+        (target / "x.txt").write_text("x")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text(
+            "# leading comment\n"
+            "\n"
+            "noisy-comment-test\n"
+            "   \n"  # blank-with-whitespace
+            "# trailing comment\n"
+        )
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn("noisy-comment-test", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target / "x.txt").unlink(missing_ok=True)
+            target.rmdir()
+
+
+class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does
     for the same root — that's the contract the live-update poll relies
     on. Drift here means every poll triggers a full reload."""
@@ -274,6 +381,60 @@ class SignatureTreeTests(unittest.TestCase):
         finally:
             untracked.unlink(missing_ok=True)
 
+    def test_signature_honors_codecityignore(self):
+        # Parity contract: editing .codecityignore must shift the
+        # signature returned by signature_tree (so the live-update poll
+        # actually triggers a reload), and that signature must match
+        # scan_tree's output for the same root.
+        target = FIXTURE / "sig-noise-fixture"
+        target.mkdir(exist_ok=True)
+        (target / "x.txt").write_text("x")
+        ignore_file = FIXTURE / ".codecityignore"
+        try:
+            # Without ignore file, target is visible.
+            before_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            before_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertEqual(before_sig, before_full)
+
+            # Add ignore entry, both signatures must shift in lockstep.
+            ignore_file.write_text("sig-noise-fixture\n")
+            after_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
+            after_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            self.assertEqual(after_sig, after_full)
+            self.assertNotEqual(before_sig, after_sig)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target / "x.txt").unlink(missing_ok=True)
+            target.rmdir()
+
+
+class LineCountCapTests(unittest.TestCase):
+    """Above ~5 MB the line counter samples and extrapolates instead of
+    reading the entire file. Building height is a relative measure, so
+    an order-of-magnitude estimate is fine on huge files."""
+
+    def test_exact_count_below_threshold(self):
+        from codecity.scan import _line_count
+        with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
+            fh.write(b"line\n" * 1000)
+            small = Path(fh.name)
+        self.addCleanup(small.unlink, missing_ok=True)
+        self.assertEqual(_line_count(small), 1000)
+
+    def test_sample_extrapolation_above_threshold(self):
+        from codecity.scan import _line_count
+        # 6 MB file with one newline every 50 bytes -> ~125k lines true.
+        with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
+            line = b"x" * 49 + b"\n"  # 50 bytes, one newline
+            for _ in range(6 * 1024 * 1024 // 50):
+                fh.write(line)
+            big = Path(fh.name)
+        self.addCleanup(big.unlink, missing_ok=True)
+        result = _line_count(big)
+        # Sample-based estimate; allow ±20%.
+        self.assertGreater(result, 100_000)
+        self.assertLess(result, 150_000)
+
 
 def _walk_files(node):
     """Yield every file node in the tree."""
@@ -289,6 +450,207 @@ def _walk_dirs(node):
         yield node
     for c in node.get("children", []):
         yield from _walk_dirs(c)
+
+
+class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
+    """The two git log walks (created + modified) are independent and
+    should run concurrently."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_parallel_invocation_count_matches_serial(self):
+        # The parallelized version must invoke `git log` exactly twice
+        # (one --reverse --diff-filter=A, one without). No extra calls.
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if (
+                isinstance(args, list)
+                and args[:2] == ["git", "-C"]
+                and "log" in args
+            ):
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE, use_cache=False)
+
+        self.assertEqual(len(log_calls), 2,
+                         f"expected exactly 2 git log calls, got: {log_calls}")
+
+
+class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
+    """When HEAD hasn't moved, _collect_git_metadata should hit the
+    persistent cache and skip the two `git log` walks entirely."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_warm_run_skips_git_log(self):
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        # Cold run: populates cache.
+        _collect_git_metadata(FIXTURE, use_cache=True)
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if isinstance(args, list) and "log" in args:
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        # Warm run: must not invoke `git log` at all.
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE, use_cache=True)
+        self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
+
+    def test_use_cache_false_bypasses(self):
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        _collect_git_metadata(FIXTURE, use_cache=True)  # populate
+
+        original_run = subprocess.run
+        log_calls: list[list[str]] = []
+
+        def counting_run(args, **kwargs):
+            if isinstance(args, list) and "log" in args:
+                log_calls.append(list(args))
+            return original_run(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            _collect_git_metadata(FIXTURE, use_cache=False)
+        self.assertEqual(len(log_calls), 2, "use_cache=False must run both log walks")
+
+    def test_cache_invalidated_after_new_commit(self):
+        # Make a commit, confirm next call re-walks history.
+        from unittest.mock import patch
+        from codecity.scan import _collect_git_metadata
+
+        _collect_git_metadata(FIXTURE, use_cache=True)
+
+        # Commit something to move HEAD.
+        new_file = FIXTURE / "cache-bust.txt"
+        new_file.write_text("bust")
+        try:
+            subprocess.check_call(
+                ["git", "-C", str(FIXTURE), "add", str(new_file.name)]
+            )
+            subprocess.check_call(
+                ["git", "-C", str(FIXTURE), "commit", "-q", "-m", "cache-bust"]
+            )
+
+            original_run = subprocess.run
+            log_calls: list[list[str]] = []
+
+            def counting_run(args, **kwargs):
+                if isinstance(args, list) and "log" in args:
+                    log_calls.append(list(args))
+                return original_run(args, **kwargs)
+
+            with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+                _collect_git_metadata(FIXTURE, use_cache=True)
+            self.assertEqual(len(log_calls), 2,
+                             "HEAD moved -> must re-walk")
+        finally:
+            # Reset fixture: undo the commit and remove the file.
+            subprocess.run(
+                ["git", "-C", str(FIXTURE), "reset", "--hard", "HEAD~1"],
+                check=False, capture_output=True,
+            )
+            new_file.unlink(missing_ok=True)
+
+
+class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
+    """Warm runs of scan_tree should hit the file-stat cache for
+    unchanged files and skip _is_binary + _line_count entirely."""
+
+    @classmethod
+    def setUpClass(cls):
+        _ensure_fixture()
+
+    def test_warm_run_skips_line_count(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # cold: populates cache
+
+        with patch("codecity.scan._line_count") as line_mock, \
+             patch("codecity.scan._is_binary") as binary_mock:
+            scan_tree(str(FIXTURE))  # warm: should not call either
+            self.assertEqual(line_mock.call_count, 0,
+                             "warm scan must not call _line_count")
+            self.assertEqual(binary_mock.call_count, 0,
+                             "warm scan must not call _is_binary")
+
+    def test_warm_run_signature_matches_cold_run(self):
+        cold = scan_tree(str(FIXTURE))
+        warm = scan_tree(str(FIXTURE))
+        self.assertEqual(cold["signature"], warm["signature"])
+        # And tree shape — confirm `lines` survives the cache roundtrip.
+        cold_lines = {
+            n["path"]: n["lines"] for n in _walk_files(cold["tree"])
+        }
+        warm_lines = {
+            n["path"]: n["lines"] for n in _walk_files(warm["tree"])
+        }
+        self.assertEqual(cold_lines, warm_lines)
+
+    def test_modified_file_recomputed(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # populate
+
+        # Change one file's mtime by writing to it.
+        target = next(
+            n for n in _walk_files(scan_tree(str(FIXTURE))["tree"])
+            if n["name"] == "index.ts"
+        )
+        target_path = Path(target["fullPath"])
+        original_text = target_path.read_text()
+        target_path.write_text(original_text + "\n// changed\n")
+
+        try:
+            line_calls: list[Path] = []
+            original_line_count = _line_count_real()
+
+            def counting_line_count(p):
+                line_calls.append(p)
+                return original_line_count(p)
+
+            with patch("codecity.scan._line_count", side_effect=counting_line_count):
+                scan_tree(str(FIXTURE))
+
+            # Only the modified file should be recomputed.
+            self.assertEqual(len(line_calls), 1)
+            self.assertEqual(line_calls[0], target_path)
+        finally:
+            target_path.write_text(original_text)
+
+    def test_use_cache_false_bypasses_file_cache(self):
+        from unittest.mock import patch
+
+        scan_tree(str(FIXTURE))  # populate cache
+
+        with patch("codecity.scan._line_count", return_value=42) as line_mock:
+            scan_tree(str(FIXTURE), use_cache=False)
+            # use_cache=False -> every file gets re-read
+            self.assertGreater(line_mock.call_count, 0)
+
+
+def _line_count_real():
+    """Get the unwrapped _line_count for tests that want to call the
+    real implementation while also mocking it."""
+    from codecity.scan import _line_count
+    return _line_count
 
 
 if __name__ == "__main__":

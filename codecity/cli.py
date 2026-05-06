@@ -64,8 +64,24 @@ def _add_scan_args(p: argparse.ArgumentParser) -> None:
     )
 
 
+def _add_perf_args(p: argparse.ArgumentParser) -> None:
+    """Performance / debugging flags shared by `scan` and `serve`."""
+    p.add_argument(
+        "--no-cache",
+        action="store_true",
+        help=(
+            "Bypass the file-stat and git-history caches under "
+            "~/.cache/codecity/. Diagnostic flag — useful when you "
+            "suspect cache staleness."
+        ),
+    )
+
+
 def _scan_from_args(args: argparse.Namespace) -> Manifest:
-    return scan_tree(args.path)
+    return scan_tree(
+        args.path,
+        use_cache=not getattr(args, "no_cache", False),
+    )
 
 
 # ── Commands ─────────────────────────────────────────────────────────────────
@@ -85,7 +101,11 @@ def cmd_scan(args: argparse.Namespace) -> int:
 def _initial_query(args: argparse.Namespace) -> str:
     """Build the `?path=…` or `?clone=…&branch=…` query string for the
     initial browser URL. Resolves clones eagerly so the user gets a clear
-    error in the terminal instead of a silent 502 in the browser."""
+    error in the terminal instead of a silent 502 in the browser.
+
+    Forwards --no-cache as a query param so the frontend's URL builder
+    picks it up alongside the path / clone args, and the live-update
+    poll inherits it."""
     if args.clone:
         try:
             local = ensure_clone(args.clone, args.branch)
@@ -93,12 +113,16 @@ def _initial_query(args: argparse.Namespace) -> str:
             print(f"error: {e}", file=sys.stderr)
             raise SystemExit(2)
         print(f"[codecity] clone ready at {local}", file=sys.stderr)
-        params = {"clone": args.clone}
+        params: dict[str, str] = {"clone": args.clone}
         if args.branch:
             params["branch"] = args.branch
-        return "?" + urllib.parse.urlencode(params)
-    abs_path = str(Path(args.path).resolve())
-    return "?" + urllib.parse.urlencode({"path": abs_path})
+    else:
+        abs_path = str(Path(args.path).resolve())
+        params = {"path": abs_path}
+
+    if getattr(args, "no_cache", False):
+        params["no_cache"] = "true"
+    return "?" + urllib.parse.urlencode(params)
 
 
 def cmd_serve(args: argparse.Namespace) -> int:
@@ -292,6 +316,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_serve = sub.add_parser("serve", help="Start the server, open the browser (default action).")
     _add_scan_args(p_serve)
+    _add_perf_args(p_serve)
     p_serve.add_argument(
         "--clone",
         default=None,
@@ -317,6 +342,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
     p_scan = sub.add_parser("scan", help="Emit the scanned manifest as JSON.")
     _add_scan_args(p_scan)
+    _add_perf_args(p_scan)
     p_scan.add_argument(
         "--output",
         default="-",

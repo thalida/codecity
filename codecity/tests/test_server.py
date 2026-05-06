@@ -17,6 +17,25 @@ from codecity import server as server_mod
 from codecity.server import start_server
 
 
+class _CacheRedirectMixin:
+    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    tempdir so server-side calls into scan_tree() / signature_tree()
+    don't pollute the user's actual ~/.cache/codecity/ during tests."""
+
+    def setUp(self) -> None:
+        super().setUp()  # cooperative chaining
+        from codecity import cache as cache_mod
+        self._cache_tmp = TemporaryDirectory()
+        self.addCleanup(self._cache_tmp.cleanup)
+        self._original_cache_root = cache_mod.CACHE_ROOT
+        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
+        self.addCleanup(self._restore_cache_root)
+
+    def _restore_cache_root(self) -> None:
+        from codecity import cache as cache_mod
+        cache_mod.CACHE_ROOT = self._original_cache_root
+
+
 # Silence scan progress logs.
 os.environ["CODECITY_QUIET"] = "1"
 
@@ -30,8 +49,9 @@ def _get(url: str) -> tuple[int, bytes, str]:
     return resp.status, resp.read(), resp.headers.get("Content-Type", "")
 
 
-class ServerTests(unittest.TestCase):
+class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def setUp(self) -> None:
+        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         static = Path(self.tmp.name) / "static"
@@ -227,11 +247,57 @@ class ServerTests(unittest.TestCase):
         self.assertFalse(_parse_include_all(""))
         self.assertFalse(_parse_include_all("path=/tmp"))
 
+    def test_manifest_route_excludes_skip_list_under_include_all(self) -> None:
+        # Init a git repo, create node_modules/, commit ONLY README.
+        # node_modules is untracked, so it would appear with include_all
+        # if not for ALWAYS_SKIP. The skip list is always applied —
+        # there's no runtime escape hatch.
+        import subprocess
+        subprocess.run(
+            ["git", "-C", str(self.project), "init", "-q"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "config", "user.name", "t"],
+            check=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "add", "README.md"], check=True
+        )
+        subprocess.run(
+            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
+            check=True,
+        )
+        nm = self.project / "node_modules"
+        nm.mkdir()
+        (nm / "x.js").write_text("x")
 
-class FileApiTests(unittest.TestCase):
+        q = urllib.parse.urlencode({
+            "path": str(self.project), "include_all": "true",
+        })
+        _, body, _ = _get(self.base + f"/api/manifest?{q}")
+        names = [c["name"] for c in json.loads(body)["tree"]["children"]]
+        self.assertNotIn("node_modules", names)
+
+    def test_no_cache_query_param_truthy_parsing(self) -> None:
+        from codecity.server import _parse_no_cache
+        self.assertTrue(_parse_no_cache("no_cache=true"))
+        self.assertTrue(_parse_no_cache("no_cache=TRUE"))
+        self.assertTrue(_parse_no_cache("no_cache=1"))
+        self.assertFalse(_parse_no_cache("no_cache=false"))
+        self.assertFalse(_parse_no_cache("no_cache=0"))
+        self.assertFalse(_parse_no_cache(""))
+        self.assertFalse(_parse_no_cache("path=/tmp"))
+
+
+class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
 
     def setUp(self) -> None:
+        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.scan_root = Path(self.tmp.name) / "project"
