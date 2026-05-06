@@ -69,6 +69,32 @@ describe('groupBuildingsByDirectory', () => {
     expect(block.meanColor.b).toBeCloseTo(0.5, 1);
   });
 
+  it('computes mean color correctly for non-primary colors (guards sRGB→linear)', () => {
+    // '#804000' is a mid-orange-brown; its sRGB→linear values differ from
+    // naive 0–255 division, catching color-space regressions.
+    const buildings = [fakeBuilding('src/a', 0, 0, 1, 1, 1, '#804000')];
+    const streets = [fakeStreet('src')];
+    const [block] = groupBuildingsByDirectory(buildings, streets);
+    const expected = new THREE.Color('#804000');
+    expect(block.meanColor.r).toBeCloseTo(expected.r, 2);
+    expect(block.meanColor.g).toBeCloseTo(expected.g, 2);
+    expect(block.meanColor.b).toBeCloseTo(expected.b, 2);
+  });
+
+  it('includes root-level files (no slash in path) in the "." block', () => {
+    // Regression for C1: root-level files had dirPath='' which never matched
+    // the root street's dir.path='.', causing them to be silently dropped.
+    const buildings = [
+      fakeBuilding('README.md'),
+      fakeBuilding('package.json'),
+    ];
+    const streets = [fakeStreet('.')];
+    const blocks = groupBuildingsByDirectory(buildings, streets);
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0].dir.path).toBe('.');
+    expect(blocks[0].buildings).toHaveLength(2);
+  });
+
   it('preserves building order within a block', () => {
     const buildings = [
       fakeBuilding('src/a'),
@@ -85,5 +111,14 @@ describe('groupBuildingsByDirectory', () => {
     const blocks = groupBuildingsByDirectory([], streets);
     expect(blocks).toHaveLength(1);
     expect(blocks[0].buildings).toHaveLength(0);
+    // Fallback hash path must still produce a valid color.
+    const mc = blocks[0].meanColor;
+    expect(mc).toBeInstanceOf(THREE.Color);
+    expect(mc.r).toBeGreaterThanOrEqual(0);
+    expect(mc.r).toBeLessThanOrEqual(1);
+    expect(mc.g).toBeGreaterThanOrEqual(0);
+    expect(mc.g).toBeLessThanOrEqual(1);
+    expect(mc.b).toBeGreaterThanOrEqual(0);
+    expect(mc.b).toBeLessThanOrEqual(1);
   });
 });

@@ -10,6 +10,7 @@
 import * as THREE from 'three';
 import type { Building, Street } from '@/types/index.js';
 import type { DirNode } from '@/types/manifest.js';
+import { parentDirPath } from './path.js';
 
 export interface SceneBlock {
   dir: DirNode;
@@ -32,7 +33,7 @@ export interface SceneBlock {
 /**
  * Group buildings by their parent directory (= the street that names them).
  * Buildings carry their file's `path`; the directory is the path's parent.
- * Streets are looked up by directory path.
+ * The loop iterates `streets` directly to produce blocks in street order.
  *
  * Order of returned blocks matches the order of `streets` input.
  * Within a block, building order matches the input `buildings` order.
@@ -41,16 +42,10 @@ export function groupBuildingsByDirectory(
   buildings: Building[],
   streets: Street[]
 ): SceneBlock[] {
-  const streetByDirPath = new Map<string, Street>();
-  for (const s of streets) {
-    if (s.dir) streetByDirPath.set(s.dir.path, s);
-  }
-
   const buildingsByDirPath = new Map<string, Building[]>();
   for (const b of buildings) {
     if (!b.file) continue;
-    const lastSlash = b.file.path.lastIndexOf('/');
-    const dirPath = lastSlash >= 0 ? b.file.path.slice(0, lastSlash) : '';
+    const dirPath = parentDirPath(b.file.path) ?? '.';
     if (!buildingsByDirPath.has(dirPath)) buildingsByDirPath.set(dirPath, []);
     buildingsByDirPath.get(dirPath)!.push(b);
   }
@@ -95,7 +90,7 @@ function computeMeanColor(buildings: Building[], street: Street): THREE.Color {
       (a, c) => (a * 31 + c.charCodeAt(0)) >>> 0,
       0
     );
-    return new THREE.Color().setHSL((hash % 360) / 360, 0.4, 0.5);
+    return new THREE.Color().set(`hsl(${hash % 360}, 40%, 50%)`);
   }
   let r = 0, g = 0, b = 0;
   const tmp = new THREE.Color();
