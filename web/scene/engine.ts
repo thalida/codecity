@@ -331,26 +331,6 @@ function createPathMesh(
 // userData so the render loop can flip it 180° around scene-Y when the
 // camera orbits to the "upside-down" side.
 // -----------------------------------------------------------------------------
-// regenerateLabelTexture(group) — rebuild a single label's CanvasTexture
-// from the current LABEL_TYPOGRAPHY.FILL / STROKE / FONT settings, swap
-// it onto the existing plane material, and dispose the old one. Used by
-// applyTheme to make the label fill color hot-reloadable without a full
-// rebuild. Only safe to call when canvas dimensions haven't changed —
-// FILL/STROKE colors are fine, but font-size / padding / stroke-width
-// changes the texture aspect, which would also need a plane geometry
-// update (those keys stay rebuild-required).
-export function regenerateLabelTexture(group: THREE.Group): void {
-  const street = group && group.userData && group.userData.street;
-  if (!street || !street.label) return;
-  const plane = group.children && (group.children[0] as THREE.Mesh);
-  if (!plane || !plane.material) return;
-  const mat = plane.material as THREE.MeshBasicMaterial;
-  if (mat.map) mat.map.dispose();
-  const info = _buildLabelTexture(street.label);
-  mat.map = info.texture;
-  mat.needsUpdate = true;
-  group.userData.textureAspect = info.aspect;
-}
 
 function _buildLabelTexture(text: string): { texture: THREE.CanvasTexture; aspect: number } {
   // High source resolution so close-zoom doesn't reveal bilinear blur.
