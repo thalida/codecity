@@ -473,6 +473,36 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(ctype.startswith("text/plain"))
 
+    def test_file_api_text_gzipped(self) -> None:
+        # A text file (>256 bytes) requested with Accept-Encoding: gzip
+        # comes back compressed.
+        big_text = self.scan_root / "big.md"
+        big_text.write_text("# heading\n\n" + ("hello world\n" * 100))
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/file?path={big_text}",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "gzip")
+        self.assertTrue(ctype.startswith("text/"))
+        decoded = gzip.decompress(body)
+        self.assertIn(b"hello world", decoded)
+
+    def test_file_api_image_not_gzipped(self) -> None:
+        # Already-compressed media bypasses gzip even when client offers it.
+        # Use a >256-byte fake PNG so the size threshold isn't doing the work.
+        png_path = self.scan_root / "big-image.png"
+        png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 500)
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/file?path={png_path}",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "")
+        self.assertEqual(ctype, "image/png")
+        # Body is the raw "PNG" bytes — not gzipped.
+        self.assertTrue(body.startswith(b"\x89PNG"))
+
 
 if __name__ == "__main__":
     unittest.main()

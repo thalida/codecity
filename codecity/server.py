@@ -303,8 +303,16 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
     ctype = guessed if _is_media(guessed) and guessed else "text/plain; charset=utf-8"
 
     body = target.read_bytes()
+    # Skip gzip on already-compressed media (image/video/audio/PDF).
+    # Same _is_media test that decided ctype above.
+    if _is_media(guessed):
+        encoding: str | None = None
+    else:
+        body, encoding = _maybe_gzip(handler, body)
     handler.send_response(HTTPStatus.OK)
     handler.send_header("Content-Type", ctype)
+    if encoding:
+        handler.send_header("Content-Encoding", encoding)
     handler.send_header("Content-Length", str(len(body)))
     handler.end_headers()
     handler.wfile.write(body)
