@@ -88,6 +88,9 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // brevity in event handlers and resize logic below.
   const rig = createCameraRig({ canvas, cityScene });
   const camera = rig.camera;
+  // Expose for visual regression tests. Harmless in production (just a
+  // global ref); only used by tests/visual/setup.ts.
+  (window as Window & { __rig?: typeof rig }).__rig = rig;
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
