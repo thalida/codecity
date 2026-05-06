@@ -29,6 +29,7 @@ import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
+import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
 import { createLodController } from './scene/lodController.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
@@ -202,6 +203,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
 
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
+    refreshBuildingMaterial();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();

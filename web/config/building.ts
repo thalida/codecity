@@ -169,11 +169,11 @@ export const BUILDING_FADE = map<BuildingFadeConfig>({
   NEAR_DETAIL: FadeDetail.Silhouette,
   NEAR_OUTLINE: true,
   NEAR_BODY_OPACITY: 0.65,
-  NEAR_OUTLINE_OPACITY: 0.65,
+  NEAR_OUTLINE_OPACITY: 1.0,
 
   // Level 2+ — anything farther.
-  FAR_DETAIL: FadeDetail.Hidden,
+  FAR_DETAIL: FadeDetail.Silhouette,
   FAR_OUTLINE: true,
   FAR_BODY_OPACITY: 0.1,
-  FAR_OUTLINE_OPACITY: 0.18,
+  FAR_OUTLINE_OPACITY: 1.0,
 });

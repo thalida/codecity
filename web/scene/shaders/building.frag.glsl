@@ -25,6 +25,10 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
 
+// Hidden-tier wireframe thickness in screen-pixels. Sourced from
+// BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
+uniform float uOutlineWidth;
+
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
 // ---------------------------------------------------------------------------
@@ -307,10 +311,15 @@ vec4 renderSilhouette() {
 vec4 compositeOutline(vec4 body) {
   if (vOutlineOpacity < 0.001) return body;
   float distToEdge = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-  // Clamp the band width: fwidth() blows up on faces viewed at oblique
-  // angles, which without a cap turns the "outline" into a fill across
-  // the whole face. Cap at 1.5% of face width so the wire stays a wire.
-  float w = clamp(fwidth(distToEdge), 0.0005, 0.012);
+  // Band width derived from screen-pixel size: fwidth(distToEdge) is the
+  // UV-distance per screen-pixel, so multiplying by uOutlineWidth (pixels)
+  // gives a band roughly that many pixels thick. Halved because smoothstep
+  // below extends the visible band ~2.5× the inner edge (matches the
+  // perceived thickness of the old `fwidth` band at uOutlineWidth=2).
+  // Cap at 2% of face: fwidth() blows up on oblique faces and without a
+  // ceiling the "outline" turns into a fill across the whole face.
+  float pixelUv = max(fwidth(distToEdge), 1e-6);
+  float w = min(pixelUv * uOutlineWidth * 0.5, 0.02);
   float edge = 1.0 - smoothstep(w, w * 2.5, distToEdge);
   if (edge < 0.001) return body;
   // Outline color: darkened version of the building's base, so the wire

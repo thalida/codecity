@@ -4,7 +4,7 @@
 // Mesh creation (attaching these buffers to a THREE.InstancedMesh) lands in Task 8.
 
 import * as THREE from 'three';
-import { BUILDING_DIMENSIONS } from '@/config/index.js';
+import { BUILDING_DIMENSIONS, BUILDING_OUTLINE } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import type { SceneBlock } from '../blocks.js';
 
@@ -178,8 +178,23 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
     fragmentShader: fragSrc,
     // transparent: true so iOpacity can fade buildings (Task 11).
     transparent: true,
+    uniforms: {
+      // Hidden-tier wireframe thickness in screen-pixels. Updated by
+      // refreshBuildingMaterial() on hot-reload.
+      uOutlineWidth: { value: BUILDING_OUTLINE.get().WIDTH },
+    },
   });
   return _sharedMaterial;
+}
+
+/**
+ * applyTheme() coordinator hook: push fresh BUILDING_OUTLINE.WIDTH into
+ * the shared building material's uOutlineWidth uniform so the Hidden-tier
+ * wireframe thickness honors live config edits.
+ */
+export function refreshBuildingMaterial(): void {
+  if (!_sharedMaterial) return;
+  _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
 }
 
 /**
