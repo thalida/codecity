@@ -17,6 +17,7 @@ export interface BuildingInstanceBuffer {
   doorWidth: Float32Array; // N
   opacity: Float32Array; // N (defaults to 1.0)
   silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
+  outlineOpacity: Float32Array; // N (0 = no per-building wireframe; >0 = composited at alpha)
 }
 
 // ---------------------------------------------------------------------------
@@ -64,6 +65,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     doorWidth: new Float32Array(n),
     opacity: new Float32Array(n),
     silhouette: new Float32Array(n),
+    outlineOpacity: new Float32Array(n),
   };
 
   const m = new THREE.Matrix4();
@@ -221,6 +223,10 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
   mesh.geometry.setAttribute(
     'iSilhouette',
     new THREE.InstancedBufferAttribute(buf.silhouette, 1),
+  );
+  mesh.geometry.setAttribute(
+    'iOutlineOpacity',
+    new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
 
   // Compute bounding sphere from instance positions for Three's frustum

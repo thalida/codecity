@@ -21,6 +21,7 @@ flat varying float vOrient;
 flat varying float vDoorWidth;
 flat varying float vOpacity;
 flat varying float vSilhouette;
+flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
 
@@ -293,12 +294,33 @@ vec4 renderSilhouette() {
   return vec4(wallColor, vOpacity);
 }
 
+// Composite a per-instance wireframe over the body color. The "wire" is a
+// thin band along each face's UV boundary (= the cube's edges), with width
+// scaled by fwidth so it stays roughly constant in screen-space pixels.
+// Used by the Hidden tier (body alpha = 0) to draw just the building's
+// silhouette edges so the road behind shows through.
+vec4 compositeOutline(vec4 body) {
+  if (vOutlineOpacity < 0.001) return body;
+  float distToEdge = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
+  float w = max(fwidth(distToEdge), 0.0001);
+  float edge = 1.0 - smoothstep(w, w * 2.5, distToEdge);
+  if (edge < 0.001) return body;
+  // Outline color: darkened version of the building's base, so the wire
+  // reads as that building's tint without needing a separate uniform.
+  vec3 outlineColor = shadeByRatio(linearToSrgb(vColor), 0.3, 0.0, 5.0);
+  float oa = clamp(vOutlineOpacity * edge, 0.0, 1.0);
+  // Porter-Duff "over": outline (oa) on top of body (body.a).
+  float aOut = oa + body.a * (1.0 - oa);
+  if (aOut < 0.0001) return vec4(0.0);
+  vec3 cOut = (outlineColor * oa + body.rgb * body.a * (1.0 - oa)) / aOut;
+  return vec4(cOut, aOut);
+}
+
 void main() {
-  if (vSilhouette > 0.5) {
-    gl_FragColor = renderSilhouette();
-    return;
-  }
-  if (vFace == 2)      gl_FragColor = renderRoofFace();
-  else if (vFace == 3) gl_FragColor = renderBottomFace();
-  else                 gl_FragColor = renderWallFace();
+  vec4 body;
+  if (vSilhouette > 0.5)      body = renderSilhouette();
+  else if (vFace == 2)        body = renderRoofFace();
+  else if (vFace == 3)        body = renderBottomFace();
+  else                        body = renderWallFace();
+  gl_FragColor = compositeOutline(body);
 }
