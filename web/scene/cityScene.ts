@@ -41,6 +41,7 @@ export type { SceneBlock } from './blocks.js';
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
 import { buildLabelAtlas, createLabelsInstancedMesh } from './instanced/labels.js';
+import { createPlaceholderMesh } from './instanced/placeholders.js';
 import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
@@ -241,7 +242,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   }
 
   function _disposeAllManifestState() {
-    // Dispose per-block InstancedMeshes (buildings + labels).
+    // Dispose per-block InstancedMeshes (buildings + labels) and placeholder cuboids.
     for (const block of blocks) {
       if (block.detailMesh) {
         _removeAndDispose(block.detailMesh);
@@ -250,6 +251,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.labelsMesh) {
         _removeAndDispose(block.labelsMesh);
         block.labelsMesh = undefined;
+      }
+      if (block.placeholderMesh) {
+        _removeAndDispose(block.placeholderMesh);
+        block.placeholderMesh = undefined;
       }
     }
     // Dispose the shared atlas texture (material is disposed via labelsMesh above).
@@ -577,7 +582,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _atlasTexture = new THREE.CanvasTexture(atlas.canvas);
 
     for (const block of newBlocks) {
-      if (block.buildings.length === 0) continue; // skip empty blocks
+      // Task 16: placeholder cuboid (created for ALL blocks, including empty
+      // ones, so raycasting always has a target).
+      const placeholderMesh = createPlaceholderMesh(block);
+      block.placeholderMesh = placeholderMesh;
+      scene.add(placeholderMesh);
+
+      if (block.buildings.length === 0) continue; // skip empty blocks for detail mesh
       const detailMesh = createBuildingsInstancedMesh(block);
       block.detailMesh = detailMesh;
       scene.add(detailMesh);
