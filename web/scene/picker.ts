@@ -216,6 +216,18 @@ export function createPicker({
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(pickables, false);
+    // Diagnostic: enable from devtools with `window.__pickerDebug = true`.
+    // Logs the top 3 hits (closest first) so we can see why hover lands
+    // on a sidewalk when the cursor seems to be over a building.
+    if ((window as { __pickerDebug?: boolean }).__pickerDebug) {
+      const summary = hits.slice(0, 3).map((h) => ({
+        type: h.object.userData.type ?? h.object.userData.kind ?? '(none)',
+        instanceId: (h as { instanceId?: number }).instanceId ?? null,
+        distance: Number(h.distance.toFixed(2)),
+        isInstancedMesh: h.object instanceof THREE.InstancedMesh,
+      }));
+      console.log('[picker] hits:', hits.length, summary, '/ pickables:', pickables.length);
+    }
     return hits.length > 0 ? hits[0] : null;
   }
 
