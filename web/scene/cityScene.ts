@@ -45,7 +45,6 @@ import {
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
-import { createPlaceholderMesh } from './instanced/placeholders.js';
 import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
@@ -586,13 +585,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
 
     for (const block of newBlocks) {
-      // Task 16: placeholder cuboid (created for ALL blocks, including empty
-      // ones, so raycasting always has a target).
-      const placeholderMesh = createPlaceholderMesh(block);
-      block.placeholderMesh = placeholderMesh;
-      scene.add(placeholderMesh);
-
-      if (block.buildings.length === 0) continue; // skip empty blocks for detail mesh
+      // Placeholders disabled: they caused hover ambiguity (one block's
+      // placeholder cuboid intercepting rays meant for another block's
+      // buildings) and visual confusion (cuboid vs real building). Three's
+      // built-in frustum culling per InstancedMesh handles the perf
+      // benefit at far zoom that placeholders were supposed to provide.
+      if (block.buildings.length === 0) continue;
       const detailMesh = createBuildingsInstancedMesh(block);
       block.detailMesh = detailMesh;
       scene.add(detailMesh);

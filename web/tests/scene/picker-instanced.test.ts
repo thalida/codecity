@@ -261,69 +261,7 @@ describe('picker with InstancedMesh', () => {
     p.dispose();
   });
 
-  it('placeholder hit returns kind=Directory using the block primaryStreet and dir', () => {
-    const bA = makeBuilding('src/a.ts');
-    const { block, placeholder } = makeBlockWithPlaceholder([bA]);
-
-    const fakeScene = makeFakeCityScene([block]);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
-
-    const hit = {
-      object: placeholder,
-      distance: 50,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-
-    const target = p.interpretHit(hit);
-
-    expect(target).not.toBeNull();
-    expect(target?.kind).toBe(NodeKind.Directory);
-    if (target?.kind === NodeKind.Directory) {
-      expect(target.street).toBe(block.primaryStreet);
-      expect(target.dir).toBe(block.dir);
-      expect(target.sidewalk).toBe(placeholder);
-    }
-
-    p.dispose();
-  });
-
-  it('placeholder hit uses the block from userData, not a separate lookup', () => {
-    // Two blocks with different dirs; ensure the right block's dir is returned.
-    const bA = makeBuilding('src/a.ts');
-    const bB = makeBuilding('lib/b.ts');
-    const { block: blockA, placeholder: phA } = makeBlockWithPlaceholder([bA]);
-    const { block: blockB, placeholder: phB } = makeBlockWithPlaceholder([bB]);
-    // Give blockB a distinguishable dir path.
-    (blockB.dir as unknown as { path: string }).path = 'lib';
-
-    const fakeScene = makeFakeCityScene([blockA, blockB]);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
-
-    const hitB = {
-      object: phB,
-      distance: 30,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-
-    const target = p.interpretHit(hitB);
-    expect(target?.kind).toBe(NodeKind.Directory);
-    if (target?.kind === NodeKind.Directory) {
-      expect(target.dir).toBe(blockB.dir);
-      expect(target.street).toBe(blockB.primaryStreet);
-    }
-
-    // Also confirm phA still resolves to blockA.
-    const hitA = {
-      object: phA,
-      distance: 30,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    const targetA = p.interpretHit(hitA);
-    expect(targetA?.kind).toBe(NodeKind.Directory);
-    if (targetA?.kind === NodeKind.Directory) {
-      expect(targetA.dir).toBe(blockA.dir);
-    }
-
-    p.dispose();
-  });
+  // Placeholder-hit tests removed: placeholders disabled (see cityScene
+  // applyManifest comment) because they intercepted rays meant for
+  // neighboring blocks' buildings and broke hover reliability.
 });

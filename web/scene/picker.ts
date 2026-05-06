@@ -64,13 +64,8 @@ export function createPicker({
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
     pickables = cityScene.getStreetPickables().slice();
-    // Include each block's detailMesh (InstancedMesh of buildings) AND
-    // placeholderMesh. Three.js's intersectObjects automatically skips
-    // invisible meshes, so whichever of detailMesh / placeholderMesh
-    // the lodController has currently hidden will be bypassed at runtime.
     for (const block of cityScene.getBlocks()) {
       if (block.detailMesh) pickables.push(block.detailMesh);
-      if (block.placeholderMesh) pickables.push(block.placeholderMesh);
     }
     const gem = cityScene.getRootGem();
     if (gem) {
@@ -248,17 +243,6 @@ export function createPicker({
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
-    }
-    // Task 18: placeholder cuboid hit — block is far-LOD; treat the same
-    // as clicking the directory's street/sidewalk.
-    if (ud.kind === 'placeholder') {
-      const block = ud.block as SceneBlock;
-      return {
-        kind: NodeKind.Directory,
-        sidewalk: hit.object as THREE.Mesh,
-        street: block.primaryStreet,
-        dir: block.dir,
-      };
     }
     // New (Task 8+): InstancedMesh hit — one mesh per block, instanceId
     // identifies the individual building within the block.
