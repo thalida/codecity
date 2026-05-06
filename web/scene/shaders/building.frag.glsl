@@ -45,6 +45,13 @@ const float WINDOW_WIDTH_FRAC = 0.45;
 //   winTop    = 0.56 + WINDOW_HEIGHT_FRAC / 2 = 0.785
 const float WINDOW_HEIGHT_FRAC = 0.45;
 
+// FACADE.WINDOW_MARGIN_FRAC = 0.08 — horizontal margin as fraction of face
+// width, applied on both edges before dividing into columns. The window-column
+// grid spans [WINDOW_MARGIN_FRAC, 1 - WINDOW_MARGIN_FRAC] of face width, not
+// [0, 1]. Mirrors engine.ts: marginX = floor(width * 0.08), then
+// cellW = (width - 2*marginX) / cols.
+const float WINDOW_MARGIN_FRAC = 0.08;
+
 // FACADE.DOOR_HEIGHT_FRAC = 0.7 — door height as fraction of one floor.
 const float DOOR_HEIGHT_FRAC = 0.7;
 
@@ -158,8 +165,14 @@ vec4 renderWallFace() {
   // UV: (0,0) = bottom-left of face, (1,1) = top-right.
   vec2 uv = vUv;
 
+  // Rescale x-UV to exclude the face-level horizontal margin on each edge.
+  // The window-column grid occupies [WINDOW_MARGIN_FRAC, 1-WINDOW_MARGIN_FRAC]
+  // of face width, matching engine.ts: marginX = floor(width * 0.08),
+  // cellW = (width - 2*marginX) / cols, cellCenterX = marginX + cellW*(c+0.5).
+  float uvEffX = (uv.x - WINDOW_MARGIN_FRAC) / (1.0 - 2.0 * WINDOW_MARGIN_FRAC);
+
   // Cell coordinates: integer cell index + intra-cell UV in [0,1].
-  float colF  = uv.x * cols;
+  float colF  = uvEffX * cols;
   float col   = floor(colF);
   float cellU = fract(colF);
   float rowF  = uv.y * vFloors;
@@ -179,7 +192,10 @@ vec4 renderWallFace() {
   float winBottom = winCenter - halfH;
   float winTop    = winCenter + halfH;
 
-  float winMask  = aaband(winLeft, winRight, cellU) * aaband(winBottom, winTop, cellV);
+  // Gate winMask to zero in the horizontal margin strips (uvEffX outside [0,1])
+  // so the margin areas show plain wall color, matching the JS canvas output.
+  float inMargin = step(0.0, uvEffX) * step(uvEffX, 1.0);
+  float winMask  = aaband(winLeft, winRight, cellU) * aaband(winBottom, winTop, cellV) * inMargin;
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV);
