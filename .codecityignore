@@ -4,6 +4,9 @@
 # Format:
 #   - Bare names match any dir/file with that name in the tree.
 #   - Lines containing '/' are relative-path matches anchored to repo root.
+#   - Leading '!' un-ignores: e.g. `!node_modules` walks into node_modules
+#     anywhere. Negation overrides ALWAYS_SKIP — the only exception is
+#     `.git` (always excluded; `!.git` is silently ignored).
 #   - Lines starting with '#' are comments. Blank lines ignored.
 
 # Synthetic benchmark fixtures — gitignored, but surface under
