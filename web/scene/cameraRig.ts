@@ -142,9 +142,15 @@ export function createCameraRig({
     controls.maxDistance = dist * cameraControlsCfg.MAX_DISTANCE_MULT;
 
     // Snapshot AFTER defaults but BEFORE persistence restore — reset()
-    // animates back to these so it must reflect the true fit.
+    // snaps back to these so they must reflect the true fit.
     initialCamPos = camera.position.clone();
     initialTarget = controls.target.clone();
+    // OrbitControls' own saved state used by controls.reset(). Captures
+    // the framed camera pose AND clears any internal damping deltas
+    // when reset() is called — without this the snap can drift on the
+    // next frame because _sphericalDelta / _panOffset still carry
+    // momentum from the user's last interaction.
+    controls.saveState();
 
     // Restore saved pose if any. Done BEFORE attaching the change
     // listener so the restore itself doesn't trigger a re-save.
@@ -203,21 +209,27 @@ export function createCameraRig({
 
   function reset() {
     if (!initialCamPos || !initialTarget) return;
+    // Cancel any in-flight focus/reset animation so it can't keep
+    // walking the camera away from the snap target.
+    camAnimToken++;
     if (_saveCameraTimer) {
       clearTimeout(_saveCameraTimer);
       _saveCameraTimer = 0;
     }
+    // Wipe persisted camera pose so a partially-applied reset doesn't
+    // leave a stale pose to be restored on next page load.
     try {
       if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEYS.CAMERA_POSE);
     } catch (_) {
       /* private mode / unavailable — ignore */
     }
     camera.up.set(0, 1, 0);
-    _animateCamera(
-      initialTarget.clone(),
-      initialCamPos.clone(),
-      CAMERA_ANIMATION.get().RESET_DURATION_MS
-    );
+    // Hard snap via controls.reset() instead of animating: animation +
+    // OrbitControls damping let leftover momentum drift the camera past
+    // the target and the change listener would then save the drifted
+    // pose. controls.reset() restores the saveState pose AND clears the
+    // internal _sphericalDelta / _panOffset / _scale deltas in one shot.
+    controls.reset();
   }
 
   // Slide pivot to p; camera shifts by the same delta so the visible
