@@ -6,11 +6,6 @@ import * as THREE from 'three';
 
 import './styles.css';
 
-// Patch THREE prototypes with three-mesh-bvh's accelerated raycaster
-// before any geometry is created. Idempotent.
-import { installAcceleratedRaycast } from './scene/raycastBvh.js';
-installAcceleratedRaycast();
-
 import * as Config from './config/index.js';
 import {
   BUILDING_PALETTE,

@@ -209,7 +209,12 @@ vec4 renderWallFace() {
   // Gate winMask to zero in the horizontal margin strips (uvEffX outside [0,1])
   // so the margin areas show plain wall color, matching the JS canvas output.
   float inMargin = step(0.0, uvEffX) * step(uvEffX, 1.0);
-  float winMask  = aaband(winLeft, winRight, cellU) * aaband(winBottom, winTop, cellV) * inMargin;
+  // Suppress windows on the bottom floor of the door face — the door takes
+  // that whole row, and otherwise the door rectangle clips into the windows
+  // (door is 0.7 of one floor tall, window center sits at 0.56 of one floor
+  // → vertical overlap regardless of horizontal position).
+  float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
+  float winMask  = aaband(winLeft, winRight, cellU) * aaband(winBottom, winTop, cellV) * inMargin * bottomDoorRow;
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV);
@@ -302,7 +307,10 @@ vec4 renderSilhouette() {
 vec4 compositeOutline(vec4 body) {
   if (vOutlineOpacity < 0.001) return body;
   float distToEdge = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
-  float w = max(fwidth(distToEdge), 0.0001);
+  // Clamp the band width: fwidth() blows up on faces viewed at oblique
+  // angles, which without a cap turns the "outline" into a fill across
+  // the whole face. Cap at 1.5% of face width so the wire stays a wire.
+  float w = clamp(fwidth(distToEdge), 0.0005, 0.012);
   float edge = 1.0 - smoothstep(w, w * 2.5, distToEdge);
   if (edge < 0.001) return body;
   // Outline color: darkened version of the building's base, so the wire

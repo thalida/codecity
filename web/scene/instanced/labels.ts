@@ -195,9 +195,22 @@ export function buildLabelInstanceBuffer(
 
   const label = LABEL_TYPOGRAPHY.get();
 
-  // Label sizing scales with street width.
-  const worldH = street.width * label.HEIGHT_FRAC;
-  const worldW = worldH * rect.aspect;
+  // Label sizing scales with street width — but the rendered plane must
+  // also fit the street's length, otherwise long directory names overflow
+  // off the road and clip into adjacent blocks. Cap worldW at 90% of
+  // street.length and shrink worldH proportionally to preserve aspect.
+  const baseH = street.width * label.HEIGHT_FRAC;
+  const baseW = baseH * rect.aspect;
+  const maxW = street.length * 0.9;
+  let worldH: number;
+  let worldW: number;
+  if (baseW > maxW && rect.aspect > 0) {
+    worldW = maxW;
+    worldH = worldW / rect.aspect;
+  } else {
+    worldH = baseH;
+    worldW = baseW;
+  }
 
   // Repetition: spacing based on rendered width.
   const spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);
