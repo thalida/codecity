@@ -36,6 +36,7 @@ import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
 import { createInputHandlers } from './scene/inputHandlers.js';
 import { createBuildingFader } from './scene/effects/buildingFader.js';
 import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
+import { createGhostRenderer } from './scene/effects/ghostRenderer.js';
 import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
@@ -101,12 +102,12 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const picker = createPicker({ canvas, camera, cityScene });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
-  // Three siblings, all subscribed to picker / cityScene so they react
+  // Four siblings, all subscribed to picker / cityScene so they react
   // to selection / hover / manifest changes on their own. Animate loop
   // drives them in field-ownership order: fader writes body opacity →
-  // outlineRenderer reads outlineOp/ghostOp from userData and writes
-  // outline + ghost opacity → pathLineRenderer ticks the rainbow chase
-  // on the selection line.
+  // outlineRenderer tracks hover/selected outline transforms + rainbow
+  // chase → ghostRenderer tracks hover ghost transform → pathLineRenderer
+  // ticks the rainbow chase on the selection line.
   const fader = createBuildingFader({ cityScene, picker });
   const outlineRenderer = createOutlineRenderer({
     canvas,
@@ -114,6 +115,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
   });
+  const ghostRenderer = createGhostRenderer({ scene, cityScene, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
     scene,
@@ -277,7 +279,8 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     scene.updateMatrixWorld();
     animator.update(0); // entering / staying tweens (scale, position)
     fader.update(0); // body opacity per fade tier
-    outlineRenderer.update(0); // outline + ghost opacity, hover/selected outlines, rainbow chase
+    outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
+    ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
