@@ -84,7 +84,13 @@ export function createInputHandlers({
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
     // a.kind === b.kind is established; narrow b alongside a for member access.
-    if (a.kind === NodeKind.File) return a.mesh === (b as typeof a).mesh;
+    if (a.kind === NodeKind.File) {
+      // All buildings in a block share one InstancedMesh, so mesh-equality
+      // is too coarse — moving cursor between two buildings in the same
+      // block would never re-fire hover. Compare by file path (the
+      // canonical building identity).
+      return a.file?.path === (b as typeof a).file?.path;
+    }
     if (a.kind === NodeKind.Directory) return a.sidewalk === (b as typeof a).sidewalk;
     if (a.kind === NodeKind.Gem) return true;
     return false;

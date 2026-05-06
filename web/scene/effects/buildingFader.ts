@@ -86,7 +86,10 @@ export function createBuildingFader({
       const iOpacityAttr = block.detailMesh.geometry.getAttribute(
         'iOpacity'
       ) as THREE.InstancedBufferAttribute | undefined;
-      if (!iOpacityAttr) continue;
+      const iSilhouetteAttr = block.detailMesh.geometry.getAttribute(
+        'iSilhouette'
+      ) as THREE.InstancedBufferAttribute | undefined;
+      if (!iOpacityAttr || !iSilhouetteAttr) continue;
 
       for (let i = 0; i < block.buildings.length; i++) {
         const building = block.buildings[i];
@@ -124,16 +127,19 @@ export function createBuildingFader({
         }
 
         // Translate detail + bodyOpacity → final alpha written to iOpacity.
-        // Full   → body is visible at bodyOpacity.
-        // Silhouette → also visible at bodyOpacity (the shader renders solid
-        //              color; iOpacity controls transparency only).
-        // Hidden → body opacity is 0 (only outline layer can show).
+        // Full       → body is visible at bodyOpacity, full facade detail.
+        // Silhouette → body is visible at bodyOpacity, shader skips per-cell
+        //              window/door/slab math and renders solid base color.
+        // Hidden     → body opacity is 0 (only outline layer can show).
         const iOpacity = detail === FadeDetail.Hidden ? 0 : bodyOpacity;
+        const iSilhouette = detail === FadeDetail.Silhouette ? 1 : 0;
 
         iOpacityAttr.setX(i, iOpacity);
+        iSilhouetteAttr.setX(i, iSilhouette);
       }
 
       iOpacityAttr.needsUpdate = true;
+      iSilhouetteAttr.needsUpdate = true;
     }
   }
 
@@ -146,6 +152,11 @@ export function createBuildingFader({
   // buffers (all 1.0) and the current selection still applies.
   const _unsubChange = cityScene.onChange(() => _sweepAll());
 
+  // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
+  // controls every value _sweepAll reads. Resweep on any change so
+  // dragging a slider in the controls pane updates the scene live.
+  const _unsubCfg = BUILDING_FADE.subscribe(() => _sweepAll());
+
   // update() kept as a no-op for API compatibility: main.ts calls
   // fader.update(0) in the animation loop. With the subscription-driven
   // model, all real work is done on change events, not per-frame.
@@ -157,6 +168,7 @@ export function createBuildingFader({
     _unsubSel();
     _unsubHov();
     _unsubChange();
+    _unsubCfg();
   }
 
   return { update, dispose };

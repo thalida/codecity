@@ -23,6 +23,7 @@ attribute float iFloors;        // window row count
 attribute float iOrient;        // 0=S, 1=N, 2=E, 3=W (door face)
 attribute float iDoorWidth;     // door world-width
 attribute float iOpacity;       // [0..1] alpha for fader
+attribute float iSilhouette;    // 0 = full facade, 1 = solid silhouette (no windows/door/slab)
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -32,6 +33,7 @@ flat varying float vFloors;
 flat varying float vOrient;
 flat varying float vDoorWidth;
 flat varying float vOpacity;
+flat varying float vSilhouette;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 
@@ -51,6 +53,7 @@ void main() {
   vOrient = iOrient;
   vDoorWidth = iDoorWidth;
   vOpacity = iOpacity;
+  vSilhouette = iSilhouette;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

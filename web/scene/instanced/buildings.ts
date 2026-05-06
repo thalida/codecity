@@ -16,6 +16,7 @@ export interface BuildingInstanceBuffer {
   orient: Float32Array; // N (0=S, 1=N, 2=E, 3=W — matches shader's iOrient contract)
   doorWidth: Float32Array; // N
   opacity: Float32Array; // N (defaults to 1.0)
+  silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
 }
 
 // ---------------------------------------------------------------------------
@@ -62,6 +63,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     orient: new Float32Array(n),
     doorWidth: new Float32Array(n),
     opacity: new Float32Array(n),
+    silhouette: new Float32Array(n),
   };
 
   const m = new THREE.Matrix4();
@@ -216,6 +218,10 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
   mesh.geometry.setAttribute('iOrient', new THREE.InstancedBufferAttribute(buf.orient, 1));
   mesh.geometry.setAttribute('iDoorWidth', new THREE.InstancedBufferAttribute(buf.doorWidth, 1));
   mesh.geometry.setAttribute('iOpacity', new THREE.InstancedBufferAttribute(buf.opacity, 1));
+  mesh.geometry.setAttribute(
+    'iSilhouette',
+    new THREE.InstancedBufferAttribute(buf.silhouette, 1),
+  );
 
   // Compute bounding sphere from instance positions for Three's frustum
   // culling (fires per-block since each InstancedMesh has its own sphere).

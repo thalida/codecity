@@ -20,6 +20,7 @@ flat varying float vFloors;
 flat varying float vOrient;
 flat varying float vDoorWidth;
 flat varying float vOpacity;
+flat varying float vSilhouette;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
 
@@ -267,6 +268,13 @@ vec4 renderBottomFace() {
 }
 
 void main() {
+  // Silhouette mode: render solid base color across the whole face.
+  // Used by the fader for far-LOD tiers where window/door detail would
+  // be sub-pixel anyway. Skips all per-cell math.
+  if (vSilhouette > 0.5) {
+    gl_FragColor = vec4(linearToSrgb(vColor), vOpacity);
+    return;
+  }
   if (vFace == 2)      gl_FragColor = renderRoofFace();
   else if (vFace == 3) gl_FragColor = renderBottomFace();
   else                 gl_FragColor = renderWallFace();
