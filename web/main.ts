@@ -29,6 +29,7 @@ import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
+import { createLodController } from './scene/lodController.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
@@ -78,6 +79,11 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
   (window as Window & { __rig?: typeof rig }).__rig = rig;
+
+  // -- 4b. LOD controller ------------------------------------------------------
+  // Declared with `let` so refreshManifest (below) can recreate it after each
+  // applyManifest call. Camera reference is stable across rebuilds.
+  let lodController = createLodController(cityScene.getBlocks(), camera);
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
@@ -283,6 +289,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
     }
+    lodController.update(canvas); // swap detail↔placeholder by screen-space area
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
   }
