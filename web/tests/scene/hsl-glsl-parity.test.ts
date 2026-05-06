@@ -78,11 +78,14 @@ function twinShadeAndShiftHue(rgb: RGB, deltaLightPct: number, deltaHueDeg: numb
 }
 
 // Twin of GLSL shadeByRatio(rgb, ratio, deltaHueDeg, floorPct)
+// No upper clamp — mirrors both hsl.ts (Math.max(floor, l*ratio)) and the
+// updated GLSL (which also omits the upper clamp for byte-for-byte parity).
+// Production callers always pass ratio<1, so l never exceeds 1.0 in practice.
 function twinShadeByRatio(rgb: RGB, ratio: number, deltaHueDeg: number, floorPct: number): RGB {
   const hsl = _rgbToHsl(rgb);
   hsl[0] = ((hsl[0] + deltaHueDeg / 360 + 1) % 1 + 1) % 1;
   const newL = hsl[2] * ratio;
-  hsl[2] = clamp01(Math.max(newL, floorPct / 100));
+  hsl[2] = Math.max(newL, floorPct / 100);
   return _hslToRgb(hsl);
 }
 
@@ -250,8 +253,11 @@ describe('hsl.glsl parity with hsl.ts', () => {
     const ratios = [0.1, 0.4, 0.55, 1.0, 1.5];
     const hueDeltas = [-18, 0, 18];
     const floors = [0, 10, 14];
-    // Use a representative subset
-    const samples = HSL_SAMPLES.slice(0, 8);
+    // Include high-lightness samples (indices 8+ cover l=15, l=85, greys,
+    // black, white) so that ratio=1.5 with l=85 exercises the previously
+    // divergent path: l*ratio = 127.5% > 100%.  Both GLSL and JS now agree
+    // by omitting the upper clamp (JS never had one; GLSL's clamp is removed).
+    const samples = HSL_SAMPLES;
 
     for (const [h, s, l] of samples) {
       for (const ratio of ratios) {

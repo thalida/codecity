@@ -82,12 +82,16 @@ vec3 shadeAndShiftHue(vec3 rgb, float deltaLightPct, float deltaHueDeg, float mi
 }
 
 // shadeByRatio(rgb, ratio, deltaHueDeg, floorPct) —
-// lightness *= ratio; shift hue; clamp to >= floorPct.
+// lightness *= ratio; shift hue; floor at floorPct.  No upper clamp — mirrors
+// hsl.ts shadeByRatio which does Math.max(floor, l * ratio) with no ceiling.
+// Production callers always pass ratio < 1 (darkening), so lightness never
+// exceeds 1.0 in practice, but the no-upper-clamp contract gives byte-for-byte
+// parity with JS for all ratio values.
 // Matches: hsl.ts shadeByRatio(hslString, ratio, hueDelta, floor).
 vec3 shadeByRatio(vec3 rgb, float ratio, float deltaHueDeg, float floorPct) {
   vec3 hsl = _rgbToHsl(rgb);
   hsl.x = mod(hsl.x + deltaHueDeg / 360.0 + 1.0, 1.0);
   float newL = hsl.z * ratio;
-  hsl.z = clamp(max(newL, floorPct / 100.0), 0.0, 1.0);
+  hsl.z = max(newL, floorPct / 100.0);
   return _hslToRgb(hsl);
 }
