@@ -320,6 +320,63 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             (target / "x.txt").unlink(missing_ok=True)
             target.rmdir()
 
+    def test_codecityignore_negation_unignores_always_skip(self):
+        # `!node_modules` overrides ALWAYS_SKIP, so the dir surfaces
+        # under include_all=True.
+        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
+        nm_dir.mkdir(parents=True, exist_ok=True)
+        (nm_dir / "index.js").write_text("module.exports = {};")
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("!node_modules\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertIn("node_modules", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (nm_dir / "index.js").unlink(missing_ok=True)
+            nm_dir.rmdir()
+            (FIXTURE / "node_modules").rmdir()
+
+    def test_codecityignore_negation_path_anchored(self):
+        # `!stash/legacy` un-ignores only that exact path. Another dir
+        # named `legacy` at a different rel-path stays affected by any
+        # other ignore rule (here: nothing else, so it's visible too).
+        target_a = FIXTURE / "stash" / "legacy"
+        target_b = FIXTURE / "elsewhere" / "legacy"
+        target_a.mkdir(parents=True, exist_ok=True)
+        target_b.mkdir(parents=True, exist_ok=True)
+        (target_a / "x.txt").write_text("a")
+        (target_b / "x.txt").write_text("b")
+        ignore_file = FIXTURE / ".codecityignore"
+        # Ignore both names at the bare level, then un-ignore one path.
+        ignore_file.write_text("legacy\n!stash/legacy\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            paths = [n["path"] for n in _walk_dirs(m["tree"])]
+            self.assertIn("stash/legacy", paths)
+            self.assertNotIn("elsewhere/legacy", paths)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+            (target_a / "x.txt").unlink(missing_ok=True)
+            target_a.rmdir()
+            (FIXTURE / "stash").rmdir()
+            (target_b / "x.txt").unlink(missing_ok=True)
+            target_b.rmdir()
+            (FIXTURE / "elsewhere").rmdir()
+
+    def test_codecityignore_negation_does_not_unignore_git_dir(self):
+        # `!.git` is silently ignored — walking the object database is
+        # always disallowed regardless of user config.
+        ignore_file = FIXTURE / ".codecityignore"
+        ignore_file.write_text("!.git\n")
+        try:
+            m = scan_tree(str(FIXTURE), include_all=True)
+            names = [n["name"] for n in _walk_dirs(m["tree"])]
+            self.assertNotIn(".git", names)
+        finally:
+            ignore_file.unlink(missing_ok=True)
+
 
 class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does

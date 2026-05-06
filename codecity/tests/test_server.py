@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import http.client
 import json
 import os
@@ -47,6 +48,31 @@ def _get(url: str) -> tuple[int, bytes, str]:
     except urllib.error.HTTPError as e:
         return e.code, e.read(), e.headers.get("Content-Type", "")
     return resp.status, resp.read(), resp.headers.get("Content-Type", "")
+
+
+def _get_with_headers(
+    url: str, headers: dict[str, str],
+) -> tuple[int, bytes, str, str]:
+    """Issue a GET with custom request headers; return
+    (status, body, content_type, content_encoding).
+
+    The body is returned as-is (raw bytes). Tests that requested gzip
+    are responsible for calling gzip.decompress themselves — that's the
+    whole point of the verification."""
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        resp = urllib.request.urlopen(req)
+    except urllib.error.HTTPError as e:
+        return (
+            e.code, e.read(),
+            e.headers.get("Content-Type", ""),
+            e.headers.get("Content-Encoding", ""),
+        )
+    return (
+        resp.status, resp.read(),
+        resp.headers.get("Content-Type", ""),
+        resp.headers.get("Content-Encoding", ""),
+    )
 
 
 class ServerTests(_CacheRedirectMixin, unittest.TestCase):
@@ -292,6 +318,57 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertFalse(_parse_no_cache(""))
         self.assertFalse(_parse_no_cache("path=/tmp"))
 
+    def test_manifest_response_gzipped_when_requested(self) -> None:
+        # Client advertises gzip; server compresses; decompressed body
+        # parses as the same JSON the uncompressed path would return.
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/manifest?{q}",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "gzip")
+        self.assertIn("application/json", ctype)
+        decoded = gzip.decompress(body)
+        payload = json.loads(decoded)
+        self.assertEqual(payload["tree"]["name"], "project")
+
+    def test_manifest_response_uncompressed_without_accept_encoding(self) -> None:
+        # No Accept-Encoding header at all -> no Content-Encoding,
+        # body parses directly as JSON.
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/manifest?{q}", {},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "")
+        self.assertIn("application/json", ctype)
+        payload = json.loads(body)
+        self.assertEqual(payload["tree"]["name"], "project")
+
+    def test_manifest_response_uncompressed_when_gzip_not_in_accept(self) -> None:
+        # Client supports brotli but not gzip -> no compression.
+        q = urllib.parse.urlencode({"path": str(self.project)})
+        status, body, _, enc = _get_with_headers(
+            self.base + f"/api/manifest?{q}",
+            {"Accept-Encoding": "br"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "")
+        # Sanity: it's still valid JSON.
+        json.loads(body)
+
+    def test_health_response_below_threshold_uncompressed(self) -> None:
+        # /api/health body is ~15 bytes — below the 256-byte threshold.
+        # Even with gzip in Accept-Encoding, response is not compressed.
+        status, body, _, enc = _get_with_headers(
+            self.base + "/api/health",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "")
+        self.assertEqual(json.loads(body), {"ok": True})
+
 
 class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
@@ -395,6 +472,36 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         status, _, ctype = _get(self.base + f"/api/file?path={bin_path}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(ctype.startswith("text/plain"))
+
+    def test_file_api_text_gzipped(self) -> None:
+        # A text file (>256 bytes) requested with Accept-Encoding: gzip
+        # comes back compressed.
+        big_text = self.scan_root / "big.md"
+        big_text.write_text("# heading\n\n" + ("hello world\n" * 100))
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/file?path={big_text}",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "gzip")
+        self.assertTrue(ctype.startswith("text/"))
+        decoded = gzip.decompress(body)
+        self.assertIn(b"hello world", decoded)
+
+    def test_file_api_image_not_gzipped(self) -> None:
+        # Already-compressed media bypasses gzip even when client offers it.
+        # Use a >256-byte fake PNG so the size threshold isn't doing the work.
+        png_path = self.scan_root / "big-image.png"
+        png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 500)
+        status, body, ctype, enc = _get_with_headers(
+            self.base + f"/api/file?path={png_path}",
+            {"Accept-Encoding": "gzip"},
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertEqual(enc, "")
+        self.assertEqual(ctype, "image/png")
+        # Body is the raw "PNG" bytes — not gzipped.
+        self.assertTrue(body.startswith(b"\x89PNG"))
 
 
 if __name__ == "__main__":

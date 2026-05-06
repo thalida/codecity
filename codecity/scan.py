@@ -328,36 +328,59 @@ ALWAYS_SKIP: frozenset[str] = frozenset({
 })
 
 
-def _load_codecityignore(root: Path) -> tuple[frozenset[str], frozenset[str]]:
-    """Load .codecityignore from the scan root, return (names, paths).
+def _load_codecityignore(
+    root: Path,
+) -> tuple[frozenset[str], frozenset[str], frozenset[str], frozenset[str]]:
+    """Load .codecityignore from the scan root.
+
+    Returns ``(ignore_names, ignore_paths, unignore_names, unignore_paths)``.
 
     Lines without a '/' match any directory/file with that name anywhere
     in the tree (same semantic as ALWAYS_SKIP). Lines containing '/'
     are relative-path matches anchored to the scan root.
 
+    A leading ``!`` un-ignores the entry, overriding ALWAYS_SKIP. For
+    example, ``!node_modules`` walks into node_modules anywhere; the
+    path form ``!tests/fixtures/large-repo`` un-ignores only that
+    specific path. Negation does NOT override ``.git`` — walking the
+    object database is always disallowed.
+
     Comments (#) and blank lines are ignored. Whitespace is stripped.
-    A leading '/' is dropped — paths are always relative to root.
-    Trailing '/' is stripped — directories vs files don't matter for
-    skipping. Missing file or unreadable contents → two empty sets, no
-    error (the file is optional)."""
+    A leading '/' is dropped (paths are always relative to root) AFTER
+    the ``!`` prefix is consumed. Trailing '/' is stripped — directories
+    vs files don't matter for skipping. Missing file or unreadable
+    contents → four empty sets, no error (the file is optional).
+    """
     names: set[str] = set()
     paths: set[str] = set()
+    unignore_names: set[str] = set()
+    unignore_paths: set[str] = set()
     try:
         text = (root / ".codecityignore").read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
-        return frozenset(), frozenset()
+        return frozenset(), frozenset(), frozenset(), frozenset()
     for raw in text.splitlines():
         line = raw.strip()
         if not line or line.startswith("#"):
             continue
+        negate = line.startswith("!")
+        if negate:
+            line = line[1:]
         line = line.removeprefix("/").removesuffix("/")
         if not line:
             continue
+        target_names = unignore_names if negate else names
+        target_paths = unignore_paths if negate else paths
         if "/" in line:
-            paths.add(line)
+            target_paths.add(line)
         else:
-            names.add(line)
-    return frozenset(names), frozenset(paths)
+            target_names.add(line)
+    return (
+        frozenset(names),
+        frozenset(paths),
+        frozenset(unignore_names),
+        frozenset(unignore_paths),
+    )
 
 
 def _should_skip(
@@ -366,13 +389,27 @@ def _should_skip(
     *,
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
 ) -> bool:
     """Whether to skip a directory entry during the walk.
 
-    Always-skipped: ALWAYS_SKIP set + any name in `ignore_names` (from
-    .codecityignore single-segment lines). Path-anchored skips: any
-    `rel_path` in `ignore_paths` (from .codecityignore lines containing
-    '/'). `.git/` is in ALWAYS_SKIP; no separate special case needed."""
+    Order of precedence (first match wins):
+
+    1. ``.git`` is always excluded — walking the object database is
+       destructively expensive and never useful for visualization.
+       The hardcoded check fires before any user override; ``!.git``
+       in .codecityignore is silently ignored.
+    2. Negation: any name in ``unignore_names`` or ``rel_path`` in
+       ``unignore_paths`` (from .codecityignore lines beginning with
+       ``!``) overrides ALWAYS_SKIP and the ignore lists below.
+    3. ``ALWAYS_SKIP`` (hardcoded global noise dirs).
+    4. ``ignore_names`` / ``ignore_paths`` (from .codecityignore).
+    """
+    if name == ".git":
+        return True
+    if name in unignore_names or rel_path in unignore_paths:
+        return False
     if name in ALWAYS_SKIP:
         return True
     if name in ignore_names:
@@ -568,6 +605,8 @@ def _build_tree(
     include_all: bool,
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
     sig: Any,
 ) -> DirNode:
     name = os.path.basename(abs_dir)
@@ -591,6 +630,7 @@ def _build_tree(
         if _should_skip(
             entry.name, entry_rel,
             ignore_names=ignore_names, ignore_paths=ignore_paths,
+            unignore_names=unignore_names, unignore_paths=unignore_paths,
         ):
             continue
 
@@ -617,6 +657,7 @@ def _build_tree(
                 git_created=git_created, git_modified=git_modified,
                 tracked_files=tracked_files, include_all=include_all,
                 ignore_names=ignore_names, ignore_paths=ignore_paths,
+                unignore_names=unignore_names, unignore_paths=unignore_paths,
                 sig=sig,
             )
             dirs.append(subtree)
@@ -685,7 +726,9 @@ def scan_tree(
     else:
         _log("not a git repo — filesystem dates only")
 
-    ignore_names, ignore_paths = _load_codecityignore(Path(root_abs))
+    ignore_names, ignore_paths, unignore_names, unignore_paths = (
+        _load_codecityignore(Path(root_abs))
+    )
 
     _reset_heartbeat()
     _log("walking tree…")
@@ -696,6 +739,7 @@ def scan_tree(
         git_created=git_created, git_modified=git_modified,
         tracked_files=tracked_files, include_all=include_all,
         ignore_names=ignore_names, ignore_paths=ignore_paths,
+        unignore_names=unignore_names, unignore_paths=unignore_paths,
         sig=sig,
     )
     _log(f"walked {_files_seen} files; resolving file metadata")
@@ -745,6 +789,8 @@ def _walk_for_signature(
     include_all: bool,
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
+    unignore_names: frozenset[str],
+    unignore_paths: frozenset[str],
     sig: Any,
 ) -> None:
     """Stat-only walk that feeds the live signature without building nodes.
@@ -764,6 +810,7 @@ def _walk_for_signature(
         if _should_skip(
             entry.name, entry_rel,
             ignore_names=ignore_names, ignore_paths=ignore_paths,
+            unignore_names=unignore_names, unignore_paths=unignore_paths,
         ):
             continue
         if is_git_repo and not include_all and entry_rel not in tracked_files:
@@ -779,6 +826,8 @@ def _walk_for_signature(
                 include_all=include_all,
                 ignore_names=ignore_names,
                 ignore_paths=ignore_paths,
+                unignore_names=unignore_names,
+                unignore_paths=unignore_paths,
                 sig=sig,
             )
 
@@ -823,7 +872,9 @@ def signature_tree(
             tracked_files = _collect_tracked_set(root_path)
         repo_info = _collect_repo_info(root_path)
 
-    ignore_names, ignore_paths = _load_codecityignore(root_path)
+    ignore_names, ignore_paths, unignore_names, unignore_paths = (
+        _load_codecityignore(root_path)
+    )
 
     sig = hashlib.blake2b(digest_size=16)
     _walk_for_signature(
@@ -833,6 +884,8 @@ def signature_tree(
         include_all=include_all,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
+        unignore_names=unignore_names,
+        unignore_paths=unignore_paths,
         sig=sig,
     )
     if repo_info is not None:
