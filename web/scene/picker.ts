@@ -216,19 +216,27 @@ export function createPicker({
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(pickables, false);
-    // Diagnostic: enable from devtools with `window.__pickerDebug = true`.
-    // Logs the top 3 hits (closest first) so we can see why hover lands
-    // on a sidewalk when the cursor seems to be over a building.
-    if ((window as { __pickerDebug?: boolean }).__pickerDebug) {
-      const summary = hits.slice(0, 3).map((h) => ({
-        type: h.object.userData.type ?? h.object.userData.kind ?? '(none)',
-        instanceId: (h as { instanceId?: number }).instanceId ?? null,
-        distance: Number(h.distance.toFixed(2)),
-        isInstancedMesh: h.object instanceof THREE.InstancedMesh,
-      }));
-      console.log('[picker] hits:', hits.length, summary, '/ pickables:', pickables.length);
+    if (hits.length === 0) return null;
+
+    // Tie-break: when an InstancedMesh (building) hit lies within ~0.1% of
+    // the closest hit's distance, prefer it over any placeholder or
+    // sidewalk at the same distance. The placeholder cuboid covers the
+    // entire bbox of its block, so its outer face often coincides with
+    // edge-buildings of neighboring blocks; same-distance ties otherwise
+    // swing arbitrarily by JS sort stability and the user gets a
+    // directory tooltip when their cursor is plainly over a building.
+    const closest = hits[0];
+    const tieThreshold = closest.distance * 1.001;
+    for (const h of hits) {
+      if (h.distance > tieThreshold) break;
+      if (
+        h.object instanceof THREE.InstancedMesh &&
+        h.object.userData.kind === 'buildings'
+      ) {
+        return h;
+      }
     }
-    return hits.length > 0 ? hits[0] : null;
+    return closest;
   }
 
   // interpretHit(hit) — reduce a raw raycast hit to a target object of
