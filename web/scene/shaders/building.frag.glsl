@@ -128,18 +128,27 @@ bool isFrontFacePair() {
 }
 
 // ---------------------------------------------------------------------------
-// Edge helpers — hard step to match the canvas-baked reference (NearestFilter
-// textures have no sub-pixel smoothing; hard step gives the same result).
+// Edge helpers — screen-space anti-aliased step / band.
+//
+// Each helper takes an explicit half-width `w`, NOT fwidth(x) computed
+// internally. Reason: many call sites pass `fract(...)` coordinates
+// (cellU, cellV) where fwidth would explode at cell boundaries — a 2×2
+// pixel quad spanning the boundary sees fract jump from ~1 to 0, and
+// fwidth reports ~1 for the whole quad, blurring the smoothstep across
+// the entire cell. Callers compute `w` from the underlying continuous
+// coordinate (e.g. fwidth(colF) before the fract) so derivatives stay
+// well-defined across cell boundaries.
 // ---------------------------------------------------------------------------
 
-// aastep: hard step matching canvas NearestFilter (no sub-pixel smoothing).
-float aastep(float edge, float x) {
-  return step(edge, x);
+float aastep(float edge, float x, float w) {
+  float ww = max(w, 1e-6);
+  return smoothstep(edge - ww, edge + ww, x);
 }
 
-// aaband: returns 1 inside [a, b], 0 outside, hard edges.
-float aaband(float a, float b, float x) {
-  return step(a, x) * (1.0 - step(b, x));
+// aaband: returns ~1 inside [a, b], ~0 outside, with `w`-wide falloff.
+float aaband(float a, float b, float x, float w) {
+  float ww = max(w, 1e-6);
+  return smoothstep(a - ww, a + ww, x) * (1.0 - smoothstep(b - ww, b + ww, x));
 }
 
 // ---------------------------------------------------------------------------
@@ -197,6 +206,13 @@ vec4 renderWallFace() {
   float row    = floor(rowF);
   float cellV  = fract(rowF);
 
+  // Screen-space derivatives for AA. Computed from the CONTINUOUS coords
+  // (colF, rowF) before fract — fwidth(fract(x)) blows up at integer
+  // boundaries (the 2×2 quad sees fract jump from ~1 to 0, fwidth → 1)
+  // which would smear the smoothstep across whole cells.
+  float wU = fwidth(colF) * 0.5;
+  float wV = fwidth(rowF) * 0.5;
+
   // Window rectangle within each cell, centered horizontally and
   // vertically above the slab band. Matches WINDOW_WIDTH_FRAC /
   // WINDOW_HEIGHT_FRAC usage in _buildFacadeTexture.
@@ -218,10 +234,10 @@ vec4 renderWallFace() {
   // (door is 0.7 of one floor tall, window center sits at 0.56 of one floor
   // → vertical overlap regardless of horizontal position).
   float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
-  float winMask  = aaband(winLeft, winRight, cellU) * aaband(winBottom, winTop, cellV) * inMargin * bottomDoorRow;
+  float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow;
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
-  float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV);
+  float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
 
   // Compose: slab overrides wall; window overrides slab+wall.
   vec3 wallOut  = mix(wallColor, slabColor, slabMask);
@@ -237,8 +253,8 @@ vec4 renderWallFace() {
     float doorLeft     = 0.5 - doorUvWidth * 0.5;
     float doorRight    = 0.5 + doorUvWidth * 0.5;
     float doorTopV     = DOOR_HEIGHT_FRAC / vFloors; // fraction of total face height
-    float doorMask = aaband(doorLeft, doorRight, uv.x)
-                   * aaband(0.0, doorTopV, uv.y);
+    float doorMask = aaband(doorLeft, doorRight, uv.x, fwidth(uv.x) * 0.5)
+                   * aaband(0.0, doorTopV, uv.y, fwidth(uv.y) * 0.5);
     withWin = mix(withWin, doorColor, doorMask);
   }
 
@@ -256,8 +272,8 @@ vec4 renderRoofFace() {
   vec3 baseColor   = linearToSrgb(vColor);
   vec3 roofColor   = baseColor;
   vec3 borderColor = shadeAndShiftHue(baseColor, ROOF_BORDER_LIGHTNESS_DELTA, 0.0, -1.0);
-  float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x)
-                   * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y);
+  float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x, fwidth(vUv.x) * 0.5)
+                   * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;
   return vec4(mix(roofColor, borderColor, borderMask), vOpacity);
 }

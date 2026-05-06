@@ -30,6 +30,14 @@ import type { FileTarget } from '@/types';
 // reads as a "preview" hint without obscuring the building body beneath.
 const GHOST_OPACITY = 0.35;
 
+// Tiny outward scale on the ghost so its faces don't sit perfectly
+// coplanar with the underlying building's BoxGeometry — coplanar faces
+// z-fight, producing a stable checkerboard pattern across the whole
+// face once OrbitControls' damping settles. 1.005 keeps the ghost
+// visually flush with the building at any reasonable zoom while still
+// beating the depth-test tie.
+const GHOST_SCALE_INSET = 1.005;
+
 export function createGhostRenderer({
   scene,
   cityScene: _cityScene,
@@ -71,7 +79,11 @@ export function createGhostRenderer({
     if (target.block?.detailMesh && target.instanceId != null) {
       target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
-      ghostMesh.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
+      ghostMesh.scale.set(
+        _tmpScale.x * GHOST_SCALE_INSET,
+        _tmpScale.y * GHOST_SCALE_INSET,
+        _tmpScale.z * GHOST_SCALE_INSET,
+      );
       ghostMesh.position.copy(_tmpPos);
 
       // Mirror the building's instance color so the ghost reads as the
@@ -85,7 +97,11 @@ export function createGhostRenderer({
       }
     } else {
       // Fallback: use layout coordinates directly.
-      ghostMesh.scale.set(b.w, b.h, b.d);
+      ghostMesh.scale.set(
+        b.w * GHOST_SCALE_INSET,
+        b.h * GHOST_SCALE_INSET,
+        b.d * GHOST_SCALE_INSET,
+      );
       ghostMesh.position.set(b.x, b.h / 2, b.y);
       _ghostMat.color.set(b.color ?? '#ffffff');
     }
