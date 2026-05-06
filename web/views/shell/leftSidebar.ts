@@ -188,6 +188,7 @@ export function showLeftSidebar(
     setSelectedTreePath: treeBundle.api.setSelectedPath,
     setHoveredTreePath: treeBundle.api.setHoveredPath,
     setInfoManifest: infoBundle.api.setManifest,
+    setTreeManifest: treeBundle.api.setManifest,
   };
 }
 

@@ -75,6 +75,7 @@ export function createCameraRig({
 
   let _saveCameraTimer: ReturnType<typeof setTimeout> | 0 = 0;
   let _changeListenerAttached = false;
+  let _rebuildSubscribed = false;
 
   function _saveCameraPose() {
     if (typeof localStorage === 'undefined') return;
@@ -106,7 +107,14 @@ export function createCameraRig({
   const _xrayRay = new THREE.Raycaster();
   const _xrayDir = new THREE.Vector3();
 
-  function _frameToBbox() {
+  // Compute the canonical "framed" pose for the current cityScene bbox and
+  // refresh initialCamPos/initialTarget + controls.maxDistance + the
+  // OrbitControls saveState snapshot. Does NOT move the user's camera.
+  // Called on first frame and after every manifest swap so reset() always
+  // snaps to a pose that fits the current city — without this, toggling
+  // SHOW_ALL_FILES off after zooming way out left R targeting the OLD
+  // (large-city) framing while the camera was far outside the new bbox.
+  function _captureFraming(): boolean {
     const bbox = cityScene.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
 
@@ -135,22 +143,36 @@ export function createCameraRig({
       cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
     const dir = new THREE.Vector3(-1, 1, 1).normalize();
-    camera.position.copy(groundCenter).add(dir.multiplyScalar(dist));
-    camera.lookAt(groundCenter);
-
-    controls.target.copy(groundCenter);
+    initialCamPos = groundCenter.clone().add(dir.multiplyScalar(dist));
+    initialTarget = groundCenter.clone();
     controls.maxDistance = dist * cameraControlsCfg.MAX_DISTANCE_MULT;
 
-    // Snapshot AFTER defaults but BEFORE persistence restore — reset()
-    // snaps back to these so they must reflect the true fit.
-    initialCamPos = camera.position.clone();
-    initialTarget = controls.target.clone();
-    // OrbitControls' own saved state used by controls.reset(). Captures
-    // the framed camera pose AND clears any internal damping deltas
-    // when reset() is called — without this the snap can drift on the
-    // next frame because _sphericalDelta / _panOffset still carry
-    // momentum from the user's last interaction.
+    // Update OrbitControls' saveState (used by controls.reset()) without
+    // disturbing the user's current view: stash, swap to framed pose,
+    // saveState, restore. saveState reads camera.position + target + zoom
+    // at call time, so this is the only way to reframe controls.reset()'s
+    // target without re-positioning the user.
+    const userPos = _scratchUserPos.copy(camera.position);
+    const userTarget = _scratchUserTarget.copy(controls.target);
+    camera.position.copy(initialCamPos);
+    controls.target.copy(initialTarget);
     controls.saveState();
+    camera.position.copy(userPos);
+    controls.target.copy(userTarget);
+    return true;
+  }
+
+  // Reusable scratch — _captureFraming runs on every cityScene rebuild.
+  const _scratchUserPos = new THREE.Vector3();
+  const _scratchUserTarget = new THREE.Vector3();
+
+  function _frameToBbox() {
+    if (!_captureFraming() || !initialCamPos || !initialTarget) return false;
+
+    // First-frame only: actually move the camera to the framed pose.
+    camera.position.copy(initialCamPos);
+    camera.lookAt(initialTarget);
+    controls.target.copy(initialTarget);
 
     // Restore saved pose if any. Done BEFORE attaching the change
     // listener so the restore itself doesn't trigger a re-save.
@@ -172,6 +194,13 @@ export function createCameraRig({
     if (!_changeListenerAttached) {
       controls.addEventListener('change', _scheduleCameraSave);
       _changeListenerAttached = true;
+    }
+    // Re-frame on every manifest swap so R always fits the current city.
+    if (!_rebuildSubscribed) {
+      cityScene.onChange(() => {
+        _captureFraming();
+      });
+      _rebuildSubscribed = true;
     }
     return true;
   }

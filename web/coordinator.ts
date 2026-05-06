@@ -253,6 +253,9 @@ export function createCoordinator({
     if (leftSidebarApi.setInfoManifest) {
       leftSidebarApi.setInfoManifest(m);
     }
+    if (leftSidebarApi.setTreeManifest && m) {
+      leftSidebarApi.setTreeManifest(m);
+    }
   });
 
   function dispose() {
