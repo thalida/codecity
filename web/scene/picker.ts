@@ -38,6 +38,7 @@ import { atom } from 'nanostores';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerCityScene, PickerSelectionKey } from '@/types';
+import type { SceneBlock } from './blocks.js';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -116,6 +117,8 @@ export function createPicker({
           mesh: b.mesh,
           data: b.building,
           file: b.building.file,
+          instanceId: b.instanceId,
+          block: b.block,
         });
       } else {
         selection.set(null);
@@ -178,6 +181,8 @@ export function createPicker({
         mesh: b.mesh,
         data: b.building,
         file: b.building.file,
+        instanceId: b.instanceId,
+        block: b.block,
       });
       return;
     }
@@ -216,6 +221,28 @@ export function createPicker({
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
+    // New (Task 8+): InstancedMesh hit — one mesh per block, instanceId
+    // identifies the individual building within the block.
+    if (
+      hit.object instanceof THREE.InstancedMesh &&
+      ud.kind === 'buildings'
+    ) {
+      const i = hit.instanceId;
+      if (i == null) return null;
+      const block = ud.block as SceneBlock | undefined;
+      if (!block) return null;
+      const building = block.buildings[i];
+      if (!building?.file) return null;
+      return {
+        kind: NodeKind.File,
+        mesh: hit.object as THREE.Mesh,
+        data: building,
+        file: building.file,
+        instanceId: i,
+        block,
+      };
+    }
+    // Legacy: per-building mesh with userData.building (pre-Task 8 scenes).
     if (ud.building && ud.building.file) {
       return {
         kind: NodeKind.File,

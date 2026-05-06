@@ -5,6 +5,7 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { DirNode, FileNode, NodeKind } from './manifest';
+import type { SceneBlock } from '@/scene/blocks.js';
 
 /** Hovered/selected file (a building mesh). */
 export interface FileTarget {
@@ -12,6 +13,10 @@ export interface FileTarget {
   mesh: THREE.Mesh;
   data: Building;
   file: FileNode;
+  /** Per-block instance index. Set when the hit came from an InstancedMesh. */
+  instanceId?: number;
+  /** The SceneBlock this instance lives in. Set when the hit came from an InstancedMesh. */
+  block?: SceneBlock;
 }
 
 /** Hovered/selected directory (a sidewalk mesh + its street group). */
@@ -49,7 +54,7 @@ export interface PickerCityScene {
   getBuildings(): THREE.Object3D[];
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
-  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building } | null;
+  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; block?: SceneBlock; instanceId?: number } | null;
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
   onChange(cb: () => void): () => void;

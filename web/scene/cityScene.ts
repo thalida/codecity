@@ -145,7 +145,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
   let streetsByDirPath: Record<string, Street> = {};
-  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building }> = {};
+  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building; block: SceneBlock; instanceId: number }> = {};
   let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Listeners
@@ -281,24 +281,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       }
     }
 
-    // Task 8: buildingsByPath is now built from blocks rather than per-mesh.
-    // Maps file.path → { mesh: THREE.Mesh, building: Building } where mesh
-    // is a SENTINEL mesh stub (the InstancedMesh doesn't map 1:1 to files).
-    // TODO(Task 10): picker will switch to block+instanceId lookup; until
-    // then we keep the old getBuildingByPath() shape working with a sentinel.
+    // Task 10: buildingsByPath stores block + instanceId so the picker and
+    // other consumers can target the right per-instance attribute slot.
     buildingsByPath = {};
     for (const block of blocks) {
-      for (const b of block.buildings) {
+      for (let i = 0; i < block.buildings.length; i++) {
+        const b = block.buildings[i];
         if (b.file?.path != null && block.detailMesh) {
-          // Use the block's InstancedMesh as a stand-in mesh. The picker
-          // (Task 10) will use block + instanceId instead; for now this keeps
-          // old callers (selectByPath in picker.ts) returning non-null without
-          // crashing. The mesh reference is the InstancedMesh, not a per-
-          // building Mesh; callers that dereference mesh.userData.building
-          // will find undefined — acceptable for this transitional state.
           buildingsByPath[b.file.path] = {
             mesh: block.detailMesh as unknown as THREE.Mesh,
             building: b,
+            block,
+            instanceId: i,
           };
         }
       }
