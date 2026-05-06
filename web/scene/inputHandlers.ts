@@ -52,7 +52,7 @@ export function createInputHandlers({
   let _hoverRafId = 0;
   let _hoverLastEvt = null;
   let _hoverPending = null;
-  let _hoverCommitId = 0;
+  let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
   function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;
@@ -84,7 +84,13 @@ export function createInputHandlers({
     if (!a || !b) return false;
     if (a.kind !== b.kind) return false;
     // a.kind === b.kind is established; narrow b alongside a for member access.
-    if (a.kind === NodeKind.File) return a.mesh === (b as typeof a).mesh;
+    if (a.kind === NodeKind.File) {
+      // All buildings in a block share one InstancedMesh, so mesh-equality
+      // is too coarse — moving cursor between two buildings in the same
+      // block would never re-fire hover. Compare by file path (the
+      // canonical building identity).
+      return a.file?.path === (b as typeof a).file?.path;
+    }
     if (a.kind === NodeKind.Directory) return a.sidewalk === (b as typeof a).sidewalk;
     if (a.kind === NodeKind.Gem) return true;
     return false;
@@ -153,12 +159,17 @@ export function createInputHandlers({
       rig.reset();
       return;
     }
-    if (ud.building && ud.building.file && ud.building.file.type === NodeKind.File) {
-      rig.focusBuilding(hit.object, ud.building);
+    // Use the picker's interpretHit so InstancedMesh hits (post-Task 8)
+    // resolve to a building/file the same way clicks do; without this,
+    // dblclick fell through to the recenter fallback because ud.building
+    // is only set on legacy per-building meshes.
+    const target = picker.interpretHit(hit);
+    if (target?.kind === NodeKind.File) {
+      rig.focusBuilding(target.mesh, target.data);
       return;
     }
-    if (ud.street) {
-      rig.focusStreet(ud.street, hit.point);
+    if (target?.kind === NodeKind.Directory) {
+      rig.focusStreet(target.street, hit.point);
       return;
     }
     rig.recenterTo(new THREE.Vector3(hit.point.x, 0, hit.point.z));

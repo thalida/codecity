@@ -29,8 +29,29 @@
     // tests resolve through `resolve.alias`.
     "paths": {
       "@/*": ["./*"]
-    }
+    },
+
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default). Without this, @types/node
+    // bleeds into browser source after it was installed for tests/visual.
+    // "three" is required because three.js ships no bundled .d.ts files;
+    // "webxr" is @types/three's declared dependency and referenced in its
+    // declarations (XRSession etc.), so it must be listed here too.
+    "types": ["three", "webxr"]
   },
   "include": ["**/*.js", "**/*.ts", "tests/**/*"],
-  "exclude": ["node_modules", "../codecity/static"]
+  "exclude": [
+    "node_modules",
+    "../codecity/static",
+    // Node-side scripts — checked by tsconfig.node.json which adds @types/node.
+    // Excluding them here prevents @types/node from bleeding into browser source
+    // via `import 'node:path'` etc. in these files.
+    "vite.config.js",
+    "vitest.config.js",
+    "tests/visual/**/*",
+    // Use Node built-ins (fs/path/url) to read GLSL source files at test
+    // time — checked by tsconfig.node.json which adds @types/node.
+    "tests/scene/hsl-glsl-parity.test.ts",
+    "tests/scene/building-shader.test.ts"
+  ]
 }

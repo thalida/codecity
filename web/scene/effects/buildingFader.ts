@@ -1,40 +1,28 @@
-// scene/effects/buildingFader.ts — per-frame opacity tier logic for the
-// per-building body. Decides which fade tier each building belongs to
-// based on selection/hover state, lerps three opacity layers
-// (body / ghost / outline) toward the tier's targets, and applies
-// body opacity directly to mesh.material.opacity (+ transparent flag).
+// scene/effects/buildingFader.ts — per-instance opacity writes for the
+// building InstancedMesh. Subscribes to picker.selection and picker.hover;
+// on either change, sweeps all blocks and writes the iOpacity
+// InstancedBufferAttribute for each instance based on tree-distance from
+// the resolved directory target. Marks needsUpdate = true so the shader
+// picks up the new alpha next frame.
 //
-// The ghost and outline targets are stashed on mesh.userData so the
-// outlineRenderer module can read them without re-running the tier
-// logic. Field ownership:
+// Per-frame cost: zero. All work happens once per selection/hover change.
 //
-//   buildingFader     → mesh.material.opacity, mat.transparent, mat.depthWrite
-//   outlineRenderer   → ghost.material.opacity, outlineMat.opacity, hover/selected outline transforms
+// Field ownership:
+//   buildingFader   → block.detailMesh geometry attribute 'iOpacity'
+//   outlineRenderer → ghost/outline opacities          (Task 12)
+//   ghostRenderer   → ghost mesh opacity               (Task 13)
 //
-// The `userData.{bodyOp, ghostOp, outlineOp}` fields are intermediate
-// state owned by buildingFader; outlineRenderer reads them as inputs.
+// NOTE: userData.ghostOp and userData.outlineOp are no longer written here.
+// Ownership of those fields transfers to Tasks 12 (outlineRenderer) and
+// 13 (ghostRenderer) respectively.
 
+import * as THREE from 'three';
 import { BUILDING_FADE } from '@/config/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/path.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
-
-// material.opacity ≥ this counts as fully opaque (depthWrite on, full alpha).
-// Just below 1.0 so any faded tier flips to true transparency.
-const OPAQUE_THRESHOLD = 0.999;
-
-function _stepOpacity(
-  cur: number,
-  target: number,
-  cfg: { LERP_SPEED: number; SNAP_THRESHOLD: number }
-): number {
-  if (cur === target) return cur;
-  let next = cur + (target - cur) * cfg.LERP_SPEED;
-  if (Math.abs(next - target) < cfg.SNAP_THRESHOLD) next = target;
-  return next;
-}
 
 function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
   if (!file || !file.path || !dir || dir.path == null) return Infinity;
@@ -82,91 +70,130 @@ export function createBuildingFader({
     return dirTarget;
   }
 
-  function update(_dtMs: number): void {
+  function _sweepAll(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
 
-    const bldgTarget = sel && sel.kind === NodeKind.File ? sel.mesh : null;
+    const bldgTargetFile =
+      sel && sel.kind === NodeKind.File ? sel.file : null;
     const dirTarget = _resolveDirTarget(sel, hov);
-    const hoverMesh = hov && hov.kind === NodeKind.File ? hov.mesh : null;
+    const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
     const fadeCfg = BUILDING_FADE.get();
-    const buildings = cityScene.getBuildings();
 
-    for (const m of buildings) {
-      // Init per-layer lerp state. Each layer animates toward its
-      // tier-derived target independently.
-      if (m.userData.bodyOp == null) m.userData.bodyOp = 1.0;
-      if (m.userData.ghostOp == null) m.userData.ghostOp = 0.0;
-      if (m.userData.outlineOp == null) m.userData.outlineOp = 0.0;
+    for (const block of cityScene.getBlocks()) {
+      if (!block.detailMesh) continue;
+      const iOpacityAttr = block.detailMesh.geometry.getAttribute(
+        'iOpacity'
+      ) as THREE.InstancedBufferAttribute | undefined;
+      const iSilhouetteAttr = block.detailMesh.geometry.getAttribute(
+        'iSilhouette'
+      ) as THREE.InstancedBufferAttribute | undefined;
+      const iOutlineOpacityAttr = block.detailMesh.geometry.getAttribute(
+        'iOutlineOpacity'
+      ) as THREE.InstancedBufferAttribute | undefined;
+      if (!iOpacityAttr || !iSilhouetteAttr || !iOutlineOpacityAttr) continue;
 
-      // Tier decision.
-      let detail, outlineOn, bodyOpacity, outlineOpacity;
-      if (m === bldgTarget) {
-        detail = FadeDetail.Full;
-        outlineOn = false;
-        bodyOpacity = 1.0;
-        outlineOpacity = 0;
-      } else if (dirTarget) {
-        const f = m.userData.building && m.userData.building.file;
-        const dist = _dirTreeDistance(f, dirTarget);
-        if (dist === 0) {
-          detail = fadeCfg.DEFAULT_DETAIL;
-          outlineOn = fadeCfg.DEFAULT_OUTLINE;
-          bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-          outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-        } else if (dist === 1) {
-          detail = fadeCfg.NEAR_DETAIL;
-          outlineOn = fadeCfg.NEAR_OUTLINE;
-          bodyOpacity = fadeCfg.NEAR_BODY_OPACITY;
-          outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
+      for (let i = 0; i < block.buildings.length; i++) {
+        const building = block.buildings[i];
+        const f: FileNode = building.file;
+
+        // Tier decision — mirrors the old per-frame tier logic, now snap-to-target.
+        let bodyOpacity: number;
+        let outlineOpacity: number;
+        let outlineEnabled: boolean;
+        let detail: FadeDetail;
+
+        if (bldgTargetFile && f.path === bldgTargetFile.path) {
+          // Selected building: always full body, no per-building outline
+          // (the dedicated selectedOutline mesh from outlineRenderer handles it).
+          detail = FadeDetail.Full;
+          bodyOpacity = 1.0;
+          outlineEnabled = false;
+          outlineOpacity = 0;
+        } else if (dirTarget) {
+          const dist = _dirTreeDistance(f, dirTarget);
+          if (dist === 0) {
+            detail = fadeCfg.DEFAULT_DETAIL;
+            bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+            outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
+            outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
+          } else if (dist === 1) {
+            detail = fadeCfg.NEAR_DETAIL;
+            bodyOpacity = fadeCfg.NEAR_BODY_OPACITY;
+            outlineEnabled = fadeCfg.NEAR_OUTLINE;
+            outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
+          } else {
+            detail = fadeCfg.FAR_DETAIL;
+            bodyOpacity = fadeCfg.FAR_BODY_OPACITY;
+            outlineEnabled = fadeCfg.FAR_OUTLINE;
+            outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
+          }
         } else {
-          detail = fadeCfg.FAR_DETAIL;
-          outlineOn = fadeCfg.FAR_OUTLINE;
-          bodyOpacity = fadeCfg.FAR_BODY_OPACITY;
-          outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
+          // No selection / hover — everything renders at default tier.
+          detail = fadeCfg.DEFAULT_DETAIL;
+          bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+          outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
+          outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
         }
-      } else {
-        detail = fadeCfg.DEFAULT_DETAIL;
-        outlineOn = fadeCfg.DEFAULT_OUTLINE;
-        bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-      }
 
-      // Hover preview: a hovered file building always renders as DEFAULT.
-      if (m === hoverMesh) {
-        detail = fadeCfg.DEFAULT_DETAIL;
-        outlineOn = fadeCfg.DEFAULT_OUTLINE;
-        bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-      }
-
-      // Translate (detail, outline, opacities) → per-layer targets.
-      const bodyTarget = detail === FadeDetail.Full ? bodyOpacity : 0;
-      const ghostTarget = detail === FadeDetail.Silhouette ? bodyOpacity : 0;
-      const outlineTarget = outlineOn ? outlineOpacity : 0;
-
-      m.userData.bodyOp = _stepOpacity(m.userData.bodyOp, bodyTarget, fadeCfg);
-      m.userData.ghostOp = _stepOpacity(m.userData.ghostOp, ghostTarget, fadeCfg);
-      m.userData.outlineOp = _stepOpacity(m.userData.outlineOp, outlineTarget, fadeCfg);
-
-      // Apply body opacity. material.transparent flip triggers a shader
-      // recompile, so only flip when it actually changed.
-      const bodyOp = m.userData.bodyOp;
-      const mats = Array.isArray(m.material) ? m.material : [m.material];
-      const bodyTransparent = bodyOp < OPAQUE_THRESHOLD;
-      for (const mat of mats) {
-        if (!mat) continue;
-        if (mat.transparent !== bodyTransparent) {
-          mat.transparent = bodyTransparent;
-          mat.depthWrite = !bodyTransparent;
-          mat.needsUpdate = true;
+        // Hover preview: a hovered file building snaps to DEFAULT tier.
+        if (hoverFile && f.path === hoverFile.path) {
+          detail = fadeCfg.DEFAULT_DETAIL;
+          bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+          outlineEnabled = false; // hover outline is owned by outlineRenderer
+          outlineOpacity = 0;
         }
-        mat.opacity = bodyOp;
+
+        // Translate detail + bodyOpacity → final alpha written to iOpacity.
+        // Full       → body is visible at bodyOpacity, full facade detail.
+        // Silhouette → body is visible at bodyOpacity, shader skips per-cell
+        //              window/door/slab math and renders solid base color.
+        // Hidden     → body opacity is 0; only the per-instance outline
+        //              composites at the face edges, leaving the road behind
+        //              visible through the empty body.
+        const iOpacity = detail === FadeDetail.Hidden ? 0 : bodyOpacity;
+        const iSilhouette = detail === FadeDetail.Silhouette ? 1 : 0;
+        const iOutlineOpacity = outlineEnabled ? outlineOpacity : 0;
+
+        iOpacityAttr.setX(i, iOpacity);
+        iSilhouetteAttr.setX(i, iSilhouette);
+        iOutlineOpacityAttr.setX(i, iOutlineOpacity);
       }
-      m.visible = bodyOp > 0;
+
+      iOpacityAttr.needsUpdate = true;
+      iSilhouetteAttr.needsUpdate = true;
+      iOutlineOpacityAttr.needsUpdate = true;
     }
   }
 
-  return { update };
+  // Subscribe to selection and hover. Either change triggers a full sweep.
+  // Unsubscribe handles are kept so dispose() can clean them up.
+  const _unsubSel = picker.selection.subscribe(() => _sweepAll());
+  const _unsubHov = picker.hover.subscribe(() => _sweepAll());
+
+  // Re-sweep after a manifest rebuild — new blocks have fresh iOpacity
+  // buffers (all 1.0) and the current selection still applies.
+  const _unsubChange = cityScene.onChange(() => _sweepAll());
+
+  // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
+  // controls every value _sweepAll reads. Resweep on any change so
+  // dragging a slider in the controls pane updates the scene live.
+  const _unsubCfg = BUILDING_FADE.subscribe(() => _sweepAll());
+
+  // update() kept as a no-op for API compatibility: main.ts calls
+  // fader.update(0) in the animation loop. With the subscription-driven
+  // model, all real work is done on change events, not per-frame.
+  function update(_dtMs: number): void {
+    // intentional no-op — fading is now event-driven via subscriptions above.
+  }
+
+  function dispose(): void {
+    _unsubSel();
+    _unsubHov();
+    _unsubChange();
+    _unsubCfg();
+  }
+
+  return { update, dispose };
 }

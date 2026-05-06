@@ -8,7 +8,11 @@
 //   cityScene.applyManifest(manifest);    // builds OR rebuilds in-place
 //
 //   cityScene.scene                       // THREE.Scene reference
-//   cityScene.getBuildings(), .getStreetPickables(), …
+//   cityScene.getBlocks()                 // per-block InstancedMesh array (Task 8+)
+//   cityScene.getBlockByDirPath(p)        // SceneBlock | null
+//   cityScene.getBuildingByInstance(b, i) // Building at instanceId i in block b
+//   cityScene.getBuildings()              // DEPRECATED: flat list (for transition period)
+//   cityScene.getStreetPickables(), …
 //   cityScene.getBuildingByPath(p), .getSidewalkByDir(p), …
 //
 //   cityScene.onBeforeChange(cb)          // before disposal
@@ -17,28 +21,37 @@
 //
 // applyManifest computes the entering / exiting / staying buckets vs the
 // previous manifest (matched by file.path / dir.path) and fires onChange
-// with them. Phase 1 emits the diff but no consumer reads it yet — the
-// animator (commit 9) is what wires entry/exit tweens to those buckets.
+// with them. The diff in Task 8 carries InstancedMesh-level entries;
+// the animator (Task 9) will be rewritten to use them.
 //
-// Disposal: every mesh that was added by buildCityScene OR by this
-// module's outline/ghost build gets removed from the persistent scene
-// and disposed. The disposer walks geometry → materials → any property
-// whose value is a THREE.Texture, so new mesh shapes don't need
-// special-casing. disposeMesh() is idempotent (userData.disposed flag)
-// so a double-dispose during a rapid edit can't trip a Three.js error.
+// Disposal: every mesh added by buildCityScene or this module gets removed
+// from the persistent scene and disposed. The disposer walks geometry →
+// materials → any property whose value is a THREE.Texture, so new mesh
+// shapes don't need special-casing. disposeMesh() is idempotent
+// (userData.disposed flag) so a double-dispose during a rapid edit can't
+// trip a Three.js error.
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+// TODO(Task 11): re-import LineSegmentsGeometry when per-block outline meshes are built.
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
+export type { SceneBlock } from './blocks.js';
+
+import { groupBuildingsByDirectory } from './blocks.js';
+import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import {
+  buildLabelAtlas,
+  createLabelsInstancedMesh,
+  disposeLabelMaterials,
+} from './instanced/labels.js';
 import { layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { BUILDING_PALETTE, SCENE_COLORS, BUILDING_OUTLINE } from '@/config/index.js';
-import { RENDER_ORDERS } from '@/constants';
-import { NodeKind, StreetAxis } from '@/types';
+import { BUILDING_PALETTE, LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
+// TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
+import { NodeKind } from '@/types';
 import type {
   Building,
   CityLayout,
@@ -52,11 +65,13 @@ import type {
   StayingStreet,
   Street,
 } from '@/types';
+import type { SceneBlock } from './blocks.js';
 
 // Snapshot of the prior manifest state captured at the top of
 // applyManifest, used by the diff and the change-listener payload.
 interface PrevState {
-  buildings: THREE.Mesh[];
+  buildings: THREE.Object3D[];
+  blocks: SceneBlock[];
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
   pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
@@ -73,21 +88,21 @@ interface PrevState {
 // outlineRenderer.js) share this geometry definition.
 export const UNIT_BOX_EDGE_POSITIONS = [
   -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5,
-  0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
+  0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
   0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5,
   -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5,
   0.5,
 ];
 
-export function createCityScene(canvas: HTMLCanvasElement) {
+// canvas is unused directly by cityScene after Task 8 removed
+// _buildOutlinesAndGhosts (which used it for LineMaterial.resolution).
+// Kept in the signature so call sites (main.ts, tests) need no change.
+// TODO(Task 12): outlineRenderer's own createOutlineRenderer({ canvas })
+// takes it directly; cityScene no longer needs to forward it.
+export function createCityScene(_canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
-
-  // Shared box geometry for ghost meshes — one geometry, many meshes.
-  // Lives across rebuilds; the per-mesh transform sets each ghost's
-  // size/position. Disposed only when the whole cityScene is disposed.
-  const _ghostBoxGeo = new THREE.BoxGeometry(1, 1, 1);
 
   // Manifest-bound state. Reassigned on each applyManifest.
   let manifest: Manifest | null = null;
@@ -104,7 +119,19 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   // callsite's `.material.color` access working.
   type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-  let buildingMeshes: THREE.Mesh[] = [];
+  // Task 8: per-block InstancedMesh tracking replaces per-building mesh
+  // tracking. buildingMeshes is kept as an empty array stub so consumers
+  // that haven't been rewritten yet (buildingFader, outlineRenderer —
+  // Tasks 11-12) don't crash; they will iterate an empty list.
+  let blocks: SceneBlock[] = [];
+  let blocksByDirPath: Record<string, SceneBlock> = {};
+  // Task 15: shared atlas CanvasTextures (one per atlas page; multiple
+  // pages when a project has too many unique labels for a single texture).
+  let _atlasTextures: THREE.CanvasTexture[] = [];
+  // buildingMeshes stub — kept for the diff machinery during transition.
+  // TODO(Task 9): remove once the diff is rewritten for InstancedMesh.
+  let buildingMeshes: THREE.Object3D[] = [];
+
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
   let pathMeshes: FlatMesh[] = [];
@@ -117,13 +144,16 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
   let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
 
-  let buildingOutlines: LineSegments2[] = [];
-  let buildingOutlineMats: LineMaterial[] = [];
-  let buildingGhosts: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] = [];
+  // TODO(Task 11): per-building outline arrays replaced by per-block instanced
+  // outlines. Keep stubs returning empty arrays so outlineRenderer's
+  // getBuildingOutlines() / getBuildingGhosts() calls don't crash.
+  const buildingOutlines: LineSegments2[] = [];
+  const buildingOutlineMats: LineMaterial[] = [];
+  const buildingGhosts: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] = [];
 
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
   let streetsByDirPath: Record<string, Street> = {};
-  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building }> = {};
+  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building; block: SceneBlock; instanceId: number }> = {};
   let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Listeners
@@ -201,11 +231,12 @@ export function createCityScene(canvas: HTMLCanvasElement) {
 
   // Public idempotent disposal — animator's onComplete calls this when
   // an exit-tween finishes. A second call on the same mesh no-ops.
+  // TODO(Task 9): adapt for InstancedMesh once animator is rewritten.
   function disposeMesh(mesh: THREE.Mesh): void {
     if (!mesh || (mesh.userData && mesh.userData.disposed)) return;
     if (mesh.parent) mesh.parent.remove(mesh);
-    // For a building mesh, also dispose its paired outline + ghost so
-    // we don't leave silhouettes hanging around the scene.
+    // TODO(Task 11/12): per-building paired outline/ghost disposed here.
+    // After Task 11, outline/ghost disposal is per-block, not per-mesh.
     const paired = (mesh.userData && mesh.userData.paired) || null;
     if (paired) {
       if (paired.outline) _removeAndDispose(paired.outline);
@@ -215,74 +246,48 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   }
 
   function _disposeAllManifestState() {
-    // Drop refs to outline/ghost from each building's userData first so
-    // the per-mesh "paired" pointers don't outlive their targets.
-    for (const bm of buildingMeshes) {
-      if (bm.userData) bm.userData.paired = null;
+    // Dispose per-block InstancedMeshes (buildings + labels) and placeholder cuboids.
+    for (const block of blocks) {
+      if (block.detailMesh) {
+        _removeAndDispose(block.detailMesh);
+        block.detailMesh = undefined;
+      }
+      if (block.labelsMesh) {
+        _removeAndDispose(block.labelsMesh);
+        block.labelsMesh = undefined;
+      }
+      if (block.placeholderMesh) {
+        _removeAndDispose(block.placeholderMesh);
+        block.placeholderMesh = undefined;
+      }
     }
-    for (const m of buildingMeshes) _removeAndDispose(m);
+    // Dispose all atlas page textures + their cached label materials.
+    for (const tex of _atlasTextures) tex.dispose();
+    _atlasTextures = [];
+    disposeLabelMaterials();
+    blocks = [];
+    blocksByDirPath = {};
+    buildingMeshes = [];
+
     for (const m of streetPickables) _removeAndDispose(m);
     for (const m of streetLabels) _removeAndDispose(m);
     for (const m of pathMeshes) _removeAndDispose(m);
     for (const m of asphaltMeshes) _removeAndDispose(m);
-    for (const m of buildingOutlines) _removeAndDispose(m);
-    for (const m of buildingGhosts) _removeAndDispose(m);
+    // TODO(Task 11/12): dispose buildingOutlines and buildingGhosts once
+    // per-block instanced versions are created.
     if (rootGem) {
       if (rootGem.parent) rootGem.parent.remove(rootGem);
       rootGem.traverse(_disposeObject);
     }
   }
 
-  function _buildOutlinesAndGhosts() {
-    buildingOutlines = [];
-    buildingOutlineMats = [];
-    buildingGhosts = [];
-    const lineWidth = BUILDING_OUTLINE.get().WIDTH;
-
-    for (const bm of buildingMeshes) {
-      const bd = bm.userData.building;
-      const bcol = new THREE.Color(bd.color);
-
-      const olGeo = new LineSegmentsGeometry();
-      olGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-      const olMat = new LineMaterial({
-        color: bcol.clone(),
-        linewidth: lineWidth,
-        transparent: true,
-        opacity: 0.0,
-        depthTest: true,
-        depthWrite: false,
-        worldUnits: false,
-      });
-      olMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
-      const ol = new LineSegments2(olGeo, olMat);
-      ol.renderOrder = RENDER_ORDERS.BUILDING_OUTLINE;
-      ol.scale.set(bd.w, bd.h * (bm.scale.y || 1), bd.d);
-      ol.position.copy(bm.position);
-      scene.add(ol);
-      buildingOutlines.push(ol);
-      buildingOutlineMats.push(olMat);
-
-      const gh = new THREE.Mesh(
-        _ghostBoxGeo,
-        new THREE.MeshBasicMaterial({
-          color: bcol.clone(),
-          transparent: true,
-          opacity: 0.0,
-          depthWrite: false,
-        })
-      );
-      gh.visible = false;
-      gh.scale.set(bd.w, bd.h * (bm.scale.y || 1), bd.d);
-      gh.position.copy(bm.position);
-      scene.add(gh);
-      buildingGhosts.push(gh);
-
-      // Link outline + ghost back to the building so disposeMesh can
-      // dispose them as a set when the animator retires the building.
-      bm.userData.paired = { outline: ol, ghost: gh, mat: olMat };
-    }
-  }
+  // TODO(Task 11/12): _buildOutlinesAndGhosts is commented out. The per-building
+  // outline + ghost meshes are replaced by per-block InstancedMesh outlines
+  // and ghosts in Tasks 11-12. Leaving the stub arrays above as empty []
+  // so outlineRenderer's loops over getBuildingOutlines() / getBuildingGhosts()
+  // iterate zero elements and no-op gracefully.
+  //
+  // function _buildOutlinesAndGhosts() { ... }  // removed in Task 8
 
   function _buildLookups() {
     sidewalksByDirPath = {};
@@ -296,11 +301,20 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       }
     }
 
+    // Task 10: buildingsByPath stores block + instanceId so the picker and
+    // other consumers can target the right per-instance attribute slot.
     buildingsByPath = {};
-    for (const bm of buildingMeshes) {
-      const bd = bm.userData.building;
-      if (bd?.file?.path != null) {
-        buildingsByPath[bd.file.path] = { mesh: bm, building: bd };
+    for (const block of blocks) {
+      for (let i = 0; i < block.buildings.length; i++) {
+        const b = block.buildings[i];
+        if (b.file?.path != null && block.detailMesh) {
+          buildingsByPath[b.file.path] = {
+            mesh: block.detailMesh as unknown as THREE.Mesh,
+            building: b,
+            block,
+            instanceId: i,
+          };
+        }
       }
     }
 
@@ -321,33 +335,24 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       return;
     }
     gemWorldPos = new THREE.Vector3();
-    if (rootStreet.orientation === StreetAxis.X) {
+    // StreetAxis import is not needed here — use orientation string directly.
+    if (rootStreet.orientation === 'x') {
       gemWorldPos.set(rootStreet.x - rootStreet.length / 2 + rootStreet.width / 2, 0, rootStreet.y);
     } else {
       gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
     }
   }
 
-  // Diff against the prior manifest state (already-stale arrays just
-  // before disposal) using the stable identity {file.path, dir.path}
-  // for buildings/streets. Building entries carry the new transform;
-  // staying buildings also carry the old transform (when tracked) so
-  // the animator can tween between them.
-  function _computeDiff(
-    prev: PrevState,
-    prevBuildingTransforms: Record<string, { position: THREE.Vector3; scaleY: number }>
-  ): CitySceneDiff {
-    const prevBuildings: Record<string, THREE.Mesh> = {};
-    for (const bm of prev.buildings ?? []) {
-      const fp = bm.userData.building?.file?.path;
-      if (fp != null) prevBuildings[fp] = bm;
-    }
-    const prevStreets: Record<string, THREE.Mesh> = {};
-    for (const sw of prev.streetPickables ?? []) {
-      const dp = sw.userData.street?.dir?.path;
-      if (dp != null) prevStreets[dp] = sw;
-    }
-
+  // Task 9: _computeDiff compares prev blocks vs new blocks at the
+  // per-instance (file.path key) level, producing entering / staying /
+  // exiting buckets that the animator uses to write instance matrices.
+  //
+  // Prev block transforms are read HERE (before _disposeAllManifestState
+  // is called) because disposal zeroes block.detailMesh. The snapshot is
+  // captured in PrevState.blocks — the array reference is stable across
+  // the disposal because we replace the module-level `blocks` binding
+  // but the snapshot still points at the old array.
+  function _computeDiff(prev: PrevState): CitySceneDiff {
     const entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] } = {
       buildings: [],
       streets: [],
@@ -361,34 +366,115 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       streets: [],
     };
 
-    for (const nbm of buildingMeshes) {
-      const nfp = nbm.userData.building?.file?.path;
-      if (nfp == null) continue;
-      if (Object.hasOwn(prevBuildings, nfp)) {
-        const oldT = prevBuildingTransforms[nfp];
-        staying.buildings.push({
-          oldMesh: prevBuildings[nfp],
-          newMesh: nbm,
-          newPosition: nbm.position.clone(),
-          newScaleY: nbm.scale.y,
-          oldPosition: oldT?.position,
-          oldScaleY: oldT?.scaleY,
-        });
-        delete prevBuildings[nfp];
-      } else {
-        entering.buildings.push({
-          mesh: nbm,
-          newPosition: nbm.position.clone(),
-          newScaleY: nbm.scale.y,
-        });
-      }
-    }
-    for (const ek in prevBuildings) {
-      if (Object.hasOwn(prevBuildings, ek)) {
-        exiting.buildings.push({ mesh: prevBuildings[ek] });
+    // --- Buildings diff (InstancedMesh semantics) ---
+    //
+    // Build a map from file.path → prior transform (scale + position)
+    // from the PREVIOUS blocks. We read the instance matrix directly from
+    // detailMesh to capture whatever the animator left it at (so a
+    // rapid edit doesn't snap to the layout position).
+    const prevTransforms = new Map<
+      string,
+      { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
+    >();
+    const _readMatrix = new THREE.Matrix4();
+    const _pos = new THREE.Vector3();
+    const _scale = new THREE.Vector3();
+    const _quat = new THREE.Quaternion();
+    for (const pb of prev.blocks) {
+      for (let i = 0; i < pb.buildings.length; i++) {
+        const b = pb.buildings[i];
+        if (!b.file?.path) continue;
+        if (pb.detailMesh) {
+          pb.detailMesh.getMatrixAt(i, _readMatrix);
+          _readMatrix.decompose(_pos, _quat, _scale);
+          prevTransforms.set(b.file.path, {
+            scaleX: _scale.x,
+            scaleY: _scale.y,
+            scaleZ: _scale.z,
+            posX: _pos.x,
+            posY: _pos.y,
+            posZ: _pos.z,
+          });
+        } else {
+          // No mesh (block was empty / not yet built): record layout values
+          // so staying buildings get a sensible from-transform.
+          prevTransforms.set(b.file.path, {
+            scaleX: b.w,
+            scaleY: b.h,
+            scaleZ: b.d,
+            posX: b.x,
+            posY: b.h / 2,
+            posZ: b.y,
+          });
+        }
       }
     }
 
+    // Walk new blocks and classify each instance as entering or staying.
+    for (const nb of blocks) {
+      for (let i = 0; i < nb.buildings.length; i++) {
+        const b = nb.buildings[i];
+        const newScaleX = b.w;
+        const newScaleY = b.h;
+        const newScaleZ = b.d;
+        const newPosX = b.x;
+        const newPosY = b.h / 2;
+        const newPosZ = b.y;
+
+        const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+        if (prior) {
+          staying.buildings.push({
+            block: nb,
+            instanceId: i,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+            oldScaleX: prior.scaleX,
+            oldScaleY: prior.scaleY,
+            oldScaleZ: prior.scaleZ,
+            oldPosX: prior.posX,
+            oldPosY: prior.posY,
+            oldPosZ: prior.posZ,
+          });
+        } else {
+          entering.buildings.push({
+            block: nb,
+            instanceId: i,
+            newScaleX,
+            newScaleY,
+            newScaleZ,
+            newPosX,
+            newPosY,
+            newPosZ,
+          });
+        }
+      }
+    }
+
+    // Exiting buildings: paths present in prev but absent from new.
+    // V1: no exit animation — they just vanish when blocks are rebuilt.
+    // We still populate the exiting bucket so subscribers can track counts.
+    const newPaths = new Set<string>();
+    for (const nb of blocks) {
+      for (const b of nb.buildings) {
+        if (b.file?.path) newPaths.add(b.file.path);
+      }
+    }
+    for (const [path] of prevTransforms) {
+      if (!newPaths.has(path)) {
+        exiting.buildings.push({});
+      }
+    }
+
+    // --- Streets diff (still per-mesh) ---
+    const prevStreets: Record<string, THREE.Mesh> = {};
+    for (const sw of prev.streetPickables ?? []) {
+      const dp = sw.userData.street?.dir?.path;
+      if (dp != null) prevStreets[dp] = sw;
+    }
     for (const nsw of streetPickables) {
       const ndp = nsw.userData.street?.dir?.path;
       if (ndp == null) continue;
@@ -415,6 +501,7 @@ export function createCityScene(canvas: HTMLCanvasElement) {
   function applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): void {
     const prev: PrevState = {
       buildings: buildingMeshes,
+      blocks,
       streetPickables,
       streetLabels,
       pathMeshes,
@@ -425,20 +512,6 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     };
 
     _emit(beforeChangeCbs, prev);
-
-    // Capture old building transforms BEFORE disposal so the animator
-    // can tween "staying" meshes from their old position to the new
-    // one without a snap. Keyed by file.path — stable across rebuilds.
-    const prevBuildingTransforms: Record<string, { position: THREE.Vector3; scaleY: number }> = {};
-    for (const pm of buildingMeshes) {
-      const pf = pm.userData.building?.file;
-      if (pf?.path != null) {
-        prevBuildingTransforms[pf.path] = {
-          position: pm.position.clone(),
-          scaleY: pm.scale.y,
-        };
-      }
-    }
 
     _disposeAllManifestState();
 
@@ -462,9 +535,12 @@ export function createCityScene(canvas: HTMLCanvasElement) {
           : dirColor;
     }
 
+    // Build streets / labels / paths / gem (not buildings — those are
+    // per-block InstancedMeshes below).
     const built = buildCityScene(layout);
     bbox = built.bbox;
-    buildingMeshes = built.buildingMeshes || [];
+    // buildCityScene still builds per-building meshes internally but we
+    // don't use them. We extract only the non-building parts.
     streetPickables = built.streetPickables || [];
     streetLabels = built.streetLabels || [];
     pathMeshes = built.pathMeshes || [];
@@ -473,11 +549,85 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     rootGemBody = built.rootGemBody || null;
     rootGemEdges = built.rootGemEdges || null;
 
-    // Migrate built scene's children into the persistent scene. Iterate
-    // a copy because re-parenting to scene mutates built.scene.children.
+    // Migrate built scene's non-building children into the persistent scene.
+    // We add them all, then remove the per-building meshes that buildCityScene
+    // still creates (they'll be replaced by InstancedMeshes below).
     for (const child of [...built.scene.children]) scene.add(child);
     // buildCityScene also set its own scene.background; mirror onto ours.
     scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+    // Remove per-building meshes that buildCityScene created — we replace
+    // them with per-block InstancedMeshes.
+    for (const bm of built.buildingMeshes || []) {
+      if (bm.parent) bm.parent.remove(bm);
+      _disposeObject(bm);
+    }
+
+    // Task 15: Remove old per-Group label meshes from buildCityScene — replaced
+    // by per-block label InstancedMeshes below.
+    for (const lg of built.streetLabels || []) {
+      if (lg.parent) lg.parent.remove(lg);
+      lg.traverse(_disposeObject);
+    }
+
+    // Task 8: group buildings by directory → one InstancedMesh per block.
+    const newBlocks = groupBuildingsByDirectory(layout.buildings, layout.streets);
+
+    // Task 15: build shared label atlas from all unique street label texts.
+    const uniqueTexts = Array.from(
+      new Set(
+        newBlocks
+          .map((b) => b.primaryStreet?.label)
+          .filter((t): t is string => Boolean(t)),
+      ),
+    );
+    const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
+    _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
+
+    // Diagnostic: dump (dir.path → primaryStreet.label) pairs and the atlas
+    // rect each block resolves to. Toggle with window.__labelDebug = true
+    // and reload the manifest. Surfaces label-to-street mismapping.
+    if (typeof window !== 'undefined' && (window as unknown as { __labelDebug?: boolean }).__labelDebug) {
+      const dump = newBlocks.map((b) => {
+        const text = b.primaryStreet?.label ?? '';
+        const rect = atlas.rectByText.get(text);
+        return {
+          dirPath: b.dir?.path ?? '<no-dir>',
+          dirName: b.dir?.name ?? '<no-name>',
+          label: text,
+          rectPage: rect?.page ?? null,
+          rectU: rect?.u ?? null,
+          rectV: rect?.v ?? null,
+        };
+      });
+      // eslint-disable-next-line no-console
+      console.table(dump);
+      (window as unknown as { __labelDebugDump?: unknown }).__labelDebugDump = dump;
+    }
+
+    for (const block of newBlocks) {
+      // Placeholders disabled: they caused hover ambiguity (one block's
+      // placeholder cuboid intercepting rays meant for another block's
+      // buildings) and visual confusion (cuboid vs real building). Three's
+      // built-in frustum culling per InstancedMesh handles the perf
+      // benefit at far zoom that placeholders were supposed to provide.
+      if (block.buildings.length === 0) continue;
+      const detailMesh = createBuildingsInstancedMesh(block);
+      block.detailMesh = detailMesh;
+      scene.add(detailMesh);
+
+      // Task 15: per-block label InstancedMesh.
+      const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTextures);
+      if (labelsMesh) {
+        block.labelsMesh = labelsMesh;
+        scene.add(labelsMesh);
+      }
+    }
+    blocks = newBlocks;
+    blocksByDirPath = {};
+    for (const block of blocks) {
+      if (block.dir?.path != null) blocksByDirPath[block.dir.path] = block;
+    }
 
     // Stamp the gem body so it can participate in raycast picking.
     if (rootGem) {
@@ -485,17 +635,17 @@ export function createCityScene(canvas: HTMLCanvasElement) {
       if (gemBody) gemBody.userData.type = NodeKind.Gem;
     }
 
-    _buildOutlinesAndGhosts();
+    // TODO(Task 11/12): _buildOutlinesAndGhosts() removed — per-block
+    // instanced outlines/ghosts will be built in Tasks 11-12.
     _buildLookups();
     _computeRootStreetAndGem();
 
-    const diff = _computeDiff(prev, prevBuildingTransforms);
+    const diff = _computeDiff(prev);
     _emit(changeCbs, diff);
   }
 
   function dispose() {
     _disposeAllManifestState();
-    _ghostBoxGeo?.dispose?.();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
   }
@@ -523,8 +673,23 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     getDateRanges() {
       return dateRanges;
     },
-    getBuildings() {
-      return buildingMeshes;
+
+    // Task 8: new block-level accessors.
+    getBlocks(): SceneBlock[] {
+      return blocks;
+    },
+    getBlockByDirPath(path: string): SceneBlock | null {
+      return blocksByDirPath[path] || null;
+    },
+    getBuildingByInstance(block: SceneBlock, instanceId: number): Building | null {
+      return block.buildings[instanceId] || null;
+    },
+
+    // getBuildings() now returns the InstancedMesh objects (one per block).
+    // TODO(Task 10): picker will use getBlocks() + instanceId instead.
+    // TODO(Task 11): buildingFader will iterate blocks, not individual meshes.
+    getBuildings(): THREE.Object3D[] {
+      return buildingMeshes; // empty stub — see NOTE above
     },
     getStreetPickables() {
       return streetPickables;
@@ -553,26 +718,31 @@ export function createCityScene(canvas: HTMLCanvasElement) {
     getGemWorldPos() {
       return gemWorldPos;
     },
-    getBuildingOutlines() {
+
+    // TODO(Task 11/12): per-building outline/ghost arrays replaced by
+    // per-block instanced meshes. Returning empty arrays so existing callers
+    // (outlineRenderer.refreshMaterials, outlineRenderer.onResize) iterate
+    // zero elements and no-op gracefully until Task 11-12 rewrite them.
+    getBuildingOutlines(): LineSegments2[] {
       return buildingOutlines;
     },
-    getBuildingOutlineMats() {
+    getBuildingOutlineMats(): LineMaterial[] {
       return buildingOutlineMats;
     },
-    getBuildingGhosts() {
+    getBuildingGhosts(): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[] {
       return buildingGhosts;
     },
 
-    getBuildingByPath(p) {
+    getBuildingByPath(p: string) {
       return buildingsByPath[p] || null;
     },
-    getSidewalkByDir(p) {
+    getSidewalkByDir(p: string) {
       return sidewalksByDirPath[p] || null;
     },
-    getStreetByDir(p) {
+    getStreetByDir(p: string) {
       return streetsByDirPath[p] || null;
     },
-    getPathConnectorsByDir(p) {
+    getPathConnectorsByDir(p: string) {
       return pathMeshesByDirPath[p] || [];
     },
 

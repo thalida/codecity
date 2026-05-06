@@ -13,3 +13,4 @@
 # `Show all files`. Hide them so the city stays focused on the codebase.
 codecity/tests/fixtures/large-repo
 codecity/tests/fixtures/sample-repo
+!node_modules

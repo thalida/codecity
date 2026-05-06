@@ -3,7 +3,7 @@
 // render loop with orbit/pan/zoom controls and raycast picking.
 
 import * as THREE from 'three';
-import { listenKeys } from 'nanostores';
+
 import './styles.css';
 
 import * as Config from './config/index.js';
@@ -28,14 +28,17 @@ import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';
 
-import { regenerateLabelTexture } from './scene/engine.js';
 import { createCityScene } from './scene/cityScene.js';
+import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
+import type { SceneBlock } from './scene/blocks.js';
+import { createLodController } from './scene/lodController.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
 import { createInputHandlers } from './scene/inputHandlers.js';
 import { createBuildingFader } from './scene/effects/buildingFader.js';
 import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
+import { createGhostRenderer } from './scene/effects/ghostRenderer.js';
 import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
@@ -60,19 +63,6 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const scene = cityScene.scene;
   cityScene.applyManifest(manifest);
 
-  // Hot-reload the label fill color: FILL is baked into the CanvasTexture
-  // at scene-build, so a "live" change requires regenerating each label's
-  // texture. listenKeys fires only when FILL specifically changes (not on
-  // every applyTheme call), so unrelated tweaks don't pay the texture
-  // regen cost. Reads streetLabels fresh from cityScene each fire so
-  // it works after applyManifest rebinds the array.
-  listenKeys(LABEL_TYPOGRAPHY, ['FILL'], () => {
-    const labels = cityScene.getStreetLabels();
-    for (const label of labels) {
-      regenerateLabelTexture(label);
-    }
-  });
-
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
     canvas,
@@ -88,6 +78,14 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // brevity in event handlers and resize logic below.
   const rig = createCameraRig({ canvas, cityScene });
   const camera = rig.camera;
+  // Expose for visual regression tests. Harmless in production (just a
+  // global ref); only used by tests/visual/setup.ts.
+  (window as Window & { __rig?: typeof rig }).__rig = rig;
+
+  // -- 4b. LOD controller ------------------------------------------------------
+  // Declared with `let` so refreshManifest (below) can recreate it after each
+  // applyManifest call. Camera reference is stable across rebuilds.
+  let lodController = createLodController(cityScene.getBlocks(), camera);
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
@@ -98,12 +96,12 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const picker = createPicker({ canvas, camera, cityScene });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
-  // Three siblings, all subscribed to picker / cityScene so they react
+  // Four siblings, all subscribed to picker / cityScene so they react
   // to selection / hover / manifest changes on their own. Animate loop
   // drives them in field-ownership order: fader writes body opacity →
-  // outlineRenderer reads outlineOp/ghostOp from userData and writes
-  // outline + ghost opacity → pathLineRenderer ticks the rainbow chase
-  // on the selection line.
+  // outlineRenderer tracks hover/selected outline transforms + rainbow
+  // chase → ghostRenderer tracks hover ghost transform → pathLineRenderer
+  // ticks the rainbow chase on the selection line.
   const fader = createBuildingFader({ cityScene, picker });
   const outlineRenderer = createOutlineRenderer({
     canvas,
@@ -111,6 +109,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
   });
+  const ghostRenderer = createGhostRenderer({ scene, cityScene, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
     scene,
@@ -205,6 +204,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
 
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
+    refreshBuildingMaterial();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
@@ -274,9 +274,19 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     scene.updateMatrixWorld();
     animator.update(0); // entering / staying tweens (scale, position)
     fader.update(0); // body opacity per fade tier
-    outlineRenderer.update(0); // outline + ghost opacity, hover/selected outlines, rainbow chase
+    outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
+    ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
+    // Per-frame LOD audit (Task 21): _orientLabelsForCamera iterates the flat
+    // street-level road-text labels (THREE.Group from createStreetLabels), NOT
+    // per-block InstancedMesh labels. Street labels have no LOD concept — they
+    // are always-visible map-style text on the asphalt, so iterating all of them
+    // each frame is correct. Per-block label InstancedMeshes (block.labelsMesh)
+    // have their .visible flag managed by lodController.update(), and the
+    // renderer skips invisible meshes automatically — no O(N) work on hidden
+    // content. No block-level loops exist in animate(); all loops are O(visible).
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
+    _orientBlockLabelsForCamera(cityScene.getBlocks(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
     if (rootGem) {
       const gemAnim = GEM_ANIMATION.get();
@@ -291,6 +301,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
     }
+    lodController.update(canvas); // swap detail↔placeholder by screen-space area
     renderer.render(scene, camera);
     requestAnimationFrame(animate);
   }
@@ -334,6 +345,43 @@ function _orientLabelsForCamera(
     }
     lbl.userData.flipped = flipped;
     lbl.rotation.y = base + (flipped ? Math.PI : 0);
+  }
+}
+
+// Per-block instanced-label sibling of _orientLabelsForCamera. Each block's
+// labelsMesh stores per-instance iFlip; we toggle 0/1 based on the camera's
+// world-right vector against the block's primary-street axis. Hysteresis state
+// piggybacks on labelsMesh.userData.flipped (same idea as the legacy Group path).
+function _orientBlockLabelsForCamera(
+  blocks: SceneBlock[],
+  camera: THREE.PerspectiveCamera,
+  labelRight: THREE.Vector3,
+): void {
+  labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
+  const rightX = labelRight.x;
+  const rightZ = labelRight.z;
+  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
+
+  for (const block of blocks) {
+    const mesh = block.labelsMesh;
+    if (!mesh) continue;
+    const street = block.primaryStreet;
+    if (!street) continue;
+    const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
+    let flipped: boolean = mesh.userData.flipped || false;
+    if (flipped) {
+      if (axis > THRESH) flipped = false;
+    } else {
+      if (axis < -THRESH) flipped = true;
+    }
+    if (flipped === mesh.userData.flipped) continue;
+    mesh.userData.flipped = flipped;
+    const flipAttr = mesh.geometry.getAttribute('iFlip') as THREE.InstancedBufferAttribute | undefined;
+    if (!flipAttr) continue;
+    const v = flipped ? 1 : 0;
+    const arr = flipAttr.array as Float32Array;
+    for (let i = 0; i < arr.length; i++) arr[i] = v;
+    flipAttr.needsUpdate = true;
   }
 }
 

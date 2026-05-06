@@ -1,19 +1,20 @@
 // scene/effects/outlineRenderer.ts — owns:
-//   • the shared hover outline mesh (sky-blue Line2 box around hovered building)
-//   • the shared selected outline mesh (rainbow-chasing Line2 box)
-//   • per-frame application of mesh.userData.{outlineOp, ghostOp} (set
-//     by buildingFader) onto the per-building outline + ghost meshes
-//     created by cityScene
+//   • the shared hover outline mesh (sky-blue LineSegments2 box around hovered building)
+//   • the shared selected outline mesh (rainbow-chasing LineSegments2 box)
 //
-// Field ownership (see plan/peaceful-sniffing-quill.md):
-//   buildingFader   → mesh.material.opacity (building body)
-//   outlineRenderer → outlineMat.opacity, ghostMat.opacity, hover/selected
-//                     outline mesh transforms + rainbow color cycle
+// Path B (active-outlines-only): exactly 2 LineSegments2 meshes exist regardless
+// of how many buildings are in the scene. Transforms are updated per-frame for
+// only the 0-2 currently-active outlines (hovered + selected), so per-frame
+// work is O(active) not O(buildings).
 //
-// Subscribes to picker.hover and picker.selection (toggle visibility) and
-// updates per-frame from animate() loop. refreshMaterials() is called by
-// applyTheme() to push BUILDING_OUTLINE config changes into all
-// outline-related materials at once.
+// Field ownership:
+//   buildingFader   → block.detailMesh iOpacity attribute (building body fade)
+//   outlineRenderer → hoverOutline + selectedOutline transform + visibility +
+//                     rainbow color cycle on selectedOutline
+//
+// Subscribes to picker.hover and picker.selection (toggle visibility).
+// refreshMaterials() is called by applyTheme() to push BUILDING_OUTLINE config
+// changes into the two outline materials.
 
 import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
@@ -23,17 +24,15 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
-import type { Building } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
-
-const OPAQUE_THRESHOLD = 0.999;
+import type { FileTarget } from '@/types';
 
 export function createOutlineRenderer({
   canvas,
   scene,
-  cityScene,
+  cityScene: _cityScene,
   picker,
 }: {
   canvas: HTMLCanvasElement;
@@ -87,6 +86,35 @@ export function createOutlineRenderer({
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_OUTLINE;
   scene.add(selectedOutline);
 
+  // Scratch objects reused per frame to avoid GC pressure.
+  const _tmpMatrix = new THREE.Matrix4();
+  const _tmpPos = new THREE.Vector3();
+  const _tmpScale = new THREE.Vector3();
+  const _tmpQuat = new THREE.Quaternion();
+
+  // _syncOutlineToTarget: read the current animated transform of a FileTarget's
+  // building and apply it to the given outline mesh.
+  //
+  // For InstancedMesh targets (block + instanceId present), we decompose the
+  // live instance matrix so the outline tracks the animator's tween position.
+  // For legacy / no-mesh targets, we fall back to layout dimensions from
+  // target.data (b.w, b.h, b.d, b.x, b.y).
+  function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
+    const b = target.data;
+    if (target.block?.detailMesh && target.instanceId != null) {
+      target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
+      _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
+      // _tmpScale.x = b.w, _tmpScale.y = animated height, _tmpScale.z = b.d
+      // _tmpPos = animated world position
+      outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
+      outline.position.copy(_tmpPos);
+    } else {
+      // Fallback: use layout coordinates directly (no animator tween applied).
+      outline.scale.set(b.w, b.h, b.d);
+      outline.position.set(b.x, b.h / 2, b.y);
+    }
+  }
+
   function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {
     const rb = RAINBOW.get();
     const k = segIdx * 6;
@@ -100,83 +128,45 @@ export function createOutlineRenderer({
     _selectedColors[k + 5] = _tmpHsl.b;
   }
 
-  function _syncOutlineToBuilding(
-    outline: LineSegments2,
-    mesh: THREE.Mesh,
-    b: Building,
-    scaleFactor?: number
-  ): void {
-    const s = scaleFactor || 1;
-    outline.scale.set(b.w * s, b.h * mesh.scale.y * s, b.d * s);
-    outline.position.set(mesh.position.x, mesh.position.y, mesh.position.z);
-  }
-
   // ── Reactive: show/hide outlines on selection / hover changes ───────
+  //
+  // On a selection change we snap the outline into place immediately so
+  // there is no one-frame lag before update() runs.
   picker.selection.subscribe((sel) => {
     if (sel && sel.kind === NodeKind.File) {
-      _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
+      _syncOutlineToTarget(selectedOutline, sel);
       selectedOutline.visible = true;
     } else {
       selectedOutline.visible = false;
     }
   });
 
+  // For the hover-vs-selection dedup we compare by file path rather than
+  // mesh reference — in the InstancedMesh world all buildings in the same
+  // block share the same mesh object, so reference comparison would wrongly
+  // hide the hover outline for any two buildings in the same block.
   picker.hover.subscribe((h) => {
     const sel = picker.selection.get();
-    const selFileMesh = sel?.kind === NodeKind.File ? sel.mesh : null;
-    if (h && h.kind === NodeKind.File && selFileMesh !== h.mesh) {
-      _syncOutlineToBuilding(hoverOutline, h.mesh, h.data);
+    const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
+    if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
+      _syncOutlineToTarget(hoverOutline, h);
       hoverOutline.visible = true;
     } else {
       hoverOutline.visible = false;
     }
   });
 
-  // ── Per-frame ───────────────────────────────────────────────────────
+  // ── Per-frame ────────────────────────────────────────────────────────
+  // O(active-outlines) — at most 2 (hovered + selected). The dead
+  // O(buildings) loop that existed here was removed in Task 12.
   function update(_dtMs: number): void {
-    const buildings = cityScene.getBuildings();
-    const outlines = cityScene.getBuildingOutlines();
-    const ghosts = cityScene.getBuildingGhosts();
-
-    // Apply outline + ghost opacity targets that buildingFader stashed
-    // on mesh.userData this frame; sync transforms in case the mesh's
-    // scale.y was nudged by the animator.
-    for (let bi = 0; bi < buildings.length; bi++) {
-      const m = buildings[bi];
-      const b = m.userData.building;
-
-      const outline = outlines[bi];
-      if (outline) {
-        outline.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
-        outline.position.copy(m.position);
-        const outlineOp = m.userData.outlineOp || 0;
-        outline.material.opacity = outlineOp;
-        outline.visible = outlineOp > 0;
-      }
-
-      const ghost = ghosts[bi];
-      if (ghost) {
-        ghost.scale.set(b.w, b.h * (m.scale.y || 1), b.d);
-        ghost.position.copy(m.position);
-        const ghostOp = m.userData.ghostOp || 0;
-        const ghostTransparent = ghostOp < OPAQUE_THRESHOLD;
-        if (ghost.material.transparent !== ghostTransparent) {
-          ghost.material.transparent = ghostTransparent;
-          ghost.material.depthWrite = !ghostTransparent;
-          ghost.material.needsUpdate = true;
-        }
-        ghost.material.opacity = ghostOp;
-        ghost.visible = ghostOp > 0;
-      }
-    }
-
-    // Selected: keep transform pinned to the selection's mesh AND advance
-    // the rainbow color chase. Bottom + top form continuous 4-edge loops;
-    // verticals take a single hue from their bottom corner so the loop
-    // chase stays seamless.
+    // Selected: keep transform pinned to the live (possibly animating)
+    // instance AND advance the rainbow color chase. Bottom + top form
+    // continuous 4-edge loops; verticals take a single hue from their
+    // bottom corner so the loop chase stays seamless.
     const sel = picker.selection.get();
     if (sel && sel.kind === NodeKind.File) {
-      _syncOutlineToBuilding(selectedOutline, sel.mesh, sel.data);
+      _syncOutlineToTarget(selectedOutline, sel);
       const t = performance.now() * RAINBOW.get().SPEED;
       _setSegHueGradient(0, t + 0.0, t + 0.25); // bottom: back  edge
       _setSegHueGradient(1, t + 0.25, t + 0.5); // bottom: right edge
@@ -193,15 +183,17 @@ export function createOutlineRenderer({
       _selColorBuf.array.set(_selectedColors);
       _selColorBuf.needsUpdate = true;
     }
+
+    // Hover: keep transform pinned in case the building is still animating.
     const hov = picker.hover.get();
-    const selFileMesh = sel?.kind === NodeKind.File ? sel.mesh : null;
-    if (hov && hov.kind === NodeKind.File && selFileMesh !== hov.mesh) {
-      _syncOutlineToBuilding(hoverOutline, hov.mesh, hov.data);
+    const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
+    if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
+      _syncOutlineToTarget(hoverOutline, hov);
     }
   }
 
   // applyTheme() coordinator hook: push fresh BUILDING_OUTLINE values
-  // into every outline material we own (hover/selected + per-building).
+  // into the two outline materials we own.
   function refreshMaterials(): void {
     const outline = BUILDING_OUTLINE.get();
     hoverLineMat.color.set(outline.HOVER_COLOR);
@@ -209,10 +201,6 @@ export function createOutlineRenderer({
     hoverLineMat.opacity = outline.HOVER_OPACITY;
     selectedLineMat.linewidth = outline.WIDTH;
     selectedLineMat.opacity = outline.SELECTED_OPACITY;
-    const perBldgMats = cityScene.getBuildingOutlineMats();
-    for (const mat of perBldgMats) {
-      mat.linewidth = outline.WIDTH;
-    }
   }
 
   // Window-resize hook. LineMaterial needs the current canvas size for
@@ -222,10 +210,6 @@ export function createOutlineRenderer({
     const h = canvas.clientHeight;
     hoverLineMat.resolution.set(w, h);
     selectedLineMat.resolution.set(w, h);
-    const perBldgMats = cityScene.getBuildingOutlineMats();
-    for (const mat of perBldgMats) {
-      mat.resolution.set(w, h);
-    }
   }
 
   function dispose() {

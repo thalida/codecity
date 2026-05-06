@@ -50,7 +50,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // trigger a wasteful rebuild.
   let armed = false;
 
-  let rebuildTimer = 0;
+  let rebuildTimer: ReturnType<typeof setTimeout> | 0 = 0;
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
@@ -72,10 +72,11 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     STREET_LAYOUT,
     STREET_TIERS,
     GEM_SIZING,
-    // LABEL_TYPOGRAPHY: most keys (font-size / padding / stroke / etc.)
-    // change canvas dimensions and need a rebuild. The FILL key is
-    // hot-reloadable — handled by main.js's listenKeys subscription
-    // that calls regenerateLabelTexture.
+    // LABEL_TYPOGRAPHY: all keys (font-size / padding / stroke / fill / etc.)
+    // trigger a full applyManifest() rebuild. The old per-texture
+    // regenerateLabelTexture hot-path is removed (Task 20); for v1, a
+    // full rebuild on label-typography change is acceptable — hot-reload
+    // here is rare.
     LABEL_TYPOGRAPHY,
   ];
 

@@ -38,6 +38,7 @@ import { atom } from 'nanostores';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerCityScene, PickerSelectionKey } from '@/types';
+import type { SceneBlock } from './blocks.js';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -62,7 +63,10 @@ export function createPicker({
   // raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
-    pickables = cityScene.getBuildings().concat(cityScene.getStreetPickables());
+    pickables = cityScene.getStreetPickables().slice();
+    for (const block of cityScene.getBlocks()) {
+      if (block.detailMesh) pickables.push(block.detailMesh);
+    }
     const gem = cityScene.getRootGem();
     if (gem) {
       const gemBody = gem.children && gem.children[0];
@@ -116,6 +120,8 @@ export function createPicker({
           mesh: b.mesh,
           data: b.building,
           file: b.building.file,
+          instanceId: b.instanceId,
+          block: b.block,
         });
       } else {
         selection.set(null);
@@ -178,6 +184,8 @@ export function createPicker({
         mesh: b.mesh,
         data: b.building,
         file: b.building.file,
+        instanceId: b.instanceId,
+        block: b.block,
       });
       return;
     }
@@ -203,7 +211,27 @@ export function createPicker({
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(pickables, false);
-    return hits.length > 0 ? hits[0] : null;
+    if (hits.length === 0) return null;
+
+    // Tie-break: when an InstancedMesh (building) hit lies within ~0.1% of
+    // the closest hit's distance, prefer it over any placeholder or
+    // sidewalk at the same distance. The placeholder cuboid covers the
+    // entire bbox of its block, so its outer face often coincides with
+    // edge-buildings of neighboring blocks; same-distance ties otherwise
+    // swing arbitrarily by JS sort stability and the user gets a
+    // directory tooltip when their cursor is plainly over a building.
+    const closest = hits[0];
+    const tieThreshold = closest.distance * 1.001;
+    for (const h of hits) {
+      if (h.distance > tieThreshold) break;
+      if (
+        h.object instanceof THREE.InstancedMesh &&
+        h.object.userData.kind === 'buildings'
+      ) {
+        return h;
+      }
+    }
+    return closest;
   }
 
   // interpretHit(hit) — reduce a raw raycast hit to a target object of
@@ -216,6 +244,28 @@ export function createPicker({
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
+    // New (Task 8+): InstancedMesh hit — one mesh per block, instanceId
+    // identifies the individual building within the block.
+    if (
+      hit.object instanceof THREE.InstancedMesh &&
+      ud.kind === 'buildings'
+    ) {
+      const i = hit.instanceId;
+      if (i == null) return null;
+      const block = ud.block as SceneBlock | undefined;
+      if (!block) return null;
+      const building = block.buildings[i];
+      if (!building?.file) return null;
+      return {
+        kind: NodeKind.File,
+        mesh: hit.object as THREE.Mesh,
+        data: building,
+        file: building.file,
+        instanceId: i,
+        block,
+      };
+    }
+    // Legacy: per-building mesh with userData.building (pre-Task 8 scenes).
     if (ud.building && ud.building.file) {
       return {
         kind: NodeKind.File,
