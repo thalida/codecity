@@ -248,11 +248,10 @@ describe('createCityScene', () => {
     cs.dispose();
   });
 
-  // TODO(Task 11/12): rewrite for InstancedMesh.
+  // TODO(Task 12): rewrite for InstancedMesh.
   // getBuildings() now returns an empty stub array (per-building meshes no
-  // longer exist after Task 8). disposeMesh must be adapted for InstancedMesh
-  // semantics in Task 11. Commenting out rather than deleting so the test
-  // cases are visible anchors for the Task 11/12 rewrite.
+  // longer exist after Task 8). disposeMesh per-block semantics are still
+  // in transition while outline/ghost meshes (Tasks 12/13) are pending.
   //
   // it('disposeMesh is idempotent', () => {
   //   const cs = createCityScene(canvas);
