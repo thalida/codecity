@@ -412,6 +412,8 @@ describe('layoutCity', () => {
     }
   });
 
+  // NOTE: this relies on alternation (Task 4); Task 5 best-fit may change side
+  // assignment for the first pair.
   it('files on opposite sides sit directly across (paired)', () => {
     const file = (n: string) => ({
       name: n,

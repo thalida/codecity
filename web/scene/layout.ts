@@ -130,16 +130,13 @@ function _collectRects(layout: {
   return out;
 }
 
-// _nextEventX(stemX, side, childRectsAtStemX, occupancy) -> number
+// _nextEventX(stemX, childRectsAtStemX, occupancy, axisAlong) -> number
 //
 // When a candidate stem-x produces an overlap, returns the smallest x' > stemX
-// such that retrying at x' MIGHT succeed. Conservative: advance the candidate
-// past the right edge of the leftmost blocking rect, relative to the FAR-LEFT
-// reach of the child's local rects. Guarantees the placement loop terminates
-// in O(occupancy.length) iterations per child.
-//
-// `childRectsAtStemX` is the child's rects already translated to (stemX, side);
-// `axisAlong` is 'x' or 'y' depending on the parent street's orientation.
+// such that retrying at x' clears at least one (child, occupancy) overlapping
+// pair. For each overlapping (c, o) pair, computes the stemX shift such that
+// c's left edge lands at o's right edge; returns stemX + minimum such shift.
+// The placement loop is responsible for adding any childGap separation policy.
 function _nextEventX(
   stemX: number,
   childRectsAtStemX: Rect[],
