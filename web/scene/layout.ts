@@ -282,25 +282,6 @@ export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
   // bookkeeping through every transform step.
   _markJoinSides(result.streets);
 
-  // Compute paths from each building's door to the adjacent street.
-  // Length bridges the building-to-sidewalk gap (absolute units); width
-  // is a per-building fraction of that building's own width, so big
-  // buildings get proportionally chunkier paths. Same per-building
-  // width also drives door size — see engine.js.
-  const dimsCfg = BUILDING_DIMENSIONS.get();
-  const pathLength = dimsCfg.PATH_LENGTH;
-  const pathWidthFrac = dimsCfg.PATH_WIDTH_FRAC;
-  for (const bForPath of result.buildings) {
-    const pathWidth = bForPath.w * pathWidthFrac;
-    const path = _pathForBuilding(bForPath, pathWidth, pathLength);
-    if (path) {
-      // Stamp the building's file so the renderer can match each path
-      // mesh back to its parent street's sidewalk for color updates.
-      const bp: BuildingPath = { ...path, file: bForPath.file };
-      result.paths.push(bp);
-    }
-  }
-
   return result;
 }
 
@@ -451,7 +432,7 @@ function _layoutDir(
   originX: number,
   originY: number,
   orientation: StreetAxis,
-  result: { streets: Street[]; buildings: Building[]; paths?: BuildingPath[] },
+  result: { streets: Street[]; buildings: Building[]; paths: BuildingPath[] },
   parentStreetWidth: number | undefined,
   lineStats: RangeStat,
   byteStats: RangeStat
@@ -465,6 +446,15 @@ function _layoutDir(
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgPathLength = BUILDING_DIMENSIONS.get().PATH_LENGTH;
+  const pathWidthFrac = BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC;
+
+  // Push a path connecting `b`'s door to the adjacent street into result.paths.
+  // No-op for buildings whose orient is missing.
+  function _appendPath(b: Building): void {
+    const path = _pathForBuilding(b, b.w * pathWidthFrac, bldgPathLength);
+    if (!path) return;
+    result.paths.push({ ...path, file: b.file });
+  }
 
   // Widths — this street's visual width comes from its descendants count, and
   // end-padding depends on the PARENT street's width so children don't cross
@@ -519,15 +509,20 @@ function _layoutDir(
   const subLayouts: Record<
     number,
     {
-      result: { streets: Street[]; buildings: Building[] };
+      result: { streets: Street[]; buildings: Building[]; paths: BuildingPath[] };
       bbox: { minX: number; maxX: number; minY: number; maxY: number };
     }
   > = {};
   for (let i = 0; i < children.length; i++) {
     if (children[i].type === NodeKind.Directory) {
-      const localResult: { streets: Street[]; buildings: Building[] } = {
+      const localResult: {
+        streets: Street[];
+        buildings: Building[];
+        paths: BuildingPath[];
+      } = {
         streets: [],
         buildings: [],
+        paths: [],
       };
       _layoutDir(
         children[i] as DirLike,
@@ -605,7 +600,7 @@ function _layoutDir(
         bldgD = alongStreet;
       }
 
-      fileBuildings.push({
+      const fileBuilding: Building = {
         x: bx,
         y: by,
         w: bldgW,
@@ -617,7 +612,9 @@ function _layoutDir(
         // before any mesh is created. Layout itself never reads it.
         color: null as unknown as string,
         orient,
-      });
+      };
+      fileBuildings.push(fileBuilding);
+      _appendPath(fileBuilding);
 
       cursor[sideIdx] = startPos + alongStreet + childGap;
       // Files DO NOT advance alphaCursor: alphaCursor is a global "no
@@ -680,6 +677,16 @@ function _layoutDir(
           file: b.file,
           color: b.color,
           orient: _mirrorOrient(b.orient, negateX, negateY) as BuildingOrient,
+        });
+      }
+      for (let spi = 0; spi < sl.result.paths.length; spi++) {
+        const p = sl.result.paths[spi];
+        result.paths.push({
+          x: (negateX ? -p.x : p.x) + subAnchorX,
+          y: (negateY ? -p.y : p.y) + subAnchorY,
+          w: p.w,
+          d: p.d,
+          file: p.file,
         });
       }
 
