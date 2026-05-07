@@ -25,5 +25,6 @@
 - [ ] identify and add something special to test files
 - [ ] python cli make it more professional
 - [x] add back gitignore flag -- make it a user facing config option
+- [ ] allow clicking on a file in file tree to deselect it (click once select, if selected deselect)
 
 ## Pending Agent Prompts

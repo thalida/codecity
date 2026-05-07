@@ -7,7 +7,7 @@ import {
   computeLineStats,
 } from '@/scene/layout.js';
 import { BUILDING_DIMENSIONS } from '@/config/index.js';
-import { NodeKind, StreetAxis } from '@/types';
+import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/config/building.js';
 import type { StreetTier } from '@/config/street.js';
 
@@ -329,6 +329,78 @@ describe('layoutCity', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     const hasLabel = layout.streets.some((s) => s.label && s.label.length > 0);
     expect(hasLabel).toBe(true);
+  });
+
+  // Side distribution: a directory full of files should populate both sides
+  // of its street, not stack everything onto side 0. We check via building
+  // orient (the building's door faces back toward the street, so files on
+  // the primary side have orient='s' or 'e' and files on the secondary side
+  // have orient='n' or 'w' depending on street orientation).
+  it('files distribute across both sides of the street', () => {
+    const file = (n: string) => ({
+      name: n,
+      type: NodeKind.File,
+      path: n,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    });
+    const dir = {
+      name: 'flat',
+      type: NodeKind.Directory,
+      path: 'flat',
+      children_count: 6,
+      descendants_count: 6,
+      descendants_size: 3000,
+      children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
+    };
+    const layout = layoutCity({ tree: dir });
+    const orients = new Set(layout.buildings.map((b) => b.orient));
+    // Both primary and secondary side orients should appear among 6 buildings.
+    const primary = orients.has(BuildingOrient.South) || orients.has(BuildingOrient.East);
+    const secondary = orients.has(BuildingOrient.North) || orients.has(BuildingOrient.West);
+    expect(primary).toBe(true);
+    expect(secondary).toBe(true);
+  });
+
+  // After the alphaCursor relaxation: when a directory contains only files,
+  // alternating-side files should land at the SAME along-street position
+  // (paired) rather than each being shifted by the prior file's width.
+  it('files on opposite sides sit directly across (paired)', () => {
+    const file = (n: string) => ({
+      name: n,
+      type: NodeKind.File,
+      path: n,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    });
+    const dir = {
+      name: 'flat',
+      type: NodeKind.Directory,
+      path: 'flat',
+      children_count: 4,
+      descendants_count: 4,
+      descendants_size: 2000,
+      children: ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map(file),
+    };
+    const layout = layoutCity({ tree: dir });
+    const street = layout.streets.find((s) => s.dir?.name === 'flat')!;
+    // Project each building onto the along-street axis, partitioned by side.
+    const along = street.orientation === StreetAxis.X ? 'x' : 'y';
+    const sideAxis = street.orientation === StreetAxis.X ? 'y' : 'x';
+    const sideA = layout.buildings.filter((b) => b[sideAxis] < street[sideAxis]);
+    const sideB = layout.buildings.filter((b) => b[sideAxis] > street[sideAxis]);
+    expect(sideA.length).toBeGreaterThan(0);
+    expect(sideB.length).toBeGreaterThan(0);
+    // The first building on each side should share the same along-street position.
+    sideA.sort((p, q) => p[along] - q[along]);
+    sideB.sort((p, q) => p[along] - q[along]);
+    expect(Math.abs(sideA[0][along] - sideB[0][along])).toBeLessThan(0.01);
   });
 });
 

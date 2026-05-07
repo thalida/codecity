@@ -144,7 +144,7 @@ export interface StreetLayoutConfig {
 }
 
 export const STREET_LAYOUT = map<StreetLayoutConfig>({
-  CHILD_GAP: 5,
+  CHILD_GAP: 8,
   ROOT_END_PAD: 8,
   PARENT_JOIN_PAD: 3,
 });

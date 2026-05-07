@@ -473,14 +473,15 @@ function _layoutDir(
   //                                so intersections + buildings stay in
   //                                alphabetical order along the road.
   //   - subdirCount             — used to alternate subdir sides.
-  //   - preferredFileSide       — files default to the side OPPOSITE the
-  //                                most-recent subdir, and subsequent files
-  //                                stay on that side so they pack tight
-  //                                (no forced zig-zagging).
+  //
+  // Each file is placed on whichever side has the smaller cursor, so a long
+  // run of files alternates left/right and shortens the street instead of
+  // stacking the whole run onto one side. After a subdir the side it
+  // occupies has its cursor pushed to subEnd (≥ alphaCursor), so the next
+  // file naturally lands on the opposite side without an explicit override.
   const cursor = [originPad, originPad];
   let alphaCursor = originPad;
   let subdirCount = 0;
-  let preferredFileSide = 0;
   const fileBuildings: Building[] = [];
 
   for (let ci = 0; ci < children.length; ci++) {
@@ -490,7 +491,8 @@ function _layoutDir(
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       const alongStreet = dim.w;
       const perpStreet = dim.d;
-      const sideIdx = preferredFileSide;
+      // Pick whichever side has more room. Tie → side 0 (deterministic).
+      const sideIdx = cursor[0] <= cursor[1] ? 0 : 1;
 
       // Anchor position: no earlier than this side's own cursor, and no
       // earlier than the global alphaCursor (so we stay after prior items).
@@ -537,7 +539,12 @@ function _layoutDir(
       });
 
       cursor[sideIdx] = startPos + alongStreet + childGap;
-      if (cursor[sideIdx] > alphaCursor) alphaCursor = cursor[sideIdx];
+      // Files DO NOT advance alphaCursor: alphaCursor is a global "no
+      // child may start before this point" barrier, and the only thing
+      // that needs to block both sides is a subdir (its perpendicular
+      // street crosses the parent road). Letting two files on opposite
+      // sides share the same start position lets them sit directly
+      // across from each other instead of staircasing along the street.
     } else {
       // ---- Subdir branch ----
       const sl = subLayouts[ci];
@@ -599,9 +606,9 @@ function _layoutDir(
       cursor[subSide] = subEnd;
       if (subEnd > alphaCursor) alphaCursor = subEnd;
 
-      // Files that come after a subdir flow onto the OPPOSITE side so they
-      // don't get stuck sharing space with the subdir's perpendicular street.
-      preferredFileSide = 1 - subSide;
+      // Side selection for the next file is implicit: cursor[subSide] just
+      // jumped to subEnd, so cursor[1-subSide] is now smaller and the
+      // smaller-cursor rule routes the next file onto the opposite side.
       subdirCount++;
     }
   }
