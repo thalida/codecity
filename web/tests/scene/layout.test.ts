@@ -10,6 +10,7 @@ import {
 import type { Rect } from '@/scene/layout.js';
 import { BUILDING_DIMENSIONS } from '@/config/index.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
+import type { CityLayout, Street, Building, BuildingPath } from '@/types';
 import type { BuildingDimensionsConfig } from '@/config/building.js';
 import type { StreetTier } from '@/config/street.js';
 
@@ -678,5 +679,215 @@ describe('_collectRects', () => {
     expect(rects[0].w).toBe(10); // street
     expect(rects[1].w).toBe(1); // building
     expect(rects[2].w).toBe(2); // path
+  });
+});
+
+// ---- Invariant helpers + tests ----
+//
+// These helpers assert the contract the new packer must satisfy:
+//   1. No two world-space rectangles overlap (excluding the documented
+//      flat join where each non-root street meets its parent).
+//   2. Walking each parent street in +along-axis, child branch points
+//      (stems) appear in alphabetical order.
+//
+// They run against the CURRENT (pre-refactor) packer here as a baseline.
+// Task 4 and Task 5 will keep them passing through the algorithm change.
+
+function _rectFromStreet(s: Street): Rect {
+  if (s.orientation === StreetAxis.X) {
+    return { x: s.x, y: s.y, w: s.length, d: s.width };
+  }
+  return { x: s.x, y: s.y, w: s.width, d: s.length };
+}
+
+function _rectFromBuilding(b: Building): Rect {
+  return { x: b.x, y: b.y, w: b.w, d: b.d };
+}
+
+function _rectFromPath(p: BuildingPath): Rect {
+  return { x: p.x, y: p.y, w: p.w, d: p.d };
+}
+
+// True iff a strictly intersects b (touching edges is fine).
+function _strictlyOverlaps(a: Rect, b: Rect): boolean {
+  return __test._rectsOverlap(a, b);
+}
+
+// True iff `child` is the parent street of `parent` joining flat — i.e.
+// one of these two rects is a child street whose joining end overlaps the
+// parent street's body. We tolerate that overlap because the renderer
+// flattens the join. Detection: one rect is a street perpendicular to the
+// other, and one of its endpoints sits on the other's centerline within
+// half a width.
+function _isJoinPair(a: Street, b: Street): boolean {
+  if (a.orientation === b.orientation) return false;
+  // a perpendicular to b — check whether a's joining end touches b's centerline.
+  const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';
+  const aCross = a.orientation === StreetAxis.X ? 'y' : 'x';
+  const bLong = b.orientation === StreetAxis.X ? 'x' : 'y';
+  const half = a.length / 2;
+  const lowEnd = a[aLong] - half;
+  const highEnd = a[aLong] + half;
+  // For a perpendicular to b, b's centerline runs along bLong at b[aCross].
+  // a's joining endpoint sits ON b's centerline (a constant value of bLong).
+  const bCenterAlongA = b[aLong];
+  // We assume one of (lowEnd, highEnd) is the join endpoint.
+  const dLow = Math.abs(lowEnd - bCenterAlongA);
+  const dHigh = Math.abs(highEnd - bCenterAlongA);
+  // Likewise the other axis: the joining endpoint's perpendicular value
+  // must be within b's half-length of b's center along b's long axis.
+  // (i.e. the child's stem x must sit inside the parent's length span)
+  const aPerpAtJoin = a[aCross];
+  const bCenterPerp = b[bLong];
+  const perpClose = Math.abs(aPerpAtJoin - bCenterPerp) <= b.length / 2 + 0.5;
+  const longClose = Math.min(dLow, dHigh) <= b.width / 2 + 0.5;
+  return perpClose && longClose;
+}
+
+export function assertNoOverlap(layout: CityLayout): void {
+  type Tagged = { rect: Rect; kind: 'street' | 'building' | 'path'; ref: any };
+  const all: Tagged[] = [];
+  for (const s of layout.streets) all.push({ rect: _rectFromStreet(s), kind: 'street', ref: s });
+  for (const b of layout.buildings)
+    all.push({ rect: _rectFromBuilding(b), kind: 'building', ref: b });
+  for (const p of layout.paths) all.push({ rect: _rectFromPath(p), kind: 'path', ref: p });
+
+  for (let i = 0; i < all.length; i++) {
+    for (let j = i + 1; j < all.length; j++) {
+      const A = all[i],
+        B = all[j];
+      if (!_strictlyOverlaps(A.rect, B.rect)) continue;
+      // Allowed exception: street-street join.
+      if (A.kind === 'street' && B.kind === 'street' && _isJoinPair(A.ref, B.ref)) continue;
+      throw new Error(
+        `overlap between ${A.kind}@(${A.rect.x},${A.rect.y}) and ` +
+          `${B.kind}@(${B.rect.x},${B.rect.y})`
+      );
+    }
+  }
+}
+
+export function assertStemOrder(layout: CityLayout): void {
+  // For each non-leaf street, find the children placed along it (subdir
+  // streets with that street as parent + buildings whose orient points
+  // toward that street). Sort by name; verify their stem-x along the
+  // parent's long axis is monotonic.
+  for (const parent of layout.streets) {
+    const along = parent.orientation === StreetAxis.X ? 'x' : 'y';
+    const cross = parent.orientation === StreetAxis.X ? 'y' : 'x';
+    // Child subdir streets: perpendicular orientation, joining this parent.
+    const childStreets = layout.streets.filter(
+      (s) => s !== parent && s.orientation !== parent.orientation && _isJoinPair(s, parent)
+    );
+    // Child buildings: orient faces this parent. Building's own (x or y)
+    // perpendicular distance to parent's centerline ≈ parent's halfWidth + path + halfDepth.
+    const childBuildings = layout.buildings.filter((b) => {
+      const perpDist = Math.abs(b[cross] - parent[cross]);
+      const expected = parent.width / 2 + 0.5; // path/building offset varies; allow generous slop
+      return perpDist > 0 && perpDist < expected + 50; // any building near this parent
+    });
+    type ChildSpec = { name: string; stemAlong: number };
+    const specs: ChildSpec[] = [];
+    for (const cs of childStreets) {
+      specs.push({ name: cs.label || cs.dir?.name || '', stemAlong: cs[along] });
+    }
+    for (const cb of childBuildings) {
+      specs.push({ name: cb.file?.name || '', stemAlong: cb[along] });
+    }
+    if (specs.length < 2) continue;
+    // We can't reliably attribute every building to its true parent in
+    // this heuristic walk — too many false positives for tests to be
+    // useful in absolute terms. Instead, just verify that among CHILD
+    // STREETS specifically (which we can disambiguate via _isJoinPair),
+    // the alphabetical order matches the along-axis order.
+    const streetSpecs = specs
+      .filter((sp) =>
+        layout.streets.some(
+          (s) => s.orientation !== parent.orientation && (s.label || '') === sp.name
+        )
+      )
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (let i = 1; i < streetSpecs.length; i++) {
+      if (streetSpecs[i].stemAlong < streetSpecs[i - 1].stemAlong) {
+        throw new Error(
+          `stem-x out of order along ${parent.label || parent.dir?.path}: ` +
+            `${streetSpecs[i - 1].name}@${streetSpecs[i - 1].stemAlong} → ` +
+            `${streetSpecs[i].name}@${streetSpecs[i].stemAlong}`
+        );
+      }
+    }
+  }
+}
+
+describe('layout invariants (current packer baseline)', () => {
+  it('TEST_TREE has no overlapping rectangles', () => {
+    const layout = layoutCity({ tree: TEST_TREE });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+  });
+  it('TEST_TREE child streets are stem-ordered alphabetically', () => {
+    const layout = layoutCity({ tree: TEST_TREE });
+    expect(() => assertStemOrder(layout)).not.toThrow();
+  });
+  it('flat-files dir has no overlapping rectangles', () => {
+    const file = (n: string) => ({
+      name: n,
+      type: NodeKind.File,
+      path: n,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    });
+    const dir = {
+      name: 'flat',
+      type: NodeKind.Directory,
+      path: 'flat',
+      children_count: 6,
+      descendants_count: 6,
+      descendants_size: 3000,
+      children: ['a.ts', 'b.ts', 'c.ts', 'd.ts', 'e.ts', 'f.ts'].map(file),
+    };
+    const layout = layoutCity({ tree: dir });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+  });
+  it('deeply-nested mirror tree has no overlapping rectangles', () => {
+    function mkFile(name: string) {
+      return {
+        name,
+        type: NodeKind.File,
+        path: name,
+        extension: '.ts',
+        size: 500,
+        lines: 20,
+        created: '2024-01-01T00:00:00Z',
+        modified: '2024-01-01T00:00:00Z',
+      };
+    }
+    function mkDir(name: string, children: any[]) {
+      return {
+        name,
+        type: NodeKind.Directory,
+        path: name,
+        children_count: children.length,
+        descendants_count:
+          children.length + children.filter((c) => c.type === NodeKind.Directory).length,
+        descendants_size: 1000,
+        children,
+      };
+    }
+    const tree = mkDir('root', [
+      mkDir('aaaa', [mkDir('inner', [mkFile('f1.ts'), mkFile('f2.ts')])]),
+      mkDir('bbbb', [mkFile('f3.ts')]),
+      mkDir('cccc', [mkFile('f4.ts')]),
+      mkDir('dddd', [mkFile('f5.ts')]),
+    ]);
+    const layout = layoutCity({ tree });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+  });
+  it('layout is deterministic (same input → identical output)', () => {
+    const a = layoutCity({ tree: TEST_TREE });
+    const b = layoutCity({ tree: TEST_TREE });
+    expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 });
