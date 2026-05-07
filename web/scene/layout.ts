@@ -198,6 +198,105 @@ function _collectRects(layout: {
   return out;
 }
 
+// RectBuf — a flat Float32Array of [x0, y0, w0, d0, x1, y1, w1, d1, …]
+// 4 numbers per rect, length always a multiple of 4. The packer will
+// migrate to these in place of Rect[] to avoid per-rect object allocation
+// during the per-attempt translation hot path.
+export type RectBuf = Float32Array;
+
+// rectCount(buf) -> number of rects in the buffer.
+function rectCount(buf: RectBuf): number {
+  return buf.length >>> 2;
+}
+
+// rectAt(buf, i) -> Rect (allocates a new object — use sparingly, prefer
+// buf[i*4 + offset] indexing in hot paths).
+function rectAt(buf: RectBuf, i: number): Rect {
+  const o = i << 2;
+  return { x: buf[o], y: buf[o + 1], w: buf[o + 2], d: buf[o + 3] };
+}
+
+// rectsToBuf(rs) -> RectBuf — build a typed-array from an existing Rect[]
+// (used by tests and during initial _collectRects-style construction).
+function rectsToBuf(rs: Rect[]): RectBuf {
+  const buf = new Float32Array(rs.length * 4);
+  for (let i = 0; i < rs.length; i++) {
+    const r = rs[i];
+    const o = i << 2;
+    buf[o] = r.x;
+    buf[o + 1] = r.y;
+    buf[o + 2] = r.w;
+    buf[o + 3] = r.d;
+  }
+  return buf;
+}
+
+// bufToRects(buf) -> Rect[] — inverse of rectsToBuf, primarily for tests
+// and any caller that prefers the object-based API.
+function bufToRects(buf: RectBuf): Rect[] {
+  const out: Rect[] = new Array(buf.length >>> 2);
+  for (let i = 0; i < out.length; i++) out[i] = rectAt(buf, i);
+  return out;
+}
+
+// _rectsOverlapBuf(a, ai, b, bi) -> boolean — same semantics as _rectsOverlap
+// (with OVERLAP_EPS tolerance), but reads coords directly from RectBufs at
+// the given indices. No object allocation.
+function _rectsOverlapBuf(a: RectBuf, ai: number, b: RectBuf, bi: number): boolean {
+  const ao = ai << 2;
+  const bo = bi << 2;
+  const ax = a[ao], ay = a[ao + 1], aw = a[ao + 2], ad = a[ao + 3];
+  const bx = b[bo], by = b[bo + 1], bw = b[bo + 2], bd = b[bo + 3];
+  const ax1 = ax - aw / 2, ax2 = ax + aw / 2;
+  const ay1 = ay - ad / 2, ay2 = ay + ad / 2;
+  const bx1 = bx - bw / 2, bx2 = bx + bw / 2;
+  const by1 = by - bd / 2, by2 = by + bd / 2;
+  return (
+    ax1 + OVERLAP_EPS < bx2 &&
+    ax2 - OVERLAP_EPS > bx1 &&
+    ay1 + OVERLAP_EPS < by2 &&
+    ay2 - OVERLAP_EPS > by1
+  );
+}
+
+// _rectsOverlapBufRect(buf, i, r) -> boolean — overlap between a rect inside
+// a RectBuf and a stand-alone Rect (used when checking against an
+// OccupancyEntry's bbox, which stays a Rect object).
+function _rectsOverlapBufRect(buf: RectBuf, i: number, r: Rect): boolean {
+  const o = i << 2;
+  const ax = buf[o], ay = buf[o + 1], aw = buf[o + 2], ad = buf[o + 3];
+  const ax1 = ax - aw / 2, ax2 = ax + aw / 2;
+  const ay1 = ay - ad / 2, ay2 = ay + ad / 2;
+  const bx1 = r.x - r.w / 2, bx2 = r.x + r.w / 2;
+  const by1 = r.y - r.d / 2, by2 = r.y + r.d / 2;
+  return (
+    ax1 + OVERLAP_EPS < bx2 &&
+    ax2 - OVERLAP_EPS > bx1 &&
+    ay1 + OVERLAP_EPS < by2 &&
+    ay2 - OVERLAP_EPS > by1
+  );
+}
+
+// _bboxOfBuf(buf, len?) -> Rect — axis-aligned bbox of rects 0..len-1 in buf.
+// `len` defaults to rectCount(buf); pass a smaller value when reading from a
+// scratch buffer that's only partially populated.
+function _bboxOfBuf(buf: RectBuf, len?: number): Rect {
+  const n = len !== undefined ? len : rectCount(buf);
+  if (n === 0) return { x: 0, y: 0, w: 0, d: 0 };
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const o = i << 2;
+    const x = buf[o], y = buf[o + 1], w = buf[o + 2], d = buf[o + 3];
+    const x1 = x - w / 2, x2 = x + w / 2;
+    const y1 = y - d / 2, y2 = y + d / 2;
+    if (x1 < minX) minX = x1;
+    if (x2 > maxX) maxX = x2;
+    if (y1 < minY) minY = y1;
+    if (y2 > maxY) maxY = y2;
+  }
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
+}
+
 // _nextEventX(stemX, candidateBbox, candidateRects, entries, axisAlong) -> number
 //
 // When a candidate stem-x produces an overlap, returns the smallest x' > stemX
@@ -1031,4 +1130,16 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
 }
 
 // Internal helpers exposed for tests only. Not part of the public API.
-export const __test = { _rectsOverlap, _overlapsAny, _collectRects, _bboxOfRects };
+export const __test = {
+  _rectsOverlap,
+  _overlapsAny,
+  _collectRects,
+  _bboxOfRects,
+  rectCount,
+  rectAt,
+  rectsToBuf,
+  bufToRects,
+  _rectsOverlapBuf,
+  _rectsOverlapBufRect,
+  _bboxOfBuf,
+};

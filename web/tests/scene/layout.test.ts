@@ -768,6 +768,121 @@ describe('_collectRects', () => {
   });
 });
 
+describe('rectsToBuf / bufToRects round-trip', () => {
+  const { rectsToBuf, bufToRects, rectCount, rectAt } = __test;
+
+  it('empty round-trip', () => {
+    const buf = rectsToBuf([]);
+    expect(buf.length).toBe(0);
+    expect(rectCount(buf)).toBe(0);
+    expect(bufToRects(buf)).toEqual([]);
+  });
+
+  it('single rect round-trip', () => {
+    const rs: Rect[] = [{ x: 1.5, y: -2.25, w: 3, d: 4.75 }];
+    const buf = rectsToBuf(rs);
+    expect(rectCount(buf)).toBe(1);
+    expect(rectAt(buf, 0)).toEqual({ x: 1.5, y: -2.25, w: 3, d: 4.75 });
+    expect(bufToRects(buf)).toEqual(rs);
+  });
+
+  it('multi rect round-trip preserves order', () => {
+    const rs: Rect[] = [
+      { x: 0, y: 0, w: 1, d: 1 },
+      { x: 10, y: 20, w: 5, d: 5 },
+      { x: -1, y: -2, w: 3, d: 4 },
+    ];
+    const buf = rectsToBuf(rs);
+    expect(rectCount(buf)).toBe(3);
+    expect(bufToRects(buf)).toEqual(rs);
+  });
+});
+
+describe('_rectsOverlapBuf', () => {
+  const { rectsToBuf, _rectsOverlapBuf } = __test;
+
+  it('matches _rectsOverlap for overlapping rects', () => {
+    const buf = rectsToBuf([
+      { x: 0, y: 0, w: 10, d: 10 },
+      { x: 5, y: 5, w: 10, d: 10 },
+    ]);
+    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(true);
+  });
+
+  it('matches _rectsOverlap for disjoint rects', () => {
+    const buf = rectsToBuf([
+      { x: 0, y: 0, w: 10, d: 10 },
+      { x: 100, y: 0, w: 10, d: 10 },
+    ]);
+    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(false);
+  });
+
+  it('honors OVERLAP_EPS for FP noise', () => {
+    const buf = rectsToBuf([
+      { x: 0, y: 0, w: 2, d: 2 },
+      { x: 2 - 7e-15, y: 0, w: 2, d: 2 },
+    ]);
+    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(false);
+  });
+
+  it('cross-buffer comparison works', () => {
+    const a = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
+    const b = rectsToBuf([{ x: 5, y: 5, w: 10, d: 10 }]);
+    expect(_rectsOverlapBuf(a, 0, b, 0)).toBe(true);
+  });
+});
+
+describe('_rectsOverlapBufRect', () => {
+  const { rectsToBuf, _rectsOverlapBufRect } = __test;
+
+  it('overlap with stand-alone Rect', () => {
+    const buf = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
+    expect(_rectsOverlapBufRect(buf, 0, { x: 5, y: 5, w: 10, d: 10 })).toBe(true);
+  });
+
+  it('disjoint with stand-alone Rect', () => {
+    const buf = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
+    expect(_rectsOverlapBufRect(buf, 0, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
+  });
+});
+
+describe('_bboxOfBuf', () => {
+  const { rectsToBuf, _bboxOfBuf, _bboxOfRects } = __test;
+
+  it('empty buf -> zero rect', () => {
+    const buf = rectsToBuf([]);
+    expect(_bboxOfBuf(buf)).toEqual({ x: 0, y: 0, w: 0, d: 0 });
+  });
+
+  it('single rect -> same rect', () => {
+    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
+    expect(_bboxOfBuf(buf)).toEqual({ x: 5, y: 10, w: 4, d: 6 });
+  });
+
+  it('matches _bboxOfRects on multiple rects', () => {
+    const rs: Rect[] = [
+      { x: 0, y: 0, w: 10, d: 10 },
+      { x: 20, y: 20, w: 10, d: 10 },
+    ];
+    const buf = rectsToBuf(rs);
+    const bufBbox = _bboxOfBuf(buf);
+    const objBbox = _bboxOfRects(rs);
+    expect(bufBbox).toEqual(objBbox);
+  });
+
+  it('honors `len` parameter (partial buffer)', () => {
+    // Buffer has 3 rects but we only care about the first 2.
+    const buf = rectsToBuf([
+      { x: 0, y: 0, w: 10, d: 10 },
+      { x: 20, y: 0, w: 10, d: 10 },
+      { x: 1000, y: 1000, w: 10, d: 10 },
+    ]);
+    const bbox = _bboxOfBuf(buf, 2);
+    expect(bbox.x).toBe(10);
+    expect(bbox.w).toBe(30);
+  });
+});
+
 // ---- Invariant helpers + tests ----
 //
 // These helpers assert the contract the new packer must satisfy:
