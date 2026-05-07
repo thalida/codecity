@@ -708,7 +708,7 @@ function _rectFromPath(p: BuildingPath): Rect {
   return { x: p.x, y: p.y, w: p.w, d: p.d };
 }
 
-// True iff a strictly intersects b (touching edges is fine).
+// True iff a and b strictly intersect; touching edges (zero overlap) returns false.
 function _strictlyOverlaps(a: Rect, b: Rect): boolean {
   return __test._rectsOverlap(a, b);
 }
@@ -739,13 +739,19 @@ function _isJoinPair(a: Street, b: Street): boolean {
   // (i.e. the child's stem x must sit inside the parent's length span)
   const aPerpAtJoin = a[aCross];
   const bCenterPerp = b[bLong];
+  // The +0.5 absorbs sub-unit floating-point drift from coordinate arithmetic;
+  // the physical gap is zero at a well-formed join.
   const perpClose = Math.abs(aPerpAtJoin - bCenterPerp) <= b.length / 2 + 0.5;
   const longClose = Math.min(dLow, dHigh) <= b.width / 2 + 0.5;
   return perpClose && longClose;
 }
 
+// Exported for reuse in Task 4 and Task 5 invariant tests.
 export function assertNoOverlap(layout: CityLayout): void {
-  type Tagged = { rect: Rect; kind: 'street' | 'building' | 'path'; ref: any };
+  type Tagged =
+    | { rect: Rect; kind: 'street'; ref: Street }
+    | { rect: Rect; kind: 'building'; ref: Building }
+    | { rect: Rect; kind: 'path'; ref: BuildingPath };
   const all: Tagged[] = [];
   for (const s of layout.streets) all.push({ rect: _rectFromStreet(s), kind: 'street', ref: s });
   for (const b of layout.buildings)
@@ -820,12 +826,47 @@ export function assertStemOrder(layout: CityLayout): void {
 }
 
 describe('layout invariants (current packer baseline)', () => {
+  function mkFile(name: string) {
+    return {
+      name,
+      type: NodeKind.File,
+      path: name,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    };
+  }
+  function mkDir(name: string, children: any[]) {
+    return {
+      name,
+      type: NodeKind.Directory,
+      path: name,
+      children_count: children.length,
+      descendants_count:
+        children.length + children.filter((c) => c.type === NodeKind.Directory).length,
+      descendants_size: 1000,
+      children,
+    };
+  }
+
   it('TEST_TREE has no overlapping rectangles', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     expect(() => assertNoOverlap(layout)).not.toThrow();
   });
   it('TEST_TREE child streets are stem-ordered alphabetically', () => {
     const layout = layoutCity({ tree: TEST_TREE });
+    expect(() => assertStemOrder(layout)).not.toThrow();
+  });
+  it('multi-subdir tree has stem-ordered child streets', () => {
+    const tree = mkDir('root', [
+      mkDir('aaaa', [mkDir('inner', [mkFile('f1.ts'), mkFile('f2.ts')])]),
+      mkDir('bbbb', [mkFile('f3.ts')]),
+      mkDir('cccc', [mkFile('f4.ts')]),
+      mkDir('dddd', [mkFile('f5.ts')]),
+    ]);
+    const layout = layoutCity({ tree });
     expect(() => assertStemOrder(layout)).not.toThrow();
   });
   it('flat-files dir has no overlapping rectangles', () => {
@@ -852,30 +893,6 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
   });
   it('deeply-nested mirror tree has no overlapping rectangles', () => {
-    function mkFile(name: string) {
-      return {
-        name,
-        type: NodeKind.File,
-        path: name,
-        extension: '.ts',
-        size: 500,
-        lines: 20,
-        created: '2024-01-01T00:00:00Z',
-        modified: '2024-01-01T00:00:00Z',
-      };
-    }
-    function mkDir(name: string, children: any[]) {
-      return {
-        name,
-        type: NodeKind.Directory,
-        path: name,
-        children_count: children.length,
-        descendants_count:
-          children.length + children.filter((c) => c.type === NodeKind.Directory).length,
-        descendants_size: 1000,
-        children,
-      };
-    }
     const tree = mkDir('root', [
       mkDir('aaaa', [mkDir('inner', [mkFile('f1.ts'), mkFile('f2.ts')])]),
       mkDir('bbbb', [mkFile('f3.ts')]),
