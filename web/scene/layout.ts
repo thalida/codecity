@@ -45,6 +45,22 @@ export interface Rect {
   d: number;
 }
 
+// LocalChildLayout — what each child contributes to its parent's packing.
+//   rects: child geometry in a local frame where stem-x = 0 along the parent
+//          axis and the child's content extends in +perp direction (side 1).
+//   along: extent of the child along the parent's long axis (== bbox width
+//          along that axis).
+//   buildings/streets/paths: the same content as `rects`, kept typed for
+//          translation back into result arrays once the placement is chosen.
+interface LocalChildLayout {
+  along: number;
+  alongLow: number; // local-frame x of the leftmost rect edge (≤ 0 typically)
+  rects: Rect[];
+  streets: Street[];
+  buildings: Building[];
+  paths: BuildingPath[];
+}
+
 // _rectsOverlap(a, b) -> boolean
 //
 // True iff two axis-aligned rectangles intersect. Touching edges (zero
@@ -110,6 +126,75 @@ function _collectRects(layout: {
       const p = layout.paths[i];
       out.push({ x: p.x, y: p.y, w: p.w, d: p.d });
     }
+  }
+  return out;
+}
+
+// _nextEventX(stemX, side, childRectsAtStemX, occupancy) -> number
+//
+// When a candidate stem-x produces an overlap, returns the smallest x' > stemX
+// such that retrying at x' MIGHT succeed. Conservative: advance the candidate
+// past the right edge of the leftmost blocking rect, relative to the FAR-LEFT
+// reach of the child's local rects. Guarantees the placement loop terminates
+// in O(occupancy.length) iterations per child.
+//
+// `childRectsAtStemX` is the child's rects already translated to (stemX, side);
+// `axisAlong` is 'x' or 'y' depending on the parent street's orientation.
+function _nextEventX(
+  stemX: number,
+  childRectsAtStemX: Rect[],
+  occupancy: Rect[],
+  axisAlong: 'x' | 'y'
+): number {
+  let bestAdvance = Infinity;
+  for (let i = 0; i < childRectsAtStemX.length; i++) {
+    const c = childRectsAtStemX[i];
+    const cLeft = axisAlong === 'x' ? c.x - c.w / 2 : c.y - c.d / 2;
+    for (let j = 0; j < occupancy.length; j++) {
+      const o = occupancy[j];
+      if (!_rectsOverlap(c, o)) continue;
+      const oRight = axisAlong === 'x' ? o.x + o.w / 2 : o.y + o.d / 2;
+      // Advance candidateStemX such that c's left edge ends up at oRight.
+      const advance = oRight - cLeft;
+      if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
+    }
+  }
+  if (bestAdvance === Infinity) return stemX + 1; // shouldn't happen if overlap occurred
+  return stemX + bestAdvance;
+}
+
+// _translateChildRects(rects, originX, originY, stemX, sideIdx, parentOrient) -> Rect[]
+//
+// Translate a child's local-frame rects into the parent's world frame. side 0
+// uses the negate flag matching the existing _mirrorOrient rule:
+//   parent X-orient: side 0 negateY (south), side 1 no negate (north)
+//   parent Y-orient: side 0 negateX (west),  side 1 no negate (east)
+function _translateChildRects(
+  rects: Rect[],
+  originX: number,
+  originY: number,
+  stemX: number,
+  sideIdx: 0 | 1,
+  parentOrient: StreetAxis
+): Rect[] {
+  const out: Rect[] = new Array(rects.length);
+  const negateY = parentOrient === StreetAxis.X && sideIdx === 0;
+  const negateX = parentOrient === StreetAxis.Y && sideIdx === 0;
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i];
+    let lx = r.x;
+    let ly = r.y;
+    if (parentOrient === StreetAxis.X) {
+      lx += stemX;
+    } else {
+      ly += stemX;
+    }
+    out[i] = {
+      x: (negateX ? -lx : lx) + originX,
+      y: (negateY ? -ly : ly) + originY,
+      w: r.w,
+      d: r.d,
+    };
   }
   return out;
 }
@@ -353,55 +438,6 @@ function _markJoinSides(streets: StreetWithJoin[]): void {
 }
 
 // -----------------------------------------------------------------------------
-// _pathForBuilding(building, pathWidth, pathLength) -> path | null
-//
-// Returns a thin sidewalk-colored strip connecting the building's door (on its
-// front face) to the adjacent street's sidewalk. `pathLength` is
-// BUILDING_DIMENSIONS.PATH_LENGTH (bridges the gap between building face and
-// street edge); `pathWidth` is the caller-provided per-building width
-// (= building.w × PATH_WIDTH_FRAC; also drives door size — see engine.js).
-// -----------------------------------------------------------------------------
-function _pathForBuilding(
-  b: Building,
-  pathWidth: number,
-  pathLength: number
-): { x: number; y: number; w: number; d: number } | null {
-  if (b.orient === BuildingOrient.South) {
-    return {
-      x: b.x,
-      y: b.y + b.d / 2 + pathLength / 2,
-      w: pathWidth,
-      d: pathLength,
-    };
-  }
-  if (b.orient === BuildingOrient.East) {
-    return {
-      x: b.x + b.w / 2 + pathLength / 2,
-      y: b.y,
-      w: pathLength,
-      d: pathWidth,
-    };
-  }
-  if (b.orient === BuildingOrient.North) {
-    return {
-      x: b.x,
-      y: b.y - b.d / 2 - pathLength / 2,
-      w: pathWidth,
-      d: pathLength,
-    };
-  }
-  if (b.orient === BuildingOrient.West) {
-    return {
-      x: b.x - b.w / 2 - pathLength / 2,
-      y: b.y,
-      w: pathLength,
-      d: pathWidth,
-    };
-  }
-  return null;
-}
-
-// -----------------------------------------------------------------------------
 // _layoutDir(dir, originX, originY, orientation, result)
 //
 // Recursively places a directory and its descendants into `result` (in WORLD
@@ -449,19 +485,10 @@ function _layoutDir(
   const bldgPathLength = bldgDims.PATH_LENGTH;
   const pathWidthFrac = bldgDims.PATH_WIDTH_FRAC;
 
-  // Push a path connecting `b`'s door to the adjacent street into result.paths.
-  // No-op for buildings whose orient is missing.
-  function _appendPath(b: Building): void {
-    const path = _pathForBuilding(b, b.w * pathWidthFrac, bldgPathLength);
-    if (!path) return;
-    result.paths.push({ ...path, file: b.file });
-  }
-
   // Widths — this street's visual width comes from its descendants count, and
   // end-padding depends on the PARENT street's width so children don't cross
   // the parent intersection.
   const myStreetWidth = _streetWidthForDir(dir);
-  const bldgOffset = myStreetWidth / 2 + bldgPathLength;
 
   // The street's rounded cap takes up streetWidth/2 of the length at the
   // OPEN end. To keep the last building (and its path connector) clear
@@ -492,38 +519,20 @@ function _layoutDir(
 
   // ---- Sort children alphabetically (files + dirs intermingled) -----------
   const children = (dir.children || [])
-    .filter((c) => {
-      return c.type === NodeKind.File || c.type === NodeKind.Directory;
-    })
+    .filter((c) => c.type === NodeKind.File || c.type === NodeKind.Directory)
     .slice()
-    .sort((a, b) => {
-      return (a.name || '').localeCompare(b.name || '');
-    });
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
   const subOrient = orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X;
 
-  // ---- Pre-compute each subdir's layout in its own local frame ------------
-  // We need each subdir's bbox BEFORE positioning it, so siblings can be
-  // packed without overlap. Local layout has subdir's street at (0,0) extending
-  // in +subOrient. Pass myStreetWidth down so the child's own endPad respects
-  // this (parent) street's footprint.
-  const subLayouts: Record<
-    number,
-    {
-      result: { streets: Street[]; buildings: Building[]; paths: BuildingPath[] };
-      bbox: { minX: number; maxX: number; minY: number; maxY: number };
-    }
-  > = {};
+  // ---- Pre-compute each subdir's local layout in its own local frame ------
+  const subLayouts: Record<number, LocalChildLayout> = {};
   for (let i = 0; i < children.length; i++) {
     if (children[i].type === NodeKind.Directory) {
-      const localResult: {
-        streets: Street[];
-        buildings: Building[];
-        paths: BuildingPath[];
-      } = {
-        streets: [],
-        buildings: [],
-        paths: [],
+      const localResult = {
+        streets: [] as Street[],
+        buildings: [] as Building[],
+        paths: [] as BuildingPath[],
       };
       _layoutDir(
         children[i] as DirLike,
@@ -535,127 +544,215 @@ function _layoutDir(
         lineStats,
         byteStats
       );
+      const bbox = _computeBbox(localResult);
+      // The subdir's bbox is in its own local frame (subOrient axis = its main
+      // street; the perpendicular axis = "out into branches"). To pack along
+      // the PARENT axis, rotate: the parent axis is the perpendicular of
+      // subOrient, which corresponds to bbox's X if parent is X-orient or Y
+      // if parent is Y-orient. (Same axis convention used by _computeBbox.)
+      const alongLow = orientation === StreetAxis.X ? bbox.minX : bbox.minY;
+      const alongHigh = orientation === StreetAxis.X ? bbox.maxX : bbox.maxY;
       subLayouts[i] = {
-        result: localResult,
-        bbox: _computeBbox(localResult),
+        along: alongHigh - alongLow,
+        alongLow,
+        rects: _collectRects(localResult),
+        streets: localResult.streets,
+        buildings: localResult.buildings,
+        paths: localResult.paths,
       };
     }
   }
 
-  // ---- Walk children, packing per-side while preserving alphabetical order
-  //
-  //   - cursor[0] / cursor[1]   — end position already occupied on each side.
-  //   - alphaCursor             — furthest end reached by ANY child so far;
-  //                                the next child must start at or after it
-  //                                so intersections + buildings stay in
-  //                                alphabetical order along the road.
-  //   - subdirCount             — used to alternate subdir sides.
-  //
-  // Each file is placed on whichever side has the smaller cursor, so a long
-  // run of files alternates left/right and shortens the street instead of
-  // stacking the whole run onto one side. After a subdir the side it
-  // occupies has its cursor pushed to subEnd (≥ alphaCursor), so the next
-  // file naturally lands on the opposite side without an explicit override.
-  const cursor = [originPad, originPad];
-  let alphaCursor = originPad;
+  // ---- Per-side occupancy + monotonic stem-x cursor ----------------------
+  const occupancy: Rect[][] = [[], []];
+  let priorStemX = originPad;
   let subdirCount = 0;
-  const fileBuildings: Building[] = [];
 
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
 
+    // Build the candidate's LOCAL rects (frame: stem at 0, side 1 perp orientation).
+    let local: LocalChildLayout;
+
     if (child.type === NodeKind.File) {
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
-      const alongStreet = dim.w;
-      const perpStreet = dim.d;
-      // Pick whichever side has more room. Tie → side 0 (deterministic).
-      const sideIdx = cursor[0] <= cursor[1] ? 0 : 1;
-
-      // Anchor position: no earlier than this side's own cursor, and no
-      // earlier than the global alphaCursor (so we stay after prior items).
-      const startPos = Math.max(cursor[sideIdx], alphaCursor);
-      const centerPos = startPos + alongStreet / 2;
-
-      let bx, by, bldgW, bldgD, orient;
+      // along-axis dim = file's "width" (its longer side runs along the street).
+      const along = dim.w;
+      const perpDepth = dim.d;
+      // Local: stem at along=0 (file center on parent axis), perp at parent's halfWidth + pathLen + halfDepth.
+      const perpCenter = myStreetWidth / 2 + bldgPathLength + perpDepth / 2;
+      // For parent X-orient: parent axis = x, perp = y. For Y-orient: swap.
+      let bx: number, by: number, bw: number, bd: number;
       if (orientation === StreetAxis.X) {
-        bx = originX + centerPos;
-        if (sideIdx === 0) {
-          by = originY - bldgOffset - perpStreet / 2;
-          orient = BuildingOrient.South;
-        } else {
-          by = originY + bldgOffset + perpStreet / 2;
-          orient = BuildingOrient.North;
-        }
-        bldgW = alongStreet;
-        bldgD = perpStreet;
+        bx = 0;
+        by = perpCenter;
+        bw = along;
+        bd = perpDepth;
       } else {
-        by = originY + centerPos;
-        if (sideIdx === 0) {
-          bx = originX - bldgOffset - perpStreet / 2;
-          orient = BuildingOrient.East;
-        } else {
-          bx = originX + bldgOffset + perpStreet / 2;
-          orient = BuildingOrient.West;
-        }
-        bldgW = perpStreet;
-        bldgD = alongStreet;
+        bx = perpCenter;
+        by = 0;
+        bw = perpDepth;
+        bd = along;
       }
-
-      const fileBuilding: Building = {
-        x: bx,
-        y: by,
-        w: bldgW,
-        d: bldgD,
-        h: dim.h,
-        floors: dim.floors,
-        file: child as unknown as Building['file'],
-        // color is filled in by cityScene.applyManifest (via getBuildingColor)
-        // before any mesh is created. Layout itself never reads it.
-        color: null as unknown as string,
-        orient,
+      const buildingRect: Rect = { x: bx, y: by, w: bw, d: bd };
+      // Path connects building face → parent street edge.
+      let px: number, py: number, pw: number, pd: number;
+      if (orientation === StreetAxis.X) {
+        px = 0;
+        py = myStreetWidth / 2 + bldgPathLength / 2;
+        pw = bw * pathWidthFrac;
+        pd = bldgPathLength;
+      } else {
+        px = myStreetWidth / 2 + bldgPathLength / 2;
+        py = 0;
+        pw = bldgPathLength;
+        pd = bd * pathWidthFrac;
+      }
+      const pathRect: Rect = { x: px, y: py, w: pw, d: pd };
+      local = {
+        along,
+        alongLow: -along / 2,
+        rects: [buildingRect, pathRect],
+        streets: [],
+        buildings: [
+          {
+            x: bx,
+            y: by,
+            w: bw,
+            d: bd,
+            h: dim.h,
+            floors: dim.floors,
+            file: child as unknown as Building['file'],
+            color: null as unknown as string,
+            orient: BuildingOrient.North, // placeholder; fixed once side chosen
+          },
+        ],
+        paths: [
+          {
+            x: px,
+            y: py,
+            w: pw,
+            d: pd,
+            file: child as unknown as Building['file'],
+          },
+        ],
       };
-      fileBuildings.push(fileBuilding);
-      _appendPath(fileBuilding);
-
-      cursor[sideIdx] = startPos + alongStreet + childGap;
-      // Files DO NOT advance alphaCursor: alphaCursor is a global "no
-      // child may start before this point" barrier, and the only thing
-      // that needs to block both sides is a subdir (its perpendicular
-      // street crosses the parent road). Letting two files on opposite
-      // sides share the same start position lets them sit directly
-      // across from each other instead of staircasing along the street.
     } else {
-      // ---- Subdir branch ----
-      const sl = subLayouts[ci];
+      local = subLayouts[ci];
+    }
 
-      let widthLow, widthHigh;
-      if (orientation === StreetAxis.X) {
-        widthLow = sl.bbox.minX;
-        widthHigh = sl.bbox.maxX;
-      } else {
-        widthLow = sl.bbox.minY;
-        widthHigh = sl.bbox.maxY;
+    // Find the leftmost (side, stemX) where translating local.rects fits.
+    let candidateStemX = Math.max(priorStemX, originPad);
+    // The child's stem sits at along=0 in local; alongLow is the leftmost
+    // edge of the local rect set (typically negative). The minimum legal
+    // stemX must keep the child's left edge ≥ priorStemX.
+    candidateStemX = Math.max(candidateStemX, priorStemX + -local.alongLow);
+
+    let chosenSide: 0 | 1 = 0;
+    let chosenStemX = 0;
+    let placedRects: Rect[] = [];
+    const axisAlong: 'x' | 'y' = orientation === StreetAxis.X ? 'x' : 'y';
+
+    // Side preference (alternation): subdirs use subdirCount % 2;
+    // files use the side with smaller occupancy bbox-area (mirrors today's
+    // "smaller cursor wins" rule). Best-fit selection lands in Task 5.
+    let preferredSide: 0 | 1;
+    if (child.type === NodeKind.Directory) {
+      preferredSide = (subdirCount % 2) as 0 | 1;
+    } else {
+      preferredSide = occupancy[0].length <= occupancy[1].length ? 0 : 1;
+    }
+
+    while (true) {
+      const sidesToTry: (0 | 1)[] = preferredSide === 0 ? [0, 1] : [1, 0];
+      let placed = false;
+      let smallestAdvance = Infinity;
+      for (const side of sidesToTry) {
+        const translated = _translateChildRects(
+          local.rects,
+          originX,
+          originY,
+          candidateStemX,
+          side,
+          orientation
+        );
+        if (!_overlapsAny(translated, occupancy[side])) {
+          chosenSide = side;
+          chosenStemX = candidateStemX;
+          placedRects = translated;
+          placed = true;
+          break;
+        }
+        const advance = _nextEventX(candidateStemX, translated, occupancy[side], axisAlong);
+        const delta = advance - candidateStemX;
+        if (delta > 0 && delta < smallestAdvance) smallestAdvance = delta;
       }
-
-      // Subdirs alternate sides based on how many subdirs we've placed.
-      const subSide = subdirCount % 2;
-      const subStart = Math.max(cursor[subSide], alphaCursor);
-      const subAnchorOffset = subStart + -widthLow;
-
-      const negateY = orientation === StreetAxis.X && subSide === 0;
-      const negateX = orientation === StreetAxis.Y && subSide === 0;
-
-      let subAnchorX, subAnchorY;
-      if (orientation === StreetAxis.X) {
-        subAnchorX = originX + subAnchorOffset;
-        subAnchorY = originY;
+      if (placed) break;
+      // Both sides failed at candidateStemX; advance to the smallest event.
+      if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
+        // Defensive: avoid infinite loop. Step by childGap.
+        candidateStemX += childGap;
       } else {
-        subAnchorX = originX;
-        subAnchorY = originY + subAnchorOffset;
+        candidateStemX += smallestAdvance;
       }
+    }
 
-      for (let ssi = 0; ssi < sl.result.streets.length; ssi++) {
-        const s = sl.result.streets[ssi];
+    // Commit the placement.
+    occupancy[chosenSide].push(...placedRects);
+    priorStemX = chosenStemX + childGap;
+
+    if (child.type === NodeKind.File) {
+      const negateY = orientation === StreetAxis.X && chosenSide === 0;
+      const negateX = orientation === StreetAxis.Y && chosenSide === 0;
+      const lb = local.buildings[0];
+      const lp = local.paths[0];
+      let bx = lb.x,
+        by = lb.y;
+      if (orientation === StreetAxis.X) {
+        bx += chosenStemX;
+      } else {
+        by += chosenStemX;
+      }
+      const finalBx = (negateX ? -bx : bx) + originX;
+      const finalBy = (negateY ? -by : by) + originY;
+      let orient: BuildingOrient;
+      if (orientation === StreetAxis.X) {
+        orient = chosenSide === 0 ? BuildingOrient.South : BuildingOrient.North;
+      } else {
+        orient = chosenSide === 0 ? BuildingOrient.East : BuildingOrient.West;
+      }
+      result.buildings.push({
+        x: finalBx,
+        y: finalBy,
+        w: lb.w,
+        d: lb.d,
+        h: lb.h,
+        floors: lb.floors,
+        file: lb.file,
+        color: lb.color,
+        orient,
+      });
+      let pxL = lp.x,
+        pyL = lp.y;
+      if (orientation === StreetAxis.X) {
+        pxL += chosenStemX;
+      } else {
+        pyL += chosenStemX;
+      }
+      result.paths.push({
+        x: (negateX ? -pxL : pxL) + originX,
+        y: (negateY ? -pyL : pyL) + originY,
+        w: lp.w,
+        d: lp.d,
+        file: lp.file,
+      });
+    } else {
+      // Subdir: translate streets / buildings / paths from local frame.
+      const negateY = orientation === StreetAxis.X && chosenSide === 0;
+      const negateX = orientation === StreetAxis.Y && chosenSide === 0;
+      const subAnchorX = orientation === StreetAxis.X ? originX + chosenStemX : originX;
+      const subAnchorY = orientation === StreetAxis.X ? originY : originY + chosenStemX;
+      for (const s of local.streets) {
         result.streets.push({
           x: (negateX ? -s.x : s.x) + subAnchorX,
           y: (negateY ? -s.y : s.y) + subAnchorY,
@@ -666,8 +763,7 @@ function _layoutDir(
           dir: s.dir,
         });
       }
-      for (let sbi = 0; sbi < sl.result.buildings.length; sbi++) {
-        const b = sl.result.buildings[sbi];
+      for (const b of local.buildings) {
         result.buildings.push({
           x: (negateX ? -b.x : b.x) + subAnchorX,
           y: (negateY ? -b.y : b.y) + subAnchorY,
@@ -680,8 +776,7 @@ function _layoutDir(
           orient: _mirrorOrient(b.orient, negateX, negateY) as BuildingOrient,
         });
       }
-      for (let spi = 0; spi < sl.result.paths.length; spi++) {
-        const p = sl.result.paths[spi];
+      for (const p of local.paths) {
         result.paths.push({
           x: (negateX ? -p.x : p.x) + subAnchorX,
           y: (negateY ? -p.y : p.y) + subAnchorY,
@@ -690,25 +785,20 @@ function _layoutDir(
           file: p.file,
         });
       }
-
-      const subEnd = subStart + (widthHigh - widthLow) + childGap;
-      cursor[subSide] = subEnd;
-      if (subEnd > alphaCursor) alphaCursor = subEnd;
-
-      // Side selection for the next file is implicit: cursor[subSide] just
-      // jumped to subEnd, so cursor[1-subSide] is now smaller and the
-      // smaller-cursor rule routes the next file onto the opposite side.
       subdirCount++;
     }
   }
 
-  // Trim the trailing childGap added by the last child, then pad the end.
-  let maxCursor = Math.max(cursor[0], cursor[1]);
-  if (maxCursor > endPad) maxCursor -= childGap;
-  maxCursor += endPad;
-
   // ---- Compute street length and add street ------------------------------
-  const streetLength = Math.max(maxCursor, originPad + endPad);
+  let maxAlong = originPad;
+  for (const side of [0, 1] as const) {
+    for (const r of occupancy[side]) {
+      const high =
+        orientation === StreetAxis.X ? r.x - originX + r.w / 2 : r.y - originY + r.d / 2;
+      if (high > maxAlong) maxAlong = high;
+    }
+  }
+  const streetLength = Math.max(maxAlong + endPad, originPad + endPad);
 
   let streetCenterX = originX;
   let streetCenterY = originY;
@@ -727,10 +817,6 @@ function _layoutDir(
     label: dir.name || '',
     dir: dir as unknown as Street['dir'],
   });
-
-  for (let bi2 = 0; bi2 < fileBuildings.length; bi2++) {
-    result.buildings.push(fileBuildings[bi2]);
-  }
 }
 
 // -----------------------------------------------------------------------------

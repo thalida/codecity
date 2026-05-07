@@ -368,10 +368,12 @@ describe('layoutCity', () => {
     expect(secondary).toBe(true);
   });
 
-  // After the alphaCursor relaxation: when a directory contains only files,
-  // alternating-side files should land at the SAME along-street position
-  // (paired) rather than each being shifted by the prior file's width.
-  it('files on opposite sides sit directly across (paired)', () => {
+  // The occupancy-based packer enforces a monotonic priorStemX across both
+  // sides: alphabetically-earlier children must sit at lower along-axis
+  // positions than later ones, regardless of which side they land on. With
+  // alternation still in place (Task 4), this means a flat run of files
+  // splits across both sides AND lines up in alphabetical along-axis order.
+  it('files in a flat dir are alphabetically ordered along the street', () => {
     const file = (n: string) => ({
       name: n,
       type: NodeKind.File,
@@ -393,17 +395,21 @@ describe('layoutCity', () => {
     };
     const layout = layoutCity({ tree: dir });
     const street = layout.streets.find((s) => s.dir?.name === 'flat')!;
-    // Project each building onto the along-street axis, partitioned by side.
     const along = street.orientation === StreetAxis.X ? 'x' : 'y';
     const sideAxis = street.orientation === StreetAxis.X ? 'y' : 'x';
+    // Distribution: both sides should be populated.
     const sideA = layout.buildings.filter((b) => b[sideAxis] < street[sideAxis]);
     const sideB = layout.buildings.filter((b) => b[sideAxis] > street[sideAxis]);
     expect(sideA.length).toBeGreaterThan(0);
     expect(sideB.length).toBeGreaterThan(0);
-    // The first building on each side should share the same along-street position.
-    sideA.sort((p, q) => p[along] - q[along]);
-    sideB.sort((p, q) => p[along] - q[along]);
-    expect(Math.abs(sideA[0][along] - sideB[0][along])).toBeLessThan(0.01);
+    // Stem-order: walking the buildings sorted alphabetically by file name
+    // should yield a monotonically non-decreasing along-axis sequence.
+    const sortedByName = layout.buildings
+      .slice()
+      .sort((p, q) => (p.file?.name || '').localeCompare(q.file?.name || ''));
+    for (let i = 1; i < sortedByName.length; i++) {
+      expect(sortedByName[i][along]).toBeGreaterThanOrEqual(sortedByName[i - 1][along]);
+    }
   });
 });
 
