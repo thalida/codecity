@@ -93,16 +93,65 @@ function _rectsOverlap(a: Rect, b: Rect): boolean {
   );
 }
 
-// _overlapsAny(rects, occupancy) -> boolean
+// OccupancyEntry — one placed child's contribution to a side's occupancy.
+// Carries the translated rects and a precomputed bbox so overlap checks can
+// reject far-away entries in O(1) before iterating their per-rect content.
+// For deep trees, where each entry can hold an entire subtree's flattened
+// rect list, the bbox fast path keeps the inner loop proportional to the
+// number of geometrically-intersecting siblings rather than total rects.
+interface OccupancyEntry {
+  bbox: Rect;
+  rects: Rect[];
+}
+
+// _bboxOfRects(rects) -> Rect
 //
-// True iff any rect in `rects` intersects any rect in `occupancy`. Used by
-// the placement loop to reject candidate stem-x positions that would cause
-// a sibling collision. Linear scan; for the manifest sizes codecity targets
-// this is comfortably under the layout-pass budget.
-function _overlapsAny(rects: Rect[], occupancy: Rect[]): boolean {
+// Axis-aligned bounding box of an array of rects. (x, y) is the bbox
+// CENTER; w/d are the full width/depth — matches the Rect convention used
+// elsewhere. Empty input returns a zero-size rect at the origin so the
+// caller doesn't have to special-case it.
+function _bboxOfRects(rects: Rect[]): Rect {
+  let minX = Infinity,
+    maxX = -Infinity,
+    minY = Infinity,
+    maxY = -Infinity;
   for (let i = 0; i < rects.length; i++) {
-    for (let j = 0; j < occupancy.length; j++) {
-      if (_rectsOverlap(rects[i], occupancy[j])) return true;
+    const r = rects[i];
+    const x1 = r.x - r.w / 2,
+      x2 = r.x + r.w / 2;
+    const y1 = r.y - r.d / 2,
+      y2 = r.y + r.d / 2;
+    if (x1 < minX) minX = x1;
+    if (x2 > maxX) maxX = x2;
+    if (y1 < minY) minY = y1;
+    if (y2 > maxY) maxY = y2;
+  }
+  if (minX === Infinity) return { x: 0, y: 0, w: 0, d: 0 };
+  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
+}
+
+// _overlapsAny(candidateBbox, candidateRects, entries) -> boolean
+//
+// True iff any rect in `candidateRects` intersects any rect inside any
+// occupancy entry. Bbox-first fast path: for each entry, reject when
+// candidateBbox doesn't overlap entry.bbox (O(1) skip), only iterate
+// per-rect when bboxes intersect. For deep trees this keeps inner
+// work proportional to the number of geometrically-intersecting siblings,
+// not total siblings.
+function _overlapsAny(
+  candidateBbox: Rect,
+  candidateRects: Rect[],
+  entries: OccupancyEntry[]
+): boolean {
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (!_rectsOverlap(candidateBbox, e.bbox)) continue; // O(1) skip
+    for (let j = 0; j < candidateRects.length; j++) {
+      const c = candidateRects[j];
+      // Per-rect check; many entries are skipped above so this is rare.
+      for (let k = 0; k < e.rects.length; k++) {
+        if (_rectsOverlap(c, e.rects[k])) return true;
+      }
     }
   }
   return false;
@@ -145,33 +194,47 @@ function _collectRects(layout: {
   return out;
 }
 
-// _nextEventX(stemX, childRectsAtStemX, occupancy, axisAlong) -> number
+// _nextEventX(stemX, candidateBbox, candidateRects, entries, axisAlong) -> number
 //
 // When a candidate stem-x produces an overlap, returns the smallest x' > stemX
 // such that retrying at x' clears at least one (child, occupancy) overlapping
 // pair. For each overlapping (c, o) pair, computes the stemX shift such that
 // c's left edge lands at o's right edge; returns stemX + minimum such shift.
 // The placement loop is responsible for adding any childGap separation policy.
+//
+// Uses the same bbox fast-path as _overlapsAny: entries whose bbox doesn't
+// overlap the candidate's bbox can't contribute an event, so we skip them
+// in O(1) before any per-rect work.
 function _nextEventX(
   stemX: number,
-  childRectsAtStemX: Rect[],
-  occupancy: Rect[],
+  candidateBbox: Rect,
+  candidateRects: Rect[],
+  entries: OccupancyEntry[],
   axisAlong: 'x' | 'y'
 ): number {
   let bestAdvance = Infinity;
-  for (let i = 0; i < childRectsAtStemX.length; i++) {
-    const c = childRectsAtStemX[i];
-    const cLeft = axisAlong === 'x' ? c.x - c.w / 2 : c.y - c.d / 2;
-    for (let j = 0; j < occupancy.length; j++) {
-      const o = occupancy[j];
-      if (!_rectsOverlap(c, o)) continue;
-      const oRight = axisAlong === 'x' ? o.x + o.w / 2 : o.y + o.d / 2;
-      // Advance candidateStemX such that c's left edge ends up at oRight.
-      const advance = oRight - cLeft;
-      if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (!_rectsOverlap(candidateBbox, e.bbox)) continue;
+    for (let j = 0; j < candidateRects.length; j++) {
+      const c = candidateRects[j];
+      const cLeft = axisAlong === 'x' ? c.x - c.w / 2 : c.y - c.d / 2;
+      for (let k = 0; k < e.rects.length; k++) {
+        const o = e.rects[k];
+        if (!_rectsOverlap(c, o)) continue;
+        const oRight = axisAlong === 'x' ? o.x + o.w / 2 : o.y + o.d / 2;
+        // Advance candidateStemX such that c's left edge ends up at oRight.
+        const advance = oRight - cLeft;
+        if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
+      }
     }
   }
-  if (bestAdvance === Infinity) return stemX + 1; // shouldn't happen if overlap occurred
+  if (bestAdvance === Infinity) {
+    // Caller's contract: only invoke when _overlapsAny returned true at the
+    // current stemX. Reaching this branch means an overlap was reported but
+    // no entry contributes a positive advance — invariant violated.
+    throw new Error('_nextEventX called with no overlapping rect — invariant violated');
+  }
   return stemX + bestAdvance;
 }
 
@@ -211,14 +274,18 @@ function _translateChildRects(
   return out;
 }
 
-// _sideArea(occupancy) -> number
+// _sideArea(entries) -> number
 //
-// Sum of w*d over all rects in this side's occupancy. Used as the
-// tiebreaker when computing preferredSide in _layoutDir so the city grows symmetrically.
-function _sideArea(occupancy: Rect[]): number {
+// Sum of w*d over all rects in this side's occupancy entries. Used as the
+// tiebreaker when computing preferredSide in _layoutDir so the city grows
+// symmetrically.
+function _sideArea(entries: OccupancyEntry[]): number {
   let area = 0;
-  for (let i = 0; i < occupancy.length; i++) {
-    area += occupancy[i].w * occupancy[i].d;
+  for (let i = 0; i < entries.length; i++) {
+    const rects = entries[i].rects;
+    for (let j = 0; j < rects.length; j++) {
+      area += rects[j].w * rects[j].d;
+    }
   }
   return area;
 }
@@ -588,7 +655,10 @@ function _layoutDir(
   }
 
   // ---- Per-side occupancy + monotonic stem-x cursor ----------------------
-  const occupancy: Rect[][] = [[], []];
+  // Each occupancy entry groups one placed child's translated rects with
+  // their bbox so _overlapsAny / _nextEventX can reject far-away entries
+  // in O(1) before scanning their rect lists. See OccupancyEntry above.
+  const occupancy: OccupancyEntry[][] = [[], []];
   let priorStemX = originPad;
 
   for (let ci = 0; ci < children.length; ci++) {
@@ -683,6 +753,7 @@ function _layoutDir(
     let chosenSide: 0 | 1 = 0;
     let chosenStemX = 0;
     let placedRects: Rect[] = [];
+    let placedBbox: Rect = { x: 0, y: 0, w: 0, d: 0 };
     const axisAlong: 'x' | 'y' = orientation === StreetAxis.X ? 'x' : 'y';
 
     // Side preference (best-fit): try both sides at each candidateStemX;
@@ -694,7 +765,7 @@ function _layoutDir(
 
     while (true) {
       const sidesToTry: (0 | 1)[] = preferredSide === 0 ? [0, 1] : [1, 0];
-      const fits: { side: 0 | 1; rects: Rect[] }[] = [];
+      const fits: { side: 0 | 1; rects: Rect[]; bbox: Rect }[] = [];
       let smallestAdvance = Infinity;
       for (const side of sidesToTry) {
         const translated = _translateChildRects(
@@ -705,11 +776,18 @@ function _layoutDir(
           side,
           orientation
         );
-        if (!_overlapsAny(translated, occupancy[side])) {
-          fits.push({ side, rects: translated });
+        const translatedBbox = _bboxOfRects(translated);
+        if (!_overlapsAny(translatedBbox, translated, occupancy[side])) {
+          fits.push({ side, rects: translated, bbox: translatedBbox });
           continue;
         }
-        const advance = _nextEventX(candidateStemX, translated, occupancy[side], axisAlong);
+        const advance = _nextEventX(
+          candidateStemX,
+          translatedBbox,
+          translated,
+          occupancy[side],
+          axisAlong
+        );
         const delta = advance - candidateStemX;
         if (delta > 0 && delta < smallestAdvance) smallestAdvance = delta;
       }
@@ -719,6 +797,7 @@ function _layoutDir(
         chosenSide = fits[0].side;
         chosenStemX = candidateStemX;
         placedRects = fits[0].rects;
+        placedBbox = fits[0].bbox;
         break;
       }
       if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
@@ -729,7 +808,7 @@ function _layoutDir(
     }
 
     // Commit the placement.
-    occupancy[chosenSide].push(...placedRects);
+    occupancy[chosenSide].push({ bbox: placedBbox, rects: placedRects });
     priorStemX = chosenStemX;
 
     if (child.type === NodeKind.File) {
@@ -822,10 +901,12 @@ function _layoutDir(
   // ---- Compute street length and add street ------------------------------
   let maxAlong = originPad;
   for (const side of [0, 1] as const) {
-    for (const r of occupancy[side]) {
-      const high =
-        orientation === StreetAxis.X ? r.x - originX + r.w / 2 : r.y - originY + r.d / 2;
-      if (high > maxAlong) maxAlong = high;
+    for (const e of occupancy[side]) {
+      for (const r of e.rects) {
+        const high =
+          orientation === StreetAxis.X ? r.x - originX + r.w / 2 : r.y - originY + r.d / 2;
+        if (high > maxAlong) maxAlong = high;
+      }
     }
   }
   const streetLength = Math.max(maxAlong + endPad, originPad + endPad);
@@ -946,4 +1027,4 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
 }
 
 // Internal helpers exposed for tests only. Not part of the public API.
-export const __test = { _rectsOverlap, _overlapsAny, _collectRects };
+export const __test = { _rectsOverlap, _overlapsAny, _collectRects, _bboxOfRects };

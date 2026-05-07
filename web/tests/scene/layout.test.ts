@@ -611,27 +611,64 @@ describe('_rectsOverlap', () => {
 });
 
 describe('_overlapsAny', () => {
-  const { _overlapsAny } = __test;
+  const { _overlapsAny, _bboxOfRects } = __test;
+  // Wrap a flat rect list as a single occupancy entry so the new
+  // (bbox, rects, entries) signature stays close to the original test
+  // intent (each test placed `occ` rects independently — the old
+  // implementation didn't group by entry, so any grouping is fine here).
+  function asEntries(rects: Rect[]): { bbox: Rect; rects: Rect[] }[] {
+    return rects.map((r) => ({ bbox: r, rects: [r] }));
+  }
   const occ: Rect[] = [
     { x: 0, y: 0, w: 10, d: 10 },
     { x: 50, y: 0, w: 10, d: 10 },
   ];
   it('returns true when any one rect overlaps occupancy', () => {
     const probe: Rect[] = [{ x: 51, y: 0, w: 5, d: 5 }];
-    expect(_overlapsAny(probe, occ)).toBe(true);
+    expect(_overlapsAny(_bboxOfRects(probe), probe, asEntries(occ))).toBe(true);
   });
   it('returns false when no rects overlap occupancy', () => {
     const probe: Rect[] = [
       { x: 100, y: 0, w: 5, d: 5 },
       { x: 200, y: 0, w: 5, d: 5 },
     ];
-    expect(_overlapsAny(probe, occ)).toBe(false);
+    expect(_overlapsAny(_bboxOfRects(probe), probe, asEntries(occ))).toBe(false);
   });
   it('empty occupancy → always false', () => {
-    expect(_overlapsAny([{ x: 0, y: 0, w: 1, d: 1 }], [])).toBe(false);
+    const probe: Rect[] = [{ x: 0, y: 0, w: 1, d: 1 }];
+    expect(_overlapsAny(_bboxOfRects(probe), probe, [])).toBe(false);
   });
   it('empty probe → always false', () => {
-    expect(_overlapsAny([], occ)).toBe(false);
+    expect(_overlapsAny(_bboxOfRects([]), [], asEntries(occ))).toBe(false);
+  });
+  it('bbox fast-path skips entries whose bbox is far from candidate', () => {
+    // Build an entry with a bbox that doesn't overlap the candidate even
+    // though one of its inner rects (constructed pathologically) would.
+    // This isn't physically realizable from a real layout (entry.bbox
+    // always covers all entry.rects) but exercises the bbox-skip branch.
+    const farEntry = {
+      bbox: { x: 1000, y: 0, w: 5, d: 5 },
+      rects: [{ x: 0, y: 0, w: 5, d: 5 }], // would overlap probe
+    };
+    const probe: Rect[] = [{ x: 0, y: 0, w: 5, d: 5 }];
+    expect(_overlapsAny(_bboxOfRects(probe), probe, [farEntry])).toBe(false);
+  });
+});
+
+describe('_bboxOfRects', () => {
+  const { _bboxOfRects } = __test;
+  it('empty input returns zero-size rect at origin', () => {
+    expect(_bboxOfRects([])).toEqual({ x: 0, y: 0, w: 0, d: 0 });
+  });
+  it('single rect bbox equals the rect', () => {
+    const r: Rect = { x: 5, y: 10, w: 4, d: 6 };
+    expect(_bboxOfRects([r])).toEqual({ x: 5, y: 10, w: 4, d: 6 });
+  });
+  it('union of two rects spans both', () => {
+    const a: Rect = { x: 0, y: 0, w: 2, d: 2 }; // x in [-1, 1], y in [-1, 1]
+    const b: Rect = { x: 10, y: 10, w: 2, d: 2 }; // x in [9, 11], y in [9, 11]
+    // Union: x in [-1, 11] -> center 5, w 12. y in [-1, 11] -> center 5, d 12.
+    expect(_bboxOfRects([a, b])).toEqual({ x: 5, y: 5, w: 12, d: 12 });
   });
 });
 
