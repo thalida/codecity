@@ -113,6 +113,7 @@ function _collectRects(layout: {
   }
   return out;
 }
+
 interface ManifestLike {
   tree?: DirLike;
   [k: string]: unknown;

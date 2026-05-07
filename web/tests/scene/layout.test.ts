@@ -552,6 +552,9 @@ describe('_rectsOverlap', () => {
   it('touching edges return false (childGap-apart abutment is OK)', () => {
     expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 10, y: 0, w: 10, d: 10 })).toBe(false);
   });
+  it('touching edges on Y axis return false', () => {
+    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 0, y: 10, w: 10, d: 10 })).toBe(false);
+  });
   it('one contains the other returns true', () => {
     expect(_rectsOverlap({ x: 0, y: 0, w: 100, d: 100 }, { x: 0, y: 0, w: 5, d: 5 })).toBe(true);
   });
@@ -584,6 +587,9 @@ describe('_overlapsAny', () => {
 
 describe('_collectRects', () => {
   const { _collectRects } = __test;
+  it('empty input returns empty array', () => {
+    expect(_collectRects({})).toEqual([]);
+  });
   it('converts X-orient street to long-x short-y rect', () => {
     const rects = _collectRects({
       streets: [
