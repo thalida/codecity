@@ -118,34 +118,68 @@ export function createCameraRig({
     const bbox = cityScene.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
 
-    const center = new THREE.Vector3();
-    bbox.getCenter(center);
-    const groundCenter = new THREE.Vector3(center.x, 0, center.z);
-
-    // Camera distance: sized to the FARTHEST bbox corner relative to
-    // the orbit pivot — guarantees every building fits even when the
-    // pivot is offset from bbox center.
+    // World-bbox metrics — drive controls.maxDistance + camera.far so the
+    // user can zoom all the way out and see the whole city without it
+    // being clipped by the far plane.
+    const worldCenter = new THREE.Vector3();
+    bbox.getCenter(worldCenter);
+    const worldGroundCenter = new THREE.Vector3(worldCenter.x, 0, worldCenter.z);
     const farX = Math.max(
-      Math.abs(bbox.max.x - groundCenter.x),
-      Math.abs(bbox.min.x - groundCenter.x)
+      Math.abs(bbox.max.x - worldGroundCenter.x),
+      Math.abs(bbox.min.x - worldGroundCenter.x)
     );
     const farY = Math.max(
-      Math.abs(bbox.max.y - groundCenter.y),
-      Math.abs(bbox.min.y - groundCenter.y)
+      Math.abs(bbox.max.y - worldGroundCenter.y),
+      Math.abs(bbox.min.y - worldGroundCenter.y)
     );
     const farZ = Math.max(
-      Math.abs(bbox.max.z - groundCenter.z),
-      Math.abs(bbox.min.z - groundCenter.z)
+      Math.abs(bbox.max.z - worldGroundCenter.z),
+      Math.abs(bbox.min.z - worldGroundCenter.z)
     );
-    const radius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
-    const dist =
-      (radius / Math.sin((camera.fov * Math.PI) / 180 / 2)) *
-      cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    const worldRadius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
+    const halfFov = (camera.fov * Math.PI) / 180 / 2;
+    const worldDist =
+      (worldRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    controls.maxDistance = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT;
+
+    // Far clip: covers the farthest point a fully-zoomed-out camera can
+    // see (worldDist × MAX_DISTANCE_MULT past target, plus the world's
+    // own radius). Set unconditionally so it shrinks for small worlds
+    // (depth-buffer precision matters at z-fight sensitivity, e.g. the
+    // hover-ghost inset) AND grows for huge worlds (SHOW_ALL_FILES on a
+    // codebase with node_modules can push >100k units).
+    camera.far = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT * 2 + worldRadius * 2;
+    camera.updateProjectionMatrix();
+
+    // Framing target: the root gem, with a distance sized to the root
+    // street rather than the whole-world bbox. R should land the user
+    // looking at the gem with the root street + its immediate
+    // neighborhood readable on screen — not zoomed all the way out where
+    // the gem becomes an invisible dot in a sprawling metropolis.
+    const gemPos = cityScene.getGemWorldPos();
+    const rootStreet = cityScene.getRootStreet();
+    let framingCenter: THREE.Vector3;
+    let framingRadius: number;
+    if (gemPos && rootStreet) {
+      framingCenter = new THREE.Vector3(gemPos.x, 0, gemPos.z);
+      // Frame off the root street's WIDTH, not its length. Length is a
+      // proxy for "how much stuff is in the project" — for a big repo the
+      // root street is enormously long and framing on it is the same as
+      // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
+      // so width × 10 reliably fits the gem + the road's first stretch
+      // regardless of project size.
+      framingRadius = rootStreet.width * 10;
+    } else {
+      // No gem (empty manifest, pre-build) — fall back to whole-world.
+      framingCenter = worldGroundCenter;
+      framingRadius = worldRadius;
+    }
+    const framingDist =
+      (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
     const dir = new THREE.Vector3(-1, 1, 1).normalize();
-    initialCamPos = groundCenter.clone().add(dir.multiplyScalar(dist));
-    initialTarget = groundCenter.clone();
-    controls.maxDistance = dist * cameraControlsCfg.MAX_DISTANCE_MULT;
+    initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
+    initialTarget = framingCenter.clone();
 
     // Update OrbitControls' saveState (used by controls.reset()) without
     // disturbing the user's current view: stash, swap to framed pose,
@@ -253,12 +287,25 @@ export function createCameraRig({
       /* private mode / unavailable — ignore */
     }
     camera.up.set(0, 1, 0);
-    // Hard snap via controls.reset() instead of animating: animation +
-    // OrbitControls damping let leftover momentum drift the camera past
-    // the target and the change listener would then save the drifted
-    // pose. controls.reset() restores the saveState pose AND clears the
-    // internal _sphericalDelta / _panOffset / _scale deltas in one shot.
-    controls.reset();
+    // Hard snap. Bypassing controls.reset() in favor of a manual snap
+    // because controls.reset() calls update() at the end, which re-applies
+    // any residual sphericalDelta / panOffset / scale from the user's last
+    // interaction — visible as the camera drifting back toward the
+    // pre-reset pose, especially when the framed pose is far from where
+    // the user was (e.g. R after toggling SHOW_ALL_FILES on, going from a
+    // close-up small world to a far-out big world). Disabling damping
+    // during the snap consumes those deltas in one frame at full strength,
+    // then we re-enable damping for normal use.
+    const wasDamping = controls.enableDamping;
+    controls.enableDamping = false;
+    camera.position.copy(initialCamPos);
+    controls.target.copy(initialTarget);
+    camera.lookAt(initialTarget);
+    controls.update();
+    controls.enableDamping = wasDamping;
+    // Refresh saveState so subsequent controls.reset() calls (e.g. from
+    // a future canceled focus tween) snap to the now-current pose.
+    controls.saveState();
   }
 
   // Slide pivot to p; camera shifts by the same delta so the visible
