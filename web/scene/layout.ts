@@ -63,9 +63,19 @@ interface LocalChildLayout {
 
 // _rectsOverlap(a, b) -> boolean
 //
-// True iff two axis-aligned rectangles intersect. Touching edges (zero
-// overlap) returns false; the packer relies on this so that two rects
-// abutted at exactly childGap apart count as non-overlapping.
+// True iff two axis-aligned rectangles intersect by more than FP noise.
+// Touching edges (zero overlap) returns false; the packer relies on this
+// so that two rects abutted at exactly childGap apart count as
+// non-overlapping. Because layout edges are derived from CENTER ± SIZE/2
+// after additive translation through non-integer offsets (e.g. a path's
+// far edge `61.6 + 2 = 63.6` vs a building's near edge `66.6 - 3 =
+// 63.5999…`), strict `<` comparison on FP-derived edges sporadically
+// reports the touching case as a sub-femto-unit overlap. The OVERLAP_EPS
+// threshold below treats overlaps smaller than a billionth of a world
+// unit as touching — far below the smallest meaningful geometry (paths
+// are ~2 units; the smallest building is 6 units), but well above
+// double-precision rounding noise (~7e-15 for our coordinate range).
+const OVERLAP_EPS = 1e-9;
 function _rectsOverlap(a: Rect, b: Rect): boolean {
   const ax1 = a.x - a.w / 2,
     ax2 = a.x + a.w / 2;
@@ -75,7 +85,12 @@ function _rectsOverlap(a: Rect, b: Rect): boolean {
     bx2 = b.x + b.w / 2;
   const by1 = b.y - b.d / 2,
     by2 = b.y + b.d / 2;
-  return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+  return (
+    ax1 < bx2 - OVERLAP_EPS &&
+    ax2 > bx1 + OVERLAP_EPS &&
+    ay1 < by2 - OVERLAP_EPS &&
+    ay2 > by1 + OVERLAP_EPS
+  );
 }
 
 // _overlapsAny(rects, occupancy) -> boolean
