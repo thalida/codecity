@@ -214,7 +214,7 @@ function _translateChildRects(
 // _sideArea(occupancy) -> number
 //
 // Sum of w*d over all rects in this side's occupancy. Used as the
-// secondary tiebreaker in _pickBestFit so the city grows symmetrically.
+// tiebreaker when computing preferredSide in _layoutDir so the city grows symmetrically.
 function _sideArea(occupancy: Rect[]): number {
   let area = 0;
   for (let i = 0; i < occupancy.length; i++) {

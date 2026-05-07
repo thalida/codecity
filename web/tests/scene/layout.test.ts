@@ -371,8 +371,8 @@ describe('layoutCity', () => {
   // The occupancy-based packer enforces a monotonic priorStemX across both
   // sides: alphabetically-earlier children must sit at lower along-axis
   // positions than later ones, regardless of which side they land on. With
-  // alternation still in place (Task 4), this means a flat run of files
-  // splits across both sides AND lines up in alphabetical along-axis order.
+  // best-fit area balancing, a flat run of equal-size files distributes
+  // across both sides while maintaining alphabetical along-axis order.
   it('files in a flat dir are alphabetically ordered along the street', () => {
     const file = (n: string) => ({
       name: n,
@@ -412,8 +412,9 @@ describe('layoutCity', () => {
     }
   });
 
-  // NOTE: this relies on alternation (Task 4); Task 5 best-fit may change side
-  // assignment for the first pair.
+  // With best-fit area balancing, equal-size files still pair symmetrically:
+  // the first file on side 0 makes side 1 the smaller-area side, and the next
+  // equal-size file lands on side 1 at the same stem-x.
   it('files on opposite sides sit directly across (paired)', () => {
     const file = (n: string) => ({
       name: n,
@@ -599,6 +600,13 @@ describe('_rectsOverlap', () => {
   });
   it('one contains the other returns true', () => {
     expect(_rectsOverlap({ x: 0, y: 0, w: 100, d: 100 }, { x: 0, y: 0, w: 5, d: 5 })).toBe(true);
+  });
+  it('sub-femto overlap (FP noise) is treated as touching', () => {
+    // Simulate the 7e-15 overlap that arose from translating touching rects
+    // through non-integer offsets (e.g. center=63.6 computed two different ways).
+    const a = { x: 0, y: 0, w: 2, d: 2 };
+    const b = { x: 2 - 7e-15, y: 0, w: 2, d: 2 };
+    expect(_rectsOverlap(a, b)).toBe(false);
   });
 });
 
