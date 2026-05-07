@@ -5,7 +5,9 @@ import {
   layoutCity,
   sortForRendering,
   computeLineStats,
+  __test,
 } from '@/scene/layout.js';
+import type { Rect } from '@/scene/layout.js';
 import { BUILDING_DIMENSIONS } from '@/config/index.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { BuildingDimensionsConfig } from '@/config/building.js';
@@ -535,5 +537,140 @@ describe('sortForRendering', () => {
   it('handles empty array', () => {
     const sorted = sortForRendering([]);
     expect(sorted.length).toBe(0);
+  });
+});
+
+// ---- Internal helpers ----
+describe('_rectsOverlap', () => {
+  const { _rectsOverlap } = __test;
+  it('overlapping rects return true', () => {
+    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 5, y: 5, w: 10, d: 10 })).toBe(true);
+  });
+  it('disjoint rects return false', () => {
+    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
+  });
+  it('touching edges return false (childGap-apart abutment is OK)', () => {
+    expect(_rectsOverlap({ x: 0, y: 0, w: 10, d: 10 }, { x: 10, y: 0, w: 10, d: 10 })).toBe(false);
+  });
+  it('one contains the other returns true', () => {
+    expect(_rectsOverlap({ x: 0, y: 0, w: 100, d: 100 }, { x: 0, y: 0, w: 5, d: 5 })).toBe(true);
+  });
+});
+
+describe('_overlapsAny', () => {
+  const { _overlapsAny } = __test;
+  const occ: Rect[] = [
+    { x: 0, y: 0, w: 10, d: 10 },
+    { x: 50, y: 0, w: 10, d: 10 },
+  ];
+  it('returns true when any one rect overlaps occupancy', () => {
+    const probe: Rect[] = [{ x: 51, y: 0, w: 5, d: 5 }];
+    expect(_overlapsAny(probe, occ)).toBe(true);
+  });
+  it('returns false when no rects overlap occupancy', () => {
+    const probe: Rect[] = [
+      { x: 100, y: 0, w: 5, d: 5 },
+      { x: 200, y: 0, w: 5, d: 5 },
+    ];
+    expect(_overlapsAny(probe, occ)).toBe(false);
+  });
+  it('empty occupancy → always false', () => {
+    expect(_overlapsAny([{ x: 0, y: 0, w: 1, d: 1 }], [])).toBe(false);
+  });
+  it('empty probe → always false', () => {
+    expect(_overlapsAny([], occ)).toBe(false);
+  });
+});
+
+describe('_collectRects', () => {
+  const { _collectRects } = __test;
+  it('converts X-orient street to long-x short-y rect', () => {
+    const rects = _collectRects({
+      streets: [
+        {
+          x: 50,
+          y: 10,
+          length: 100,
+          width: 5,
+          orientation: StreetAxis.X,
+          label: '',
+          dir: { name: '', path: '', type: NodeKind.Directory } as any,
+        },
+      ],
+    });
+    expect(rects).toEqual([{ x: 50, y: 10, w: 100, d: 5 }]);
+  });
+  it('converts Y-orient street to short-x long-y rect', () => {
+    const rects = _collectRects({
+      streets: [
+        {
+          x: 10,
+          y: 50,
+          length: 100,
+          width: 5,
+          orientation: StreetAxis.Y,
+          label: '',
+          dir: { name: '', path: '', type: NodeKind.Directory } as any,
+        },
+      ],
+    });
+    expect(rects).toEqual([{ x: 10, y: 50, w: 5, d: 100 }]);
+  });
+  it('passes building rects through unchanged', () => {
+    const rects = _collectRects({
+      buildings: [
+        {
+          x: 1,
+          y: 2,
+          w: 3,
+          d: 4,
+          h: 5,
+          floors: 1,
+          file: {} as any,
+          color: null as any,
+          orient: BuildingOrient.South,
+        },
+      ],
+    });
+    expect(rects).toEqual([{ x: 1, y: 2, w: 3, d: 4 }]);
+  });
+  it('passes path rects through unchanged', () => {
+    const rects = _collectRects({
+      paths: [{ x: 1, y: 2, w: 3, d: 4, file: {} as any }],
+    });
+    expect(rects).toEqual([{ x: 1, y: 2, w: 3, d: 4 }]);
+  });
+  it('combines streets, buildings, and paths in that order', () => {
+    const rects = _collectRects({
+      streets: [
+        {
+          x: 0,
+          y: 0,
+          length: 10,
+          width: 2,
+          orientation: StreetAxis.X,
+          label: '',
+          dir: {} as any,
+        },
+      ],
+      buildings: [
+        {
+          x: 1,
+          y: 1,
+          w: 1,
+          d: 1,
+          h: 1,
+          floors: 1,
+          file: {} as any,
+          color: null as any,
+          orient: BuildingOrient.South,
+        },
+      ],
+      paths: [{ x: 2, y: 2, w: 2, d: 2, file: {} as any }],
+    });
+    expect(rects.length).toBe(3);
+    expect(rects[0].w).toBe(10); // street
+    expect(rects[1].w).toBe(1); // building
+    expect(rects[2].w).toBe(2); // path
   });
 });

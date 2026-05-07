@@ -33,6 +33,86 @@ interface DirLike {
   [k: string]: unknown;
 }
 type TreeLike = FileLike | DirLike;
+
+// Rect — axis-aligned bounding rectangle in some 2D frame. Used by the
+// occupancy-based packer in _layoutDir to test whether a candidate
+// placement overlaps already-placed siblings. (x, y) is the rect's CENTER;
+// w/d are the full width/depth (matches Building/Street conventions).
+export interface Rect {
+  x: number;
+  y: number;
+  w: number;
+  d: number;
+}
+
+// _rectsOverlap(a, b) -> boolean
+//
+// True iff two axis-aligned rectangles intersect. Touching edges (zero
+// overlap) returns false; the packer relies on this so that two rects
+// abutted at exactly childGap apart count as non-overlapping.
+function _rectsOverlap(a: Rect, b: Rect): boolean {
+  const ax1 = a.x - a.w / 2,
+    ax2 = a.x + a.w / 2;
+  const ay1 = a.y - a.d / 2,
+    ay2 = a.y + a.d / 2;
+  const bx1 = b.x - b.w / 2,
+    bx2 = b.x + b.w / 2;
+  const by1 = b.y - b.d / 2,
+    by2 = b.y + b.d / 2;
+  return ax1 < bx2 && ax2 > bx1 && ay1 < by2 && ay2 > by1;
+}
+
+// _overlapsAny(rects, occupancy) -> boolean
+//
+// True iff any rect in `rects` intersects any rect in `occupancy`. Used by
+// the placement loop to reject candidate stem-x positions that would cause
+// a sibling collision. Linear scan; for the manifest sizes codecity targets
+// this is comfortably under the layout-pass budget.
+function _overlapsAny(rects: Rect[], occupancy: Rect[]): boolean {
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = 0; j < occupancy.length; j++) {
+      if (_rectsOverlap(rects[i], occupancy[j])) return true;
+    }
+  }
+  return false;
+}
+
+// _collectRects(layout) -> Rect[]
+//
+// Flatten a partial layout (streets + buildings + paths) into a single
+// rect list for occupancy testing. A Street with orientation X has its
+// long side on x and its short side on y; orientation Y is the inverse.
+// Buildings and paths already use { x, y, w, d } directly.
+function _collectRects(layout: {
+  streets?: Street[];
+  buildings?: Building[];
+  paths?: BuildingPath[];
+}): Rect[] {
+  const out: Rect[] = [];
+  if (layout.streets) {
+    for (let i = 0; i < layout.streets.length; i++) {
+      const s = layout.streets[i];
+      if (s.orientation === StreetAxis.X) {
+        out.push({ x: s.x, y: s.y, w: s.length, d: s.width });
+      } else {
+        out.push({ x: s.x, y: s.y, w: s.width, d: s.length });
+      }
+    }
+  }
+  if (layout.buildings) {
+    for (let i = 0; i < layout.buildings.length; i++) {
+      const b = layout.buildings[i];
+      out.push({ x: b.x, y: b.y, w: b.w, d: b.d });
+    }
+  }
+  if (layout.paths) {
+    for (let i = 0; i < layout.paths.length; i++) {
+      const p = layout.paths[i];
+      out.push({ x: p.x, y: p.y, w: p.w, d: p.d });
+    }
+  }
+  return out;
+}
 interface ManifestLike {
   tree?: DirLike;
   [k: string]: unknown;
@@ -739,3 +819,6 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
   });
   return sorted;
 }
+
+// Internal helpers exposed for tests only. Not part of the public API.
+export const __test = { _rectsOverlap, _overlapsAny, _collectRects };
