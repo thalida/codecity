@@ -70,11 +70,15 @@ interface LocalChildLayout {
 // after additive translation through non-integer offsets (e.g. a path's
 // far edge `61.6 + 2 = 63.6` vs a building's near edge `66.6 - 3 =
 // 63.5999…`), strict `<` comparison on FP-derived edges sporadically
-// reports the touching case as a sub-femto-unit overlap. The OVERLAP_EPS
-// threshold below treats overlaps smaller than a billionth of a world
-// unit as touching — far below the smallest meaningful geometry (paths
-// are ~2 units; the smallest building is 6 units), but well above
-// double-precision rounding noise (~7e-15 for our coordinate range).
+// reports the touching case as a sub-femto-unit overlap.
+//
+// OVERLAP_EPS: tolerance for IEEE-754 noise that arises when two touching
+// rects have edges computed via different additive paths (e.g. center+size/2
+// vs neighbor-center-size/2 through a non-integer subAnchor). Empirically
+// ~7e-15 per single translation; a few orders of magnitude higher under
+// deep recursion at large coordinate scales. 1e-9 sits well above this
+// noise band and far below any visible-scale geometry (smallest gap ~1
+// unit), so it eliminates false-positive overlaps without masking real ones.
 const OVERLAP_EPS = 1e-9;
 function _rectsOverlap(a: Rect, b: Rect): boolean {
   const ax1 = a.x - a.w / 2,
