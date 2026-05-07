@@ -55,7 +55,7 @@ export interface Rect {
 interface LocalChildLayout {
   along: number;
   alongLow: number; // local-frame x of the leftmost rect edge (≤ 0 typically)
-  rects: Rect[];
+  rects: RectBuf;
   streets: Street[];
   buildings: Building[];
   paths: BuildingPath[];
@@ -105,7 +105,7 @@ function _rectsOverlap(a: Rect, b: Rect): boolean {
 // number of geometrically-intersecting siblings rather than total rects.
 interface OccupancyEntry {
   bbox: Rect;
-  rects: Rect[];
+  rects: RectBuf;
 }
 
 // _bboxOfRects(rects) -> Rect
@@ -134,31 +134,229 @@ function _bboxOfRects(rects: Rect[]): Rect {
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
 }
 
-// _overlapsAny(candidateBbox, candidateRects, entries) -> boolean
+// _overlapsAny(candidateBbox, candidateBuf, candidateLen, entries) -> boolean
 //
-// True iff any rect in `candidateRects` intersects any rect inside any
-// occupancy entry. Bbox-first fast path: for each entry, reject when
-// candidateBbox doesn't overlap entry.bbox (O(1) skip), only iterate
-// per-rect when bboxes intersect. For deep trees this keeps inner
-// work proportional to the number of geometrically-intersecting siblings,
-// not total siblings.
+// True iff any rect in `candidateBuf[0..candidateLen)` intersects any rect
+// inside any occupancy entry. Bbox-first fast path: for each entry, reject
+// when candidateBbox doesn't overlap entry.bbox (O(1) skip), only iterate
+// per-rect when bboxes intersect. For deep trees this keeps inner work
+// proportional to the number of geometrically-intersecting siblings, not
+// total siblings. Reads coords directly from the typed arrays — no per-rect
+// object allocation in the hot path.
 function _overlapsAny(
   candidateBbox: Rect,
-  candidateRects: Rect[],
+  candidateBuf: RectBuf,
+  candidateLen: number,
   entries: OccupancyEntry[]
 ): boolean {
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i];
     if (!_rectsOverlap(candidateBbox, e.bbox)) continue; // O(1) skip
-    for (let j = 0; j < candidateRects.length; j++) {
-      const c = candidateRects[j];
-      // Per-rect check; many entries are skipped above so this is rare.
-      for (let k = 0; k < e.rects.length; k++) {
-        if (_rectsOverlap(c, e.rects[k])) return true;
+    const eBbox = e.bbox;
+    const eBx1 = eBbox.x - eBbox.w / 2,
+      eBx2 = eBbox.x + eBbox.w / 2;
+    const eBy1 = eBbox.y - eBbox.d / 2,
+      eBy2 = eBbox.y + eBbox.d / 2;
+    const eRects = e.rects;
+    const eN = eRects.length >>> 2;
+    // Inlined _rectsOverlapBuf for the hot inner loop — avoids function-call
+    // overhead in deep trees where this can dominate (millions of pair checks
+    // for d4f10).
+    //
+    // Two-level pruning: per-entry bbox skip eliminates whole entries when
+    // the candidate's bbox doesn't overlap the entry's. Per-candidate-rect
+    // skip eliminates candidate rects whose own AABB doesn't reach the
+    // entry's bbox — only rects on the boundary of the candidate's footprint
+    // can contribute to overlap, so this trims the inner loop to ~O(boundary)
+    // when both subtrees have many interior rects.
+    for (let j = 0; j < candidateLen; j++) {
+      const co = j << 2;
+      const cx = candidateBuf[co],
+        cy = candidateBuf[co + 1],
+        cw = candidateBuf[co + 2],
+        cd = candidateBuf[co + 3];
+      const cx1 = cx - cw / 2,
+        cx2 = cx + cw / 2;
+      const cy1 = cy - cd / 2,
+        cy2 = cy + cd / 2;
+      // Inner bbox prune: if THIS candidate rect doesn't intersect the
+      // entry's bbox, none of entry.rects can intersect it — skip.
+      if (
+        !(
+          cx1 + OVERLAP_EPS < eBx2 &&
+          cx2 - OVERLAP_EPS > eBx1 &&
+          cy1 + OVERLAP_EPS < eBy2 &&
+          cy2 - OVERLAP_EPS > eBy1
+        )
+      ) {
+        continue;
+      }
+      for (let k = 0; k < eN; k++) {
+        const eo = k << 2;
+        const ex = eRects[eo],
+          ey = eRects[eo + 1],
+          ew = eRects[eo + 2],
+          ed = eRects[eo + 3];
+        const ex1 = ex - ew / 2,
+          ex2 = ex + ew / 2;
+        const ey1 = ey - ed / 2,
+          ey2 = ey + ed / 2;
+        if (
+          cx1 + OVERLAP_EPS < ex2 &&
+          cx2 - OVERLAP_EPS > ex1 &&
+          cy1 + OVERLAP_EPS < ey2 &&
+          cy2 - OVERLAP_EPS > ey1
+        ) {
+          return true;
+        }
       }
     }
   }
   return false;
+}
+
+// _checkAndAdvance(...) -> { fits, advance }
+//
+// Combined fit-test + nextEventX in a single pass over the occupancy
+// entries. Avoids a duplicate scan when the placement loop both checks
+// for fit AND needs to compute the advance on miss. Returns
+// `advance = -1` when fits=true (caller doesn't read it).
+//
+// This is the inner hot loop of _layoutDir for deep trees. Combining the
+// two passes is a big win because a SECOND pass of overlapping entries
+// would re-execute all the bbox-prune work that the first pass already
+// did. Single-pass: each entry is scanned at most once per attempt.
+function _checkAndAdvance(
+  candidateBbox: Rect,
+  candidateBuf: RectBuf,
+  candidateLen: number,
+  entries: OccupancyEntry[],
+  axisAlong: 'x' | 'y'
+): { fits: boolean; advance: number } {
+  const isX = axisAlong === 'x';
+  let bestAdvance = Infinity;
+  let anyOverlap = false;
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    if (!_rectsOverlap(candidateBbox, e.bbox)) continue;
+    const eBbox = e.bbox;
+    const eBx1 = eBbox.x - eBbox.w / 2,
+      eBx2 = eBbox.x + eBbox.w / 2;
+    const eBy1 = eBbox.y - eBbox.d / 2,
+      eBy2 = eBbox.y + eBbox.d / 2;
+    const eRects = e.rects;
+    const eN = eRects.length >>> 2;
+    // Each entry's rects are sorted by along-axis right edge ASCENDING at
+    // commit time (see _sortRectsByAlongRight below). Combined with the
+    // monotonic-advance property — for fixed cLeft, advance(k) is monotonic
+    // increasing with oRight(k) — we can stop the inner k-loop as soon as
+    // oRight > cLeft + bestAdvance (no later rect can beat bestAdvance).
+    for (let j = 0; j < candidateLen; j++) {
+      const co = j << 2;
+      const cx = candidateBuf[co],
+        cy = candidateBuf[co + 1],
+        cw = candidateBuf[co + 2],
+        cd = candidateBuf[co + 3];
+      const cx1 = cx - cw / 2,
+        cx2 = cx + cw / 2;
+      const cy1 = cy - cd / 2,
+        cy2 = cy + cd / 2;
+      const cLeft = isX ? cx1 : cy1;
+      // j-prune: skip candidate rects whose own AABB doesn't reach the
+      // entry's bbox.
+      if (
+        !(
+          cx1 + OVERLAP_EPS < eBx2 &&
+          cx2 - OVERLAP_EPS > eBx1 &&
+          cy1 + OVERLAP_EPS < eBy2 &&
+          cy2 - OVERLAP_EPS > eBy1
+        )
+      ) {
+        continue;
+      }
+      for (let k = 0; k < eN; k++) {
+        const eo = k << 2;
+        const ex = eRects[eo],
+          ey = eRects[eo + 1],
+          ew = eRects[eo + 2],
+          ed = eRects[eo + 3];
+        const ex1 = ex - ew / 2,
+          ex2 = ex + ew / 2;
+        const ey1 = ey - ed / 2,
+          ey2 = ey + ed / 2;
+        const oRight = isX ? ex2 : ey2;
+        // Sorted-prune (early k-exit): once oRight exceeds (cLeft + bestAdvance),
+        // no later rect in this entry can produce a smaller advance.
+        if (oRight - cLeft >= bestAdvance) break;
+        if (
+          !(
+            cx1 + OVERLAP_EPS < ex2 &&
+            cx2 - OVERLAP_EPS > ex1 &&
+            cy1 + OVERLAP_EPS < ey2 &&
+            cy2 - OVERLAP_EPS > ey1
+          )
+        ) {
+          continue;
+        }
+        anyOverlap = true;
+        const advance = oRight - cLeft;
+        if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
+      }
+    }
+  }
+  if (!anyOverlap) {
+    return { fits: true, advance: -1 };
+  }
+  if (bestAdvance === Infinity) {
+    throw new Error('_checkAndAdvance overlap reported but no positive advance — invariant violated');
+  }
+  return { fits: false, advance: bestAdvance };
+}
+
+// _sortRectsByAlongRightInPlace(buf, axisAlong) — mutates `buf` so its
+// rects are ordered by along-axis right edge ASCENDING. Used at commit
+// time on a freshly-allocated placedBuf so subsequent _checkAndAdvance
+// scans can early-exit the inner per-rect loop once the next rect's
+// minimum possible advance exceeds the running best.
+//
+// Implementation: index sort + permutation rewrite. We allocate one tmp
+// Float32Array of the same length to write the permuted contents into,
+// then copy back. Avoiding a swap-in-place keeps the algorithm O(n) for
+// the rewrite step (an in-place permutation cycle would be the same
+// asymptotically but harder to read).
+function _sortRectsByAlongRightInPlace(buf: RectBuf, axisAlong: 'x' | 'y'): void {
+  const n = buf.length >>> 2;
+  if (n <= 1) return;
+  const isX = axisAlong === 'x';
+  const indices = new Array<number>(n);
+  for (let i = 0; i < n; i++) indices[i] = i;
+  indices.sort((a, b) => {
+    const ao = a << 2;
+    const bo = b << 2;
+    const aRight = isX ? buf[ao] + buf[ao + 2] / 2 : buf[ao + 1] + buf[ao + 3] / 2;
+    const bRight = isX ? buf[bo] + buf[bo + 2] / 2 : buf[bo + 1] + buf[bo + 3] / 2;
+    return aRight - bRight;
+  });
+  // Check if already sorted (very common when entries are committed in
+  // collection order from sorted children) — skip the rewrite.
+  let alreadySorted = true;
+  for (let i = 0; i < n; i++) {
+    if (indices[i] !== i) {
+      alreadySorted = false;
+      break;
+    }
+  }
+  if (alreadySorted) return;
+  const tmp = new Float32Array(n * 4);
+  for (let i = 0; i < n; i++) {
+    const src = indices[i] << 2;
+    const dst = i << 2;
+    tmp[dst] = buf[src];
+    tmp[dst + 1] = buf[src + 1];
+    tmp[dst + 2] = buf[src + 2];
+    tmp[dst + 3] = buf[src + 3];
+  }
+  buf.set(tmp);
 }
 
 // _collectRects(layout) -> Rect[]
@@ -297,97 +495,110 @@ function _bboxOfBuf(buf: RectBuf, len?: number): Rect {
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
 }
 
-// _nextEventX(stemX, candidateBbox, candidateRects, entries, axisAlong) -> number
+// _translateInto(out, src, originX, originY, stemX, sideIdx, parentOrient, srcLen?)
 //
-// When a candidate stem-x produces an overlap, returns the smallest x' > stemX
-// such that retrying at x' clears at least one (child, occupancy) overlapping
-// pair. For each overlapping (c, o) pair, computes the stemX shift such that
-// c's left edge lands at o's right edge; returns stemX + minimum such shift.
-// The placement loop is responsible for adding any childGap separation policy.
-//
-// Uses the same bbox fast-path as _overlapsAny: entries whose bbox doesn't
-// overlap the candidate's bbox can't contribute an event, so we skip them
-// in O(1) before any per-rect work.
-function _nextEventX(
-  stemX: number,
-  candidateBbox: Rect,
-  candidateRects: Rect[],
-  entries: OccupancyEntry[],
-  axisAlong: 'x' | 'y'
-): number {
-  let bestAdvance = Infinity;
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    if (!_rectsOverlap(candidateBbox, e.bbox)) continue;
-    for (let j = 0; j < candidateRects.length; j++) {
-      const c = candidateRects[j];
-      const cLeft = axisAlong === 'x' ? c.x - c.w / 2 : c.y - c.d / 2;
-      for (let k = 0; k < e.rects.length; k++) {
-        const o = e.rects[k];
-        if (!_rectsOverlap(c, o)) continue;
-        const oRight = axisAlong === 'x' ? o.x + o.w / 2 : o.y + o.d / 2;
-        // Advance candidateStemX such that c's left edge ends up at oRight.
-        const advance = oRight - cLeft;
-        if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
-      }
-    }
-  }
-  if (bestAdvance === Infinity) {
-    // Caller's contract: only invoke when _overlapsAny returned true at the
-    // current stemX. Reaching this branch means an overlap was reported but
-    // no entry contributes a positive advance — invariant violated.
-    throw new Error('_nextEventX called with no overlapping rect — invariant violated');
-  }
-  return stemX + bestAdvance;
-}
-
-// _translateChildRects(rects, originX, originY, stemX, sideIdx, parentOrient) -> Rect[]
-//
-// Translate a child's local-frame rects into the parent's world frame. side 0
-// uses the negate flag matching the existing _mirrorOrient rule:
-//   parent X-orient: side 0 negateY (south), side 1 no negate (north)
-//   parent Y-orient: side 0 negateX (west),  side 1 no negate (east)
-function _translateChildRects(
-  rects: Rect[],
+// In-place translation of src[0..srcLen*4) into out[0..srcLen*4). Mirrors
+// _translateChildRects logic. No allocation. Used by the _layoutDir
+// placement loop to write each per-attempt translation into a single
+// reused scratch buffer instead of newly allocating a Rect[] each time.
+function _translateInto(
+  out: RectBuf,
+  src: RectBuf,
   originX: number,
   originY: number,
   stemX: number,
   sideIdx: 0 | 1,
-  parentOrient: StreetAxis
-): Rect[] {
-  const out: Rect[] = new Array(rects.length);
+  parentOrient: StreetAxis,
+  srcLen?: number
+): void {
+  const n = srcLen !== undefined ? srcLen : src.length >>> 2;
   const negateY = parentOrient === StreetAxis.X && sideIdx === 0;
   const negateX = parentOrient === StreetAxis.Y && sideIdx === 0;
-  for (let i = 0; i < rects.length; i++) {
-    const r = rects[i];
-    let lx = r.x;
-    let ly = r.y;
+  for (let i = 0; i < n; i++) {
+    const o = i << 2;
+    let lx = src[o];
+    let ly = src[o + 1];
     if (parentOrient === StreetAxis.X) {
       lx += stemX;
     } else {
       ly += stemX;
     }
-    out[i] = {
-      x: (negateX ? -lx : lx) + originX,
-      y: (negateY ? -ly : ly) + originY,
-      w: r.w,
-      d: r.d,
-    };
+    out[o] = (negateX ? -lx : lx) + originX;
+    out[o + 1] = (negateY ? -ly : ly) + originY;
+    out[o + 2] = src[o + 2];
+    out[o + 3] = src[o + 3];
   }
-  return out;
+}
+
+// _collectRectsBuf(layout) -> RectBuf — flat-buffer flavor of _collectRects.
+// Used by _layoutDir to capture each subdir's local layout as a single
+// Float32Array up front; this buffer is then translated per-attempt into
+// the placement loop's scratch buffer.
+function _collectRectsBuf(layout: {
+  streets?: Street[];
+  buildings?: Building[];
+  paths?: BuildingPath[];
+}): RectBuf {
+  const sN = layout.streets ? layout.streets.length : 0;
+  const bN = layout.buildings ? layout.buildings.length : 0;
+  const pN = layout.paths ? layout.paths.length : 0;
+  const buf = new Float32Array((sN + bN + pN) * 4);
+  let idx = 0;
+  if (layout.streets) {
+    for (let i = 0; i < sN; i++) {
+      const s = layout.streets[i];
+      const o = idx << 2;
+      buf[o] = s.x;
+      buf[o + 1] = s.y;
+      if (s.orientation === StreetAxis.X) {
+        buf[o + 2] = s.length;
+        buf[o + 3] = s.width;
+      } else {
+        buf[o + 2] = s.width;
+        buf[o + 3] = s.length;
+      }
+      idx++;
+    }
+  }
+  if (layout.buildings) {
+    for (let i = 0; i < bN; i++) {
+      const b = layout.buildings[i];
+      const o = idx << 2;
+      buf[o] = b.x;
+      buf[o + 1] = b.y;
+      buf[o + 2] = b.w;
+      buf[o + 3] = b.d;
+      idx++;
+    }
+  }
+  if (layout.paths) {
+    for (let i = 0; i < pN; i++) {
+      const p = layout.paths[i];
+      const o = idx << 2;
+      buf[o] = p.x;
+      buf[o + 1] = p.y;
+      buf[o + 2] = p.w;
+      buf[o + 3] = p.d;
+      idx++;
+    }
+  }
+  return buf;
 }
 
 // _sideArea(entries) -> number
 //
 // Sum of w*d over all rects in this side's occupancy entries. Used as the
 // tiebreaker when computing preferredSide in _layoutDir so the city grows
-// symmetrically.
+// symmetrically. Reads w/d directly from the RectBuf (interleaved layout:
+// each rect occupies 4 floats at o..o+3 = x, y, w, d).
 function _sideArea(entries: OccupancyEntry[]): number {
   let area = 0;
   for (let i = 0; i < entries.length; i++) {
     const rects = entries[i].rects;
-    for (let j = 0; j < rects.length; j++) {
-      area += rects[j].w * rects[j].d;
+    const n = rects.length >>> 2;
+    for (let j = 0; j < n; j++) {
+      const o = j << 2;
+      area += rects[o + 2] * rects[o + 3];
     }
   }
   return area;
@@ -749,7 +960,7 @@ function _layoutDir(
       subLayouts[i] = {
         along: alongHigh - alongLow,
         alongLow,
-        rects: _collectRects(localResult),
+        rects: _collectRectsBuf(localResult),
         streets: localResult.streets,
         buildings: localResult.buildings,
         paths: localResult.paths,
@@ -763,6 +974,21 @@ function _layoutDir(
   // in O(1) before scanning their rect lists. See OccupancyEntry above.
   const occupancy: OccupancyEntry[][] = [[], []];
   let priorStemX = originPad;
+
+  // Per-attempt translation writes into this single scratch buffer instead
+  // of newly allocating a Rect[] each iteration of the placement loop.
+  // Sized to the largest child's rect count so any child fits. The buffer
+  // is reused across attempts AND across children within this _layoutDir
+  // call. Files always have 2 rects (building + path); subdirs vary.
+  let maxChildRects = 2;
+  for (let i = 0; i < children.length; i++) {
+    const sl = subLayouts[i];
+    if (sl) {
+      const n = sl.rects.length >>> 2;
+      if (n > maxChildRects) maxChildRects = n;
+    }
+  }
+  const scratchBuf = new Float32Array(maxChildRects * 4);
 
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
@@ -790,7 +1016,6 @@ function _layoutDir(
         bw = perpDepth;
         bd = along;
       }
-      const buildingRect: Rect = { x: bx, y: by, w: bw, d: bd };
       // Path connects building face → parent street edge.
       let px: number, py: number, pw: number, pd: number;
       if (orientation === StreetAxis.X) {
@@ -804,11 +1029,22 @@ function _layoutDir(
         pw = bldgPathLength;
         pd = bd * pathWidthFrac;
       }
-      const pathRect: Rect = { x: px, y: py, w: pw, d: pd };
+      // Pack the file's two rects (building + path) directly into a
+      // Float32Array of length 8 — avoids constructing two interim Rect
+      // objects per file (one per child, ~10k allocations on d4f10).
+      const fileRectsBuf = new Float32Array(8);
+      fileRectsBuf[0] = bx;
+      fileRectsBuf[1] = by;
+      fileRectsBuf[2] = bw;
+      fileRectsBuf[3] = bd;
+      fileRectsBuf[4] = px;
+      fileRectsBuf[5] = py;
+      fileRectsBuf[6] = pw;
+      fileRectsBuf[7] = pd;
       local = {
         along,
         alongLow: -along / 2,
-        rects: [buildingRect, pathRect],
+        rects: fileRectsBuf,
         streets: [],
         buildings: [
           {
@@ -855,9 +1091,15 @@ function _layoutDir(
 
     let chosenSide: 0 | 1 = 0;
     let chosenStemX = 0;
-    let placedRects: Rect[] = [];
-    let placedBbox: Rect = { x: 0, y: 0, w: 0, d: 0 };
+    // placedRects / placedBbox are always assigned before read (the
+    // while(true) loop below only exits via `break` after assigning both).
+    let placedRects: RectBuf;
+    let placedBbox: Rect;
     const axisAlong: 'x' | 'y' = orientation === StreetAxis.X ? 'x' : 'y';
+
+    // candidateLen = number of rects this child contributes. Read once per
+    // child; reused inside the placement loop's per-attempt translation.
+    const candidateLen = local.rects.length >>> 2;
 
     // Side preference (best-fit): try both sides at each candidateStemX;
     // pick the smaller stem-x; tiebreak on smaller side area; final
@@ -868,41 +1110,52 @@ function _layoutDir(
 
     while (true) {
       const sidesToTry: (0 | 1)[] = preferredSide === 0 ? [0, 1] : [1, 0];
-      const fits: { side: 0 | 1; rects: Rect[]; bbox: Rect }[] = [];
+      let foundFit = false;
       let smallestAdvance = Infinity;
       for (const side of sidesToTry) {
-        const translated = _translateChildRects(
+        // Translate into the reused scratch buffer — no per-attempt
+        // allocation. translatedBbox reads from the same buffer (only the
+        // first candidateLen rects are populated).
+        _translateInto(
+          scratchBuf,
           local.rects,
           originX,
           originY,
           candidateStemX,
           side,
-          orientation
+          orientation,
+          candidateLen
         );
-        const translatedBbox = _bboxOfRects(translated);
-        if (!_overlapsAny(translatedBbox, translated, occupancy[side])) {
-          fits.push({ side, rects: translated, bbox: translatedBbox });
-          continue;
-        }
-        const advance = _nextEventX(
-          candidateStemX,
+        const translatedBbox = _bboxOfBuf(scratchBuf, candidateLen);
+        // Single-pass fit-test + advance computation. _checkAndAdvance
+        // visits each occupancy entry once: it short-circuits on first
+        // overlap if the caller only needs fits, otherwise computes the
+        // smallest advance in the same pass.
+        const result = _checkAndAdvance(
           translatedBbox,
-          translated,
+          scratchBuf,
+          candidateLen,
           occupancy[side],
           axisAlong
         );
-        const delta = advance - candidateStemX;
-        if (delta > 0 && delta < smallestAdvance) smallestAdvance = delta;
+        if (result.fits) {
+          // First-success short-circuits the inner side loop — sidesToTry
+          // is already ordered by preferredSide, so the first fit IS the
+          // best fit at this candidateStemX.
+          const placedBuf = new Float32Array(candidateLen * 4);
+          placedBuf.set(scratchBuf.subarray(0, candidateLen * 4));
+          chosenSide = side;
+          chosenStemX = candidateStemX;
+          placedRects = placedBuf;
+          placedBbox = translatedBbox;
+          foundFit = true;
+          break;
+        }
+        if (result.advance > 0 && result.advance < smallestAdvance) {
+          smallestAdvance = result.advance;
+        }
       }
-      if (fits.length > 0) {
-        // Both sides may fit at this candidate; preferredSide ordering of
-        // sidesToTry already biases the first entry — take it.
-        chosenSide = fits[0].side;
-        chosenStemX = candidateStemX;
-        placedRects = fits[0].rects;
-        placedBbox = fits[0].bbox;
-        break;
-      }
+      if (foundFit) break;
       if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
         candidateStemX += childGap;
       } else {
@@ -910,7 +1163,11 @@ function _layoutDir(
       }
     }
 
-    // Commit the placement.
+    // Commit the placement. Sort the placed rects by along-axis right edge
+    // ASCENDING (in place) so subsequent _checkAndAdvance calls can
+    // early-exit the inner per-rect scan when a smaller advance is no
+    // longer possible.
+    _sortRectsByAlongRightInPlace(placedRects, axisAlong);
     occupancy[chosenSide].push({ bbox: placedBbox, rects: placedRects });
     priorStemX = chosenStemX;
 
@@ -1002,12 +1259,21 @@ function _layoutDir(
   }
 
   // ---- Compute street length and add street ------------------------------
+  // Iterate the per-entry RectBufs by index (each rect = 4 floats at o..o+3
+  // = x, y, w, d) instead of constructing transient Rect objects.
   let maxAlong = originPad;
   for (const side of [0, 1] as const) {
     for (const e of occupancy[side]) {
-      for (const r of e.rects) {
+      const rects = e.rects;
+      const rN = rects.length >>> 2;
+      for (let i = 0; i < rN; i++) {
+        const o = i << 2;
+        const rx = rects[o],
+          ry = rects[o + 1],
+          rw = rects[o + 2],
+          rd = rects[o + 3];
         const high =
-          orientation === StreetAxis.X ? r.x - originX + r.w / 2 : r.y - originY + r.d / 2;
+          orientation === StreetAxis.X ? rx - originX + rw / 2 : ry - originY + rd / 2;
         if (high > maxAlong) maxAlong = high;
       }
     }
@@ -1134,6 +1400,7 @@ export const __test = {
   _rectsOverlap,
   _overlapsAny,
   _collectRects,
+  _collectRectsBuf,
   _bboxOfRects,
   rectCount,
   rectAt,
