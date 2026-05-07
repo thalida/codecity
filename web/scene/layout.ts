@@ -50,11 +50,19 @@ export interface Rect {
 //          axis and the child's content extends in +perp direction (side 1).
 //   along: extent of the child along the parent's long axis (== bbox width
 //          along that axis).
+//   alongReach: along-axis half-extent that the parent street physically has
+//          to cover at the parent boundary (the join strip). For a file:
+//          along/2 (file's parent-axis half-extent). For a subdir: half its
+//          own main-street width (the join width of the T-intersection).
+//          The parent street only needs pavement up to (stemX + alongReach);
+//          farther subtree content extends perpendicular to the parent and
+//          doesn't require parent-street length.
 //   buildings/streets/paths: the same content as `rects`, kept typed for
 //          translation back into result arrays once the placement is chosen.
 interface LocalChildLayout {
   along: number;
   alongLow: number; // local-frame x of the leftmost rect edge (≤ 0 typically)
+  alongReach: number;
   rects: RectBuf;
   streets: Street[];
   buildings: Building[];
@@ -957,9 +965,16 @@ function _layoutDir(
       // if parent is Y-orient. (Same axis convention used by _computeBbox.)
       const alongLow = orientation === StreetAxis.X ? bbox.minX : bbox.minY;
       const alongHigh = orientation === StreetAxis.X ? bbox.maxX : bbox.maxY;
+      // Subdir's join with parent is a T-intersection of width = subdir's own
+      // main-street width. The parent only needs pavement up to half that
+      // width past the stem; the subdir's far branches extend in PERP
+      // directions (or non-zero perp depths), not in the parent's along axis
+      // at the parent boundary.
+      const subStreetWidth = _streetWidthForDir(children[i] as DirLike);
       subLayouts[i] = {
         along: alongHigh - alongLow,
         alongLow,
+        alongReach: subStreetWidth / 2,
         rects: _collectRectsBuf(localResult),
         streets: localResult.streets,
         buildings: localResult.buildings,
@@ -974,6 +989,14 @@ function _layoutDir(
   // in O(1) before scanning their rect lists. See OccupancyEntry above.
   const occupancy: OccupancyEntry[][] = [[], []];
   let priorStemX = originPad;
+  // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
+  // is the along-axis extent the parent street physically has to cover at the
+  // parent boundary. Tracked incrementally so we don't re-iterate every rect
+  // in occupancy at the end (and so far branches of subtree children that
+  // extend in the parent's along-axis direction at non-zero perp depth do NOT
+  // inflate the parent street's length — they extend perpendicular to the
+  // parent and don't require parent-street pavement).
+  let maxBoundaryAlong = originPad;
 
   // Per-attempt translation writes into this single scratch buffer instead
   // of newly allocating a Rect[] each iteration of the placement loop.
@@ -1044,6 +1067,9 @@ function _layoutDir(
       local = {
         along,
         alongLow: -along / 2,
+        // File's footprint at the parent boundary spans `along` along the
+        // parent's axis (centered on the stem).
+        alongReach: along / 2,
         rects: fileRectsBuf,
         streets: [],
         buildings: [
@@ -1170,6 +1196,8 @@ function _layoutDir(
     _sortRectsByAlongRightInPlace(placedRects, axisAlong);
     occupancy[chosenSide].push({ bbox: placedBbox, rects: placedRects });
     priorStemX = chosenStemX;
+    const boundaryHigh = chosenStemX + local.alongReach;
+    if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
 
     if (child.type === NodeKind.File) {
       const negateY = orientation === StreetAxis.X && chosenSide === 0;
@@ -1259,26 +1287,15 @@ function _layoutDir(
   }
 
   // ---- Compute street length and add street ------------------------------
-  // Iterate the per-entry RectBufs by index (each rect = 4 floats at o..o+3
-  // = x, y, w, d) instead of constructing transient Rect objects.
-  let maxAlong = originPad;
-  for (const side of [0, 1] as const) {
-    for (const e of occupancy[side]) {
-      const rects = e.rects;
-      const rN = rects.length >>> 2;
-      for (let i = 0; i < rN; i++) {
-        const o = i << 2;
-        const rx = rects[o],
-          ry = rects[o + 1],
-          rw = rects[o + 2],
-          rd = rects[o + 3];
-        const high =
-          orientation === StreetAxis.X ? rx - originX + rw / 2 : ry - originY + rd / 2;
-        if (high > maxAlong) maxAlong = high;
-      }
-    }
-  }
-  const streetLength = Math.max(maxAlong + endPad, originPad + endPad);
+  // The parent street physically only needs to reach where children branch
+  // off (their stem) plus a small along-axis clearance for that branch's
+  // own footprint at the parent boundary — `maxBoundaryAlong` tracks exactly
+  // that. Subtree contents past the stem extend perpendicular to the parent
+  // and don't require parent-street pavement, so we DO NOT iterate occupancy
+  // rects for length here (which would incorrectly include far branches of
+  // subtree children that extend in the parent's along-axis direction at
+  // non-zero perp depth).
+  const streetLength = Math.max(maxBoundaryAlong + endPad, originPad + endPad);
 
   let streetCenterX = originX;
   let streetCenterY = originY;
