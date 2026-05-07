@@ -642,11 +642,20 @@ function _layoutDir(
     }
 
     // Find the leftmost (side, stemX) where translating local.rects fits.
+    // The contract is `stem ≥ priorStemX` (alphabetical along-axis order of
+    // BRANCH POINTS).  Files on OPPOSITE sides of the same street may share
+    // a stem (pairing) — their left-edge back-reach is symmetric, so letting
+    // priorStemX stay at the shared stem causes no sibling collision (the
+    // opposite side's occupancy is separate) and no parent-street collision
+    // (files extend perpendicularly away from the street body).
+    //
+    // The absolute-floor clamp `originPad + (-local.alongLow)` still applies:
+    // it guarantees the FIRST child's near bbox edge never crosses back over
+    // the parent's join end (which would clip into the grandparent street).
+    // Using `originPad` (not `priorStemX`) as the base means later children
+    // are unaffected once `priorStemX ≥ originPad + (-alongLow)`.
     let candidateStemX = Math.max(priorStemX, originPad);
-    // The child's stem sits at along=0 in local; alongLow is the leftmost
-    // edge of the local rect set (typically negative). The minimum legal
-    // stemX must keep the child's left edge ≥ priorStemX.
-    candidateStemX = Math.max(candidateStemX, priorStemX + -local.alongLow);
+    candidateStemX = Math.max(candidateStemX, originPad + -local.alongLow);
 
     let chosenSide: 0 | 1 = 0;
     let chosenStemX = 0;
@@ -688,18 +697,19 @@ function _layoutDir(
         if (delta > 0 && delta < smallestAdvance) smallestAdvance = delta;
       }
       if (placed) break;
-      // Both sides failed at candidateStemX; advance to the smallest event.
+      // Both sides failed at candidateStemX; advance to the smallest event
+      // plus a childGap so same-side neighbors visually separate.
       if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
         // Defensive: avoid infinite loop. Step by childGap.
         candidateStemX += childGap;
       } else {
-        candidateStemX += smallestAdvance;
+        candidateStemX += smallestAdvance + childGap;
       }
     }
 
     // Commit the placement.
     occupancy[chosenSide].push(...placedRects);
-    priorStemX = chosenStemX + childGap;
+    priorStemX = chosenStemX;
 
     if (child.type === NodeKind.File) {
       const negateY = orientation === StreetAxis.X && chosenSide === 0;

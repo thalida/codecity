@@ -411,6 +411,39 @@ describe('layoutCity', () => {
       expect(sortedByName[i][along]).toBeGreaterThanOrEqual(sortedByName[i - 1][along]);
     }
   });
+
+  it('files on opposite sides sit directly across (paired)', () => {
+    const file = (n: string) => ({
+      name: n,
+      type: NodeKind.File,
+      path: n,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    });
+    const dir = {
+      name: 'flat',
+      type: NodeKind.Directory,
+      path: 'flat',
+      children_count: 4,
+      descendants_count: 4,
+      descendants_size: 2000,
+      children: ['a.ts', 'b.ts', 'c.ts', 'd.ts'].map(file),
+    };
+    const layout = layoutCity({ tree: dir });
+    const street = layout.streets.find((s) => s.dir?.name === 'flat')!;
+    const along = street.orientation === StreetAxis.X ? 'x' : 'y';
+    const sideAxis = street.orientation === StreetAxis.X ? 'y' : 'x';
+    const sideA = layout.buildings.filter((b) => b[sideAxis] < street[sideAxis]);
+    const sideB = layout.buildings.filter((b) => b[sideAxis] > street[sideAxis]);
+    expect(sideA.length).toBeGreaterThan(0);
+    expect(sideB.length).toBeGreaterThan(0);
+    sideA.sort((p, q) => p[along] - q[along]);
+    sideB.sort((p, q) => p[along] - q[along]);
+    expect(Math.abs(sideA[0][along] - sideB[0][along])).toBeLessThan(0.01);
+  });
 });
 
 // ---- Deeply-nested orient correctness ----
