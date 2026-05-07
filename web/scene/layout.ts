@@ -196,6 +196,18 @@ function _translateChildRects(
   return out;
 }
 
+// _sideArea(occupancy) -> number
+//
+// Sum of w*d over all rects in this side's occupancy. Used as the
+// secondary tiebreaker in _pickBestFit so the city grows symmetrically.
+function _sideArea(occupancy: Rect[]): number {
+  let area = 0;
+  for (let i = 0; i < occupancy.length; i++) {
+    area += occupancy[i].w * occupancy[i].d;
+  }
+  return area;
+}
+
 interface ManifestLike {
   tree?: DirLike;
   [k: string]: unknown;
@@ -563,7 +575,6 @@ function _layoutDir(
   // ---- Per-side occupancy + monotonic stem-x cursor ----------------------
   const occupancy: Rect[][] = [[], []];
   let priorStemX = originPad;
-  let subdirCount = 0;
 
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
@@ -659,19 +670,16 @@ function _layoutDir(
     let placedRects: Rect[] = [];
     const axisAlong: 'x' | 'y' = orientation === StreetAxis.X ? 'x' : 'y';
 
-    // Side preference (alternation): subdirs use subdirCount % 2;
-    // files use the side with smaller occupancy bbox-area (mirrors today's
-    // "smaller cursor wins" rule). Best-fit selection lands in Task 5.
-    let preferredSide: 0 | 1;
-    if (child.type === NodeKind.Directory) {
-      preferredSide = (subdirCount % 2) as 0 | 1;
-    } else {
-      preferredSide = occupancy[0].length <= occupancy[1].length ? 0 : 1;
-    }
+    // Side preference (best-fit): try both sides at each candidateStemX;
+    // pick the smaller stem-x; tiebreak on smaller side area; final
+    // tiebreak on side 0. The loop below already tries sidesToTry in order,
+    // so we just need the right ORDER for the inner loop's "first-success"
+    // semantics. We compute the order once based on side area; ties go to 0.
+    const preferredSide: 0 | 1 = _sideArea(occupancy[0]) <= _sideArea(occupancy[1]) ? 0 : 1;
 
     while (true) {
       const sidesToTry: (0 | 1)[] = preferredSide === 0 ? [0, 1] : [1, 0];
-      let placed = false;
+      const fits: { side: 0 | 1; rects: Rect[] }[] = [];
       let smallestAdvance = Infinity;
       for (const side of sidesToTry) {
         const translated = _translateChildRects(
@@ -683,21 +691,22 @@ function _layoutDir(
           orientation
         );
         if (!_overlapsAny(translated, occupancy[side])) {
-          chosenSide = side;
-          chosenStemX = candidateStemX;
-          placedRects = translated;
-          placed = true;
-          break;
+          fits.push({ side, rects: translated });
+          continue;
         }
         const advance = _nextEventX(candidateStemX, translated, occupancy[side], axisAlong);
         const delta = advance - candidateStemX;
         if (delta > 0 && delta < smallestAdvance) smallestAdvance = delta;
       }
-      if (placed) break;
-      // Both sides failed at candidateStemX; advance to the smallest event
-      // plus a childGap so same-side neighbors visually separate.
+      if (fits.length > 0) {
+        // Both sides may fit at this candidate; preferredSide ordering of
+        // sidesToTry already biases the first entry — take it.
+        chosenSide = fits[0].side;
+        chosenStemX = candidateStemX;
+        placedRects = fits[0].rects;
+        break;
+      }
       if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
-        // Defensive: avoid infinite loop. Step by childGap.
         candidateStemX += childGap;
       } else {
         candidateStemX += smallestAdvance + childGap;
@@ -792,7 +801,6 @@ function _layoutDir(
           file: p.file,
         });
       }
-      subdirCount++;
     }
   }
 

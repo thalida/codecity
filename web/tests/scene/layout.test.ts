@@ -948,4 +948,40 @@ describe('layout invariants (current packer baseline)', () => {
     const b = layoutCity({ tree: TEST_TREE });
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
+
+  it('a small subdir nests into a larger sibling subdir bbox gap', () => {
+    // 'big' has many children → wide bbox. 'small' has few children →
+    // narrow bbox. Both alphabetical-after 'a.ts' under root. With best-fit
+    // side selection, 'small' should be placed at a stem-x WITHIN big's
+    // bbox extent — that's panel B from the design diagram.
+    const big = mkDir('big', [
+      mkFile('aa.ts'),
+      mkFile('bb.ts'),
+      mkFile('cc.ts'),
+      mkFile('dd.ts'),
+      mkFile('ee.ts'),
+      mkFile('ff.ts'),
+    ]);
+    const small = mkDir('small', [mkFile('xx.ts')]);
+    const root = mkDir('root', [mkFile('a.ts'), big, small]);
+    const layout = layoutCity({ tree: root });
+
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+    expect(() => assertStemOrder(layout)).not.toThrow();
+
+    const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
+    const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
+    const smallStreet = layout.streets.find((s) => s.dir?.name === 'small')!;
+    const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
+    // big's far bbox extent along root: include big's descendant buildings
+    // so we capture far branches, not just big's main-street center.
+    const bigDescendants = layout.buildings.filter((b) =>
+      (b.file?.path || '').startsWith('big/')
+    );
+    const bigMaxAlong = Math.max(
+      bigStreet[along],
+      ...bigDescendants.map((b) => b[along] + b.w / 2)
+    );
+    expect(smallStreet[along]).toBeLessThan(bigMaxAlong);
+  });
 });
