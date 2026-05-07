@@ -445,8 +445,9 @@ function _layoutDir(
   const childGap = streetLayout.CHILD_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgPathLength = BUILDING_DIMENSIONS.get().PATH_LENGTH;
-  const pathWidthFrac = BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC;
+  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const pathWidthFrac = bldgDims.PATH_WIDTH_FRAC;
 
   // Push a path connecting `b`'s door to the adjacent street into result.paths.
   // No-op for buildings whose orient is missing.
