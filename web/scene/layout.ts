@@ -556,24 +556,24 @@ function _envelopesFromRects(
       perpLow = y - d / 2;
       perpHigh = y + d / 2;
     }
-    events.push(alongLow, 1, perpLow, perpHigh); // start
-    events.push(alongHigh, 0, perpLow, perpHigh); // end
+    events.push(alongLow, 1, perpLow, perpHigh, i); // start (5 fields)
+    events.push(alongHigh, 0, perpLow, perpHigh, i); // end
   }
   // Sort events by alongValue, then starts before ends at same along.
   // Use index-pair sort because we have flat array.
-  const eventCount = events.length / 4;
+  const eventCount = events.length / 5;
   const idx = new Array<number>(eventCount);
   for (let i = 0; i < eventCount; i++) idx[i] = i;
   idx.sort((a, b) => {
-    const aAlong = events[a * 4],
-      bAlong = events[b * 4];
+    const aAlong = events[a * 5],
+      bAlong = events[b * 5];
     if (aAlong !== bAlong) return aAlong - bAlong;
     // Same along: starts (1) before ends (0). Reverse: 0 < 1, but we want starts first.
-    return events[b * 4 + 1] - events[a * 4 + 1];
+    return events[b * 5 + 1] - events[a * 5 + 1];
   });
 
   // Sweep, maintaining active rects' perp ranges.
-  const active: { perpLow: number; perpHigh: number }[] = [];
+  const active: { perpLow: number; perpHigh: number; id: number }[] = [];
   let lastAlong = -Infinity;
   const bottom = _emptyContour();
   const top = _emptyContour();
@@ -581,11 +581,12 @@ function _envelopesFromRects(
     curMaxPerp = -Infinity;
 
   for (let i = 0; i < idx.length; i++) {
-    const e = idx[i] * 4;
+    const e = idx[i] * 5;
     const along = events[e];
     const isStart = events[e + 1] === 1;
     const perpLow = events[e + 2];
     const perpHigh = events[e + 3];
+    const rectId = events[e + 4];
 
     // Emit segment for [lastAlong, along) using the previous active extents.
     if (active.length > 0 && lastAlong < along) {
@@ -594,22 +595,17 @@ function _envelopesFromRects(
     }
 
     if (isStart) {
-      active.push({ perpLow, perpHigh });
+      active.push({ perpLow, perpHigh, id: rectId });
     } else {
-      const j = active.findIndex((r) => r.perpLow === perpLow && r.perpHigh === perpHigh);
+      const j = active.findIndex((r) => r.id === rectId);
       if (j >= 0) active.splice(j, 1);
     }
     // Recompute extents after the change.
-    if (active.length === 0) {
-      curMinPerp = +Infinity;
-      curMaxPerp = -Infinity;
-    } else {
-      curMinPerp = +Infinity;
-      curMaxPerp = -Infinity;
-      for (let k = 0; k < active.length; k++) {
-        if (active[k].perpLow < curMinPerp) curMinPerp = active[k].perpLow;
-        if (active[k].perpHigh > curMaxPerp) curMaxPerp = active[k].perpHigh;
-      }
+    curMinPerp = +Infinity;
+    curMaxPerp = -Infinity;
+    for (let k = 0; k < active.length; k++) {
+      if (active[k].perpLow < curMinPerp) curMinPerp = active[k].perpLow;
+      if (active[k].perpHigh > curMaxPerp) curMaxPerp = active[k].perpHigh;
     }
     lastAlong = along;
   }

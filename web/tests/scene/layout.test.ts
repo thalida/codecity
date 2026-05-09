@@ -1305,6 +1305,30 @@ describe('_envelopesFromRects', () => {
     expect(top.buf[10]).toBe(5);
   });
 
+  it('two rects with identical perp extent but different along ranges', () => {
+    // Both have y ∈ [-2, 2] (same perp). r1 x ∈ [0, 5], r2 x ∈ [3, 8].
+    // Tests the identity-based active-set removal: when r1 leaves at x=5,
+    // we must remove r1's active entry, not r2's (they share perp extent).
+    const buf = rectsToBuf([
+      { x: 2.5, y: 0, w: 5, d: 4 },
+      { x: 5.5, y: 0, w: 5, d: 4 },
+    ]);
+    const { bottom, top } = _envelopesFromRects(buf, 'x');
+    // Sweep along x:
+    //   [0, 3): only r1, perp [-2, 2]
+    //   [3, 5): both r1 and r2, perp [-2, 2] (same)
+    //   [5, 8): only r2, perp [-2, 2]
+    // All three segments have identical perp extent because both rects do.
+    expect(bottom.len).toBe(3);
+    expect(top.len).toBe(3);
+    // After r1 leaves at x=5, r2 must still be active (this is what the
+    // identity-based removal fix protects). Segment 3 must have valid extents.
+    expect(bottom.buf[8]).toBe(5);   // perpLow of segment 3 (= along=5)
+    expect(bottom.buf[9]).toBe(8);   // perpHigh of segment 3 (= along=8)
+    expect(bottom.buf[10]).toBe(-2); // alongValue of segment 3 (= min y of r2 only)
+    expect(top.buf[10]).toBe(2);     // alongValue of top segment 3 (= max y of r2 only)
+  });
+
   it('alongAxis=y sweeps the y axis (perp = x)', () => {
     // r at x=5, y=10, w=4, d=6 → x range [3,7], y range [7,13].
     const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
