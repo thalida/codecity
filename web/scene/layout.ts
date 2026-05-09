@@ -218,6 +218,16 @@ function bufToRects(buf: RectBuf): Rect[] {
 //   - "uncovered" perp ranges are implicit (no segment covers them)
 export type Contour = { buf: Float64Array; len: number };
 
+// BBox — axis-aligned bbox in {alongMin, alongMax, perpMin, perpMax} form
+// expressed in some parent's local frame. Used by v3 placement to score
+// candidate placements by max(W, H) of the running parent bbox.
+export interface BBox {
+  alongMin: number;
+  alongMax: number;
+  perpMin: number;
+  perpMax: number;
+}
+
 // _emptyContour() -> a fresh contour with default capacity (32 segments).
 // Geometric growth via _growContour as needed.
 function _emptyContour(): Contour {
@@ -1481,6 +1491,54 @@ function _mirrorEnvelopes(
   return { bottom: newBottom, top: newTop };
 }
 
+// _candidateBboxInParent(bot, top, stemX, side, mirrored) -> BBox
+//
+// Compute a candidate placement's bbox in the parent's local frame.
+//   - alongMin/alongMax: the candidate's extent in the PARENT's along
+//     axis (= the subtree's perp axis in subtree-local frame). Shifted by
+//     stemX. If mirrored, the natural [minA, maxA] becomes [stemX - maxA,
+//     stemX - minA].
+//   - perpMin/perpMax: the candidate's extent in the PARENT's perp axis
+//     (= the subtree's along axis = the contour segment perp range). For
+//     side 1 (positive perp), passes through; for side 0, negated and
+//     swapped.
+//
+// Treats empty envelopes as a zero-size point at (stemX, 0) in the
+// parent frame.
+function _candidateBboxInParent(
+  bot: Contour,
+  top: Contour,
+  stemX: number,
+  side: 0 | 1,
+  mirrored: boolean
+): BBox {
+  // Natural along range from envelopes.
+  let aMinNat = _envelopeMinAlong(bot);
+  let aMaxNat = _maxAlongValue(top);
+  if (aMinNat === Infinity) aMinNat = 0;
+  if (aMaxNat === -Infinity) aMaxNat = 0;
+
+  // Natural perp range from segment perpLow/perpHigh (use top; bottom
+  // has identical perp ranges by construction).
+  let pMinNat = _envelopePerpMin(top);
+  let pMaxNat = _maxPerpReach(top);
+  if (pMinNat === Infinity) pMinNat = 0;
+  // _maxPerpReach returns 0 for empty, which is correct here.
+
+  const alongMin = mirrored ? stemX - aMaxNat : stemX + aMinNat;
+  const alongMax = mirrored ? stemX - aMinNat : stemX + aMaxNat;
+  const perpMin = side === 0 ? -pMaxNat : pMinNat;
+  const perpMax = side === 0 ? -pMinNat : pMaxNat;
+
+  // Fix signed zeros: when perpMax ends up as -0, normalize to +0
+  return {
+    alongMin,
+    alongMax,
+    perpMin,
+    perpMax: perpMax === 0 ? 0 : perpMax,
+  };
+}
+
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1518,4 +1576,5 @@ export const __test = {
   _envelopePerpMin,
   _isMirrorInvariant,
   _mirrorEnvelopes,
+  _candidateBboxInParent,
 };

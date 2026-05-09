@@ -1644,3 +1644,72 @@ describe('_mirrorEnvelopes', () => {
     expect(m.top.buf[6]).toBe(1);
   });
 });
+
+describe('_candidateBboxInParent', () => {
+  // Build a subtree with bottom env [0..10, alongValue=0] and top env
+  // [0..10, alongValue=5]. So natural perp range = [0, 10], natural
+  // along range = [0, 5].
+  function mkEnv() {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, 0);
+    __test._appendSegment(top, 0, 10, 5);
+    return { bot, top };
+  }
+
+  it('side 1, natural, stem=0: bbox = subtree natural in parent coords', () => {
+    const { bot, top } = mkEnv();
+    const b = __test._candidateBboxInParent(bot, top, 0, 1, false);
+    expect(b.alongMin).toBe(0);
+    expect(b.alongMax).toBe(5);
+    expect(b.perpMin).toBe(0);
+    expect(b.perpMax).toBe(10);
+  });
+
+  it('side 1, natural, stem=20: along shifts by stem', () => {
+    const { bot, top } = mkEnv();
+    const b = __test._candidateBboxInParent(bot, top, 20, 1, false);
+    expect(b.alongMin).toBe(20);
+    expect(b.alongMax).toBe(25);
+    expect(b.perpMin).toBe(0);
+    expect(b.perpMax).toBe(10);
+  });
+
+  it('side 0, natural: perp negates and swaps', () => {
+    const { bot, top } = mkEnv();
+    const b = __test._candidateBboxInParent(bot, top, 20, 0, false);
+    expect(b.alongMin).toBe(20);
+    expect(b.alongMax).toBe(25);
+    expect(b.perpMin).toBe(-10);
+    expect(b.perpMax).toBe(0);
+  });
+
+  it('side 1, mirrored: along negates around stem, perp unchanged', () => {
+    const { bot, top } = mkEnv();
+    const b = __test._candidateBboxInParent(bot, top, 20, 1, true);
+    // natural along range [0, 5]; mirrored around stem=20 → [20-5, 20-0] = [15, 20]
+    expect(b.alongMin).toBe(15);
+    expect(b.alongMax).toBe(20);
+    expect(b.perpMin).toBe(0);
+    expect(b.perpMax).toBe(10);
+  });
+
+  it('side 0, mirrored: both negations applied', () => {
+    const { bot, top } = mkEnv();
+    const b = __test._candidateBboxInParent(bot, top, 20, 0, true);
+    expect(b.alongMin).toBe(15);
+    expect(b.alongMax).toBe(20);
+    expect(b.perpMin).toBe(-10);
+    expect(b.perpMax).toBe(0);
+  });
+
+  it('empty envelopes return zero-size bbox at stem', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    const b = __test._candidateBboxInParent(bot, top, 7, 1, false);
+    expect(b.alongMin).toBe(7);
+    expect(b.alongMax).toBe(7);
+    expect(b.perpMin).toBe(0);
+    expect(b.perpMax).toBe(0);
+  });
+});
