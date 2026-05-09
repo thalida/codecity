@@ -508,6 +508,115 @@ function _contourAt(c: Contour, perp: number): number {
   return -Infinity;
 }
 
+// _envelopesFromRects(rects, alongAxis) -> { bottom, top }
+//
+// Sweep `rects` along the given axis; at each along position, compute
+// min/max perpendicular extent of the active rect set. Returns:
+//   bottom: contour over alongAxis values, alongValue = min perpAxis
+//   top:    contour over alongAxis values, alongValue = max perpAxis
+//
+// Note the perp/along terminology in the contour reflects the OUTPUT
+// view: the contour's "perp" key is the alongAxis we're sweeping (which
+// will become the parent's perp axis when this subtree is placed); the
+// contour's "along" value is the perpAxis (which will become the parent's
+// along axis).
+//
+// Time: O(n^2) worst case (inner active set scan); O(n log n) typical
+// for non-pathological inputs. For the v2 packer this is called once per
+// subtree at the END of its _layoutDir — total work across the recursion
+// is O(N) amortised.
+function _envelopesFromRects(
+  rects: RectBuf,
+  alongAxis: 'x' | 'y'
+): { bottom: Contour; top: Contour } {
+  const n = rects.length >>> 2;
+  if (n === 0) return { bottom: _emptyContour(), top: _emptyContour() };
+
+  // Build event list: for each rect, an "enter" and "leave" event in the alongAxis.
+  // Each event carries the rect's perpAxis low/high (constant across the rect).
+  // Events: [along, isStart (0/1), perpLow, perpHigh].
+  // Sort by along ascending, with ENTERS before LEAVES at the same along value
+  // (so a zero-width transition doesn't briefly empty the active set).
+  const events: number[] = [];
+  for (let i = 0; i < n; i++) {
+    const o = i << 2;
+    const x = rects[o],
+      y = rects[o + 1],
+      w = rects[o + 2],
+      d = rects[o + 3];
+    let alongLow: number, alongHigh: number, perpLow: number, perpHigh: number;
+    if (alongAxis === 'y') {
+      alongLow = y - d / 2;
+      alongHigh = y + d / 2;
+      perpLow = x - w / 2;
+      perpHigh = x + w / 2;
+    } else {
+      alongLow = x - w / 2;
+      alongHigh = x + w / 2;
+      perpLow = y - d / 2;
+      perpHigh = y + d / 2;
+    }
+    events.push(alongLow, 1, perpLow, perpHigh); // start
+    events.push(alongHigh, 0, perpLow, perpHigh); // end
+  }
+  // Sort events by alongValue, then starts before ends at same along.
+  // Use index-pair sort because we have flat array.
+  const eventCount = events.length / 4;
+  const idx = new Array<number>(eventCount);
+  for (let i = 0; i < eventCount; i++) idx[i] = i;
+  idx.sort((a, b) => {
+    const aAlong = events[a * 4],
+      bAlong = events[b * 4];
+    if (aAlong !== bAlong) return aAlong - bAlong;
+    // Same along: starts (1) before ends (0). Reverse: 0 < 1, but we want starts first.
+    return events[b * 4 + 1] - events[a * 4 + 1];
+  });
+
+  // Sweep, maintaining active rects' perp ranges.
+  const active: { perpLow: number; perpHigh: number }[] = [];
+  let lastAlong = -Infinity;
+  const bottom = _emptyContour();
+  const top = _emptyContour();
+  let curMinPerp = +Infinity,
+    curMaxPerp = -Infinity;
+
+  for (let i = 0; i < idx.length; i++) {
+    const e = idx[i] * 4;
+    const along = events[e];
+    const isStart = events[e + 1] === 1;
+    const perpLow = events[e + 2];
+    const perpHigh = events[e + 3];
+
+    // Emit segment for [lastAlong, along) using the previous active extents.
+    if (active.length > 0 && lastAlong < along) {
+      _appendSegment(bottom, lastAlong, along, curMinPerp);
+      _appendSegment(top, lastAlong, along, curMaxPerp);
+    }
+
+    if (isStart) {
+      active.push({ perpLow, perpHigh });
+    } else {
+      const j = active.findIndex((r) => r.perpLow === perpLow && r.perpHigh === perpHigh);
+      if (j >= 0) active.splice(j, 1);
+    }
+    // Recompute extents after the change.
+    if (active.length === 0) {
+      curMinPerp = +Infinity;
+      curMaxPerp = -Infinity;
+    } else {
+      curMinPerp = +Infinity;
+      curMaxPerp = -Infinity;
+      for (let k = 0; k < active.length; k++) {
+        if (active[k].perpLow < curMinPerp) curMinPerp = active[k].perpLow;
+        if (active[k].perpHigh > curMaxPerp) curMaxPerp = active[k].perpHigh;
+      }
+    }
+    lastAlong = along;
+  }
+
+  return { bottom, top };
+}
+
 // _rectsOverlapBuf(a, ai, b, bi) -> boolean — same semantics as _rectsOverlap
 // (with OVERLAP_EPS tolerance), but reads coords directly from RectBufs at
 // the given indices. No object allocation.
@@ -1493,4 +1602,5 @@ export const __test = {
   _emptyContour,
   _appendSegment,
   _contourAt,
+  _envelopesFromRects,
 };

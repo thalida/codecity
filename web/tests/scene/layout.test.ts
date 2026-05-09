@@ -1241,3 +1241,79 @@ describe('Contour basics', () => {
     expect(c.buf[8 * 4]).toBe(1000);
   });
 });
+
+describe('_envelopesFromRects', () => {
+  const { _envelopesFromRects, rectsToBuf } = __test;
+
+  it('empty rects → empty contours', () => {
+    const { bottom, top } = _envelopesFromRects(rectsToBuf([]), 'x');
+    expect(bottom.len).toBe(0);
+    expect(top.len).toBe(0);
+  });
+
+  it('single rect: bottom=top across the rect, value = perp center ± half', () => {
+    // Rect at (5, 10, 4, 6): x=5, y=10, w=4, d=6 → x range [3,7], y range [7,13].
+    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
+    // Sweep along x: at x ∈ [3, 7], perp (y) range = [7, 13].
+    const { bottom, top } = _envelopesFromRects(buf, 'x');
+    expect(bottom.len).toBe(1);
+    expect(top.len).toBe(1);
+    expect(bottom.buf[0]).toBe(3); // perpLow (= alongLow in source)
+    expect(bottom.buf[1]).toBe(7); // perpHigh
+    expect(bottom.buf[2]).toBe(7); // min y
+    expect(top.buf[2]).toBe(13); // max y
+  });
+
+  it('two disjoint rects on the same alongAxis range', () => {
+    // Two rects at different perp positions but same x range.
+    // r1: x=0, w=4 (x [-2,2]), y=0, d=4 (y [-2,2])
+    // r2: x=0, w=4, y=10, d=4 (y [8,12])
+    const buf = rectsToBuf([
+      { x: 0, y: 0, w: 4, d: 4 },
+      { x: 0, y: 10, w: 4, d: 4 },
+    ]);
+    const { bottom, top } = _envelopesFromRects(buf, 'x');
+    // Sweep along x: at x ∈ [-2, 2], BOTH rects are active. min y = -2, max y = 12.
+    expect(bottom.len).toBe(1);
+    expect(top.len).toBe(1);
+    expect(bottom.buf[2]).toBe(-2);
+    expect(top.buf[2]).toBe(12);
+  });
+
+  it('two staggered rects produce stepped envelope', () => {
+    // r1: x ∈ [0, 10], y ∈ [0, 10]
+    // r2: x ∈ [5, 15], y ∈ [-5, 5]
+    const buf = rectsToBuf([
+      { x: 5, y: 5, w: 10, d: 10 }, // (0..10, 0..10)
+      { x: 10, y: 0, w: 10, d: 10 }, // (5..15, -5..5)
+    ]);
+    const { bottom, top } = _envelopesFromRects(buf, 'x');
+    // At x ∈ [0, 5]: only r1. min y = 0, max y = 10.
+    // At x ∈ [5, 10]: both. min y = -5, max y = 10.
+    // At x ∈ [10, 15]: only r2. min y = -5, max y = 5.
+    expect(bottom.len).toBe(3);
+    expect(bottom.buf[0]).toBe(0);
+    expect(bottom.buf[1]).toBe(5);
+    expect(bottom.buf[2]).toBe(0);
+    expect(bottom.buf[5]).toBe(10);
+    expect(bottom.buf[6]).toBe(-5);
+    expect(bottom.buf[9]).toBe(15);  // perpHigh of segment 2
+    expect(bottom.buf[10]).toBe(-5); // alongValue of segment 2 (min y in [10,15])
+    expect(top.len).toBe(3);
+    expect(top.buf[2]).toBe(10);
+    expect(top.buf[6]).toBe(10);
+    expect(top.buf[10]).toBe(5);
+  });
+
+  it('alongAxis=y sweeps the y axis (perp = x)', () => {
+    // r at x=5, y=10, w=4, d=6 → x range [3,7], y range [7,13].
+    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
+    const { bottom, top } = _envelopesFromRects(buf, 'y');
+    // Sweep along y: at y ∈ [7, 13], perp (x) range = [3, 7].
+    expect(bottom.len).toBe(1);
+    expect(bottom.buf[0]).toBe(7);
+    expect(bottom.buf[1]).toBe(13);
+    expect(bottom.buf[2]).toBe(3);
+    expect(top.buf[2]).toBe(7);
+  });
+});
