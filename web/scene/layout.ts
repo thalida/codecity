@@ -1633,15 +1633,21 @@ function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): 
     cN = childTop.len;
   if (cN === 0) return; // nothing to add
 
+  // Event kinds. Numerically: ends < starts so the sort puts ends-before-starts
+  // at the same perp. Each event triple is [perp, kind, alongValue].
+  const K_SIDE_END = 0;
+  const K_CHILD_END = 1;
+  const K_SIDE_START = 2;
+  const K_CHILD_START = 3;
+
   const events: number[] = []; // flat array: [perp, kind, value]
-  // kind: 0=sideEnd, 1=childEnd, 2=sideStart, 3=childStart (ends before starts at same perp)
   for (let i = 0; i < sN; i++) {
-    events.push(sideTop.buf[i << 2], 2, sideTop.buf[(i << 2) + 2]); // start
-    events.push(sideTop.buf[(i << 2) + 1], 0, sideTop.buf[(i << 2) + 2]); // end
+    events.push(sideTop.buf[i << 2], K_SIDE_START, sideTop.buf[(i << 2) + 2]);
+    events.push(sideTop.buf[(i << 2) + 1], K_SIDE_END, sideTop.buf[(i << 2) + 2]);
   }
   for (let i = 0; i < cN; i++) {
-    events.push(childTop.buf[i << 2], 3, childTop.buf[(i << 2) + 2] + offset); // start
-    events.push(childTop.buf[(i << 2) + 1], 1, childTop.buf[(i << 2) + 2] + offset); // end
+    events.push(childTop.buf[i << 2], K_CHILD_START, childTop.buf[(i << 2) + 2] + offset);
+    events.push(childTop.buf[(i << 2) + 1], K_CHILD_END, childTop.buf[(i << 2) + 2] + offset);
   }
   const evCount = events.length / 3;
   const idx: number[] = new Array(evCount);
@@ -1679,10 +1685,10 @@ function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): 
     }
     const kind = events[e + 1];
     const val = events[e + 2];
-    if (kind === 2) curS = val;
-    else if (kind === 0) curS = -Infinity;
-    else if (kind === 3) curC = val;
-    else if (kind === 1) curC = -Infinity;
+    if (kind === K_SIDE_START) curS = val;
+    else if (kind === K_SIDE_END) curS = -Infinity;
+    else if (kind === K_CHILD_START) curC = val;
+    else if (kind === K_CHILD_END) curC = -Infinity;
     lastPerp = perp;
   }
 

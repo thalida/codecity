@@ -1358,6 +1358,13 @@ describe('_slideUntilClear', () => {
     expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
   });
 
+  it('side has segments but child is empty → -Infinity', () => {
+    const child = _emptyContour();
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 5);
+    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+  });
+
   it('non-overlapping perp ranges → -Infinity', () => {
     const child = _emptyContour();
     _appendSegment(child, 0, 5, -3);
@@ -1410,6 +1417,16 @@ describe('_mergeTopContour', () => {
     expect(side.buf[0]).toBe(0);
     expect(side.buf[1]).toBe(10);
     expect(side.buf[2]).toBe(12); // 5 + 7
+  });
+
+  it('non-zero offset applies to overlapping segments correctly', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 5);
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, 3);
+    // After offset=4: child shifted to alongValue=7. max(side=5, 7) = 7.
+    _mergeTopContour(side, child, 4);
+    expect(_contourAt(side, 5)).toBe(7);
   });
 
   it('merge empty child: side unchanged', () => {
