@@ -67,6 +67,15 @@ interface LocalChildLayout {
   streets: Street[];
   buildings: Building[];
   paths: BuildingPath[];
+  // v2 contour-based packing: per-child envelopes in the child's local
+  // frame. Both computed from the child's rect set (or from geometry
+  // directly for files). Used by the parent's _layoutDir to perform a
+  // contour-merge instead of rect-vs-rect overlap testing.
+  //   - perp axis is the child's ALONG axis (= parent's PERP axis when this
+  //     child is placed)
+  //   - along value is the child's PERP axis (= parent's ALONG axis)
+  bottomEnvelope: Contour;
+  topEnvelope: Contour;
 }
 
 // _rectsOverlap(a, b) -> boolean
@@ -1139,14 +1148,26 @@ function _layoutDir(
       // directions (or non-zero perp depths), not in the parent's along axis
       // at the parent boundary.
       const subStreetWidth = _streetWidthForDir(children[i] as DirLike);
+      const localRects = _collectRectsBuf(localResult);
+      // The subdir's "along" axis (its main street direction) becomes the
+      // PARENT's PERP axis when the subdir is placed. So when we sweep the
+      // subdir's rects to derive its envelopes, we sweep along the subdir's
+      // own along axis. For Y-orient subdir (subOrient === Y): alongAxis = 'y'.
+      const subdirAlongAxis: 'x' | 'y' = subOrient === StreetAxis.X ? 'x' : 'y';
+      const { bottom: bottomEnv, top: topEnv } = _envelopesFromRects(
+        localRects,
+        subdirAlongAxis
+      );
       subLayouts[i] = {
         along: alongHigh - alongLow,
         alongLow,
         alongReach: subStreetWidth / 2,
-        rects: _collectRectsBuf(localResult),
+        rects: localRects,
         streets: localResult.streets,
         buildings: localResult.buildings,
         paths: localResult.paths,
+        bottomEnvelope: bottomEnv,
+        topEnvelope: topEnv,
       };
     }
   }
@@ -1232,6 +1253,17 @@ function _layoutDir(
       fileRectsBuf[5] = py;
       fileRectsBuf[6] = pw;
       fileRectsBuf[7] = pd;
+      // For a file child: derive envelopes directly from the building+path
+      // geometry. The file's "along" axis from the parent's perspective is
+      // the parent's perp axis. We sweep the file's rects on the parent's
+      // perp axis to get the envelope.
+      // For X-orient parent: parent's perp = y, so sweep on 'y'.
+      // For Y-orient parent: parent's perp = x, so sweep on 'x'.
+      const fileEnvSweepAxis: 'x' | 'y' = orientation === StreetAxis.X ? 'y' : 'x';
+      const { bottom: fileBottom, top: fileTop } = _envelopesFromRects(
+        fileRectsBuf,
+        fileEnvSweepAxis
+      );
       local = {
         along,
         alongLow: -along / 2,
@@ -1262,6 +1294,8 @@ function _layoutDir(
             file: child as unknown as Building['file'],
           },
         ],
+        bottomEnvelope: fileBottom,
+        topEnvelope: fileTop,
       };
     } else {
       local = subLayouts[ci];
