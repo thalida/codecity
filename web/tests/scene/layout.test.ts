@@ -1399,4 +1399,49 @@ describe('_preseedGrandparentBlock', () => {
     // Required: -10 + offset ≥ 12 + 1 → offset ≥ 23.
     expect(_slideUntilClear(child, side, 1)).toBe(23);
   });
+
+  it('asymmetric pre-seed: tighter perpRange limits the segment', () => {
+    // B's gem-facing side: caller passes parentStemXInGrandparent so the
+    // pre-seed only blocks perp depths up to that bound. Past it, world
+    // space is empty (behind grandparent's gem) and content is free.
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24, 50); // perpRange = 50
+    expect(side.len).toBe(1);
+    expect(side.buf[0]).toBe(0);
+    expect(side.buf[1]).toBe(50);
+    expect(side.buf[2]).toBe(12);
+  });
+
+  it('asymmetric pre-seed: child past the bound is unconstrained', () => {
+    const { _slideUntilClear, _appendSegment } = __test;
+    // Child only at perp [60, 65] — past the perpRange = 50 bound. With the
+    // tightened pre-seed, _slideUntilClear finds NO overlap and returns
+    // -Infinity (no constraint).
+    const child = _emptyContour();
+    _appendSegment(child, 60, 65, -10);
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24, 50);
+    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+  });
+
+  it('asymmetric pre-seed: undefined perpRange falls back to PRESEED_PERP_INF', () => {
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24, undefined);
+    expect(side.len).toBe(1);
+    expect(side.buf[1]).toBeGreaterThan(1e6);
+  });
+
+  it('asymmetric pre-seed: zero or negative perpRange falls back to PRESEED_PERP_INF', () => {
+    // Defensive: a zero or negative bound (caller bug or root-adjacent edge
+    // case where stemX hasn't grown beyond originPad) should not produce a
+    // degenerate segment. Fall back to the conservative bound.
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24, 0);
+    expect(side.len).toBe(1);
+    expect(side.buf[1]).toBeGreaterThan(1e6);
+    const side2 = _emptyContour();
+    _preseedGrandparentBlock(side2, 24, -5);
+    expect(side2.len).toBe(1);
+    expect(side2.buf[1]).toBeGreaterThan(1e6);
+  });
 });

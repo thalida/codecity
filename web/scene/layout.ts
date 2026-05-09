@@ -702,7 +702,9 @@ function _layoutDir(
   result: { streets: Street[]; buildings: Building[]; paths: BuildingPath[] },
   parentStreetWidth: number | undefined,
   lineStats: RangeStat,
-  byteStats: RangeStat
+  byteStats: RangeStat,
+  parentStemXInGrandparent?: number,
+  depth: number = 0
 ): void {
   // User-tunable gaps. Read fresh from the stores each call so tests /
   // runtime mutations take effect without reseating the recursion.
@@ -773,7 +775,9 @@ function _layoutDir(
         localResult,
         myStreetWidth,
         lineStats,
-        byteStats
+        byteStats,
+        undefined, // stemX in grandparent unknown during pre-compute
+        depth + 1
       );
       // Subdir's join with parent is a T-intersection of width = subdir's own
       // main-street width. The parent only needs pavement up to half that
@@ -811,8 +815,16 @@ function _layoutDir(
   // depth without the coarse `originPad + (-alongLow)` clamp.
   const sideContour: [Contour, Contour] = [_emptyContour(), _emptyContour()];
   if (parentStreetWidth !== undefined) {
-    _preseedGrandparentBlock(sideContour[0], parentStreetWidth);
-    _preseedGrandparentBlock(sideContour[1], parentStreetWidth);
+    // Asymmetric pre-seed (B). Side 0 is the gem-facing side: in parent's
+    // local frame, content at perp = X corresponds to web_local_x = -X (i.e.
+    // negative direction in the grandparent's along axis). At perp >
+    // parentStemXInGrandparent the world-x falls behind the grandparent's
+    // gem — empty space, no constraint needed. So tighten side 0's pre-seed
+    // perp range to parentStemXInGrandparent when known. Side 1 is the
+    // far-from-gem side: we don't know the grandparent's far-end length
+    // here, so keep the conservative PRESEED_PERP_INF.
+    _preseedGrandparentBlock(sideContour[0], parentStreetWidth, parentStemXInGrandparent);
+    _preseedGrandparentBlock(sideContour[1], parentStreetWidth, undefined);
   }
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
@@ -976,6 +988,56 @@ function _layoutDir(
         chosenSide = s;
         chosenStemX = sideOffsets[s];
       }
+    }
+
+    // B (asymmetric pre-seed via two-pass): for subdir children of the ROOT,
+    // re-run _layoutDir now that chosenStemX is known. The child's own pre-
+    // seed for its non-root recursion can use the asymmetric form (gem-facing
+    // side tightened to chosenStemX), allowing back-extending content to
+    // settle in world-empty space behind the root's gem instead of pushing
+    // the root's road longer. The re-computed envelope updates the side
+    // contour, so later siblings benefit from the tighter packing.
+    //
+    // Scoped to depth === 0 (root). Re-computing at every depth would
+    // cascade: each re-compute would itself trigger re-computes of its
+    // own children, doubling work per level. At root only, total work is
+    // bounded to ~2× the first pass on root's subdir children.
+    if (child.type !== NodeKind.File && depth === 0) {
+      const reLocalResult = {
+        streets: [] as Street[],
+        buildings: [] as Building[],
+        paths: [] as BuildingPath[],
+      };
+      _layoutDir(
+        child as DirLike,
+        0,
+        0,
+        subOrient,
+        reLocalResult,
+        myStreetWidth,
+        lineStats,
+        byteStats,
+        chosenStemX, // now known — feeds asymmetric pre-seed
+        1 // depth-1 child of root
+      );
+      const reLocalRects = _collectRectsBuf(reLocalResult);
+      const reSubdirAlongAxis: 'x' | 'y' = subOrient === StreetAxis.X ? 'x' : 'y';
+      const { bottom: reBottomEnv, top: reTopEnv } = _envelopesFromRects(
+        reLocalRects,
+        reSubdirAlongAxis
+      );
+      // Replace `local` with the re-computed version. alongReach is unchanged
+      // (it derives from the subdir's own street width, not its content).
+      // Side contour update + world translate below both consume `local`,
+      // so they pick up the re-computed rects/envelope automatically.
+      local = {
+        alongReach: local.alongReach,
+        streets: reLocalResult.streets,
+        buildings: reLocalResult.buildings,
+        paths: reLocalResult.paths,
+        bottomEnvelope: reBottomEnv,
+        topEnvelope: reTopEnv,
+      };
     }
 
     // Commit: merge the child's top envelope (shifted by chosenStemX) into
@@ -1297,10 +1359,20 @@ function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): 
 // magnitude larger. Threading the actual grandparent length through the
 // recursion would give a tighter bound but isn't needed for correctness.
 const PRESEED_PERP_INF = 1e9;
-function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number): void {
+function _preseedGrandparentBlock(
+  side: Contour,
+  grandparentStreetWidth: number,
+  perpRange?: number
+): void {
   const gW2 = grandparentStreetWidth / 2;
   if (gW2 <= 0) return;
-  _appendSegment(side, 0, PRESEED_PERP_INF, gW2);
+  // perpRange overrides the default PRESEED_PERP_INF when caller knows a
+  // tighter bound (B's asymmetric pre-seed: gem-facing side uses parent's
+  // stemX in grandparent — past that perp, world space behind the gem is
+  // empty and no constraint is needed). Falls back to PRESEED_PERP_INF when
+  // undefined or non-positive.
+  const perpHigh = perpRange !== undefined && perpRange > 0 ? perpRange : PRESEED_PERP_INF;
+  _appendSegment(side, 0, perpHigh, gW2);
 }
 
 // _maxPerpReach(c) -> number
