@@ -1539,6 +1539,21 @@ function _candidateBboxInParent(
   };
 }
 
+// _bboxUnionMaxDim(a, b) -> number
+//
+// max(width, height) of the bbox union. Used as the variant scoring
+// metric: lower max-dim = more compact (square) parent bbox after the
+// candidate placement. Encodes "grow into the smaller axis first."
+function _bboxUnionMaxDim(a: BBox, b: BBox): number {
+  const aMin = Math.min(a.alongMin, b.alongMin);
+  const aMax = Math.max(a.alongMax, b.alongMax);
+  const pMin = Math.min(a.perpMin, b.perpMin);
+  const pMax = Math.max(a.perpMax, b.perpMax);
+  const w = aMax - aMin;
+  const h = pMax - pMin;
+  return w > h ? w : h;
+}
+
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1577,4 +1592,5 @@ export const __test = {
   _isMirrorInvariant,
   _mirrorEnvelopes,
   _candidateBboxInParent,
+  _bboxUnionMaxDim,
 };

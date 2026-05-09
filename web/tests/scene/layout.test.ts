@@ -1713,3 +1713,31 @@ describe('_candidateBboxInParent', () => {
     expect(b.perpMax).toBe(0);
   });
 });
+
+describe('_bboxUnionMaxDim', () => {
+  it('two non-overlapping bboxes: max(W, H) of union', () => {
+    const a = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 5 };
+    const b = { alongMin: 12, alongMax: 20, perpMin: 0, perpMax: 5 };
+    // union: along 0..20 (W=20), perp 0..5 (H=5) → max=20
+    expect(__test._bboxUnionMaxDim(a, b)).toBe(20);
+  });
+
+  it('one bbox contains the other: union = larger bbox', () => {
+    const a = { alongMin: 0, alongMax: 100, perpMin: 0, perpMax: 50 };
+    const b = { alongMin: 10, alongMax: 20, perpMin: 5, perpMax: 15 };
+    expect(__test._bboxUnionMaxDim(a, b)).toBe(100);
+  });
+
+  it('square union (W == H) returns that dim', () => {
+    const a = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 10 };
+    const b = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 10 };
+    expect(__test._bboxUnionMaxDim(a, b)).toBe(10);
+  });
+
+  it('negative coordinates handled correctly', () => {
+    const a = { alongMin: -5, alongMax: 5, perpMin: -3, perpMax: 3 };
+    const b = { alongMin: -10, alongMax: 0, perpMin: -8, perpMax: -3 };
+    // union: along -10..5 (W=15), perp -8..3 (H=11) → max=15
+    expect(__test._bboxUnionMaxDim(a, b)).toBe(15);
+  });
+});
