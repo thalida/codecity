@@ -35,9 +35,8 @@ interface DirLike {
 type TreeLike = FileLike | DirLike;
 
 // Rect — axis-aligned bounding rectangle in some 2D frame. Used by the
-// occupancy-based packer in _layoutDir to test whether a candidate
-// placement overlaps already-placed siblings. (x, y) is the rect's CENTER;
-// w/d are the full width/depth (matches Building/Street conventions).
+// contour-based packer and overlap invariant checks. (x, y) is the rect's
+// CENTER; w/d are the full width/depth (matches Building/Street conventions).
 export interface Rect {
   x: number;
   y: number;
@@ -114,17 +113,6 @@ function _rectsOverlap(a: Rect, b: Rect): boolean {
   );
 }
 
-// OccupancyEntry — one placed child's contribution to a side's occupancy.
-// Carries the translated rects and a precomputed bbox so overlap checks can
-// reject far-away entries in O(1) before iterating their per-rect content.
-// For deep trees, where each entry can hold an entire subtree's flattened
-// rect list, the bbox fast path keeps the inner loop proportional to the
-// number of geometrically-intersecting siblings rather than total rects.
-interface OccupancyEntry {
-  bbox: Rect;
-  rects: RectBuf;
-}
-
 // _bboxOfRects(rects) -> Rect
 //
 // Axis-aligned bounding box of an array of rects. (x, y) is the bbox
@@ -151,230 +139,6 @@ function _bboxOfRects(rects: Rect[]): Rect {
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
 }
 
-// _overlapsAny(candidateBbox, candidateBuf, candidateLen, entries) -> boolean
-//
-// True iff any rect in `candidateBuf[0..candidateLen)` intersects any rect
-// inside any occupancy entry. Bbox-first fast path: for each entry, reject
-// when candidateBbox doesn't overlap entry.bbox (O(1) skip), only iterate
-// per-rect when bboxes intersect. For deep trees this keeps inner work
-// proportional to the number of geometrically-intersecting siblings, not
-// total siblings. Reads coords directly from the typed arrays — no per-rect
-// object allocation in the hot path.
-function _overlapsAny(
-  candidateBbox: Rect,
-  candidateBuf: RectBuf,
-  candidateLen: number,
-  entries: OccupancyEntry[]
-): boolean {
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    if (!_rectsOverlap(candidateBbox, e.bbox)) continue; // O(1) skip
-    const eBbox = e.bbox;
-    const eBx1 = eBbox.x - eBbox.w / 2,
-      eBx2 = eBbox.x + eBbox.w / 2;
-    const eBy1 = eBbox.y - eBbox.d / 2,
-      eBy2 = eBbox.y + eBbox.d / 2;
-    const eRects = e.rects;
-    const eN = eRects.length >>> 2;
-    // Inlined _rectsOverlapBuf for the hot inner loop — avoids function-call
-    // overhead in deep trees where this can dominate (millions of pair checks
-    // for d4f10).
-    //
-    // Two-level pruning: per-entry bbox skip eliminates whole entries when
-    // the candidate's bbox doesn't overlap the entry's. Per-candidate-rect
-    // skip eliminates candidate rects whose own AABB doesn't reach the
-    // entry's bbox — only rects on the boundary of the candidate's footprint
-    // can contribute to overlap, so this trims the inner loop to ~O(boundary)
-    // when both subtrees have many interior rects.
-    for (let j = 0; j < candidateLen; j++) {
-      const co = j << 2;
-      const cx = candidateBuf[co],
-        cy = candidateBuf[co + 1],
-        cw = candidateBuf[co + 2],
-        cd = candidateBuf[co + 3];
-      const cx1 = cx - cw / 2,
-        cx2 = cx + cw / 2;
-      const cy1 = cy - cd / 2,
-        cy2 = cy + cd / 2;
-      // Inner bbox prune: if THIS candidate rect doesn't intersect the
-      // entry's bbox, none of entry.rects can intersect it — skip.
-      if (
-        !(
-          cx1 + OVERLAP_EPS < eBx2 &&
-          cx2 - OVERLAP_EPS > eBx1 &&
-          cy1 + OVERLAP_EPS < eBy2 &&
-          cy2 - OVERLAP_EPS > eBy1
-        )
-      ) {
-        continue;
-      }
-      for (let k = 0; k < eN; k++) {
-        const eo = k << 2;
-        const ex = eRects[eo],
-          ey = eRects[eo + 1],
-          ew = eRects[eo + 2],
-          ed = eRects[eo + 3];
-        const ex1 = ex - ew / 2,
-          ex2 = ex + ew / 2;
-        const ey1 = ey - ed / 2,
-          ey2 = ey + ed / 2;
-        if (
-          cx1 + OVERLAP_EPS < ex2 &&
-          cx2 - OVERLAP_EPS > ex1 &&
-          cy1 + OVERLAP_EPS < ey2 &&
-          cy2 - OVERLAP_EPS > ey1
-        ) {
-          return true;
-        }
-      }
-    }
-  }
-  return false;
-}
-
-// _checkAndAdvance(...) -> { fits, advance }
-//
-// Combined fit-test + nextEventX in a single pass over the occupancy
-// entries. Avoids a duplicate scan when the placement loop both checks
-// for fit AND needs to compute the advance on miss. Returns
-// `advance = -1` when fits=true (caller doesn't read it).
-//
-// This is the inner hot loop of _layoutDir for deep trees. Combining the
-// two passes is a big win because a SECOND pass of overlapping entries
-// would re-execute all the bbox-prune work that the first pass already
-// did. Single-pass: each entry is scanned at most once per attempt.
-function _checkAndAdvance(
-  candidateBbox: Rect,
-  candidateBuf: RectBuf,
-  candidateLen: number,
-  entries: OccupancyEntry[],
-  axisAlong: 'x' | 'y'
-): { fits: boolean; advance: number } {
-  const isX = axisAlong === 'x';
-  let bestAdvance = Infinity;
-  let anyOverlap = false;
-  for (let i = 0; i < entries.length; i++) {
-    const e = entries[i];
-    if (!_rectsOverlap(candidateBbox, e.bbox)) continue;
-    const eBbox = e.bbox;
-    const eBx1 = eBbox.x - eBbox.w / 2,
-      eBx2 = eBbox.x + eBbox.w / 2;
-    const eBy1 = eBbox.y - eBbox.d / 2,
-      eBy2 = eBbox.y + eBbox.d / 2;
-    const eRects = e.rects;
-    const eN = eRects.length >>> 2;
-    // Each entry's rects are sorted by along-axis right edge ASCENDING at
-    // commit time (see _sortRectsByAlongRight below). Combined with the
-    // monotonic-advance property — for fixed cLeft, advance(k) is monotonic
-    // increasing with oRight(k) — we can stop the inner k-loop as soon as
-    // oRight > cLeft + bestAdvance (no later rect can beat bestAdvance).
-    for (let j = 0; j < candidateLen; j++) {
-      const co = j << 2;
-      const cx = candidateBuf[co],
-        cy = candidateBuf[co + 1],
-        cw = candidateBuf[co + 2],
-        cd = candidateBuf[co + 3];
-      const cx1 = cx - cw / 2,
-        cx2 = cx + cw / 2;
-      const cy1 = cy - cd / 2,
-        cy2 = cy + cd / 2;
-      const cLeft = isX ? cx1 : cy1;
-      // j-prune: skip candidate rects whose own AABB doesn't reach the
-      // entry's bbox.
-      if (
-        !(
-          cx1 + OVERLAP_EPS < eBx2 &&
-          cx2 - OVERLAP_EPS > eBx1 &&
-          cy1 + OVERLAP_EPS < eBy2 &&
-          cy2 - OVERLAP_EPS > eBy1
-        )
-      ) {
-        continue;
-      }
-      for (let k = 0; k < eN; k++) {
-        const eo = k << 2;
-        const ex = eRects[eo],
-          ey = eRects[eo + 1],
-          ew = eRects[eo + 2],
-          ed = eRects[eo + 3];
-        const ex1 = ex - ew / 2,
-          ex2 = ex + ew / 2;
-        const ey1 = ey - ed / 2,
-          ey2 = ey + ed / 2;
-        const oRight = isX ? ex2 : ey2;
-        // Sorted-prune (early k-exit): once oRight exceeds (cLeft + bestAdvance),
-        // no later rect in this entry can produce a smaller advance.
-        if (oRight - cLeft >= bestAdvance) break;
-        if (
-          !(
-            cx1 + OVERLAP_EPS < ex2 &&
-            cx2 - OVERLAP_EPS > ex1 &&
-            cy1 + OVERLAP_EPS < ey2 &&
-            cy2 - OVERLAP_EPS > ey1
-          )
-        ) {
-          continue;
-        }
-        anyOverlap = true;
-        const advance = oRight - cLeft;
-        if (advance > 0 && advance < bestAdvance) bestAdvance = advance;
-      }
-    }
-  }
-  if (!anyOverlap) {
-    return { fits: true, advance: -1 };
-  }
-  if (bestAdvance === Infinity) {
-    throw new Error('_checkAndAdvance overlap reported but no positive advance — invariant violated');
-  }
-  return { fits: false, advance: bestAdvance };
-}
-
-// _sortRectsByAlongRightInPlace(buf, axisAlong) — mutates `buf` so its
-// rects are ordered by along-axis right edge ASCENDING. Used at commit
-// time on a freshly-allocated placedBuf so subsequent _checkAndAdvance
-// scans can early-exit the inner per-rect loop once the next rect's
-// minimum possible advance exceeds the running best.
-//
-// Implementation: index sort + permutation rewrite. We allocate one tmp
-// Float32Array of the same length to write the permuted contents into,
-// then copy back. Avoiding a swap-in-place keeps the algorithm O(n) for
-// the rewrite step (an in-place permutation cycle would be the same
-// asymptotically but harder to read).
-function _sortRectsByAlongRightInPlace(buf: RectBuf, axisAlong: 'x' | 'y'): void {
-  const n = buf.length >>> 2;
-  if (n <= 1) return;
-  const isX = axisAlong === 'x';
-  const indices = new Array<number>(n);
-  for (let i = 0; i < n; i++) indices[i] = i;
-  indices.sort((a, b) => {
-    const ao = a << 2;
-    const bo = b << 2;
-    const aRight = isX ? buf[ao] + buf[ao + 2] / 2 : buf[ao + 1] + buf[ao + 3] / 2;
-    const bRight = isX ? buf[bo] + buf[bo + 2] / 2 : buf[bo + 1] + buf[bo + 3] / 2;
-    return aRight - bRight;
-  });
-  // Check if already sorted (very common when entries are committed in
-  // collection order from sorted children) — skip the rewrite.
-  let alreadySorted = true;
-  for (let i = 0; i < n; i++) {
-    if (indices[i] !== i) {
-      alreadySorted = false;
-      break;
-    }
-  }
-  if (alreadySorted) return;
-  const tmp = new Float32Array(n * 4);
-  for (let i = 0; i < n; i++) {
-    const src = indices[i] << 2;
-    const dst = i << 2;
-    tmp[dst] = buf[src];
-    tmp[dst + 1] = buf[src + 1];
-    tmp[dst + 2] = buf[src + 2];
-    tmp[dst + 3] = buf[src + 3];
-  }
-  buf.set(tmp);
-}
 
 // _collectRects(layout) -> Rect[]
 //
@@ -643,8 +407,7 @@ function _rectsOverlapBuf(a: RectBuf, ai: number, b: RectBuf, bi: number): boole
 }
 
 // _rectsOverlapBufRect(buf, i, r) -> boolean — overlap between a rect inside
-// a RectBuf and a stand-alone Rect (used when checking against an
-// OccupancyEntry's bbox, which stays a Rect object).
+// a RectBuf and a stand-alone Rect object.
 function _rectsOverlapBufRect(buf: RectBuf, i: number, r: Rect): boolean {
   const o = i << 2;
   const ax = buf[o], ay = buf[o + 1], aw = buf[o + 2], ad = buf[o + 3];
@@ -660,60 +423,6 @@ function _rectsOverlapBufRect(buf: RectBuf, i: number, r: Rect): boolean {
   );
 }
 
-// _bboxOfBuf(buf, len?) -> Rect — axis-aligned bbox of rects 0..len-1 in buf.
-// `len` defaults to rectCount(buf); pass a smaller value when reading from a
-// scratch buffer that's only partially populated.
-function _bboxOfBuf(buf: RectBuf, len?: number): Rect {
-  const n = len !== undefined ? len : rectCount(buf);
-  if (n === 0) return { x: 0, y: 0, w: 0, d: 0 };
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (let i = 0; i < n; i++) {
-    const o = i << 2;
-    const x = buf[o], y = buf[o + 1], w = buf[o + 2], d = buf[o + 3];
-    const x1 = x - w / 2, x2 = x + w / 2;
-    const y1 = y - d / 2, y2 = y + d / 2;
-    if (x1 < minX) minX = x1;
-    if (x2 > maxX) maxX = x2;
-    if (y1 < minY) minY = y1;
-    if (y2 > maxY) maxY = y2;
-  }
-  return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
-}
-
-// _translateInto(out, src, originX, originY, stemX, sideIdx, parentOrient, srcLen?)
-//
-// In-place translation of src[0..srcLen*4) into out[0..srcLen*4). Mirrors
-// _translateChildRects logic. No allocation. Used by the _layoutDir
-// placement loop to write each per-attempt translation into a single
-// reused scratch buffer instead of newly allocating a Rect[] each time.
-function _translateInto(
-  out: RectBuf,
-  src: RectBuf,
-  originX: number,
-  originY: number,
-  stemX: number,
-  sideIdx: 0 | 1,
-  parentOrient: StreetAxis,
-  srcLen?: number
-): void {
-  const n = srcLen !== undefined ? srcLen : src.length >>> 2;
-  const negateY = parentOrient === StreetAxis.X && sideIdx === 0;
-  const negateX = parentOrient === StreetAxis.Y && sideIdx === 0;
-  for (let i = 0; i < n; i++) {
-    const o = i << 2;
-    let lx = src[o];
-    let ly = src[o + 1];
-    if (parentOrient === StreetAxis.X) {
-      lx += stemX;
-    } else {
-      ly += stemX;
-    }
-    out[o] = (negateX ? -lx : lx) + originX;
-    out[o + 1] = (negateY ? -ly : ly) + originY;
-    out[o + 2] = src[o + 2];
-    out[o + 3] = src[o + 3];
-  }
-}
 
 // _collectRectsBuf(layout) -> RectBuf — flat-buffer flavor of _collectRects.
 // Used by _layoutDir to capture each subdir's local layout as a single
@@ -770,24 +479,6 @@ function _collectRectsBuf(layout: {
   return buf;
 }
 
-// _sideArea(entries) -> number
-//
-// Sum of w*d over all rects in this side's occupancy entries. Used as the
-// tiebreaker when computing preferredSide in _layoutDir so the city grows
-// symmetrically. Reads w/d directly from the RectBuf (interleaved layout:
-// each rect occupies 4 floats at o..o+3 = x, y, w, d).
-function _sideArea(entries: OccupancyEntry[]): number {
-  let area = 0;
-  for (let i = 0; i < entries.length; i++) {
-    const rects = entries[i].rects;
-    const n = rects.length >>> 2;
-    for (let j = 0; j < n; j++) {
-      const o = j << 2;
-      area += rects[o + 2] * rects[o + 3];
-    }
-  }
-  return area;
-}
 
 interface ManifestLike {
   tree?: DirLike;
@@ -1037,12 +728,13 @@ function _markJoinSides(streets: StreetWithJoin[]): void {
 //                      the parent street; for the root, this is (0, 0))
 //   orientation       — 'x' or 'y'; the axis the street extends along
 //
-// Algorithm:
+// Algorithm (v2 — contour-based):
 //   1. Sort all children (files + subdirs) alphabetically by name.
-//   2. Pre-compute each subdir's layout in its own local frame and measure
-//      its bounding box (so we can space siblings correctly).
-//   3. Walk children in order, placing each one along the street with a
-//      single shared cursor. Alternate sides (primary/secondary) as we go:
+//   2. Pre-compute each subdir's layout in its own local frame; derive
+//      perpendicular envelopes (bottom + top contours) for each child.
+//   3. Walk children in order, assigning each to a side (primary/secondary)
+//      and sliding it along the street until it clears the side's running
+//      contour. After placement, merge the child's contour into the side's:
 //        - X-street primary = SOUTH, secondary = NORTH
 //        - Y-street primary = WEST,  secondary = EAST
 //      Subdirs on the secondary side branch in the +perp direction (default);
@@ -1184,9 +876,8 @@ function _layoutDir(
     _preseedGrandparentBlock(sideContour[0], parentStreetWidth);
     _preseedGrandparentBlock(sideContour[1], parentStreetWidth);
   }
-  // Per-side cumulative count for best-fit side selection. Cheap proxy for
-  // the v1 _sideArea metric — grows monotonically with placed children's
-  // complexity and avoids re-scanning rect buffers.
+  // Per-side cumulative count for best-fit side selection. Grows monotonically
+  // with placed children's complexity; avoids re-scanning rect buffers.
   const sideCount: [number, number] = [0, 0];
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
@@ -1445,8 +1136,8 @@ function _layoutDir(
   // off (their stem) plus a small along-axis clearance for that branch's
   // own footprint at the parent boundary — `maxBoundaryAlong` tracks exactly
   // that. Subtree contents past the stem extend perpendicular to the parent
-  // and don't require parent-street pavement, so we DO NOT iterate occupancy
-  // rects for length here (which would incorrectly include far branches of
+  // and don't require parent-street pavement, so we do NOT use placed rect
+  // extents for length here (which would incorrectly include far branches of
   // subtree children that extend in the parent's along-axis direction at
   // non-zero perp depth).
   const streetLength = Math.max(maxBoundaryAlong + endPad, originPad + endPad);
@@ -1727,7 +1418,6 @@ function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number)
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _rectsOverlap,
-  _overlapsAny,
   _collectRects,
   _collectRectsBuf,
   _bboxOfRects,
@@ -1737,7 +1427,6 @@ export const __test = {
   bufToRects,
   _rectsOverlapBuf,
   _rectsOverlapBufRect,
-  _bboxOfBuf,
   _emptyContour,
   _appendSegment,
   _contourAt,

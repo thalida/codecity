@@ -610,54 +610,6 @@ describe('_rectsOverlap', () => {
   });
 });
 
-describe('_overlapsAny', () => {
-  const { _overlapsAny, _bboxOfRects, rectsToBuf } = __test;
-  // Wrap a flat rect list as one occupancy entry per rect — keeps each
-  // test's intent close to the original (each rect was placed
-  // independently). Entry rects use the buffer-flavored API now.
-  function asEntries(rects: Rect[]) {
-    return rects.map((r) => ({ bbox: r, rects: rectsToBuf([r]) }));
-  }
-  const occ: Rect[] = [
-    { x: 0, y: 0, w: 10, d: 10 },
-    { x: 50, y: 0, w: 10, d: 10 },
-  ];
-  it('returns true when any one rect overlaps occupancy', () => {
-    const probe: Rect[] = [{ x: 51, y: 0, w: 5, d: 5 }];
-    const probeBuf = rectsToBuf(probe);
-    expect(_overlapsAny(_bboxOfRects(probe), probeBuf, probe.length, asEntries(occ))).toBe(true);
-  });
-  it('returns false when no rects overlap occupancy', () => {
-    const probe: Rect[] = [
-      { x: 100, y: 0, w: 5, d: 5 },
-      { x: 200, y: 0, w: 5, d: 5 },
-    ];
-    const probeBuf = rectsToBuf(probe);
-    expect(_overlapsAny(_bboxOfRects(probe), probeBuf, probe.length, asEntries(occ))).toBe(false);
-  });
-  it('empty occupancy → always false', () => {
-    const probe: Rect[] = [{ x: 0, y: 0, w: 1, d: 1 }];
-    const probeBuf = rectsToBuf(probe);
-    expect(_overlapsAny(_bboxOfRects(probe), probeBuf, probe.length, [])).toBe(false);
-  });
-  it('empty probe → always false', () => {
-    const probeBuf = rectsToBuf([]);
-    expect(_overlapsAny(_bboxOfRects([]), probeBuf, 0, asEntries(occ))).toBe(false);
-  });
-  it('bbox fast-path skips entries whose bbox is far from candidate', () => {
-    // Build an entry with a bbox that doesn't overlap the candidate even
-    // though one of its inner rects (constructed pathologically) would.
-    // This isn't physically realizable from a real layout (entry.bbox
-    // always covers all entry.rects) but exercises the bbox-skip branch.
-    const farEntry = {
-      bbox: { x: 1000, y: 0, w: 5, d: 5 },
-      rects: rectsToBuf([{ x: 0, y: 0, w: 5, d: 5 }]), // would overlap probe
-    };
-    const probe: Rect[] = [{ x: 0, y: 0, w: 5, d: 5 }];
-    const probeBuf = rectsToBuf(probe);
-    expect(_overlapsAny(_bboxOfRects(probe), probeBuf, probe.length, [farEntry])).toBe(false);
-  });
-});
 
 describe('_bboxOfRects', () => {
   const { _bboxOfRects } = __test;
@@ -850,42 +802,6 @@ describe('_rectsOverlapBufRect', () => {
   });
 });
 
-describe('_bboxOfBuf', () => {
-  const { rectsToBuf, _bboxOfBuf, _bboxOfRects } = __test;
-
-  it('empty buf -> zero rect', () => {
-    const buf = rectsToBuf([]);
-    expect(_bboxOfBuf(buf)).toEqual({ x: 0, y: 0, w: 0, d: 0 });
-  });
-
-  it('single rect -> same rect', () => {
-    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
-    expect(_bboxOfBuf(buf)).toEqual({ x: 5, y: 10, w: 4, d: 6 });
-  });
-
-  it('matches _bboxOfRects on multiple rects', () => {
-    const rs: Rect[] = [
-      { x: 0, y: 0, w: 10, d: 10 },
-      { x: 20, y: 20, w: 10, d: 10 },
-    ];
-    const buf = rectsToBuf(rs);
-    const bufBbox = _bboxOfBuf(buf);
-    const objBbox = _bboxOfRects(rs);
-    expect(bufBbox).toEqual(objBbox);
-  });
-
-  it('honors `len` parameter (partial buffer)', () => {
-    // Buffer has 3 rects but we only care about the first 2.
-    const buf = rectsToBuf([
-      { x: 0, y: 0, w: 10, d: 10 },
-      { x: 20, y: 0, w: 10, d: 10 },
-      { x: 1000, y: 1000, w: 10, d: 10 },
-    ]);
-    const bbox = _bboxOfBuf(buf, 2);
-    expect(bbox.x).toBe(10);
-    expect(bbox.w).toBe(30);
-  });
-});
 
 // ---- Invariant helpers + tests ----
 //
