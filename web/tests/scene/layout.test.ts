@@ -1158,3 +1158,80 @@ describe('layout invariants (current packer baseline)', () => {
     expect(bigStreet[along]).toBeLessThan(rootStreet.length / 2);
   });
 });
+
+describe('Contour basics', () => {
+  const { _emptyContour, _appendSegment, _contourAt, _growContour } = __test;
+
+  it('empty contour has len 0 and default capacity', () => {
+    const c = _emptyContour();
+    expect(c.len).toBe(0);
+    expect(c.buf.length).toBe(64 * 4);
+  });
+
+  it('append single segment', () => {
+    const c = _emptyContour();
+    _appendSegment(c, 0, 10, 5);
+    expect(c.len).toBe(1);
+    expect(c.buf[0]).toBe(0);
+    expect(c.buf[1]).toBe(10);
+    expect(c.buf[2]).toBe(5);
+  });
+
+  it('append multiple segments', () => {
+    const c = _emptyContour();
+    _appendSegment(c, 0, 5, 1);
+    _appendSegment(c, 5, 10, 2);
+    _appendSegment(c, 20, 30, 3);
+    expect(c.len).toBe(3);
+    expect(c.buf[0]).toBe(0);
+    expect(c.buf[5]).toBe(10);
+    expect(c.buf[10]).toBe(3);
+  });
+
+  it('append degenerate segment (perpLow >= perpHigh) is no-op', () => {
+    const c = _emptyContour();
+    _appendSegment(c, 5, 5, 1);
+    _appendSegment(c, 10, 5, 2);
+    expect(c.len).toBe(0);
+  });
+
+  it('_contourAt returns alongValue inside a segment', () => {
+    const c = _emptyContour();
+    _appendSegment(c, 0, 10, 5);
+    expect(_contourAt(c, 5)).toBe(5);
+    expect(_contourAt(c, 0)).toBe(5);
+  });
+
+  it('_contourAt returns -Infinity outside all segments', () => {
+    const c = _emptyContour();
+    _appendSegment(c, 0, 10, 5);
+    expect(_contourAt(c, 15)).toBe(-Infinity);
+    expect(_contourAt(c, -5)).toBe(-Infinity);
+  });
+
+  it('_contourAt at the upper boundary (perpHigh) is OUTSIDE the segment', () => {
+    // Segments are half-open [perpLow, perpHigh); convention: <
+    const c = _emptyContour();
+    _appendSegment(c, 0, 10, 5);
+    expect(_contourAt(c, 10)).toBe(-Infinity);
+  });
+
+  it('_growContour doubles capacity when full', () => {
+    const c = _emptyContour();
+    expect(c.buf.length).toBe(64 * 4);
+    // Fill to capacity.
+    for (let i = 0; i < 64; i++) {
+      _appendSegment(c, i * 10, i * 10 + 5, i);
+    }
+    expect(c.len).toBe(64);
+    expect(c.buf.length).toBe(64 * 4);
+    // Add one more — triggers grow.
+    _appendSegment(c, 1000, 1010, 999);
+    expect(c.len).toBe(65);
+    expect(c.buf.length).toBe(128 * 4);
+    // Existing data preserved.
+    expect(c.buf[0]).toBe(0);
+    expect(c.buf[63 * 4]).toBe(630);
+    expect(c.buf[64 * 4]).toBe(1000);
+  });
+});

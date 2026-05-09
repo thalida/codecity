@@ -445,6 +445,69 @@ function bufToRects(buf: RectBuf): Rect[] {
   return out;
 }
 
+// Contour — a sorted list of non-overlapping (perpLow, perpHigh, alongValue)
+// segments, stored as a flat Float64Array (4 numbers per segment;
+// the 4th slot is reserved for future use). Used by the v2 packer
+// in place of per-side rectangle occupancy: each contour is a piecewise-
+// constant function `perp → alongValue` recording either the rightmost
+// reach (top contour) or leftmost reach (bottom envelope) of placed
+// content at each perpendicular depth.
+//
+// Invariants:
+//   - segments are sorted by perpLow
+//   - perpHigh_i ≤ perpLow_{i+1} (no overlapping segments)
+//   - perpLow < perpHigh for every segment (no degenerate)
+//   - "uncovered" perp ranges are implicit (no segment covers them)
+export type Contour = { buf: Float64Array; len: number };
+
+// _emptyContour() -> a fresh contour with default capacity (64 segments).
+// Geometric growth via _growContour as needed.
+function _emptyContour(): Contour {
+  return { buf: new Float64Array(64 * 4), len: 0 };
+}
+
+// _growContour(c, needed) -> grow c's buf to hold at least `needed` segments.
+// Doubles capacity until sufficient. No-op if already large enough.
+function _growContour(c: Contour, needed: number): void {
+  let cap = c.buf.length >>> 2;
+  if (cap >= needed) return;
+  while (cap < needed) cap *= 2;
+  const newBuf = new Float64Array(cap * 4);
+  newBuf.set(c.buf.subarray(0, c.len * 4));
+  c.buf = newBuf;
+}
+
+// _appendSegment(c, perpLow, perpHigh, alongValue)
+// Append one segment to the end of c. Caller is responsible for invariants
+// (sorted, non-overlapping) — this is a low-level primitive.
+// Skips segments where perpLow ≥ perpHigh (degenerate).
+function _appendSegment(
+  c: Contour,
+  perpLow: number,
+  perpHigh: number,
+  alongValue: number
+): void {
+  if (perpLow >= perpHigh) return;
+  _growContour(c, c.len + 1);
+  const o = c.len * 4;
+  c.buf[o] = perpLow;
+  c.buf[o + 1] = perpHigh;
+  c.buf[o + 2] = alongValue;
+  c.buf[o + 3] = 0;
+  c.len++;
+}
+
+// _contourAt(c, perp) -> alongValue at this perp, or -Infinity if no segment
+// covers it. Linear scan (typical contour is small; binary search is an
+// optimization for later if needed).
+function _contourAt(c: Contour, perp: number): number {
+  for (let i = 0; i < c.len; i++) {
+    const o = i * 4;
+    if (c.buf[o] <= perp && perp < c.buf[o + 1]) return c.buf[o + 2];
+  }
+  return -Infinity;
+}
+
 // _rectsOverlapBuf(a, ai, b, bi) -> boolean — same semantics as _rectsOverlap
 // (with OVERLAP_EPS tolerance), but reads coords directly from RectBufs at
 // the given indices. No object allocation.
@@ -1427,4 +1490,8 @@ export const __test = {
   _rectsOverlapBuf,
   _rectsOverlapBufRect,
   _bboxOfBuf,
+  _emptyContour,
+  _growContour,
+  _appendSegment,
+  _contourAt,
 };
