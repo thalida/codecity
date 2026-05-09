@@ -1172,11 +1172,22 @@ function _layoutDir(
     }
   }
 
-  // ---- Per-side occupancy + monotonic stem-x cursor ----------------------
-  // Each occupancy entry groups one placed child's translated rects with
-  // their bbox so _overlapsAny / _nextEventX can reject far-away entries
-  // in O(1) before scanning their rect lists. See OccupancyEntry above.
-  const occupancy: OccupancyEntry[][] = [[], []];
+  // ---- Per-side top contours + monotonic stem-x cursor (v2 packer) -------
+  // Two Contours per side — one for the bottom envelope (reads only) and
+  // one for the top contour (in-place merge). Each placement is a single
+  // _slideUntilClear merge against the side's top contour. Pre-seed each
+  // side at non-root with a phantom block representing the grandparent's
+  // street body so children's back-extending content is rejected per-perp-
+  // depth without the coarse `originPad + (-alongLow)` clamp.
+  const sideContour: [Contour, Contour] = [_emptyContour(), _emptyContour()];
+  if (parentStreetWidth !== undefined) {
+    _preseedGrandparentBlock(sideContour[0], parentStreetWidth);
+    _preseedGrandparentBlock(sideContour[1], parentStreetWidth);
+  }
+  // Per-side cumulative count for best-fit side selection. Cheap proxy for
+  // the v1 _sideArea metric — grows monotonically with placed children's
+  // complexity and avoids re-scanning rect buffers.
+  const sideCount: [number, number] = [0, 0];
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
   // is the along-axis extent the parent street physically has to cover at the
@@ -1186,21 +1197,6 @@ function _layoutDir(
   // inflate the parent street's length — they extend perpendicular to the
   // parent and don't require parent-street pavement).
   let maxBoundaryAlong = originPad;
-
-  // Per-attempt translation writes into this single scratch buffer instead
-  // of newly allocating a Rect[] each iteration of the placement loop.
-  // Sized to the largest child's rect count so any child fits. The buffer
-  // is reused across attempts AND across children within this _layoutDir
-  // call. Files always have 2 rects (building + path); subdirs vary.
-  let maxChildRects = 2;
-  for (let i = 0; i < children.length; i++) {
-    const sl = subLayouts[i];
-    if (sl) {
-      const n = sl.rects.length >>> 2;
-      if (n > maxChildRects) maxChildRects = n;
-    }
-  }
-  const scratchBuf = new Float32Array(maxChildRects * 4);
 
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
@@ -1301,103 +1297,52 @@ function _layoutDir(
       local = subLayouts[ci];
     }
 
-    // Find the leftmost (side, stemX) where translating local.rects fits.
-    // The contract is `stem ≥ priorStemX` (alphabetical along-axis order of
-    // BRANCH POINTS). Files on OPPOSITE sides of the same street may share
-    // a stem (pairing) — opposite occupancies are separate, no collision.
+    // v2 placement: per-side top contour merge.
     //
-    // The `originPad + (-alongLow)` clamp keeps a child's leftmost rect from
-    // extending back past the parent's join end, which would clip into the
-    // GRANDPARENT'S street. This only matters when there IS a grandparent
-    // (non-root). At root, there is no grandparent — letting the leftmost
-    // rect sit anywhere in the negative-x half is fine, the gem's plaza is
-    // empty space and the absence of the clamp lets big subtrees nest into
-    // it instead of pushing the parent street forward to host them.
-    let candidateStemX = Math.max(priorStemX, originPad);
-    if (parentStreetWidth !== undefined) {
-      candidateStemX = Math.max(candidateStemX, originPad + -local.alongLow);
+    // For each side, _slideUntilClear computes the smallest along-axis
+    // offset such that the child's bottom envelope at every perp depth sits
+    // at least `childGap` ahead of the side's top contour. Combined with the
+    // alphabetical-monotonic constraint (stem ≥ priorStemX) and the parent's
+    // origin pad, this yields the candidate stem-x for each side.
+    //
+    // The grandparent-block pre-seed (Step 1) replaces the v1
+    // `originPad + (-alongLow)` clamp at non-root: a child whose envelope at
+    // perp ∈ [0, gW/2] reaches behind the parent's origin gets a per-perp-
+    // depth constraint instead of a coarse along-axis clamp. Far-perp
+    // content can extend back without penalty into open space.
+    //
+    // Side selection: best-fit prefers the side with smaller candidate
+    // stem-x; tie → side with fewer prior placements (sideCount). Files on
+    // OPPOSITE sides of the same street still share a stem (pairing): the
+    // contours are SEPARATE per side, so the same stem-x is valid on both.
+    const preferredSide: 0 | 1 = sideCount[0] <= sideCount[1] ? 0 : 1;
+    const sidesToTry: [0 | 1, 0 | 1] = preferredSide === 0 ? [0, 1] : [1, 0];
+
+    const sideOffsets: [number, number] = [0, 0];
+    for (let si = 0; si < 2; si++) {
+      const s = sidesToTry[si];
+      const off = _slideUntilClear(local.bottomEnvelope, sideContour[s], childGap);
+      // off can be -Infinity (no constraint from contour); Math.max collapses
+      // it to the alphabetical / origin-pad floor.
+      const cand = Math.max(priorStemX, originPad, off);
+      sideOffsets[s] = cand;
     }
 
-    let chosenSide: 0 | 1 = 0;
-    let chosenStemX = 0;
-    // placedRects / placedBbox are always assigned before read (the
-    // while(true) loop below only exits via `break` after assigning both).
-    let placedRects: RectBuf;
-    let placedBbox: Rect;
-    const axisAlong: 'x' | 'y' = orientation === StreetAxis.X ? 'x' : 'y';
-
-    // candidateLen = number of rects this child contributes. Read once per
-    // child; reused inside the placement loop's per-attempt translation.
-    const candidateLen = local.rects.length >>> 2;
-
-    // Side preference (best-fit): try both sides at each candidateStemX;
-    // pick the smaller stem-x; tiebreak on smaller side area; final
-    // tiebreak on side 0. The loop below already tries sidesToTry in order,
-    // so we just need the right ORDER for the inner loop's "first-success"
-    // semantics. We compute the order once based on side area; ties go to 0.
-    const preferredSide: 0 | 1 = _sideArea(occupancy[0]) <= _sideArea(occupancy[1]) ? 0 : 1;
-
-    while (true) {
-      const sidesToTry: (0 | 1)[] = preferredSide === 0 ? [0, 1] : [1, 0];
-      let foundFit = false;
-      let smallestAdvance = Infinity;
-      for (const side of sidesToTry) {
-        // Translate into the reused scratch buffer — no per-attempt
-        // allocation. translatedBbox reads from the same buffer (only the
-        // first candidateLen rects are populated).
-        _translateInto(
-          scratchBuf,
-          local.rects,
-          originX,
-          originY,
-          candidateStemX,
-          side,
-          orientation,
-          candidateLen
-        );
-        const translatedBbox = _bboxOfBuf(scratchBuf, candidateLen);
-        // Single-pass fit-test + advance computation. _checkAndAdvance
-        // visits each occupancy entry once: it short-circuits on first
-        // overlap if the caller only needs fits, otherwise computes the
-        // smallest advance in the same pass.
-        const result = _checkAndAdvance(
-          translatedBbox,
-          scratchBuf,
-          candidateLen,
-          occupancy[side],
-          axisAlong
-        );
-        if (result.fits) {
-          // First-success short-circuits the inner side loop — sidesToTry
-          // is already ordered by preferredSide, so the first fit IS the
-          // best fit at this candidateStemX.
-          const placedBuf = new Float32Array(candidateLen * 4);
-          placedBuf.set(scratchBuf.subarray(0, candidateLen * 4));
-          chosenSide = side;
-          chosenStemX = candidateStemX;
-          placedRects = placedBuf;
-          placedBbox = translatedBbox;
-          foundFit = true;
-          break;
-        }
-        if (result.advance > 0 && result.advance < smallestAdvance) {
-          smallestAdvance = result.advance;
-        }
-      }
-      if (foundFit) break;
-      if (!isFinite(smallestAdvance) || smallestAdvance <= 0) {
-        candidateStemX += childGap;
-      } else {
-        candidateStemX += smallestAdvance + childGap;
+    // Pick the side with smaller candidate stem-x; tie → preferredSide.
+    let chosenSide: 0 | 1 = sidesToTry[0];
+    let chosenStemX = sideOffsets[chosenSide];
+    for (let si = 1; si < 2; si++) {
+      const s = sidesToTry[si];
+      if (sideOffsets[s] < chosenStemX) {
+        chosenSide = s;
+        chosenStemX = sideOffsets[s];
       }
     }
 
-    // Commit the placement. Sort the placed rects by along-axis right edge
-    // ASCENDING (in place) so subsequent _checkAndAdvance calls can
-    // early-exit the inner per-rect scan when a smaller advance is no
-    // longer possible.
-    _sortRectsByAlongRightInPlace(placedRects, axisAlong);
-    occupancy[chosenSide].push({ bbox: placedBbox, rects: placedRects });
+    // Commit: merge the child's top envelope (shifted by chosenStemX) into
+    // the chosen side's top contour.
+    _mergeTopContour(sideContour[chosenSide], local.topEnvelope, chosenStemX);
+    sideCount[chosenSide]++;
     priorStemX = chosenStemX;
     const boundaryHigh = chosenStemX + local.alongReach;
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
@@ -1737,23 +1682,35 @@ function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): 
 // _preseedGrandparentBlock(side, grandparentStreetWidth)
 //
 // Seed a non-root parent's side contour with a phantom segment representing
-// the grandparent's street body. The grandparent's main street body extends
-// in the parent's perp axis from -gW/2 to +gW/2 (crosses parent's centerline);
-// in the contour's perp axis (which is positive perpendicular distance from
-// parent's centerline), this is perp ∈ [0, gW/2].
+// the grandparent's street body in the parent's local frame on the contour's
+// side. The grandparent's main street is perpendicular to the parent and
+// crosses through the parent's centerline (T-intersection). In parent's
+// local frame:
+//   - the grandparent's body extends in parent's PERP axis (= positive
+//     contour perp) from 0 outward — its main street runs along this
+//     direction, far past the parent's join. We use a very generous upper
+//     bound (PRESEED_PERP_INF) to cover any reasonable child's perp extent;
+//     children whose content extends past the actual grandparent length are
+//     a rare pathological case where over-constraint is harmless.
+//   - the grandparent's body extends in parent's ALONG axis from -gW/2 to
+//     +gW/2 (its WIDTH centered on world Y=0 = parent's local along=0).
 //
-// We seed at alongValue = 0 (parent's own origin in along axis), so any
-// child's bottom envelope at perp ∈ [0, gW/2] needs offset such that
-// bottomEnvelope(perp) + offset ≥ 0 + gap. For a child whose alongLow ≪ 0
-// (back-extending content), this pushes its stem forward. For a child
-// whose alongLow ≥ 0, no extra constraint.
+// The relevant constraint for a child of the parent: at any perp where the
+// grandparent body reaches, the child's leftmost along edge (alongValue in
+// the child's bottom envelope) must clear +gW/2 (the high along edge of the
+// grandparent's body). _slideUntilClear adds the gap parameter on top.
 //
-// At perp > gW/2, no constraint from this pre-seed — the child's far-perp
-// content can extend back without penalty.
+// This replaces v1's coarse `originPad + (-alongLow)` clamp with a per-
+// perp-depth constraint: a child whose content extends back (alongLow < 0)
+// at depths within the grandparent's reach gets pushed forward; content at
+// depths past the grandparent (perp > grandparent half-length) is free to
+// extend back without penalty in PRINCIPLE, but the practical bound makes
+// no distinction here.
+const PRESEED_PERP_INF = 1e9;
 function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number): void {
   const gW2 = grandparentStreetWidth / 2;
   if (gW2 <= 0) return;
-  _appendSegment(side, 0, gW2, 0);
+  _appendSegment(side, 0, PRESEED_PERP_INF, gW2);
 }
 
 // Internal helpers exposed for tests only. Not part of the public API.

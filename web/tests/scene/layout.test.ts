@@ -1485,13 +1485,17 @@ describe('_mergeTopContour', () => {
 describe('_preseedGrandparentBlock', () => {
   const { _preseedGrandparentBlock, _emptyContour } = __test;
 
-  it('seeds a single segment at perp [0, gW/2] with alongValue 0', () => {
+  it('seeds a single segment with alongValue = +gW/2 over a generous perp range', () => {
+    // Pre-seed represents the grandparent's body in parent's local frame:
+    // grandparent's HIGH along edge sits at +gW/2 (= +12 here). The perp
+    // range is a large practical bound (1e9) covering any reasonable child
+    // perp extent past the parent's join.
     const side = _emptyContour();
     _preseedGrandparentBlock(side, 24);
     expect(side.len).toBe(1);
     expect(side.buf[0]).toBe(0);
-    expect(side.buf[1]).toBe(12);
-    expect(side.buf[2]).toBe(0);
+    expect(side.buf[1]).toBeGreaterThan(1e6);
+    expect(side.buf[2]).toBe(12);
   });
 
   it('zero or negative width is no-op', () => {
@@ -1502,24 +1506,30 @@ describe('_preseedGrandparentBlock', () => {
     expect(side.len).toBe(0);
   });
 
-  it('blocks back-extending content at low perp: requires non-negative offset', () => {
+  it('blocks back-extending content: child alongLow must clear +gW/2 + gap', () => {
     const { _slideUntilClear, _appendSegment } = __test;
-    // A child has alongLeft = -10 at perp [0, 5] (back-extending).
+    // A child has alongLow = -10 at perp [0, 5] (back-extending into the
+    // zone occupied by the grandparent's body).
     const child = _emptyContour();
     _appendSegment(child, 0, 5, -10);
     const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24); // perp [0, 12], alongRight = 0
-    // Required: -10 + offset ≥ 0 + 1 (gap) → offset ≥ 11.
-    expect(_slideUntilClear(child, side, 1)).toBe(11);
+    _preseedGrandparentBlock(side, 24); // alongRight = +12
+    // Required: -10 + offset ≥ 12 + 1 (gap) → offset ≥ 23.
+    expect(_slideUntilClear(child, side, 1)).toBe(23);
   });
 
-  it('does not constrain content at perp > gW/2', () => {
+  it('constrains content at all perp depths under the practical bound', () => {
     const { _slideUntilClear, _appendSegment } = __test;
-    // Child only at perp [20, 25] (above gW/2 = 12).
+    // Child only at perp [20, 25] — past the v1 perp range [0, gW/2] but
+    // still within the v2 generous bound. The grandparent's main street
+    // extends well past the parent's stem in side-1 perp; over-constraining
+    // here is acceptable (rare pathological case) and harmless: the
+    // alongValue +gW/2 is the same as at low perp depths.
     const child = _emptyContour();
     _appendSegment(child, 20, 25, -10);
     const side = _emptyContour();
     _preseedGrandparentBlock(side, 24);
-    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+    // Required: -10 + offset ≥ 12 + 1 → offset ≥ 23.
+    expect(_slideUntilClear(child, side, 1)).toBe(23);
   });
 });
