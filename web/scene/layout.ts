@@ -1433,6 +1433,27 @@ function _envelopeMinAlong(c: Contour): number {
   return min;
 }
 
+// _isMirrorInvariant(bot, top) -> boolean
+//
+// True iff the subtree's natural envelopes are unchanged by mirroring
+// across its road. Mirror swaps bottom <-> top with alongValue negation;
+// the subtree is invariant when bottom == -top per segment.
+//
+// Used to prune the mirrored variant from per-placement evaluation when
+// it would be a no-op (files, symmetric subtrees). Compares segment
+// counts then per-segment perp ranges and negated alongValues within
+// OVERLAP_EPS.
+function _isMirrorInvariant(bot: Contour, top: Contour): boolean {
+  if (bot.len !== top.len) return false;
+  for (let i = 0; i < bot.len; i++) {
+    const o = i << 2;
+    if (Math.abs(bot.buf[o] - top.buf[o]) > OVERLAP_EPS) return false;
+    if (Math.abs(bot.buf[o + 1] - top.buf[o + 1]) > OVERLAP_EPS) return false;
+    if (Math.abs(bot.buf[o + 2] + top.buf[o + 2]) > OVERLAP_EPS) return false;
+  }
+  return true;
+}
+
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1468,4 +1489,5 @@ export const __test = {
   _preseedGrandparentBlock,
   _envelopeMinAlong,
   _envelopePerpMin,
+  _isMirrorInvariant,
 };

@@ -1534,3 +1534,54 @@ describe('_envelopePerpMin', () => {
     expect(__test._envelopePerpMin(c)).toBe(-8);
   });
 });
+
+describe('_isMirrorInvariant', () => {
+  it('empty contours are mirror-invariant', () => {
+    const a = __test._emptyContour();
+    const b = __test._emptyContour();
+    expect(__test._isMirrorInvariant(a, b)).toBe(true);
+  });
+
+  it('bottom = -top per segment → mirror-invariant', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 10, 3);
+    __test._appendSegment(bot, 10, 20, -5);
+    __test._appendSegment(top, 10, 20, 5);
+    expect(__test._isMirrorInvariant(bot, top)).toBe(true);
+  });
+
+  it('bottom = top (not negated) → NOT mirror-invariant unless zero', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, 5);
+    __test._appendSegment(top, 0, 10, 5);
+    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
+  });
+
+  it('different segment counts → NOT mirror-invariant', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 5, 3);
+    __test._appendSegment(top, 5, 10, 3);
+    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
+  });
+
+  it('mismatched perp ranges → NOT mirror-invariant', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 11, 3);
+    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
+  });
+
+  it('within OVERLAP_EPS tolerance', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 10, 3 + 1e-12);
+    expect(__test._isMirrorInvariant(bot, top)).toBe(true);
+  });
+});
