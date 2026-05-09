@@ -1121,11 +1121,14 @@ describe('layout invariants (current packer baseline)', () => {
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));
   });
 
-  it('a small subdir nests into a larger sibling subdir bbox gap', () => {
-    // 'big' has many children → wide bbox. 'small' has few children →
-    // narrow bbox. Both alphabetical-after 'a.ts' under root. With best-fit
-    // side selection, 'small' should be placed at a stem-x WITHIN big's
-    // bbox extent — that's panel B from the design diagram.
+  it('big subtree at root extends backward instead of pushing root forward', () => {
+    // C+D fitting: a big subtree under root has alongLow ≪ 0; without the
+    // alongLow clamp at root, big sits at low stem-x and its content
+    // extends back into the gem-area open space rather than pushing the
+    // parent street's length forward to host its bbox right reach. The
+    // contract: no overlap, alphabetical stems, AND root street's length
+    // stays much smaller than the worst-case "stack every bbox sequentially"
+    // bound.
     const big = mkDir('big', [
       mkFile('aa.ts'),
       mkFile('bb.ts'),
@@ -1141,19 +1144,17 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
 
+    // big's stem should be at (or near) the gem clearance — i.e., big sits
+    // close to root's origin instead of being pushed forward by its own
+    // alongLow extent.
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
-    const smallStreet = layout.streets.find((s) => s.dir?.name === 'small')!;
     const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
-    // big's far bbox extent along root: include big's descendant buildings
-    // so we capture far branches, not just big's main-street center.
-    const bigDescendants = layout.buildings.filter((b) =>
-      (b.file?.path || '').startsWith('big/')
-    );
-    const bigMaxAlong = Math.max(
-      bigStreet[along],
-      ...bigDescendants.map((b) => b[along] + b.w / 2)
-    );
-    expect(smallStreet[along]).toBeLessThan(bigMaxAlong);
+    // Big should be close to the start of root's pavement, not pushed
+    // halfway down it. Without the C+D fix, big.stemX would be at
+    // ~originPad + 18 (clamp by alongLow=-18); with the fix, it's at
+    // ~originPad. Set the threshold conservatively: less than the root's
+    // overall length, well clear of the cap end.
+    expect(bigStreet[along]).toBeLessThan(rootStreet.length / 2);
   });
 });

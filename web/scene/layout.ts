@@ -1101,19 +1101,20 @@ function _layoutDir(
 
     // Find the leftmost (side, stemX) where translating local.rects fits.
     // The contract is `stem ≥ priorStemX` (alphabetical along-axis order of
-    // BRANCH POINTS).  Files on OPPOSITE sides of the same street may share
-    // a stem (pairing) — their left-edge back-reach is symmetric, so letting
-    // priorStemX stay at the shared stem causes no sibling collision (the
-    // opposite side's occupancy is separate) and no parent-street collision
-    // (files extend perpendicularly away from the street body).
+    // BRANCH POINTS). Files on OPPOSITE sides of the same street may share
+    // a stem (pairing) — opposite occupancies are separate, no collision.
     //
-    // The absolute-floor clamp `originPad + (-local.alongLow)` still applies:
-    // it guarantees the FIRST child's near bbox edge never crosses back over
-    // the parent's join end (which would clip into the grandparent street).
-    // Using `originPad` (not `priorStemX`) as the base means later children
-    // are unaffected once `priorStemX ≥ originPad + (-alongLow)`.
+    // The `originPad + (-alongLow)` clamp keeps a child's leftmost rect from
+    // extending back past the parent's join end, which would clip into the
+    // GRANDPARENT'S street. This only matters when there IS a grandparent
+    // (non-root). At root, there is no grandparent — letting the leftmost
+    // rect sit anywhere in the negative-x half is fine, the gem's plaza is
+    // empty space and the absence of the clamp lets big subtrees nest into
+    // it instead of pushing the parent street forward to host them.
     let candidateStemX = Math.max(priorStemX, originPad);
-    candidateStemX = Math.max(candidateStemX, originPad + -local.alongLow);
+    if (parentStreetWidth !== undefined) {
+      candidateStemX = Math.max(candidateStemX, originPad + -local.alongLow);
+    }
 
     let chosenSide: 0 | 1 = 0;
     let chosenStemX = 0;
