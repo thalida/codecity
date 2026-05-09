@@ -1485,3 +1485,31 @@ describe('_preseedGrandparentBlock', () => {
     expect(side2.buf[1]).toBeGreaterThan(1e6);
   });
 });
+
+describe('_envelopeMinAlong', () => {
+  it('empty contour returns Infinity', () => {
+    const c = __test._emptyContour();
+    expect(__test._envelopeMinAlong(c)).toBe(Infinity);
+  });
+
+  it('single segment returns that alongValue', () => {
+    const c = __test._emptyContour();
+    __test._appendSegment(c, 0, 10, 5);
+    expect(__test._envelopeMinAlong(c)).toBe(5);
+  });
+
+  it('multiple segments return smallest alongValue', () => {
+    const c = __test._emptyContour();
+    __test._appendSegment(c, 0, 10, 5);
+    __test._appendSegment(c, 10, 20, 2);
+    __test._appendSegment(c, 20, 30, 8);
+    expect(__test._envelopeMinAlong(c)).toBe(2);
+  });
+
+  it('handles negative alongValues', () => {
+    const c = __test._emptyContour();
+    __test._appendSegment(c, 0, 10, -3);
+    __test._appendSegment(c, 10, 20, -7);
+    expect(__test._envelopeMinAlong(c)).toBe(-7);
+  });
+});

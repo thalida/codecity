@@ -1405,6 +1405,20 @@ function _maxPerpReach(c: Contour): number {
   return max;
 }
 
+// _envelopeMinAlong(c) -> number
+//
+// Minimum alongValue across all segments in c. For an empty contour,
+// returns +Infinity. Used by candidate bbox computation to find a
+// subtree's leftmost extent in the parent's along axis.
+function _envelopeMinAlong(c: Contour): number {
+  let min = Infinity;
+  for (let i = 0; i < c.len; i++) {
+    const a = c.buf[(i << 2) + 2];
+    if (a < min) min = a;
+  }
+  return min;
+}
+
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1438,4 +1452,5 @@ export const __test = {
   _slideUntilClear,
   _mergeTopContour,
   _preseedGrandparentBlock,
+  _envelopeMinAlong,
 };
