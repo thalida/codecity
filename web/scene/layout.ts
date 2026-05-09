@@ -1305,11 +1305,17 @@ function _layoutDir(
     // alphabetical-monotonic constraint (stem ≥ priorStemX) and the parent's
     // origin pad, this yields the candidate stem-x for each side.
     //
-    // The grandparent-block pre-seed (Step 1) replaces the v1
-    // `originPad + (-alongLow)` clamp at non-root: a child whose envelope at
-    // perp ∈ [0, gW/2] reaches behind the parent's origin gets a per-perp-
-    // depth constraint instead of a coarse along-axis clamp. Far-perp
-    // content can extend back without penalty into open space.
+    // _preseedGrandparentBlock seeds each side's contour with a phantom
+    // segment representing the grandparent's main street body's right edge
+    // in the parent's local along axis (= +gW/2). The perp range is
+    // over-approximated to PRESEED_PERP_INF (uniformly applied across all
+    // reasonable perp depths) — a child's envelope is forced past the
+    // grandparent's body at every perp, replacing v1's coarse
+    // `originPad + (-alongLow)` along-axis clamp with a contour-merge
+    // constraint. The over-approximation is intentional: a tighter perp
+    // bound would require threading the grandparent's actual length through
+    // the recursion, and the practical perp depth of any subtree is several
+    // orders of magnitude below 1e9, so the over-constraint is harmless.
     //
     // Side selection: best-fit prefers the side with smaller candidate
     // stem-x; tie → side with fewer prior placements (sideCount). Files on
@@ -1706,6 +1712,11 @@ function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): 
 // depths past the grandparent (perp > grandparent half-length) is free to
 // extend back without penalty in PRINCIPLE, but the practical bound makes
 // no distinction here.
+//
+// Practical over-approximation. Real-world subtree perp extents are bounded
+// by max-tree-depth × max-street-width (≈O(1000)); 1e9 is 6 orders of
+// magnitude larger. Threading the actual grandparent length through the
+// recursion would give a tighter bound but isn't needed for correctness.
 const PRESEED_PERP_INF = 1e9;
 function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number): void {
   const gW2 = grandparentStreetWidth / 2;
