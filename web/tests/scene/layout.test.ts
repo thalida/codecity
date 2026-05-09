@@ -754,55 +754,6 @@ describe('rectsToBuf / bufToRects round-trip', () => {
   });
 });
 
-describe('_rectsOverlapBuf', () => {
-  const { rectsToBuf, _rectsOverlapBuf } = __test;
-
-  it('matches _rectsOverlap for overlapping rects', () => {
-    const buf = rectsToBuf([
-      { x: 0, y: 0, w: 10, d: 10 },
-      { x: 5, y: 5, w: 10, d: 10 },
-    ]);
-    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(true);
-  });
-
-  it('matches _rectsOverlap for disjoint rects', () => {
-    const buf = rectsToBuf([
-      { x: 0, y: 0, w: 10, d: 10 },
-      { x: 100, y: 0, w: 10, d: 10 },
-    ]);
-    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(false);
-  });
-
-  it('honors OVERLAP_EPS for FP noise', () => {
-    const buf = rectsToBuf([
-      { x: 0, y: 0, w: 2, d: 2 },
-      { x: 2 - 7e-15, y: 0, w: 2, d: 2 },
-    ]);
-    expect(_rectsOverlapBuf(buf, 0, buf, 1)).toBe(false);
-  });
-
-  it('cross-buffer comparison works', () => {
-    const a = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
-    const b = rectsToBuf([{ x: 5, y: 5, w: 10, d: 10 }]);
-    expect(_rectsOverlapBuf(a, 0, b, 0)).toBe(true);
-  });
-});
-
-describe('_rectsOverlapBufRect', () => {
-  const { rectsToBuf, _rectsOverlapBufRect } = __test;
-
-  it('overlap with stand-alone Rect', () => {
-    const buf = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
-    expect(_rectsOverlapBufRect(buf, 0, { x: 5, y: 5, w: 10, d: 10 })).toBe(true);
-  });
-
-  it('disjoint with stand-alone Rect', () => {
-    const buf = rectsToBuf([{ x: 0, y: 0, w: 10, d: 10 }]);
-    expect(_rectsOverlapBufRect(buf, 0, { x: 100, y: 0, w: 10, d: 10 })).toBe(false);
-  });
-});
-
-
 // ---- Invariant helpers + tests ----
 //
 // These helpers assert the contract the new packer must satisfy:
@@ -1081,7 +1032,7 @@ describe('Contour basics', () => {
   it('empty contour has len 0 and default capacity', () => {
     const c = _emptyContour();
     expect(c.len).toBe(0);
-    expect(c.buf.length).toBe(8 * 4);
+    expect(c.buf.length).toBe(32 * 4);
   });
 
   it('append single segment', () => {
@@ -1140,21 +1091,21 @@ describe('Contour basics', () => {
 
   it('_growContour doubles capacity when full', () => {
     const c = _emptyContour();
-    expect(c.buf.length).toBe(8 * 4);
+    expect(c.buf.length).toBe(32 * 4);
     // Fill to capacity.
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 32; i++) {
       _appendSegment(c, i * 10, i * 10 + 5, i);
     }
-    expect(c.len).toBe(8);
-    expect(c.buf.length).toBe(8 * 4);
+    expect(c.len).toBe(32);
+    expect(c.buf.length).toBe(32 * 4);
     // Add one more — triggers grow.
     _appendSegment(c, 1000, 1010, 999);
-    expect(c.len).toBe(9);
-    expect(c.buf.length).toBe(16 * 4);
+    expect(c.len).toBe(33);
+    expect(c.buf.length).toBe(64 * 4);
     // Existing data preserved.
     expect(c.buf[0]).toBe(0);
-    expect(c.buf[7 * 4]).toBe(70);
-    expect(c.buf[8 * 4]).toBe(1000);
+    expect(c.buf[31 * 4]).toBe(310);
+    expect(c.buf[32 * 4]).toBe(1000);
   });
 });
 

@@ -45,34 +45,19 @@ export interface Rect {
 }
 
 // LocalChildLayout — what each child contributes to its parent's packing.
-//   rects: child geometry in a local frame where stem-x = 0 along the parent
-//          axis and the child's content extends in +perp direction (side 1).
-//   along: extent of the child along the parent's long axis (== bbox width
-//          along that axis).
 //   alongReach: along-axis half-extent that the parent street physically has
 //          to cover at the parent boundary (the join strip). For a file:
-//          along/2 (file's parent-axis half-extent). For a subdir: half its
-//          own main-street width (the join width of the T-intersection).
-//          The parent street only needs pavement up to (stemX + alongReach);
-//          farther subtree content extends perpendicular to the parent and
-//          doesn't require parent-street length.
-//   buildings/streets/paths: the same content as `rects`, kept typed for
+//          along/2. For a subdir: half its own main-street width.
+//   bottomEnvelope, topEnvelope: per-child envelopes in the child's local
+//          frame. Used by the parent's _layoutDir to perform a contour-merge
+//          instead of rect-vs-rect overlap testing.
+//   buildings/streets/paths: typed lists of the child's content, kept for
 //          translation back into result arrays once the placement is chosen.
 interface LocalChildLayout {
-  along: number;
-  alongLow: number; // local-frame x of the leftmost rect edge (≤ 0 typically)
   alongReach: number;
-  rects: RectBuf;
   streets: Street[];
   buildings: Building[];
   paths: BuildingPath[];
-  // v2 contour-based packing: per-child envelopes in the child's local
-  // frame. Both computed from the child's rect set (or from geometry
-  // directly for files). Used by the parent's _layoutDir to perform a
-  // contour-merge instead of rect-vs-rect overlap testing.
-  //   - perp axis is the child's ALONG axis (= parent's PERP axis when this
-  //     child is placed)
-  //   - along value is the child's PERP axis (= parent's ALONG axis)
   bottomEnvelope: Contour;
   topEnvelope: Contour;
 }
@@ -233,10 +218,10 @@ function bufToRects(buf: RectBuf): Rect[] {
 //   - "uncovered" perp ranges are implicit (no segment covers them)
 export type Contour = { buf: Float64Array; len: number };
 
-// _emptyContour() -> a fresh contour with default capacity (8 segments).
+// _emptyContour() -> a fresh contour with default capacity (32 segments).
 // Geometric growth via _growContour as needed.
 function _emptyContour(): Contour {
-  return { buf: new Float64Array(8 * 4), len: 0 };
+  return { buf: new Float64Array(32 * 4), len: 0 };
 }
 
 // _growContour(c, needed) -> grow c's buf to hold at least `needed` segments.
@@ -386,42 +371,6 @@ function _envelopesFromRects(
   return { bottom, top };
 }
 
-// _rectsOverlapBuf(a, ai, b, bi) -> boolean — same semantics as _rectsOverlap
-// (with OVERLAP_EPS tolerance), but reads coords directly from RectBufs at
-// the given indices. No object allocation.
-function _rectsOverlapBuf(a: RectBuf, ai: number, b: RectBuf, bi: number): boolean {
-  const ao = ai << 2;
-  const bo = bi << 2;
-  const ax = a[ao], ay = a[ao + 1], aw = a[ao + 2], ad = a[ao + 3];
-  const bx = b[bo], by = b[bo + 1], bw = b[bo + 2], bd = b[bo + 3];
-  const ax1 = ax - aw / 2, ax2 = ax + aw / 2;
-  const ay1 = ay - ad / 2, ay2 = ay + ad / 2;
-  const bx1 = bx - bw / 2, bx2 = bx + bw / 2;
-  const by1 = by - bd / 2, by2 = by + bd / 2;
-  return (
-    ax1 + OVERLAP_EPS < bx2 &&
-    ax2 - OVERLAP_EPS > bx1 &&
-    ay1 + OVERLAP_EPS < by2 &&
-    ay2 - OVERLAP_EPS > by1
-  );
-}
-
-// _rectsOverlapBufRect(buf, i, r) -> boolean — overlap between a rect inside
-// a RectBuf and a stand-alone Rect object.
-function _rectsOverlapBufRect(buf: RectBuf, i: number, r: Rect): boolean {
-  const o = i << 2;
-  const ax = buf[o], ay = buf[o + 1], aw = buf[o + 2], ad = buf[o + 3];
-  const ax1 = ax - aw / 2, ax2 = ax + aw / 2;
-  const ay1 = ay - ad / 2, ay2 = ay + ad / 2;
-  const bx1 = r.x - r.w / 2, bx2 = r.x + r.w / 2;
-  const by1 = r.y - r.d / 2, by2 = r.y + r.d / 2;
-  return (
-    ax1 + OVERLAP_EPS < bx2 &&
-    ax2 - OVERLAP_EPS > bx1 &&
-    ay1 + OVERLAP_EPS < by2 &&
-    ay2 - OVERLAP_EPS > by1
-  );
-}
 
 
 // _collectRectsBuf(layout) -> RectBuf — flat-buffer flavor of _collectRects.
@@ -826,14 +775,6 @@ function _layoutDir(
         lineStats,
         byteStats
       );
-      const bbox = _computeBbox(localResult);
-      // The subdir's bbox is in its own local frame (subOrient axis = its main
-      // street; the perpendicular axis = "out into branches"). To pack along
-      // the PARENT axis, rotate: the parent axis is the perpendicular of
-      // subOrient, which corresponds to bbox's X if parent is X-orient or Y
-      // if parent is Y-orient. (Same axis convention used by _computeBbox.)
-      const alongLow = orientation === StreetAxis.X ? bbox.minX : bbox.minY;
-      const alongHigh = orientation === StreetAxis.X ? bbox.maxX : bbox.maxY;
       // Subdir's join with parent is a T-intersection of width = subdir's own
       // main-street width. The parent only needs pavement up to half that
       // width past the stem; the subdir's far branches extend in PERP
@@ -851,10 +792,7 @@ function _layoutDir(
         subdirAlongAxis
       );
       subLayouts[i] = {
-        along: alongHigh - alongLow,
-        alongLow,
         alongReach: subStreetWidth / 2,
-        rects: localRects,
         streets: localResult.streets,
         buildings: localResult.buildings,
         paths: localResult.paths,
@@ -876,8 +814,11 @@ function _layoutDir(
     _preseedGrandparentBlock(sideContour[0], parentStreetWidth);
     _preseedGrandparentBlock(sideContour[1], parentStreetWidth);
   }
-  // Per-side cumulative count for best-fit side selection. Grows monotonically
-  // with placed children's complexity; avoids re-scanning rect buffers.
+  // Per-side placement count. Used for best-fit side selection: when both
+  // sides yield the same candidate stem-x, the side with fewer placed
+  // children wins (keeps the city growing symmetrically). This is a coarser
+  // proxy than the spec's "side area" metric but adequate for the
+  // equal-size-sibling case that motivates the tiebreaker.
   const sideCount: [number, number] = [0, 0];
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
@@ -1182,63 +1123,6 @@ function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolea
 }
 
 // -----------------------------------------------------------------------------
-// _computeBbox(layout) -> { minX, maxX, minY, maxY }
-//
-// Computes the axis-aligned bounding box (in world or local coords, depending
-// on what the layout is in) covering all streets and buildings.
-// -----------------------------------------------------------------------------
-function _computeBbox(layout: { streets: Street[]; buildings: Building[] }): {
-  minX: number;
-  maxX: number;
-  minY: number;
-  maxY: number;
-} {
-  let minX = Infinity,
-    maxX = -Infinity;
-  let minY = Infinity,
-    maxY = -Infinity;
-
-  for (let i = 0; i < layout.streets.length; i++) {
-    const s = layout.streets[i];
-    const halfL = s.length / 2;
-    const halfW = s.width / 2;
-    let x1, x2, y1, y2;
-    if (s.orientation === StreetAxis.X) {
-      x1 = s.x - halfL;
-      x2 = s.x + halfL;
-      y1 = s.y - halfW;
-      y2 = s.y + halfW;
-    } else {
-      x1 = s.x - halfW;
-      x2 = s.x + halfW;
-      y1 = s.y - halfL;
-      y2 = s.y + halfL;
-    }
-    if (x1 < minX) minX = x1;
-    if (x2 > maxX) maxX = x2;
-    if (y1 < minY) minY = y1;
-    if (y2 > maxY) maxY = y2;
-  }
-
-  for (let j = 0; j < layout.buildings.length; j++) {
-    const b = layout.buildings[j];
-    const bx1 = b.x - b.w / 2,
-      bx2 = b.x + b.w / 2;
-    const by1 = b.y - b.d / 2,
-      by2 = b.y + b.d / 2;
-    if (bx1 < minX) minX = bx1;
-    if (bx2 > maxX) maxX = bx2;
-    if (by1 < minY) minY = by1;
-    if (by2 > maxY) maxY = by2;
-  }
-
-  if (minX === Infinity) {
-    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
-  }
-  return { minX, maxX, minY, maxY };
-}
-
-// -----------------------------------------------------------------------------
 // sortForRendering(buildings) -> buildings[]
 //
 // Painter's algorithm: sorts buildings so that those further from the viewer
@@ -1301,6 +1185,10 @@ function _slideUntilClear(childBot: Contour, sideTop: Contour, gap: number): num
 // merged segment list, then copy back into sideTop.
 //
 // Time: O(sideTop.len + childTop.len).
+// TODO(perf): _mergeTopContour allocates fresh `events`, `idx`, and `out` JS
+// arrays per call. For the typical bench case this is sub-millisecond and
+// not the bottleneck. If profiling later shows GC pressure, pool a per-
+// _layoutDir scratch buffer here.
 function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): void {
   // Collect ordered breakpoints from both contours.
   // Each contour contributes 2 events per segment (start, end).
@@ -1425,8 +1313,6 @@ export const __test = {
   rectAt,
   rectsToBuf,
   bufToRects,
-  _rectsOverlapBuf,
-  _rectsOverlapBufRect,
   _emptyContour,
   _appendSegment,
   _contourAt,
