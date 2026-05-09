@@ -1002,6 +1002,15 @@ function _layoutDir(
     // cascade: each re-compute would itself trigger re-computes of its
     // own children, doubling work per level. At root only, total work is
     // bounded to ~2× the first pass on root's subdir children.
+    //
+    // Guard: the re-compute can sometimes pick a DIFFERENT chosenSide for
+    // the child's own subchildren (because the tighter pre-seed shifts the
+    // per-side slide-until-clear results). When that happens, the child's
+    // content can flip to the opposite local-perp side, producing a
+    // topEnvelope with LARGER max-along than the pre-compute had — which
+    // would push subsequent siblings further out and LENGTHEN the parent
+    // street, the opposite of B's intent. So we only adopt the re-compute
+    // when its topEnvelope is no worse than the pre-compute's.
     if (child.type !== NodeKind.File && depth === 0) {
       const reLocalResult = {
         streets: [] as Street[],
@@ -1026,18 +1035,23 @@ function _layoutDir(
         reLocalRects,
         reSubdirAlongAxis
       );
-      // Replace `local` with the re-computed version. alongReach is unchanged
-      // (it derives from the subdir's own street width, not its content).
-      // Side contour update + world translate below both consume `local`,
-      // so they pick up the re-computed rects/envelope automatically.
-      local = {
-        alongReach: local.alongReach,
-        streets: reLocalResult.streets,
-        buildings: reLocalResult.buildings,
-        paths: reLocalResult.paths,
-        bottomEnvelope: reBottomEnv,
-        topEnvelope: reTopEnv,
-      };
+      // Compare the two top-envelopes by their max along value — that's
+      // the dominant factor in how far the side contour gets pushed when
+      // we merge below. If RE is no worse than PRE, adopt RE. Otherwise,
+      // discard the re-compute and keep PRE (correctness-safe since PRE's
+      // rects + envelopes are internally consistent).
+      const preTopMaxAlong = _maxAlongValue(local.topEnvelope);
+      const reTopMaxAlong = _maxAlongValue(reTopEnv);
+      if (reTopMaxAlong <= preTopMaxAlong) {
+        local = {
+          alongReach: local.alongReach,
+          streets: reLocalResult.streets,
+          buildings: reLocalResult.buildings,
+          paths: reLocalResult.paths,
+          bottomEnvelope: reBottomEnv,
+          topEnvelope: reTopEnv,
+        };
+      }
     }
 
     // Commit: merge the child's top envelope (shifted by chosenStemX) into
@@ -1387,6 +1401,22 @@ function _maxPerpReach(c: Contour): number {
   for (let i = 0; i < c.len; i++) {
     const ph = c.buf[(i << 2) + 1];
     if (ph > max) max = ph;
+  }
+  return max;
+}
+
+// _maxAlongValue(c) -> number
+//
+// Maximum alongValue across all segments in c. For an empty contour, returns
+// -Infinity. Used by the B re-compute guard to compare two top-envelope
+// candidates: when the re-computed envelope's max along is greater than the
+// pre-compute's, a side flip inside the child has produced a worse contour
+// and we keep the pre-compute instead.
+function _maxAlongValue(c: Contour): number {
+  let max = -Infinity;
+  for (let i = 0; i < c.len; i++) {
+    const a = c.buf[(i << 2) + 2];
+    if (a > max) max = a;
   }
   return max;
 }

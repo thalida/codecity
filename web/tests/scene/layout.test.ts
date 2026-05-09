@@ -1024,6 +1024,46 @@ describe('layout invariants (current packer baseline)', () => {
     // overall length, well clear of the cap end.
     expect(bigStreet[along]).toBeLessThan(rootStreet.length / 2);
   });
+
+  it('B re-compute does not lengthen root street vs pre-compute baseline', () => {
+    // Regression for the asymmetric pre-seed two-pass (commit 6faf2bf):
+    // the re-computed envelope can flip the chosenSide of a grandchild
+    // (because the tighter pre-seed shifts which side wins
+    // _slideUntilClear), producing a top-envelope with LARGER max-along
+    // than the pre-compute had. Adopting that re-compute pushes
+    // subsequent siblings out and lengthens the root street — the
+    // opposite of B's intent. Guard: only adopt re-compute when its
+    // top-envelope is no worse than pre-compute's.
+    //
+    // Tree shape: root has 1 deep subdir (aaa) followed by 3 small
+    // siblings. aaa's content layout flips between the two passes for
+    // this tree. Without the guard, root length jumps from ~88 to
+    // ~115 (a ~30% inflation, visible as a long road into empty space
+    // in the rendered scene).
+    const tree = mkDir('root', [
+      mkDir('aaa', [
+        mkDir('inner', [
+          mkDir('inner2', [
+            mkFile('f1.ts'),
+            mkFile('f2.ts'),
+            mkFile('f3.ts'),
+            mkFile('f4.ts'),
+            mkFile('f5.ts'),
+          ]),
+          mkDir('inner3', [mkFile('g1.ts'), mkFile('g2.ts'), mkFile('g3.ts')]),
+        ]),
+      ]),
+      mkDir('bbb', [mkFile('x.ts')]),
+      mkDir('ccc', [mkFile('y.ts')]),
+      mkDir('ddd', [mkFile('z.ts')]),
+    ]);
+    const layout = layoutCity({ tree });
+    const rootStreet = layout.streets.find((s) => s.isRoot)!;
+    // Pre-B baseline for this tree was 88.4. With the regression (no
+    // guard), it ballooned to 115.4. A threshold of 100 catches the
+    // regression with margin for unrelated layout-tunable shifts.
+    expect(rootStreet.length).toBeLessThan(100);
+  });
 });
 
 describe('Contour basics', () => {
