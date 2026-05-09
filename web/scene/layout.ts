@@ -1581,6 +1581,141 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
   return sorted;
 }
 
+// _slideUntilClear(childBot, sideTop, gap) -> offset
+//
+// Returns the smallest along-axis offset such that for every perp-depth
+// where both contours are defined, childBot(perp) + offset ≥ sideTop(perp) + gap.
+// If contours don't overlap at any perp, returns -Infinity (no constraint).
+//
+// Time: O(childBot.len + sideTop.len) — single linear merge of sorted segments.
+function _slideUntilClear(childBot: Contour, sideTop: Contour, gap: number): number {
+  let maxOffset = -Infinity;
+  let i = 0,
+    j = 0;
+  while (i < childBot.len && j < sideTop.len) {
+    const cLow = childBot.buf[i << 2],
+      cHigh = childBot.buf[(i << 2) + 1],
+      cAlong = childBot.buf[(i << 2) + 2];
+    const sLow = sideTop.buf[j << 2],
+      sHigh = sideTop.buf[(j << 2) + 1],
+      sAlong = sideTop.buf[(j << 2) + 2];
+    const lo = Math.max(cLow, sLow),
+      hi = Math.min(cHigh, sHigh);
+    if (lo < hi) {
+      // Overlap exists. Required offset to clear:
+      //   child's left edge + offset ≥ side's right edge + gap
+      //   offset ≥ sAlong + gap - cAlong
+      const off = sAlong + gap - cAlong;
+      if (off > maxOffset) maxOffset = off;
+    }
+    // Advance whichever segment ends first.
+    if (cHigh <= sHigh) i++;
+    else j++;
+  }
+  return maxOffset;
+}
+
+// _mergeTopContour(sideTop, childTop, offset) -> void
+//
+// Overlay childTop (shifted by `offset` in along-axis) into sideTop in place.
+// At each perp position covered by either contour, sideTop's new alongValue
+// is max(its prior value, childTop's value + offset).
+//
+// Implementation: sweep both contours' breakpoints in parallel, build the
+// merged segment list, then copy back into sideTop.
+//
+// Time: O(sideTop.len + childTop.len).
+function _mergeTopContour(sideTop: Contour, childTop: Contour, offset: number): void {
+  // Collect ordered breakpoints from both contours.
+  // Each contour contributes 2 events per segment (start, end).
+  // Sort by perp; at same perp, ends before starts.
+  const sN = sideTop.len,
+    cN = childTop.len;
+  if (cN === 0) return; // nothing to add
+
+  const events: number[] = []; // flat array: [perp, kind, value]
+  // kind: 0=sideEnd, 1=childEnd, 2=sideStart, 3=childStart (ends before starts at same perp)
+  for (let i = 0; i < sN; i++) {
+    events.push(sideTop.buf[i << 2], 2, sideTop.buf[(i << 2) + 2]); // start
+    events.push(sideTop.buf[(i << 2) + 1], 0, sideTop.buf[(i << 2) + 2]); // end
+  }
+  for (let i = 0; i < cN; i++) {
+    events.push(childTop.buf[i << 2], 3, childTop.buf[(i << 2) + 2] + offset); // start
+    events.push(childTop.buf[(i << 2) + 1], 1, childTop.buf[(i << 2) + 2] + offset); // end
+  }
+  const evCount = events.length / 3;
+  const idx: number[] = new Array(evCount);
+  for (let i = 0; i < evCount; i++) idx[i] = i;
+  idx.sort((a, b) => {
+    const aPerp = events[a * 3],
+      bPerp = events[b * 3];
+    if (aPerp !== bPerp) return aPerp - bPerp;
+    // Same perp: ends (kind 0,1) before starts (kind 2,3).
+    return events[a * 3 + 1] - events[b * 3 + 1];
+  });
+
+  // Sweep, tracking current side and child values.
+  let curS = -Infinity,
+    curC = -Infinity;
+  let lastPerp = NaN;
+  // Build merged into a scratch list (we can't write into sideTop directly
+  // because we're still reading from it).
+  const out: number[] = []; // flat: [perpLow, perpHigh, alongValue]
+
+  for (let k = 0; k < idx.length; k++) {
+    const e = idx[k] * 3;
+    const perp = events[e];
+    if (!isNaN(lastPerp) && perp > lastPerp) {
+      const cur = Math.max(curS, curC);
+      if (cur > -Infinity) {
+        // Coalesce with previous output segment if same value AND adjacent.
+        const oN = out.length;
+        if (oN >= 3 && out[oN - 1] === cur && out[oN - 2] === lastPerp) {
+          out[oN - 2] = perp;
+        } else {
+          out.push(lastPerp, perp, cur);
+        }
+      }
+    }
+    const kind = events[e + 1];
+    const val = events[e + 2];
+    if (kind === 2) curS = val;
+    else if (kind === 0) curS = -Infinity;
+    else if (kind === 3) curC = val;
+    else if (kind === 1) curC = -Infinity;
+    lastPerp = perp;
+  }
+
+  // Copy out into sideTop.
+  sideTop.len = 0;
+  _growContour(sideTop, out.length / 3);
+  for (let i = 0; i < out.length; i += 3) {
+    _appendSegment(sideTop, out[i], out[i + 1], out[i + 2]);
+  }
+}
+
+// _preseedGrandparentBlock(side, grandparentStreetWidth)
+//
+// Seed a non-root parent's side contour with a phantom segment representing
+// the grandparent's street body. The grandparent's main street body extends
+// in the parent's perp axis from -gW/2 to +gW/2 (crosses parent's centerline);
+// in the contour's perp axis (which is positive perpendicular distance from
+// parent's centerline), this is perp ∈ [0, gW/2].
+//
+// We seed at alongValue = 0 (parent's own origin in along axis), so any
+// child's bottom envelope at perp ∈ [0, gW/2] needs offset such that
+// bottomEnvelope(perp) + offset ≥ 0 + gap. For a child whose alongLow ≪ 0
+// (back-extending content), this pushes its stem forward. For a child
+// whose alongLow ≥ 0, no extra constraint.
+//
+// At perp > gW/2, no constraint from this pre-seed — the child's far-perp
+// content can extend back without penalty.
+function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number): void {
+  const gW2 = grandparentStreetWidth / 2;
+  if (gW2 <= 0) return;
+  _appendSegment(side, 0, gW2, 0);
+}
+
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _rectsOverlap,
@@ -1599,4 +1734,7 @@ export const __test = {
   _appendSegment,
   _contourAt,
   _envelopesFromRects,
+  _slideUntilClear,
+  _mergeTopContour,
+  _preseedGrandparentBlock,
 };

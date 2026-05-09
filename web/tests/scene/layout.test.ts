@@ -1341,3 +1341,168 @@ describe('_envelopesFromRects', () => {
     expect(top.buf[2]).toBe(7);
   });
 });
+
+describe('_slideUntilClear', () => {
+  const { _slideUntilClear, _emptyContour, _appendSegment } = __test;
+
+  it('two empty contours → -Infinity (no constraint)', () => {
+    const a = _emptyContour();
+    const b = _emptyContour();
+    expect(_slideUntilClear(a, b, 1)).toBe(-Infinity);
+  });
+
+  it('child has segments but side is empty → -Infinity', () => {
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, -3);
+    const side = _emptyContour();
+    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+  });
+
+  it('non-overlapping perp ranges → -Infinity', () => {
+    const child = _emptyContour();
+    _appendSegment(child, 0, 5, -3);
+    const side = _emptyContour();
+    _appendSegment(side, 100, 105, 50);
+    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+  });
+
+  it('full overlap, single segment each: offset = sAlong + gap - cAlong', () => {
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, -3); // child's leftmost = -3 at perp [0,10]
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 5); // side's rightmost = 5
+    // Required: -3 + offset ≥ 5 + gap. With gap=1: offset ≥ 9.
+    expect(_slideUntilClear(child, side, 1)).toBe(9);
+  });
+
+  it('partial overlap: only the overlapping perp range constrains', () => {
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, -3);
+    const side = _emptyContour();
+    _appendSegment(side, 5, 15, 5);
+    // Overlap is perp [5, 10]. offset ≥ 5 + 1 - (-3) = 9.
+    expect(_slideUntilClear(child, side, 1)).toBe(9);
+  });
+
+  it('multiple segments: takes max required offset', () => {
+    const child = _emptyContour();
+    _appendSegment(child, 0, 5, -3); // c-segment 1: leftmost = -3
+    _appendSegment(child, 5, 10, 0); // c-segment 2: leftmost = 0
+    const side = _emptyContour();
+    _appendSegment(side, 0, 5, 2); // s-segment 1: rightmost = 2
+    _appendSegment(side, 5, 10, 10); // s-segment 2: rightmost = 10
+    // Constraint 1 (perp [0,5]): -3 + off ≥ 2 + 1 → off ≥ 6.
+    // Constraint 2 (perp [5,10]): 0 + off ≥ 10 + 1 → off ≥ 11.
+    // Max = 11.
+    expect(_slideUntilClear(child, side, 1)).toBe(11);
+  });
+});
+
+describe('_mergeTopContour', () => {
+  const { _mergeTopContour, _emptyContour, _appendSegment, _contourAt } = __test;
+
+  it('merge into empty side: side becomes child shifted by offset', () => {
+    const side = _emptyContour();
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, 5);
+    _mergeTopContour(side, child, 7);
+    expect(side.len).toBe(1);
+    expect(side.buf[0]).toBe(0);
+    expect(side.buf[1]).toBe(10);
+    expect(side.buf[2]).toBe(12); // 5 + 7
+  });
+
+  it('merge empty child: side unchanged', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 3);
+    const child = _emptyContour();
+    _mergeTopContour(side, child, 100);
+    expect(side.len).toBe(1);
+    expect(side.buf[2]).toBe(3);
+  });
+
+  it('disjoint perp ranges: side has both segments after merge', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 3);
+    const child = _emptyContour();
+    _appendSegment(child, 20, 30, 5);
+    _mergeTopContour(side, child, 0);
+    expect(side.len).toBe(2);
+    expect(_contourAt(side, 5)).toBe(3);
+    expect(_contourAt(side, 25)).toBe(5);
+    expect(_contourAt(side, 15)).toBe(-Infinity);
+  });
+
+  it('child overlaps existing segment with HIGHER value: side raises', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 3);
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, 7);
+    _mergeTopContour(side, child, 0);
+    expect(_contourAt(side, 5)).toBe(7);
+  });
+
+  it('child overlaps existing segment with LOWER value: side stays', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 7);
+    const child = _emptyContour();
+    _appendSegment(child, 0, 10, 3);
+    _mergeTopContour(side, child, 0);
+    expect(_contourAt(side, 5)).toBe(7);
+  });
+
+  it('child partially overlaps: split into multiple segments', () => {
+    const side = _emptyContour();
+    _appendSegment(side, 0, 10, 3);
+    const child = _emptyContour();
+    _appendSegment(child, 5, 15, 7);
+    _mergeTopContour(side, child, 0);
+    // Expected merged: [0,5]=3, [5,10]=max(3,7)=7, [10,15]=7.
+    // Coalesced [5,15]=7.
+    expect(_contourAt(side, 2)).toBe(3);
+    expect(_contourAt(side, 7)).toBe(7);
+    expect(_contourAt(side, 12)).toBe(7);
+  });
+});
+
+describe('_preseedGrandparentBlock', () => {
+  const { _preseedGrandparentBlock, _emptyContour } = __test;
+
+  it('seeds a single segment at perp [0, gW/2] with alongValue 0', () => {
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24);
+    expect(side.len).toBe(1);
+    expect(side.buf[0]).toBe(0);
+    expect(side.buf[1]).toBe(12);
+    expect(side.buf[2]).toBe(0);
+  });
+
+  it('zero or negative width is no-op', () => {
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 0);
+    expect(side.len).toBe(0);
+    _preseedGrandparentBlock(side, -5);
+    expect(side.len).toBe(0);
+  });
+
+  it('blocks back-extending content at low perp: requires non-negative offset', () => {
+    const { _slideUntilClear, _appendSegment } = __test;
+    // A child has alongLeft = -10 at perp [0, 5] (back-extending).
+    const child = _emptyContour();
+    _appendSegment(child, 0, 5, -10);
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24); // perp [0, 12], alongRight = 0
+    // Required: -10 + offset ≥ 0 + 1 (gap) → offset ≥ 11.
+    expect(_slideUntilClear(child, side, 1)).toBe(11);
+  });
+
+  it('does not constrain content at perp > gW/2', () => {
+    const { _slideUntilClear, _appendSegment } = __test;
+    // Child only at perp [20, 25] (above gW/2 = 12).
+    const child = _emptyContour();
+    _appendSegment(child, 20, 25, -10);
+    const side = _emptyContour();
+    _preseedGrandparentBlock(side, 24);
+    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
+  });
+});
