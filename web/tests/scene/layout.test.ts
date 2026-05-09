@@ -1585,3 +1585,62 @@ describe('_isMirrorInvariant', () => {
     expect(__test._isMirrorInvariant(bot, top)).toBe(true);
   });
 });
+
+describe('_mirrorEnvelopes', () => {
+  it('empty input returns empty contours', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    const m = __test._mirrorEnvelopes(bot, top);
+    expect(m.bottom.len).toBe(0);
+    expect(m.top.len).toBe(0);
+  });
+
+  it('mirrored.bottom = -natural.top per segment', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 10, 7);
+    const m = __test._mirrorEnvelopes(bot, top);
+    expect(m.bottom.len).toBe(1);
+    expect(m.bottom.buf[0]).toBe(0);     // perpLow unchanged
+    expect(m.bottom.buf[1]).toBe(10);    // perpHigh unchanged
+    expect(m.bottom.buf[2]).toBe(-7);    // -natural.top.alongValue
+  });
+
+  it('mirrored.top = -natural.bottom per segment', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 10, 7);
+    const m = __test._mirrorEnvelopes(bot, top);
+    expect(m.top.len).toBe(1);
+    expect(m.top.buf[2]).toBe(3);        // -natural.bottom.alongValue
+  });
+
+  it('mirror twice returns to original (alongValues)', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 10, -3);
+    __test._appendSegment(top, 0, 10, 7);
+    const m1 = __test._mirrorEnvelopes(bot, top);
+    const m2 = __test._mirrorEnvelopes(m1.bottom, m1.top);
+    expect(m2.bottom.buf[2]).toBe(-3);
+    expect(m2.top.buf[2]).toBe(7);
+  });
+
+  it('multi-segment subtree mirrors correctly', () => {
+    const bot = __test._emptyContour();
+    const top = __test._emptyContour();
+    __test._appendSegment(bot, 0, 5, -2);
+    __test._appendSegment(bot, 5, 10, -1);
+    __test._appendSegment(top, 0, 5, 4);
+    __test._appendSegment(top, 5, 10, 6);
+    const m = __test._mirrorEnvelopes(bot, top);
+    expect(m.bottom.len).toBe(2);
+    expect(m.bottom.buf[2]).toBe(-4);
+    expect(m.bottom.buf[6]).toBe(-6);
+    expect(m.top.len).toBe(2);
+    expect(m.top.buf[2]).toBe(2);
+    expect(m.top.buf[6]).toBe(1);
+  });
+});

@@ -1454,6 +1454,33 @@ function _isMirrorInvariant(bot: Contour, top: Contour): boolean {
   return true;
 }
 
+// _mirrorEnvelopes(bot, top) -> { bottom, top }
+//
+// Reflect a subtree's envelopes across its own road (perp axis flip).
+// The subtree's perp values negate; bottom (min perp per slice) becomes
+// the negated top (since min(-x) = -max(x)) and vice versa. The contour
+// segment perpLow/perpHigh ranges are over the SUBTREE's along axis
+// (sweep axis), which is unchanged by perp-axis flip — so segment ranges
+// pass through; only alongValues swap and negate.
+//
+// Returns NEW contours; the inputs are not mutated.
+function _mirrorEnvelopes(
+  bot: Contour,
+  top: Contour
+): { bottom: Contour; top: Contour } {
+  const newBottom = _emptyContour();
+  for (let i = 0; i < top.len; i++) {
+    const o = i << 2;
+    _appendSegment(newBottom, top.buf[o], top.buf[o + 1], -top.buf[o + 2]);
+  }
+  const newTop = _emptyContour();
+  for (let i = 0; i < bot.len; i++) {
+    const o = i << 2;
+    _appendSegment(newTop, bot.buf[o], bot.buf[o + 1], -bot.buf[o + 2]);
+  }
+  return { bottom: newBottom, top: newTop };
+}
+
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1490,4 +1517,5 @@ export const __test = {
   _envelopeMinAlong,
   _envelopePerpMin,
   _isMirrorInvariant,
+  _mirrorEnvelopes,
 };
