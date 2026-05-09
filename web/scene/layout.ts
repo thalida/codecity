@@ -814,12 +814,6 @@ function _layoutDir(
     _preseedGrandparentBlock(sideContour[0], parentStreetWidth);
     _preseedGrandparentBlock(sideContour[1], parentStreetWidth);
   }
-  // Per-side placement count. Used for best-fit side selection: when both
-  // sides yield the same candidate stem-x, the side with fewer placed
-  // children wins (keeps the city growing symmetrically). This is a coarser
-  // proxy than the spec's "side area" metric but adequate for the
-  // equal-size-sibling case that motivates the tiebreaker.
-  const sideCount: [number, number] = [0, 0];
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
   // is the along-axis extent the parent street physically has to cover at the
@@ -893,12 +887,9 @@ function _layoutDir(
         fileEnvSweepAxis
       );
       local = {
-        along,
-        alongLow: -along / 2,
         // File's footprint at the parent boundary spans `along` along the
         // parent's axis (centered on the stem).
         alongReach: along / 2,
-        rects: fileRectsBuf,
         streets: [],
         buildings: [
           {
@@ -949,11 +940,21 @@ function _layoutDir(
     // the recursion, and the practical perp depth of any subtree is several
     // orders of magnitude below 1e9, so the over-constraint is harmless.
     //
-    // Side selection: best-fit prefers the side with smaller candidate
-    // stem-x; tie → side with fewer prior placements (sideCount). Files on
-    // OPPOSITE sides of the same street still share a stem (pairing): the
-    // contours are SEPARATE per side, so the same stem-x is valid on both.
-    const preferredSide: 0 | 1 = sideCount[0] <= sideCount[1] ? 0 : 1;
+    // Side selection: prefer the side where adding this child causes the
+    // LEAST max-perp-reach growth. If side 0 already extends to perp 50 and
+    // the child's perp reach is 30, no growth on side 0. If side 1 only
+    // reaches perp 20, child on side 1 grows to 30 (delta 10). So side 0
+    // is preferred — concentrating growth on the already-big side keeps the
+    // already-small side available for small future siblings.
+    // Files on OPPOSITE sides of the same street still share a stem (pairing):
+    // the contours are SEPARATE per side, so the same stem-x is valid on both.
+    const childPerpReach = _maxPerpReach(local.topEnvelope);
+    const side0Reach = _maxPerpReach(sideContour[0]);
+    const side1Reach = _maxPerpReach(sideContour[1]);
+    const side0Growth = Math.max(0, childPerpReach - side0Reach);
+    const side1Growth = Math.max(0, childPerpReach - side1Reach);
+    // Tie → side 0 (deterministic).
+    const preferredSide: 0 | 1 = side0Growth <= side1Growth ? 0 : 1;
     const sidesToTry: [0 | 1, 0 | 1] = preferredSide === 0 ? [0, 1] : [1, 0];
 
     const sideOffsets: [number, number] = [0, 0];
@@ -980,7 +981,6 @@ function _layoutDir(
     // Commit: merge the child's top envelope (shifted by chosenStemX) into
     // the chosen side's top contour.
     _mergeTopContour(sideContour[chosenSide], local.topEnvelope, chosenStemX);
-    sideCount[chosenSide]++;
     priorStemX = chosenStemX;
     const boundaryHigh = chosenStemX + local.alongReach;
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
@@ -1301,6 +1301,22 @@ function _preseedGrandparentBlock(side: Contour, grandparentStreetWidth: number)
   const gW2 = grandparentStreetWidth / 2;
   if (gW2 <= 0) return;
   _appendSegment(side, 0, PRESEED_PERP_INF, gW2);
+}
+
+// _maxPerpReach(c) -> number
+//
+// Maximum perpHigh value across all segments in c. For an empty contour,
+// returns 0. Used by side selection to identify which side already extends
+// farther in perp depth, so we can prefer placing the next big child on
+// the same side (keeps small content on the side with available perp
+// headroom and keeps growth concentrated on the side that's already grown).
+function _maxPerpReach(c: Contour): number {
+  let max = 0;
+  for (let i = 0; i < c.len; i++) {
+    const ph = c.buf[(i << 2) + 1];
+    if (ph > max) max = ph;
+  }
+  return max;
 }
 
 // Internal helpers exposed for tests only. Not part of the public API.
