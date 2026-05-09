@@ -1513,3 +1513,24 @@ describe('_envelopeMinAlong', () => {
     expect(__test._envelopeMinAlong(c)).toBe(-7);
   });
 });
+
+describe('_envelopePerpMin', () => {
+  it('empty contour returns Infinity', () => {
+    const c = __test._emptyContour();
+    expect(__test._envelopePerpMin(c)).toBe(Infinity);
+  });
+
+  it('single segment returns its perpLow', () => {
+    const c = __test._emptyContour();
+    __test._appendSegment(c, -3, 10, 5);
+    expect(__test._envelopePerpMin(c)).toBe(-3);
+  });
+
+  it('multiple segments return smallest perpLow', () => {
+    const c = __test._emptyContour();
+    __test._appendSegment(c, 5, 10, 0);
+    __test._appendSegment(c, -8, 5, 0);
+    __test._appendSegment(c, 10, 20, 0);
+    expect(__test._envelopePerpMin(c)).toBe(-8);
+  });
+});

@@ -1389,6 +1389,20 @@ function _preseedGrandparentBlock(
   _appendSegment(side, 0, perpHigh, gW2);
 }
 
+// _envelopePerpMin(c) -> number
+//
+// Minimum perpLow value across all segments in c. For an empty contour,
+// returns +Infinity. Used by candidate bbox computation to find a
+// subtree's lowest perp extent (= parent's perp axis lower bound).
+function _envelopePerpMin(c: Contour): number {
+  let min = Infinity;
+  for (let i = 0; i < c.len; i++) {
+    const pl = c.buf[i << 2];
+    if (pl < min) min = pl;
+  }
+  return min;
+}
+
 // _maxPerpReach(c) -> number
 //
 // Maximum perpHigh value across all segments in c. For an empty contour,
@@ -1453,4 +1467,5 @@ export const __test = {
   _mergeTopContour,
   _preseedGrandparentBlock,
   _envelopeMinAlong,
+  _envelopePerpMin,
 };
