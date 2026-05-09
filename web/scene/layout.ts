@@ -460,10 +460,10 @@ function bufToRects(buf: RectBuf): Rect[] {
 //   - "uncovered" perp ranges are implicit (no segment covers them)
 export type Contour = { buf: Float64Array; len: number };
 
-// _emptyContour() -> a fresh contour with default capacity (64 segments).
+// _emptyContour() -> a fresh contour with default capacity (8 segments).
 // Geometric growth via _growContour as needed.
 function _emptyContour(): Contour {
-  return { buf: new Float64Array(64 * 4), len: 0 };
+  return { buf: new Float64Array(8 * 4), len: 0 };
 }
 
 // _growContour(c, needed) -> grow c's buf to hold at least `needed` segments.
@@ -473,7 +473,7 @@ function _growContour(c: Contour, needed: number): void {
   if (cap >= needed) return;
   while (cap < needed) cap *= 2;
   const newBuf = new Float64Array(cap * 4);
-  newBuf.set(c.buf.subarray(0, c.len * 4));
+  newBuf.set(c.buf.subarray(0, c.len << 2));
   c.buf = newBuf;
 }
 
@@ -489,7 +489,7 @@ function _appendSegment(
 ): void {
   if (perpLow >= perpHigh) return;
   _growContour(c, c.len + 1);
-  const o = c.len * 4;
+  const o = c.len << 2;
   c.buf[o] = perpLow;
   c.buf[o + 1] = perpHigh;
   c.buf[o + 2] = alongValue;
@@ -502,7 +502,7 @@ function _appendSegment(
 // optimization for later if needed).
 function _contourAt(c: Contour, perp: number): number {
   for (let i = 0; i < c.len; i++) {
-    const o = i * 4;
+    const o = i << 2;
     if (c.buf[o] <= perp && perp < c.buf[o + 1]) return c.buf[o + 2];
   }
   return -Infinity;
@@ -1491,7 +1491,6 @@ export const __test = {
   _rectsOverlapBufRect,
   _bboxOfBuf,
   _emptyContour,
-  _growContour,
   _appendSegment,
   _contourAt,
 };

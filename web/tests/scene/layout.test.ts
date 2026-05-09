@@ -1160,12 +1160,12 @@ describe('layout invariants (current packer baseline)', () => {
 });
 
 describe('Contour basics', () => {
-  const { _emptyContour, _appendSegment, _contourAt, _growContour } = __test;
+  const { _emptyContour, _appendSegment, _contourAt } = __test;
 
   it('empty contour has len 0 and default capacity', () => {
     const c = _emptyContour();
     expect(c.len).toBe(0);
-    expect(c.buf.length).toBe(64 * 4);
+    expect(c.buf.length).toBe(8 * 4);
   });
 
   it('append single segment', () => {
@@ -1195,6 +1195,12 @@ describe('Contour basics', () => {
     expect(c.len).toBe(0);
   });
 
+  it('_contourAt on empty contour returns -Infinity', () => {
+    const c = _emptyContour();
+    expect(_contourAt(c, 0)).toBe(-Infinity);
+    expect(_contourAt(c, 100)).toBe(-Infinity);
+  });
+
   it('_contourAt returns alongValue inside a segment', () => {
     const c = _emptyContour();
     _appendSegment(c, 0, 10, 5);
@@ -1218,20 +1224,20 @@ describe('Contour basics', () => {
 
   it('_growContour doubles capacity when full', () => {
     const c = _emptyContour();
-    expect(c.buf.length).toBe(64 * 4);
+    expect(c.buf.length).toBe(8 * 4);
     // Fill to capacity.
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < 8; i++) {
       _appendSegment(c, i * 10, i * 10 + 5, i);
     }
-    expect(c.len).toBe(64);
-    expect(c.buf.length).toBe(64 * 4);
+    expect(c.len).toBe(8);
+    expect(c.buf.length).toBe(8 * 4);
     // Add one more — triggers grow.
     _appendSegment(c, 1000, 1010, 999);
-    expect(c.len).toBe(65);
-    expect(c.buf.length).toBe(128 * 4);
+    expect(c.len).toBe(9);
+    expect(c.buf.length).toBe(16 * 4);
     // Existing data preserved.
     expect(c.buf[0]).toBe(0);
-    expect(c.buf[63 * 4]).toBe(630);
-    expect(c.buf[64 * 4]).toBe(1000);
+    expect(c.buf[7 * 4]).toBe(70);
+    expect(c.buf[8 * 4]).toBe(1000);
   });
 });
