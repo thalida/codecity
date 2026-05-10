@@ -83,8 +83,36 @@ describe('layoutCity perf smoke', () => {
     const t1 = performance.now();
     const ms = (t1 - t0).toFixed(1);
     const nBuildings = layout.buildings.length;
+
+    // World bbox sanity: max(W, H) of all rect extents. Useful as a
+    // baseline for v3 compactness comparisons; logged but not asserted
+    // against absolute thresholds (varies with synthetic tree shapes).
+    let xMin = Infinity,
+      xMax = -Infinity,
+      yMin = Infinity,
+      yMax = -Infinity;
+    for (const b of layout.buildings) {
+      if (b.x - b.w / 2 < xMin) xMin = b.x - b.w / 2;
+      if (b.x + b.w / 2 > xMax) xMax = b.x + b.w / 2;
+      if (b.y - b.d / 2 < yMin) yMin = b.y - b.d / 2;
+      if (b.y + b.d / 2 > yMax) yMax = b.y + b.d / 2;
+    }
+    for (const s of layout.streets) {
+      const sw = s.orientation === 'x' ? s.length : s.width;
+      const sd = s.orientation === 'x' ? s.width : s.length;
+      if (s.x - sw / 2 < xMin) xMin = s.x - sw / 2;
+      if (s.x + sw / 2 > xMax) xMax = s.x + sw / 2;
+      if (s.y - sd / 2 < yMin) yMin = s.y - sd / 2;
+      if (s.y + sd / 2 > yMax) yMax = s.y + sd / 2;
+    }
+    const W = xMax - xMin;
+    const H = yMax - yMin;
+    const maxDim = Math.max(W, H).toFixed(0);
+    const aspect = (Math.max(W, H) / Math.max(1, Math.min(W, H))).toFixed(2);
     // eslint-disable-next-line no-console
-    console.log(`  ${label}: ${ms} ms (${nBuildings} buildings)`);
+    console.log(
+      `  ${label}: ${ms} ms (${nBuildings} buildings, bbox max=${maxDim} aspect=${aspect})`
+    );
   }
 
   it(
