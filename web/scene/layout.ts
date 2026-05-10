@@ -1629,6 +1629,131 @@ function _maxAlongValue(c: Contour): number {
   return max;
 }
 
+// -----------------------------------------------------------------------------
+// findLayoutOverlaps(layout) -> LayoutOverlap[]
+//
+// Runtime overlap diagnostic. Walks every (street, building, path) pair,
+// reports any rect-rect intersection, and classifies it. Intended to be
+// called from cityScene after layoutCity for live debugging — the test
+// suite (assertNoOverlap) covers synthetic trees but visual bugs surface
+// only against real manifests, where this helper helps locate them.
+//
+// Whitelist:
+//   - 't-junction': two perpendicular streets joined at a T (one street's
+//     length-axis endpoint sits on the other's centerline within both half-
+//     widths). This is the documented flat join the renderer fuses.
+// Anything else is 'unexpected'.
+//
+// `_isStreetJoinPair` mirrors the geometry test in tests/scene/layout.test.ts
+// (kept independent so the runtime helper has no test-file dependency).
+function _isStreetJoinPair(a: Street, b: Street): boolean {
+  if (a.orientation === b.orientation) return false;
+  const aLong = a.orientation === StreetAxis.X ? 'x' : 'y';
+  const aCross = a.orientation === StreetAxis.X ? 'y' : 'x';
+  const bLong = b.orientation === StreetAxis.X ? 'x' : 'y';
+  const half = a.length / 2;
+  const lowEnd = a[aLong] - half;
+  const highEnd = a[aLong] + half;
+  const bCenterAlongA = b[aLong];
+  const dLow = Math.abs(lowEnd - bCenterAlongA);
+  const dHigh = Math.abs(highEnd - bCenterAlongA);
+  const aPerpAtJoin = a[aCross];
+  const bCenterPerp = b[bLong];
+  const perpClose = Math.abs(aPerpAtJoin - bCenterPerp) <= b.length / 2 + 0.5;
+  const longClose = Math.min(dLow, dHigh) <= b.width / 2 + 0.5;
+  return perpClose && longClose;
+}
+
+export type LayoutOverlapKind = 'street' | 'building' | 'path';
+export type LayoutOverlapCategory = 't-junction' | 'unexpected';
+
+export interface LayoutOverlap {
+  kindA: LayoutOverlapKind;
+  kindB: LayoutOverlapKind;
+  labelA: string;
+  labelB: string;
+  rectA: Rect;
+  rectB: Rect;
+  /** Intersection box. (x, y) is the intersection center; w/d are overlap dims. */
+  overlap: Rect;
+  category: LayoutOverlapCategory;
+}
+
+function _intersectRect(a: Rect, b: Rect): Rect {
+  const ax1 = a.x - a.w / 2,
+    ax2 = a.x + a.w / 2;
+  const ay1 = a.y - a.d / 2,
+    ay2 = a.y + a.d / 2;
+  const bx1 = b.x - b.w / 2,
+    bx2 = b.x + b.w / 2;
+  const by1 = b.y - b.d / 2,
+    by2 = b.y + b.d / 2;
+  const ox1 = Math.max(ax1, bx1);
+  const ox2 = Math.min(ax2, bx2);
+  const oy1 = Math.max(ay1, by1);
+  const oy2 = Math.min(ay2, by2);
+  return { x: (ox1 + ox2) / 2, y: (oy1 + oy2) / 2, w: ox2 - ox1, d: oy2 - oy1 };
+}
+
+export function findLayoutOverlaps(layout: {
+  streets: Street[];
+  buildings: Building[];
+  paths: BuildingPath[];
+}): LayoutOverlap[] {
+  type Tagged =
+    | { kind: 'street'; rect: Rect; label: string; ref: Street }
+    | { kind: 'building'; rect: Rect; label: string; ref: Building }
+    | { kind: 'path'; rect: Rect; label: string; ref: BuildingPath };
+  const all: Tagged[] = [];
+  for (const s of layout.streets) {
+    const rect: Rect =
+      s.orientation === StreetAxis.X
+        ? { x: s.x, y: s.y, w: s.length, d: s.width }
+        : { x: s.x, y: s.y, w: s.width, d: s.length };
+    all.push({ kind: 'street', rect, label: s.dir?.path ?? s.label ?? '(root)', ref: s });
+  }
+  for (const b of layout.buildings) {
+    all.push({
+      kind: 'building',
+      rect: { x: b.x, y: b.y, w: b.w, d: b.d },
+      label: b.file?.path ?? b.file?.name ?? '?',
+      ref: b,
+    });
+  }
+  for (const p of layout.paths) {
+    all.push({
+      kind: 'path',
+      rect: { x: p.x, y: p.y, w: p.w, d: p.d },
+      label: p.file?.path ?? p.file?.name ?? '?',
+      ref: p,
+    });
+  }
+
+  const out: LayoutOverlap[] = [];
+  for (let i = 0; i < all.length; i++) {
+    for (let j = i + 1; j < all.length; j++) {
+      const A = all[i],
+        B = all[j];
+      if (!_rectsOverlap(A.rect, B.rect)) continue;
+      let category: LayoutOverlapCategory = 'unexpected';
+      if (A.kind === 'street' && B.kind === 'street' && _isStreetJoinPair(A.ref, B.ref)) {
+        category = 't-junction';
+      }
+      out.push({
+        kindA: A.kind,
+        kindB: B.kind,
+        labelA: A.label,
+        labelB: B.label,
+        rectA: A.rect,
+        rectB: B.rect,
+        overlap: _intersectRect(A.rect, B.rect),
+        category,
+      });
+    }
+  }
+  return out;
+}
+
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _rectsOverlap,

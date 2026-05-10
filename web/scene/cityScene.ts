@@ -45,7 +45,7 @@ import {
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
-import { layoutCity } from './layout.js';
+import { findLayoutOverlaps, layoutCity } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
@@ -520,6 +520,32 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // (DirLike / TreeNodeLike). DirNode satisfies them at runtime; the
     // explicit cast keeps the type checker happy across the boundary.
     layout = layoutCity(manifest.tree as unknown as Parameters<typeof layoutCity>[0]);
+
+    // Runtime overlap diagnostic. Logs only unexpected overlaps —
+    // street/street T-junctions are the documented flat join. See
+    // findLayoutOverlaps() in layout.ts.
+    const _overlaps = findLayoutOverlaps(layout);
+    const _unexpectedOverlaps = _overlaps.filter((o) => o.category === 'unexpected');
+    if (_unexpectedOverlaps.length > 0) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[layout] ${_unexpectedOverlaps.length} unexpected overlap(s) ` +
+          `(of ${_overlaps.length} total; ${_overlaps.length - _unexpectedOverlaps.length} ` +
+          `whitelisted as T-junctions):`
+      );
+      const _fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
+        `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
+      for (const o of _unexpectedOverlaps) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          `  ${o.kindA} "${o.labelA}" ${_fmtRect(o.rectA)}\n` +
+            `    ⟷ ${o.kindB} "${o.labelB}" ${_fmtRect(o.rectB)}\n` +
+            `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
+            `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
+        );
+      }
+    }
+
     dateRanges = getDateRanges(manifest.tree as unknown as Parameters<typeof getDateRanges>[0]);
 
     // Color buildings before mesh creation — buildCityScene reads b.color.
