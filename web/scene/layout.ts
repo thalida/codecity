@@ -1095,13 +1095,18 @@ function _layoutDir(
       // we merge below. If RE is no worse than PRE, adopt RE. Otherwise,
       // discard the re-compute and keep PRE (correctness-safe since PRE's
       // rects + envelopes are internally consistent).
-      const preTopMaxAlong = _maxAlongValue(local.topEnvelope);
-      const reTopMaxAlong = _maxAlongValue(reTopEnv);
-      if (reTopMaxAlong <= preTopMaxAlong) {
-        const reMirrorInvariant = _isMirrorInvariant(reBottomEnv, reTopEnv);
-        const reMirror = reMirrorInvariant
-          ? { bottom: reBottomEnv, top: reTopEnv }
-          : _mirrorEnvelopes(reBottomEnv, reTopEnv);
+      const reMirrorInvariant = _isMirrorInvariant(reBottomEnv, reTopEnv);
+      const reMirror = reMirrorInvariant
+        ? { bottom: reBottomEnv, top: reTopEnv }
+        : _mirrorEnvelopes(reBottomEnv, reTopEnv);
+      // The merged envelope is the chosen-orientation's top contour.
+      // Compare what would actually be committed in each case so the
+      // guard's "no worse" criterion matches the merge step's behavior.
+      const preMergeTop = chosenMirrored ? local.mirroredTop : local.topEnvelope;
+      const reMergeTop = chosenMirrored ? reMirror.top : reTopEnv;
+      const preMergeMaxAlong = _maxAlongValue(preMergeTop);
+      const reMergeMaxAlong = _maxAlongValue(reMergeTop);
+      if (reMergeMaxAlong <= preMergeMaxAlong) {
         local = {
           alongReach: local.alongReach,
           streets: reLocalResult.streets,
