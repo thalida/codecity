@@ -1036,6 +1036,20 @@ function _layoutDir(
           `  side[0]     ${_contourSummary(sideContour[0])}\n` +
           `  side[1]     ${_contourSummary(sideContour[1])}`
       );
+      // Per-segment dump in the suspect perp window. Defaults to [380, 420]
+      // (around web/scene's perp depth where the slide undersells); override
+      // via globalThis.__DEBUG_LAYOUT_PERP_LO__ / __DEBUG_LAYOUT_PERP_HI__.
+      const _g = globalThis as {
+        __DEBUG_LAYOUT_PERP_LO__?: unknown;
+        __DEBUG_LAYOUT_PERP_HI__?: unknown;
+      };
+      const _perpLo = typeof _g.__DEBUG_LAYOUT_PERP_LO__ === 'number' ? _g.__DEBUG_LAYOUT_PERP_LO__ : 380;
+      const _perpHi = typeof _g.__DEBUG_LAYOUT_PERP_HI__ === 'number' ? _g.__DEBUG_LAYOUT_PERP_HI__ : 420;
+      _dumpContourWindow(local.mirroredBottom, `${_childName}.mirroredBottom`, _perpLo, _perpHi);
+      _dumpContourWindow(local.bottomEnvelope, `${_childName}.naturalBottom`, _perpLo, _perpHi);
+      _dumpContourWindow(local.topEnvelope, `${_childName}.naturalTop`, _perpLo, _perpHi);
+      _dumpContourWindow(sideContour[0], 'sideContour[0]', _perpLo, _perpHi);
+      _dumpContourWindow(sideContour[1], 'sideContour[1]', _perpLo, _perpHi);
     }
 
     const tryVariant = (s: 0 | 1, m: boolean): void => {
@@ -1426,6 +1440,33 @@ function _contourSummary(c: Contour): string {
   return (
     `len=${c.len} perp=[${perpMin.toFixed(2)}, ${perpMax.toFixed(2)}] ` +
     `along=[${alongMin.toFixed(2)}, ${alongMax.toFixed(2)}]`
+  );
+}
+
+// _dumpContourWindow(c, label, perpLo, perpHi) — list every segment whose
+// perp range overlaps [perpLo, perpHi]. Used by the slide diagnostic to
+// inspect contour content at the specific perp where a constraint is
+// suspected. Limits to 50 segments to keep output bounded.
+function _dumpContourWindow(c: Contour, label: string, perpLo: number, perpHi: number): void {
+  const lines: string[] = [];
+  let count = 0;
+  for (let i = 0; i < c.len; i++) {
+    const o = i << 2;
+    const pLo = c.buf[o],
+      pHi = c.buf[o + 1],
+      a = c.buf[o + 2];
+    if (pHi <= perpLo) continue;
+    if (pLo >= perpHi) break; // contour sorted by perp
+    if (count++ >= 50) {
+      lines.push('  ... (truncated, more segments in window)');
+      break;
+    }
+    lines.push(`  [${pLo.toFixed(3)}, ${pHi.toFixed(3)}] along=${a.toFixed(3)}`);
+  }
+  // eslint-disable-next-line no-console
+  console.log(
+    `[contour-window] ${label} in perp [${perpLo}, ${perpHi}] (${count} segs):\n` +
+      (lines.length === 0 ? '  <none>' : lines.join('\n'))
   );
 }
 
