@@ -60,6 +60,12 @@ interface LocalChildLayout {
   paths: BuildingPath[];
   bottomEnvelope: Contour;
   topEnvelope: Contour;
+  // v3: mirror metadata. mirrorInvariant=true → orientation choice is a
+  // no-op (skip mirror variants). Otherwise mirroredBottom/Top hold the
+  // pre-computed mirrored envelopes used by variant evaluation.
+  mirrorInvariant: boolean;
+  mirroredBottom: Contour;
+  mirroredTop: Contour;
 }
 
 // _rectsOverlap(a, b) -> boolean
@@ -805,6 +811,10 @@ function _layoutDir(
         localRects,
         subdirAlongAxis
       );
+      const subMirrorInvariant = _isMirrorInvariant(bottomEnv, topEnv);
+      const subMirror = subMirrorInvariant
+        ? { bottom: bottomEnv, top: topEnv }
+        : _mirrorEnvelopes(bottomEnv, topEnv);
       subLayouts[i] = {
         alongReach: subStreetWidth / 2,
         streets: localResult.streets,
@@ -812,6 +822,9 @@ function _layoutDir(
         paths: localResult.paths,
         bottomEnvelope: bottomEnv,
         topEnvelope: topEnv,
+        mirrorInvariant: subMirrorInvariant,
+        mirroredBottom: subMirror.bottom,
+        mirroredTop: subMirror.top,
       };
     }
   }
@@ -921,6 +934,10 @@ function _layoutDir(
         fileRectsBuf,
         fileEnvSweepAxis
       );
+      const fileMirrorInvariant = _isMirrorInvariant(fileBottom, fileTop);
+      const fileMirror = fileMirrorInvariant
+        ? { bottom: fileBottom, top: fileTop }
+        : _mirrorEnvelopes(fileBottom, fileTop);
       local = {
         // File's footprint at the parent boundary spans `along` along the
         // parent's axis (centered on the stem).
@@ -950,6 +967,9 @@ function _layoutDir(
         ],
         bottomEnvelope: fileBottom,
         topEnvelope: fileTop,
+        mirrorInvariant: fileMirrorInvariant,
+        mirroredBottom: fileMirror.bottom,
+        mirroredTop: fileMirror.top,
       };
     } else {
       local = subLayouts[ci];
@@ -1064,6 +1084,10 @@ function _layoutDir(
       const preTopMaxAlong = _maxAlongValue(local.topEnvelope);
       const reTopMaxAlong = _maxAlongValue(reTopEnv);
       if (reTopMaxAlong <= preTopMaxAlong) {
+        const reMirrorInvariant = _isMirrorInvariant(reBottomEnv, reTopEnv);
+        const reMirror = reMirrorInvariant
+          ? { bottom: reBottomEnv, top: reTopEnv }
+          : _mirrorEnvelopes(reBottomEnv, reTopEnv);
         local = {
           alongReach: local.alongReach,
           streets: reLocalResult.streets,
@@ -1071,6 +1095,9 @@ function _layoutDir(
           paths: reLocalResult.paths,
           bottomEnvelope: reBottomEnv,
           topEnvelope: reTopEnv,
+          mirrorInvariant: reMirrorInvariant,
+          mirroredBottom: reMirror.bottom,
+          mirroredTop: reMirror.top,
         };
       }
     }
