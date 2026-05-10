@@ -720,6 +720,7 @@ function _layoutDir(
   lineStats: RangeStat,
   byteStats: RangeStat,
   parentStemXInGrandparent?: number,
+  parentMirroredAtGrandparent?: boolean,
   depth: number = 0
 ): void {
   // User-tunable gaps. Read fresh from the stores each call so tests /
@@ -793,6 +794,7 @@ function _layoutDir(
         lineStats,
         byteStats,
         undefined, // stemX in grandparent unknown during pre-compute
+        undefined, // mirror flag in grandparent unknown during pre-compute
         depth + 1
       );
       // Subdir's join with parent is a T-intersection of width = subdir's own
@@ -1128,6 +1130,7 @@ function _layoutDir(
         lineStats,
         byteStats,
         chosenStemX, // now known — feeds asymmetric pre-seed
+        chosenMirrored, // now known — flips which side gets the tightening
         1 // depth-1 child of root
       );
       const reLocalRects = _collectRectsBuf(reLocalResult);
