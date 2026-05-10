@@ -1152,7 +1152,20 @@ function _layoutDir(
       const reMergeTop = chosenMirrored ? reMirror.top : reTopEnv;
       const preMergeMaxAlong = _maxAlongValue(preMergeTop);
       const reMergeMaxAlong = _maxAlongValue(reMergeTop);
-      if (reMergeMaxAlong <= preMergeMaxAlong) {
+
+      // Second guard: re-run _slideUntilClear with RE's chosen-variant bot
+      // envelope. The committed chosenStemX was derived against pass-1's
+      // bot envelope; if RE shifts content per-perp such that the same
+      // slide would now require a larger stemX, adopting RE invalidates
+      // the slide invariant and produces cross-subtree overlaps. The
+      // mergeMaxAlong-only check (above) doesn't catch this: per-perp
+      // shifts can occur while the global max-along stays unchanged.
+      const reChosenBot = chosenMirrored ? reMirror.bottom : reBottomEnv;
+      const reSlideOff = _slideUntilClear(reChosenBot, sideContour[chosenSide], childGap);
+      const reCand = Math.max(priorStemX, originPad, reSlideOff);
+      const reSlideStillSatisfied = reCand <= chosenStemX + OVERLAP_EPS;
+
+      if (reMergeMaxAlong <= preMergeMaxAlong && reSlideStillSatisfied) {
         local = {
           alongReach: local.alongReach,
           streets: reLocalResult.streets,
