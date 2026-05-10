@@ -859,8 +859,21 @@ function _layoutDir(
   // parent and don't require parent-street pavement).
   let maxBoundaryAlong = originPad;
 
+  // __DEBUG_LAYOUT__: at root depth, capture each child's pre-loop rect counts
+  // so we can compute its actual placed bbox and compare against the envelope-
+  // predicted bbox (via _candidateBboxInParent). Off unless globalThis.
+  // __DEBUG_LAYOUT__ is truthy. Logs only the predicted-vs-actual mismatch.
+  const _dbgEnabled =
+    depth === 0 &&
+    typeof globalThis !== 'undefined' &&
+    Boolean((globalThis as { __DEBUG_LAYOUT__?: unknown }).__DEBUG_LAYOUT__);
+
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
+
+    const _dbgStartStreets = _dbgEnabled ? result.streets.length : 0;
+    const _dbgStartBuildings = _dbgEnabled ? result.buildings.length : 0;
+    const _dbgStartPaths = _dbgEnabled ? result.paths.length : 0;
 
     // Build the candidate's LOCAL rects (frame: stem at 0, side 1 perp orientation).
     let local: LocalChildLayout;
@@ -1214,6 +1227,78 @@ function _layoutDir(
           file: p.file,
         });
       }
+    }
+
+    // __DEBUG_LAYOUT__: predicted-vs-actual bbox check (root depth only).
+    if (_dbgEnabled) {
+      const childLabel =
+        child.type === NodeKind.File
+          ? (child as FileLike).name
+          : (child as DirLike).name;
+      const predicted = _candidateBboxInParent(
+        local.bottomEnvelope,
+        local.topEnvelope,
+        chosenStemX,
+        chosenSide,
+        chosenMirrored
+      );
+      // Compute actual world bbox of the rects this iteration appended.
+      let aMinX = Infinity,
+        aMaxX = -Infinity,
+        aMinY = Infinity,
+        aMaxY = -Infinity;
+      const _acc = (rx: number, ry: number, rw: number, rd: number): void => {
+        const x1 = rx - rw / 2,
+          x2 = rx + rw / 2,
+          y1 = ry - rd / 2,
+          y2 = ry + rd / 2;
+        if (x1 < aMinX) aMinX = x1;
+        if (x2 > aMaxX) aMaxX = x2;
+        if (y1 < aMinY) aMinY = y1;
+        if (y2 > aMaxY) aMaxY = y2;
+      };
+      for (let i = _dbgStartStreets; i < result.streets.length; i++) {
+        const s = result.streets[i];
+        if (s.orientation === StreetAxis.X) _acc(s.x, s.y, s.length, s.width);
+        else _acc(s.x, s.y, s.width, s.length);
+      }
+      for (let i = _dbgStartBuildings; i < result.buildings.length; i++) {
+        const b = result.buildings[i];
+        _acc(b.x, b.y, b.w, b.d);
+      }
+      for (let i = _dbgStartPaths; i < result.paths.length; i++) {
+        const p = result.paths[i];
+        _acc(p.x, p.y, p.w, p.d);
+      }
+      // For X-orient root: along=x, perp=y. For Y-orient root: along=y, perp=x.
+      // Root is X-orient (see layoutCity), but be general for safety.
+      const predX1 =
+        orientation === StreetAxis.X ? predicted.alongMin : predicted.perpMin;
+      const predX2 =
+        orientation === StreetAxis.X ? predicted.alongMax : predicted.perpMax;
+      const predY1 =
+        orientation === StreetAxis.X ? predicted.perpMin : predicted.alongMin;
+      const predY2 =
+        orientation === StreetAxis.X ? predicted.perpMax : predicted.alongMax;
+      const dMinX = aMinX - predX1,
+        dMaxX = aMaxX - predX2,
+        dMinY = aMinY - predY1,
+        dMaxY = aMaxY - predY2;
+      // Mismatch = actual extends outside predicted bbox by more than EPS.
+      const EPS = 1e-3;
+      const mismatch =
+        dMinX < -EPS || dMaxX > EPS || dMinY < -EPS || dMaxY > EPS;
+      // eslint-disable-next-line no-console
+      console.log(
+        `[layout-debug]${mismatch ? ' MISMATCH' : ''} child="${childLabel}" type=${child.type} ` +
+          `side=${chosenSide} mirror=${chosenMirrored} stemX=${chosenStemX.toFixed(2)}\n` +
+          `  predicted x=[${predX1.toFixed(2)}, ${predX2.toFixed(2)}] ` +
+          `y=[${predY1.toFixed(2)}, ${predY2.toFixed(2)}]\n` +
+          `  actual    x=[${aMinX.toFixed(2)}, ${aMaxX.toFixed(2)}] ` +
+          `y=[${aMinY.toFixed(2)}, ${aMaxY.toFixed(2)}]\n` +
+          `  delta minX=${dMinX.toFixed(2)} maxX=${dMaxX.toFixed(2)} ` +
+          `minY=${dMinY.toFixed(2)} maxY=${dMaxY.toFixed(2)}`
+      );
     }
   }
 
