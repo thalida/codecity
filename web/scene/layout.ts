@@ -11,6 +11,7 @@ import type { StreetTier } from '@/config/street.js';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
+import { layoutCityV4 } from './layoutV4';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -579,41 +580,7 @@ export function getBuildingDimensions(
 // `color` starts as null — the renderer must call getBuildingColor before drawing.
 // -----------------------------------------------------------------------------
 export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
-  const tree = ((manifest as ManifestLike).tree as DirLike | undefined) || (manifest as DirLike);
-  const result: CityLayout = {
-    streets: [],
-    buildings: [],
-    paths: [],
-    lineStats: { min: 1, max: 1 },
-    byteStats: { min: 1, max: 1 },
-  };
-
-  // Compute the project's own ranges once and stash on `result` so the
-  // recursion below can pass them to every getBuildingDimensions call
-  // (and callers can keep them for later use).
-  const stats = computeFileStats(tree);
-  result.lineStats = stats.lines;
-  result.byteStats = stats.bytes;
-
-  _layoutDir(tree, 0, 0, StreetAxis.X, result, undefined, stats.lines, stats.bytes);
-
-  // Mark the root-dir street so the renderer can draw a distinct "start of
-  // repo" marker at its origin end.
-  for (const street of result.streets) {
-    if ((street.dir as unknown) === (tree as unknown)) {
-      street.isRoot = true;
-      break;
-    }
-  }
-
-  // For each non-root street, figure out which end joins its parent — the
-  // renderer flattens that end and only rounds the open end. Computed
-  // from world coordinates rather than tracked through the recursion's
-  // mirror flags, since post-processing is simpler than threading the
-  // bookkeeping through every transform step.
-  _markJoinSides(result.streets);
-
-  return result;
+  return layoutCityV4(manifest);
 }
 
 // -----------------------------------------------------------------------------

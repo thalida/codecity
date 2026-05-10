@@ -350,6 +350,46 @@ function _layoutDirV4(
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
 
+  // ----- Pre-seed parent's street body into occupancy (V4 analogue of v3's
+  // _preseedGrandparentBlock). Forces children's stems to clear the parent
+  // main street's perp footprint, replacing v3's contour-based per-perp
+  // constraint with a phantom-rect collision check.
+  //
+  // Phantom geometry in THIS dir's local frame:
+  //   - Along this dir's ALONG axis: spans ±parentStreetWidth/2 (parent's
+  //     width). This dir's join end sits at along=0; the parent's body
+  //     extends to ±parentW/2 on either side of the join.
+  //   - Along this dir's PERP axis: spans ±PHANTOM_FAR (parent's length is
+  //     unknown during pre-compute; use a generous bound — practical perp
+  //     extents are O(tree_depth × max_street_width), well below 1e9).
+  //
+  // Skipped at the root call (parentStreetWidth undefined), where no parent
+  // body exists. -----
+  if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
+    const halfP = parentStreetWidth / 2;
+    const PHANTOM_FAR = 1e9;
+    const phantomMinX = orientation === StreetAxis.X ? -halfP : -PHANTOM_FAR;
+    const phantomMaxX = orientation === StreetAxis.X ? +halfP : +PHANTOM_FAR;
+    const phantomMinY = orientation === StreetAxis.Y ? -halfP : -PHANTOM_FAR;
+    const phantomMaxY = orientation === StreetAxis.Y ? +halfP : +PHANTOM_FAR;
+    occupancy.insert({
+      minX: phantomMinX,
+      minY: phantomMinY,
+      maxX: phantomMaxX,
+      maxY: phantomMaxY,
+      kind: 'street',
+      // Phantom ref — never read by findSmallestValidStem or the result
+      // arrays (the phantom lives only in the local occupancy and never
+      // appears in CityLayout). Typed as Street to satisfy WorldRect.ref.
+      ref: {
+        x: 0, y: 0, length: 0, width: parentStreetWidth,
+        orientation: orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X,
+        label: '__phantom_parent_body__',
+        dir: null as unknown as Street['dir'],
+      } as Street,
+    });
+  }
+
   // ----- Sort children alphabetically (copied from v3 lines 770-773) -----
   const children = ((dir.children || []) as TreeLike[])
     .filter((c) => c.type === NodeKind.File || c.type === NodeKind.Directory)
