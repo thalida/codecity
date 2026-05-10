@@ -1836,3 +1836,80 @@ describe('v3 quickjs-scenario regression', () => {
     expect(quickjsStreet!.length).toBeLessThan(150);
   });
 });
+
+describe('two-pass re-compute adoption guard', () => {
+  const { _rectsOverlap, _appendSegment, _emptyContour } = __test;
+
+  // Helper: build a contour from raw [perpLow, perpHigh, alongValue] tuples.
+  function mkContour(segs: Array<[number, number, number]>) {
+    const c = _emptyContour();
+    for (const [pLo, pHi, a] of segs) _appendSegment(c, pLo, pHi, a);
+    return c;
+  }
+
+  it('detects when RE bot envelope invalidates committed chosenStemX', () => {
+    // Simulate the bug scenario:
+    //   - sideTop has docs's content at perp 389.80 with alongValue=389.20
+    //   - first-pass bot at perp 389.80 had alongValue=-32 (only main street)
+    //   - chosenStemX = 623.80 (derived from first-pass slide, assuming
+    //     gap=8, sAlong=458.50 at the dominant perp ~95.83 with cAlong=-147.30)
+    //   - RE bot at perp 389.80 now has alongValue=-389.25 (web/scene flipped)
+    // Expected: re-running slide with RE bot returns off > chosenStemX,
+    // proving the second guard would reject RE adoption.
+    const sideTop = mkContour([
+      [50, 100, 458.50],   // dominant perp for first-pass slide (cAlong=-147.30)
+      [380, 420, 389.20],  // docs/plans's perp range — first-pass missed this
+    ]);
+    const firstPassBot = mkContour([
+      [50, 100, -147.30],  // first-pass dominant cAlong
+      [380, 420, -32],     // first-pass at the suspect perp (only main street)
+    ]);
+    const reBot = mkContour([
+      [50, 100, -147.30],  // unchanged at this perp
+      [380, 420, -389.25], // RE flipped web/scene → much more negative here
+    ]);
+    const childGap = 8;
+
+    const firstPassOff = __test._slideUntilClear(firstPassBot, sideTop, childGap);
+    // First-pass slide picked perp 50-100 as dominant: 458.50 + 8 - (-147.30) = 613.80
+    expect(firstPassOff).toBeCloseTo(613.80, 2);
+
+    const chosenStemX = firstPassOff; // simplified: priorStemX/originPad don't dominate
+
+    const reOff = __test._slideUntilClear(reBot, sideTop, childGap);
+    // RE slide picks perp 380-420 as dominant: 389.20 + 8 - (-389.25) = 786.45
+    expect(reOff).toBeCloseTo(786.45, 2);
+
+    // The second guard logic: RE adopted iff reOff <= chosenStemX (+eps).
+    // Here reOff > chosenStemX → RE must NOT be adopted.
+    expect(reOff).toBeGreaterThan(chosenStemX);
+  });
+
+  it('allows adoption when RE bot is everywhere no worse than first-pass', () => {
+    const sideTop = mkContour([
+      [50, 100, 458.50],
+      [380, 420, 389.20],
+    ]);
+    const firstPassBot = mkContour([
+      [50, 100, -147.30],
+      [380, 420, -200.00], // first-pass already has substantial reach here
+    ]);
+    const reBot = mkContour([
+      [50, 100, -147.30],   // unchanged
+      [380, 420, -150.00],  // RE is BETTER (less negative) — leftmost moved right
+    ]);
+    const childGap = 8;
+
+    const firstPassOff = __test._slideUntilClear(firstPassBot, sideTop, childGap);
+    const reOff = __test._slideUntilClear(reBot, sideTop, childGap);
+
+    // Both pick dominant perp at 50-100: 458.50 + 8 - (-147.30) = 613.80
+    // First-pass at perp 50-100 → 613.80
+    expect(firstPassOff).toBeCloseTo(613.80, 2);
+    // RE at perp 50-100 → 613.80 (bot is unchanged there)
+    expect(reOff).toBeCloseTo(613.80, 2);
+
+    // RE's required offset equals first-pass → guard #2 allows adoption.
+    expect(reOff).toBeLessThanOrEqual(firstPassOff);
+  });
+});
