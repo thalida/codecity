@@ -1772,3 +1772,94 @@ describe('_mirrorRectsBuf', () => {
     expect(() => __test._mirrorRectsBuf(buf, 'y')).not.toThrow();
   });
 });
+
+describe('v3 quickjs-scenario regression', () => {
+  // Reproduces the failure from screenshots: node_modules has a quickjs
+  // child whose own src/ subdir picked the side facing node_modules,
+  // forcing the quickjs road to extend back. With v3, src/ should
+  // mirror or pick the other side, keeping quickjs road short.
+  function mkFile(name: string) {
+    return {
+      name,
+      type: NodeKind.File,
+      path: name,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
+    };
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function mkDir(name: string, children: any[], path?: string): any {
+    const dirPath = path || name;
+    const prefixed = children.map((c) => {
+      if (c.type === NodeKind.Directory) {
+        return mkDir(c.name, c.children, `${dirPath}/${c.name}`);
+      }
+      return { ...c, path: `${dirPath}/${c.name}` };
+    });
+    return {
+      name,
+      type: NodeKind.Directory,
+      path: dirPath,
+      children_count: prefixed.length,
+      descendants_count:
+        prefixed.length +
+        prefixed.reduce((acc: number, c: any) => acc + (c.descendants_count || 0), 0),
+      descendants_size: 1000,
+      children: prefixed,
+    };
+  }
+
+  it('quickjs road stays short when its src/ branch has space to mirror', () => {
+    // Tree:
+    //   root/
+    //     a-other-pkg/   (medium subdir, alphabetically first under root)
+    //       file1.ts ... file10.ts
+    //     node_modules/  (big subdir, alphabetically next)
+    //       big1.ts ... big8.ts
+    //       quickjs/
+    //         qf1.ts qf2.ts qf3.ts
+    //         src/
+    //           sf1.ts sf2.ts
+    const tree = mkDir('root', [
+      mkDir(
+        'a-other-pkg',
+        Array.from({ length: 10 }, (_, i) => mkFile(`f${i}.ts`))
+      ),
+      mkDir('node_modules', [
+        ...Array.from({ length: 8 }, (_, i) => mkFile(`big${i}.ts`)),
+        mkDir('quickjs', [
+          mkFile('qf1.ts'),
+          mkFile('qf2.ts'),
+          mkFile('qf3.ts'),
+          mkDir(
+            'src',
+            Array.from({ length: 2 }, (_, i) => mkFile(`sf${i}.ts`))
+          ),
+        ]),
+      ]),
+    ]);
+
+    const layout = layoutCity({ tree });
+
+    // Invariants must hold.
+    assertNoOverlap(layout);
+    assertStemOrder(layout);
+
+    // Find the quickjs street and its parent (node_modules).
+    const quickjsStreet = layout.streets.find((s) => s.label === 'quickjs');
+    const nodeModStreet = layout.streets.find((s) => s.label === 'node_modules');
+    expect(quickjsStreet).toBeDefined();
+    expect(nodeModStreet).toBeDefined();
+
+    // The bug case: quickjs road extends way past where qf1, qf2, qf3
+    // alone would justify, because src/ branched back toward node_modules.
+    // For 3 files (each ~6-12 units wide) plus end pads, a non-pathological
+    // quickjs road length is bounded above by roughly 100 units. The bug
+    // produced lengths 2-3× that. We assert quickjs.length < 150 — well
+    // above the legitimate floor, well below the bug regime.
+    expect(quickjsStreet!.length).toBeLessThan(150);
+  });
+});
