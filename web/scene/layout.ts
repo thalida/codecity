@@ -846,6 +846,19 @@ function _layoutDir(
   // parent and don't require parent-street pavement).
   let maxBoundaryAlong = originPad;
 
+  // running_bbox — accumulating bbox of {parent road segment placed so far +
+  // children placed so far}, in parent's local frame. Initialized to a
+  // zero-perp slice from originPad (the leftmost place a child can stem)
+  // to itself; will grow as children commit. v3 placement uses this to
+  // score candidate (side, orientation) variants by max(W, H) of the
+  // post-placement union.
+  let runningBbox: BBox = {
+    alongMin: 0,
+    alongMax: originPad,
+    perpMin: -myStreetWidth / 2,
+    perpMax: +myStreetWidth / 2,
+  };
+
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
 
@@ -1070,6 +1083,19 @@ function _layoutDir(
     priorStemX = chosenStemX;
     const boundaryHigh = chosenStemX + local.alongReach;
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
+
+    // Update running_bbox with the just-committed child's bbox.
+    const committedBbox = _candidateBboxInParent(
+      local.bottomEnvelope,
+      local.topEnvelope,
+      chosenStemX,
+      chosenSide,
+      false
+    );
+    if (committedBbox.alongMin < runningBbox.alongMin) runningBbox.alongMin = committedBbox.alongMin;
+    if (committedBbox.alongMax > runningBbox.alongMax) runningBbox.alongMax = committedBbox.alongMax;
+    if (committedBbox.perpMin < runningBbox.perpMin) runningBbox.perpMin = committedBbox.perpMin;
+    if (committedBbox.perpMax > runningBbox.perpMax) runningBbox.perpMax = committedBbox.perpMax;
 
     if (child.type === NodeKind.File) {
       const negateY = orientation === StreetAxis.X && chosenSide === 0;
