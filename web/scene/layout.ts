@@ -1010,9 +1010,41 @@ function _layoutDir(
     let chosenMirrored = false;
     let chosenStemX = Infinity;
     let chosenScore = Infinity;
+
+    // __DEBUG_LAYOUT_LABEL__: when this child's name matches the label, route
+    // every tryVariant's _slideUntilClear call through the verbose logger.
+    const _dbgLabel =
+      depth === 0 && typeof globalThis !== 'undefined'
+        ? ((globalThis as { __DEBUG_LAYOUT_LABEL__?: unknown })
+            .__DEBUG_LAYOUT_LABEL__ as string | undefined)
+        : undefined;
+    const _childName =
+      child.type === NodeKind.File
+        ? (child as FileLike).name
+        : (child as DirLike).name;
+    const _childMatchesDbg = depth === 0 && _dbgLabel === _childName;
+    if (_childMatchesDbg) {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[slide-debug] child="${_childName}" mirrorInvariant=${local.mirrorInvariant} ` +
+          `priorStemX=${priorStemX.toFixed(2)} originPad=${originPad.toFixed(2)} ` +
+          `childGap=${childGap}\n` +
+          `  natural bot ${_contourSummary(local.bottomEnvelope)}\n` +
+          `  natural top ${_contourSummary(local.topEnvelope)}\n` +
+          `  mirror  bot ${_contourSummary(local.mirroredBottom)}\n` +
+          `  mirror  top ${_contourSummary(local.mirroredTop)}\n` +
+          `  side[0]     ${_contourSummary(sideContour[0])}\n` +
+          `  side[1]     ${_contourSummary(sideContour[1])}`
+      );
+    }
+
     const tryVariant = (s: 0 | 1, m: boolean): void => {
+      _dbgSlideCtx = _childMatchesDbg
+        ? { label: _childName, tag: `side=${s} mirror=${m}` }
+        : null;
       const bot = m ? local.mirroredBottom : local.bottomEnvelope;
       const off = _slideUntilClear(bot, sideContour[s], childGap);
+      _dbgSlideCtx = null;
       const cand = Math.max(priorStemX, originPad, off);
       // Score = cand stemX. Smaller cand = parent road extends less to
       // cover this child = shorter parent road. The variant (side, mirror)
@@ -1371,6 +1403,32 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
   return sorted;
 }
 
+// __DEBUG_LAYOUT_LABEL__ context: when set to a child's name (file/dir) by
+// _layoutDir at root depth, _slideUntilClear logs its inputs (contour
+// summaries) and the dominant (perp, sAlong, cAlong) triple that drove
+// maxOffset. Module-scoped so we don't have to thread a debug arg through
+// every call site. Reset to null after each child's variant loop.
+let _dbgSlideCtx: { label: string; tag: string } | null = null;
+
+function _contourSummary(c: Contour): string {
+  if (c.len === 0) return '<empty>';
+  let perpMin = Infinity,
+    perpMax = -Infinity,
+    alongMin = Infinity,
+    alongMax = -Infinity;
+  for (let i = 0; i < c.len; i++) {
+    const o = i << 2;
+    if (c.buf[o] < perpMin) perpMin = c.buf[o];
+    if (c.buf[o + 1] > perpMax) perpMax = c.buf[o + 1];
+    if (c.buf[o + 2] < alongMin) alongMin = c.buf[o + 2];
+    if (c.buf[o + 2] > alongMax) alongMax = c.buf[o + 2];
+  }
+  return (
+    `len=${c.len} perp=[${perpMin.toFixed(2)}, ${perpMax.toFixed(2)}] ` +
+    `along=[${alongMin.toFixed(2)}, ${alongMax.toFixed(2)}]`
+  );
+}
+
 // _slideUntilClear(childBot, sideTop, gap) -> offset
 //
 // Returns the smallest along-axis offset such that for every perp-depth
@@ -1380,6 +1438,9 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
 // Time: O(childBot.len + sideTop.len) — single linear merge of sorted segments.
 function _slideUntilClear(childBot: Contour, sideTop: Contour, gap: number): number {
   let maxOffset = -Infinity;
+  let _dbgPerp = NaN,
+    _dbgS = NaN,
+    _dbgC = NaN;
   let i = 0,
     j = 0;
   while (i < childBot.len && j < sideTop.len) {
@@ -1396,11 +1457,31 @@ function _slideUntilClear(childBot: Contour, sideTop: Contour, gap: number): num
       //   child's left edge + offset ≥ side's right edge + gap
       //   offset ≥ sAlong + gap - cAlong
       const off = sAlong + gap - cAlong;
-      if (off > maxOffset) maxOffset = off;
+      if (off > maxOffset) {
+        maxOffset = off;
+        if (_dbgSlideCtx !== null) {
+          _dbgPerp = (lo + hi) / 2;
+          _dbgS = sAlong;
+          _dbgC = cAlong;
+        }
+      }
     }
     // Advance whichever segment ends first.
     if (cHigh <= sHigh) i++;
     else j++;
+  }
+  if (_dbgSlideCtx !== null) {
+    const { label, tag } = _dbgSlideCtx;
+    // eslint-disable-next-line no-console
+    console.log(
+      `[slide] "${label}" ${tag} gap=${gap}\n` +
+        `  childBot ${_contourSummary(childBot)}\n` +
+        `  sideTop  ${_contourSummary(sideTop)}\n` +
+        `  → off=${maxOffset === -Infinity ? '-Inf' : maxOffset.toFixed(3)}` +
+        (maxOffset > -Infinity
+          ? ` dominant: perp~${_dbgPerp.toFixed(2)} sAlong=${_dbgS.toFixed(2)} cAlong=${_dbgC.toFixed(2)}`
+          : '')
+    );
   }
   return maxOffset;
 }
