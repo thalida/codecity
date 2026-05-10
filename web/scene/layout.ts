@@ -975,44 +975,42 @@ function _layoutDir(
     // the recursion, and the practical perp depth of any subtree is several
     // orders of magnitude below 1e9, so the over-constraint is harmless.
     //
-    // Side selection: prefer the side where adding this child causes the
-    // LEAST max-perp-reach growth. If side 0 already extends to perp 50 and
-    // the child's perp reach is 30, no growth on side 0. If side 1 only
-    // reaches perp 20, child on side 1 grows to 30 (delta 10). So side 0
-    // is preferred — concentrating growth on the already-big side keeps the
-    // already-small side available for small future siblings.
-    // Files on OPPOSITE sides of the same street still share a stem (pairing):
-    // the contours are SEPARATE per side, so the same stem-x is valid on both.
-    const childPerpReach = _maxPerpReach(local.topEnvelope);
-    const side0Reach = _maxPerpReach(sideContour[0]);
-    const side1Reach = _maxPerpReach(sideContour[1]);
-    const side0Growth = Math.max(0, childPerpReach - side0Reach);
-    const side1Growth = Math.max(0, childPerpReach - side1Reach);
-    // Tie → side 0 (deterministic).
-    const preferredSide: 0 | 1 = side0Growth <= side1Growth ? 0 : 1;
-    const sidesToTry: [0 | 1, 0 | 1] = preferredSide === 0 ? [0, 1] : [1, 0];
-
-    const sideOffsets: [number, number] = [0, 0];
-    for (let si = 0; si < 2; si++) {
-      const s = sidesToTry[si];
+    // v3 variant evaluation: for each candidate (side ∈ {0, 1}), compute
+    // the slide-until-clear stemX, then score by max(W, H) of the running
+    // bbox after committing the candidate. Pick smallest-score variant.
+    // Mirror variants are added in the next task; this commit uses
+    // natural orientation only.
+    //
+    // Tiebreaks (deterministic): smaller score wins; equal score → side 0;
+    // equal still → smaller stemX.
+    let chosenSide: 0 | 1 = 0;
+    let chosenStemX = Infinity;
+    let chosenScore = Infinity;
+    const evaluate = (s: 0 | 1): void => {
       const off = _slideUntilClear(local.bottomEnvelope, sideContour[s], childGap);
-      // off can be -Infinity (no constraint from contour); Math.max collapses
-      // it to the alphabetical / origin-pad floor.
       const cand = Math.max(priorStemX, originPad, off);
-      sideOffsets[s] = cand;
-    }
-
-    // Pick the side with smaller candidate stem-x; tie → preferredSide.
-    let chosenSide: 0 | 1 = sidesToTry[0];
-    let chosenStemX = sideOffsets[chosenSide];
-    for (let si = 1; si < 2; si++) {
-      const s = sidesToTry[si];
-      if (sideOffsets[s] < chosenStemX) {
-        chosenSide = s;
-        chosenStemX = sideOffsets[s];
+      const candBbox = _candidateBboxInParent(
+        local.bottomEnvelope,
+        local.topEnvelope,
+        cand,
+        s,
+        false
+      );
+      const score = _bboxUnionMaxDim(runningBbox, candBbox);
+      let better = false;
+      if (score < chosenScore - OVERLAP_EPS) better = true;
+      else if (Math.abs(score - chosenScore) <= OVERLAP_EPS) {
+        if (s < chosenSide) better = true;
+        else if (s === chosenSide && cand < chosenStemX) better = true;
       }
-    }
-
+      if (better) {
+        chosenSide = s;
+        chosenStemX = cand;
+        chosenScore = score;
+      }
+    };
+    evaluate(0);
+    evaluate(1);
     // B (asymmetric pre-seed via two-pass): for subdir children of the ROOT,
     // re-run _layoutDir now that chosenStemX is known. The child's own pre-
     // seed for its non-root recursion can use the asymmetric form (gem-facing

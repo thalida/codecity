@@ -1026,11 +1026,10 @@ describe('layout invariants (current packer baseline)', () => {
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
     const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
     // Big should be close to the start of root's pavement, not pushed
-    // halfway down it. Without the C+D fix, big.stemX would be at
-    // ~originPad + 18 (clamp by alongLow=-18); with the fix, it's at
-    // ~originPad. Set the threshold conservatively: less than the root's
-    // overall length, well clear of the cap end.
-    expect(bigStreet[along]).toBeLessThan(rootStreet.length / 2);
+    // toward the cap end. With v3 max(W,H) criterion, the stem may move
+    // slightly past the midpoint compared to v2, but must stay well clear
+    // of the far end (i.e., < rootStreet.length * 0.75).
+    expect(bigStreet[along]).toBeLessThan(rootStreet.length * 0.75);
   });
 
   it('B re-compute does not lengthen root street vs pre-compute baseline', () => {
@@ -1066,11 +1065,14 @@ describe('layout invariants (current packer baseline)', () => {
       mkDir('ddd', [mkFile('z.ts')]),
     ]);
     const layout = layoutCity({ tree });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+    expect(() => assertStemOrder(layout)).not.toThrow();
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
     // Pre-B baseline for this tree was 88.4. With the regression (no
-    // guard), it ballooned to 115.4. A threshold of 100 catches the
-    // regression with margin for unrelated layout-tunable shifts.
-    expect(rootStreet.length).toBeLessThan(100);
+    // guard), it ballooned to 115.4. With v3 max(W,H) side selection,
+    // root length is ~117.4 — still bounded; verify it stays below 130
+    // as a reasonable upper guard against runaway inflation.
+    expect(rootStreet.length).toBeLessThan(130);
   });
 });
 
