@@ -84,4 +84,27 @@ describe('WorldOccupancy.insert + query', () => {
     expect(all).toContain(a);
     expect(all).toContain(b);
   });
+
+  it('insertBatch produces same query results as N inserts', () => {
+    const rects = [
+      mkRect(10, 10, 4, 4),
+      mkRect(50, 50, 4, 4),
+      mkRect(10, 50, 4, 4),
+      mkRect(50, 10, 4, 4),
+      mkRect(30, 30, 4, 4),
+    ];
+    const occBatch = new WorldOccupancy();
+    occBatch.insertBatch(rects);
+    const occSequential = new WorldOccupancy();
+    for (const r of rects) occSequential.insert(r);
+
+    expect(occBatch.size()).toBe(rects.length);
+    expect(occSequential.size()).toBe(rects.length);
+
+    // Same hits for the same query region.
+    const batchHits = occBatch.query(0, 0, 20, 20);
+    const seqHits = occSequential.query(0, 0, 20, 20);
+    expect(batchHits.length).toBe(seqHits.length);
+    expect(new Set(batchHits)).toEqual(new Set(seqHits));
+  });
 });
