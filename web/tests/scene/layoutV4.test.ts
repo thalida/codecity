@@ -259,3 +259,109 @@ describe('findSmallestValidStem', () => {
     expect(s).toBe(60);
   });
 });
+
+import { placeChild } from '@/scene/layoutV4';
+
+describe('placeChild', () => {
+  function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
+    return {
+      minX, minY, maxX, maxY,
+      kind: 'street' as const,
+      ref: {} as never,
+    };
+  }
+
+  it('mirror-invariant child (single centered rect) → 2 variants only', () => {
+    // Centered rect at x=0 → mirror is a no-op. Only side 0 and side 1 evaluated.
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 0,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    // Both sides empty → stem=0, side=0 wins tiebreak.
+    expect(result.stem).toBe(0);
+    expect(result.side).toBe(0);
+    expect(result.mirror).toBe(false);
+  });
+
+  it('asymmetric child → all 4 variants evaluated; smaller stem wins', () => {
+    const occ = new WorldOccupancy();
+    // Insert a blocker on side 1 (+y side, perp band [8, 12]).
+    occ.insert(worldRect(0, 8, 20, 12));
+    // Child has off-centerline rect → asymmetric.
+    const childRects = [{ x: 5, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 0,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    // Side 0 (perp y=-10, no blocker) gives stem=0. Side 1 needs to slide past
+    // blocker. Side 0 wins.
+    expect(result.side).toBe(0);
+    expect(result.stem).toBe(0);
+  });
+
+  it('tiebreak: equal stems on side 0 and side 1 → side 0 wins', () => {
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 0, y: 10, w: 4, d: 4 }]; // mirror-invariant
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 0,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    expect(result.side).toBe(0);
+  });
+
+  it('tiebreak: equal stems on (side 0 natural) and (side 0 mirror) → natural wins', () => {
+    // Asymmetric child where mirror happens to also give stem=0.
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 5, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 0,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    expect(result.mirror).toBe(false);
+  });
+
+  it('deterministic: same inputs → same (stem, side, mirror)', () => {
+    const occ = new WorldOccupancy();
+    occ.insert(worldRect(0, 8, 20, 12));
+    const childRects = [{ x: 5, y: 10, w: 4, d: 4 }];
+    const params = {
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 0,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    };
+    const a = placeChild(params);
+    const b = placeChild(params);
+    expect(a).toEqual(b);
+  });
+});

@@ -146,3 +146,79 @@ export function findSmallestValidStem(p: FindSmallestValidStemParams): number {
   }
   return s;
 }
+
+interface PlaceChildParams {
+  childRects: Rect[];
+  parentOrient: StreetAxis;
+  parentOriginX: number;
+  parentOriginY: number;
+  priorStem: number;
+  originPad: number;
+  childGap: number;
+  occupancy: WorldOccupancy;
+}
+
+export interface PlaceChildResult {
+  stem: number;
+  side: 0 | 1;
+  mirror: boolean;
+}
+
+// placeChild — Section 4 of the spec.
+//
+// Evaluates 4 (side × mirror) variants and picks the one with smallest stem.
+// If mirror is invariant (the rect list is unchanged by perp-axis flip), only
+// 2 variants (mirror=false) are evaluated.
+//
+// Tiebreak chain (when stems tie within OVERLAP_EPS):
+//   1. Smaller stem wins (strict).
+//   2. If stems tie: side 0 over side 1.
+//   3. If sides tie: natural over mirrored.
+//   4. If both tie: smaller stem within eps (mostly redundant).
+export function placeChild(p: PlaceChildParams): PlaceChildResult {
+  const mirrorInvariant = isMirrorInvariant(p.childRects, p.parentOrient);
+
+  let bestStem = +Infinity;
+  let bestSide: 0 | 1 = 0;
+  let bestMirror = false;
+
+  const tryVariant = (side: 0 | 1, mirror: boolean): void => {
+    const stem = findSmallestValidStem({
+      childRects: p.childRects,
+      parentOrient: p.parentOrient,
+      side,
+      mirror,
+      parentOriginX: p.parentOriginX,
+      parentOriginY: p.parentOriginY,
+      priorStem: p.priorStem,
+      originPad: p.originPad,
+      childGap: p.childGap,
+      occupancy: p.occupancy,
+    });
+
+    // Tiebreak chain.
+    let better = false;
+    if (stem < bestStem - OVERLAP_EPS) {
+      better = true;
+    } else if (Math.abs(stem - bestStem) <= OVERLAP_EPS) {
+      if (side < bestSide) better = true;
+      else if (side === bestSide) {
+        if (!mirror && bestMirror) better = true;
+      }
+    }
+    if (better) {
+      bestStem = stem;
+      bestSide = side;
+      bestMirror = mirror;
+    }
+  };
+
+  tryVariant(0, false);
+  tryVariant(1, false);
+  if (!mirrorInvariant) {
+    tryVariant(0, true);
+    tryVariant(1, true);
+  }
+
+  return { stem: bestStem, side: bestSide, mirror: bestMirror };
+}
