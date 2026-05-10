@@ -1838,7 +1838,7 @@ describe('v3 quickjs-scenario regression', () => {
 });
 
 describe('two-pass re-compute adoption guard', () => {
-  const { _rectsOverlap, _appendSegment, _emptyContour } = __test;
+  const { _appendSegment, _emptyContour } = __test;
 
   // Helper: build a contour from raw [perpLow, perpHigh, alongValue] tuples.
   function mkContour(segs: Array<[number, number, number]>) {
