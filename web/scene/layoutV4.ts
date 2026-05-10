@@ -4,6 +4,7 @@
 
 import { StreetAxis } from '@/types';
 import type { Rect } from './layout';
+import type { WorldOccupancy } from './worldOccupancy';
 
 // computeFlips(parentOrient, side, mirror) → {flipX, flipY}
 //
@@ -69,4 +70,79 @@ export function isMirrorInvariant(rects: Rect[], parentOrient: StreetAxis): bool
     if (!found) return false;
   }
   return true;
+}
+
+interface FindSmallestValidStemParams {
+  childRects: Rect[];           // rects in CHILD-LOCAL frame
+  parentOrient: StreetAxis;
+  side: 0 | 1;
+  mirror: boolean;
+  parentOriginX: number;        // parent's main-street origin in world
+  parentOriginY: number;
+  priorStem: number;            // alphabetical-monotonic: stem ≥ priorStem
+  originPad: number;            // stem ≥ originPad (parent's join clearance)
+  childGap: number;             // minimum gap between this child and others
+  occupancy: WorldOccupancy;    // global occupancy structure
+}
+
+// findSmallestValidStem — Section 3 of the spec.
+//
+// For one (side, mirror) variant, compute the smallest stem ≥ max(priorStem,
+// originPad) such that translating every child rect by (side, mirror, stem,
+// parentOrigin) doesn't overlap any rect in occupancy. Uses the forbidden-
+// interval union algorithm for gap-fit packing.
+export function findSmallestValidStem(p: FindSmallestValidStemParams): number {
+  const { flipX, flipY } = computeFlips(p.parentOrient, p.side, p.mirror);
+
+  // Collect forbidden stem intervals from all (childRect, candidate) pairs.
+  const forbidden: { lower: number; upper: number }[] = [];
+
+  for (const r of p.childRects) {
+    const flipped = applyFlips(r, flipX, flipY);
+
+    // For X-orient parent: parent's along axis = X, perp axis = Y.
+    //   alongMin_at_stem_0 = flipped.x - flipped.w/2 + parentOriginX
+    //   alongMax_at_stem_0 = flipped.x + flipped.w/2 + parentOriginX
+    //   perpMin = flipped.y - flipped.d/2 + parentOriginY
+    //   perpMax = flipped.y + flipped.d/2 + parentOriginY
+    // For Y-orient parent: swap roles of X and Y.
+    let alongMin0: number, alongMax0: number, perpMin: number, perpMax: number;
+    if (p.parentOrient === StreetAxis.X) {
+      alongMin0 = flipped.x - flipped.w / 2 + p.parentOriginX;
+      alongMax0 = flipped.x + flipped.w / 2 + p.parentOriginX;
+      perpMin = flipped.y - flipped.d / 2 + p.parentOriginY;
+      perpMax = flipped.y + flipped.d / 2 + p.parentOriginY;
+    } else {
+      perpMin = flipped.x - flipped.w / 2 + p.parentOriginX;
+      perpMax = flipped.x + flipped.w / 2 + p.parentOriginX;
+      alongMin0 = flipped.y - flipped.d / 2 + p.parentOriginY;
+      alongMax0 = flipped.y + flipped.d / 2 + p.parentOriginY;
+    }
+
+    // Query occupancy in r's fixed perp band (full along range).
+    const candidates =
+      p.parentOrient === StreetAxis.X
+        ? p.occupancy.query(-Infinity, perpMin, Infinity, perpMax)
+        : p.occupancy.query(perpMin, -Infinity, perpMax, Infinity);
+
+    for (const g of candidates) {
+      const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
+      const gMaxAlong = p.parentOrient === StreetAxis.X ? g.maxX : g.maxY;
+
+      // r at stem s overlaps g (with gap) iff s ∈ (lower, upper).
+      const lower = gMinAlong - alongMax0 - p.childGap;
+      const upper = gMaxAlong - alongMin0 + p.childGap;
+      if (upper > lower) forbidden.push({ lower, upper });
+    }
+  }
+
+  // Sort forbidden intervals by lower, then walk to find first gap ≥
+  // max(priorStem, originPad).
+  forbidden.sort((a, b) => a.lower - b.lower);
+  let s = Math.max(p.priorStem, p.originPad);
+  for (const interval of forbidden) {
+    if (s < interval.lower) return s; // s is already in a gap before this interval
+    if (s < interval.upper) s = interval.upper; // s was inside; skip past
+  }
+  return s;
 }
