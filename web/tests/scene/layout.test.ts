@@ -1886,30 +1886,23 @@ describe('two-pass re-compute adoption guard', () => {
   });
 
   it('allows adoption when RE bot is everywhere no worse than first-pass', () => {
-    const sideTop = mkContour([
-      [50, 100, 458.50],
-      [380, 420, 389.20],
-    ]);
-    const firstPassBot = mkContour([
-      [50, 100, -147.30],
-      [380, 420, -200.00], // first-pass already has substantial reach here
-    ]);
-    const reBot = mkContour([
-      [50, 100, -147.30],   // unchanged
-      [380, 420, -150.00],  // RE is BETTER (less negative) — leftmost moved right
-    ]);
+    // Single segment at perp 380-420 so it's unambiguously the dominant
+    // constraint. RE's bot is less-negative (less reach) than first-pass at
+    // this perp → RE's required offset is strictly smaller.
+    const sideTop = mkContour([[380, 420, 389.20]]);
+    const firstPassBot = mkContour([[380, 420, -200.0]]); // substantial reach
+    const reBot = mkContour([[380, 420, -150.0]]); // RE is BETTER (less negative)
     const childGap = 8;
 
     const firstPassOff = __test._slideUntilClear(firstPassBot, sideTop, childGap);
     const reOff = __test._slideUntilClear(reBot, sideTop, childGap);
 
-    // Both pick dominant perp at 50-100: 458.50 + 8 - (-147.30) = 613.80
-    // First-pass at perp 50-100 → 613.80
-    expect(firstPassOff).toBeCloseTo(613.80, 2);
-    // RE at perp 50-100 → 613.80 (bot is unchanged there)
-    expect(reOff).toBeCloseTo(613.80, 2);
+    // Dominant at perp 380-420: 389.20 + 8 - (-200) = 597.20
+    expect(firstPassOff).toBeCloseTo(597.20, 2);
+    // Dominant at perp 380-420: 389.20 + 8 - (-150) = 547.20
+    expect(reOff).toBeCloseTo(547.20, 2);
 
-    // RE's required offset equals first-pass → guard #2 allows adoption.
+    // RE's required offset is smaller → guard #2 allows adoption.
     expect(reOff).toBeLessThanOrEqual(firstPassOff);
   });
 });
