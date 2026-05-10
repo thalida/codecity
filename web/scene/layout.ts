@@ -1641,21 +1641,6 @@ function _bboxUnionMaxDim(a: BBox, b: BBox): number {
   return w > h ? w : h;
 }
 
-// _mirrorRectsBuf(buf, alongAxis) -> void
-//
-// In-place reflect a RectBuf across the road axis (= negate the perp
-// axis of the subtree). Width/depth (slots 2, 3) are unchanged; only the
-// perp coordinate flips. alongAxis names the road direction; the perp
-// axis is the OTHER axis.
-function _mirrorRectsBuf(buf: RectBuf, alongAxis: 'x' | 'y'): void {
-  const n = buf.length >>> 2;
-  if (alongAxis === 'y') {
-    for (let i = 0; i < n; i++) buf[i << 2] = -buf[i << 2];
-  } else {
-    for (let i = 0; i < n; i++) buf[(i << 2) + 1] = -buf[(i << 2) + 1];
-  }
-}
-
 // _maxAlongValue(c) -> number
 //
 // Maximum alongValue across all segments in c. For an empty contour, returns
@@ -1695,5 +1680,4 @@ export const __test = {
   _mirrorEnvelopes,
   _candidateBboxInParent,
   _bboxUnionMaxDim,
-  _mirrorRectsBuf,
 };

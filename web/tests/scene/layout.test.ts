@@ -1746,33 +1746,6 @@ describe('_bboxUnionMaxDim', () => {
   });
 });
 
-describe('_mirrorRectsBuf', () => {
-  it('alongAxis=y negates x values in place', () => {
-    const buf = new Float32Array([1, 2, 3, 4, -5, 6, 7, 8]);
-    __test._mirrorRectsBuf(buf, 'y');
-    expect(Array.from(buf)).toEqual([-1, 2, 3, 4, 5, 6, 7, 8]);
-  });
-
-  it('alongAxis=x negates y values in place', () => {
-    const buf = new Float32Array([1, 2, 3, 4, -5, -6, 7, 8]);
-    __test._mirrorRectsBuf(buf, 'x');
-    expect(Array.from(buf)).toEqual([1, -2, 3, 4, -5, 6, 7, 8]);
-  });
-
-  it('mirror twice returns identity', () => {
-    const original = new Float32Array([1.5, 2.5, 3, 4, -5.5, 6.5, 7, 8]);
-    const buf = new Float32Array(original);
-    __test._mirrorRectsBuf(buf, 'y');
-    __test._mirrorRectsBuf(buf, 'y');
-    expect(Array.from(buf)).toEqual(Array.from(original));
-  });
-
-  it('empty buffer no-op', () => {
-    const buf = new Float32Array(0);
-    expect(() => __test._mirrorRectsBuf(buf, 'y')).not.toThrow();
-  });
-});
-
 describe('v3 quickjs-scenario regression', () => {
   // Reproduces the failure from screenshots: node_modules has a quickjs
   // child whose own src/ subdir picked the side facing node_modules,
