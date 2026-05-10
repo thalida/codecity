@@ -859,19 +859,6 @@ function _layoutDir(
   // parent and don't require parent-street pavement).
   let maxBoundaryAlong = originPad;
 
-  // running_bbox — accumulating bbox of {parent road segment placed so far +
-  // children placed so far}, in parent's local frame. Initialized to a
-  // zero-perp slice from originPad (the leftmost place a child can stem)
-  // to itself; will grow as children commit. v3 placement uses this to
-  // score candidate (side, orientation) variants by max(W, H) of the
-  // post-placement union.
-  let runningBbox: BBox = {
-    alongMin: 0,
-    alongMax: originPad,
-    perpMin: -myStreetWidth / 2,
-    perpMax: +myStreetWidth / 2,
-  };
-
   for (let ci = 0; ci < children.length; ci++) {
     const child = children[ci];
 
@@ -996,14 +983,16 @@ function _layoutDir(
     // orders of magnitude below 1e9, so the over-constraint is harmless.
     //
     // v3 variant evaluation: for each (side ∈ {0, 1}) × (mirrored ∈ {natural,
-    // mirrored}), compute slide-until-clear stemX, then score by
-    // max(W, H) of running_bbox ∪ candidate. Pick smallest score.
+    // mirrored}), compute slide-until-clear stemX, then score = stemX.
+    // Pick variant with smallest score → smallest contribution to parent
+    // road length.
     //
     // Mirror variants are skipped when local.mirrorInvariant is true
     // (files, symmetric subtrees) — they would yield identical candidates.
     //
     // Tiebreaks (deterministic): smaller score → side 0 → natural over
-    // mirrored → smaller stemX.
+    // mirrored → smaller stemX (last is moot when score == cand, but
+    // kept for safety against future score changes).
     let chosenSide: 0 | 1 = 0;
     let chosenMirrored = false;
     let chosenStemX = Infinity;
@@ -1012,14 +1001,12 @@ function _layoutDir(
       const bot = m ? local.mirroredBottom : local.bottomEnvelope;
       const off = _slideUntilClear(bot, sideContour[s], childGap);
       const cand = Math.max(priorStemX, originPad, off);
-      const candBbox = _candidateBboxInParent(
-        local.bottomEnvelope,
-        local.topEnvelope,
-        cand,
-        s,
-        m
-      );
-      const score = _bboxUnionMaxDim(runningBbox, candBbox);
+      // Score = cand stemX. Smaller cand = parent road extends less to
+      // cover this child = shorter parent road. The variant (side, mirror)
+      // that fits with the smallest cand wins. Perp extent is irrelevant
+      // — long-rectangle worlds with short roads beat square worlds with
+      // long roads.
+      const score = cand;
       // Tiebreak chain: score < (strict beat); else if score equal,
       // prefer (side 0 over side 1), else prefer (natural over mirrored),
       // else prefer smaller stemX.
@@ -1132,21 +1119,6 @@ function _layoutDir(
     priorStemX = chosenStemX;
     const boundaryHigh = chosenStemX + local.alongReach;
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
-
-    // Update running_bbox with the just-committed child's bbox.
-    // Use NATURAL envelopes; _candidateBboxInParent applies the mirror
-    // transformation internally based on the chosenMirrored flag.
-    const committedBbox = _candidateBboxInParent(
-      local.bottomEnvelope,
-      local.topEnvelope,
-      chosenStemX,
-      chosenSide,
-      chosenMirrored
-    );
-    if (committedBbox.alongMin < runningBbox.alongMin) runningBbox.alongMin = committedBbox.alongMin;
-    if (committedBbox.alongMax > runningBbox.alongMax) runningBbox.alongMax = committedBbox.alongMax;
-    if (committedBbox.perpMin < runningBbox.perpMin) runningBbox.perpMin = committedBbox.perpMin;
-    if (committedBbox.perpMax > runningBbox.perpMax) runningBbox.perpMax = committedBbox.perpMax;
 
     if (child.type === NodeKind.File) {
       const negateY = orientation === StreetAxis.X && chosenSide === 0;
