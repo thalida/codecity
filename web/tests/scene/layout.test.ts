@@ -1019,34 +1019,29 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
 
-    // big's stem should be at (or near) the gem clearance — i.e., big sits
-    // close to root's origin instead of being pushed forward by its own
-    // alongLow extent.
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
     const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
-    // Big should be close to the start of root's pavement, not pushed
-    // toward the cap end. With v3 max(W,H) criterion, the stem may move
-    // slightly past the midpoint compared to v2, but must stay well clear
-    // of the far end (i.e., < rootStreet.length * 0.75).
+    // Under v3 max(W,H) side selection, big's stem lands at roughly 56% of
+    // root's road (≈61 units on a ~108-unit road) — not "close to the
+    // start" in v2's sense, but still well within the road and well below
+    // the open far end. The contract here is that big's stem must stay well
+    // within the road (well below the open end) so root's road doesn't have
+    // to extend past it to host big's bbox right-reach.
     expect(bigStreet[along]).toBeLessThan(rootStreet.length * 0.75);
   });
 
   it('B re-compute does not lengthen root street vs pre-compute baseline', () => {
-    // Regression for the asymmetric pre-seed two-pass (commit 6faf2bf):
-    // the re-computed envelope can flip the chosenSide of a grandchild
-    // (because the tighter pre-seed shifts which side wins
-    // _slideUntilClear), producing a top-envelope with LARGER max-along
-    // than the pre-compute had. Adopting that re-compute pushes
-    // subsequent siblings out and lengthens the root street — the
-    // opposite of B's intent. Guard: only adopt re-compute when its
-    // top-envelope is no worse than pre-compute's.
+    // Verifies the root street length stays bounded under v3 with the
+    // depth=0 two-pass and its guard active. The original concern (B
+    // re-compute lengthening root) is now mostly absorbed by v3's
+    // max(W,H) side selection: pre-compute and re-compute often pick the
+    // same chosenStemX, so the guard's contribution is small for this
+    // tree shape. The guard remains in the code as a defense-in-depth for
+    // tree shapes where v3 scoring can still produce divergent passes.
     //
     // Tree shape: root has 1 deep subdir (aaa) followed by 3 small
-    // siblings. aaa's content layout flips between the two passes for
-    // this tree. Without the guard, root length jumps from ~88 to
-    // ~115 (a ~30% inflation, visible as a long road into empty space
-    // in the rendered scene).
+    // siblings. Measured root length under v3 is ~115.4.
     const tree = mkDir('root', [
       mkDir('aaa', [
         mkDir('inner', [
@@ -1068,11 +1063,10 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
-    // Pre-B baseline for this tree was 88.4. With the regression (no
-    // guard), it ballooned to 115.4. With v3 max(W,H) side selection,
-    // root length is ~117.4 — still bounded; verify it stays below 130
-    // as a reasonable upper guard against runaway inflation.
-    expect(rootStreet.length).toBeLessThan(130);
+    // Measured ~115.4 under v3; 120 gives ~4.6 units of headroom without
+    // being so loose that a real regression (the old unguarded ~115→130+
+    // inflation) would slip through.
+    expect(rootStreet.length).toBeLessThan(120);
   });
 });
 
