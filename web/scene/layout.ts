@@ -1010,10 +1010,15 @@ function _layoutDir(
     let chosenScore = Infinity;
     const tryVariant = (s: 0 | 1, m: boolean): void => {
       const bot = m ? local.mirroredBottom : local.bottomEnvelope;
-      const top = m ? local.mirroredTop : local.topEnvelope;
       const off = _slideUntilClear(bot, sideContour[s], childGap);
       const cand = Math.max(priorStemX, originPad, off);
-      const candBbox = _candidateBboxInParent(bot, top, cand, s, m);
+      const candBbox = _candidateBboxInParent(
+        local.bottomEnvelope,
+        local.topEnvelope,
+        cand,
+        s,
+        m
+      );
       const score = _bboxUnionMaxDim(runningBbox, candBbox);
       // Tiebreak chain: score < (strict beat); else if score equal,
       // prefer (side 0 over side 1), else prefer (natural over mirrored),
@@ -1124,11 +1129,11 @@ function _layoutDir(
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
 
     // Update running_bbox with the just-committed child's bbox.
-    const committedBot = chosenMirrored ? local.mirroredBottom : local.bottomEnvelope;
-    const committedTop = chosenMirrored ? local.mirroredTop : local.topEnvelope;
+    // Use NATURAL envelopes; _candidateBboxInParent applies the mirror
+    // transformation internally based on the chosenMirrored flag.
     const committedBbox = _candidateBboxInParent(
-      committedBot,
-      committedTop,
+      local.bottomEnvelope,
+      local.topEnvelope,
       chosenStemX,
       chosenSide,
       chosenMirrored
