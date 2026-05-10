@@ -16,14 +16,14 @@ import { parentDirPath } from './path.js';
 // helpers don't read, like name/path on intermediate nodes) stay
 // compatible. Real callers pass full Manifest / TreeNode / FileNode
 // instances which structurally satisfy these.
-interface FileLike {
+export interface FileLike {
   type?: string;
   name?: string;
   lines?: number;
   size?: number;
   [k: string]: unknown;
 }
-interface DirLike {
+export interface DirLike {
   type?: string;
   name?: string;
   path?: string;
@@ -32,7 +32,7 @@ interface DirLike {
   children_count?: number;
   [k: string]: unknown;
 }
-type TreeLike = FileLike | DirLike;
+export type TreeLike = FileLike | DirLike;
 
 // Rect — axis-aligned bounding rectangle in some 2D frame. Used by the
 // contour-based packer and overlap invariant checks. (x, y) is the rect's
@@ -622,7 +622,7 @@ export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
 // Maps a directory's descendants to a tier and returns the visual width of
 // its street. Larger directories get wider boulevards.
 // -----------------------------------------------------------------------------
-function _streetWidthForDir(dir: DirLike | null | undefined): number {
+export function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
   return getStreetWidth(count, STREET_TIERS.get());
 }
@@ -643,7 +643,7 @@ function _streetWidthForDir(dir: DirLike | null | undefined): number {
 // inside engine.js for cap-style selection), so we widen here.
 type StreetWithJoin = Street & { joinSide?: JoinSide };
 
-function _markJoinSides(streets: StreetWithJoin[]): void {
+export function _markJoinSides(streets: StreetWithJoin[]): void {
   const byPath: Record<string, StreetWithJoin> = {};
   for (let i = 0; i < streets.length; i++) {
     const s = streets[i];
@@ -1413,7 +1413,7 @@ function _layoutDir(
 // the building ends up on the opposite side of its own street with its door
 // pointing away.
 // -----------------------------------------------------------------------------
-function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolean): BuildingOrient {
+export function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolean): BuildingOrient {
   if (negateX) {
     if (orient === BuildingOrient.East) orient = BuildingOrient.West;
     else if (orient === BuildingOrient.West) orient = BuildingOrient.East;

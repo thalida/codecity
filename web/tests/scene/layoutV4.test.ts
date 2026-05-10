@@ -456,3 +456,45 @@ describe('translateRectsToWorld', () => {
     expect(world[0].ref).toBe(ref);
   });
 });
+
+import { layoutCityV4 } from '@/scene/layoutV4';
+import { NodeKind } from '@/types';
+import {
+  assertNoOverlap,
+  assertStemOrder,
+  assertTreeRespecting,
+  assertTJunctionsValid,
+} from './layout.test';
+
+describe('layoutCityV4 end-to-end', () => {
+  function mkFile(name: string): any {
+    return {
+      name, type: NodeKind.File, path: name, extension: '.ts',
+      size: 500, lines: 20,
+      created: '2024-01-01T00:00:00Z', modified: '2024-01-01T00:00:00Z',
+    };
+  }
+  function mkDir(name: string, children: any[]): any {
+    const prefixed = children.map((c) => ({ ...c, path: `${name}/${c.path || c.name}` }));
+    return {
+      name, type: NodeKind.Directory, path: name,
+      children_count: prefixed.length,
+      descendants_count: prefixed.length + prefixed.filter((c) => c.type === NodeKind.Directory).length,
+      descendants_size: 1000,
+      children: prefixed,
+    };
+  }
+
+  it('lays out a minimal tree with all four invariants satisfied', () => {
+    const tree = mkDir('root', [
+      mkFile('a.ts'),
+      mkFile('b.ts'),
+      mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
+    ]);
+    const layout = layoutCityV4({ tree });
+    expect(() => assertNoOverlap(layout)).not.toThrow();
+    expect(() => assertStemOrder(layout)).not.toThrow();
+    expect(() => assertTreeRespecting(layout)).not.toThrow();
+    expect(() => assertTJunctionsValid(layout)).not.toThrow();
+  });
+});
