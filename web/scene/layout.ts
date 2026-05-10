@@ -1969,6 +1969,14 @@ export function findLayoutOverlaps(layout: {
       const A = all[i],
         B = all[j];
       if (!_rectsOverlap(A.rect, B.rect)) continue;
+      const overlap = _intersectRect(A.rect, B.rect);
+      // Skip FP-noise overlaps. The internal _rectsOverlap uses
+      // OVERLAP_EPS=1e-9, which is below the IEEE-754 drift produced by
+      // chains of Float32 translations at large coordinate magnitudes
+      // (~1e-5 at coords of 10000+). Touching-edge cases produce overlaps
+      // with one dimension in that drift range; they're visually
+      // imperceptible and not actual layout bugs.
+      if (overlap.w < 1e-3 || overlap.d < 1e-3) continue;
       let category: LayoutOverlapCategory = 'unexpected';
       if (A.kind === 'street' && B.kind === 'street' && _isStreetJoinPair(A.ref, B.ref)) {
         category = 't-junction';
@@ -1980,7 +1988,7 @@ export function findLayoutOverlaps(layout: {
         labelB: B.label,
         rectA: A.rect,
         rectB: B.rect,
-        overlap: _intersectRect(A.rect, B.rect),
+        overlap,
         category,
       });
     }
