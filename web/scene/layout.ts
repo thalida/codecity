@@ -840,16 +840,27 @@ function _layoutDir(
   // depth without the coarse `originPad + (-alongLow)` clamp.
   const sideContour: [Contour, Contour] = [_emptyContour(), _emptyContour()];
   if (parentStreetWidth !== undefined) {
-    // Asymmetric pre-seed (B). Side 0 is the gem-facing side: in parent's
-    // local frame, content at perp = X corresponds to web_local_x = -X (i.e.
-    // negative direction in the grandparent's along axis). At perp >
-    // parentStemXInGrandparent the world-x falls behind the grandparent's
-    // gem — empty space, no constraint needed. So tighten side 0's pre-seed
-    // perp range to parentStemXInGrandparent when known. Side 1 is the
-    // far-from-gem side: we don't know the grandparent's far-end length
-    // here, so keep the conservative PRESEED_PERP_INF.
-    _preseedGrandparentBlock(sideContour[0], parentStreetWidth, parentStemXInGrandparent);
-    _preseedGrandparentBlock(sideContour[1], parentStreetWidth, undefined);
+    // Asymmetric pre-seed (B). The "gem-facing" side — the one whose
+    // content maps to world x < 0 (behind the grandparent's gem) at perp
+    // > parentStemXInGrandparent — depends on whether the parent itself
+    // was placed mirror=true at the grandparent:
+    //   - parent mirror=false: child-local perp x maps to parent-local
+    //     +x (side 1) or -x (side 0); after grandparent's no-flip, world.x
+    //     = parent-local.x + parentStemX. Side 0's perp x > parentStemX
+    //     gives world.x < 0 → behind gem. Tighten side 0.
+    //   - parent mirror=true: grandparent applies flipX. World.x =
+    //     -parent-local.x + parentStemX. Side 1's perp x > parentStemX
+    //     gives world.x < 0 → behind gem. Tighten side 1 instead.
+    // The far-from-gem side keeps the conservative PRESEED_PERP_INF (we
+    // don't know the grandparent's far-end length here).
+    const gemFacingSide = parentMirroredAtGrandparent ? 1 : 0;
+    const farSide = (1 - gemFacingSide) as 0 | 1;
+    _preseedGrandparentBlock(
+      sideContour[gemFacingSide],
+      parentStreetWidth,
+      parentStemXInGrandparent
+    );
+    _preseedGrandparentBlock(sideContour[farSide], parentStreetWidth, undefined);
   }
   let priorStemX = originPad;
   // maxBoundaryAlong — running max of (chosenStemX + child.alongReach), which
