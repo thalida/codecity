@@ -885,8 +885,16 @@ export function assertStemOrder(layout: CityLayout): void {
         )
       )
       .sort((a, b) => a.name.localeCompare(b.name));
+    // Determine direction by the first non-zero gap between consecutive
+    // alphabetical siblings. The road may extend in +axis or -axis world
+    // direction depending on whether parent subtree was negated; either is
+    // valid as long as the order is monotonic in ONE direction throughout.
+    let direction = 0; // -1 = descending, +1 = ascending, 0 = unknown
     for (let i = 1; i < streetSpecs.length; i++) {
-      if (streetSpecs[i].stemAlong < streetSpecs[i - 1].stemAlong) {
+      const delta = streetSpecs[i].stemAlong - streetSpecs[i - 1].stemAlong;
+      if (delta === 0) continue; // ties allowed (paired stems)
+      if (direction === 0) direction = delta > 0 ? 1 : -1;
+      if ((direction > 0 && delta < 0) || (direction < 0 && delta > 0)) {
         throw new Error(
           `stem-x out of order along ${parent.label || parent.dir?.path}: ` +
             `${streetSpecs[i - 1].name}@${streetSpecs[i - 1].stemAlong} → ` +
