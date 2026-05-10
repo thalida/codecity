@@ -995,42 +995,51 @@ function _layoutDir(
     // the recursion, and the practical perp depth of any subtree is several
     // orders of magnitude below 1e9, so the over-constraint is harmless.
     //
-    // v3 variant evaluation: for each candidate (side ∈ {0, 1}), compute
-    // the slide-until-clear stemX, then score by max(W, H) of the running
-    // bbox after committing the candidate. Pick smallest-score variant.
-    // Mirror variants are added in the next task; this commit uses
-    // natural orientation only.
+    // v3 variant evaluation: for each (side ∈ {0, 1}) × (mirrored ∈ {natural,
+    // mirrored}), compute slide-until-clear stemX, then score by
+    // max(W, H) of running_bbox ∪ candidate. Pick smallest score.
     //
-    // Tiebreaks (deterministic): smaller score wins; equal score → side 0;
-    // equal still → smaller stemX.
+    // Mirror variants are skipped when local.mirrorInvariant is true
+    // (files, symmetric subtrees) — they would yield identical candidates.
+    //
+    // Tiebreaks (deterministic): smaller score → side 0 → natural over
+    // mirrored → smaller stemX.
     let chosenSide: 0 | 1 = 0;
+    let chosenMirrored = false;
     let chosenStemX = Infinity;
     let chosenScore = Infinity;
-    const evaluate = (s: 0 | 1): void => {
-      const off = _slideUntilClear(local.bottomEnvelope, sideContour[s], childGap);
+    const tryVariant = (s: 0 | 1, m: boolean): void => {
+      const bot = m ? local.mirroredBottom : local.bottomEnvelope;
+      const top = m ? local.mirroredTop : local.topEnvelope;
+      const off = _slideUntilClear(bot, sideContour[s], childGap);
       const cand = Math.max(priorStemX, originPad, off);
-      const candBbox = _candidateBboxInParent(
-        local.bottomEnvelope,
-        local.topEnvelope,
-        cand,
-        s,
-        false
-      );
+      const candBbox = _candidateBboxInParent(bot, top, cand, s, m);
       const score = _bboxUnionMaxDim(runningBbox, candBbox);
+      // Tiebreak chain: score < (strict beat); else if score equal,
+      // prefer (side 0 over side 1), else prefer (natural over mirrored),
+      // else prefer smaller stemX.
       let better = false;
       if (score < chosenScore - OVERLAP_EPS) better = true;
       else if (Math.abs(score - chosenScore) <= OVERLAP_EPS) {
         if (s < chosenSide) better = true;
-        else if (s === chosenSide && cand < chosenStemX) better = true;
+        else if (s === chosenSide) {
+          if (!m && chosenMirrored) better = true;
+          else if (m === chosenMirrored && cand < chosenStemX) better = true;
+        }
       }
       if (better) {
         chosenSide = s;
+        chosenMirrored = m;
         chosenStemX = cand;
         chosenScore = score;
       }
     };
-    evaluate(0);
-    evaluate(1);
+    tryVariant(0, false);
+    tryVariant(1, false);
+    if (!local.mirrorInvariant) {
+      tryVariant(0, true);
+      tryVariant(1, true);
+    }
     // B (asymmetric pre-seed via two-pass): for subdir children of the ROOT,
     // re-run _layoutDir now that chosenStemX is known. The child's own pre-
     // seed for its non-root recursion can use the asymmetric form (gem-facing
@@ -1104,18 +1113,25 @@ function _layoutDir(
 
     // Commit: merge the child's top envelope (shifted by chosenStemX) into
     // the chosen side's top contour.
-    _mergeTopContour(sideContour[chosenSide], local.topEnvelope, chosenStemX);
+    // Commit the chosen orientation's top envelope into the side contour.
+    // For mirrored: the mirrored_top contour already has negated
+    // alongValues, so adding chosenStemX yields the correct
+    // post-translation parent-along extent.
+    const mergeTop = chosenMirrored ? local.mirroredTop : local.topEnvelope;
+    _mergeTopContour(sideContour[chosenSide], mergeTop, chosenStemX);
     priorStemX = chosenStemX;
     const boundaryHigh = chosenStemX + local.alongReach;
     if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
 
     // Update running_bbox with the just-committed child's bbox.
+    const committedBot = chosenMirrored ? local.mirroredBottom : local.bottomEnvelope;
+    const committedTop = chosenMirrored ? local.mirroredTop : local.topEnvelope;
     const committedBbox = _candidateBboxInParent(
-      local.bottomEnvelope,
-      local.topEnvelope,
+      committedBot,
+      committedTop,
       chosenStemX,
       chosenSide,
-      false
+      chosenMirrored
     );
     if (committedBbox.alongMin < runningBbox.alongMin) runningBbox.alongMin = committedBbox.alongMin;
     if (committedBbox.alongMax > runningBbox.alongMax) runningBbox.alongMax = committedBbox.alongMax;
@@ -1169,14 +1185,24 @@ function _layoutDir(
       });
     } else {
       // Subdir: translate streets / buildings / paths from local frame.
+      // Two independent reflections applied:
+      //   - chosenSide=0 negates the parent's perp axis (subtree's along).
+      //   - chosenMirrored negates the subtree's perp axis (parent's along).
+      // For X-orient parent: side 0 → negateY; mirror → negateXSub (subtree-
+      // local x is the subtree's perp axis).
+      // For Y-orient parent: side 0 → negateX; mirror → negateYSub.
       const negateY = orientation === StreetAxis.X && chosenSide === 0;
       const negateX = orientation === StreetAxis.Y && chosenSide === 0;
+      const negateXSub = orientation === StreetAxis.X && chosenMirrored;
+      const negateYSub = orientation === StreetAxis.Y && chosenMirrored;
+      const flipX = negateX || negateXSub;
+      const flipY = negateY || negateYSub;
       const subAnchorX = orientation === StreetAxis.X ? originX + chosenStemX : originX;
       const subAnchorY = orientation === StreetAxis.X ? originY : originY + chosenStemX;
       for (const s of local.streets) {
         result.streets.push({
-          x: (negateX ? -s.x : s.x) + subAnchorX,
-          y: (negateY ? -s.y : s.y) + subAnchorY,
+          x: (flipX ? -s.x : s.x) + subAnchorX,
+          y: (flipY ? -s.y : s.y) + subAnchorY,
           length: s.length,
           width: s.width,
           orientation: s.orientation,
@@ -1186,21 +1212,21 @@ function _layoutDir(
       }
       for (const b of local.buildings) {
         result.buildings.push({
-          x: (negateX ? -b.x : b.x) + subAnchorX,
-          y: (negateY ? -b.y : b.y) + subAnchorY,
+          x: (flipX ? -b.x : b.x) + subAnchorX,
+          y: (flipY ? -b.y : b.y) + subAnchorY,
           w: b.w,
           d: b.d,
           h: b.h,
           floors: b.floors,
           file: b.file,
           color: b.color,
-          orient: _mirrorOrient(b.orient, negateX, negateY) as BuildingOrient,
+          orient: _mirrorOrient(b.orient, flipX, flipY) as BuildingOrient,
         });
       }
       for (const p of local.paths) {
         result.paths.push({
-          x: (negateX ? -p.x : p.x) + subAnchorX,
-          y: (negateY ? -p.y : p.y) + subAnchorY,
+          x: (flipX ? -p.x : p.x) + subAnchorX,
+          y: (flipY ? -p.y : p.y) + subAnchorY,
           w: p.w,
           d: p.d,
           file: p.file,
