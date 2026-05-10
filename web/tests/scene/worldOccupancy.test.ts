@@ -51,4 +51,37 @@ describe('WorldOccupancy.insert + query', () => {
     occ.insert(mkRect(50, 50, 4, 4));
     expect(occ.size()).toBe(2);
   });
+
+  it('hasOverlap returns true when query region overlaps any rect', () => {
+    const occ = new WorldOccupancy();
+    occ.insert(mkRect(10, 10, 4, 4));
+    expect(occ.hasOverlap(0, 0, 20, 20)).toBe(true);
+  });
+
+  it('hasOverlap returns false when query region is disjoint', () => {
+    const occ = new WorldOccupancy();
+    occ.insert(mkRect(10, 10, 4, 4));
+    expect(occ.hasOverlap(100, 100, 110, 110)).toBe(false);
+  });
+
+  it('touching-edge rects are NOT reported as overlap (strict)', () => {
+    const occ = new WorldOccupancy();
+    occ.insert(mkRect(0, 0, 10, 10)); // [-5,-5]–[5,5]
+    // Query region touches the inserted rect at x=5 (shared edge).
+    expect(occ.hasOverlap(5, -5, 15, 5)).toBe(false);
+    // Slight overlap (beyond OVERLAP_EPS=1e-9) is reported.
+    expect(occ.hasOverlap(5 - 1e-6, -5, 15, 5)).toBe(true);
+  });
+
+  it('all() returns every inserted rect', () => {
+    const occ = new WorldOccupancy();
+    const a = mkRect(10, 10, 4, 4);
+    const b = mkRect(50, 50, 4, 4);
+    occ.insert(a);
+    occ.insert(b);
+    const all = occ.all();
+    expect(all).toHaveLength(2);
+    expect(all).toContain(a);
+    expect(all).toContain(b);
+  });
 });
