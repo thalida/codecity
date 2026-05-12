@@ -106,7 +106,7 @@ function _formatCollisionReport(
   totalRects: number
 ): { level: 'info' | 'warn'; summary: string; details: string[] } {
   const unexpected = overlaps.filter((o) => o.category === 'unexpected');
-  const tjctCount = overlaps.length - unexpected.length;
+  const tjctCount = overlaps.filter((o) => o.category === 't-junction').length;
   const summary =
     `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
     `whitelisted (${totalRects} rects)`;
