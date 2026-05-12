@@ -786,6 +786,7 @@ export function _commitDirV4(
   originX: number,
   originY: number,
   parentStreetWidth: number | undefined,
+  parentRoadLength: number | undefined,
   anchorFlipX: boolean,
   anchorFlipY: boolean,
   occupancy: WorldOccupancy,
@@ -806,13 +807,18 @@ export function _commitDirV4(
   // it. It's inserted into the global occupancy and removed at the end of
   // this call.
   let phantomRect: WorldRect | null = null;
-  if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
+  if (parentStreetWidth !== undefined && parentStreetWidth > 0 && parentRoadLength !== undefined && parentRoadLength > 0) {
     const halfP = parentStreetWidth / 2;
-    const PHANTOM_FAR = 1e9;
-    const phantomMinX = orientation === StreetAxis.X ? originX - halfP : originX - PHANTOM_FAR;
-    const phantomMaxX = orientation === StreetAxis.X ? originX + halfP : originX + PHANTOM_FAR;
-    const phantomMinY = orientation === StreetAxis.Y ? originY - halfP : originY - PHANTOM_FAR;
-    const phantomMaxY = orientation === StreetAxis.Y ? originY + halfP : originY + PHANTOM_FAR;
+    // Use the parent road's actual pre-compute length instead of an
+    // infinite-ish PHANTOM_FAR. In V4 each subtree had its own local
+    // occupancy so PHANTOM_FAR=1e9 was safe; in the new global-occupancy
+    // deferred-commit, grandparent phantoms accumulate, and 1e9 creates
+    // billion-unit forbidden intervals for descendants.
+    const halfL = parentRoadLength / 2;
+    const phantomMinX = orientation === StreetAxis.X ? originX - halfP : originX - halfL;
+    const phantomMaxX = orientation === StreetAxis.X ? originX + halfP : originX + halfL;
+    const phantomMinY = orientation === StreetAxis.Y ? originY - halfP : originY - halfL;
+    const phantomMaxY = orientation === StreetAxis.Y ? originY + halfP : originY + halfL;
     phantomRect = {
       minX: phantomMinX, minY: phantomMinY,
       maxX: phantomMaxX, maxY: phantomMaxY,
@@ -937,7 +943,7 @@ export function _commitDirV4(
       const childFlipY = anchorFlipY !== vFlipY;
 
       // Recurse — the subdir's own commit will place its road and children.
-      _commitDirV4(child.subtree, subOriginX, subOriginY, myStreetWidth, childFlipX, childFlipY, occupancy, layout, trace);
+      _commitDirV4(child.subtree, subOriginX, subOriginY, myStreetWidth, subtree.road.length, childFlipX, childFlipY, occupancy, layout, trace);
 
       priorStem = placed.stem;
       const boundaryHigh = placed.stem + child.subtree.road.width / 2;
@@ -1109,7 +1115,7 @@ function _layoutCityV4Internal(
   const occupancy = new WorldOccupancy();
   const subtree = _preComputeDirV4(tree, undefined, stats.lines, stats.bytes, StreetAxis.X);
   // Root has no anchor flip (its local frame IS world).
-  _commitDirV4(subtree, 0, 0, undefined, false, false, occupancy, result, trace);
+  _commitDirV4(subtree, 0, 0, undefined, undefined, false, false, occupancy, result, trace);
 
   for (const street of result.streets) {
     if ((street.dir as unknown) === (tree as unknown)) {

@@ -100,7 +100,7 @@ describe('_commitDirV4', () => {
       lineStats, byteStats,
     };
     const occupancy = new WorldOccupancy();
-    _commitDirV4(subtree, 0, 0, undefined, false, false, occupancy, layout);
+    _commitDirV4(subtree, 0, 0, undefined, undefined, false, false, occupancy, layout);
 
     expect(layout.buildings).toHaveLength(2);
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
@@ -128,7 +128,7 @@ describe('_commitDirV4', () => {
       lineStats, byteStats,
     };
     const occupancy = new WorldOccupancy();
-    _commitDirV4(subtree, 0, 0, undefined, false, false, occupancy, layout);
+    _commitDirV4(subtree, 0, 0, undefined, undefined, false, false, occupancy, layout);
 
     // 2 streets: root + sub.
     expect(layout.streets).toHaveLength(2);
@@ -148,7 +148,7 @@ describe('_commitDirV4', () => {
       lineStats, byteStats,
     };
     const occupancy = new WorldOccupancy();
-    _commitDirV4(subtree, 0, 0, undefined, false, false, occupancy, layout);
+    _commitDirV4(subtree, 0, 0, undefined, undefined, false, false, occupancy, layout);
 
     expect(layout.streets).toHaveLength(1);
     // The road length should be at least the pre-compute estimate.
