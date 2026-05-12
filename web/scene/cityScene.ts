@@ -46,6 +46,7 @@ import {
   disposeLabelMaterials,
 } from './instanced/labels.js';
 import { findLayoutOverlaps, layoutCity } from './layout.js';
+import type { LayoutOverlap } from './layout.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
@@ -93,6 +94,41 @@ export const UNIT_BOX_EDGE_POSITIONS = [
   -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5,
   0.5,
 ];
+
+// _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
+//
+// Pure helper. Partitions overlaps into unexpected vs. t-junction, returns the
+// summary line and (for the dirty case) one detail string per unexpected
+// overlap. Caller decides what to do with it — runCollisionCheck() routes to
+// console.info / console.warn.
+function _formatCollisionReport(
+  overlaps: LayoutOverlap[],
+  totalRects: number
+): { level: 'info' | 'warn'; summary: string; details: string[] } {
+  const unexpected = overlaps.filter((o) => o.category === 'unexpected');
+  const tjctCount = overlaps.length - unexpected.length;
+  const summary =
+    `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
+    `whitelisted (${totalRects} rects)`;
+  if (unexpected.length === 0) {
+    return { level: 'info', summary, details: [] };
+  }
+  const fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
+    `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
+  const details = unexpected.map(
+    (o) =>
+      `  ${o.kindA} "${o.labelA}" ${fmtRect(o.rectA)}\n` +
+      `    ⟷ ${o.kindB} "${o.labelB}" ${fmtRect(o.rectB)}\n` +
+      `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
+      `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
+  );
+  return { level: 'warn', summary, details };
+}
+
+// Internal helpers exposed for tests only. Not part of the public API.
+export const __test = {
+  _formatCollisionReport,
+};
 
 // canvas is unused directly by cityScene after Task 8 removed
 // _buildOutlinesAndGhosts (which used it for LineMaterial.resolution).
@@ -521,31 +557,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // explicit cast keeps the type checker happy across the boundary.
     layout = layoutCity(manifest.tree as unknown as Parameters<typeof layoutCity>[0]);
 
-    // Runtime overlap diagnostic. Logs only unexpected overlaps —
-    // street/street T-junctions are the documented flat join. See
-    // findLayoutOverlaps() in layout.ts.
-    const _overlaps = findLayoutOverlaps(layout);
-    const _unexpectedOverlaps = _overlaps.filter((o) => o.category === 'unexpected');
-    if (_unexpectedOverlaps.length > 0) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[layout] ${_unexpectedOverlaps.length} unexpected overlap(s) ` +
-          `(of ${_overlaps.length} total; ${_overlaps.length - _unexpectedOverlaps.length} ` +
-          `whitelisted as T-junctions):`
-      );
-      const _fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
-        `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
-      for (const o of _unexpectedOverlaps) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `  ${o.kindA} "${o.labelA}" ${_fmtRect(o.rectA)}\n` +
-            `    ⟷ ${o.kindB} "${o.labelB}" ${_fmtRect(o.rectB)}\n` +
-            `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
-            `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
-        );
-      }
-    }
-
     dateRanges = getDateRanges(manifest.tree as unknown as Parameters<typeof getDateRanges>[0]);
 
     // Color buildings before mesh creation — buildCityScene reads b.color.
@@ -689,6 +700,28 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
     getLayout() {
       return layout;
+    },
+    runCollisionCheck(): void {
+      if (!layout) {
+        // eslint-disable-next-line no-console
+        console.warn('[collision] no layout — apply a manifest first');
+        return;
+      }
+      const overlaps = findLayoutOverlaps(layout);
+      const totalRects =
+        layout.streets.length + layout.buildings.length + layout.paths.length;
+      const report = _formatCollisionReport(overlaps, totalRects);
+      if (report.level === 'info') {
+        // eslint-disable-next-line no-console
+        console.info(report.summary);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(report.summary);
+        for (const line of report.details) {
+          // eslint-disable-next-line no-console
+          console.warn(line);
+        }
+      }
     },
     getBbox() {
       return bbox;
