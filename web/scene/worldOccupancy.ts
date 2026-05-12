@@ -38,6 +38,12 @@ export class WorldOccupancy {
     this.tree.load(rects);
   }
 
+  remove(rect: WorldRect): void {
+    // rbush.remove uses reference equality by default — pass the same
+    // WorldRect we inserted earlier.
+    this.tree.remove(rect);
+  }
+
   query(minX: number, minY: number, maxX: number, maxY: number): WorldRect[] {
     return this.tree.search({ minX, minY, maxX, maxY }).filter((r) =>
       // Strict overlap (touching edges return false).

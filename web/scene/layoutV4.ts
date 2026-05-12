@@ -1055,6 +1055,272 @@ export function _flattenSubtreeRects(subtree: PreComputedSubtree): Rect[] {
   }];
 }
 
+// _commitDirV4 — top-down commit pass. Walks a PreComputedSubtree and
+// produces final placements into layout (a CityLayout being built). At each
+// dir: insert a phantom representing the parent road (so this dir's
+// children clear that footprint), iterate this dir's children placing each
+// against the GLOBAL occupancy, remove the phantom, then insert this dir's
+// own road with its final (possibly extended) length.
+//
+// Parameters:
+//   subtree        — pre-computed subtree to commit
+//   originX/Y      — this dir's local origin in world coordinates. For root,
+//                    pass (0, 0). For nested dirs, pass the world coords of
+//                    the dir's join with its parent road.
+//   parentStreetWidth — the parent road's width, or undefined for root.
+//   occupancy      — the GLOBAL occupancy. Children are placed against this.
+//   layout         — the CityLayout being built; commit pushes streets,
+//                    buildings, paths into it.
+//   trace          — optional StemPlacementTrace; if provided, each
+//                    placeChild call records a ChildPlacementTrace.
+export function _commitDirV4(
+  subtree: PreComputedSubtree,
+  originX: number,
+  originY: number,
+  parentStreetWidth: number | undefined,
+  occupancy: WorldOccupancy,
+  layout: CityLayout,
+  trace?: StemPlacementTrace,
+): void {
+  const streetLayout = STREET_LAYOUT.get();
+  const childGap = streetLayout.CHILD_GAP;
+
+  const orientation = subtree.road.orient;
+  const myStreetWidth = subtree.road.width;
+  const originPad = subtree.originPad;
+  const endPad = subtree.endPad;
+
+  // ----- Step 1: insert a phantom representing the PARENT road -----
+  // The phantom occupies the parent road's footprint (perpendicular to this
+  // dir's road) with infinite perp extent so this dir's children stems clear
+  // it. It's inserted into the global occupancy and removed at the end of
+  // this call.
+  let phantomRect: WorldRect | null = null;
+  if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
+    const halfP = parentStreetWidth / 2;
+    const PHANTOM_FAR = 1e9;
+    const phantomMinX = orientation === StreetAxis.X ? originX - halfP : originX - PHANTOM_FAR;
+    const phantomMaxX = orientation === StreetAxis.X ? originX + halfP : originX + PHANTOM_FAR;
+    const phantomMinY = orientation === StreetAxis.Y ? originY - halfP : originY - PHANTOM_FAR;
+    const phantomMaxY = orientation === StreetAxis.Y ? originY + halfP : originY + PHANTOM_FAR;
+    phantomRect = {
+      minX: phantomMinX, minY: phantomMinY,
+      maxX: phantomMaxX, maxY: phantomMaxY,
+      kind: 'street',
+      ref: {
+        x: originX, y: originY, length: 0, width: parentStreetWidth,
+        orientation: orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X,
+        label: '__phantom_parent_body__',
+        dir: null as unknown as Street['dir'],
+      } as Street,
+    };
+    occupancy.insert(phantomRect);
+  }
+
+  // ----- Step 2: place each child against the global occupancy -----
+  let priorStem = originPad;
+  let maxBoundaryAlong = originPad;
+  for (const child of subtree.children) {
+    if (child.kind === 'file') {
+      const variants: VariantTrace[] = [];
+      const placed = placeChild(
+        {
+          childRects: child.rects,
+          parentOrient: orientation,
+          parentOriginX: originX,
+          parentOriginY: originY,
+          priorStem,
+          originPad,
+          childGap,
+          occupancy,
+        },
+        trace ? { variants } : undefined,
+      );
+      if (trace) {
+        const chosenIdx = variants.findIndex(
+          (v) => v.side === placed.side && v.mirror === placed.mirror,
+        );
+        if (chosenIdx < 0) {
+          throw new Error(
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+          );
+        }
+        trace.placements.push({
+          childKind: 'file',
+          childLabel: child.file.name ?? '?',
+          childPath: String((child.file as DirLike).path ?? ''),
+          parentPath: subtree.dir.path ?? '',
+          baseline: Math.max(priorStem, originPad),
+          priorStem,
+          originPad,
+          chosen: variants[chosenIdx],
+          others: variants.filter((_, i) => i !== chosenIdx),
+        });
+      }
+
+      // Translate to world and push into layout + occupancy.
+      _emitFileAtCommit(child, placed, orientation, originX, originY, layout, occupancy);
+
+      priorStem = placed.stem;
+      // The building's along-axis extent depends on orientation.
+      const along = orientation === StreetAxis.X ? child.rects[0].w : child.rects[0].d;
+      const boundaryHigh = placed.stem + along / 2;
+      if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
+    } else {
+      // Subdir: place using just the subtree's road rect, then recurse.
+      const subChildRects = _flattenSubtreeRects(child.subtree);
+      const variants: VariantTrace[] = [];
+      const placed = placeChild(
+        {
+          childRects: subChildRects,
+          parentOrient: orientation,
+          parentOriginX: originX,
+          parentOriginY: originY,
+          priorStem,
+          originPad,
+          childGap,
+          occupancy,
+        },
+        trace ? { variants } : undefined,
+      );
+      if (trace) {
+        const chosenIdx = variants.findIndex(
+          (v) => v.side === placed.side && v.mirror === placed.mirror,
+        );
+        if (chosenIdx < 0) {
+          throw new Error(
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+          );
+        }
+        trace.placements.push({
+          childKind: 'dir',
+          childLabel: child.subtree.dir.name ?? '?',
+          childPath: child.subtree.dir.path ?? '',
+          parentPath: subtree.dir.path ?? '',
+          baseline: Math.max(priorStem, originPad),
+          priorStem,
+          originPad,
+          chosen: variants[chosenIdx],
+          others: variants.filter((_, i) => i !== chosenIdx),
+        });
+      }
+
+      // The subdir's local origin in world coords: along axis = origin + stem,
+      // perp axis = origin (the subdir attaches at the parent road's
+      // centerline; its road extends perpendicular).
+      const subOriginX = orientation === StreetAxis.X ? originX + placed.stem : originX;
+      const subOriginY = orientation === StreetAxis.X ? originY : originY + placed.stem;
+
+      // Recurse — the subdir's own commit will place its road and children.
+      _commitDirV4(child.subtree, subOriginX, subOriginY, myStreetWidth, occupancy, layout, trace);
+
+      priorStem = placed.stem;
+      const boundaryHigh = placed.stem + child.subtree.road.width / 2;
+      if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
+    }
+  }
+
+  // ----- Step 3: remove the phantom, insert the actual road with final length -----
+  if (phantomRect) {
+    occupancy.remove(phantomRect);
+  }
+
+  const finalLength = Math.max(maxBoundaryAlong + endPad, originPad + endPad);
+  const streetCenterX = orientation === StreetAxis.X ? originX + finalLength / 2 : originX;
+  const streetCenterY = orientation === StreetAxis.X ? originY : originY + finalLength / 2;
+  const ownStreet: Street = {
+    x: streetCenterX,
+    y: streetCenterY,
+    length: finalLength,
+    width: myStreetWidth,
+    orientation,
+    label: subtree.dir.name || '',
+    dir: subtree.dir as unknown as Street['dir'],
+  };
+  layout.streets.push(ownStreet);
+  const halfAlongX = orientation === StreetAxis.X ? finalLength / 2 : myStreetWidth / 2;
+  const halfAlongY = orientation === StreetAxis.X ? myStreetWidth / 2 : finalLength / 2;
+  occupancy.insert({
+    minX: streetCenterX - halfAlongX,
+    minY: streetCenterY - halfAlongY,
+    maxX: streetCenterX + halfAlongX,
+    maxY: streetCenterY + halfAlongY,
+    kind: 'street',
+    ref: ownStreet,
+  });
+}
+
+// _emitFileAtCommit — translates a leaf file's pre-computed rects (in the
+// child's own local frame) to world coordinates using the chosen
+// (side, mirror, stem) and pushes the building + path into the layout +
+// inserts them into the occupancy.
+function _emitFileAtCommit(
+  child: { kind: 'file'; file: FileLike; rects: Rect[] },
+  placed: PlaceChildResult,
+  orientation: StreetAxis,
+  originX: number,
+  originY: number,
+  layout: CityLayout,
+  occupancy: WorldOccupancy,
+): void {
+  const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
+  const buildingRectLocal = child.rects[0];
+  const pathRectLocal = child.rects[1];
+  const buildingLocal = applyFlips(buildingRectLocal, flipX, flipY);
+  const pathLocal = applyFlips(pathRectLocal, flipX, flipY);
+  const stemAlong = placed.stem;
+  const buildingWorldX = buildingLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
+  const buildingWorldY = buildingLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
+  const pathWorldX = pathLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
+  const pathWorldY = pathLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
+
+  let orient: BuildingOrient;
+  if (orientation === StreetAxis.X) {
+    orient = placed.side === 0 ? BuildingOrient.South : BuildingOrient.North;
+  } else {
+    orient = placed.side === 0 ? BuildingOrient.East : BuildingOrient.West;
+  }
+  if (placed.mirror) orient = _mirrorOrient(orient, flipX, flipY);
+
+  const dim = getBuildingDimensions(child.file, layout.lineStats, layout.byteStats);
+  const buildingRect: Building = {
+    x: buildingWorldX,
+    y: buildingWorldY,
+    w: buildingLocal.w,
+    d: buildingLocal.d,
+    h: dim.h,
+    floors: dim.floors,
+    file: child.file as unknown as Building['file'],
+    color: null as unknown as string,
+    orient,
+  };
+  const pathRect: BuildingPath = {
+    x: pathWorldX,
+    y: pathWorldY,
+    w: pathLocal.w,
+    d: pathLocal.d,
+    file: child.file as unknown as BuildingPath['file'],
+  };
+  layout.buildings.push(buildingRect);
+  layout.paths.push(pathRect);
+  occupancy.insert({
+    minX: buildingWorldX - buildingLocal.w / 2,
+    minY: buildingWorldY - buildingLocal.d / 2,
+    maxX: buildingWorldX + buildingLocal.w / 2,
+    maxY: buildingWorldY + buildingLocal.d / 2,
+    kind: 'building',
+    ref: buildingRect,
+  });
+  occupancy.insert({
+    minX: pathWorldX - pathLocal.w / 2,
+    minY: pathWorldY - pathLocal.d / 2,
+    maxX: pathWorldX + pathLocal.w / 2,
+    maxY: pathWorldY + pathLocal.d / 2,
+    kind: 'path',
+    ref: pathRect,
+  });
+}
+
 type ManifestLike = { tree?: DirLike } | DirLike;
 
 // layoutCityV4 — Tier B public entry. Same shape as layoutCity from v3.

@@ -5,9 +5,11 @@
 // predecessors.
 
 import { describe, it, expect } from 'vitest';
-import { _preComputeDirV4 } from '@/scene/layoutV4.js';
+import { _preComputeDirV4, _commitDirV4 } from '@/scene/layoutV4.js';
+import type { PreComputedSubtree } from '@/scene/layoutV4.js';
+import { WorldOccupancy } from '@/scene/worldOccupancy.js';
 import { NodeKind, StreetAxis } from '@/types';
-import type { DirNode, FileNode } from '@/types';
+import type { DirNode, FileNode, CityLayout } from '@/types';
 import type { DirLike } from '@/scene/layout.js';
 
 function makeFile(name: string, size = 100, lines = 10): FileNode {
@@ -83,5 +85,73 @@ describe('_preComputeDirV4', () => {
     const byteStats = { min: 100, max: 100 };
     const result = _preComputeDirV4(tree as unknown as DirLike, undefined, lineStats, byteStats, StreetAxis.X);
     expect(result.road.length).toBeGreaterThanOrEqual(result.originPad + result.endPad);
+  });
+});
+
+describe('_commitDirV4', () => {
+  it('flat tree — places files alphabetically on root road', () => {
+    const tree = makeDir('root', [makeFile('a.ts'), makeFile('b.ts')]);
+    const lineStats = { min: 10, max: 10 };
+    const byteStats = { min: 100, max: 100 };
+    const subtree = _preComputeDirV4(tree as unknown as DirLike, undefined, lineStats, byteStats, StreetAxis.X);
+
+    const layout: CityLayout = {
+      streets: [], buildings: [], paths: [],
+      lineStats, byteStats,
+    };
+    const occupancy = new WorldOccupancy();
+    _commitDirV4(subtree, 0, 0, undefined, occupancy, layout);
+
+    expect(layout.buildings).toHaveLength(2);
+    expect(layout.streets.length).toBeGreaterThanOrEqual(1);
+    // Buildings should be ordered alphabetically along the root road.
+    const aBuilding = layout.buildings.find((b) => (b.file as unknown as FileNode).name === 'a.ts');
+    const bBuilding = layout.buildings.find((b) => (b.file as unknown as FileNode).name === 'b.ts');
+    expect(aBuilding).toBeDefined();
+    expect(bBuilding).toBeDefined();
+    if (aBuilding && bBuilding) {
+      // Alphabetical ordering: a.ts stem ≤ b.ts stem (they may share the same
+      // stem if placed on opposite sides of the road).
+      expect(aBuilding.x).toBeLessThanOrEqual(bBuilding.x);
+    }
+  });
+
+  it("nested tree — subdir's road is placed, then its children", () => {
+    const sub = makeDir('sub', [makeFile('x.ts')]);
+    const tree = makeDir('root', [sub]);
+    const lineStats = { min: 10, max: 10 };
+    const byteStats = { min: 100, max: 100 };
+    const subtree = _preComputeDirV4(tree as unknown as DirLike, undefined, lineStats, byteStats, StreetAxis.X);
+
+    const layout: CityLayout = {
+      streets: [], buildings: [], paths: [],
+      lineStats, byteStats,
+    };
+    const occupancy = new WorldOccupancy();
+    _commitDirV4(subtree, 0, 0, undefined, occupancy, layout);
+
+    // 2 streets: root + sub.
+    expect(layout.streets).toHaveLength(2);
+    expect(layout.buildings).toHaveLength(1);
+    const xBuilding = layout.buildings[0];
+    expect((xBuilding.file as unknown as FileNode).name).toBe('x.ts');
+  });
+
+  it('road appears in layout with final (possibly extended) length', () => {
+    const tree = makeDir('root', [makeFile('a.ts')]);
+    const lineStats = { min: 10, max: 10 };
+    const byteStats = { min: 100, max: 100 };
+    const subtree = _preComputeDirV4(tree as unknown as DirLike, undefined, lineStats, byteStats, StreetAxis.X);
+
+    const layout: CityLayout = {
+      streets: [], buildings: [], paths: [],
+      lineStats, byteStats,
+    };
+    const occupancy = new WorldOccupancy();
+    _commitDirV4(subtree, 0, 0, undefined, occupancy, layout);
+
+    expect(layout.streets).toHaveLength(1);
+    // The road length should be at least the pre-compute estimate.
+    expect(layout.streets[0].length).toBeGreaterThanOrEqual(subtree.road.length);
   });
 });
