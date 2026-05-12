@@ -108,6 +108,9 @@ export interface PreComputedSubtree {
    *  this dir's frame). The commit pass applies (side, mirror, stem) per
    *  child to translate to this dir's frame, then to world. */
   children: PreComputedChild[];
+  /** Memoization cache for _collectSubtreeRectsLocal. Built on first call,
+   *  reused on subsequent calls (saves O(depth) recomputation). */
+  _localRectsCache?: Rect[];
 }
 
 // computeFlips(parentOrient, side, mirror) → {flipX, flipY}
@@ -672,6 +675,8 @@ export function _preComputeDirV4(
 // deferred-commit win). _collectSubtreeRectsLocal is heavier and used only
 // at pre-compute time.
 function _collectSubtreeRectsLocal(subtree: PreComputedSubtree): Rect[] {
+  if (subtree._localRectsCache) return subtree._localRectsCache;
+
   const out: Rect[] = [];
   // Subtree's own road.
   if (subtree.road.orient === StreetAxis.X) {
@@ -690,8 +695,7 @@ function _collectSubtreeRectsLocal(subtree: PreComputedSubtree): Rect[] {
         out.push({ x: flipped.x + stemX, y: flipped.y + stemY, w: flipped.w, d: flipped.d });
       }
     } else {
-      // Recurse to get sub-subtree's rects in ITS local frame, then transform
-      // to this subtree's local using the child's advisory (side, mirror, stem).
+      // Use the recursive call's cache directly (don't re-walk).
       const subRects = _collectSubtreeRectsLocal(child.subtree);
       for (const r of subRects) {
         const flipped = applyFlips(r, flipX, flipY);
@@ -699,6 +703,8 @@ function _collectSubtreeRectsLocal(subtree: PreComputedSubtree): Rect[] {
       }
     }
   }
+
+  subtree._localRectsCache = out;
   return out;
 }
 
