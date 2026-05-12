@@ -80,9 +80,9 @@ export type PreComputedChild =
       file: FileLike;
       rects: Rect[];
       /** Advisory placement chosen by pre-compute against the LOCAL
-       *  occupancy. Re-used by _collectSubtreeRectsLocal to build an
-       *  honest upper bound on parent-level advisory placement. The commit
-       *  pass overrides these. */
+       *  occupancy. Used to build the subtree's bounding box in
+       *  _computeSubtreeBBox for parent-level advisory placement. The
+       *  commit pass overrides these. */
       advisorySide: 0 | 1;
       advisoryMirror: boolean;
       advisoryStem: number;
@@ -108,9 +108,10 @@ export interface PreComputedSubtree {
    *  this dir's frame). The commit pass applies (side, mirror, stem) per
    *  child to translate to this dir's frame, then to world. */
   children: PreComputedChild[];
-  /** Memoization cache for _collectSubtreeRectsLocal. Built on first call,
-   *  reused on subsequent calls (saves O(depth) recomputation). */
-  _localRectsCache?: Rect[];
+  /** Bounding box of the subtree in its own local frame, used as a
+   *  conservative single-rect summary for advisory placement against the
+   *  parent's local occupancy. Built bottom-up during _preComputeDirV4. */
+  _localBBox?: Rect;
 }
 
 // computeFlips(parentOrient, side, mirror) → {flipX, flipY}
@@ -610,7 +611,9 @@ export function _preComputeDirV4(
       // still uses just the road rect for parent-level collision.
       const subtree = _preComputeDirV4(child as DirLike, myStreetWidth, lineStats, byteStats, subOrient);
 
-      const subChildRects = _collectSubtreeRectsLocal(subtree);
+      // Advisory placement uses the subtree's bounding box (one rect, conservative
+      // upper bound). Full rect list was O(N·D²) on large trees.
+      const subChildRects = [_computeSubtreeBBox(subtree)];
       const placed = placeChild({
         childRects: subChildRects,
         parentOrient: orientation,
@@ -622,7 +625,7 @@ export function _preComputeDirV4(
         occupancy: localOccupancy,
       });
 
-      // Insert subdir's advisory full-subtree footprint into local occupancy.
+      // Insert subdir's advisory bbox footprint into local occupancy.
       const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
       const subAnchorX = orientation === StreetAxis.X ? placed.stem : 0;
       const subAnchorY = orientation === StreetAxis.X ? 0 : placed.stem;
@@ -663,49 +666,78 @@ export function _preComputeDirV4(
   };
 }
 
-// _collectSubtreeRectsLocal — recursively walks the subtree and returns
-// every rect (road + grandchildren) in the subtree's OWN local frame,
-// applying each child's advisory placement (side, mirror, stem). Used by
-// _preComputeDirV4 to give an honest upper bound for advisory placement
-// against the PARENT's local occupancy. Mirrors V4's full-subtree
-// collection.
-//
-// NOTE: this is distinct from _flattenSubtreeRects — that returns only the
-// subtree's road, used by the COMMIT pass for parent-level collision (the
-// deferred-commit win). _collectSubtreeRectsLocal is heavier and used only
-// at pre-compute time.
-function _collectSubtreeRectsLocal(subtree: PreComputedSubtree): Rect[] {
-  if (subtree._localRectsCache) return subtree._localRectsCache;
+// _computeSubtreeBBox — returns a single bounding-box rect covering the
+// subtree's footprint in its own local frame. Used by _preComputeDirV4 for
+// advisory placement against the parent's local occupancy (conservative
+// upper bound on the subtree's perp extent + road length). O(1) per call
+// if cached, O(|subtree's direct children|) on first call (children's
+// bboxes are themselves cached).
+function _computeSubtreeBBox(subtree: PreComputedSubtree): Rect {
+  if (subtree._localBBox) return subtree._localBBox;
 
-  const out: Rect[] = [];
-  // Subtree's own road.
+  // Start with the subtree's own road rect.
+  let minX: number, minY: number, maxX: number, maxY: number;
   if (subtree.road.orient === StreetAxis.X) {
-    out.push({ x: subtree.road.length / 2, y: 0, w: subtree.road.length, d: subtree.road.width });
+    minX = 0;
+    maxX = subtree.road.length;
+    minY = -subtree.road.width / 2;
+    maxY = subtree.road.width / 2;
   } else {
-    out.push({ x: 0, y: subtree.road.length / 2, w: subtree.road.width, d: subtree.road.length });
+    minX = -subtree.road.width / 2;
+    maxX = subtree.road.width / 2;
+    minY = 0;
+    maxY = subtree.road.length;
   }
+
+  // Union each child's bbox (after applying its advisory flip + stem).
   for (const child of subtree.children) {
     const { flipX, flipY } = computeFlips(subtree.road.orient, child.advisorySide, child.advisoryMirror);
     const stemX = subtree.road.orient === StreetAxis.X ? child.advisoryStem : 0;
     const stemY = subtree.road.orient === StreetAxis.Y ? child.advisoryStem : 0;
 
     if (child.kind === 'file') {
+      // File contributes its building + path rects (in child's local frame).
       for (const r of child.rects) {
-        const flipped = applyFlips(r, flipX, flipY);
-        out.push({ x: flipped.x + stemX, y: flipped.y + stemY, w: flipped.w, d: flipped.d });
+        const fx = flipX ? -r.x : r.x;
+        const fy = flipY ? -r.y : r.y;
+        const cMinX = fx - r.w / 2 + stemX;
+        const cMaxX = fx + r.w / 2 + stemX;
+        const cMinY = fy - r.d / 2 + stemY;
+        const cMaxY = fy + r.d / 2 + stemY;
+        if (cMinX < minX) minX = cMinX;
+        if (cMaxX > maxX) maxX = cMaxX;
+        if (cMinY < minY) minY = cMinY;
+        if (cMaxY > maxY) maxY = cMaxY;
       }
     } else {
-      // Use the recursive call's cache directly (don't re-walk).
-      const subRects = _collectSubtreeRectsLocal(child.subtree);
-      for (const r of subRects) {
-        const flipped = applyFlips(r, flipX, flipY);
-        out.push({ x: flipped.x + stemX, y: flipped.y + stemY, w: flipped.w, d: flipped.d });
-      }
+      // Subdir: union its bbox (recursively computed).
+      const subBBox = _computeSubtreeBBox(child.subtree);
+      // Apply child's variant flip + stem to subBBox, then union.
+      // The flip is around the origin; for a rect with [min, max] range, the
+      // flipped range is [-max, -min].
+      const flippedMinX = flipX ? -(subBBox.x + subBBox.w / 2) : subBBox.x - subBBox.w / 2;
+      const flippedMaxX = flipX ? -(subBBox.x - subBBox.w / 2) : subBBox.x + subBBox.w / 2;
+      const flippedMinY = flipY ? -(subBBox.y + subBBox.d / 2) : subBBox.y - subBBox.d / 2;
+      const flippedMaxY = flipY ? -(subBBox.y - subBBox.d / 2) : subBBox.y + subBBox.d / 2;
+      const cMinX = flippedMinX + stemX;
+      const cMaxX = flippedMaxX + stemX;
+      const cMinY = flippedMinY + stemY;
+      const cMaxY = flippedMaxY + stemY;
+      if (cMinX < minX) minX = cMinX;
+      if (cMaxX > maxX) maxX = cMaxX;
+      if (cMinY < minY) minY = cMinY;
+      if (cMaxY > maxY) maxY = cMaxY;
     }
   }
 
-  subtree._localRectsCache = out;
-  return out;
+  const bbox: Rect = {
+    x: (minX + maxX) / 2,
+    y: (minY + maxY) / 2,
+    w: maxX - minX,
+    d: maxY - minY,
+  };
+  subtree._localBBox = bbox;
+  return bbox;
 }
 
 // _flattenSubtreeRects — returns just the subtree's road rect in its own
