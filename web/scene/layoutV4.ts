@@ -34,12 +34,17 @@ export interface ForbiddenIntervalRecord {
 }
 
 export interface VariantTrace {
+  /** Set by the caller (placeChild) before passing to findSmallestValidStem. */
   side: 0 | 1;
+  /** Set by the caller (placeChild) before passing to findSmallestValidStem. */
   mirror: boolean;
+  /** Filled by findSmallestValidStem. */
   stem: number;
+  /** Filled by findSmallestValidStem. */
   forbidden: ForbiddenIntervalRecord[];
-  /** Index into `forbidden` of the interval whose `.upper` set the final stem,
-   *  or null if the chosen stem == baseline (no jump). */
+  /** Filled by findSmallestValidStem. Index into `forbidden` of the interval
+   *  whose `.upper` set the final stem, or null if the chosen stem ==
+   *  baseline (no jump). */
   bindingIndex: number | null;
 }
 
