@@ -48,6 +48,10 @@ export interface VariantTrace {
   bindingIndex: number | null;
 }
 
+export interface PlaceChildTrace {
+  variants: VariantTrace[];
+}
+
 export interface ChildPlacementTrace {
   childKind: 'file' | 'dir';
   childLabel: string;
@@ -253,7 +257,7 @@ export interface PlaceChildResult {
 // algorithm or return value.
 export function placeChild(
   p: PlaceChildParams,
-  trace?: { variants: VariantTrace[] },
+  trace?: PlaceChildTrace,
 ): PlaceChildResult {
   const mirrorInvariant = isMirrorInvariant(p.childRects, p.parentOrient);
 
@@ -280,7 +284,7 @@ export function placeChild(
       },
       variantTrace,
     );
-    if (variantTrace) trace!.variants.push(variantTrace);
+    if (trace && variantTrace) trace.variants.push(variantTrace);
 
     // Tiebreak chain.
     let better = false;

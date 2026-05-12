@@ -141,5 +141,11 @@ describe('placeChild with trace', () => {
       { variants },
     );
     expect(variants).toHaveLength(4);
+    expect(variants.map((v) => ({ side: v.side, mirror: v.mirror }))).toEqual([
+      { side: 0, mirror: false },
+      { side: 1, mirror: false },
+      { side: 0, mirror: true },
+      { side: 1, mirror: true },
+    ]);
   });
 });
