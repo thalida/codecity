@@ -155,7 +155,9 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
   for (const [parentPath, children] of byParent) {
     out.push(`[stem-diag] dir "${parentPath}" — ${children.length} children`);
     for (const c of children) {
-      const jumped = c.chosen.stem - c.baseline > 1e-6;
+      // Match display precision: jumps below half a toFixed(2) unit display
+      // as +0.00 and would be misleading.
+      const jumped = c.chosen.stem - c.baseline > 0.005;
       const tag = c.childKind === 'dir' ? `"${c.childLabel}/"` : `"${c.childLabel}"`;
       const jumpedNote = jumped
         ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}`
@@ -170,10 +172,10 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
         const label = _obstacleLabel(obs);
         out.push(
           `     forced by: ${obs.kind} ${label}  ` +
-            `perp=[${_perp(obs).join(', ')}] along=[${_along(obs).join(', ')}]`,
+            `y=[${_yBounds(obs).join(', ')}] x=[${_xBounds(obs).join(', ')}]`,
         );
       }
-      if (c.others.length > 0) {
+      if (jumped && c.others.length > 0) {
         out.push(`     other variants tried:`);
         const all = [c.chosen, ...c.others].sort(
           (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror),
@@ -202,11 +204,11 @@ function _obstacleLabel(o: WorldRect): string {
   );
 }
 
-function _perp(o: WorldRect): [string, string] {
+function _yBounds(o: WorldRect): [string, string] {
   return [o.minY.toFixed(2), o.maxY.toFixed(2)];
 }
 
-function _along(o: WorldRect): [string, string] {
+function _xBounds(o: WorldRect): [string, string] {
   return [o.minX.toFixed(2), o.maxX.toFixed(2)];
 }
 

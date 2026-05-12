@@ -95,4 +95,19 @@ describe('_formatStemDiagnostic', () => {
     const lines = _formatStemDiagnostic(trace);
     expect(lines.join('\n')).not.toContain('JUMPED');
   });
+
+  it('clean placement does not print "other variants tried" even when other variants exist', () => {
+    const trace: StemPlacementTrace = {
+      placements: [
+        makePlacement({
+          childLabel: 'a.ts', parentPath: '.',
+          baseline: 5,
+          chosen: makeVariant(5, 0, false),
+          others: [makeVariant(5, 1, false)],
+        }),
+      ],
+    };
+    const lines = _formatStemDiagnostic(trace);
+    expect(lines.join('\n')).not.toContain('other variants tried');
+  });
 });
