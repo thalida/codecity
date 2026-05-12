@@ -831,6 +831,230 @@ function _layoutDirV4(
   });
 }
 
+// _preComputeDirV4 — bottom-up pass that produces a PreComputedSubtree
+// describing this dir's road geometry and per-child rect lists. Uses a
+// LOCAL occupancy for collision checks to determine road length. Does NOT
+// insert anything into a global occupancy; commit (_commitDirV4) does that.
+//
+// Mirrors _layoutDirV4's algorithm but discards the final positions —
+// commit re-computes them against the global occupancy.
+export function _preComputeDirV4(
+  dir: DirLike,
+  parentStreetWidth: number | undefined,
+  lineStats: RangeStat,
+  byteStats: RangeStat,
+  orientation: StreetAxis,
+): PreComputedSubtree {
+  // ----- Tunables -----
+  const streetLayout = STREET_LAYOUT.get();
+  const childGap = streetLayout.CHILD_GAP;
+  const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
+  const rootEndPad = streetLayout.ROOT_END_PAD;
+  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const pathWidthFrac = bldgDims.PATH_WIDTH_FRAC;
+
+  // ----- Padding chain -----
+  const myStreetWidth = _streetWidthForDir(dir);
+  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const joinEndBaseline = parentStreetWidth
+    ? parentStreetWidth / 2 + parentJoinPad
+    : rootEndPad;
+  const endPad = parentStreetWidth
+    ? Math.max(joinEndBaseline, openEndPad)
+    : Math.max(rootEndPad, openEndPad);
+  const gemSizing = GEM_SIZING.get();
+  const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
+  const gemClearance = gemSizing.BUILDING_CLEARANCE;
+  const originPad = !parentStreetWidth
+    ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
+    : joinEndBaseline;
+
+  // ----- Local occupancy with phantom-parent-body, same as V4 -----
+  const localOccupancy = new WorldOccupancy();
+  if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
+    const halfP = parentStreetWidth / 2;
+    const PHANTOM_FAR = 1e9;
+    const phantomMinX = orientation === StreetAxis.X ? -halfP : -PHANTOM_FAR;
+    const phantomMaxX = orientation === StreetAxis.X ? +halfP : +PHANTOM_FAR;
+    const phantomMinY = orientation === StreetAxis.Y ? -halfP : -PHANTOM_FAR;
+    const phantomMaxY = orientation === StreetAxis.Y ? +halfP : +PHANTOM_FAR;
+    localOccupancy.insert({
+      minX: phantomMinX,
+      minY: phantomMinY,
+      maxX: phantomMaxX,
+      maxY: phantomMaxY,
+      kind: 'street',
+      ref: {
+        x: 0, y: 0, length: 0, width: parentStreetWidth,
+        orientation: orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X,
+        label: '__phantom_parent_body__',
+        dir: null as unknown as Street['dir'],
+      } as Street,
+    });
+  }
+
+  // ----- Sort children alphabetically -----
+  const children = ((dir.children || []) as TreeLike[])
+    .filter((c) => c.type === NodeKind.File || c.type === NodeKind.Directory)
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  const subOrient = orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X;
+
+  // ----- Walk children, building PreComputedChild[] and tracking road length -----
+  const result: PreComputedChild[] = [];
+  let priorStem = originPad;
+  let maxBoundaryAlong = originPad;
+
+  for (const child of children) {
+    if (child.type === NodeKind.File) {
+      const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
+      const along = dim.w;
+      const perpDepth = dim.d;
+      const perpCenter = myStreetWidth / 2 + bldgPathLength + perpDepth / 2;
+      let bx: number, by: number, bw: number, bd: number;
+      if (orientation === StreetAxis.X) {
+        bx = 0; by = perpCenter; bw = along; bd = perpDepth;
+      } else {
+        bx = perpCenter; by = 0; bw = perpDepth; bd = along;
+      }
+      let px: number, py: number, pw: number, pd: number;
+      if (orientation === StreetAxis.X) {
+        px = 0;
+        py = myStreetWidth / 2 + bldgPathLength / 2;
+        pw = bw * pathWidthFrac;
+        pd = bldgPathLength;
+      } else {
+        px = myStreetWidth / 2 + bldgPathLength / 2;
+        py = 0;
+        pw = bldgPathLength;
+        pd = bd * pathWidthFrac;
+      }
+      const childRects: Rect[] = [
+        { x: bx, y: by, w: bw, d: bd },
+        { x: px, y: py, w: pw, d: pd },
+      ];
+
+      // Find a stem using LOCAL occupancy (advisory — commit overrides).
+      const placed = placeChild({
+        childRects,
+        parentOrient: orientation,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem,
+        originPad,
+        childGap,
+        occupancy: localOccupancy,
+      });
+
+      // Insert into LOCAL occupancy at advisory position so subsequent
+      // children's pre-compute stems are alphabetical-monotonic.
+      const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
+      const buildingLocal = applyFlips({ x: bx, y: by, w: bw, d: bd }, flipX, flipY);
+      const pathLocal = applyFlips({ x: px, y: py, w: pw, d: pd }, flipX, flipY);
+      const stemAlong = placed.stem;
+      const buildingLocalX = buildingLocal.x + (orientation === StreetAxis.X ? stemAlong : 0);
+      const buildingLocalY = buildingLocal.y + (orientation === StreetAxis.Y ? stemAlong : 0);
+      const pathLocalX = pathLocal.x + (orientation === StreetAxis.X ? stemAlong : 0);
+      const pathLocalY = pathLocal.y + (orientation === StreetAxis.Y ? stemAlong : 0);
+      localOccupancy.insert({
+        minX: buildingLocalX - buildingLocal.w / 2,
+        minY: buildingLocalY - buildingLocal.d / 2,
+        maxX: buildingLocalX + buildingLocal.w / 2,
+        maxY: buildingLocalY + buildingLocal.d / 2,
+        kind: 'building',
+        ref: null as unknown as Building,
+      });
+      localOccupancy.insert({
+        minX: pathLocalX - pathLocal.w / 2,
+        minY: pathLocalY - pathLocal.d / 2,
+        maxX: pathLocalX + pathLocal.w / 2,
+        maxY: pathLocalY + pathLocal.d / 2,
+        kind: 'path',
+        ref: null as unknown as BuildingPath,
+      });
+
+      result.push({ kind: 'file', file: child as FileLike, rects: childRects });
+      priorStem = placed.stem;
+      const boundaryHigh = placed.stem + along / 2;
+      if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
+    } else {
+      // Subdir: recurse, then advisory-place its road in local occupancy.
+      const subtree = _preComputeDirV4(child as DirLike, myStreetWidth, lineStats, byteStats, subOrient);
+
+      // For advisory placement, use just the subdir's road rect (matches the
+      // deferred-commit approach we'll use at commit time too).
+      const subChildRects = _flattenSubtreeRects(subtree);
+      const placed = placeChild({
+        childRects: subChildRects,
+        parentOrient: orientation,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem,
+        originPad,
+        childGap,
+        occupancy: localOccupancy,
+      });
+
+      // Insert subdir's advisory road footprint into local occupancy.
+      const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
+      const subAnchorX = orientation === StreetAxis.X ? placed.stem : 0;
+      const subAnchorY = orientation === StreetAxis.X ? 0 : placed.stem;
+      for (const r of subChildRects) {
+        const flipped = applyFlips(r, flipX, flipY);
+        const wx = flipped.x + subAnchorX;
+        const wy = flipped.y + subAnchorY;
+        localOccupancy.insert({
+          minX: wx - flipped.w / 2,
+          minY: wy - flipped.d / 2,
+          maxX: wx + flipped.w / 2,
+          maxY: wy + flipped.d / 2,
+          kind: 'street',
+          ref: null as unknown as Street,
+        });
+      }
+
+      result.push({ kind: 'subdir', subtree });
+      priorStem = placed.stem;
+      const boundaryHigh = placed.stem + subtree.road.width / 2;
+      if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
+    }
+  }
+
+  const roadLength = Math.max(maxBoundaryAlong + endPad, originPad + endPad);
+  return {
+    dir,
+    road: { length: roadLength, width: myStreetWidth, orient: orientation },
+    originPad,
+    endPad,
+    children: result,
+  };
+}
+
+// _flattenSubtreeRects — returns just the subtree's road rect in its own
+// local frame. Used at both pre-compute (for advisory placement against the
+// parent's local occupancy) and commit time (for the actual placement
+// against the global occupancy). The subtree's contents (children, paths,
+// buildings) get committed individually via _commitDirV4 recursion — they
+// don't need to be in the parent-level collision check.
+export function _flattenSubtreeRects(subtree: PreComputedSubtree): Rect[] {
+  if (subtree.road.orient === StreetAxis.X) {
+    return [{
+      x: subtree.road.length / 2,
+      y: 0,
+      w: subtree.road.length,
+      d: subtree.road.width,
+    }];
+  }
+  return [{
+    x: 0,
+    y: subtree.road.length / 2,
+    w: subtree.road.width,
+    d: subtree.road.length,
+  }];
+}
+
 type ManifestLike = { tree?: DirLike } | DirLike;
 
 // layoutCityV4 — Tier B public entry. Same shape as layoutCity from v3.
