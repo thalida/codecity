@@ -93,6 +93,7 @@ interface SelectOption {
 interface BuildControlsPaneOpts {
   applyTheme?: () => void;
   onClose?: () => void;
+  onRunCollisionCheck?: () => void;
 }
 
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
@@ -137,6 +138,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   body.appendChild(_buildBuildingsSection(applyTheme));
   body.appendChild(_buildGemSection(applyTheme));
   body.appendChild(_buildEffectsSection(applyTheme));
+  if (typeof opts.onRunCollisionCheck === 'function') {
+    body.appendChild(_buildDebugSection(opts.onRunCollisionCheck));
+  }
 
   pane.appendChild(body);
   pane.appendChild(_buildActionsSection()); // sticky bottom — sibling of body
@@ -623,6 +627,41 @@ function _buildEffectsSection(applyTheme: () => void): HTMLElement {
       _slider('Lightness', RAINBOW, 'LIGHTNESS', 0, 1, 0.05, { onChange: applyTheme }),
     ])
   );
+
+  return section;
+}
+
+// ─── Debug ─────────────────────────────────────────────────────────────────
+// Developer-only diagnostics. Collapsed by default so the section doesn't
+// distract during normal use. Today: one button that runs the collision
+// check against the current layout and logs to the console.
+function _buildDebugSection(onRunCollisionCheck: () => void): HTMLElement {
+  const section = document.createElement('details');
+  section.className = 'controls-section controls-section-collapsible';
+
+  const summary = document.createElement('summary');
+  summary.className = 'controls-section-label';
+  summary.textContent = 'Debug';
+  section.appendChild(summary);
+
+  const hint = document.createElement('div');
+  hint.className = 'controls-section-hint';
+  hint.textContent =
+    'Developer-only diagnostics. Output goes to the browser console.';
+  section.appendChild(hint);
+
+  const row = document.createElement('div');
+  row.className = 'theme-row';
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'controls-button';
+  button.textContent = 'Run collision check';
+  button.title = 'Walks the current layout and logs any rect/rect overlaps.';
+  button.addEventListener('click', () => {
+    onRunCollisionCheck();
+  });
+  row.appendChild(button);
+  section.appendChild(row);
 
   return section;
 }

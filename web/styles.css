@@ -1692,3 +1692,25 @@ canvas {
 .hljs-strong {
   font-weight: 600;
 }
+
+/* Debug section uses <details> for native collapse. Keep the summary
+ * styled like other controls-section-label rows; tame the default
+ * disclosure marker so it sits inline with the title. */
+.controls-section-collapsible > summary {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.controls-section-collapsible > summary::-webkit-details-marker {
+  display: none;
+}
+.controls-section-collapsible > summary::before {
+  content: '▸';
+  display: inline-block;
+  width: 1em;
+  margin-right: 0.25em;
+  transition: transform 0.1s ease;
+}
+.controls-section-collapsible[open] > summary::before {
+  transform: rotate(90deg);
+}
