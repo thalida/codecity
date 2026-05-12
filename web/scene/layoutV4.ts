@@ -68,6 +68,31 @@ export interface StemPlacementTrace {
   placements: ChildPlacementTrace[];
 }
 
+// ─── Pre-computed subtree types (deferred-commit) ──────────────────────────
+// Output of _preComputeDirV4. Captures each dir's road geometry, alphabetically-
+// ordered children, and per-child rect lists in each child's own local frame.
+// Consumed by _commitDirV4 which decides final positions against the global
+// occupancy.
+
+export type PreComputedChild =
+  | { kind: 'file'; file: FileLike; rects: Rect[] }
+  | { kind: 'subdir'; subtree: PreComputedSubtree };
+
+export interface PreComputedSubtree {
+  dir: DirLike;
+  /** This dir's road geometry. Length is the pre-compute estimate; commit may
+   *  extend it if grandchildren require higher stems. */
+  road: { length: number; width: number; orient: StreetAxis };
+  /** Padding constants captured at pre-compute, reused at commit. */
+  originPad: number;
+  endPad: number;
+  /** Alphabetical-ordered list of this dir's direct children, with each
+   *  child's rect list in that child's OWN local frame (NOT translated to
+   *  this dir's frame). The commit pass applies (side, mirror, stem) per
+   *  child to translate to this dir's frame, then to world. */
+  children: PreComputedChild[];
+}
+
 // computeFlips(parentOrient, side, mirror) → {flipX, flipY}
 //
 // For X-orient parent: side flips perp (Y), mirror flips along (X) of the child.
