@@ -21,6 +21,44 @@ import {
 import { WorldOccupancy } from './worldOccupancy';
 import type { WorldRect, WorldRectKind } from './worldOccupancy';
 
+// ─── Stem-placement diagnostic types ────────────────────────────────────────
+// Used by the "Diagnose stem placement" debug button. None of these types
+// affect normal layout — they're only populated when an optional `trace`
+// param is supplied to findSmallestValidStem / placeChild / _layoutDirV4.
+
+export interface ForbiddenIntervalRecord {
+  lower: number;
+  upper: number;
+  obstacle: WorldRect;
+  fromChildRectIndex: number;
+}
+
+export interface VariantTrace {
+  side: 0 | 1;
+  mirror: boolean;
+  stem: number;
+  forbidden: ForbiddenIntervalRecord[];
+  /** Index into `forbidden` of the interval whose `.upper` set the final stem,
+   *  or null if the chosen stem == baseline (no jump). */
+  bindingIndex: number | null;
+}
+
+export interface ChildPlacementTrace {
+  childKind: 'file' | 'dir';
+  childLabel: string;
+  childPath: string;
+  parentPath: string;
+  baseline: number;
+  priorStem: number;
+  originPad: number;
+  chosen: VariantTrace;
+  others: VariantTrace[];
+}
+
+export interface StemPlacementTrace {
+  placements: ChildPlacementTrace[];
+}
+
 // computeFlips(parentOrient, side, mirror) → {flipX, flipY}
 //
 // For X-orient parent: side flips perp (Y), mirror flips along (X) of the child.
@@ -106,21 +144,26 @@ interface FindSmallestValidStemParams {
 // originPad) such that translating every child rect by (side, mirror, stem,
 // parentOrigin) doesn't overlap any rect in occupancy. Uses the forbidden-
 // interval union algorithm for gap-fit packing.
-export function findSmallestValidStem(p: FindSmallestValidStemParams): number {
+//
+// Optional `trace` param: when provided, the function fills in
+// trace.forbidden with the obstacle + child-rect provenance of every
+// forbidden interval, trace.bindingIndex with the index of the interval that
+// set the final stem (or null if the chosen stem equals the baseline), and
+// trace.stem with the returned value. The trace param has no effect on the
+// algorithm or return value; it is purely an out-parameter.
+export function findSmallestValidStem(
+  p: FindSmallestValidStemParams,
+  trace?: VariantTrace,
+): number {
   const { flipX, flipY } = computeFlips(p.parentOrient, p.side, p.mirror);
 
   // Collect forbidden stem intervals from all (childRect, candidate) pairs.
-  const forbidden: { lower: number; upper: number }[] = [];
+  const forbidden: ForbiddenIntervalRecord[] = [];
 
-  for (const r of p.childRects) {
+  for (let rIdx = 0; rIdx < p.childRects.length; rIdx++) {
+    const r = p.childRects[rIdx];
     const flipped = applyFlips(r, flipX, flipY);
 
-    // For X-orient parent: parent's along axis = X, perp axis = Y.
-    //   alongMin_at_stem_0 = flipped.x - flipped.w/2 + parentOriginX
-    //   alongMax_at_stem_0 = flipped.x + flipped.w/2 + parentOriginX
-    //   perpMin = flipped.y - flipped.d/2 + parentOriginY
-    //   perpMax = flipped.y + flipped.d/2 + parentOriginY
-    // For Y-orient parent: swap roles of X and Y.
     let alongMin0: number, alongMax0: number, perpMin: number, perpMax: number;
     if (p.parentOrient === StreetAxis.X) {
       alongMin0 = flipped.x - flipped.w / 2 + p.parentOriginX;
@@ -134,7 +177,6 @@ export function findSmallestValidStem(p: FindSmallestValidStemParams): number {
       alongMax0 = flipped.y + flipped.d / 2 + p.parentOriginY;
     }
 
-    // Query occupancy in r's fixed perp band (full along range).
     const candidates =
       p.parentOrient === StreetAxis.X
         ? p.occupancy.query(-Infinity, perpMin, Infinity, perpMax)
@@ -144,20 +186,30 @@ export function findSmallestValidStem(p: FindSmallestValidStemParams): number {
       const gMinAlong = p.parentOrient === StreetAxis.X ? g.minX : g.minY;
       const gMaxAlong = p.parentOrient === StreetAxis.X ? g.maxX : g.maxY;
 
-      // r at stem s overlaps g (with gap) iff s ∈ (lower, upper).
       const lower = gMinAlong - alongMax0 - p.childGap;
       const upper = gMaxAlong - alongMin0 + p.childGap;
-      if (upper > lower) forbidden.push({ lower, upper });
+      if (upper > lower) {
+        forbidden.push({ lower, upper, obstacle: g, fromChildRectIndex: rIdx });
+      }
     }
   }
 
-  // Sort forbidden intervals by lower, then walk to find first gap ≥
-  // max(priorStem, originPad).
   forbidden.sort((a, b) => a.lower - b.lower);
   let s = Math.max(p.priorStem, p.originPad);
-  for (const interval of forbidden) {
-    if (s < interval.lower) return s; // s is already in a gap before this interval
-    if (s < interval.upper) s = interval.upper; // s was inside; skip past
+  let bindingIndex: number | null = null;
+  for (let i = 0; i < forbidden.length; i++) {
+    const interval = forbidden[i];
+    if (s < interval.lower) break;
+    if (s < interval.upper) {
+      s = interval.upper;
+      bindingIndex = i;
+    }
+  }
+
+  if (trace) {
+    trace.forbidden = forbidden;
+    trace.bindingIndex = bindingIndex;
+    trace.stem = s;
   }
   return s;
 }
