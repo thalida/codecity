@@ -38,6 +38,13 @@ export class WorldOccupancy {
     this.tree.load(rects);
   }
 
+  // remove — strip rect by reference equality. Used by the backward-pack
+  // post-pass: remove a child's rects, shift their positions, re-insert.
+  // rbush.remove defaults to reference equality which is what we want.
+  remove(rect: WorldRect): void {
+    this.tree.remove(rect);
+  }
+
   query(minX: number, minY: number, maxX: number, maxY: number): WorldRect[] {
     return this.tree.search({ minX, minY, maxX, maxY }).filter((r) =>
       // Strict overlap (touching edges return false).
