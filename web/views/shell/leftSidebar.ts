@@ -21,6 +21,8 @@ interface ShowLeftSidebarOpts {
   applyTheme?: () => void;
   /** fn() called when the user clicks the "Run collision check" debug button. */
   onRunCollisionCheck?: () => void;
+  /** fn() called when the user clicks the "Diagnose stem placement" debug button. */
+  onRunStemDiagnostic?: () => void;
   /** Initial active tab. Defaults to SidebarTab.Tree. */
   initialTab?: SidebarTab;
   /** fn(node) called when the user single-clicks a tree row. */
@@ -97,6 +99,7 @@ export function showLeftSidebar(
     applyTheme: opts.applyTheme,
     onClose: paneOnClose,
     onRunCollisionCheck: opts.onRunCollisionCheck,
+    onRunStemDiagnostic: opts.onRunStemDiagnostic,
   });
 
   for (const key in panes) {

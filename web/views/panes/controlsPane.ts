@@ -94,6 +94,7 @@ interface BuildControlsPaneOpts {
   applyTheme?: () => void;
   onClose?: () => void;
   onRunCollisionCheck?: () => void;
+  onRunStemDiagnostic?: () => void;
 }
 
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
@@ -138,8 +139,13 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   body.appendChild(_buildBuildingsSection(applyTheme));
   body.appendChild(_buildGemSection(applyTheme));
   body.appendChild(_buildEffectsSection(applyTheme));
-  if (typeof opts.onRunCollisionCheck === 'function') {
-    body.appendChild(_buildDebugSection(opts.onRunCollisionCheck));
+  if (
+    typeof opts.onRunCollisionCheck === 'function' ||
+    typeof opts.onRunStemDiagnostic === 'function'
+  ) {
+    body.appendChild(
+      _buildDebugSection(opts.onRunCollisionCheck, opts.onRunStemDiagnostic),
+    );
   }
 
   pane.appendChild(body);
@@ -633,9 +639,12 @@ function _buildEffectsSection(applyTheme: () => void): HTMLElement {
 
 // ─── Debug ─────────────────────────────────────────────────────────────────
 // Developer-only diagnostics. Collapsed by default so the section doesn't
-// distract during normal use. Today: one button that runs the collision
-// check against the current layout and logs to the console.
-function _buildDebugSection(onRunCollisionCheck: () => void): HTMLElement {
+// distract during normal use. Buttons are rendered only when their callback
+// is provided; either or both may be present.
+function _buildDebugSection(
+  onRunCollisionCheck: (() => void) | undefined,
+  onRunStemDiagnostic: (() => void) | undefined,
+): HTMLElement {
   const section = document.createElement('details');
   section.className = 'controls-section controls-section-collapsible';
 
@@ -650,18 +659,36 @@ function _buildDebugSection(onRunCollisionCheck: () => void): HTMLElement {
     'Developer-only diagnostics. Output goes to the browser console.';
   section.appendChild(hint);
 
-  const row = document.createElement('div');
-  row.className = 'theme-row';
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'controls-button';
-  button.textContent = 'Run collision check';
-  button.title = 'Walks the current layout and logs any rect/rect overlaps.';
-  button.addEventListener('click', () => {
-    onRunCollisionCheck();
-  });
-  row.appendChild(button);
-  section.appendChild(row);
+  if (onRunCollisionCheck) {
+    const row = document.createElement('div');
+    row.className = 'theme-row';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'controls-button';
+    button.textContent = 'Run collision check';
+    button.title = 'Walks the current layout and logs any rect/rect overlaps.';
+    button.addEventListener('click', () => {
+      onRunCollisionCheck();
+    });
+    row.appendChild(button);
+    section.appendChild(row);
+  }
+
+  if (onRunStemDiagnostic) {
+    const row = document.createElement('div');
+    row.className = 'theme-row';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'controls-button';
+    button.textContent = 'Diagnose stem placement';
+    button.title =
+      'Re-runs layout under tracing and logs, per road, the chosen stem and binding obstacle for each child placement.';
+    button.addEventListener('click', () => {
+      onRunStemDiagnostic();
+    });
+    row.appendChild(button);
+    section.appendChild(row);
+  }
 
   return section;
 }

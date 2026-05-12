@@ -174,6 +174,7 @@ export function createCoordinator({
     onTreeHover: _onTreeHover,
     onTreeHoverEnd: _onTreeHoverEnd,
     onRunCollisionCheck: () => cityScene.runCollisionCheck(),
+    onRunStemDiagnostic: () => cityScene.runStemPlacementDiagnostic(),
   });
 
   function _pathOf(target: PickTarget | null): string | null {
