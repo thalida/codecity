@@ -398,7 +398,8 @@ function _layoutDirV4(
   parentStreetWidth: number | undefined,
   lineStats: RangeStat,
   byteStats: RangeStat,
-  occupancy: WorldOccupancy
+  occupancy: WorldOccupancy,
+  trace?: StemPlacementTrace,
 ): void {
   // ----- Tunables (one .get() per call, matching v3 pattern) -----
   const streetLayout = STREET_LAYOUT.get();
@@ -516,16 +517,36 @@ function _layoutDirV4(
       ];
 
       // Pick the best (side, mirror, stem) variant.
-      const placed = placeChild({
-        childRects,
-        parentOrient: orientation,
-        parentOriginX: originX,
-        parentOriginY: originY,
-        priorStem,
-        originPad,
-        childGap,
-        occupancy,
-      });
+      const variants: VariantTrace[] = [];
+      const placed = placeChild(
+        {
+          childRects,
+          parentOrient: orientation,
+          parentOriginX: originX,
+          parentOriginY: originY,
+          priorStem,
+          originPad,
+          childGap,
+          occupancy,
+        },
+        trace ? { variants } : undefined,
+      );
+      if (trace) {
+        const chosenIdx = variants.findIndex(
+          (v) => v.side === placed.side && v.mirror === placed.mirror,
+        );
+        trace.placements.push({
+          childKind: 'file',
+          childLabel: child.name ?? '?',
+          childPath: String((child as DirLike).path ?? ''),
+          parentPath: dir.path ?? '',
+          baseline: Math.max(priorStem, originPad),
+          priorStem,
+          originPad,
+          chosen: variants[chosenIdx],
+          others: variants.filter((_, i) => i !== chosenIdx),
+        });
+      }
 
       // Translate child-local rects to world frame using chosen flips + stem.
       const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
@@ -613,7 +634,8 @@ function _layoutDirV4(
         childResult,
         myStreetWidth,
         lineStats, byteStats,
-        localOccupancy
+        localOccupancy,
+        trace,
       );
 
       // Build child-local rect list from the subtree result. These are the
@@ -635,16 +657,36 @@ function _layoutDirV4(
       }
 
       // Pick variant against the parent's occupancy.
-      const placed = placeChild({
-        childRects,
-        parentOrient: orientation,
-        parentOriginX: originX,
-        parentOriginY: originY,
-        priorStem,
-        originPad,
-        childGap,
-        occupancy,
-      });
+      const variants: VariantTrace[] = [];
+      const placed = placeChild(
+        {
+          childRects,
+          parentOrient: orientation,
+          parentOriginX: originX,
+          parentOriginY: originY,
+          priorStem,
+          originPad,
+          childGap,
+          occupancy,
+        },
+        trace ? { variants } : undefined,
+      );
+      if (trace) {
+        const chosenIdx = variants.findIndex(
+          (v) => v.side === placed.side && v.mirror === placed.mirror,
+        );
+        trace.placements.push({
+          childKind: 'dir',
+          childLabel: child.name ?? '?',
+          childPath: String((child as DirLike).path ?? ''),
+          parentPath: dir.path ?? '',
+          baseline: Math.max(priorStem, originPad),
+          priorStem,
+          originPad,
+          chosen: variants[chosenIdx],
+          others: variants.filter((_, i) => i !== chosenIdx),
+        });
+      }
 
       // Translate the subtree's contents to world coords and commit. The
       // subAnchor is the child's origin in the parent's world frame: along
@@ -758,6 +800,22 @@ type ManifestLike = { tree?: DirLike } | DirLike;
 
 // layoutCityV4 — Tier B public entry. Same shape as layoutCity from v3.
 export function layoutCityV4(manifest: ManifestLike): CityLayout {
+  return _layoutCityV4Internal(manifest, undefined).layout;
+}
+
+// layoutCityV4WithTrace — same layout output, plus a StemPlacementTrace
+// recording each placeChild decision for the "Diagnose stem placement"
+// debug button.
+export function layoutCityV4WithTrace(
+  manifest: ManifestLike,
+): { layout: CityLayout; trace: StemPlacementTrace } {
+  return _layoutCityV4Internal(manifest, { placements: [] });
+}
+
+function _layoutCityV4Internal(
+  manifest: ManifestLike,
+  trace: StemPlacementTrace | undefined,
+): { layout: CityLayout; trace: StemPlacementTrace } {
   const tree = ((manifest as { tree?: DirLike }).tree ?? manifest) as DirLike;
   const result: CityLayout = {
     streets: [],
@@ -772,17 +830,19 @@ export function layoutCityV4(manifest: ManifestLike): CityLayout {
   result.byteStats = stats.bytes;
 
   const occupancy = new WorldOccupancy();
-  // subResult aliases the result arrays so pushes from _layoutDirV4 populate
-  // the public CityLayout directly — no final copy step.
   const subResult: SubtreeResult = {
     alongReach: 0,
     streets: result.streets,
     buildings: result.buildings,
     paths: result.paths,
   };
-  _layoutDirV4(tree, 0, 0, StreetAxis.X, subResult, undefined, stats.lines, stats.bytes, occupancy);
+  _layoutDirV4(
+    tree, 0, 0, StreetAxis.X,
+    subResult, undefined,
+    stats.lines, stats.bytes,
+    occupancy, trace,
+  );
 
-  // Mark the root street.
   for (const street of result.streets) {
     if ((street.dir as unknown) === (tree as unknown)) {
       street.isRoot = true;
@@ -790,8 +850,7 @@ export function layoutCityV4(manifest: ManifestLike): CityLayout {
     }
   }
 
-  // Post-process: T-junction join-side detection (same as v3).
   _markJoinSides(result.streets);
 
-  return result;
+  return { layout: result, trace: trace ?? { placements: [] } };
 }
