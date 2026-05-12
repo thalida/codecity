@@ -364,6 +364,67 @@ describe('placeChild', () => {
     const b = placeChild(params);
     expect(a).toEqual(b);
   });
+
+  it('priorStems: per-side floors override priorStem for each variant', () => {
+    // priorStems[0]=50, priorStems[1]=0. A mirror-invariant child should
+    // prefer side 1 (floor 0) over side 0 (floor 50) since side 1 fits
+    // sooner. Without per-side, the cross-side floor of 50 would force
+    // both sides to start at 50.
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 50, // fallback; should NOT apply because priorStems takes precedence
+      priorStems: [50, 0],
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    expect(result.side).toBe(1);
+    expect(result.stem).toBe(0);
+  });
+
+  it('priorStems: side 0 fits below the cross-side floor when allowed by its own floor', () => {
+    // Mirror image of the previous case: priorStems[0]=0, priorStems[1]=50.
+    // Side 0 wins at stem=0; side 1 would have been at stem=50.
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 50,
+      priorStems: [0, 50],
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    expect(result.side).toBe(0);
+    expect(result.stem).toBe(0);
+  });
+
+  it('priorStems omitted: falls back to priorStem on both sides (backward compat)', () => {
+    // Without priorStems, both sides are floored at priorStem. Both sides
+    // give stem=10; side 0 wins on tiebreak.
+    const occ = new WorldOccupancy();
+    const childRects = [{ x: 0, y: 10, w: 4, d: 4 }];
+    const result = placeChild({
+      childRects,
+      parentOrient: StreetAxis.X,
+      parentOriginX: 0,
+      parentOriginY: 0,
+      priorStem: 10,
+      originPad: 0,
+      childGap: 8,
+      occupancy: occ,
+    });
+    expect(result.side).toBe(0);
+    expect(result.stem).toBe(10);
+  });
 });
 
 describe('translateRectsToWorld', () => {

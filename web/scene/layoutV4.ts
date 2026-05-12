@@ -228,7 +228,17 @@ interface PlaceChildParams {
   parentOrient: StreetAxis;
   parentOriginX: number;
   parentOriginY: number;
+  /** Single-value floor. If `priorStems` is also supplied, it takes
+   *  precedence; this remains for tests and call sites that don't care about
+   *  per-side tracking. */
   priorStem: number;
+  /** Per-side floors. priorStems[0] applies when evaluating side-0 variants,
+   *  priorStems[1] for side-1. When omitted, falls back to `priorStem` on
+   *  both sides (i.e., V4's original cross-side alphabetical-monotonic
+   *  behavior). When supplied, lets a child on side A fit at a lower stem
+   *  than its alphabetical predecessor on side B — the alphabetical-monotonic
+   *  invariant is then enforced PER SIDE rather than across both sides. */
+  priorStems?: readonly [number, number];
   originPad: number;
   childGap: number;
   occupancy: WorldOccupancy;
@@ -269,6 +279,7 @@ export function placeChild(
     const variantTrace: VariantTrace | undefined = trace
       ? { side, mirror, stem: 0, forbidden: [], bindingIndex: null }
       : undefined;
+    const sidePriorStem = p.priorStems ? p.priorStems[side] : p.priorStem;
     const stem = findSmallestValidStem(
       {
         childRects: p.childRects,
@@ -277,7 +288,7 @@ export function placeChild(
         mirror,
         parentOriginX: p.parentOriginX,
         parentOriginY: p.parentOriginY,
-        priorStem: p.priorStem,
+        priorStem: sidePriorStem,
         originPad: p.originPad,
         childGap: p.childGap,
         occupancy: p.occupancy,
@@ -561,9 +572,14 @@ function _layoutDirV4(
   const subOrient = orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X;
 
   // ----- Place children one by one -----
-  // priorStem tracks the previous placement's chosen stem (alphabetical-
-  // monotonic constraint: each child's stem must be ≥ priorStem).
-  let priorStem = originPad;
+  // priorStems tracks the previous SAME-SIDE placement's chosen stem. Each
+  // entry is the alphabetical-monotonic floor for that side only — a child
+  // on side A is allowed to fit at a stem lower than a recent predecessor
+  // on side B, since opposite-side neighbors don't physically collide. This
+  // is what lets pairs like `ja.cjs` (side 1) and `ja.d.cts` (side 0) share
+  // a stem range instead of being forced apart by V4's original cross-side
+  // alphabetical-monotonic constraint.
+  const priorStems: [number, number] = [originPad, originPad];
   // maxBoundaryAlong tracks the far edge of the last-placed child, used to
   // size the own street at the end.
   let maxBoundaryAlong = originPad;
@@ -614,7 +630,8 @@ function _layoutDirV4(
           parentOrient: orientation,
           parentOriginX: originX,
           parentOriginY: originY,
-          priorStem,
+          priorStem: Math.max(priorStems[0], priorStems[1]),
+          priorStems,
           originPad,
           childGap,
           occupancy,
@@ -630,13 +647,14 @@ function _layoutDirV4(
             `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
           );
         }
+        const chosenPriorStem = priorStems[placed.side];
         trace.placements.push({
           childKind: 'file',
           childLabel: child.name ?? '?',
           childPath: String((child as DirLike).path ?? ''),
           parentPath: dir.path ?? '',
-          baseline: Math.max(priorStem, originPad),
-          priorStem,
+          baseline: Math.max(chosenPriorStem, originPad),
+          priorStem: chosenPriorStem,
           originPad,
           chosen: variants[chosenIdx],
           others: variants.filter((_, i) => i !== chosenIdx),
@@ -715,7 +733,7 @@ function _layoutDirV4(
         subtreeRects: [buildingWorldRect, pathWorldRect],
       });
 
-      priorStem = placed.stem;
+      priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + along / 2;
       if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
     } else {
@@ -765,7 +783,8 @@ function _layoutDirV4(
           parentOrient: orientation,
           parentOriginX: originX,
           parentOriginY: originY,
-          priorStem,
+          priorStem: Math.max(priorStems[0], priorStems[1]),
+          priorStems,
           originPad,
           childGap,
           occupancy,
@@ -781,13 +800,14 @@ function _layoutDirV4(
             `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
           );
         }
+        const chosenPriorStem = priorStems[placed.side];
         trace.placements.push({
           childKind: 'dir',
           childLabel: child.name ?? '?',
           childPath: String((child as DirLike).path ?? ''),
           parentPath: dir.path ?? '',
-          baseline: Math.max(priorStem, originPad),
-          priorStem,
+          baseline: Math.max(chosenPriorStem, originPad),
+          priorStem: chosenPriorStem,
           originPad,
           chosen: variants[chosenIdx],
           others: variants.filter((_, i) => i !== chosenIdx),
@@ -873,7 +893,7 @@ function _layoutDirV4(
       }
       childPlacements.push({ stem: placed.stem, subtreeRects });
 
-      priorStem = placed.stem;
+      priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + childResult.alongReach;
       if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
     }
