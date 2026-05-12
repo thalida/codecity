@@ -247,7 +247,14 @@ export interface PlaceChildResult {
 //   2. If stems tie: side 0 over side 1.
 //   3. If sides tie: natural over mirrored.
 //   4. If both tie: smaller stem within eps (mostly redundant).
-export function placeChild(p: PlaceChildParams): PlaceChildResult {
+//
+// Optional `trace` param: when provided, every variant evaluated (including
+// the loser ones) pushes a VariantTrace into trace.variants. No effect on
+// algorithm or return value.
+export function placeChild(
+  p: PlaceChildParams,
+  trace?: { variants: VariantTrace[] },
+): PlaceChildResult {
   const mirrorInvariant = isMirrorInvariant(p.childRects, p.parentOrient);
 
   let bestStem = +Infinity;
@@ -255,18 +262,25 @@ export function placeChild(p: PlaceChildParams): PlaceChildResult {
   let bestMirror = false;
 
   const tryVariant = (side: 0 | 1, mirror: boolean): void => {
-    const stem = findSmallestValidStem({
-      childRects: p.childRects,
-      parentOrient: p.parentOrient,
-      side,
-      mirror,
-      parentOriginX: p.parentOriginX,
-      parentOriginY: p.parentOriginY,
-      priorStem: p.priorStem,
-      originPad: p.originPad,
-      childGap: p.childGap,
-      occupancy: p.occupancy,
-    });
+    const variantTrace: VariantTrace | undefined = trace
+      ? { side, mirror, stem: 0, forbidden: [], bindingIndex: null }
+      : undefined;
+    const stem = findSmallestValidStem(
+      {
+        childRects: p.childRects,
+        parentOrient: p.parentOrient,
+        side,
+        mirror,
+        parentOriginX: p.parentOriginX,
+        parentOriginY: p.parentOriginY,
+        priorStem: p.priorStem,
+        originPad: p.originPad,
+        childGap: p.childGap,
+        occupancy: p.occupancy,
+      },
+      variantTrace,
+    );
+    if (variantTrace) trace!.variants.push(variantTrace);
 
     // Tiebreak chain.
     let better = false;

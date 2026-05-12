@@ -101,3 +101,45 @@ describe('findSmallestValidStem with trace', () => {
     expect(trace.bindingIndex).toBe(0);
   });
 });
+
+describe('placeChild with trace', () => {
+  it('records every variant attempted with its stem and forbidden intervals', () => {
+    const occupancy = new WorldOccupancy();
+    // No obstacles — every variant returns baseline.
+    const variants: VariantTrace[] = [];
+    const result = placeChild(
+      {
+        childRects: [{ x: 0, y: 0, w: 2, d: 2 }],
+        parentOrient: StreetAxis.X,
+        parentOriginX: 0, parentOriginY: 0,
+        priorStem: 0, originPad: 5, childGap: 1,
+        occupancy,
+      },
+      { variants },
+    );
+    expect(result.stem).toBe(5);
+    // Symmetric rect ⇒ mirror-invariant ⇒ only 2 variants evaluated.
+    expect(variants).toHaveLength(2);
+    expect(variants.map((v) => ({ side: v.side, mirror: v.mirror, stem: v.stem }))).toEqual([
+      { side: 0, mirror: false, stem: 5 },
+      { side: 1, mirror: false, stem: 5 },
+    ]);
+  });
+
+  it('asymmetric rect list evaluates all 4 variants', () => {
+    const occupancy = new WorldOccupancy();
+    const variants: VariantTrace[] = [];
+    // Asymmetric rect: x != 0 ⇒ not invariant under mirror flip.
+    placeChild(
+      {
+        childRects: [{ x: 3, y: 0, w: 2, d: 2 }],
+        parentOrient: StreetAxis.X,
+        parentOriginX: 0, parentOriginY: 0,
+        priorStem: 0, originPad: 5, childGap: 1,
+        occupancy,
+      },
+      { variants },
+    );
+    expect(variants).toHaveLength(4);
+  });
+});
