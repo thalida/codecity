@@ -535,6 +535,11 @@ function _layoutDirV4(
         const chosenIdx = variants.findIndex(
           (v) => v.side === placed.side && v.mirror === placed.mirror,
         );
+        if (chosenIdx < 0) {
+          throw new Error(
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+          );
+        }
         trace.placements.push({
           childKind: 'file',
           childLabel: child.name ?? '?',
@@ -675,6 +680,11 @@ function _layoutDirV4(
         const chosenIdx = variants.findIndex(
           (v) => v.side === placed.side && v.mirror === placed.mirror,
         );
+        if (chosenIdx < 0) {
+          throw new Error(
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+          );
+        }
         trace.placements.push({
           childKind: 'dir',
           childLabel: child.name ?? '?',
