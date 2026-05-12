@@ -173,6 +173,7 @@ export function createCoordinator({
     onTreeFocus: _onTreeFocus,
     onTreeHover: _onTreeHover,
     onTreeHoverEnd: _onTreeHoverEnd,
+    onRunCollisionCheck: () => cityScene.runCollisionCheck(),
   });
 
   function _pathOf(target: PickTarget | null): string | null {
