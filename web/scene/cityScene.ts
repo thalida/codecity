@@ -47,6 +47,12 @@ import {
 } from './instanced/labels.js';
 import { findLayoutOverlaps, layoutCity } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
+import { layoutCityV4WithTrace } from './layoutV4.js';
+import type {
+  ChildPlacementTrace,
+  StemPlacementTrace,
+} from './layoutV4.js';
+import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
@@ -125,9 +131,89 @@ function _formatCollisionReport(
   return { level: 'warn', summary, details };
 }
 
+// _formatStemDiagnostic(trace) -> string[]
+//
+// Pure helper. Walks a StemPlacementTrace, groups placements by parent road,
+// returns one or more lines per parent. Caller routes lines to console.log.
+function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
+  if (trace.placements.length === 0) {
+    return ['[stem-diag] no placements recorded'];
+  }
+
+  // Group by parent path, preserving first-seen order.
+  const byParent = new Map<string, ChildPlacementTrace[]>();
+  for (const p of trace.placements) {
+    let bucket = byParent.get(p.parentPath);
+    if (!bucket) {
+      bucket = [];
+      byParent.set(p.parentPath, bucket);
+    }
+    bucket.push(p);
+  }
+
+  const out: string[] = [];
+  for (const [parentPath, children] of byParent) {
+    out.push(`[stem-diag] dir "${parentPath}" — ${children.length} children`);
+    for (const c of children) {
+      const jumped = c.chosen.stem - c.baseline > 1e-6;
+      const tag = c.childKind === 'dir' ? `"${c.childLabel}/"` : `"${c.childLabel}"`;
+      const jumpedNote = jumped
+        ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}`
+        : '';
+      out.push(
+        `  ─ ${tag} (${c.childKind}) — stem=${c.chosen.stem.toFixed(2)}  ` +
+          `(baseline=${c.baseline.toFixed(2)})${jumpedNote}`,
+      );
+      if (jumped && c.chosen.bindingIndex !== null) {
+        const binding = c.chosen.forbidden[c.chosen.bindingIndex];
+        const obs = binding.obstacle;
+        const label = _obstacleLabel(obs);
+        out.push(
+          `     forced by: ${obs.kind} ${label}  ` +
+            `perp=[${_perp(obs).join(', ')}] along=[${_along(obs).join(', ')}]`,
+        );
+      }
+      if (c.others.length > 0) {
+        out.push(`     other variants tried:`);
+        const all = [c.chosen, ...c.others].sort(
+          (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror),
+        );
+        for (const v of all) {
+          const marker = v === c.chosen ? '(chosen)' : '';
+          out.push(
+            `       side=${v.side} mirror=${v.mirror} → stem=${v.stem.toFixed(2)} ${marker}`.trimEnd(),
+          );
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function _obstacleLabel(o: WorldRect): string {
+  // WorldRect.ref is loosely typed (Building | Street | BuildingPath); try
+  // common shapes without forcing tight coupling.
+  const r = o.ref as { file?: { path?: string; name?: string }; label?: string; dir?: { path?: string } };
+  return (
+    (r.file && (r.file.path ?? r.file.name)) ??
+    r.label ??
+    (r.dir && r.dir.path) ??
+    '?'
+  );
+}
+
+function _perp(o: WorldRect): [string, string] {
+  return [o.minY.toFixed(2), o.maxY.toFixed(2)];
+}
+
+function _along(o: WorldRect): [string, string] {
+  return [o.minX.toFixed(2), o.maxX.toFixed(2)];
+}
+
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _formatCollisionReport,
+  _formatStemDiagnostic,
 };
 
 // canvas is unused directly by cityScene after Task 8 removed
@@ -721,6 +807,21 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           // eslint-disable-next-line no-console
           console.warn(line);
         }
+      }
+    },
+    runStemPlacementDiagnostic(): void {
+      if (!manifest) {
+        // eslint-disable-next-line no-console
+        console.warn('[stem-diag] no manifest — apply one first');
+        return;
+      }
+      const { trace } = layoutCityV4WithTrace(
+        manifest as unknown as Parameters<typeof layoutCityV4WithTrace>[0],
+      );
+      const lines = _formatStemDiagnostic(trace);
+      for (const line of lines) {
+        // eslint-disable-next-line no-console
+        console.log(line);
       }
     },
     getBbox() {
