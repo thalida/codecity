@@ -46,8 +46,9 @@ import {
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
-import { findLayoutOverlaps, layoutCity } from './layout.js';
+import { findLayoutOverlaps } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
+import { createLayoutClient } from './layoutClient.js';
 import { layoutCityV4WithTrace } from './layoutV4.js';
 import type {
   ChildPlacementTrace,
@@ -234,6 +235,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // call's captured value by the time a safe-point check runs, that call
   // was superseded and must bail out (cleaning up any meshes it built).
   let _currentGeneration = 0;
+
+  // One layoutClient instance per cityScene. Owns the off-thread worker
+  // (or its sync fallback in test envs). Disposed when the cityScene is
+  // disposed.
+  const _layoutClient = createLayoutClient();
 
   // Manifest-bound state. Reassigned on each applyManifest.
   let manifest: Manifest | null = null;
@@ -648,13 +654,17 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     _emit(beforeChangeCbs, prev);
 
-    // ---- Phase 1: compute the new layout (sync for now — Task 4 swaps in
-    // the off-thread layoutClient). A later applyManifest can preempt us by
-    // bumping _currentGeneration.
+    // ---- Phase 1: compute the new layout off-thread via layoutClient.
+    // A later applyManifest can preempt us by bumping _currentGeneration;
+    // layoutClient signals that via a 'superseded' rejection.
     const newManifestTyped = newManifest as Manifest;
-    const newLayout = layoutCity(
-      newManifestTyped.tree as unknown as Parameters<typeof layoutCity>[0],
-    );
+    let newLayout: CityLayout;
+    try {
+      newLayout = await _layoutClient.compute(newManifestTyped);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'superseded') return;
+      throw err;
+    }
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
@@ -832,6 +842,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _disposeAllManifestState();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
+    _layoutClient.dispose();
   }
 
   return {
