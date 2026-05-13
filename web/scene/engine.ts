@@ -313,6 +313,11 @@ function createRootGem(street: Street): THREE.Group {
       depthWrite: true,
     })
   );
+  // Picker raycasts against the body mesh directly (not the parent
+  // group), so the type flag has to live here for hover/click detection
+  // to fire. Without this, `hit.object.userData.type === NodeKind.Gem`
+  // in inputHandlers / interpretHit silently always evaluates to false.
+  body.userData.type = NodeKind.Gem;
 
   const edges = new THREE.LineSegments(
     new THREE.EdgesGeometry(geo),
