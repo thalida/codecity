@@ -75,10 +75,10 @@ export interface GemGlowConfig {
 
 export const GEM_GLOW = map<GemGlowConfig>({
   ENABLED: true,
-  INNER_SCALE: 4, // hot core, hugging the gem
+  INNER_SCALE: 6, // hot core, hugging the gem
   OUTER_SCALE: 12, // atmospheric falloff, large soft disk
   INNER_OPACITY: 0.6,
-  OUTER_OPACITY: 0.35,
+  OUTER_OPACITY: 0.4,
   ANIMATE_COLORS: true, // cycle the halo color through GEM_FACE_PALETTE
   CYCLE_PERIOD_SECONDS: 6, // one full palette cycle every N seconds
 });
