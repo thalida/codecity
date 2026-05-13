@@ -1,5 +1,8 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — combined status indicator: [dot] <status text>
+//   left   — current selection metadata (language · lines · size · created
+//            · modified for files; file/dir counts + size for directories)
+//   center — repo information (project name + absolute root path)
+//   right  — combined status indicator: [dot] <status text>
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
@@ -8,9 +11,6 @@
 //                         static when error)
 //            Hover tooltip surfaces the live state ("Live updates: on/off")
 //            and the rebuild error message (when applicable).
-//   center — repo information (project name + absolute root path)
-//   right  — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories)
 
 import { DateSource, NodeKind } from '@/types';
 
@@ -78,17 +78,19 @@ export function initAppFooter() {
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
-  const leftEl = document.createElement('div');
-  leftEl.className = 'app-footer-section app-footer-left';
-  const statusEl = document.createElement('span');
-  statusEl.className = 'app-footer-status';
-  leftEl.appendChild(statusEl);
+  const selectionEl = document.createElement('div');
+  selectionEl.className = 'app-footer-section app-footer-left';
 
   const centerEl = document.createElement('div');
   centerEl.className = 'app-footer-section app-footer-center';
-  const rightEl = document.createElement('div');
-  rightEl.className = 'app-footer-section app-footer-right';
-  footer.replaceChildren(leftEl, centerEl, rightEl);
+
+  const statusContainerEl = document.createElement('div');
+  statusContainerEl.className = 'app-footer-section app-footer-right';
+  const statusEl = document.createElement('span');
+  statusEl.className = 'app-footer-status';
+  statusContainerEl.appendChild(statusEl);
+
+  footer.replaceChildren(selectionEl, centerEl, statusContainerEl);
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
@@ -190,22 +192,22 @@ export function initAppFooter() {
   }
 
   function setSelection(sel: FooterSelection | null): void {
-    rightEl.replaceChildren();
+    selectionEl.replaceChildren();
     if (!sel) return;
 
     if (sel.kind === NodeKind.File) {
-      if (sel.language) rightEl.appendChild(_item(sel.language));
-      if (sel.lines != null) rightEl.appendChild(_item(`${sel.lines} lines`));
-      if (sel.size != null) rightEl.appendChild(_item(_formatBytes(sel.size)));
+      if (sel.language) selectionEl.appendChild(_item(sel.language));
+      if (sel.lines != null) selectionEl.appendChild(_item(`${sel.lines} lines`));
+      if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
       if (sel.modified)
-        rightEl.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
+        selectionEl.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
       if (sel.created)
-        rightEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
+        selectionEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === NodeKind.Directory) {
-      rightEl.appendChild(_item('Directory'));
-      if (sel.files != null) rightEl.appendChild(_item(`${sel.files} files`));
-      if (sel.dirs != null) rightEl.appendChild(_item(`${sel.dirs} dirs`));
-      if (sel.size != null) rightEl.appendChild(_item(_formatBytes(sel.size)));
+      selectionEl.appendChild(_item('Directory'));
+      if (sel.files != null) selectionEl.appendChild(_item(`${sel.files} files`));
+      if (sel.dirs != null) selectionEl.appendChild(_item(`${sel.dirs} dirs`));
+      if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
     }
   }
 

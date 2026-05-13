@@ -299,6 +299,10 @@ canvas {
 }
 .app-footer-section.app-footer-left {
   justify-self: start;
+  overflow-x: auto;
+}
+.app-footer-section.app-footer-left::-webkit-scrollbar {
+  height: 0;
 }
 .app-footer-section.app-footer-center {
   justify-self: center;
@@ -306,10 +310,6 @@ canvas {
 }
 .app-footer-section.app-footer-right {
   justify-self: end;
-  overflow-x: auto;
-}
-.app-footer-section.app-footer-right::-webkit-scrollbar {
-  height: 0;
 }
 
 .app-footer-item {
