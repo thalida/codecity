@@ -352,19 +352,16 @@ canvas {
 .app-footer-status.is-error .app-footer-status-detail {
   color: #fca5a5;
 }
-.app-footer-status-sep {
-  color: #44485e;
-}
 .app-footer-status-live {
   display: inline-flex;
   align-items: center;
-  color: #6b7090;
-  /* Bump up from the footer's 10.5px base so the play/pause glyph stays
-   * recognizable. .lucide-icon sizes at 1em of this. */
+  /* Bump up from the footer's 10.5px base so the ▶ / ⏸ glyph stays
+   * recognizable. */
   font-size: 13px;
+  color: #60a5fa; /* blue when live polling is enabled */
 }
 .app-footer-status-live.is-paused {
-  color: #5d6280;
+  color: #fb923c; /* orange when paused */
 }
 
 @keyframes app-footer-pulse {
