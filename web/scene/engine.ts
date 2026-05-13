@@ -357,6 +357,9 @@ function createRootGem(street: Street): THREE.Group {
       1
     );
     innerGlowSprite.visible = glowCfg.ENABLED;
+    // Glow is purely visual — never absorbs hover / click. Sprites are
+    // raycast-pickable by default, so override with a no-op.
+    innerGlowSprite.raycast = () => {};
 
     outerGlowSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
@@ -374,6 +377,7 @@ function createRootGem(street: Street): THREE.Group {
       1
     );
     outerGlowSprite.visible = glowCfg.ENABLED;
+    outerGlowSprite.raycast = () => {};
 
     // Draw outer halo first (largest, softest), then inner, then the
     // opaque body, then the edges. The additive layers blend cumulatively
