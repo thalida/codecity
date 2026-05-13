@@ -100,8 +100,12 @@ export function createLayoutClient(): LayoutClient {
       // After an uncaught exception, the worker's state is undefined
       // per spec — posting further messages to it is unreliable. Null
       // the cached ref so the next compute() reconstructs a fresh
-      // worker on demand.
+      // worker on demand, and terminate the dying instance so the
+      // browser frees its thread + memory promptly (browsers don't
+      // always auto-terminate after onerror).
+      const dying = worker;
       worker = null;
+      dying?.terminate();
     });
     return worker;
   }
