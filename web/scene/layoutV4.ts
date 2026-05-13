@@ -383,92 +383,6 @@ interface SubtreeResult {
   paths: BuildingPath[];
 }
 
-// ChildPlacementInfo — what the backward-pack post-pass needs for each
-// already-placed child of a dir. `subtreeRects` are the WorldRect objects
-// (already inserted into the dir's occupancy) that constitute this child's
-// entire subtree. The post-pass removes them, shifts forward, re-inserts.
-//
-// Each WorldRect.ref points at the same Street/Building/BuildingPath object
-// living in CityLayout.streets/buildings/paths, so mutating .x/.y on the ref
-// updates both occupancy bounds and the renderer-facing output in lockstep.
-export interface ChildPlacementInfo {
-  stem: number;
-  subtreeRects: WorldRect[];
-}
-
-// _backwardPackChildren — backward-pack post-pass.
-//
-// Called at the end of _layoutDirV4 after all children of a dir have been
-// placed at their V4 stems. Walks the children in REVERSE alphabetical order
-// (last to first). Each non-last child is shifted FORWARD along the parent's
-// along axis (toward its alphabetical successor) until it hits a collision
-// in world occupancy.
-//
-// This clusters alphabetically-adjacent siblings against each other,
-// eliminating the visible "stranded island connected by long thin road" gap
-// pattern that occurs when an obstacle forces one child far past its
-// alphabetical predecessor. The road's length is unchanged (the LAST child
-// — which determines the road's far edge — never moves).
-//
-// Preserves V4's alphabetical-monotonic invariant: a child shifts up to at
-// most its successor's leading edge minus childGap. No child crosses over
-// its successor, so alphabetical order along the road is maintained.
-export function _backwardPackChildren(
-  placements: ChildPlacementInfo[],
-  parentOrient: StreetAxis,
-  occupancy: WorldOccupancy,
-  childGap: number,
-): void {
-  if (placements.length < 2) return;
-
-  // The last placement stays put (no successor to cluster against).
-  for (let i = placements.length - 2; i >= 0; i--) {
-    const p = placements[i];
-    if (p.subtreeRects.length === 0) continue;
-
-    // Remove this child's rects so they don't block their own forward shift.
-    for (const r of p.subtreeRects) occupancy.remove(r);
-
-    // Compute max forward shift: for every rect in the child's subtree, find
-    // the nearest forward obstacle whose perp range overlaps. The shift
-    // limit per rect is (obstacle.alongMin − rect.alongMax − childGap). The
-    // child's overall shift is the min of these limits.
-    let maxShift = Infinity;
-    for (const r of p.subtreeRects) {
-      const perpMin = parentOrient === StreetAxis.X ? r.minY : r.minX;
-      const perpMax = parentOrient === StreetAxis.X ? r.maxY : r.maxX;
-      const alongMax = parentOrient === StreetAxis.X ? r.maxX : r.maxY;
-      const candidates = parentOrient === StreetAxis.X
-        ? occupancy.query(alongMax, perpMin, Infinity, perpMax)
-        : occupancy.query(perpMin, alongMax, perpMax, Infinity);
-      for (const c of candidates) {
-        const cAlongMin = parentOrient === StreetAxis.X ? c.minX : c.minY;
-        if (cAlongMin >= alongMax) {
-          const limit = cAlongMin - alongMax - childGap;
-          if (limit < maxShift) maxShift = limit;
-        }
-      }
-    }
-
-    if (isFinite(maxShift) && maxShift > 0) {
-      const dx = parentOrient === StreetAxis.X ? maxShift : 0;
-      const dy = parentOrient === StreetAxis.Y ? maxShift : 0;
-      for (const r of p.subtreeRects) {
-        r.minX += dx;
-        r.maxX += dx;
-        r.minY += dy;
-        r.maxY += dy;
-        const ref = r.ref as { x: number; y: number };
-        ref.x += dx;
-        ref.y += dy;
-      }
-      p.stem += maxShift;
-    }
-
-    for (const r of p.subtreeRects) occupancy.insert(r);
-  }
-}
-
 // _layoutDirV4(dir, originX, originY, orientation, result, parentStreetWidth,
 //             lineStats, byteStats, occupancy)
 //   → fills `result` with this subtree's content in WORLD frame (relative to
@@ -583,10 +497,6 @@ function _layoutDirV4(
   // maxBoundaryAlong tracks the far edge of the last-placed child, used to
   // size the own street at the end.
   let maxBoundaryAlong = originPad;
-  // childPlacements feeds the backward-pack post-pass at the end of this
-  // function. Each entry records a child's stem and the world rects we
-  // inserted on its behalf (so the post-pass can remove, shift, re-insert).
-  const childPlacements: ChildPlacementInfo[] = [];
 
   for (const child of children) {
     if (child.type === NodeKind.File) {
@@ -728,10 +638,6 @@ function _layoutDirV4(
         ref: pathRect,
       };
       occupancy.insert(pathWorldRect);
-      childPlacements.push({
-        stem: placed.stem,
-        subtreeRects: [buildingWorldRect, pathWorldRect],
-      });
 
       priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + along / 2;
@@ -821,7 +727,6 @@ function _layoutDirV4(
       const subAnchorX = orientation === StreetAxis.X ? originX + placed.stem : originX;
       const subAnchorY = orientation === StreetAxis.X ? originY : originY + placed.stem;
 
-      const subtreeRects: WorldRect[] = [];
       for (const s of childResult.streets) {
         const isXOrient = s.orientation === StreetAxis.X;
         const worldStreet: Street = {
@@ -845,7 +750,6 @@ function _layoutDirV4(
           ref: worldStreet,
         };
         occupancy.insert(streetWorldRect);
-        subtreeRects.push(streetWorldRect);
       }
       for (const b of childResult.buildings) {
         const worldBuilding: Building = {
@@ -869,7 +773,6 @@ function _layoutDirV4(
           ref: worldBuilding,
         };
         occupancy.insert(buildingWorldRect);
-        subtreeRects.push(buildingWorldRect);
       }
       for (const p of childResult.paths) {
         const worldPath: BuildingPath = {
@@ -889,22 +792,13 @@ function _layoutDirV4(
           ref: worldPath,
         };
         occupancy.insert(pathWorldRect);
-        subtreeRects.push(pathWorldRect);
       }
-      childPlacements.push({ stem: placed.stem, subtreeRects });
 
       priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + childResult.alongReach;
       if (boundaryHigh > maxBoundaryAlong) maxBoundaryAlong = boundaryHigh;
     }
   }
-
-  // ----- Backward-pack post-pass -----
-  // Cluster siblings against their alphabetical successors. Runs AFTER all
-  // children are placed but BEFORE the own street is emitted (the own street
-  // length depends on maxBoundaryAlong, which is the LAST child's far edge;
-  // backward-pack never moves the last child, so length is unchanged).
-  _backwardPackChildren(childPlacements, orientation, occupancy, childGap);
 
   // ----- Emit own main street (copied from v3 ~lines 1387-1405) -----
   const streetLength = Math.max(maxBoundaryAlong + endPad, originPad + endPad);
