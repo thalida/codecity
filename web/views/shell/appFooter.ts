@@ -1,9 +1,13 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — combined status indicator: ▶|⏸ [color dot] <status text>
-//            leading play/pause glyph = whether live polling is enabled
-//            (blue when on, orange when off; hover tooltip says
-//            "Live updates: on" / "off"); dot color = rebuild state
-//            (green/yellow/red); trailing text = timestamp or status
+//   left   — combined status indicator: [dot] <status text>
+//            One dot, two channels of state:
+//              color    — rebuild state (green=idle, yellow=rebuilding,
+//                         red=error)
+//              animation — live state (slow heartbeat when polling on,
+//                         static when paused, fast pulse when rebuilding,
+//                         static when error)
+//            Hover tooltip surfaces the live state ("Live updates: on/off")
+//            and the rebuild error message (when applicable).
 //   center — repo information (project name + absolute root path)
 //   right  — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories)
@@ -88,20 +92,25 @@ export function initAppFooter() {
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
-    statusEl.classList.remove('is-rebuilding', 'is-ready', 'is-error');
+    statusEl.classList.remove(
+      'is-rebuilding',
+      'is-ready',
+      'is-error',
+      'is-live',
+      'is-paused'
+    );
     statusEl.removeAttribute('title');
 
-    let modifier: 'is-rebuilding' | 'is-ready' | 'is-error';
+    let buildModifier: 'is-rebuilding' | 'is-ready' | 'is-error';
     let detailText: string;
     if (status.rebuildStatus === 'rebuilding') {
-      modifier = 'is-rebuilding';
+      buildModifier = 'is-rebuilding';
       detailText = 'rebuilding…';
     } else if (status.rebuildStatus === 'error') {
-      modifier = 'is-error';
+      buildModifier = 'is-error';
       detailText = 'error';
-      if (status.errorMessage) statusEl.title = status.errorMessage;
     } else {
-      modifier = 'is-ready';
+      buildModifier = 'is-ready';
       // 'ready' literal is a guard for unit tests or any code path that
       // calls setStatus before LAST_UPDATED_AT is seeded. Production
       // boot seeds the stamp in coordinator.ts before this setter runs.
@@ -110,20 +119,24 @@ export function initAppFooter() {
           ? _relativeTime(status.lastUpdatedAt, Date.now())
           : 'ready';
     }
-    statusEl.classList.add(modifier);
+    statusEl.classList.add(buildModifier);
+    statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
 
-    // Live / paused glyph (Unicode for a solid filled look). Tooltip
-    // carries the readable state since the glyph alone is visual.
-    const liveWrap = document.createElement('span');
-    liveWrap.className = 'app-footer-status-live';
-    if (!status.liveEnabled) liveWrap.classList.add('is-paused');
-    const tooltip = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
-    liveWrap.title = tooltip;
-    liveWrap.setAttribute('aria-label', tooltip);
-    liveWrap.textContent = status.liveEnabled ? '▶' : '⏸';
-    statusEl.appendChild(liveWrap);
+    // Compose the hover tooltip. Error message wins when present —
+    // otherwise show the live-state summary so users can discover the
+    // play/pause distinction (the dot's heartbeat already hints at it).
+    const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
+    if (status.rebuildStatus === 'error' && status.errorMessage) {
+      statusEl.title = `${liveLabel} · ${status.errorMessage}`;
+    } else if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
+      const exact = new Date(status.lastUpdatedAt).toLocaleString();
+      statusEl.title = `${liveLabel} · last rebuild ${exact}`;
+    } else {
+      statusEl.title = liveLabel;
+    }
+    statusEl.setAttribute('aria-label', statusEl.title);
 
-    // Dot (color encodes rebuildStatus)
+    // Dot (color = rebuild state; animation = live state, scoped by CSS).
     const dot = document.createElement('span');
     dot.className = 'app-footer-status-dot';
     statusEl.appendChild(dot);
@@ -132,9 +145,6 @@ export function initAppFooter() {
     const detail = document.createElement('span');
     detail.className = 'app-footer-status-detail';
     detail.textContent = detailText;
-    if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
-      detail.title = new Date(status.lastUpdatedAt).toLocaleString();
-    }
     statusEl.appendChild(detail);
   }
 
