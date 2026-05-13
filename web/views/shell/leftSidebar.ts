@@ -19,6 +19,10 @@ const SIDEBAR_MAX_WIDTH = 600;
 interface ShowLeftSidebarOpts {
   /** fn() the Settings UI calls after mutating any imported theme constant — flushes the change through to live materials. */
   applyTheme?: () => void;
+  /** fn() called when the user clicks the "Run collision check" debug button. */
+  onRunCollisionCheck?: () => void;
+  /** fn() called when the user clicks the "Diagnose stem placement" debug button. */
+  onRunStemDiagnostic?: () => void;
   /** Initial active tab. Defaults to SidebarTab.Tree. */
   initialTab?: SidebarTab;
   /** fn(node) called when the user single-clicks a tree row. */
@@ -94,6 +98,8 @@ export function showLeftSidebar(
   panes[SidebarTab.Controls] = buildControlsPane({
     applyTheme: opts.applyTheme,
     onClose: paneOnClose,
+    onRunCollisionCheck: opts.onRunCollisionCheck,
+    onRunStemDiagnostic: opts.onRunStemDiagnostic,
   });
 
   for (const key in panes) {

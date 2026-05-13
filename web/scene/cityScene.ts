@@ -46,6 +46,13 @@ import {
   disposeLabelMaterials,
 } from './instanced/labels.js';
 import { findLayoutOverlaps, layoutCity } from './layout.js';
+import type { LayoutOverlap } from './layout.js';
+import { layoutCityV4WithTrace } from './layoutV4.js';
+import type {
+  ChildPlacementTrace,
+  StemPlacementTrace,
+} from './layoutV4.js';
+import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
@@ -93,6 +100,123 @@ export const UNIT_BOX_EDGE_POSITIONS = [
   -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5,
   0.5,
 ];
+
+// _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
+//
+// Pure helper. Partitions overlaps into unexpected vs. t-junction, returns the
+// summary line and (for the dirty case) one detail string per unexpected
+// overlap. Caller decides what to do with it — runCollisionCheck() routes to
+// console.info / console.warn.
+function _formatCollisionReport(
+  overlaps: LayoutOverlap[],
+  totalRects: number
+): { level: 'info' | 'warn'; summary: string; details: string[] } {
+  const unexpected = overlaps.filter((o) => o.category === 'unexpected');
+  const tjctCount = overlaps.filter((o) => o.category === 't-junction').length;
+  const summary =
+    `[collision] ${unexpected.length} unexpected, ${tjctCount} t-junctions ` +
+    `whitelisted (${totalRects} rects)`;
+  if (unexpected.length === 0) {
+    return { level: 'info', summary, details: [] };
+  }
+  const fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
+    `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
+  const details = unexpected.map(
+    (o) =>
+      `  ${o.kindA} "${o.labelA}" ${fmtRect(o.rectA)}\n` +
+      `    ⟷ ${o.kindB} "${o.labelB}" ${fmtRect(o.rectB)}\n` +
+      `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
+      `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
+  );
+  return { level: 'warn', summary, details };
+}
+
+// _formatStemDiagnostic(trace) -> string[]
+//
+// Pure helper. Walks a StemPlacementTrace, groups placements by parent road,
+// returns one or more lines per parent. Caller routes lines to console.log.
+function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
+  if (trace.placements.length === 0) {
+    return ['[stem-diag] no placements recorded'];
+  }
+
+  // Group by parent path, preserving first-seen order.
+  const byParent = new Map<string, ChildPlacementTrace[]>();
+  for (const p of trace.placements) {
+    let bucket = byParent.get(p.parentPath);
+    if (!bucket) {
+      bucket = [];
+      byParent.set(p.parentPath, bucket);
+    }
+    bucket.push(p);
+  }
+
+  const out: string[] = [];
+  for (const [parentPath, children] of byParent) {
+    out.push(`[stem-diag] dir "${parentPath}" — ${children.length} children`);
+    for (const c of children) {
+      // Match display precision: jumps below half a toFixed(2) unit display
+      // as +0.00 and would be misleading.
+      const jumped = c.chosen.stem - c.baseline > 0.005;
+      const tag = c.childKind === 'dir' ? `"${c.childLabel}/"` : `"${c.childLabel}"`;
+      const jumpedNote = jumped
+        ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}`
+        : '';
+      out.push(
+        `  ─ ${tag} (${c.childKind}) — stem=${c.chosen.stem.toFixed(2)}  ` +
+          `(baseline=${c.baseline.toFixed(2)})${jumpedNote}`,
+      );
+      if (jumped && c.chosen.bindingIndex !== null) {
+        const binding = c.chosen.forbidden[c.chosen.bindingIndex];
+        const obs = binding.obstacle;
+        const label = _obstacleLabel(obs);
+        out.push(
+          `     forced by: ${obs.kind} ${label}  ` +
+            `y=[${_yBounds(obs).join(', ')}] x=[${_xBounds(obs).join(', ')}]`,
+        );
+      }
+      if (jumped && c.others.length > 0) {
+        out.push(`     other variants tried:`);
+        const all = [c.chosen, ...c.others].sort(
+          (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror),
+        );
+        for (const v of all) {
+          const marker = v === c.chosen ? '(chosen)' : '';
+          out.push(
+            `       side=${v.side} mirror=${v.mirror} → stem=${v.stem.toFixed(2)} ${marker}`.trimEnd(),
+          );
+        }
+      }
+    }
+  }
+  return out;
+}
+
+function _obstacleLabel(o: WorldRect): string {
+  // WorldRect.ref is loosely typed (Building | Street | BuildingPath); try
+  // common shapes without forcing tight coupling.
+  const r = o.ref as { file?: { path?: string; name?: string }; label?: string; dir?: { path?: string } };
+  return (
+    (r.file && (r.file.path ?? r.file.name)) ??
+    r.label ??
+    (r.dir && r.dir.path) ??
+    '?'
+  );
+}
+
+function _yBounds(o: WorldRect): [string, string] {
+  return [o.minY.toFixed(2), o.maxY.toFixed(2)];
+}
+
+function _xBounds(o: WorldRect): [string, string] {
+  return [o.minX.toFixed(2), o.maxX.toFixed(2)];
+}
+
+// Internal helpers exposed for tests only. Not part of the public API.
+export const __test = {
+  _formatCollisionReport,
+  _formatStemDiagnostic,
+};
 
 // canvas is unused directly by cityScene after Task 8 removed
 // _buildOutlinesAndGhosts (which used it for LineMaterial.resolution).
@@ -521,31 +645,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // explicit cast keeps the type checker happy across the boundary.
     layout = layoutCity(manifest.tree as unknown as Parameters<typeof layoutCity>[0]);
 
-    // Runtime overlap diagnostic. Logs only unexpected overlaps —
-    // street/street T-junctions are the documented flat join. See
-    // findLayoutOverlaps() in layout.ts.
-    const _overlaps = findLayoutOverlaps(layout);
-    const _unexpectedOverlaps = _overlaps.filter((o) => o.category === 'unexpected');
-    if (_unexpectedOverlaps.length > 0) {
-      // eslint-disable-next-line no-console
-      console.warn(
-        `[layout] ${_unexpectedOverlaps.length} unexpected overlap(s) ` +
-          `(of ${_overlaps.length} total; ${_overlaps.length - _unexpectedOverlaps.length} ` +
-          `whitelisted as T-junctions):`
-      );
-      const _fmtRect = (r: { x: number; y: number; w: number; d: number }): string =>
-        `[x=${r.x.toFixed(2)} y=${r.y.toFixed(2)} w=${r.w.toFixed(2)} d=${r.d.toFixed(2)}]`;
-      for (const o of _unexpectedOverlaps) {
-        // eslint-disable-next-line no-console
-        console.warn(
-          `  ${o.kindA} "${o.labelA}" ${_fmtRect(o.rectA)}\n` +
-            `    ⟷ ${o.kindB} "${o.labelB}" ${_fmtRect(o.rectB)}\n` +
-            `    overlap=${o.overlap.w.toFixed(3)}×${o.overlap.d.toFixed(3)} ` +
-            `at (${o.overlap.x.toFixed(2)}, ${o.overlap.y.toFixed(2)})`
-        );
-      }
-    }
-
     dateRanges = getDateRanges(manifest.tree as unknown as Parameters<typeof getDateRanges>[0]);
 
     // Color buildings before mesh creation — buildCityScene reads b.color.
@@ -689,6 +788,43 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
     getLayout() {
       return layout;
+    },
+    runCollisionCheck(): void {
+      if (!layout) {
+        // eslint-disable-next-line no-console
+        console.warn('[collision] no layout — apply a manifest first');
+        return;
+      }
+      const overlaps = findLayoutOverlaps(layout);
+      const totalRects =
+        layout.streets.length + layout.buildings.length + layout.paths.length;
+      const report = _formatCollisionReport(overlaps, totalRects);
+      if (report.level === 'info') {
+        // eslint-disable-next-line no-console
+        console.info(report.summary);
+      } else {
+        // eslint-disable-next-line no-console
+        console.warn(report.summary);
+        for (const line of report.details) {
+          // eslint-disable-next-line no-console
+          console.warn(line);
+        }
+      }
+    },
+    runStemPlacementDiagnostic(): void {
+      if (!manifest) {
+        // eslint-disable-next-line no-console
+        console.warn('[stem-diag] no manifest — apply one first');
+        return;
+      }
+      const { trace } = layoutCityV4WithTrace(
+        manifest as unknown as Parameters<typeof layoutCityV4WithTrace>[0],
+      );
+      const lines = _formatStemDiagnostic(trace);
+      for (const line of lines) {
+        // eslint-disable-next-line no-console
+        console.log(line);
+      }
     },
     getBbox() {
       return bbox;

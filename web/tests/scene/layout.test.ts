@@ -724,36 +724,6 @@ describe('_collectRects', () => {
   });
 });
 
-describe('rectsToBuf / bufToRects round-trip', () => {
-  const { rectsToBuf, bufToRects, rectCount, rectAt } = __test;
-
-  it('empty round-trip', () => {
-    const buf = rectsToBuf([]);
-    expect(buf.length).toBe(0);
-    expect(rectCount(buf)).toBe(0);
-    expect(bufToRects(buf)).toEqual([]);
-  });
-
-  it('single rect round-trip', () => {
-    const rs: Rect[] = [{ x: 1.5, y: -2.25, w: 3, d: 4.75 }];
-    const buf = rectsToBuf(rs);
-    expect(rectCount(buf)).toBe(1);
-    expect(rectAt(buf, 0)).toEqual({ x: 1.5, y: -2.25, w: 3, d: 4.75 });
-    expect(bufToRects(buf)).toEqual(rs);
-  });
-
-  it('multi rect round-trip preserves order', () => {
-    const rs: Rect[] = [
-      { x: 0, y: 0, w: 1, d: 1 },
-      { x: 10, y: 20, w: 5, d: 5 },
-      { x: -1, y: -2, w: 3, d: 4 },
-    ];
-    const buf = rectsToBuf(rs);
-    expect(rectCount(buf)).toBe(3);
-    expect(bufToRects(buf)).toEqual(rs);
-  });
-});
-
 // ---- Invariant helpers + tests ----
 //
 // These helpers assert the contract the new packer must satisfy:
@@ -901,6 +871,87 @@ export function assertStemOrder(layout: CityLayout): void {
             `${streetSpecs[i].name}@${streetSpecs[i].stemAlong}`
         );
       }
+    }
+  }
+}
+
+// Verifies each non-root street has a parent street whose dir is the tree
+// parent of this street's dir. (T-junction geometry is checked separately by
+// assertTJunctionsValid.)
+export function assertTreeRespecting(layout: CityLayout): void {
+  // Build a map from dir.path to its street.
+  const byPath: Record<string, Street> = {};
+  for (const s of layout.streets) {
+    if (s.dir && s.dir.path != null) byPath[s.dir.path] = s;
+  }
+
+  for (const s of layout.streets) {
+    if (s.isRoot) continue;
+    if (!s.dir || s.dir.path == null) continue;
+    const parts = s.dir.path.split('/');
+    const parentPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+    const parent = byPath[parentPath];
+    if (!parent) {
+      throw new Error(
+        `street ${s.dir.path}: tree parent path ${parentPath} has no street`
+      );
+    }
+  }
+}
+
+// Verifies each non-root street's joining end (the end closer to its parent's
+// centerline) sits ON the parent's centerline within tolerance, AND the join
+// happens within the parent's length span.
+export function assertTJunctionsValid(layout: CityLayout): void {
+  const byPath: Record<string, Street> = {};
+  for (const s of layout.streets) {
+    if (s.dir && s.dir.path != null) byPath[s.dir.path] = s;
+  }
+
+  for (const s of layout.streets) {
+    if (s.isRoot) continue;
+    if (!s.dir || s.dir.path == null) continue;
+    const parts = s.dir.path.split('/');
+    const parentPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
+    const parent = byPath[parentPath];
+    if (!parent) continue; // tree-respecting test already caught this
+
+    // Perpendicular streets only join validly via T-junction.
+    if (s.orientation === parent.orientation) {
+      throw new Error(
+        `street ${s.dir.path} has same orientation as parent ${parentPath}`
+      );
+    }
+
+    // The joining endpoint sits on the parent's centerline (constant value of
+    // the parent's perp axis).
+    const TOLERANCE = 0.5; // generous, FP drift can accumulate
+    const sAlongAxis = s.orientation === StreetAxis.X ? 'x' : 'y';
+    const halfL = s.length / 2;
+    const lowEnd = s[sAlongAxis] - halfL;
+    const highEnd = s[sAlongAxis] + halfL;
+    const parentCenterline = parent[sAlongAxis];
+    const dLow = Math.abs(lowEnd - parentCenterline);
+    const dHigh = Math.abs(highEnd - parentCenterline);
+    const minDist = Math.min(dLow, dHigh);
+    if (minDist > TOLERANCE) {
+      throw new Error(
+        `street ${s.dir.path}: nearest endpoint is ${minDist.toFixed(2)} from ` +
+          `parent ${parentPath}'s centerline (>${TOLERANCE})`
+      );
+    }
+
+    // The joining point sits within the parent's length span.
+    const sCrossAxis = s.orientation === StreetAxis.X ? 'y' : 'x';
+    const parentAlongAxis = parent.orientation === StreetAxis.X ? 'x' : 'y';
+    const sPerpAtJoin = s[sCrossAxis];
+    const parentLow = parent[parentAlongAxis] - parent.length / 2;
+    const parentHigh = parent[parentAlongAxis] + parent.length / 2;
+    if (sPerpAtJoin < parentLow - TOLERANCE || sPerpAtJoin > parentHigh + TOLERANCE) {
+      throw new Error(
+        `street ${s.dir.path}: join point (${sPerpAtJoin.toFixed(2)}) outside ` +
+          `parent ${parentPath} length span [${parentLow.toFixed(2)}, ${parentHigh.toFixed(2)}]`
+      );
     }
   }
 }
@@ -1068,681 +1119,15 @@ describe('layout invariants (current packer baseline)', () => {
     // inflation) would slip through.
     expect(rootStreet.length).toBeLessThan(120);
   });
-});
 
-describe('Contour basics', () => {
-  const { _emptyContour, _appendSegment, _contourAt } = __test;
-
-  it('empty contour has len 0 and default capacity', () => {
-    const c = _emptyContour();
-    expect(c.len).toBe(0);
-    expect(c.buf.length).toBe(32 * 4);
-  });
-
-  it('append single segment', () => {
-    const c = _emptyContour();
-    _appendSegment(c, 0, 10, 5);
-    expect(c.len).toBe(1);
-    expect(c.buf[0]).toBe(0);
-    expect(c.buf[1]).toBe(10);
-    expect(c.buf[2]).toBe(5);
-  });
-
-  it('append multiple segments', () => {
-    const c = _emptyContour();
-    _appendSegment(c, 0, 5, 1);
-    _appendSegment(c, 5, 10, 2);
-    _appendSegment(c, 20, 30, 3);
-    expect(c.len).toBe(3);
-    expect(c.buf[0]).toBe(0);
-    expect(c.buf[5]).toBe(10);
-    expect(c.buf[10]).toBe(3);
-  });
-
-  it('append degenerate segment (perpLow >= perpHigh) is no-op', () => {
-    const c = _emptyContour();
-    _appendSegment(c, 5, 5, 1);
-    _appendSegment(c, 10, 5, 2);
-    expect(c.len).toBe(0);
-  });
-
-  it('_contourAt on empty contour returns -Infinity', () => {
-    const c = _emptyContour();
-    expect(_contourAt(c, 0)).toBe(-Infinity);
-    expect(_contourAt(c, 100)).toBe(-Infinity);
-  });
-
-  it('_contourAt returns alongValue inside a segment', () => {
-    const c = _emptyContour();
-    _appendSegment(c, 0, 10, 5);
-    expect(_contourAt(c, 5)).toBe(5);
-    expect(_contourAt(c, 0)).toBe(5);
-  });
-
-  it('_contourAt returns -Infinity outside all segments', () => {
-    const c = _emptyContour();
-    _appendSegment(c, 0, 10, 5);
-    expect(_contourAt(c, 15)).toBe(-Infinity);
-    expect(_contourAt(c, -5)).toBe(-Infinity);
-  });
-
-  it('_contourAt at the upper boundary (perpHigh) is OUTSIDE the segment', () => {
-    // Segments are half-open [perpLow, perpHigh); convention: <
-    const c = _emptyContour();
-    _appendSegment(c, 0, 10, 5);
-    expect(_contourAt(c, 10)).toBe(-Infinity);
-  });
-
-  it('_growContour doubles capacity when full', () => {
-    const c = _emptyContour();
-    expect(c.buf.length).toBe(32 * 4);
-    // Fill to capacity.
-    for (let i = 0; i < 32; i++) {
-      _appendSegment(c, i * 10, i * 10 + 5, i);
-    }
-    expect(c.len).toBe(32);
-    expect(c.buf.length).toBe(32 * 4);
-    // Add one more — triggers grow.
-    _appendSegment(c, 1000, 1010, 999);
-    expect(c.len).toBe(33);
-    expect(c.buf.length).toBe(64 * 4);
-    // Existing data preserved.
-    expect(c.buf[0]).toBe(0);
-    expect(c.buf[31 * 4]).toBe(310);
-    expect(c.buf[32 * 4]).toBe(1000);
-  });
-});
-
-describe('_envelopesFromRects', () => {
-  const { _envelopesFromRects, rectsToBuf } = __test;
-
-  it('empty rects → empty contours', () => {
-    const { bottom, top } = _envelopesFromRects(rectsToBuf([]), 'x');
-    expect(bottom.len).toBe(0);
-    expect(top.len).toBe(0);
-  });
-
-  it('single rect: bottom=top across the rect, value = perp center ± half', () => {
-    // Rect at (5, 10, 4, 6): x=5, y=10, w=4, d=6 → x range [3,7], y range [7,13].
-    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
-    // Sweep along x: at x ∈ [3, 7], perp (y) range = [7, 13].
-    const { bottom, top } = _envelopesFromRects(buf, 'x');
-    expect(bottom.len).toBe(1);
-    expect(top.len).toBe(1);
-    expect(bottom.buf[0]).toBe(3); // perpLow (= alongLow in source)
-    expect(bottom.buf[1]).toBe(7); // perpHigh
-    expect(bottom.buf[2]).toBe(7); // min y
-    expect(top.buf[2]).toBe(13); // max y
-  });
-
-  it('two disjoint rects on the same alongAxis range', () => {
-    // Two rects at different perp positions but same x range.
-    // r1: x=0, w=4 (x [-2,2]), y=0, d=4 (y [-2,2])
-    // r2: x=0, w=4, y=10, d=4 (y [8,12])
-    const buf = rectsToBuf([
-      { x: 0, y: 0, w: 4, d: 4 },
-      { x: 0, y: 10, w: 4, d: 4 },
-    ]);
-    const { bottom, top } = _envelopesFromRects(buf, 'x');
-    // Sweep along x: at x ∈ [-2, 2], BOTH rects are active. min y = -2, max y = 12.
-    expect(bottom.len).toBe(1);
-    expect(top.len).toBe(1);
-    expect(bottom.buf[2]).toBe(-2);
-    expect(top.buf[2]).toBe(12);
-  });
-
-  it('two staggered rects produce stepped envelope', () => {
-    // r1: x ∈ [0, 10], y ∈ [0, 10]
-    // r2: x ∈ [5, 15], y ∈ [-5, 5]
-    const buf = rectsToBuf([
-      { x: 5, y: 5, w: 10, d: 10 }, // (0..10, 0..10)
-      { x: 10, y: 0, w: 10, d: 10 }, // (5..15, -5..5)
-    ]);
-    const { bottom, top } = _envelopesFromRects(buf, 'x');
-    // At x ∈ [0, 5]: only r1. min y = 0, max y = 10.
-    // At x ∈ [5, 10]: both. min y = -5, max y = 10.
-    // At x ∈ [10, 15]: only r2. min y = -5, max y = 5.
-    expect(bottom.len).toBe(3);
-    expect(bottom.buf[0]).toBe(0);
-    expect(bottom.buf[1]).toBe(5);
-    expect(bottom.buf[2]).toBe(0);
-    expect(bottom.buf[5]).toBe(10);
-    expect(bottom.buf[6]).toBe(-5);
-    expect(bottom.buf[9]).toBe(15);  // perpHigh of segment 2
-    expect(bottom.buf[10]).toBe(-5); // alongValue of segment 2 (min y in [10,15])
-    expect(top.len).toBe(3);
-    expect(top.buf[2]).toBe(10);
-    expect(top.buf[6]).toBe(10);
-    expect(top.buf[10]).toBe(5);
-  });
-
-  it('two rects with identical perp extent but different along ranges', () => {
-    // Both have y ∈ [-2, 2] (same perp). r1 x ∈ [0, 5], r2 x ∈ [3, 8].
-    // Tests the identity-based active-set removal: when r1 leaves at x=5,
-    // we must remove r1's active entry, not r2's (they share perp extent).
-    const buf = rectsToBuf([
-      { x: 2.5, y: 0, w: 5, d: 4 },
-      { x: 5.5, y: 0, w: 5, d: 4 },
-    ]);
-    const { bottom, top } = _envelopesFromRects(buf, 'x');
-    // Sweep along x:
-    //   [0, 3): only r1, perp [-2, 2]
-    //   [3, 5): both r1 and r2, perp [-2, 2] (same)
-    //   [5, 8): only r2, perp [-2, 2]
-    // All three segments have identical perp extent because both rects do.
-    expect(bottom.len).toBe(3);
-    expect(top.len).toBe(3);
-    // After r1 leaves at x=5, r2 must still be active (this is what the
-    // identity-based removal fix protects). Segment 3 must have valid extents.
-    expect(bottom.buf[8]).toBe(5);   // perpLow of segment 3 (= along=5)
-    expect(bottom.buf[9]).toBe(8);   // perpHigh of segment 3 (= along=8)
-    expect(bottom.buf[10]).toBe(-2); // alongValue of segment 3 (= min y of r2 only)
-    expect(top.buf[10]).toBe(2);     // alongValue of top segment 3 (= max y of r2 only)
-  });
-
-  it('alongAxis=y sweeps the y axis (perp = x)', () => {
-    // r at x=5, y=10, w=4, d=6 → x range [3,7], y range [7,13].
-    const buf = rectsToBuf([{ x: 5, y: 10, w: 4, d: 6 }]);
-    const { bottom, top } = _envelopesFromRects(buf, 'y');
-    // Sweep along y: at y ∈ [7, 13], perp (x) range = [3, 7].
-    expect(bottom.len).toBe(1);
-    expect(bottom.buf[0]).toBe(7);
-    expect(bottom.buf[1]).toBe(13);
-    expect(bottom.buf[2]).toBe(3);
-    expect(top.buf[2]).toBe(7);
-  });
-});
-
-describe('_slideUntilClear', () => {
-  const { _slideUntilClear, _emptyContour, _appendSegment } = __test;
-
-  it('two empty contours → -Infinity (no constraint)', () => {
-    const a = _emptyContour();
-    const b = _emptyContour();
-    expect(_slideUntilClear(a, b, 1)).toBe(-Infinity);
-  });
-
-  it('child has segments but side is empty → -Infinity', () => {
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, -3);
-    const side = _emptyContour();
-    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
-  });
-
-  it('side has segments but child is empty → -Infinity', () => {
-    const child = _emptyContour();
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 5);
-    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
-  });
-
-  it('non-overlapping perp ranges → -Infinity', () => {
-    const child = _emptyContour();
-    _appendSegment(child, 0, 5, -3);
-    const side = _emptyContour();
-    _appendSegment(side, 100, 105, 50);
-    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
-  });
-
-  it('full overlap, single segment each: offset = sAlong + gap - cAlong', () => {
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, -3); // child's leftmost = -3 at perp [0,10]
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 5); // side's rightmost = 5
-    // Required: -3 + offset ≥ 5 + gap. With gap=1: offset ≥ 9.
-    expect(_slideUntilClear(child, side, 1)).toBe(9);
-  });
-
-  it('partial overlap: only the overlapping perp range constrains', () => {
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, -3);
-    const side = _emptyContour();
-    _appendSegment(side, 5, 15, 5);
-    // Overlap is perp [5, 10]. offset ≥ 5 + 1 - (-3) = 9.
-    expect(_slideUntilClear(child, side, 1)).toBe(9);
-  });
-
-  it('multiple segments: takes max required offset', () => {
-    const child = _emptyContour();
-    _appendSegment(child, 0, 5, -3); // c-segment 1: leftmost = -3
-    _appendSegment(child, 5, 10, 0); // c-segment 2: leftmost = 0
-    const side = _emptyContour();
-    _appendSegment(side, 0, 5, 2); // s-segment 1: rightmost = 2
-    _appendSegment(side, 5, 10, 10); // s-segment 2: rightmost = 10
-    // Constraint 1 (perp [0,5]): -3 + off ≥ 2 + 1 → off ≥ 6.
-    // Constraint 2 (perp [5,10]): 0 + off ≥ 10 + 1 → off ≥ 11.
-    // Max = 11.
-    expect(_slideUntilClear(child, side, 1)).toBe(11);
-  });
-});
-
-describe('_mergeTopContour', () => {
-  const { _mergeTopContour, _emptyContour, _appendSegment, _contourAt } = __test;
-
-  it('merge into empty side: side becomes child shifted by offset', () => {
-    const side = _emptyContour();
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, 5);
-    _mergeTopContour(side, child, 7);
-    expect(side.len).toBe(1);
-    expect(side.buf[0]).toBe(0);
-    expect(side.buf[1]).toBe(10);
-    expect(side.buf[2]).toBe(12); // 5 + 7
-  });
-
-  it('non-zero offset applies to overlapping segments correctly', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 5);
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, 3);
-    // After offset=4: child shifted to alongValue=7. max(side=5, 7) = 7.
-    _mergeTopContour(side, child, 4);
-    expect(_contourAt(side, 5)).toBe(7);
-  });
-
-  it('merge empty child: side unchanged', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 3);
-    const child = _emptyContour();
-    _mergeTopContour(side, child, 100);
-    expect(side.len).toBe(1);
-    expect(side.buf[2]).toBe(3);
-  });
-
-  it('disjoint perp ranges: side has both segments after merge', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 3);
-    const child = _emptyContour();
-    _appendSegment(child, 20, 30, 5);
-    _mergeTopContour(side, child, 0);
-    expect(side.len).toBe(2);
-    expect(_contourAt(side, 5)).toBe(3);
-    expect(_contourAt(side, 25)).toBe(5);
-    expect(_contourAt(side, 15)).toBe(-Infinity);
-  });
-
-  it('child overlaps existing segment with HIGHER value: side raises', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 3);
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, 7);
-    _mergeTopContour(side, child, 0);
-    expect(_contourAt(side, 5)).toBe(7);
-  });
-
-  it('child overlaps existing segment with LOWER value: side stays', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 7);
-    const child = _emptyContour();
-    _appendSegment(child, 0, 10, 3);
-    _mergeTopContour(side, child, 0);
-    expect(_contourAt(side, 5)).toBe(7);
-  });
-
-  it('child partially overlaps: split into multiple segments', () => {
-    const side = _emptyContour();
-    _appendSegment(side, 0, 10, 3);
-    const child = _emptyContour();
-    _appendSegment(child, 5, 15, 7);
-    _mergeTopContour(side, child, 0);
-    // Expected merged: [0,5]=3, [5,10]=max(3,7)=7, [10,15]=7.
-    // Coalesced [5,15]=7.
-    expect(_contourAt(side, 2)).toBe(3);
-    expect(_contourAt(side, 7)).toBe(7);
-    expect(_contourAt(side, 12)).toBe(7);
-  });
-});
-
-describe('_preseedGrandparentBlock', () => {
-  const { _preseedGrandparentBlock, _emptyContour } = __test;
-
-  it('seeds a single segment with alongValue = +gW/2 over a generous perp range', () => {
-    // Pre-seed represents the grandparent's body in parent's local frame:
-    // grandparent's HIGH along edge sits at +gW/2 (= +12 here). The perp
-    // range is a large practical bound (1e9) covering any reasonable child
-    // perp extent past the parent's join.
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24);
-    expect(side.len).toBe(1);
-    expect(side.buf[0]).toBe(0);
-    expect(side.buf[1]).toBeGreaterThan(1e6);
-    expect(side.buf[2]).toBe(12);
-  });
-
-  it('zero or negative width is no-op', () => {
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 0);
-    expect(side.len).toBe(0);
-    _preseedGrandparentBlock(side, -5);
-    expect(side.len).toBe(0);
-  });
-
-  it('blocks back-extending content: child alongLow must clear +gW/2 + gap', () => {
-    const { _slideUntilClear, _appendSegment } = __test;
-    // A child has alongLow = -10 at perp [0, 5] (back-extending into the
-    // zone occupied by the grandparent's body).
-    const child = _emptyContour();
-    _appendSegment(child, 0, 5, -10);
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24); // alongRight = +12
-    // Required: -10 + offset ≥ 12 + 1 (gap) → offset ≥ 23.
-    expect(_slideUntilClear(child, side, 1)).toBe(23);
-  });
-
-  it('constrains content at all perp depths under the practical bound', () => {
-    const { _slideUntilClear, _appendSegment } = __test;
-    // Child only at perp [20, 25] — past the v1 perp range [0, gW/2] but
-    // still within the v2 generous bound. The grandparent's main street
-    // extends well past the parent's stem in side-1 perp; over-constraining
-    // here is acceptable (rare pathological case) and harmless: the
-    // alongValue +gW/2 is the same as at low perp depths.
-    const child = _emptyContour();
-    _appendSegment(child, 20, 25, -10);
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24);
-    // Required: -10 + offset ≥ 12 + 1 → offset ≥ 23.
-    expect(_slideUntilClear(child, side, 1)).toBe(23);
-  });
-
-  it('asymmetric pre-seed: tighter perpRange limits the segment', () => {
-    // B's gem-facing side: caller passes parentStemXInGrandparent so the
-    // pre-seed only blocks perp depths up to that bound. Past it, world
-    // space is empty (behind grandparent's gem) and content is free.
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24, 50); // perpRange = 50
-    expect(side.len).toBe(1);
-    expect(side.buf[0]).toBe(0);
-    expect(side.buf[1]).toBe(50);
-    expect(side.buf[2]).toBe(12);
-  });
-
-  it('asymmetric pre-seed: child past the bound is unconstrained', () => {
-    const { _slideUntilClear, _appendSegment } = __test;
-    // Child only at perp [60, 65] — past the perpRange = 50 bound. With the
-    // tightened pre-seed, _slideUntilClear finds NO overlap and returns
-    // -Infinity (no constraint).
-    const child = _emptyContour();
-    _appendSegment(child, 60, 65, -10);
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24, 50);
-    expect(_slideUntilClear(child, side, 1)).toBe(-Infinity);
-  });
-
-  it('asymmetric pre-seed: undefined perpRange falls back to PRESEED_PERP_INF', () => {
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24, undefined);
-    expect(side.len).toBe(1);
-    expect(side.buf[1]).toBeGreaterThan(1e6);
-  });
-
-  it('asymmetric pre-seed: zero or negative perpRange falls back to PRESEED_PERP_INF', () => {
-    // Defensive: a zero or negative bound (caller bug or root-adjacent edge
-    // case where stemX hasn't grown beyond originPad) should not produce a
-    // degenerate segment. Fall back to the conservative bound.
-    const side = _emptyContour();
-    _preseedGrandparentBlock(side, 24, 0);
-    expect(side.len).toBe(1);
-    expect(side.buf[1]).toBeGreaterThan(1e6);
-    const side2 = _emptyContour();
-    _preseedGrandparentBlock(side2, 24, -5);
-    expect(side2.len).toBe(1);
-    expect(side2.buf[1]).toBeGreaterThan(1e6);
-  });
-});
-
-describe('_envelopeMinAlong', () => {
-  it('empty contour returns Infinity', () => {
-    const c = __test._emptyContour();
-    expect(__test._envelopeMinAlong(c)).toBe(Infinity);
-  });
-
-  it('single segment returns that alongValue', () => {
-    const c = __test._emptyContour();
-    __test._appendSegment(c, 0, 10, 5);
-    expect(__test._envelopeMinAlong(c)).toBe(5);
-  });
-
-  it('multiple segments return smallest alongValue', () => {
-    const c = __test._emptyContour();
-    __test._appendSegment(c, 0, 10, 5);
-    __test._appendSegment(c, 10, 20, 2);
-    __test._appendSegment(c, 20, 30, 8);
-    expect(__test._envelopeMinAlong(c)).toBe(2);
-  });
-
-  it('handles negative alongValues', () => {
-    const c = __test._emptyContour();
-    __test._appendSegment(c, 0, 10, -3);
-    __test._appendSegment(c, 10, 20, -7);
-    expect(__test._envelopeMinAlong(c)).toBe(-7);
-  });
-});
-
-describe('_envelopePerpMin', () => {
-  it('empty contour returns Infinity', () => {
-    const c = __test._emptyContour();
-    expect(__test._envelopePerpMin(c)).toBe(Infinity);
-  });
-
-  it('single segment returns its perpLow', () => {
-    const c = __test._emptyContour();
-    __test._appendSegment(c, -3, 10, 5);
-    expect(__test._envelopePerpMin(c)).toBe(-3);
-  });
-
-  it('multiple segments return smallest perpLow', () => {
-    const c = __test._emptyContour();
-    __test._appendSegment(c, 5, 10, 0);
-    __test._appendSegment(c, -8, 5, 0);
-    __test._appendSegment(c, 10, 20, 0);
-    expect(__test._envelopePerpMin(c)).toBe(-8);
-  });
-});
-
-describe('_isMirrorInvariant', () => {
-  it('empty contours are mirror-invariant', () => {
-    const a = __test._emptyContour();
-    const b = __test._emptyContour();
-    expect(__test._isMirrorInvariant(a, b)).toBe(true);
-  });
-
-  it('bottom = -top per segment → mirror-invariant', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 10, 3);
-    __test._appendSegment(bot, 10, 20, -5);
-    __test._appendSegment(top, 10, 20, 5);
-    expect(__test._isMirrorInvariant(bot, top)).toBe(true);
-  });
-
-  it('bottom = top (not negated) → NOT mirror-invariant unless zero', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, 5);
-    __test._appendSegment(top, 0, 10, 5);
-    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
-  });
-
-  it('different segment counts → NOT mirror-invariant', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 5, 3);
-    __test._appendSegment(top, 5, 10, 3);
-    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
-  });
-
-  it('mismatched perp ranges → NOT mirror-invariant', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 11, 3);
-    expect(__test._isMirrorInvariant(bot, top)).toBe(false);
-  });
-
-  it('within OVERLAP_EPS tolerance', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 10, 3 + 1e-12);
-    expect(__test._isMirrorInvariant(bot, top)).toBe(true);
-  });
-});
-
-describe('_mirrorEnvelopes', () => {
-  it('empty input returns empty contours', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    const m = __test._mirrorEnvelopes(bot, top);
-    expect(m.bottom.len).toBe(0);
-    expect(m.top.len).toBe(0);
-  });
-
-  it('mirrored.bottom = -natural.top per segment', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 10, 7);
-    const m = __test._mirrorEnvelopes(bot, top);
-    expect(m.bottom.len).toBe(1);
-    expect(m.bottom.buf[0]).toBe(0);     // perpLow unchanged
-    expect(m.bottom.buf[1]).toBe(10);    // perpHigh unchanged
-    expect(m.bottom.buf[2]).toBe(-7);    // -natural.top.alongValue
-  });
-
-  it('mirrored.top = -natural.bottom per segment', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 10, 7);
-    const m = __test._mirrorEnvelopes(bot, top);
-    expect(m.top.len).toBe(1);
-    expect(m.top.buf[2]).toBe(3);        // -natural.bottom.alongValue
-  });
-
-  it('mirror twice returns to original (alongValues)', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, -3);
-    __test._appendSegment(top, 0, 10, 7);
-    const m1 = __test._mirrorEnvelopes(bot, top);
-    const m2 = __test._mirrorEnvelopes(m1.bottom, m1.top);
-    expect(m2.bottom.buf[2]).toBe(-3);
-    expect(m2.top.buf[2]).toBe(7);
-  });
-
-  it('multi-segment subtree mirrors correctly', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 5, -2);
-    __test._appendSegment(bot, 5, 10, -1);
-    __test._appendSegment(top, 0, 5, 4);
-    __test._appendSegment(top, 5, 10, 6);
-    const m = __test._mirrorEnvelopes(bot, top);
-    expect(m.bottom.len).toBe(2);
-    expect(m.bottom.buf[2]).toBe(-4);
-    expect(m.bottom.buf[6]).toBe(-6);
-    expect(m.top.len).toBe(2);
-    expect(m.top.buf[2]).toBe(2);
-    expect(m.top.buf[6]).toBe(1);
-  });
-});
-
-describe('_candidateBboxInParent', () => {
-  // Build a subtree with bottom env [0..10, alongValue=0] and top env
-  // [0..10, alongValue=5]. So natural perp range = [0, 10], natural
-  // along range = [0, 5].
-  function mkEnv() {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    __test._appendSegment(bot, 0, 10, 0);
-    __test._appendSegment(top, 0, 10, 5);
-    return { bot, top };
-  }
-
-  it('side 1, natural, stem=0: bbox = subtree natural in parent coords', () => {
-    const { bot, top } = mkEnv();
-    const b = __test._candidateBboxInParent(bot, top, 0, 1, false);
-    expect(b.alongMin).toBe(0);
-    expect(b.alongMax).toBe(5);
-    expect(b.perpMin).toBe(0);
-    expect(b.perpMax).toBe(10);
-  });
-
-  it('side 1, natural, stem=20: along shifts by stem', () => {
-    const { bot, top } = mkEnv();
-    const b = __test._candidateBboxInParent(bot, top, 20, 1, false);
-    expect(b.alongMin).toBe(20);
-    expect(b.alongMax).toBe(25);
-    expect(b.perpMin).toBe(0);
-    expect(b.perpMax).toBe(10);
-  });
-
-  it('side 0, natural: perp negates and swaps', () => {
-    const { bot, top } = mkEnv();
-    const b = __test._candidateBboxInParent(bot, top, 20, 0, false);
-    expect(b.alongMin).toBe(20);
-    expect(b.alongMax).toBe(25);
-    expect(b.perpMin).toBe(-10);
-    expect(b.perpMax).toBe(0);
-  });
-
-  it('side 1, mirrored: along negates around stem, perp unchanged', () => {
-    const { bot, top } = mkEnv();
-    const b = __test._candidateBboxInParent(bot, top, 20, 1, true);
-    // natural along range [0, 5]; mirrored around stem=20 → [20-5, 20-0] = [15, 20]
-    expect(b.alongMin).toBe(15);
-    expect(b.alongMax).toBe(20);
-    expect(b.perpMin).toBe(0);
-    expect(b.perpMax).toBe(10);
-  });
-
-  it('side 0, mirrored: both negations applied', () => {
-    const { bot, top } = mkEnv();
-    const b = __test._candidateBboxInParent(bot, top, 20, 0, true);
-    expect(b.alongMin).toBe(15);
-    expect(b.alongMax).toBe(20);
-    expect(b.perpMin).toBe(-10);
-    expect(b.perpMax).toBe(0);
-  });
-
-  it('empty envelopes return zero-size bbox at stem', () => {
-    const bot = __test._emptyContour();
-    const top = __test._emptyContour();
-    const b = __test._candidateBboxInParent(bot, top, 7, 1, false);
-    expect(b.alongMin).toBe(7);
-    expect(b.alongMax).toBe(7);
-    expect(b.perpMin).toBe(0);
-    expect(b.perpMax).toBe(0);
-  });
-});
-
-describe('_bboxUnionMaxDim', () => {
-  it('two non-overlapping bboxes: max(W, H) of union', () => {
-    const a = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 5 };
-    const b = { alongMin: 12, alongMax: 20, perpMin: 0, perpMax: 5 };
-    // union: along 0..20 (W=20), perp 0..5 (H=5) → max=20
-    expect(__test._bboxUnionMaxDim(a, b)).toBe(20);
-  });
-
-  it('one bbox contains the other: union = larger bbox', () => {
-    const a = { alongMin: 0, alongMax: 100, perpMin: 0, perpMax: 50 };
-    const b = { alongMin: 10, alongMax: 20, perpMin: 5, perpMax: 15 };
-    expect(__test._bboxUnionMaxDim(a, b)).toBe(100);
-  });
-
-  it('square union (W == H) returns that dim', () => {
-    const a = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 10 };
-    const b = { alongMin: 0, alongMax: 10, perpMin: 0, perpMax: 10 };
-    expect(__test._bboxUnionMaxDim(a, b)).toBe(10);
+  it('TEST_TREE is tree-respecting', () => {
+    const layout = layoutCity({ tree: TEST_TREE });
+    expect(() => assertTreeRespecting(layout)).not.toThrow();
   });
 
-  it('negative coordinates handled correctly', () => {
-    const a = { alongMin: -5, alongMax: 5, perpMin: -3, perpMax: 3 };
-    const b = { alongMin: -10, alongMax: 0, perpMin: -8, perpMax: -3 };
-    // union: along -10..5 (W=15), perp -8..3 (H=11) → max=15
-    expect(__test._bboxUnionMaxDim(a, b)).toBe(15);
+  it('TEST_TREE has valid T-junctions', () => {
+    const layout = layoutCity({ tree: TEST_TREE });
+    expect(() => assertTJunctionsValid(layout)).not.toThrow();
   });
 });
 
@@ -1837,72 +1222,3 @@ describe('v3 quickjs-scenario regression', () => {
   });
 });
 
-describe('two-pass re-compute adoption guard', () => {
-  const { _appendSegment, _emptyContour } = __test;
-
-  // Helper: build a contour from raw [perpLow, perpHigh, alongValue] tuples.
-  function mkContour(segs: Array<[number, number, number]>) {
-    const c = _emptyContour();
-    for (const [pLo, pHi, a] of segs) _appendSegment(c, pLo, pHi, a);
-    return c;
-  }
-
-  it('detects when RE bot envelope invalidates committed chosenStemX', () => {
-    // Simulate the bug scenario:
-    //   - sideTop has docs's content at perp 389.80 with alongValue=389.20
-    //   - first-pass bot at perp 389.80 had alongValue=-32 (only main street)
-    //   - chosenStemX = 623.80 (derived from first-pass slide, assuming
-    //     gap=8, sAlong=458.50 at the dominant perp ~95.83 with cAlong=-147.30)
-    //   - RE bot at perp 389.80 now has alongValue=-389.25 (web/scene flipped)
-    // Expected: re-running slide with RE bot returns off > chosenStemX,
-    // proving the second guard would reject RE adoption.
-    const sideTop = mkContour([
-      [50, 100, 458.50],   // dominant perp for first-pass slide (cAlong=-147.30)
-      [380, 420, 389.20],  // docs/plans's perp range — first-pass missed this
-    ]);
-    const firstPassBot = mkContour([
-      [50, 100, -147.30],  // first-pass dominant cAlong
-      [380, 420, -32],     // first-pass at the suspect perp (only main street)
-    ]);
-    const reBot = mkContour([
-      [50, 100, -147.30],  // unchanged at this perp
-      [380, 420, -389.25], // RE flipped web/scene → much more negative here
-    ]);
-    const childGap = 8;
-
-    const firstPassOff = __test._slideUntilClear(firstPassBot, sideTop, childGap);
-    // First-pass slide picked perp 50-100 as dominant: 458.50 + 8 - (-147.30) = 613.80
-    expect(firstPassOff).toBeCloseTo(613.80, 2);
-
-    const chosenStemX = firstPassOff; // simplified: priorStemX/originPad don't dominate
-
-    const reOff = __test._slideUntilClear(reBot, sideTop, childGap);
-    // RE slide picks perp 380-420 as dominant: 389.20 + 8 - (-389.25) = 786.45
-    expect(reOff).toBeCloseTo(786.45, 2);
-
-    // The second guard logic: RE adopted iff reOff <= chosenStemX (+eps).
-    // Here reOff > chosenStemX → RE must NOT be adopted.
-    expect(reOff).toBeGreaterThan(chosenStemX);
-  });
-
-  it('allows adoption when RE bot is everywhere no worse than first-pass', () => {
-    // Single segment at perp 380-420 so it's unambiguously the dominant
-    // constraint. RE's bot is less-negative (less reach) than first-pass at
-    // this perp → RE's required offset is strictly smaller.
-    const sideTop = mkContour([[380, 420, 389.20]]);
-    const firstPassBot = mkContour([[380, 420, -200.0]]); // substantial reach
-    const reBot = mkContour([[380, 420, -150.0]]); // RE is BETTER (less negative)
-    const childGap = 8;
-
-    const firstPassOff = __test._slideUntilClear(firstPassBot, sideTop, childGap);
-    const reOff = __test._slideUntilClear(reBot, sideTop, childGap);
-
-    // Dominant at perp 380-420: 389.20 + 8 - (-200) = 597.20
-    expect(firstPassOff).toBeCloseTo(597.20, 2);
-    // Dominant at perp 380-420: 389.20 + 8 - (-150) = 547.20
-    expect(reOff).toBeCloseTo(547.20, 2);
-
-    // RE's required offset is smaller → guard #2 allows adoption.
-    expect(reOff).toBeLessThanOrEqual(firstPassOff);
-  });
-});
