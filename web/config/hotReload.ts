@@ -66,9 +66,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
     // Flip to 'rebuilding' immediately when the timer is scheduled
-    // (not just before applyManifest fires) so the browser has time
-    // to paint the indicator before the synchronous rebuild blocks
-    // the main thread.
+    // (not just before applyManifest fires) so the indicator paints
+    // before the debounce gap closes. applyManifest is async now —
+    // its layout phase runs off-thread via the layout worker, and only
+    // the mesh-construction tail blocks the main thread.
     REBUILD_STATUS.set('rebuilding');
     rebuildTimer = setTimeout(async () => {
       rebuildTimer = 0;
@@ -78,6 +79,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
         // path reachable via store mutation under normal use. The 'idle'
         // transition below is safe even in that no-op branch.
         if (manifest) await cityScene.applyManifest(manifest);
+        // LAST_UPDATED_AT is set by the coordinator's cityScene.onChange
+        // listener after applyManifest's _emit(changeCbs, ...) fires —
+        // not set here. refreshMaterials below uses its own hot-path
+        // timestamp set because applyTheme doesn't fire onChange.
         REBUILD_STATUS.set('idle');
         LAST_REBUILD_ERROR.set(null);
       } catch (err) {
