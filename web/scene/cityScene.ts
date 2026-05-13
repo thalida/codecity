@@ -761,10 +761,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     if (myGeneration !== _currentGeneration) {
       // A newer applyManifest started while we were building. Dispose the
       // new meshes we just built (they'd leak otherwise) and bail.
+      // disposeLabelMaterials clears the module-level _labelMaterials map
+      // keyed by atlas textures we're about to release.
       for (const block of newBlocks) {
         if (block.detailMesh) _disposeObject(block.detailMesh);
         if (block.labelsMesh) _disposeObject(block.labelsMesh);
       }
+      disposeLabelMaterials();
       for (const tex of newAtlasTextures) tex.dispose();
       built.scene.traverse(_disposeObject);
       return;
