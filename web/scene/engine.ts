@@ -200,6 +200,40 @@ function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
   return group;
 }
 
+// Procedural glow texture: a single-channel radial gradient drawn on a
+// canvas, used as the alpha map for the gem's sprite halo. Cached at
+// module scope so a second gem build (live-reload manifest swap) reuses
+// the same GPU texture rather than allocating a fresh one each time.
+//
+// Returns null when the host environment can't build a real gradient
+// (the jsdom canvas mock returns undefined from createRadialGradient).
+// Callers skip the glow sprites in that case.
+let _glowTexture: THREE.CanvasTexture | null = null;
+function _makeGlowTexture(): THREE.CanvasTexture | null {
+  if (_glowTexture) return _glowTexture;
+  const SIZE = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d');
+  if (!ctx || typeof ctx.createRadialGradient !== 'function') return null;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, SIZE / 2);
+  if (!gradient || typeof gradient.addColorStop !== 'function') return null;
+  // Soft falloff: bright hot center, smooth glide to fully transparent
+  // at the edge so the sprite has no visible boundary.
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
+  gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.65)');
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.2)');
+  gradient.addColorStop(0.75, 'rgba(255, 255, 255, 0.05)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+  _glowTexture = new THREE.CanvasTexture(canvas);
+  return _glowTexture;
+}
+
 // -----------------------------------------------------------------------------
 // createRootGem(street) -> THREE.Group
 //
@@ -280,31 +314,51 @@ function createRootGem(street: Street): THREE.Group {
     new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor) })
   );
 
-  // Neon glow halo: a slightly larger octahedron using the same vivid
-  // face palette but rendered with additive blending and low opacity.
-  // The colored faces bleed out around the solid body like a soft aura.
-  // Rendered before the body in the parent group so additive pixels
-  // stack with the body's colors rather than overwriting them; depth
-  // write off so it doesn't occlude anything itself.
-  const GLOW_SCALE = 1.35;
-  const GLOW_OPACITY = 0.45;
-  const glowGeo = new THREE.OctahedronGeometry(radius * GLOW_SCALE, 0);
-  glowGeo.setAttribute('color', new THREE.BufferAttribute(colorAttr.slice(), 3));
-  const glow = new THREE.Mesh(
-    glowGeo,
-    new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      transparent: true,
-      opacity: GLOW_OPACITY,
-      blending: THREE.AdditiveBlending,
-      depthWrite: false,
-      side: THREE.BackSide,
-    })
-  );
-  glow.renderOrder = -1;
-
+  // Neon glow: two billboarded sprites stacked behind the gem with a
+  // soft radial-gradient texture. Sprites always face the camera so the
+  // glow reads consistently from any angle. Additive blending makes the
+  // bright center clip toward white where it overlaps the colored gem,
+  // mimicking a real light source. Sized in world units (radius × N) so
+  // the halo scales with the gem.
+  //
+  // Two layers:
+  //   - inner: smaller, brighter — a "hot core" that hugs the gem
+  //   - outer: much larger, dimmer — the atmospheric falloff
+  //
+  // Skipped when _makeGlowTexture returns null (jsdom test env).
   const gem = new THREE.Group();
-  gem.add(glow);
+  const glowTex = _makeGlowTexture();
+  if (glowTex) {
+    const innerGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTex,
+        color: new THREE.Color(edgeColor),
+        transparent: true,
+        opacity: 0.75,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    innerGlow.scale.set(radius * 3.2, radius * 3.2, 1);
+
+    const outerGlow = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map: glowTex,
+        color: new THREE.Color(edgeColor),
+        transparent: true,
+        opacity: 0.45,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      })
+    );
+    outerGlow.scale.set(radius * 7, radius * 7, 1);
+
+    // Draw outer halo first (largest, softest), then inner, then the
+    // opaque body, then the edges. The additive layers blend cumulatively
+    // beneath the body's colored faces.
+    gem.add(outerGlow);
+    gem.add(innerGlow);
+  }
   gem.add(body);
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
