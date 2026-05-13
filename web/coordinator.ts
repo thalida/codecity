@@ -49,8 +49,17 @@ export function createCoordinator({
 
   // Build the right-sidebar's file-preview pane once. The shell mounts
   // it on first show; subsequent selection changes just push a new file
-  // target into it via the pane's setFile API.
-  const filePreview = buildFilePreviewPane();
+  // target into it via the pane's setFile API. onClose flips the
+  // coordinator-level visibility tracker so a subsequent file selection
+  // re-opens the sidebar (otherwise the sidebar would stay open in our
+  // mental model but be DOM-closed, and the next selection wouldn't
+  // re-trigger an open).
+  const filePreview = buildFilePreviewPane({
+    onClose() {
+      sidebarVisible = false;
+      _renderSidebar();
+    },
+  });
 
   function _renderSidebar(): void {
     if (!sidebarVisible) {

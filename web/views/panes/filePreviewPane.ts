@@ -94,19 +94,52 @@ const NAME_LANG: Record<string, string> = {
   readme: 'markdown',
 };
 
+interface BuildFilePreviewPaneOpts {
+  /** Called when the user clicks the × in the pane header. Host should
+   *  hide the sidebar AND update any shell-level visibility tracker so a
+   *  subsequent re-open isn't suppressed. */
+  onClose?: () => void;
+}
+
 /**
  * Build a file-preview pane.
  *
  * Returns:
- *   pane — `<div class="editor-body">` to mount into the right sidebar slot
+ *   pane — outer container `<div class="file-preview-pane">` to mount
+ *     into the right sidebar slot. Contains a `.pane-header` (leaf
+ *     filename + × close button) and a `.editor-body` that holds the
+ *     actual preview content.
  *   api.setFile(file | null) — push the file the pane should render. Pass
  *     null to show the "nothing to preview" empty state (used both for
  *     no-selection and for directory-selection, since dirs aren't
- *     previewable in this pane).
+ *     previewable in this pane). The header title updates in lockstep.
  */
-export function buildFilePreviewPane() {
+export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
+  const pane = document.createElement('div');
+  pane.className = 'file-preview-pane';
+
+  const header = document.createElement('div');
+  header.className = 'pane-header file-preview-header';
+  const title = document.createElement('h3');
+  title.className = 'file-preview-title';
+  header.appendChild(title);
+  if (typeof opts.onClose === 'function') {
+    const closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'pane-header-close';
+    closeBtn.title = 'Close sidebar';
+    closeBtn.setAttribute('aria-label', 'Close sidebar');
+    closeBtn.appendChild(makeLucideIcon('x'));
+    closeBtn.addEventListener('click', () => {
+      opts.onClose!();
+    });
+    header.appendChild(closeBtn);
+  }
+  pane.appendChild(header);
+
   const body = document.createElement('div');
   body.className = 'editor-body';
+  pane.appendChild(body);
 
   function setFile(
     file:
@@ -120,6 +153,7 @@ export function buildFilePreviewPane() {
         }
       | null
   ): void {
+    title.textContent = file?.name ? String(file.name) : 'No file';
     body.replaceChildren();
     if (!file) {
       body.appendChild(
@@ -138,7 +172,7 @@ export function buildFilePreviewPane() {
   setFile(null);
 
   return {
-    pane: body,
+    pane,
     api: { setFile },
   };
 }

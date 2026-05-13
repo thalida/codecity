@@ -250,6 +250,33 @@ canvas {
   background: rgba(74, 222, 128, 0.1);
 }
 
+/* ── File preview pane (right sidebar) ──────────────────────────────────
+   Outer container that wraps the pane header (filename + × close) and the
+   editor body. The wrapper itself fills the sidebar's vertical space; the
+   body grows inside it under the fixed-height header. */
+
+.file-preview-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-preview-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0c4d8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
 .editor-body {
