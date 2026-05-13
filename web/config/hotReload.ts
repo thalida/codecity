@@ -65,6 +65,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
       rebuildTimer = 0;
       try {
         const manifest = cityScene.getManifest();
+        // getManifest() returns null only during scene teardown — not a
+        // path reachable via store mutation under normal use. The 'idle'
+        // transition below is safe even in that no-op branch.
         if (manifest) cityScene.applyManifest(manifest);
         REBUILD_STATUS.set('idle');
         LAST_REBUILD_ERROR.set(null);

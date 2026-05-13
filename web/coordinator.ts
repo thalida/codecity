@@ -100,6 +100,9 @@ export function createCoordinator({
   // first poll lands a fresh manifest.
   if (initialManifest) LAST_UPDATED_AT.set(Date.now());
 
+  // Transitional shape: feeds the old `reloading` boolean field of
+  // FooterLiveStatus. Task 2 splits the footer API into setLiveStatus +
+  // setBuildStatus and removes this translation.
   function _refreshLiveStatus(): void {
     appFooter.setLiveStatus({
       enabled: LIVE_UPDATES.get().ENABLED,

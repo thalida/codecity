@@ -483,8 +483,12 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
         if (!sig?.signature || sig.signature === lastSignature) break;
         await refreshManifest();
       } while (needsRefresh);
-    } catch {
-      /* keep polling on transient errors */
+    } catch (_) {
+      // Signature-fetch errors (network blip on the cheap probe) are
+      // intentionally not surfaced through REBUILD_STATUS — no rebuild
+      // attempt happened. The next tick retries. Only failures inside
+      // refreshManifest (the full fetch + applyManifest) populate the
+      // error indicator.
     } finally {
       inFlight = false;
     }
