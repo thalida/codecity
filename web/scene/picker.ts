@@ -69,7 +69,9 @@ export function createPicker({
     }
     const gem = cityScene.getRootGem();
     if (gem) {
-      const gemBody = gem.children && gem.children[0];
+      // Body lives at gem.userData.body — don't index children, since
+      // the glow sprites are also children and the order shifts.
+      const gemBody = gem.userData.body as THREE.Object3D | undefined;
       if (gemBody) pickables.push(gemBody);
     }
   }

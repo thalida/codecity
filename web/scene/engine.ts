@@ -395,6 +395,11 @@ function createRootGem(street: Street): THREE.Group {
   // recompute baseY = radius + streetWidth × frac.
   gem.userData.streetWidth = street.width;
   gem.userData.radius = radius;
+  // Direct refs to the body and edges meshes so consumers (picker,
+  // applyTheme) don't have to know the child-order convention — which
+  // shifts depending on whether the glow sprites are also children.
+  gem.userData.body = body;
+  gem.userData.edges = edges;
   // Glow sprite refs for hot-reload (applyTheme) and per-frame color
   // cycling. Either may be null when the host can't build a gradient
   // texture (jsdom test env).
@@ -578,12 +583,14 @@ export function buildCityScene(layout: CityLayout) {
       const gemGroup = createRootGem(street);
       scene.add(gemGroup);
       rootGem = (gemGroup.userData.gem as THREE.Group) || null;
-      if (rootGem && rootGem.children) {
+      if (rootGem) {
         rootGemBody =
-          (rootGem.children[0] as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>) ||
-          null;
+          (rootGem.userData.body as THREE.Mesh<
+            THREE.BufferGeometry,
+            THREE.MeshBasicMaterial
+          >) || null;
         rootGemEdges =
-          (rootGem.children[1] as THREE.LineSegments<
+          (rootGem.userData.edges as THREE.LineSegments<
             THREE.BufferGeometry,
             THREE.LineBasicMaterial
           >) || null;
