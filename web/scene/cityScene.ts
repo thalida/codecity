@@ -736,12 +736,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // buildings) and visual confusion (cuboid vs real building). Three's
       // built-in frustum culling per InstancedMesh handles the perf
       // benefit at far zoom that placeholders were supposed to provide.
-      if (block.buildings.length === 0) continue;
-      const detailMesh = createBuildingsInstancedMesh(block);
-      block.detailMesh = detailMesh;
-      scene.add(detailMesh);
+      //
+      // Building mesh is only built when the block has direct files;
+      // container-only directories (e.g. `.superpowers/brainstorm` whose
+      // children are all subdirs) have 0 buildings and skip that path.
+      // The street label is built unconditionally — every street should
+      // be named on the road, including container-only ones.
+      if (block.buildings.length > 0) {
+        const detailMesh = createBuildingsInstancedMesh(block);
+        block.detailMesh = detailMesh;
+        scene.add(detailMesh);
+      }
 
-      // Task 15: per-block label InstancedMesh.
+      // Task 15: per-block label InstancedMesh. Built regardless of
+      // direct-file count.
       const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTextures);
       if (labelsMesh) {
         block.labelsMesh = labelsMesh;

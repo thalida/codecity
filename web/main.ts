@@ -250,6 +250,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
     },
+    getRootName: () => cityScene.getRoot()?.name ?? null,
   });
 
   // Sidewalk tints are scene-state that follow selection / hover. Subscribe

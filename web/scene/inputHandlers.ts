@@ -27,6 +27,7 @@ export function createInputHandlers({
   showTooltip,
   hideTooltip,
   onResize,
+  getRootName,
 }: {
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
@@ -37,6 +38,9 @@ export function createInputHandlers({
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
+  /** Resolve the current root directory name for hover-tooltip prefixing.
+   * Called lazily on each hover so it stays in sync after manifest reloads. */
+  getRootName: () => string | null;
 }) {
   // Click vs. drag: pointerdown→pointerup with movement + time threshold.
   let downX = 0,
@@ -54,27 +58,38 @@ export function createInputHandlers({
   let _hoverPending = null;
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
+  // Prepend the root directory name to a manifest-relative path so the
+  // hover tooltip reads as the user thinks of it (e.g. "codecity/web/main.ts"
+  // rather than "web/main.ts"). For the root itself (empty path), returns
+  // just the root name. Safe against a null/empty root name.
+  function _withRoot(relPath: string): string {
+    const root = getRootName();
+    if (!root) return relPath || '';
+    if (!relPath) return root;
+    return `${root}/${relPath}`;
+  }
+
   function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;
     if (target.kind === NodeKind.Gem) {
-      // Resolve via picker → cityScene only as needed; we don't keep a
-      // direct cityScene ref here.
-      return 'root';
+      // The gem represents the project root; show the root folder name
+      // itself (falls back to a generic literal if unknown).
+      return getRootName() || 'root';
     }
     if (target.kind === NodeKind.File && target.file) {
       const f = target.file;
-      const fpath = f.path || f.name || 'file';
+      const fpath = _withRoot(f.path || f.name || 'file');
       return fpath + (f.lines != null ? `  ·  ${f.lines} lines` : '');
     }
     if (target.kind === NodeKind.Directory && target.dir) {
       const d = target.dir;
-      const dpath = d.path || d.name || 'directory';
+      const dpath = _withRoot(d.path || d.name || '');
       const fileCount = d.descendants_file_count != null ? d.descendants_file_count : 0;
       const dirCount = d.descendants_dir_count != null ? d.descendants_dir_count : 0;
       const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
         dirCount === 1 ? '' : 's'
       }`;
-      return `${dpath}  ·  ${counts}`;
+      return `${dpath || 'directory'}  ·  ${counts}`;
     }
     return null;
   }
