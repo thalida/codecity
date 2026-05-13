@@ -247,6 +247,13 @@ export function createCoordinator({
       });
     }
 
+    // Selecting a building (file) auto-opens the right sidebar so the
+    // preview is always one click away. Directory selections and
+    // deselect don't flip visibility — only the × close button does,
+    // keeping "× closes; selecting a file opens" as the two clean
+    // primitives the user can hold in their head.
+    if (sel && sel.kind === NodeKind.File) sidebarVisible = true;
+
     _renderSidebar();
   });
 
