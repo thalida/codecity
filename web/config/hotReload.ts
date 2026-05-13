@@ -11,7 +11,7 @@
 // Adding a new config row is a one-line entry in the appropriate set
 // below — the reactions below pick it up automatically.
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR } from '../liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '../liveStatus.js';
 
 import {
   // Rebuild-required (affects layout or geometry):
@@ -37,6 +37,12 @@ import {
 // rebuild after the user stops, instead of one rebuild per slider tick.
 const REBUILD_DEBOUNCE_MS = 50;
 
+// Min-dwell for the 'rebuilding' indicator on the hot-reload path.
+// applyTheme() is synchronous and finishes within microseconds, so without
+// a forced floor the user never sees the yellow flash. ~220 ms is long
+// enough to register visually but short enough to feel snappy.
+const HOT_REBUILD_MIN_DWELL_MS = 220;
+
 interface HotReloadOpts {
   cityScene: {
     getManifest(): unknown;
@@ -53,6 +59,8 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   let armed = false;
 
   let rebuildTimer: ReturnType<typeof setTimeout> | 0 = 0;
+  let hotIdleTimer: ReturnType<typeof setTimeout> | 0 = 0;
+
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
@@ -80,7 +88,27 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
 
   function refreshMaterials() {
     if (!armed) return;
-    applyTheme();
+    if (hotIdleTimer) clearTimeout(hotIdleTimer);
+    REBUILD_STATUS.set('rebuilding');
+    try {
+      applyTheme();
+    } catch (err) {
+      REBUILD_STATUS.set('error');
+      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
+      return;
+    }
+    // applyTheme is synchronous; hold the 'rebuilding' indicator on
+    // screen for a min-dwell so the user can see the yellow flash.
+    // Only transition if no rebuild is also in flight — applyManifest's
+    // own try/catch owns the final state in that case.
+    hotIdleTimer = setTimeout(() => {
+      hotIdleTimer = 0;
+      if (REBUILD_STATUS.get() === 'rebuilding') {
+        REBUILD_STATUS.set('idle');
+        LAST_REBUILD_ERROR.set(null);
+        LAST_UPDATED_AT.set(Date.now());
+      }
+    }, HOT_REBUILD_MIN_DWELL_MS);
   }
 
   const rebuildStores = [
@@ -121,6 +149,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     if (rebuildTimer) {
       clearTimeout(rebuildTimer);
       rebuildTimer = 0;
+    }
+    if (hotIdleTimer) {
+      clearTimeout(hotIdleTimer);
+      hotIdleTimer = 0;
     }
     for (const unsub of unsubs) {
       try {
