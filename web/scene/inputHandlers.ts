@@ -58,23 +58,24 @@ export function createInputHandlers({
   let _hoverPending = null;
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
-  // Prepend the root directory name to a manifest-relative path so the
-  // hover tooltip reads as the user thinks of it (e.g. "codecity/web/main.ts"
-  // rather than "web/main.ts"). For the root itself (empty path), returns
-  // just the root name. Safe against a null/empty root name.
+  // Prepend the root directory name (with a leading slash) to a manifest-
+  // relative path so the hover tooltip reads as an absolute-looking path
+  // (e.g. "/codecity/web/main.ts" rather than "web/main.ts"). The manifest
+  // uses '.' as the root directory's own path; that sentinel is treated
+  // the same as empty — we don't render "codecity/.".
   function _withRoot(relPath: string): string {
     const root = getRootName();
     if (!root) return relPath || '';
-    if (!relPath) return root;
-    return `${root}/${relPath}`;
+    if (!relPath || relPath === '.') return `/${root}`;
+    return `/${root}/${relPath}`;
   }
 
   function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;
     if (target.kind === NodeKind.Gem) {
       // The gem represents the project root; show the root folder name
-      // itself (falls back to a generic literal if unknown).
-      return getRootName() || 'root';
+      // (prefixed with '/' to match directory tooltips).
+      return _withRoot('');
     }
     if (target.kind === NodeKind.File && target.file) {
       const f = target.file;
@@ -84,8 +85,10 @@ export function createInputHandlers({
     if (target.kind === NodeKind.Directory && target.dir) {
       const d = target.dir;
       const dpath = _withRoot(d.path || d.name || '');
-      const fileCount = d.descendants_file_count != null ? d.descendants_file_count : 0;
-      const dirCount = d.descendants_dir_count != null ? d.descendants_dir_count : 0;
+      // Show immediate-child counts (not descendants) — the tooltip is a
+      // quick "what's directly inside here", not a subtree summary.
+      const fileCount = d.children_file_count != null ? d.children_file_count : 0;
+      const dirCount = d.children_dir_count != null ? d.children_dir_count : 0;
       const counts = `${fileCount} file${fileCount === 1 ? '' : 's'}, ${dirCount} dir${
         dirCount === 1 ? '' : 's'
       }`;

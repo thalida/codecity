@@ -42,6 +42,7 @@ import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
 import {
   buildLabelAtlas,
+  truncateLabelToFit,
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
@@ -699,6 +700,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const newBlocks = groupBuildingsByDirectory(layout.buildings, layout.streets);
 
     // Task 15: build shared label atlas from all unique street label texts.
+    // Each street.label is first truncated to fit its own road; the atlas
+    // dedups across blocks that resolve to the same truncated form. We
+    // mutate `street.label` in place so the atlas lookup later in the
+    // pipeline finds the same key it was stored under.
+    const labelCfg = LABEL_TYPOGRAPHY.get();
+    const measureCtx = document.createElement('canvas').getContext('2d');
+    if (measureCtx) {
+      measureCtx.font = `${labelCfg.FONT_WEIGHT} ${labelCfg.FONT_SIZE_PX}px ${labelCfg.FONT_FAMILY}`;
+      for (const b of newBlocks) {
+        const street = b.primaryStreet;
+        if (!street || !street.label) continue;
+        street.label = truncateLabelToFit(street.label, street, labelCfg, measureCtx);
+      }
+    }
     const uniqueTexts = Array.from(
       new Set(
         newBlocks
@@ -706,7 +721,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           .filter((t): t is string => Boolean(t)),
       ),
     );
-    const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
+    const atlas = buildLabelAtlas(uniqueTexts, labelCfg);
     _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
 
     // Diagnostic: dump (dir.path → primaryStreet.label) pairs and the atlas
