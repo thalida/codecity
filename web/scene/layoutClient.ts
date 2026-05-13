@@ -56,6 +56,7 @@ export function createLayoutClient(): LayoutClient {
   const pending = new Map<number, PendingRequest>();
   let nextId = 1;
   let disposed = false;
+  let worker: Worker | null = null;
 
   function _supersedeAll(): void {
     if (pending.size === 0) return;
@@ -65,55 +66,98 @@ export function createLayoutClient(): LayoutClient {
     pending.clear();
   }
 
+  function _ensureWorker(): Worker | null {
+    if (worker) return worker;
+    if (typeof Worker === 'undefined') return null;
+    try {
+      worker = new Worker(new URL('./layoutWorker.ts', import.meta.url), {
+        type: 'module',
+      });
+    } catch (_) {
+      // Older browsers without module-worker support — fall back to sync.
+      worker = null;
+      return null;
+    }
+    worker.addEventListener('message', (event: MessageEvent) => {
+      const data = event.data as
+        | { type: 'layout-result'; id: number; layout: CityLayout }
+        | { type: 'layout-error'; id: number; message: string };
+      const entry = pending.get(data.id);
+      if (!entry) return; // already superseded
+      pending.delete(data.id);
+      if (data.type === 'layout-result') {
+        entry.resolve(data.layout);
+      } else {
+        entry.reject(new Error(data.message));
+      }
+    });
+    worker.addEventListener('error', (event: ErrorEvent) => {
+      // Reject every pending request — we don't know which one died.
+      for (const entry of pending.values()) {
+        entry.reject(new Error(event.message || 'layout worker error'));
+      }
+      pending.clear();
+    });
+    return worker;
+  }
+
+  function _computeSync(
+    id: number,
+    manifest: Manifest,
+    resolve: PendingRequest['resolve'],
+    reject: PendingRequest['reject'],
+  ): void {
+    try {
+      const layout = layoutCityV4(
+        manifest as unknown as Parameters<typeof layoutCityV4>[0],
+      );
+      queueMicrotask(() => {
+        if (!pending.has(id)) return;
+        pending.delete(id);
+        resolve(layout);
+      });
+    } catch (err) {
+      queueMicrotask(() => {
+        if (!pending.has(id)) return;
+        pending.delete(id);
+        reject(err instanceof Error ? err : new Error(String(err)));
+      });
+    }
+  }
+
   function compute(manifest: Manifest): Promise<CityLayout> {
     if (disposed) {
       return Promise.reject(new Error('layoutClient disposed'));
     }
     const id = nextId++;
-    // Any in-flight compute is replaced by this newer one.
     _supersedeAll();
-
     return new Promise<CityLayout>((resolve, reject) => {
       pending.set(id, { resolve, reject });
-      // Sync fallback path: jsdom + tests, plus any environment without
-      // Worker support. Run synchronously but in a microtask so the
-      // supersede behavior matches the async-worker path. We don't
-      // snapshot config here — the sync path shares the caller's
-      // process-local store instances, so the values are already
-      // correct. The Worker path in Task 2 will use _snapshot().
-      try {
-        const layout = layoutCityV4(
-          manifest as unknown as Parameters<typeof layoutCityV4>[0],
-        );
-        // Resolve on a microtask so the supersede check in the next
-        // compute() call still has a chance to fire before this one
-        // resolves. Without queueMicrotask, two synchronous compute()
-        // calls in the same tick would both observe the same pending
-        // map and the supersede semantics would be racy.
-        queueMicrotask(() => {
-          if (!pending.has(id)) return; // already superseded
-          pending.delete(id);
-          resolve(layout);
-        });
-      } catch (err) {
-        queueMicrotask(() => {
-          if (!pending.has(id)) return;
-          pending.delete(id);
-          reject(err instanceof Error ? err : new Error(String(err)));
-        });
+      const w = _ensureWorker();
+      if (!w) {
+        _computeSync(id, manifest, resolve, reject);
+        return;
       }
+      w.postMessage({
+        type: 'layout',
+        id,
+        manifest,
+        configSnapshot: _snapshot(),
+      });
     });
   }
 
   function dispose(): void {
     if (disposed) return;
     disposed = true;
-    // Distinct rejection reason from supersede so callers can
-    // distinguish "newer compute() arrived" from "client is torn down".
     for (const entry of pending.values()) {
       entry.reject(new Error('disposed'));
     }
     pending.clear();
+    if (worker) {
+      worker.terminate();
+      worker = null;
+    }
   }
 
   return { compute, dispose };
