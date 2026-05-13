@@ -42,11 +42,13 @@ import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
 import {
   buildLabelAtlas,
+  truncateLabelToFit,
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
-import { findLayoutOverlaps, layoutCity } from './layout.js';
+import { findLayoutOverlaps } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
+import { createLayoutClient } from './layoutClient.js';
 import { layoutCityV4WithTrace } from './layoutV4.js';
 import type {
   ChildPlacementTrace,
@@ -227,6 +229,17 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+  // Generation counter: each applyManifest invocation increments this and
+  // captures its own value. If _currentGeneration has advanced beyond a
+  // call's captured value by the time a safe-point check runs, that call
+  // was superseded and must bail out (cleaning up any meshes it built).
+  let _currentGeneration = 0;
+
+  // One layoutClient instance per cityScene. Owns the off-thread worker
+  // (or its sync fallback in test envs). Disposed when the cityScene is
+  // disposed.
+  const _layoutClient = createLayoutClient();
 
   // Manifest-bound state. Reassigned on each applyManifest.
   let manifest: Manifest | null = null;
@@ -622,7 +635,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // manifests with string `type` fields rather than the literal
   // 'directory'/'file'. Real callers (the scanner/IPC path) hand us
   // proper Manifest objects.
-  function applyManifest(newManifest: Manifest | { tree: unknown; [k: string]: unknown }): void {
+  async function applyManifest(
+    newManifest: Manifest | { tree: unknown; [k: string]: unknown },
+  ): Promise<void> {
+    const myGeneration = ++_currentGeneration;
+
     const prev: PrevState = {
       buildings: buildingMeshes,
       blocks,
@@ -637,68 +654,70 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     _emit(beforeChangeCbs, prev);
 
-    _disposeAllManifestState();
+    // ---- Phase 1: compute the new layout off-thread via layoutClient.
+    // A later applyManifest can preempt us by bumping _currentGeneration;
+    // layoutClient signals that via a 'superseded' rejection.
+    const newManifestTyped = newManifest as Manifest;
+    let newLayout: CityLayout;
+    // Pass the full manifest envelope (not `manifest.tree`) — the worker
+    // forwards it to layoutCityV4, which internally unwraps `.tree` via
+    // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
+    // produce the same layout, but routing through the envelope keeps
+    // the worker message contract typed against `Manifest` rather than
+    // a structural `DirLike`. A reject with `Error('superseded')` is
+    // expected when a newer applyManifest preempts us — return silently
+    // so the newer run owns the swap.
+    try {
+      newLayout = await _layoutClient.compute(newManifestTyped);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'superseded') return;
+      throw err;
+    }
+    if (myGeneration !== _currentGeneration) return;
 
-    manifest = newManifest as Manifest;
-    // layoutCity / getDateRanges accept the structural-shape variants
-    // (DirLike / TreeNodeLike). DirNode satisfies them at runtime; the
-    // explicit cast keeps the type checker happy across the boundary.
-    layout = layoutCity(manifest.tree as unknown as Parameters<typeof layoutCity>[0]);
-
-    dateRanges = getDateRanges(manifest.tree as unknown as Parameters<typeof getDateRanges>[0]);
-
-    // Color buildings before mesh creation — buildCityScene reads b.color.
+    // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
+    // building list. dateRanges and the color loop don't touch the scene yet.
+    const newDateRanges = getDateRanges(
+      newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
+    );
     const dirColor = BUILDING_PALETTE.get().DIRECTORY_COLOR;
-    const buildings = layout?.buildings ?? [];
-    for (const b of buildings) {
+    const newBuildings = newLayout?.buildings ?? [];
+    for (const b of newBuildings) {
       b.color =
         b.file?.type === NodeKind.File
           ? getBuildingColor(
               b.file as unknown as Parameters<typeof getBuildingColor>[0],
-              dateRanges
+              newDateRanges,
             )
           : dirColor;
     }
+    if (myGeneration !== _currentGeneration) return;
 
-    // Build streets / labels / paths / gem (not buildings — those are
-    // per-block InstancedMeshes below).
-    const built = buildCityScene(layout);
-    bbox = built.bbox;
-    // buildCityScene still builds per-building meshes internally but we
-    // don't use them. We extract only the non-building parts.
-    streetPickables = built.streetPickables || [];
-    streetLabels = built.streetLabels || [];
-    pathMeshes = built.pathMeshes || [];
-    asphaltMeshes = built.asphaltMeshes || [];
-    rootGem = built.rootGem || null;
-    rootGemBody = built.rootGemBody || null;
-    rootGemEdges = built.rootGemEdges || null;
-
-    // Migrate built scene's non-building children into the persistent scene.
-    // We add them all, then remove the per-building meshes that buildCityScene
-    // still creates (they'll be replaced by InstancedMeshes below).
-    for (const child of [...built.scene.children]) scene.add(child);
-    // buildCityScene also set its own scene.background; mirror onto ours.
-    scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
-
-    // Remove per-building meshes that buildCityScene created — we replace
-    // them with per-block InstancedMeshes.
-    for (const bm of built.buildingMeshes || []) {
-      if (bm.parent) bm.parent.remove(bm);
-      _disposeObject(bm);
-    }
-
-    // Task 15: Remove old per-Group label meshes from buildCityScene — replaced
-    // by per-block label InstancedMeshes below.
-    for (const lg of built.streetLabels || []) {
-      if (lg.parent) lg.parent.remove(lg);
-      lg.traverse(_disposeObject);
-    }
-
-    // Task 8: group buildings by directory → one InstancedMesh per block.
-    const newBlocks = groupBuildingsByDirectory(layout.buildings, layout.streets);
+    // ---- Phase 3: build all new meshes detached from the live scene.
+    // `built` is a sub-scene from buildCityScene with its own children
+    // (streets, labels, paths, gem). We do NOT add its children to the
+    // live scene yet — that happens in Phase 4's atomic swap.
+    const built = buildCityScene(newLayout);
+    const newBlocks = groupBuildingsByDirectory(
+      newLayout.buildings,
+      newLayout.streets,
+    );
 
     // Task 15: build shared label atlas from all unique street label texts.
+    // Each street.label is first truncated to fit its own road; the atlas
+    // dedups across blocks that resolve to the same truncated form. We
+    // mutate `street.label` in place so the atlas lookup later in the
+    // pipeline finds the same key it was stored under.
+    const labelCfg = LABEL_TYPOGRAPHY.get();
+    const measureCtx = document.createElement('canvas').getContext('2d');
+    if (measureCtx) {
+      measureCtx.font = `${labelCfg.FONT_WEIGHT} ${labelCfg.FONT_SIZE_PX}px ${labelCfg.FONT_FAMILY}`;
+      for (const b of newBlocks) {
+        const street = b.primaryStreet;
+        if (!street || !street.label) continue;
+        street.label = truncateLabelToFit(street.label, street, labelCfg, measureCtx);
+      }
+    }
     const uniqueTexts = Array.from(
       new Set(
         newBlocks
@@ -706,8 +725,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           .filter((t): t is string => Boolean(t)),
       ),
     );
-    const atlas = buildLabelAtlas(uniqueTexts, LABEL_TYPOGRAPHY.get());
-    _atlasTextures = atlas.pages.map((c) => new THREE.CanvasTexture(c));
+    const atlas = buildLabelAtlas(uniqueTexts, labelCfg);
+    const newAtlasTextures = atlas.pages.map(
+      (c) => new THREE.CanvasTexture(c),
+    );
 
     // Diagnostic: dump (dir.path → primaryStreet.label) pairs and the atlas
     // rect each block resolves to. Toggle with window.__labelDebug = true
@@ -730,23 +751,86 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       (window as unknown as { __labelDebugDump?: unknown }).__labelDebugDump = dump;
     }
 
+    // Per-block detail + label meshes — created here but added to the
+    // scene only in Phase 4 below.
     for (const block of newBlocks) {
       // Placeholders disabled: they caused hover ambiguity (one block's
       // placeholder cuboid intercepting rays meant for another block's
       // buildings) and visual confusion (cuboid vs real building). Three's
       // built-in frustum culling per InstancedMesh handles the perf
       // benefit at far zoom that placeholders were supposed to provide.
-      if (block.buildings.length === 0) continue;
-      const detailMesh = createBuildingsInstancedMesh(block);
-      block.detailMesh = detailMesh;
-      scene.add(detailMesh);
-
-      // Task 15: per-block label InstancedMesh.
-      const labelsMesh = createLabelsInstancedMesh(block, atlas, _atlasTextures);
+      //
+      // Building mesh is only built when the block has direct files;
+      // container-only directories (e.g. `.superpowers/brainstorm` whose
+      // children are all subdirs) have 0 buildings and skip that path.
+      // The street label is built unconditionally — every street should
+      // be named on the road, including container-only ones.
+      if (block.buildings.length > 0) {
+        block.detailMesh = createBuildingsInstancedMesh(block);
+      }
+      // Task 15: per-block label InstancedMesh. Built regardless of
+      // direct-file count.
+      const labelsMesh = createLabelsInstancedMesh(block, atlas, newAtlasTextures);
       if (labelsMesh) {
         block.labelsMesh = labelsMesh;
-        scene.add(labelsMesh);
       }
+    }
+
+    if (myGeneration !== _currentGeneration) {
+      // A newer applyManifest started while we were building. Dispose the
+      // new meshes we just built (they'd leak otherwise) and bail.
+      // disposeLabelMaterials clears the module-level _labelMaterials map
+      // keyed by atlas textures we're about to release.
+      for (const block of newBlocks) {
+        if (block.detailMesh) _disposeObject(block.detailMesh);
+        if (block.labelsMesh) _disposeObject(block.labelsMesh);
+      }
+      disposeLabelMaterials();
+      for (const tex of newAtlasTextures) tex.dispose();
+      built.scene.traverse(_disposeObject);
+      return;
+    }
+
+    // ---- Phase 4: atomic swap. Up to this point, the previous scene is
+    // still on screen. Now we dispose the previous state and attach every
+    // new mesh in a single uninterrupted block.
+    _disposeAllManifestState();
+    _atlasTextures = newAtlasTextures;
+
+    manifest = newManifestTyped;
+    layout = newLayout;
+    dateRanges = newDateRanges;
+    bbox = built.bbox;
+
+    streetPickables = built.streetPickables || [];
+    streetLabels = built.streetLabels || [];
+    pathMeshes = built.pathMeshes || [];
+    asphaltMeshes = built.asphaltMeshes || [];
+    rootGem = built.rootGem || null;
+    rootGemBody = built.rootGemBody || null;
+    rootGemEdges = built.rootGemEdges || null;
+
+    // Migrate built scene's non-building children into the persistent scene.
+    for (const child of [...built.scene.children]) scene.add(child);
+    // buildCityScene also set its own scene.background; mirror onto ours.
+    scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+    // buildCityScene still builds per-building meshes internally; we don't
+    // use them. Remove + dispose to match prior behavior.
+    for (const bm of built.buildingMeshes || []) {
+      if (bm.parent) bm.parent.remove(bm);
+      _disposeObject(bm);
+    }
+    // Task 15: Remove old per-Group label meshes from buildCityScene —
+    // replaced by per-block label InstancedMeshes.
+    for (const lg of built.streetLabels || []) {
+      if (lg.parent) lg.parent.remove(lg);
+      lg.traverse(_disposeObject);
+    }
+
+    for (const block of newBlocks) {
+      if (block.detailMesh) scene.add(block.detailMesh);
+      if (block.labelsMesh) scene.add(block.labelsMesh);
     }
     blocks = newBlocks;
     blocksByDirPath = {};
@@ -754,25 +838,19 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.dir?.path != null) blocksByDirPath[block.dir.path] = block;
     }
 
-    // Stamp the gem body so it can participate in raycast picking.
-    if (rootGem) {
-      const gemBody = rootGem.children?.[0];
-      if (gemBody) gemBody.userData.type = NodeKind.Gem;
-    }
-
     // TODO(Task 11/12): _buildOutlinesAndGhosts() removed — per-block
     // instanced outlines/ghosts will be built in Tasks 11-12.
     _buildLookups();
     _computeRootStreetAndGem();
 
-    const diff = _computeDiff(prev);
-    _emit(changeCbs, diff);
+    _emit(changeCbs, _computeDiff(prev));
   }
 
   function dispose() {
     _disposeAllManifestState();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
+    _layoutClient.dispose();
   }
 
   return {

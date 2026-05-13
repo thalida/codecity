@@ -28,7 +28,7 @@ export const LIVE_UPDATES = map<LiveUpdatesConfig>({
 export const POLL_SECONDS_MIN = 1;
 export const POLL_SECONDS_MAX = 60;
 
-// Note: the in-flight "is reloading" atom intentionally lives OUTSIDE
+// Note: the in-flight rebuild-status atom intentionally lives OUTSIDE
 // this barrel — it's transient runtime state, not a user-tunable
 // config, so it must not be picked up by attachPersistence(Config).
 // See web/liveStatus.ts.

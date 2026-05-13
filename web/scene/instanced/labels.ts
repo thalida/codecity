@@ -34,6 +34,50 @@ const ATLAS_HEIGHT_MAX = 8192;
 // need >2000 unique directory names to push past page 1 at default font.
 const MAX_PAGES = 16;
 
+/**
+ * Truncate a label so it fits on its street.
+ *
+ * Labels are rendered at a height of `street.width * HEIGHT_FRAC` world
+ * units; canvas height is `FONT_SIZE_PX + 2 * CANVAS_PADDING_PX` pixels.
+ * That ratio gives world-units-per-canvas-pixel, which we use to compute
+ * the maximum canvas-pixel width that fits in `street.length * 0.9`
+ * world units. If the full label exceeds that, we trim characters off
+ * the end and append an ellipsis until it fits.
+ *
+ * Caller passes a 2D canvas context whose font has already been set to
+ * the label typography spec (one ctx is reused across all blocks per
+ * scene build to amortize the cost).
+ *
+ * Returns the original text if it already fits, the longest "<prefix>…"
+ * that fits otherwise, or just "…" if even that doesn't fit.
+ */
+export function truncateLabelToFit(
+  text: string,
+  street: { length: number; width: number },
+  typography: LabelTypographyConfig,
+  measureCtx: CanvasRenderingContext2D,
+): string {
+  if (!text) return text;
+  const labelHeightPx = typography.FONT_SIZE_PX + 2 * typography.CANVAS_PADDING_PX;
+  const worldPerCanvasPx =
+    (street.width * typography.HEIGHT_FRAC) / labelHeightPx;
+  if (worldPerCanvasPx <= 0) return text;
+  const maxCanvasWidthPx = (street.length * 0.9) / worldPerCanvasPx;
+  if (maxCanvasWidthPx <= 0) return text;
+  const measure = (s: string): number =>
+    measureCtx.measureText(s).width + 2 * typography.CANVAS_PADDING_PX;
+  if (measure(text) <= maxCanvasWidthPx) return text;
+
+  const ellipsis = '…';
+  // Linear search from longest to shortest. Labels are short; binary
+  // search would be premature.
+  for (let len = text.length - 1; len > 0; len--) {
+    const candidate = text.slice(0, len) + ellipsis;
+    if (measure(candidate) <= maxCanvasWidthPx) return candidate;
+  }
+  return ellipsis;
+}
+
 export function buildLabelAtlas(
   uniqueTexts: string[],
   typography: LabelTypographyConfig,

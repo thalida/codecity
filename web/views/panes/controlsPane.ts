@@ -4,14 +4,16 @@
 //   .controls-pane (flex column)
 //     .controls-header   — title
 //     .controls-body     — scrollable column of sections (one per scene element)
-//     .controls-actions  — sticky bottom bar: "Reset all"
+//     .controls-actions  — sticky bottom bar: Reset all (left) · Discard · Save (right)
 //
-// Per-row affordance: a reset icon appears in the row's control area
-// ONLY when the value differs from its default; click resets that
-// key (and removes its localStorage entry). Every row is hot-reloadable —
-// changes flow through config/hotReload.js, which dispatches each
-// store mutation to either applyTheme() (live material refresh) or
-// cityScene.applyManifest() (debounced re-layout + re-render).
+// Per-row affordance: a reset icon appears in the row's control area whenever
+// the effective value (pending draft, else committed) differs from its
+// registered default; click stages the default into the draft (Save still
+// required to apply). Every input mutates a single in-memory draft layer
+// (config/drafts.ts); the Save button flushes drafts to the real stores,
+// which triggers the existing config/hotReload.js subscriptions (applyTheme
+// or cityScene.applyManifest). Discard clears drafts without touching stores;
+// page reload is an implicit discard.
 
 import {
   // Background
@@ -32,6 +34,7 @@ import {
   // Gem
   GEM_SIZING,
   GEM_APPEARANCE,
+  GEM_GLOW,
   GEM_ANIMATION,
   // Effects
   RAINBOW,
@@ -40,12 +43,20 @@ import {
   SCAN_FILTERS,
 } from '@/config/index.js';
 import {
-  clearPersistence,
   getDefault,
-  resetKey,
-  hasAnyOverrides,
+  forEachRegisteredStore,
   onAnyChange,
 } from '@/config/persist.js';
+import {
+  setDraft,
+  getEffective,
+  stageReset,
+  stageResetAll,
+  commit as commitDrafts,
+  discard as discardDrafts,
+  isDirty as draftsAreDirty,
+  subscribe as subscribeDrafts,
+} from '@/config/drafts.js';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
@@ -63,7 +74,6 @@ interface MapLikeStore {
 
 interface ControlOpts {
   tip?: string;
-  onChange?: () => void;
   previewHue?: boolean;
 }
 
@@ -82,8 +92,6 @@ interface SelectOption {
 // buildControlsPane(opts) -> HTMLElement
 //
 // opts:
-//   applyTheme — fn() invoked after any hot-reloadable mutation; flushes
-//                the change through to live materials. Optional.
 //   onClose    — fn() invoked when the user clicks the × in the header.
 //                Optional; if omitted, no close button is rendered.
 //
@@ -91,14 +99,12 @@ interface SelectOption {
 // table including R, which the existing keydown handler in main.js wires
 // to resetView. The "Reset camera" button is gone.)
 interface BuildControlsPaneOpts {
-  applyTheme?: () => void;
   onClose?: () => void;
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
 }
 
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
-  const applyTheme = opts.applyTheme ?? (() => {});
 
   const pane = document.createElement('div');
   pane.className = 'left-pane controls-pane';
@@ -134,11 +140,11 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   // (mouse to orbit, kbd to reset). See View > shortcuts list.
   body.appendChild(_buildViewSection());
   body.appendChild(_buildUpdatesSection());
-  body.appendChild(_buildBackgroundSection(applyTheme));
-  body.appendChild(_buildStreetsSection(applyTheme));
-  body.appendChild(_buildBuildingsSection(applyTheme));
-  body.appendChild(_buildGemSection(applyTheme));
-  body.appendChild(_buildEffectsSection(applyTheme));
+  body.appendChild(_buildBackgroundSection());
+  body.appendChild(_buildStreetsSection());
+  body.appendChild(_buildBuildingsSection());
+  body.appendChild(_buildGemSection());
+  body.appendChild(_buildEffectsSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
@@ -166,7 +172,7 @@ function _buildUpdatesSection(): HTMLElement {
   section.appendChild(
     _subgroup('Filters', [
       _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
-        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Toggling re-fetches the manifest.',
+        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
       }),
     ])
   );
@@ -251,19 +257,18 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 }
 
 // ─── Background ────────────────────────────────────────────────────────────
-function _buildBackgroundSection(applyTheme: () => void): HTMLElement {
+function _buildBackgroundSection(): HTMLElement {
   const section = _section('Background', 'The void behind everything.');
   section.appendChild(
     _color('Sky / ground', SCENE_COLORS, 'GROUND', {
       tip: 'Color shown behind buildings + streets. Live.',
-      onChange: applyTheme,
     })
   );
   return section;
 }
 
 // ─── Streets ───────────────────────────────────────────────────────────────
-function _buildStreetsSection(applyTheme: () => void): HTMLElement {
+function _buildStreetsSection(): HTMLElement {
   const section = _section(
     'Streets',
     'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.'
@@ -275,7 +280,6 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Asphalt', [
       _color('Color', ASPHALT, 'COLOR', {
         tip: 'Color of the inner road stripe. Live.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -286,15 +290,12 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Sidewalk colors', [
       _color('Default', SIDEWALK_COLORS, 'DEFAULT', {
         tip: 'Resting tint on every sidewalk.',
-        onChange: applyTheme,
       }),
       _color('Hover', SIDEWALK_COLORS, 'HOVER', {
         tip: 'When the cursor is over a street.',
-        onChange: applyTheme,
       }),
       _color('Selected', SIDEWALK_COLORS, 'SELECTED', {
         tip: 'When a street (directory) is selected.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -304,11 +305,9 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Street labels', [
       _color('Fill', LABEL_TYPOGRAPHY, 'FILL', {
         tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
-        onChange: applyTheme,
       }),
       _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
         tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down.',
-        onChange: applyTheme,
       }),
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
         tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
@@ -321,7 +320,6 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
       }),
       _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
         tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
-        onChange: applyTheme,
       }),
       _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
         tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
@@ -339,11 +337,9 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Selection path line', [
       _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
         tip: 'Pixel thickness of the rainbow line.',
-        onChange: applyTheme,
       }),
       _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -356,19 +352,15 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Hover preview path line', [
       _toggle('Enabled', HOVER_PATH_LINE, 'ENABLED', {
         tip: 'Show a draft preview line from the gem to whatever the cursor is currently over.',
-        onChange: applyTheme,
       }),
       _color('Color', HOVER_PATH_LINE, 'COLOR', {
         tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
-        onChange: applyTheme,
       }),
       _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
         tip: 'Pixel thickness of the preview line.',
-        onChange: applyTheme,
       }),
       _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -401,7 +393,7 @@ function _buildStreetsSection(applyTheme: () => void): HTMLElement {
 }
 
 // ─── Buildings ─────────────────────────────────────────────────────────────
-function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
+function _buildBuildingsSection(): HTMLElement {
   const section = _section(
     'Buildings',
     'Per-file boxes — height from line count, width from byte size, color from extension + age.'
@@ -460,7 +452,6 @@ function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
     huePaletteRows.push(
       _nestedSlider(ext, BUILDING_PALETTE, 'HUE_EXT_MAP', ext, 0, 359, 1, {
         tip: 'Hue (0–359°) for files with this extension.',
-
         previewHue: true,
       })
     );
@@ -471,18 +462,13 @@ function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Outlines', [
       _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
         tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
-        onChange: applyTheme,
       }),
       _color('Hover color', BUILDING_OUTLINE, 'HOVER_COLOR', {
         tip: 'Outline color when the cursor is over a building.',
-        onChange: applyTheme,
       }),
-      _slider('Hover opacity', BUILDING_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {
-        onChange: applyTheme,
-      }),
+      _slider('Hover opacity', BUILDING_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
       _slider('Selected opacity', BUILDING_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
         tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -496,7 +482,6 @@ function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Selection fade — animation', [
       _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
         tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -511,46 +496,34 @@ function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
     _subgroup('Default — siblings of selection', [
       _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
         tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
-        onChange: applyTheme,
       }),
       _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
         tip: 'Show the wireframe edge overlay.',
-        onChange: applyTheme,
       }),
       _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Opacity for the body / silhouette layer.',
-        onChange: applyTheme,
       }),
       _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
-        onChange: applyTheme,
       }),
     ])
   );
 
   section.appendChild(
     _subgroup('Level 1 — one hop from selection', [
-      _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
-      _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', { onChange: applyTheme }),
-      _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {
-        onChange: applyTheme,
-      }),
-      _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-        onChange: applyTheme,
-      }),
+      _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
+      _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
+      _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+      _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
     ])
   );
 
   section.appendChild(
     _subgroup('Level 2+ — cousins, deeper subtrees', [
-      _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, { onChange: applyTheme }),
-      _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', { onChange: applyTheme }),
-      _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {
-        onChange: applyTheme,
-      }),
-      _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-        onChange: applyTheme,
-      }),
+      _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
+      _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
+      _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+      _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
     ])
   );
 
@@ -558,7 +531,7 @@ function _buildBuildingsSection(applyTheme: () => void): HTMLElement {
 }
 
 // ─── Gem ───────────────────────────────────────────────────────────────────
-function _buildGemSection(applyTheme: () => void): HTMLElement {
+function _buildGemSection(): HTMLElement {
   const section = _section('Root gem', 'The floating spinning octahedron above the root street.');
 
   section.appendChild(
@@ -571,10 +544,9 @@ function _buildGemSection(applyTheme: () => void): HTMLElement {
       }),
       _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
         tip: 'Extra vertical lift above the road, on top of the gem radius.',
-        onChange: applyTheme,
       }),
-      _number('Plaza clearance', GEM_SIZING, 'BUILDING_CLEARANCE', 0, 100, 1, {
-        tip: "Dead-space pad past the gem at the root street's origin end.",
+      _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
+        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long.",
       }),
     ])
   );
@@ -583,35 +555,53 @@ function _buildGemSection(applyTheme: () => void): HTMLElement {
     _subgroup('Appearance', [
       _color('Edge color', GEM_APPEARANCE, 'EDGE_COLOR', {
         tip: 'Neutral separator line drawn around each gem face.',
-        onChange: applyTheme,
       }),
       _slider('Body opacity', GEM_APPEARANCE, 'BODY_OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Gem transparency. Low = jewel-like; high = plastic.',
-        onChange: applyTheme,
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _subgroup('Glow halo', [
+      _toggle('Enabled', GEM_GLOW, 'ENABLED', {
+        tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
+      }),
+      _slider('Inner scale × radius', GEM_GLOW, 'INNER_SCALE', 1, 12, 0.1, {
+        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk.',
+      }),
+      _slider('Inner opacity', GEM_GLOW, 'INNER_OPACITY', 0, 1, 0.05, {
+        tip: 'Brightness of the hot core. Lower for a subtler halo.',
+      }),
+      _slider('Outer scale × radius', GEM_GLOW, 'OUTER_SCALE', 1, 30, 0.5, {
+        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem.',
+      }),
+      _slider('Outer opacity', GEM_GLOW, 'OUTER_OPACITY', 0, 1, 0.05, {
+        tip: 'Brightness of the atmospheric halo.',
+      }),
+      _toggle('Animate colors', GEM_GLOW, 'ANIMATE_COLORS', {
+        tip: 'Cycle the halo color through the gem face palette. Off = halo uses the edge color from Appearance above.',
+      }),
+      _slider('Cycle period (s)', GEM_GLOW, 'CYCLE_PERIOD_SECONDS', 1, 30, 0.5, {
+        tip: 'Seconds for one full pass through every palette color.',
       }),
     ])
   );
 
   section.appendChild(
     _subgroup('Animation', [
-      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {
-        onChange: applyTheme,
-      }),
+      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {}),
       _slider('Bob frequency', GEM_ANIMATION, 'BOB_FREQUENCY', 0, 5, 0.1, {
         tip: 'How fast the gem oscillates vertically.',
-        onChange: applyTheme,
       }),
       _slider('Bob amplitude', GEM_ANIMATION, 'BOB_AMPLITUDE_FRAC', 0, 2, 0.05, {
         tip: 'Vertical bob distance, as a fraction of the gem radius.',
-        onChange: applyTheme,
       }),
       _slider('Hover scale', GEM_ANIMATION, 'HOVER_SCALE', 1, 3, 0.05, {
         tip: 'Multiplier applied to the gem when the cursor is over it.',
-        onChange: applyTheme,
       }),
       _slider('Hover lerp', GEM_ANIMATION, 'SCALE_LERP_SPEED', 0.01, 1, 0.01, {
         tip: 'Per-frame ease toward the hover scale.',
-        onChange: applyTheme,
       }),
     ])
   );
@@ -620,17 +610,16 @@ function _buildGemSection(applyTheme: () => void): HTMLElement {
 }
 
 // ─── Effects ───────────────────────────────────────────────────────────────
-function _buildEffectsSection(applyTheme: () => void): HTMLElement {
+function _buildEffectsSection(): HTMLElement {
   const section = _section('Effects', 'Shared visual effects.');
 
   section.appendChild(
     _subgroup('Rainbow (selected outline + path line)', [
       _slider('Speed', RAINBOW, 'SPEED', 0, 0.005, 0.0001, {
         tip: 'Hue cycles per millisecond. The shared rainbow chases around the selected building outline AND the gem→selection path line.',
-        onChange: applyTheme,
       }),
-      _slider('Saturation', RAINBOW, 'SATURATION', 0, 1, 0.05, { onChange: applyTheme }),
-      _slider('Lightness', RAINBOW, 'LIGHTNESS', 0, 1, 0.05, { onChange: applyTheme }),
+      _slider('Saturation', RAINBOW, 'SATURATION', 0, 1, 0.05, {}),
+      _slider('Lightness', RAINBOW, 'LIGHTNESS', 0, 1, 0.05, {}),
     ])
   );
 
@@ -694,33 +683,91 @@ function _buildDebugSection(
 }
 
 // ─── Sticky bottom action bar ──────────────────────────────────────────────
-// "Reset all" — the global panic button. Per-row reset icons cover the
-// common case. Wiping the persisted overrides triggers each store's
-// hot-reload subscription, so the city snaps back to defaults without
-// a page reload.
+// Three-button bar: Reset all (left) | Discard · Save (right).
+// Widgets write to the draft layer; Save commits to stores (triggering
+// the existing persist + hot-reload subscriptions). Discard drops pending
+// drafts without touching stores. Reset all stages every overridden value
+// back to its default — user still must Save to apply.
 function _buildActionsSection(): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'controls-actions';
+
+  const left = document.createElement('div');
+  left.className = 'controls-actions-left';
+
+  const right = document.createElement('div');
+  right.className = 'controls-actions-right';
 
   const resetAll = document.createElement('button');
   resetAll.type = 'button';
   resetAll.className = 'controls-button controls-button-secondary';
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
-  resetAll.title = 'Wipe every override. (Per-row reset icons restore single values.)';
+  resetAll.title = 'Stage every overridden value back to its default. Click Save to apply.';
   resetAll.addEventListener('click', () => {
     if (resetAll.disabled) return;
-    if (!confirm('Reset every override?')) return;
-    clearPersistence();
+    stageResetAll();
   });
-  actions.appendChild(resetAll);
+  left.appendChild(resetAll);
 
-  // Live enable/disable as values are tweaked or reset.
-  function refreshResetAll() {
-    resetAll.disabled = !hasAnyOverrides();
+  const discard = document.createElement('button');
+  discard.type = 'button';
+  discard.className = 'controls-button controls-button-secondary';
+  discard.textContent = 'Discard';
+  discard.title = 'Drop all unsaved changes.';
+  discard.addEventListener('click', () => {
+    if (discard.disabled) return;
+    discardDrafts();
+  });
+  right.appendChild(discard);
+
+  const save = document.createElement('button');
+  save.type = 'button';
+  save.className = 'controls-button';
+  save.textContent = 'Save';
+  save.title = 'Apply unsaved changes to the scene.';
+  save.addEventListener('click', () => {
+    if (save.disabled) return;
+    commitDrafts();
+  });
+  right.appendChild(save);
+
+  actions.appendChild(left);
+  actions.appendChild(right);
+
+  function refresh() {
+    const dirty = draftsAreDirty();
+    save.disabled = !dirty;
+    discard.disabled = !dirty;
+
+    // Reset all enabled iff at least one (store, key) has an effective
+    // value that differs from its default — i.e., the click would stage
+    // at least one new draft entry. (Same loop shape as stageResetAll.)
+    let canReset = false;
+    forEachRegisteredStore((_name, store, defaults) => {
+      if (canReset) return;
+      if (
+        defaults &&
+        typeof defaults === 'object' &&
+        !Array.isArray(defaults) &&
+        typeof (store as MapLikeStore).setKey === 'function'
+      ) {
+        for (const k in defaults) {
+          if (!Object.hasOwn(defaults, k)) continue;
+          if (!_isEqual(getEffective(store as MapLikeStore, k), (defaults as Record<string, unknown>)[k])) {
+            canReset = true;
+            return;
+          }
+        }
+      } else {
+        if (!_isEqual(getEffective(store as MapLikeStore, null), defaults)) canReset = true;
+      }
+    });
+    resetAll.disabled = !canReset;
   }
-  refreshResetAll();
-  onAnyChange(refreshResetAll);
+  refresh();
+  subscribeDrafts(refresh);
+  onAnyChange(refresh);
 
   return actions;
 }
@@ -797,15 +844,13 @@ function _row(
 
 // _makeResetButton(store, keys, opts) -> <button>
 // Visible only when at least one of `keys` differs from its registered
-// default. Click resets all listed keys, removes the matching localStorage
-// entries (via persist.js's resetKey), and fires opts.onChange so the
-// scene/UI catches up immediately.
+// default (checking effective/draft value). Click stages a reset for each
+// key; user must Save to commit.
 function _makeResetButton(
   store: MapLikeStore,
   keys: string[],
-  opts: ControlOpts
+  _opts: ControlOpts
 ): HTMLButtonElement {
-  const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
@@ -816,19 +861,17 @@ function _makeResetButton(
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    for (const k of keys) resetKey(store, k);
-    onChange();
+    for (const k of keys) stageReset(store, k);
   });
 
-  // Disabled when value matches default — keeps the icon in layout
-  // (no UI bouncing) but only clickable when there's actually
-  // something to reset.
   function refresh() {
-    const state = store.get();
-    btn.disabled = keys.every((k) => _isEqual(state[k], getDefault(store, k)));
+    btn.disabled = keys.every((k) =>
+      _isEqual(getEffective(store, k), getDefault(store, k))
+    );
   }
   refresh();
   store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return btn;
 }
 
@@ -869,20 +912,19 @@ function _color(
   key: string,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'color';
   input.className = 'theme-color';
-  input.value = _toHexInputValue(store.get()[key]);
+  input.value = _toHexInputValue(getEffective(store, key));
   input.addEventListener('input', () => {
-    store.setKey(key, input.value);
-    onChange();
+    setDraft(store, key, input.value);
   });
-  // Reflect outside changes (e.g. reset-to-default) back into the input.
-  store.subscribe((state) => {
-    const hex = _toHexInputValue(state[key]);
+  const refresh = () => {
+    const hex = _toHexInputValue(getEffective(store, key));
     if (input.value.toLowerCase() !== hex) input.value = hex;
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
 
@@ -895,25 +937,23 @@ function _number(
   step: number,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'number';
   input.min = String(min);
   input.max = String(max);
   input.step = String(step);
-  input.value = String(store.get()[key]);
+  input.value = String(getEffective(store, key));
   input.className = 'theme-number';
   input.addEventListener('input', () => {
     const v = parseFloat(input.value);
-    if (Number.isFinite(v)) {
-      store.setKey(key, v);
-      onChange();
-    }
+    if (Number.isFinite(v)) setDraft(store, key, v);
   });
-  store.subscribe((state) => {
-    const s = String(state[key]);
+  const refresh = () => {
+    const s = String(getEffective(store, key));
     if (input.value !== s && document.activeElement !== input) input.value = s;
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
 
@@ -926,32 +966,31 @@ function _slider(
   step: number,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const refs = {} as SliderRefs;
   const control = _sliderWidget(
-    store.get()[key],
+    getEffective(store, key) as number,
     min,
     max,
     step,
     (v) => {
-      store.setKey(key, v);
-      onChange();
+      setDraft(store, key, v);
     },
     refs
   );
-  // Reflect outside changes (reset-to-default) back into the slider + readout.
-  store.subscribe((state) => {
-    const v = state[key];
+  const refresh = () => {
+    const v = getEffective(store, key) as number;
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
       refs.readout.textContent = _formatNumberForStep(v, step);
     }
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return _row(label, control, store, [key], opts);
 }
 
 // _nestedSlider — like _slider but the value lives at store.get()[parentKey][subKey].
-// Writes go through `store.setKey(parentKey, { ...current, [subKey]: v })` so other
+// Writes go through `setDraft(store, parentKey, { ...current, [subKey]: v })` so other
 // sub-keys are preserved. The row's reset icon resets just `subKey` back to its
 // registered default (not the whole map). Used for HUE_EXT_MAP per-extension rows.
 //
@@ -967,9 +1006,9 @@ function _nestedSlider(
   step: number,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const refs = {} as SliderRefs;
-  const initial = (store.get()[parentKey] || {})[subKey];
+  const effectiveMap = () => (getEffective(store, parentKey) as any) || {};
+  const initial = effectiveMap()[subKey];
 
   let swatch: HTMLSpanElement | null = null;
   if (opts && opts.previewHue) {
@@ -984,37 +1023,30 @@ function _nestedSlider(
     max,
     step,
     (v) => {
-      const current = store.get()[parentKey] || {};
-      const next = {};
+      const current = effectiveMap();
+      const next = {} as Record<string, unknown>;
       for (const k in current) {
         if (Object.hasOwn(current, k)) next[k] = current[k];
       }
       next[subKey] = v;
-      store.setKey(parentKey, next);
+      setDraft(store, parentKey, next);
       if (swatch) swatch.style.background = `hsl(${v}, 80%, 55%)`;
-      onChange();
     },
     refs
   );
 
-  store.subscribe((state) => {
-    const v = (state[parentKey] || {})[subKey];
+  const refresh = () => {
+    const v = effectiveMap()[subKey];
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
       refs.readout.textContent = _formatNumberForStep(v, step);
       if (swatch) swatch.style.background = `hsl(${v}, 80%, 55%)`;
     }
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
 
-  // Reset icon: visible when this sub-key differs from its registered default.
-  // Click resets only this sub-key.
-  const rowOpts: ControlOpts = {};
-  for (const ok in opts) {
-    if (Object.hasOwn(opts, ok)) {
-      (rowOpts as Record<string, unknown>)[ok] = (opts as Record<string, unknown>)[ok];
-    }
-  }
-
+  const rowOpts: ControlOpts = { ...opts };
   const row = _row(label, control, null, null, rowOpts);
   const ctrlWrap = row.querySelector<HTMLElement>('.theme-row-control')!;
   if (swatch) ctrlWrap.appendChild(swatch);
@@ -1031,7 +1063,8 @@ function _nestedSlider(
 function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelElement {
   const refs = {} as SliderRefs;
   const label = `${minDescendants}+ descendants`;
-  const initial = (STREET_TIERS.get()[index] || {}).width;
+  const effectiveTiers = () => (getEffective(STREET_TIERS, null) as any[]) || [];
+  const initial = (effectiveTiers()[index] || {}).width;
 
   const control = _sliderWidget(
     initial,
@@ -1039,21 +1072,23 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
     100,
     1,
     (v) => {
-      const current = STREET_TIERS.get();
+      const current = effectiveTiers();
       const next = current.slice();
       next[index] = { min_descendants: current[index].min_descendants, width: v };
-      STREET_TIERS.set(next);
+      setDraft(STREET_TIERS, null, next);
     },
     refs
   );
 
-  STREET_TIERS.subscribe((state) => {
-    const v = (state[index] || {}).width;
+  const refresh = () => {
+    const v = (effectiveTiers()[index] || {}).width;
     if (parseFloat(refs.range.value) !== v) {
       refs.range.value = String(v);
       refs.readout.textContent = _formatNumberForStep(v, 1);
     }
-  });
+  };
+  STREET_TIERS.subscribe(refresh);
+  subscribeDrafts(refresh);
 
   const rowOpts: ControlOpts = {
     tip: 'World-unit width for streets in this descendant-count tier.',
@@ -1072,7 +1107,7 @@ function _makeTierWidthResetButton(index: number): HTMLButtonElement {
   btn.setAttribute('aria-label', 'Reset to default');
   btn.appendChild(makeLucideIcon('rotate-ccw'));
 
-  const defaultArr = getDefault(STREET_TIERS) || [];
+  const defaultArr = (getDefault(STREET_TIERS) as any[]) || [];
   const defaultVal = (defaultArr[index] || {}).width;
   btn.title = `Default: ${_formatDefaultValue(defaultVal)}`;
 
@@ -1080,18 +1115,20 @@ function _makeTierWidthResetButton(index: number): HTMLButtonElement {
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    const current = STREET_TIERS.get();
+    const current = (getEffective(STREET_TIERS, null) as any[]) || [];
     const next = current.slice();
     next[index] = { min_descendants: current[index].min_descendants, width: defaultVal };
-    STREET_TIERS.set(next);
+    setDraft(STREET_TIERS, null, next);
   });
 
   function refresh() {
-    const v = (STREET_TIERS.get()[index] || {}).width;
+    const arr = (getEffective(STREET_TIERS, null) as any[]) || [];
+    const v = (arr[index] || {}).width;
     btn.disabled = _isEqual(v, defaultVal);
   }
   refresh();
   STREET_TIERS.subscribe(refresh);
+  subscribeDrafts(refresh);
   return btn;
 }
 
@@ -1099,16 +1136,15 @@ function _makeNestedResetButton(
   store: MapLikeStore,
   parentKey: string,
   subKey: string,
-  opts: ControlOpts
+  _opts: ControlOpts
 ): HTMLButtonElement {
-  const onChange = typeof opts?.onChange === 'function' ? opts.onChange : () => {};
   const btn = document.createElement('button');
   btn.type = 'button';
   btn.className = 'theme-row-reset';
   btn.setAttribute('aria-label', 'Reset to default');
   btn.appendChild(makeLucideIcon('rotate-ccw'));
 
-  const defaultMap = getDefault(store, parentKey) || {};
+  const defaultMap = (getDefault(store, parentKey) as Record<string, unknown>) || {};
   const defaultVal = defaultMap[subKey];
   btn.title = `Default: ${_formatDefaultValue(defaultVal)}`;
 
@@ -1116,22 +1152,22 @@ function _makeNestedResetButton(
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    const current = store.get()[parentKey] || {};
-    const next = {};
+    const current = ((getEffective(store, parentKey) as Record<string, unknown>) || {});
+    const next = {} as Record<string, unknown>;
     for (const k in current) {
       if (Object.hasOwn(current, k)) next[k] = current[k];
     }
     next[subKey] = defaultVal;
-    store.setKey(parentKey, next);
-    onChange();
+    setDraft(store, parentKey, next);
   });
 
   function refresh() {
-    const v = (store.get()[parentKey] || {})[subKey];
+    const v = ((getEffective(store, parentKey) as Record<string, unknown>) || {})[subKey];
     btn.disabled = _isEqual(v, defaultVal);
   }
   refresh();
   store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return btn;
 }
 
@@ -1145,7 +1181,6 @@ function _select(
   options: SelectOption[],
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const wrap = document.createElement('span');
   wrap.className = 'theme-select';
 
@@ -1157,21 +1192,21 @@ function _select(
     btn.textContent = opt.label;
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      store.setKey(key, opt.value);
-      onChange();
+      setDraft(store, key, opt.value);
     });
     wrap.appendChild(btn);
     return btn;
   });
 
-  function refresh() {
-    const current = store.get()[key];
+  const refresh = () => {
+    const current = getEffective(store, key);
     for (const btn of buttons) {
       btn.classList.toggle('is-active', btn.dataset.value === current);
     }
-  }
+  };
   refresh();
   store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return _row(label, wrap, store, [key], opts);
 }
 
@@ -1182,19 +1217,19 @@ function _toggle(
   key: string,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
   const input = document.createElement('input');
   input.type = 'checkbox';
   input.className = 'theme-toggle';
-  input.checked = !!store.get()[key];
+  input.checked = !!getEffective(store, key);
   input.addEventListener('change', () => {
-    store.setKey(key, input.checked);
-    onChange();
+    setDraft(store, key, input.checked);
   });
-  store.subscribe((state) => {
-    const v = !!state[key];
+  const refresh = () => {
+    const v = !!getEffective(store, key);
     if (input.checked !== v) input.checked = v;
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
   return _row(label, input, store, [key], opts);
 }
 
@@ -1208,8 +1243,8 @@ function _rangePair(
   step: number,
   opts: ControlOpts
 ): HTMLLabelElement {
-  const onChange = _resolveChange(opts);
-  const current = store.get();
+  const initialMin = getEffective(store, minKey) as number;
+  const initialMax = getEffective(store, maxKey) as number;
 
   const pair = document.createElement('span');
   pair.className = 'theme-range-pair';
@@ -1231,9 +1266,9 @@ function _rangePair(
     r.value = String(value);
     return r;
   }
-  const loRange = makeRange(current[minKey]);
+  const loRange = makeRange(initialMin);
   loRange.classList.add('theme-range-pair-lo');
-  const hiRange = makeRange(current[maxKey]);
+  const hiRange = makeRange(initialMax);
   hiRange.classList.add('theme-range-pair-hi');
   pair.appendChild(loRange);
   pair.appendChild(hiRange);
@@ -1262,29 +1297,31 @@ function _rangePair(
       h = l;
       hiRange.value = String(h);
     }
-    store.setKey(minKey, l);
-    store.setKey(maxKey, h);
+    setDraft(store, minKey, l);
+    setDraft(store, maxKey, h);
     paint();
-    onChange();
   }
 
   loRange.addEventListener('input', commit);
   hiRange.addEventListener('input', commit);
   paint();
 
-  // Reflect outside changes (reset-to-default) back into both thumbs.
-  store.subscribe((state) => {
+  const refresh = () => {
     let changed = false;
-    if (parseFloat(loRange.value) !== state[minKey]) {
-      loRange.value = String(state[minKey]);
+    const eMin = getEffective(store, minKey) as number;
+    const eMax = getEffective(store, maxKey) as number;
+    if (parseFloat(loRange.value) !== eMin) {
+      loRange.value = String(eMin);
       changed = true;
     }
-    if (parseFloat(hiRange.value) !== state[maxKey]) {
-      hiRange.value = String(state[maxKey]);
+    if (parseFloat(hiRange.value) !== eMax) {
+      hiRange.value = String(eMax);
       changed = true;
     }
     if (changed) paint();
-  });
+  };
+  store.subscribe(refresh);
+  subscribeDrafts(refresh);
 
   const wrap = document.createElement('span');
   wrap.className = 'theme-slider-wrap';
@@ -1342,13 +1379,6 @@ function _sliderWidget(
     refs.readout = readout;
   }
   return wrap;
-}
-
-// onChange resolution: hot-reload rows pass `applyTheme` as opts.onChange;
-// rebuild rows just persist (no immediate handler).
-function _resolveChange(opts: ControlOpts | undefined): () => void {
-  if (opts && typeof opts.onChange === 'function') return opts.onChange;
-  return function () {};
 }
 
 // Color <input type="color"> only accepts #RRGGBB. Convert from any CSS

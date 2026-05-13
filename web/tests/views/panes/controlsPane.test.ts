@@ -18,13 +18,27 @@ describe('buildControlsPane', () => {
     expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
   });
 
-  it('renders a Reset-all button in the sticky action bar (no Rebuild)', () => {
+  it('renders three buttons in the sticky action bar: Reset all, Discard, Save', () => {
     const pane = buildControlsPane({});
     const buttons = pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button');
-    expect(buttons.length).toBe(1);
-    expect(buttons[0].textContent).toBe('Reset all');
-    // No "Rebuild" surface anywhere — every config hot-reloads.
+    expect(buttons.length).toBe(3);
+    const labels = Array.from(buttons).map((b) => b.textContent?.trim());
+    expect(labels).toContain('Reset all');
+    expect(labels).toContain('Discard');
+    expect(labels).toContain('Save');
+    // No "Rebuild" surface anywhere — every config hot-reloads (after Save).
     expect(pane.textContent).not.toContain('Rebuild');
+  });
+
+  it('Save and Discard buttons are disabled when no drafts are pending', () => {
+    const pane = buildControlsPane({});
+    const buttons = Array.from(
+      pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button')
+    );
+    const save = buttons.find((b) => b.textContent?.trim() === 'Save')!;
+    const discard = buttons.find((b) => b.textContent?.trim() === 'Discard')!;
+    expect(save.disabled).toBe(true);
+    expect(discard.disabled).toBe(true);
   });
 
   it('does not render any rebuild badges on rows', () => {

@@ -22,7 +22,7 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { LIVE_UPDATES } from './config/index.js';
-import { IS_RELOADING, LAST_UPDATED_AT } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
 import type { FooterRepoInfo } from './views/shell/appFooter.js';
@@ -100,21 +100,25 @@ export function createCoordinator({
   // first poll lands a fresh manifest.
   if (initialManifest) LAST_UPDATED_AT.set(Date.now());
 
-  function _refreshLiveStatus(): void {
-    appFooter.setLiveStatus({
-      enabled: LIVE_UPDATES.get().ENABLED,
-      reloading: IS_RELOADING.get(),
+  function _refreshStatus(): void {
+    appFooter.setStatus({
+      liveEnabled: LIVE_UPDATES.get().ENABLED,
+      rebuildStatus: REBUILD_STATUS.get(),
       lastUpdatedAt: LAST_UPDATED_AT.get(),
+      errorMessage: LAST_REBUILD_ERROR.get(),
     });
   }
-  _refreshLiveStatus();
-  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
-  const _reloadUnsub = IS_RELOADING.subscribe(_refreshLiveStatus);
-  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshLiveStatus);
+  _refreshStatus();
+  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshStatus);
+  const _statusUnsub = REBUILD_STATUS.subscribe(_refreshStatus);
+  // _errorUnsub catches updated error messages even when REBUILD_STATUS
+  // is already 'error' (e.g. two failing polls in a row with different
+  // messages) — the tooltip needs to refresh on every message change.
+  const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshStatus);
+  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
-  // ago") advances smoothly even when polls aren't firing — the
-  // store-based subscriptions only refresh on actual events.
-  const _tickHandle = window.setInterval(_refreshLiveStatus, 1000);
+  // ago") advances smoothly while idle.
+  const _tickHandle = window.setInterval(_refreshStatus, 1000);
 
   _renderSidebar(); // initial paint
 
@@ -265,7 +269,8 @@ export function createCoordinator({
     if (typeof _hovUnsub === 'function') _hovUnsub();
     if (typeof _changeUnsub === 'function') _changeUnsub();
     if (typeof _liveCfgUnsub === 'function') _liveCfgUnsub();
-    if (typeof _reloadUnsub === 'function') _reloadUnsub();
+    if (typeof _statusUnsub === 'function') _statusUnsub();
+    if (typeof _errorUnsub === 'function') _errorUnsub();
     if (typeof _stampUnsub === 'function') _stampUnsub();
     window.clearInterval(_tickHandle);
   }

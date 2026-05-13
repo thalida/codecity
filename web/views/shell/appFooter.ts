@@ -1,5 +1,13 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — live-reload status (live / reloading… / off)
+//   left   — combined status indicator: [dot] <status text>
+//            One dot, two channels of state:
+//              color    — rebuild state (green=idle, yellow=rebuilding,
+//                         red=error)
+//              animation — live state (slow heartbeat when polling on,
+//                         static when paused, fast pulse when rebuilding,
+//                         static when error)
+//            Hover tooltip surfaces the live state ("Live updates: on/off")
+//            and the rebuild error message (when applicable).
 //   center — repo information (project name + absolute root path)
 //   right  — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories)
@@ -25,11 +33,15 @@ interface FooterDirectorySelection {
 
 export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
 
-export interface FooterLiveStatus {
-  enabled: boolean;
-  reloading: boolean;
-  /** Epoch millis of the most recent manifest apply; 0 ⇒ unknown. */
+export interface FooterStatus {
+  /** True when live-poll is active; renders as `live`. False renders as `paused`. */
+  liveEnabled: boolean;
+  /** Must remain in sync with `RebuildStatus` in `liveStatus.ts` (intentional decoupling). */
+  rebuildStatus: 'idle' | 'rebuilding' | 'error';
+  /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;
+  /** Surfaced as the indicator's `title` (hover tooltip) when rebuildStatus === 'error'. */
+  errorMessage: string | null;
 }
 
 export interface FooterRepoInfo {
@@ -51,15 +63,16 @@ export interface FooterRepoInfo {
 
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
-  setLiveStatus(_status: FooterLiveStatus) {},
+  setStatus(_status: FooterStatus) {},
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
 /**
  * Initialise the sitewide footer. Returns:
- *   setLiveStatus({ enabled, reloading }) — left section
- *   setRepoInfo({ name, root })           — center section
- *   setSelection(sel | null)              — right section
+ *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
+ *                                            — left section (combined indicator)
+ *   setRepoInfo({ ... })                     — center section
+ *   setSelection(sel | null)                 — right section
  */
 export function initAppFooter() {
   const footer = document.getElementById('app-footer');
@@ -67,49 +80,72 @@ export function initAppFooter() {
 
   const leftEl = document.createElement('div');
   leftEl.className = 'app-footer-section app-footer-left';
+  const statusEl = document.createElement('span');
+  statusEl.className = 'app-footer-status';
+  leftEl.appendChild(statusEl);
+
   const centerEl = document.createElement('div');
   centerEl.className = 'app-footer-section app-footer-center';
   const rightEl = document.createElement('div');
   rightEl.className = 'app-footer-section app-footer-right';
   footer.replaceChildren(leftEl, centerEl, rightEl);
 
-  function setLiveStatus(status: FooterLiveStatus): void {
-    leftEl.replaceChildren();
-    const indicator = document.createElement('span');
-    indicator.className = 'app-footer-live';
-    if (!status.enabled) indicator.classList.add('is-disabled');
-    else if (status.reloading) indicator.classList.add('is-reloading');
-    else indicator.classList.add('is-live');
+  function setStatus(status: FooterStatus): void {
+    statusEl.replaceChildren();
+    statusEl.classList.remove(
+      'is-rebuilding',
+      'is-ready',
+      'is-error',
+      'is-live',
+      'is-paused'
+    );
+    statusEl.removeAttribute('title');
 
-    const dot = document.createElement('span');
-    dot.className = 'app-footer-live-dot';
-    indicator.appendChild(dot);
-
-    const primary = document.createElement('span');
-    primary.className = 'app-footer-live-label';
-    primary.textContent = status.enabled ? 'live' : 'live updates off';
-    indicator.appendChild(primary);
-
-    if (status.enabled) {
-      const sep = document.createElement('span');
-      sep.className = 'app-footer-live-sep';
-      sep.textContent = '·';
-      indicator.appendChild(sep);
-
-      const detail = document.createElement('span');
-      detail.className = 'app-footer-live-detail';
-      if (status.reloading) {
-        detail.textContent = 'reloading…';
-      } else if (status.lastUpdatedAt > 0) {
-        detail.textContent = _relativeTime(status.lastUpdatedAt, Date.now());
-        detail.title = new Date(status.lastUpdatedAt).toLocaleString();
-      } else {
-        detail.textContent = '—';
-      }
-      indicator.appendChild(detail);
+    let buildModifier: 'is-rebuilding' | 'is-ready' | 'is-error';
+    let detailText: string;
+    if (status.rebuildStatus === 'rebuilding') {
+      buildModifier = 'is-rebuilding';
+      detailText = 'rebuilding…';
+    } else if (status.rebuildStatus === 'error') {
+      buildModifier = 'is-error';
+      detailText = 'error';
+    } else {
+      buildModifier = 'is-ready';
+      // 'ready' literal is a guard for unit tests or any code path that
+      // calls setStatus before LAST_UPDATED_AT is seeded. Production
+      // boot seeds the stamp in coordinator.ts before this setter runs.
+      detailText =
+        status.lastUpdatedAt > 0
+          ? _relativeTime(status.lastUpdatedAt, Date.now())
+          : 'ready';
     }
+    statusEl.classList.add(buildModifier);
+    statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
 
-    leftEl.appendChild(indicator);
+    // Compose the hover tooltip. Error message wins when present —
+    // otherwise show the live-state summary so users can discover the
+    // play/pause distinction (the dot's heartbeat already hints at it).
+    const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
+    if (status.rebuildStatus === 'error' && status.errorMessage) {
+      statusEl.title = `${liveLabel} · ${status.errorMessage}`;
+    } else if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
+      const exact = new Date(status.lastUpdatedAt).toLocaleString();
+      statusEl.title = `${liveLabel} · last rebuild ${exact}`;
+    } else {
+      statusEl.title = liveLabel;
+    }
+    statusEl.setAttribute('aria-label', statusEl.title);
+
+    // Dot (color = rebuild state; animation = live state, scoped by CSS).
+    const dot = document.createElement('span');
+    dot.className = 'app-footer-status-dot';
+    statusEl.appendChild(dot);
+
+    // Status detail (timestamp / "rebuilding…" / "error")
+    const detail = document.createElement('span');
+    detail.className = 'app-footer-status-detail';
+    detail.textContent = detailText;
+    statusEl.appendChild(detail);
   }
 
   function setRepoInfo(info: FooterRepoInfo | null): void {
@@ -173,7 +209,7 @@ export function initAppFooter() {
     }
   }
 
-  return { setSelection, setLiveStatus, setRepoInfo };
+  return { setSelection, setStatus, setRepoInfo };
 }
 
 const SEC_MS = 1000;

@@ -250,3 +250,17 @@ export function clearPersistence(): void {
     }
   }
 }
+
+// forEachRegisteredStore(cb) — visit every store registered via
+// persistStore / attachPersistence. `defaults` is the pre-hydration
+// snapshot (what reset restores to). Used by config/drafts.ts.
+export function forEachRegisteredStore(
+  cb: (name: string, store: any, defaults: any) => void
+): void {
+  for (const name in _DEFAULTS_BY_NAME) {
+    if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
+    const store = _STORE_BY_NAME[name];
+    if (!store) continue;
+    cb(name, store, _DEFAULTS_BY_NAME[name]);
+  }
+}

@@ -15,13 +15,15 @@ import {
   LABEL_TYPOGRAPHY,
   GEM_ANIMATION,
   GEM_APPEARANCE,
+  GEM_FACE_PALETTE,
+  GEM_GLOW,
   GEM_SIZING,
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { IS_RELOADING } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -44,7 +46,7 @@ import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 
-function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
+async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
   // src/defaults.js. Render-loop code reads them fresh each frame (or
   // each event), so the Settings UI can mutate the imported objects in
@@ -61,7 +63,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // every other module reads cityScene directly through accessors.
   const cityScene = createCityScene(canvas);
   const scene = cityScene.scene;
-  cityScene.applyManifest(manifest);
+  await cityScene.applyManifest(manifest);
 
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
@@ -214,11 +216,40 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
     }
     if (rootGemBody?.material) {
-      rootGemBody.material.opacity = gemAppearance.BODY_OPACITY;
+      const op = gemAppearance.BODY_OPACITY;
+      rootGemBody.material.opacity = op;
+      // Toggle `transparent` to match the opacity. Without this, dropping
+      // opacity below 1 has no visual effect after the gem was created
+      // with opacity = 1.
+      const wantTransparent = op < 1;
+      if (rootGemBody.material.transparent !== wantTransparent) {
+        rootGemBody.material.transparent = wantTransparent;
+        rootGemBody.material.needsUpdate = true;
+      }
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
       const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
+    }
+
+    // Glow halo: scale, opacity, visibility from GEM_GLOW config. Color
+    // is driven per-frame by the render loop (palette cycle), so we
+    // don't touch it here.
+    if (rootGem && rootGem.userData.radius != null) {
+      const glowCfg = GEM_GLOW.get();
+      const r = rootGem.userData.radius as number;
+      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
+      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
+      if (inner) {
+        inner.visible = glowCfg.ENABLED;
+        inner.scale.set(r * glowCfg.INNER_SCALE, r * glowCfg.INNER_SCALE, 1);
+        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.INNER_OPACITY;
+      }
+      if (outer) {
+        outer.visible = glowCfg.ENABLED;
+        outer.scale.set(r * glowCfg.OUTER_SCALE, r * glowCfg.OUTER_SCALE, 1);
+        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.OUTER_OPACITY;
+      }
     }
 
     const labelCfg = LABEL_TYPOGRAPHY.get();
@@ -250,6 +281,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
     },
+    getRootName: () => cityScene.getRoot()?.name ?? null,
   });
 
   // Sidewalk tints are scene-state that follow selection / hover. Subscribe
@@ -300,6 +332,26 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const curS = rootGem.scale.x;
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
+
+      // Glow color: animate through GEM_FACE_PALETTE when ANIMATE_COLORS
+      // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
+      // cycle on different phases so the gem reads with two colors at
+      // any moment, blending as they cross.
+      const glowCfg = GEM_GLOW.get();
+      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
+      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
+      if (inner || outer) {
+        if (glowCfg.ANIMATE_COLORS) {
+          const palette = GEM_FACE_PALETTE.get();
+          const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
+          if (inner) _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
+          if (outer) _setPaletteColor((outer.material as THREE.SpriteMaterial).color, palette, t, period, 0.5);
+        } else {
+          const edge = GEM_APPEARANCE.get().EDGE_COLOR;
+          if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
+          if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
+        }
+      }
     }
     lodController.update(canvas); // swap detail↔placeholder by screen-space area
     renderer.render(scene, camera);
@@ -311,6 +363,34 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // can swap in fresh manifests, and attachHotReload can dispatch
   // material refreshes without restarting the renderer.
   return { cityScene, applyTheme };
+}
+
+// Cycle a THREE.Color in place through a palette of [r,g,b] triples,
+// smoothly interpolating between adjacent palette entries. One full
+// loop through every color takes `period` seconds; `offset` (0..1)
+// shifts the starting phase so multiple sprites can run different
+// "ahead-of-each-other" cadences without allocating new Colors.
+function _setPaletteColor(
+  out: THREE.Color,
+  palette: ReadonlyArray<readonly [number, number, number]>,
+  t: number,
+  period: number,
+  offset: number
+): void {
+  const n = palette.length;
+  if (n === 0) return;
+  const phase = (((t / period) + offset) % 1 + 1) % 1; // wrap negatives
+  const idxf = phase * n;
+  const a = Math.floor(idxf) % n;
+  const b = (a + 1) % n;
+  const f = idxf - Math.floor(idxf);
+  const A = palette[a];
+  const B = palette[b];
+  out.setRGB(
+    A[0] + (B[0] - A[0]) * f,
+    A[1] + (B[1] - A[1]) * f,
+    A[2] + (B[2] - A[2]) * f
+  );
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the
@@ -420,17 +500,16 @@ function signatureUrl(): string {
 // Two-stage poll: each tick first hits /api/manifest/signature (cheap —
 // stat-only walk, no file content reads, no per-file git history) and
 // only fetches the full /api/manifest when the signature has changed.
-// On a large repo the no-op poll cost drops by ~10×. IS_RELOADING is
-// only set during the actual manifest fetch so the footer's "reloading…"
-// indicator doesn't flicker on every cheap signature check; concurrent
-// ticks are gated by the local `inFlight` flag.
+// On a large repo the no-op poll cost drops by ~10×. REBUILD_STATUS is
+// only flipped during the actual manifest fetch so the footer's
+// "rebuilding…" indicator only lights up when there's real work.
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
 }
 
 interface LiveUpdateHandle {
-  cityScene: ReturnType<typeof startRenderLoop>['cityScene'];
+  cityScene: Awaited<ReturnType<typeof startRenderLoop>>['cityScene'];
   applyTheme: () => void;
 }
 
@@ -446,21 +525,26 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   let inFlight = false;
   let needsRefresh = false;
 
-  // Single fetch+apply path. Always sets IS_RELOADING for the duration —
-  // both the poll's "signature changed" branch and the toggle handler
-  // funnel through here so the footer indicator behaves identically.
+  // Single fetch+apply path. Always flips REBUILD_STATUS to 'rebuilding'
+  // for the duration — both the poll's "signature changed" branch and
+  // the toggle handler funnel through here so the footer indicator
+  // behaves identically. A non-2xx response or a JSON parse error
+  // resolves to 'error' with the message captured in LAST_REBUILD_ERROR.
   async function refreshManifest(): Promise<void> {
-    IS_RELOADING.set(true);
+    REBUILD_STATUS.set('rebuilding');
     try {
       const resp = await fetch(manifestUrl());
-      if (!resp.ok) return;
+      if (!resp.ok) throw new Error(`Manifest fetch failed: HTTP ${resp.status}`);
       const m: Manifest | null = await resp.json();
       if (m?.signature) {
         lastSignature = m.signature;
-        handle.cityScene.applyManifest(m);
+        await handle.cityScene.applyManifest(m);
       }
-    } finally {
-      IS_RELOADING.set(false);
+      REBUILD_STATUS.set('idle');
+      LAST_REBUILD_ERROR.set(null);
+    } catch (err) {
+      REBUILD_STATUS.set('error');
+      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
     }
   }
 
@@ -479,8 +563,12 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
         if (!sig?.signature || sig.signature === lastSignature) break;
         await refreshManifest();
       } while (needsRefresh);
-    } catch {
-      /* keep polling on transient errors */
+    } catch (_) {
+      // Signature-fetch errors (network blip on the cheap probe) are
+      // intentionally not surfaced through REBUILD_STATUS — no rebuild
+      // attempt happened. The next tick retries. Only failures inside
+      // refreshManifest (the full fetch + applyManifest) populate the
+      // error indicator.
     } finally {
       inFlight = false;
     }
@@ -557,7 +645,7 @@ if (_canvas) {
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest: Manifest = await resp.json();
-    const handle = startRenderLoop(_canvas, manifest);
+    const handle = await startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,
       applyTheme: handle.applyTheme,

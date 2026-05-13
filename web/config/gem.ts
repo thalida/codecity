@@ -13,14 +13,17 @@ export interface GemSizingConfig {
   RADIUS_AS_STREET_FRAC: number;
   MIN_RADIUS: number;
   HOVER_LIFT_FRAC: number;
-  BUILDING_CLEARANCE: number;
+  CLEARANCE_AS_GEM_WIDTH_FRAC: number;
 }
 
 export const GEM_SIZING = map<GemSizingConfig>({
-  RADIUS_AS_STREET_FRAC: 0.35, // gem radius = root street width × this
+  RADIUS_AS_STREET_FRAC: 0.5, // gem radius = root street width × this
   MIN_RADIUS: 5, // floor for narrow root streets
   HOVER_LIFT_FRAC: 0.3, // gem hovers above road = radius × this
-  BUILDING_CLEARANCE: 20, // dead-space pad past the gem
+  // Dead-space pad past the gem at the root street's origin end,
+  // expressed as a multiple of the gem's diameter so the plaza always
+  // scales with the gem rather than living in absolute world units.
+  CLEARANCE_AS_GEM_WIDTH_FRAC: 2,
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────
@@ -52,7 +55,32 @@ export interface GemAppearanceConfig {
 
 export const GEM_APPEARANCE = map<GemAppearanceConfig>({
   EDGE_COLOR: '#f0f0ff',
-  BODY_OPACITY: 0.9,
+  BODY_OPACITY: 1.0,
+});
+
+// ─── Glow halo ─────────────────────────────────────────────────────────────
+// Two billboarded sprite layers behind the gem, each painted with a
+// soft radial-gradient alpha and additively blended. Sizes are
+// multiples of the gem radius so the halo scales with the gem itself.
+// All live/hot-reloadable.
+export interface GemGlowConfig {
+  ENABLED: boolean;
+  INNER_SCALE: number;
+  OUTER_SCALE: number;
+  INNER_OPACITY: number;
+  OUTER_OPACITY: number;
+  ANIMATE_COLORS: boolean;
+  CYCLE_PERIOD_SECONDS: number;
+}
+
+export const GEM_GLOW = map<GemGlowConfig>({
+  ENABLED: true,
+  INNER_SCALE: 6, // hot core, hugging the gem
+  OUTER_SCALE: 12, // atmospheric falloff, large soft disk
+  INNER_OPACITY: 0.6,
+  OUTER_OPACITY: 0.4,
+  ANIMATE_COLORS: true, // cycle the halo color through GEM_FACE_PALETTE
+  CYCLE_PERIOD_SECONDS: 6, // one full palette cycle every N seconds
 });
 
 // ─── Animation ─────────────────────────────────────────────────────────────

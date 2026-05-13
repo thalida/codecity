@@ -321,42 +321,71 @@ canvas {
   font-size: 9.5px;
 }
 
-/* ── Live-reload status indicator (left section) ──────────────────── */
-.app-footer-live {
+/* ── Combined status indicator (left section) ─────────────────────── */
+/* Layout: [dot] <status text>
+ * One dot, two channels:
+ *   color     = rebuild state (green/yellow/red)
+ *   animation = live state (heartbeat when polling, static when paused)
+ * Rebuilding takes precedence: dot pulses fast regardless of live state.
+ * Error: static red (the alert effect comes from the color, not motion). */
+.app-footer-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.app-footer-live-dot {
+.app-footer-status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4ade80;
   flex: 0 0 auto;
 }
-.app-footer-live.is-disabled .app-footer-live-dot {
-  background: #44485e;
+
+/* Color by rebuild state. */
+.app-footer-status.is-ready .app-footer-status-dot {
+  background: #4ade80;
 }
-.app-footer-live.is-reloading .app-footer-live-dot {
+.app-footer-status.is-rebuilding .app-footer-status-dot {
   background: #fbbf24;
-  animation: app-footer-live-pulse 0.9s ease-in-out infinite;
 }
-.app-footer-live.is-disabled .app-footer-live-label {
-  color: #5d6280;
+.app-footer-status.is-error .app-footer-status-dot {
+  background: #ef4444;
 }
-.app-footer-live-sep {
-  color: #44485e;
+
+/* Animation by combined state. */
+.app-footer-status.is-rebuilding .app-footer-status-dot {
+  /* Fast pulse during a rebuild — wins over the heartbeat. */
+  animation: app-footer-pulse 0.9s ease-in-out infinite;
 }
-.app-footer-live-detail {
+.app-footer-status.is-ready.is-live .app-footer-status-dot {
+  /* Slow gentle heartbeat when polling is on + idle. */
+  animation: app-footer-heartbeat 2.4s ease-in-out infinite;
+}
+/* is-ready.is-paused → no animation (static green dot).
+ * is-error           → no animation (static red dot). */
+
+.app-footer-status-detail {
   color: #6b7090;
 }
-@keyframes app-footer-live-pulse {
+.app-footer-status.is-error .app-footer-status-detail {
+  color: #fca5a5;
+}
+
+@keyframes app-footer-pulse {
   0%,
   100% {
     opacity: 1;
   }
   50% {
     opacity: 0.25;
+  }
+}
+@keyframes app-footer-heartbeat {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
   }
 }
 
@@ -841,7 +870,7 @@ canvas {
 }
 
 /* Secondary variant: muted background + border, used by "Reset all" so
- * it sits beside the primary "Rebuild" button without competing visually. */
+ * it sits beside the primary "Save" button without competing visually. */
 .controls-button-secondary {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.1);
@@ -853,23 +882,30 @@ canvas {
 }
 
 /* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
- * so it stays visible while the form scrolls. Buttons inside stretch to
- * fill the bar's width. */
+ * so it stays visible while the form scrolls. Reset all sits on the
+ * left; Discard + Save are paired on the right. */
 .controls-actions {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 10px 16px;
   background: #10111a;
   border-top: 1px solid #1e2030;
 }
+.controls-actions-left,
+.controls-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .controls-actions .controls-button {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  width: auto;
 }
 .controls-button-icon {
   width: 14px;
