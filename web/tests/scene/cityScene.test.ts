@@ -165,13 +165,13 @@ describe('createCityScene', () => {
     cs.dispose();
   });
 
-  it('applyManifest builds meshes and exposes them through accessors', () => {
+  it('applyManifest builds meshes and exposes them through accessors', async () => {
     const cs = createCityScene(canvas);
     const m = makeManifest('one', [
       { path: 'a.js', size: 100, lines: 5 },
       { path: 'b.js', size: 200, lines: 10 },
     ]);
-    cs.applyManifest(m);
+    await cs.applyManifest(m);
 
     expect(cs.getManifest()).toBe(m);
     expect(cs.getRoot().name).toBe('one');
@@ -190,13 +190,13 @@ describe('createCityScene', () => {
     cs.dispose();
   });
 
-  it('a second applyManifest fires onChange with entering/exiting/staying (InstancedMesh diff)', () => {
+  it('a second applyManifest fires onChange with entering/exiting/staying (InstancedMesh diff)', async () => {
     const cs = createCityScene(canvas);
     const m1 = makeManifest('two', [
       { path: 'a.js', size: 100, lines: 5 },
       { path: 'b.js', size: 200, lines: 10 },
     ]);
-    cs.applyManifest(m1);
+    await cs.applyManifest(m1);
 
     let capturedDiff: Parameters<Parameters<typeof cs.onChange>[0]>[0] | null = null;
     cs.onChange((diff) => {
@@ -207,7 +207,7 @@ describe('createCityScene', () => {
       { path: 'a.js', size: 100, lines: 5 }, // staying (same path)
       { path: 'c.js', size: 300, lines: 15 }, // entering (new path)
     ]);
-    cs.applyManifest(m2);
+    await cs.applyManifest(m2);
 
     expect(capturedDiff).not.toBeNull();
     const diff = capturedDiff!;
@@ -268,9 +268,9 @@ describe('createCityScene', () => {
   //   cs.dispose();
   // });
 
-  it('onBeforeChange fires before the new build', () => {
+  it('onBeforeChange fires before the new build', async () => {
     const cs = createCityScene(canvas);
-    cs.applyManifest(makeManifest('a', [{ path: 'x.js', size: 50, lines: 3 }]));
+    await cs.applyManifest(makeManifest('a', [{ path: 'x.js', size: 50, lines: 3 }]));
 
     let beforeRootName = null;
     cs.onBeforeChange((prev) => {
@@ -278,7 +278,7 @@ describe('createCityScene', () => {
       beforeRootName = prev.manifest && prev.manifest.tree.name;
     });
 
-    cs.applyManifest(makeManifest('b', [{ path: 'y.js', size: 50, lines: 3 }]));
+    await cs.applyManifest(makeManifest('b', [{ path: 'y.js', size: 50, lines: 3 }]));
     expect(beforeRootName).toBe('a');
     cs.dispose();
   });
