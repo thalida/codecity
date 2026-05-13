@@ -171,7 +171,7 @@ function _buildUpdatesSection(): HTMLElement {
   section.appendChild(
     _subgroup('Filters', [
       _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
-        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Toggling re-fetches the manifest.',
+        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
       }),
     ])
   );
