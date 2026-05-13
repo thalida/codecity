@@ -73,9 +73,10 @@ export function createInputHandlers({
   function _tooltipForHover(target: PickTarget | null): string | null {
     if (!target) return null;
     if (target.kind === NodeKind.Gem) {
-      // The gem represents the project root; show the root folder name
-      // (prefixed with '/' to match directory tooltips).
-      return _withRoot('');
+      // The gem represents the project root and also acts as the reset
+      // button — clicking it clears the selection and recenters the
+      // camera. Show both so the affordance is discoverable.
+      return `${_withRoot('')}  ·  click to reset view`;
     }
     if (target.kind === NodeKind.File && target.file) {
       const f = target.file;

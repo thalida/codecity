@@ -265,9 +265,13 @@ function createRootGem(street: Street): THREE.Group {
     geo,
     new THREE.MeshBasicMaterial({
       vertexColors: true,
-      transparent: true,
+      transparent: appearance.BODY_OPACITY < 1,
       opacity: appearance.BODY_OPACITY,
-      depthWrite: false,
+      // depthWrite must be on so the gem properly occludes road labels
+      // (and anything else) drawn at lower elevation behind it. Prior
+      // versions kept this off for "jewel-like" alpha blending; the
+      // visual side-effect was labels bleeding through the gem.
+      depthWrite: true,
     })
   );
 
@@ -276,7 +280,31 @@ function createRootGem(street: Street): THREE.Group {
     new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor) })
   );
 
+  // Neon glow halo: a slightly larger octahedron using the same vivid
+  // face palette but rendered with additive blending and low opacity.
+  // The colored faces bleed out around the solid body like a soft aura.
+  // Rendered before the body in the parent group so additive pixels
+  // stack with the body's colors rather than overwriting them; depth
+  // write off so it doesn't occlude anything itself.
+  const GLOW_SCALE = 1.35;
+  const GLOW_OPACITY = 0.45;
+  const glowGeo = new THREE.OctahedronGeometry(radius * GLOW_SCALE, 0);
+  glowGeo.setAttribute('color', new THREE.BufferAttribute(colorAttr.slice(), 3));
+  const glow = new THREE.Mesh(
+    glowGeo,
+    new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: GLOW_OPACITY,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      side: THREE.BackSide,
+    })
+  );
+  glow.renderOrder = -1;
+
   const gem = new THREE.Group();
+  gem.add(glow);
   gem.add(body);
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);

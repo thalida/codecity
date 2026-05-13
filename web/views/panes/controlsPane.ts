@@ -544,8 +544,8 @@ function _buildGemSection(): HTMLElement {
       _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
         tip: 'Extra vertical lift above the road, on top of the gem radius.',
       }),
-      _number('Plaza clearance', GEM_SIZING, 'BUILDING_CLEARANCE', 0, 100, 1, {
-        tip: "Dead-space pad past the gem at the root street's origin end.",
+      _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
+        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long.",
       }),
     ])
   );

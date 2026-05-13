@@ -214,7 +214,16 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
     }
     if (rootGemBody?.material) {
-      rootGemBody.material.opacity = gemAppearance.BODY_OPACITY;
+      const op = gemAppearance.BODY_OPACITY;
+      rootGemBody.material.opacity = op;
+      // Toggle `transparent` to match the opacity. Without this, dropping
+      // opacity below 1 has no visual effect after the gem was created
+      // with opacity = 1.
+      const wantTransparent = op < 1;
+      if (rootGemBody.material.transparent !== wantTransparent) {
+        rootGemBody.material.transparent = wantTransparent;
+        rootGemBody.material.needsUpdate = true;
+      }
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
       const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;

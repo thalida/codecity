@@ -436,7 +436,16 @@ function _layoutDirV4(
     : Math.max(rootEndPad, openEndPad);
   const gemSizing = GEM_SIZING.get();
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
-  const gemClearance = gemSizing.BUILDING_CLEARANCE;
+  // Derive the plaza clearance from the gem's own diameter so the dead
+  // space scales with the gem. Mirror the same MIN_RADIUS floor that
+  // engine.ts uses when sizing the actual gem geometry so the layout
+  // pad never under-reserves for a narrow root street.
+  const gemRadius = Math.max(
+    myStreetWidth * gemRadiusFrac,
+    gemSizing.MIN_RADIUS
+  );
+  const gemDiameter = gemRadius * 2;
+  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
     ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
     : joinEndBaseline;
