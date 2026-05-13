@@ -66,6 +66,13 @@ describe('drafts', () => {
       expect(getEffective(BAR, null)).toBe(42);
       expect(BAR.get()).toBe(10);
     });
+
+    it('treats falsy draft values as real drafts (uses Map.has, not falsy check)', () => {
+      // Default COUNT is 1; drafting 0 must not be mistaken for "no draft".
+      setDraft(FOO, 'COUNT', 0);
+      expect(getEffective(FOO, 'COUNT')).toBe(0);
+      expect(isDirty()).toBe(true);
+    });
   });
 
   describe('subscribe', () => {
@@ -182,6 +189,24 @@ describe('drafts', () => {
       commit();
       expect(getEffective(FOO, 'COUNT')).toBe(5); // now committed
       expect(isDirty()).toBe(false);
+    });
+
+    it('clears drafts before firing store subscribers (synchronous subscribers see committed value, not lingering draft)', () => {
+      let observedInsideSubscribe: unknown = null;
+      setDraft(FOO, 'COLOR', '#ff0000');
+      // Install subscriber AFTER setting the draft but BEFORE commit, so it
+      // only fires on the commit-driven setKey call. nanostores fires .subscribe
+      // synchronously with the current value at subscribe time too — so capture
+      // only the LAST value observed.
+      FOO.subscribe(() => {
+        observedInsideSubscribe = getEffective(FOO, 'COLOR');
+      });
+      commit();
+      // Inside the subscriber, getEffective must reflect the committed value
+      // — the draft must already be cleared at that point.
+      expect(observedInsideSubscribe).toBe('#ff0000');
+      // And of course committed reads return it too.
+      expect(FOO.get().COLOR).toBe('#ff0000');
     });
   });
 
