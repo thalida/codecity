@@ -841,7 +841,7 @@ canvas {
 }
 
 /* Secondary variant: muted background + border, used by "Reset all" so
- * it sits beside the primary "Rebuild" button without competing visually. */
+ * it sits beside the primary "Save" button without competing visually. */
 .controls-button-secondary {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.1);

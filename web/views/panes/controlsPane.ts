@@ -4,14 +4,16 @@
 //   .controls-pane (flex column)
 //     .controls-header   — title
 //     .controls-body     — scrollable column of sections (one per scene element)
-//     .controls-actions  — sticky bottom bar: "Reset all"
+//     .controls-actions  — sticky bottom bar: Reset all (left) · Discard · Save (right)
 //
-// Per-row affordance: a reset icon appears in the row's control area
-// ONLY when the value differs from its default; click resets that
-// key (and removes its localStorage entry). Every row is hot-reloadable —
-// changes flow through config/hotReload.js, which dispatches each
-// store mutation to either applyTheme() (live material refresh) or
-// cityScene.applyManifest() (debounced re-layout + re-render).
+// Per-row affordance: a reset icon appears in the row's control area whenever
+// the effective value (pending draft, else committed) differs from its
+// registered default; click stages the default into the draft (Save still
+// required to apply). Every input mutates a single in-memory draft layer
+// (config/drafts.ts); the Save button flushes drafts to the real stores,
+// which triggers the existing config/hotReload.js subscriptions (applyTheme
+// or cityScene.applyManifest). Discard clears drafts without touching stores;
+// page reload is an implicit discard.
 
 import {
   // Background
@@ -89,8 +91,6 @@ interface SelectOption {
 // buildControlsPane(opts) -> HTMLElement
 //
 // opts:
-//   applyTheme — fn() invoked after any hot-reloadable mutation; flushes
-//                the change through to live materials. Optional.
 //   onClose    — fn() invoked when the user clicks the × in the header.
 //                Optional; if omitted, no close button is rendered.
 //
@@ -963,7 +963,7 @@ function _slider(
 }
 
 // _nestedSlider — like _slider but the value lives at store.get()[parentKey][subKey].
-// Writes go through `store.setKey(parentKey, { ...current, [subKey]: v })` so other
+// Writes go through `setDraft(store, parentKey, { ...current, [subKey]: v })` so other
 // sub-keys are preserved. The row's reset icon resets just `subKey` back to its
 // registered default (not the whole map). Used for HUE_EXT_MAP per-extension rows.
 //

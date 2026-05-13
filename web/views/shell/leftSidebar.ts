@@ -17,7 +17,7 @@ const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
 
 interface ShowLeftSidebarOpts {
-  /** fn() the Settings UI calls after mutating any imported theme constant — flushes the change through to live materials. */
+  /** fn() the Settings UI used to call after every input edit. Now driven by config/hotReload.js subscriptions when the user clicks Save; this option is accepted for caller compatibility but is no longer forwarded to the controls panel. */
   applyTheme?: () => void;
   /** fn() called when the user clicks the "Run collision check" debug button. */
   onRunCollisionCheck?: () => void;
@@ -40,8 +40,10 @@ interface ShowLeftSidebarOpts {
 // showLeftSidebar(manifest, opts) -> { setSelectedTreePath, setHoveredTreePath }
 //
 // opts:
-//   applyTheme        — fn() the Settings UI calls after mutating any imported
-//                       theme constant — flushes the change through to live materials.
+//   applyTheme        — fn() the Settings UI used to call after every input edit.
+//                       Now driven by config/hotReload.js subscriptions when the
+//                       user clicks Save; accepted for caller compatibility but no
+//                       longer forwarded to the controls panel.
 //   initialTab        — 'tree' | 'controls' (default 'tree')
 //   onTreeSelect      — fn(node) called when the user single-clicks a tree row.
 //                       Host wires to _setSelection so tree → city selection
