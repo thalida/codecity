@@ -356,7 +356,12 @@ canvas {
   color: #44485e;
 }
 .app-footer-status-live {
+  display: inline-flex;
+  align-items: center;
   color: #6b7090;
+  /* Bump up from the footer's 10.5px base so the play/pause glyph stays
+   * recognizable. .lucide-icon sizes at 1em of this. */
+  font-size: 13px;
 }
 .app-footer-status-live.is-paused {
   color: #5d6280;

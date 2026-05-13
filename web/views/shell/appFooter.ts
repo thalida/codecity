@@ -1,12 +1,14 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — combined status indicator: [color dot] <status text> · live|paused
-//            dot color = rebuild state (green/yellow/red), trailing token =
-//            whether live polling is enabled
+//   left   — combined status indicator: [color dot] <status text> · ▶|⏸
+//            dot color = rebuild state (green/yellow/red), trailing
+//            play/pause icon = whether live polling is enabled (hover
+//            tooltip says "Live updates: on" / "off")
 //   center — repo information (project name + absolute root path)
 //   right  — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories)
 
 import { DateSource, NodeKind } from '@/types';
+import { makeLucideIcon } from '@/views/shell/icon.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -130,12 +132,16 @@ export function initAppFooter() {
     sep.textContent = '·';
     statusEl.appendChild(sep);
 
-    // Live / paused label (independent of rebuild state)
-    const label = document.createElement('span');
-    label.className = 'app-footer-status-live';
-    label.classList.toggle('is-paused', !status.liveEnabled);
-    label.textContent = status.liveEnabled ? 'live' : 'paused';
-    statusEl.appendChild(label);
+    // Play / pause icon (independent of rebuild state). Tooltip carries
+    // the readable state since the icon alone is visual.
+    const liveWrap = document.createElement('span');
+    liveWrap.className = 'app-footer-status-live';
+    if (!status.liveEnabled) liveWrap.classList.add('is-paused');
+    const tooltip = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
+    liveWrap.title = tooltip;
+    liveWrap.setAttribute('aria-label', tooltip);
+    liveWrap.appendChild(makeLucideIcon(status.liveEnabled ? 'play' : 'pause'));
+    statusEl.appendChild(liveWrap);
   }
 
   function setRepoInfo(info: FooterRepoInfo | null): void {
