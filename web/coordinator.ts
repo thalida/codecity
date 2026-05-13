@@ -100,29 +100,25 @@ export function createCoordinator({
   // first poll lands a fresh manifest.
   if (initialManifest) LAST_UPDATED_AT.set(Date.now());
 
-  function _refreshLiveStatus(): void {
-    appFooter.setLiveStatus({ enabled: LIVE_UPDATES.get().ENABLED });
-  }
-  function _refreshBuildStatus(): void {
-    appFooter.setBuildStatus({
-      status: REBUILD_STATUS.get(),
+  function _refreshStatus(): void {
+    appFooter.setStatus({
+      liveEnabled: LIVE_UPDATES.get().ENABLED,
+      rebuildStatus: REBUILD_STATUS.get(),
       lastUpdatedAt: LAST_UPDATED_AT.get(),
       errorMessage: LAST_REBUILD_ERROR.get(),
     });
   }
-  _refreshLiveStatus();
-  _refreshBuildStatus();
-  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
-  const _statusUnsub = REBUILD_STATUS.subscribe(_refreshBuildStatus);
+  _refreshStatus();
+  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshStatus);
+  const _statusUnsub = REBUILD_STATUS.subscribe(_refreshStatus);
   // _errorUnsub catches updated error messages even when REBUILD_STATUS
   // is already 'error' (e.g. two failing polls in a row with different
   // messages) — the tooltip needs to refresh on every message change.
-  const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshBuildStatus);
-  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshBuildStatus);
+  const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshStatus);
+  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
-  // ago") advances smoothly on the Build indicator. The Live indicator
-  // has no time-dependent state.
-  const _tickHandle = window.setInterval(_refreshBuildStatus, 1000);
+  // ago") advances smoothly while idle.
+  const _tickHandle = window.setInterval(_refreshStatus, 1000);
 
   _renderSidebar(); // initial paint
 

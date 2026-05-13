@@ -321,48 +321,45 @@ canvas {
   font-size: 9.5px;
 }
 
-/* ── Live + Build status indicators (left section) ────────────────── */
-.app-footer-live,
-.app-footer-build {
+/* ── Combined status indicator (left section) ─────────────────────── */
+/* Layout: [color dot] <status text> · live|paused
+ * Dot color encodes rebuild state (green/yellow/red). Trailing token
+ * encodes whether live polling is enabled (gray when paused). */
+.app-footer-status {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.app-footer-live-dot,
-.app-footer-build-dot {
+.app-footer-status-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   flex: 0 0 auto;
 }
-
-/* Live dot: green when enabled, gray when disabled. */
-.app-footer-live .app-footer-live-dot {
+.app-footer-status.is-ready .app-footer-status-dot {
   background: #4ade80;
 }
-.app-footer-live.is-disabled .app-footer-live-dot {
-  background: #44485e;
-}
-.app-footer-live.is-disabled .app-footer-live-label {
-  color: #5d6280;
-}
-
-/* Build dot: green when idle, yellow + pulse when rebuilding, red on error. */
-.app-footer-build.is-ready .app-footer-build-dot {
-  background: #4ade80;
-}
-.app-footer-build.is-rebuilding .app-footer-build-dot {
+.app-footer-status.is-rebuilding .app-footer-status-dot {
   background: #fbbf24;
   animation: app-footer-pulse 0.9s ease-in-out infinite;
 }
-.app-footer-build.is-error .app-footer-build-dot {
+.app-footer-status.is-error .app-footer-status-dot {
   background: #ef4444;
 }
-.app-footer-build.is-error .app-footer-build-detail {
+.app-footer-status-detail {
+  color: #6b7090;
+}
+.app-footer-status.is-error .app-footer-status-detail {
   color: #fca5a5;
 }
-.app-footer-build-detail {
+.app-footer-status-sep {
+  color: #44485e;
+}
+.app-footer-status-live {
   color: #6b7090;
+}
+.app-footer-status-live.is-paused {
+  color: #5d6280;
 }
 
 @keyframes app-footer-pulse {
