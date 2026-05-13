@@ -58,6 +58,31 @@ export const GEM_APPEARANCE = map<GemAppearanceConfig>({
   BODY_OPACITY: 1.0,
 });
 
+// ─── Glow halo ─────────────────────────────────────────────────────────────
+// Two billboarded sprite layers behind the gem, each painted with a
+// soft radial-gradient alpha and additively blended. Sizes are
+// multiples of the gem radius so the halo scales with the gem itself.
+// All live/hot-reloadable.
+export interface GemGlowConfig {
+  ENABLED: boolean;
+  INNER_SCALE: number;
+  OUTER_SCALE: number;
+  INNER_OPACITY: number;
+  OUTER_OPACITY: number;
+  ANIMATE_COLORS: boolean;
+  CYCLE_PERIOD_SECONDS: number;
+}
+
+export const GEM_GLOW = map<GemGlowConfig>({
+  ENABLED: true,
+  INNER_SCALE: 4, // hot core, hugging the gem
+  OUTER_SCALE: 12, // atmospheric falloff, large soft disk
+  INNER_OPACITY: 0.6,
+  OUTER_OPACITY: 0.35,
+  ANIMATE_COLORS: true, // cycle the halo color through GEM_FACE_PALETTE
+  CYCLE_PERIOD_SECONDS: 6, // one full palette cycle every N seconds
+});
+
 // ─── Animation ─────────────────────────────────────────────────────────────
 // Read fresh each frame in the render loop, so changes apply immediately.
 export interface GemAnimationConfig {

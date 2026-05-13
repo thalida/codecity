@@ -18,6 +18,7 @@ import {
   GEM_SIZING,
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
+  GEM_GLOW,
   GEM_ANIMATION,
 } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
@@ -221,12 +222,16 @@ function _makeGlowTexture(): THREE.CanvasTexture | null {
   const cy = SIZE / 2;
   const gradient = ctx.createRadialGradient(cx, cy, 0, cx, cy, SIZE / 2);
   if (!gradient || typeof gradient.addColorStop !== 'function') return null;
-  // Soft falloff: bright hot center, smooth glide to fully transparent
-  // at the edge so the sprite has no visible boundary.
-  gradient.addColorStop(0, 'rgba(255, 255, 255, 1.0)');
-  gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.65)');
-  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.2)');
-  gradient.addColorStop(0.75, 'rgba(255, 255, 255, 0.05)');
+  // Softer, more gradual falloff than a typical hard-core radial: even the
+  // center is held a little below max alpha, and most of the area is at
+  // very low opacity so the halo reads as a fuzzy haze rather than a
+  // bright disk. Tuned by eye for a "fuzzy neon glow" feel.
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.85)');
+  gradient.addColorStop(0.08, 'rgba(255, 255, 255, 0.55)');
+  gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.3)');
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.12)');
+  gradient.addColorStop(0.65, 'rgba(255, 255, 255, 0.04)');
+  gradient.addColorStop(0.85, 'rgba(255, 255, 255, 0.01)');
   gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, SIZE, SIZE);
@@ -315,49 +320,66 @@ function createRootGem(street: Street): THREE.Group {
   );
 
   // Neon glow: two billboarded sprites stacked behind the gem with a
-  // soft radial-gradient texture. Sprites always face the camera so the
-  // glow reads consistently from any angle. Additive blending makes the
-  // bright center clip toward white where it overlaps the colored gem,
-  // mimicking a real light source. Sized in world units (radius × N) so
-  // the halo scales with the gem.
+  // soft radial-gradient alpha texture. Sprites always face the camera
+  // so the glow reads consistently from any angle. Additive blending
+  // makes the bright center clip toward white where it overlaps the
+  // colored gem, mimicking a real light source. Sizes are world units
+  // (radius × INNER/OUTER_SCALE) so the halo scales with the gem.
   //
   // Two layers:
   //   - inner: smaller, brighter — a "hot core" that hugs the gem
   //   - outer: much larger, dimmer — the atmospheric falloff
   //
+  // Material refs are stashed on gem.userData so applyTheme + the render
+  // loop can mutate scale/opacity/color without rebuilding. Glow visibility
+  // is driven by the GEM_GLOW.ENABLED flag.
+  //
   // Skipped when _makeGlowTexture returns null (jsdom test env).
   const gem = new THREE.Group();
+  const glowCfg = GEM_GLOW.get();
   const glowTex = _makeGlowTexture();
+  let innerGlowSprite: THREE.Sprite | null = null;
+  let outerGlowSprite: THREE.Sprite | null = null;
   if (glowTex) {
-    const innerGlow = new THREE.Sprite(
+    innerGlowSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: glowTex,
         color: new THREE.Color(edgeColor),
         transparent: true,
-        opacity: 0.75,
+        opacity: glowCfg.INNER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    innerGlow.scale.set(radius * 3.2, radius * 3.2, 1);
+    innerGlowSprite.scale.set(
+      radius * glowCfg.INNER_SCALE,
+      radius * glowCfg.INNER_SCALE,
+      1
+    );
+    innerGlowSprite.visible = glowCfg.ENABLED;
 
-    const outerGlow = new THREE.Sprite(
+    outerGlowSprite = new THREE.Sprite(
       new THREE.SpriteMaterial({
         map: glowTex,
         color: new THREE.Color(edgeColor),
         transparent: true,
-        opacity: 0.45,
+        opacity: glowCfg.OUTER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       })
     );
-    outerGlow.scale.set(radius * 7, radius * 7, 1);
+    outerGlowSprite.scale.set(
+      radius * glowCfg.OUTER_SCALE,
+      radius * glowCfg.OUTER_SCALE,
+      1
+    );
+    outerGlowSprite.visible = glowCfg.ENABLED;
 
     // Draw outer halo first (largest, softest), then inner, then the
     // opaque body, then the edges. The additive layers blend cumulatively
     // beneath the body's colored faces.
-    gem.add(outerGlow);
-    gem.add(innerGlow);
+    gem.add(outerGlowSprite);
+    gem.add(innerGlowSprite);
   }
   gem.add(body);
   gem.add(edges);
@@ -369,6 +391,11 @@ function createRootGem(street: Street): THREE.Group {
   // recompute baseY = radius + streetWidth × frac.
   gem.userData.streetWidth = street.width;
   gem.userData.radius = radius;
+  // Glow sprite refs for hot-reload (applyTheme) and per-frame color
+  // cycling. Either may be null when the host can't build a gradient
+  // texture (jsdom test env).
+  gem.userData.innerGlowSprite = innerGlowSprite;
+  gem.userData.outerGlowSprite = outerGlowSprite;
 
   group.add(gem);
   group.userData.gem = gem;

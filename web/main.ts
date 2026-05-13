@@ -15,6 +15,8 @@ import {
   LABEL_TYPOGRAPHY,
   GEM_ANIMATION,
   GEM_APPEARANCE,
+  GEM_FACE_PALETTE,
+  GEM_GLOW,
   GEM_SIZING,
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
@@ -230,6 +232,26 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
     }
 
+    // Glow halo: scale, opacity, visibility from GEM_GLOW config. Color
+    // is driven per-frame by the render loop (palette cycle), so we
+    // don't touch it here.
+    if (rootGem && rootGem.userData.radius != null) {
+      const glowCfg = GEM_GLOW.get();
+      const r = rootGem.userData.radius as number;
+      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
+      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
+      if (inner) {
+        inner.visible = glowCfg.ENABLED;
+        inner.scale.set(r * glowCfg.INNER_SCALE, r * glowCfg.INNER_SCALE, 1);
+        (inner.material as THREE.SpriteMaterial).opacity = glowCfg.INNER_OPACITY;
+      }
+      if (outer) {
+        outer.visible = glowCfg.ENABLED;
+        outer.scale.set(r * glowCfg.OUTER_SCALE, r * glowCfg.OUTER_SCALE, 1);
+        (outer.material as THREE.SpriteMaterial).opacity = glowCfg.OUTER_OPACITY;
+      }
+    }
+
     const labelCfg = LABEL_TYPOGRAPHY.get();
     const streetLabels = cityScene.getStreetLabels();
     for (const lg of streetLabels) {
@@ -310,6 +332,26 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const curS = rootGem.scale.x;
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
       rootGem.scale.set(nextS, nextS, nextS);
+
+      // Glow color: animate through GEM_FACE_PALETTE when ANIMATE_COLORS
+      // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
+      // cycle on different phases so the gem reads with two colors at
+      // any moment, blending as they cross.
+      const glowCfg = GEM_GLOW.get();
+      const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
+      const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
+      if (inner || outer) {
+        if (glowCfg.ANIMATE_COLORS) {
+          const palette = GEM_FACE_PALETTE.get();
+          const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
+          if (inner) _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
+          if (outer) _setPaletteColor((outer.material as THREE.SpriteMaterial).color, palette, t, period, 0.5);
+        } else {
+          const edge = GEM_APPEARANCE.get().EDGE_COLOR;
+          if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
+          if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
+        }
+      }
     }
     lodController.update(canvas); // swap detail↔placeholder by screen-space area
     renderer.render(scene, camera);
@@ -321,6 +363,34 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // can swap in fresh manifests, and attachHotReload can dispatch
   // material refreshes without restarting the renderer.
   return { cityScene, applyTheme };
+}
+
+// Cycle a THREE.Color in place through a palette of [r,g,b] triples,
+// smoothly interpolating between adjacent palette entries. One full
+// loop through every color takes `period` seconds; `offset` (0..1)
+// shifts the starting phase so multiple sprites can run different
+// "ahead-of-each-other" cadences without allocating new Colors.
+function _setPaletteColor(
+  out: THREE.Color,
+  palette: ReadonlyArray<readonly [number, number, number]>,
+  t: number,
+  period: number,
+  offset: number
+): void {
+  const n = palette.length;
+  if (n === 0) return;
+  const phase = (((t / period) + offset) % 1 + 1) % 1; // wrap negatives
+  const idxf = phase * n;
+  const a = Math.floor(idxf) % n;
+  const b = (a + 1) % n;
+  const f = idxf - Math.floor(idxf);
+  const A = palette[a];
+  const B = palette[b];
+  out.setRGB(
+    A[0] + (B[0] - A[0]) * f,
+    A[1] + (B[1] - A[1]) * f,
+    A[2] + (B[2] - A[2]) * f
+  );
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the

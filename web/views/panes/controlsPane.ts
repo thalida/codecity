@@ -34,6 +34,7 @@ import {
   // Gem
   GEM_SIZING,
   GEM_APPEARANCE,
+  GEM_GLOW,
   GEM_ANIMATION,
   // Effects
   RAINBOW,
@@ -557,6 +558,32 @@ function _buildGemSection(): HTMLElement {
       }),
       _slider('Body opacity', GEM_APPEARANCE, 'BODY_OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Gem transparency. Low = jewel-like; high = plastic.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _subgroup('Glow halo', [
+      _toggle('Enabled', GEM_GLOW, 'ENABLED', {
+        tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
+      }),
+      _slider('Inner scale × radius', GEM_GLOW, 'INNER_SCALE', 1, 12, 0.1, {
+        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk.',
+      }),
+      _slider('Inner opacity', GEM_GLOW, 'INNER_OPACITY', 0, 1, 0.05, {
+        tip: 'Brightness of the hot core. Lower for a subtler halo.',
+      }),
+      _slider('Outer scale × radius', GEM_GLOW, 'OUTER_SCALE', 1, 30, 0.5, {
+        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem.',
+      }),
+      _slider('Outer opacity', GEM_GLOW, 'OUTER_OPACITY', 0, 1, 0.05, {
+        tip: 'Brightness of the atmospheric halo.',
+      }),
+      _toggle('Animate colors', GEM_GLOW, 'ANIMATE_COLORS', {
+        tip: 'Cycle the halo color through the gem face palette. Off = halo uses the edge color from Appearance above.',
+      }),
+      _slider('Cycle period (s)', GEM_GLOW, 'CYCLE_PERIOD_SECONDS', 1, 30, 0.5, {
+        tip: 'Seconds for one full pass through every palette color.',
       }),
     ])
   );

@@ -29,6 +29,7 @@ import {
   PATH_LINE,
   HOVER_PATH_LINE,
   GEM_APPEARANCE,
+  GEM_GLOW,
   LABEL_TYPOGRAPHY,
 } from './index.js';
 
@@ -133,6 +134,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     PATH_LINE,
     HOVER_PATH_LINE,
     GEM_APPEARANCE,
+    GEM_GLOW,
   ];
 
   const unsubs: Array<() => void> = [];
