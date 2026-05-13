@@ -46,7 +46,7 @@ import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 
-function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
+async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
   // src/defaults.js. Render-loop code reads them fresh each frame (or
   // each event), so the Settings UI can mutate the imported objects in
@@ -63,7 +63,7 @@ function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // every other module reads cityScene directly through accessors.
   const cityScene = createCityScene(canvas);
   const scene = cityScene.scene;
-  cityScene.applyManifest(manifest);
+  await cityScene.applyManifest(manifest);
 
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
@@ -509,7 +509,7 @@ function _clampPollSeconds(s: number | unknown): number {
 }
 
 interface LiveUpdateHandle {
-  cityScene: ReturnType<typeof startRenderLoop>['cityScene'];
+  cityScene: Awaited<ReturnType<typeof startRenderLoop>>['cityScene'];
   applyTheme: () => void;
 }
 
@@ -538,7 +538,7 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
       const m: Manifest | null = await resp.json();
       if (m?.signature) {
         lastSignature = m.signature;
-        handle.cityScene.applyManifest(m);
+        await handle.cityScene.applyManifest(m);
       }
       REBUILD_STATUS.set('idle');
       LAST_REBUILD_ERROR.set(null);
@@ -645,7 +645,7 @@ if (_canvas) {
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest: Manifest = await resp.json();
-    const handle = startRenderLoop(_canvas, manifest);
+    const handle = await startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,
       applyTheme: handle.applyTheme,

@@ -47,7 +47,7 @@ const HOT_REBUILD_MIN_DWELL_MS = 220;
 interface HotReloadOpts {
   cityScene: {
     getManifest(): unknown;
-    applyManifest(m: unknown): void;
+    applyManifest(m: unknown): Promise<void>;
   };
   applyTheme: () => void;
 }
@@ -70,14 +70,14 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // to paint the indicator before the synchronous rebuild blocks
     // the main thread.
     REBUILD_STATUS.set('rebuilding');
-    rebuildTimer = setTimeout(() => {
+    rebuildTimer = setTimeout(async () => {
       rebuildTimer = 0;
       try {
         const manifest = cityScene.getManifest();
         // getManifest() returns null only during scene teardown — not a
         // path reachable via store mutation under normal use. The 'idle'
         // transition below is safe even in that no-op branch.
-        if (manifest) cityScene.applyManifest(manifest);
+        if (manifest) await cityScene.applyManifest(manifest);
         REBUILD_STATUS.set('idle');
         LAST_REBUILD_ERROR.set(null);
       } catch (err) {
