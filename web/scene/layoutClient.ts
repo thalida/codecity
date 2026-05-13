@@ -97,6 +97,11 @@ export function createLayoutClient(): LayoutClient {
         entry.reject(new Error(event.message || 'layout worker error'));
       }
       pending.clear();
+      // After an uncaught exception, the worker's state is undefined
+      // per spec — posting further messages to it is unreliable. Null
+      // the cached ref so the next compute() reconstructs a fresh
+      // worker on demand.
+      worker = null;
     });
     return worker;
   }
