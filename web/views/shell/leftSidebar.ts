@@ -96,7 +96,6 @@ export function showLeftSidebar(
   panes[SidebarTab.Tree] = treeBundle.pane;
   panes[SidebarTab.Info] = infoBundle.pane;
   panes[SidebarTab.Controls] = buildControlsPane({
-    applyTheme: opts.applyTheme,
     onClose: paneOnClose,
     onRunCollisionCheck: opts.onRunCollisionCheck,
     onRunStemDiagnostic: opts.onRunStemDiagnostic,

@@ -853,23 +853,30 @@ canvas {
 }
 
 /* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
- * so it stays visible while the form scrolls. Buttons inside stretch to
- * fill the bar's width. */
+ * so it stays visible while the form scrolls. Reset all sits on the
+ * left; Discard + Save are paired on the right. */
 .controls-actions {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   padding: 10px 16px;
   background: #10111a;
   border-top: 1px solid #1e2030;
 }
+.controls-actions-left,
+.controls-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .controls-actions .controls-button {
-  flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
+  width: auto;
 }
 .controls-button-icon {
   width: 14px;
