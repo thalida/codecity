@@ -77,11 +77,10 @@ export function createLayoutClient(): LayoutClient {
       pending.set(id, { resolve, reject });
       // Sync fallback path: jsdom + tests, plus any environment without
       // Worker support. Run synchronously but in a microtask so the
-      // supersede behavior matches the async-worker path. Apply config
-      // snapshot? Skip — in the fallback we're sharing the same store
-      // instances as the caller, so the values are already correct.
-      const snap = _snapshot();
-      void snap; // silence unused-var lint in fallback path
+      // supersede behavior matches the async-worker path. We don't
+      // snapshot config here — the sync path shares the caller's
+      // process-local store instances, so the values are already
+      // correct. The Worker path in Task 2 will use _snapshot().
       try {
         const layout = layoutCityV4(
           manifest as unknown as Parameters<typeof layoutCityV4>[0],
@@ -109,7 +108,12 @@ export function createLayoutClient(): LayoutClient {
   function dispose(): void {
     if (disposed) return;
     disposed = true;
-    _supersedeAll();
+    // Distinct rejection reason from supersede so callers can
+    // distinguish "newer compute() arrived" from "client is torn down".
+    for (const entry of pending.values()) {
+      entry.reject(new Error('disposed'));
+    }
+    pending.clear();
   }
 
   return { compute, dispose };

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/scene/layoutClient.js';
 import { NodeKind } from '@/types';
 import type { Manifest } from '@/types';
@@ -45,6 +45,10 @@ describe('layoutClient', () => {
 
   beforeEach(() => {
     client = createLayoutClient();
+  });
+
+  afterEach(() => {
+    client.dispose();
   });
 
   it('compute() returns a Promise that resolves with a CityLayout', async () => {
