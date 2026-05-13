@@ -659,6 +659,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // layoutClient signals that via a 'superseded' rejection.
     const newManifestTyped = newManifest as Manifest;
     let newLayout: CityLayout;
+    // Pass the full manifest envelope (not `manifest.tree`) — the worker
+    // forwards it to layoutCityV4, which internally unwraps `.tree` via
+    // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
+    // produce the same layout, but routing through the envelope keeps
+    // the worker message contract typed against `Manifest` rather than
+    // a structural `DirLike`. A reject with `Error('superseded')` is
+    // expected when a newer applyManifest preempts us — return silently
+    // so the newer run owns the swap.
     try {
       newLayout = await _layoutClient.compute(newManifestTyped);
     } catch (err) {
