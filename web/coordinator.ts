@@ -22,7 +22,7 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { LIVE_UPDATES } from './config/index.js';
-import { IS_RELOADING, LAST_UPDATED_AT } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_UPDATED_AT } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
 import type { FooterRepoInfo } from './views/shell/appFooter.js';
@@ -103,13 +103,13 @@ export function createCoordinator({
   function _refreshLiveStatus(): void {
     appFooter.setLiveStatus({
       enabled: LIVE_UPDATES.get().ENABLED,
-      reloading: IS_RELOADING.get(),
+      reloading: REBUILD_STATUS.get() === 'rebuilding',
       lastUpdatedAt: LAST_UPDATED_AT.get(),
     });
   }
   _refreshLiveStatus();
   const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
-  const _reloadUnsub = IS_RELOADING.subscribe(_refreshLiveStatus);
+  const _reloadUnsub = REBUILD_STATUS.subscribe(_refreshLiveStatus);
   const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshLiveStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
   // ago") advances smoothly even when polls aren't firing — the

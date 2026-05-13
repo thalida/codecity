@@ -21,7 +21,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { IS_RELOADING } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -420,10 +420,9 @@ function signatureUrl(): string {
 // Two-stage poll: each tick first hits /api/manifest/signature (cheap —
 // stat-only walk, no file content reads, no per-file git history) and
 // only fetches the full /api/manifest when the signature has changed.
-// On a large repo the no-op poll cost drops by ~10×. IS_RELOADING is
-// only set during the actual manifest fetch so the footer's "reloading…"
-// indicator doesn't flicker on every cheap signature check; concurrent
-// ticks are gated by the local `inFlight` flag.
+// On a large repo the no-op poll cost drops by ~10×. REBUILD_STATUS is
+// only flipped during the actual manifest fetch so the footer's
+// "rebuilding…" indicator only lights up when there's real work.
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;
   return Math.min(POLL_SECONDS_MAX, Math.max(POLL_SECONDS_MIN, s));
@@ -446,21 +445,26 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   let inFlight = false;
   let needsRefresh = false;
 
-  // Single fetch+apply path. Always sets IS_RELOADING for the duration —
-  // both the poll's "signature changed" branch and the toggle handler
-  // funnel through here so the footer indicator behaves identically.
+  // Single fetch+apply path. Always flips REBUILD_STATUS to 'rebuilding'
+  // for the duration — both the poll's "signature changed" branch and
+  // the toggle handler funnel through here so the footer indicator
+  // behaves identically. A non-2xx response or a JSON parse error
+  // resolves to 'error' with the message captured in LAST_REBUILD_ERROR.
   async function refreshManifest(): Promise<void> {
-    IS_RELOADING.set(true);
+    REBUILD_STATUS.set('rebuilding');
     try {
       const resp = await fetch(manifestUrl());
-      if (!resp.ok) return;
+      if (!resp.ok) throw new Error(`Manifest fetch failed: HTTP ${resp.status}`);
       const m: Manifest | null = await resp.json();
       if (m?.signature) {
         lastSignature = m.signature;
         handle.cityScene.applyManifest(m);
       }
-    } finally {
-      IS_RELOADING.set(false);
+      REBUILD_STATUS.set('idle');
+      LAST_REBUILD_ERROR.set(null);
+    } catch (err) {
+      REBUILD_STATUS.set('error');
+      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
     }
   }
 

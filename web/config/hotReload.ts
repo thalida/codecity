@@ -11,6 +11,8 @@
 // Adding a new config row is a one-line entry in the appropriate set
 // below — the reactions below pick it up automatically.
 
+import { REBUILD_STATUS, LAST_REBUILD_ERROR } from '../liveStatus.js';
+
 import {
   // Rebuild-required (affects layout or geometry):
   BUILDING_DIMENSIONS,
@@ -54,10 +56,22 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   function scheduleRebuild() {
     if (!armed) return;
     if (rebuildTimer) clearTimeout(rebuildTimer);
+    // Flip to 'rebuilding' immediately when the timer is scheduled
+    // (not just before applyManifest fires) so the browser has time
+    // to paint the indicator before the synchronous rebuild blocks
+    // the main thread.
+    REBUILD_STATUS.set('rebuilding');
     rebuildTimer = setTimeout(() => {
       rebuildTimer = 0;
-      const manifest = cityScene.getManifest();
-      if (manifest) cityScene.applyManifest(manifest);
+      try {
+        const manifest = cityScene.getManifest();
+        if (manifest) cityScene.applyManifest(manifest);
+        REBUILD_STATUS.set('idle');
+        LAST_REBUILD_ERROR.set(null);
+      } catch (err) {
+        REBUILD_STATUS.set('error');
+        LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
+      }
     }, REBUILD_DEBOUNCE_MS);
   }
 
