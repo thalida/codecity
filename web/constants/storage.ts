@@ -17,8 +17,4 @@ export const STORAGE_KEYS = {
   SIDEBAR_WIDTH: 'cc.sidebarWidth',
   /** Left sidebar collapsed state ('true' iff collapsed). */
   SIDEBAR_COLLAPSED: 'cc.sidebarCollapsed',
-  /** Header toggle: left sidebar entirely hidden. */
-  APP_LEFT_HIDDEN: 'cc.appLeftHidden',
-  /** Header toggle: right sidebar entirely hidden. */
-  APP_RIGHT_HIDDEN: 'cc.appRightHidden',
 } as const;

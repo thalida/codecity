@@ -117,13 +117,13 @@ body {
   font-size: 14px;
 }
 
-/* When toggled off via the header buttons, hide the entire sidebar (not
-   the same as the activity-bar collapse). */
-body.left-hidden #tree-sidebar {
-  display: none;
+.app-header-icon[disabled] {
+  opacity: 0.35;
+  cursor: default;
 }
-body.right-hidden #sidebar {
-  display: none;
+.app-header-icon[disabled]:hover {
+  color: #6a7090;
+  background: none;
 }
 
 canvas {

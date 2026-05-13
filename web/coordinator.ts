@@ -45,6 +45,9 @@ export function createCoordinator({
   huePalette,
   applyTheme,
 }: CoordinatorOpts) {
+  // Right sidebar opens on file selection and closes via its × button.
+  // The previous header-toggle was removed, so the boot state is simply
+  // "closed" — the first file selection will open it.
   let sidebarVisible = false;
 
   // Build the right-sidebar's file-preview pane once. The shell mounts
@@ -75,7 +78,7 @@ export function createCoordinator({
     else filePreview.api.setFile(null);
   }
 
-  // ── App header (breadcrumb + L/R sidebar toggles) ──────────────────
+  // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
   const appHeader = initAppHeader({
     huePalette: huePalette || {},
@@ -84,12 +87,20 @@ export function createCoordinator({
     onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
-    onRightToggle(hidden: boolean) {
-      sidebarVisible = !hidden;
-      _renderSidebar();
+    onUp() {
+      const sel = picker.selection.get();
+      const path = _pathOf(sel);
+      const root = rootNode?.path || '';
+      if (!path || path === root) return;
+      const parent = path.split('/').slice(0, -1).join('/');
+      if (parent) picker.selectByPath(parent);
+      else if (root) picker.selectByPath(root);
+      else picker.setSelection(null);
+    },
+    onResetView() {
+      rig.reset();
     },
   });
-  sidebarVisible = appHeader.isRightVisible();
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────

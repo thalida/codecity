@@ -1,12 +1,15 @@
-// views/shell/appHeader.js — Sitewide top header. Owns the
-// current-selection display (chip + clickable breadcrumb + copy-path
-// button) and the two show/hide-sidebar toggles. Visibility state is
-// persisted in localStorage so the preference survives reloads.
+// views/shell/appHeader.ts — Sitewide top header. Owns the current-
+// selection display (chip + clickable breadcrumb + copy-path button)
+// in the center, an "Up one level" navigation button on the left, and
+// a "Reset view" camera-reset button on the right.
+//
+// The two side buttons replaced the older "hide left sidebar" / "hide
+// right sidebar" toggles — the right sidebar now self-manages via its
+// own × close button, and the left sidebar has its own activity-bar
+// collapse, so the dedicated hide-toggles in the header were redundant.
 
-import { STORAGE_KEYS } from '@/constants';
 import { getHue } from '@/scene/colors.js';
 import { makeLucideIcon } from './icon.js';
-import { loadFlag, saveFlag } from './localFlag.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -27,14 +30,17 @@ interface InitAppHeaderOpts {
   rootPath?: string;
   /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
   onSegmentClick?: ((path: string) => void) | null;
-  onLeftToggle?: ((hidden: boolean) => void) | null;
-  onRightToggle?: ((hidden: boolean) => void) | null;
+  /** fn() — fires when the user clicks the "Up one level" button. Caller resolves the parent path of the current selection and selects it. */
+  onUp?: (() => void) | null;
+  /** fn() — fires when the user clicks the "Reset view" button. Caller resets the camera (same as the R key). */
+  onResetView?: (() => void) | null;
 }
 
 /**
- * Initialise the sitewide header. Renders icons into the existing toggle
- * buttons in index.html, populates the title slot with chip + breadcrumb
- * + copy widgets, restores persisted visibility from localStorage.
+ * Initialise the sitewide header. Renders icons into the existing buttons
+ * in index.html, populates the title slot with chip + breadcrumb + copy
+ * widgets. The Up button's enabled state tracks the current selection
+ * (disabled when nothing is selected or the selection is the root).
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   const {
@@ -42,66 +48,36 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     rootLabel = '',
     rootPath = '',
     onSegmentClick = null,
-    onRightToggle = null,
-    onLeftToggle = null,
+    onUp = null,
+    onResetView = null,
   } = opts;
 
-  const leftBtn = document.getElementById('toggle-left-sidebar');
-  const rightBtn = document.getElementById('toggle-right-sidebar');
+  const upBtn = document.getElementById('app-header-up') as HTMLButtonElement | null;
+  const resetBtn = document.getElementById('app-header-reset') as HTMLButtonElement | null;
   const titleEl = document.getElementById('app-title');
-  if (!leftBtn || !rightBtn || !titleEl) {
+  if (!upBtn || !resetBtn || !titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
-      setLeftVisible(_visible: boolean) {},
-      setRightVisible(_visible: boolean) {},
-      isLeftVisible() {
-        return true;
-      },
-      isRightVisible() {
-        return true;
-      },
     };
   }
 
-  function _renderLeftIcon(hidden: boolean): void {
-    leftBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close'));
-    leftBtn!.title = hidden ? 'Show left sidebar' : 'Hide left sidebar';
-  }
-  function _renderRightIcon(hidden: boolean): void {
-    rightBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close'));
-    rightBtn!.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
-  }
+  upBtn.replaceChildren(makeLucideIcon('arrow-up'));
+  resetBtn.replaceChildren(makeLucideIcon('refresh-cw'));
 
-  // Both sidebars default to visible on first run. The right starts in
-  // its empty state (no selection); the left starts on its tree pane.
-  let leftHidden = loadFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, false);
-  let rightHidden = loadFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, false);
-  document.body.classList.toggle('left-hidden', leftHidden);
-  document.body.classList.toggle('right-hidden', rightHidden);
-  _renderLeftIcon(leftHidden);
-  _renderRightIcon(rightHidden);
-
-  leftBtn.addEventListener('click', () => {
-    _setLeftHidden(!leftHidden);
-    if (onLeftToggle) onLeftToggle(leftHidden);
+  upBtn.addEventListener('click', () => {
+    if (upBtn.disabled) return;
+    if (onUp) onUp();
   });
-  rightBtn.addEventListener('click', () => {
-    _setRightHidden(!rightHidden);
-    if (onRightToggle) onRightToggle(rightHidden);
+  resetBtn.addEventListener('click', () => {
+    if (onResetView) onResetView();
   });
 
-  function _setLeftHidden(hidden: boolean): void {
-    leftHidden = hidden;
-    document.body.classList.toggle('left-hidden', leftHidden);
-    _renderLeftIcon(leftHidden);
-    saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
+  function _setUpEnabled(enabled: boolean): void {
+    upBtn!.disabled = !enabled;
   }
-  function _setRightHidden(hidden: boolean): void {
-    rightHidden = hidden;
-    document.body.classList.toggle('right-hidden', rightHidden);
-    _renderRightIcon(rightHidden);
-    saveFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, rightHidden);
-  }
+  // No selection on boot — Up has nothing to navigate to until the user
+  // selects something.
+  _setUpEnabled(false);
 
   /**
    * Render the title slot for a selection.
@@ -118,6 +94,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   function setSelection(sel: HeaderSelection | null): void {
     titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
+    _setUpEnabled(hasSel);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection.
@@ -197,18 +174,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   return {
     setSelection,
-    setLeftVisible(visible: boolean) {
-      _setLeftHidden(!visible);
-    },
-    setRightVisible(visible: boolean) {
-      _setRightHidden(!visible);
-    },
-    isLeftVisible() {
-      return !leftHidden;
-    },
-    isRightVisible() {
-      return !rightHidden;
-    },
   };
 }
 
