@@ -1,5 +1,5 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — live-reload status (live / reloading… / off)
+//   left   — Live indicator (poll on/off) + Build indicator (idle / rebuilding… / error)
 //   center — repo information (project name + absolute root path)
 //   right  — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories)
@@ -30,6 +30,7 @@ export interface FooterLiveStatus {
 }
 
 export interface FooterBuildStatus {
+  /** Must remain in sync with `RebuildStatus` in `liveStatus.ts` (intentional decoupling). */
   status: 'idle' | 'rebuilding' | 'error';
   /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;
@@ -89,8 +90,7 @@ export function initAppFooter() {
 
   function setLiveStatus(status: FooterLiveStatus): void {
     liveEl.replaceChildren();
-    liveEl.classList.remove('is-disabled', 'is-live');
-    liveEl.classList.add(status.enabled ? 'is-live' : 'is-disabled');
+    liveEl.classList.toggle('is-disabled', !status.enabled);
 
     const dot = document.createElement('span');
     dot.className = 'app-footer-live-dot';
@@ -118,6 +118,9 @@ export function initAppFooter() {
       if (status.errorMessage) buildEl.title = status.errorMessage;
     } else {
       modifier = 'is-ready';
+      // 'ready' literal is a guard for unit tests or any code path that
+      // calls setBuildStatus before LAST_UPDATED_AT is seeded. Production
+      // boot seeds the stamp in coordinator.ts before this setter runs.
       detailText =
         status.lastUpdatedAt > 0
           ? _relativeTime(status.lastUpdatedAt, Date.now())

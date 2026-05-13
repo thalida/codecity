@@ -328,9 +328,6 @@ canvas {
   align-items: center;
   gap: 6px;
 }
-.app-footer-left {
-  gap: 14px;
-}
 .app-footer-live-dot,
 .app-footer-build-dot {
   width: 6px;

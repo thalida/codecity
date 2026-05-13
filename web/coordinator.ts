@@ -114,6 +114,9 @@ export function createCoordinator({
   _refreshBuildStatus();
   const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
   const _statusUnsub = REBUILD_STATUS.subscribe(_refreshBuildStatus);
+  // _errorUnsub catches updated error messages even when REBUILD_STATUS
+  // is already 'error' (e.g. two failing polls in a row with different
+  // messages) — the tooltip needs to refresh on every message change.
   const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshBuildStatus);
   const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshBuildStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
