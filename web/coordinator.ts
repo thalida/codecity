@@ -22,7 +22,7 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { LIVE_UPDATES } from './config/index.js';
-import { REBUILD_STATUS, LAST_UPDATED_AT } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
 import type { FooterRepoInfo } from './views/shell/appFooter.js';
@@ -100,24 +100,26 @@ export function createCoordinator({
   // first poll lands a fresh manifest.
   if (initialManifest) LAST_UPDATED_AT.set(Date.now());
 
-  // Transitional shape: feeds the old `reloading` boolean field of
-  // FooterLiveStatus. Task 2 splits the footer API into setLiveStatus +
-  // setBuildStatus and removes this translation.
   function _refreshLiveStatus(): void {
-    appFooter.setLiveStatus({
-      enabled: LIVE_UPDATES.get().ENABLED,
-      reloading: REBUILD_STATUS.get() === 'rebuilding',
+    appFooter.setLiveStatus({ enabled: LIVE_UPDATES.get().ENABLED });
+  }
+  function _refreshBuildStatus(): void {
+    appFooter.setBuildStatus({
+      status: REBUILD_STATUS.get(),
       lastUpdatedAt: LAST_UPDATED_AT.get(),
+      errorMessage: LAST_REBUILD_ERROR.get(),
     });
   }
   _refreshLiveStatus();
+  _refreshBuildStatus();
   const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshLiveStatus);
-  const _reloadUnsub = REBUILD_STATUS.subscribe(_refreshLiveStatus);
-  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshLiveStatus);
+  const _statusUnsub = REBUILD_STATUS.subscribe(_refreshBuildStatus);
+  const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshBuildStatus);
+  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshBuildStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
-  // ago") advances smoothly even when polls aren't firing — the
-  // store-based subscriptions only refresh on actual events.
-  const _tickHandle = window.setInterval(_refreshLiveStatus, 1000);
+  // ago") advances smoothly on the Build indicator. The Live indicator
+  // has no time-dependent state.
+  const _tickHandle = window.setInterval(_refreshBuildStatus, 1000);
 
   _renderSidebar(); // initial paint
 
@@ -268,7 +270,8 @@ export function createCoordinator({
     if (typeof _hovUnsub === 'function') _hovUnsub();
     if (typeof _changeUnsub === 'function') _changeUnsub();
     if (typeof _liveCfgUnsub === 'function') _liveCfgUnsub();
-    if (typeof _reloadUnsub === 'function') _reloadUnsub();
+    if (typeof _statusUnsub === 'function') _statusUnsub();
+    if (typeof _errorUnsub === 'function') _errorUnsub();
     if (typeof _stampUnsub === 'function') _stampUnsub();
     window.clearInterval(_tickHandle);
   }

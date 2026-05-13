@@ -27,9 +27,14 @@ export type FooterSelection = FooterFileSelection | FooterDirectorySelection;
 
 export interface FooterLiveStatus {
   enabled: boolean;
-  reloading: boolean;
-  /** Epoch millis of the most recent manifest apply; 0 ⇒ unknown. */
+}
+
+export interface FooterBuildStatus {
+  status: 'idle' | 'rebuilding' | 'error';
+  /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;
+  /** Surfaced as the indicator's `title` (hover tooltip) when status === 'error'. */
+  errorMessage: string | null;
 }
 
 export interface FooterRepoInfo {
@@ -52,14 +57,16 @@ export interface FooterRepoInfo {
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
   setLiveStatus(_status: FooterLiveStatus) {},
+  setBuildStatus(_status: FooterBuildStatus) {},
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
 /**
  * Initialise the sitewide footer. Returns:
- *   setLiveStatus({ enabled, reloading }) — left section
- *   setRepoInfo({ name, root })           — center section
- *   setSelection(sel | null)              — right section
+ *   setLiveStatus({ enabled })                          — left section (Live dot)
+ *   setBuildStatus({ status, lastUpdatedAt, errorMessage }) — left section (Build dot)
+ *   setRepoInfo({ ... })                                — center section
+ *   setSelection(sel | null)                            — right section
  */
 export function initAppFooter() {
   const footer = document.getElementById('app-footer');
@@ -67,6 +74,13 @@ export function initAppFooter() {
 
   const leftEl = document.createElement('div');
   leftEl.className = 'app-footer-section app-footer-left';
+  const liveEl = document.createElement('span');
+  liveEl.className = 'app-footer-live';
+  const buildEl = document.createElement('span');
+  buildEl.className = 'app-footer-build';
+  leftEl.appendChild(liveEl);
+  leftEl.appendChild(buildEl);
+
   const centerEl = document.createElement('div');
   centerEl.className = 'app-footer-section app-footer-center';
   const rightEl = document.createElement('div');
@@ -74,42 +88,54 @@ export function initAppFooter() {
   footer.replaceChildren(leftEl, centerEl, rightEl);
 
   function setLiveStatus(status: FooterLiveStatus): void {
-    leftEl.replaceChildren();
-    const indicator = document.createElement('span');
-    indicator.className = 'app-footer-live';
-    if (!status.enabled) indicator.classList.add('is-disabled');
-    else if (status.reloading) indicator.classList.add('is-reloading');
-    else indicator.classList.add('is-live');
+    liveEl.replaceChildren();
+    liveEl.classList.remove('is-disabled', 'is-live');
+    liveEl.classList.add(status.enabled ? 'is-live' : 'is-disabled');
 
     const dot = document.createElement('span');
     dot.className = 'app-footer-live-dot';
-    indicator.appendChild(dot);
+    liveEl.appendChild(dot);
 
-    const primary = document.createElement('span');
-    primary.className = 'app-footer-live-label';
-    primary.textContent = status.enabled ? 'live' : 'live updates off';
-    indicator.appendChild(primary);
+    const label = document.createElement('span');
+    label.className = 'app-footer-live-label';
+    label.textContent = 'live';
+    liveEl.appendChild(label);
+  }
 
-    if (status.enabled) {
-      const sep = document.createElement('span');
-      sep.className = 'app-footer-live-sep';
-      sep.textContent = '·';
-      indicator.appendChild(sep);
+  function setBuildStatus(status: FooterBuildStatus): void {
+    buildEl.replaceChildren();
+    buildEl.classList.remove('is-rebuilding', 'is-ready', 'is-error');
+    buildEl.removeAttribute('title');
 
-      const detail = document.createElement('span');
-      detail.className = 'app-footer-live-detail';
-      if (status.reloading) {
-        detail.textContent = 'reloading…';
-      } else if (status.lastUpdatedAt > 0) {
-        detail.textContent = _relativeTime(status.lastUpdatedAt, Date.now());
-        detail.title = new Date(status.lastUpdatedAt).toLocaleString();
-      } else {
-        detail.textContent = '—';
-      }
-      indicator.appendChild(detail);
+    let modifier: 'is-rebuilding' | 'is-ready' | 'is-error';
+    let detailText: string;
+    if (status.status === 'rebuilding') {
+      modifier = 'is-rebuilding';
+      detailText = 'rebuilding…';
+    } else if (status.status === 'error') {
+      modifier = 'is-error';
+      detailText = 'error';
+      if (status.errorMessage) buildEl.title = status.errorMessage;
+    } else {
+      modifier = 'is-ready';
+      detailText =
+        status.lastUpdatedAt > 0
+          ? _relativeTime(status.lastUpdatedAt, Date.now())
+          : 'ready';
     }
+    buildEl.classList.add(modifier);
 
-    leftEl.appendChild(indicator);
+    const dot = document.createElement('span');
+    dot.className = 'app-footer-build-dot';
+    buildEl.appendChild(dot);
+
+    const detail = document.createElement('span');
+    detail.className = 'app-footer-build-detail';
+    detail.textContent = detailText;
+    if (status.status === 'idle' && status.lastUpdatedAt > 0) {
+      detail.title = new Date(status.lastUpdatedAt).toLocaleString();
+    }
+    buildEl.appendChild(detail);
   }
 
   function setRepoInfo(info: FooterRepoInfo | null): void {
@@ -173,7 +199,7 @@ export function initAppFooter() {
     }
   }
 
-  return { setSelection, setLiveStatus, setRepoInfo };
+  return { setSelection, setLiveStatus, setBuildStatus, setRepoInfo };
 }
 
 const SEC_MS = 1000;

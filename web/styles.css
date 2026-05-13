@@ -321,36 +321,54 @@ canvas {
   font-size: 9.5px;
 }
 
-/* ── Live-reload status indicator (left section) ──────────────────── */
-.app-footer-live {
+/* ── Live + Build status indicators (left section) ────────────────── */
+.app-footer-live,
+.app-footer-build {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
-.app-footer-live-dot {
+.app-footer-left {
+  gap: 14px;
+}
+.app-footer-live-dot,
+.app-footer-build-dot {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #4ade80;
   flex: 0 0 auto;
+}
+
+/* Live dot: green when enabled, gray when disabled. */
+.app-footer-live .app-footer-live-dot {
+  background: #4ade80;
 }
 .app-footer-live.is-disabled .app-footer-live-dot {
   background: #44485e;
 }
-.app-footer-live.is-reloading .app-footer-live-dot {
-  background: #fbbf24;
-  animation: app-footer-live-pulse 0.9s ease-in-out infinite;
-}
 .app-footer-live.is-disabled .app-footer-live-label {
   color: #5d6280;
 }
-.app-footer-live-sep {
-  color: #44485e;
+
+/* Build dot: green when idle, yellow + pulse when rebuilding, red on error. */
+.app-footer-build.is-ready .app-footer-build-dot {
+  background: #4ade80;
 }
-.app-footer-live-detail {
+.app-footer-build.is-rebuilding .app-footer-build-dot {
+  background: #fbbf24;
+  animation: app-footer-pulse 0.9s ease-in-out infinite;
+}
+.app-footer-build.is-error .app-footer-build-dot {
+  background: #ef4444;
+}
+.app-footer-build.is-error .app-footer-build-detail {
+  color: #fca5a5;
+}
+.app-footer-build-detail {
   color: #6b7090;
 }
-@keyframes app-footer-live-pulse {
+
+@keyframes app-footer-pulse {
   0%,
   100% {
     opacity: 1;
