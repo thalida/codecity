@@ -411,6 +411,10 @@ function _layoutDirV4(
   byteStats: RangeStat,
   occupancy: WorldOccupancy,
   trace?: StemPlacementTrace,
+  /** Parent's road extent (max along-edge of its children placed so far, in
+   *  parent's local frame) at the time this recursive call begins. Used to
+   *  bound the phantom's perp range. Undefined at the top-level call. */
+  parentMaxBoundary?: number,
 ): void {
   // ----- Tunables (one .get() per call, matching v3 pattern) -----
   const streetLayout = STREET_LAYOUT.get();
@@ -446,19 +450,34 @@ function _layoutDirV4(
   //   - Along this dir's ALONG axis: spans ±parentStreetWidth/2 (parent's
   //     width). This dir's join end sits at along=0; the parent's body
   //     extends to ±parentW/2 on either side of the join.
-  //   - Along this dir's PERP axis: spans ±PHANTOM_FAR (parent's length is
-  //     unknown during pre-compute; use a generous bound — practical perp
-  //     extents are O(tree_depth × max_street_width), well below 1e9).
+  //   - Along this dir's PERP axis: bounded by the parent's road extent.
+  //     The phantom represents the parent's road BODY, which has a finite
+  //     along-length, not an infinite one. Using parentMaxBoundary (the
+  //     extent of parent's road known so far) as the bound stops the
+  //     phantom from over-blocking grandchildren that would actually land
+  //     past parent's road. A small additional buffer guards against the
+  //     parent's road growing further when siblings after this dir get
+  //     placed. Falls back to a large default at the root call where the
+  //     bound is unknown but no parent road exists either.
   //
   // Skipped at the root call (parentStreetWidth undefined), where no parent
   // body exists. -----
   if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
     const halfP = parentStreetWidth / 2;
+    // PHANTOM_FAR is the fallback when no parentMaxBoundary is supplied
+    // (legacy callers). Real subdir recursions pass parentMaxBoundary, and
+    // we use that + a generous safety buffer so later siblings extending
+    // the parent road can still grow without our grandchildren overlapping
+    // the (now-extended) parent body.
     const PHANTOM_FAR = 1e9;
-    const phantomMinX = orientation === StreetAxis.X ? -halfP : -PHANTOM_FAR;
-    const phantomMaxX = orientation === StreetAxis.X ? +halfP : +PHANTOM_FAR;
-    const phantomMinY = orientation === StreetAxis.Y ? -halfP : -PHANTOM_FAR;
-    const phantomMaxY = orientation === StreetAxis.Y ? +halfP : +PHANTOM_FAR;
+    const phantomReach =
+      parentMaxBoundary !== undefined
+        ? parentMaxBoundary * 2 + 1000
+        : PHANTOM_FAR;
+    const phantomMinX = orientation === StreetAxis.X ? -halfP : -phantomReach;
+    const phantomMaxX = orientation === StreetAxis.X ? +halfP : +phantomReach;
+    const phantomMinY = orientation === StreetAxis.Y ? -halfP : -phantomReach;
+    const phantomMaxY = orientation === StreetAxis.Y ? +halfP : +phantomReach;
     occupancy.insert({
       minX: phantomMinX,
       minY: phantomMinY,
@@ -661,6 +680,7 @@ function _layoutDirV4(
         lineStats, byteStats,
         localOccupancy,
         trace,
+        maxBoundaryAlong,
       );
 
       // Build child-local rect list from the subtree result. These are the
