@@ -82,14 +82,14 @@ const POST_COLOR = 0x6e7280; // brushed-steel gray; reads as metal once shaded
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
-// Halo proportions — a wider plane sitting BEHIND the panel body
-// with a smooth additive-blended radial gradient. The opaque body
-// occludes the bright center from any viewing angle, so what's
-// visible is the outer rim spilling past the panel's silhouette —
-// exactly how a neon sign back-lights its own outline. PlaneGeometry
-// (not Sprite) so the halo orients with the billboard instead of
-// camera-tracking separately as the user rotates.
-const HALO_SCALE = 1.7; // halo plane size as a multiple of panel width
+// Halo proportions — a plane sitting IN FRONT of the panel, with a
+// texture that's transparent in the center (so the image reads
+// cleanly through the middle) and a heavily-blurred white rectangle
+// around it that fades far out into the dark scene. Reads as neon
+// light coming OFF the panel forward, with atmospheric falloff —
+// not as a back-lit silhouette. PlaneGeometry (not Sprite) so the
+// halo orients with the billboard.
+const HALO_SCALE = 2.4; // halo plane size as a multiple of panel — wide for soft atmospheric falloff
 const HALO_OPACITY = 0.55;
 const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
@@ -207,7 +207,11 @@ export function createBillboard(building: Building): THREE.Group {
   // rim shows past the silhouette).
   const haloGeo = new THREE.PlaneGeometry(panelW * HALO_SCALE, panelH * HALO_SCALE);
   const haloMat = new THREE.MeshBasicMaterial({
-    map: _haloTexture(),
+    // Starts with the generic blurred-rect placeholder + cool blue
+    // tint; swapped to an image-derived texture once the panel
+    // texture lands (see below) so the bloom matches the actual
+    // colors of the sign — the billboard "lights" the air around it.
+    map: _haloPlaceholderTexture(),
     color: HALO_COLOR,
     transparent: true,
     blending: THREE.AdditiveBlending,
@@ -216,10 +220,11 @@ export function createBillboard(building: Building): THREE.Group {
     opacity: HALO_OPACITY,
   });
   const halo = new THREE.Mesh(haloGeo, haloMat);
-  // Sits behind the body so the body occludes the bright rectangle
-  // center; only the blurred falloff spills past the panel's edges
-  // and reads as a glow rim around the sign's silhouette.
-  halo.position.set(0, postH + panelH / 2, -panelD * 0.5 - 0.05);
+  // Sits a hair in front of the image plane so the glow emits FROM
+  // the lit side of the panel (not back-lights from behind). With the
+  // image-derived texture's transparent center, the image still reads
+  // cleanly; only the surrounding bloom is contributed by the halo.
+  halo.position.set(0, postH + panelH / 2, panelD * 0.5 + IMAGE_OFFSET + 0.02);
   // Glow shouldn't intercept clicks — selection should still hit the
   // panel/posts behind/around it.
   halo.raycast = () => {};
@@ -229,7 +234,9 @@ export function createBillboard(building: Building): THREE.Group {
   group.position.set(building.x, 0, building.y);
   group.rotation.y = orientToYRotation(building.orient);
 
-  // ---- Async texture load → swap the image plane's material when ready ----
+  // ---- Async texture load → swap the image plane's material AND
+  // rebuild the halo texture from the panel's own pixels, so the
+  // bloom inherits the image's colors. ----
   const filePath = building.file.fullPath || building.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
   _loadBillboardTexture(url, kind)
@@ -239,6 +246,23 @@ export function createBillboard(building: Building): THREE.Group {
         map: texture,
         side: THREE.FrontSide,
       });
+      // Replace the placeholder halo with one derived from the image
+      // itself — heavy blur of the panel content with the panel-area
+      // center cut out. The result: the billboard's actual colors
+      // bleed past its edges into the surrounding atmosphere.
+      const sourceImg = texture.image as HTMLImageElement | HTMLCanvasElement | null;
+      const imageHalo = _imageDerivedHaloTexture(sourceImg);
+      if (imageHalo) {
+        const prev = haloMat.map;
+        haloMat.map = imageHalo;
+        // Reset tint to white so the image's own colors come through
+        // unaltered (placeholder used HALO_COLOR to give the empty
+        // halo a cool tint).
+        haloMat.color.set(0xffffff);
+        haloMat.needsUpdate = true;
+        // Only dispose the prior map if it wasn't the shared placeholder.
+        if (prev && prev !== _haloPlaceholderSingleton) prev.dispose();
+      }
     })
     .catch(() => {
       /* keep placeholder; building still picks correctly */
@@ -248,51 +272,114 @@ export function createBillboard(building: Building): THREE.Group {
 }
 
 /** Dispose every mesh inside a billboard group — geometry, material,
- * and per-instance texture. The shared halo texture is NOT disposed
- * here (it's reused across every billboard); it lives until the
- * page is torn down. */
+ * and per-instance texture. The shared halo placeholder texture is
+ * NOT disposed here (reused across every billboard); it lives until
+ * the page is torn down. Per-instance image-derived halo textures
+ * ARE disposed (every billboard gets its own). */
 export function disposeBillboard(group: THREE.Group): void {
   group.traverse((obj) => {
     if (!(obj instanceof THREE.Mesh)) return;
     obj.geometry.dispose();
     const mat = obj.material as THREE.Material & { map?: THREE.Texture | null };
-    if (mat.map && mat.map !== _haloTextureSingleton) mat.map.dispose();
+    if (mat.map && mat.map !== _haloPlaceholderSingleton) mat.map.dispose();
     mat.dispose();
   });
 }
 
-// ── Shared halo texture (radial gradient, additive-blended) ─────────
+// ── Halo textures ────────────────────────────────────────────────────
+//
+// Placeholder: a single shared blurred-rectangle texture used until
+// the panel's actual image lands. Tinted via haloMat.color so it
+// reads as a generic cool neon hue.
+//
+// Per-instance: once the image texture loads, we rebuild the halo
+// from the panel's own pixels — heavy blur of the image with the
+// panel-area center cut out. The result is a per-billboard bloom
+// whose color comes from the sign itself (yellow icons paint yellow
+// glow into the air, blue ones blue, etc.), with the transparent
+// center letting the actual panel read cleanly through.
 
-let _haloTextureSingleton: THREE.CanvasTexture | null = null;
+let _haloPlaceholderSingleton: THREE.CanvasTexture | null = null;
 
-function _haloTexture(): THREE.CanvasTexture {
-  if (_haloTextureSingleton) return _haloTextureSingleton;
+function _haloPlaceholderTexture(): THREE.CanvasTexture {
+  if (_haloPlaceholderSingleton) return _haloPlaceholderSingleton;
   const size = 256;
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
   const ctx = canvas.getContext('2d');
   if (!ctx) {
-    // Should be unreachable; degrade gracefully.
-    _haloTextureSingleton = new THREE.CanvasTexture(canvas);
-    return _haloTextureSingleton;
+    _haloPlaceholderSingleton = new THREE.CanvasTexture(canvas);
+    return _haloPlaceholderSingleton;
   }
-  // Blurred RECTANGLE — not a radial gradient. A circular gradient
-  // stretched onto the landscape halo plane became an alien oval; a
-  // square white rect blurred outward maps to a rounded-rectangle
-  // bloom that follows the panel's silhouette. The bright center is
-  // occluded by the opaque panel body sitting in front of the halo,
-  // so what's visible is the soft falloff spilling past the body's
-  // edges — exactly how a back-lit neon sign reads.
+  // White rect at the panel's texture-space position, blurred outward.
+  // No center cutout — the placeholder is a fallback shown only
+  // briefly while the real image loads.
   const inset = (size * (1 - 1 / HALO_SCALE)) / 2;
   ctx.save();
-  ctx.filter = `blur(${size * 0.13}px)`;
+  ctx.filter = `blur(${size * 0.18}px)`;
   ctx.fillStyle = 'rgba(255, 255, 255, 1)';
   ctx.fillRect(inset, inset, size - inset * 2, size - inset * 2);
   ctx.restore();
-  _haloTextureSingleton = new THREE.CanvasTexture(canvas);
-  _haloTextureSingleton.colorSpace = THREE.SRGBColorSpace;
-  return _haloTextureSingleton;
+  _haloPlaceholderSingleton = new THREE.CanvasTexture(canvas);
+  _haloPlaceholderSingleton.colorSpace = THREE.SRGBColorSpace;
+  return _haloPlaceholderSingleton;
+}
+
+/**
+ * Build a per-instance halo texture from the panel's own image — the
+ * billboard "lights" the surrounding atmosphere with its own colors.
+ *
+ * 1. Draw the image at panel position within the texture, with a
+ *    heavy blur. The blur naturally leaks the image's colors out
+ *    past the panel's silhouette into the texture margin.
+ * 2. Cut a soft hole in the center matching the panel's footprint
+ *    so the front-mounted halo doesn't double-overlay the actual
+ *    image (which sits a hair behind the halo).
+ *
+ * Returns null if the source isn't ready or canvas 2d is unavailable.
+ */
+function _imageDerivedHaloTexture(
+  src: HTMLImageElement | HTMLCanvasElement | null
+): THREE.CanvasTexture | null {
+  if (!src) return null;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  const inset = (size * (1 - 1 / HALO_SCALE)) / 2;
+  const panelW = size - inset * 2;
+  const panelH = size - inset * 2;
+
+  // Step 1 — paint the image into the panel rect with heavy blur. The
+  // blur spreads the panel's colors outward into the surrounding
+  // margin, exactly like a real glowing surface throwing light into
+  // the air around it.
+  try {
+    ctx.save();
+    ctx.filter = `blur(${size * 0.18}px)`;
+    ctx.drawImage(src, inset, inset, panelW, panelH);
+    ctx.restore();
+  } catch {
+    return null;
+  }
+
+  // Step 2 — punch out the center where the actual image plane sits
+  // in front of the halo. Soft cutout edge so the boundary between
+  // "image" and "image-derived glow" is gradual, not a sharp ring.
+  ctx.save();
+  ctx.filter = `blur(${size * 0.05}px)`;
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = 'rgba(0, 0, 0, 1)';
+  ctx.fillRect(inset, inset, panelW, panelH);
+  ctx.restore();
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
 }
 
 // ── Texture loading ────────────────────────────────────────────────
