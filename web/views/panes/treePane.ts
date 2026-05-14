@@ -6,6 +6,7 @@
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { makeFileIcon, makeFolderIcon } from '@/views/shell/fileIcon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 interface TreeCtx {
@@ -72,6 +73,11 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
     });
     chevron.appendChild(chevronIcon);
     row.appendChild(chevron);
+    // Folder glyph sits between the chevron and the label so the row
+    // reads "[state arrow] [folder icon] [name]". The icon is picked
+    // by directory name (src/, tests/, views/, …) when we recognize
+    // it, generic folder otherwise.
+    row.appendChild(makeFolderIcon(child as DirNode));
     row.appendChild(label);
     li.appendChild(row);
 
@@ -92,8 +98,7 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
     }
   } else {
     li.classList.add('tree-file');
-    const fileIcon = makeLucideIcon('file', { class: 'tree-icon tree-icon-file' });
-    row.appendChild(fileIcon);
+    row.appendChild(makeFileIcon(child));
     row.appendChild(label);
     li.appendChild(row);
   }

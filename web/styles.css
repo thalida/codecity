@@ -1394,6 +1394,23 @@ canvas {
   flex-shrink: 0;
 }
 
+/* Material Icon Theme file/folder icons rendered as <img> via the
+ * fileIcon.ts helper. Full-color SVGs (the color carries the info)
+ * so no currentColor mask trick — just an inline-block raster. */
+.file-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-block;
+  /* Block-level layout in a flex row implies no baseline shift; aligns
+   * cleanly against the adjacent label text without a margin tweak. */
+  vertical-align: middle;
+  /* Hide the broken-image glyph for the brief window between src set
+   * and the CDN fetch landing (or while the onerror fallback flips). */
+  font-size: 0;
+  color: transparent;
+}
+
 /* Root row: chevron is hidden (root isn't collapsible) but the
  * element stays in the DOM with its inline-flex width so the label
  * lines up with the children's labels below. Cursor stays default
