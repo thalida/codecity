@@ -275,20 +275,23 @@ vec4 renderWallFace() {
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
-  // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost and BYPASS the
-  // directional-lighting multiplier — they're treated as emissive
-  // neon panes, so a lit window on the shadow side still glows. Unlit
-  // cells stay reflective (modulated by the sun) so they read as "off"
-  // glass rather than blank wall.
+  // Lit cells get an emissive boost and BYPASS the directional-lighting
+  // multiplier — they're treated as neon panes, so a lit window on the
+  // shadow side still glows. Unlit cells stay reflective (modulated by
+  // the sun) so they read as "off" glass rather than blank wall.
   //
-  // The lit / unlit split scales with the building's overall brightness:
-  // a bright (new / saturated) building has a low threshold and most
-  // windows lit ("buzzing"); at brightness=0 the threshold reaches 1.0
-  // so step() returns 0 for every cell and no window is lit at all —
-  // the oldest building's windows are all dark panes.
+  // Two brightness-driven curves:
+  //  - litThreshold: how MANY cells light up. Bright/new buildings hit
+  //    most windows; at brightness=0 the threshold reaches 1.0 so no
+  //    window is lit at all (oldest buildings = all dark panes).
+  //  - litDelta:     how BRIGHT each lit window glows. Bright/new
+  //    buildings push close to white (WINDOW_LIGHTNESS_DELTA = 55);
+  //    older / dimmer buildings light up duller — a single inhabited
+  //    window in a derelict block reads as a weak glow, not a beacon.
   float litThreshold = clamp(1.0 - brightness, 0.05, 1.0);
   float litFactor = step(litThreshold, litHash);
-  vec3 winLitColor = shadeColor(baseColor, WINDOW_LIGHTNESS_DELTA);
+  float litDelta = WINDOW_LIGHTNESS_DELTA * brightness;
+  vec3 winLitColor = shadeColor(baseColor, litDelta);
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
