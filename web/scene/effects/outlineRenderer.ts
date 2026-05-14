@@ -23,6 +23,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
+import { isMediaFile } from '../billboards.js';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
 import type { createCityScene } from '@/scene/cityScene.js';
@@ -101,7 +102,13 @@ export function createOutlineRenderer({
   // target.data (b.w, b.h, b.d, b.x, b.y).
   function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
     const b = target.data;
-    if (target.block?.detailMesh && target.instanceId != null) {
+    // Media files render as billboards, not building cuboids — their
+    // slot in the InstancedMesh is zero-scaled (so the cube doesn't
+    // render or catch raycasts). Decomposing that matrix would yield
+    // scale (0, 0, 0) and collapse the outline to a point. Fall back
+    // to b.w/h/d for these so the outline wraps the actual sign.
+    const isMedia = b.file && isMediaFile(b.file);
+    if (!isMedia && target.block?.detailMesh && target.instanceId != null) {
       target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
       // _tmpScale.x = b.w, _tmpScale.y = animated height, _tmpScale.z = b.d
@@ -109,7 +116,8 @@ export function createOutlineRenderer({
       outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
       outline.position.copy(_tmpPos);
     } else {
-      // Fallback: use layout coordinates directly (no animator tween applied).
+      // Fallback: use layout coordinates directly (no animator tween
+      // applied). Also the path for media-file billboards — see above.
       outline.scale.set(b.w, b.h, b.d);
       outline.position.set(b.x, b.h / 2, b.y);
     }
