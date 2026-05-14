@@ -8,7 +8,6 @@ import './styles.css';
 
 import * as Config from './config/index.js';
 import {
-  BUILDING_PALETTE,
   SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
@@ -23,7 +22,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -45,6 +44,8 @@ import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
+import { buildIconAtlas } from './scene/iconAtlas.js';
+import { setIconAtlas } from './scene/instanced/buildings.js';
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -54,8 +55,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // applications (line widths, hex color caches, scene background) are
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
-
-  const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
 
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
@@ -132,7 +131,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
     rig,
-    huePalette,
     applyTheme,
   });
 
@@ -607,6 +605,11 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
     }
   }
 
+  // Expose the manual-refresh entrypoint to anything outside the
+  // live-poll loop (e.g. the footer's refresh button) so they can
+  // trigger the same fetch+apply chain without re-implementing it.
+  setRefreshManifest(refreshFromToggle);
+
   LIVE_UPDATES.subscribe((val) => {
     if (val.ENABLED) start();
     else stop();
@@ -645,6 +648,18 @@ if (_canvas) {
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest: Manifest = await resp.json();
+
+    // Build the file-icon atlas before the city's first paint so
+    // building roofs already wear their file-type glyph on the very
+    // first frame. Failure here just means a city without roof icons —
+    // boot still continues.
+    try {
+      const atlas = await buildIconAtlas(manifest);
+      setIconAtlas(atlas);
+    } catch (err) {
+      console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+    }
+
     const handle = await startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,

@@ -12,7 +12,7 @@
 // Public:
 //   const coord = createCoordinator({
 //     cityScene, picker, rig,
-//     huePalette, applyTheme,
+//     applyTheme,
 //   });
 //   coord.dispose();
 
@@ -22,7 +22,12 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { LIVE_UPDATES } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './liveStatus.js';
+import {
+  REBUILD_STATUS,
+  LAST_REBUILD_ERROR,
+  LAST_UPDATED_AT,
+  refreshManifest,
+} from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
 import type { FooterRepoInfo } from './views/shell/appFooter.js';
@@ -34,23 +39,28 @@ interface CoordinatorOpts {
   cityScene: ReturnType<typeof createCityScene>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
-  huePalette: Record<string, number>;
   applyTheme: () => void;
 }
 
-export function createCoordinator({
-  cityScene,
-  picker,
-  rig,
-  huePalette,
-  applyTheme,
-}: CoordinatorOpts) {
+export function createCoordinator({ cityScene, picker, rig, applyTheme }: CoordinatorOpts) {
+  // Right sidebar opens on file selection and closes via its × button.
+  // The previous header-toggle was removed, so the boot state is simply
+  // "closed" — the first file selection will open it.
   let sidebarVisible = false;
 
   // Build the right-sidebar's file-preview pane once. The shell mounts
   // it on first show; subsequent selection changes just push a new file
-  // target into it via the pane's setFile API.
-  const filePreview = buildFilePreviewPane();
+  // target into it via the pane's setFile API. onClose flips the
+  // coordinator-level visibility tracker so a subsequent file selection
+  // re-opens the sidebar (otherwise the sidebar would stay open in our
+  // mental model but be DOM-closed, and the next selection wouldn't
+  // re-trigger an open).
+  const filePreview = buildFilePreviewPane({
+    onClose() {
+      sidebarVisible = false;
+      _renderSidebar();
+    },
+  });
 
   function _renderSidebar(): void {
     if (!sidebarVisible) {
@@ -66,25 +76,30 @@ export function createCoordinator({
     else filePreview.api.setFile(null);
   }
 
-  // ── App header (breadcrumb + L/R sidebar toggles) ──────────────────
+  // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
   const appHeader = initAppHeader({
-    huePalette: huePalette || {},
     rootLabel: rootNode?.name || '',
     rootPath: rootNode?.path || '',
     onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
-    onRightToggle(hidden: boolean) {
-      sidebarVisible = !hidden;
-      _renderSidebar();
-    },
   });
-  sidebarVisible = appHeader.isRightVisible();
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter();
+  const appFooter = initAppFooter({
+    // The footer's refresh button is the equivalent of a page reload:
+    // it kicks off a manifest re-fetch / rebuild AND resets the camera
+    // to its default pose, so the user lands on the same initial view
+    // they'd see right after boot. refreshManifest is async; we don't
+    // await it here because the rest of the UI (REBUILD_STATUS, etc.)
+    // already reflects the in-flight state.
+    onResetView() {
+      void refreshManifest();
+      rig.reset();
+    },
+  });
   const initialManifest = cityScene.getManifest();
   appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({
@@ -177,6 +192,13 @@ export function createCoordinator({
     onTreeFocus: _onTreeFocus,
     onTreeHover: _onTreeHover,
     onTreeHoverEnd: _onTreeHoverEnd,
+    onSearchSelect(path: string) {
+      picker.selectByPath(path);
+    },
+    onSearchFocus(path: string) {
+      const b = cityScene.getBuildingByPath(path);
+      if (b) rig.focusBuilding(b.mesh, b.building);
+    },
     onRunCollisionCheck: () => cityScene.runCollisionCheck(),
     onRunStemDiagnostic: () => cityScene.runStemPlacementDiagnostic(),
   });
@@ -220,6 +242,7 @@ export function createCoordinator({
       const hasGit = !!(f.git && (f.git.created || f.git.modified));
       appFooter.setSelection({
         kind: NodeKind.File,
+        extension: f.extension || '',
         language: humanLanguageFor(f),
         lines: f.lines,
         size: f.size || 0,
@@ -237,6 +260,13 @@ export function createCoordinator({
         size: d?.descendants_size ?? 0,
       });
     }
+
+    // Right sidebar mirrors "is there a file to preview": a building
+    // (file) selection opens it; a road (directory) selection or
+    // deselect closes it. The × button still has a job — it dismisses
+    // the preview while keeping the current building selected (next
+    // building click will reopen).
+    sidebarVisible = !!(sel && sel.kind === NodeKind.File);
 
     _renderSidebar();
   });
@@ -261,6 +291,9 @@ export function createCoordinator({
     }
     if (leftSidebarApi.setTreeManifest && m) {
       leftSidebarApi.setTreeManifest(m);
+    }
+    if (leftSidebarApi.setSearchManifest) {
+      leftSidebarApi.setSearchManifest(m);
     }
   });
 

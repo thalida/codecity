@@ -1,5 +1,8 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — combined status indicator: [dot] <status text>
+//   left   — current selection metadata (language · lines · size · created
+//            · modified for files; file/dir counts + size for directories)
+//   center — repo information (project name + absolute root path)
+//   right  — combined status indicator: [dot] <status text>
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
@@ -8,14 +11,16 @@
 //                         static when error)
 //            Hover tooltip surfaces the live state ("Live updates: on/off")
 //            and the rebuild error message (when applicable).
-//   center — repo information (project name + absolute root path)
-//   right  — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories)
 
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
+import { makeExtensionBadge } from './badge.js';
+import { makeLucideIcon } from './icon.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
+  /** File extension (with leading dot, e.g. ".ts"). Drives the color of the path-badge pill. */
+  extension?: string;
   language?: string;
   lines?: number | null;
   size?: number | null;
@@ -67,28 +72,57 @@ const NOOP_API = {
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
+interface InitAppFooterOpts {
+  /** fn() — fires when the user clicks the reset-view button in the footer's right section. Same handler the R key fires. */
+  onResetView?: (() => void) | null;
+}
+
 /**
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
- *                                            — left section (combined indicator)
+ *                                            — right section (combined indicator)
  *   setRepoInfo({ ... })                     — center section
- *   setSelection(sel | null)                 — right section
+ *   setSelection(sel | null)                 — left section (badge + metadata)
+ *
+ * The leading path-badge reads palette + asphalt from the live config
+ * stores at render time and re-renders on any change, so editing an
+ * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter() {
+export function initAppFooter(opts: InitAppFooterOpts = {}) {
+  const { onResetView = null } = opts;
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
-  const leftEl = document.createElement('div');
-  leftEl.className = 'app-footer-section app-footer-left';
-  const statusEl = document.createElement('span');
-  statusEl.className = 'app-footer-status';
-  leftEl.appendChild(statusEl);
+  const selectionEl = document.createElement('div');
+  selectionEl.className = 'app-footer-section app-footer-left';
 
   const centerEl = document.createElement('div');
   centerEl.className = 'app-footer-section app-footer-center';
-  const rightEl = document.createElement('div');
-  rightEl.className = 'app-footer-section app-footer-right';
-  footer.replaceChildren(leftEl, centerEl, rightEl);
+
+  const statusContainerEl = document.createElement('div');
+  statusContainerEl.className = 'app-footer-section app-footer-right';
+  const statusEl = document.createElement('span');
+  statusEl.className = 'app-footer-status';
+  statusContainerEl.appendChild(statusEl);
+
+  // Refresh button — the footer's "act like a fresh page load" trigger.
+  // The host wires it to a callback that re-fetches the manifest AND
+  // resets the camera (the R key continues to fire just the camera
+  // reset via scene/inputHandlers).
+  if (typeof onResetView === 'function') {
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'app-footer-button';
+    resetBtn.title = 'Refresh — rebuild the city and reset the view';
+    resetBtn.setAttribute('aria-label', 'Refresh');
+    resetBtn.appendChild(makeLucideIcon('refresh-cw'));
+    resetBtn.addEventListener('click', () => {
+      onResetView();
+    });
+    statusContainerEl.appendChild(resetBtn);
+  }
+
+  footer.replaceChildren(selectionEl, centerEl, statusContainerEl);
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
@@ -154,17 +188,8 @@ export function initAppFooter() {
 
     const wrap = document.createElement('span');
     wrap.className = 'app-footer-repo';
-    wrap.title = _buildRepoTooltip(info);
-
-    if (info.name) {
-      const name = document.createElement('span');
-      name.className = 'app-footer-repo-name';
-      name.textContent = info.name;
-      wrap.appendChild(name);
-    }
 
     if (info.branch) {
-      wrap.appendChild(_makeRepoSep());
       const branch = document.createElement('span');
       branch.className = 'app-footer-repo-branch';
       if (info.dirty) branch.classList.add('is-dirty');
@@ -176,38 +201,77 @@ export function initAppFooter() {
     }
 
     if (info.remoteUrl) {
-      wrap.appendChild(_makeRepoSep());
+      if (info.branch) wrap.appendChild(_makeSep());
       const link = document.createElement('a');
       link.className = 'app-footer-repo-link';
-      link.href = info.remoteUrl;
+      link.href = _branchAwareRepoUrl(info.remoteUrl, info.branch);
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = _shortRemoteLabel(info.remoteUrl);
+      link.textContent = 'repo';
+      // Hover tooltip surfaces the destination so users can see where
+      // a click will take them (and which branch the link is pointing at).
+      link.title = info.branch
+        ? `${info.remoteUrl} · ⎇ ${info.branch}`
+        : info.remoteUrl;
       wrap.appendChild(link);
     }
 
     centerEl.appendChild(wrap);
   }
 
+  // Last selection cached so config-store subscriptions can re-render
+  // with the same selection when the palette / asphalt color changes.
+  let lastSelection: FooterSelection | null = null;
+
   function setSelection(sel: FooterSelection | null): void {
-    rightEl.replaceChildren();
+    lastSelection = sel;
+    selectionEl.replaceChildren();
     if (!sel) return;
 
+    // Palette + asphalt read fresh at render time so the badge follows
+    // live config edits (re-render is triggered by the subscriptions
+    // below when those stores change).
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
+
+    // Always-leading chip (no dot before it). After the chip, the
+    // metadata items are joined with `·` separators to mirror the
+    // center repo section and reduce visual ambiguity between adjacent
+    // values.
+    const items: HTMLElement[] = [];
     if (sel.kind === NodeKind.File) {
-      if (sel.language) rightEl.appendChild(_item(sel.language));
-      if (sel.lines != null) rightEl.appendChild(_item(`${sel.lines} lines`));
-      if (sel.size != null) rightEl.appendChild(_item(_formatBytes(sel.size)));
+      selectionEl.appendChild(
+        makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor)
+      );
+      if (sel.language) items.push(_item(sel.language));
+      if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
+      if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
       if (sel.modified)
-        rightEl.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
-      if (sel.created)
-        rightEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
+        items.push(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
+      if (sel.created) items.push(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === NodeKind.Directory) {
-      rightEl.appendChild(_item('Directory'));
-      if (sel.files != null) rightEl.appendChild(_item(`${sel.files} files`));
-      if (sel.dirs != null) rightEl.appendChild(_item(`${sel.dirs} dirs`));
-      if (sel.size != null) rightEl.appendChild(_item(_formatBytes(sel.size)));
+      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
+      items.push(_item('Directory'));
+      if (sel.files != null) items.push(_item(`${sel.files} files`));
+      if (sel.dirs != null) items.push(_item(`${sel.dirs} dirs`));
+      if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
+    }
+    for (let i = 0; i < items.length; i++) {
+      if (i > 0) selectionEl.appendChild(_makeSep());
+      selectionEl.appendChild(items[i]);
     }
   }
+
+  // Live config: see appHeader for the same pattern. Drop the initial
+  // synchronous callback that nanostores fires at subscribe time so we
+  // don't re-render before the host has set an initial selection.
+  let _ready = false;
+  const _reRender = () => {
+    if (_ready) setSelection(lastSelection);
+  };
+  BUILDING_PALETTE.subscribe(_reRender);
+  ASPHALT.subscribe(_reRender);
+  _ready = true;
 
   return { setSelection, setStatus, setRepoInfo };
 }
@@ -225,33 +289,26 @@ function _relativeTime(then: number, now: number): string {
   return `${Math.floor(diff / DAY_MS)}d ago`;
 }
 
-function _makeRepoSep(): HTMLSpanElement {
+function _makeSep(): HTMLSpanElement {
   const sep = document.createElement('span');
-  sep.className = 'app-footer-repo-sep';
+  sep.className = 'app-footer-sep';
   sep.textContent = '·';
   return sep;
 }
 
-function _shortRemoteLabel(url: string): string {
-  // Strip the scheme and trailing slashes so the link reads as
-  // "github.com/org/repo" instead of the full URL — fits better in the
-  // bar and is still recognizable.
-  return url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-}
-
-function _buildRepoTooltip(info: FooterRepoInfo): string {
-  const lines: string[] = [];
-  if (info.name || info.root) lines.push(info.root || info.name);
-  if (info.branch) {
-    lines.push(info.dirty ? `branch: ${info.branch} (dirty)` : `branch: ${info.branch}`);
-  }
-  if (info.headSha || info.headSubject) {
-    const sha = info.headSha ? `${info.headSha} ` : '';
-    const subj = info.headSubject || '';
-    lines.push(`${sha}${subj}`.trim());
-  }
-  if (info.remoteUrl) lines.push(info.remoteUrl);
-  return lines.join('\n');
+/**
+ * Append the host-appropriate "view at branch" path to a repo URL so
+ * the link opens the repo on the same branch the user is looking at.
+ * Falls back to the bare URL for hosts we don't recognize — better a
+ * working repo home than a broken /tree URL.
+ */
+function _branchAwareRepoUrl(url: string, branch: string | null): string {
+  if (!branch) return url;
+  const safeBranch = encodeURIComponent(branch);
+  if (/github\.com/i.test(url)) return `${url}/tree/${safeBranch}`;
+  if (/gitlab\./i.test(url)) return `${url}/-/tree/${safeBranch}`;
+  if (/bitbucket\.org/i.test(url)) return `${url}/src/${safeBranch}`;
+  return url;
 }
 
 function _item(text: string, source?: string): HTMLSpanElement {

@@ -8,6 +8,7 @@ import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
@@ -50,24 +51,7 @@ export function buildInfoPane(
   const pane = document.createElement('div');
   pane.className = 'left-pane info-pane';
 
-  const header = document.createElement('div');
-  header.className = 'info-header pane-header';
-  const title = document.createElement('h3');
-  title.className = 'info-title';
-  title.textContent = 'Info';
-  header.appendChild(title);
-  if (typeof opts.onClose === 'function') {
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'pane-header-close';
-    closeBtn.title = 'Hide sidebar';
-    closeBtn.setAttribute('aria-label', 'Hide sidebar');
-    closeBtn.appendChild(makeLucideIcon('x'));
-    closeBtn.addEventListener('click', () => {
-      opts.onClose();
-    });
-    header.appendChild(closeBtn);
-  }
+  const { el: header } = buildPaneHeader({ title: 'Info', onClose: opts.onClose });
   pane.appendChild(header);
 
   const body = document.createElement('div');

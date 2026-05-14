@@ -6,6 +6,9 @@
 import * as THREE from 'three';
 import { BUILDING_DIMENSIONS, BUILDING_OUTLINE } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
+import { getFileIconName } from '@/views/shell/fileIcon.js';
+import { isMediaFile } from '../billboards.js';
+import type { IconAtlas } from '../iconAtlas.js';
 import type { SceneBlock } from '../blocks.js';
 
 export interface BuildingInstanceBuffer {
@@ -18,6 +21,15 @@ export interface BuildingInstanceBuffer {
   opacity: Float32Array; // N (defaults to 1.0)
   silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
   outlineOpacity: Float32Array; // N (0 = no per-building wireframe; >0 = composited at alpha)
+  /**
+   * N × 3 — packed attribute to stay under the GL_MAX_VERTEX_ATTRIBS=16 cap:
+   *   .xy = top-left UV of the file-icon slot in the atlas, or (-1, -1) for "no icon"
+   *   .z  = per-file random in [0, 1], drives the shader's window gap / lit
+   *         pattern so same-color buildings (e.g. all .css files of similar
+   *         age) don't share a facade. Stable across rebuilds via an
+   *         FNV-1a hash of file.path.
+   */
+  iconUV: Float32Array;
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +78,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     opacity: new Float32Array(n),
     silhouette: new Float32Array(n),
     outlineOpacity: new Float32Array(n),
+    iconUV: new Float32Array(n * 3),
   };
 
   const m = new THREE.Matrix4();
@@ -77,6 +90,26 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
 
   for (let i = 0; i < n; i++) {
     const b = block.buildings[i];
+
+    // Media files (images / videos) are rendered as separate billboard
+    // meshes; we keep their slot in the InstancedMesh so per-instance
+    // indices stay aligned with block.buildings, but collapse the
+    // matrix to a zero-scale so the cube vanishes from the GPU pipeline
+    // (no fragments, no raycast hits).
+    // The path-derived seed is set on EVERY building (including media)
+    // so we don't leave an uninitialized z component dangling — even
+    // the zero-scaled slot needs a valid stride.
+    const seed = _seedFromPath(b.file?.path ?? '');
+
+    if (b.file && isMediaFile(b.file)) {
+      m.makeScale(0, 0, 0);
+      m.setPosition(b.x, 0, b.y);
+      buf.matrix.set(m.toArray(), i * 16);
+      buf.iconUV[i * 3 + 0] = -1.0;
+      buf.iconUV[i * 3 + 1] = -1.0;
+      buf.iconUV[i * 3 + 2] = seed;
+      continue;
+    }
 
     // --- Transform matrix ---
     // Layout (x, y) → scene (x, z); building.h is scene-Y.
@@ -121,9 +154,44 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
 
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
+
+    // --- Icon UV (top-left of slot in atlas) + per-instance seed ---
+    // (-1, -1) on .xy means "no icon" — the shader checks .x < 0 and
+    // skips the atlas sample. The seed lands on .z; packed here to
+    // stay under the GL_MAX_VERTEX_ATTRIBS=16 cap (16 attribute slots
+    // total, plus the 8 Three.js auto-injects = leaves us 8 to spend).
+    buf.iconUV[i * 3 + 0] = -1.0;
+    buf.iconUV[i * 3 + 1] = -1.0;
+    buf.iconUV[i * 3 + 2] = seed;
+    if (_atlas) {
+      const file = b.file;
+      if (file) {
+        const iconName = getFileIconName(file);
+        const uv = _atlas.uvFor(iconName);
+        if (uv) {
+          buf.iconUV[i * 3 + 0] = uv[0];
+          buf.iconUV[i * 3 + 1] = uv[1];
+        }
+      }
+    }
   }
 
   return buf;
+}
+
+/**
+ * Stable 32-bit FNV-1a hash of a string, normalized to [0, 1). Used to
+ * derive a per-instance random `seed` that the shader keys facade
+ * variations off of — deterministic across rebuilds so a building's
+ * window pattern doesn't shuffle on every live-update poll.
+ */
+function _seedFromPath(path: string): number {
+  let h = 2166136261; // FNV offset basis
+  for (let i = 0; i < path.length; i++) {
+    h ^= path.charCodeAt(i);
+    h = Math.imul(h, 16777619); // FNV prime, 32-bit safe via imul
+  }
+  return (h >>> 0) / 4294967296;
 }
 
 /**
@@ -168,6 +236,22 @@ const _SHARED_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
+// The icon atlas the buildings sample for roof glyphs. main.ts builds
+// it after the initial manifest fetch and pushes it in via
+// setIconAtlas before the first applyManifest, so the very first
+// frame already has roof icons. Stays null while it's still loading
+// or if the atlas build failed — the shader treats iconUV.x < 0 as
+// "no icon" and just paints the base roof color.
+let _atlas: IconAtlas | null = null;
+
+export function setIconAtlas(atlas: IconAtlas | null): void {
+  _atlas = atlas;
+  if (_sharedMaterial) {
+    _sharedMaterial.uniforms.uIconAtlas.value = atlas ? atlas.texture : null;
+    _sharedMaterial.uniforms.uIconSlotSize.value = atlas ? atlas.slotSize : 0;
+  }
+}
+
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Inline the hsl helpers into the fragment source at the placeholder
@@ -182,6 +266,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
       // refreshBuildingMaterial() on hot-reload.
       uOutlineWidth: { value: BUILDING_OUTLINE.get().WIDTH },
+      // Atlas of file-type icons; sampled per-instance via iIconUV for
+      // the roof face. Null until the atlas builds — the shader gates
+      // sampling behind iIconUV.x >= 0.
+      uIconAtlas: { value: _atlas ? _atlas.texture : null },
+      uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
     },
   });
   return _sharedMaterial;
@@ -243,6 +332,7 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
     'iOutlineOpacity',
     new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
+  mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 3));
 
   // Compute bounding sphere from instance positions for Three's frustum
   // culling (fires per-block since each InstancedMesh has its own sphere).

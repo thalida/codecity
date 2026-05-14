@@ -66,6 +66,18 @@ export function createPicker({
     pickables = cityScene.getStreetPickables().slice();
     for (const block of cityScene.getBlocks()) {
       if (block.detailMesh) pickables.push(block.detailMesh);
+      // Billboard groups (image / video files) — each group contains
+      // a textured panel + two posts. Push the child meshes directly
+      // (not the group) so the non-recursive raycast picks them up;
+      // each mesh carries userData.building so interpretHit resolves
+      // through the legacy per-building-mesh path.
+      if (block.billboards) {
+        for (const g of block.billboards) {
+          for (const child of g.children) {
+            if (child instanceof THREE.Mesh) pickables.push(child);
+          }
+        }
+      }
     }
     const gem = cityScene.getRootGem();
     if (gem) {

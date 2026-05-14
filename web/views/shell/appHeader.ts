@@ -1,12 +1,12 @@
-// views/shell/appHeader.js — Sitewide top header. Owns the
-// current-selection display (chip + clickable breadcrumb + copy-path
-// button) and the two show/hide-sidebar toggles. Visibility state is
-// persisted in localStorage so the preference survives reloads.
+// views/shell/appHeader.ts — Sitewide top header. Renders the current
+// selection as a breadcrumb (chip + clickable path segments + copy-path
+// button). No side buttons — navigation actions (camera reset) live in
+// the footer; the activity bar on the left sidebar handles sidebar
+// collapse on its own.
 
-import { STORAGE_KEYS } from '@/constants';
-import { getHue } from '@/scene/colors.js';
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
-import { loadFlag, saveFlag } from './localFlag.js';
+import { makeExtensionBadge } from './badge.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -19,89 +19,33 @@ interface HeaderSelection {
 }
 
 interface InitAppHeaderOpts {
-  /** extension → hue map for the chip color */
-  huePalette?: Record<string, number>;
   /** project name shown as the leftmost breadcrumb segment (clicking it selects the project root) */
   rootLabel?: string;
   /** the path string the segment-click handler should receive when the root is clicked (e.g. "." or "") */
   rootPath?: string;
   /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
   onSegmentClick?: ((path: string) => void) | null;
-  onLeftToggle?: ((hidden: boolean) => void) | null;
-  onRightToggle?: ((hidden: boolean) => void) | null;
 }
 
 /**
- * Initialise the sitewide header. Renders icons into the existing toggle
- * buttons in index.html, populates the title slot with chip + breadcrumb
- * + copy widgets, restores persisted visibility from localStorage.
+ * Initialise the sitewide header. Populates the title slot with chip +
+ * breadcrumb + copy widgets. The path-badge subscribes to
+ * BUILDING_PALETTE + ASPHALT so changing an extension hue or the
+ * asphalt color in Controls live-repaints the currently-shown badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const {
-    huePalette = {},
-    rootLabel = '',
-    rootPath = '',
-    onSegmentClick = null,
-    onRightToggle = null,
-    onLeftToggle = null,
-  } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null } = opts;
 
-  const leftBtn = document.getElementById('toggle-left-sidebar');
-  const rightBtn = document.getElementById('toggle-right-sidebar');
   const titleEl = document.getElementById('app-title');
-  if (!leftBtn || !rightBtn || !titleEl) {
+  if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
-      setLeftVisible(_visible: boolean) {},
-      setRightVisible(_visible: boolean) {},
-      isLeftVisible() {
-        return true;
-      },
-      isRightVisible() {
-        return true;
-      },
     };
   }
 
-  function _renderLeftIcon(hidden: boolean): void {
-    leftBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-left-open' : 'panel-left-close'));
-    leftBtn!.title = hidden ? 'Show left sidebar' : 'Hide left sidebar';
-  }
-  function _renderRightIcon(hidden: boolean): void {
-    rightBtn!.replaceChildren(makeLucideIcon(hidden ? 'panel-right-open' : 'panel-right-close'));
-    rightBtn!.title = hidden ? 'Show right sidebar' : 'Hide right sidebar';
-  }
-
-  // Both sidebars default to visible on first run. The right starts in
-  // its empty state (no selection); the left starts on its tree pane.
-  let leftHidden = loadFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, false);
-  let rightHidden = loadFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, false);
-  document.body.classList.toggle('left-hidden', leftHidden);
-  document.body.classList.toggle('right-hidden', rightHidden);
-  _renderLeftIcon(leftHidden);
-  _renderRightIcon(rightHidden);
-
-  leftBtn.addEventListener('click', () => {
-    _setLeftHidden(!leftHidden);
-    if (onLeftToggle) onLeftToggle(leftHidden);
-  });
-  rightBtn.addEventListener('click', () => {
-    _setRightHidden(!rightHidden);
-    if (onRightToggle) onRightToggle(rightHidden);
-  });
-
-  function _setLeftHidden(hidden: boolean): void {
-    leftHidden = hidden;
-    document.body.classList.toggle('left-hidden', leftHidden);
-    _renderLeftIcon(leftHidden);
-    saveFlag(STORAGE_KEYS.APP_LEFT_HIDDEN, leftHidden);
-  }
-  function _setRightHidden(hidden: boolean): void {
-    rightHidden = hidden;
-    document.body.classList.toggle('right-hidden', rightHidden);
-    _renderRightIcon(rightHidden);
-    saveFlag(STORAGE_KEYS.APP_RIGHT_HIDDEN, rightHidden);
-  }
+  // Last selection cached so config-store subscriptions can re-render
+  // with the same selection when the palette / asphalt color changes.
+  let lastSelection: HeaderSelection | null = null;
 
   /**
    * Render the title slot for a selection.
@@ -116,16 +60,24 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
    * the root.
    */
   function setSelection(sel: HeaderSelection | null): void {
+    lastSelection = sel;
     titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
-    // for the root or any directory selection.
-    if (hasSel && sel && !sel.isDir) {
-      titleEl!.appendChild(_makeChip(sel.extension ?? null, false));
-    } else {
-      titleEl!.appendChild(_makeChip(null, true));
-    }
+    // for the root or any directory selection. Palette + asphalt are
+    // read fresh from the stores so the badge follows live config edits.
+    const isFileSel = hasSel && sel && !sel.isDir;
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
+    titleEl!.appendChild(
+      makeExtensionBadge(
+        isFileSel ? (sel!.extension ?? null) : null,
+        !isFileSel,
+        huePalette,
+        asphaltColor
+      )
+    );
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
@@ -157,19 +109,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     }
   }
 
-  function _makeChip(extension: string | null, isDir: boolean): HTMLSpanElement {
-    const chip = document.createElement('span');
-    chip.className = 'app-header-chip';
-    if (isDir) {
-      chip.classList.add('is-dir');
-      chip.textContent = 'dir';
-    } else {
-      chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
-      chip.style.setProperty('--badge-hue', String(getHue(extension, huePalette)));
-    }
-    return chip;
-  }
-
   function _makeSegment(label: string, path: string, isLeaf: boolean): HTMLButtonElement {
     const seg = document.createElement('button');
     seg.type = 'button';
@@ -195,20 +134,22 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     return btn;
   }
 
+  // Live config: re-render the cached selection whenever a store that
+  // feeds the badge changes — the user editing an extension hue or the
+  // asphalt color in Controls should be visible immediately. Nanostores
+  // fire .subscribe() synchronously with the current value at hook-up
+  // time; we drop that first call so we don't double-render before the
+  // host has set an initial selection.
+  let _ready = false;
+  const _reRender = () => {
+    if (_ready) setSelection(lastSelection);
+  };
+  BUILDING_PALETTE.subscribe(_reRender);
+  ASPHALT.subscribe(_reRender);
+  _ready = true;
+
   return {
     setSelection,
-    setLeftVisible(visible: boolean) {
-      _setLeftHidden(!visible);
-    },
-    setRightVisible(visible: boolean) {
-      _setRightHidden(!visible);
-    },
-    isLeftVisible() {
-      return !leftHidden;
-    },
-    isRightVisible() {
-      return !rightHidden;
-    },
   };
 }
 

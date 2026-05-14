@@ -38,10 +38,10 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* App layout: a column with a thin sitewide header on top and a 3-pane
-   row underneath. The 3-pane row is itself a flex row — left sidebar |
-   center canvas | right sidebar. The center grows/shrinks instead of
-   the sidebars overlaying it. */
+/* App layout: a column with a thin sitewide header on top, the 3-pane
+   row underneath, and a thin footer at the bottom. The 3-pane row is
+   itself a flex row — left sidebar | center canvas | right sidebar.
+   The center grows/shrinks instead of the sidebars overlaying it. */
 body {
   display: flex;
   flex-direction: column;
@@ -63,14 +63,17 @@ body {
   overflow: hidden;
 }
 
-/* ── Sitewide header ──────────────────────────────────────────────────── */
+/* ── Sitewide header ──────────────────────────────────────────────────
+   Full-width strip across the top of the app shell. Sits in the body's
+   column flex above #app-body; the sidebars start at its lower edge. */
 
 #app-header {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
+  gap: 4px;
   height: 32px;
-  padding: 0 6px;
+  padding: 0 8px;
   background: #0c0d14;
   border-bottom: 1px solid #1e2030;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -115,15 +118,6 @@ body {
 }
 .app-header-icon .lucide-icon {
   font-size: 14px;
-}
-
-/* When toggled off via the header buttons, hide the entire sidebar (not
-   the same as the activity-bar collapse). */
-body.left-hidden #tree-sidebar {
-  display: none;
-}
-body.right-hidden #sidebar {
-  display: none;
 }
 
 canvas {
@@ -183,7 +177,15 @@ canvas {
    shell). Pushed there from main._setSelection via
    appHeader.setSelection({path, extension, isDir}). */
 
-.app-header-chip {
+/* Path badge — the small color-coded extension pill (or "dir" badge).
+ * Shared between the floating header and the footer's selection
+ * section so the two stay visually in sync. File hue comes from the
+ * project's hue palette via --badge-hue; the dir variant has its
+ * background painted inline from ASPHALT.COLOR. Text color is set
+ * inline by makeExtensionBadge() using a WCAG-luminance check so it
+ * auto-contrasts (white-ish on dark backgrounds, near-black on light)
+ * no matter what colors the user picks in Controls. */
+.path-badge {
   flex: 0 0 auto;
   display: inline-block;
   padding: 1px 6px;
@@ -194,13 +196,8 @@ canvas {
   text-transform: lowercase;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   background: hsl(var(--badge-hue, 0), 60%, 35%);
-  color: hsl(var(--badge-hue, 0), 30%, 92%);
   white-space: nowrap;
   -webkit-app-region: no-drag;
-}
-.app-header-chip.is-dir {
-  background: rgba(90, 200, 180, 0.2);
-  color: #5ac8b4;
 }
 
 .app-header-crumbs {
@@ -250,6 +247,19 @@ canvas {
   background: rgba(74, 222, 128, 0.1);
 }
 
+/* ── File preview pane (right sidebar) ──────────────────────────────────
+   Outer container that wraps the pane header (filename + × close) and the
+   editor body. The wrapper itself fills the sidebar's vertical space; the
+   body grows inside it under the fixed-height header. */
+
+.file-preview-pane {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
 .editor-body {
@@ -294,11 +304,18 @@ canvas {
 .app-footer-section {
   display: flex;
   align-items: center;
-  gap: 14px;
+  /* Tight gap — the `·` separators between items provide most of the
+   * visual breathing room; the gap just keeps things from butting up
+   * against the dots. */
+  gap: 6px;
   min-width: 0;
 }
 .app-footer-section.app-footer-left {
   justify-self: start;
+  overflow-x: auto;
+}
+.app-footer-section.app-footer-left::-webkit-scrollbar {
+  height: 0;
 }
 .app-footer-section.app-footer-center {
   justify-self: center;
@@ -306,19 +323,48 @@ canvas {
 }
 .app-footer-section.app-footer-right {
   justify-self: end;
-  overflow-x: auto;
-}
-.app-footer-section.app-footer-right::-webkit-scrollbar {
-  height: 0;
 }
 
 .app-footer-item {
   flex: 0 0 auto;
 }
 .app-footer-source {
-  margin-left: 4px;
+  margin-left: 3px;
   color: #44485e;
   font-size: 9.5px;
+}
+
+/* Shared muted-dot separator. Used between metadata items in the left
+ * (selection) section and between the branch + repo link in the center
+ * section. Pointer-events:none so a stray click between items doesn't
+ * fall on the dot. */
+.app-footer-sep {
+  flex: 0 0 auto;
+  color: #44485e;
+  pointer-events: none;
+}
+
+/* Small icon button — used by the reset-view trigger that lives in
+ * the right section next to the status indicator. */
+.app-footer-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.app-footer-button:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-footer-button .lucide-icon {
+  font-size: 13px;
 }
 
 /* ── Combined status indicator (left section) ─────────────────────── */
@@ -396,14 +442,6 @@ canvas {
   gap: 6px;
   overflow: hidden;
   min-width: 0;
-}
-.app-footer-repo-name {
-  color: #c4c8db;
-  flex: 0 0 auto;
-}
-.app-footer-repo-sep {
-  color: #44485e;
-  flex: 0 0 auto;
 }
 .app-footer-repo-branch {
   color: #8a8fa8;
@@ -588,6 +626,10 @@ canvas {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Activity bar splits into two nested flex columns: a top group that
+ * stacks from the top and a bottom group that pins to the bottom. The
+ * outer bar's `justify-content: space-between` pushes the two groups
+ * apart — no margin-top: auto trick. */
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
@@ -595,8 +637,14 @@ canvas {
   border-right: 1px solid #1e2030;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: stretch;
-  padding-top: 8px;
+  padding: 8px 0;
+}
+.activity-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 2px;
 }
 
@@ -672,8 +720,10 @@ canvas {
  * Flexbox keeps the two vertically centered against each other regardless
  * of the title's font metrics or the button's size; no manual top/left
  * positioning math needed. */
-.tree-header,
-.controls-header,
+/* Shared header row built by views/shell/paneHeader.ts. Every pane —
+ * left sidebar's Tree/Search/Info/Controls and the right sidebar's
+ * file-preview — mounts this same DOM so they look identical and
+ * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
   padding: 12px 12px 12px 16px;
   border-bottom: 1px solid #1e2030;
@@ -684,13 +734,24 @@ canvas {
   gap: 8px;
 }
 
-.tree-title,
-.controls-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #c0c4d8;
-  letter-spacing: 0.03em;
+/* Smaller + lighter than a traditional heading so the panes read as
+ * panels of content rather than each shouting for attention. The
+ * .is-mono modifier flips to monospace for filename-style titles
+ * (right-sidebar file-preview). */
+.pane-title {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0c4d8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pane-title.is-mono {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
 .tree-root {
@@ -1278,7 +1339,10 @@ canvas {
 .tree-list {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 14px;
+  /* Per-level indent. Kept tighter than the historical 14px so deep
+   * trees don't run off the side of a narrow sidebar; the chevron
+   * column + folder icon already give each level a clear visual step. */
+  padding: 0 0 0 8px;
 }
 
 .tree-root.tree-list {
@@ -1295,8 +1359,14 @@ canvas {
 .tree-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
+  /* Tight base gap so the chevron + folder/file icon read as one unit
+   * (VSCode-style). The icon's own margin-right (below) widens the
+   * effective space before the label. */
+  gap: 2px;
+  /* Left padding mirrors the .pane-header's 16px so depth-0 chevrons
+   * line up under the "Explorer" title. Nested levels add their own
+   * 8px via .tree-list — no compounding padding inside the row itself. */
+  padding: 3px 16px;
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.1s;
@@ -1330,24 +1400,52 @@ canvas {
 .tree-chevron {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+  /* Explicit slot width — pinned so empty placeholders on file rows
+   * take the same horizontal space as the rendered chevron on dir
+   * rows. Net effect: labels at the same nesting depth line up,
+   * regardless of file vs directory. Matches the .tree-icon width. */
+  width: 14px;
+}
+
+/* Material Icon Theme file/folder icons rendered as <img> via the
+ * fileIcon.ts helper. Full-color SVGs (the color carries the info)
+ * so no currentColor mask trick — just an inline-block raster.
+ * margin-right adds breathing room before the label without widening
+ * the tight chevron→icon gap that the row's flex `gap` provides. */
+.file-icon {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 4px;
+  /* Hide the broken-image glyph for the brief window between src set
+   * and the CDN fetch landing (or while the onerror fallback flips). */
+  font-size: 0;
+  color: transparent;
+}
+
+/* Root row: chevron is removed from layout (display: none) so the
+ * root folder icon sits flush at .tree-row's left padding (16px) —
+ * lined up directly under the "Explorer" header title. The chevron
+ * element stays in the DOM so _setDirExpanded's selector keeps
+ * working; only its layout box is suppressed. */
+.tree-root-item > .tree-row > .tree-chevron {
+  display: none;
 }
 
 .tree-icon {
-  font-size: 9px;
-  width: 12px;
+  font-size: 12px;
+  width: 14px;
   text-align: center;
   flex-shrink: 0;
   line-height: 1;
 }
 
 .tree-icon-dir {
-  color: #5ac8b4;
-}
-
-.tree-icon-file {
-  color: #44485e;
-  font-size: 7px;
+  color: #8a8fa8;
 }
 
 .tree-label {
@@ -1365,6 +1463,130 @@ canvas {
 
 .tree-file > .tree-row > .tree-label {
   color: #8a8ea0;
+}
+
+/* ── Search pane (Search tab in left sidebar) ───────────────────────────
+   Header (shared .pane-header) + input row + scrollable result list.
+   Matched query characters in each result are wrapped in <mark>. */
+
+.search-input-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1e2030;
+}
+
+.search-input-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: #6a7090;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #0c0d14;
+  border: 1px solid #252838;
+  border-radius: 4px;
+  color: #e0e4f5;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+}
+.search-input::placeholder {
+  color: #565a72;
+}
+.search-input:focus {
+  border-color: rgba(108, 138, 255, 0.5);
+}
+/* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 18px;
+  color: #6a7090;
+  text-align: center;
+}
+.search-state .lucide-icon {
+  font-size: 22px;
+  opacity: 0.55;
+  margin-bottom: 2px;
+}
+.search-state-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c0c4d8;
+}
+.search-state-sub {
+  margin: 0;
+  max-width: 240px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6a7090;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.search-result {
+  display: block;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11.5px;
+  color: #a0a4bc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: none;
+}
+.search-result:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e0e4f5;
+}
+.search-result:focus-visible {
+  background: rgba(108, 138, 255, 0.12);
+  border-left-color: #6c8aff;
+  color: #e0e4f5;
+}
+.search-result mark {
+  background: transparent;
+  color: #6c8aff;
+  font-weight: 700;
+}
+.search-result:hover mark,
+.search-result:focus-visible mark {
+  color: #a8baff;
+}
+
+/* Scrollbar tuned to match the tree pane's. */
+#tree-sidebar .search-body {
+  scrollbar-width: thin;
+  scrollbar-color: #252838 transparent;
 }
 
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
@@ -1637,13 +1859,52 @@ canvas {
    horizontally-scrollable <pre><code> on the right. Both share the
    line-height so gutter numbers line up exactly with their source lines.
    Theme is hand-rolled to match the city's dark UI; tokens are styled
-   via .hljs-* selectors below. */
+   via .hljs-* selectors below.
+
+   For big files (>1 MB) the editor renders in plain-text mode (no
+   highlight.js); above 5 MB the line-number gutter is dropped too —
+   the per-line <span> DOM cost is what hangs the browser on multi-MB
+   files. A small banner at the top explains the degraded mode. */
+
+.code-editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.code-editor-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(108, 138, 255, 0.06);
+  border-bottom: 1px solid rgba(108, 138, 255, 0.18);
+  color: #8a9eff;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.code-editor-banner .lucide-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  opacity: 0.85;
+}
 
 .code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: stretch;
   width: 100%;
-  height: 100%;
   overflow: auto;
   background: #0a0b10;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;

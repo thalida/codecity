@@ -13,15 +13,27 @@ import hljs from 'highlight.js/lib/common';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
-// Auto-load text under TEXT_PREVIEW_MAX_BYTES; above that, show a size note.
-// For unrecognised binary types, just show "Binary file".
-const TEXT_PREVIEW_MAX_BYTES = 256 * 1024;
+// Auto-load text up to the server's own ceiling — kept in sync with
+// MAX_FILE_BYTES in codecity/server.py so any file the API can serve, the
+// preview can render. Above that, the server itself rejects the fetch
+// and the preview shows the resulting error in the empty/error state.
+const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;
+
+// Big files render in graceful-degradation tiers so the browser stays
+// responsive: above HIGHLIGHT_MAX_BYTES we skip highlight.js (plain
+// text via textContent, no HTML-parse cost), above GUTTER_MAX_BYTES we
+// also skip the per-line gutter (the O(n) DOM cost of one <span> per
+// line is what hangs the page on multi-MB files). Tuned to keep
+// main-thread blocking under ~250ms on commodity hardware.
+const HIGHLIGHT_MAX_BYTES = 512 * 1024;
+const GUTTER_MAX_BYTES = 1 * 1024 * 1024;
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
@@ -94,19 +106,40 @@ const NAME_LANG: Record<string, string> = {
   readme: 'markdown',
 };
 
+interface BuildFilePreviewPaneOpts {
+  /** Called when the user clicks the × in the pane header. Host should
+   *  hide the sidebar AND update any shell-level visibility tracker so a
+   *  subsequent re-open isn't suppressed. */
+  onClose?: () => void;
+}
+
 /**
  * Build a file-preview pane.
  *
  * Returns:
- *   pane — `<div class="editor-body">` to mount into the right sidebar slot
+ *   pane — outer container `<div class="file-preview-pane">` to mount
+ *     into the right sidebar slot. Contains a `.pane-header` (leaf
+ *     filename + × close button) and a `.editor-body` that holds the
+ *     actual preview content.
  *   api.setFile(file | null) — push the file the pane should render. Pass
  *     null to show the "nothing to preview" empty state (used both for
  *     no-selection and for directory-selection, since dirs aren't
- *     previewable in this pane).
+ *     previewable in this pane). The header title updates in lockstep.
  */
-export function buildFilePreviewPane() {
+export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
+  const pane = document.createElement('div');
+  pane.className = 'file-preview-pane';
+
+  const { el: header, api: headerApi } = buildPaneHeader({
+    title: 'No file',
+    mono: true,
+    onClose: opts.onClose,
+  });
+  pane.appendChild(header);
+
   const body = document.createElement('div');
   body.className = 'editor-body';
+  pane.appendChild(body);
 
   function setFile(
     file:
@@ -120,6 +153,7 @@ export function buildFilePreviewPane() {
         }
       | null
   ): void {
+    headerApi.setTitle(file?.name ? String(file.name) : 'No file');
     body.replaceChildren();
     if (!file) {
       body.appendChild(
@@ -138,7 +172,7 @@ export function buildFilePreviewPane() {
   setFile(null);
 
   return {
-    pane: body,
+    pane,
     api: { setFile },
   };
 }
@@ -277,9 +311,19 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.text();
     })
-    .then((text) => {
-      shell.replaceChildren(_buildCodeEditor(text, file));
-    })
+    .then(
+      (text) =>
+        new Promise<void>((resolve) => {
+          // Defer the synchronous DOM build to the next animation frame
+          // so the browser can paint the empty .preview-shell first.
+          // Without this, on a big file the click-to-render cycle blocks
+          // the main thread end-to-end and the click visibly "freezes".
+          requestAnimationFrame(() => {
+            shell.replaceChildren(_buildCodeEditor(text, file));
+            resolve();
+          });
+        })
+    )
     .catch((err) => {
       shell.replaceChildren(
         _makeStateMessage(
@@ -316,11 +360,25 @@ function _makeStateMessage(iconName: string, title: string, subtitle?: string): 
 }
 
 function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
+  // Byte count for tier selection. file.size is the authoritative byte
+  // count from the manifest; fall back to text.length (UTF-16 code
+  // units, close enough for ASCII-heavy source) when missing.
+  const sizeBytes = typeof file.size === 'number' ? file.size : text.length;
+  const skipHighlight = sizeBytes > HIGHLIGHT_MAX_BYTES;
+  const skipGutter = sizeBytes > GUTTER_MAX_BYTES;
+
+  // The outer shell stacks an optional degradation banner above the
+  // editor — when present, it tells the user why colors / line numbers
+  // are missing.
+  const shell = document.createElement('div');
+  shell.className = 'code-editor-shell';
+
+  if (skipHighlight || skipGutter) {
+    shell.appendChild(_makeDegradationBanner(sizeBytes, skipGutter));
+  }
+
   const editor = document.createElement('div');
   editor.className = 'code-editor';
-
-  const gutter = document.createElement('div');
-  gutter.className = 'code-editor-gutter';
 
   const pre = document.createElement('pre');
   pre.className = 'code-editor-pre';
@@ -328,40 +386,65 @@ function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
   code.className = 'code-editor-code';
   pre.appendChild(code);
 
-  editor.appendChild(gutter);
+  if (!skipGutter) {
+    const gutter = document.createElement('div');
+    gutter.className = 'code-editor-gutter';
+    // Line-number gutter: one <span> per source line. textContent counts
+    // work off the raw text (NOT the highlighted HTML — newlines are
+    // preserved through the highlighter).
+    const lineCount =
+      text.length === 0 ? 1 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0) || 1;
+    const frag = document.createDocumentFragment();
+    for (let i = 1; i <= lineCount; i++) {
+      const ln = document.createElement('span');
+      ln.className = 'code-editor-ln';
+      ln.textContent = String(i);
+      frag.appendChild(ln);
+    }
+    gutter.appendChild(frag);
+    editor.appendChild(gutter);
+  }
+
   editor.appendChild(pre);
 
-  // Pick the language hint up-front; fall back to hljs auto-detect.
-  const lang = _languageFor(file);
-  let html: string;
-  try {
-    if (lang && hljs.getLanguage(lang)) {
-      html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
-    } else {
-      html = hljs.highlightAuto(text).value;
+  if (skipHighlight) {
+    // Plain text via textContent — skips both the regex escape pass and
+    // the HTML parser the browser would otherwise run on a multi-MB
+    // innerHTML string. This is the difference between a 5-10 second
+    // freeze and a near-instant render on big files.
+    code.textContent = text;
+  } else {
+    const lang = _languageFor(file);
+    let html: string;
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+      } else {
+        html = hljs.highlightAuto(text).value;
+      }
+    } catch (_) {
+      // Highlighter blew up — fall back to plain escaped text.
+      html = _escapeHtml(text);
     }
-  } catch (_) {
-    // Highlighter blew up — fall back to plain escaped text.
-    html = _escapeHtml(text);
+    code.innerHTML = html;
+    code.classList.add('hljs');
   }
-  code.innerHTML = html;
-  code.classList.add('hljs');
 
-  // Line-number gutter: one <span> per source line. textContent counts
-  // work off the raw text (NOT the highlighted HTML — newlines are
-  // preserved through the highlighter).
-  const lineCount =
-    text.length === 0 ? 1 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0) || 1;
-  const frag = document.createDocumentFragment();
-  for (let i = 1; i <= lineCount; i++) {
-    const ln = document.createElement('span');
-    ln.className = 'code-editor-ln';
-    ln.textContent = String(i);
-    frag.appendChild(ln);
-  }
-  gutter.appendChild(frag);
+  shell.appendChild(editor);
+  return shell;
+}
 
-  return editor;
+function _makeDegradationBanner(sizeBytes: number, gutterSkipped: boolean): HTMLElement {
+  const banner = document.createElement('div');
+  banner.className = 'code-editor-banner';
+  banner.appendChild(makeLucideIcon('info'));
+  const msg = document.createElement('span');
+  const sizeLabel = formatBytes(sizeBytes);
+  msg.textContent = gutterSkipped
+    ? `Plain text mode — file is ${sizeLabel}, line numbers and syntax colors are off to keep things responsive.`
+    : `Plain text mode — file is ${sizeLabel}, syntax colors are off to keep things responsive.`;
+  banner.appendChild(msg);
+  return banner;
 }
 
 function _languageFor(file: { extension?: string; name?: string }): string | null {

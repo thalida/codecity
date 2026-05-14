@@ -40,6 +40,7 @@ export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import { createBillboard, disposeBillboard, isMediaFile } from './billboards.js';
 import {
   buildLabelAtlas,
   truncateLabelToFit,
@@ -96,11 +97,21 @@ interface PrevState {
 // so the hover/selected outline meshes in main.js (and later in
 // outlineRenderer.js) share this geometry definition.
 export const UNIT_BOX_EDGE_POSITIONS = [
-  -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5,
-  0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
-  0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5, -0.5, -0.5, -0.5, 0.5,
-  -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5,
-  0.5,
+  // Bottom face (y = -0.5) — 4 edges around the base.
+  -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,
+   0.5, -0.5, -0.5,  0.5, -0.5,  0.5,
+   0.5, -0.5,  0.5, -0.5, -0.5,  0.5,
+  -0.5, -0.5,  0.5, -0.5, -0.5, -0.5,
+  // Top face (y = 0.5) — 4 edges around the roof.
+  -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,
+   0.5,  0.5, -0.5,  0.5,  0.5,  0.5,
+   0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
+  -0.5,  0.5,  0.5, -0.5,  0.5, -0.5,
+  // Vertical edges — 4 edges connecting corresponding base + roof corners.
+  -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,
+   0.5, -0.5, -0.5,  0.5,  0.5, -0.5,
+   0.5, -0.5,  0.5,  0.5,  0.5,  0.5,
+  -0.5, -0.5,  0.5, -0.5,  0.5,  0.5,
 ];
 
 // _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
@@ -397,6 +408,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _removeAndDispose(block.placeholderMesh);
         block.placeholderMesh = undefined;
       }
+      if (block.billboards) {
+        for (const bm of block.billboards) {
+          if (bm.parent) bm.parent.remove(bm);
+          disposeBillboard(bm);
+        }
+        block.billboards = undefined;
+      }
     }
     // Dispose all atlas page textures + their cached label materials.
     for (const tex of _atlasTextures) tex.dispose();
@@ -551,11 +569,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const nb of blocks) {
       for (let i = 0; i < nb.buildings.length; i++) {
         const b = nb.buildings[i];
-        const newScaleX = b.w;
-        const newScaleY = b.h;
-        const newScaleZ = b.d;
+        // Media files render as separate billboard meshes; the
+        // building's slot in the InstancedMesh stays zero-scaled so
+        // the building cuboid doesn't render OR catch raycasts. The
+        // diff has to mirror that — without this guard the animator
+        // would tween the matrix back up to (b.w, b.h, b.d) and wrap
+        // the billboard in a building-shaped dark box.
+        const isMedia = b.file && isMediaFile(b.file);
+        const newScaleX = isMedia ? 0 : b.w;
+        const newScaleY = isMedia ? 0 : b.h;
+        const newScaleZ = isMedia ? 0 : b.d;
         const newPosX = b.x;
-        const newPosY = b.h / 2;
+        const newPosY = isMedia ? 0 : b.h / 2;
         const newPosZ = b.y;
 
         const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
@@ -768,6 +793,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.buildings.length > 0) {
         block.detailMesh = createBuildingsInstancedMesh(block);
       }
+      // Image / video files get a separate billboard plane instead of
+      // a building cuboid. They still own a (zero-scale) slot in the
+      // detailMesh so per-instance indices line up with block.buildings.
+      const billboards: THREE.Group[] = [];
+      for (const b of block.buildings) {
+        if (b.file && isMediaFile(b.file)) {
+          billboards.push(createBillboard(b));
+        }
+      }
+      if (billboards.length > 0) block.billboards = billboards;
       // Task 15: per-block label InstancedMesh. Built regardless of
       // direct-file count.
       const labelsMesh = createLabelsInstancedMesh(block, atlas, newAtlasTextures);
@@ -784,6 +819,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       for (const block of newBlocks) {
         if (block.detailMesh) _disposeObject(block.detailMesh);
         if (block.labelsMesh) _disposeObject(block.labelsMesh);
+        if (block.billboards) {
+          for (const bm of block.billboards) disposeBillboard(bm);
+        }
       }
       disposeLabelMaterials();
       for (const tex of newAtlasTextures) tex.dispose();
@@ -831,6 +869,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const block of newBlocks) {
       if (block.detailMesh) scene.add(block.detailMesh);
       if (block.labelsMesh) scene.add(block.labelsMesh);
+      if (block.billboards) {
+        for (const bm of block.billboards) scene.add(bm);
+      }
     }
     blocks = newBlocks;
     blocksByDirPath = {};

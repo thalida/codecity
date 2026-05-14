@@ -6,8 +6,6 @@ export const DOM_IDS = {
   FILE_SIDEBAR: 'sidebar',
   HOVER_TOOLTIP: 'hover-tooltip',
   APP_TITLE: 'app-title',
-  TOGGLE_LEFT_SIDEBAR: 'toggle-left-sidebar',
-  TOGGLE_RIGHT_SIDEBAR: 'toggle-right-sidebar',
 } as const;
 
 /**

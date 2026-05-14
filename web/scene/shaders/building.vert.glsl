@@ -25,6 +25,10 @@ attribute float iDoorWidth;     // door world-width
 attribute float iOpacity;       // [0..1] alpha for fader
 attribute float iSilhouette;    // 0 = full facade, 1 = solid silhouette (no windows/door/slab)
 attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidden tier wireframe)
+// Packed attribute (stays under GL_MAX_VERTEX_ATTRIBS=16):
+//   .xy = top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
+//   .z  = per-file random in [0, 1] driving the window gap / lit hash
+attribute vec3 iIconUV;
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -38,6 +42,7 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
+flat varying vec3 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = per-file random seed
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -57,6 +62,7 @@ void main() {
   vOpacity = iOpacity;
   vSilhouette = iSilhouette;
   vOutlineOpacity = iOutlineOpacity;
+  vIconUV = iIconUV;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

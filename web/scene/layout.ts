@@ -18,6 +18,7 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
 import { layoutCityV4 } from './layoutV4';
+import { isMediaFile, BILLBOARD_HEIGHT_FRAC } from './billboards.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -26,6 +27,7 @@ import { layoutCityV4 } from './layoutV4';
 export interface FileLike {
   type?: string;
   name?: string;
+  extension?: string;
   lines?: number;
   size?: number;
   [k: string]: unknown;
@@ -259,12 +261,23 @@ export function getBuildingDimensions(
     width = dims.MIN_WIDTH + tW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
   }
 
+  // Media files render as billboards instead of building cuboids — the
+  // sign's visual extent isn't the byte-derived `height` above (which
+  // for binary files is just MIN_FLOORS × FLOOR_HEIGHT, basically a
+  // flat slab on the ground). Override `h` to the billboard's actual
+  // height so the selection outline, camera focus framing, and bbox
+  // wrap the whole sign instead of clinging to the lot.
+  let h = height;
+  if (isMediaFile(file)) {
+    h = width * BILLBOARD_HEIGHT_FRAC;
+  }
+
   // Depth == width keeps footprints square so tall thin towers don't
   // become deep slabs.
   return {
     w: Math.round(width * 10) / 10,
     d: Math.round(width * 10) / 10,
-    h: Math.round(height * 10) / 10,
+    h: Math.round(h * 10) / 10,
     floors,
   };
 }

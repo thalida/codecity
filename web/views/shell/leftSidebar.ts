@@ -8,6 +8,7 @@
 import { buildTreePane } from '@/views/panes/treePane.js';
 import { buildInfoPane } from '@/views/panes/infoPane.js';
 import { buildControlsPane } from '@/views/panes/controlsPane.js';
+import { buildSearchPane } from '@/views/panes/searchPane.js';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
 import { SidebarTab } from '@/types';
 import type { Manifest, TreeNode } from '@/types';
@@ -33,6 +34,10 @@ interface ShowLeftSidebarOpts {
   onTreeHover?: (node: TreeNode) => void;
   /** fn(node) on row mouseleave. */
   onTreeHoverEnd?: (node: TreeNode) => void;
+  /** fn(path) when the user single-clicks a search result. Host routes to picker.selectByPath. */
+  onSearchSelect?: (path: string) => void;
+  /** fn(path) when the user double-clicks a search result. Host routes to rig.focusBuilding. */
+  onSearchFocus?: (path: string) => void;
   /** Older callback kept accepted for compatibility with coordinator callsites. */
   onResetView?: () => void;
 }
@@ -94,8 +99,14 @@ export function showLeftSidebar(
     onHoverEnd: opts.onTreeHoverEnd,
   });
   const infoBundle = buildInfoPane(manifest, { onClose: paneOnClose });
+  const searchBundle = buildSearchPane(manifest, {
+    onClose: paneOnClose,
+    onSelect: opts.onSearchSelect,
+    onFocus: opts.onSearchFocus,
+  });
   const panes: Record<string, HTMLElement> = {};
   panes[SidebarTab.Tree] = treeBundle.pane;
+  panes[SidebarTab.Search] = searchBundle.pane;
   panes[SidebarTab.Info] = infoBundle.pane;
   panes[SidebarTab.Controls] = buildControlsPane({
     onClose: paneOnClose,
@@ -113,6 +124,16 @@ export function showLeftSidebar(
     opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
   let collapsed = loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
   const iconBtns: Record<string, HTMLButtonElement> = {};
+
+  // The activity bar splits into a top group (tabs that stack from the
+  // top) and a bottom group (tabs pinned to the bottom). The bar itself
+  // is `justify-content: space-between` over the two groups — no
+  // margin-top: auto trick — so the bottom group naturally sits at the
+  // foot of the column.
+  const topGroup = document.createElement('div');
+  topGroup.className = 'activity-bar-group activity-bar-top';
+  const bottomGroup = document.createElement('div');
+  bottomGroup.className = 'activity-bar-group activity-bar-bottom';
 
   const iconBase = LUCIDE_ICON_BASE_URL;
   const tabs = ACTIVITY_BAR_TABS;
@@ -139,8 +160,12 @@ export function showLeftSidebar(
       });
     })(tab.id);
 
-    activityBar.appendChild(btn);
+    const group = tab.placement === 'bottom' ? bottomGroup : topGroup;
+    group.appendChild(btn);
   }
+
+  activityBar.appendChild(topGroup);
+  activityBar.appendChild(bottomGroup);
 
   // _onIconClick — the same icon while expanded collapses; any other
   // icon (or any icon while collapsed) opens the sidebar with that tab.
@@ -158,6 +183,15 @@ export function showLeftSidebar(
     if (!panes[tabId]) return;
     activeTab = tabId as SidebarTab;
     _refreshActiveStates();
+    // Auto-focus the search input when switching to the Search tab —
+    // saves a click. Other panes don't have an interactive primary
+    // element so they don't need this hook.
+    if (activeTab === SidebarTab.Search) {
+      // Defer to next frame so the display:none → '' transition has
+      // happened before focus() runs (focus on a hidden input is a
+      // no-op in some browsers).
+      requestAnimationFrame(() => searchBundle.api.focus());
+    }
   }
 
   function _setCollapsed(value: boolean): void {
@@ -196,6 +230,7 @@ export function showLeftSidebar(
     setHoveredTreePath: treeBundle.api.setHoveredPath,
     setInfoManifest: infoBundle.api.setManifest,
     setTreeManifest: treeBundle.api.setManifest,
+    setSearchManifest: searchBundle.api.setManifest,
   };
 }
 

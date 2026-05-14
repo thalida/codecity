@@ -25,6 +25,14 @@ export interface SceneBlock {
   outlineMesh?: THREE.Object3D; // Line2-instanced; opaque type
   ghostMesh?: THREE.InstancedMesh;
   placeholderMesh?: THREE.Mesh;
+  /**
+   * Billboard groups for image/video files in this block — each group
+   * holds a textured panel + two support posts (highway-sign shape).
+   * Every child mesh carries userData.building so the picker resolves
+   * a click anywhere on the structure to the same file selection a
+   * regular building click would produce.
+   */
+  billboards?: THREE.Group[];
 
   // LOD state (managed by lodController):
   lodCurrent: 'detail' | 'placeholder' | 'hidden';

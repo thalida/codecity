@@ -27,11 +27,26 @@ describe('showLeftSidebar', () => {
 
   it('mounts an activity bar with one icon per tab', () => {
     showLeftSidebar({ tree: TEST_TREE }, {});
-    const icons = container.querySelectorAll<HTMLButtonElement>('.activity-bar .activity-bar-icon');
-    expect(icons.length).toBe(3);
+    const icons = container.querySelectorAll<HTMLButtonElement>(
+      '.activity-bar .activity-bar-icon'
+    );
+    expect(icons.length).toBe(4);
     expect(icons[0].dataset.tab).toBe('tree');
-    expect(icons[1].dataset.tab).toBe('info');
-    expect(icons[2].dataset.tab).toBe('controls');
+    expect(icons[1].dataset.tab).toBe('search');
+    expect(icons[2].dataset.tab).toBe('info');
+    expect(icons[3].dataset.tab).toBe('controls');
+  });
+
+  it('places Controls in the bottom activity-bar group, others in the top', () => {
+    showLeftSidebar({ tree: TEST_TREE }, {});
+    const top = container.querySelectorAll<HTMLButtonElement>(
+      '.activity-bar-top .activity-bar-icon'
+    );
+    const bottom = container.querySelectorAll<HTMLButtonElement>(
+      '.activity-bar-bottom .activity-bar-icon'
+    );
+    expect(Array.from(top).map((b) => b.dataset.tab)).toEqual(['tree', 'search', 'info']);
+    expect(Array.from(bottom).map((b) => b.dataset.tab)).toEqual(['controls']);
   });
 
   it('shows the tree pane by default and hides the controls pane', () => {

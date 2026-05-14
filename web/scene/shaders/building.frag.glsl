@@ -24,10 +24,19 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
+// .xy = atlas UV for the file icon (or (-1,-1) for "no icon"),
+// .z  = per-file random in [0, 1] driving the window gap / lit hash.
+flat varying vec3 vIconUV;
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
 uniform float uOutlineWidth;
+
+// File-icon atlas + UV size of one slot in atlas-UV units. Sampled in
+// renderRoofFace; gated by vIconUV.x >= 0 so buildings whose file
+// type didn't make it into the atlas keep their plain roof color.
+uniform sampler2D uIconAtlas;
+uniform float uIconSlotSize;
 
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
@@ -103,6 +112,18 @@ const float SLAB_SIDE_LIGHTNESS_FLOOR = 10.0;
 
 // SHADING.WINDOW_LIGHTNESS_DELTA = 20
 const float WINDOW_LIGHTNESS_DELTA = 20.0;
+// Dimmer brightness applied to "unlit" windows in the same cell — picked
+// per cell by a hash so each building has its own scatter of lit /
+// unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
+// so the window pane reads as a pane (not just blank wall).
+const float WINDOW_UNLIT_LIGHTNESS_DELTA = 4.0;
+// Fraction of cells (per face) that have no window at all — irregular
+// gaps so the facade reads as varied instead of a perfect grid. Cells
+// whose gap-hash falls below the threshold are skipped.
+const float WINDOW_GAP_THRESHOLD = 0.18;
+// (The lit-vs-unlit threshold is computed per-fragment from the
+// building's brightness rather than being a fixed constant — see
+// renderWallFace for the formula.)
 // SHADING.DOOR_LIGHTNESS_DELTA = -55
 const float DOOR_LIGHTNESS_DELTA = -55.0;
 // SHADING.ROOF_BORDER_LIGHTNESS_DELTA = -15
@@ -151,6 +172,14 @@ float aaband(float a, float b, float x, float w) {
   return smoothstep(a - ww, a + ww, x) * (1.0 - smoothstep(b - ww, b + ww, x));
 }
 
+// Standard sin-fract pseudo-random — deterministic per (col, row, seed)
+// so a given building's window pattern is stable across frames and
+// across the dual-mesh detail / silhouette swap. Sufficient for visual
+// randomness; not for anything that needs statistical quality.
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 // ---------------------------------------------------------------------------
 // Face renderers
 // ---------------------------------------------------------------------------
@@ -183,8 +212,9 @@ vec4 renderWallFace() {
   vec3 slabColor = front
     ? shadeAndShiftHue(baseColor, SLAB_FRONT_LIGHTNESS_DELTA, SLAB_FRONT_HUE_SHIFT, -1.0)
     : shadeByRatio(baseColor, SLAB_SIDE_DARKEN_RATIO, SLAB_SIDE_LIGHTNESS_DELTA, SLAB_SIDE_LIGHTNESS_FLOOR);
-  vec3 winColor  = shadeColor(baseColor, WINDOW_LIGHTNESS_DELTA);
   vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0);
+  // winColor is picked per-cell below — each cell hashes to "lit" or
+  // "unlit" so the facade doesn't read as a copy-paste grid.
 
   // vCols.x = cols_ew (for ±X faces), vCols.y = cols_ns (for ±Z faces).
   float cols = (vFace == 0 || vFace == 1) ? vCols.x : vCols.y;
@@ -234,7 +264,30 @@ vec4 renderWallFace() {
   // (door is 0.7 of one floor tall, window center sits at 0.56 of one floor
   // → vertical overlap regardless of horizontal position).
   float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
-  float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow;
+  // Per-cell randomness — gap (window missing) + lit (brighter/dimmer
+  // window pane). Seeded by the per-instance seed (stable hash of
+  // file.path, packed into vIconUV.z) + vFace so every building gets
+  // its own scatter even when colors collide (e.g. all .css files of
+  // similar age share a hue and lightness) and the four faces don't
+  // mirror each other.
+  float buildingSeed = vIconUV.z * 1000.0 + float(vFace) * 11.0;
+  vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
+  float gapHash = hash21(cellKey);
+  float litHash = hash21(cellKey + vec2(31.4, 17.7));
+  float gapMask = step(WINDOW_GAP_THRESHOLD, gapHash);
+  float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
+
+  // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost; unlit cells get
+  // a much smaller boost so they read as "off" panes rather than blank wall.
+  // The lit / unlit split scales with the building's overall brightness:
+  // a dark (old / muted) building has a high threshold and few lit
+  // windows ("sleepy"), a bright (new / saturated) building has a low
+  // threshold and most windows lit ("buzzing"). Brightness is the
+  // simple sRGB-channel mean of the building's base color.
+  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
+  float litThreshold = clamp(1.0 - brightness * 0.95, 0.1, 0.9);
+  float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(litThreshold, litHash));
+  vec3 winColor = shadeColor(baseColor, winDelta);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
@@ -275,7 +328,37 @@ vec4 renderRoofFace() {
   float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x, fwidth(vUv.x) * 0.5)
                    * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;
-  return vec4(mix(roofColor, borderColor, borderMask), vOpacity);
+  vec3 composed = mix(roofColor, borderColor, borderMask);
+
+  // File-type icon overlay. Skip when this instance has no atlas slot
+  // (iIconUV negative) or when the atlas hasn't loaded yet (slotSize 0).
+  // The icon fills the inner roof area (the border band stays visible
+  // around it); the SVG's own alpha controls how aggressively it
+  // overrides the base roof color.
+  if (vIconUV.x >= 0.0 && uIconSlotSize > 0.0) {
+    // Inset the icon inside the border so it doesn't clip the dark strip.
+    float pad = ROOF_BORDER_FRAC;
+    vec2 inset = clamp((vUv - pad) / (1.0 - 2.0 * pad), 0.0, 1.0);
+    // Rotate so the icon's "top" lands at the building's far edge from
+    // the door — readable to someone standing in front of the door and
+    // looking at the building. Roof UVs are laid out:
+    //   uv = (0, 0) = south-west, (1, 0) = south-east,
+    //        (0, 1) = north-west, (1, 1) = north-east
+    // Icon atlas Y is canvas-native (flipY=false): atlasUv.y=0 is the
+    // icon's top edge. So "icon top → far edge from door" means
+    // mapping the far edge's vUv to rotated.y=0.
+    vec2 rotated;
+    if (vOrient < 0.5)      rotated = vec2(inset.x, 1.0 - inset.y); // door S → top→N
+    else if (vOrient < 1.5) rotated = vec2(1.0 - inset.x, inset.y); // door N → top→S
+    else if (vOrient < 2.5) rotated = vec2(1.0 - inset.y, inset.x); // door E → top→W
+    else                    rotated = vec2(inset.y, 1.0 - inset.x); // door W → top→E
+    vec2 atlasUv = vIconUV.xy + rotated * uIconSlotSize;
+    vec4 icon = texture2D(uIconAtlas, atlasUv);
+    // Composite over the roof: icon.rgb on top, alpha-weighted.
+    composed = mix(composed, icon.rgb, icon.a * innerMask);
+  }
+
+  return vec4(composed, vOpacity);
 }
 
 vec4 renderBottomFace() {
