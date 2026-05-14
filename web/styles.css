@@ -207,8 +207,11 @@ canvas {
 /* Path badge — the small color-coded extension pill (or "dir" badge).
  * Shared between the floating header and the footer's selection
  * section so the two stay visually in sync. File hue comes from the
- * project's hue palette via --badge-hue; dir falls back to a neutral
- * gray matching the street sidewalks in the scene. */
+ * project's hue palette via --badge-hue; the dir variant has its
+ * background painted inline from ASPHALT.COLOR. Text color is set
+ * inline by makeExtensionBadge() using a WCAG-luminance check so it
+ * auto-contrasts (white-ish on dark backgrounds, near-black on light)
+ * no matter what colors the user picks in Controls. */
 .path-badge {
   flex: 0 0 auto;
   display: inline-block;
@@ -220,15 +223,8 @@ canvas {
   text-transform: lowercase;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   background: hsl(var(--badge-hue, 0), 60%, 35%);
-  color: hsl(var(--badge-hue, 0), 30%, 92%);
   white-space: nowrap;
   -webkit-app-region: no-drag;
-}
-.path-badge.is-dir {
-  /* Background is painted inline from ASPHALT.COLOR so changing the
-   * asphalt in Controls live-updates the badge. Text stays a static
-   * light gray that reads against typical dark asphalts. */
-  color: #a0a4bc;
 }
 
 .app-header-crumbs {
