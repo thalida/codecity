@@ -38,10 +38,13 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* App layout: a column with a thin sitewide header on top and a 3-pane
-   row underneath. The 3-pane row is itself a flex row — left sidebar |
-   center canvas | right sidebar. The center grows/shrinks instead of
-   the sidebars overlaying it. */
+/* App layout: a column with the 3-pane row on top reaching from the very
+   top of the viewport, and a thin footer underneath. The header is
+   pulled out of flow (position: fixed) and floats as an island at the
+   top center over the canvas. The 3-pane row is itself a flex row —
+   left sidebar | center canvas | right sidebar. The center grows /
+   shrinks instead of the sidebars overlaying it; the sidebars reach
+   from the top of the viewport down to the footer. */
 body {
   display: flex;
   flex-direction: column;
@@ -63,16 +66,34 @@ body {
   overflow: hidden;
 }
 
-/* ── Sitewide header ──────────────────────────────────────────────────── */
+/* ── Sitewide header — floating island ─────────────────────────────────
+   Pulled out of the body's column flow so the 3-pane row reaches the
+   top of the viewport. Pinned to the top-center as a rounded chip with
+   a subtle backdrop blur + drop shadow so it reads as floating over the
+   canvas rather than dividing the app horizontally. z-index sits above
+   the sidebars so a wide selection's breadcrumb stays visible if it
+   grows over a sidebar's horizontal range. */
 
 #app-header {
-  flex: 0 0 auto;
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 150;
   display: flex;
   align-items: center;
+  gap: 4px;
   height: 32px;
   padding: 0 6px;
-  background: #0c0d14;
-  border-bottom: 1px solid #1e2030;
+  max-width: calc(100vw - 24px);
+  background: rgba(14, 16, 26, 0.82);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid #232638;
+  border-radius: 10px;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(0, 0, 0, 0.3);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 11px;
   color: #c0c4d8;
@@ -81,7 +102,7 @@ body {
 }
 
 #app-title {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
