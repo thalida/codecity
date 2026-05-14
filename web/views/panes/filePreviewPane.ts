@@ -19,9 +19,20 @@ const BYTES_PER_KB = 1024;
 const BYTES_PER_MB = 1024 * 1024;
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
-// Auto-load text under TEXT_PREVIEW_MAX_BYTES; above that, show a size note.
-// For unrecognised binary types, just show "Binary file".
-const TEXT_PREVIEW_MAX_BYTES = 256 * 1024;
+// Auto-load text up to the server's own ceiling — kept in sync with
+// MAX_FILE_BYTES in codecity/server.py so any file the API can serve, the
+// preview can render. Above that, the server itself rejects the fetch
+// and the preview shows the resulting error in the empty/error state.
+const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;
+
+// Big files render in graceful-degradation tiers so the browser stays
+// responsive: above HIGHLIGHT_MAX_BYTES we skip highlight.js (plain
+// text), above GUTTER_MAX_BYTES we also skip the per-line gutter (the
+// O(n) DOM cost of one <span> per line is what hangs the page on
+// multi-MB files). Tuned to keep main-thread blocking under ~250ms on
+// commodity hardware.
+const HIGHLIGHT_MAX_BYTES = 1 * 1024 * 1024;
+const GUTTER_MAX_BYTES = 5 * 1024 * 1024;
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
@@ -350,11 +361,25 @@ function _makeStateMessage(iconName: string, title: string, subtitle?: string): 
 }
 
 function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
+  // Byte count for tier selection. file.size is the authoritative byte
+  // count from the manifest; fall back to text.length (UTF-16 code
+  // units, close enough for ASCII-heavy source) when missing.
+  const sizeBytes = typeof file.size === 'number' ? file.size : text.length;
+  const skipHighlight = sizeBytes > HIGHLIGHT_MAX_BYTES;
+  const skipGutter = sizeBytes > GUTTER_MAX_BYTES;
+
+  // The outer shell stacks an optional degradation banner above the
+  // editor — when present, it tells the user why colors / line numbers
+  // are missing.
+  const shell = document.createElement('div');
+  shell.className = 'code-editor-shell';
+
+  if (skipHighlight || skipGutter) {
+    shell.appendChild(_makeDegradationBanner(sizeBytes, skipGutter));
+  }
+
   const editor = document.createElement('div');
   editor.className = 'code-editor';
-
-  const gutter = document.createElement('div');
-  gutter.className = 'code-editor-gutter';
 
   const pre = document.createElement('pre');
   pre.className = 'code-editor-pre';
@@ -362,40 +387,62 @@ function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
   code.className = 'code-editor-code';
   pre.appendChild(code);
 
-  editor.appendChild(gutter);
+  if (!skipGutter) {
+    const gutter = document.createElement('div');
+    gutter.className = 'code-editor-gutter';
+    // Line-number gutter: one <span> per source line. textContent counts
+    // work off the raw text (NOT the highlighted HTML — newlines are
+    // preserved through the highlighter).
+    const lineCount =
+      text.length === 0 ? 1 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0) || 1;
+    const frag = document.createDocumentFragment();
+    for (let i = 1; i <= lineCount; i++) {
+      const ln = document.createElement('span');
+      ln.className = 'code-editor-ln';
+      ln.textContent = String(i);
+      frag.appendChild(ln);
+    }
+    gutter.appendChild(frag);
+    editor.appendChild(gutter);
+  }
+
   editor.appendChild(pre);
 
-  // Pick the language hint up-front; fall back to hljs auto-detect.
-  const lang = _languageFor(file);
-  let html: string;
-  try {
-    if (lang && hljs.getLanguage(lang)) {
-      html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
-    } else {
-      html = hljs.highlightAuto(text).value;
+  if (skipHighlight) {
+    // Plain text — cheap escape, no highlight.js cost.
+    code.innerHTML = _escapeHtml(text);
+  } else {
+    const lang = _languageFor(file);
+    let html: string;
+    try {
+      if (lang && hljs.getLanguage(lang)) {
+        html = hljs.highlight(text, { language: lang, ignoreIllegals: true }).value;
+      } else {
+        html = hljs.highlightAuto(text).value;
+      }
+    } catch (_) {
+      // Highlighter blew up — fall back to plain escaped text.
+      html = _escapeHtml(text);
     }
-  } catch (_) {
-    // Highlighter blew up — fall back to plain escaped text.
-    html = _escapeHtml(text);
+    code.innerHTML = html;
+    code.classList.add('hljs');
   }
-  code.innerHTML = html;
-  code.classList.add('hljs');
 
-  // Line-number gutter: one <span> per source line. textContent counts
-  // work off the raw text (NOT the highlighted HTML — newlines are
-  // preserved through the highlighter).
-  const lineCount =
-    text.length === 0 ? 1 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0) || 1;
-  const frag = document.createDocumentFragment();
-  for (let i = 1; i <= lineCount; i++) {
-    const ln = document.createElement('span');
-    ln.className = 'code-editor-ln';
-    ln.textContent = String(i);
-    frag.appendChild(ln);
-  }
-  gutter.appendChild(frag);
+  shell.appendChild(editor);
+  return shell;
+}
 
-  return editor;
+function _makeDegradationBanner(sizeBytes: number, gutterSkipped: boolean): HTMLElement {
+  const banner = document.createElement('div');
+  banner.className = 'code-editor-banner';
+  banner.appendChild(makeLucideIcon('info'));
+  const msg = document.createElement('span');
+  const sizeLabel = formatBytes(sizeBytes);
+  msg.textContent = gutterSkipped
+    ? `Plain text mode — file is ${sizeLabel}, line numbers and syntax colors are off to keep things responsive.`
+    : `Plain text mode — file is ${sizeLabel}, syntax colors are off to keep things responsive.`;
+  banner.appendChild(msg);
+  return banner;
 }
 
 function _languageFor(file: { extension?: string; name?: string }): string | null {

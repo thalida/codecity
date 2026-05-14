@@ -74,6 +74,25 @@ describe('buildFilePreviewPane', () => {
     expect(pane.querySelector('.file-preview-title')!.textContent).toBe('utils.ts');
   });
 
+  it('falls through to preview (no "too large" state) for a 10 MB file', () => {
+    const { pane, api } = buildFilePreviewPane();
+    api.setFile({ ...FILE_NODE, size: 10 * 1024 * 1024 });
+    // 10 MB is below the 100 MB cap → no client-side "too large" gate;
+    // the preview-shell scaffold gets mounted while the fetch flies
+    // (the rendering tier is selected after the response arrives).
+    expect(pane.querySelector('.preview-shell')).not.toBeNull();
+    const stateTitle = pane.querySelector('.preview-state-title');
+    if (stateTitle) expect(stateTitle.textContent).not.toContain('too large');
+  });
+
+  it('shows the "too large" state for files above the 100 MB API cap', () => {
+    const { pane, api } = buildFilePreviewPane();
+    api.setFile({ ...FILE_NODE, size: 200 * 1024 * 1024 });
+    expect(pane.querySelector('.preview-shell')).toBeNull();
+    expect(pane.querySelector('.preview-state')).not.toBeNull();
+    expect(pane.querySelector('.preview-state-title')!.textContent).toContain('too large');
+  });
+
   it('renders the × close button only when onClose is provided', () => {
     const noClose = buildFilePreviewPane();
     expect(noClose.pane.querySelector('.pane-header-close')).toBeNull();

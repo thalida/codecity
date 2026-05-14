@@ -1685,13 +1685,52 @@ canvas {
    horizontally-scrollable <pre><code> on the right. Both share the
    line-height so gutter numbers line up exactly with their source lines.
    Theme is hand-rolled to match the city's dark UI; tokens are styled
-   via .hljs-* selectors below. */
+   via .hljs-* selectors below.
+
+   For big files (>1 MB) the editor renders in plain-text mode (no
+   highlight.js); above 5 MB the line-number gutter is dropped too —
+   the per-line <span> DOM cost is what hangs the browser on multi-MB
+   files. A small banner at the top explains the degraded mode. */
+
+.code-editor-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.code-editor-banner {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(108, 138, 255, 0.06);
+  border-bottom: 1px solid rgba(108, 138, 255, 0.18);
+  color: #8a9eff;
+  font-family:
+    'Inter',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-size: 11px;
+  line-height: 1.4;
+}
+.code-editor-banner .lucide-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  opacity: 0.85;
+}
 
 .code-editor {
+  flex: 1 1 auto;
+  min-height: 0;
   display: flex;
   align-items: stretch;
   width: 100%;
-  height: 100%;
   overflow: auto;
   background: #0a0b10;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
