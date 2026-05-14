@@ -25,6 +25,13 @@ export interface SceneBlock {
   outlineMesh?: THREE.Object3D; // Line2-instanced; opaque type
   ghostMesh?: THREE.InstancedMesh;
   placeholderMesh?: THREE.Mesh;
+  /**
+   * Non-instanced meshes for image/video files in this block — these
+   * render as flat upright "billboards" instead of building cuboids.
+   * One mesh per media file in the block. Each is tagged with
+   * userData.building so the picker treats it as a file selection.
+   */
+  billboardMeshes?: THREE.Mesh[];
 
   // LOD state (managed by lodController):
   lodCurrent: 'detail' | 'placeholder' | 'hidden';

@@ -66,6 +66,12 @@ export function createPicker({
     pickables = cityScene.getStreetPickables().slice();
     for (const block of cityScene.getBlocks()) {
       if (block.detailMesh) pickables.push(block.detailMesh);
+      // Billboard meshes (image / video files) — each carries
+      // userData.building so interpretHit resolves them through the
+      // legacy per-building-mesh path (see picker.interpretHit).
+      if (block.billboardMeshes) {
+        for (const bm of block.billboardMeshes) pickables.push(bm);
+      }
     }
     const gem = cityScene.getRootGem();
     if (gem) {

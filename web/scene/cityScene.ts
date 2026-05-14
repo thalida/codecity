@@ -40,6 +40,7 @@ export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import { createBillboardMesh, disposeBillboardMesh, isMediaFile } from './billboards.js';
 import {
   buildLabelAtlas,
   truncateLabelToFit,
@@ -396,6 +397,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.placeholderMesh) {
         _removeAndDispose(block.placeholderMesh);
         block.placeholderMesh = undefined;
+      }
+      if (block.billboardMeshes) {
+        for (const bm of block.billboardMeshes) {
+          if (bm.parent) bm.parent.remove(bm);
+          disposeBillboardMesh(bm);
+        }
+        block.billboardMeshes = undefined;
       }
     }
     // Dispose all atlas page textures + their cached label materials.
@@ -768,6 +776,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.buildings.length > 0) {
         block.detailMesh = createBuildingsInstancedMesh(block);
       }
+      // Image / video files get a separate billboard plane instead of
+      // a building cuboid. They still own a (zero-scale) slot in the
+      // detailMesh so per-instance indices line up with block.buildings.
+      const billboards: THREE.Mesh[] = [];
+      for (const b of block.buildings) {
+        if (b.file && isMediaFile(b.file)) {
+          billboards.push(createBillboardMesh(b));
+        }
+      }
+      if (billboards.length > 0) block.billboardMeshes = billboards;
       // Task 15: per-block label InstancedMesh. Built regardless of
       // direct-file count.
       const labelsMesh = createLabelsInstancedMesh(block, atlas, newAtlasTextures);
@@ -784,6 +802,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       for (const block of newBlocks) {
         if (block.detailMesh) _disposeObject(block.detailMesh);
         if (block.labelsMesh) _disposeObject(block.labelsMesh);
+        if (block.billboardMeshes) {
+          for (const bm of block.billboardMeshes) disposeBillboardMesh(bm);
+        }
       }
       disposeLabelMaterials();
       for (const tex of newAtlasTextures) tex.dispose();
@@ -831,6 +852,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const block of newBlocks) {
       if (block.detailMesh) scene.add(block.detailMesh);
       if (block.labelsMesh) scene.add(block.labelsMesh);
+      if (block.billboardMeshes) {
+        for (const bm of block.billboardMeshes) scene.add(bm);
+      }
     }
     blocks = newBlocks;
     blocksByDirPath = {};
