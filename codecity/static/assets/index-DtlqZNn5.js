@@ -381,7 +381,11 @@ vec4 renderWallFace() {
   //    buildings keep their saturated base hue (sharp neon); dim/old
   //    buildings tilt toward LIT_GLOW_DIM (warm amber / dirty tungsten)
   //    so the city's old quarters look like failing fluorescents.
-  float litThreshold = clamp(1.0 - brightness, 0.05, 1.0);
+  // Floor stays at 0.0 so the brightest (most recently touched) building
+  // hits step(0.0, hash) = 1.0 for every cell — every window lit. The
+  // ceiling stays at 1.0 so the dimmest (oldest) building hits
+  // step(1.0, hash) = 0.0 for every cell — every window dark.
+  float litThreshold = clamp(1.0 - brightness, 0.0, 1.0);
   float litFactor = step(litThreshold, litHash);
   float litDelta = WINDOW_LIGHTNESS_DELTA * brightness;
   vec3 buildingLit = shadeColor(baseColor, litDelta);
