@@ -325,8 +325,14 @@ const FOLDER_ICON: Record<string, string> = {
   '.idea': 'folder-intellij',
 };
 
-const GENERIC_FILE = 'file';
+// Material's `document` glyph has more visual weight than the plain
+// `file` outline — feels at home next to the colorful per-type icons
+// instead of looking like an unloved placeholder. The onerror handler
+// falls all the way back to `file` if `document` ever goes missing.
+const GENERIC_FILE = 'document';
 const GENERIC_FOLDER = 'folder';
+const HARD_FALLBACK_FILE = 'file';
+const HARD_FALLBACK_FOLDER = 'folder';
 
 /** Build the <img> for a file node, with extension/name lookups + fallback. */
 export function makeFileIcon(file: FileNode | { name?: string; extension?: string }): HTMLImageElement {
@@ -351,12 +357,25 @@ function _makeIcon(iconName: string, label: string): HTMLImageElement {
   img.loading = 'lazy';
   // Defensive: if a less-common icon name 404s, fall back to the
   // generic file/folder glyph (once — guarded against infinite loops).
+  // Second-chance fallback is the unconditionally-present `file` /
+  // `folder` glyph so a typo in our map (or a removed icon in a
+  // theme bump) can't leave the row with a broken-image marker.
   let fellBack = false;
   img.addEventListener('error', () => {
     if (fellBack) return;
     fellBack = true;
-    const fallback = iconName.startsWith('folder') ? GENERIC_FOLDER : GENERIC_FILE;
-    img.src = `${ICON_CDN_BASE}${fallback}.svg`;
+    const isFolder = iconName.startsWith('folder');
+    // If the failure WAS the generic icon, jump straight to the hard
+    // fallback to avoid a no-op same-url retry.
+    const next =
+      iconName === GENERIC_FOLDER || iconName === GENERIC_FILE
+        ? isFolder
+          ? HARD_FALLBACK_FOLDER
+          : HARD_FALLBACK_FILE
+        : isFolder
+          ? GENERIC_FOLDER
+          : GENERIC_FILE;
+    img.src = `${ICON_CDN_BASE}${next}.svg`;
   });
   // Stash so callers can introspect during tests / debugging.
   if (typeof NodeKind !== 'undefined') {

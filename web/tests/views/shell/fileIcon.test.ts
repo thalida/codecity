@@ -30,9 +30,9 @@ describe('makeFileIcon', () => {
     expect(img.dataset.iconName).toBe('git');
   });
 
-  it('falls back to the generic file icon for unknown extensions', () => {
+  it('falls back to the generic document icon for unknown extensions', () => {
     const img = makeFileIcon({ name: 'weird.qux', extension: '.qux' });
-    expect(img.dataset.iconName).toBe('file');
+    expect(img.dataset.iconName).toBe('document');
   });
 
   it('exposes empty alt + lazy loading for the decorative image', () => {
