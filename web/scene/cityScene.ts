@@ -241,16 +241,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
-  // Lights for PBR-shaded meshes (billboard posts, etc.). The
-  // buildings + streets + gem use MeshBasicMaterial or a custom shader
-  // that doesn't read lights, so they're unaffected — these lights
-  // exist purely for the handful of materials that DO need shading.
-  const _ambient = new THREE.AmbientLight(0xffffff, 0.45);
-  scene.add(_ambient);
-  const _key = new THREE.DirectionalLight(0xffffff, 1.1);
-  _key.position.set(50, 80, 35);
-  scene.add(_key);
-
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
   // call's captured value by the time a safe-point check runs, that call

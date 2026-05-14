@@ -78,7 +78,7 @@ const POST_HEIGHT_FRAC = 1.1; // post height = panel height × this
 const POST_WIDTH_FRAC = 0.06; // post width = panel width × this
 const POST_INSET_FRAC = 0.32; // post x-offset from center = panel width × this
 
-const POST_COLOR = 0x6e7280; // brushed-steel gray; reads as metal once shaded
+const POST_COLOR = 0x2c2e36; // matches the city's sidewalk gray
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
@@ -165,16 +165,10 @@ export function createBillboard(building: Building): THREE.Group {
   // ---- Posts (two vertical cylinders) ----
   // 10 radial segments → octagon-ish silhouette at the typical zoom
   // levels; cheap to render but reads as round vs the rectangular
-  // panel body sitting on top. Standard PBR material with high
-  // metalness so the directional light from cityScene gives the
-  // cylinders a real "brushed steel" look.
+  // panel body sitting on top.
   const postRadius = postW / 2;
   const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postH, 10);
-  const postMat = new THREE.MeshStandardMaterial({
-    color: POST_COLOR,
-    metalness: 0.85,
-    roughness: 0.35,
-  });
+  const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR });
   for (const sign of [-1, 1]) {
     const post = new THREE.Mesh(postGeo, postMat);
     post.position.set(sign * postInset, postH / 2, 0);
