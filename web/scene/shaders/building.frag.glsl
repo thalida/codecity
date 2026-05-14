@@ -123,6 +123,16 @@ const float WINDOW_LIGHTNESS_DELTA = 55.0;
 // in a derelict block reads as a failing fluorescent rather than a
 // brand-new LED.
 const vec3 LIT_GLOW_DIM = vec3(0.55, 0.48, 0.32);
+
+// HDR emission multiplier applied to lit windows. The shader writes
+// into a HalfFloat render target (see postFx.ts) so values > 1.0 are
+// preserved; the bloom pass picks them up and the OutputPass + ACES
+// tonemapping compresses everything back to display range. At
+// freshness=0 the multiplier is 1.0 (LDR, no bloom contribution);
+// at freshness=1.0 it's LIT_EMISSION_MAX (full HDR push → strong
+// bloom). The gradient gives bloom intensity that scales smoothly
+// with building age.
+const float LIT_EMISSION_MAX = 4.0;
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
 // per cell by a hash so each building has its own scatter of lit /
 // unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
@@ -325,6 +335,17 @@ vec4 renderWallFace() {
   float litDelta = WINDOW_LIGHTNESS_DELTA * freshness;
   vec3 buildingLit = shadeColor(baseColor, litDelta);
   vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, freshness);
+  // HDR emission: scale the lit window's color above 1.0 by an
+  // amount that grows with freshness. Newer buildings push further
+  // into HDR space, exceeding the bloom threshold (1.0) by a larger
+  // margin, which makes them bloom proportionally harder. Older
+  // buildings stay near 1.0 and bloom only faintly (or not at all).
+  // The result is a per-pixel bloom intensity that mirrors the
+  // building's age — exactly what the shader-only approach
+  // couldn't do because LDR clipping collapsed every lit window to
+  // the same display brightness.
+  float emission = mix(1.0, LIT_EMISSION_MAX, freshness);
+  winLitColor *= emission;
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 

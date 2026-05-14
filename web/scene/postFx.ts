@@ -1,17 +1,20 @@
-// scene/postFx.ts — Real bloom for the cyberpunk neon look.
+// scene/postFx.ts — HDR bloom pipeline for cyberpunk neon glow.
 //
-// Wraps the EffectComposer + RenderPass + UnrealBloomPass + OutputPass
-// pipeline so main.ts can swap `renderer.render(scene, camera)` for
-// `postFx.render()` without knowing anything about post-processing
-// internals. OutputPass at the tail handles tonemapping + linear → sRGB
-// conversion that EffectComposer's offscreen render targets would
-// otherwise skip.
+// Why HDR (HalfFloatType render targets):
+// The building fragment shader writes a per-pixel emission multiplier
+// for lit windows scaled by freshness (newer = brighter). With LDR
+// (UnsignedByteType, [0,1]) all values clamp to 1.0 and every lit
+// window — old or new — caps at the same brightness, so the bloom
+// threshold becomes a knife-edge: either nothing blooms or walls
+// bloom. With HDR, newer-building windows push above 1.0 in
+// extended range; bloom threshold at 1.0 then naturally varies bloom
+// strength per pixel by how far that pixel exceeds 1.0. ACES
+// tonemapping in OutputPass compresses the >1.0 range back to
+// display [0,1] so the canvas stays unclipped.
 //
-// Tuning:
-//   threshold — luma cutoff below which a pixel doesn't contribute to
-//               bloom. Emissive windows (shadeColor + lightness boost)
-//               push past this; ambient-lit walls stay below it, so
-//               buildings themselves don't bloom — only the windows.
+// Tuning knobs:
+//   threshold — luma cutoff in the HDR buffer. ≥1.0 means "only HDR
+//               pixels bloom, regular walls are immune."
 //   strength  — overall bloom intensity.
 //   radius    — how far each bright pixel's glow spreads.
 
@@ -27,21 +30,30 @@ export interface PostFx {
   dispose(): void;
 }
 
-// Threshold sits high so saturated bright walls (e.g. a yellow building
-// at HSL L=70 has luma ~0.83) stay matte — only lit windows, which the
-// shader pushes to near-white via WINDOW_LIGHTNESS_DELTA, contribute
-// to bloom. Strength + radius dialed in to read as window glow, not
-// a fog over the whole city.
-const BLOOM_STRENGTH = 0.35;
-const BLOOM_RADIUS = 0.35;
-const BLOOM_THRESHOLD = 0.92;
+const BLOOM_STRENGTH = 0.7;
+const BLOOM_RADIUS = 0.5;
+const BLOOM_THRESHOLD = 1.0;
 
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
 ): PostFx {
-  const composer = new EffectComposer(renderer);
+  // ACES tonemapping compresses HDR (>1.0) values back into display
+  // [0,1] for the canvas. The wall colors written by the shader stay
+  // in [0,1] so they're mostly unchanged; only the emissive windows
+  // that exceed 1.0 get squashed back — exactly the pixels we want
+  // to look "blown out and glowing."
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.0;
+
+  // HalfFloat render targets preserve >1.0 emission values from the
+  // shader; LDR targets would clip them to 1.0 and erase the
+  // per-pixel bloom intensity gradient.
+  const hdrTarget = new THREE.WebGLRenderTarget(1, 1, {
+    type: THREE.HalfFloatType,
+  });
+  const composer = new EffectComposer(renderer, hdrTarget);
   composer.addPass(new RenderPass(scene, camera));
 
   const bloom = new UnrealBloomPass(
@@ -52,9 +64,9 @@ export function createPostFx(
   );
   composer.addPass(bloom);
 
-  // EffectComposer renders into linear-space float targets; the final
-  // OutputPass tonemaps + converts back to sRGB so the canvas matches
-  // what renderer.render(scene, camera) would have produced directly.
+  // OutputPass picks up renderer.toneMapping (set above) and applies
+  // the linear → sRGB conversion that the offscreen HDR targets skip,
+  // so the final canvas pixels are correctly encoded.
   composer.addPass(new OutputPass());
 
   return {
@@ -64,6 +76,7 @@ export function createPostFx(
       bloom.setSize(w, h);
     },
     dispose: () => {
+      hdrTarget.dispose();
       bloom.dispose();
       composer.dispose();
     },
