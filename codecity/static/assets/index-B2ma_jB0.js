@@ -159,39 +159,22 @@ const float DOOR_HEIGHT_FRAC = 0.7;
 const float ROOF_BORDER_FRAC = 0.03125;
 
 // ---------------------------------------------------------------------------
-// Color shading constants — sourced from SHADING in web/scene/engine.ts.
-// *_LIGHTNESS_DELTA values: additive lightness shift in HSL % (0–100 domain).
-// *_HUE_SHIFT values: hue rotation in degrees (0–360 domain).
-// *_DARKEN_RATIO values: multiplicative factor applied to lightness.
-// *_LIGHTNESS_FLOOR values: absolute lightness floor (0–100 domain).
-//
-// NOTE: engine.ts passes WALL_SIDE_LIGHTNESS_DELTA and SLAB_SIDE_LIGHTNESS_DELTA
-// as the \`hueDelta\` argument to shadeByRatio — this appears to be intentional
-// naming inconsistency in the JS source; the GLSL mirrors the same call semantics
-// (deltaHueDeg = the *_LIGHTNESS_DELTA value, not a separate hue shift).
+// Lighting — single world-space directional light + ambient. Replaces the
+// previous front/side branch shading: facade tone now comes from
+// dot(worldNormal, sun) rather than from whether a given face was the
+// door face. North/south/east/west-facing walls light up consistently
+// across the whole city regardless of which way each building's door
+// points. Numbers tuned so the lit side reads as "in the sun" while
+// the shaded side stays legible (not crushed to black).
 // ---------------------------------------------------------------------------
 
-// SHADING.WALL_FRONT_LIGHTNESS_DELTA = -5
-const float WALL_FRONT_LIGHTNESS_DELTA = -5.0;
-// SHADING.WALL_FRONT_HUE_SHIFT = 18
-const float WALL_FRONT_HUE_SHIFT = 18.0;
-// SHADING.WALL_SIDE_DARKEN_RATIO = 0.55
-const float WALL_SIDE_DARKEN_RATIO = 0.55;
-// SHADING.WALL_SIDE_LIGHTNESS_DELTA = -10 (passed as hueDelta in shadeByRatio)
-const float WALL_SIDE_LIGHTNESS_DELTA = -10.0;
-// SHADING.WALL_SIDE_LIGHTNESS_FLOOR = 14
-const float WALL_SIDE_LIGHTNESS_FLOOR = 14.0;
+const vec3 SUN_DIR_WORLD = normalize(vec3(0.5, 1.0, 0.4)); // upper-right
+const float AMBIENT = 0.55;     // base illumination on faces facing away from the sun
+const float DIFFUSE_GAIN = 0.45; // additional brightening on faces facing the sun
 
-// SHADING.SLAB_FRONT_LIGHTNESS_DELTA = -15
-const float SLAB_FRONT_LIGHTNESS_DELTA = -15.0;
-// SHADING.SLAB_FRONT_HUE_SHIFT = 18
-const float SLAB_FRONT_HUE_SHIFT = 18.0;
-// SHADING.SLAB_SIDE_DARKEN_RATIO = 0.4
-const float SLAB_SIDE_DARKEN_RATIO = 0.4;
-// SHADING.SLAB_SIDE_LIGHTNESS_DELTA = -10 (passed as hueDelta in shadeByRatio)
-const float SLAB_SIDE_LIGHTNESS_DELTA = -10.0;
-// SHADING.SLAB_SIDE_LIGHTNESS_FLOOR = 10
-const float SLAB_SIDE_LIGHTNESS_FLOOR = 10.0;
+// Slabs (the strip at the top of each floor) sit slightly darker than
+// the wall, regardless of light direction, so the floor seams read.
+const float SLAB_LIGHTNESS_DELTA = -12.0;
 
 // SHADING.WINDOW_LIGHTNESS_DELTA = 20
 const float WINDOW_LIGHTNESS_DELTA = 20.0;
@@ -200,10 +183,14 @@ const float WINDOW_LIGHTNESS_DELTA = 20.0;
 // unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
 // so the window pane reads as a pane (not just blank wall).
 const float WINDOW_UNLIT_LIGHTNESS_DELTA = 4.0;
-// Fraction of cells (per face) that have no window at all — irregular
-// gaps so the facade reads as varied instead of a perfect grid. Cells
-// whose gap-hash falls below the threshold are skipped.
-const float WINDOW_GAP_THRESHOLD = 0.18;
+// Baseline fraction of cells (per face) that have no window at all —
+// irregular gaps so the facade reads as varied instead of a perfect
+// grid. Old / dim buildings boost this further so they look boarded-up
+// (see renderWallFace).
+const float WINDOW_GAP_BASE_THRESHOLD = 0.18;
+// Extra gap fraction added for the dimmest buildings — at brightness=0
+// roughly half the cells become empty, reading as derelict / rundown.
+const float WINDOW_GAP_AGE_BONUS = 0.32;
 // (The lit-vs-unlit threshold is computed per-fragment from the
 // building's brightness rather than being a fixed constant — see
 // renderWallFace for the formula.)
@@ -222,13 +209,6 @@ bool isDoorFace() {
   if (vOrient < 1.5) return vFace == 5;
   if (vOrient < 2.5) return vFace == 0;
   return vFace == 1;
-}
-
-bool isFrontFacePair() {
-  // Front pair = the pair containing the door face.
-  bool doorOnEW = vOrient >= 1.5; // E or W orient
-  if (doorOnEW) return vFace == 0 || vFace == 1;
-  return vFace == 4 || vFace == 5;
 }
 
 // ---------------------------------------------------------------------------
@@ -268,8 +248,6 @@ float hash21(vec2 p) {
 // ---------------------------------------------------------------------------
 
 vec4 renderWallFace() {
-  bool front = isFrontFacePair();
-
   // instanceColor arrives as linear-sRGB (Three.js Color.set() converts CSS
   // sRGB strings to linear). The HSL shading helpers are ported from hsl.ts
   // which works in sRGB percentage space.
@@ -282,20 +260,20 @@ vec4 renderWallFace() {
   //   3. Write the sRGB result directly (no re-linearisation needed).
   vec3 baseColor = linearToSrgb(vColor);
 
-  // Wall color: front faces use additive lightness + hue shift;
-  // side faces use multiplicative darkening with a lightness floor.
-  // Mirrors engine.ts shadeAndShiftHue / shadeByRatio calls exactly.
-  // Note: *_LIGHTNESS_DELTA constants are passed as deltaHueDeg to
-  // shadeByRatio — this mirrors the engine.ts call semantics where
-  // WALL_SIDE_LIGHTNESS_DELTA / SLAB_SIDE_LIGHTNESS_DELTA are the 3rd
-  // positional arg (hueDelta) of shadeByRatio.
-  vec3 wallColor = front
-    ? shadeAndShiftHue(baseColor, WALL_FRONT_LIGHTNESS_DELTA, WALL_FRONT_HUE_SHIFT, -1.0)
-    : shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO, WALL_SIDE_LIGHTNESS_DELTA, WALL_SIDE_LIGHTNESS_FLOOR);
-  vec3 slabColor = front
-    ? shadeAndShiftHue(baseColor, SLAB_FRONT_LIGHTNESS_DELTA, SLAB_FRONT_HUE_SHIFT, -1.0)
-    : shadeByRatio(baseColor, SLAB_SIDE_DARKEN_RATIO, SLAB_SIDE_LIGHTNESS_DELTA, SLAB_SIDE_LIGHTNESS_FLOOR);
-  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0);
+  // Directional sun + ambient. Faces are flat-lit (each face has a
+  // constant world-space normal because buildings aren't rotated), so
+  // the silhouette still reads as 3D but the lit/shaded sides depend
+  // on which compass direction each face points — not on which face
+  // happens to be the door. North/south/east/west-facing walls light
+  // up consistently across the whole city.
+  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
+  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+
+  vec3 wallColor = baseColor * lightFactor;
+  vec3 slabColor = shadeColor(baseColor, SLAB_LIGHTNESS_DELTA) * lightFactor;
+  // Door stays a dark rectangle — small ambient response so it's not pitch-black
+  // on sun-side walls but still reads as "open doorway".
+  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0) * (AMBIENT + DIFFUSE_GAIN * lambert * 0.4);
   // winColor is picked per-cell below — each cell hashes to "lit" or
   // "unlit" so the facade doesn't read as a copy-paste grid.
 
@@ -357,20 +335,26 @@ vec4 renderWallFace() {
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
-  float gapMask = step(WINDOW_GAP_THRESHOLD, gapHash);
+  // Building brightness drives both the lit-window probability AND the
+  // window-gap density: oldest (dimmest) buildings read as boarded-up
+  // tenements — most cells empty, none of the remaining windows lit.
+  // Newest (brightest) buildings keep the baseline gap rate and most
+  // windows are lit. Brightness is the simple sRGB-channel mean.
+  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
+  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - brightness) * WINDOW_GAP_AGE_BONUS;
+  float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
   // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost; unlit cells get
   // a much smaller boost so they read as "off" panes rather than blank wall.
   // The lit / unlit split scales with the building's overall brightness:
-  // a dark (old / muted) building has a high threshold and few lit
-  // windows ("sleepy"), a bright (new / saturated) building has a low
-  // threshold and most windows lit ("buzzing"). Brightness is the
-  // simple sRGB-channel mean of the building's base color.
-  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
-  float litThreshold = clamp(1.0 - brightness * 0.95, 0.1, 0.9);
+  // a bright (new / saturated) building has a low threshold and most
+  // windows lit ("buzzing"); at brightness=0 the threshold reaches 1.0
+  // so step() returns 0 for every cell and no window is lit at all —
+  // the oldest building's windows are all dark panes.
+  float litThreshold = clamp(1.0 - brightness, 0.05, 1.0);
   float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(litThreshold, litHash));
-  vec3 winColor = shadeColor(baseColor, winDelta);
+  vec3 winColor = shadeColor(baseColor, winDelta) * lightFactor;
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
@@ -445,44 +429,25 @@ vec4 renderRoofFace() {
 }
 
 vec4 renderBottomFace() {
-  // Bottom face is rarely visible; uses the side-wall palette (darkened).
-  // Mirrors engine.ts bottomMat() which uses wallEW = wallSide when !doorOnEW,
-  // or wallFront when doorOnEW. For simplicity we always use the side color
-  // since it's the more conservative (darker) of the two.
-  //
-  // Convert linear→sRGB for HSL math, write sRGB result directly to framebuffer
-  // (ShaderMaterial has no automatic linearToOutputTexel pass).
+  // Bottom face is rarely visible; it points straight down so the sun's
+  // lambert term goes to zero and we render at pure ambient.
   vec3 baseColor = linearToSrgb(vColor);
-  vec3 bottomColor = shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO,
-                                  WALL_SIDE_LIGHTNESS_DELTA,
-                                  WALL_SIDE_LIGHTNESS_FLOOR);
-  return vec4(bottomColor, vOpacity);
+  return vec4(baseColor * AMBIENT, vOpacity);
 }
 
 // Silhouette mode: render the proper face-shaded base color but skip
-// per-cell window/door/slab/roof-border math. Walls keep front-vs-side
-// shading so the building still reads as 3D; roof keeps its base color
-// without the border stroke.
+// per-cell window/door/slab/roof-border math. Walls and bottom use the
+// same directional-light formula as the detail tier so a silhouette
+// building reads consistently when the camera transitions between LODs.
 vec4 renderSilhouette() {
   vec3 baseColor = linearToSrgb(vColor);
   if (vFace == 2) {
-    // Roof — solid base color.
+    // Roof — solid base color, no directional shading (matches detail tier).
     return vec4(baseColor, vOpacity);
   }
-  if (vFace == 3) {
-    // Bottom — match the side-wall darkening so silhouette looks consistent
-    // with the wall sides if the camera ever sees underneath.
-    vec3 c = shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO,
-                          WALL_SIDE_LIGHTNESS_DELTA,
-                          WALL_SIDE_LIGHTNESS_FLOOR);
-    return vec4(c, vOpacity);
-  }
-  // Walls — front pair vs side pair shading, matching renderWallFace().
-  bool front = isFrontFacePair();
-  vec3 wallColor = front
-    ? shadeAndShiftHue(baseColor, WALL_FRONT_LIGHTNESS_DELTA, WALL_FRONT_HUE_SHIFT, -1.0)
-    : shadeByRatio(baseColor, WALL_SIDE_DARKEN_RATIO, WALL_SIDE_LIGHTNESS_DELTA, WALL_SIDE_LIGHTNESS_FLOOR);
-  return vec4(wallColor, vOpacity);
+  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
+  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+  return vec4(baseColor * lightFactor, vOpacity);
 }
 
 // Composite a per-instance wireframe over the body color. The "wire" is a
