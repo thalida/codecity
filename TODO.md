@@ -20,8 +20,9 @@
 - [x] in left of footer add live reload status + reloading state to the site footer
 - [x] move file/directory information to right of footer
 - [x] include repo information in center of footer
-- [ ] add file icon type to sidebar and roof of buildings
-- [ ] display images and videos as billboards? let users click to play billboard video
+- [x] add file icon type to sidebar
+- [ ] add file icon to the roof of buildings
+- [ ] display images and videos as billboards
 - [ ] identify and add something special to test files
 - [ ] python cli make it more professional
 - [x] add back gitignore flag -- make it a user facing config option
