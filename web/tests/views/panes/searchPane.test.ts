@@ -56,6 +56,35 @@ const TREE = {
       modified: '',
       git: null,
     },
+    {
+      name: 'logo.png',
+      type: NodeKind.File,
+      path: 'assets/logo.png',
+      fullPath: '/tmp/p/assets/logo.png',
+      extension: '.png',
+      size: 100,
+      lines: 0,
+      binary: true,
+      created: '',
+      modified: '',
+      git: null,
+    },
+    {
+      // Has '.', 'p', 'n', 'g' chars in order but no contiguous ".png":
+      // old fuzzy matcher would have matched this when typing ".png";
+      // the new token-substring matcher excludes it.
+      name: 'parsing.ts',
+      type: NodeKind.File,
+      path: 'src/parsing.ts',
+      fullPath: '/tmp/p/src/parsing.ts',
+      extension: '.ts',
+      size: 100,
+      lines: 10,
+      binary: false,
+      created: '',
+      modified: '',
+      git: null,
+    },
   ],
 };
 
@@ -72,7 +101,7 @@ describe('buildSearchPane', () => {
     expect(state!.textContent).toContain('Start typing');
   });
 
-  it('lists fuzzy-matched files for a query and wraps matches in <mark>', () => {
+  it('lists substring-matched files for a query and wraps matches in <mark>', () => {
     const { pane } = buildSearchPane({ tree: TREE });
     document.body.appendChild(pane);
     const input = pane.querySelector<HTMLInputElement>('.search-input')!;
@@ -81,10 +110,40 @@ describe('buildSearchPane', () => {
 
     const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
     expect(results.length).toBeGreaterThan(0);
-    // src/coordinator.ts ranks first because all five chars of "coord"
-    // appear contiguously in the filename.
     expect(results[0].textContent).toBe('src/coordinator.ts');
     expect(results[0].querySelectorAll('mark').length).toBeGreaterThan(0);
+  });
+
+  it('treats ".png" as a contiguous substring (not per-character fuzzy)', () => {
+    const { pane } = buildSearchPane({ tree: TREE });
+    document.body.appendChild(pane);
+    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
+    input.value = '.png';
+    input.dispatchEvent(new Event('input'));
+
+    const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
+    const paths = Array.from(results).map((r) => r.textContent);
+    // Only assets/logo.png contains ".png" as a substring. parsing.ts
+    // contains '.', 'p', 'n', 'g' characters but never the contiguous
+    // ".png" → excluded.
+    expect(paths).toEqual(['assets/logo.png']);
+  });
+
+  it('supports whitespace-separated tokens (every token must appear as a substring)', () => {
+    const { pane } = buildSearchPane({ tree: TREE });
+    document.body.appendChild(pane);
+    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
+    input.value = 'src .ts';
+    input.dispatchEvent(new Event('input'));
+
+    const paths = Array.from(
+      pane.querySelectorAll<HTMLLIElement>('.search-result')
+    ).map((r) => r.textContent);
+    expect(paths).toContain('src/coordinator.ts');
+    expect(paths).toContain('src/main.ts');
+    expect(paths).toContain('src/parsing.ts');
+    expect(paths).not.toContain('README.md');
+    expect(paths).not.toContain('assets/logo.png');
   });
 
   it('matches the file extension as part of the path', () => {

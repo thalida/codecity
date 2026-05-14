@@ -1,17 +1,19 @@
-// views/panes/searchPane.ts — "Search" tab in the left sidebar. A fuzzy
+// views/panes/searchPane.ts — "Search" tab in the left sidebar. A
 // path-search over the project's files. Indexes the flat list of files
-// from the manifest tree; each keystroke runs the fuzzy matcher across
-// the index and renders the top-N results. Clicking a result fires
+// from the manifest tree; each keystroke runs the matcher across the
+// index and renders the top-N results. Clicking a result fires
 // onSelect(path) so the host can route it through the picker (same
 // pathway as a tree click / breadcrumb click).
 //
-// Matching: per query char, the matcher scans forward in the target for
-// the next case-insensitive occurrence. A missing char fails the match.
-// Score rewards (a) compact spans, (b) matches that begin at word
-// boundaries (after `/`, `_`, `-`, `.`), (c) prefix matches, and
-// (d) adjacent-character runs — fzy/fzf-style heuristics. No external
-// dep; the algorithm is O(target.length) per file, fine for tens of
-// thousands of paths on every keystroke.
+// Matching: whitespace-separated tokens. Each token must appear as a
+// contiguous case-insensitive substring of the target path; missing any
+// token fails the match. Searching ".png" therefore looks for the literal
+// ".png" string, not for `.`, `p`, `n`, `g` scattered across the path.
+// Score rewards (a) earlier matches (smaller idx penalty), (b) prefix
+// matches, and (c) matches that begin at word boundaries (after `/`,
+// `_`, `-`, `.`). Shorter targets win ties. No external dep; O(target
+// length × tokens) per file, fine for tens of thousands of paths on
+// every keystroke.
 
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
@@ -20,8 +22,8 @@ import { makeLucideIcon } from '@/views/shell/icon.js';
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;
 
-interface FuzzyMatch {
-  /** Indices in the target where each query char landed (in order). */
+interface PathMatch {
+  /** Indices in the target covered by token matches (may be unsorted; deduped via Set in highlight). */
   positions: number[];
   /** Higher is better. */
   score: number;
@@ -73,7 +75,7 @@ export function buildSearchPane(
   const input = document.createElement('input');
   input.type = 'search';
   input.className = 'search-input';
-  input.placeholder = 'Fuzzy search files by path';
+  input.placeholder = 'Search files by path';
   input.spellcheck = false;
   input.autocapitalize = 'off';
   input.autocomplete = 'off';
@@ -137,7 +139,7 @@ export function buildSearchPane(
     );
   }
 
-  function _buildResultRow(file: FileNode, match: FuzzyMatch): HTMLLIElement {
+  function _buildResultRow(file: FileNode, match: PathMatch): HTMLLIElement {
     const li = document.createElement('li');
     li.className = 'search-result';
     li.tabIndex = 0;
@@ -202,14 +204,15 @@ function _walk(node: TreeNode | DirNode, out: FileNode[]): void {
 function _searchFiles(
   query: string,
   files: FileNode[]
-): Array<{ file: FileNode; match: FuzzyMatch }> {
-  const q = query.toLowerCase();
-  const results: Array<{ file: FileNode; match: FuzzyMatch }> = [];
+): Array<{ file: FileNode; match: PathMatch }> {
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return [];
+  const results: Array<{ file: FileNode; match: PathMatch }> = [];
   for (let i = 0; i < files.length; i++) {
     const file = files[i];
     const target = file.path || '';
     if (!target) continue;
-    const match = _fuzzyMatch(q, target.toLowerCase());
+    const match = _matchTokens(tokens, target.toLowerCase());
     if (match) results.push({ file, match });
   }
   results.sort((a, b) => b.match.score - a.match.score);
@@ -217,42 +220,25 @@ function _searchFiles(
 }
 
 /**
- * Greedy left-to-right fuzzy match. Returns the matched positions and a
- * heuristic score, or null if any query character is absent. Both
- * inputs MUST already be lowercased — callers pre-lowercase once.
+ * Token-based substring matcher. Every token (already lowercased) must
+ * appear as a contiguous substring of the lowercased target — if any
+ * token is absent, the match fails. Returns the union of matched
+ * character positions and a heuristic score. Token order in the query
+ * does not have to mirror the target.
  */
-function _fuzzyMatch(q: string, t: string): FuzzyMatch | null {
-  if (!q) return null;
+function _matchTokens(tokens: string[], t: string): PathMatch | null {
   const positions: number[] = [];
-  let ti = 0;
-  for (let qi = 0; qi < q.length; qi++) {
-    let found = -1;
-    while (ti < t.length) {
-      if (t.charCodeAt(ti) === q.charCodeAt(qi)) {
-        found = ti;
-        ti++;
-        break;
-      }
-      ti++;
-    }
-    if (found < 0) return null;
-    positions.push(found);
+  let score = 0;
+  for (let k = 0; k < tokens.length; k++) {
+    const token = tokens[k];
+    const idx = t.indexOf(token);
+    if (idx < 0) return null;
+    for (let i = idx; i < idx + token.length; i++) positions.push(i);
+    if (idx === 0) score += 100;
+    if (idx > 0 && WORD_BOUNDARY_RE.test(t[idx - 1])) score += 25;
+    score -= idx;
   }
-
-  // Score: penalize span; bonus prefix, word-boundary starts, adjacent
-  // runs. Tuned so a short query lands its closest cluster on top.
-  const span = positions[positions.length - 1] - positions[0];
-  let score = -span;
-  if (positions[0] === 0) score += 100;
-  for (let i = 0; i < positions.length; i++) {
-    const p = positions[i];
-    if (p > 0 && WORD_BOUNDARY_RE.test(t[p - 1])) score += 25;
-  }
-  for (let i = 1; i < positions.length; i++) {
-    if (positions[i] === positions[i - 1] + 1) score += 5;
-  }
-  // Shorter targets win when scores are otherwise equal — implemented
-  // as a tiny tiebreaker by subtracting the target length / 1000.
+  // Shorter targets win when scores are otherwise equal.
   score -= t.length / 1000;
   return { positions, score };
 }
