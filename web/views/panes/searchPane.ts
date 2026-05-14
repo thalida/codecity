@@ -18,6 +18,7 @@
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;
@@ -51,24 +52,7 @@ export function buildSearchPane(
   const pane = document.createElement('div');
   pane.className = 'left-pane search-pane';
 
-  const header = document.createElement('div');
-  header.className = 'search-header pane-header';
-  const title = document.createElement('h3');
-  title.className = 'search-title';
-  title.textContent = 'Search';
-  header.appendChild(title);
-  if (typeof opts.onClose === 'function') {
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'pane-header-close';
-    closeBtn.title = 'Hide sidebar';
-    closeBtn.setAttribute('aria-label', 'Hide sidebar');
-    closeBtn.appendChild(makeLucideIcon('x'));
-    closeBtn.addEventListener('click', () => {
-      opts.onClose!();
-    });
-    header.appendChild(closeBtn);
-  }
+  const { el: header } = buildPaneHeader({ title: 'Search', onClose: opts.onClose });
   pane.appendChild(header);
 
   const inputWrap = document.createElement('div');

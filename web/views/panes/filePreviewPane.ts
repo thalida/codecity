@@ -13,6 +13,7 @@ import hljs from 'highlight.js/lib/common';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;
@@ -129,23 +130,11 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   const pane = document.createElement('div');
   pane.className = 'file-preview-pane';
 
-  const header = document.createElement('div');
-  header.className = 'pane-header file-preview-header';
-  const title = document.createElement('h3');
-  title.className = 'file-preview-title';
-  header.appendChild(title);
-  if (typeof opts.onClose === 'function') {
-    const closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'pane-header-close';
-    closeBtn.title = 'Close sidebar';
-    closeBtn.setAttribute('aria-label', 'Close sidebar');
-    closeBtn.appendChild(makeLucideIcon('x'));
-    closeBtn.addEventListener('click', () => {
-      opts.onClose!();
-    });
-    header.appendChild(closeBtn);
-  }
+  const { el: header, api: headerApi } = buildPaneHeader({
+    title: 'No file',
+    mono: true,
+    onClose: opts.onClose,
+  });
   pane.appendChild(header);
 
   const body = document.createElement('div');
@@ -164,7 +153,7 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
         }
       | null
   ): void {
-    title.textContent = file?.name ? String(file.name) : 'No file';
+    headerApi.setTitle(file?.name ? String(file.name) : 'No file');
     body.replaceChildren();
     if (!file) {
       body.appendChild(

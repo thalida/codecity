@@ -720,8 +720,10 @@ canvas {
  * Flexbox keeps the two vertically centered against each other regardless
  * of the title's font metrics or the button's size; no manual top/left
  * positioning math needed. */
-.tree-header,
-.controls-header,
+/* Shared header row built by views/shell/paneHeader.ts. Every pane —
+ * left sidebar's Tree/Search/Info/Controls and the right sidebar's
+ * file-preview — mounts this same DOM so they look identical and
+ * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
   padding: 12px 12px 12px 16px;
   border-bottom: 1px solid #1e2030;
@@ -732,15 +734,11 @@ canvas {
   gap: 8px;
 }
 
-/* Unified pane-header title — applies to every left-sidebar pane
- * (Tree, Search, Info, Controls) and the right-sidebar file-preview
- * pane. Smaller + lighter than a traditional heading so the panes
- * read as panels of content rather than each shouting for attention. */
-.tree-title,
-.controls-title,
-.info-title,
-.search-title,
-.file-preview-title {
+/* Smaller + lighter than a traditional heading so the panes read as
+ * panels of content rather than each shouting for attention. The
+ * .is-mono modifier flips to monospace for filename-style titles
+ * (right-sidebar file-preview). */
+.pane-title {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
@@ -752,9 +750,7 @@ canvas {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-/* File-preview title shows the literal filename — monospace reads as
- * "this is a path/identifier" instead of a label. */
-.file-preview-title {
+.pane-title.is-mono {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 

@@ -37,13 +37,13 @@ describe('buildFilePreviewPane', () => {
   it('renders a pane header with a title element', () => {
     const { pane } = buildFilePreviewPane();
     expect(pane.querySelector('.pane-header')).not.toBeNull();
-    expect(pane.querySelector('.file-preview-title')).not.toBeNull();
+    expect(pane.querySelector('.pane-title')).not.toBeNull();
   });
 
   it('starts in the empty state (no file) with "No file" title', () => {
     const { pane } = buildFilePreviewPane();
     expect(pane.querySelector('.preview-state')).not.toBeNull();
-    expect(pane.querySelector('.file-preview-title')!.textContent).toBe('No file');
+    expect(pane.querySelector('.pane-title')!.textContent).toBe('No file');
   });
 
   it('setFile(file) replaces the empty state with preview content and shows the filename', () => {
@@ -53,7 +53,7 @@ describe('buildFilePreviewPane', () => {
     // failure, but the body should no longer be ONLY a state message —
     // a .preview-shell wrapper is the file path's first child.
     expect(pane.querySelector('.preview-shell')).not.toBeNull();
-    expect(pane.querySelector('.file-preview-title')!.textContent).toBe('index.ts');
+    expect(pane.querySelector('.pane-title')!.textContent).toBe('index.ts');
   });
 
   it('setFile(null) returns to the empty state and the "No file" title', () => {
@@ -62,7 +62,7 @@ describe('buildFilePreviewPane', () => {
     api.setFile(null);
     expect(pane.querySelector('.preview-state')).not.toBeNull();
     expect(pane.querySelector('.preview-shell')).toBeNull();
-    expect(pane.querySelector('.file-preview-title')!.textContent).toBe('No file');
+    expect(pane.querySelector('.pane-title')!.textContent).toBe('No file');
   });
 
   it('successive setFile calls leave a single body content tree', () => {
@@ -71,7 +71,7 @@ describe('buildFilePreviewPane', () => {
     api.setFile({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
     // exactly one preview-shell, no leftover from the first call
     expect(pane.querySelectorAll('.preview-shell').length).toBe(1);
-    expect(pane.querySelector('.file-preview-title')!.textContent).toBe('utils.ts');
+    expect(pane.querySelector('.pane-title')!.textContent).toBe('utils.ts');
   });
 
   it('falls through to preview (no "too large" state) for a 10 MB file', () => {

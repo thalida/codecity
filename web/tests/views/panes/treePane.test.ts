@@ -172,10 +172,10 @@ describe('buildTreePane', () => {
     expect(bundle.pane.classList.contains('left-pane')).toBe(true);
     expect(bundle.pane.classList.contains('tree-pane')).toBe(true);
 
-    const header = bundle.pane.querySelector('.tree-header');
+    const header = bundle.pane.querySelector('.pane-header');
     expect(header).not.toBeNull();
 
-    const title = bundle.pane.querySelector('.tree-title');
+    const title = bundle.pane.querySelector('.pane-title');
     expect(title).not.toBeNull();
     // Generic section label, not the project name (root is rendered as a
     // folder below — duplicating the name in the header would be redundant).
@@ -189,7 +189,7 @@ describe('buildTreePane', () => {
 
   it('accepts a bare tree (no { tree } wrapper)', () => {
     const bundle = buildTreePane(TEST_TREE);
-    const title = bundle.pane.querySelector('.tree-title');
+    const title = bundle.pane.querySelector('.pane-title');
     expect(title!.textContent).toBe('Explorer');
   });
 

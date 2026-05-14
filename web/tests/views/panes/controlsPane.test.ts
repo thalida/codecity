@@ -5,7 +5,7 @@ describe('buildControlsPane', () => {
   it('returns a pane with the Controls header + View section first', () => {
     const pane = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    expect(pane.querySelector<HTMLElement>('.controls-title')!.textContent).toBe('Controls');
+    expect(pane.querySelector<HTMLElement>('.pane-title')!.textContent).toBe('Controls');
     expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('View');
   });
 

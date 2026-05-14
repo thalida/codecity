@@ -6,6 +6,7 @@
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
+import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 interface TreeCtx {
   byPath: Record<string, { li: HTMLLIElement; node: TreeNode }>;
@@ -248,20 +249,9 @@ export function buildTreePane(
   const pane = document.createElement('div');
   pane.className = 'left-pane tree-pane';
 
-  const header = document.createElement('div');
-  header.className = 'tree-header pane-header';
-
-  const title = document.createElement('h3');
-  title.className = 'tree-title';
   // Generic "Explorer" label so it doesn't duplicate the root folder name
   // shown right below it in the list (mirrors VSCode's section header).
-  title.textContent = 'Explorer';
-  header.appendChild(title);
-
-  if (typeof opts.onClose === 'function') {
-    header.appendChild(_buildPaneCloseButton(opts.onClose));
-  }
-
+  const { el: header } = buildPaneHeader({ title: 'Explorer', onClose: opts.onClose });
   pane.appendChild(header);
 
   const ctx: TreeCtx = {
@@ -351,15 +341,3 @@ export function buildTreePane(
   };
 }
 
-function _buildPaneCloseButton(onClose: () => void): HTMLButtonElement {
-  const btn = document.createElement('button');
-  btn.type = 'button';
-  btn.className = 'pane-header-close';
-  btn.title = 'Hide sidebar';
-  btn.setAttribute('aria-label', 'Hide sidebar');
-  btn.appendChild(makeLucideIcon('x'));
-  btn.addEventListener('click', () => {
-    onClose();
-  });
-  return btn;
-}
