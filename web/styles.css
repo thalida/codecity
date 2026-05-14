@@ -1363,7 +1363,10 @@ canvas {
    * (VSCode-style). The icon's own margin-right (below) widens the
    * effective space before the label. */
   gap: 2px;
-  padding: 3px 8px;
+  /* Left padding mirrors the .pane-header's 16px so depth-0 chevrons
+   * line up under the "Explorer" title. Nested levels add their own
+   * 8px via .tree-list — no compounding padding inside the row itself. */
+  padding: 3px 16px;
   cursor: pointer;
   border-radius: 4px;
   transition: background 0.1s;
@@ -1424,12 +1427,13 @@ canvas {
   color: transparent;
 }
 
-/* Root row: chevron is hidden (root isn't collapsible) but the
- * element stays in the DOM with its inline-flex width so the label
- * lines up with the children's labels below. Cursor stays default
- * over the row's whole width — no expand/collapse affordance. */
+/* Root row: chevron is removed from layout (display: none) so the
+ * root folder icon sits flush at .tree-row's left padding (16px) —
+ * lined up directly under the "Explorer" header title. The chevron
+ * element stays in the DOM so _setDirExpanded's selector keeps
+ * working; only its layout box is suppressed. */
 .tree-root-item > .tree-row > .tree-chevron {
-  visibility: hidden;
+  display: none;
 }
 
 .tree-icon {
