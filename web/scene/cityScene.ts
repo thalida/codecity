@@ -569,11 +569,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const nb of blocks) {
       for (let i = 0; i < nb.buildings.length; i++) {
         const b = nb.buildings[i];
-        const newScaleX = b.w;
-        const newScaleY = b.h;
-        const newScaleZ = b.d;
+        // Media files render as separate billboard meshes; the
+        // building's slot in the InstancedMesh stays zero-scaled so
+        // the building cuboid doesn't render OR catch raycasts. The
+        // diff has to mirror that — without this guard the animator
+        // would tween the matrix back up to (b.w, b.h, b.d) and wrap
+        // the billboard in a building-shaped dark box.
+        const isMedia = b.file && isMediaFile(b.file);
+        const newScaleX = isMedia ? 0 : b.w;
+        const newScaleY = isMedia ? 0 : b.h;
+        const newScaleZ = isMedia ? 0 : b.d;
         const newPosX = b.x;
-        const newPosY = b.h / 2;
+        const newPosY = isMedia ? 0 : b.h / 2;
         const newPosZ = b.y;
 
         const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
