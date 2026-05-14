@@ -64,34 +64,121 @@ export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   // getLightness fall back to the midpoint of the range above so the
   // building reads as "average" rather than crushed to either extreme.)
   DIRECTORY_COLOR: 'hsl(220, 15%, 25%)', // dim slab for directory entries
+  // Hue is picked to match the standout color of the file's icon in
+  // Material Icon Theme (see views/shell/fileIcon.ts) — the COLOR you
+  // see on the file's pill / icon glyph is the same hue the building
+  // ramps off in the city. When an icon has multiple colors, we pick
+  // the more distinctive one (e.g. Python is yellow+blue → yellow,
+  // since blue is overused). Pure-blue icons (.ts, .css) keep blue
+  // because there's no alternative in their glyph.
   HUE_EXT_MAP: {
-    '.js': 220,
-    '.ts': 215,
-    '.jsx': 225,
-    '.tsx': 210,
-    '.mjs': 220,
-    '.py': 15,
-    '.pyx': 20,
-    '.pyi': 10,
-    '.css': 150,
-    '.scss': 145,
-    '.less': 155,
-    '.sass': 148,
-    '.html': 175,
-    '.vue': 170,
-    '.svelte': 180,
-    '.json': 50,
-    '.yaml': 55,
-    '.toml': 45,
-    '.ini': 52,
-    '.md': 275,
-    '.txt': 280,
-    '.rst': 270,
-    '.sh': 35,
-    '.bash': 38,
-    '.zsh': 32,
-    '.go': 185,
-    '.rs': 5,
+    // JS family — yellow JS, cyan React, blue TS
+    '.js': 55,
+    '.mjs': 55,
+    '.cjs': 55,
+    '.jsx': 190,
+    '.ts': 210,
+    '.tsx': 190,
+    '.mts': 210,
+    '.cts': 210,
+    // Python — pick yellow (blue is the secondary)
+    '.py': 50,
+    '.pyx': 50,
+    '.pyi': 50,
+    // Web
+    '.html': 13, // HTML orange
+    '.htm': 13,
+    '.xml': 30, // XML amber
+    '.css': 205, // CSS blue (no alternative)
+    '.scss': 330, // SASS pink
+    '.sass': 330,
+    '.less': 250, // LESS blue-purple
+    '.vue': 155, // Vue green
+    '.svelte': 10, // Svelte orange-red
+    // Data / config
+    '.json': 50, // JSON yellow
+    '.yaml': 358, // YAML red dot
+    '.yml': 358,
+    '.toml': 30,
+    '.ini': 30,
+    '.env': 45,
+    // Docs
+    '.md': 210, // markdown blue (icon's only color)
+    '.markdown': 210,
+    '.mdx': 210,
+    '.txt': 30, // neutral amber
+    '.rst': 30,
+    // Languages (icon standout colors)
+    '.rb': 3, // Ruby red
+    '.go': 190, // Go cyan
+    '.rs': 25, // Rust orange
+    '.java': 32, // Java orange-red
+    '.kt': 257, // Kotlin purple
+    '.kts': 257,
+    '.swift': 17, // Swift orange
+    '.c': 210, // C blue
+    '.h': 210,
+    '.cpp': 220, // C++ blue
+    '.cc': 220,
+    '.hpp': 220,
+    '.cs': 308, // C# purple
+    '.php': 237, // PHP purple-indigo
+    '.lua': 225, // Lua dark blue
+    '.dart': 178, // Dart teal
+    '.scala': 0, // Scala red
+    '.pl': 280, // Perl purple
+    '.r': 210,
+    '.ex': 280, // Elixir purple
+    '.exs': 280,
+    '.erl': 0, // Erlang red
+    '.clj': 120, // Clojure green
+    '.hs': 280, // Haskell purple
+    '.zig': 25,
+    '.nim': 55,
+    // Shells / build
+    '.sh': 130, // terminal green
+    '.bash': 130,
+    '.zsh': 130,
+    '.fish': 130,
+    '.ps1': 215,
+    // Queries
+    '.sql': 200, // SQL teal-blue
+    '.graphql': 325, // GraphQL pink
+    '.gql': 325,
+    // Media
+    '.svg': 50, // SVG yellow/gold
+    '.png': 290, // image purple/pink
+    '.jpg': 290,
+    '.jpeg': 290,
+    '.gif': 290,
+    '.webp': 290,
+    '.bmp': 290,
+    '.ico': 290,
+    '.avif': 290,
+    '.mp4': 0, // video red
+    '.webm': 0,
+    '.mov': 0,
+    '.m4v': 0,
+    '.ogv': 0,
+    '.mkv': 0,
+    '.mp3': 285, // audio purple
+    '.wav': 285,
+    '.flac': 285,
+    '.aac': 285,
+    '.m4a': 285,
+    '.ogg': 285,
+    '.pdf': 0, // PDF red
+    // Archives
+    '.zip': 45, // archive cream/yellow
+    '.tar': 45,
+    '.gz': 45,
+    '.7z': 45,
+    '.rar': 45,
+    // Other
+    '.diff': 120, // additions green
+    '.patch': 120,
+    '.log': 30,
+    '.lock': 45,
   },
 });
 
