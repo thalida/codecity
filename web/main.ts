@@ -22,7 +22,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistStore } from './config/persist.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -602,6 +602,11 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
       timer = null;
     }
   }
+
+  // Expose the manual-refresh entrypoint to anything outside the
+  // live-poll loop (e.g. the footer's refresh button) so they can
+  // trigger the same fetch+apply chain without re-implementing it.
+  setRefreshManifest(refreshFromToggle);
 
   LIVE_UPDATES.subscribe((val) => {
     if (val.ENABLED) start();

@@ -25,3 +25,26 @@ export const LAST_REBUILD_ERROR = atom<string | null>(null);
 
 /** Epoch millis of the most recent manifest apply (initial or via poll). */
 export const LAST_UPDATED_AT = atom<number>(0);
+
+// ── Manual refresh action ────────────────────────────────────────────
+// The footer's refresh button (and any future "force re-sync" UI) goes
+// through this single chokepoint so the live-poll plumbing in main.ts
+// stays the only place that owns fetch + applyManifest. setupLiveUpdates
+// registers its `refreshFromToggle` here during boot; anything that
+// wants to "act like a fresh page load" just calls refreshManifest().
+
+let _refreshHandler: (() => Promise<void>) | null = null;
+
+/** Register the rebuild handler. Wired in main.ts/setupLiveUpdates. */
+export function setRefreshManifest(fn: () => Promise<void>): void {
+  _refreshHandler = fn;
+}
+
+/**
+ * Trigger a fresh manifest fetch + apply. Resolves when the rebuild
+ * finishes (or immediately, when no handler has been registered yet —
+ * which only happens during boot, before setupLiveUpdates runs).
+ */
+export async function refreshManifest(): Promise<void> {
+  if (_refreshHandler) await _refreshHandler();
+}

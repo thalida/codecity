@@ -318,7 +318,10 @@ canvas {
 .app-footer-section {
   display: flex;
   align-items: center;
-  gap: 14px;
+  /* Tight gap — the `·` separators between items provide most of the
+   * visual breathing room; the gap just keeps things from butting up
+   * against the dots. */
+  gap: 6px;
   min-width: 0;
 }
 .app-footer-section.app-footer-left {
@@ -340,7 +343,7 @@ canvas {
   flex: 0 0 auto;
 }
 .app-footer-source {
-  margin-left: 4px;
+  margin-left: 3px;
   color: #44485e;
   font-size: 9.5px;
 }

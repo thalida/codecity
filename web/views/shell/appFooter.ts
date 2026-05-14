@@ -105,15 +105,16 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
 
-  // Reset-view button — moved here from the header. The R key still
-  // fires the same handler via scene/inputHandlers; this button just
-  // makes the action discoverable for users who don't memorize hotkeys.
+  // Refresh button — the footer's "act like a fresh page load" trigger.
+  // The host wires it to a callback that re-fetches the manifest AND
+  // resets the camera (the R key continues to fire just the camera
+  // reset via scene/inputHandlers).
   if (typeof onResetView === 'function') {
     const resetBtn = document.createElement('button');
     resetBtn.type = 'button';
     resetBtn.className = 'app-footer-button';
-    resetBtn.title = 'Reset view';
-    resetBtn.setAttribute('aria-label', 'Reset view');
+    resetBtn.title = 'Refresh — rebuild the city and reset the view';
+    resetBtn.setAttribute('aria-label', 'Refresh');
     resetBtn.appendChild(makeLucideIcon('refresh-cw'));
     resetBtn.addEventListener('click', () => {
       onResetView();

@@ -27,12 +27,12 @@ const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;
 
 // Big files render in graceful-degradation tiers so the browser stays
 // responsive: above HIGHLIGHT_MAX_BYTES we skip highlight.js (plain
-// text), above GUTTER_MAX_BYTES we also skip the per-line gutter (the
-// O(n) DOM cost of one <span> per line is what hangs the page on
-// multi-MB files). Tuned to keep main-thread blocking under ~250ms on
-// commodity hardware.
-const HIGHLIGHT_MAX_BYTES = 1 * 1024 * 1024;
-const GUTTER_MAX_BYTES = 5 * 1024 * 1024;
+// text via textContent, no HTML-parse cost), above GUTTER_MAX_BYTES we
+// also skip the per-line gutter (the O(n) DOM cost of one <span> per
+// line is what hangs the page on multi-MB files). Tuned to keep
+// main-thread blocking under ~250ms on commodity hardware.
+const HIGHLIGHT_MAX_BYTES = 512 * 1024;
+const GUTTER_MAX_BYTES = 1 * 1024 * 1024;
 
 const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif'];
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
@@ -322,9 +322,19 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       return resp.text();
     })
-    .then((text) => {
-      shell.replaceChildren(_buildCodeEditor(text, file));
-    })
+    .then(
+      (text) =>
+        new Promise<void>((resolve) => {
+          // Defer the synchronous DOM build to the next animation frame
+          // so the browser can paint the empty .preview-shell first.
+          // Without this, on a big file the click-to-render cycle blocks
+          // the main thread end-to-end and the click visibly "freezes".
+          requestAnimationFrame(() => {
+            shell.replaceChildren(_buildCodeEditor(text, file));
+            resolve();
+          });
+        })
+    )
     .catch((err) => {
       shell.replaceChildren(
         _makeStateMessage(
@@ -409,8 +419,11 @@ function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
   editor.appendChild(pre);
 
   if (skipHighlight) {
-    // Plain text — cheap escape, no highlight.js cost.
-    code.innerHTML = _escapeHtml(text);
+    // Plain text via textContent — skips both the regex escape pass and
+    // the HTML parser the browser would otherwise run on a multi-MB
+    // innerHTML string. This is the difference between a 5-10 second
+    // freeze and a near-instant render on big files.
+    code.textContent = text;
   } else {
     const lang = _languageFor(file);
     let html: string;

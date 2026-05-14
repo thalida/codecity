@@ -22,7 +22,12 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { LIVE_UPDATES } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './liveStatus.js';
+import {
+  REBUILD_STATUS,
+  LAST_REBUILD_ERROR,
+  LAST_UPDATED_AT,
+  refreshManifest,
+} from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
 import type { FooterRepoInfo } from './views/shell/appFooter.js';
@@ -84,7 +89,14 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
 
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter({
+    // The footer's refresh button is the equivalent of a page reload:
+    // it kicks off a manifest re-fetch / rebuild AND resets the camera
+    // to its default pose, so the user lands on the same initial view
+    // they'd see right after boot. refreshManifest is async; we don't
+    // await it here because the rest of the UI (REBUILD_STATUS, etc.)
+    // already reflects the in-flight state.
     onResetView() {
+      void refreshManifest();
       rig.reset();
     },
   });
