@@ -78,9 +78,15 @@ const POST_HEIGHT_FRAC = 1.1; // post height = panel height × this
 const POST_WIDTH_FRAC = 0.06; // post width = panel width × this
 const POST_INSET_FRAC = 0.32; // post x-offset from center = panel width × this
 
-const POST_COLOR = 0x2c2e36; // matches the city's sidewalk gray
+const POST_COLOR = 0x6e7280; // brushed-steel gray; reads as metal once shaded
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
+
+// Halo proportions — see _glowSpriteFor; rendered with additive
+// blending so the glow stacks against the dark scene background.
+const HALO_SCALE = 1.55; // halo plane size as a multiple of panel width
+const HALO_OPACITY = 0.55;
+const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
 /**
  * Total visual height of a billboard as a multiple of its width.
@@ -165,10 +171,16 @@ export function createBillboard(building: Building): THREE.Group {
   // ---- Posts (two vertical cylinders) ----
   // 10 radial segments → octagon-ish silhouette at the typical zoom
   // levels; cheap to render but reads as round vs the rectangular
-  // panel body sitting on top.
+  // panel body sitting on top. Standard PBR material with high
+  // metalness so the directional light from cityScene gives the
+  // cylinders a real "brushed steel" look.
   const postRadius = postW / 2;
   const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postH, 10);
-  const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR });
+  const postMat = new THREE.MeshStandardMaterial({
+    color: POST_COLOR,
+    metalness: 0.85,
+    roughness: 0.35,
+  });
   for (const sign of [-1, 1]) {
     const post = new THREE.Mesh(postGeo, postMat);
     post.position.set(sign * postInset, postH / 2, 0);
@@ -176,6 +188,27 @@ export function createBillboard(building: Building): THREE.Group {
     post.userData.building = building;
     group.add(post);
   }
+
+  // ---- Glow halo behind the panel ----
+  // Additive-blend sprite that always faces the camera, sized larger
+  // than the panel so it spills past the edges as a soft halo. Reads
+  // as a neon / LED sign even before the actual image texture lands.
+  const halo = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map: _haloTexture(),
+      color: HALO_COLOR,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      opacity: HALO_OPACITY,
+    })
+  );
+  halo.scale.set(panelW * HALO_SCALE, panelH * HALO_SCALE, 1);
+  halo.position.set(0, postH + panelH / 2, -panelD * 0.5);
+  // Glow shouldn't intercept clicks — selection should still hit the
+  // panel/posts behind/around it.
+  halo.raycast = () => {};
+  group.add(halo);
 
   // ---- Place the group at the building's footprint, facing the door. ----
   group.position.set(building.x, 0, building.y);
@@ -199,15 +232,57 @@ export function createBillboard(building: Building): THREE.Group {
   return group;
 }
 
-/** Dispose every mesh inside a billboard group — geometry, material, and texture. */
+/** Dispose every mesh / sprite inside a billboard group — geometry,
+ * material, and per-instance texture. The shared halo texture is NOT
+ * disposed here (it's reused across every billboard); it lives until
+ * the page is torn down. */
 export function disposeBillboard(group: THREE.Group): void {
   group.traverse((obj) => {
-    if (!(obj instanceof THREE.Mesh)) return;
-    obj.geometry.dispose();
-    const mat = obj.material as THREE.MeshBasicMaterial;
-    if (mat.map) mat.map.dispose();
-    mat.dispose();
+    if (obj instanceof THREE.Mesh) {
+      obj.geometry.dispose();
+      const mat = obj.material as THREE.Material & { map?: THREE.Texture | null };
+      if (mat.map && mat.map !== _haloTextureSingleton) mat.map.dispose();
+      mat.dispose();
+      return;
+    }
+    if (obj instanceof THREE.Sprite) {
+      const mat = obj.material;
+      // The halo's map IS the shared singleton — leave it alone.
+      mat.dispose();
+    }
   });
+}
+
+// ── Shared halo texture (radial gradient, additive-blended) ─────────
+
+let _haloTextureSingleton: THREE.CanvasTexture | null = null;
+
+function _haloTexture(): THREE.CanvasTexture {
+  if (_haloTextureSingleton) return _haloTextureSingleton;
+  const size = 256;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    // Should be unreachable; degrade gracefully.
+    _haloTextureSingleton = new THREE.CanvasTexture(canvas);
+    return _haloTextureSingleton;
+  }
+  // Radial gradient: bright in the center, fades to fully transparent
+  // at the edges. Additive blending in the SpriteMaterial means the
+  // alpha channel here acts as glow intensity against whatever's behind.
+  const cx = size / 2;
+  const cy = size / 2;
+  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size / 2);
+  grad.addColorStop(0.0, 'rgba(255, 255, 255, 1)');
+  grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
+  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, size, size);
+  _haloTextureSingleton = new THREE.CanvasTexture(canvas);
+  _haloTextureSingleton.colorSpace = THREE.SRGBColorSpace;
+  return _haloTextureSingleton;
 }
 
 // ── Texture loading ────────────────────────────────────────────────

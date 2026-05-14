@@ -121,9 +121,9 @@ const float WINDOW_UNLIT_LIGHTNESS_DELTA = 4.0;
 // gaps so the facade reads as varied instead of a perfect grid. Cells
 // whose gap-hash falls below the threshold are skipped.
 const float WINDOW_GAP_THRESHOLD = 0.18;
-// Fraction of remaining cells that render with the dimmer "unlit"
-// brightness. Hash > threshold = lit, ≤ = unlit. Roughly 55% lit at 0.45.
-const float WINDOW_LIT_THRESHOLD = 0.45;
+// (The lit-vs-unlit threshold is computed per-fragment from the
+// building's brightness rather than being a fixed constant — see
+// renderWallFace for the formula.)
 // SHADING.DOOR_LIGHTNESS_DELTA = -55
 const float DOOR_LIGHTNESS_DELTA = -55.0;
 // SHADING.ROOF_BORDER_LIGHTNESS_DELTA = -15
@@ -279,7 +279,14 @@ vec4 renderWallFace() {
 
   // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost; unlit cells get
   // a much smaller boost so they read as "off" panes rather than blank wall.
-  float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(WINDOW_LIT_THRESHOLD, litHash));
+  // The lit / unlit split scales with the building's overall brightness:
+  // a dark (old / muted) building has a high threshold and few lit
+  // windows ("sleepy"), a bright (new / saturated) building has a low
+  // threshold and most windows lit ("buzzing"). Brightness is the
+  // simple sRGB-channel mean of the building's base color.
+  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
+  float litThreshold = clamp(1.0 - brightness * 0.95, 0.1, 0.9);
+  float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(litThreshold, litHash));
   vec3 winColor = shadeColor(baseColor, winDelta);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
