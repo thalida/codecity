@@ -200,6 +200,10 @@ export function createCoordinator({
     onSearchSelect(path: string) {
       picker.selectByPath(path);
     },
+    onSearchFocus(path: string) {
+      const b = cityScene.getBuildingByPath(path);
+      if (b) rig.focusBuilding(b.mesh, b.building);
+    },
     onRunCollisionCheck: () => cityScene.runCollisionCheck(),
     onRunStemDiagnostic: () => cityScene.runStemPlacementDiagnostic(),
   });

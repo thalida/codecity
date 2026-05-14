@@ -32,8 +32,10 @@ interface PathMatch {
 interface BuildSearchPaneOpts {
   /** fn() when the user clicks the × in the header. */
   onClose?: () => void;
-  /** fn(path) when a result row is clicked. Caller routes to picker.selectByPath. */
+  /** fn(path) when a result row is single-clicked. Caller routes to picker.selectByPath. */
   onSelect?: (path: string) => void;
+  /** fn(path) when a result row is double-clicked. Caller routes to rig.focusBuilding. */
+  onFocus?: (path: string) => void;
 }
 
 /**
@@ -151,6 +153,13 @@ export function buildSearchPane(
 
     li.addEventListener('click', () => {
       if (opts.onSelect && file.path) opts.onSelect(file.path);
+    });
+    // Double-click focuses the building in the city — mirrors the tree
+    // pane's click/dblclick contract. The browser fires the single-
+    // click for the first half of a dblclick anyway, so the selection
+    // happens before the focus, which is the order we want.
+    li.addEventListener('dblclick', () => {
+      if (opts.onFocus && file.path) opts.onFocus(file.path);
     });
     // Enter on a focused row triggers selection — gives keyboarders a
     // working flow even without ↑↓ navigation in v1.

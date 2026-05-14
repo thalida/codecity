@@ -34,8 +34,10 @@ interface ShowLeftSidebarOpts {
   onTreeHover?: (node: TreeNode) => void;
   /** fn(node) on row mouseleave. */
   onTreeHoverEnd?: (node: TreeNode) => void;
-  /** fn(path) when the user clicks a search result. Host routes to picker.selectByPath. */
+  /** fn(path) when the user single-clicks a search result. Host routes to picker.selectByPath. */
   onSearchSelect?: (path: string) => void;
+  /** fn(path) when the user double-clicks a search result. Host routes to rig.focusBuilding. */
+  onSearchFocus?: (path: string) => void;
   /** Older callback kept accepted for compatibility with coordinator callsites. */
   onResetView?: () => void;
 }
@@ -100,6 +102,7 @@ export function showLeftSidebar(
   const searchBundle = buildSearchPane(manifest, {
     onClose: paneOnClose,
     onSelect: opts.onSearchSelect,
+    onFocus: opts.onSearchFocus,
   });
   const panes: Record<string, HTMLElement> = {};
   panes[SidebarTab.Tree] = treeBundle.pane;

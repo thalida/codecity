@@ -170,7 +170,7 @@ describe('buildSearchPane', () => {
     expect(state!.textContent).toContain('No files');
   });
 
-  it('calls onSelect(path) when a result is clicked', () => {
+  it('calls onSelect(path) when a result is single-clicked', () => {
     let selected: string | null = null;
     const { pane } = buildSearchPane(
       { tree: TREE },
@@ -188,6 +188,26 @@ describe('buildSearchPane', () => {
     const first = pane.querySelector<HTMLLIElement>('.search-result')!;
     first.click();
     expect(selected).toBe('src/coordinator.ts');
+  });
+
+  it('calls onFocus(path) when a result is double-clicked', () => {
+    let focused: string | null = null;
+    const { pane } = buildSearchPane(
+      { tree: TREE },
+      {
+        onFocus: (p: string) => {
+          focused = p;
+        },
+      }
+    );
+    document.body.appendChild(pane);
+    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
+    input.value = 'coord';
+    input.dispatchEvent(new Event('input'));
+
+    const first = pane.querySelector<HTMLLIElement>('.search-result')!;
+    first.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(focused).toBe('src/coordinator.ts');
   });
 
   it('re-indexes when setManifest is called', () => {
