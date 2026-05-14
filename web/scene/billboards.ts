@@ -89,7 +89,7 @@ const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 // light coming OFF the panel forward, with atmospheric falloff —
 // not as a back-lit silhouette. PlaneGeometry (not Sprite) so the
 // halo orients with the billboard.
-const HALO_SCALE = 2.4; // halo plane size as a multiple of panel — wide for soft atmospheric falloff
+const HALO_SCALE = 3.5; // halo plane size — generous so the bloom fades to nothing well inside the plane's edges (no visible rectangular boundary)
 const HALO_OPACITY = 1.0; // additive — actual brightness comes from the texture's alpha + brightness boost
 const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
@@ -357,10 +357,11 @@ function _imageDerivedHaloTexture(
   // Step 1 — heavy-blur pass for the far atmospheric falloff. The
   // panel image is drawn at panel position with the colors boosted
   // (brightness + saturation) before the blur so the glow reads
-  // strongly against the dark scene background.
+  // strongly against the dark scene background. Boosts are kept
+  // moderate so the bloom doesn't wash out the actual image plane.
   try {
     ctx.save();
-    ctx.filter = `blur(${size * 0.2}px) brightness(1.8) saturate(1.4)`;
+    ctx.filter = `blur(${size * 0.13}px) brightness(1.4) saturate(1.3)`;
     ctx.drawImage(src, inset, inset, panelW, panelH);
     ctx.restore();
   } catch {
@@ -368,28 +369,42 @@ function _imageDerivedHaloTexture(
   }
 
   // Step 2 — near-bloom pass: same image, smaller blur. Adds a
-  // concentrated bright "halo" right at the panel edges before the
-  // longer falloff kicks in. Composite operation 'lighter' so it
-  // stacks additively on top of the soft underlying glow (instead
-  // of replacing it).
+  // concentrated bright "halo" right at the panel edges. Composite
+  // 'lighter' so it stacks on top of the soft underlying glow.
   try {
     ctx.save();
-    ctx.filter = `blur(${size * 0.07}px) brightness(2.0) saturate(1.6)`;
+    ctx.filter = `blur(${size * 0.05}px) brightness(1.6) saturate(1.4)`;
     ctx.globalCompositeOperation = 'lighter';
     ctx.drawImage(src, inset, inset, panelW, panelH);
     ctx.restore();
   } catch {
-    /* near-bloom optional; if the second pass fails just go with the soft falloff */
+    /* near-bloom optional */
   }
 
   // Step 3 — punch out the center where the actual image plane sits
-  // in front of the halo. Soft cutout edge so the boundary between
-  // "image" and "image-derived glow" is gradual, not a sharp ring.
+  // in front of the halo. Tight blur on the cutout so the panel area
+  // gets fully erased (else the halo's bloom bleeds through onto
+  // the image, washing it out — especially on light-themed images).
   ctx.save();
-  ctx.filter = `blur(${size * 0.05}px)`;
+  ctx.filter = `blur(${size * 0.025}px)`;
   ctx.globalCompositeOperation = 'destination-out';
   ctx.fillStyle = 'rgba(0, 0, 0, 1)';
   ctx.fillRect(inset, inset, panelW, panelH);
+  ctx.restore();
+
+  // Step 4 — radial vignette at the texture edges. Whatever the
+  // bloom looks like, the outer ~15% of the texture forcibly fades
+  // to transparent so the user never sees the halo plane's
+  // rectangular boundary. Done with destination-out + a radial
+  // gradient that's 0 inside and 1 outside the inner zone.
+  ctx.save();
+  ctx.globalCompositeOperation = 'destination-out';
+  const fade = ctx.createRadialGradient(size / 2, size / 2, size * 0.35, size / 2, size / 2, size * 0.55);
+  fade.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  fade.addColorStop(0.65, 'rgba(0, 0, 0, 0)');
+  fade.addColorStop(1, 'rgba(0, 0, 0, 1)');
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, size, size);
   ctx.restore();
 
   const tex = new THREE.CanvasTexture(canvas);
