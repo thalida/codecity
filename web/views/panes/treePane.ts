@@ -41,9 +41,10 @@ function _buildList(node: DirNode | TreeNode, ctx: TreeCtx): HTMLUListElement {
   return ul;
 }
 
-function _buildItem(child: TreeNode, ctx: TreeCtx): HTMLLIElement {
+function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElement {
   const li = document.createElement('li');
   li.className = 'tree-item';
+  if (isRoot) li.classList.add('tree-root-item');
   if (child.path != null) li.dataset.path = child.path;
 
   const row = document.createElement('div');
@@ -54,31 +55,40 @@ function _buildItem(child: TreeNode, ctx: TreeCtx): HTMLLIElement {
   label.textContent = child.name || '';
 
   if (child.type === NodeKind.Directory) {
-    li.classList.add('tree-dir', 'tree-collapsed');
+    // Root starts expanded and stays that way — there's no parent to
+    // navigate up to, so collapsing the root is a dead-end gesture.
+    // Children start collapsed (single-branch invariant).
+    li.classList.add('tree-dir', isRoot ? 'tree-expanded' : 'tree-collapsed');
 
     // Chevron flips between right (collapsed) and down (expanded). Both
     // share the same icon span so we just swap the mask URL on toggle.
+    // On root the chevron is hidden via CSS but the element stays in
+    // the DOM so _setDirExpanded's selector still finds it.
     const chevron = document.createElement('span');
     chevron.className = 'tree-chevron';
-    const chevronIcon = makeLucideIcon('chevron-right', { class: 'tree-icon tree-icon-dir' });
+    const chevronIcon = makeLucideIcon(isRoot ? 'chevron-down' : 'chevron-right', {
+      class: 'tree-icon tree-icon-dir',
+    });
     chevron.appendChild(chevronIcon);
     row.appendChild(chevron);
     row.appendChild(label);
     li.appendChild(row);
 
     const subtree = _buildList(child as DirNode, ctx);
-    subtree.style.display = 'none';
+    subtree.style.display = isRoot ? '' : 'none';
     li.appendChild(subtree);
 
-    chevron.addEventListener('click', (e) => {
-      e.stopPropagation(); // selecting via the chevron is intentionally a no-op
-      // Single-branch invariant: expanding a directory closes any other
-      // open branch so only one chain from root is ever exposed at a time.
-      // Collapsing only collapses this dir — invariant trivially holds.
-      const isCollapsed = li.classList.contains('tree-collapsed');
-      if (isCollapsed) _openOnlyChain(li, ctx.rootList);
-      else _collapseDir(li, subtree, chevronIcon);
-    });
+    if (!isRoot) {
+      chevron.addEventListener('click', (e) => {
+        e.stopPropagation(); // selecting via the chevron is intentionally a no-op
+        // Single-branch invariant: expanding a directory closes any other
+        // open branch so only one chain from root is ever exposed at a time.
+        // Collapsing only collapses this dir — invariant trivially holds.
+        const isCollapsed = li.classList.contains('tree-collapsed');
+        if (isCollapsed) _openOnlyChain(li, ctx.rootList);
+        else _collapseDir(li, subtree, chevronIcon);
+      });
+    }
   } else {
     li.classList.add('tree-file');
     const fileIcon = makeLucideIcon('file', { class: 'tree-icon tree-icon-file' });
@@ -273,7 +283,7 @@ export function buildTreePane(
   const listEl = document.createElement('ul');
   listEl.className = 'tree-list tree-root';
   ctx.rootList = listEl;
-  const rootItem = _buildItem(tree, ctx);
+  const rootItem = _buildItem(tree, ctx, true);
   ctx.rootDirLi = rootItem;
   listEl.appendChild(rootItem);
   pane.appendChild(listEl);
@@ -291,7 +301,7 @@ export function buildTreePane(
     currentSelectedLi = null;
     currentHoveredLi = null;
     const next = ((m as { tree?: unknown }).tree || m) as TreeNode;
-    const nextRoot = _buildItem(next, ctx);
+    const nextRoot = _buildItem(next, ctx, true);
     ctx.rootDirLi = nextRoot;
     listEl.appendChild(nextRoot);
   }

@@ -127,7 +127,9 @@ describe('buildTree', () => {
     // responsibility), so the chevron's accordion-style expand needs a
     // pane-built tree. Validate the toggle behavior here instead.
     const bundle = buildTreePane(TEST_TREE);
-    const dir = bundle.pane.querySelector<HTMLElement>('.tree-dir');
+    // Grab the inner "src" directory — the root is non-collapsible by
+    // design (covered separately) so its chevron click is a no-op.
+    const dir = bundle.pane.querySelector<HTMLElement>('.tree-dir:not(.tree-root-item)');
     const chevron = dir.querySelector<HTMLElement>(':scope > .tree-row > .tree-chevron');
     const subtree = dir.querySelector<HTMLElement>(':scope > .tree-list');
 
@@ -143,6 +145,22 @@ describe('buildTree', () => {
 
     expect(dir.classList.contains('tree-collapsed')).toBe(true);
     expect(subtree.style.display).toBe('none');
+  });
+
+  it('keeps the root folder permanently expanded (chevron click is a no-op)', () => {
+    const bundle = buildTreePane(TEST_TREE);
+    const root = bundle.pane.querySelector<HTMLElement>('.tree-root-item');
+    expect(root).not.toBeNull();
+    expect(root.classList.contains('tree-expanded')).toBe(true);
+    const rootSubtree = root.querySelector<HTMLElement>(':scope > .tree-list');
+    expect(rootSubtree.style.display).toBe('');
+
+    // Clicking the root chevron does not collapse the root — no
+    // handler is bound for root, so the expanded state holds.
+    const rootChevron = root.querySelector<HTMLElement>(':scope > .tree-row > .tree-chevron');
+    rootChevron.click();
+    expect(root.classList.contains('tree-expanded')).toBe(true);
+    expect(rootSubtree.style.display).toBe('');
   });
 });
 

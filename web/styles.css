@@ -260,20 +260,6 @@ canvas {
   overflow: hidden;
 }
 
-.file-preview-title {
-  flex: 1 1 auto;
-  min-width: 0;
-  margin: 0;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: #c0c4d8;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
 .editor-body {
@@ -746,13 +732,30 @@ canvas {
   gap: 8px;
 }
 
+/* Unified pane-header title — applies to every left-sidebar pane
+ * (Tree, Search, Info, Controls) and the right-sidebar file-preview
+ * pane. Smaller + lighter than a traditional heading so the panes
+ * read as panels of content rather than each shouting for attention. */
 .tree-title,
-.controls-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: #c0c4d8;
-  letter-spacing: 0.03em;
+.controls-title,
+.info-title,
+.search-title,
+.file-preview-title {
+  flex: 1 1 auto;
+  min-width: 0;
   margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0c4d8;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* File-preview title shows the literal filename — monospace reads as
+ * "this is a path/identifier" instead of a label. */
+.file-preview-title {
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
 }
 
 .tree-root {
@@ -1393,6 +1396,14 @@ canvas {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
+}
+
+/* Root row: chevron is hidden (root isn't collapsible) but the
+ * element stays in the DOM with its inline-flex width so the label
+ * lines up with the children's labels below. Cursor stays default
+ * over the row's whole width — no expand/collapse affordance. */
+.tree-root-item > .tree-row > .tree-chevron {
+  visibility: hidden;
 }
 
 .tree-icon {
