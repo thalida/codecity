@@ -82,6 +82,18 @@ const POST_COLOR = 0x2c2e36; // matches the city's sidewalk gray
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
+/**
+ * Total visual height of a billboard as a multiple of its width.
+ * Layout uses this to overwrite building.h for media files so the
+ * selection outline, camera focus framing, and scene bbox all wrap
+ * the full sign instead of the (now-invisible) original building's
+ * footprint-sized slab on the ground.
+ *
+ *   total height = panel height + post height
+ *                = (w × PANEL_ASPECT) × (1 + POST_HEIGHT_FRAC)
+ */
+export const BILLBOARD_HEIGHT_FRAC = PANEL_ASPECT * (1 + POST_HEIGHT_FRAC);
+
 // Convert BuildingOrient → Y-axis rotation so the panel faces the door's direction.
 function orientToYRotation(orient: BuildingOrient): number {
   switch (orient) {
