@@ -26,12 +26,13 @@ export interface SceneBlock {
   ghostMesh?: THREE.InstancedMesh;
   placeholderMesh?: THREE.Mesh;
   /**
-   * Non-instanced meshes for image/video files in this block — these
-   * render as flat upright "billboards" instead of building cuboids.
-   * One mesh per media file in the block. Each is tagged with
-   * userData.building so the picker treats it as a file selection.
+   * Billboard groups for image/video files in this block — each group
+   * holds a textured panel + two support posts (highway-sign shape).
+   * Every child mesh carries userData.building so the picker resolves
+   * a click anywhere on the structure to the same file selection a
+   * regular building click would produce.
    */
-  billboardMeshes?: THREE.Mesh[];
+  billboards?: THREE.Group[];
 
   // LOD state (managed by lodController):
   lodCurrent: 'detail' | 'placeholder' | 'hidden';
