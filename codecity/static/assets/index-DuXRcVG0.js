@@ -175,16 +175,22 @@ const float ROOF_BORDER_FRAC = 0.03125;
 // the shaded side stays legible (not crushed to black).
 // ---------------------------------------------------------------------------
 
+// Cyberpunk lighting: ambient dominates so the dark side of buildings
+// stays atmospheric / readable rather than crushed to black. The sun is
+// kept as a subtle directional cue so the buildings still read as 3D,
+// but most of the "wow" comes from emissive windows, not from sunlight.
 const vec3 SUN_DIR_WORLD = normalize(vec3(0.5, 1.0, 0.4)); // upper-right
-const float AMBIENT = 0.55;     // base illumination on faces facing away from the sun
-const float DIFFUSE_GAIN = 0.45; // additional brightening on faces facing the sun
+const float AMBIENT = 0.72;     // base illumination on faces facing away from the sun
+const float DIFFUSE_GAIN = 0.28; // additional brightening on faces facing the sun
 
 // Slabs (the strip at the top of each floor) sit slightly darker than
 // the wall, regardless of light direction, so the floor seams read.
 const float SLAB_LIGHTNESS_DELTA = -12.0;
 
-// SHADING.WINDOW_LIGHTNESS_DELTA = 20
-const float WINDOW_LIGHTNESS_DELTA = 20.0;
+// Lit windows are treated as EMISSIVE — they bypass the directional
+// lighting multiplier and push the base color close to white in HSL
+// space so they glow like neon panes on the shadow side too.
+const float WINDOW_LIGHTNESS_DELTA = 55.0;
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
 // per cell by a hash so each building has its own scatter of lit /
 // unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
@@ -352,16 +358,22 @@ vec4 renderWallFace() {
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
-  // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost; unlit cells get
-  // a much smaller boost so they read as "off" panes rather than blank wall.
+  // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost and BYPASS the
+  // directional-lighting multiplier — they're treated as emissive
+  // neon panes, so a lit window on the shadow side still glows. Unlit
+  // cells stay reflective (modulated by the sun) so they read as "off"
+  // glass rather than blank wall.
+  //
   // The lit / unlit split scales with the building's overall brightness:
   // a bright (new / saturated) building has a low threshold and most
   // windows lit ("buzzing"); at brightness=0 the threshold reaches 1.0
   // so step() returns 0 for every cell and no window is lit at all —
   // the oldest building's windows are all dark panes.
   float litThreshold = clamp(1.0 - brightness, 0.05, 1.0);
-  float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(litThreshold, litHash));
-  vec3 winColor = shadeColor(baseColor, winDelta) * lightFactor;
+  float litFactor = step(litThreshold, litHash);
+  vec3 winLitColor = shadeColor(baseColor, WINDOW_LIGHTNESS_DELTA);
+  vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
+  vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
