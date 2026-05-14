@@ -82,15 +82,15 @@ const POST_COLOR = 0x6e7280; // brushed-steel gray; reads as metal once shaded
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
-// Halo proportions — a wider plane in front of the panel with an
-// additive-blended ring gradient. The texture's center is fully
-// transparent so the image still reads cleanly; the ring peaks just
-// past the panel's edge and falls off into the scene background as a
-// neon bloom. PlaneGeometry (not Sprite) so the halo orients with the
-// billboard instead of camera-tracking separately — Sprites kept
-// "sliding" relative to the panel as the user rotated.
-const HALO_SCALE = 2.0; // halo plane size as a multiple of panel width
-const HALO_OPACITY = 0.7;
+// Halo proportions — a wider plane sitting BEHIND the panel body
+// with a smooth additive-blended radial gradient. The opaque body
+// occludes the bright center from any viewing angle, so what's
+// visible is the outer rim spilling past the panel's silhouette —
+// exactly how a neon sign back-lights its own outline. PlaneGeometry
+// (not Sprite) so the halo orients with the billboard instead of
+// camera-tracking separately as the user rotates.
+const HALO_SCALE = 1.7; // halo plane size as a multiple of panel width
+const HALO_OPACITY = 0.55;
 const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
 /**
@@ -216,7 +216,10 @@ export function createBillboard(building: Building): THREE.Group {
     opacity: HALO_OPACITY,
   });
   const halo = new THREE.Mesh(haloGeo, haloMat);
-  halo.position.set(0, postH + panelH / 2, panelD * 0.5 + IMAGE_OFFSET + 0.01);
+  // Sits behind the body so the body occludes the bright rectangle
+  // center; only the blurred falloff spills past the panel's edges
+  // and reads as a glow rim around the sign's silhouette.
+  halo.position.set(0, postH + panelH / 2, -panelD * 0.5 - 0.05);
   // Glow shouldn't intercept clicks — selection should still hit the
   // panel/posts behind/around it.
   halo.raycast = () => {};
@@ -274,23 +277,19 @@ function _haloTexture(): THREE.CanvasTexture {
     _haloTextureSingleton = new THREE.CanvasTexture(canvas);
     return _haloTextureSingleton;
   }
-  // Ring gradient — center is fully transparent so the panel's image
-  // reads cleanly, the ring peaks just past the panel's edge (panel
-  // occupies the inner ~1/HALO_SCALE of the texture radius, so panel
-  // edge sits around 0.50 of the gradient radius for HALO_SCALE=2),
-  // then falls off into the scene background as a soft bloom.
-  // Additive blending downstream turns each pixel's alpha into glow
-  // intensity, so we work in white + alpha here.
-  const cx = size / 2;
-  const cy = size / 2;
-  const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size / 2);
-  grad.addColorStop(0.0, 'rgba(255, 255, 255, 0)');     // panel center — clear, image shows through
-  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0)');    // still clear (just inside panel edge)
-  grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.95)'); // bright neon ring at panel rim
-  grad.addColorStop(0.75, 'rgba(255, 255, 255, 0.35)'); // mid falloff
-  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');     // fully dissipated
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, size, size);
+  // Blurred RECTANGLE — not a radial gradient. A circular gradient
+  // stretched onto the landscape halo plane became an alien oval; a
+  // square white rect blurred outward maps to a rounded-rectangle
+  // bloom that follows the panel's silhouette. The bright center is
+  // occluded by the opaque panel body sitting in front of the halo,
+  // so what's visible is the soft falloff spilling past the body's
+  // edges — exactly how a back-lit neon sign reads.
+  const inset = (size * (1 - 1 / HALO_SCALE)) / 2;
+  ctx.save();
+  ctx.filter = `blur(${size * 0.13}px)`;
+  ctx.fillStyle = 'rgba(255, 255, 255, 1)';
+  ctx.fillRect(inset, inset, size - inset * 2, size - inset * 2);
+  ctx.restore();
   _haloTextureSingleton = new THREE.CanvasTexture(canvas);
   _haloTextureSingleton.colorSpace = THREE.SRGBColorSpace;
   return _haloTextureSingleton;
