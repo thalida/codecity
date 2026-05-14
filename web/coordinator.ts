@@ -104,7 +104,7 @@ export function createCoordinator({
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter();
+  const appFooter = initAppFooter({ huePalette: huePalette || {} });
   const initialManifest = cityScene.getManifest();
   appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({
@@ -247,6 +247,7 @@ export function createCoordinator({
       const hasGit = !!(f.git && (f.git.created || f.git.modified));
       appFooter.setSelection({
         kind: NodeKind.File,
+        extension: f.extension || '',
         language: humanLanguageFor(f),
         lines: f.lines,
         size: f.size || 0,

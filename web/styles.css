@@ -204,7 +204,12 @@ canvas {
    shell). Pushed there from main._setSelection via
    appHeader.setSelection({path, extension, isDir}). */
 
-.app-header-chip {
+/* Path badge — the small color-coded extension pill (or "dir" badge).
+ * Shared between the floating header and the footer's selection
+ * section so the two stay visually in sync. File hue comes from the
+ * project's hue palette via --badge-hue; dir falls back to a neutral
+ * gray matching the street sidewalks in the scene. */
+.path-badge {
   flex: 0 0 auto;
   display: inline-block;
   padding: 1px 6px;
@@ -219,9 +224,11 @@ canvas {
   white-space: nowrap;
   -webkit-app-region: no-drag;
 }
-.app-header-chip.is-dir {
-  background: rgba(90, 200, 180, 0.2);
-  color: #5ac8b4;
+.path-badge.is-dir {
+  /* Matches the street sidewalk color (#2c2e36) in the city — so a
+   * directory's pill reads the same way as the road it represents. */
+  background: #2c2e36;
+  color: #a0a4bc;
 }
 
 .app-header-crumbs {

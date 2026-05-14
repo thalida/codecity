@@ -8,8 +8,8 @@
 // own × close button, and the left sidebar has its own activity-bar
 // collapse, so the dedicated hide-toggles in the header were redundant.
 
-import { getHue } from '@/scene/colors.js';
 import { makeLucideIcon } from './icon.js';
+import { makeExtensionBadge } from './badge.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -98,11 +98,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection.
-    if (hasSel && sel && !sel.isDir) {
-      titleEl!.appendChild(_makeChip(sel.extension ?? null, false));
-    } else {
-      titleEl!.appendChild(_makeChip(null, true));
-    }
+    const isFileSel = hasSel && sel && !sel.isDir;
+    titleEl!.appendChild(
+      makeExtensionBadge(isFileSel ? (sel!.extension ?? null) : null, !isFileSel, huePalette)
+    );
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
@@ -132,19 +131,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       // stays project-relative for readability.
       titleEl!.appendChild(_makeCopyButton(sel.fullPath || sel.path));
     }
-  }
-
-  function _makeChip(extension: string | null, isDir: boolean): HTMLSpanElement {
-    const chip = document.createElement('span');
-    chip.className = 'app-header-chip';
-    if (isDir) {
-      chip.classList.add('is-dir');
-      chip.textContent = 'dir';
-    } else {
-      chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
-      chip.style.setProperty('--badge-hue', String(getHue(extension, huePalette)));
-    }
-    return chip;
   }
 
   function _makeSegment(label: string, path: string, isLeaf: boolean): HTMLButtonElement {

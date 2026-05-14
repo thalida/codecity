@@ -13,9 +13,12 @@
 //            and the rebuild error message (when applicable).
 
 import { DateSource, NodeKind } from '@/types';
+import { makeExtensionBadge } from './badge.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
+  /** File extension (with leading dot, e.g. ".ts"). Drives the color of the path-badge pill. */
+  extension?: string;
   language?: string;
   lines?: number | null;
   size?: number | null;
@@ -67,14 +70,20 @@ const NOOP_API = {
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
+interface InitAppFooterOpts {
+  /** extension → hue map for the leading path-badge pill. */
+  huePalette?: Record<string, number>;
+}
+
 /**
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
- *                                            — left section (combined indicator)
+ *                                            — right section (combined indicator)
  *   setRepoInfo({ ... })                     — center section
- *   setSelection(sel | null)                 — right section
+ *   setSelection(sel | null)                 — left section (badge + metadata)
  */
-export function initAppFooter() {
+export function initAppFooter(opts: InitAppFooterOpts = {}) {
+  const { huePalette = {} } = opts;
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
@@ -196,6 +205,7 @@ export function initAppFooter() {
     if (!sel) return;
 
     if (sel.kind === NodeKind.File) {
+      selectionEl.appendChild(makeExtensionBadge(sel.extension ?? null, false, huePalette));
       if (sel.language) selectionEl.appendChild(_item(sel.language));
       if (sel.lines != null) selectionEl.appendChild(_item(`${sel.lines} lines`));
       if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
@@ -204,6 +214,7 @@ export function initAppFooter() {
       if (sel.created)
         selectionEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === NodeKind.Directory) {
+      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette));
       selectionEl.appendChild(_item('Directory'));
       if (sel.files != null) selectionEl.appendChild(_item(`${sel.files} files`));
       if (sel.dirs != null) selectionEl.appendChild(_item(`${sel.dirs} dirs`));
