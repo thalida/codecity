@@ -108,6 +108,12 @@ const float SLAB_LIGHTNESS_DELTA = -12.0;
 // lighting multiplier and push the base color close to white in HSL
 // space so they glow like neon panes on the shadow side too.
 const float WINDOW_LIGHTNESS_DELTA = 55.0;
+// Dim "old tungsten" glow that lit windows tilt toward as the building
+// ages. New / bright buildings stay near their base hue (neon LED look);
+// old / dim buildings mix toward this warm amber so a rare lit window
+// in a derelict block reads as a failing fluorescent rather than a
+// brand-new LED.
+const vec3 LIT_GLOW_DIM = vec3(0.55, 0.48, 0.32);
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
 // per cell by a hash so each building has its own scatter of lit /
 // unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
@@ -280,7 +286,7 @@ vec4 renderWallFace() {
   // shadow side still glows. Unlit cells stay reflective (modulated by
   // the sun) so they read as "off" glass rather than blank wall.
   //
-  // Two brightness-driven curves:
+  // Three brightness-driven curves shape the lit windows:
   //  - litThreshold: how MANY cells light up. Bright/new buildings hit
   //    most windows; at brightness=0 the threshold reaches 1.0 so no
   //    window is lit at all (oldest buildings = all dark panes).
@@ -288,10 +294,15 @@ vec4 renderWallFace() {
   //    buildings push close to white (WINDOW_LIGHTNESS_DELTA = 55);
   //    older / dimmer buildings light up duller — a single inhabited
   //    window in a derelict block reads as a weak glow, not a beacon.
+  //  - hue mix:      what COLOR each lit window glows. Bright/new
+  //    buildings keep their saturated base hue (sharp neon); dim/old
+  //    buildings tilt toward LIT_GLOW_DIM (warm amber / dirty tungsten)
+  //    so the city's old quarters look like failing fluorescents.
   float litThreshold = clamp(1.0 - brightness, 0.05, 1.0);
   float litFactor = step(litThreshold, litHash);
   float litDelta = WINDOW_LIGHTNESS_DELTA * brightness;
-  vec3 winLitColor = shadeColor(baseColor, litDelta);
+  vec3 buildingLit = shadeColor(baseColor, litDelta);
+  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, brightness);
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
