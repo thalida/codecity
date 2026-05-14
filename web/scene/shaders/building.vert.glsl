@@ -26,6 +26,7 @@ attribute float iOpacity;       // [0..1] alpha for fader
 attribute float iSilhouette;    // 0 = full facade, 1 = solid silhouette (no windows/door/slab)
 attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidden tier wireframe)
 attribute vec2 iIconUV;         // top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
+attribute float iSeed;          // [0..1] per-file random; drives the shader's window gap / lit-state hash
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -40,6 +41,7 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec2 vIconUV;      // pass-through of iIconUV (sampled in renderRoofFace)
+flat varying float vSeed;       // pass-through of iSeed (used by renderWallFace for facade variation)
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -60,6 +62,7 @@ void main() {
   vSilhouette = iSilhouette;
   vOutlineOpacity = iOutlineOpacity;
   vIconUV = iIconUV;
+  vSeed = iSeed;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

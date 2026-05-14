@@ -22,6 +22,7 @@ export interface BuildingInstanceBuffer {
   silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
   outlineOpacity: Float32Array; // N (0 = no per-building wireframe; >0 = composited at alpha)
   iconUV: Float32Array; // N × 2 — top-left UV of the file-icon slot in the atlas, or (-1,-1) for "no icon"
+  seed: Float32Array; // N — per-file random in [0, 1], drives the shader's window gap / lit pattern so same-color buildings (e.g. all .css files of similar age) don't share a facade
 }
 
 // ---------------------------------------------------------------------------
@@ -71,6 +72,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     silhouette: new Float32Array(n),
     outlineOpacity: new Float32Array(n),
     iconUV: new Float32Array(n * 2),
+    seed: new Float32Array(n),
   };
 
   const m = new THREE.Matrix4();
@@ -141,6 +143,12 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
 
+    // --- Per-instance random seed ---
+    // Stable hash of the file path so the building's window pattern
+    // doesn't shuffle between rebuilds, and so two files with the
+    // same color (same hue, similar age) still get distinct windows.
+    buf.seed[i] = _seedFromPath(b.file?.path ?? '');
+
     // --- Icon UV (top-left of slot in atlas) ---
     // (-1, -1) means "no icon" — the shader checks .x < 0 and skips
     // the atlas sample, leaving the roof in its base color. Populated
@@ -161,6 +169,21 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
   }
 
   return buf;
+}
+
+/**
+ * Stable 32-bit FNV-1a hash of a string, normalized to [0, 1). Used to
+ * derive a per-instance random `seed` that the shader keys facade
+ * variations off of — deterministic across rebuilds so a building's
+ * window pattern doesn't shuffle on every live-update poll.
+ */
+function _seedFromPath(path: string): number {
+  let h = 2166136261; // FNV offset basis
+  for (let i = 0; i < path.length; i++) {
+    h ^= path.charCodeAt(i);
+    h = Math.imul(h, 16777619); // FNV prime, 32-bit safe via imul
+  }
+  return (h >>> 0) / 4294967296;
 }
 
 /**
@@ -302,6 +325,7 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
     new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
   mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 2));
+  mesh.geometry.setAttribute('iSeed', new THREE.InstancedBufferAttribute(buf.seed, 1));
 
   // Compute bounding sphere from instance positions for Three's frustum
   // culling (fires per-block since each InstancedMesh has its own sphere).

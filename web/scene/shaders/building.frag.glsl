@@ -25,6 +25,7 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
 flat varying vec2 vIconUV;
+flat varying float vSeed;
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
@@ -263,10 +264,11 @@ vec4 renderWallFace() {
   // → vertical overlap regardless of horizontal position).
   float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
   // Per-cell randomness — gap (window missing) + lit (brighter/dimmer
-  // window pane). Seeded by vColor + vFace so each building has its own
-  // scatter and the four faces don't mirror each other. Two independent
-  // hashes so the gap/lit decisions don't correlate.
-  float buildingSeed = vColor.r * 17.0 + vColor.g * 31.0 + vColor.b * 53.0 + float(vFace) * 11.0;
+  // window pane). Seeded by the per-instance vSeed (stable hash of
+  // file.path) + vFace so every building gets its own scatter even
+  // when colors collide (e.g. all .css files of similar age share a
+  // hue and lightness) and the four faces don't mirror each other.
+  float buildingSeed = vSeed * 1000.0 + float(vFace) * 11.0;
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
