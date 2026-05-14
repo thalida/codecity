@@ -334,19 +334,36 @@ const GENERIC_FOLDER = 'folder';
 const HARD_FALLBACK_FILE = 'file';
 const HARD_FALLBACK_FOLDER = 'folder';
 
-/** Build the <img> for a file node, with extension/name lookups + fallback. */
-export function makeFileIcon(file: FileNode | { name?: string; extension?: string }): HTMLImageElement {
+/**
+ * Resolve the Material icon basename for a file node — same lookup
+ * order makeFileIcon uses (exact filename > extension > generic).
+ * Exported so the building roof-icon atlas can key off the same names.
+ */
+export function getFileIconName(
+  file: FileNode | { name?: string; extension?: string }
+): string {
   const name = (file.name || '').toLowerCase();
   const ext = (file.extension || '').toLowerCase();
-  const iconName = NAME_ICON[name] ?? EXT_ICON[ext] ?? GENERIC_FILE;
-  return _makeIcon(iconName, file.name || '');
+  return NAME_ICON[name] ?? EXT_ICON[ext] ?? GENERIC_FILE;
+}
+
+/** Material icon basename for a folder — see getFileIconName. */
+export function getFolderIconName(dir: DirNode | { name?: string }): string {
+  const name = (dir.name || '').toLowerCase();
+  return FOLDER_ICON[name] ?? GENERIC_FOLDER;
+}
+
+/** Base URL the atlas / tree both fetch icon SVGs from. */
+export const FILE_ICON_CDN_BASE = ICON_CDN_BASE;
+
+/** Build the <img> for a file node, with extension/name lookups + fallback. */
+export function makeFileIcon(file: FileNode | { name?: string; extension?: string }): HTMLImageElement {
+  return _makeIcon(getFileIconName(file), file.name || '');
 }
 
 /** Build the <img> for a folder node, with name lookup + generic fallback. */
 export function makeFolderIcon(dir: DirNode | { name?: string }): HTMLImageElement {
-  const name = (dir.name || '').toLowerCase();
-  const iconName = FOLDER_ICON[name] ?? GENERIC_FOLDER;
-  return _makeIcon(iconName, dir.name || '');
+  return _makeIcon(getFolderIconName(dir), dir.name || '');
 }
 
 function _makeIcon(iconName: string, label: string): HTMLImageElement {

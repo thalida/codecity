@@ -6,6 +6,8 @@
 import * as THREE from 'three';
 import { BUILDING_DIMENSIONS, BUILDING_OUTLINE } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
+import { getFileIconName } from '@/views/shell/fileIcon.js';
+import type { IconAtlas } from '../iconAtlas.js';
 import type { SceneBlock } from '../blocks.js';
 
 export interface BuildingInstanceBuffer {
@@ -18,6 +20,7 @@ export interface BuildingInstanceBuffer {
   opacity: Float32Array; // N (defaults to 1.0)
   silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
   outlineOpacity: Float32Array; // N (0 = no per-building wireframe; >0 = composited at alpha)
+  iconUV: Float32Array; // N × 2 — top-left UV of the file-icon slot in the atlas, or (-1,-1) for "no icon"
 }
 
 // ---------------------------------------------------------------------------
@@ -66,6 +69,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     opacity: new Float32Array(n),
     silhouette: new Float32Array(n),
     outlineOpacity: new Float32Array(n),
+    iconUV: new Float32Array(n * 2),
   };
 
   const m = new THREE.Matrix4();
@@ -121,6 +125,24 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
 
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
+
+    // --- Icon UV (top-left of slot in atlas) ---
+    // (-1, -1) means "no icon" — the shader checks .x < 0 and skips
+    // the atlas sample, leaving the roof in its base color. Populated
+    // properly when the atlas resolves and applyIconAtlas is called.
+    buf.iconUV[i * 2 + 0] = -1.0;
+    buf.iconUV[i * 2 + 1] = -1.0;
+    if (_atlas) {
+      const file = b.file;
+      if (file) {
+        const iconName = getFileIconName(file);
+        const uv = _atlas.uvFor(iconName);
+        if (uv) {
+          buf.iconUV[i * 2 + 0] = uv[0];
+          buf.iconUV[i * 2 + 1] = uv[1];
+        }
+      }
+    }
   }
 
   return buf;
@@ -168,6 +190,22 @@ const _SHARED_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
+// The icon atlas the buildings sample for roof glyphs. main.ts builds
+// it after the initial manifest fetch and pushes it in via
+// setIconAtlas before the first applyManifest, so the very first
+// frame already has roof icons. Stays null while it's still loading
+// or if the atlas build failed — the shader treats iconUV.x < 0 as
+// "no icon" and just paints the base roof color.
+let _atlas: IconAtlas | null = null;
+
+export function setIconAtlas(atlas: IconAtlas | null): void {
+  _atlas = atlas;
+  if (_sharedMaterial) {
+    _sharedMaterial.uniforms.uIconAtlas.value = atlas ? atlas.texture : null;
+    _sharedMaterial.uniforms.uIconSlotSize.value = atlas ? atlas.slotSize : 0;
+  }
+}
+
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Inline the hsl helpers into the fragment source at the placeholder
@@ -182,6 +220,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
       // refreshBuildingMaterial() on hot-reload.
       uOutlineWidth: { value: BUILDING_OUTLINE.get().WIDTH },
+      // Atlas of file-type icons; sampled per-instance via iIconUV for
+      // the roof face. Null until the atlas builds — the shader gates
+      // sampling behind iIconUV.x >= 0.
+      uIconAtlas: { value: _atlas ? _atlas.texture : null },
+      uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
     },
   });
   return _sharedMaterial;
@@ -243,6 +286,7 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
     'iOutlineOpacity',
     new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
+  mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 2));
 
   // Compute bounding sphere from instance positions for Three's frustum
   // culling (fires per-block since each InstancedMesh has its own sphere).

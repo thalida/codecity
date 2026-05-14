@@ -24,10 +24,17 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
+flat varying vec2 vIconUV;
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
 uniform float uOutlineWidth;
+
+// File-icon atlas + UV size of one slot in atlas-UV units. Sampled in
+// renderRoofFace; gated by vIconUV.x >= 0 so buildings whose file
+// type didn't make it into the atlas keep their plain roof color.
+uniform sampler2D uIconAtlas;
+uniform float uIconSlotSize;
 
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
@@ -275,7 +282,24 @@ vec4 renderRoofFace() {
   float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x, fwidth(vUv.x) * 0.5)
                    * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;
-  return vec4(mix(roofColor, borderColor, borderMask), vOpacity);
+  vec3 composed = mix(roofColor, borderColor, borderMask);
+
+  // File-type icon overlay. Skip when this instance has no atlas slot
+  // (iIconUV negative) or when the atlas hasn't loaded yet (slotSize 0).
+  // The icon fills the inner roof area (the border band stays visible
+  // around it); the SVG's own alpha controls how aggressively it
+  // overrides the base roof color.
+  if (vIconUV.x >= 0.0 && uIconSlotSize > 0.0) {
+    // Inset the icon inside the border so it doesn't clip the dark strip.
+    float pad = ROOF_BORDER_FRAC;
+    vec2 inset = clamp((vUv - pad) / (1.0 - 2.0 * pad), 0.0, 1.0);
+    vec2 atlasUv = vIconUV + inset * uIconSlotSize;
+    vec4 icon = texture2D(uIconAtlas, atlasUv);
+    // Composite over the roof: icon.rgb on top, alpha-weighted.
+    composed = mix(composed, icon.rgb, icon.a * innerMask);
+  }
+
+  return vec4(composed, vOpacity);
 }
 
 vec4 renderBottomFace() {

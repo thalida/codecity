@@ -44,6 +44,8 @@ import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
+import { buildIconAtlas } from './scene/iconAtlas.js';
+import { setIconAtlas } from './scene/instanced/buildings.js';
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -646,6 +648,18 @@ if (_canvas) {
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest: Manifest = await resp.json();
+
+    // Build the file-icon atlas before the city's first paint so
+    // building roofs already wear their file-type glyph on the very
+    // first frame. Failure here just means a city without roof icons —
+    // boot still continues.
+    try {
+      const atlas = await buildIconAtlas(manifest);
+      setIconAtlas(atlas);
+    } catch (err) {
+      console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+    }
+
     const handle = await startRenderLoop(_canvas, manifest);
     attachHotReload({
       cityScene: handle.cityScene,
