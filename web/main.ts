@@ -46,6 +46,7 @@ import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
+import { createPostFx } from './scene/postFx.js';
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -87,6 +88,19 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Declared with `let` so refreshManifest (below) can recreate it after each
   // applyManifest call. Camera reference is stable across rebuilds.
   let lodController = createLodController(cityScene.getBlocks(), camera);
+
+  // -- 4c. Post-processing -----------------------------------------------------
+  // UnrealBloomPass on top of the main render so emissive windows actually
+  // glow into the surrounding pixels (cyberpunk neon look). Cost is screen-
+  // space, independent of building count. animate() and the resize handler
+  // both call postFx.render() instead of renderer.render(scene, camera) so
+  // bloom is part of every paint.
+  const postFx = createPostFx(renderer, scene, camera);
+  {
+    const cw = canvas.clientWidth;
+    const ch = canvas.clientHeight;
+    postFx.setSize(cw, ch);
+  }
 
   // -- 5. Picker (raycaster + hover/selection state) --------------------------
   // Picker owns the hover + selection atoms (consumed below by the
@@ -272,12 +286,18 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     rig,
     renderer,
     camera,
-    scene,
     showTooltip,
     hideTooltip,
     onResize() {
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      postFx.setSize(cw, ch);
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
+      // Synchronous paint to avoid a single-frame blank/cleared canvas
+      // between the resize and the next animate() tick. The render path
+      // must match animate() so bloom shows immediately on the new size.
+      postFx.render();
     },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });
@@ -352,7 +372,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       }
     }
     lodController.update(canvas); // swap detail↔placeholder by screen-space area
-    renderer.render(scene, camera);
+    postFx.render();
     requestAnimationFrame(animate);
   }
   animate();
