@@ -98,6 +98,12 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
     }
   } else {
     li.classList.add('tree-file');
+    // Empty chevron-shaped placeholder so a file row's icon + label sit
+    // in the same horizontal slots as its directory siblings — matches
+    // VSCode's file tree where labels at the same depth always align.
+    const spacer = document.createElement('span');
+    spacer.className = 'tree-chevron';
+    row.appendChild(spacer);
     row.appendChild(makeFileIcon(child));
     row.appendChild(label);
     li.appendChild(row);
