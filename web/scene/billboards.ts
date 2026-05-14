@@ -150,8 +150,12 @@ export function createBillboard(building: Building): THREE.Group {
   image.userData.building = building;
   group.add(image);
 
-  // ---- Posts (two vertical pillars) ----
-  const postGeo = new THREE.BoxGeometry(postW, postH, postW);
+  // ---- Posts (two vertical cylinders) ----
+  // 10 radial segments → octagon-ish silhouette at the typical zoom
+  // levels; cheap to render but reads as round vs the rectangular
+  // panel body sitting on top.
+  const postRadius = postW / 2;
+  const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postH, 10);
   const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR });
   for (const sign of [-1, 1]) {
     const post = new THREE.Mesh(postGeo, postMat);
