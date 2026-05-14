@@ -293,7 +293,20 @@ vec4 renderRoofFace() {
     // Inset the icon inside the border so it doesn't clip the dark strip.
     float pad = ROOF_BORDER_FRAC;
     vec2 inset = clamp((vUv - pad) / (1.0 - 2.0 * pad), 0.0, 1.0);
-    vec2 atlasUv = vIconUV + inset * uIconSlotSize;
+    // Rotate so the icon's "top" lands at the building's far edge from
+    // the door — readable to someone standing in front of the door and
+    // looking at the building. Roof UVs are laid out:
+    //   uv = (0, 0) = south-west, (1, 0) = south-east,
+    //        (0, 1) = north-west, (1, 1) = north-east
+    // Icon atlas Y is canvas-native (flipY=false): atlasUv.y=0 is the
+    // icon's top edge. So "icon top → far edge from door" means
+    // mapping the far edge's vUv to rotated.y=0.
+    vec2 rotated;
+    if (vOrient < 0.5)      rotated = vec2(inset.x, 1.0 - inset.y); // door S → top→N
+    else if (vOrient < 1.5) rotated = vec2(1.0 - inset.x, inset.y); // door N → top→S
+    else if (vOrient < 2.5) rotated = vec2(1.0 - inset.y, inset.x); // door E → top→W
+    else                    rotated = vec2(inset.y, 1.0 - inset.x); // door W → top→E
+    vec2 atlasUv = vIconUV + rotated * uIconSlotSize;
     vec4 icon = texture2D(uIconAtlas, atlasUv);
     // Composite over the roof: icon.rgb on top, alpha-weighted.
     composed = mix(composed, icon.rgb, icon.a * innerMask);
