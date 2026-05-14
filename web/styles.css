@@ -636,6 +636,10 @@ canvas {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Activity bar splits into two nested flex columns: a top group that
+ * stacks from the top and a bottom group that pins to the bottom. The
+ * outer bar's `justify-content: space-between` pushes the two groups
+ * apart — no margin-top: auto trick. */
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
@@ -643,8 +647,14 @@ canvas {
   border-right: 1px solid #1e2030;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   align-items: stretch;
-  padding-top: 8px;
+  padding: 8px 0;
+}
+.activity-bar-group {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 2px;
 }
 
@@ -1413,6 +1423,130 @@ canvas {
 
 .tree-file > .tree-row > .tree-label {
   color: #8a8ea0;
+}
+
+/* ── Search pane (Search tab in left sidebar) ───────────────────────────
+   Header (shared .pane-header) + input row + scrollable result list.
+   Matched query characters in each result are wrapped in <mark>. */
+
+.search-input-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid #1e2030;
+}
+
+.search-input-icon {
+  flex: 0 0 auto;
+  font-size: 14px;
+  color: #6a7090;
+}
+
+.search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: #0c0d14;
+  border: 1px solid #252838;
+  border-radius: 4px;
+  color: #e0e4f5;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px 8px;
+  outline: none;
+}
+.search-input::placeholder {
+  color: #565a72;
+}
+.search-input:focus {
+  border-color: rgba(108, 138, 255, 0.5);
+}
+/* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
+.search-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.search-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-state {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 18px;
+  color: #6a7090;
+  text-align: center;
+}
+.search-state .lucide-icon {
+  font-size: 22px;
+  opacity: 0.55;
+  margin-bottom: 2px;
+}
+.search-state-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #c0c4d8;
+}
+.search-state-sub {
+  margin: 0;
+  max-width: 240px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: #6a7090;
+}
+
+.search-results {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+}
+.search-result {
+  display: block;
+  padding: 4px 12px;
+  cursor: pointer;
+  border-left: 2px solid transparent;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-size: 11.5px;
+  color: #a0a4bc;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  outline: none;
+}
+.search-result:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: #e0e4f5;
+}
+.search-result:focus-visible {
+  background: rgba(108, 138, 255, 0.12);
+  border-left-color: #6c8aff;
+  color: #e0e4f5;
+}
+.search-result mark {
+  background: transparent;
+  color: #6c8aff;
+  font-weight: 700;
+}
+.search-result:hover mark,
+.search-result:focus-visible mark {
+  color: #a8baff;
+}
+
+/* Scrollbar tuned to match the tree pane's. */
+#tree-sidebar .search-body {
+  scrollbar-width: thin;
+  scrollbar-color: #252838 transparent;
 }
 
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────

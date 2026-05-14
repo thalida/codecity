@@ -197,6 +197,9 @@ export function createCoordinator({
     onTreeFocus: _onTreeFocus,
     onTreeHover: _onTreeHover,
     onTreeHoverEnd: _onTreeHoverEnd,
+    onSearchSelect(path: string) {
+      picker.selectByPath(path);
+    },
     onRunCollisionCheck: () => cityScene.runCollisionCheck(),
     onRunStemDiagnostic: () => cityScene.runStemPlacementDiagnostic(),
   });
@@ -288,6 +291,9 @@ export function createCoordinator({
     }
     if (leftSidebarApi.setTreeManifest && m) {
       leftSidebarApi.setTreeManifest(m);
+    }
+    if (leftSidebarApi.setSearchManifest) {
+      leftSidebarApi.setSearchManifest(m);
     }
   });
 
