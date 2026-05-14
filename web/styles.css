@@ -225,9 +225,9 @@ canvas {
   -webkit-app-region: no-drag;
 }
 .path-badge.is-dir {
-  /* Matches the street sidewalk color (#2c2e36) in the city — so a
-   * directory's pill reads the same way as the road it represents. */
-  background: #2c2e36;
+  /* Background is painted inline from ASPHALT.COLOR so changing the
+   * asphalt in Controls live-updates the badge. Text stays a static
+   * light gray that reads against typical dark asphalts. */
   color: #a0a4bc;
 }
 

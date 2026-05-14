@@ -12,6 +12,7 @@
 //            Hover tooltip surfaces the live state ("Live updates: on/off")
 //            and the rebuild error message (when applicable).
 
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
 import { makeExtensionBadge } from './badge.js';
 
@@ -70,20 +71,18 @@ const NOOP_API = {
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
-interface InitAppFooterOpts {
-  /** extension → hue map for the leading path-badge pill. */
-  huePalette?: Record<string, number>;
-}
-
 /**
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
  *                                            — right section (combined indicator)
  *   setRepoInfo({ ... })                     — center section
  *   setSelection(sel | null)                 — left section (badge + metadata)
+ *
+ * The leading path-badge reads palette + asphalt from the live config
+ * stores at render time and re-renders on any change, so editing an
+ * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter(opts: InitAppFooterOpts = {}) {
-  const { huePalette = {} } = opts;
+export function initAppFooter() {
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
@@ -200,12 +199,25 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     centerEl.appendChild(wrap);
   }
 
+  // Last selection cached so config-store subscriptions can re-render
+  // with the same selection when the palette / asphalt color changes.
+  let lastSelection: FooterSelection | null = null;
+
   function setSelection(sel: FooterSelection | null): void {
+    lastSelection = sel;
     selectionEl.replaceChildren();
     if (!sel) return;
 
+    // Palette + asphalt read fresh at render time so the badge follows
+    // live config edits (re-render is triggered by the subscriptions
+    // below when those stores change).
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
+
     if (sel.kind === NodeKind.File) {
-      selectionEl.appendChild(makeExtensionBadge(sel.extension ?? null, false, huePalette));
+      selectionEl.appendChild(
+        makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor)
+      );
       if (sel.language) selectionEl.appendChild(_item(sel.language));
       if (sel.lines != null) selectionEl.appendChild(_item(`${sel.lines} lines`));
       if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
@@ -214,13 +226,24 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
       if (sel.created)
         selectionEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === NodeKind.Directory) {
-      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette));
+      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
       selectionEl.appendChild(_item('Directory'));
       if (sel.files != null) selectionEl.appendChild(_item(`${sel.files} files`));
       if (sel.dirs != null) selectionEl.appendChild(_item(`${sel.dirs} dirs`));
       if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
     }
   }
+
+  // Live config: see appHeader for the same pattern. Drop the initial
+  // synchronous callback that nanostores fires at subscribe time so we
+  // don't re-render before the host has set an initial selection.
+  let _ready = false;
+  const _reRender = () => {
+    if (_ready) setSelection(lastSelection);
+  };
+  BUILDING_PALETTE.subscribe(_reRender);
+  ASPHALT.subscribe(_reRender);
+  _ready = true;
 
   return { setSelection, setStatus, setRepoInfo };
 }

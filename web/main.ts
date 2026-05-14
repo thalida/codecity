@@ -8,7 +8,6 @@ import './styles.css';
 
 import * as Config from './config/index.js';
 import {
-  BUILDING_PALETTE,
   SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
@@ -54,8 +53,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // applications (line widths, hex color caches, scene background) are
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
-
-  const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
 
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
@@ -132,7 +129,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
     rig,
-    huePalette,
     applyTheme,
   });
 

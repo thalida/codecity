@@ -12,7 +12,7 @@
 // Public:
 //   const coord = createCoordinator({
 //     cityScene, picker, rig,
-//     huePalette, applyTheme,
+//     applyTheme,
 //   });
 //   coord.dispose();
 
@@ -34,17 +34,10 @@ interface CoordinatorOpts {
   cityScene: ReturnType<typeof createCityScene>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
-  huePalette: Record<string, number>;
   applyTheme: () => void;
 }
 
-export function createCoordinator({
-  cityScene,
-  picker,
-  rig,
-  huePalette,
-  applyTheme,
-}: CoordinatorOpts) {
+export function createCoordinator({ cityScene, picker, rig, applyTheme }: CoordinatorOpts) {
   // Right sidebar opens on file selection and closes via its × button.
   // The previous header-toggle was removed, so the boot state is simply
   // "closed" — the first file selection will open it.
@@ -81,7 +74,6 @@ export function createCoordinator({
   // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
   const appHeader = initAppHeader({
-    huePalette: huePalette || {},
     rootLabel: rootNode?.name || '',
     rootPath: rootNode?.path || '',
     onSegmentClick(path: string) {
@@ -104,7 +96,7 @@ export function createCoordinator({
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter({ huePalette: huePalette || {} });
+  const appFooter = initAppFooter();
   const initialManifest = cityScene.getManifest();
   appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({

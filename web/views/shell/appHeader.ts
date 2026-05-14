@@ -8,6 +8,7 @@
 // own × close button, and the left sidebar has its own activity-bar
 // collapse, so the dedicated hide-toggles in the header were redundant.
 
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
 import { makeExtensionBadge } from './badge.js';
 
@@ -22,8 +23,6 @@ interface HeaderSelection {
 }
 
 interface InitAppHeaderOpts {
-  /** extension → hue map for the chip color */
-  huePalette?: Record<string, number>;
   /** project name shown as the leftmost breadcrumb segment (clicking it selects the project root) */
   rootLabel?: string;
   /** the path string the segment-click handler should receive when the root is clicked (e.g. "." or "") */
@@ -41,10 +40,13 @@ interface InitAppHeaderOpts {
  * in index.html, populates the title slot with chip + breadcrumb + copy
  * widgets. The Up button's enabled state tracks the current selection
  * (disabled when nothing is selected or the selection is the root).
+ *
+ * The path-badge subscribes to BUILDING_PALETTE + ASPHALT so changing
+ * an extension hue or the asphalt color in Controls live-repaints the
+ * currently-shown badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   const {
-    huePalette = {},
     rootLabel = '',
     rootPath = '',
     onSegmentClick = null,
@@ -60,6 +62,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       setSelection(_sel: HeaderSelection | null) {},
     };
   }
+
+  // Last selection cached so config-store subscriptions can re-render
+  // with the same selection when the palette / asphalt color changes.
+  let lastSelection: HeaderSelection | null = null;
 
   upBtn.replaceChildren(makeLucideIcon('arrow-up'));
   resetBtn.replaceChildren(makeLucideIcon('refresh-cw'));
@@ -92,15 +98,24 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
    * the root.
    */
   function setSelection(sel: HeaderSelection | null): void {
+    lastSelection = sel;
     titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
     _setUpEnabled(hasSel);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
-    // for the root or any directory selection.
+    // for the root or any directory selection. Palette + asphalt are
+    // read fresh from the stores so the badge follows live config edits.
     const isFileSel = hasSel && sel && !sel.isDir;
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
     titleEl!.appendChild(
-      makeExtensionBadge(isFileSel ? (sel!.extension ?? null) : null, !isFileSel, huePalette)
+      makeExtensionBadge(
+        isFileSel ? (sel!.extension ?? null) : null,
+        !isFileSel,
+        huePalette,
+        asphaltColor
+      )
     );
 
     const crumbs = document.createElement('div');
@@ -157,6 +172,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     });
     return btn;
   }
+
+  // Live config: re-render the cached selection whenever a store that
+  // feeds the badge changes — the user editing an extension hue or the
+  // asphalt color in Controls should be visible immediately. Nanostores
+  // fire .subscribe() synchronously with the current value at hook-up
+  // time; we drop that first call so we don't double-render before the
+  // host has set an initial selection.
+  let _ready = false;
+  const _reRender = () => {
+    if (_ready) setSelection(lastSelection);
+  };
+  BUILDING_PALETTE.subscribe(_reRender);
+  ASPHALT.subscribe(_reRender);
+  _ready = true;
 
   return {
     setSelection,
