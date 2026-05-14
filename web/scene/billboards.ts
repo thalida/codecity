@@ -58,22 +58,28 @@ export function isMediaFile(file: { extension?: string } | null | undefined): bo
 // building.w (still byte-derived); the rest scales off that so larger
 // files get bigger billboards without losing the recognizable shape.
 //
-//   ┌────────────────┐         ← PANEL_H  (landscape rect, image lives here)
-//   │                │
-//   ├──┬──────────┬──┤
-//      │          │            ← POST_H   (gap between the two posts)
-//      │          │
-//      ▔▔▔▔▔▔▔▔▔▔▔▔
-//      └POST_W    └POST_W
+// Architecture: a thick dark BODY box gives the sign its mass, an
+// IMAGE plane sits flush against the body's front face (single-sided
+// so the back stays dark), and a thin inner inset around the image
+// reads as a frame.
+//
+//   ┌──────────────┐ ←─ body (thick box, dark)
+//   │ ┌──────────┐ │
+//   │ │  image   │ │ ←─ plane mounted on front face, slightly inset
+//   │ └──────────┘ │
+//   └──┬────────┬──┘
+//      │        │   ←─ two support posts
+//      ▔▔▔▔▔▔▔▔▔▔
 const PANEL_ASPECT = 0.7; // panel height = panel width × this (landscape)
-const PANEL_DEPTH = 0.6;
+const PANEL_DEPTH_FRAC = 0.08; // body depth = panel width × this (gives the sign real mass)
+const PANEL_INSET_FRAC = 0.04; // image inset inside the body (frame thickness)
+const IMAGE_OFFSET = 0.02; // image plane sits this far in front of the body face
 const POST_HEIGHT_FRAC = 1.1; // post height = panel height × this
 const POST_WIDTH_FRAC = 0.06; // post width = panel width × this
 const POST_INSET_FRAC = 0.32; // post x-offset from center = panel width × this
-const PANEL_BORDER_FRAC = 0.04; // dark frame around the panel as a fraction of panel height
 
 const POST_COLOR = 0x2c2e36; // matches the city's sidewalk gray
-const PANEL_BORDER_COLOR = 0x14161e;
+const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
 // Convert BuildingOrient → Y-axis rotation so the panel faces the door's direction.
@@ -110,36 +116,39 @@ export function createBillboard(building: Building): THREE.Group {
 
   const panelW = Math.max(1, building.w);
   const panelH = panelW * PANEL_ASPECT;
+  const panelD = panelW * PANEL_DEPTH_FRAC;
+  const inset = panelH * PANEL_INSET_FRAC;
   const postW = Math.max(0.6, panelW * POST_WIDTH_FRAC);
   const postH = panelH * POST_HEIGHT_FRAC;
   const postInset = panelW * POST_INSET_FRAC;
-  const borderT = panelH * PANEL_BORDER_FRAC;
 
-  // ---- Panel (textured) ----
-  const panelGeo = new THREE.BoxGeometry(panelW, panelH, PANEL_DEPTH);
-  const panelMat = new THREE.MeshBasicMaterial({ color: PANEL_PLACEHOLDER_COLOR });
-  const panel = new THREE.Mesh(panelGeo, panelMat);
-  // Panel sits above the posts; bottom of panel meets top of post.
-  panel.position.set(0, postH + panelH / 2, 0);
-  panel.userData.kind = 'billboard';
-  panel.userData.building = building;
-  group.add(panel);
+  // ---- Panel body — thick dark box, all faces solid ----
+  // Gives the sign real 3D mass and acts as the frame around the image;
+  // the back of this box is what's visible from behind the billboard.
+  const bodyGeo = new THREE.BoxGeometry(panelW, panelH, panelD);
+  const bodyMat = new THREE.MeshBasicMaterial({ color: BODY_COLOR });
+  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  body.position.set(0, postH + panelH / 2, 0);
+  body.userData.kind = 'billboard';
+  body.userData.building = building;
+  group.add(body);
 
-  // ---- Dark border behind the panel ----
-  // A slightly larger box pushed a hair behind the panel so the texture
-  // reads as framed. Uses a darker color than the posts so it visually
-  // groups with the panel even before the texture loads.
-  const borderGeo = new THREE.BoxGeometry(
-    panelW + borderT * 2,
-    panelH + borderT * 2,
-    PANEL_DEPTH * 0.6
-  );
-  const borderMat = new THREE.MeshBasicMaterial({ color: PANEL_BORDER_COLOR });
-  const border = new THREE.Mesh(borderGeo, borderMat);
-  border.position.set(0, postH + panelH / 2, -PANEL_DEPTH * 0.21);
-  border.userData.kind = 'billboard';
-  border.userData.building = building;
-  group.add(border);
+  // ---- Image — single-sided plane mounted on the body's front face ----
+  // FrontSide only so a viewer behind the billboard sees the dark back
+  // of the body, NOT the image bleeding through. Inset slightly inside
+  // the body so the dark body reads as a frame around the image.
+  const imageW = panelW - inset * 2;
+  const imageH = panelH - inset * 2;
+  const imageGeo = new THREE.PlaneGeometry(imageW, imageH);
+  const imageMat = new THREE.MeshBasicMaterial({
+    color: PANEL_PLACEHOLDER_COLOR,
+    side: THREE.FrontSide,
+  });
+  const image = new THREE.Mesh(imageGeo, imageMat);
+  image.position.set(0, postH + panelH / 2, panelD / 2 + IMAGE_OFFSET);
+  image.userData.kind = 'billboard';
+  image.userData.building = building;
+  group.add(image);
 
   // ---- Posts (two vertical pillars) ----
   const postGeo = new THREE.BoxGeometry(postW, postH, postW);
@@ -156,13 +165,16 @@ export function createBillboard(building: Building): THREE.Group {
   group.position.set(building.x, 0, building.y);
   group.rotation.y = orientToYRotation(building.orient);
 
-  // ---- Async texture load → swap panel material when ready ----
+  // ---- Async texture load → swap the image plane's material when ready ----
   const filePath = building.file.fullPath || building.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
   _loadBillboardTexture(url, kind)
     .then((texture) => {
       if (!texture) return;
-      panel.material = new THREE.MeshBasicMaterial({ map: texture });
+      image.material = new THREE.MeshBasicMaterial({
+        map: texture,
+        side: THREE.FrontSide,
+      });
     })
     .catch(() => {
       /* keep placeholder; building still picks correctly */
