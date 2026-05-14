@@ -27,9 +27,14 @@ export interface PostFx {
   dispose(): void;
 }
 
-const BLOOM_STRENGTH = 0.6;
-const BLOOM_RADIUS = 0.45;
-const BLOOM_THRESHOLD = 0.75;
+// Threshold sits high so saturated bright walls (e.g. a yellow building
+// at HSL L=70 has luma ~0.83) stay matte — only lit windows, which the
+// shader pushes to near-white via WINDOW_LIGHTNESS_DELTA, contribute
+// to bloom. Strength + radius dialed in to read as window glow, not
+// a fog over the whole city.
+const BLOOM_STRENGTH = 0.35;
+const BLOOM_RADIUS = 0.35;
+const BLOOM_THRESHOLD = 0.92;
 
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
