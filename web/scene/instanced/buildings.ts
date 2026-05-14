@@ -4,7 +4,7 @@
 // Mesh creation (attaching these buffers to a THREE.InstancedMesh) lands in Task 8.
 
 import * as THREE from 'three';
-import { BUILDING_DIMENSIONS, BUILDING_OUTLINE } from '@/config/index.js';
+import { BUILDING_DIMENSIONS, BUILDING_OUTLINE, BUILDING_PALETTE } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
 import { isMediaFile } from '../billboards.js';
@@ -271,6 +271,14 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // sampling behind iIconUV.x >= 0.
       uIconAtlas: { value: _atlas ? _atlas.texture : null },
       uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
+      // Palette lightness range (HSL %, 0–100 domain). The shader
+      // recovers a 0..1 "freshness" signal by reading HSL lightness
+      // out of the per-instance base color and normalising against
+      // this range — newest file = 1.0, oldest = 0.0. Used to drive
+      // window lit/dark count, glow brightness, glow hue, and gap
+      // density. Refreshed on live-config edits.
+      uLightnessMin: { value: BUILDING_PALETTE.get().LIGHTNESS_MIN },
+      uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
     },
   });
   return _sharedMaterial;
@@ -284,6 +292,8 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
 export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
+  _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
+  _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
 }
 
 /**

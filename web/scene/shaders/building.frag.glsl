@@ -45,6 +45,15 @@ uniform float uOutlineWidth;
 uniform sampler2D uIconAtlas;
 uniform float uIconSlotSize;
 
+// Palette lightness range (HSL %, 0–100). Used to recover a true
+// 0..1 "freshness" signal from the per-instance color: the newest
+// file in the repo gets HSL lightness = uLightnessMax, the oldest
+// gets uLightnessMin, and renderWallFace inverts that mapping so
+// freshness=1.0 means "most recently touched". Mirrors the
+// BUILDING_PALETTE config consumed by getBuildingColor().
+uniform float uLightnessMin;
+uniform float uLightnessMax;
+
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
 // ---------------------------------------------------------------------------
@@ -271,13 +280,26 @@ vec4 renderWallFace() {
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
-  // Building brightness drives both the lit-window probability AND the
-  // window-gap density: oldest (dimmest) buildings read as boarded-up
-  // tenements — most cells empty, none of the remaining windows lit.
-  // Newest (brightest) buildings keep the baseline gap rate and most
-  // windows are lit. Brightness is the simple sRGB-channel mean.
-  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
-  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - brightness) * WINDOW_GAP_AGE_BONUS;
+  // Repo-relative "freshness" signal: 1.0 for the most recently
+  // touched file in the repo, 0.0 for the oldest. Computed from the
+  // building's HSL lightness (l = (max + min) / 2 of sRGB channels)
+  // normalised against the palette's LIGHTNESS_MIN/MAX range — this
+  // exactly inverts the linear mapping getBuildingColor() applies
+  // when assigning the color, so a file touched "just now" lands at
+  // freshness=1.0 regardless of the file's hue or saturation.
+  //
+  // The previous "sRGB-channel mean" signal couldn't reach 1.0 for
+  // saturated colors (a cyan building at HSL L=70 has mean ~0.7),
+  // which left the most-recent building with ~70% lit windows even
+  // though it should be 100%.
+  //
+  // Freshness drives three curves: lit-window probability, lit-window
+  // glow brightness, and gap density.
+  float hslL = (max(max(baseColor.r, baseColor.g), baseColor.b)
+              + min(min(baseColor.r, baseColor.g), baseColor.b)) * 0.5;
+  float lRange = max(uLightnessMax - uLightnessMin, 0.0001);
+  float freshness = clamp((hslL * 100.0 - uLightnessMin) / lRange, 0.0, 1.0);
+  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - freshness) * WINDOW_GAP_AGE_BONUS;
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
@@ -286,27 +308,23 @@ vec4 renderWallFace() {
   // shadow side still glows. Unlit cells stay reflective (modulated by
   // the sun) so they read as "off" glass rather than blank wall.
   //
-  // Three brightness-driven curves shape the lit windows:
-  //  - litThreshold: how MANY cells light up. Bright/new buildings hit
-  //    most windows; at brightness=0 the threshold reaches 1.0 so no
-  //    window is lit at all (oldest buildings = all dark panes).
-  //  - litDelta:     how BRIGHT each lit window glows. Bright/new
-  //    buildings push close to white (WINDOW_LIGHTNESS_DELTA = 55);
-  //    older / dimmer buildings light up duller — a single inhabited
-  //    window in a derelict block reads as a weak glow, not a beacon.
-  //  - hue mix:      what COLOR each lit window glows. Bright/new
-  //    buildings keep their saturated base hue (sharp neon); dim/old
-  //    buildings tilt toward LIT_GLOW_DIM (warm amber / dirty tungsten)
-  //    so the city's old quarters look like failing fluorescents.
-  // Floor stays at 0.0 so the brightest (most recently touched) building
-  // hits step(0.0, hash) = 1.0 for every cell — every window lit. The
-  // ceiling stays at 1.0 so the dimmest (oldest) building hits
-  // step(1.0, hash) = 0.0 for every cell — every window dark.
-  float litThreshold = clamp(1.0 - brightness, 0.0, 1.0);
+  // Three freshness-driven curves shape the lit windows:
+  //  - litThreshold: how MANY cells light up. Newest building hits
+  //    step(0.0, hash) = 1.0 for every cell (every window lit);
+  //    oldest hits step(1.0, hash) = 0.0 for every cell (all dark).
+  //  - litDelta:     how BRIGHT each lit window glows. Newest pushes
+  //    close to white (WINDOW_LIGHTNESS_DELTA = 55); older lights up
+  //    duller — a single inhabited window in a derelict block reads
+  //    as a weak glow, not a beacon.
+  //  - hue mix:      what COLOR each lit window glows. Newest keeps
+  //    its saturated base hue (sharp neon); older tilts toward
+  //    LIT_GLOW_DIM (warm amber / dirty tungsten) so the city's old
+  //    quarters look like failing fluorescents.
+  float litThreshold = 1.0 - freshness;
   float litFactor = step(litThreshold, litHash);
-  float litDelta = WINDOW_LIGHTNESS_DELTA * brightness;
+  float litDelta = WINDOW_LIGHTNESS_DELTA * freshness;
   vec3 buildingLit = shadeColor(baseColor, litDelta);
-  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, brightness);
+  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, freshness);
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 

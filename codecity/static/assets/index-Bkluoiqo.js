@@ -128,6 +128,15 @@ uniform float uOutlineWidth;
 uniform sampler2D uIconAtlas;
 uniform float uIconSlotSize;
 
+// Palette lightness range (HSL %, 0–100). Used to recover a true
+// 0..1 "freshness" signal from the per-instance color: the newest
+// file in the repo gets HSL lightness = uLightnessMax, the oldest
+// gets uLightnessMin, and renderWallFace inverts that mapping so
+// freshness=1.0 means "most recently touched". Mirrors the
+// BUILDING_PALETTE config consumed by getBuildingColor().
+uniform float uLightnessMin;
+uniform float uLightnessMax;
+
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
 // ---------------------------------------------------------------------------
@@ -354,13 +363,26 @@ vec4 renderWallFace() {
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
-  // Building brightness drives both the lit-window probability AND the
-  // window-gap density: oldest (dimmest) buildings read as boarded-up
-  // tenements — most cells empty, none of the remaining windows lit.
-  // Newest (brightest) buildings keep the baseline gap rate and most
-  // windows are lit. Brightness is the simple sRGB-channel mean.
-  float brightness = (baseColor.r + baseColor.g + baseColor.b) / 3.0;
-  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - brightness) * WINDOW_GAP_AGE_BONUS;
+  // Repo-relative "freshness" signal: 1.0 for the most recently
+  // touched file in the repo, 0.0 for the oldest. Computed from the
+  // building's HSL lightness (l = (max + min) / 2 of sRGB channels)
+  // normalised against the palette's LIGHTNESS_MIN/MAX range — this
+  // exactly inverts the linear mapping getBuildingColor() applies
+  // when assigning the color, so a file touched "just now" lands at
+  // freshness=1.0 regardless of the file's hue or saturation.
+  //
+  // The previous "sRGB-channel mean" signal couldn't reach 1.0 for
+  // saturated colors (a cyan building at HSL L=70 has mean ~0.7),
+  // which left the most-recent building with ~70% lit windows even
+  // though it should be 100%.
+  //
+  // Freshness drives three curves: lit-window probability, lit-window
+  // glow brightness, and gap density.
+  float hslL = (max(max(baseColor.r, baseColor.g), baseColor.b)
+              + min(min(baseColor.r, baseColor.g), baseColor.b)) * 0.5;
+  float lRange = max(uLightnessMax - uLightnessMin, 0.0001);
+  float freshness = clamp((hslL * 100.0 - uLightnessMin) / lRange, 0.0, 1.0);
+  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - freshness) * WINDOW_GAP_AGE_BONUS;
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
@@ -369,27 +391,23 @@ vec4 renderWallFace() {
   // shadow side still glows. Unlit cells stay reflective (modulated by
   // the sun) so they read as "off" glass rather than blank wall.
   //
-  // Three brightness-driven curves shape the lit windows:
-  //  - litThreshold: how MANY cells light up. Bright/new buildings hit
-  //    most windows; at brightness=0 the threshold reaches 1.0 so no
-  //    window is lit at all (oldest buildings = all dark panes).
-  //  - litDelta:     how BRIGHT each lit window glows. Bright/new
-  //    buildings push close to white (WINDOW_LIGHTNESS_DELTA = 55);
-  //    older / dimmer buildings light up duller — a single inhabited
-  //    window in a derelict block reads as a weak glow, not a beacon.
-  //  - hue mix:      what COLOR each lit window glows. Bright/new
-  //    buildings keep their saturated base hue (sharp neon); dim/old
-  //    buildings tilt toward LIT_GLOW_DIM (warm amber / dirty tungsten)
-  //    so the city's old quarters look like failing fluorescents.
-  // Floor stays at 0.0 so the brightest (most recently touched) building
-  // hits step(0.0, hash) = 1.0 for every cell — every window lit. The
-  // ceiling stays at 1.0 so the dimmest (oldest) building hits
-  // step(1.0, hash) = 0.0 for every cell — every window dark.
-  float litThreshold = clamp(1.0 - brightness, 0.0, 1.0);
+  // Three freshness-driven curves shape the lit windows:
+  //  - litThreshold: how MANY cells light up. Newest building hits
+  //    step(0.0, hash) = 1.0 for every cell (every window lit);
+  //    oldest hits step(1.0, hash) = 0.0 for every cell (all dark).
+  //  - litDelta:     how BRIGHT each lit window glows. Newest pushes
+  //    close to white (WINDOW_LIGHTNESS_DELTA = 55); older lights up
+  //    duller — a single inhabited window in a derelict block reads
+  //    as a weak glow, not a beacon.
+  //  - hue mix:      what COLOR each lit window glows. Newest keeps
+  //    its saturated base hue (sharp neon); older tilts toward
+  //    LIT_GLOW_DIM (warm amber / dirty tungsten) so the city's old
+  //    quarters look like failing fluorescents.
+  float litThreshold = 1.0 - freshness;
   float litFactor = step(litThreshold, litHash);
-  float litDelta = WINDOW_LIGHTNESS_DELTA * brightness;
+  float litDelta = WINDOW_LIGHTNESS_DELTA * freshness;
   vec3 buildingLit = shadeColor(baseColor, litDelta);
-  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, brightness);
+  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, freshness);
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
@@ -651,7 +669,7 @@ vec3 srgbToLinear(vec3 c) {
     step(0.04045, c)
   );
 }
-`,Nt=8,Pt=5,Ft=.8;function It(t){let n=t.buildings.length,r={matrix:new Float32Array(n*16),color:new Float32Array(n*3),cols:new Float32Array(n*2),floors:new Float32Array(n),orient:new Float32Array(n),doorWidth:new Float32Array(n),opacity:new Float32Array(n),silhouette:new Float32Array(n),outlineOpacity:new Float32Array(n),iconUV:new Float32Array(n*3)},i=new e.Matrix4,a=new e.Color,o=H.get().PATH_WIDTH_FRAC;for(let e=0;e<n;e++){let n=t.buildings[e],s=Lt(n.file?.path??``);if(n.file&&dt(n.file)){i.makeScale(0,0,0),i.setPosition(n.x,0,n.y),r.matrix.set(i.toArray(),e*16),r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s;continue}i.makeScale(n.w,n.h,n.d),i.setPosition(n.x,n.h/2,n.y),r.matrix.set(i.toArray(),e*16),a.set(n.color),r.color[e*3+0]=a.r,r.color[e*3+1]=a.g,r.color[e*3+2]=a.b;let c=Math.max(1,Math.min(Pt,Math.floor(n.d/Nt))),l=Math.max(1,Math.min(Pt,Math.floor(n.w/Nt)));if(r.cols[e*2+0]=c,r.cols[e*2+1]=l,r.floors[e]=Math.max(1,n.floors??1),r.orient[e]=Rt(n.orient),r.doorWidth[e]=n.w*o*Ft,r.opacity[e]=1,r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s,Vt){let t=n.file;if(t){let n=nt(t),i=Vt.uvFor(n);i&&(r.iconUV[e*3+0]=i[0],r.iconUV[e*3+1]=i[1])}}}return r}function Lt(e){let t=2166136261;for(let n=0;n<e.length;n++)t^=e.charCodeAt(n),t=Math.imul(t,16777619);return(t>>>0)/4294967296}function Rt(e){switch(e){case F.South:return 0;case F.North:return 1;case F.East:return 2;case F.West:return 3;default:return 0}}var zt=new e.BoxGeometry(1,1,1),Bt=null,Vt=null;function Ht(e){Vt=e,Bt&&(Bt.uniforms.uIconAtlas.value=e?e.texture:null,Bt.uniforms.uIconSlotSize.value=e?e.slotSize:0)}function Ut(){if(Bt)return Bt;let t=jt.replace(`#include <hsl_glsl_inline>`,Mt);return Bt=new e.ShaderMaterial({vertexShader:At,fragmentShader:t,transparent:!0,uniforms:{uOutlineWidth:{value:W.get().WIDTH},uIconAtlas:{value:Vt?Vt.texture:null},uIconSlotSize:{value:Vt?Vt.slotSize:0}}}),Bt}function Wt(){Bt&&(Bt.uniforms.uOutlineWidth.value=W.get().WIDTH)}function Gt(t){let n=t.buildings.length,r=It(t),i=new e.InstancedMesh(zt,Ut(),n),a=new e.Matrix4;for(let e=0;e<n;e++)a.fromArray(r.matrix,e*16),i.setMatrixAt(e,a);return i.instanceMatrix.needsUpdate=!0,i.instanceColor=new e.InstancedBufferAttribute(r.color,3),i.instanceColor.needsUpdate=!0,i.geometry=i.geometry.clone(),i.geometry.setAttribute(`iCols`,new e.InstancedBufferAttribute(r.cols,2)),i.geometry.setAttribute(`iFloors`,new e.InstancedBufferAttribute(r.floors,1)),i.geometry.setAttribute(`iOrient`,new e.InstancedBufferAttribute(r.orient,1)),i.geometry.setAttribute(`iDoorWidth`,new e.InstancedBufferAttribute(r.doorWidth,1)),i.geometry.setAttribute(`iOpacity`,new e.InstancedBufferAttribute(r.opacity,1)),i.geometry.setAttribute(`iSilhouette`,new e.InstancedBufferAttribute(r.silhouette,1)),i.geometry.setAttribute(`iOutlineOpacity`,new e.InstancedBufferAttribute(r.outlineOpacity,1)),i.geometry.setAttribute(`iIconUV`,new e.InstancedBufferAttribute(r.iconUV,3)),i.computeBoundingSphere(),i.userData.kind=`buildings`,i.userData.block=t,i}var Kt=`// label.vert.glsl — Per-instance flat label quad.
+`,Nt=8,Pt=5,Ft=.8;function It(t){let n=t.buildings.length,r={matrix:new Float32Array(n*16),color:new Float32Array(n*3),cols:new Float32Array(n*2),floors:new Float32Array(n),orient:new Float32Array(n),doorWidth:new Float32Array(n),opacity:new Float32Array(n),silhouette:new Float32Array(n),outlineOpacity:new Float32Array(n),iconUV:new Float32Array(n*3)},i=new e.Matrix4,a=new e.Color,o=H.get().PATH_WIDTH_FRAC;for(let e=0;e<n;e++){let n=t.buildings[e],s=Lt(n.file?.path??``);if(n.file&&dt(n.file)){i.makeScale(0,0,0),i.setPosition(n.x,0,n.y),r.matrix.set(i.toArray(),e*16),r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s;continue}i.makeScale(n.w,n.h,n.d),i.setPosition(n.x,n.h/2,n.y),r.matrix.set(i.toArray(),e*16),a.set(n.color),r.color[e*3+0]=a.r,r.color[e*3+1]=a.g,r.color[e*3+2]=a.b;let c=Math.max(1,Math.min(Pt,Math.floor(n.d/Nt))),l=Math.max(1,Math.min(Pt,Math.floor(n.w/Nt)));if(r.cols[e*2+0]=c,r.cols[e*2+1]=l,r.floors[e]=Math.max(1,n.floors??1),r.orient[e]=Rt(n.orient),r.doorWidth[e]=n.w*o*Ft,r.opacity[e]=1,r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s,Vt){let t=n.file;if(t){let n=nt(t),i=Vt.uvFor(n);i&&(r.iconUV[e*3+0]=i[0],r.iconUV[e*3+1]=i[1])}}}return r}function Lt(e){let t=2166136261;for(let n=0;n<e.length;n++)t^=e.charCodeAt(n),t=Math.imul(t,16777619);return(t>>>0)/4294967296}function Rt(e){switch(e){case F.South:return 0;case F.North:return 1;case F.East:return 2;case F.West:return 3;default:return 0}}var zt=new e.BoxGeometry(1,1,1),Bt=null,Vt=null;function Ht(e){Vt=e,Bt&&(Bt.uniforms.uIconAtlas.value=e?e.texture:null,Bt.uniforms.uIconSlotSize.value=e?e.slotSize:0)}function Ut(){if(Bt)return Bt;let t=jt.replace(`#include <hsl_glsl_inline>`,Mt);return Bt=new e.ShaderMaterial({vertexShader:At,fragmentShader:t,transparent:!0,uniforms:{uOutlineWidth:{value:W.get().WIDTH},uIconAtlas:{value:Vt?Vt.texture:null},uIconSlotSize:{value:Vt?Vt.slotSize:0},uLightnessMin:{value:U.get().LIGHTNESS_MIN},uLightnessMax:{value:U.get().LIGHTNESS_MAX}}}),Bt}function Wt(){Bt&&(Bt.uniforms.uOutlineWidth.value=W.get().WIDTH,Bt.uniforms.uLightnessMin.value=U.get().LIGHTNESS_MIN,Bt.uniforms.uLightnessMax.value=U.get().LIGHTNESS_MAX)}function Gt(t){let n=t.buildings.length,r=It(t),i=new e.InstancedMesh(zt,Ut(),n),a=new e.Matrix4;for(let e=0;e<n;e++)a.fromArray(r.matrix,e*16),i.setMatrixAt(e,a);return i.instanceMatrix.needsUpdate=!0,i.instanceColor=new e.InstancedBufferAttribute(r.color,3),i.instanceColor.needsUpdate=!0,i.geometry=i.geometry.clone(),i.geometry.setAttribute(`iCols`,new e.InstancedBufferAttribute(r.cols,2)),i.geometry.setAttribute(`iFloors`,new e.InstancedBufferAttribute(r.floors,1)),i.geometry.setAttribute(`iOrient`,new e.InstancedBufferAttribute(r.orient,1)),i.geometry.setAttribute(`iDoorWidth`,new e.InstancedBufferAttribute(r.doorWidth,1)),i.geometry.setAttribute(`iOpacity`,new e.InstancedBufferAttribute(r.opacity,1)),i.geometry.setAttribute(`iSilhouette`,new e.InstancedBufferAttribute(r.silhouette,1)),i.geometry.setAttribute(`iOutlineOpacity`,new e.InstancedBufferAttribute(r.outlineOpacity,1)),i.geometry.setAttribute(`iIconUV`,new e.InstancedBufferAttribute(r.iconUV,3)),i.computeBoundingSphere(),i.userData.kind=`buildings`,i.userData.block=t,i}var Kt=`// label.vert.glsl — Per-instance flat label quad.
 //
 // Geometry: PlaneGeometry(1, 1) lying in the XY plane; the caller
 // positions each instance in world space via instanceMatrix (which
