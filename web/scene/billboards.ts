@@ -94,6 +94,14 @@ const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
  */
 export const BILLBOARD_HEIGHT_FRAC = PANEL_ASPECT * (1 + POST_HEIGHT_FRAC);
 
+/**
+ * Front-to-back depth of the billboard as a multiple of its width,
+ * with a small margin around the panel slab. Used by the selection
+ * outline so the rainbow box wraps the sign tightly instead of
+ * extending the full square-footprint depth (the building's `d`).
+ */
+export const BILLBOARD_DEPTH_FRAC = PANEL_DEPTH_FRAC * 1.6;
+
 // Convert BuildingOrient → Y-axis rotation so the panel faces the door's direction.
 function orientToYRotation(orient: BuildingOrient): number {
   switch (orient) {

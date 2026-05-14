@@ -23,7 +23,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
-import { isMediaFile } from '../billboards.js';
+import { BILLBOARD_DEPTH_FRAC, isMediaFile } from '../billboards.js';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
 import type { createCityScene } from '@/scene/cityScene.js';
@@ -118,7 +118,12 @@ export function createOutlineRenderer({
     } else {
       // Fallback: use layout coordinates directly (no animator tween
       // applied). Also the path for media-file billboards — see above.
-      outline.scale.set(b.w, b.h, b.d);
+      // Billboards are flat front-to-back; b.d is the layout footprint
+      // (square, = b.w) which would extend the outline way behind the
+      // sign. Substitute the actual billboard depth (with a small
+      // margin) so the rainbow wraps the sign tightly.
+      const depth = isMedia ? b.w * BILLBOARD_DEPTH_FRAC : b.d;
+      outline.scale.set(b.w, b.h, depth);
       outline.position.set(b.x, b.h / 2, b.y);
     }
   }
