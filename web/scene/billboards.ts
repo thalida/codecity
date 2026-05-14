@@ -82,13 +82,15 @@ const POST_COLOR = 0x6e7280; // brushed-steel gray; reads as metal once shaded
 const BODY_COLOR = 0x14161e; // dark frame / back of the panel
 const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
-// Halo proportions — a wider plane behind the panel with an additive-
-// blended radial gradient. PlaneGeometry (not Sprite) so the halo
-// orients with the billboard and doesn't camera-track separately as
-// the user rotates — Sprites kept "sliding" relative to the panel
-// because they always re-face the camera while the panel doesn't.
-const HALO_SCALE = 1.3; // halo plane size as a multiple of panel width
-const HALO_OPACITY = 0.32;
+// Halo proportions — a wider plane in front of the panel with an
+// additive-blended ring gradient. The texture's center is fully
+// transparent so the image still reads cleanly; the ring peaks just
+// past the panel's edge and falls off into the scene background as a
+// neon bloom. PlaneGeometry (not Sprite) so the halo orients with the
+// billboard instead of camera-tracking separately — Sprites kept
+// "sliding" relative to the panel as the user rotated.
+const HALO_SCALE = 2.0; // halo plane size as a multiple of panel width
+const HALO_OPACITY = 0.7;
 const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
 /**
@@ -192,12 +194,17 @@ export function createBillboard(building: Building): THREE.Group {
     group.add(post);
   }
 
-  // ---- Glow halo behind the panel ----
+  // ---- Cyberpunk neon halo, mounted on the panel front ----
   // Additive-blend plane parented to the group so it stays anchored
-  // to the panel's orientation. Sized larger than the panel so the
-  // gradient spills past the body's edges as a soft halo — the
-  // opaque body occludes the gradient's center, only the rim shows.
-  // DoubleSide so a viewer behind the billboard still sees the glow.
+  // to the panel orientation. Texture is a *ring* gradient (clear
+  // center, peak just past panel edge, falloff outward) so the image
+  // reads cleanly through the center and the rim glows as a soft
+  // bloom into the dark scene. Sized 2× the panel so the bloom has
+  // room to fall off without being clipped. Positioned slightly in
+  // front of the image plane so the glow renders on the front side
+  // where the viewer typically is; DoubleSide keeps it visible from
+  // behind too (where the body occludes the center, only the bloom
+  // rim shows past the silhouette).
   const haloGeo = new THREE.PlaneGeometry(panelW * HALO_SCALE, panelH * HALO_SCALE);
   const haloMat = new THREE.MeshBasicMaterial({
     map: _haloTexture(),
@@ -209,7 +216,7 @@ export function createBillboard(building: Building): THREE.Group {
     opacity: HALO_OPACITY,
   });
   const halo = new THREE.Mesh(haloGeo, haloMat);
-  halo.position.set(0, postH + panelH / 2, -panelD * 0.5 - 0.05);
+  halo.position.set(0, postH + panelH / 2, panelD * 0.5 + IMAGE_OFFSET + 0.01);
   // Glow shouldn't intercept clicks — selection should still hit the
   // panel/posts behind/around it.
   halo.raycast = () => {};
@@ -267,15 +274,21 @@ function _haloTexture(): THREE.CanvasTexture {
     _haloTextureSingleton = new THREE.CanvasTexture(canvas);
     return _haloTextureSingleton;
   }
-  // Radial gradient: bright in the center, fades to fully transparent
-  // at the edges. Additive blending in the SpriteMaterial means the
-  // alpha channel here acts as glow intensity against whatever's behind.
+  // Ring gradient — center is fully transparent so the panel's image
+  // reads cleanly, the ring peaks just past the panel's edge (panel
+  // occupies the inner ~1/HALO_SCALE of the texture radius, so panel
+  // edge sits around 0.50 of the gradient radius for HALO_SCALE=2),
+  // then falls off into the scene background as a soft bloom.
+  // Additive blending downstream turns each pixel's alpha into glow
+  // intensity, so we work in white + alpha here.
   const cx = size / 2;
   const cy = size / 2;
   const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size / 2);
-  grad.addColorStop(0.0, 'rgba(255, 255, 255, 1)');
-  grad.addColorStop(0.5, 'rgba(255, 255, 255, 0.35)');
-  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');
+  grad.addColorStop(0.0, 'rgba(255, 255, 255, 0)');     // panel center — clear, image shows through
+  grad.addColorStop(0.42, 'rgba(255, 255, 255, 0)');    // still clear (just inside panel edge)
+  grad.addColorStop(0.55, 'rgba(255, 255, 255, 0.95)'); // bright neon ring at panel rim
+  grad.addColorStop(0.75, 'rgba(255, 255, 255, 0.35)'); // mid falloff
+  grad.addColorStop(1.0, 'rgba(255, 255, 255, 0)');     // fully dissipated
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, size, size);
   _haloTextureSingleton = new THREE.CanvasTexture(canvas);
