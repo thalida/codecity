@@ -15,6 +15,7 @@
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
 import { makeExtensionBadge } from './badge.js';
+import { makeLucideIcon } from './icon.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -71,6 +72,11 @@ const NOOP_API = {
   setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
+interface InitAppFooterOpts {
+  /** fn() — fires when the user clicks the reset-view button in the footer's right section. Same handler the R key fires. */
+  onResetView?: (() => void) | null;
+}
+
 /**
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
@@ -82,7 +88,8 @@ const NOOP_API = {
  * stores at render time and re-renders on any change, so editing an
  * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter() {
+export function initAppFooter(opts: InitAppFooterOpts = {}) {
+  const { onResetView = null } = opts;
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
@@ -97,6 +104,22 @@ export function initAppFooter() {
   const statusEl = document.createElement('span');
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
+
+  // Reset-view button — moved here from the header. The R key still
+  // fires the same handler via scene/inputHandlers; this button just
+  // makes the action discoverable for users who don't memorize hotkeys.
+  if (typeof onResetView === 'function') {
+    const resetBtn = document.createElement('button');
+    resetBtn.type = 'button';
+    resetBtn.className = 'app-footer-button';
+    resetBtn.title = 'Reset view';
+    resetBtn.setAttribute('aria-label', 'Reset view');
+    resetBtn.appendChild(makeLucideIcon('refresh-cw'));
+    resetBtn.addEventListener('click', () => {
+      onResetView();
+    });
+    statusContainerEl.appendChild(resetBtn);
+  }
 
   footer.replaceChildren(selectionEl, centerEl, statusContainerEl);
 
@@ -164,17 +187,8 @@ export function initAppFooter() {
 
     const wrap = document.createElement('span');
     wrap.className = 'app-footer-repo';
-    wrap.title = _buildRepoTooltip(info);
-
-    if (info.name) {
-      const name = document.createElement('span');
-      name.className = 'app-footer-repo-name';
-      name.textContent = info.name;
-      wrap.appendChild(name);
-    }
 
     if (info.branch) {
-      wrap.appendChild(_makeRepoSep());
       const branch = document.createElement('span');
       branch.className = 'app-footer-repo-branch';
       if (info.dirty) branch.classList.add('is-dirty');
@@ -186,13 +200,18 @@ export function initAppFooter() {
     }
 
     if (info.remoteUrl) {
-      wrap.appendChild(_makeRepoSep());
+      if (info.branch) wrap.appendChild(_makeSep());
       const link = document.createElement('a');
       link.className = 'app-footer-repo-link';
-      link.href = info.remoteUrl;
+      link.href = _branchAwareRepoUrl(info.remoteUrl, info.branch);
       link.target = '_blank';
       link.rel = 'noopener noreferrer';
-      link.textContent = _shortRemoteLabel(info.remoteUrl);
+      link.textContent = 'repo';
+      // Hover tooltip surfaces the destination so users can see where
+      // a click will take them (and which branch the link is pointing at).
+      link.title = info.branch
+        ? `${info.remoteUrl} · ⎇ ${info.branch}`
+        : info.remoteUrl;
       wrap.appendChild(link);
     }
 
@@ -214,23 +233,31 @@ export function initAppFooter() {
     const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
     const asphaltColor = ASPHALT.get().COLOR;
 
+    // Always-leading chip (no dot before it). After the chip, the
+    // metadata items are joined with `·` separators to mirror the
+    // center repo section and reduce visual ambiguity between adjacent
+    // values.
+    const items: HTMLElement[] = [];
     if (sel.kind === NodeKind.File) {
       selectionEl.appendChild(
         makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor)
       );
-      if (sel.language) selectionEl.appendChild(_item(sel.language));
-      if (sel.lines != null) selectionEl.appendChild(_item(`${sel.lines} lines`));
-      if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
+      if (sel.language) items.push(_item(sel.language));
+      if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
+      if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
       if (sel.modified)
-        selectionEl.appendChild(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
-      if (sel.created)
-        selectionEl.appendChild(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
+        items.push(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
+      if (sel.created) items.push(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
     } else if (sel.kind === NodeKind.Directory) {
       selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
-      selectionEl.appendChild(_item('Directory'));
-      if (sel.files != null) selectionEl.appendChild(_item(`${sel.files} files`));
-      if (sel.dirs != null) selectionEl.appendChild(_item(`${sel.dirs} dirs`));
-      if (sel.size != null) selectionEl.appendChild(_item(_formatBytes(sel.size)));
+      items.push(_item('Directory'));
+      if (sel.files != null) items.push(_item(`${sel.files} files`));
+      if (sel.dirs != null) items.push(_item(`${sel.dirs} dirs`));
+      if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
+    }
+    for (let i = 0; i < items.length; i++) {
+      if (i > 0) selectionEl.appendChild(_makeSep());
+      selectionEl.appendChild(items[i]);
     }
   }
 
@@ -261,33 +288,26 @@ function _relativeTime(then: number, now: number): string {
   return `${Math.floor(diff / DAY_MS)}d ago`;
 }
 
-function _makeRepoSep(): HTMLSpanElement {
+function _makeSep(): HTMLSpanElement {
   const sep = document.createElement('span');
-  sep.className = 'app-footer-repo-sep';
+  sep.className = 'app-footer-sep';
   sep.textContent = '·';
   return sep;
 }
 
-function _shortRemoteLabel(url: string): string {
-  // Strip the scheme and trailing slashes so the link reads as
-  // "github.com/org/repo" instead of the full URL — fits better in the
-  // bar and is still recognizable.
-  return url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
-}
-
-function _buildRepoTooltip(info: FooterRepoInfo): string {
-  const lines: string[] = [];
-  if (info.name || info.root) lines.push(info.root || info.name);
-  if (info.branch) {
-    lines.push(info.dirty ? `branch: ${info.branch} (dirty)` : `branch: ${info.branch}`);
-  }
-  if (info.headSha || info.headSubject) {
-    const sha = info.headSha ? `${info.headSha} ` : '';
-    const subj = info.headSubject || '';
-    lines.push(`${sha}${subj}`.trim());
-  }
-  if (info.remoteUrl) lines.push(info.remoteUrl);
-  return lines.join('\n');
+/**
+ * Append the host-appropriate "view at branch" path to a repo URL so
+ * the link opens the repo on the same branch the user is looking at.
+ * Falls back to the bare URL for hosts we don't recognize — better a
+ * working repo home than a broken /tree URL.
+ */
+function _branchAwareRepoUrl(url: string, branch: string | null): string {
+  if (!branch) return url;
+  const safeBranch = encodeURIComponent(branch);
+  if (/github\.com/i.test(url)) return `${url}/tree/${safeBranch}`;
+  if (/gitlab\./i.test(url)) return `${url}/-/tree/${safeBranch}`;
+  if (/bitbucket\.org/i.test(url)) return `${url}/src/${safeBranch}`;
+  return url;
 }
 
 function _item(text: string, source?: string): HTMLSpanElement {

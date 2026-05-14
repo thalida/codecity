@@ -120,15 +120,6 @@ body {
   font-size: 14px;
 }
 
-.app-header-icon[disabled] {
-  opacity: 0.35;
-  cursor: default;
-}
-.app-header-icon[disabled]:hover {
-  color: #6a7090;
-  background: none;
-}
-
 canvas {
   display: block;
   width: 100%;
@@ -354,6 +345,39 @@ canvas {
   font-size: 9.5px;
 }
 
+/* Shared muted-dot separator. Used between metadata items in the left
+ * (selection) section and between the branch + repo link in the center
+ * section. Pointer-events:none so a stray click between items doesn't
+ * fall on the dot. */
+.app-footer-sep {
+  flex: 0 0 auto;
+  color: #44485e;
+  pointer-events: none;
+}
+
+/* Small icon button — used by the reset-view trigger that lives in
+ * the right section next to the status indicator. */
+.app-footer-button {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.app-footer-button:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-footer-button .lucide-icon {
+  font-size: 13px;
+}
+
 /* ── Combined status indicator (left section) ─────────────────────── */
 /* Layout: [dot] <status text>
  * One dot, two channels:
@@ -429,14 +453,6 @@ canvas {
   gap: 6px;
   overflow: hidden;
   min-width: 0;
-}
-.app-footer-repo-name {
-  color: #c4c8db;
-  flex: 0 0 auto;
-}
-.app-footer-repo-sep {
-  color: #44485e;
-  flex: 0 0 auto;
 }
 .app-footer-repo-branch {
   color: #8a8fa8;

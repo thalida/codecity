@@ -79,24 +79,15 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
-    onUp() {
-      const sel = picker.selection.get();
-      const path = _pathOf(sel);
-      const root = rootNode?.path || '';
-      if (!path || path === root) return;
-      const parent = path.split('/').slice(0, -1).join('/');
-      if (parent) picker.selectByPath(parent);
-      else if (root) picker.selectByPath(root);
-      else picker.setSelection(null);
-    },
-    onResetView() {
-      rig.reset();
-    },
   });
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter();
+  const appFooter = initAppFooter({
+    onResetView() {
+      rig.reset();
+    },
+  });
   const initialManifest = cityScene.getManifest();
   appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({

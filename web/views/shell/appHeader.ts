@@ -1,12 +1,8 @@
-// views/shell/appHeader.ts — Sitewide top header. Owns the current-
-// selection display (chip + clickable breadcrumb + copy-path button)
-// in the center, an "Up one level" navigation button on the left, and
-// a "Reset view" camera-reset button on the right.
-//
-// The two side buttons replaced the older "hide left sidebar" / "hide
-// right sidebar" toggles — the right sidebar now self-manages via its
-// own × close button, and the left sidebar has its own activity-bar
-// collapse, so the dedicated hide-toggles in the header were redundant.
+// views/shell/appHeader.ts — Sitewide top header. Renders the current
+// selection as a breadcrumb (chip + clickable path segments + copy-path
+// button). No side buttons — navigation actions (camera reset) live in
+// the footer; the activity bar on the left sidebar handles sidebar
+// collapse on its own.
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
@@ -29,35 +25,19 @@ interface InitAppHeaderOpts {
   rootPath?: string;
   /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
   onSegmentClick?: ((path: string) => void) | null;
-  /** fn() — fires when the user clicks the "Up one level" button. Caller resolves the parent path of the current selection and selects it. */
-  onUp?: (() => void) | null;
-  /** fn() — fires when the user clicks the "Reset view" button. Caller resets the camera (same as the R key). */
-  onResetView?: (() => void) | null;
 }
 
 /**
- * Initialise the sitewide header. Renders icons into the existing buttons
- * in index.html, populates the title slot with chip + breadcrumb + copy
- * widgets. The Up button's enabled state tracks the current selection
- * (disabled when nothing is selected or the selection is the root).
- *
- * The path-badge subscribes to BUILDING_PALETTE + ASPHALT so changing
- * an extension hue or the asphalt color in Controls live-repaints the
- * currently-shown badge.
+ * Initialise the sitewide header. Populates the title slot with chip +
+ * breadcrumb + copy widgets. The path-badge subscribes to
+ * BUILDING_PALETTE + ASPHALT so changing an extension hue or the
+ * asphalt color in Controls live-repaints the currently-shown badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const {
-    rootLabel = '',
-    rootPath = '',
-    onSegmentClick = null,
-    onUp = null,
-    onResetView = null,
-  } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null } = opts;
 
-  const upBtn = document.getElementById('app-header-up') as HTMLButtonElement | null;
-  const resetBtn = document.getElementById('app-header-reset') as HTMLButtonElement | null;
   const titleEl = document.getElementById('app-title');
-  if (!upBtn || !resetBtn || !titleEl) {
+  if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
     };
@@ -66,24 +46,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   // Last selection cached so config-store subscriptions can re-render
   // with the same selection when the palette / asphalt color changes.
   let lastSelection: HeaderSelection | null = null;
-
-  upBtn.replaceChildren(makeLucideIcon('arrow-up'));
-  resetBtn.replaceChildren(makeLucideIcon('refresh-cw'));
-
-  upBtn.addEventListener('click', () => {
-    if (upBtn.disabled) return;
-    if (onUp) onUp();
-  });
-  resetBtn.addEventListener('click', () => {
-    if (onResetView) onResetView();
-  });
-
-  function _setUpEnabled(enabled: boolean): void {
-    upBtn!.disabled = !enabled;
-  }
-  // No selection on boot — Up has nothing to navigate to until the user
-  // selects something.
-  _setUpEnabled(false);
 
   /**
    * Render the title slot for a selection.
@@ -101,7 +63,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     lastSelection = sel;
     titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
-    _setUpEnabled(hasSel);
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for the root or any directory selection. Palette + asphalt are
