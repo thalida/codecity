@@ -25,8 +25,10 @@ attribute float iDoorWidth;     // door world-width
 attribute float iOpacity;       // [0..1] alpha for fader
 attribute float iSilhouette;    // 0 = full facade, 1 = solid silhouette (no windows/door/slab)
 attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidden tier wireframe)
-attribute vec2 iIconUV;         // top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
-attribute float iSeed;          // [0..1] per-file random; drives the shader's window gap / lit-state hash
+// Packed attribute (stays under GL_MAX_VERTEX_ATTRIBS=16):
+//   .xy = top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
+//   .z  = per-file random in [0, 1] driving the window gap / lit hash
+attribute vec3 iIconUV;
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -40,8 +42,7 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
-flat varying vec2 vIconUV;      // pass-through of iIconUV (sampled in renderRoofFace)
-flat varying float vSeed;       // pass-through of iSeed (used by renderWallFace for facade variation)
+flat varying vec3 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = per-file random seed
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -62,7 +63,6 @@ void main() {
   vSilhouette = iSilhouette;
   vOutlineOpacity = iOutlineOpacity;
   vIconUV = iIconUV;
-  vSeed = iSeed;
   // Three.js sets \`instanceColor\` automatically when an InstancedBufferAttribute
   // named \`instanceColor\` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.
@@ -107,8 +107,9 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
-flat varying vec2 vIconUV;
-flat varying float vSeed;
+// .xy = atlas UV for the file icon (or (-1,-1) for "no icon"),
+// .z  = per-file random in [0, 1] driving the window gap / lit hash.
+flat varying vec3 vIconUV;
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
@@ -347,11 +348,12 @@ vec4 renderWallFace() {
   // → vertical overlap regardless of horizontal position).
   float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
   // Per-cell randomness — gap (window missing) + lit (brighter/dimmer
-  // window pane). Seeded by the per-instance vSeed (stable hash of
-  // file.path) + vFace so every building gets its own scatter even
-  // when colors collide (e.g. all .css files of similar age share a
-  // hue and lightness) and the four faces don't mirror each other.
-  float buildingSeed = vSeed * 1000.0 + float(vFace) * 11.0;
+  // window pane). Seeded by the per-instance seed (stable hash of
+  // file.path, packed into vIconUV.z) + vFace so every building gets
+  // its own scatter even when colors collide (e.g. all .css files of
+  // similar age share a hue and lightness) and the four faces don't
+  // mirror each other.
+  float buildingSeed = vIconUV.z * 1000.0 + float(vFace) * 11.0;
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
@@ -426,7 +428,7 @@ vec4 renderRoofFace() {
     else if (vOrient < 1.5) rotated = vec2(1.0 - inset.x, inset.y); // door N → top→S
     else if (vOrient < 2.5) rotated = vec2(1.0 - inset.y, inset.x); // door E → top→W
     else                    rotated = vec2(inset.y, 1.0 - inset.x); // door W → top→E
-    vec2 atlasUv = vIconUV + rotated * uIconSlotSize;
+    vec2 atlasUv = vIconUV.xy + rotated * uIconSlotSize;
     vec4 icon = texture2D(uIconAtlas, atlasUv);
     // Composite over the roof: icon.rgb on top, alpha-weighted.
     composed = mix(composed, icon.rgb, icon.a * innerMask);
@@ -640,7 +642,7 @@ vec3 srgbToLinear(vec3 c) {
     step(0.04045, c)
   );
 }
-`,Pt=8,Ft=5,It=.8;function Lt(t){let n=t.buildings.length,r={matrix:new Float32Array(n*16),color:new Float32Array(n*3),cols:new Float32Array(n*2),floors:new Float32Array(n),orient:new Float32Array(n),doorWidth:new Float32Array(n),opacity:new Float32Array(n),silhouette:new Float32Array(n),outlineOpacity:new Float32Array(n),iconUV:new Float32Array(n*2),seed:new Float32Array(n)},i=new e.Matrix4,a=new e.Color,o=H.get().PATH_WIDTH_FRAC;for(let e=0;e<n;e++){let n=t.buildings[e];if(n.file&&ft(n.file)){i.makeScale(0,0,0),i.setPosition(n.x,0,n.y),r.matrix.set(i.toArray(),e*16),r.iconUV[e*2+0]=-1,r.iconUV[e*2+1]=-1;continue}i.makeScale(n.w,n.h,n.d),i.setPosition(n.x,n.h/2,n.y),r.matrix.set(i.toArray(),e*16),a.set(n.color),r.color[e*3+0]=a.r,r.color[e*3+1]=a.g,r.color[e*3+2]=a.b;let s=Math.max(1,Math.min(Ft,Math.floor(n.d/Pt))),c=Math.max(1,Math.min(Ft,Math.floor(n.w/Pt)));if(r.cols[e*2+0]=s,r.cols[e*2+1]=c,r.floors[e]=Math.max(1,n.floors??1),r.orient[e]=zt(n.orient),r.doorWidth[e]=n.w*o*It,r.opacity[e]=1,r.seed[e]=Rt(n.file?.path??``),r.iconUV[e*2+0]=-1,r.iconUV[e*2+1]=-1,Ht){let t=n.file;if(t){let n=rt(t),i=Ht.uvFor(n);i&&(r.iconUV[e*2+0]=i[0],r.iconUV[e*2+1]=i[1])}}}return r}function Rt(e){let t=2166136261;for(let n=0;n<e.length;n++)t^=e.charCodeAt(n),t=Math.imul(t,16777619);return(t>>>0)/4294967296}function zt(e){switch(e){case F.South:return 0;case F.North:return 1;case F.East:return 2;case F.West:return 3;default:return 0}}var Bt=new e.BoxGeometry(1,1,1),Vt=null,Ht=null;function Ut(e){Ht=e,Vt&&(Vt.uniforms.uIconAtlas.value=e?e.texture:null,Vt.uniforms.uIconSlotSize.value=e?e.slotSize:0)}function Wt(){if(Vt)return Vt;let t=Mt.replace(`#include <hsl_glsl_inline>`,Nt);return Vt=new e.ShaderMaterial({vertexShader:jt,fragmentShader:t,transparent:!0,uniforms:{uOutlineWidth:{value:W.get().WIDTH},uIconAtlas:{value:Ht?Ht.texture:null},uIconSlotSize:{value:Ht?Ht.slotSize:0}}}),Vt}function Gt(){Vt&&(Vt.uniforms.uOutlineWidth.value=W.get().WIDTH)}function Kt(t){let n=t.buildings.length,r=Lt(t),i=new e.InstancedMesh(Bt,Wt(),n),a=new e.Matrix4;for(let e=0;e<n;e++)a.fromArray(r.matrix,e*16),i.setMatrixAt(e,a);return i.instanceMatrix.needsUpdate=!0,i.instanceColor=new e.InstancedBufferAttribute(r.color,3),i.instanceColor.needsUpdate=!0,i.geometry=i.geometry.clone(),i.geometry.setAttribute(`iCols`,new e.InstancedBufferAttribute(r.cols,2)),i.geometry.setAttribute(`iFloors`,new e.InstancedBufferAttribute(r.floors,1)),i.geometry.setAttribute(`iOrient`,new e.InstancedBufferAttribute(r.orient,1)),i.geometry.setAttribute(`iDoorWidth`,new e.InstancedBufferAttribute(r.doorWidth,1)),i.geometry.setAttribute(`iOpacity`,new e.InstancedBufferAttribute(r.opacity,1)),i.geometry.setAttribute(`iSilhouette`,new e.InstancedBufferAttribute(r.silhouette,1)),i.geometry.setAttribute(`iOutlineOpacity`,new e.InstancedBufferAttribute(r.outlineOpacity,1)),i.geometry.setAttribute(`iIconUV`,new e.InstancedBufferAttribute(r.iconUV,2)),i.geometry.setAttribute(`iSeed`,new e.InstancedBufferAttribute(r.seed,1)),i.computeBoundingSphere(),i.userData.kind=`buildings`,i.userData.block=t,i}var qt=`// label.vert.glsl — Per-instance flat label quad.
+`,Pt=8,Ft=5,It=.8;function Lt(t){let n=t.buildings.length,r={matrix:new Float32Array(n*16),color:new Float32Array(n*3),cols:new Float32Array(n*2),floors:new Float32Array(n),orient:new Float32Array(n),doorWidth:new Float32Array(n),opacity:new Float32Array(n),silhouette:new Float32Array(n),outlineOpacity:new Float32Array(n),iconUV:new Float32Array(n*3)},i=new e.Matrix4,a=new e.Color,o=H.get().PATH_WIDTH_FRAC;for(let e=0;e<n;e++){let n=t.buildings[e],s=Rt(n.file?.path??``);if(n.file&&ft(n.file)){i.makeScale(0,0,0),i.setPosition(n.x,0,n.y),r.matrix.set(i.toArray(),e*16),r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s;continue}i.makeScale(n.w,n.h,n.d),i.setPosition(n.x,n.h/2,n.y),r.matrix.set(i.toArray(),e*16),a.set(n.color),r.color[e*3+0]=a.r,r.color[e*3+1]=a.g,r.color[e*3+2]=a.b;let c=Math.max(1,Math.min(Ft,Math.floor(n.d/Pt))),l=Math.max(1,Math.min(Ft,Math.floor(n.w/Pt)));if(r.cols[e*2+0]=c,r.cols[e*2+1]=l,r.floors[e]=Math.max(1,n.floors??1),r.orient[e]=zt(n.orient),r.doorWidth[e]=n.w*o*It,r.opacity[e]=1,r.iconUV[e*3+0]=-1,r.iconUV[e*3+1]=-1,r.iconUV[e*3+2]=s,Ht){let t=n.file;if(t){let n=rt(t),i=Ht.uvFor(n);i&&(r.iconUV[e*3+0]=i[0],r.iconUV[e*3+1]=i[1])}}}return r}function Rt(e){let t=2166136261;for(let n=0;n<e.length;n++)t^=e.charCodeAt(n),t=Math.imul(t,16777619);return(t>>>0)/4294967296}function zt(e){switch(e){case F.South:return 0;case F.North:return 1;case F.East:return 2;case F.West:return 3;default:return 0}}var Bt=new e.BoxGeometry(1,1,1),Vt=null,Ht=null;function Ut(e){Ht=e,Vt&&(Vt.uniforms.uIconAtlas.value=e?e.texture:null,Vt.uniforms.uIconSlotSize.value=e?e.slotSize:0)}function Wt(){if(Vt)return Vt;let t=Mt.replace(`#include <hsl_glsl_inline>`,Nt);return Vt=new e.ShaderMaterial({vertexShader:jt,fragmentShader:t,transparent:!0,uniforms:{uOutlineWidth:{value:W.get().WIDTH},uIconAtlas:{value:Ht?Ht.texture:null},uIconSlotSize:{value:Ht?Ht.slotSize:0}}}),Vt}function Gt(){Vt&&(Vt.uniforms.uOutlineWidth.value=W.get().WIDTH)}function Kt(t){let n=t.buildings.length,r=Lt(t),i=new e.InstancedMesh(Bt,Wt(),n),a=new e.Matrix4;for(let e=0;e<n;e++)a.fromArray(r.matrix,e*16),i.setMatrixAt(e,a);return i.instanceMatrix.needsUpdate=!0,i.instanceColor=new e.InstancedBufferAttribute(r.color,3),i.instanceColor.needsUpdate=!0,i.geometry=i.geometry.clone(),i.geometry.setAttribute(`iCols`,new e.InstancedBufferAttribute(r.cols,2)),i.geometry.setAttribute(`iFloors`,new e.InstancedBufferAttribute(r.floors,1)),i.geometry.setAttribute(`iOrient`,new e.InstancedBufferAttribute(r.orient,1)),i.geometry.setAttribute(`iDoorWidth`,new e.InstancedBufferAttribute(r.doorWidth,1)),i.geometry.setAttribute(`iOpacity`,new e.InstancedBufferAttribute(r.opacity,1)),i.geometry.setAttribute(`iSilhouette`,new e.InstancedBufferAttribute(r.silhouette,1)),i.geometry.setAttribute(`iOutlineOpacity`,new e.InstancedBufferAttribute(r.outlineOpacity,1)),i.geometry.setAttribute(`iIconUV`,new e.InstancedBufferAttribute(r.iconUV,3)),i.computeBoundingSphere(),i.userData.kind=`buildings`,i.userData.block=t,i}var qt=`// label.vert.glsl — Per-instance flat label quad.
 //
 // Geometry: PlaneGeometry(1, 1) lying in the XY plane; the caller
 // positions each instance in world space via instanceMatrix (which
