@@ -98,6 +98,13 @@ void main() {
 
 flat varying int vFace;
 varying vec2 vUv;
+// World-space face normal from the vertex shader. Used as the sun
+// vector for the Lambert term in the new directional lighting model
+// (replaced the front/side branch shading). Not declared \`flat\` —
+// it's constant across each face anyway because the geometry is
+// axis-aligned box, but leaving it interpolated keeps the shader
+// portable if the geometry ever becomes non-box.
+varying vec3 vWorldNormal;
 flat varying vec2 vCols;
 flat varying float vFloors;
 flat varying float vOrient;
