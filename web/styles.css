@@ -723,13 +723,9 @@ canvas {
 /* Shared header row built by views/shell/paneHeader.ts. Every pane —
  * left sidebar's Tree/Search/Info/Controls and the right sidebar's
  * file-preview — mounts this same DOM so they look identical and
- * adding a pane is a single buildPaneHeader() call.
- *
- * Left padding mirrors the tree row's 8px so the title and the tree's
- * depth-0 chevron column line up horizontally, matching the visual
- * rhythm of VSCode's section headers + file tree. */
+ * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
-  padding: 12px 12px 12px 8px;
+  padding: 12px 12px 12px 16px;
   border-bottom: 1px solid #1e2030;
   flex-shrink: 0;
   display: flex;
@@ -1343,7 +1339,10 @@ canvas {
 .tree-list {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 14px;
+  /* Per-level indent. Kept tighter than the historical 14px so deep
+   * trees don't run off the side of a narrow sidebar; the chevron
+   * column + folder icon already give each level a clear visual step. */
+  padding: 0 0 0 8px;
 }
 
 .tree-root.tree-list {
