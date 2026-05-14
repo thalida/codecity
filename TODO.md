@@ -17,11 +17,11 @@
 - [ ] make windows more irregular / dynamic
 - [x] make buildings go on either side of the street
 - [x] make fitting the side streets account for their irregular shape
-- [x] in left of footer add live reload status + reloading state to the site footer
+- [x] in left of footer add live reload status
 - [x] move file/directory information to right of footer
 - [x] include repo information in center of footer
 - [x] add file icon type to sidebar
-- [ ] add file icon to the roof of buildings
+- [x] add file icon to the roof of buildings
 - [ ] display images and videos as billboards
 - [ ] identify and add something special to test files
 - [ ] python cli make it more professional
