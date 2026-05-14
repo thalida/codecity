@@ -190,6 +190,18 @@ const float SLAB_SIDE_LIGHTNESS_FLOOR = 10.0;
 
 // SHADING.WINDOW_LIGHTNESS_DELTA = 20
 const float WINDOW_LIGHTNESS_DELTA = 20.0;
+// Dimmer brightness applied to "unlit" windows in the same cell — picked
+// per cell by a hash so each building has its own scatter of lit /
+// unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
+// so the window pane reads as a pane (not just blank wall).
+const float WINDOW_UNLIT_LIGHTNESS_DELTA = 4.0;
+// Fraction of cells (per face) that have no window at all — irregular
+// gaps so the facade reads as varied instead of a perfect grid. Cells
+// whose gap-hash falls below the threshold are skipped.
+const float WINDOW_GAP_THRESHOLD = 0.18;
+// Fraction of remaining cells that render with the dimmer "unlit"
+// brightness. Hash > threshold = lit, ≤ = unlit. Roughly 55% lit at 0.45.
+const float WINDOW_LIT_THRESHOLD = 0.45;
 // SHADING.DOOR_LIGHTNESS_DELTA = -55
 const float DOOR_LIGHTNESS_DELTA = -55.0;
 // SHADING.ROOF_BORDER_LIGHTNESS_DELTA = -15
@@ -238,6 +250,14 @@ float aaband(float a, float b, float x, float w) {
   return smoothstep(a - ww, a + ww, x) * (1.0 - smoothstep(b - ww, b + ww, x));
 }
 
+// Standard sin-fract pseudo-random — deterministic per (col, row, seed)
+// so a given building's window pattern is stable across frames and
+// across the dual-mesh detail / silhouette swap. Sufficient for visual
+// randomness; not for anything that needs statistical quality.
+float hash21(vec2 p) {
+  return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 // ---------------------------------------------------------------------------
 // Face renderers
 // ---------------------------------------------------------------------------
@@ -270,8 +290,9 @@ vec4 renderWallFace() {
   vec3 slabColor = front
     ? shadeAndShiftHue(baseColor, SLAB_FRONT_LIGHTNESS_DELTA, SLAB_FRONT_HUE_SHIFT, -1.0)
     : shadeByRatio(baseColor, SLAB_SIDE_DARKEN_RATIO, SLAB_SIDE_LIGHTNESS_DELTA, SLAB_SIDE_LIGHTNESS_FLOOR);
-  vec3 winColor  = shadeColor(baseColor, WINDOW_LIGHTNESS_DELTA);
   vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0);
+  // winColor is picked per-cell below — each cell hashes to "lit" or
+  // "unlit" so the facade doesn't read as a copy-paste grid.
 
   // vCols.x = cols_ew (for ±X faces), vCols.y = cols_ns (for ±Z faces).
   float cols = (vFace == 0 || vFace == 1) ? vCols.x : vCols.y;
@@ -321,7 +342,21 @@ vec4 renderWallFace() {
   // (door is 0.7 of one floor tall, window center sits at 0.56 of one floor
   // → vertical overlap regardless of horizontal position).
   float bottomDoorRow = (isDoorFace() && row < 0.5) ? 0.0 : 1.0;
-  float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow;
+  // Per-cell randomness — gap (window missing) + lit (brighter/dimmer
+  // window pane). Seeded by vColor + vFace so each building has its own
+  // scatter and the four faces don't mirror each other. Two independent
+  // hashes so the gap/lit decisions don't correlate.
+  float buildingSeed = vColor.r * 17.0 + vColor.g * 31.0 + vColor.b * 53.0 + float(vFace) * 11.0;
+  vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
+  float gapHash = hash21(cellKey);
+  float litHash = hash21(cellKey + vec2(31.4, 17.7));
+  float gapMask = step(WINDOW_GAP_THRESHOLD, gapHash);
+  float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
+
+  // Lit cells get the full WINDOW_LIGHTNESS_DELTA boost; unlit cells get
+  // a much smaller boost so they read as "off" panes rather than blank wall.
+  float winDelta = mix(WINDOW_UNLIT_LIGHTNESS_DELTA, WINDOW_LIGHTNESS_DELTA, step(WINDOW_LIT_THRESHOLD, litHash));
+  vec3 winColor = shadeColor(baseColor, winDelta);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
   float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
