@@ -90,7 +90,7 @@ const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 // not as a back-lit silhouette. PlaneGeometry (not Sprite) so the
 // halo orients with the billboard.
 const HALO_SCALE = 2.4; // halo plane size as a multiple of panel — wide for soft atmospheric falloff
-const HALO_OPACITY = 0.55;
+const HALO_OPACITY = 1.0; // additive — actual brightness comes from the texture's alpha + brightness boost
 const HALO_COLOR = 0xa8bcff; // cool LED-blue glow tint
 
 /**
@@ -354,20 +354,35 @@ function _imageDerivedHaloTexture(
   const panelW = size - inset * 2;
   const panelH = size - inset * 2;
 
-  // Step 1 — paint the image into the panel rect with heavy blur. The
-  // blur spreads the panel's colors outward into the surrounding
-  // margin, exactly like a real glowing surface throwing light into
-  // the air around it.
+  // Step 1 — heavy-blur pass for the far atmospheric falloff. The
+  // panel image is drawn at panel position with the colors boosted
+  // (brightness + saturation) before the blur so the glow reads
+  // strongly against the dark scene background.
   try {
     ctx.save();
-    ctx.filter = `blur(${size * 0.18}px)`;
+    ctx.filter = `blur(${size * 0.2}px) brightness(1.8) saturate(1.4)`;
     ctx.drawImage(src, inset, inset, panelW, panelH);
     ctx.restore();
   } catch {
     return null;
   }
 
-  // Step 2 — punch out the center where the actual image plane sits
+  // Step 2 — near-bloom pass: same image, smaller blur. Adds a
+  // concentrated bright "halo" right at the panel edges before the
+  // longer falloff kicks in. Composite operation 'lighter' so it
+  // stacks additively on top of the soft underlying glow (instead
+  // of replacing it).
+  try {
+    ctx.save();
+    ctx.filter = `blur(${size * 0.07}px) brightness(2.0) saturate(1.6)`;
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.drawImage(src, inset, inset, panelW, panelH);
+    ctx.restore();
+  } catch {
+    /* near-bloom optional; if the second pass fails just go with the soft falloff */
+  }
+
+  // Step 3 — punch out the center where the actual image plane sits
   // in front of the halo. Soft cutout edge so the boundary between
   // "image" and "image-derived glow" is gradual, not a sharp ring.
   ctx.save();
