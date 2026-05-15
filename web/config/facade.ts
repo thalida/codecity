@@ -1,18 +1,21 @@
-// config/facade.ts — Procedural facade geometry knobs. Exposes the shader
-// constants that govern how each building's wall is divided into floors,
-// windows, doors, and roof border. Plus the per-building window column
-// count + door sizing pulled from buildings.ts.
+// config/facade.ts — Procedural facade rendering controls. Three stores
+// cover everything the building shader uses to render a wall:
+//   FACADE_GEOMETRY — floor / window / door / roof-border sizes,
+//                     plus the per-building window column count.
+//   FACADE_DETAIL   — HSL lightness deltas applied to slab / door / roof
+//                     border strips so the facade reads as layered.
+//   WINDOW_LIGHTING — lit / unlit pane lightness, age-driven gap density,
+//                     and the warm-amber tint for old-building lit panes.
 //
-// Shader-side keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) route through
-// refreshBuildingMaterial() on hot-reload — cheap, no rebuild needed.
+// Hot-reload routing (see web/config/hotReload.ts):
+//   • FACADE_GEOMETRY shader-side keys (*_FRAC) + entire FACADE_DETAIL +
+//     entire WINDOW_LIGHTING → refreshBuildingMaterial() (uniforms; cheap).
+//   • FACADE_GEOMETRY JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL,
+//     DOOR_WIDTH_FRAC_OF_PATH) → scheduleRebuild() because they bake into
+//     per-instance attributes at manifest-apply time.
 //
-// JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
-// feed into per-instance attributes that are baked at manifest-apply time,
-// so they need scheduleRebuild() rather than uniform refresh. The hotReload
-// wiring handles this — see web/config/hotReload.ts.
-//
-// Consumers do NOT clamp values from this store — the UI is the gate for
-// ranges. Degenerate inputs (e.g. WINDOW_COLS_MAX=0, SLAB_HEIGHT_FRAC=1.0)
+// Consumers do NOT clamp values from these stores — the UI is the gate
+// for ranges. Degenerate inputs (e.g. WINDOW_COLS_MAX=0, SLAB_HEIGHT_FRAC=1)
 // render visually weird but do not crash.
 
 import { map } from 'nanostores';

@@ -98,7 +98,7 @@ uniform float uRoofBorderLightnessDelta;
 uniform float uWindowUnlitLightnessDelta;
 uniform float uWindowGapBaseThreshold;
 uniform float uWindowGapAgeBonus;
-uniform vec3 uLitGlowDim;
+uniform vec3 uDimGlowColor;
 
 varying float vWorldY;
 
@@ -159,7 +159,7 @@ varying float vWorldY;
 // Dim failing-fluorescent — a rare lit window in a derelict block.
 // Mid-age and newer buildings' lit windows take the building's own
 // age-adjusted color (no saturation override), not a fixed target.
-// Driven by uLitGlowDim (WINDOW_LIGHTING.DIM_GLOW_COLOR).
+// Driven by uDimGlowColor (WINDOW_LIGHTING.DIM_GLOW_COLOR).
 
 // HDR emission boost applied to lit windows, on top of a baseline 1.0
 // multiplier. The shader writes into a HalfFloat render target (see
@@ -364,7 +364,7 @@ vec4 renderWallFace() {
   //    derelict block reads as a weak glow, not a beacon.
   //  - hue mix:      what COLOR each lit window glows. Newest keeps
   //    its saturated base hue (sharp neon); older tilts toward
-  //    uLitGlowDim (warm amber / dirty tungsten, from WINDOW_LIGHTING
+  //    uDimGlowColor (warm amber / dirty tungsten, from WINDOW_LIGHTING
   //    store) so the city's old quarters look like failing fluorescents.
   float litThreshold = 1.0 - freshness;
   float litFactor = step(litThreshold, litHash);
@@ -374,10 +374,10 @@ vec4 renderWallFace() {
   // alongside it. The HDR emission multiplier (applied below) then
   // brightens the lit cells without re-saturating them, preserving
   // the "this whole building is desaturated" reading. Freshness still
-  // drives the mix toward uLitGlowDim at the oldest end for the
+  // drives the mix toward uDimGlowColor at the oldest end for the
   // "failing fluorescent" warm-amber character.
   vec3 winNeon = baseColor;
-  vec3 winLitColor = mix(uLitGlowDim, winNeon, freshness);
+  vec3 winLitColor = mix(uDimGlowColor, winNeon, freshness);
   // HDR emission scales WITH freshness so newer buildings push deeper
   // into HDR space and their windows bloom harder. The bloom pass's
   // strength × radius then operates on that age-scaled HDR signal —
