@@ -42,7 +42,7 @@ export interface SceneColorsConfig {
 export const SCENE_COLORS = map<SceneColorsConfig>({
   GROUND: '#0a0e1c',
   FOG_ENABLED: true,
-  FOG_COLOR: '#200f48',
+  FOG_COLOR: '#0f0821',
   FOG_INTENSITY: 0.8,
   FOG_HEIGHT_FRAC: 0.25,
 });
