@@ -27,7 +27,12 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, CAMERA_ANIMATION } from '@/config/index.js';
+import {
+  CAMERA_PERSPECTIVE,
+  CAMERA_CONTROLS,
+  CAMERA_ANIMATION,
+  ANIMATION_TIMING,
+} from '@/config/index.js';
 import { STORAGE_KEYS } from '@/constants';
 import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
@@ -37,6 +42,18 @@ import type { createCityScene } from './cityScene.js';
 const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
+
+// Per-action duration ratios relative to ANIMATION_TIMING.BASE_DURATION_MS.
+// These tune the per-gesture feel — a Recenter should feel snappier than a
+// building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
+// so dragging the base in Settings scales every camera animation in lock-
+// step while preserving the relative pacing.
+//   RECENTER (0.7×) — quick pivot slide, no zoom change
+//   BUILDING_FOCUS (1.2×) — longer, gives the user time to read the tween
+//   STREET_FOCUS  (1.2×) — same character as building-focus
+const RECENTER_RATIO = 0.7;
+const BUILDING_FOCUS_RATIO = 1.2;
+const STREET_FOCUS_RATIO = 1.2;
 
 export function createCameraRig({
   canvas,
@@ -255,7 +272,7 @@ export function createCameraRig({
     const startTarget = controls.target.clone();
     const startCamPos = camera.position.clone();
     const t0 = performance.now();
-    const easingPower = CAMERA_ANIMATION.get().EASING_POWER;
+    const easingPower = ANIMATION_TIMING.get().EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;
@@ -316,7 +333,7 @@ export function createCameraRig({
     _animateCamera(
       p.clone(),
       camera.position.clone().add(delta),
-      CAMERA_ANIMATION.get().RECENTER_DURATION_MS
+      ANIMATION_TIMING.get().BASE_DURATION_MS * RECENTER_RATIO
     );
   }
 
@@ -392,7 +409,11 @@ export function createCameraRig({
     }
 
     if (newCamPos) {
-      _animateCamera(newTarget, newCamPos, camAnim.BUILDING_FOCUS_DURATION_MS);
+      _animateCamera(
+        newTarget,
+        newCamPos,
+        ANIMATION_TIMING.get().BASE_DURATION_MS * BUILDING_FOCUS_RATIO
+      );
     }
   }
 
@@ -443,7 +464,11 @@ export function createCameraRig({
     const horizDist = altitude / Math.tan(elev);
 
     const newCamPos = new THREE.Vector3(tx + offX * horizDist, altitude, tz + offZ * horizDist);
-    _animateCamera(newTarget, newCamPos, camAnim.STREET_FOCUS_DURATION_MS);
+    _animateCamera(
+      newTarget,
+      newCamPos,
+      ANIMATION_TIMING.get().BASE_DURATION_MS * STREET_FOCUS_RATIO
+    );
   }
 
   function dispose() {
