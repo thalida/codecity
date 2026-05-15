@@ -19,7 +19,6 @@ import {
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_GLOW,
-  GEM_ANIMATION,
 } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
@@ -267,7 +266,6 @@ function createRootGem(street: Street): THREE.Group {
   const radiusFrac = sizing.RADIUS_AS_STREET_FRAC;
   const minRadius = sizing.MIN_RADIUS;
   const hoverFrac = sizing.HOVER_LIFT_FRAC;
-  const bobFrac = GEM_ANIMATION.get().BOB_AMPLITUDE_FRAC;
 
   let radius = street.width * radiusFrac;
   if (radius < minRadius) radius = minRadius;
@@ -394,7 +392,6 @@ function createRootGem(street: Street): THREE.Group {
   gem.add(edges);
   gem.position.set(gemX, hoverY, gemZ);
   gem.userData.baseY = hoverY;
-  gem.userData.bobAmp = radius * bobFrac;
   gem.userData.type = NodeKind.Gem;
   // Stashed for live applyTheme updates of HOVER_LIFT_FRAC: needed to
   // recompute baseY = radius + streetWidth × frac.

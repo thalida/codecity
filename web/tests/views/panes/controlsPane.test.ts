@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '@/views/panes/controlsPane.js';
 
 describe('buildControlsPane', () => {
-  it('returns a pane with the Controls header + Scene section first', () => {
+  it('returns a pane with the Controls header + Keyboard & mouse section first', () => {
     const pane = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector<HTMLElement>('.pane-title')!.textContent).toBe('Controls');
-    expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('Scene');
+    expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('Keyboard & mouse');
   });
 
   it('renders a shortcuts list in the Camera & Interaction section (no Reset camera button)', () => {

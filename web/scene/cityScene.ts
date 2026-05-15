@@ -59,9 +59,8 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getCreatedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { BUILDING_PALETTE, LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
+import { LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
-import { NodeKind } from '@/types';
 import type {
   Building,
   CityLayout,
@@ -705,26 +704,21 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
     );
-    const dirColor = BUILDING_PALETTE.get().DIRECTORY_COLOR;
     const newBuildings = newLayout?.buildings ?? [];
     for (const b of newBuildings) {
-      b.color =
-        b.file?.type === NodeKind.File
-          ? getBuildingColor(
-              b.file as unknown as Parameters<typeof getBuildingColor>[0],
-              newDateRanges,
-            )
-          : dirColor;
+      // Building.file is always a FileNode (directories become streets,
+      // not buildings — see layoutV4.ts).
+      b.color = getBuildingColor(
+        b.file as unknown as Parameters<typeof getBuildingColor>[0],
+        newDateRanges,
+      );
       // createdAge is independent of color: it tracks file age (creation
       // date) so grime/weathering can mark old files even if they were
-      // recently edited. Directories get 0 (no weathering on slabs).
-      b.createdAge =
-        b.file?.type === NodeKind.File
-          ? getCreatedAge(
-              b.file as unknown as Parameters<typeof getCreatedAge>[0],
-              newDateRanges,
-            )
-          : 0;
+      // recently edited.
+      b.createdAge = getCreatedAge(
+        b.file as unknown as Parameters<typeof getCreatedAge>[0],
+        newDateRanges,
+      );
     }
     if (myGeneration !== _currentGeneration) return;
 

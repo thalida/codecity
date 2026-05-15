@@ -362,8 +362,13 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const gemAnim = GEM_ANIMATION.get();
       const t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
+      // BOB_AMPLITUDE_FRAC is read live each frame so the slider
+      // updates without a rebuild. The gem radius is cached on
+      // userData at gem-build time (it depends on root-street width).
       rootGem.position.y =
-        rootGem.userData.baseY + Math.sin(t * gemAnim.BOB_FREQUENCY) * rootGem.userData.bobAmp;
+        rootGem.userData.baseY +
+        Math.sin(t * gemAnim.BOB_FREQUENCY) *
+          (rootGem.userData.radius * gemAnim.BOB_AMPLITUDE_FRAC);
       // Scale-up affordance on hover so the gem reads as clickable.
       const hov = picker.hover.get();
       const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;

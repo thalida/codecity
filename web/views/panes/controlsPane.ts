@@ -43,12 +43,6 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
-  // Camera + input + tooltip (previously hidden from UI)
-  CAMERA_PERSPECTIVE,
-  CAMERA_CONTROLS,
-  CAMERA_ANIMATION,
-  INPUT_TIMING,
-  TOOLTIP,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
@@ -137,6 +131,8 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   //
   // All sections are <details> with persisted open/closed state — see
   // _section() below.
+  body.appendChild(_buildShortcutsSection());
+  body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
   body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
@@ -144,7 +140,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildCameraSection());
-  body.appendChild(_buildUpdatesSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
@@ -195,63 +190,36 @@ function _buildUpdatesSection(): HTMLElement {
 // table — no "Reset camera" button because R already covers that, and
 // the full shortcut list makes orbit / pan / zoom / focus / select
 // discoverable too.
+// ─── Keyboard & mouse ──────────────────────────────────────────────────────
+// Top-level section so the shortcut cheat-sheet is the first thing a new
+// user sees — separate from the Camera & Interaction tuning section.
+function _buildShortcutsSection(): HTMLElement {
+  const section = _section(
+    'Keyboard & mouse',
+    'Quick reference for cursor actions and keyboard shortcuts.'
+  );
+  section.appendChild(
+    _buildShortcutsList([
+      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
+      { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
+      { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
+      null, // section break
+      { mouse: 'Left drag', action: 'Orbit' },
+      { mouse: 'Right drag', action: 'Pan' },
+      { mouse: 'Middle drag', action: 'Dolly (zoom)' },
+      { mouse: 'Scroll', action: 'Zoom toward cursor' },
+      null,
+      { mouse: 'Click', action: 'Select building / street / gem' },
+      { mouse: 'Double-click', action: 'Focus camera on the target' },
+    ])
+  );
+  return section;
+}
+
 function _buildCameraSection(): HTMLElement {
   const section = _section(
     'Camera & Interaction',
-    'Perspective, orbit feel, transitions, input timing, tooltip placement, and keyboard shortcuts.'
-  );
-
-  section.appendChild(
-    _subgroup(
-      'Keyboard & mouse',
-      _buildShortcutsList([
-        { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
-        { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
-        { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
-        null, // section break
-        { mouse: 'Left drag', action: 'Orbit' },
-        { mouse: 'Right drag', action: 'Pan' },
-        { mouse: 'Middle drag', action: 'Dolly (zoom)' },
-        { mouse: 'Scroll', action: 'Zoom toward cursor' },
-        null,
-        { mouse: 'Click', action: 'Select building / street / gem' },
-        { mouse: 'Double-click', action: 'Focus camera on the target' },
-      ])
-    )
-  );
-
-  section.appendChild(
-    _subgroup('Perspective (rebuild on change)', [
-      _slider('Field of view (°)', CAMERA_PERSPECTIVE, 'FOV', 10, 110, 1, {
-        tip: 'Vertical field-of-view in degrees. Rebuild required.',
-      }),
-      _number('Near clip', CAMERA_PERSPECTIVE, 'NEAR', 0.01, 100, 0.1, {
-        tip: 'Closest distance the camera can see. Smaller = more precision at close range; too small = z-fighting.',
-      }),
-      _number('Far clip', CAMERA_PERSPECTIVE, 'FAR', 100, 100000, 100, {
-        tip: 'Farthest distance the camera can see. Must comfortably exceed the city bounding sphere.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Orbit controls', [
-      _slider('Damping', CAMERA_CONTROLS, 'DAMPING_FACTOR', 0, 0.5, 0.01, {
-        tip: 'OrbitControls inertia. Higher = snappier; lower = floatier glide.',
-      }),
-      _slider('Max polar angle × π', CAMERA_CONTROLS, 'MAX_POLAR_ANGLE_FRAC', 0, 0.5, 0.01, {
-        tip: 'How close to horizontal orbit can tilt, as a fraction of π. 0.5 = exactly level; lower = locked higher up.',
-      }),
-      _number('Min distance', CAMERA_CONTROLS, 'MIN_DISTANCE', 1, 500, 1, {
-        tip: 'Closest zoom (world units). Keeps the camera from clipping into geometry.',
-      }),
-      _slider('Max distance × initial', CAMERA_CONTROLS, 'MAX_DISTANCE_MULT', 1, 20, 0.1, {
-        tip: 'Furthest zoom, as a multiple of the initial framing distance.',
-      }),
-      _slider('Initial framing tightness', CAMERA_CONTROLS, 'INITIAL_DISTANCE_MULT', 0.5, 2, 0.01, {
-        tip: 'Boot framing distance vs exact bbox fit. 1.0 = bbox-tight; lower = closer in; higher = pulled back.',
-      }),
-    ])
+    'Camera and building transition timing.'
   );
 
   section.appendChild(
@@ -264,57 +232,6 @@ function _buildCameraSection(): HTMLElement {
       }),
       _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
         tip: 'Enter / stay duration for buildings as they fade in or refresh.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Focus framing', [
-      _slider('Building padding mult', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_MULT', 1, 5, 0.1, {
-        tip: 'Multiplier on the geometric "fit this building" distance — higher = more breathing room.',
-      }),
-      _number('Building padding offset', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_OFFSET', 0, 50, 1, {
-        tip: 'Constant offset added to the building-focus distance after the multiplier.',
-      }),
-      _slider('Street length frac', CAMERA_ANIMATION, 'STREET_FOCUS_LENGTH_FRAC', 0.1, 1, 0.01, {
-        tip: 'Visible street length when focusing, as a fraction of full street length.',
-      }),
-      _slider('Street width mult', CAMERA_ANIMATION, 'STREET_FOCUS_WIDTH_MULT', 1, 10, 0.1, {
-        tip: 'Visible street width when focusing = street width × this.',
-      }),
-      _slider('Street altitude × bldg', CAMERA_ANIMATION, 'STREET_FOCUS_ALTITUDE_BLDG_MULT', 0.5, 5, 0.1, {
-        tip: 'Altitude floor for street focus = max building height × this.',
-      }),
-      _number('Street altitude floor', CAMERA_ANIMATION, 'STREET_FOCUS_ALTITUDE_FLOOR', 10, 500, 5, {
-        tip: 'Constant added on top of the altitude × bldg term.',
-      }),
-      _slider('Street elevation (°)', CAMERA_ANIMATION, 'STREET_FOCUS_ELEVATION_DEG', 30, 89, 1, {
-        tip: 'Pitch of the camera when focusing a street. Near 90° = top-down; lower = more oblique.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Input timing', [
-      _number('Click move threshold (px)', INPUT_TIMING, 'CLICK_MOVE_THRESHOLD_PX', 0, 50, 1, {
-        tip: 'Pointer must move less than this many pixels for a release to count as a click (vs a drag).',
-      }),
-      _number('Click time threshold (ms)', INPUT_TIMING, 'CLICK_TIME_THRESHOLD_MS', 50, 2000, 10, {
-        tip: '…and release within this window.',
-      }),
-      _number('Hover commit (ms)', INPUT_TIMING, 'HOVER_COMMIT_MS', 0, 500, 5, {
-        tip: 'Milliseconds the cursor must stay on a target before the heavy fade cascade commits.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Tooltip placement', [
-      _number('Cursor offset (px)', TOOLTIP, 'OFFSET_PX', 0, 50, 1, {
-        tip: 'Distance the tooltip is offset from the cursor.',
-      }),
-      _number('Viewport margin (px)', TOOLTIP, 'VIEWPORT_MARGIN_PX', 0, 50, 1, {
-        tip: 'Safety margin between the tooltip and the viewport edges.',
       }),
     ])
   );
@@ -594,9 +511,6 @@ function _buildBuildingsSection(): HTMLElement {
       _rangePair('Lightness range', BUILDING_PALETTE, 'LIGHTNESS_MIN', 'LIGHTNESS_MAX', 0, 100, 5, {
         tip: 'HSL lightness range — recently-modified files tend to MAX (brighter); stale files tend to MIN.',
       }),
-      _color('Directory color', BUILDING_PALETTE, 'DIRECTORY_COLOR', {
-        tip: 'Solid color for any building representing a directory rather than a file.',
-      }),
     ])
   );
 
@@ -758,12 +672,12 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
-  // Selection fade parent — animation knobs first, then per-tier style.
-  // Each tier (Default = siblings of selection / Level 1 = one hop /
-  // Level 2+ = far) gets four controls: detail (full / silhouette /
-  // hidden), outline on/off, and separate body + outline opacity sliders.
-  // Hover renders a building using the Default tier's settings — no
-  // separate hover-floor knob. Default-closed; 4 children, niche.
+  // Selection fade parent — per-tier style. Each tier (Default =
+  // siblings of selection / Level 1 = one hop / Level 2+ = far) gets
+  // four controls: detail (full / silhouette / hidden), outline on/off,
+  // and separate body + outline opacity sliders. Hover renders a
+  // building using the Default tier's settings — no separate hover-floor
+  // knob. Default-closed; 3 children, niche.
   const DETAIL_OPTIONS = [
     { value: FadeDetail.Full, label: 'Full' },
     { value: FadeDetail.Silhouette, label: 'Silhouette' },
@@ -771,11 +685,6 @@ function _buildBuildingsSection(): HTMLElement {
   ];
   section.appendChild(
     _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
-      _subgroup('Animation', [
-        _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
-          tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
-        }),
-      ]),
       _subgroup('Default tier — siblings of selection', [
         _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
           tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
