@@ -73,6 +73,14 @@ uniform vec3 uFogColor;
 uniform float uFogIntensity;
 uniform float uFogHeight;
 
+// Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
+// Sun direction is in world space and points TOWARD the sun (positive
+// dot(normal, uSunDirWorld) means the face lights up). Refreshed via
+// refreshBuildingMaterial() from the LIGHTING store.
+uniform vec3 uSunDirWorld;
+uniform float uAmbient;
+uniform float uSunContrast;
+
 varying float vWorldY;
 
 // ---------------------------------------------------------------------------
@@ -126,9 +134,8 @@ const float ROOF_BORDER_FRAC = 0.03125;
 // stays atmospheric / readable rather than crushed to black. The sun is
 // kept as a subtle directional cue so the buildings still read as 3D,
 // but most of the "wow" comes from emissive windows, not from sunlight.
-const vec3 SUN_DIR_WORLD = normalize(vec3(0.5, 1.0, 0.4)); // upper-right
-const float AMBIENT = 0.72;     // base illumination on faces facing away from the sun
-const float DIFFUSE_GAIN = 0.28; // additional brightening on faces facing the sun
+// Sun direction, ambient, and sun-contrast are now driven by the
+// LIGHTING store (uSunDirWorld / uAmbient / uSunContrast above).
 
 // Slabs (the strip at the top of each floor) sit slightly darker than
 // the wall, regardless of light direction, so the floor seams read.
@@ -244,14 +251,14 @@ vec4 renderWallFace() {
   // on which compass direction each face points — not on which face
   // happens to be the door. North/south/east/west-facing walls light
   // up consistently across the whole city.
-  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
-  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+  float lambert = max(dot(normalize(vWorldNormal), uSunDirWorld), 0.0);
+  float lightFactor = uAmbient + uSunContrast * lambert;
 
   vec3 wallColor = baseColor * lightFactor;
   vec3 slabColor = shadeColor(baseColor, SLAB_LIGHTNESS_DELTA) * lightFactor;
   // Door stays a dark rectangle — small ambient response so it's not pitch-black
   // on sun-side walls but still reads as "open doorway".
-  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0) * (AMBIENT + DIFFUSE_GAIN * lambert * 0.4);
+  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0) * (uAmbient + uSunContrast * lambert * 0.4);
   // winColor is picked per-cell below — each cell hashes to "lit" or
   // "unlit" so the facade doesn't read as a copy-paste grid.
 
@@ -492,7 +499,7 @@ vec4 renderBottomFace() {
   // Bottom face is rarely visible; it points straight down so the sun's
   // lambert term goes to zero and we render at pure ambient.
   vec3 baseColor = linearToSrgb(vColor);
-  return vec4(baseColor * AMBIENT, vOpacity);
+  return vec4(baseColor * uAmbient, vOpacity);
 }
 
 // Silhouette mode: render the proper face-shaded base color but skip
@@ -505,8 +512,8 @@ vec4 renderSilhouette() {
     // Roof — solid base color, no directional shading (matches detail tier).
     return vec4(baseColor, vOpacity);
   }
-  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
-  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+  float lambert = max(dot(normalize(vWorldNormal), uSunDirWorld), 0.0);
+  float lightFactor = uAmbient + uSunContrast * lambert;
   return vec4(baseColor * lightFactor, vOpacity);
 }
 

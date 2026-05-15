@@ -10,6 +10,7 @@ import {
   BUILDING_DIMENSIONS,
   BUILDING_OUTLINE,
   BUILDING_PALETTE,
+  LIGHTING,
   SCENE_COLORS,
 } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
@@ -272,6 +273,24 @@ function _computeFogHeight(): number {
   return SCENE_COLORS.get().FOG_HEIGHT_FRAC * maxHeight;
 }
 
+/**
+ * Convert LIGHTING's spherical (azimuth, elevation) into a unit world-space
+ * direction TOWARD the sun and write it onto `out`.
+ *
+ * Convention: azimuth=0 points along +Z (south), increasing clockwise (so
+ * azimuth=90 points along +X / east); elevation=0 is on the horizon,
+ * elevation=90 is directly overhead (+Y). This reproduces the prior
+ * hard-coded `normalize(vec3(0.5, 1.0, 0.4))` at the default
+ * (az=51°, el=58°) to within rounding.
+ */
+function _writeSunDir(out: THREE.Vector3): void {
+  const lighting = LIGHTING.get();
+  const az = (lighting.SUN_AZIMUTH_DEG * Math.PI) / 180;
+  const el = (lighting.SUN_ELEVATION_DEG * Math.PI) / 180;
+  const cosEl = Math.cos(el);
+  out.set(Math.sin(az) * cosEl, Math.sin(el), Math.cos(az) * cosEl).normalize();
+}
+
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Inline the hsl helpers into the fragment source at the placeholder
@@ -319,8 +338,16 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
           ? (BUILDING_AGING.get().TILT_DEGREES * Math.PI) / 180
           : 0,
       },
+      // Scene directional lighting (LIGHTING store). uSunDirWorld is
+      // re-initialised below from the current LIGHTING values so the
+      // first frame already has the configured sun direction; the
+      // ambient and contrast scalars are seeded inline.
+      uSunDirWorld: { value: new THREE.Vector3() },
+      uAmbient: { value: LIGHTING.get().AMBIENT },
+      uSunContrast: { value: LIGHTING.get().SUN_CONTRAST },
     },
   });
+  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
   return _sharedMaterial;
 }
 
@@ -351,6 +378,11 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED
     ? (aging.TILT_DEGREES * Math.PI) / 180
     : 0;
+  // Scene directional lighting (LIGHTING store).
+  const lighting = LIGHTING.get();
+  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
+  _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
+  _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
 }
 
 /**

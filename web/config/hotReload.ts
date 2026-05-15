@@ -33,6 +33,7 @@ import {
   GEM_GLOW,
   LABEL_TYPOGRAPHY,
   BLOOM,
+  LIGHTING,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -144,6 +145,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     GEM_APPEARANCE,
     GEM_GLOW,
     BLOOM,
+    LIGHTING,
   ];
 
   const unsubs: Array<() => void> = [];
