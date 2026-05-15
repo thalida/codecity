@@ -41,6 +41,12 @@ export interface BuildingInstanceBuffer {
    *         FNV-1a hash of file.path.
    */
   iconUV: Float32Array;
+  /**
+   * N × 1 — modifiedAge per instance (0 = most recently modified, 1 = most stale).
+   * Mirror of the createdAge slot in `iconUV.w` but on the modified-date axis.
+   * Drives lit-window count + HDR emission curve in the building fragment shader.
+   */
+  modifiedAge: Float32Array;
 }
 
 // ---------------------------------------------------------------------------
@@ -78,6 +84,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     silhouette: new Float32Array(n),
     outlineOpacity: new Float32Array(n),
     iconUV: new Float32Array(n * 4),
+    modifiedAge: new Float32Array(n),
   };
 
   const m = new THREE.Matrix4();
@@ -115,6 +122,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
       buf.iconUV[i * 4 + 1] = -1.0;
       buf.iconUV[i * 4 + 2] = seed;
       buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
+      buf.modifiedAge[i] = b.modifiedAge ?? 0;
       continue;
     }
 
@@ -172,6 +180,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     buf.iconUV[i * 4 + 1] = -1.0;
     buf.iconUV[i * 4 + 2] = seed;
     buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
+    buf.modifiedAge[i] = b.modifiedAge ?? 0;
     if (_atlas) {
       const file = b.file;
       if (file) {
@@ -496,6 +505,10 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
     new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
   mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 4));
+  mesh.geometry.setAttribute(
+    'iModifiedAge',
+    new THREE.InstancedBufferAttribute(buf.modifiedAge, 1),
+  );
 
   // Compute bounding sphere from instance positions, then expand the
   // radius to cover the worst-case lateral displacement the tilt
