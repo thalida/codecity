@@ -421,25 +421,25 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
       }),
       _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
-        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down.',
+        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down. 0.5 is half the natural 0–1 dot-product range — beyond this the dead zone is so wide labels spend most of the orbit upside-down.',
       }),
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
-        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
+        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory. 512 fits the largest street-label canvas at maximum zoom; below 32 labels are illegible.',
       }),
       _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
         tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
       }),
       _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
-        tip: 'Text outline thickness, as a fraction of the font size.',
+        tip: 'Text outline thickness, as a fraction of the font size. 0.5 is half the natural 0–1 fraction range — above this the stroke overwhelms the glyph fill.',
       }),
       _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
-        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
+        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels. Labels above 2× the street width clip into adjacent rows.',
       }),
       _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
-        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
+        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width. Below 0.5 labels overlap themselves; above 10 the street reads as unlabeled.',
       }),
       _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
-        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up).',
+        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up). Beyond ~1000 world units the spacing forces labels off the visible street.',
       }),
     ])
   );
