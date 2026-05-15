@@ -309,4 +309,53 @@ describe('getBuildingColor', () => {
     const color = getBuildingColor(unknownFile, dateRanges);
     expect(color).toMatch(/^hsl\(/);
   });
+
+  it('lands at LIGHTNESS_MAX when modified date == modifiedMax', () => {
+    // Fixture: modifiedMax (2023-06-01) is strictly inside the created range
+    // [2020-01-01, 2024-12-31], so the created anchor normalizes it to t≈0.7
+    // (L≈57) while the correct modified anchor normalizes it to t=1.0 (L=70).
+    //   a.ts: created=2020-01-01 (createdMin), modified=2022-01-01 (modifiedMin)
+    //   b.ts: created=2024-12-31 (createdMax), modified=2023-06-01 (modifiedMax)
+    // b.ts with modified anchor: t=1.0 → S=100, L=70 ✓
+    // b.ts with created anchor:  t≈0.7 → S≈76, L≈57 ✗  (proves the test fails today)
+    const tree = {
+      name: 'p', type: NodeKind.Directory, path: '.', children: [
+        {
+          name: 'a.ts', type: NodeKind.File, extension: '.ts',
+          git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
+        },
+        {
+          name: 'b.ts', type: NodeKind.File, extension: '.ts',
+          git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
+        },
+      ],
+    };
+    const dr = getDateRanges(tree);
+    // b.ts modified at modifiedMax → t=1.0 → lightness = LIGHTNESS_MAX (70 in test palette).
+    const color = getBuildingColor(tree.children[1], dr);
+    expect(color).toMatch(/^hsl\(215,\s*100%,\s*70%\)$/);
+  });
+
+  it('lands at LIGHTNESS_MIN when modified date == modifiedMin', () => {
+    // Same fixture as above.
+    // a.ts modified=2022-01-01 is modifiedMin but NOT createdMin (2020-01-01).
+    // a.ts with modified anchor: t=0.0 → S=20,  L=25 ✓
+    // a.ts with created anchor:  t≈0.4 → S≈52, L≈43 ✗  (proves the test fails today)
+    const tree = {
+      name: 'p', type: NodeKind.Directory, path: '.', children: [
+        {
+          name: 'a.ts', type: NodeKind.File, extension: '.ts',
+          git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
+        },
+        {
+          name: 'b.ts', type: NodeKind.File, extension: '.ts',
+          git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
+        },
+      ],
+    };
+    const dr = getDateRanges(tree);
+    // a.ts modified at modifiedMin → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
+    const color = getBuildingColor(tree.children[0], dr);
+    expect(color).toMatch(/^hsl\(215,\s*20%,\s*25%\)$/);
+  });
 });
