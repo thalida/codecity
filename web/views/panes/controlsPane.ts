@@ -314,11 +314,11 @@ function _buildStreetsSection(): HTMLElement {
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
         tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
       }),
-      _number('Padding (px)', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_PX', 0, 200, 4, {
-        tip: 'Whitespace around each label inside its texture canvas.',
+      _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
+        tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
       }),
-      _number('Stroke width (px)', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_PX', 0, 100, 1, {
-        tip: 'Thickness of the dark outline behind the label fill.',
+      _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
+        tip: 'Text outline thickness, as a fraction of the font size.',
       }),
       _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
         tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',

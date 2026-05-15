@@ -50,8 +50,8 @@ export interface LabelTypographyConfig {
   FONT_FAMILY: string;
   FONT_WEIGHT: number;
   FONT_SIZE_PX: number;
-  CANVAS_PADDING_PX: number;
-  STROKE_WIDTH_PX: number;
+  CANVAS_PADDING_FRAC: number;  // padding around glyphs as fraction of FONT_SIZE_PX (default 0.25 = 48px at 192px font)
+  STROKE_WIDTH_FRAC: number;    // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
   HEIGHT_FRAC: number;
   SPACING_MULT: number;
   SPACING_FLOOR: number;
@@ -65,8 +65,8 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
   FONT_WEIGHT: 700,
   FONT_SIZE_PX: 192,
-  CANVAS_PADDING_PX: 48,
-  STROKE_WIDTH_PX: 32,
+  CANVAS_PADDING_FRAC: 0.25,
+  STROKE_WIDTH_FRAC: 1 / 6,
   HEIGHT_FRAC: 0.45, // label plane height = street width × this
   SPACING_MULT: 3.5, // repeat spacing = label width × this
   SPACING_FLOOR: 200, // …or this floor (world units), whichever is larger

@@ -464,15 +464,17 @@ function _buildLabelTexture(text: string): { texture: THREE.CanvasTexture; aspec
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
   const textW = Math.ceil(measure.measureText(text).width);
+  const paddingPx = Math.round(label.FONT_SIZE_PX * label.CANVAS_PADDING_FRAC);
+  const strokeWidthPx = Math.round(label.FONT_SIZE_PX * label.STROKE_WIDTH_FRAC);
   const canvas = document.createElement('canvas');
-  canvas.width = textW + label.CANVAS_PADDING_PX * 2;
-  canvas.height = label.FONT_SIZE_PX + label.CANVAS_PADDING_PX * 2;
+  canvas.width = textW + paddingPx * 2;
+  canvas.height = label.FONT_SIZE_PX + paddingPx * 2;
   const ctx = canvas.getContext('2d')!;
   ctx.font = fontSpec;
   ctx.textAlign = LABEL_TEXT_ALIGN as CanvasTextAlign;
   ctx.textBaseline = LABEL_TEXT_BASELINE as CanvasTextBaseline;
 
-  ctx.lineWidth = label.STROKE_WIDTH_PX;
+  ctx.lineWidth = strokeWidthPx;
   ctx.strokeStyle = label.STROKE;
   ctx.strokeText(text, canvas.width / 2, canvas.height / 2);
   ctx.fillStyle = label.FILL;
