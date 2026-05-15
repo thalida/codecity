@@ -1,9 +1,16 @@
 // colors.ts — HSL mapping from file metadata.
-//   Hue        → file extension  (palette, deterministic hash for unknowns)
-//   Saturation → creation age    (newer = vivid, older = faded)
-//   Lightness  → last modified   (recent = bright, untouched = dim)
+//   Hue        → file extension          (palette; deterministic hash for unknowns)
+//   Saturation → last-modified date      (recent = vivid, stale = faded)
+//   Lightness  → last-modified date      (recent = bright, stale = dim)
 //
-// Tunables come from BUILDING_PALETTE in src/config/building.js. Tests
+// Both saturation and lightness key off the same axis (last-modified),
+// normalized against the repo's modifiedMin/Max — so the dim/desaturated
+// end represents "this file hasn't been touched in a long time".
+// `getCreatedAge` (also exported here) tracks a SEPARATE axis: how long
+// the file has existed in the repo. That drives grime + tilt + lit-window
+// glow color in the shader, independent of recent edits.
+//
+// Tunables come from BUILDING_PALETTE in config/building.ts. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
 import { BUILDING_PALETTE } from '@/config/index.js';
@@ -247,17 +254,20 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): 
 
   const palette = BUILDING_PALETTE.get();
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
-  // Both saturation and lightness key off LAST-MODIFIED but normalize
-  // against the repo's CREATED-date range — same time axis the grime
-  // and tilt signals use. This anchors every visual signal to the
-  // single reference of "oldest file in the repo," so the color and
-  // weathering scales evolve together as the codebase ages.
+  // Saturation and lightness both key off LAST-MODIFIED, normalized
+  // against the repo's MODIFIED-date range (modifiedMin/Max). This
+  // gives the color signal full spread: a file modified at the
+  // earliest modification timestamp in the repo lands at
+  // (SATURATION_MIN, LIGHTNESS_MIN); the most-recently-modified file
+  // lands at (SATURATION_MAX, LIGHTNESS_MAX).
   //
-  // A file modified after the newest-created file (common: edits
-  // continue after file creation) clamps to the bright end. Within
-  // the range it interpolates linearly. The createdMin/Max also
-  // serves as the freshness divisor in the shader so the color and
-  // age signals stay in sync.
+  // Decoupled by design from createdAge-driven effects (grime, tilt,
+  // lit-window glow color), which still anchor against createdMin/Max:
+  //   - Color           = "how recently was this touched"
+  //   - Grime/tilt/glow = "how long has this file existed"
+  // A long-existing file edited yesterday looks vivid AND grimy; a
+  // recently-created file untouched for a month looks dim/desaturated
+  // but clean. Each axis encodes a distinct fact.
   const minAnchor = dateRanges.modifiedMin;
   const maxAnchor = dateRanges.modifiedMax;
   const s = getSaturation(modified, minAnchor, maxAnchor, {
