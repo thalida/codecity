@@ -223,18 +223,48 @@ export function getDateRanges(tree: TreeNodeLike): DateRangeStrings {
  * @param {Object} dateRanges - Output of getDateRanges().
  * @returns {string} CSS HSL string, e.g. "hsl(215, 80%, 55%)".
  */
+/**
+ * Compute the "createdAge" weathering signal for a building, sampled at
+ * the file's CREATION date and normalized against the repo's
+ * createdMin/createdMax. 1.0 = oldest file in the repo (most weathered),
+ * 0.0 = newest. Same time anchor the color signal uses (which samples
+ * at modified date), so both signals evolve together as the repo grows.
+ */
+export function getCreatedAge(file: FileLike, dateRanges: DateRangeStrings): number {
+  const created = (file.git && file.git.created) || file.created || null;
+  if (!created) return 0.5; // unknown → midpoint (half-weathered)
+  const c = Date.parse(created);
+  const min = Date.parse(dateRanges.createdMin || '');
+  const max = Date.parse(dateRanges.createdMax || '');
+  if (isNaN(c) || isNaN(min) || isNaN(max) || max === min) return 0;
+  const t = (c - min) / (max - min);
+  return Math.max(0, Math.min(1, 1 - t));
+}
+
 export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): string {
   // Prefer git dates, fall back to filesystem dates
-  const created = (file.git && file.git.created) || file.created || null;
   const modified = (file.git && file.git.modified) || file.modified || null;
 
   const palette = BUILDING_PALETTE.get();
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
-  const s = getSaturation(created, dateRanges.createdMin, dateRanges.createdMax, {
+  // Both saturation and lightness key off LAST-MODIFIED but normalize
+  // against the repo's CREATED-date range — same time axis the grime
+  // and tilt signals use. This anchors every visual signal to the
+  // single reference of "oldest file in the repo," so the color and
+  // weathering scales evolve together as the codebase ages.
+  //
+  // A file modified after the newest-created file (common: edits
+  // continue after file creation) clamps to the bright end. Within
+  // the range it interpolates linearly. The createdMin/Max also
+  // serves as the freshness divisor in the shader so the color and
+  // age signals stay in sync.
+  const minAnchor = dateRanges.createdMin;
+  const maxAnchor = dateRanges.createdMax;
+  const s = getSaturation(modified, minAnchor, maxAnchor, {
     min: palette.SATURATION_MIN,
     max: palette.SATURATION_MAX,
   });
-  const l = getLightness(modified, dateRanges.modifiedMin, dateRanges.modifiedMax, {
+  const l = getLightness(modified, minAnchor, maxAnchor, {
     min: palette.LIGHTNESS_MIN,
     max: palette.LIGHTNESS_MAX,
   });

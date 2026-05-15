@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import type { Building } from '@/types';
 import { BuildingOrient } from '@/types';
+import { BLOOM } from '@/config/index.js';
 
 // Mirrors the media-recognizing extension sets in filePreviewPane.ts —
 // kept in sync by hand so the sidebar player and the billboard pick
@@ -126,6 +127,13 @@ export function createBillboard(building: Building): THREE.Group {
   group.userData.kind = 'billboard';
   group.userData.building = building;
 
+  // BLOOM.BILLBOARD_EMISSION multiplies the image panel's color so
+  // bright texture pixels push past 1.0 in linear space and the bloom
+  // pass picks them up. Read once at creation; refreshBillboards()
+  // (called from applyTheme) re-pushes on hot-reload.
+  const bloomCfg = BLOOM.get();
+  const billboardEmission = bloomCfg.ENABLED ? bloomCfg.BILLBOARD_EMISSION : 1.0;
+
   const panelW = Math.max(1, building.w);
   const panelH = panelW * PANEL_ASPECT;
   const panelD = panelW * PANEL_DEPTH_FRAC;
@@ -138,7 +146,9 @@ export function createBillboard(building: Building): THREE.Group {
   // Gives the sign real 3D mass and acts as the frame around the image;
   // the back of this box is what's visible from behind the billboard.
   const bodyGeo = new THREE.BoxGeometry(panelW, panelH, panelD);
-  const bodyMat = new THREE.MeshBasicMaterial({ color: BODY_COLOR });
+  // transparent: true so the fader can dial body opacity below 1.0 for
+  // non-selected tiers without recompiling the material.
+  const bodyMat = new THREE.MeshBasicMaterial({ color: BODY_COLOR, transparent: true });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.set(0, postH + panelH / 2, 0);
   body.userData.kind = 'billboard';
@@ -152,13 +162,20 @@ export function createBillboard(building: Building): THREE.Group {
   const imageW = panelW - inset * 2;
   const imageH = panelH - inset * 2;
   const imageGeo = new THREE.PlaneGeometry(imageW, imageH);
+  // Placeholder color (before texture loads) — pre-multiplied by
+  // emission so the brief loading state matches the loaded-state look.
+  const placeholderColor = new THREE.Color(PANEL_PLACEHOLDER_COLOR).multiplyScalar(billboardEmission);
   const imageMat = new THREE.MeshBasicMaterial({
-    color: PANEL_PLACEHOLDER_COLOR,
+    color: placeholderColor,
     side: THREE.FrontSide,
+    transparent: true,
   });
   const image = new THREE.Mesh(imageGeo, imageMat);
   image.position.set(0, postH + panelH / 2, panelD / 2 + IMAGE_OFFSET);
+  // Tag for refreshBillboards() so it can find this mesh again to
+  // re-apply BILLBOARD_EMISSION when the BLOOM config hot-reloads.
   image.userData.kind = 'billboard';
+  image.userData.role = 'panel';
   image.userData.building = building;
   group.add(image);
 
@@ -168,7 +185,7 @@ export function createBillboard(building: Building): THREE.Group {
   // panel body sitting on top.
   const postRadius = postW / 2;
   const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postH, 10);
-  const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR });
+  const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR, transparent: true });
   for (const sign of [-1, 1]) {
     const post = new THREE.Mesh(postGeo, postMat);
     post.position.set(sign * postInset, postH / 2, 0);
@@ -187,9 +204,17 @@ export function createBillboard(building: Building): THREE.Group {
   _loadBillboardTexture(url, kind)
     .then((texture) => {
       if (!texture) return;
+      // Read emission fresh in case BLOOM hot-reloaded during the
+      // texture fetch. Color tint multiplies the texture sample —
+      // bright spots push past 1.0 and bloom; dark spots stay dim.
+      const cfg = BLOOM.get();
+      const e = cfg.ENABLED ? cfg.BILLBOARD_EMISSION : 1.0;
       image.material = new THREE.MeshBasicMaterial({
         map: texture,
+        color: new THREE.Color(e, e, e),
         side: THREE.FrontSide,
+        transparent: true,
+        opacity: (image.material as THREE.MeshBasicMaterial).opacity,
       });
     })
     .catch(() => {
@@ -197,6 +222,51 @@ export function createBillboard(building: Building): THREE.Group {
     });
 
   return group;
+}
+
+/**
+ * Push the current BLOOM.BILLBOARD_EMISSION value into every panel
+ * mesh's material color. Called from applyTheme() so the bloom slider
+ * affects billboards live, without scene rebuild. The panel mesh is
+ * identified by userData.role === 'panel' (set in createBillboard).
+ */
+export function refreshBillboards(groups: Iterable<THREE.Group>): void {
+  const cfg = BLOOM.get();
+  const e = cfg.ENABLED ? cfg.BILLBOARD_EMISSION : 1.0;
+  const tint = new THREE.Color(e, e, e);
+  for (const group of groups) {
+    group.traverse((obj) => {
+      if (!(obj instanceof THREE.Mesh)) return;
+      if (obj.userData.role !== 'panel') return;
+      const mat = obj.material as THREE.MeshBasicMaterial;
+      // If a texture is loaded the tint multiplies it; without a
+      // texture, the placeholder needs the pre-multiplied dark value.
+      if (mat.map) {
+        mat.color.copy(tint);
+      } else {
+        mat.color.copy(new THREE.Color(PANEL_PLACEHOLDER_COLOR)).multiply(tint);
+      }
+    });
+  }
+}
+
+/**
+ * Set every child material's opacity in a billboard group. Used by
+ * the buildingFader to dial billboards in / out across the same fade
+ * tiers as building instances (Default / Level 1 / Level 2+ /
+ * selected). Materials are constructed with `transparent: true` so
+ * setting opacity here is a no-recompile write.
+ */
+export function setBillboardOpacity(group: THREE.Group, opacity: number): void {
+  group.traverse((obj) => {
+    if (!(obj instanceof THREE.Mesh)) return;
+    const mat = obj.material as THREE.Material | THREE.Material[];
+    if (Array.isArray(mat)) {
+      for (const m of mat) m.opacity = opacity;
+    } else {
+      mat.opacity = opacity;
+    }
+  });
 }
 
 /** Dispose every mesh inside a billboard group — geometry, material,

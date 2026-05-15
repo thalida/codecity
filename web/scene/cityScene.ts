@@ -57,7 +57,7 @@ import type {
 } from './layoutV4.js';
 import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
-import { getBuildingColor, getDateRanges } from './colors.js';
+import { getBuildingColor, getCreatedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import { BUILDING_PALETTE, LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
@@ -715,6 +715,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
               newDateRanges,
             )
           : dirColor;
+      // createdAge is independent of color: it tracks file age (creation
+      // date) so grime/weathering can mark old files even if they were
+      // recently edited. Directories get 0 (no weathering on slabs).
+      b.createdAge =
+        b.file?.type === NodeKind.File
+          ? getCreatedAge(
+              b.file as unknown as Parameters<typeof getCreatedAge>[0],
+              newDateRanges,
+            )
+          : 0;
     }
     if (myGeneration !== _currentGeneration) return;
 

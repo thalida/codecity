@@ -23,8 +23,11 @@ import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { FILE_ICON_CDN_BASE, getFileIconName } from '@/views/shell/fileIcon.js';
 
-const ATLAS_SIZE = 1024;
-const SLOT_SIZE = 64;
+// Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique
+// icons at 4× the per-icon resolution of the old 64-px slots.
+// Memory: 2048×2048×4 bytes = 16 MiB texture (one-time, persistent).
+const ATLAS_SIZE = 2048;
+const SLOT_SIZE = 128;
 const SLOTS_PER_SIDE = ATLAS_SIZE / SLOT_SIZE; // 16
 const MAX_SLOTS = SLOTS_PER_SIDE * SLOTS_PER_SIDE; // 256
 const SLOT_UV = 1 / SLOTS_PER_SIDE;
@@ -89,6 +92,10 @@ export async function buildIconAtlas(
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
   texture.generateMipmaps = false;
+  // Anisotropy keeps icons crisp at the steep camera angles typical
+  // for roof-down views. 16 is the standard maximum on desktop GPUs
+  // and a no-op on devices that don't support it.
+  texture.anisotropy = 16;
   texture.needsUpdate = true;
 
   return {

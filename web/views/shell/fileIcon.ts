@@ -40,6 +40,8 @@ const EXT_ICON: Record<string, string> = {
   '.sass': 'sass',
   '.less': 'less',
   '.styl': 'stylus',
+  '.vue': 'vue',
+  '.svelte': 'svelte',
   // Data / config
   '.json': 'json',
   '.json5': 'json',

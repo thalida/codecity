@@ -26,11 +26,13 @@ import {
   SIDEWALK_COLORS,
   ASPHALT,
   BUILDING_OUTLINE,
+  BUILDING_AGING,
   PATH_LINE,
   HOVER_PATH_LINE,
   GEM_APPEARANCE,
   GEM_GLOW,
   LABEL_TYPOGRAPHY,
+  BLOOM,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -136,10 +138,12 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     SIDEWALK_COLORS,
     ASPHALT,
     BUILDING_OUTLINE,
+    BUILDING_AGING,
     PATH_LINE,
     HOVER_PATH_LINE,
     GEM_APPEARANCE,
     GEM_GLOW,
+    BLOOM,
   ];
 
   const unsubs: Array<() => void> = [];

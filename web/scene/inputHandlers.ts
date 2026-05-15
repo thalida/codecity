@@ -23,7 +23,6 @@ export function createInputHandlers({
   rig,
   renderer,
   camera,
-  scene,
   showTooltip,
   hideTooltip,
   onResize,
@@ -34,7 +33,6 @@ export function createInputHandlers({
   rig: ReturnType<typeof createCameraRig>;
   renderer: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
-  scene: THREE.Scene;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
@@ -279,10 +277,9 @@ export function createInputHandlers({
     renderer.setSize(cw, ch, false);
     camera.aspect = cw / Math.max(1, ch);
     camera.updateProjectionMatrix();
+    // onResize owns the synchronous paint so the post-FX pipeline (bloom)
+    // shows on the new size without a blank/cleared frame in between.
     if (typeof onResize === 'function') onResize();
-    // Paint the resized canvas synchronously so the browser doesn't
-    // show a blank/cleared frame between resize and the next animate().
-    renderer.render(scene, camera);
   }
   _on(window, 'resize', _resize);
 
