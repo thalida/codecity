@@ -318,7 +318,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
       // Ground-haze uniforms — height-based volumetric fog applied
       // in the building shader. Independent of camera distance.
-      uFogColor: { value: new THREE.Color(SCENE_COLORS.get().FOG_COLOR) },
+      // Fog color is mixed into the post-tonemap sRGB framebuffer; pass
+      // the CSS hex through unchanged via LinearSRGBColorSpace so Three's
+      // automatic sRGB->linear conversion doesn't darken it. Same
+      // convention as uDimGlowColor.
+      uFogColor: { value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace) },
       uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
       // Extra HDR emission applied to the freshest building's lit
@@ -339,8 +343,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // Scene directional lighting (LIGHTING store). uSunDirWorld is
       // re-initialised below from the current LIGHTING values so the
       // first frame already has the configured sun direction; the
-      // ambient and contrast scalars are seeded inline.
-      uSunDirWorld: { value: new THREE.Vector3() },
+      // ambient and contrast scalars are seeded inline. The (0,1,0)
+      // placeholder gives an overhead sun if _writeSunDir somehow
+      // doesn't run, rather than the all-faces-shadow look a zero
+      // vector would produce.
+      uSunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
       uAmbient: { value: LIGHTING.get().AMBIENT },
       uSunContrast: { value: LIGHTING.get().SUN_CONTRAST },
       // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
@@ -388,7 +395,10 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
   _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
   _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
-  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).set(sceneCfg.FOG_COLOR);
+  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
+    sceneCfg.FOG_COLOR,
+    THREE.LinearSRGBColorSpace,
+  );
   // FOG_ENABLED gates intensity at the uniform level; the shader logic
   // is unchanged (fogAmount → 0 when intensity is 0, mix() is a no-op).
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
