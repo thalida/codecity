@@ -10,9 +10,10 @@
 //   EASING_POWER        — exponent for the easeOutPower curve used by all
 //                         camera tweens: 1 - (1 - t)^P. 1 = linear,
 //                         3 = ease-out cubic (default), higher = snappier.
-//   BUILDING_TRANSITION_MS — enter / stay duration for buildings (the old
-//                         ENTER_MS=400 and STAY_MS=350 collapsed; they
-//                         were always tuned together).
+//   BUILDING_TRANSITION_MS — enter / stay duration for buildings.
+//                         Default is 375, the midpoint of the old
+//                         ENTER_MS=400 / STAY_MS=350 split — those two
+//                         tweens are now driven by the same knob.
 //
 // All values are read fresh per gesture (.get() at action time) so Settings
 // UI tweaks apply immediately without restart — there's no module-level
@@ -29,5 +30,5 @@ export interface AnimationTimingConfig {
 export const ANIMATION_TIMING = map<AnimationTimingConfig>({
   BASE_DURATION_MS: 500,
   EASING_POWER: 3,
-  BUILDING_TRANSITION_MS: 400,
+  BUILDING_TRANSITION_MS: 375,
 });
