@@ -550,25 +550,25 @@ function _buildBuildingsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Billboards (media files)', [
       _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
-        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait.',
+        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait. Below 0.3 the panel is too thin to read; above 1.5 a portrait panel taller than 1.5× its width clips into the street tier above.',
       }),
       _slider('Panel depth × width', BILLBOARD_GEOMETRY, 'PANEL_DEPTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Body depth (front-to-back thickness) as a fraction of panel width.',
+        tip: 'Body depth (front-to-back thickness) as a fraction of panel width. Above 0.3 the panel reads as a thick slab rather than a sign.',
       }),
       _slider('Image inset × height', BILLBOARD_GEOMETRY, 'PANEL_INSET_FRAC', 0, 0.2, 0.01, {
-        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness.',
+        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness. Above 0.2 the inset eats more than 20% of the panel height on each side, leaving little visible image area.',
       }),
       _slider('Image offset', BILLBOARD_GEOMETRY, 'IMAGE_OFFSET', 0, 0.2, 0.01, {
-        tip: 'How far in front of the body face the image plane sits.',
+        tip: 'How far in front of the body face the image plane sits. Above 0.2 the image floats noticeably away from the panel body.',
       }),
       _slider('Post height × panel', BILLBOARD_GEOMETRY, 'POST_HEIGHT_FRAC', 0, 3, 0.05, {
-        tip: 'Support post height as a multiple of panel height.',
+        tip: 'Support post height as a multiple of panel height. Above 3× the post towers over the sign and the billboard reads as a flagpole.',
       }),
       _slider('Post width × panel', BILLBOARD_GEOMETRY, 'POST_WIDTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Support post width as a fraction of panel width.',
+        tip: 'Support post width as a fraction of panel width. Above 0.3 the post is wider than a third of the panel and visually dominates the sign.',
       }),
       _slider('Post offset × width', BILLBOARD_GEOMETRY, 'POST_INSET_FRAC', 0, 0.5, 0.01, {
-        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing).',
+        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing). 0.5 places each post at the panel edge; beyond that posts would extend past the panel boundary.',
       }),
       _color('Post color', BILLBOARD_GEOMETRY, 'POST_COLOR', {
         tip: 'Support post color. Default matches the sidewalk gray.',
