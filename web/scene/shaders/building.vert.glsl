@@ -29,7 +29,7 @@ attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidd
 //   .xy = top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
 //   .z  = per-file random in [0, 1] driving the window gap / lit hash
 //   .w  = createdAge — 0 (newest file) to 1 (oldest), repo-relative.
-//         Independent of color/freshness; drives grime/weathering.
+//         Independent of modifiedAge; drives grime/weathering.
 attribute vec4 iIconUV;
 // Per-instance modifiedAge in [0, 1]. 0 = most recently modified
 // (vivid, fully lit windows); 1 = longest-untouched (dim, mostly

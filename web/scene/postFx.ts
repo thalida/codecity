@@ -2,7 +2,7 @@
 //
 // Why HDR (HalfFloatType render targets):
 // The building fragment shader writes a per-pixel emission multiplier
-// for lit windows scaled by freshness (newer = brighter). With LDR
+// for lit windows scaled by modifiedAge recencyCurve (newer = brighter). With LDR
 // (UnsignedByteType, [0,1]) all values clamp to 1.0 and every lit
 // window — old or new — caps at the same brightness, so the bloom
 // threshold becomes a knife-edge: either nothing blooms or walls

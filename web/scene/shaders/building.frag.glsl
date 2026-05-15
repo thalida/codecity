@@ -34,10 +34,10 @@ flat varying vec3 vScale;
 // .xy = atlas UV for the file icon (or (-1,-1) for "no icon"),
 // .z  = per-file random in [0, 1] driving the window gap / lit hash,
 // .w  = createdAge in [0, 1] — 0=newest file, 1=oldest. Drives grime
-//        independently of color/freshness so old-but-recently-edited
+//        independently of modifiedAge so old-but-recently-edited
 //        files still look weathered.
 flat varying vec4 vIconUV;
-flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Replaces the lightness-recovered `freshness`.
+flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.

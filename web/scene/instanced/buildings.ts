@@ -331,7 +331,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // from windows; higher = brighter glow on new buildings.
       uWindowEmissionBoost: { value: BLOOM.get().WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
-      // color/freshness). See BUILDING_AGING config.
+      // modifiedAge). See BUILDING_AGING config.
       uGrimeIntensity: {
         value: BUILDING_AGING.get().GRIME_ENABLED ? BUILDING_AGING.get().GRIME_INTENSITY : 0,
       },

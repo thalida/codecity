@@ -255,9 +255,7 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRangeStrings): num
  * (most stale); 0.0 = most recently modified.
  *
  * Shader-side: passed in via iModifiedAge (per-instance attribute) and
- * read as `vModifiedAge` in the building fragment shader, replacing
- * the previous `freshness` value (which was the inverted form,
- * recovered from baseColor's lightness).
+ * read as `vModifiedAge` in the building fragment shader.
  */
 export function getModifiedAge(file: FileLike, dateRanges: DateRangeStrings): number {
   const modified = (file.git && file.git.modified) || file.modified || null;
