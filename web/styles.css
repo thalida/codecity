@@ -808,26 +808,47 @@ canvas {
   font-style: normal;
 }
 
-/* Every controls section is a <details> for native collapse. Keep the
- * summary styled like the section heading row; tame the default
- * disclosure marker so the chevron sits inline with the title. */
+/* Every controls section is a <details> for native collapse. Summary
+ * is styled to match the file tree's accordion row: Lucide chevron +
+ * label, with the same hover background, border radius, and padding
+ * as .tree-row so the two activity-bar tabs feel like the same UI.
+ *
+ * The chevron is a Lucide icon (via makeLucideIcon) rather than a
+ * unicode triangle — sharper at small sizes and currentColor-aware. */
 .controls-section > summary.controls-section-summary {
   cursor: pointer;
   list-style: none;
   user-select: none;
-  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  /* Match .tree-row padding so a section heading and a tree row sit at
+   * the same indent. Negative inline margins pull the row to the edge
+   * of the controls-pane padding for an edge-to-edge hover highlight,
+   * also mirroring .tree-row. */
+  padding: 3px 16px;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.controls-section > summary.controls-section-summary:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-.controls-section > summary.controls-section-summary::before {
-  content: '▸';
-  display: inline-block;
-  width: 1em;
-  margin-right: 0.25em;
+.controls-section-chevron {
+  /* Match .tree-chevron's 14px slot so labels line up with the file
+   * tree's labels at the same horizontal position. */
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #c0c4d8;
   transition: transform 0.1s ease;
 }
-.controls-section[open] > summary.controls-section-summary::before {
+.controls-section[open] > summary.controls-section-summary > .controls-section-chevron {
   transform: rotate(90deg);
 }
 
@@ -997,24 +1018,37 @@ canvas {
 }
 
 /* Collapsible subgroup variant — a <details> whose <summary> doubles as
- * the .theme-subgroup-label. Mirrors the section chevron so the open/closed
- * affordance is consistent at every level of the controls panel. */
+ * the .theme-subgroup-label. Same Lucide chevron + hover row treatment
+ * as .controls-section-summary so the open/closed affordance is
+ * consistent at every level of the panel. */
 .theme-subgroup-collapsible > summary.theme-subgroup-label {
   cursor: pointer;
   list-style: none;
   user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 16px;
+  margin-left: -16px;
+  margin-right: -16px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  transition: background 0.1s;
+}
+.theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 .theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
   display: none;
 }
-.theme-subgroup-collapsible > summary.theme-subgroup-label::before {
-  content: '▸';
-  display: inline-block;
-  width: 1em;
-  margin-right: 0.25em;
+.theme-subgroup-chevron {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: #8a8fa8;
   transition: transform 0.1s ease;
 }
-.theme-subgroup-collapsible[open] > summary.theme-subgroup-label::before {
+.theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
   transform: rotate(90deg);
 }
 

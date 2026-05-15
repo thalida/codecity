@@ -1094,6 +1094,11 @@ function _section(name: string, hint?: string, defaultOpen = true): HTMLElement 
 
   const summary = document.createElement('summary');
   summary.className = 'controls-section-summary';
+  // Lucide chevron, rotated via CSS on [open] — matches the file tree
+  // accordion's visual language (Lucide icon + currentColor mask) rather
+  // than the previous unicode triangle.
+  const chevron = makeLucideIcon('chevron-right', { class: 'controls-section-chevron' });
+  summary.appendChild(chevron);
   const label = document.createElement('span');
   label.className = 'controls-section-label';
   label.textContent = name;
@@ -1158,7 +1163,14 @@ function _collapsibleSubgroup(
 
   const summary = document.createElement('summary');
   summary.className = 'theme-subgroup-label';
-  summary.textContent = name;
+  // Lucide chevron matched to the section accordion's chevron — same
+  // family as the file tree's expand/collapse glyph.
+  const chevron = makeLucideIcon('chevron-right', { class: 'theme-subgroup-chevron' });
+  summary.appendChild(chevron);
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'theme-subgroup-label-text';
+  labelSpan.textContent = name;
+  summary.appendChild(labelSpan);
   details.appendChild(summary);
 
   for (const row of buildRows()) details.appendChild(row);
