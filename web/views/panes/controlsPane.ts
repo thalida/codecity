@@ -640,7 +640,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
         }),
         _slider('Lit-window dim curve', WINDOW_LIGHTING, 'LIT_FRESHNESS_EXPONENT', 1, 4, 0.1, {
-          tip: 'Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow.',
+          tip: 'Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow. Beyond 4 only the newest ~6% of files visibly emit (exponent applied to recency).',
         }),
         _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
           tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
@@ -669,7 +669,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
         }),
         _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
-          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0. Above 10° buildings visually clip into their neighbors.',
         }),
       ]),
     ])
