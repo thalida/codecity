@@ -177,7 +177,7 @@ function _buildUpdatesSection(): HTMLElement {
         tip: "When on, the city re-renders in place every poll interval if the scanned tree's mtime/size signature changed.",
       }),
       _number('Poll interval (s)', LIVE_UPDATES, 'POLL_SECONDS', 1, 60, 1, {
-        tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server.',
+        tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server. Below 1s hammers the backend; above 60s the city feels stale.',
       }),
     ])
   );
@@ -225,13 +225,13 @@ function _buildCameraSection(): HTMLElement {
   section.appendChild(
     _subgroup('Transitions', [
       _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
-        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio.',
+        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
       _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
-        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish.',
+        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function.',
       }),
       _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
-        tip: 'Enter / stay duration for buildings as they fade in or refresh.',
+        tip: 'Enter / stay duration for buildings as they fade in or refresh. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
     ])
   );
