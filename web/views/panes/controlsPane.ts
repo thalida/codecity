@@ -683,26 +683,17 @@ function _buildEffectsSection(): HTMLElement {
 }
 
 // ─── Debug ─────────────────────────────────────────────────────────────────
-// Developer-only diagnostics. Collapsed by default so the section doesn't
-// distract during normal use. Buttons are rendered only when their callback
-// is provided; either or both may be present.
+// Developer-only diagnostics. Collapsibility (and persisted open/closed
+// state) comes from the shared `_section()` helper. Buttons are rendered
+// only when their callback is provided; either or both may be present.
 function _buildDebugSection(
   onRunCollisionCheck: (() => void) | undefined,
   onRunStemDiagnostic: (() => void) | undefined,
 ): HTMLElement {
-  const section = document.createElement('details');
-  section.className = 'controls-section controls-section-collapsible';
-
-  const summary = document.createElement('summary');
-  summary.className = 'controls-section-label';
-  summary.textContent = 'Debug';
-  section.appendChild(summary);
-
-  const hint = document.createElement('div');
-  hint.className = 'controls-section-hint';
-  hint.textContent =
-    'Developer-only diagnostics. Output goes to the browser console.';
-  section.appendChild(hint);
+  const section = _section(
+    'Debug',
+    'Developer-only diagnostics. Output goes to the browser console.',
+  );
 
   if (onRunCollisionCheck) {
     const row = document.createElement('div');
@@ -831,13 +822,34 @@ function _buildActionsSection(): HTMLElement {
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
 function _section(name: string, hint?: string): HTMLElement {
-  const section = document.createElement('div');
+  const section = document.createElement('details');
   section.className = 'controls-section';
 
-  const label = document.createElement('div');
+  const storageKey =
+    'controls.section.' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const persisted = (() => {
+    try {
+      return localStorage.getItem(storageKey);
+    } catch {
+      return null;
+    }
+  })();
+  section.open = persisted !== 'closed';
+  section.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
+    } catch {
+      /* localStorage unavailable; ignore */
+    }
+  });
+
+  const summary = document.createElement('summary');
+  summary.className = 'controls-section-summary';
+  const label = document.createElement('span');
   label.className = 'controls-section-label';
   label.textContent = name;
-  section.appendChild(label);
+  summary.appendChild(label);
+  section.appendChild(summary);
 
   if (hint) {
     const h = document.createElement('div');

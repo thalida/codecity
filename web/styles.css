@@ -809,25 +809,26 @@ canvas {
   font-style: normal;
 }
 
-/* Debug section uses <details> for native collapse. Keep the summary
- * styled like other controls-section-label rows; tame the default
- * disclosure marker so it sits inline with the title. */
-.controls-section-collapsible > summary {
+/* Every controls section is a <details> for native collapse. Keep the
+ * summary styled like the section heading row; tame the default
+ * disclosure marker so the chevron sits inline with the title. */
+.controls-section > summary.controls-section-summary {
   cursor: pointer;
   list-style: none;
   user-select: none;
+  margin-bottom: 6px;
 }
-.controls-section-collapsible > summary::-webkit-details-marker {
+.controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-.controls-section-collapsible > summary::before {
+.controls-section > summary.controls-section-summary::before {
   content: '▸';
   display: inline-block;
   width: 1em;
   margin-right: 0.25em;
   transition: transform 0.1s ease;
 }
-.controls-section-collapsible[open] > summary::before {
+.controls-section[open] > summary.controls-section-summary::before {
   transform: rotate(90deg);
 }
 
