@@ -34,6 +34,9 @@ import {
   LABEL_TYPOGRAPHY,
   BLOOM,
   LIGHTING,
+
+  // Mixed (subscribed to BOTH lists — see below):
+  FACADE_GEOMETRY,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -132,6 +135,16 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // full rebuild on label-typography change is acceptable — hot-reload
     // here is rare.
     LABEL_TYPOGRAPHY,
+    // FACADE_GEOMETRY: WINDOW_COLS_MAX / WINDOW_COLS_SIZE_DIVISOR /
+    // DOOR_WIDTH_OF_PATH bake into per-instance attributes
+    // (buf.cols / buf.doorWidth), so a change requires re-running
+    // buildBuildingInstanceBuffer via applyManifest. The shader-side
+    // keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are also pushed live via the
+    // hotStores entry below — split-routing the same store keeps the
+    // wiring trivial. If the rebuild churn ever becomes a perf concern
+    // we can switch to listenKeys to gate scheduleRebuild on just the
+    // three JS keys.
+    FACADE_GEOMETRY,
   ];
 
   const hotStores = [
@@ -146,6 +159,11 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     GEM_GLOW,
     BLOOM,
     LIGHTING,
+    // FACADE_GEOMETRY: shader-side keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC)
+    // are pushed through refreshBuildingMaterial() — sliders on these
+    // give instant visual feedback without waiting for the rebuild
+    // triggered from rebuildStores above.
+    FACADE_GEOMETRY,
   ];
 
   const unsubs: Array<() => void> = [];

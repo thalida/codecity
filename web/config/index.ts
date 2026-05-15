@@ -26,6 +26,7 @@ export * from './building.js'; // dimensions, palette, outlines, fade
 export * from './gem.js'; // root-of-repo landmark
 export * from './effects.js'; // shared visual effects (rainbow)
 export * from './lighting.js'; // scene directional lighting (sun + ambient)
+export * from './facade.js'; // procedural facade geometry (slab/window/door/roof fracs)
 export * from './live.js'; // live-update polling toggle + interval
 export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
 export * from './lod.js'; // per-block LOD swap thresholds

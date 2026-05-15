@@ -81,44 +81,45 @@ uniform vec3 uSunDirWorld;
 uniform float uAmbient;
 uniform float uSunContrast;
 
+// Facade geometry — refreshed via refreshBuildingMaterial() from FACADE_GEOMETRY store.
+uniform float uSlabHeightFrac;
+uniform float uWindowWidthFrac;
+uniform float uWindowHeightFrac;
+uniform float uWindowMarginFrac;
+uniform float uDoorHeightFrac;
+uniform float uRoofBorderFrac;
+
 varying float vWorldY;
 
 // ---------------------------------------------------------------------------
-// Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
+// Facade geometry — driven by FACADE_GEOMETRY store via uniforms
+// (uSlabHeightFrac / uWindowWidthFrac / uWindowHeightFrac / uWindowMarginFrac
+// / uDoorHeightFrac / uRoofBorderFrac, declared above).
+//
+// Reference values (defaults):
+//   uSlabHeightFrac    = 0.12     — slab strip height as fraction of one floor.
+//   uWindowWidthFrac   = 0.45     — window width as fraction of one cell.
+//                                   Window is centered horizontally within the cell:
+//                                     winLeft  = 0.5 - uWindowWidthFrac / 2 = 0.275
+//                                     winRight = 0.5 + uWindowWidthFrac / 2 = 0.725
+//   uWindowHeightFrac  = 0.45     — window height as fraction of one floor.
+//                                   Window is centered vertically in the non-slab portion of the floor.
+//                                   The non-slab span in cellV is [0, 1 - uSlabHeightFrac].
+//                                   Window center in cellV: uSlabHeightFrac + (1 - uSlabHeightFrac) * 0.5
+//                                                         = 0.12 + 0.44 = 0.56
+//                                     winBottom = 0.56 - uWindowHeightFrac / 2 = 0.335
+//                                     winTop    = 0.56 + uWindowHeightFrac / 2 = 0.785
+//   uWindowMarginFrac  = 0.08     — horizontal margin as fraction of face
+//                                   width, applied on both edges before dividing into columns.
+//                                   The window-column grid spans
+//                                   [uWindowMarginFrac, 1 - uWindowMarginFrac] of face width,
+//                                   not [0, 1]. Mirrors engine.ts: marginX = floor(width * 0.08),
+//                                   then cellW = (width - 2*marginX) / cols.
+//   uDoorHeightFrac    = 0.7      — door height as fraction of one floor.
+//   uRoofBorderFrac    = 0.03125  — roof border: engine.ts uses strokeRect(2, 2, 124, 124)
+//                                   with lineWidth=4 on a 128×128 canvas. Outer edge of the
+//                                   stroke is at 4px from canvas edge: 4 / 128 = 0.03125.
 // ---------------------------------------------------------------------------
-
-// FACADE.SLAB_HEIGHT_FRAC = 0.12 — slab strip height as fraction of one floor.
-const float SLAB_HEIGHT_FRAC = 0.12;
-
-// FACADE.WINDOW_WIDTH_FRAC = 0.45 — window width as fraction of one cell.
-// Window is centered horizontally within the cell:
-//   winLeft  = 0.5 - WINDOW_WIDTH_FRAC / 2 = 0.275
-//   winRight = 0.5 + WINDOW_WIDTH_FRAC / 2 = 0.725
-const float WINDOW_WIDTH_FRAC = 0.45;
-
-// FACADE.WINDOW_HEIGHT_FRAC = 0.45 — window height as fraction of one floor.
-// Window is centered vertically in the non-slab portion of the floor.
-// The non-slab span in cellV is [0, 1 - SLAB_HEIGHT_FRAC].
-// Window center in cellV: SLAB_HEIGHT_FRAC + (1 - SLAB_HEIGHT_FRAC) * 0.5
-//                       = 0.12 + 0.44 = 0.56
-//   winBottom = 0.56 - WINDOW_HEIGHT_FRAC / 2 = 0.335
-//   winTop    = 0.56 + WINDOW_HEIGHT_FRAC / 2 = 0.785
-const float WINDOW_HEIGHT_FRAC = 0.45;
-
-// FACADE.WINDOW_MARGIN_FRAC = 0.08 — horizontal margin as fraction of face
-// width, applied on both edges before dividing into columns. The window-column
-// grid spans [WINDOW_MARGIN_FRAC, 1 - WINDOW_MARGIN_FRAC] of face width, not
-// [0, 1]. Mirrors engine.ts: marginX = floor(width * 0.08), then
-// cellW = (width - 2*marginX) / cols.
-const float WINDOW_MARGIN_FRAC = 0.08;
-
-// FACADE.DOOR_HEIGHT_FRAC = 0.7 — door height as fraction of one floor.
-const float DOOR_HEIGHT_FRAC = 0.7;
-
-// Roof border: engine.ts uses strokeRect(2, 2, 124, 124) with lineWidth=4 on
-// a 128×128 canvas. Outer edge of the stroke is at 4px from canvas edge:
-//   ROOF_BORDER_FRAC = 4 / 128 = 0.03125
-const float ROOF_BORDER_FRAC = 0.03125;
 
 // ---------------------------------------------------------------------------
 // Lighting — single world-space directional light + ambient. Replaces the
@@ -269,10 +270,10 @@ vec4 renderWallFace() {
   vec2 uv = vUv;
 
   // Rescale x-UV to exclude the face-level horizontal margin on each edge.
-  // The window-column grid occupies [WINDOW_MARGIN_FRAC, 1-WINDOW_MARGIN_FRAC]
+  // The window-column grid occupies [uWindowMarginFrac, 1-uWindowMarginFrac]
   // of face width, matching engine.ts: marginX = floor(width * 0.08),
   // cellW = (width - 2*marginX) / cols, cellCenterX = marginX + cellW*(c+0.5).
-  float uvEffX = (uv.x - WINDOW_MARGIN_FRAC) / (1.0 - 2.0 * WINDOW_MARGIN_FRAC);
+  float uvEffX = (uv.x - uWindowMarginFrac) / (1.0 - 2.0 * uWindowMarginFrac);
 
   // Cell coordinates: integer cell index + intra-cell UV in [0,1].
   float colF   = uvEffX * cols;
@@ -290,15 +291,15 @@ vec4 renderWallFace() {
   float wV = fwidth(rowF) * 0.5;
 
   // Window rectangle within each cell, centered horizontally and
-  // vertically above the slab band. Matches WINDOW_WIDTH_FRAC /
-  // WINDOW_HEIGHT_FRAC usage in _buildFacadeTexture.
-  float halfW    = WINDOW_WIDTH_FRAC * 0.5;
+  // vertically above the slab band. Matches uWindowWidthFrac /
+  // uWindowHeightFrac usage in _buildFacadeTexture.
+  float halfW    = uWindowWidthFrac * 0.5;
   float winLeft  = 0.5 - halfW;
   float winRight = 0.5 + halfW;
 
-  float nonSlabH  = 1.0 - SLAB_HEIGHT_FRAC;
-  float winCenter = SLAB_HEIGHT_FRAC + nonSlabH * 0.5; // center in non-slab span
-  float halfH     = WINDOW_HEIGHT_FRAC * 0.5;
+  float nonSlabH  = 1.0 - uSlabHeightFrac;
+  float winCenter = uSlabHeightFrac + nonSlabH * 0.5; // center in non-slab span
+  float halfH     = uWindowHeightFrac * 0.5;
   float winBottom = winCenter - halfH;
   float winTop    = winCenter + halfH;
 
@@ -384,7 +385,7 @@ vec4 renderWallFace() {
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
-  float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
+  float slabMask = aastep(1.0 - uSlabHeightFrac, cellV, wV);
 
   // Compose: slab overrides wall; window overrides slab+wall.
   vec3 wallOut  = mix(wallColor, slabColor, slabMask);
@@ -434,7 +435,7 @@ vec4 renderWallFace() {
     float doorUvWidth  = vDoorWidth / faceWorldWidth;
     float doorLeft     = 0.5 - doorUvWidth * 0.5;
     float doorRight    = 0.5 + doorUvWidth * 0.5;
-    float doorTopV     = DOOR_HEIGHT_FRAC / vFloors; // fraction of total face height
+    float doorTopV     = uDoorHeightFrac / vFloors; // fraction of total face height
     float doorMask = aaband(doorLeft, doorRight, uv.x, fwidth(uv.x) * 0.5)
                    * aaband(0.0, doorTopV, uv.y, fwidth(uv.y) * 0.5);
     withWin = mix(withWin, doorColor, doorMask);
@@ -454,8 +455,8 @@ vec4 renderRoofFace() {
   vec3 baseColor   = linearToSrgb(vColor);
   vec3 roofColor   = baseColor;
   vec3 borderColor = shadeAndShiftHue(baseColor, ROOF_BORDER_LIGHTNESS_DELTA, 0.0, -1.0);
-  float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x, fwidth(vUv.x) * 0.5)
-                   * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y, fwidth(vUv.y) * 0.5);
+  float innerMask  = aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.x, fwidth(vUv.x) * 0.5)
+                   * aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;
   vec3 composed = mix(roofColor, borderColor, borderMask);
 
@@ -466,7 +467,7 @@ vec4 renderRoofFace() {
   // overrides the base roof color.
   if (vIconUV.x >= 0.0 && uIconSlotSize > 0.0) {
     // Inset the icon inside the border so it doesn't clip the dark strip.
-    float pad = ROOF_BORDER_FRAC;
+    float pad = uRoofBorderFrac;
     vec2 inset = clamp((vUv - pad) / (1.0 - 2.0 * pad), 0.0, 1.0);
     // Rotate so the icon's "top" lands at the building's far edge from
     // the door — readable to someone standing in front of the door and
