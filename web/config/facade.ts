@@ -74,6 +74,12 @@ export interface WindowLightingConfig {
   GAP_BASE_THRESHOLD: number;     // 0..1 (default 0.18) — base fraction of empty cells
   GAP_AGE_BONUS: number;          // 0..1 (default 0.32) — extra empty fraction for oldest
   DIM_GLOW_COLOR: string;         // CSS color (default '#806626') — old-building lit pane tint
+  // Exponent applied to (1 - modifiedAge) when computing lit-window
+  // count and emission. 1.0 = linear (every mid-age building has
+  // proportionally lit windows + emission); >1.0 dims mid-age
+  // buildings faster (a building at modifiedAge=0.5 with exp=2.0
+  // gets recencyCurve=0.25 instead of 0.5). Range: [1.0, 4.0].
+  LIT_FRESHNESS_EXPONENT: number;
 }
 
 export const WINDOW_LIGHTING = map<WindowLightingConfig>({
@@ -81,4 +87,5 @@ export const WINDOW_LIGHTING = map<WindowLightingConfig>({
   GAP_BASE_THRESHOLD: 0.15,
   GAP_AGE_BONUS: 0.5,
   DIM_GLOW_COLOR: '#806626', // approx rgb(128, 102, 38) approx (0.5, 0.4, 0.15) * 255
+  LIT_FRESHNESS_EXPONENT: 2.0,
 });
