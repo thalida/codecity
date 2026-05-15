@@ -365,7 +365,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowUnlitLightnessDelta: { value: WINDOW_LIGHTING.get().UNLIT_LIGHTNESS_DELTA },
       uWindowGapBaseThreshold: { value: WINDOW_LIGHTING.get().GAP_BASE_THRESHOLD },
       uWindowGapAgeBonus: { value: WINDOW_LIGHTING.get().GAP_AGE_BONUS },
-      uLitGlowDim: { value: new THREE.Color(WINDOW_LIGHTING.get().DIM_GLOW_COLOR) },
+      // setStyle(..., LinearSRGBColorSpace) skips Three's automatic sRGB→linear
+      // conversion. The shader consumes uLitGlowDim in sRGB space (the prior
+      // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
+      // through unchanged.
+      uLitGlowDim: { value: new THREE.Color().setStyle(WINDOW_LIGHTING.get().DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace) },
     },
   });
   _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
@@ -427,7 +431,12 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uWindowUnlitLightnessDelta.value = windowLighting.UNLIT_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uWindowGapBaseThreshold.value = windowLighting.GAP_BASE_THRESHOLD;
   _sharedMaterial.uniforms.uWindowGapAgeBonus.value = windowLighting.GAP_AGE_BONUS;
-  (_sharedMaterial.uniforms.uLitGlowDim.value as THREE.Color).set(windowLighting.DIM_GLOW_COLOR);
+  // Pass DIM_GLOW_COLOR through unchanged — shader treats it as sRGB,
+  // matching the prior hardcoded vec3(0.5, 0.4, 0.15) literal.
+  (_sharedMaterial.uniforms.uLitGlowDim.value as THREE.Color).setStyle(
+    windowLighting.DIM_GLOW_COLOR,
+    THREE.LinearSRGBColorSpace,
+  );
 }
 
 /**
