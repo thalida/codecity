@@ -619,64 +619,16 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Facade geometry', [
-      _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
-        tip: 'Floor-slab strip height as a fraction of one floor.',
+    _subgroup('Outlines', [
+      _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
+        tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
       }),
-      _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
-        tip: 'Window width as a fraction of its grid cell.',
+      _color('Hover color', BUILDING_OUTLINE, 'HOVER_COLOR', {
+        tip: 'Outline color when the cursor is over a building.',
       }),
-      _slider('Window height × floor', FACADE_GEOMETRY, 'WINDOW_HEIGHT_FRAC', 0, 1, 0.01, {
-        tip: 'Window height as a fraction of one floor.',
-      }),
-      _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
-        tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
-      }),
-      _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
-        tip: 'Door height as a fraction of one floor.',
-      }),
-      _slider('Roof border × face', FACADE_GEOMETRY, 'ROOF_BORDER_FRAC', 0, 0.1, 0.005, {
-        tip: 'Width of the roof border strip, as a fraction of the face.',
-      }),
-      _number('Max window columns', FACADE_GEOMETRY, 'WINDOW_COLS_MAX', 1, 10, 1, {
-        tip: 'Hard cap on window columns per face. Rebuild required.',
-      }),
-      _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
-        tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required.',
-      }),
-      _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
-        tip: 'Door width as a fraction of the building path width. Rebuild required.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Facade contrast (HSL lightness Δ)', [
-      _slider('Floor slab', FACADE_DETAIL, 'SLAB_LIGHTNESS_DELTA', -100, 100, 1, {
-        tip: 'Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens).',
-      }),
-      _slider('Door', FACADE_DETAIL, 'DOOR_LIGHTNESS_DELTA', -100, 100, 1, {
-        tip: 'Lightness offset for the door (negative darkens).',
-      }),
-      _slider('Roof border', FACADE_DETAIL, 'ROOF_BORDER_LIGHTNESS_DELTA', -100, 100, 1, {
-        tip: 'Lightness offset for the roof border strip (negative darkens).',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Window lighting', [
-      _slider('Unlit pane lightness Δ', WINDOW_LIGHTING, 'UNLIT_LIGHTNESS_DELTA', -20, 20, 1, {
-        tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
-      }),
-      _slider('Gap fraction (base)', WINDOW_LIGHTING, 'GAP_BASE_THRESHOLD', 0, 1, 0.01, {
-        tip: 'Base fraction of cells with no window at all (architectural gaps).',
-      }),
-      _slider('Gap fraction (age bonus)', WINDOW_LIGHTING, 'GAP_AGE_BONUS', 0, 1, 0.01, {
-        tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
-      }),
-      _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
-        tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+      _slider('Hover opacity', BUILDING_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
+      _slider('Selected opacity', BUILDING_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
+        tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
       }),
     ])
   );
@@ -716,100 +668,140 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
+  // Facade parent — geometry, contrast, and window lighting share the
+  // "what the building's surface looks like" mental model, so we collapse
+  // them under one default-closed parent. Each child stays a regular
+  // _subgroup; _collapsibleSubgroup's `buildRows` already accepts any
+  // HTMLElement, so subgroups work as children with no helper changes.
   section.appendChild(
-    _subgroup('Outlines', [
-      _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
-        tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
-      }),
-      _color('Hover color', BUILDING_OUTLINE, 'HOVER_COLOR', {
-        tip: 'Outline color when the cursor is over a building.',
-      }),
-      _slider('Hover opacity', BUILDING_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
-      _slider('Selected opacity', BUILDING_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
-        tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
-      }),
+    _collapsibleSubgroup('facade', 'Facade', () => [
+      _subgroup('Geometry', [
+        _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
+          tip: 'Floor-slab strip height as a fraction of one floor.',
+        }),
+        _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
+          tip: 'Window width as a fraction of its grid cell.',
+        }),
+        _slider('Window height × floor', FACADE_GEOMETRY, 'WINDOW_HEIGHT_FRAC', 0, 1, 0.01, {
+          tip: 'Window height as a fraction of one floor.',
+        }),
+        _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
+          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
+        }),
+        _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
+          tip: 'Door height as a fraction of one floor.',
+        }),
+        _slider('Roof border × face', FACADE_GEOMETRY, 'ROOF_BORDER_FRAC', 0, 0.1, 0.005, {
+          tip: 'Width of the roof border strip, as a fraction of the face.',
+        }),
+        _number('Max window columns', FACADE_GEOMETRY, 'WINDOW_COLS_MAX', 1, 10, 1, {
+          tip: 'Hard cap on window columns per face. Rebuild required.',
+        }),
+        _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
+          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required.',
+        }),
+        _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
+          tip: 'Door width as a fraction of the building path width. Rebuild required.',
+        }),
+      ]),
+      _subgroup('Contrast (HSL lightness Δ)', [
+        _slider('Floor slab', FACADE_DETAIL, 'SLAB_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens).',
+        }),
+        _slider('Door', FACADE_DETAIL, 'DOOR_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the door (negative darkens).',
+        }),
+        _slider('Roof border', FACADE_DETAIL, 'ROOF_BORDER_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the roof border strip (negative darkens).',
+        }),
+      ]),
+      _subgroup('Window lighting', [
+        _slider('Unlit pane lightness Δ', WINDOW_LIGHTING, 'UNLIT_LIGHTNESS_DELTA', -20, 20, 1, {
+          tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
+        }),
+        _slider('Gap fraction (base)', WINDOW_LIGHTING, 'GAP_BASE_THRESHOLD', 0, 1, 0.01, {
+          tip: 'Base fraction of cells with no window at all (architectural gaps).',
+        }),
+        _slider('Gap fraction (age bonus)', WINDOW_LIGHTING, 'GAP_AGE_BONUS', 0, 1, 0.01, {
+          tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
+        }),
+        _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
+          tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+        }),
+      ]),
     ])
   );
 
-  // Age decay — grime streaks and tilt scale with each file's
-  // createdAge (0=newest in repo, 1=oldest). Independent of color
-  // (which tracks last-modified), so a recently-edited but long-
-  // lived file still reads as weathered.
+  // Aging parent — grime streaks + tilt both key off createdAge.
+  // Default-closed; small, niche group of weathering knobs.
   section.appendChild(
-    _subgroup('Age decay — grime streaks', [
-      _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
-        tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
-      }),
-      _slider('Intensity', BUILDING_AGING, 'GRIME_INTENSITY', 0, 1, 0.05, {
-        tip: 'How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color.',
-      }),
-      _slider('Coverage', BUILDING_AGING, 'GRIME_COVERAGE', 0, 1, 0.05, {
-        tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
-      }),
-    ])
-  );
-  section.appendChild(
-    _subgroup('Age decay — tilt', [
-      _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
-        tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
-      }),
-      _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
-        tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
-      }),
-    ])
-  );
-
-  // Selection fade — animation knobs first, then per-tier style. Each tier
-  // (Default = siblings of selection / Level 1 = one hop / Level 2+ = far)
-  // gets four controls: detail (full / silhouette / hidden), outline on/off,
-  // and separate body + outline opacity sliders. Hover renders a building
-  // using the Default tier's settings — no separate hover-floor knob.
-  section.appendChild(
-    _subgroup('Selection fade — animation', [
-      _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
-        tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
-      }),
+    _collapsibleSubgroup('aging', 'Aging', () => [
+      _subgroup('Grime streaks', [
+        _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
+          tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
+        }),
+        _slider('Intensity', BUILDING_AGING, 'GRIME_INTENSITY', 0, 1, 0.05, {
+          tip: 'How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color.',
+        }),
+        _slider('Coverage', BUILDING_AGING, 'GRIME_COVERAGE', 0, 1, 0.05, {
+          tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
+        }),
+      ]),
+      _subgroup('Tilt', [
+        _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
+          tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
+        }),
+        _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
+          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+        }),
+      ]),
     ])
   );
 
+  // Selection fade parent — animation knobs first, then per-tier style.
+  // Each tier (Default = siblings of selection / Level 1 = one hop /
+  // Level 2+ = far) gets four controls: detail (full / silhouette /
+  // hidden), outline on/off, and separate body + outline opacity sliders.
+  // Hover renders a building using the Default tier's settings — no
+  // separate hover-floor knob. Default-closed; 4 children, niche.
   const DETAIL_OPTIONS = [
     { value: FadeDetail.Full, label: 'Full' },
     { value: FadeDetail.Silhouette, label: 'Silhouette' },
     { value: FadeDetail.Hidden, label: 'Hidden' },
   ];
-
   section.appendChild(
-    _subgroup('Default — siblings of selection', [
-      _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
-        tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
-      }),
-      _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
-        tip: 'Show the wireframe edge overlay.',
-      }),
-      _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Opacity for the body / silhouette layer.',
-      }),
-      _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Level 1 — one hop from selection', [
-      _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
-      _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
-      _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-      _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Level 2+ — cousins, deeper subtrees', [
-      _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
-      _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
-      _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-      _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+    _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
+      _subgroup('Animation', [
+        _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
+          tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
+        }),
+      ]),
+      _subgroup('Default tier — siblings of selection', [
+        _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
+          tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
+        }),
+        _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
+          tip: 'Show the wireframe edge overlay.',
+        }),
+        _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
+          tip: 'Opacity for the body / silhouette layer.',
+        }),
+        _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
+          tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
+        }),
+      ]),
+      _subgroup('Level 1 — one hop from selection', [
+        _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
+      _subgroup('Level 2+ — cousins, deeper subtrees', [
+        _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
     ])
   );
 
@@ -1134,10 +1126,14 @@ function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement
 
 // _collapsibleSubgroup — same visual shell as _subgroup but the body is
 // wrapped in a <details> so users can collapse long lists (e.g. the per-
-// extension hue rows). Default-closed; open/closed state persists per
-// `slug` in localStorage. `buildRows` is invoked lazily on first
-// construction so we don't build expensive rows the user may never see —
-// though in practice the rows are cheap and built eagerly the first time.
+// extension hue rows) OR nested groups (e.g. Buildings > Facade, which
+// contains three child _subgroup()s). `buildRows` returns HTMLElements
+// that are appended directly — they can be _row() outputs, _subgroup()
+// outputs, or even nested _collapsibleSubgroup()s. Default-closed;
+// open/closed state persists per `slug` in localStorage. `buildRows` is
+// invoked lazily on first construction so we don't build expensive rows
+// the user may never see — though in practice the rows are cheap and
+// built eagerly the first time.
 function _collapsibleSubgroup(
   slug: string,
   name: string,

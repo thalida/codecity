@@ -1018,6 +1018,22 @@ canvas {
   transform: rotate(90deg);
 }
 
+/* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
+ * Geometry / Contrast / Window lighting). The parent's <summary> already
+ * provides a visual divider, so the first nested child must drop its
+ * dashed border-top — otherwise the open parent shows a double divider
+ * between the summary and the first child's label. Subsequent nested
+ * children keep their dashed border to separate sibling groups. A small
+ * left padding indents the whole nested block so the hierarchy reads. */
+.theme-subgroup-collapsible > .theme-subgroup {
+  padding-left: 10px;
+}
+.theme-subgroup-collapsible > .theme-subgroup:first-of-type {
+  margin-top: 8px;
+  padding-top: 0;
+  border-top: none;
+}
+
 /* Row layout:
  *   [label: shrink-to-fit, ellipses]   [control: grow]   [reset-icon: hidden until changed]
  *
