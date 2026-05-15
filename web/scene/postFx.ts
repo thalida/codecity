@@ -23,22 +23,21 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { BLOOM } from '@/config/index.js';
 
 export interface PostFx {
   render(): void;
   setSize(width: number, height: number): void;
+  refresh(): void;
   dispose(): void;
 }
-
-const BLOOM_STRENGTH = 0.7;
-const BLOOM_RADIUS = 0.5;
-const BLOOM_THRESHOLD = 1.0;
 
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera,
 ): PostFx {
+  const bloomCfg = BLOOM.get();
   // ACES tonemapping compresses HDR (>1.0) values back into display
   // [0,1] for the canvas. The wall colors written by the shader stay
   // in [0,1] so they're mostly unchanged; only the emissive windows
@@ -58,9 +57,9 @@ export function createPostFx(
 
   const bloom = new UnrealBloomPass(
     new THREE.Vector2(1, 1), // resized via setSize() immediately after construction
-    BLOOM_STRENGTH,
-    BLOOM_RADIUS,
-    BLOOM_THRESHOLD,
+    bloomCfg.STRENGTH,
+    bloomCfg.RADIUS,
+    bloomCfg.THRESHOLD,
   );
   composer.addPass(bloom);
 
@@ -74,6 +73,20 @@ export function createPostFx(
     setSize: (w, h) => {
       composer.setSize(w, h);
       bloom.setSize(w, h);
+    },
+    // Pull fresh BLOOM config values into the bloom pass. Called from
+    // applyTheme() on hot-reload so the in-UI knobs take effect
+    // without rebuilding the renderer. When ENABLED is off, the pass
+    // is bypassed entirely (EffectComposer skips disabled passes) so
+    // the render path approximates the pre-HDR "flat" look — paired
+    // with refreshBuildingMaterial clamping uWindowEmissionBoost to 0
+    // so no shader output reaches HDR space.
+    refresh: () => {
+      const cfg = BLOOM.get();
+      bloom.enabled = cfg.ENABLED;
+      bloom.strength = cfg.STRENGTH;
+      bloom.radius = cfg.RADIUS;
+      bloom.threshold = cfg.THRESHOLD;
     },
     dispose: () => {
       hdrTarget.dispose();

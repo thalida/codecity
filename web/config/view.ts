@@ -11,12 +11,40 @@ import { map } from 'nanostores';
 
 // ─── Sky / scene background ────────────────────────────────────────────────
 // The void color drawn behind everything. Hot-reloadable.
+//
+// FOG_* parameters drive a height-based "ground haze" applied by the
+// building shader (NOT THREE.Fog, which is distance-from-camera and
+// erases the city when zoomed out). The haze is densest at world Y=0
+// and falls off exponentially with height, so building bases sit in
+// the mist while tops poke into clean air. Camera distance doesn't
+// affect it.
+//
+//   FOG_COLOR        — tint the mist mixes toward.
+//   FOG_INTENSITY    — peak fog amount at ground level (0..1).
+//   FOG_HEIGHT_FRAC  — half-fall-off height as a fraction of the
+//                      tallest possible building (BUILDING_DIMENSIONS
+//                      MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with
+//                      the building size config so the haze always
+//                      sits in the same relative band of the skyline.
+//                      0.25 → mist fades by mid-height of short
+//                      buildings; 0.5 → mist halfway up the tallest.
 export interface SceneColorsConfig {
   GROUND: string;
+  FOG_ENABLED: boolean;
+  FOG_COLOR: string;
+  FOG_INTENSITY: number;
+  FOG_HEIGHT_FRAC: number;
 }
 
+// FOG_ENABLED off → uFogIntensity uniform is forced to 0 (the shader's
+// mix() then returns the original color unchanged). Other knobs stay
+// in config so flipping ENABLED back restores the haze.
 export const SCENE_COLORS = map<SceneColorsConfig>({
-  GROUND: '#0a0b10',
+  GROUND: '#0a0e1c',
+  FOG_ENABLED: true,
+  FOG_COLOR: '#200f48',
+  FOG_INTENSITY: 0.8,
+  FOG_HEIGHT_FRAC: 0.25,
 });
 
 // ─── Camera lens ───────────────────────────────────────────────────────────

@@ -28,7 +28,13 @@ attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidd
 // Packed attribute (stays under GL_MAX_VERTEX_ATTRIBS=16):
 //   .xy = top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
 //   .z  = per-file random in [0, 1] driving the window gap / lit hash
-attribute vec3 iIconUV;
+//   .w  = createdAge — 0 (newest file) to 1 (oldest), repo-relative.
+//         Independent of color/freshness; drives grime/weathering.
+attribute vec4 iIconUV;
+
+// Max age-tilt in radians (config: BUILDING_AGING.TILT_DEGREES → radians;
+// or 0 when TILT_ENABLED is off). Pushed from refreshBuildingMaterial.
+uniform float uTiltMaxRad;
 
 flat varying int vFace;         // 0..5
 varying vec2 vUv;
@@ -42,7 +48,8 @@ flat varying float vSilhouette;
 flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
-flat varying vec3 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = per-file random seed
+flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
+varying float vWorldY;          // world-space height, for height-based ground haze in frag
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -79,5 +86,20 @@ void main() {
   // World-space normal for any future per-face lighting (currently unused).
   vWorldNormal = normalize(mat3(modelMatrix * instanceMatrix) * normal);
 
-  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+  vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
+
+  // Age-driven tilt — lean MAGNITUDE is determined solely by
+  // createdAge × uTiltMaxRad, so every building of the same age leans
+  // by the same amount. Only the DIRECTION varies per building,
+  // hashed from the per-file seed → a circle of equal-magnitude
+  // leans pointing every which way across the city. Small-angle
+  // approximation: lateral offset = worldY × magnitude × unit dir.
+  // Base (Y=0) stays planted; top drifts.
+  float tiltAngle = iIconUV.w * uTiltMaxRad;
+  float tiltTheta = iIconUV.z * 6.2831853;
+  vec2 tiltDir = vec2(cos(tiltTheta), sin(tiltTheta));
+  worldPos.xz += worldPos.y * tiltAngle * tiltDir;
+
+  vWorldY = worldPos.y;
+  gl_Position = projectionMatrix * viewMatrix * worldPos;
 }

@@ -32,8 +32,11 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;
 // .xy = atlas UV for the file icon (or (-1,-1) for "no icon"),
-// .z  = per-file random in [0, 1] driving the window gap / lit hash.
-flat varying vec3 vIconUV;
+// .z  = per-file random in [0, 1] driving the window gap / lit hash,
+// .w  = createdAge in [0, 1] — 0=newest file, 1=oldest. Drives grime
+//        independently of color/freshness so old-but-recently-edited
+//        files still look weathered.
+flat varying vec4 vIconUV;
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
@@ -53,6 +56,24 @@ uniform float uIconSlotSize;
 // BUILDING_PALETTE config consumed by getBuildingColor().
 uniform float uLightnessMin;
 uniform float uLightnessMax;
+
+// Age-driven grime parameters. uGrimeIntensity scales the per-pixel
+// darkening (0 disables the streaks entirely); uGrimeCoverage is the
+// max fraction of vertical bands that streak at createdAge=1. Both
+// refreshed by refreshBuildingMaterial from BUILDING_AGING config.
+uniform float uGrimeIntensity;
+uniform float uGrimeCoverage;
+
+// Ground haze (height-based volumetric fog). Dense at world Y=0,
+// falls off exponentially with height — building bases sit in mist,
+// tops poke into clean air. Camera distance doesn't affect this, so
+// zooming out doesn't make the city disappear. Mirrors SCENE_COLORS
+// config; refreshed on hot-reload by refreshBuildingMaterial().
+uniform vec3 uFogColor;
+uniform float uFogIntensity;
+uniform float uFogHeight;
+
+varying float vWorldY;
 
 // ---------------------------------------------------------------------------
 // Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
@@ -117,22 +138,24 @@ const float SLAB_LIGHTNESS_DELTA = -12.0;
 // lighting multiplier and push the base color close to white in HSL
 // space so they glow like neon panes on the shadow side too.
 const float WINDOW_LIGHTNESS_DELTA = 55.0;
-// Dim "old tungsten" glow that lit windows tilt toward as the building
-// ages. New / bright buildings stay near their base hue (neon LED look);
-// old / dim buildings mix toward this warm amber so a rare lit window
-// in a derelict block reads as a failing fluorescent rather than a
-// brand-new LED.
-const vec3 LIT_GLOW_DIM = vec3(0.55, 0.48, 0.32);
+// Dim failing-fluorescent — a rare lit window in a derelict block.
+// Mid-age and newer buildings' lit windows take the building's own
+// age-adjusted color (no saturation override), not a fixed target.
+const vec3 LIT_GLOW_DIM = vec3(0.5, 0.4, 0.15);
 
-// HDR emission multiplier applied to lit windows. The shader writes
-// into a HalfFloat render target (see postFx.ts) so values > 1.0 are
-// preserved; the bloom pass picks them up and the OutputPass + ACES
-// tonemapping compresses everything back to display range. At
-// freshness=0 the multiplier is 1.0 (LDR, no bloom contribution);
-// at freshness=1.0 it's LIT_EMISSION_MAX (full HDR push → strong
-// bloom). The gradient gives bloom intensity that scales smoothly
-// with building age.
-const float LIT_EMISSION_MAX = 4.0;
+// HDR emission boost applied to lit windows, on top of a baseline 1.0
+// multiplier. The shader writes into a HalfFloat render target (see
+// postFx.ts) so values > 1.0 are preserved; the bloom pass picks them
+// up and the OutputPass + ACES tonemapping compresses everything back
+// to display range.
+//
+//   emission = 1.0 + freshness * uWindowEmissionBoost
+//
+// 0 = no HDR push (windows stay LDR, no bloom contribution from windows);
+// higher = freshest building's windows push deeper into HDR space and
+// bloom proportionally harder. The freshness-scaled curve preserves
+// the age-driven bloom gradient regardless of the boost magnitude.
+uniform float uWindowEmissionBoost;
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
 // per cell by a hash so each building has its own scatter of lit /
 // unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
@@ -332,19 +355,23 @@ vec4 renderWallFace() {
   //    quarters look like failing fluorescents.
   float litThreshold = 1.0 - freshness;
   float litFactor = step(litThreshold, litHash);
-  float litDelta = WINDOW_LIGHTNESS_DELTA * freshness;
-  vec3 buildingLit = shadeColor(baseColor, litDelta);
-  vec3 winLitColor = mix(LIT_GLOW_DIM, buildingLit, freshness);
-  // HDR emission: scale the lit window's color above 1.0 by an
-  // amount that grows with freshness. Newer buildings push further
-  // into HDR space, exceeding the bloom threshold (1.0) by a larger
-  // margin, which makes them bloom proportionally harder. Older
-  // buildings stay near 1.0 and bloom only faintly (or not at all).
-  // The result is a per-pixel bloom intensity that mirrors the
-  // building's age — exactly what the shader-only approach
-  // couldn't do because LDR clipping collapsed every lit window to
-  // the same display brightness.
-  float emission = mix(1.0, LIT_EMISSION_MAX, freshness);
+  // Window glow target IS the building's age-adjusted color, no
+  // saturation floor — so as the building gets grayer (saturation
+  // drops with age via the palette layer), the windows fade gray
+  // alongside it. The HDR emission multiplier (applied below) then
+  // brightens the lit cells without re-saturating them, preserving
+  // the "this whole building is desaturated" reading. Freshness still
+  // drives the mix toward LIT_GLOW_DIM at the oldest end for the
+  // "failing fluorescent" warm-amber character.
+  vec3 winNeon = baseColor;
+  vec3 winLitColor = mix(LIT_GLOW_DIM, winNeon, freshness);
+  // HDR emission scales WITH freshness so newer buildings push deeper
+  // into HDR space and their windows bloom harder. The bloom pass's
+  // strength × radius then operates on that age-scaled HDR signal —
+  // strength acts as a global multiplier and the result naturally
+  // tracks building age. Old buildings get less bloom because their
+  // emission stays near 1.0, just above threshold.
+  float emission = 1.0 + freshness * uWindowEmissionBoost;
   winLitColor *= emission;
   vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
@@ -354,6 +381,41 @@ vec4 renderWallFace() {
 
   // Compose: slab overrides wall; window overrides slab+wall.
   vec3 wallOut  = mix(wallColor, slabColor, slabMask);
+
+  // Procedural grime streaks. Vertical bands of darkened wall color
+  // running from the top of each face down — looks like rain stains
+  // / soot accumulation on aged concrete. Gated by vIconUV.w
+  // (createdAge, repo-relative): old files weather regardless of
+  // whether they were edited recently, so a bright recently-modified
+  // building can still be heavily streaked if it was first created
+  // long ago. Applied to wallOut BEFORE windows compose so windows
+  // remain crisp over the dirty facade.
+  //
+  // Mechanism:
+  //   - 25 vertical bands per face (coarse enough to read as streaks,
+  //     fine enough to look like running stains, not painted lines).
+  //   - Each band's intensity is hash-driven so the streak pattern
+  //     is stable per-building per-face.
+  //   - threshold drops with age: clean buildings need a very high
+  //     hash to produce a streak; old buildings let most bands
+  //     through, so dirt covers a wider fraction of the facade.
+  //   - Vertical falloff: darkest at the top (where dirt accumulates
+  //     and rain runoff originates), fading downward.
+  float grimeAmount = vIconUV.w;
+  if (grimeAmount > 0.001 && uGrimeIntensity > 0.001) {
+    float gBand = floor(uv.x * 25.0);
+    float gHash = hash21(vec2(gBand, buildingSeed * 1.7));
+    // Coverage threshold: at createdAge=1, fraction (uGrimeCoverage) of
+    // bands streak. Bands need hash >= (1 - grimeAmount * coverage) to
+    // pass; the oldest building lets the most bands through.
+    float gThreshold = 1.0 - grimeAmount * uGrimeCoverage;
+    float gActive = step(gThreshold, gHash);
+    float gVert = pow(uv.y, 1.6);
+    float gFactor = gActive * gVert * grimeAmount * (0.6 + 0.4 * gHash);
+    vec3 gColor = baseColor * 0.25;
+    wallOut = mix(wallOut, gColor, gFactor * uGrimeIntensity);
+  }
+
   vec3 withWin  = mix(wallOut, winColor, winMask);
 
   // Door: ground floor of the door face only. Replaces windows for that row.
@@ -479,5 +541,15 @@ void main() {
   else if (vFace == 2)        body = renderRoofFace();
   else if (vFace == 3)        body = renderBottomFace();
   else                        body = renderWallFace();
-  gl_FragColor = compositeOutline(body);
+  vec4 outColor = compositeOutline(body);
+
+  // Ground haze: fogAmount peaks at uFogIntensity at world Y=0 and
+  // falls off as exp(-y / uFogHeight) — independent of camera
+  // distance, so the city's silhouette stays sharp at any zoom.
+  // Building bases sit in mist, tops emerge into clean air.
+  float h = max(vWorldY, 0.0);
+  float fogAmount = exp(-h / max(uFogHeight, 0.0001)) * uFogIntensity;
+  outColor.rgb = mix(outColor.rgb, uFogColor, fogAmount);
+
+  gl_FragColor = outColor;
 }

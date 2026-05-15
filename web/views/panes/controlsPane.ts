@@ -31,6 +31,7 @@ import {
   BUILDING_PALETTE,
   BUILDING_OUTLINE,
   BUILDING_FADE,
+  BUILDING_AGING,
   // Gem
   GEM_SIZING,
   GEM_APPEARANCE,
@@ -38,6 +39,7 @@ import {
   GEM_ANIMATION,
   // Effects
   RAINBOW,
+  BLOOM,
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
@@ -242,11 +244,27 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 
 // ─── Background ────────────────────────────────────────────────────────────
 function _buildBackgroundSection(): HTMLElement {
-  const section = _section('Background', 'The void behind everything.');
+  const section = _section('Background', 'The void behind everything + atmospheric ground haze.');
   section.appendChild(
     _color('Sky / ground', SCENE_COLORS, 'GROUND', {
       tip: 'Color shown behind buildings + streets. Live.',
     })
+  );
+  section.appendChild(
+    _subgroup('Ground haze', [
+      _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
+        tip: 'Off → no haze (the shader\'s fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.',
+      }),
+      _color('Color', SCENE_COLORS, 'FOG_COLOR', {
+        tip: 'Tint that building bases mix toward. Match the sky/ground for a seamless horizon.',
+      }),
+      _slider('Intensity', SCENE_COLORS, 'FOG_INTENSITY', 0, 1, 0.05, {
+        tip: 'Peak fog amount at world Y=0 (street level). 0 = off; 1 = ground plane fully tinted to fog color.',
+      }),
+      _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
+        tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+      }),
+    ])
   );
   return section;
 }
@@ -457,6 +475,34 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
+  // Age decay — grime streaks and tilt scale with each file's
+  // createdAge (0=newest in repo, 1=oldest). Independent of color
+  // (which tracks last-modified), so a recently-edited but long-
+  // lived file still reads as weathered.
+  section.appendChild(
+    _subgroup('Age decay — grime streaks', [
+      _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
+        tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
+      }),
+      _slider('Intensity', BUILDING_AGING, 'GRIME_INTENSITY', 0, 1, 0.05, {
+        tip: 'How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color.',
+      }),
+      _slider('Coverage', BUILDING_AGING, 'GRIME_COVERAGE', 0, 1, 0.05, {
+        tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
+      }),
+    ])
+  );
+  section.appendChild(
+    _subgroup('Age decay — tilt', [
+      _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
+        tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
+      }),
+      _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
+        tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+      }),
+    ])
+  );
+
   // Selection fade — animation knobs first, then per-tier style. Each tier
   // (Default = siblings of selection / Level 1 = one hop / Level 2+ = far)
   // gets four controls: detail (full / silhouette / hidden), outline on/off,
@@ -604,6 +650,32 @@ function _buildEffectsSection(): HTMLElement {
       }),
       _slider('Saturation', RAINBOW, 'SATURATION', 0, 1, 0.05, {}),
       _slider('Lightness', RAINBOW, 'LIGHTNESS', 0, 1, 0.05, {}),
+    ])
+  );
+
+  section.appendChild(
+    _subgroup('Bloom (HDR neon glow)', [
+      _toggle('Enabled', BLOOM, 'ENABLED', {
+        tip: 'Off → bloom pass bypassed AND windows/gem stay LDR — approximates the pre-HDR "flat" look for side-by-side comparison. Other knobs stay in config.',
+      }),
+      _slider('Window emission', BLOOM, 'WINDOW_EMISSION', 0, 3.0, 0.05, {
+        tip: 'Peak HDR push for the freshest building\'s lit windows; scales linearly down to 0 for the oldest. The bloom pass\'s strength × radius then operates on that age-scaled HDR signal, so total glow tracks building age. 0 = no bloom from windows; 1 = moderate; 3 = full neon.',
+      }),
+      _slider('Gem emission', BLOOM, 'GEM_EMISSION', 0, 5.0, 0.1, {
+        tip: 'Multiplier on the root-gem\'s halo sprite colors. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem, independent of Window emission.',
+      }),
+      _slider('Billboard emission', BLOOM, 'BILLBOARD_EMISSION', 0, 5.0, 0.1, {
+        tip: 'Multiplier on image/video billboard panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
+      }),
+      _slider('Strength', BLOOM, 'STRENGTH', 0, 1, 0.01, {
+        tip: 'Overall bloom intensity multiplier. 0 = bloom pass produces nothing; 1 = full strength.',
+      }),
+      _slider('Radius', BLOOM, 'RADIUS', 0, 1.0, 0.05, {
+        tip: 'How far each bright pixel\'s glow spreads. Lower = tighter halos; higher = soft diffuse glow.',
+      }),
+      _slider('Threshold (cutoff)', BLOOM, 'THRESHOLD', 0, 2.0, 0.05, {
+        tip: 'Luma CUTOFF — pixels below this value contribute nothing to bloom. NOT an intensity dial: lower threshold = more pixels qualify = more total bloom; higher = fewer pixels glow. ≥1.0 keeps matte walls (capped at 1.0) clean and only blooms the HDR-pushed window pixels.',
+      }),
     ])
   );
 

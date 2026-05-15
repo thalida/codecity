@@ -4,7 +4,14 @@
 // Mesh creation (attaching these buffers to a THREE.InstancedMesh) lands in Task 8.
 
 import * as THREE from 'three';
-import { BUILDING_DIMENSIONS, BUILDING_OUTLINE, BUILDING_PALETTE } from '@/config/index.js';
+import {
+  BLOOM,
+  BUILDING_AGING,
+  BUILDING_DIMENSIONS,
+  BUILDING_OUTLINE,
+  BUILDING_PALETTE,
+  SCENE_COLORS,
+} from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
 import { isMediaFile } from '../billboards.js';
@@ -78,7 +85,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     opacity: new Float32Array(n),
     silhouette: new Float32Array(n),
     outlineOpacity: new Float32Array(n),
-    iconUV: new Float32Array(n * 3),
+    iconUV: new Float32Array(n * 4),
   };
 
   const m = new THREE.Matrix4();
@@ -105,9 +112,10 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
       m.makeScale(0, 0, 0);
       m.setPosition(b.x, 0, b.y);
       buf.matrix.set(m.toArray(), i * 16);
-      buf.iconUV[i * 3 + 0] = -1.0;
-      buf.iconUV[i * 3 + 1] = -1.0;
-      buf.iconUV[i * 3 + 2] = seed;
+      buf.iconUV[i * 4 + 0] = -1.0;
+      buf.iconUV[i * 4 + 1] = -1.0;
+      buf.iconUV[i * 4 + 2] = seed;
+      buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
       continue;
     }
 
@@ -155,22 +163,24 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
 
-    // --- Icon UV (top-left of slot in atlas) + per-instance seed ---
+    // --- Icon UV (top-left of slot in atlas) + per-instance seed + createdAge ---
     // (-1, -1) on .xy means "no icon" — the shader checks .x < 0 and
-    // skips the atlas sample. The seed lands on .z; packed here to
-    // stay under the GL_MAX_VERTEX_ATTRIBS=16 cap (16 attribute slots
-    // total, plus the 8 Three.js auto-injects = leaves us 8 to spend).
-    buf.iconUV[i * 3 + 0] = -1.0;
-    buf.iconUV[i * 3 + 1] = -1.0;
-    buf.iconUV[i * 3 + 2] = seed;
+    // skips the atlas sample. The seed lands on .z; createdAge on .w
+    // (0 = newest file, 1 = oldest, normalized against repo's
+    // createdMin/Max). All four packed into one attribute to stay
+    // under the GL_MAX_VERTEX_ATTRIBS=16 cap.
+    buf.iconUV[i * 4 + 0] = -1.0;
+    buf.iconUV[i * 4 + 1] = -1.0;
+    buf.iconUV[i * 4 + 2] = seed;
+    buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
     if (_atlas) {
       const file = b.file;
       if (file) {
         const iconName = getFileIconName(file);
         const uv = _atlas.uvFor(iconName);
         if (uv) {
-          buf.iconUV[i * 3 + 0] = uv[0];
-          buf.iconUV[i * 3 + 1] = uv[1];
+          buf.iconUV[i * 4 + 0] = uv[0];
+          buf.iconUV[i * 4 + 1] = uv[1];
         }
       }
     }
@@ -252,6 +262,16 @@ export function setIconAtlas(atlas: IconAtlas | null): void {
   }
 }
 
+// Half-fall-off height for ground haze, in world units. Computed as
+// FOG_HEIGHT_FRAC × the tallest possible building (MAX_FLOORS × FLOOR_HEIGHT)
+// so the haze sits in the same relative band of the skyline regardless
+// of how the user has tuned building sizes.
+function _computeFogHeight(): number {
+  const dims = BUILDING_DIMENSIONS.get();
+  const maxHeight = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
+  return SCENE_COLORS.get().FOG_HEIGHT_FRAC * maxHeight;
+}
+
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Inline the hsl helpers into the fragment source at the placeholder
@@ -279,6 +299,26 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // density. Refreshed on live-config edits.
       uLightnessMin: { value: BUILDING_PALETTE.get().LIGHTNESS_MIN },
       uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
+      // Ground-haze uniforms — height-based volumetric fog applied
+      // in the building shader. Independent of camera distance.
+      uFogColor: { value: new THREE.Color(SCENE_COLORS.get().FOG_COLOR) },
+      uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
+      uFogHeight: { value: _computeFogHeight() },
+      // Extra HDR emission applied to the freshest building's lit
+      // windows on top of a baseline 1.0. 0 = no bloom contribution
+      // from windows; higher = brighter glow on new buildings.
+      uWindowEmissionBoost: { value: BLOOM.get().WINDOW_EMISSION },
+      // Age-driven decay uniforms (createdAge-gated, independent of
+      // color/freshness). See BUILDING_AGING config.
+      uGrimeIntensity: {
+        value: BUILDING_AGING.get().GRIME_ENABLED ? BUILDING_AGING.get().GRIME_INTENSITY : 0,
+      },
+      uGrimeCoverage: { value: BUILDING_AGING.get().GRIME_COVERAGE },
+      uTiltMaxRad: {
+        value: BUILDING_AGING.get().TILT_ENABLED
+          ? (BUILDING_AGING.get().TILT_DEGREES * Math.PI) / 180
+          : 0,
+      },
     },
   });
   return _sharedMaterial;
@@ -291,9 +331,26 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
  */
 export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
+  const sceneCfg = SCENE_COLORS.get();
+  const bloomCfg = BLOOM.get();
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
   _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
   _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
+  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).set(sceneCfg.FOG_COLOR);
+  // FOG_ENABLED gates intensity at the uniform level; the shader logic
+  // is unchanged (fogAmount → 0 when intensity is 0, mix() is a no-op).
+  _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
+  _sharedMaterial.uniforms.uFogHeight.value = _computeFogHeight();
+  // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
+  // produce nothing the bloom pass (also bypassed via postFx.refresh)
+  // could pick up.
+  _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED ? bloomCfg.WINDOW_EMISSION : 0;
+  const aging = BUILDING_AGING.get();
+  _sharedMaterial.uniforms.uGrimeIntensity.value = aging.GRIME_ENABLED ? aging.GRIME_INTENSITY : 0;
+  _sharedMaterial.uniforms.uGrimeCoverage.value = aging.GRIME_COVERAGE;
+  _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED
+    ? (aging.TILT_DEGREES * Math.PI) / 180
+    : 0;
 }
 
 /**
@@ -342,11 +399,26 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
     'iOutlineOpacity',
     new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
   );
-  mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 3));
+  mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 4));
 
-  // Compute bounding sphere from instance positions for Three's frustum
-  // culling (fires per-block since each InstancedMesh has its own sphere).
+  // Compute bounding sphere from instance positions, then expand the
+  // radius to cover the worst-case lateral displacement the tilt
+  // shader can produce. Without this, a tilted building can render
+  // OUTSIDE its un-tilted bbox; Three's frustum culling then drops
+  // the whole InstancedMesh as soon as the un-tilted box just clears
+  // the frustum, even though tilted geometry is still on screen —
+  // which manifests as flickering / black flashes when the camera
+  // rotates or zooms past a tilted block.
   mesh.computeBoundingSphere();
+  if (mesh.geometry.boundingSphere) {
+    const dims = BUILDING_DIMENSIONS.get();
+    const aging = BUILDING_AGING.get();
+    const maxH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
+    const maxTiltRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
+    // Worst case: tilt magnitude × tallest building height (lateral
+    // shift at the top of the building). Pad generously.
+    mesh.geometry.boundingSphere.radius += maxH * maxTiltRad;
+  }
 
   // Tag for picker (Task 10) and block back-reference.
   mesh.userData.kind = 'buildings';

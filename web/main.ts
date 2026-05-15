@@ -17,6 +17,7 @@ import {
   GEM_FACE_PALETTE,
   GEM_GLOW,
   GEM_SIZING,
+  BLOOM,
   LIVE_UPDATES,
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
@@ -31,8 +32,8 @@ import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
 import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
+import { refreshBillboards } from './scene/billboards.js';
 import type { SceneBlock } from './scene/blocks.js';
-import { createLodController } from './scene/lodController.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
@@ -84,12 +85,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // global ref); only used by tests/visual/setup.ts.
   (window as Window & { __rig?: typeof rig }).__rig = rig;
 
-  // -- 4b. LOD controller ------------------------------------------------------
-  // Declared with `let` so refreshManifest (below) can recreate it after each
-  // applyManifest call. Camera reference is stable across rebuilds.
-  let lodController = createLodController(cityScene.getBlocks(), camera);
-
-  // -- 4c. Post-processing -----------------------------------------------------
+  // -- 4b. Post-processing -----------------------------------------------------
   // UnrealBloomPass on top of the main render so emissive windows actually
   // glow into the surrounding pixels (cyberpunk neon look). Cost is screen-
   // space, independent of building count. animate() and the resize handler
@@ -219,6 +215,15 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
+    postFx.refresh();
+
+    // Push fresh BLOOM.BILLBOARD_EMISSION into every billboard's
+    // panel material so the bloom slider affects billboards live.
+    const billboardGroups: THREE.Group[] = [];
+    for (const block of cityScene.getBlocks()) {
+      if (block.billboards) for (const g of block.billboards) billboardGroups.push(g);
+    }
+    refreshBillboards(billboardGroups);
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
@@ -315,7 +320,28 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const startTime = performance.now();
   const labelRight = new THREE.Vector3();
 
+  // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
+  const _renderSize = new THREE.Vector2();
   function animate() {
+    // Idempotent per-frame size guard. The ResizeObserver wires onResize
+    // for sidebar / window changes, but transient races can leave the
+    // EffectComposer's HDR render targets at a stale size — manifests as
+    // the city getting rendered into a small region of an otherwise-black
+    // canvas. Re-syncing here is cheap (no-op when sizes match) and
+    // catches anything the observer-driven path misses.
+    {
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      renderer.getSize(_renderSize);
+      if (cw > 0 && ch > 0 && (_renderSize.x !== cw || _renderSize.y !== ch)) {
+        renderer.setSize(cw, ch, false);
+        camera.aspect = cw / Math.max(1, ch);
+        camera.updateProjectionMatrix();
+        postFx.setSize(cw, ch);
+        outlineRenderer.onResize();
+        pathLineRenderer.onResize();
+      }
+    }
     rig.update(0); // first-call: bbox-frames camera
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
@@ -327,14 +353,8 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
-    // Per-frame LOD audit (Task 21): _orientLabelsForCamera iterates the flat
-    // street-level road-text labels (THREE.Group from createStreetLabels), NOT
-    // per-block InstancedMesh labels. Street labels have no LOD concept — they
-    // are always-visible map-style text on the asphalt, so iterating all of them
-    // each frame is correct. Per-block label InstancedMeshes (block.labelsMesh)
-    // have their .visible flag managed by lodController.update(), and the
-    // renderer skips invisible meshes automatically — no O(N) work on hidden
-    // content. No block-level loops exist in animate(); all loops are O(visible).
+    // Street labels are world-space text on the asphalt — orient toward
+    // camera each frame so they remain readable from any rotation.
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
     _orientBlockLabelsForCamera(cityScene.getBlocks(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
@@ -369,9 +389,20 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
           if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
         }
+        // HDR push for selective gem bloom. Sprite color was just set
+        // to an LDR palette value; multiplying scales it past 1.0 in
+        // linear space so the bloom pass picks it up independently of
+        // BLOOM.WINDOW_EMISSION. 1.0 = no bloom from gem; higher = more.
+        // Gated on BLOOM.ENABLED so the "flat" comparison mode skips
+        // the HDR push entirely.
+        const bloomCfg = BLOOM.get();
+        const gemEmission = bloomCfg.ENABLED ? bloomCfg.GEM_EMISSION : 1.0;
+        if (gemEmission !== 1) {
+          if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
+          if (outer) (outer.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
+        }
       }
     }
-    lodController.update(canvas); // swap detail↔placeholder by screen-space area
     postFx.render();
     requestAnimationFrame(animate);
   }

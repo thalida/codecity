@@ -19,10 +19,18 @@
 import * as THREE from 'three';
 import { BUILDING_FADE } from '@/config/index.js';
 import { FadeDetail, NodeKind } from '@/types';
-import type { DirNode, FileNode, PickTarget } from '@/types';
+import type { Building, DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/path.js';
+import { setBillboardOpacity } from '@/scene/billboards.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
+
+interface TierResult {
+  detail: FadeDetail;
+  bodyOpacity: number;
+  outlineEnabled: boolean;
+  outlineOpacity: number;
+}
 
 function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
   if (!file || !file.path || !dir || dir.path == null) return Infinity;
@@ -70,6 +78,65 @@ export function createBuildingFader({
     return dirTarget;
   }
 
+  // Shared tier decision used by both building-instance writes and
+  // billboard-group writes. Pulled into its own function so the two
+  // code paths produce IDENTICAL tier results — a media file's
+  // billboard fades to the same opacity that a non-media sibling's
+  // building instance would.
+  function _tierFor(
+    file: FileNode,
+    bldgTargetFile: FileNode | null,
+    dirTarget: DirNode | null,
+    hoverFile: FileNode | null,
+    fadeCfg: ReturnType<typeof BUILDING_FADE.get>,
+  ): TierResult {
+    let detail: FadeDetail;
+    let bodyOpacity: number;
+    let outlineEnabled: boolean;
+    let outlineOpacity: number;
+
+    if (bldgTargetFile && file.path === bldgTargetFile.path) {
+      // Selected building: always full body, no per-building outline
+      // (the dedicated selectedOutline mesh from outlineRenderer handles it).
+      detail = FadeDetail.Full;
+      bodyOpacity = 1.0;
+      outlineEnabled = false;
+      outlineOpacity = 0;
+    } else if (dirTarget) {
+      const dist = _dirTreeDistance(file, dirTarget);
+      if (dist === 0) {
+        detail = fadeCfg.DEFAULT_DETAIL;
+        bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+        outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
+        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
+      } else if (dist === 1) {
+        detail = fadeCfg.NEAR_DETAIL;
+        bodyOpacity = fadeCfg.NEAR_BODY_OPACITY;
+        outlineEnabled = fadeCfg.NEAR_OUTLINE;
+        outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
+      } else {
+        detail = fadeCfg.FAR_DETAIL;
+        bodyOpacity = fadeCfg.FAR_BODY_OPACITY;
+        outlineEnabled = fadeCfg.FAR_OUTLINE;
+        outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
+      }
+    } else {
+      detail = fadeCfg.DEFAULT_DETAIL;
+      bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+      outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
+      outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
+    }
+
+    if (hoverFile && file.path === hoverFile.path) {
+      detail = fadeCfg.DEFAULT_DETAIL;
+      bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
+      outlineEnabled = false; // hover outline is owned by outlineRenderer
+      outlineOpacity = 0;
+    }
+
+    return { detail, bodyOpacity, outlineEnabled, outlineOpacity };
+  }
+
   function _sweepAll(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
@@ -82,88 +149,59 @@ export function createBuildingFader({
     const fadeCfg = BUILDING_FADE.get();
 
     for (const block of cityScene.getBlocks()) {
-      if (!block.detailMesh) continue;
-      const iOpacityAttr = block.detailMesh.geometry.getAttribute(
-        'iOpacity'
-      ) as THREE.InstancedBufferAttribute | undefined;
-      const iSilhouetteAttr = block.detailMesh.geometry.getAttribute(
-        'iSilhouette'
-      ) as THREE.InstancedBufferAttribute | undefined;
-      const iOutlineOpacityAttr = block.detailMesh.geometry.getAttribute(
-        'iOutlineOpacity'
-      ) as THREE.InstancedBufferAttribute | undefined;
-      if (!iOpacityAttr || !iSilhouetteAttr || !iOutlineOpacityAttr) continue;
+      // ---- Building instances ----
+      if (block.detailMesh) {
+        const iOpacityAttr = block.detailMesh.geometry.getAttribute(
+          'iOpacity'
+        ) as THREE.InstancedBufferAttribute | undefined;
+        const iSilhouetteAttr = block.detailMesh.geometry.getAttribute(
+          'iSilhouette'
+        ) as THREE.InstancedBufferAttribute | undefined;
+        const iOutlineOpacityAttr = block.detailMesh.geometry.getAttribute(
+          'iOutlineOpacity'
+        ) as THREE.InstancedBufferAttribute | undefined;
+        if (iOpacityAttr && iSilhouetteAttr && iOutlineOpacityAttr) {
+          for (let i = 0; i < block.buildings.length; i++) {
+            const building = block.buildings[i];
+            const tier = _tierFor(building.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
 
-      for (let i = 0; i < block.buildings.length; i++) {
-        const building = block.buildings[i];
-        const f: FileNode = building.file;
+            // Translate detail + bodyOpacity → final alpha written to iOpacity.
+            // Full       → body visible at bodyOpacity, full facade detail.
+            // Silhouette → body visible at bodyOpacity, shader skips per-cell
+            //              window/door/slab math and renders solid base color.
+            // Hidden     → body opacity 0; only the per-instance outline
+            //              composites at face edges, leaving the road visible
+            //              through the empty body.
+            const iOpacity = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
+            const iSilhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+            const iOutlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
-        // Tier decision — mirrors the old per-frame tier logic, now snap-to-target.
-        let bodyOpacity: number;
-        let outlineOpacity: number;
-        let outlineEnabled: boolean;
-        let detail: FadeDetail;
-
-        if (bldgTargetFile && f.path === bldgTargetFile.path) {
-          // Selected building: always full body, no per-building outline
-          // (the dedicated selectedOutline mesh from outlineRenderer handles it).
-          detail = FadeDetail.Full;
-          bodyOpacity = 1.0;
-          outlineEnabled = false;
-          outlineOpacity = 0;
-        } else if (dirTarget) {
-          const dist = _dirTreeDistance(f, dirTarget);
-          if (dist === 0) {
-            detail = fadeCfg.DEFAULT_DETAIL;
-            bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-            outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
-            outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-          } else if (dist === 1) {
-            detail = fadeCfg.NEAR_DETAIL;
-            bodyOpacity = fadeCfg.NEAR_BODY_OPACITY;
-            outlineEnabled = fadeCfg.NEAR_OUTLINE;
-            outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
-          } else {
-            detail = fadeCfg.FAR_DETAIL;
-            bodyOpacity = fadeCfg.FAR_BODY_OPACITY;
-            outlineEnabled = fadeCfg.FAR_OUTLINE;
-            outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
+            iOpacityAttr.setX(i, iOpacity);
+            iSilhouetteAttr.setX(i, iSilhouette);
+            iOutlineOpacityAttr.setX(i, iOutlineOpacity);
           }
-        } else {
-          // No selection / hover — everything renders at default tier.
-          detail = fadeCfg.DEFAULT_DETAIL;
-          bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-          outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
-          outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
+
+          iOpacityAttr.needsUpdate = true;
+          iSilhouetteAttr.needsUpdate = true;
+          iOutlineOpacityAttr.needsUpdate = true;
         }
-
-        // Hover preview: a hovered file building snaps to DEFAULT tier.
-        if (hoverFile && f.path === hoverFile.path) {
-          detail = fadeCfg.DEFAULT_DETAIL;
-          bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-          outlineEnabled = false; // hover outline is owned by outlineRenderer
-          outlineOpacity = 0;
-        }
-
-        // Translate detail + bodyOpacity → final alpha written to iOpacity.
-        // Full       → body is visible at bodyOpacity, full facade detail.
-        // Silhouette → body is visible at bodyOpacity, shader skips per-cell
-        //              window/door/slab math and renders solid base color.
-        // Hidden     → body opacity is 0; only the per-instance outline
-        //              composites at the face edges, leaving the road behind
-        //              visible through the empty body.
-        const iOpacity = detail === FadeDetail.Hidden ? 0 : bodyOpacity;
-        const iSilhouette = detail === FadeDetail.Silhouette ? 1 : 0;
-        const iOutlineOpacity = outlineEnabled ? outlineOpacity : 0;
-
-        iOpacityAttr.setX(i, iOpacity);
-        iSilhouetteAttr.setX(i, iSilhouette);
-        iOutlineOpacityAttr.setX(i, iOutlineOpacity);
       }
 
-      iOpacityAttr.needsUpdate = true;
-      iSilhouetteAttr.needsUpdate = true;
-      iOutlineOpacityAttr.needsUpdate = true;
+      // ---- Billboards (image/video files) ----
+      // Same tier logic produces an opacity that gets applied to every
+      // material in the billboard group. Detail levels don't translate
+      // 1:1 to billboards (the panel + posts aren't a procedural facade),
+      // so we collapse Full/Silhouette to bodyOpacity and Hidden to 0 —
+      // the user reads the same fade pattern across both representations.
+      if (block.billboards) {
+        for (const group of block.billboards) {
+          const building = group.userData.building as Building | undefined;
+          if (!building?.file) continue;
+          const tier = _tierFor(building.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
+          const opacity = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
+          setBillboardOpacity(group, opacity);
+        }
+      }
     }
   }
 
