@@ -135,8 +135,8 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // full rebuild on label-typography change is acceptable — hot-reload
     // here is rare.
     LABEL_TYPOGRAPHY,
-    // FACADE_GEOMETRY: WINDOW_COLS_MAX / WINDOW_COLS_SIZE_DIVISOR /
-    // DOOR_WIDTH_OF_PATH bake into per-instance attributes
+    // FACADE_GEOMETRY: WINDOW_COLS_MAX / WIDTH_PER_WINDOW_COL /
+    // DOOR_WIDTH_FRAC_OF_PATH bake into per-instance attributes
     // (buf.cols / buf.doorWidth), so a change requires re-running
     // buildBuildingInstanceBuffer via applyManifest. The shader-side
     // keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are also pushed live via the

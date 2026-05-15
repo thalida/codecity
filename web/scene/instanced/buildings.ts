@@ -89,8 +89,8 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
   // building in the block sees consistent values.
   const facade = FACADE_GEOMETRY.get();
   const windowColsMax = facade.WINDOW_COLS_MAX;
-  const windowColsSizeDivisor = facade.WINDOW_COLS_SIZE_DIVISOR;
-  const doorWidthOfPath = facade.DOOR_WIDTH_OF_PATH;
+  const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
+  const doorWidthFracOfPath = facade.DOOR_WIDTH_FRAC_OF_PATH;
 
   for (let i = 0; i < n; i++) {
     const b = block.buildings[i];
@@ -136,11 +136,11 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     //   ±Z faces (north/south walls) span width w → cols_ns from w
     const colsEW = Math.max(
       1,
-      Math.min(windowColsMax, Math.floor(b.d / windowColsSizeDivisor)),
+      Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)),
     );
     const colsNS = Math.max(
       1,
-      Math.min(windowColsMax, Math.floor(b.w / windowColsSizeDivisor)),
+      Math.min(windowColsMax, Math.floor(b.w / widthPerWindowCol)),
     );
     buf.cols[i * 2 + 0] = colsEW;
     buf.cols[i * 2 + 1] = colsNS;
@@ -152,10 +152,10 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     buf.orient[i] = orientToIndex(b.orient);
 
     // --- Door width ---
-    // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_OF_PATH
+    // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_FRAC_OF_PATH
     // Mirrors createBuildingMesh:
-    //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_OF_PATH;
-    buf.doorWidth[i] = b.w * pathWidthFrac * doorWidthOfPath;
+    //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_FRAC_OF_PATH;
+    buf.doorWidth[i] = b.w * pathWidthFrac * doorWidthFracOfPath;
 
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
@@ -345,8 +345,8 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
       // hot-reload. Only the shader-side keys appear here — the JS-side
-      // keys (WINDOW_COLS_*, DOOR_WIDTH_OF_PATH) bake into per-instance
-      // attributes in buildBuildingInstanceBuffer above.
+      // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
+      // bake into per-instance attributes in buildBuildingInstanceBuffer above.
       uSlabHeightFrac: { value: FACADE_GEOMETRY.get().SLAB_HEIGHT_FRAC },
       uWindowWidthFrac: { value: FACADE_GEOMETRY.get().WINDOW_WIDTH_FRAC },
       uWindowHeightFrac: { value: FACADE_GEOMETRY.get().WINDOW_HEIGHT_FRAC },
@@ -392,7 +392,7 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
   _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
   // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
-  // The JS-side keys (WINDOW_COLS_*, DOOR_WIDTH_OF_PATH) require a full
+  // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH) require a full
   // rebuild because they bake into per-instance attributes; hotReload.ts
   // routes the whole store through scheduleRebuild so the uniforms here
   // are kept fresh on the next rebuild without separate plumbing.

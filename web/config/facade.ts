@@ -6,10 +6,14 @@
 // Shader-side keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) route through
 // refreshBuildingMaterial() on hot-reload — cheap, no rebuild needed.
 //
-// JS-side keys (WINDOW_COLS_MAX, WINDOW_COLS_SIZE_DIVISOR, DOOR_WIDTH_OF_PATH)
+// JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
 // feed into per-instance attributes that are baked at manifest-apply time,
 // so they need scheduleRebuild() rather than uniform refresh. The hotReload
 // wiring handles this — see web/config/hotReload.ts.
+//
+// Consumers do NOT clamp values from this store — the UI is the gate for
+// ranges. Degenerate inputs (e.g. WINDOW_COLS_MAX=0, SLAB_HEIGHT_FRAC=1.0)
+// render visually weird but do not crash.
 
 import { map } from 'nanostores';
 
@@ -24,8 +28,8 @@ export interface FacadeGeometryConfig {
 
   // JS-DRIVEN (per-instance attributes baked at build time → rebuild)
   WINDOW_COLS_MAX: number;            // 1-10 integer — max window columns per face
-  WINDOW_COLS_SIZE_DIVISOR: number;   // 1-32 integer — divisor mapping building dim → column count
-  DOOR_WIDTH_OF_PATH: number;         // 0-1 — door width as fraction of path width
+  WIDTH_PER_WINDOW_COL: number;       // 1-32 — world-unit width allotted per window column (cols = floor(width / this))
+  DOOR_WIDTH_FRAC_OF_PATH: number;    // 0-1 — door width as fraction of path width
 }
 
 export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
@@ -36,6 +40,6 @@ export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
   DOOR_HEIGHT_FRAC: 0.7,
   ROOF_BORDER_FRAC: 0.03125,
   WINDOW_COLS_MAX: 5,
-  WINDOW_COLS_SIZE_DIVISOR: 8,
-  DOOR_WIDTH_OF_PATH: 0.8,
+  WIDTH_PER_WINDOW_COL: 8,
+  DOOR_WIDTH_FRAC_OF_PATH: 0.8,
 });
