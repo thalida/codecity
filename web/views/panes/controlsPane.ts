@@ -200,30 +200,31 @@ function _buildCameraSection(): HTMLElement {
     'Perspective, orbit feel, transitions, input timing, tooltip placement, and keyboard shortcuts.'
   );
 
-  const shortcutsWrap = _subgroupHeader('Keyboard & mouse');
-  shortcutsWrap.appendChild(
-    _buildShortcutsList([
-      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
-      { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
-      { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
-      null, // section break
-      { mouse: 'Left drag', action: 'Orbit' },
-      { mouse: 'Right drag', action: 'Pan' },
-      { mouse: 'Middle drag', action: 'Dolly (zoom)' },
-      { mouse: 'Scroll', action: 'Zoom toward cursor' },
-      null,
-      { mouse: 'Click', action: 'Select building / street / gem' },
-      { mouse: 'Double-click', action: 'Focus camera on the target' },
-    ])
+  section.appendChild(
+    _subgroup(
+      'Keyboard & mouse',
+      _buildShortcutsList([
+        { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
+        { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
+        { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
+        null, // section break
+        { mouse: 'Left drag', action: 'Orbit' },
+        { mouse: 'Right drag', action: 'Pan' },
+        { mouse: 'Middle drag', action: 'Dolly (zoom)' },
+        { mouse: 'Scroll', action: 'Zoom toward cursor' },
+        null,
+        { mouse: 'Click', action: 'Select building / street / gem' },
+        { mouse: 'Double-click', action: 'Focus camera on the target' },
+      ])
+    )
   );
-  section.appendChild(shortcutsWrap);
 
   section.appendChild(
     _subgroup('Perspective (rebuild on change)', [
       _slider('Field of view (°)', CAMERA_PERSPECTIVE, 'FOV', 10, 110, 1, {
         tip: 'Vertical field-of-view in degrees. Rebuild required.',
       }),
-      _number('Near clip', CAMERA_PERSPECTIVE, 'NEAR', 0.01, 100, 0.01, {
+      _number('Near clip', CAMERA_PERSPECTIVE, 'NEAR', 0.01, 100, 0.1, {
         tip: 'Closest distance the camera can see. Smaller = more precision at close range; too small = z-fighting.',
       }),
       _number('Far clip', CAMERA_PERSPECTIVE, 'FAR', 100, 100000, 100, {
@@ -268,10 +269,10 @@ function _buildCameraSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Focus framing', [
-      _slider('Building padding ×', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_MULT', 1, 5, 0.1, {
+      _slider('Building padding mult', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_MULT', 1, 5, 0.1, {
         tip: 'Multiplier on the geometric "fit this building" distance — higher = more breathing room.',
       }),
-      _number('Building padding +', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_OFFSET', 0, 50, 1, {
+      _number('Building padding offset', CAMERA_ANIMATION, 'BUILDING_FOCUS_DISTANCE_OFFSET', 0, 50, 1, {
         tip: 'Constant offset added to the building-focus distance after the multiplier.',
       }),
       _slider('Street length frac', CAMERA_ANIMATION, 'STREET_FOCUS_LENGTH_FRAC', 0.1, 1, 0.01, {
@@ -318,19 +319,6 @@ function _buildCameraSection(): HTMLElement {
   );
 
   return section;
-}
-
-// Subgroup wrapper that renders only the heading + an empty children container.
-// Used when the subgroup's body is a non-row element (e.g. the shortcuts list)
-// that doesn't fit the `rows: HTMLElement[]` shape of _subgroup.
-function _subgroupHeader(name: string): HTMLElement {
-  const wrap = document.createElement('div');
-  wrap.className = 'theme-subgroup';
-  const h = document.createElement('div');
-  h.className = 'theme-subgroup-label';
-  h.textContent = name;
-  wrap.appendChild(h);
-  return wrap;
 }
 
 function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElement {
@@ -640,7 +628,7 @@ function _buildBuildingsSection(): HTMLElement {
       _slider('Window height × floor', FACADE_GEOMETRY, 'WINDOW_HEIGHT_FRAC', 0, 1, 0.01, {
         tip: 'Window height as a fraction of one floor.',
       }),
-      _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.25, 0.005, {
+      _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
         tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
       }),
       _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
@@ -1093,14 +1081,18 @@ function _section(name: string, hint?: string, defaultOpen = true): HTMLElement 
   return section;
 }
 
-function _subgroup(name: string, rows: HTMLElement[]): HTMLElement {
+// `rows` accepts either an array of row elements (the common case) or a
+// single element — used by the shortcuts list, whose body is one <dl> rather
+// than a stack of _row() outputs.
+function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'theme-subgroup';
   const h = document.createElement('div');
   h.className = 'theme-subgroup-label';
   h.textContent = name;
   wrap.appendChild(h);
-  for (const row of rows) wrap.appendChild(row);
+  const list = Array.isArray(rows) ? rows : [rows];
+  for (const row of list) wrap.appendChild(row);
   return wrap;
 }
 
