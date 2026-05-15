@@ -467,13 +467,18 @@ vec4 renderRoofFace() {
     //   uv = (0, 0) = south-west, (1, 0) = south-east,
     //        (0, 1) = north-west, (1, 1) = north-east
     // Icon atlas Y is canvas-native (flipY=false): atlasUv.y=0 is the
-    // icon's top edge. So "icon top → far edge from door" means
-    // mapping the far edge's vUv to rotated.y=0.
+    // icon's top edge. atlasUv.x=0 is the icon's left edge — which has
+    // to land on the VIEWER's left when they're standing at the door.
+    // Per right-hand-rule (forward × up = right), viewer-left depends
+    // on which direction the door faces; an early version of this code
+    // got the X axis backwards for door=E and door=W, mirroring the
+    // text. Each variant pair below sums to (1, 1) — a 180° rotation
+    // between opposite door directions.
     vec2 rotated;
-    if (vOrient < 0.5)      rotated = vec2(inset.x, 1.0 - inset.y); // door S → top→N
-    else if (vOrient < 1.5) rotated = vec2(1.0 - inset.x, inset.y); // door N → top→S
-    else if (vOrient < 2.5) rotated = vec2(1.0 - inset.y, inset.x); // door E → top→W
-    else                    rotated = vec2(inset.y, 1.0 - inset.x); // door W → top→E
+    if (vOrient < 0.5)      rotated = vec2(inset.x, 1.0 - inset.y); // door S (faces +Z): viewer-left = west
+    else if (vOrient < 1.5) rotated = vec2(1.0 - inset.x, inset.y); // door N (faces -Z): viewer-left = east
+    else if (vOrient < 2.5) rotated = vec2(inset.y, inset.x);       // door E (faces +X): viewer-left = south
+    else                    rotated = vec2(1.0 - inset.y, 1.0 - inset.x); // door W (faces -X): viewer-left = north
     vec2 atlasUv = vIconUV.xy + rotated * uIconSlotSize;
     vec4 icon = texture2D(uIconAtlas, atlasUv);
     // Composite over the roof: icon.rgb on top, alpha-weighted.
