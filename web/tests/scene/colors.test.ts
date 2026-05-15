@@ -5,6 +5,7 @@ import {
   getLightness,
   getDateRanges,
   getBuildingColor,
+  getModifiedAge,
 } from '@/scene/colors.js';
 import { BUILDING_PALETTE } from '@/config/index.js';
 import type { BuildingPaletteConfig } from '@/config/building.js';
@@ -357,5 +358,81 @@ describe('getBuildingColor', () => {
     // a.ts modified at modifiedMin → t=0.0 → lightness = LIGHTNESS_MIN (25 in test palette).
     const color = getBuildingColor(tree.children[0], dr);
     expect(color).toMatch(/^hsl\(215,\s*20%,\s*25%\)$/);
+  });
+});
+
+// ---- getModifiedAge ----
+describe('getModifiedAge', () => {
+  const baseDr = {
+    createdMin: '2024-01-01T00:00:00Z',
+    createdMax: '2024-12-31T00:00:00Z',
+    modifiedMin: '2024-01-10T09:00:00Z',
+    modifiedMax: '2024-03-22T14:30:00Z',
+  };
+
+  it('returns 1.0 for file modified at modifiedMin (most stale)', () => {
+    const file = {
+      type: NodeKind.File,
+      git: { created: '2024-01-01T00:00:00Z', modified: '2024-01-10T09:00:00Z' },
+    };
+    expect(getModifiedAge(file, baseDr)).toBe(1);
+  });
+
+  it('returns 0.0 for file modified at modifiedMax (most recent)', () => {
+    const file = {
+      type: NodeKind.File,
+      git: { created: '2024-01-01T00:00:00Z', modified: '2024-03-22T14:30:00Z' },
+    };
+    expect(getModifiedAge(file, baseDr)).toBe(0);
+  });
+
+  it('interpolates for midpoint', () => {
+    const file = {
+      type: NodeKind.File,
+      git: { created: '2024-01-01T00:00:00Z', modified: '2024-02-15T11:45:00Z' },
+    };
+    const age = getModifiedAge(file, baseDr);
+    expect(age).toBeGreaterThan(0);
+    expect(age).toBeLessThan(1);
+  });
+
+  it('returns 0.5 for file with no modified date', () => {
+    const file = { type: NodeKind.File } as const;
+    expect(getModifiedAge(file, baseDr)).toBe(0.5);
+  });
+
+  it('returns 0 for degenerate range (modifiedMin === modifiedMax)', () => {
+    const file = {
+      type: NodeKind.File,
+      git: { created: '2024-01-01T00:00:00Z', modified: '2024-01-10T09:00:00Z' },
+    };
+    const degenerate = {
+      createdMin: '2024-01-01T00:00:00Z',
+      createdMax: '2024-12-31T00:00:00Z',
+      modifiedMin: '2024-01-10T09:00:00Z',
+      modifiedMax: '2024-01-10T09:00:00Z',
+    };
+    expect(getModifiedAge(file, degenerate)).toBe(0);
+  });
+
+  it('clamps to [0, 1] for dates outside the range', () => {
+    const beforeMin = {
+      type: NodeKind.File,
+      git: { created: '2023-01-01T00:00:00Z', modified: '2023-01-01T00:00:00Z' },
+    };
+    const afterMax = {
+      type: NodeKind.File,
+      git: { created: '2025-01-01T00:00:00Z', modified: '2025-01-01T00:00:00Z' },
+    };
+    expect(getModifiedAge(beforeMin, baseDr)).toBe(1);
+    expect(getModifiedAge(afterMax, baseDr)).toBe(0);
+  });
+
+  it('falls back to filesystem modified when git.modified is missing', () => {
+    const file = {
+      type: NodeKind.File,
+      modified: '2024-03-22T14:30:00Z',
+    };
+    expect(getModifiedAge(file, baseDr)).toBe(0);
   });
 });
