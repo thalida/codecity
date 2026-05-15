@@ -248,6 +248,28 @@ export function getCreatedAge(file: FileLike, dateRanges: DateRangeStrings): num
   return Math.max(0, Math.min(1, 1 - t));
 }
 
+/**
+ * Mirror of getCreatedAge for the LAST-MODIFIED axis. Sampled at the
+ * file's modified date, normalized against modifiedMin/Max. Polarity
+ * matches getCreatedAge: 1.0 = file modified earliest in the repo
+ * (most stale); 0.0 = most recently modified.
+ *
+ * Shader-side: passed in via iModifiedAge (per-instance attribute) and
+ * read as `vModifiedAge` in the building fragment shader, replacing
+ * the previous `freshness` value (which was the inverted form,
+ * recovered from baseColor's lightness).
+ */
+export function getModifiedAge(file: FileLike, dateRanges: DateRangeStrings): number {
+  const modified = (file.git && file.git.modified) || file.modified || null;
+  if (!modified) return 0.5;
+  const m = Date.parse(modified);
+  const min = Date.parse(dateRanges.modifiedMin || '');
+  const max = Date.parse(dateRanges.modifiedMax || '');
+  if (isNaN(m) || isNaN(min) || isNaN(max) || max === min) return 0;
+  const t = (m - min) / (max - min);
+  return Math.max(0, Math.min(1, 1 - t));
+}
+
 export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): string {
   // Prefer git dates, fall back to filesystem dates
   const modified = (file.git && file.git.modified) || file.modified || null;
