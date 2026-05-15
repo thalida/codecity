@@ -37,6 +37,7 @@ flat varying vec3 vScale;
 //        independently of color/freshness so old-but-recently-edited
 //        files still look weathered.
 flat varying vec4 vIconUV;
+flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Replaces the lightness-recovered `freshness`.
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
 // BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
@@ -47,15 +48,6 @@ uniform float uOutlineWidth;
 // type didn't make it into the atlas keep their plain roof color.
 uniform sampler2D uIconAtlas;
 uniform float uIconSlotSize;
-
-// Palette lightness range (HSL %, 0–100). Used to recover a true
-// 0..1 "freshness" signal from the per-instance color: the newest
-// file in the repo gets HSL lightness = uLightnessMax, the oldest
-// gets uLightnessMin, and renderWallFace inverts that mapping so
-// freshness=1.0 means "most recently touched". Mirrors the
-// BUILDING_PALETTE config consumed by getBuildingColor().
-uniform float uLightnessMin;
-uniform float uLightnessMax;
 
 // Age-driven grime parameters. uGrimeIntensity scales the per-pixel
 // darkening (0 disables the streaks entirely); uGrimeCoverage is the
@@ -99,6 +91,9 @@ uniform float uWindowUnlitLightnessDelta;
 uniform float uWindowGapBaseThreshold;
 uniform float uWindowGapAgeBonus;
 uniform vec3 uDimGlowColor;
+// Exponent applied to (1.0 - vModifiedAge) for the lit-window
+// count + emission curve. 1.0 = linear; >1.0 dims mid-age faster.
+uniform float uLitFreshnessExponent;
 
 varying float vWorldY;
 
@@ -167,11 +162,12 @@ varying float vWorldY;
 // up and the OutputPass + ACES tonemapping compresses everything back
 // to display range.
 //
-//   emission = 1.0 + freshness * uWindowEmissionBoost
+//   emission = 1.0 + recencyCurve * uWindowEmissionBoost
+//   recencyCurve = pow(1.0 - vModifiedAge, uLitFreshnessExponent)
 //
 // 0 = no HDR push (windows stay LDR, no bloom contribution from windows);
-// higher = freshest building's windows push deeper into HDR space and
-// bloom proportionally harder. The freshness-scaled curve preserves
+// higher = most-recently-modified building's windows push deeper into
+// HDR space and bloom proportionally harder. The recencyCurve preserves
 // the age-driven bloom gradient regardless of the boost magnitude.
 uniform float uWindowEmissionBoost;
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
@@ -326,65 +322,43 @@ vec4 renderWallFace() {
   vec2 cellKey = vec2(colIdx, row) + vec2(buildingSeed, buildingSeed * 1.7);
   float gapHash = hash21(cellKey);
   float litHash = hash21(cellKey + vec2(31.4, 17.7));
-  // Repo-relative "freshness" signal: 1.0 for the most recently
-  // touched file in the repo, 0.0 for the oldest. Computed from the
-  // building's HSL lightness (l = (max + min) / 2 of sRGB channels)
-  // normalised against the palette's LIGHTNESS_MIN/MAX range — this
-  // exactly inverts the linear mapping getBuildingColor() applies
-  // when assigning the color, so a file touched "just now" lands at
-  // freshness=1.0 regardless of the file's hue or saturation.
+  // Two age axes drive window appearance, each per-instance:
+  //   vModifiedAge ∈ [0, 1] — staleness on the modified-date axis.
+  //     0 = most recently touched in the repo; 1 = longest-untouched.
+  //     Drives window count + HDR emission (recencyCurve below).
+  //   vIconUV.w   ∈ [0, 1] — file's intrinsic age (creation-date axis).
+  //     0 = newest file; 1 = oldest. Drives lit-window glow color
+  //     (warm-amber failing-fluorescent ↔ saturated neon), to match
+  //     the same axis grime + tilt sit on.
   //
-  // The previous "sRGB-channel mean" signal couldn't reach 1.0 for
-  // saturated colors (a cyan building at HSL L=70 has mean ~0.7),
-  // which left the most-recent building with ~70% lit windows even
-  // though it should be 100%.
-  //
-  // Freshness drives three curves: lit-window probability, lit-window
-  // glow brightness, and gap density.
-  float hslL = (max(max(baseColor.r, baseColor.g), baseColor.b)
-              + min(min(baseColor.r, baseColor.g), baseColor.b)) * 0.5;
-  float lRange = max(uLightnessMax - uLightnessMin, 0.0001);
-  float freshness = clamp((hslL * 100.0 - uLightnessMin) / lRange, 0.0, 1.0);
-  float ageGapThreshold = uWindowGapBaseThreshold + (1.0 - freshness) * uWindowGapAgeBonus;
+  // Gap density: old-modified buildings show more boarded-up cells.
+  float ageGapThreshold = uWindowGapBaseThreshold + vModifiedAge * uWindowGapAgeBonus;
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
-  // Lit cells get an emissive boost and BYPASS the directional-lighting
-  // multiplier — they're treated as neon panes, so a lit window on the
-  // shadow side still glows. Unlit cells stay reflective (modulated by
-  // the sun) so they read as "off" glass rather than blank wall.
-  //
-  // Three freshness-driven curves shape the lit windows:
-  //  - litThreshold: how MANY cells light up. Newest building hits
-  //    step(0.0, hash) = 1.0 for every cell (every window lit);
-  //    oldest hits step(1.0, hash) = 0.0 for every cell (all dark).
-  //  - emission:     how BRIGHT each lit window glows. Newest pushes
-  //    deepest into HDR via (1.0 + freshness * uWindowEmissionBoost);
-  //    older lights up duller — a single inhabited window in a
-  //    derelict block reads as a weak glow, not a beacon.
-  //  - hue mix:      what COLOR each lit window glows. Newest keeps
-  //    its saturated base hue (sharp neon); older tilts toward
-  //    uDimGlowColor (warm amber / dirty tungsten, from WINDOW_LIGHTING
-  //    store) so the city's old quarters look like failing fluorescents.
-  float litThreshold = 1.0 - freshness;
+  // Shared recency curve: feeds both lit-window count AND per-lit-window
+  // emission. exponent=1.0 gives the linear behavior the codebase had
+  // before this change; >1.0 makes mid-age buildings dim out faster
+  // (their lit-window count AND each lit window's brightness both drop).
+  // recency=1.0 at most recently modified, 0.0 at most stale.
+  float recencyCurve = pow(1.0 - vModifiedAge, uLitFreshnessExponent);
+
+  float litThreshold = 1.0 - recencyCurve;
   float litFactor = step(litThreshold, litHash);
-  // Window glow target IS the building's age-adjusted color, no
-  // saturation floor — so as the building gets grayer (saturation
-  // drops with age via the palette layer), the windows fade gray
-  // alongside it. The HDR emission multiplier (applied below) then
-  // brightens the lit cells without re-saturating them, preserving
-  // the "this whole building is desaturated" reading. Freshness still
-  // drives the mix toward uDimGlowColor at the oldest end for the
-  // "failing fluorescent" warm-amber character.
+
+  // Lit window glow color: track CREATED age (vIconUV.w), not modifiedAge.
+  // A long-existing file's lit windows glow warm amber ("failing
+  // fluorescent tube"), regardless of how recently it was edited.
+  // Same axis as grime + tilt, so old-existing buildings read coherently
+  // even when they're being actively worked on.
   vec3 winNeon = baseColor;
-  vec3 winLitColor = mix(uDimGlowColor, winNeon, freshness);
-  // HDR emission scales WITH freshness so newer buildings push deeper
-  // into HDR space and their windows bloom harder. The bloom pass's
-  // strength × radius then operates on that age-scaled HDR signal —
-  // strength acts as a global multiplier and the result naturally
-  // tracks building age. Old buildings get less bloom because their
-  // emission stays near 1.0, just above threshold.
-  float emission = 1.0 + freshness * uWindowEmissionBoost;
+  vec3 winLitColor = mix(uDimGlowColor, winNeon, 1.0 - vIconUV.w);
+
+  // HDR emission scales with the recency curve so recently-modified
+  // buildings push their lit windows above 1.0 in the HalfFloat target
+  // and the bloom pass picks them up. Mid-age plummets quickly when
+  // uLitFreshnessExponent > 1.
+  float emission = 1.0 + recencyCurve * uWindowEmissionBoost;
   winLitColor *= emission;
   vec3 winUnlitColor = shadeColor(baseColor, uWindowUnlitLightnessDelta) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
