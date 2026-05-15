@@ -34,6 +34,8 @@ import {
   LABEL_TYPOGRAPHY,
   BLOOM,
   LIGHTING,
+  FACADE_DETAIL,
+  WINDOW_LIGHTING,
 
   // Mixed (subscribed to BOTH lists — see below):
   FACADE_GEOMETRY,
@@ -164,6 +166,11 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // give instant visual feedback without waiting for the rebuild
     // triggered from rebuildStores above.
     FACADE_GEOMETRY,
+    // FACADE_DETAIL and WINDOW_LIGHTING are pure shader uniforms (no
+    // per-instance attributes), so they live exclusively in hotStores —
+    // refreshBuildingMaterial() pushes them on every slider tick.
+    FACADE_DETAIL,
+    WINDOW_LIGHTING,
   ];
 
   const unsubs: Array<() => void> = [];

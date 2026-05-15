@@ -10,9 +10,11 @@ import {
   BUILDING_DIMENSIONS,
   BUILDING_OUTLINE,
   BUILDING_PALETTE,
+  FACADE_DETAIL,
   FACADE_GEOMETRY,
   LIGHTING,
   SCENE_COLORS,
+  WINDOW_LIGHTING,
 } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
@@ -353,6 +355,17 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uWindowMarginFrac: { value: FACADE_GEOMETRY.get().WINDOW_MARGIN_FRAC },
       uDoorHeightFrac: { value: FACADE_GEOMETRY.get().DOOR_HEIGHT_FRAC },
       uRoofBorderFrac: { value: FACADE_GEOMETRY.get().ROOF_BORDER_FRAC },
+      // FACADE_DETAIL store — HSL lightness deltas applied to slab, door,
+      // and roof-border via shadeColor/shadeAndShiftHue in the shader.
+      uSlabLightnessDelta: { value: FACADE_DETAIL.get().SLAB_LIGHTNESS_DELTA },
+      uDoorLightnessDelta: { value: FACADE_DETAIL.get().DOOR_LIGHTNESS_DELTA },
+      uRoofBorderLightnessDelta: { value: FACADE_DETAIL.get().ROOF_BORDER_LIGHTNESS_DELTA },
+      // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
+      // thresholds, and the warm-amber tint for old/dim lit panes.
+      uWindowUnlitLightnessDelta: { value: WINDOW_LIGHTING.get().UNLIT_LIGHTNESS_DELTA },
+      uWindowGapBaseThreshold: { value: WINDOW_LIGHTING.get().GAP_BASE_THRESHOLD },
+      uWindowGapAgeBonus: { value: WINDOW_LIGHTING.get().GAP_AGE_BONUS },
+      uLitGlowDim: { value: new THREE.Color(WINDOW_LIGHTING.get().DIM_GLOW_COLOR) },
     },
   });
   _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
@@ -403,6 +416,18 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uWindowMarginFrac.value = facade.WINDOW_MARGIN_FRAC;
   _sharedMaterial.uniforms.uDoorHeightFrac.value = facade.DOOR_HEIGHT_FRAC;
   _sharedMaterial.uniforms.uRoofBorderFrac.value = facade.ROOF_BORDER_FRAC;
+  // FACADE_DETAIL store — pure uniform refresh, no rebuild required.
+  const facadeDetail = FACADE_DETAIL.get();
+  _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value = facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
+  // WINDOW_LIGHTING store — pure uniform refresh. .set(cssString) on the
+  // pre-allocated THREE.Color preserves the linear-sRGB conversion path.
+  const windowLighting = WINDOW_LIGHTING.get();
+  _sharedMaterial.uniforms.uWindowUnlitLightnessDelta.value = windowLighting.UNLIT_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uWindowGapBaseThreshold.value = windowLighting.GAP_BASE_THRESHOLD;
+  _sharedMaterial.uniforms.uWindowGapAgeBonus.value = windowLighting.GAP_AGE_BONUS;
+  (_sharedMaterial.uniforms.uLitGlowDim.value as THREE.Color).set(windowLighting.DIM_GLOW_COLOR);
 }
 
 /**
