@@ -591,7 +591,7 @@ function _buildBuildingsSection(): HTMLElement {
     _collapsibleSubgroup('facade', 'Facade', () => [
       _subgroup('Geometry', [
         _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
-          tip: 'Floor-slab strip height as a fraction of one floor.',
+          tip: 'Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor\'s window band — the facade reads as horizontal banding instead of windowed.',
         }),
         _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
           tip: 'Window width as a fraction of its grid cell.',
@@ -600,19 +600,19 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Window height as a fraction of one floor.',
         }),
         _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
-          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
+          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width. Above 0.2 there is only room for ~3 window columns on a typical building.',
         }),
         _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
           tip: 'Door height as a fraction of one floor.',
         }),
         _slider('Roof border × face', FACADE_GEOMETRY, 'ROOF_BORDER_FRAC', 0, 0.1, 0.005, {
-          tip: 'Width of the roof border strip, as a fraction of the face.',
+          tip: 'Width of the roof border strip, as a fraction of the face. Above 0.1 (10% of face width) the border eats into the icon area at the top of the facade.',
         }),
         _number('Max window columns', FACADE_GEOMETRY, 'WINDOW_COLS_MAX', 1, 10, 1, {
-          tip: 'Hard cap on window columns per face. Rebuild required.',
+          tip: 'Hard cap on window columns per face. Rebuild required. Above 10 the window grid becomes too dense to read at typical zoom.',
         }),
         _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
-          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required.',
+          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows.',
         }),
         _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
           tip: 'Door width as a fraction of the building path width. Rebuild required.',
