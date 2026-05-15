@@ -8,7 +8,7 @@
 // work is O(active) not O(buildings).
 //
 // Field ownership:
-//   buildingFader   → block.detailMesh iOpacity attribute (building body fade)
+//   buildingFader   → block.detailMesh iFade.x attribute (building body fade)
 //   outlineRenderer → hoverOutline + selectedOutline transform + visibility +
 //                     rainbow color cycle on selectedOutline
 //
