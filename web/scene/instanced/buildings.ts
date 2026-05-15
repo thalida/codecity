@@ -317,14 +317,6 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // sampling behind iIconUV.x >= 0.
       uIconAtlas: { value: _atlas ? _atlas.texture : null },
       uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
-      // Palette lightness range (HSL %, 0–100 domain). The shader
-      // recovers a 0..1 "freshness" signal by reading HSL lightness
-      // out of the per-instance base color and normalising against
-      // this range — newest file = 1.0, oldest = 0.0. Used to drive
-      // window lit/dark count, glow brightness, glow hue, and gap
-      // density. Refreshed on live-config edits.
-      uLightnessMin: { value: BUILDING_PALETTE.get().LIGHTNESS_MIN },
-      uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
       // Ground-haze uniforms — height-based volumetric fog applied
       // in the building shader. Independent of camera distance.
       // Fog color is mixed into the post-tonemap sRGB framebuffer; pass
@@ -386,6 +378,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
       // through unchanged.
       uDimGlowColor: { value: new THREE.Color().setStyle(WINDOW_LIGHTING.get().DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace) },
+      uLitFreshnessExponent: { value: WINDOW_LIGHTING.get().LIT_FRESHNESS_EXPONENT },
     },
   });
   _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
@@ -402,8 +395,6 @@ export function refreshBuildingMaterial(): void {
   const sceneCfg = SCENE_COLORS.get();
   const bloomCfg = BLOOM.get();
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
-  _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
-  _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
   (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
     sceneCfg.FOG_COLOR,
     THREE.LinearSRGBColorSpace,
@@ -456,6 +447,7 @@ export function refreshBuildingMaterial(): void {
     windowLighting.DIM_GLOW_COLOR,
     THREE.LinearSRGBColorSpace,
   );
+  _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
 }
 
 /**
