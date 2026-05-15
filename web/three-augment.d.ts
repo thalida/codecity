@@ -46,7 +46,6 @@ declare module 'three' {
 
     // Gem animation state
     baseY?: number;
-    bobAmp?: number;
     radius?: number;
     streetWidth?: number;
 

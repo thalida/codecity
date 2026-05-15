@@ -18,7 +18,7 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
 import { layoutCityV4 } from './layoutV4';
-import { isMediaFile, BILLBOARD_HEIGHT_FRAC } from './billboards.js';
+import { isMediaFile, getBillboardHeightFrac } from './billboards.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -269,7 +269,7 @@ export function getBuildingDimensions(
   // wrap the whole sign instead of clinging to the lot.
   let h = height;
   if (isMediaFile(file)) {
-    h = width * BILLBOARD_HEIGHT_FRAC;
+    h = width * getBillboardHeightFrac();
   }
 
   // Depth == width keeps footprints square so tall thin towers don't

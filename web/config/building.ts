@@ -33,11 +33,11 @@ export interface BuildingDimensionsConfig {
 }
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
-  MIN_FLOORS: 1,
-  MAX_FLOORS: 50,
+  MIN_FLOORS: 2,
+  MAX_FLOORS: 100,
   FLOOR_HEIGHT: 10, // scene units per floor
   MIN_WIDTH: 5,
-  MAX_WIDTH: 40,
+  MAX_WIDTH: 80,
   PATH_LENGTH: 4, // connector strip length (building wall → sidewalk)
   PATH_WIDTH_FRAC: 0.4, // per-building: pathWidth = building.w × this; also drives door width
 });
@@ -45,13 +45,12 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
 // Hue comes from HUE_EXT_MAP keyed by file extension; saturation and
 // lightness come from these ranges (older files are more muted, newer ones
-// brighter). DIRECTORY_COLOR is used for directory buildings.
+// brighter).
 export interface BuildingPaletteConfig {
   SATURATION_MIN: number;
   SATURATION_MAX: number;
   LIGHTNESS_MIN: number;
   LIGHTNESS_MAX: number;
-  DIRECTORY_COLOR: string;
   HUE_EXT_MAP: Record<string, number>;
 }
 
@@ -64,14 +63,13 @@ export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   // point: above that, channels start blending toward white and the
   // hue washes out into pastel. 55 is a touch above peak to keep
   // newest buildings reading as bright, without losing chroma.
-  SATURATION_MIN: 0,
+  SATURATION_MIN: 10,
   SATURATION_MAX: 100,
-  LIGHTNESS_MIN: 10,
+  LIGHTNESS_MIN: 5,
   LIGHTNESS_MAX: 50,
   // (When a file has no creation/modification date, getSaturation /
   // getLightness fall back to the midpoint of the range above so the
   // building reads as "average" rather than crushed to either extreme.)
-  DIRECTORY_COLOR: 'hsl(220, 15%, 25%)', // dim slab for directory entries
   // Hue is picked to match the standout color of the file's icon in
   // Material Icon Theme (see views/shell/fileIcon.ts) — the COLOR you
   // see on the file's pill / icon glyph is the same hue the building
@@ -278,8 +276,6 @@ export const BUILDING_AGING = map<BuildingAgingConfig>({
 //
 // All hot-reloadable.
 export interface BuildingFadeConfig {
-  LERP_SPEED: number;
-  SNAP_THRESHOLD: number;
   DEFAULT_DETAIL: FadeDetail;
   DEFAULT_OUTLINE: boolean;
   DEFAULT_BODY_OPACITY: number;
@@ -295,10 +291,6 @@ export interface BuildingFadeConfig {
 }
 
 export const BUILDING_FADE = map<BuildingFadeConfig>({
-  // Animation
-  LERP_SPEED: 0.18,
-  SNAP_THRESHOLD: 0.005,
-
   // Default tier — siblings of selection, and the no-selection resting state.
   DEFAULT_DETAIL: FadeDetail.Full,
   DEFAULT_OUTLINE: false,

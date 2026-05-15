@@ -18,8 +18,8 @@ export interface GemSizingConfig {
 
 export const GEM_SIZING = map<GemSizingConfig>({
   RADIUS_AS_STREET_FRAC: 0.5, // gem radius = root street width × this
-  MIN_RADIUS: 5, // floor for narrow root streets
-  HOVER_LIFT_FRAC: 0.3, // gem hovers above road = radius × this
+  MIN_RADIUS: 8, // floor for narrow root streets
+  HOVER_LIFT_FRAC: 0.5, // gem hovers above road = radius × this
   // Dead-space pad past the gem at the root street's origin end,
   // expressed as a multiple of the gem's diameter so the plaza always
   // scales with the gem rather than living in absolute world units.
@@ -54,7 +54,7 @@ export interface GemAppearanceConfig {
 }
 
 export const GEM_APPEARANCE = map<GemAppearanceConfig>({
-  EDGE_COLOR: '#f0f0ff',
+  EDGE_COLOR: '#7a7fff',
   BODY_OPACITY: 1.0,
 });
 
@@ -98,5 +98,5 @@ export const GEM_ANIMATION = map<GemAnimationConfig>({
   BOB_FREQUENCY: 1.8, // bob cycles/sec multiplier
   BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this
   HOVER_SCALE: 1.25, // gem grows by this factor on hover
-  SCALE_LERP_SPEED: 0.18, // per-frame ease toward HOVER_SCALE
+  SCALE_LERP_SPEED: 0.2, // per-frame ease toward HOVER_SCALE
 });

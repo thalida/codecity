@@ -145,8 +145,8 @@ describe('getStreetWidth', () => {
   it('count 31 → fifth tier width (52)', () => expect(getStreetWidth(31, TEST_TIERS)).toBe(52));
   it('count 100 → fifth tier width (52)', () => expect(getStreetWidth(100, TEST_TIERS)).toBe(52));
   it('falls back to built-in tiers if none provided', () => {
-    expect(getStreetWidth(0)).toBe(10);
-    expect(getStreetWidth(100)).toBe(64);
+    expect(getStreetWidth(0)).toBe(20);
+    expect(getStreetWidth(100)).toBe(128);
   });
 });
 
@@ -1114,10 +1114,11 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
-    // Measured ~115.4 under v3; 120 gives ~4.6 units of headroom without
-    // being so loose that a real regression (the old unguarded ~115→130+
-    // inflation) would slip through.
-    expect(rootStreet.length).toBeLessThan(120);
+    // Measured ~115.4 under v3 with the prior STREET_TIERS defaults; after
+    // doubling the tier widths (10→20, 16→32, …) the natural length is
+    // ~210. Threshold scaled to ~240 to keep ~30u headroom while still
+    // catching a 2× regression.
+    expect(rootStreet.length).toBeLessThan(240);
   });
 
   it('TEST_TREE is tree-respecting', () => {

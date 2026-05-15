@@ -24,6 +24,7 @@
 // cannot conflict by construction.
 
 import * as THREE from 'three';
+import { ANIMATION_TIMING } from '@/config/index.js';
 import type { CitySceneDiff } from '@/types';
 import type { SceneBlock } from './blocks.js';
 import type { createCityScene } from './cityScene.js';
@@ -49,10 +50,11 @@ interface Tween {
   startedAt: number;
 }
 
-// Default durations (ms). Subjective; smoke-tested for "snappy but
-// readable" on file-save bursts.
-const ENTER_MS = 400;
-const STAY_MS = 350;
+// Enter + stay tweens share a single duration (ANIMATION_TIMING
+// .BUILDING_TRANSITION_MS). The two were previously hard-coded as
+// ENTER_MS=400 and STAY_MS=350 and were always tuned together, so they
+// collapsed into one knob. Read fresh per-diff (per file-save burst)
+// so Settings tweaks apply to subsequent rebuilds without restart.
 
 function easeOutCubic(t: number): number {
   const u = 1 - t;
@@ -97,6 +99,10 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
   }
 
   function _onChange(diff: CitySceneDiff): void {
+    // Snapshot the current building-transition duration once per diff —
+    // every tween started by this _onChange shares the same MS, but a
+    // later diff (after a Settings tweak) will pick up the new value.
+    const transitionMs = ANIMATION_TIMING.get().BUILDING_TRANSITION_MS;
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {
@@ -116,7 +122,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
         toPosX: newPosX,
         toPosY: newPosY,
         toPosZ: newPosZ,
-        durationMs: ENTER_MS,
+        durationMs: transitionMs,
         easing: easeOutCubic,
         startedAt: performance.now(),
       });
@@ -158,7 +164,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
         toPosX: newPosX,
         toPosY: newPosY,
         toPosZ: newPosZ,
-        durationMs: STAY_MS,
+        durationMs: transitionMs,
         easing: easeOutCubic,
         startedAt: performance.now(),
       });

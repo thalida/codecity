@@ -38,7 +38,8 @@ const MAX_PAGES = 16;
  * Truncate a label so it fits on its street.
  *
  * Labels are rendered at a height of `street.width * HEIGHT_FRAC` world
- * units; canvas height is `FONT_SIZE_PX + 2 * CANVAS_PADDING_PX` pixels.
+ * units; canvas height is `FONT_SIZE_PX + 2 * padding` pixels, where
+ * `padding = round(FONT_SIZE_PX * CANVAS_PADDING_FRAC)`.
  * That ratio gives world-units-per-canvas-pixel, which we use to compute
  * the maximum canvas-pixel width that fits in `street.length * 0.9`
  * world units. If the full label exceeds that, we trim characters off
@@ -58,14 +59,15 @@ export function truncateLabelToFit(
   measureCtx: CanvasRenderingContext2D,
 ): string {
   if (!text) return text;
-  const labelHeightPx = typography.FONT_SIZE_PX + 2 * typography.CANVAS_PADDING_PX;
+  const paddingPx = Math.round(typography.FONT_SIZE_PX * typography.CANVAS_PADDING_FRAC);
+  const labelHeightPx = typography.FONT_SIZE_PX + 2 * paddingPx;
   const worldPerCanvasPx =
     (street.width * typography.HEIGHT_FRAC) / labelHeightPx;
   if (worldPerCanvasPx <= 0) return text;
   const maxCanvasWidthPx = (street.length * 0.9) / worldPerCanvasPx;
   if (maxCanvasWidthPx <= 0) return text;
   const measure = (s: string): number =>
-    measureCtx.measureText(s).width + 2 * typography.CANVAS_PADDING_PX;
+    measureCtx.measureText(s).width + 2 * paddingPx;
   if (measure(text) <= maxCanvasWidthPx) return text;
 
   const ellipsis = '…';
@@ -90,10 +92,12 @@ export function buildLabelAtlas(
   const measureCtx = document.createElement('canvas').getContext('2d')!;
   const fontSpec = `${typography.FONT_WEIGHT} ${typography.FONT_SIZE_PX}px ${typography.FONT_FAMILY}`;
   measureCtx.font = fontSpec;
+  const paddingPx = Math.round(typography.FONT_SIZE_PX * typography.CANVAS_PADDING_FRAC);
+  const strokeWidthPx = Math.round(typography.FONT_SIZE_PX * typography.STROKE_WIDTH_FRAC);
   const items = uniqueTexts.map((text) => {
     const w =
-      Math.ceil(measureCtx.measureText(text).width) + typography.CANVAS_PADDING_PX * 2;
-    const h = typography.FONT_SIZE_PX + typography.CANVAS_PADDING_PX * 2;
+      Math.ceil(measureCtx.measureText(text).width) + paddingPx * 2;
+    const h = typography.FONT_SIZE_PX + paddingPx * 2;
     return { text, w, h };
   });
 
@@ -157,7 +161,7 @@ export function buildLabelAtlas(
     const ctx = pageContexts[p.page];
     const cx = p.x + p.w / 2;
     const cy = p.y + p.h / 2;
-    ctx.lineWidth = typography.STROKE_WIDTH_PX;
+    ctx.lineWidth = strokeWidthPx;
     ctx.strokeStyle = typography.STROKE;
     ctx.strokeText(p.text, cx, cy);
     ctx.fillStyle = typography.FILL;

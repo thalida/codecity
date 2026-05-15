@@ -10,7 +10,11 @@ import {
   BUILDING_DIMENSIONS,
   BUILDING_OUTLINE,
   BUILDING_PALETTE,
+  FACADE_DETAIL,
+  FACADE_GEOMETRY,
+  LIGHTING,
   SCENE_COLORS,
+  WINDOW_LIGHTING,
 } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
@@ -40,25 +44,13 @@ export interface BuildingInstanceBuffer {
 }
 
 // ---------------------------------------------------------------------------
-// Renderer-internal constants — must match the values in engine.ts exactly.
-// See FACADE object in engine.ts:
-//   WINDOW_COLS_SIZE_DIVISOR: 8
-//   WINDOW_COLS_MAX: 5
-// See module-level constant in engine.ts:
-//   DOOR_WIDTH_OF_PATH: 0.8
+// Per-instance facade attributes (window column count + door width) are
+// sourced from the FACADE_GEOMETRY store. The shader-side keys
+// (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are pushed through uniforms — see
+// refreshBuildingMaterial(); the JS-side keys read below feed into baked
+// per-instance attributes, so changes to them trigger a full rebuild via
+// hotReload.ts.
 // ---------------------------------------------------------------------------
-
-/** Matches FACADE.WINDOW_COLS_SIZE_DIVISOR in engine.ts */
-const WINDOW_COLS_SIZE_DIVISOR = 8;
-
-/** Matches FACADE.WINDOW_COLS_MAX in engine.ts */
-const WINDOW_COLS_MAX = 5;
-
-/**
- * Door world width = (building.w × PATH_WIDTH_FRAC) × DOOR_WIDTH_OF_PATH.
- * Matches the module-level constant in engine.ts.
- */
-const DOOR_WIDTH_OF_PATH = 0.8;
 
 /**
  * Build per-instance attribute buffers for a block's buildings.
@@ -94,6 +86,13 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
   // Read once per buffer build so all buildings in the block use the same
   // config snapshot (consistent with how engine.ts reads it per-building).
   const pathWidthFrac = BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC;
+  // Facade-geometry knobs that bake into per-instance attributes. Same
+  // snapshot pattern as PATH_WIDTH_FRAC — one read per block so every
+  // building in the block sees consistent values.
+  const facade = FACADE_GEOMETRY.get();
+  const windowColsMax = facade.WINDOW_COLS_MAX;
+  const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
+  const doorWidthFracOfPath = facade.DOOR_WIDTH_FRAC_OF_PATH;
 
   for (let i = 0; i < n; i++) {
     const b = block.buildings[i];
@@ -139,11 +138,11 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     //   ±Z faces (north/south walls) span width w → cols_ns from w
     const colsEW = Math.max(
       1,
-      Math.min(WINDOW_COLS_MAX, Math.floor(b.d / WINDOW_COLS_SIZE_DIVISOR)),
+      Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)),
     );
     const colsNS = Math.max(
       1,
-      Math.min(WINDOW_COLS_MAX, Math.floor(b.w / WINDOW_COLS_SIZE_DIVISOR)),
+      Math.min(windowColsMax, Math.floor(b.w / widthPerWindowCol)),
     );
     buf.cols[i * 2 + 0] = colsEW;
     buf.cols[i * 2 + 1] = colsNS;
@@ -155,10 +154,10 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     buf.orient[i] = orientToIndex(b.orient);
 
     // --- Door width ---
-    // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_OF_PATH
+    // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_FRAC_OF_PATH
     // Mirrors createBuildingMesh:
-    //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_OF_PATH;
-    buf.doorWidth[i] = b.w * pathWidthFrac * DOOR_WIDTH_OF_PATH;
+    //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_FRAC_OF_PATH;
+    buf.doorWidth[i] = b.w * pathWidthFrac * doorWidthFracOfPath;
 
     // --- Opacity (default 1.0; fader updates in-place at runtime) ---
     buf.opacity[i] = 1.0;
@@ -272,6 +271,24 @@ function _computeFogHeight(): number {
   return SCENE_COLORS.get().FOG_HEIGHT_FRAC * maxHeight;
 }
 
+/**
+ * Convert LIGHTING's spherical (azimuth, elevation) into a unit world-space
+ * direction TOWARD the sun and write it onto `out`.
+ *
+ * Convention: azimuth=0 points along +Z (south), increasing clockwise (so
+ * azimuth=90 points along +X / east); elevation=0 is on the horizon,
+ * elevation=90 is directly overhead (+Y). This reproduces the prior
+ * hard-coded `normalize(vec3(0.5, 1.0, 0.4))` at the default
+ * (az=51°, el=58°) to within rounding.
+ */
+function _writeSunDir(out: THREE.Vector3): void {
+  const lighting = LIGHTING.get();
+  const az = (lighting.SUN_AZIMUTH_DEG * Math.PI) / 180;
+  const el = (lighting.SUN_ELEVATION_DEG * Math.PI) / 180;
+  const cosEl = Math.cos(el);
+  out.set(Math.sin(az) * cosEl, Math.sin(el), Math.cos(az) * cosEl).normalize();
+}
+
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
   // Inline the hsl helpers into the fragment source at the placeholder
@@ -301,7 +318,11 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
       // Ground-haze uniforms — height-based volumetric fog applied
       // in the building shader. Independent of camera distance.
-      uFogColor: { value: new THREE.Color(SCENE_COLORS.get().FOG_COLOR) },
+      // Fog color is mixed into the post-tonemap sRGB framebuffer; pass
+      // the CSS hex through unchanged via LinearSRGBColorSpace so Three's
+      // automatic sRGB->linear conversion doesn't darken it. Same
+      // convention as uDimGlowColor.
+      uFogColor: { value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace) },
       uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
       // Extra HDR emission applied to the freshest building's lit
@@ -319,8 +340,46 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
           ? (BUILDING_AGING.get().TILT_DEGREES * Math.PI) / 180
           : 0,
       },
+      // Scene directional lighting (LIGHTING store). uSunDirWorld is
+      // re-initialised below from the current LIGHTING values so the
+      // first frame already has the configured sun direction; the
+      // ambient and contrast scalars are seeded inline. The (0,1,0)
+      // placeholder gives an overhead sun if _writeSunDir somehow
+      // doesn't run, rather than the all-faces-shadow look a zero
+      // vector would produce.
+      uSunDirWorld: { value: new THREE.Vector3(0, 1, 0) },
+      uAmbient: { value: LIGHTING.get().AMBIENT },
+      uSunContrast: { value: LIGHTING.get().SUN_CONTRAST },
+      // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
+      // the current store snapshot so the first frame renders with the
+      // configured values; refreshBuildingMaterial() pushes updates on
+      // hot-reload. Only the shader-side keys appear here — the JS-side
+      // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
+      // bake into per-instance attributes in buildBuildingInstanceBuffer above.
+      uSlabHeightFrac: { value: FACADE_GEOMETRY.get().SLAB_HEIGHT_FRAC },
+      uWindowWidthFrac: { value: FACADE_GEOMETRY.get().WINDOW_WIDTH_FRAC },
+      uWindowHeightFrac: { value: FACADE_GEOMETRY.get().WINDOW_HEIGHT_FRAC },
+      uWindowMarginFrac: { value: FACADE_GEOMETRY.get().WINDOW_MARGIN_FRAC },
+      uDoorHeightFrac: { value: FACADE_GEOMETRY.get().DOOR_HEIGHT_FRAC },
+      uRoofBorderFrac: { value: FACADE_GEOMETRY.get().ROOF_BORDER_FRAC },
+      // FACADE_DETAIL store — HSL lightness deltas applied to slab, door,
+      // and roof-border via shadeColor/shadeAndShiftHue in the shader.
+      uSlabLightnessDelta: { value: FACADE_DETAIL.get().SLAB_LIGHTNESS_DELTA },
+      uDoorLightnessDelta: { value: FACADE_DETAIL.get().DOOR_LIGHTNESS_DELTA },
+      uRoofBorderLightnessDelta: { value: FACADE_DETAIL.get().ROOF_BORDER_LIGHTNESS_DELTA },
+      // WINDOW_LIGHTING store — per-cell lit/unlit lightness deltas, gap
+      // thresholds, and the warm-amber tint for old/dim lit panes.
+      uWindowUnlitLightnessDelta: { value: WINDOW_LIGHTING.get().UNLIT_LIGHTNESS_DELTA },
+      uWindowGapBaseThreshold: { value: WINDOW_LIGHTING.get().GAP_BASE_THRESHOLD },
+      uWindowGapAgeBonus: { value: WINDOW_LIGHTING.get().GAP_AGE_BONUS },
+      // setStyle(..., LinearSRGBColorSpace) skips Three's automatic sRGB→linear
+      // conversion. The shader consumes uDimGlowColor in sRGB space (the prior
+      // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
+      // through unchanged.
+      uDimGlowColor: { value: new THREE.Color().setStyle(WINDOW_LIGHTING.get().DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace) },
     },
   });
+  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
   return _sharedMaterial;
 }
 
@@ -336,7 +395,10 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
   _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
   _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
-  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).set(sceneCfg.FOG_COLOR);
+  (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
+    sceneCfg.FOG_COLOR,
+    THREE.LinearSRGBColorSpace,
+  );
   // FOG_ENABLED gates intensity at the uniform level; the shader logic
   // is unchanged (fogAmount → 0 when intensity is 0, mix() is a no-op).
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
@@ -351,6 +413,40 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uTiltMaxRad.value = aging.TILT_ENABLED
     ? (aging.TILT_DEGREES * Math.PI) / 180
     : 0;
+  // Scene directional lighting (LIGHTING store).
+  const lighting = LIGHTING.get();
+  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
+  _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
+  _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
+  // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
+  // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH) require a full
+  // rebuild because they bake into per-instance attributes; hotReload.ts
+  // routes the whole store through scheduleRebuild so the uniforms here
+  // are kept fresh on the next rebuild without separate plumbing.
+  const facade = FACADE_GEOMETRY.get();
+  _sharedMaterial.uniforms.uSlabHeightFrac.value = facade.SLAB_HEIGHT_FRAC;
+  _sharedMaterial.uniforms.uWindowWidthFrac.value = facade.WINDOW_WIDTH_FRAC;
+  _sharedMaterial.uniforms.uWindowHeightFrac.value = facade.WINDOW_HEIGHT_FRAC;
+  _sharedMaterial.uniforms.uWindowMarginFrac.value = facade.WINDOW_MARGIN_FRAC;
+  _sharedMaterial.uniforms.uDoorHeightFrac.value = facade.DOOR_HEIGHT_FRAC;
+  _sharedMaterial.uniforms.uRoofBorderFrac.value = facade.ROOF_BORDER_FRAC;
+  // FACADE_DETAIL store — pure uniform refresh, no rebuild required.
+  const facadeDetail = FACADE_DETAIL.get();
+  _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value = facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
+  // WINDOW_LIGHTING store — pure uniform refresh. .set(cssString) on the
+  // pre-allocated THREE.Color preserves the linear-sRGB conversion path.
+  const windowLighting = WINDOW_LIGHTING.get();
+  _sharedMaterial.uniforms.uWindowUnlitLightnessDelta.value = windowLighting.UNLIT_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uWindowGapBaseThreshold.value = windowLighting.GAP_BASE_THRESHOLD;
+  _sharedMaterial.uniforms.uWindowGapAgeBonus.value = windowLighting.GAP_AGE_BONUS;
+  // Pass DIM_GLOW_COLOR through unchanged — shader treats it as sRGB,
+  // matching the prior hardcoded vec3(0.5, 0.4, 0.15) literal.
+  (_sharedMaterial.uniforms.uDimGlowColor.value as THREE.Color).setStyle(
+    windowLighting.DIM_GLOW_COLOR,
+    THREE.LinearSRGBColorSpace,
+  );
 }
 
 /**

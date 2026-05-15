@@ -20,6 +20,7 @@ import {
   STREET_LAYOUT,
   STREET_TIERS,
   GEM_SIZING,
+  BILLBOARD_GEOMETRY,
 
   // Hot-reloadable (live material updates only):
   SCENE_COLORS,
@@ -33,6 +34,12 @@ import {
   GEM_GLOW,
   LABEL_TYPOGRAPHY,
   BLOOM,
+  LIGHTING,
+  FACADE_DETAIL,
+  WINDOW_LIGHTING,
+
+  // Mixed (subscribed to BOTH lists — see below):
+  FACADE_GEOMETRY,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -125,12 +132,28 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     STREET_LAYOUT,
     STREET_TIERS,
     GEM_SIZING,
+    // BILLBOARD_GEOMETRY: panel/post sizes + colors bake into per-mesh
+    // BoxGeometry / CylinderGeometry / MeshBasicMaterial calls inside
+    // createBillboard(), and PANEL_ASPECT × POST_HEIGHT_FRAC also feeds
+    // the layout height override (getBillboardHeightFrac in layout.ts).
+    // Both paths only re-run on applyManifest → rebuild required.
+    BILLBOARD_GEOMETRY,
     // LABEL_TYPOGRAPHY: all keys (font-size / padding / stroke / fill / etc.)
     // trigger a full applyManifest() rebuild. The old per-texture
     // regenerateLabelTexture hot-path is removed (Task 20); for v1, a
     // full rebuild on label-typography change is acceptable — hot-reload
     // here is rare.
     LABEL_TYPOGRAPHY,
+    // FACADE_GEOMETRY: WINDOW_COLS_MAX / WIDTH_PER_WINDOW_COL /
+    // DOOR_WIDTH_FRAC_OF_PATH bake into per-instance attributes
+    // (buf.cols / buf.doorWidth), so a change requires re-running
+    // buildBuildingInstanceBuffer via applyManifest. The shader-side
+    // keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are also pushed live via the
+    // hotStores entry below — split-routing the same store keeps the
+    // wiring trivial. If the rebuild churn ever becomes a perf concern
+    // we can switch to listenKeys to gate scheduleRebuild on just the
+    // three JS keys.
+    FACADE_GEOMETRY,
   ];
 
   const hotStores = [
@@ -144,6 +167,17 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     GEM_APPEARANCE,
     GEM_GLOW,
     BLOOM,
+    LIGHTING,
+    // FACADE_GEOMETRY: shader-side keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC)
+    // are pushed through refreshBuildingMaterial() — sliders on these
+    // give instant visual feedback without waiting for the rebuild
+    // triggered from rebuildStores above.
+    FACADE_GEOMETRY,
+    // FACADE_DETAIL and WINDOW_LIGHTING are pure shader uniforms (no
+    // per-instance attributes), so they live exclusively in hotStores —
+    // refreshBuildingMaterial() pushes them on every slider tick.
+    FACADE_DETAIL,
+    WINDOW_LIGHTING,
   ];
 
   const unsubs: Array<() => void> = [];

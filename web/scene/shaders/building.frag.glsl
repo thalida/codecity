@@ -73,44 +73,64 @@ uniform vec3 uFogColor;
 uniform float uFogIntensity;
 uniform float uFogHeight;
 
+// Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
+// Sun direction is in world space and points TOWARD the sun (positive
+// dot(normal, uSunDirWorld) means the face lights up). Refreshed via
+// refreshBuildingMaterial() from the LIGHTING store.
+uniform vec3 uSunDirWorld;
+uniform float uAmbient;
+uniform float uSunContrast;
+
+// Facade geometry — refreshed via refreshBuildingMaterial() from FACADE_GEOMETRY store.
+uniform float uSlabHeightFrac;
+uniform float uWindowWidthFrac;
+uniform float uWindowHeightFrac;
+uniform float uWindowMarginFrac;
+uniform float uDoorHeightFrac;
+uniform float uRoofBorderFrac;
+
+// Facade detail shading — refreshed via refreshBuildingMaterial() from FACADE_DETAIL store.
+uniform float uSlabLightnessDelta;
+uniform float uDoorLightnessDelta;
+uniform float uRoofBorderLightnessDelta;
+
+// Window-pane lighting — refreshed via refreshBuildingMaterial() from WINDOW_LIGHTING store.
+uniform float uWindowUnlitLightnessDelta;
+uniform float uWindowGapBaseThreshold;
+uniform float uWindowGapAgeBonus;
+uniform vec3 uDimGlowColor;
+
 varying float vWorldY;
 
 // ---------------------------------------------------------------------------
-// Facade geometry constants — sourced from FACADE in web/scene/engine.ts.
+// Facade geometry — driven by FACADE_GEOMETRY store via uniforms
+// (uSlabHeightFrac / uWindowWidthFrac / uWindowHeightFrac / uWindowMarginFrac
+// / uDoorHeightFrac / uRoofBorderFrac, declared above).
+//
+// Reference values (defaults):
+//   uSlabHeightFrac    = 0.12     — slab strip height as fraction of one floor.
+//   uWindowWidthFrac   = 0.45     — window width as fraction of one cell.
+//                                   Window is centered horizontally within the cell:
+//                                     winLeft  = 0.5 - uWindowWidthFrac / 2 = 0.275
+//                                     winRight = 0.5 + uWindowWidthFrac / 2 = 0.725
+//   uWindowHeightFrac  = 0.45     — window height as fraction of one floor.
+//                                   Window is centered vertically in the non-slab portion of the floor.
+//                                   The non-slab span in cellV is [0, 1 - uSlabHeightFrac].
+//                                   Window center in cellV: uSlabHeightFrac + (1 - uSlabHeightFrac) * 0.5
+//                                                         = 0.12 + 0.44 = 0.56
+//                                     winBottom = 0.56 - uWindowHeightFrac / 2 = 0.335
+//                                     winTop    = 0.56 + uWindowHeightFrac / 2 = 0.785
+//   uWindowMarginFrac  = 0.08     — horizontal margin as fraction of face
+//                                   width, applied on both edges before dividing into columns.
+//                                   The window-column grid spans
+//                                   [uWindowMarginFrac, 1 - uWindowMarginFrac] of face width,
+//                                   not [0, 1]. Mirrors engine.ts: marginX = floor(width * 0.08),
+//                                   then cellW = (width - 2*marginX) / cols.
+//   uDoorHeightFrac    = 0.7      — door height as fraction of one floor.
+//   uRoofBorderFrac    = 0.03125  — roof border: engine.ts uses strokeRect(2, 2, 124, 124)
+//                                   with lineWidth=4 on a 128×128 canvas. Outer edge of the
+//                                   stroke is at 4px from canvas edge: 4 / 128 = 0.03125.
 // ---------------------------------------------------------------------------
-
-// FACADE.SLAB_HEIGHT_FRAC = 0.12 — slab strip height as fraction of one floor.
-const float SLAB_HEIGHT_FRAC = 0.12;
-
-// FACADE.WINDOW_WIDTH_FRAC = 0.45 — window width as fraction of one cell.
-// Window is centered horizontally within the cell:
-//   winLeft  = 0.5 - WINDOW_WIDTH_FRAC / 2 = 0.275
-//   winRight = 0.5 + WINDOW_WIDTH_FRAC / 2 = 0.725
-const float WINDOW_WIDTH_FRAC = 0.45;
-
-// FACADE.WINDOW_HEIGHT_FRAC = 0.45 — window height as fraction of one floor.
-// Window is centered vertically in the non-slab portion of the floor.
-// The non-slab span in cellV is [0, 1 - SLAB_HEIGHT_FRAC].
-// Window center in cellV: SLAB_HEIGHT_FRAC + (1 - SLAB_HEIGHT_FRAC) * 0.5
-//                       = 0.12 + 0.44 = 0.56
-//   winBottom = 0.56 - WINDOW_HEIGHT_FRAC / 2 = 0.335
-//   winTop    = 0.56 + WINDOW_HEIGHT_FRAC / 2 = 0.785
-const float WINDOW_HEIGHT_FRAC = 0.45;
-
-// FACADE.WINDOW_MARGIN_FRAC = 0.08 — horizontal margin as fraction of face
-// width, applied on both edges before dividing into columns. The window-column
-// grid spans [WINDOW_MARGIN_FRAC, 1 - WINDOW_MARGIN_FRAC] of face width, not
-// [0, 1]. Mirrors engine.ts: marginX = floor(width * 0.08), then
-// cellW = (width - 2*marginX) / cols.
-const float WINDOW_MARGIN_FRAC = 0.08;
-
-// FACADE.DOOR_HEIGHT_FRAC = 0.7 — door height as fraction of one floor.
-const float DOOR_HEIGHT_FRAC = 0.7;
-
-// Roof border: engine.ts uses strokeRect(2, 2, 124, 124) with lineWidth=4 on
-// a 128×128 canvas. Outer edge of the stroke is at 4px from canvas edge:
-//   ROOF_BORDER_FRAC = 4 / 128 = 0.03125
-const float ROOF_BORDER_FRAC = 0.03125;
 
 // ---------------------------------------------------------------------------
 // Lighting — single world-space directional light + ambient. Replaces the
@@ -126,22 +146,20 @@ const float ROOF_BORDER_FRAC = 0.03125;
 // stays atmospheric / readable rather than crushed to black. The sun is
 // kept as a subtle directional cue so the buildings still read as 3D,
 // but most of the "wow" comes from emissive windows, not from sunlight.
-const vec3 SUN_DIR_WORLD = normalize(vec3(0.5, 1.0, 0.4)); // upper-right
-const float AMBIENT = 0.72;     // base illumination on faces facing away from the sun
-const float DIFFUSE_GAIN = 0.28; // additional brightening on faces facing the sun
+// Sun direction, ambient, and sun-contrast are now driven by the
+// LIGHTING store (uSunDirWorld / uAmbient / uSunContrast above).
 
 // Slabs (the strip at the top of each floor) sit slightly darker than
 // the wall, regardless of light direction, so the floor seams read.
-const float SLAB_LIGHTNESS_DELTA = -12.0;
+// Driven by uSlabLightnessDelta (FACADE_DETAIL store).
 
 // Lit windows are treated as EMISSIVE — they bypass the directional
 // lighting multiplier and push the base color close to white in HSL
 // space so they glow like neon panes on the shadow side too.
-const float WINDOW_LIGHTNESS_DELTA = 55.0;
 // Dim failing-fluorescent — a rare lit window in a derelict block.
 // Mid-age and newer buildings' lit windows take the building's own
 // age-adjusted color (no saturation override), not a fixed target.
-const vec3 LIT_GLOW_DIM = vec3(0.5, 0.4, 0.15);
+// Driven by uDimGlowColor (WINDOW_LIGHTING.DIM_GLOW_COLOR).
 
 // HDR emission boost applied to lit windows, on top of a baseline 1.0
 // multiplier. The shader writes into a HalfFloat render target (see
@@ -158,24 +176,19 @@ const vec3 LIT_GLOW_DIM = vec3(0.5, 0.4, 0.15);
 uniform float uWindowEmissionBoost;
 // Dimmer brightness applied to "unlit" windows in the same cell — picked
 // per cell by a hash so each building has its own scatter of lit /
-// unlit windows. Smaller than WINDOW_LIGHTNESS_DELTA but still positive
-// so the window pane reads as a pane (not just blank wall).
-const float WINDOW_UNLIT_LIGHTNESS_DELTA = 4.0;
+// unlit windows. Still positive so the window pane reads as a pane
+// (not just blank wall). Driven by uWindowUnlitLightnessDelta
+// (WINDOW_LIGHTING store).
 // Baseline fraction of cells (per face) that have no window at all —
 // irregular gaps so the facade reads as varied instead of a perfect
 // grid. Old / dim buildings boost this further so they look boarded-up
-// (see renderWallFace).
-const float WINDOW_GAP_BASE_THRESHOLD = 0.18;
-// Extra gap fraction added for the dimmest buildings — at brightness=0
-// roughly half the cells become empty, reading as derelict / rundown.
-const float WINDOW_GAP_AGE_BONUS = 0.32;
+// (see renderWallFace). Driven by uWindowGapBaseThreshold and
+// uWindowGapAgeBonus (WINDOW_LIGHTING store).
 // (The lit-vs-unlit threshold is computed per-fragment from the
 // building's brightness rather than being a fixed constant — see
 // renderWallFace for the formula.)
-// SHADING.DOOR_LIGHTNESS_DELTA = -55
-const float DOOR_LIGHTNESS_DELTA = -55.0;
-// SHADING.ROOF_BORDER_LIGHTNESS_DELTA = -15
-const float ROOF_BORDER_LIGHTNESS_DELTA = -15.0;
+// Door + roof-border lightness deltas are driven by uDoorLightnessDelta
+// and uRoofBorderLightnessDelta (FACADE_DETAIL store).
 
 // ---------------------------------------------------------------------------
 // Face helpers
@@ -244,14 +257,14 @@ vec4 renderWallFace() {
   // on which compass direction each face points — not on which face
   // happens to be the door. North/south/east/west-facing walls light
   // up consistently across the whole city.
-  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
-  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+  float lambert = max(dot(normalize(vWorldNormal), uSunDirWorld), 0.0);
+  float lightFactor = uAmbient + uSunContrast * lambert;
 
   vec3 wallColor = baseColor * lightFactor;
-  vec3 slabColor = shadeColor(baseColor, SLAB_LIGHTNESS_DELTA) * lightFactor;
+  vec3 slabColor = shadeColor(baseColor, uSlabLightnessDelta) * lightFactor;
   // Door stays a dark rectangle — small ambient response so it's not pitch-black
   // on sun-side walls but still reads as "open doorway".
-  vec3 doorColor = shadeAndShiftHue(baseColor, DOOR_LIGHTNESS_DELTA, 0.0, -1.0) * (AMBIENT + DIFFUSE_GAIN * lambert * 0.4);
+  vec3 doorColor = shadeAndShiftHue(baseColor, uDoorLightnessDelta, 0.0, -1.0) * (uAmbient + uSunContrast * lambert * 0.4);
   // winColor is picked per-cell below — each cell hashes to "lit" or
   // "unlit" so the facade doesn't read as a copy-paste grid.
 
@@ -262,10 +275,10 @@ vec4 renderWallFace() {
   vec2 uv = vUv;
 
   // Rescale x-UV to exclude the face-level horizontal margin on each edge.
-  // The window-column grid occupies [WINDOW_MARGIN_FRAC, 1-WINDOW_MARGIN_FRAC]
+  // The window-column grid occupies [uWindowMarginFrac, 1-uWindowMarginFrac]
   // of face width, matching engine.ts: marginX = floor(width * 0.08),
   // cellW = (width - 2*marginX) / cols, cellCenterX = marginX + cellW*(c+0.5).
-  float uvEffX = (uv.x - WINDOW_MARGIN_FRAC) / (1.0 - 2.0 * WINDOW_MARGIN_FRAC);
+  float uvEffX = (uv.x - uWindowMarginFrac) / (1.0 - 2.0 * uWindowMarginFrac);
 
   // Cell coordinates: integer cell index + intra-cell UV in [0,1].
   float colF   = uvEffX * cols;
@@ -283,15 +296,15 @@ vec4 renderWallFace() {
   float wV = fwidth(rowF) * 0.5;
 
   // Window rectangle within each cell, centered horizontally and
-  // vertically above the slab band. Matches WINDOW_WIDTH_FRAC /
-  // WINDOW_HEIGHT_FRAC usage in _buildFacadeTexture.
-  float halfW    = WINDOW_WIDTH_FRAC * 0.5;
+  // vertically above the slab band. Matches uWindowWidthFrac /
+  // uWindowHeightFrac usage in _buildFacadeTexture.
+  float halfW    = uWindowWidthFrac * 0.5;
   float winLeft  = 0.5 - halfW;
   float winRight = 0.5 + halfW;
 
-  float nonSlabH  = 1.0 - SLAB_HEIGHT_FRAC;
-  float winCenter = SLAB_HEIGHT_FRAC + nonSlabH * 0.5; // center in non-slab span
-  float halfH     = WINDOW_HEIGHT_FRAC * 0.5;
+  float nonSlabH  = 1.0 - uSlabHeightFrac;
+  float winCenter = uSlabHeightFrac + nonSlabH * 0.5; // center in non-slab span
+  float halfH     = uWindowHeightFrac * 0.5;
   float winBottom = winCenter - halfH;
   float winTop    = winCenter + halfH;
 
@@ -332,7 +345,7 @@ vec4 renderWallFace() {
               + min(min(baseColor.r, baseColor.g), baseColor.b)) * 0.5;
   float lRange = max(uLightnessMax - uLightnessMin, 0.0001);
   float freshness = clamp((hslL * 100.0 - uLightnessMin) / lRange, 0.0, 1.0);
-  float ageGapThreshold = WINDOW_GAP_BASE_THRESHOLD + (1.0 - freshness) * WINDOW_GAP_AGE_BONUS;
+  float ageGapThreshold = uWindowGapBaseThreshold + (1.0 - freshness) * uWindowGapAgeBonus;
   float gapMask = step(ageGapThreshold, gapHash);
   float winMask  = aaband(winLeft, winRight, cellU, wU) * aaband(winBottom, winTop, cellV, wV) * inMargin * bottomDoorRow * gapMask;
 
@@ -345,14 +358,14 @@ vec4 renderWallFace() {
   //  - litThreshold: how MANY cells light up. Newest building hits
   //    step(0.0, hash) = 1.0 for every cell (every window lit);
   //    oldest hits step(1.0, hash) = 0.0 for every cell (all dark).
-  //  - litDelta:     how BRIGHT each lit window glows. Newest pushes
-  //    close to white (WINDOW_LIGHTNESS_DELTA = 55); older lights up
-  //    duller — a single inhabited window in a derelict block reads
-  //    as a weak glow, not a beacon.
+  //  - emission:     how BRIGHT each lit window glows. Newest pushes
+  //    deepest into HDR via (1.0 + freshness * uWindowEmissionBoost);
+  //    older lights up duller — a single inhabited window in a
+  //    derelict block reads as a weak glow, not a beacon.
   //  - hue mix:      what COLOR each lit window glows. Newest keeps
   //    its saturated base hue (sharp neon); older tilts toward
-  //    LIT_GLOW_DIM (warm amber / dirty tungsten) so the city's old
-  //    quarters look like failing fluorescents.
+  //    uDimGlowColor (warm amber / dirty tungsten, from WINDOW_LIGHTING
+  //    store) so the city's old quarters look like failing fluorescents.
   float litThreshold = 1.0 - freshness;
   float litFactor = step(litThreshold, litHash);
   // Window glow target IS the building's age-adjusted color, no
@@ -361,10 +374,10 @@ vec4 renderWallFace() {
   // alongside it. The HDR emission multiplier (applied below) then
   // brightens the lit cells without re-saturating them, preserving
   // the "this whole building is desaturated" reading. Freshness still
-  // drives the mix toward LIT_GLOW_DIM at the oldest end for the
+  // drives the mix toward uDimGlowColor at the oldest end for the
   // "failing fluorescent" warm-amber character.
   vec3 winNeon = baseColor;
-  vec3 winLitColor = mix(LIT_GLOW_DIM, winNeon, freshness);
+  vec3 winLitColor = mix(uDimGlowColor, winNeon, freshness);
   // HDR emission scales WITH freshness so newer buildings push deeper
   // into HDR space and their windows bloom harder. The bloom pass's
   // strength × radius then operates on that age-scaled HDR signal —
@@ -373,11 +386,11 @@ vec4 renderWallFace() {
   // emission stays near 1.0, just above threshold.
   float emission = 1.0 + freshness * uWindowEmissionBoost;
   winLitColor *= emission;
-  vec3 winUnlitColor = shadeColor(baseColor, WINDOW_UNLIT_LIGHTNESS_DELTA) * lightFactor;
+  vec3 winUnlitColor = shadeColor(baseColor, uWindowUnlitLightnessDelta) * lightFactor;
   vec3 winColor = mix(winUnlitColor, winLitColor, litFactor);
 
   // Slab strip at the top of each floor (cellV approaching 1.0).
-  float slabMask = aastep(1.0 - SLAB_HEIGHT_FRAC, cellV, wV);
+  float slabMask = aastep(1.0 - uSlabHeightFrac, cellV, wV);
 
   // Compose: slab overrides wall; window overrides slab+wall.
   vec3 wallOut  = mix(wallColor, slabColor, slabMask);
@@ -427,7 +440,7 @@ vec4 renderWallFace() {
     float doorUvWidth  = vDoorWidth / faceWorldWidth;
     float doorLeft     = 0.5 - doorUvWidth * 0.5;
     float doorRight    = 0.5 + doorUvWidth * 0.5;
-    float doorTopV     = DOOR_HEIGHT_FRAC / vFloors; // fraction of total face height
+    float doorTopV     = uDoorHeightFrac / vFloors; // fraction of total face height
     float doorMask = aaband(doorLeft, doorRight, uv.x, fwidth(uv.x) * 0.5)
                    * aaband(0.0, doorTopV, uv.y, fwidth(uv.y) * 0.5);
     withWin = mix(withWin, doorColor, doorMask);
@@ -446,9 +459,9 @@ vec4 renderRoofFace() {
   // (ShaderMaterial has no automatic linearToOutputTexel pass).
   vec3 baseColor   = linearToSrgb(vColor);
   vec3 roofColor   = baseColor;
-  vec3 borderColor = shadeAndShiftHue(baseColor, ROOF_BORDER_LIGHTNESS_DELTA, 0.0, -1.0);
-  float innerMask  = aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.x, fwidth(vUv.x) * 0.5)
-                   * aaband(ROOF_BORDER_FRAC, 1.0 - ROOF_BORDER_FRAC, vUv.y, fwidth(vUv.y) * 0.5);
+  vec3 borderColor = shadeAndShiftHue(baseColor, uRoofBorderLightnessDelta, 0.0, -1.0);
+  float innerMask  = aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.x, fwidth(vUv.x) * 0.5)
+                   * aaband(uRoofBorderFrac, 1.0 - uRoofBorderFrac, vUv.y, fwidth(vUv.y) * 0.5);
   float borderMask = 1.0 - innerMask;
   vec3 composed = mix(roofColor, borderColor, borderMask);
 
@@ -459,7 +472,7 @@ vec4 renderRoofFace() {
   // overrides the base roof color.
   if (vIconUV.x >= 0.0 && uIconSlotSize > 0.0) {
     // Inset the icon inside the border so it doesn't clip the dark strip.
-    float pad = ROOF_BORDER_FRAC;
+    float pad = uRoofBorderFrac;
     vec2 inset = clamp((vUv - pad) / (1.0 - 2.0 * pad), 0.0, 1.0);
     // Rotate so the icon's "top" lands at the building's far edge from
     // the door — readable to someone standing in front of the door and
@@ -492,7 +505,7 @@ vec4 renderBottomFace() {
   // Bottom face is rarely visible; it points straight down so the sun's
   // lambert term goes to zero and we render at pure ambient.
   vec3 baseColor = linearToSrgb(vColor);
-  return vec4(baseColor * AMBIENT, vOpacity);
+  return vec4(baseColor * uAmbient, vOpacity);
 }
 
 // Silhouette mode: render the proper face-shaded base color but skip
@@ -505,8 +518,8 @@ vec4 renderSilhouette() {
     // Roof — solid base color, no directional shading (matches detail tier).
     return vec4(baseColor, vOpacity);
   }
-  float lambert = max(dot(normalize(vWorldNormal), SUN_DIR_WORLD), 0.0);
-  float lightFactor = AMBIENT + DIFFUSE_GAIN * lambert;
+  float lambert = max(dot(normalize(vWorldNormal), uSunDirWorld), 0.0);
+  float lightFactor = uAmbient + uSunContrast * lambert;
   return vec4(baseColor * lightFactor, vOpacity);
 }
 

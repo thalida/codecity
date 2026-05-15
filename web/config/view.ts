@@ -42,7 +42,7 @@ export interface SceneColorsConfig {
 export const SCENE_COLORS = map<SceneColorsConfig>({
   GROUND: '#0a0e1c',
   FOG_ENABLED: true,
-  FOG_COLOR: '#200f48',
+  FOG_COLOR: '#0f0821',
   FOG_INTENSITY: 0.8,
   FOG_HEIGHT_FRAC: 0.25,
 });
@@ -77,19 +77,21 @@ export const CAMERA_CONTROLS = map<CameraControlsConfig>({
   INITIAL_DISTANCE_MULT: 0.95, // boot framing tightness (1.0 = exact bbox fit)
 });
 
-// ─── Camera animation timings + framing ────────────────────────────────────
-// All durations in milliseconds. Read fresh per gesture so changes apply
-// immediately without restart. (Sightline-search internals — step deg,
-// max attempts, ray epsilon — are inlined as private consts in main.js;
-// they're algorithm tuning, not designer dials.)
+// ─── Camera focus framing ──────────────────────────────────────────────────
+// Geometric framing parameters for building / street focus actions — how
+// far away the camera lands, how much of the street fits on screen, etc.
+// Read fresh per gesture so changes apply immediately without restart.
+//
+// Timing for these actions (durations, easing) lives in ANIMATION_TIMING
+// (see config/animation.ts) and is shared across every camera tween via
+// per-action ratios defined at the call sites in scene/cameraRig.ts.
+//
+// (Sightline-search internals — step deg, max attempts, ray epsilon —
+// are inlined as private consts in main.js; they're algorithm tuning,
+// not designer dials.)
 export interface CameraAnimationConfig {
-  EASING_POWER: number;
-  RECENTER_DURATION_MS: number;
-  RESET_DURATION_MS: number;
-  BUILDING_FOCUS_DURATION_MS: number;
   BUILDING_FOCUS_DISTANCE_MULT: number;
   BUILDING_FOCUS_DISTANCE_OFFSET: number;
-  STREET_FOCUS_DURATION_MS: number;
   STREET_FOCUS_LENGTH_FRAC: number;
   STREET_FOCUS_WIDTH_MULT: number;
   STREET_FOCUS_ALTITUDE_BLDG_MULT: number;
@@ -98,13 +100,8 @@ export interface CameraAnimationConfig {
 }
 
 export const CAMERA_ANIMATION = map<CameraAnimationConfig>({
-  EASING_POWER: 3, // ease-out exponent (1 - (1-t)^P) for all camera animations
-  RECENTER_DURATION_MS: 350,
-  RESET_DURATION_MS: 500,
-  BUILDING_FOCUS_DURATION_MS: 600,
   BUILDING_FOCUS_DISTANCE_MULT: 1.6, // padding multiplier on the fitted distance
   BUILDING_FOCUS_DISTANCE_OFFSET: 4,
-  STREET_FOCUS_DURATION_MS: 600,
   STREET_FOCUS_LENGTH_FRAC: 0.65, // visible street length = full × this
   STREET_FOCUS_WIDTH_MULT: 4, // visible street width = street width × this
   STREET_FOCUS_ALTITUDE_BLDG_MULT: 1.4, // altitude floor = max bldg height × this

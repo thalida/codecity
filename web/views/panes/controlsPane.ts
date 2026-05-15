@@ -16,7 +16,7 @@
 // page reload is an implicit discard.
 
 import {
-  // Background
+  // Scene (sky + ground haze)
   SCENE_COLORS,
   // Streets
   ASPHALT,
@@ -44,6 +44,10 @@ import {
   LIVE_UPDATES,
   SCAN_FILTERS,
 } from '@/config/index.js';
+import { LIGHTING } from '@/config/lighting.js';
+import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
+import { BILLBOARD_GEOMETRY } from '@/config/billboards.js';
+import { ANIMATION_TIMING } from '@/config/animation.js';
 import {
   getDefault,
   forEachRegisteredStore,
@@ -118,19 +122,24 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   const body = document.createElement('div');
   body.className = 'controls-body';
 
-  // Sections are organized by what the user is *looking at* (background,
-  // streets, buildings, gem) plus shared visual effects. Camera lens /
-  // orbit / animation timings and input-feel knobs (hover commit, click
-  // thresholds, tooltip placement) intentionally aren't surfaced — they're
-  // designer-level constants that already have natural in-scene controls
-  // (mouse to orbit, kbd to reset). See View > shortcuts list.
-  body.appendChild(_buildViewSection());
+  // Sections are organized by render scope, then interaction:
+  //   Scene → Layout → Buildings → Streets → Root gem → Effects
+  //   then Camera & Interaction (perspective, orbit, transitions, input,
+  //                              tooltip, keyboard shortcuts)
+  //   then Scan & Updates (file scanner config + live polling)
+  //   then Debug (developer diagnostics, collapsed by default).
+  //
+  // All sections are <details> with persisted open/closed state — see
+  // _section() below.
+  body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
-  body.appendChild(_buildBackgroundSection());
-  body.appendChild(_buildStreetsSection());
+  body.appendChild(_buildSceneSection());
+  body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
+  body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
+  body.appendChild(_buildCameraSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
@@ -145,14 +154,14 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   return pane;
 }
 
-// ─── Scan ──────────────────────────────────────────────────────────────────
+// ─── Scan & Updates ────────────────────────────────────────────────────────
 // What the scanner picks up + when to re-scan. SHOW_ALL_FILES bypasses
 // the tracked-files-only filter (default OFF — current behavior); live
 // updates polls /api/manifest/signature on a clamped [1s, 60s] interval
 // so an over-eager value can't ddos the local server.
 function _buildUpdatesSection(): HTMLElement {
   const section = _section(
-    'Scan',
+    'Scan & Updates',
     'What the scanner picks up, and how it stays in sync.'
   );
   section.appendChild(
@@ -175,16 +184,20 @@ function _buildUpdatesSection(): HTMLElement {
   return section;
 }
 
-// ─── View ──────────────────────────────────────────────────────────────────
-// No "Reset camera" button — the R key already covers that, and surfacing
-// the full shortcut list as a table makes the rest of the controls
-// (orbit / pan / zoom / focus / select) discoverable too.
-function _buildViewSection(): HTMLElement {
+// ─── Camera & Interaction ─────────────────────────────────────────────────
+// Camera lens / orbit / animation timings, plus input + tooltip stores.
+// The Keyboard & mouse subgroup is the old "View" section's shortcuts
+// table — no "Reset camera" button because R already covers that, and
+// the full shortcut list makes orbit / pan / zoom / focus / select
+// discoverable too.
+// ─── Keyboard & mouse ──────────────────────────────────────────────────────
+// Top-level section so the shortcut cheat-sheet is the first thing a new
+// user sees — separate from the Camera & Interaction tuning section.
+function _buildShortcutsSection(): HTMLElement {
   const section = _section(
-    'View',
-    'Pivot follows what you point at. The selected building stays solid; everything else fades by directory-tree distance from the selection.'
+    'Keyboard & mouse',
+    'Quick reference for cursor actions and keyboard shortcuts.'
   );
-
   section.appendChild(
     _buildShortcutsList([
       { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
@@ -198,6 +211,28 @@ function _buildViewSection(): HTMLElement {
       null,
       { mouse: 'Click', action: 'Select building / street / gem' },
       { mouse: 'Double-click', action: 'Focus camera on the target' },
+    ])
+  );
+  return section;
+}
+
+function _buildCameraSection(): HTMLElement {
+  const section = _section(
+    'Camera & Interaction',
+    'Camera and building transition timing.'
+  );
+
+  section.appendChild(
+    _subgroup('Transitions', [
+      _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
+        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio.',
+      }),
+      _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
+        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish.',
+      }),
+      _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
+        tip: 'Enter / stay duration for buildings as they fade in or refresh.',
+      }),
     ])
   );
 
@@ -242,14 +277,21 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
   return dl;
 }
 
-// ─── Background ────────────────────────────────────────────────────────────
-function _buildBackgroundSection(): HTMLElement {
-  const section = _section('Background', 'The void behind everything + atmospheric ground haze.');
+// ─── Scene ─────────────────────────────────────────────────────────────────
+// Sky / ground void color, atmospheric haze, and the directional sun
+// lighting that drives the building shader (azimuth, elevation, ambient,
+// sun contrast).
+function _buildSceneSection(): HTMLElement {
+  const section = _section('Scene', 'Sky, atmosphere, and sun lighting.');
+
   section.appendChild(
-    _color('Sky / ground', SCENE_COLORS, 'GROUND', {
-      tip: 'Color shown behind buildings + streets. Live.',
-    })
+    _subgroup('Sky & ground', [
+      _color('Sky / ground color', SCENE_COLORS, 'GROUND', {
+        tip: 'Color shown behind buildings + streets. Live.',
+      }),
+    ])
   );
+
   section.appendChild(
     _subgroup('Ground haze', [
       _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
@@ -266,6 +308,76 @@ function _buildBackgroundSection(): HTMLElement {
       }),
     ])
   );
+
+  section.appendChild(
+    _subgroup('Sun lighting', [
+      _slider('Sun azimuth (°)', LIGHTING, 'SUN_AZIMUTH_DEG', 0, 360, 1, {
+        tip: 'Compass bearing of the sun. 0° = south, increases clockwise (east).',
+      }),
+      _slider('Sun elevation (°)', LIGHTING, 'SUN_ELEVATION_DEG', 0, 90, 1, {
+        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
+      }),
+      _slider('Ambient light', LIGHTING, 'AMBIENT', 0, 1, 0.01, {
+        tip: 'Base illumination on faces facing away from the sun.',
+      }),
+      _slider('Sun contrast', LIGHTING, 'SUN_CONTRAST', 0, 1, 0.01, {
+        tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
+      }),
+    ])
+  );
+
+  return section;
+}
+
+// ─── Layout ────────────────────────────────────────────────────────────────
+// Geometric packing knobs: street width tiers, street spacing, and the
+// per-file building size mapping. These were split across Streets +
+// Buildings before; consolidating them here makes "how the city is
+// packed" easy to find in one place.
+function _buildLayoutSection(): HTMLElement {
+  const section = _section('Layout', 'How streets and buildings are packed.');
+
+  // Width tiers — step-function mapping a directory's descendant count to
+  // its street width. One slider per tier so the user can fatten or thin
+  // any specific road class without touching the others.
+  const tierDefaults = STREET_TIERS.get();
+  const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
+  section.appendChild(_subgroup('Street width tiers', tierRows));
+
+  section.appendChild(
+    _subgroup('Street spacing', [
+      _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
+        tip: 'Distance between sibling children (file or subdir) packed along a street.',
+      }),
+      _number('Root end pad', STREET_LAYOUT, 'ROOT_END_PAD', 0, 50, 1, {
+        tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
+      }),
+      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 20, 1, {
+        tip: 'Extra clear space where a child street meets its parent.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _subgroup('Building size', [
+      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
+        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
+      }),
+      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
+        tip: 'Vertical world units per floor (multiplier on the floor count above).',
+      }),
+      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
+        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
+      }),
+      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap.",
+      }),
+      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
+        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
+      }),
+    ])
+  );
+
   return section;
 }
 
@@ -314,11 +426,11 @@ function _buildStreetsSection(): HTMLElement {
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
         tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
       }),
-      _number('Padding (px)', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_PX', 0, 200, 4, {
-        tip: 'Whitespace around each label inside its texture canvas.',
+      _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
+        tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
       }),
-      _number('Stroke width (px)', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_PX', 0, 100, 1, {
-        tip: 'Thickness of the dark outline behind the label fill.',
+      _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
+        tip: 'Text outline thickness, as a fraction of the font size.',
       }),
       _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
         tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
@@ -367,29 +479,8 @@ function _buildStreetsSection(): HTMLElement {
     ])
   );
 
-  // Width tiers — step-function mapping a directory's descendant count to
-  // its street width. One slider per tier so the user can fatten or thin
-  // any specific road class without touching the others. min_descendants
-  // thresholds aren't user-tunable (would shuffle the whole layout); only
-  // the world-unit width per tier.
-  const tierDefaults = STREET_TIERS.get();
-  const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
-  section.appendChild(_subgroup('Width tiers', tierRows));
-
-  // Layout
-  section.appendChild(
-    _subgroup('Layout', [
-      _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
-        tip: 'Distance between sibling children (file or subdir) packed along a street.',
-      }),
-      _number('Root end pad', STREET_LAYOUT, 'ROOT_END_PAD', 0, 50, 1, {
-        tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
-      }),
-      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 20, 1, {
-        tip: 'Extra clear space where a child street meets its parent.',
-      }),
-    ])
-  );
+  // (Street width tiers + spacing live in the Layout section now — they
+  // describe city packing rather than street appearance.)
 
   return section;
 }
@@ -401,25 +492,7 @@ function _buildBuildingsSection(): HTMLElement {
     'Per-file boxes — height from line count, width from byte size, color from extension + age.'
   );
 
-  section.appendChild(
-    _subgroup('Size', [
-      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
-        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
-      }),
-      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-        tip: 'Vertical world units per floor (multiplier on the floor count above).',
-      }),
-      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
-        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
-      }),
-      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap.",
-      }),
-      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
-      }),
-    ])
-  );
+  // (Building size — floors / width / path — lives in the Layout section now.)
 
   section.appendChild(
     _subgroup('Color palette (HSL)', [
@@ -438,27 +511,26 @@ function _buildBuildingsSection(): HTMLElement {
       _rangePair('Lightness range', BUILDING_PALETTE, 'LIGHTNESS_MIN', 'LIGHTNESS_MAX', 0, 100, 5, {
         tip: 'HSL lightness range — recently-modified files tend to MAX (brighter); stale files tend to MIN.',
       }),
-      _color('Directory color', BUILDING_PALETTE, 'DIRECTORY_COLOR', {
-        tip: 'Solid color for any building representing a directory rather than a file.',
-      }),
     ])
   );
 
   // Extension hues — one row per file extension in HUE_EXT_MAP, sorted
   // alphabetically so the list stays predictable. Each row writes back
-  // to a single sub-key of HUE_EXT_MAP (no whole-map clobber).
-  const huePaletteRows = [];
+  // to a single sub-key of HUE_EXT_MAP (no whole-map clobber). The
+  // subgroup itself is a <details> so the long list can be collapsed
+  // (default-closed).
   const hueDefaults = getDefault(BUILDING_PALETTE, 'HUE_EXT_MAP') || {};
   const hueExtensions = Object.keys(hueDefaults).sort();
-  for (const ext of hueExtensions) {
-    huePaletteRows.push(
-      _nestedSlider(ext, BUILDING_PALETTE, 'HUE_EXT_MAP', ext, 0, 359, 1, {
-        tip: 'Hue (0–359°) for files with this extension.',
-        previewHue: true,
-      })
-    );
-  }
-  section.appendChild(_subgroup('Extension hues (0–359°)', huePaletteRows));
+  section.appendChild(
+    _collapsibleSubgroup('extension-hues', 'Extension hues (0–359°)', () =>
+      hueExtensions.map((ext) =>
+        _nestedSlider(ext, BUILDING_PALETTE, 'HUE_EXT_MAP', ext, 0, 359, 1, {
+          tip: 'Hue (0–359°) for files with this extension.',
+          previewHue: true,
+        })
+      )
+    )
+  );
 
   section.appendChild(
     _subgroup('Outlines', [
@@ -475,85 +547,170 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
-  // Age decay — grime streaks and tilt scale with each file's
-  // createdAge (0=newest in repo, 1=oldest). Independent of color
-  // (which tracks last-modified), so a recently-edited but long-
-  // lived file still reads as weathered.
   section.appendChild(
-    _subgroup('Age decay — grime streaks', [
-      _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
-        tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
+    _subgroup('Billboards (media files)', [
+      _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
+        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait.',
       }),
-      _slider('Intensity', BUILDING_AGING, 'GRIME_INTENSITY', 0, 1, 0.05, {
-        tip: 'How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color.',
+      _slider('Panel depth × width', BILLBOARD_GEOMETRY, 'PANEL_DEPTH_FRAC', 0, 0.3, 0.01, {
+        tip: 'Body depth (front-to-back thickness) as a fraction of panel width.',
       }),
-      _slider('Coverage', BUILDING_AGING, 'GRIME_COVERAGE', 0, 1, 0.05, {
-        tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
+      _slider('Image inset × height', BILLBOARD_GEOMETRY, 'PANEL_INSET_FRAC', 0, 0.2, 0.01, {
+        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness.',
       }),
-    ])
-  );
-  section.appendChild(
-    _subgroup('Age decay — tilt', [
-      _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
-        tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
+      _slider('Image offset', BILLBOARD_GEOMETRY, 'IMAGE_OFFSET', 0, 0.2, 0.01, {
+        tip: 'How far in front of the body face the image plane sits.',
       }),
-      _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
-        tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+      _slider('Post height × panel', BILLBOARD_GEOMETRY, 'POST_HEIGHT_FRAC', 0, 3, 0.05, {
+        tip: 'Support post height as a multiple of panel height.',
       }),
-    ])
-  );
-
-  // Selection fade — animation knobs first, then per-tier style. Each tier
-  // (Default = siblings of selection / Level 1 = one hop / Level 2+ = far)
-  // gets four controls: detail (full / silhouette / hidden), outline on/off,
-  // and separate body + outline opacity sliders. Hover renders a building
-  // using the Default tier's settings — no separate hover-floor knob.
-  section.appendChild(
-    _subgroup('Selection fade — animation', [
-      _slider('Fade speed', BUILDING_FADE, 'LERP_SPEED', 0.01, 1.0, 0.01, {
-        tip: 'Per-frame easing toward the target opacity. Higher = snappier transitions.',
+      _slider('Post width × panel', BILLBOARD_GEOMETRY, 'POST_WIDTH_FRAC', 0, 0.3, 0.01, {
+        tip: 'Support post width as a fraction of panel width.',
+      }),
+      _slider('Post offset × width', BILLBOARD_GEOMETRY, 'POST_INSET_FRAC', 0, 0.5, 0.01, {
+        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing).',
+      }),
+      _color('Post color', BILLBOARD_GEOMETRY, 'POST_COLOR', {
+        tip: 'Support post color. Default matches the sidewalk gray.',
+      }),
+      _color('Body color', BILLBOARD_GEOMETRY, 'BODY_COLOR', {
+        tip: 'Panel body / frame color (visible from behind and around the image).',
+      }),
+      _color('Placeholder color', BILLBOARD_GEOMETRY, 'PANEL_PLACEHOLDER_COLOR', {
+        tip: 'Fallback panel color shown while the image loads (or if the load fails).',
       }),
     ])
   );
 
+  // Facade parent — geometry, contrast, and window lighting share the
+  // "what the building's surface looks like" mental model, so we collapse
+  // them under one default-closed parent. Each child stays a regular
+  // _subgroup; _collapsibleSubgroup's `buildRows` already accepts any
+  // HTMLElement, so subgroups work as children with no helper changes.
+  section.appendChild(
+    _collapsibleSubgroup('facade', 'Facade', () => [
+      _subgroup('Geometry', [
+        _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
+          tip: 'Floor-slab strip height as a fraction of one floor.',
+        }),
+        _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
+          tip: 'Window width as a fraction of its grid cell.',
+        }),
+        _slider('Window height × floor', FACADE_GEOMETRY, 'WINDOW_HEIGHT_FRAC', 0, 1, 0.01, {
+          tip: 'Window height as a fraction of one floor.',
+        }),
+        _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
+          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
+        }),
+        _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
+          tip: 'Door height as a fraction of one floor.',
+        }),
+        _slider('Roof border × face', FACADE_GEOMETRY, 'ROOF_BORDER_FRAC', 0, 0.1, 0.005, {
+          tip: 'Width of the roof border strip, as a fraction of the face.',
+        }),
+        _number('Max window columns', FACADE_GEOMETRY, 'WINDOW_COLS_MAX', 1, 10, 1, {
+          tip: 'Hard cap on window columns per face. Rebuild required.',
+        }),
+        _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
+          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required.',
+        }),
+        _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
+          tip: 'Door width as a fraction of the building path width. Rebuild required.',
+        }),
+      ]),
+      _subgroup('Contrast (HSL lightness Δ)', [
+        _slider('Floor slab', FACADE_DETAIL, 'SLAB_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens).',
+        }),
+        _slider('Door', FACADE_DETAIL, 'DOOR_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the door (negative darkens).',
+        }),
+        _slider('Roof border', FACADE_DETAIL, 'ROOF_BORDER_LIGHTNESS_DELTA', -100, 100, 1, {
+          tip: 'Lightness offset for the roof border strip (negative darkens).',
+        }),
+      ]),
+      _subgroup('Window lighting', [
+        _slider('Unlit pane lightness Δ', WINDOW_LIGHTING, 'UNLIT_LIGHTNESS_DELTA', -20, 20, 1, {
+          tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
+        }),
+        _slider('Gap fraction (base)', WINDOW_LIGHTING, 'GAP_BASE_THRESHOLD', 0, 1, 0.01, {
+          tip: 'Base fraction of cells with no window at all (architectural gaps).',
+        }),
+        _slider('Gap fraction (age bonus)', WINDOW_LIGHTING, 'GAP_AGE_BONUS', 0, 1, 0.01, {
+          tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
+        }),
+        _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
+          tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+        }),
+      ]),
+    ])
+  );
+
+  // Aging parent — grime streaks + tilt both key off createdAge.
+  // Default-closed; small, niche group of weathering knobs.
+  section.appendChild(
+    _collapsibleSubgroup('aging', 'Aging', () => [
+      _subgroup('Grime streaks', [
+        _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
+          tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
+        }),
+        _slider('Intensity', BUILDING_AGING, 'GRIME_INTENSITY', 0, 1, 0.05, {
+          tip: 'How dark each streak gets. 0 = invisible; 1 = strongly darkened wall color.',
+        }),
+        _slider('Coverage', BUILDING_AGING, 'GRIME_COVERAGE', 0, 1, 0.05, {
+          tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
+        }),
+      ]),
+      _subgroup('Tilt', [
+        _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
+          tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
+        }),
+        _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
+          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+        }),
+      ]),
+    ])
+  );
+
+  // Selection fade parent — per-tier style. Each tier (Default =
+  // siblings of selection / Level 1 = one hop / Level 2+ = far) gets
+  // four controls: detail (full / silhouette / hidden), outline on/off,
+  // and separate body + outline opacity sliders. Hover renders a
+  // building using the Default tier's settings — no separate hover-floor
+  // knob. Default-closed; 3 children, niche.
   const DETAIL_OPTIONS = [
     { value: FadeDetail.Full, label: 'Full' },
     { value: FadeDetail.Silhouette, label: 'Silhouette' },
     { value: FadeDetail.Hidden, label: 'Hidden' },
   ];
-
   section.appendChild(
-    _subgroup('Default — siblings of selection', [
-      _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
-        tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
-      }),
-      _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
-        tip: 'Show the wireframe edge overlay.',
-      }),
-      _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Opacity for the body / silhouette layer.',
-      }),
-      _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Level 1 — one hop from selection', [
-      _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
-      _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
-      _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-      _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Level 2+ — cousins, deeper subtrees', [
-      _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
-      _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
-      _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-      _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+    _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
+      _subgroup('Default tier — siblings of selection', [
+        _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
+          tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
+        }),
+        _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
+          tip: 'Show the wireframe edge overlay.',
+        }),
+        _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
+          tip: 'Opacity for the body / silhouette layer.',
+        }),
+        _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
+          tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
+        }),
+      ]),
+      _subgroup('Level 1 — one hop from selection', [
+        _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
+      _subgroup('Level 2+ — cousins, deeper subtrees', [
+        _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
     ])
   );
 
@@ -683,26 +840,18 @@ function _buildEffectsSection(): HTMLElement {
 }
 
 // ─── Debug ─────────────────────────────────────────────────────────────────
-// Developer-only diagnostics. Collapsed by default so the section doesn't
-// distract during normal use. Buttons are rendered only when their callback
-// is provided; either or both may be present.
+// Developer-only diagnostics. Collapsibility (and persisted open/closed
+// state) comes from the shared `_section()` helper. Buttons are rendered
+// only when their callback is provided; either or both may be present.
 function _buildDebugSection(
   onRunCollisionCheck: (() => void) | undefined,
   onRunStemDiagnostic: (() => void) | undefined,
 ): HTMLElement {
-  const section = document.createElement('details');
-  section.className = 'controls-section controls-section-collapsible';
-
-  const summary = document.createElement('summary');
-  summary.className = 'controls-section-label';
-  summary.textContent = 'Debug';
-  section.appendChild(summary);
-
-  const hint = document.createElement('div');
-  hint.className = 'controls-section-hint';
-  hint.textContent =
-    'Developer-only diagnostics. Output goes to the browser console.';
-  section.appendChild(hint);
+  const section = _section(
+    'Debug',
+    'Developer-only diagnostics. Output goes to the browser console.',
+    false,
+  );
 
   if (onRunCollisionCheck) {
     const row = document.createElement('div');
@@ -830,14 +979,40 @@ function _buildActionsSection(): HTMLElement {
 
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
-function _section(name: string, hint?: string): HTMLElement {
-  const section = document.createElement('div');
+function _section(name: string, hint?: string, defaultOpen = true): HTMLElement {
+  const section = document.createElement('details');
   section.className = 'controls-section';
 
-  const label = document.createElement('div');
+  const storageKey =
+    'controls.section.' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const persisted = (() => {
+    try {
+      return localStorage.getItem(storageKey);
+    } catch {
+      return null;
+    }
+  })();
+  section.open = persisted === null ? defaultOpen : persisted !== 'closed';
+  section.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
+    } catch {
+      /* localStorage unavailable; ignore */
+    }
+  });
+
+  const summary = document.createElement('summary');
+  summary.className = 'controls-section-summary';
+  // Lucide chevron, rotated via CSS on [open] — matches the file tree
+  // accordion's visual language (Lucide icon + currentColor mask) rather
+  // than the previous unicode triangle.
+  const chevron = makeLucideIcon('chevron-right', { class: 'controls-section-chevron' });
+  summary.appendChild(chevron);
+  const label = document.createElement('span');
   label.className = 'controls-section-label';
   label.textContent = name;
-  section.appendChild(label);
+  summary.appendChild(label);
+  section.appendChild(summary);
 
   if (hint) {
     const h = document.createElement('div');
@@ -848,15 +1023,67 @@ function _section(name: string, hint?: string): HTMLElement {
   return section;
 }
 
-function _subgroup(name: string, rows: HTMLElement[]): HTMLElement {
+// `rows` accepts either an array of row elements (the common case) or a
+// single element — used by the shortcuts list, whose body is one <dl> rather
+// than a stack of _row() outputs.
+function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement {
   const wrap = document.createElement('div');
   wrap.className = 'theme-subgroup';
   const h = document.createElement('div');
   h.className = 'theme-subgroup-label';
   h.textContent = name;
   wrap.appendChild(h);
-  for (const row of rows) wrap.appendChild(row);
+  const list = Array.isArray(rows) ? rows : [rows];
+  for (const row of list) wrap.appendChild(row);
   return wrap;
+}
+
+// _collapsibleSubgroup — same visual shell as _subgroup but the body is
+// wrapped in a <details> so users can collapse long lists (e.g. the per-
+// extension hue rows) OR nested groups (e.g. Buildings > Facade, which
+// contains three child _subgroup()s). `buildRows` returns HTMLElements
+// that are appended directly — they can be _row() outputs, _subgroup()
+// outputs, or even nested _collapsibleSubgroup()s. Default-closed;
+// open/closed state persists per `slug` in localStorage. `buildRows` is
+// invoked lazily on first construction so we don't build expensive rows
+// the user may never see — though in practice the rows are cheap and
+// built eagerly the first time.
+function _collapsibleSubgroup(
+  slug: string,
+  name: string,
+  buildRows: () => HTMLElement[]
+): HTMLElement {
+  const details = document.createElement('details');
+  details.className = 'theme-subgroup theme-subgroup-collapsible';
+
+  const storageKey = `controls.subgroup.${slug}`;
+  try {
+    details.open = localStorage.getItem(storageKey) === 'open';
+  } catch {
+    details.open = false;
+  }
+  details.addEventListener('toggle', () => {
+    try {
+      localStorage.setItem(storageKey, details.open ? 'open' : 'closed');
+    } catch {
+      /* localStorage unavailable; ignore */
+    }
+  });
+
+  const summary = document.createElement('summary');
+  summary.className = 'theme-subgroup-label';
+  // Lucide chevron matched to the section accordion's chevron — same
+  // family as the file tree's expand/collapse glyph.
+  const chevron = makeLucideIcon('chevron-right', { class: 'theme-subgroup-chevron' });
+  summary.appendChild(chevron);
+  const labelSpan = document.createElement('span');
+  labelSpan.className = 'theme-subgroup-label-text';
+  labelSpan.textContent = name;
+  summary.appendChild(labelSpan);
+  details.appendChild(summary);
+
+  for (const row of buildRows()) details.appendChild(row);
+  return details;
 }
 
 // _row(labelText, control, store, keys, opts) -> <label>
