@@ -42,8 +42,8 @@ export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
   WINDOW_MARGIN_FRAC: 0.08,
   DOOR_HEIGHT_FRAC: 0.7,
   ROOF_BORDER_FRAC: 0.03125,
-  WINDOW_COLS_MAX: 5,
-  WIDTH_PER_WINDOW_COL: 8,
+  WINDOW_COLS_MAX: 8,
+  WIDTH_PER_WINDOW_COL: 12,
   DOOR_WIDTH_FRAC_OF_PATH: 0.8,
 });
 
@@ -77,8 +77,8 @@ export interface WindowLightingConfig {
 }
 
 export const WINDOW_LIGHTING = map<WindowLightingConfig>({
-  UNLIT_LIGHTNESS_DELTA: 4,
-  GAP_BASE_THRESHOLD: 0.18,
-  GAP_AGE_BONUS: 0.32,
+  UNLIT_LIGHTNESS_DELTA: -4,
+  GAP_BASE_THRESHOLD: 0.15,
+  GAP_AGE_BONUS: 0.5,
   DIM_GLOW_COLOR: '#806626', // approx rgb(128, 102, 38) approx (0.5, 0.4, 0.15) * 255
 });

@@ -33,11 +33,11 @@ export interface BuildingDimensionsConfig {
 }
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
-  MIN_FLOORS: 1,
-  MAX_FLOORS: 50,
+  MIN_FLOORS: 2,
+  MAX_FLOORS: 100,
   FLOOR_HEIGHT: 10, // scene units per floor
   MIN_WIDTH: 5,
-  MAX_WIDTH: 40,
+  MAX_WIDTH: 80,
   PATH_LENGTH: 4, // connector strip length (building wall → sidewalk)
   PATH_WIDTH_FRAC: 0.4, // per-building: pathWidth = building.w × this; also drives door width
 });
@@ -64,9 +64,9 @@ export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   // point: above that, channels start blending toward white and the
   // hue washes out into pastel. 55 is a touch above peak to keep
   // newest buildings reading as bright, without losing chroma.
-  SATURATION_MIN: 0,
+  SATURATION_MIN: 10,
   SATURATION_MAX: 100,
-  LIGHTNESS_MIN: 10,
+  LIGHTNESS_MIN: 5,
   LIGHTNESS_MAX: 50,
   // (When a file has no creation/modification date, getSaturation /
   // getLightness fall back to the midpoint of the range above so the

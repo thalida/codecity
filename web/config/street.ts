@@ -17,7 +17,7 @@ export interface AsphaltConfig {
 }
 
 export const ASPHALT = map<AsphaltConfig>({
-  COLOR: '#1a1d28',
+  COLOR: '#313544',
   WIDTH_FRAC: 0.6,
 });
 
@@ -33,8 +33,8 @@ export interface SidewalkColorsConfig {
 }
 
 export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
-  DEFAULT: '#2c2e36',
-  HOVER: '#d0d2da',
+  DEFAULT: '#4b5163',
+  HOVER: '#6d6e74',
   SELECTED: '#ffffff',
 });
 
@@ -69,7 +69,7 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   STROKE_WIDTH_FRAC: 1 / 6,
   HEIGHT_FRAC: 0.45, // label plane height = street width × this
   SPACING_MULT: 3.5, // repeat spacing = label width × this
-  SPACING_FLOOR: 200, // …or this floor (world units), whichever is larger
+  SPACING_FLOOR: 300, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
   FLIP_HYSTERESIS: 0.15, // dead zone before camera-orbit flip
 });
@@ -85,7 +85,7 @@ export interface PathLineConfig {
 }
 
 export const PATH_LINE = map<PathLineConfig>({
-  LINEWIDTH: 5,
+  LINEWIDTH: 8,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
 });
@@ -106,7 +106,7 @@ export interface HoverPathLineConfig {
 
 export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
   ENABLED: true,
-  LINEWIDTH: 5,
+  LINEWIDTH: 8,
   COLOR: '#ffffff',
   OPACITY: 0.35,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
@@ -123,11 +123,11 @@ export interface StreetTier {
 }
 
 export const STREET_TIERS = atom<StreetTier[]>([
-  { min_descendants: 0, width: 10 },
-  { min_descendants: 4, width: 16 },
-  { min_descendants: 8, width: 24 },
-  { min_descendants: 16, width: 32 },
-  { min_descendants: 32, width: 64 },
+  { min_descendants: 0, width: 20 },
+  { min_descendants: 4, width: 32 },
+  { min_descendants: 8, width: 48 },
+  { min_descendants: 16, width: 64 },
+  { min_descendants: 32, width: 128 },
 ]);
 
 // ─── Street layout / packing distances (world units) ──────────────────────
@@ -146,5 +146,5 @@ export interface StreetLayoutConfig {
 export const STREET_LAYOUT = map<StreetLayoutConfig>({
   CHILD_GAP: 8,
   ROOT_END_PAD: 8,
-  PARENT_JOIN_PAD: 3,
+  PARENT_JOIN_PAD: 4,
 });
