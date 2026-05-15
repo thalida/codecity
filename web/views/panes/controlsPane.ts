@@ -347,13 +347,13 @@ function _buildLayoutSection(): HTMLElement {
   section.appendChild(
     _subgroup('Street spacing', [
       _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
-        tip: 'Distance between sibling children (file or subdir) packed along a street.',
+        tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
       _number('Root end pad', STREET_LAYOUT, 'ROOT_END_PAD', 0, 50, 1, {
-        tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
+        tip: 'Fallback pad at each end of the root street (which has no parent intersection). 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
       _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 50, 1, {
-        tip: 'Extra clear space where a child street meets its parent.',
+        tip: 'Extra clear space where a child street meets its parent. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
     ])
   );
@@ -364,13 +364,13 @@ function _buildLayoutSection(): HTMLElement {
         tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
       }),
       _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-        tip: 'Vertical world units per floor (multiplier on the floor count above).',
+        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
       }),
       _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
         tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
       }),
       _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap.",
+        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
       }),
       _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
         tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
@@ -1377,7 +1377,7 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
   subscribeDrafts(refresh);
 
   const rowOpts: ControlOpts = {
-    tip: 'World-unit width for streets in this descendant-count tier.',
+    tip: 'World-unit width for streets in this descendant-count tier. Above ~256 streets overwhelm building footprints; below 1 they disappear.',
   };
   const row = _row(label, control, null, null, rowOpts);
   row
