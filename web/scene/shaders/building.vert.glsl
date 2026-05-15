@@ -31,6 +31,12 @@ attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidd
 //   .w  = createdAge — 0 (newest file) to 1 (oldest), repo-relative.
 //         Independent of color/freshness; drives grime/weathering.
 attribute vec4 iIconUV;
+// Per-instance modifiedAge in [0, 1]. 0 = most recently modified
+// (vivid, fully lit windows); 1 = longest-untouched (dim, mostly
+// dark windows). Mirrors iIconUV.w (createdAge) in polarity but
+// keyed off the modified-date axis. Used in the fragment shader's
+// renderWallFace via vModifiedAge.
+attribute float iModifiedAge;
 
 // Max age-tilt in radians (config: BUILDING_AGING.TILT_DEGREES → radians;
 // or 0 when TILT_ENABLED is off). Pushed from refreshBuildingMaterial.
@@ -49,6 +55,7 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
+flat varying float vModifiedAge; // pass-through of iModifiedAge
 varying float vWorldY;          // world-space height, for height-based ground haze in frag
 
 void main() {
@@ -70,6 +77,7 @@ void main() {
   vSilhouette = iSilhouette;
   vOutlineOpacity = iOutlineOpacity;
   vIconUV = iIconUV;
+  vModifiedAge = iModifiedAge;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.
