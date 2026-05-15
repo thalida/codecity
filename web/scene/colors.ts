@@ -258,8 +258,8 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): 
   // the range it interpolates linearly. The createdMin/Max also
   // serves as the freshness divisor in the shader so the color and
   // age signals stay in sync.
-  const minAnchor = dateRanges.createdMin;
-  const maxAnchor = dateRanges.createdMax;
+  const minAnchor = dateRanges.modifiedMin;
+  const maxAnchor = dateRanges.modifiedMax;
   const s = getSaturation(modified, minAnchor, maxAnchor, {
     min: palette.SATURATION_MIN,
     max: palette.SATURATION_MAX,
