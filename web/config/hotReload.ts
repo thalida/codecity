@@ -20,6 +20,7 @@ import {
   STREET_LAYOUT,
   STREET_TIERS,
   GEM_SIZING,
+  BILLBOARD_GEOMETRY,
 
   // Hot-reloadable (live material updates only):
   SCENE_COLORS,
@@ -131,6 +132,12 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     STREET_LAYOUT,
     STREET_TIERS,
     GEM_SIZING,
+    // BILLBOARD_GEOMETRY: panel/post sizes + colors bake into per-mesh
+    // BoxGeometry / CylinderGeometry / MeshBasicMaterial calls inside
+    // createBillboard(), and PANEL_ASPECT × POST_HEIGHT_FRAC also feeds
+    // the layout height override (getBillboardHeightFrac in layout.ts).
+    // Both paths only re-run on applyManifest → rebuild required.
+    BILLBOARD_GEOMETRY,
     // LABEL_TYPOGRAPHY: all keys (font-size / padding / stroke / fill / etc.)
     // trigger a full applyManifest() rebuild. The old per-texture
     // regenerateLabelTexture hot-path is removed (Task 20); for v1, a

@@ -52,6 +52,7 @@ import {
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
+import { BILLBOARD_GEOMETRY } from '@/config/billboards.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
 import {
   getDefault,
@@ -676,6 +677,41 @@ function _buildBuildingsSection(): HTMLElement {
       }),
       _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
         tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _subgroup('Billboards (media files)', [
+      _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
+        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait.',
+      }),
+      _slider('Panel depth × width', BILLBOARD_GEOMETRY, 'PANEL_DEPTH_FRAC', 0, 0.3, 0.01, {
+        tip: 'Body depth (front-to-back thickness) as a fraction of panel width.',
+      }),
+      _slider('Image inset × height', BILLBOARD_GEOMETRY, 'PANEL_INSET_FRAC', 0, 0.2, 0.01, {
+        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness.',
+      }),
+      _slider('Image offset', BILLBOARD_GEOMETRY, 'IMAGE_OFFSET', 0, 0.2, 0.01, {
+        tip: 'How far in front of the body face the image plane sits.',
+      }),
+      _slider('Post height × panel', BILLBOARD_GEOMETRY, 'POST_HEIGHT_FRAC', 0, 3, 0.05, {
+        tip: 'Support post height as a multiple of panel height.',
+      }),
+      _slider('Post width × panel', BILLBOARD_GEOMETRY, 'POST_WIDTH_FRAC', 0, 0.3, 0.01, {
+        tip: 'Support post width as a fraction of panel width.',
+      }),
+      _slider('Post offset × width', BILLBOARD_GEOMETRY, 'POST_INSET_FRAC', 0, 0.5, 0.01, {
+        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing).',
+      }),
+      _color('Post color', BILLBOARD_GEOMETRY, 'POST_COLOR', {
+        tip: 'Support post color. Default matches the sidewalk gray.',
+      }),
+      _color('Body color', BILLBOARD_GEOMETRY, 'BODY_COLOR', {
+        tip: 'Panel body / frame color (visible from behind and around the image).',
+      }),
+      _color('Placeholder color', BILLBOARD_GEOMETRY, 'PANEL_PLACEHOLDER_COLOR', {
+        tip: 'Fallback panel color shown while the image loads (or if the load fails).',
       }),
     ])
   );

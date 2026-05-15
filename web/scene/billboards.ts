@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { Building } from '@/types';
 import { BuildingOrient } from '@/types';
-import { BLOOM } from '@/config/index.js';
+import { BLOOM, BILLBOARD_GEOMETRY } from '@/config/index.js';
 
 // Mirrors the media-recognizing extension sets in filePreviewPane.ts —
 // kept in sync by hand so the sidebar player and the billboard pick
@@ -58,6 +58,10 @@ export function isMediaFile(file: { extension?: string } | null | undefined): bo
 // Proportions tuned to look like a real highway billboard. Width =
 // building.w (still byte-derived); the rest scales off that so larger
 // files get bigger billboards without losing the recognizable shape.
+// All geometry + colors live in the BILLBOARD_GEOMETRY nanostore
+// (web/config/billboards.ts) — snapshotted once per createBillboard()
+// call so per-mesh values stay internally consistent even if a slider
+// fires mid-build.
 //
 // Architecture: a thick dark BODY box gives the sign its mass, an
 // IMAGE plane sits flush against the body's front face (single-sided
@@ -71,17 +75,6 @@ export function isMediaFile(file: { extension?: string } | null | undefined): bo
 //   └──┬────────┬──┘
 //      │        │   ←─ two support posts
 //      ▔▔▔▔▔▔▔▔▔▔
-const PANEL_ASPECT = 0.7; // panel height = panel width × this (landscape)
-const PANEL_DEPTH_FRAC = 0.08; // body depth = panel width × this (gives the sign real mass)
-const PANEL_INSET_FRAC = 0.04; // image inset inside the body (frame thickness)
-const IMAGE_OFFSET = 0.02; // image plane sits this far in front of the body face
-const POST_HEIGHT_FRAC = 1.1; // post height = panel height × this
-const POST_WIDTH_FRAC = 0.06; // post width = panel width × this
-const POST_INSET_FRAC = 0.32; // post x-offset from center = panel width × this
-
-const POST_COLOR = 0x2c2e36; // matches the city's sidewalk gray
-const BODY_COLOR = 0x14161e; // dark frame / back of the panel
-const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
 
 /**
  * Total visual height of a billboard as a multiple of its width.
@@ -92,8 +85,16 @@ const PANEL_PLACEHOLDER_COLOR = 0x1a1d28;
  *
  *   total height = panel height + post height
  *                = (w × PANEL_ASPECT) × (1 + POST_HEIGHT_FRAC)
+ *
+ * Reads from BILLBOARD_GEOMETRY on every call so live store mutations
+ * (controls UI sliders) propagate the next time the scene rebuilds —
+ * BILLBOARD_GEOMETRY is in rebuildStores so a slider change always
+ * triggers a layout pass that re-evaluates this helper.
  */
-export const BILLBOARD_HEIGHT_FRAC = PANEL_ASPECT * (1 + POST_HEIGHT_FRAC);
+export function getBillboardHeightFrac(): number {
+  const { PANEL_ASPECT, POST_HEIGHT_FRAC } = BILLBOARD_GEOMETRY.get();
+  return PANEL_ASPECT * (1 + POST_HEIGHT_FRAC);
+}
 
 // Convert BuildingOrient → Y-axis rotation so the panel faces the door's direction.
 function orientToYRotation(orient: BuildingOrient): number {
@@ -134,6 +135,21 @@ export function createBillboard(building: Building): THREE.Group {
   const bloomCfg = BLOOM.get();
   const billboardEmission = bloomCfg.ENABLED ? bloomCfg.BILLBOARD_EMISSION : 1.0;
 
+  // Snapshot the billboard config once per mesh — any mid-build slider
+  // change is picked up on the next rebuild via rebuildStores.
+  const {
+    PANEL_ASPECT,
+    PANEL_DEPTH_FRAC,
+    PANEL_INSET_FRAC,
+    IMAGE_OFFSET,
+    POST_HEIGHT_FRAC,
+    POST_WIDTH_FRAC,
+    POST_INSET_FRAC,
+    POST_COLOR,
+    BODY_COLOR,
+    PANEL_PLACEHOLDER_COLOR,
+  } = BILLBOARD_GEOMETRY.get();
+
   const panelW = Math.max(1, building.w);
   const panelH = panelW * PANEL_ASPECT;
   const panelD = panelW * PANEL_DEPTH_FRAC;
@@ -148,7 +164,10 @@ export function createBillboard(building: Building): THREE.Group {
   const bodyGeo = new THREE.BoxGeometry(panelW, panelH, panelD);
   // transparent: true so the fader can dial body opacity below 1.0 for
   // non-selected tiers without recompiling the material.
-  const bodyMat = new THREE.MeshBasicMaterial({ color: BODY_COLOR, transparent: true });
+  const bodyMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(BODY_COLOR),
+    transparent: true,
+  });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.position.set(0, postH + panelH / 2, 0);
   body.userData.kind = 'billboard';
@@ -185,7 +204,10 @@ export function createBillboard(building: Building): THREE.Group {
   // panel body sitting on top.
   const postRadius = postW / 2;
   const postGeo = new THREE.CylinderGeometry(postRadius, postRadius, postH, 10);
-  const postMat = new THREE.MeshBasicMaterial({ color: POST_COLOR, transparent: true });
+  const postMat = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(POST_COLOR),
+    transparent: true,
+  });
   for (const sign of [-1, 1]) {
     const post = new THREE.Mesh(postGeo, postMat);
     post.position.set(sign * postInset, postH / 2, 0);
@@ -234,6 +256,7 @@ export function refreshBillboards(groups: Iterable<THREE.Group>): void {
   const cfg = BLOOM.get();
   const e = cfg.ENABLED ? cfg.BILLBOARD_EMISSION : 1.0;
   const tint = new THREE.Color(e, e, e);
+  const placeholderHex = BILLBOARD_GEOMETRY.get().PANEL_PLACEHOLDER_COLOR;
   for (const group of groups) {
     group.traverse((obj) => {
       if (!(obj instanceof THREE.Mesh)) return;
@@ -244,7 +267,7 @@ export function refreshBillboards(groups: Iterable<THREE.Group>): void {
       if (mat.map) {
         mat.color.copy(tint);
       } else {
-        mat.color.copy(new THREE.Color(PANEL_PLACEHOLDER_COLOR)).multiply(tint);
+        mat.color.copy(new THREE.Color(placeholderHex)).multiply(tint);
       }
     });
   }
