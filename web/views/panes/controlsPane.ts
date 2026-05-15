@@ -730,13 +730,13 @@ function _buildGemSection(): HTMLElement {
         tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
       }),
       _number('Min radius', GEM_SIZING, 'MIN_RADIUS', 1, 50, 1, {
-        tip: 'Floor for narrow root streets so the gem stays visible.',
+        tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes; above 50 it dwarfs the root plaza.',
       }),
       _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
-        tip: 'Extra vertical lift above the road, on top of the gem radius.',
+        tip: 'Extra vertical lift above the road, on top of the gem radius. Above 2× the gem radius it floats clearly off the ground into the void.',
       }),
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
-        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long.",
+        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
       }),
     ])
   );
@@ -758,13 +758,13 @@ function _buildGemSection(): HTMLElement {
         tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
       }),
       _slider('Inner scale × radius', GEM_GLOW, 'INNER_SCALE', 1, 12, 0.1, {
-        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk.',
+        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk. Beyond 12× radius the inner core overlaps the outer halo.',
       }),
       _slider('Inner opacity', GEM_GLOW, 'INNER_OPACITY', 0, 1, 0.05, {
         tip: 'Brightness of the hot core. Lower for a subtler halo.',
       }),
       _slider('Outer scale × radius', GEM_GLOW, 'OUTER_SCALE', 1, 30, 0.5, {
-        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem.',
+        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem. Beyond 30× radius the outer halo extends past the typical camera frame.',
       }),
       _slider('Outer opacity', GEM_GLOW, 'OUTER_OPACITY', 0, 1, 0.05, {
         tip: 'Brightness of the atmospheric halo.',
@@ -773,22 +773,24 @@ function _buildGemSection(): HTMLElement {
         tip: 'Cycle the halo color through the gem face palette. Off = halo uses the edge color from Appearance above.',
       }),
       _slider('Cycle period (s)', GEM_GLOW, 'CYCLE_PERIOD_SECONDS', 1, 30, 0.5, {
-        tip: 'Seconds for one full pass through every palette color.',
+        tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker; above 30s the cycle feels static.',
       }),
     ])
   );
 
   section.appendChild(
     _subgroup('Animation', [
-      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {}),
+      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {
+        tip: 'Radians per second. Above 3 rad/sec the gem looks frantic.',
+      }),
       _slider('Bob frequency', GEM_ANIMATION, 'BOB_FREQUENCY', 0, 5, 0.1, {
-        tip: 'How fast the gem oscillates vertically.',
+        tip: 'How fast the gem oscillates vertically. Above 5 cycles/sec it reads as vibration, not bobbing.',
       }),
       _slider('Bob amplitude', GEM_ANIMATION, 'BOB_AMPLITUDE_FRAC', 0, 2, 0.05, {
-        tip: 'Vertical bob distance, as a fraction of the gem radius.',
+        tip: 'Vertical bob distance, as a fraction of the gem radius. Above 2× radius the gem flies off the street.',
       }),
       _slider('Hover scale', GEM_ANIMATION, 'HOVER_SCALE', 1, 3, 0.05, {
-        tip: 'Multiplier applied to the gem when the cursor is over it.',
+        tip: 'Multiplier applied to the gem when the cursor is over it. Above 3× the gem dominates the scene on hover.',
       }),
       _slider('Hover lerp', GEM_ANIMATION, 'SCALE_LERP_SPEED', 0.01, 1, 0.01, {
         tip: 'Per-frame ease toward the hover scale.',
