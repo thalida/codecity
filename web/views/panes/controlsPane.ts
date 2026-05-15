@@ -352,7 +352,7 @@ function _buildLayoutSection(): HTMLElement {
       _number('Root end pad', STREET_LAYOUT, 'ROOT_END_PAD', 0, 50, 1, {
         tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
       }),
-      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 20, 1, {
+      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 50, 1, {
         tip: 'Extra clear space where a child street meets its parent.',
       }),
     ])
@@ -1355,7 +1355,7 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
   const control = _sliderWidget(
     initial,
     1,
-    100,
+    256,
     1,
     (v) => {
       const current = effectiveTiers();

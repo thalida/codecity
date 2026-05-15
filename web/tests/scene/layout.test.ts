@@ -535,8 +535,8 @@ describe('orient correctness for mirrored subtrees', () => {
           sy2 = s.y + halfL;
         }
         // Probe a point a few units in front of the door.
-        const probeX = edgeX + doorDX * 5;
-        const probeY = edgeY + doorDY * 5;
+        const probeX = edgeX + doorDX * 15;
+        const probeY = edgeY + doorDY * 15;
         if (probeX >= sx1 && probeX <= sx2 && probeY >= sy1 && probeY <= sy2) {
           matched = true;
           break;

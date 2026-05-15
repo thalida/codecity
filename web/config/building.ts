@@ -38,8 +38,8 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   FLOOR_HEIGHT: 10, // scene units per floor
   MIN_WIDTH: 5,
   MAX_WIDTH: 80,
-  PATH_LENGTH: 4, // connector strip length (building wall → sidewalk)
-  PATH_WIDTH_FRAC: 0.4, // per-building: pathWidth = building.w × this; also drives door width
+  PATH_LENGTH: 8, // connector strip length (building wall → sidewalk)
+  PATH_WIDTH_FRAC: 0.5, // per-building: pathWidth = building.w × this; also drives door width
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
