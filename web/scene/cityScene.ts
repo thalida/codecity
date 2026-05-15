@@ -57,7 +57,7 @@ import type {
 } from './layoutV4.js';
 import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
-import { getBuildingColor, getCreatedAge, getDateRanges } from './colors.js';
+import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import { LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
@@ -717,6 +717,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // recently edited.
       b.createdAge = getCreatedAge(
         b.file as unknown as Parameters<typeof getCreatedAge>[0],
+        newDateRanges,
+      );
+      b.modifiedAge = getModifiedAge(
+        b.file as unknown as Parameters<typeof getModifiedAge>[0],
         newDateRanges,
       );
     }
