@@ -639,8 +639,11 @@ function _buildBuildingsSection(): HTMLElement {
         _slider('Gap fraction (age bonus)', WINDOW_LIGHTING, 'GAP_AGE_BONUS', 0, 1, 0.01, {
           tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
         }),
+        _slider('Lit-window dim curve', WINDOW_LIGHTING, 'LIT_FRESHNESS_EXPONENT', 1, 4, 0.1, {
+          tip: 'Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow.',
+        }),
         _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
-          tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+          tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
         }),
       ]),
     ])
