@@ -2,20 +2,26 @@ import { describe, it, expect } from 'vitest';
 import { buildControlsPane } from '@/views/panes/controlsPane.js';
 
 describe('buildControlsPane', () => {
-  it('returns a pane with the Controls header + View section first', () => {
+  it('returns a pane with the Controls header + Scene section first', () => {
     const pane = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector<HTMLElement>('.pane-title')!.textContent).toBe('Controls');
-    expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('View');
+    expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('Scene');
   });
 
-  it('renders a shortcuts list in the View section (no Reset camera button)', () => {
+  it('renders a shortcuts list in the Camera & Interaction section (no Reset camera button)', () => {
     const pane = buildControlsPane({});
     const shortcuts = pane.querySelector<HTMLElement>('.shortcuts-list');
     expect(shortcuts).not.toBeNull();
     // Must include both keyboard and mouse rows.
     expect(pane.querySelector('.shortcuts-list kbd')).not.toBeNull();
     expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
+    // The shortcuts list lives in the new "Camera & Interaction" section.
+    const sectionLabels = Array.from(
+      pane.querySelectorAll<HTMLElement>('.controls-section-label')
+    ).map((el) => el.textContent);
+    expect(sectionLabels).toContain('Camera & Interaction');
+    expect(sectionLabels).not.toContain('View');
   });
 
   it('renders three buttons in the sticky action bar: Reset all, Discard, Save', () => {

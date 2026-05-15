@@ -996,6 +996,28 @@ canvas {
   margin-bottom: 8px;
 }
 
+/* Collapsible subgroup variant — a <details> whose <summary> doubles as
+ * the .theme-subgroup-label. Mirrors the section chevron so the open/closed
+ * affordance is consistent at every level of the controls panel. */
+.theme-subgroup-collapsible > summary.theme-subgroup-label {
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+.theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
+  display: none;
+}
+.theme-subgroup-collapsible > summary.theme-subgroup-label::before {
+  content: '▸';
+  display: inline-block;
+  width: 1em;
+  margin-right: 0.25em;
+  transition: transform 0.1s ease;
+}
+.theme-subgroup-collapsible[open] > summary.theme-subgroup-label::before {
+  transform: rotate(90deg);
+}
+
 /* Row layout:
  *   [label: shrink-to-fit, ellipses]   [control: grow]   [reset-icon: hidden until changed]
  *
