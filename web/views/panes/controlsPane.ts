@@ -450,7 +450,7 @@ function _buildStreetsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Selection path line', [
       _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the rainbow line.',
+        tip: 'Pixel thickness of the rainbow line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
       }),
       _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
@@ -471,7 +471,7 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
       }),
       _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the preview line.',
+        tip: 'Pixel thickness of the preview line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
       }),
       _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
@@ -535,7 +535,7 @@ function _buildBuildingsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Outlines', [
       _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
-        tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
+        tip: 'Pixel thickness shared by per-building, hover, and selected outlines. Above 10 pixels the wireframe occludes facade detail; below 1 it vanishes at typical zoom.',
       }),
       _color('Hover color', BUILDING_OUTLINE, 'HOVER_COLOR', {
         tip: 'Outline color when the cursor is over a building.',
