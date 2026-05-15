@@ -693,6 +693,7 @@ function _buildDebugSection(
   const section = _section(
     'Debug',
     'Developer-only diagnostics. Output goes to the browser console.',
+    false,
   );
 
   if (onRunCollisionCheck) {
@@ -821,7 +822,7 @@ function _buildActionsSection(): HTMLElement {
 
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
-function _section(name: string, hint?: string): HTMLElement {
+function _section(name: string, hint?: string, defaultOpen = true): HTMLElement {
   const section = document.createElement('details');
   section.className = 'controls-section';
 
@@ -834,7 +835,7 @@ function _section(name: string, hint?: string): HTMLElement {
       return null;
     }
   })();
-  section.open = persisted !== 'closed';
+  section.open = persisted === null ? defaultOpen : persisted !== 'closed';
   section.addEventListener('toggle', () => {
     try {
       localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
