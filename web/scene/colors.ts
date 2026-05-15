@@ -64,15 +64,15 @@ export function getHue(extension: string, palette: Record<string, number>): numb
 // ── Saturation ────────────────────────────────────────────────────────────────
 
 /**
- * Compute saturation (%) based on when the file was first created.
+ * Compute saturation (%) interpolated linearly between a min/max date range.
  *
- * Newer files (closer to maxDate) → config.max saturation (vivid).
- * Older files (closer to minDate) → config.min saturation (faded/grey).
+ * Dates closer to maxDate → config.max saturation (vivid).
+ * Dates closer to minDate → config.min saturation (faded/grey).
  * Linear interpolation between the two extremes.
  *
- * @param {string|null} createdDate - ISO-8601 date string for file creation.
- * @param {string|null} minDate     - Earliest creation date in the repo (ISO-8601).
- * @param {string|null} maxDate     - Latest creation date in the repo (ISO-8601).
+ * @param {string|null} date   - ISO-8601 date string to sample within the range.
+ * @param {string|null} minDate - Earliest date in the range (ISO-8601).
+ * @param {string|null} maxDate - Latest date in the range (ISO-8601).
  * @param {Object}      config      - { min: number, max: number } (e.g. { min: 20, max: 100 }).
  * @returns {number} Saturation percentage, clamped to [config.min, config.max].
  */
@@ -82,17 +82,17 @@ interface MinMaxRange {
 }
 
 export function getSaturation(
-  createdDate: string | null,
+  date: string | null,
   minDate: string | null,
   maxDate: string | null,
   config: MinMaxRange
 ): number {
   // Fallback: no date available → mid-point of the configured range
-  if (!createdDate) {
+  if (!date) {
     return Math.round((config.min + config.max) / 2);
   }
 
-  const created = Date.parse(createdDate);
+  const dateVal = Date.parse(date);
   const min = Date.parse(minDate);
   const max = Date.parse(maxDate);
 
@@ -102,7 +102,7 @@ export function getSaturation(
   }
 
   // t=0 → oldest (min saturation), t=1 → newest (max saturation)
-  let t = (created - min) / (max - min);
+  let t = (dateVal - min) / (max - min);
 
   // Clamp t to [0, 1] in case dates fall outside the observed range
   t = Math.max(0, Math.min(1, t));
@@ -113,30 +113,30 @@ export function getSaturation(
 // ── Lightness ─────────────────────────────────────────────────────────────────
 
 /**
- * Compute lightness (%) based on when the file was last modified.
+ * Compute lightness (%) interpolated linearly between a min/max date range.
  *
- * Recently modified files (closer to maxDate) → config.max lightness (bright).
- * Long-untouched files (closer to minDate)    → config.min lightness (dim).
+ * Dates closer to maxDate → config.max lightness (bright).
+ * Dates closer to minDate → config.min lightness (dim).
  * Linear interpolation between the two extremes.
  *
- * @param {string|null} modifiedDate - ISO-8601 date string for last modification.
- * @param {string|null} minDate      - Earliest modification date in the repo (ISO-8601).
- * @param {string|null} maxDate      - Latest modification date in the repo (ISO-8601).
+ * @param {string|null} date   - ISO-8601 date string to sample within the range.
+ * @param {string|null} minDate - Earliest date in the range (ISO-8601).
+ * @param {string|null} maxDate - Latest date in the range (ISO-8601).
  * @param {Object}      config       - { min: number, max: number } (e.g. { min: 25, max: 70 }).
  * @returns {number} Lightness percentage, clamped to [config.min, config.max].
  */
 export function getLightness(
-  modifiedDate: string | null,
+  date: string | null,
   minDate: string | null,
   maxDate: string | null,
   config: MinMaxRange
 ): number {
   // Fallback: no date available → mid-point of the configured range
-  if (!modifiedDate) {
+  if (!date) {
     return Math.round((config.min + config.max) / 2);
   }
 
-  const modified = Date.parse(modifiedDate);
+  const dateVal = Date.parse(date);
   const min = Date.parse(minDate);
   const max = Date.parse(maxDate);
 
@@ -146,7 +146,7 @@ export function getLightness(
   }
 
   // t=0 → oldest modification (min lightness), t=1 → newest (max lightness)
-  let t = (modified - min) / (max - min);
+  let t = (dateVal - min) / (max - min);
 
   // Clamp to [0, 1]
   t = Math.max(0, Math.min(1, t));
