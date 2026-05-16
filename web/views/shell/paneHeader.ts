@@ -50,7 +50,19 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
     el: header,
     api: {
       setTitle(text: string): void {
-        title.textContent = text;
+        title.replaceChildren(document.createTextNode(text));
+      },
+      /**
+       * Replace the title element's children with arbitrary DOM nodes.
+       * Pass an empty array to clear. Use `setTitle` for plain-text titles.
+       */
+      setTitleChildren(els: Node[]): void {
+        title.replaceChildren(...els);
+      },
+      /** The raw title element — used by consumers that need to attach a
+       *  ResizeObserver or read layout metrics from the title container. */
+      get titleEl(): HTMLElement {
+        return title;
       },
       /** Replace (or remove) the leading prefix element before the title. */
       setPrefixEl(el: HTMLElement | null): void {

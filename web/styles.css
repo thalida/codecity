@@ -238,6 +238,36 @@ canvas {
   pointer-events: none;
 }
 
+/* Middle-truncation ellipsis placeholder — shared by the header breadcrumb
+ * and the file-preview pane path. Shown when middle segments are hidden to
+ * prevent the row from overflowing. Hovering reveals a tooltip listing the
+ * hidden segment names. */
+.app-header-ellipsis,
+.file-path-ellipsis {
+  flex: 0 0 auto;
+  color: #7279a2;
+  padding: 0 2px;
+  cursor: help;
+  user-select: none;
+}
+
+/* File-preview pane path segments rendered inside .pane-title. */
+.file-path-segment {
+  flex: 0 0 auto;
+  color: #8a8fa8;
+  white-space: nowrap;
+}
+.file-path-segment.is-leaf {
+  color: #c0c4d8;
+}
+.file-path-sep {
+  flex: 0 0 auto;
+  color: #44485e;
+  font-size: 12px;
+  pointer-events: none;
+  padding: 0 1px;
+}
+
 .app-header-icon.is-copied {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.1);
@@ -809,6 +839,11 @@ canvas {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Flex layout so middle-truncation segments can share a row and the
+   * algorithm's scrollWidth/clientWidth comparison works correctly. */
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 .pane-title.is-mono {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;

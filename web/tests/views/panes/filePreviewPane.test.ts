@@ -53,7 +53,11 @@ describe('buildFilePreviewPane', () => {
     // failure, but the body should no longer be ONLY a state message —
     // a .preview-shell wrapper is the file path's first child.
     expect(pane.querySelector('.preview-shell')).not.toBeNull();
-    expect(pane.querySelector('.pane-title')!.textContent).toBe('index.ts');
+    // The title now shows the full segmented path; the leaf segment carries
+    // the filename. Both the leaf text and the full path segments are checked.
+    const leafSeg = pane.querySelector('.pane-title .file-path-segment.is-leaf');
+    expect(leafSeg).not.toBeNull();
+    expect(leafSeg!.textContent).toBe('index.ts');
   });
 
   it('setFile(null) returns to the empty state and the "No file" title', () => {
@@ -71,7 +75,9 @@ describe('buildFilePreviewPane', () => {
     api.setFile({ ...FILE_NODE, name: 'utils.ts', path: 'src/utils.ts' });
     // exactly one preview-shell, no leftover from the first call
     expect(pane.querySelectorAll('.preview-shell').length).toBe(1);
-    expect(pane.querySelector('.pane-title')!.textContent).toBe('utils.ts');
+    const leafSeg = pane.querySelector('.pane-title .file-path-segment.is-leaf');
+    expect(leafSeg).not.toBeNull();
+    expect(leafSeg!.textContent).toBe('utils.ts');
   });
 
   it('falls through to preview (no "too large" state) for a 10 MB file', () => {

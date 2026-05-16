@@ -9,6 +9,7 @@ import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
 import { makeExtensionBadge } from './badge.js';
 import { toHttpsRepoUrl } from './displayLabel.js';
+import { fitSegments } from './pathTruncate.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -60,6 +61,19 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   // Last selection cached so config-store subscriptions can re-render
   // with the same selection when the palette / asphalt color changes.
   let lastSelection: HeaderSelection | null = null;
+
+  // Module-level refs for the ResizeObserver — updated on every setSelection.
+  let _crumbsEl: HTMLElement | null = null;
+  let _segEls: HTMLElement[] = [];
+  let _sepEls: HTMLElement[] = [];
+
+  const _resizeObserver = new ResizeObserver(() => {
+    if (_crumbsEl) fitSegments(_crumbsEl, _segEls, _sepEls);
+  });
+  // Observe the whole header row so sidebar-resize and window-resize both trigger.
+  if (titleEl.parentElement) {
+    _resizeObserver.observe(titleEl.parentElement);
+  }
 
   // Current branch — updated by setSourceInfo after mid-session source switches.
   let _branch = opts.branch;
@@ -115,6 +129,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     // Path segments — the root is in the project button, so we start
     // directly with the selection's path segments.
     const segs = sel!.path.split('/').filter(Boolean);
+    const segmentEls: HTMLElement[] = [];
+    const separatorEls: HTMLElement[] = [];
     let acc = '';
     for (let i = 0; i < segs.length; i++) {
       acc = acc ? `${acc}/${segs[i]}` : segs[i];
@@ -123,14 +139,23 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         const sep = document.createElement('span');
         sep.className = 'app-header-sep';
         sep.textContent = '›';
+        separatorEls.push(sep);
         crumbs.appendChild(sep);
       }
-      crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
+      const segEl = _makeSegment(segs[i], acc, isLeaf);
+      segmentEls.push(segEl);
+      crumbs.appendChild(segEl);
     }
     titleEl!.appendChild(crumbs);
 
     // Copy button copies the absolute filesystem path.
     titleEl!.appendChild(_makeCopyButton(sel!.fullPath || sel!.path));
+
+    // Cache refs for ResizeObserver and run initial fit.
+    _crumbsEl = crumbs;
+    _segEls = segmentEls;
+    _sepEls = separatorEls;
+    fitSegments(_crumbsEl, _segEls, _sepEls);
   }
 
   /**
