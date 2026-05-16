@@ -2,7 +2,7 @@
 //
 // Layout:
 //   .controls-pane (flex column)
-//     .controls-header   — title
+//     .pane-header       — shared header (title + × close) via buildPaneHeader()
 //     .controls-body     — scrollable column of sections (one per scene element)
 //     .controls-actions  — sticky bottom bar: Reset all (left) · Discard · Save (right)
 //
