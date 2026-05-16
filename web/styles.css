@@ -312,21 +312,26 @@ canvas {
 }
 .app-footer-section.app-footer-left {
   justify-self: start;
-  overflow-x: auto;
-}
-.app-footer-section.app-footer-left::-webkit-scrollbar {
-  height: 0;
+  overflow: hidden;
 }
 .app-footer-section.app-footer-center {
   justify-self: center;
   overflow: hidden;
+  /* Center shrinks last — the repo name is the most stable anchor. */
+  flex-shrink: 0;
+  min-width: 0;
+  max-width: 100%;
 }
 .app-footer-section.app-footer-right {
   justify-self: end;
+  overflow: hidden;
 }
 
 .app-footer-item {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .app-footer-source {
   margin-left: 3px;
@@ -442,6 +447,14 @@ canvas {
   gap: 6px;
   overflow: hidden;
   min-width: 0;
+  max-width: 100%;
+}
+.app-footer-repo-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 .app-footer-repo-branch {
   color: #8a8fa8;
@@ -455,10 +468,26 @@ canvas {
   text-decoration: none;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
+  flex: 0 0 auto;
 }
 .app-footer-repo-link:hover {
   text-decoration: underline;
+}
+
+/* ── Footer responsive narrowing ───────────────────────────────────────────── */
+/* At narrow widths the status timestamp / "rebuilding…" text is secondary
+   information — hide it so the dot alone represents the status and the
+   left / center sections keep their space. */
+@media (max-width: 580px) {
+  #app-footer {
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .app-footer-status-detail {
+    display: none;
+  }
 }
 
 /* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
