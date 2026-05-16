@@ -2291,6 +2291,32 @@ canvas {
 }
 .recent-row .recent-remove:hover { opacity: 1; }
 
+.recent-row--active {
+  background: rgba(91, 157, 255, 0.08);
+  cursor: default;
+}
+.recent-row--active:hover {
+  background: rgba(91, 157, 255, 0.12);
+}
+.recent-row-badge {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: #5b9dff;
+  background: rgba(91, 157, 255, 0.15);
+  border: 1px solid rgba(91, 157, 255, 0.35);
+  border-radius: 10px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.modal-field-help {
+  font-size: 11px;
+  color: rgba(232, 232, 237, 0.45);
+  margin-top: 4px;
+}
+
 /* Loading overlay */
 .loading-card {
   display: flex;

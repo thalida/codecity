@@ -13,6 +13,7 @@ describe('sourcePicker', () => {
   beforeEach(() => {
     localStorage.clear();
     root = mountRoot();
+    history.replaceState(null, '', '/');
   });
 
   it('starts hidden', () => {
@@ -130,5 +131,26 @@ describe('sourcePicker', () => {
       .toBe('https://github.com/o/r');
     expect((root.querySelector('[data-field="branch"]') as HTMLInputElement).value)
       .toBe('develop');
+  });
+
+  it('marks the currently-loaded recent as active', () => {
+    history.replaceState(null, '', '?src=%2Ffoo');
+    pushRecent({ src: '/foo', label: 'foo' });
+    pushRecent({ src: '/bar', label: 'bar' });
+    const p = createSourcePicker({ onSubmit: () => {} });
+    p.open();
+    const activeRow = root.querySelector('.recent-row--active');
+    expect(activeRow).toBeTruthy();
+    expect(activeRow?.textContent).toContain('/foo');
+  });
+
+  it('active row click is a no-op', () => {
+    history.replaceState(null, '', '?src=%2Ffoo');
+    pushRecent({ src: '/foo', label: 'foo' });
+    const onSubmit = vi.fn();
+    const p = createSourcePicker({ onSubmit });
+    p.open();
+    (root.querySelector('.recent-row--active') as HTMLElement).click();
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
