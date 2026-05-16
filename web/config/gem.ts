@@ -23,7 +23,7 @@ export const GEM_SIZING = map<GemSizingConfig>({
   // Dead-space pad past the gem at the root street's origin end,
   // expressed as a multiple of the gem's diameter so the plaza always
   // scales with the gem rather than living in absolute world units.
-  CLEARANCE_AS_GEM_WIDTH_FRAC: 2,
+  CLEARANCE_AS_GEM_WIDTH_FRAC: 1.0,
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────
@@ -55,7 +55,7 @@ export interface GemAppearanceConfig {
 
 export const GEM_APPEARANCE = map<GemAppearanceConfig>({
   EDGE_COLOR: '#7a7fff',
-  BODY_OPACITY: 1.0,
+  BODY_OPACITY: 0.75,
 });
 
 // ─── Glow halo ─────────────────────────────────────────────────────────────
@@ -75,12 +75,12 @@ export interface GemGlowConfig {
 
 export const GEM_GLOW = map<GemGlowConfig>({
   ENABLED: true,
-  INNER_SCALE: 6, // hot core, hugging the gem
-  OUTER_SCALE: 12, // atmospheric falloff, large soft disk
-  INNER_OPACITY: 0.6,
-  OUTER_OPACITY: 0.4,
+  INNER_SCALE: 4.0, // hot core, hugging the gem
+  OUTER_SCALE: 15.0, // atmospheric falloff, large soft disk
+  INNER_OPACITY: 0.75,
+  OUTER_OPACITY: 0.50,
   ANIMATE_COLORS: true, // cycle the halo color through GEM_FACE_PALETTE
-  CYCLE_PERIOD_SECONDS: 6, // one full palette cycle every N seconds
+  CYCLE_PERIOD_SECONDS: 10.0, // one full palette cycle every N seconds
 });
 
 // ─── Animation ─────────────────────────────────────────────────────────────
@@ -94,9 +94,9 @@ export interface GemAnimationConfig {
 }
 
 export const GEM_ANIMATION = map<GemAnimationConfig>({
-  ROTATION_SPEED: 0.6, // radians/sec multiplier
-  BOB_FREQUENCY: 1.8, // bob cycles/sec multiplier
+  ROTATION_SPEED: 1.00, // radians/sec multiplier
+  BOB_FREQUENCY: 1.0, // bob cycles/sec multiplier
   BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this
   HOVER_SCALE: 1.25, // gem grows by this factor on hover
-  SCALE_LERP_SPEED: 0.2, // per-frame ease toward HOVER_SCALE
+  SCALE_LERP_SPEED: 0.10, // per-frame ease toward HOVER_SCALE
 });
