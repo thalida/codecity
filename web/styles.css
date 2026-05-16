@@ -310,6 +310,61 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Rows
+   ═══════════════════════════════════════════════════════════════════════════
+   .row — clickable flex row with subtle hover. Used for tree rows and the
+   two collapsible-section summary rows. Padding aligns to the pane's 16px
+   horizontal padding so depth-0 entries line up under pane titles.
+
+   Variants:
+     .row--bleed     — negative inline margins so the hover background
+                       extends to the pane edge.
+     .row--selected  — accent-tinted "selected" background (used by tree).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.row,
+.tree-row,
+.controls-section > summary.controls-section-summary,
+.theme-subgroup-collapsible > summary.theme-subgroup-label {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);  /* 4px default; tree-row overrides to 2px */
+  padding: var(--cc-space-2) var(--cc-space-7);  /* 4px 16px */
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--cc-t-fast);
+}
+.row:hover,
+.tree-row:hover,
+.tree-item.tree-hovered > .tree-row,
+.controls-section > summary.controls-section-summary:hover,
+.theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
+  background: var(--cc-overlay-bg-soft);
+}
+
+/* Bleed variant — extends hover background to the pane edge. Used by
+   collapsible summaries inside the controls-pane. */
+.row--bleed,
+.controls-section > summary.controls-section-summary,
+.theme-subgroup-collapsible > summary.theme-subgroup-label {
+  margin-left:  calc(-1 * var(--cc-space-7));
+  margin-right: calc(-1 * var(--cc-space-7));
+  margin-bottom: var(--cc-space-2);
+}
+
+/* Selected variant — tree-row in selected state. */
+.row--selected,
+.tree-item.tree-selected > .tree-row {
+  background: var(--cc-accent-bg);
+}
+.row--selected:hover,
+.tree-item.tree-selected > .tree-row:hover,
+.tree-item.tree-selected.tree-hovered > .tree-row {
+  background: var(--cc-accent-bg);  /* keep selected state on hover */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Form inputs
    ═══════════════════════════════════════════════════════════════════════════
    .form-input — base text-input style (sidebar/controls).
@@ -1351,26 +1406,10 @@ canvas {
  *
  * The chevron is a Lucide icon (via makeLucideIcon) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
+/* Style in .row + .row--bleed; this rule only hides the native disclosure
+   triangle (a custom .controls-section-chevron renders instead). */
 .controls-section > summary.controls-section-summary {
-  cursor: pointer;
   list-style: none;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* Match .tree-row padding so a section heading and a tree row sit at
-   * the same indent. Negative inline margins pull the row to the edge
-   * of the controls-pane padding for an edge-to-edge hover highlight,
-   * also mirroring .tree-row. */
-  padding: 3px 16px;
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-bottom: 4px;
-  border-radius: var(--cc-radius-sm);
-  transition: background var(--cc-t-fast);
-}
-.controls-section > summary.controls-section-summary:hover {
-  background: var(--cc-overlay-bg-soft);
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
@@ -1598,22 +1637,10 @@ canvas {
  * the .theme-subgroup-label. Same Lucide chevron + hover row treatment
  * as .controls-section-summary so the open/closed affordance is
  * consistent at every level of the panel. */
+/* Style in .row + .row--bleed; this rule only hides the native disclosure
+   triangle (a custom .theme-subgroup-chevron renders instead). */
 .theme-subgroup-collapsible > summary.theme-subgroup-label {
-  cursor: pointer;
   list-style: none;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 16px;
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-bottom: 4px;
-  border-radius: var(--cc-radius-sm);
-  transition: background var(--cc-t-fast);
-}
-.theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
-  background: var(--cc-overlay-bg-soft);
 }
 .theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
   display: none;
@@ -1964,46 +1991,11 @@ canvas {
   padding: 0;
 }
 
-.tree-row {
-  display: flex;
-  align-items: center;
-  /* Tight base gap so the chevron + folder/file icon read as one unit
-   * (VSCode-style). The icon's own margin-right (below) widens the
-   * effective space before the label. */
-  gap: 2px;
-  /* Left padding mirrors the .pane-header's 16px so depth-0 chevrons
-   * line up under the "Explorer" title. Nested levels add their own
-   * 8px via .tree-list — no compounding padding inside the row itself. */
-  padding: 3px 16px;
-  cursor: pointer;
-  border-radius: var(--cc-radius-sm);
-  transition: background var(--cc-t-fast);
-  user-select: none;
-}
+/* Style in .row; this rule only tightens the chevron-to-label gap from
+   the .row default (4px) to 2px so chevron + icon read as one unit. */
+.tree-row { gap: var(--cc-space-1); /* 2px */ }
 
-.tree-row:hover {
-  background: var(--cc-overlay-bg-soft);
-}
-
-/* Hover mirror: pushed in by leftSidebarApi.setHoveredTreePath from
-   _setHover so hovering a building/street in the city visually highlights
-   the matching row. Same look as the native :hover bg so the source of the
-   hover (cursor vs. city) is visually identical. */
-.tree-item.tree-hovered > .tree-row {
-  background: var(--cc-overlay-bg-soft);
-}
-
-/* Selection highlight: pushed in by leftSidebarApi.setSelectedTreePath
-   from _setSelection so the tree mirrors the city's currentSelection.
-   Wins over the hover background since the .tree-selected rule is
-   declared after .tree-hovered. */
-.tree-item.tree-selected > .tree-row {
-  background: var(--cc-accent-bg);
-}
-.tree-item.tree-selected > .tree-row:hover,
-.tree-item.tree-selected.tree-hovered > .tree-row {
-  background: var(--cc-accent-bg);
-}
+/* Selection highlight in .row--selected near the top of the file. */
 
 .tree-chevron {
   display: inline-flex;
