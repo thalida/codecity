@@ -195,5 +195,88 @@ class RunGitEnvTests(unittest.TestCase):
         self.assertEqual(env["SSH_ASKPASS"], "/usr/bin/true")
 
 
+class EnsureCloneErrorRoutingTests(unittest.TestCase):
+    def _patch_cache(self, tmp: Path) -> None:
+        self._cache_patch = mock.patch.object(
+            clone_mod, "CACHE_ROOT", tmp / "cache"
+        )
+        self._cache_patch.start()
+        self.addCleanup(self._cache_patch.stop)
+
+    def test_first_clone_branch_not_found_translated_and_cleaned(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            remote, _ = _make_fake_remote(tmp)
+            with self.assertRaises(BranchNotFoundError):
+                ensure_clone(str(remote), branch="no-such-branch")
+            # Target dir should have been cleaned up.
+            target = clone_mod._cache_dir_for(str(remote), "no-such-branch")
+            self.assertFalse(target.exists(), "partial clone dir was left behind")
+
+    def test_repo_not_found_translated(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(RepoNotFoundError):
+                # /nonexistent.git: git emits "Repository ... does not exist"
+                # On macOS/Linux this manifests as "fatal: ...: '...' does not appear to be a git repository"
+                # We mock _run_git to emit the canonical Repository not found.
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): ERROR: Repository not found."
+                    ),
+                ):
+                    ensure_clone("https://example.com/nonexistent.git", None)
+
+    def test_host_unreachable_translated(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(HostUnreachableError):
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): "
+                        "fatal: unable to access 'https://nope.example/': "
+                        "Could not resolve host: nope.example"
+                    ),
+                ):
+                    ensure_clone("https://nope.example/x.git", None)
+
+    def test_auth_failure_passes_through_as_generic(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(CloneError) as ctx:
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): "
+                        "fatal: Authentication failed for 'https://example.com/x.git/'"
+                    ),
+                ):
+                    ensure_clone("https://example.com/x.git", None)
+            self.assertNotIsInstance(ctx.exception, BranchNotFoundError)
+            self.assertNotIsInstance(ctx.exception, RepoNotFoundError)
+            self.assertNotIsInstance(ctx.exception, HostUnreachableError)
+
+    def test_update_path_failure_keeps_existing_dir(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            remote, _ = _make_fake_remote(tmp)
+            # First clone should succeed.
+            target = ensure_clone(str(remote), None)
+            self.assertTrue(target.exists())
+            # Now corrupt the situation so the update path fails: invoke
+            # ensure_clone with a non-existent branch — fetch succeeds, reset fails.
+            with self.assertRaises(BranchNotFoundError):
+                ensure_clone(str(remote), branch="no-such-branch-on-update")
+            # IMPORTANT: target for the (url, None) key should still exist.
+            self.assertTrue(target.exists(), "update-path failure nuked the existing clone")
+
+
 if __name__ == "__main__":
     unittest.main()

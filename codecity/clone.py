@@ -19,6 +19,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -125,14 +126,23 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
 
-    Raises ``CloneError`` if any git operation fails.
+    Raises one of:
+      - BranchNotFoundError — requested branch absent on remote
+      - RepoNotFoundError   — remote URL doesn't exist or is inaccessible
+      - HostUnreachableError — DNS / network failure
+      - CloneError          — any other git failure (auth, ssl, etc.)
     """
     target = _cache_dir_for(url, branch)
     if target.exists():
-        _log(f"updating existing clone at {target}")
-        _run_git("fetch", "--prune", "origin", cwd=target)
-        ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
-        _run_git("reset", "--hard", ref, cwd=target)
+        try:
+            _run_git("fetch", "--prune", "origin", cwd=target)
+            ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
+            _run_git("reset", "--hard", ref, cwd=target)
+        except CloneError as e:
+            # On update-path failure: try clean-error translation, then re-raise.
+            # The existing clone is NOT removed — it may still be valid.
+            _maybe_raise_clean_clone_error(url, branch, str(e))
+            raise
         return target
 
     _log(f"cloning {url} → {target}")
@@ -141,5 +151,12 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
     if branch:
         args += ["--branch", branch]
     args += ["--", url, str(target)]
-    _run_git(*args)
+    try:
+        _run_git(*args)
+    except CloneError as e:
+        # First-clone failure: nuke the partial directory before re-raising,
+        # so the next attempt isn't confused by a half-clone.
+        shutil.rmtree(target, ignore_errors=True)
+        _maybe_raise_clean_clone_error(url, branch, str(e))
+        raise
     return target
