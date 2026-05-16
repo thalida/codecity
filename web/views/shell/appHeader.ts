@@ -50,7 +50,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
-      setSourceInfo(_branch?: string) {},
+      setSourceInfo(_rootLabel?: string, _branch?: string) {},
     };
   }
 
@@ -63,7 +63,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   // Project button — rendered once and mutated by setSourceInfo.
   let _projectBtn: HTMLButtonElement | null = null;
+  let _projectLabelEl: HTMLSpanElement | null = null;
   let _branchPillEl: HTMLSpanElement | null = null;
+  // Mutable root label — re-derived from each manifest on source switch.
+  let _rootLabel = rootLabel;
 
   /**
    * Render the title slot for a selection.
@@ -102,7 +105,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = sel ? `${rootLabel}/${sel.path}` : rootLabel;
+    crumbs.title = sel ? `${_rootLabel}/${sel.path}` : _rootLabel;
 
     // Path segments — the root is in the project button, so we start
     // directly with the selection's path segments.
@@ -126,13 +129,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   }
 
   /**
-   * Update the branch pill inside the project button after a mid-session
-   * source switch. Re-renders with the current cached selection so the
-   * header reflects the new source immediately.
+   * Update the project label + branch pill inside the project button after
+   * a mid-session source switch. Re-renders with the current cached
+   * selection so the header reflects the new source immediately.
+   *
+   * Either argument can be omitted to leave that field unchanged. Pass
+   * `null` to explicitly clear (e.g., `branch: null` removes the pill).
    */
-  function setSourceInfo(branch?: string): void {
+  function setSourceInfo(rootLabel?: string, branch?: string): void {
+    if (typeof rootLabel === 'string') {
+      _rootLabel = rootLabel;
+      if (_projectLabelEl) _projectLabelEl.textContent = _rootLabel;
+    }
+
     _branch = branch;
-    // Update the branch pill inside the project button in-place.
     if (_projectBtn) {
       if (_branchPillEl) {
         _branchPillEl.remove();
@@ -183,10 +193,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.setAttribute('aria-label', 'Switch project');
     btn.appendChild(makeLucideIcon('map'));
 
-    const labelSpan = document.createElement('span');
-    labelSpan.className = 'project-btn-label';
-    labelSpan.textContent = rootLabel;
-    btn.appendChild(labelSpan);
+    _projectLabelEl = document.createElement('span');
+    _projectLabelEl.className = 'project-btn-label';
+    _projectLabelEl.textContent = _rootLabel;
+    btn.appendChild(_projectLabelEl);
 
     if (_branch) {
       _branchPillEl = document.createElement('span');

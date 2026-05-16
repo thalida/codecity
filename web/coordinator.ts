@@ -357,7 +357,12 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   }
 
   function setSourceInfo(branch?: string, sourceUrl?: string): void {
-    appHeader.setSourceInfo(branch);
+    // Derive the friendly label from the new source's manifest so the
+    // project-btn updates after a switch. manifest.tree.name is already
+    // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
+    const m = cityScene.getManifest();
+    const label = labelFromDisplayRoot(m?.display_root, m?.tree?.name ?? '');
+    appHeader.setSourceInfo(label, branch);
     appFooter.setSourceUrl(sourceUrl);
   }
 
