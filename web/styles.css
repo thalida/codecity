@@ -947,6 +947,38 @@ canvas {
   transform: rotate(90deg);
 }
 
+/* Section-level reset button — sits at the far right of each top-level
+ * section summary. Styled like the per-row reset (.theme-row-reset) so the
+ * two read as the same affordance: accent-tinted at rest when any value
+ * differs from default, faded when everything matches. */
+.controls-section-reset {
+  margin-left: auto;
+  flex: 0 0 auto;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  padding: 3px 5px;
+  border-radius: 4px;
+  color: rgba(91, 157, 255, 0.85);
+  font-size: 14px;
+  cursor: pointer;
+}
+.controls-section-reset:not(:disabled):hover {
+  color: #fff;
+  background: rgba(91, 157, 255, 0.18);
+  border-color: rgba(91, 157, 255, 0.45);
+}
+.controls-section-reset:not(:disabled):active {
+  background: rgba(91, 157, 255, 0.25);
+}
+.controls-section-reset:disabled {
+  color: rgba(91, 157, 255, 0.22);
+  cursor: default;
+}
+
 /* Keyboard / mouse shortcuts table in the View section. Two-column grid:
  *   [keys / mouse]   [action]
  * Section breaks (null entries in the data) render as a thin divider

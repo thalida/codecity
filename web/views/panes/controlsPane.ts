@@ -1077,6 +1077,51 @@ function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement
   label.className = 'controls-section-label';
   label.textContent = name;
   summary.appendChild(label);
+
+  // Section-level reset — stages defaults for every row in this section in
+  // one click. Uses the per-row `.theme-row-reset` buttons (already wired to
+  // their own store + keys) as the registry, so we don't need to track which
+  // stores belong to which section. Enabled iff ANY child row differs from
+  // its default (i.e., at least one row reset is enabled). Sub-accordions
+  // are NOT given their own reset — only top-level sections via this helper.
+  const sectionReset = document.createElement('button');
+  sectionReset.type = 'button';
+  sectionReset.className = 'controls-section-reset';
+  sectionReset.title = 'Reset all values in this section to defaults';
+  sectionReset.setAttribute('aria-label', 'Reset section to defaults');
+  sectionReset.appendChild(makeLucideIcon('rotate-ccw'));
+  sectionReset.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Without stopPropagation the <summary> click would toggle the <details>
+    // open state. The user clicked reset, not the section.
+    e.stopPropagation();
+    if (sectionReset.disabled) return;
+    const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    rowResets.forEach((b) => {
+      if (!b.disabled) b.click();
+    });
+  });
+  summary.appendChild(sectionReset);
+
+  function refreshSectionReset() {
+    const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    // Enabled = at least one row's reset is enabled (i.e., that row differs
+    // from default). If there are no per-row resets (e.g., the Keyboard &
+    // mouse shortcuts section, the File Preview syntax-theme section — which
+    // uses .theme-row-reset too — or the Debug section), the section reset
+    // stays disabled.
+    sectionReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
+  }
+
+  // The first refresh must run AFTER the caller has appended rows. The
+  // section is built synchronously by callers like _buildBuildingsSection,
+  // so by the time the current sync stack unwinds, all rows are in place.
+  queueMicrotask(refreshSectionReset);
+  // Subsequent refreshes ride on the same hooks the per-row resets use, so
+  // the section button always stays in sync with the rows.
+  subscribeDrafts(refreshSectionReset);
+  onAnyChange(refreshSectionReset);
+
   section.appendChild(summary);
 
   if (hint) {
