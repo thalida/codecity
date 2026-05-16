@@ -2408,23 +2408,30 @@ canvas {
 .switch-source-btn svg { display: block; }
 .switch-source-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
 
-/* Refresh button (header far-right, after breadcrumb) */
+/* Refresh button (header far-right, after breadcrumb).
+ * Mirrors the styling of the old footer reset-view button so the icon reads
+ * as the same affordance after the move: fixed square hit-target, muted
+ * blue-grey color, brightens on hover. */
 .app-header-refresh-btn {
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-  padding: 4px 8px;
-  margin-left: 4px;
-  border-radius: 4px;
-  opacity: 0.6;
-  font: inherit;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  width: 22px;
+  height: 22px;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  border-radius: 3px;
+  margin-left: 4px;
   -webkit-app-region: no-drag;
 }
-.app-header-refresh-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
+.app-header-refresh-btn:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.app-header-refresh-btn .lucide-icon {
+  font-size: 13px;
+}
 .app-header-refresh-btn svg { display: block; }
