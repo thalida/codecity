@@ -169,6 +169,9 @@ function _buildUpdatesSection(): HTMLElement {
       _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
         tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
       }),
+      _toggle('Bypass disk caches', SCAN_FILTERS, 'NO_CACHE', {
+        tip: 'Re-scan every file and re-walk git history on each fetch. Slower; only useful when debugging cache staleness.',
+      }),
     ])
   );
   section.appendChild(
