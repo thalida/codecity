@@ -310,6 +310,58 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Pane structure
+   ═══════════════════════════════════════════════════════════════════════════
+   .pane       — fills the available flex space, lays out children in a
+                 vertical column, hides overflow. Used for top-level pane
+                 shells that don't scroll themselves.
+   .pane-body  — like .pane, but the body itself scrolls vertically. Used
+                 when the contents need to scroll inside the pane.
+                 .pane-body--padded adds 16px of inset padding.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pane,
+.pane-body,
+.file-preview-pane,
+.editor-body,
+.preview-shell,
+.left-panel,
+.left-pane,
+.search-body,
+.info-body,
+.controls-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* .pane (and aliases that don't scroll themselves) hide overflow; children
+   scroll instead. */
+.pane,
+.file-preview-pane,
+.editor-body,
+.preview-shell,
+.left-panel,
+.left-pane {
+  overflow: hidden;
+}
+
+/* .pane-body (and its aliases) scroll vertically. */
+.pane-body,
+.search-body,
+.info-body,
+.controls-body {
+  overflow-y: auto;
+}
+
+.pane-body--padded,
+.controls-body {
+  padding: var(--cc-space-7); /* 16px */
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Rows
    ═══════════════════════════════════════════════════════════════════════════
    .row — clickable flex row with subtle hover. Used for tree rows and the
@@ -857,25 +909,12 @@ canvas {
    editor body. The wrapper itself fills the sidebar's vertical space; the
    body grows inside it under the fixed-height header. */
 
-.file-preview-pane {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* Layout in .pane. */
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
-.editor-body {
-  flex: 1 1 auto;
-  min-height: 0; /* let children scroll inside the flex */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--cc-bg-app);
-}
-
+/* Layout in .pane; this rule only adds the app-bg fill behind the canvas. */
+.editor-body { background: var(--cc-bg-app); }
 .editor-body > * {
   flex: 1 1 auto;
   min-height: 0;
@@ -1298,19 +1337,7 @@ canvas {
   vertical-align: -0.15em;
 }
 
-.left-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.left-pane {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
+/* Layout in .pane (.left-panel and .left-pane are aliases). */
 
 /* Pane headers — title on the left, × close button on the right.
  * Flexbox keeps the two vertically centered against each other regardless
@@ -1357,14 +1384,7 @@ canvas {
 
 /* ── Controls pane ─────────────────────────────────────────────────────────── */
 
-.controls-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  /* Padding here was pushing children past the pane width under default
-   * content-box. Border-box keeps the body's 16px padding inside its width. */
-  box-sizing: border-box;
-}
+/* Layout in .pane-body--padded. */
 
 .controls-section + .controls-section {
   margin-top: 6px;
@@ -2073,13 +2093,7 @@ canvas {
   appearance: none;
 }
 
-.search-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
+/* Layout in .pane-body. */
 
 /* Empty-state layout shared with .preview-state (per-class overrides for
    gap / padding / icon size live with each rule below). Icon: opacity 0.55,
@@ -2165,16 +2179,8 @@ canvas {
    panes: header on top, scrollable body underneath. The body's empty /
    error states reuse the .preview-state helper from the file sidebar. */
 
-.info-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.info-body > .preview-state {
-  flex: 1 1 auto;
-}
+/* Layout in .pane-body; this rule keeps the empty-state child fill. */
+.info-body > .preview-state { flex: 1 1 auto; }
 #tree-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
@@ -2374,15 +2380,9 @@ canvas {
 /* Wrapper that holds either the code editor (on success) or a centered
    state message (loading / too-large / fetch-failed). Exists so we can
    swap between those two without leaving an empty gutter behind. */
-.preview-shell {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
+/* Layout in .pane; this rule only sizes the placeholder used while a
+   file-preview fetch is in flight. */
 .preview-shell:empty::before {
-  /* Subtle "loading" placeholder while the fetch is in flight. */
   content: '';
   flex: 1 1 auto;
 }
