@@ -103,24 +103,21 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
       fn?.();
     },
+    // Refresh button (header far right) — equivalent of a page reload:
+    // kicks off a manifest re-fetch / rebuild AND resets the camera to
+    // its default pose. refreshManifest is async; we don't await it here
+    // because REBUILD_STATUS already reflects the in-flight state.
+    onRefresh() {
+      void refreshManifest();
+      rig.reset();
+    },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter({
-    // The footer's refresh button is the equivalent of a page reload:
-    // it kicks off a manifest re-fetch / rebuild AND resets the camera
-    // to its default pose, so the user lands on the same initial view
-    // they'd see right after boot. refreshManifest is async; we don't
-    // await it here because the rest of the UI (REBUILD_STATUS, etc.)
-    // already reflects the in-flight state.
-    onResetView() {
-      void refreshManifest();
-      rig.reset();
-    },
-  });
+  const appFooter = initAppFooter();
   const initialManifest = cityScene.getManifest();
   appFooter.setSelection({
     kind: NodeKind.Directory,

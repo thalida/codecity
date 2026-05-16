@@ -416,6 +416,12 @@ canvas {
   border-radius: 50%;
   flex: 0 0 auto;
 }
+.app-footer-status-detail {
+  color: #8a8fa8;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /* Color by rebuild state. */
 .app-footer-status.is-ready .app-footer-status-dot {
@@ -467,6 +473,9 @@ canvas {
   #app-footer {
     gap: 6px;
     padding: 0 8px;
+  }
+  .app-footer-status-detail {
+    display: none;
   }
 }
 
@@ -2398,3 +2407,24 @@ canvas {
 }
 .switch-source-btn svg { display: block; }
 .switch-source-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
+
+/* Refresh button (header far-right, after breadcrumb) */
+.app-header-refresh-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: 4px;
+  border-radius: 4px;
+  opacity: 0.6;
+  font: inherit;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  -webkit-app-region: no-drag;
+}
+.app-header-refresh-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
+.app-header-refresh-btn svg { display: block; }

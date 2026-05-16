@@ -1,21 +1,22 @@
 // views/shell/appFooter.ts — Sitewide bottom status bar. Two sections:
-//   left   — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories)
-//   right  — combined status indicator: [dot] + reset button
+//   left   — combined status indicator: [dot] detail-text
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
 //              animation — live state (slow heartbeat when polling on,
 //                         static when paused, fast pulse when rebuilding,
 //                         static when error)
-//            title= on the .app-footer-status wrapper surfaces the live
-//            state ("Live updates: on/off · rebuilt 5s ago") and the
-//            rebuild error message (when applicable).
+//            A detail <span> next to the dot shows human-readable status
+//            ("rebuilt 5s ago", "rebuilding…", "error: <msg>", "paused").
+//            title= on the wrapper is a fallback tooltip for narrow widths.
+//   right  — current selection metadata (language · lines · size · created
+//            · modified for files; file/dir counts + size for directories)
+//
+// The refresh/reset-view button has moved to the header (far right).
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
 import { makeExtensionBadge } from './badge.js';
-import { makeLucideIcon } from './icon.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -54,10 +55,8 @@ const NOOP_API = {
   setStatus(_status: FooterStatus) {},
 };
 
-interface InitAppFooterOpts {
-  /** fn() — fires when the user clicks the reset-view button in the footer's right section. Same handler the R key fires. */
-  onResetView?: (() => void) | null;
-}
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+interface InitAppFooterOpts {}
 
 /**
  * Initialise the sitewide footer. Returns:
@@ -69,38 +68,20 @@ interface InitAppFooterOpts {
  * stores at render time and re-renders on any change, so editing an
  * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter(opts: InitAppFooterOpts = {}) {
-  const { onResetView = null } = opts;
+export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
-  const selectionEl = document.createElement('div');
-  selectionEl.className = 'app-footer-section app-footer-left';
-
   const statusContainerEl = document.createElement('div');
-  statusContainerEl.className = 'app-footer-section app-footer-right';
+  statusContainerEl.className = 'app-footer-section app-footer-left';
   const statusEl = document.createElement('span');
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
 
-  // Refresh button — the footer's "act like a fresh page load" trigger.
-  // The host wires it to a callback that re-fetches the manifest AND
-  // resets the camera (the R key continues to fire just the camera
-  // reset via scene/inputHandlers).
-  if (typeof onResetView === 'function') {
-    const resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.className = 'app-footer-button';
-    resetBtn.title = 'Refresh — rebuild the city and reset the view';
-    resetBtn.setAttribute('aria-label', 'Refresh');
-    resetBtn.appendChild(makeLucideIcon('refresh-cw'));
-    resetBtn.addEventListener('click', () => {
-      onResetView();
-    });
-    statusContainerEl.appendChild(resetBtn);
-  }
+  const selectionEl = document.createElement('div');
+  selectionEl.className = 'app-footer-section app-footer-right';
 
-  footer.replaceChildren(selectionEl, statusContainerEl);
+  footer.replaceChildren(statusContainerEl, selectionEl);
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
@@ -150,11 +131,16 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     }
     statusEl.setAttribute('aria-label', statusEl.title);
 
-    // Dot only — color = rebuild state; animation = live state, scoped by CSS.
-    // Detail text is now surfaced exclusively via the title= tooltip above.
+    // Dot — color = rebuild state; animation = live state, scoped by CSS.
     const dot = document.createElement('span');
     dot.className = 'app-footer-status-dot';
     statusEl.appendChild(dot);
+
+    // Detail text — sits next to the dot; hidden via CSS at narrow widths.
+    const detail = document.createElement('span');
+    detail.className = 'app-footer-status-detail';
+    detail.textContent = detailText;
+    statusEl.appendChild(detail);
   }
 
   // Last selection cached so config-store subscriptions can re-render

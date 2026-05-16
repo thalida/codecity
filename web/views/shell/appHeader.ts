@@ -1,8 +1,6 @@
 // views/shell/appHeader.ts — Sitewide top header. Renders the current
 // selection as a breadcrumb (chip + clickable path segments + copy-path
-// button). No side buttons — navigation actions (camera reset) live in
-// the footer; the activity bar on the left sidebar handles sidebar
-// collapse on its own.
+// button). Side buttons: switch-source (far left) and refresh (far right).
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
@@ -30,6 +28,8 @@ interface InitAppHeaderOpts {
   onSegmentClick?: ((path: string) => void) | null;
   /** fires when the user clicks the switch-source button in the header */
   onSwitchSource?: () => void;
+  /** fires when the user clicks the refresh button in the header (far right) */
+  onRefresh?: () => void;
   /** Branch name when the loaded source is a git URL with an explicit branch. */
   branch?: string;
   /** Original src URL when the loaded source is a git URL. */
@@ -61,7 +61,7 @@ export function _toHttpsRepoUrl(src: string): string {
  * asphalt color in Controls live-repaints the currently-shown badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onRefresh } = opts;
 
   const titleEl = document.getElementById('app-title');
   if (!titleEl) {
@@ -217,6 +217,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 </svg>`;
     btn.addEventListener('click', () => onSwitchSource());
     titleEl.parentElement?.prepend(btn);
+  }
+
+  // Refresh button — sits at the far right of the header row, appended
+  // after all other header content. Mirrors the switch-source button in
+  // style but sits on the opposite end of the flex row.
+  if (onRefresh) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'app-header-refresh-btn';
+    btn.title = 'Refresh — rebuild the city and reset the view';
+    btn.setAttribute('aria-label', 'Refresh');
+    btn.appendChild(makeLucideIcon('refresh-cw'));
+    btn.addEventListener('click', () => onRefresh());
+    titleEl.parentElement?.appendChild(btn);
   }
 
   // Live config: re-render the cached selection whenever a store that
