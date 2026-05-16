@@ -221,6 +221,47 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     return null;
   }
 
+  // ── Footer selection helper ────────────────────────────────────────
+  // Converts a PickTarget (or null) to the FooterSelectionInfo shape and
+  // pushes it into appFooter.  When the target is null or a non-file /
+  // non-directory kind (e.g. Gem), falls back to the repo root directory
+  // stats so the footer never shows a blank state.
+  function _setFooterForTarget(target: PickTarget | null): void {
+    if (target && target.kind === NodeKind.File) {
+      const f: FileNode = target.file;
+      const hasGit = !!(f.git && (f.git.created || f.git.modified));
+      appFooter.setSelection({
+        kind: NodeKind.File,
+        extension: f.extension || '',
+        language: humanLanguageFor(f),
+        lines: f.lines,
+        size: f.size || 0,
+        modified: (f.git && f.git.modified) || f.modified || null,
+        created: (f.git && f.git.created) || f.created || null,
+        dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
+      });
+    } else {
+      const d: DirNode | null =
+        (target && target.kind === NodeKind.Directory ? target.dir : null) ||
+        cityScene.getRoot();
+      appFooter.setSelection({
+        kind: NodeKind.Directory,
+        files: d?.descendants_file_count ?? 0,
+        dirs: d?.descendants_dir_count ?? 0,
+        size: d?.descendants_size ?? 0,
+      });
+    }
+  }
+
+  // Footer follows hover when present, falls back to selection when
+  // hover ends.  Both subscriptions call this shared updater so the
+  // displayed info is always consistent with whichever atom changed last.
+  function _updateFooterFromState(): void {
+    const hov = picker.hover.get();
+    const sel = picker.selection.get();
+    _setFooterForTarget(hov ?? sel);
+  }
+
   // ── picker → sidebar reactions ─────────────────────────────────────
   const _selUnsub = picker.selection.subscribe((sel: PickTarget | null) => {
     // Tree highlight follows selection.
@@ -247,30 +288,9 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
         : null
     );
 
-    // Footer mirrors selection metadata
-    if (sel && sel.kind === NodeKind.File) {
-      const f: FileNode = sel.file;
-      const hasGit = !!(f.git && (f.git.created || f.git.modified));
-      appFooter.setSelection({
-        kind: NodeKind.File,
-        extension: f.extension || '',
-        language: humanLanguageFor(f),
-        lines: f.lines,
-        size: f.size || 0,
-        modified: (f.git && f.git.modified) || f.modified || null,
-        created: (f.git && f.git.created) || f.created || null,
-        dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
-      });
-    } else {
-      const d: DirNode | null =
-        (sel && sel.kind === NodeKind.Directory ? sel.dir : null) || cityScene.getRoot();
-      appFooter.setSelection({
-        kind: NodeKind.Directory,
-        files: d?.descendants_file_count ?? 0,
-        dirs: d?.descendants_dir_count ?? 0,
-        size: d?.descendants_size ?? 0,
-      });
-    }
+    // Footer: if nothing is hovered, mirror the new selection; if a
+    // hover is active the hover subscriber already owns the footer.
+    _updateFooterFromState();
 
     // Right sidebar mirrors "is there a file to preview": a building
     // (file) selection opens it; a road (directory) selection or
@@ -286,6 +306,10 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     if (leftSidebarApi.setHoveredTreePath) {
       leftSidebarApi.setHoveredTreePath(_pathOf(h));
     }
+
+    // Footer follows hover in real time; when hover clears (h === null)
+    // _updateFooterFromState falls back to the current selection.
+    _updateFooterFromState();
   });
 
   // Push the freshly-applied manifest into the Info pane so an edited
