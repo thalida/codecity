@@ -116,15 +116,33 @@ export function fitSegments(
       if (segments[idx].style.display === 'none') continue;
 
       segments[idx].style.display = 'none';
-      // Hide the separator to the LEFT of this segment to avoid `›› ›` artifacts.
-      if (separators[idx - 1]) separators[idx - 1].style.display = 'none';
 
       if (hiddenStart === -1 || idx < hiddenStart) hiddenStart = idx;
       if (idx > hiddenEnd) hiddenEnd = idx;
+
+      // Separator visibility: a separator should be hidden only when BOTH
+      // segments on either side of it are hidden. The separators at the
+      // boundary of the hidden block (just before the first hidden segment
+      // and just after the last) stay visible — that's the `›` before
+      // and after the ellipsis: e.g. `apps › api › … › fire-engine › leaf`.
+      _syncSeparators(segments, separators);
 
       _ensureEllipsisAt(container, segments, separators, hiddenStart, hiddenEnd);
 
       if (container.scrollWidth <= container.clientWidth) return;
     }
+  }
+}
+
+/**
+ * Set `display: none` on a separator iff BOTH neighboring segments are hidden.
+ * Otherwise show it. Called after each segment hide so the boundary `›` always
+ * remains visible adjacent to the ellipsis placeholder.
+ */
+function _syncSeparators(segments: HTMLElement[], separators: HTMLElement[]): void {
+  for (let i = 0; i < separators.length; i++) {
+    const leftHidden = segments[i].style.display === 'none';
+    const rightHidden = segments[i + 1].style.display === 'none';
+    separators[i].style.display = leftHidden && rightHidden ? 'none' : '';
   }
 }
