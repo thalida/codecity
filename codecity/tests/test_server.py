@@ -13,9 +13,12 @@ import urllib.request
 from http import HTTPStatus
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
+from codecity import clone as clone_mod
 from codecity import server as server_mod
 from codecity.server import _classify_source, start_server
+from codecity.tests.test_clone import _make_fake_remote
 
 
 class _CacheRedirectMixin:
@@ -593,6 +596,42 @@ class ResolveScanTargetTests(unittest.TestCase):
             status, body = _request(self.server_port, f"/api/manifest?src={f}")
             self.assertEqual(status, 400)
             self.assertIn("not a directory", body.get("error", ""))
+
+
+class DisplayRootTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+
+    def test_local_src_no_display_root(self) -> None:
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("\n")
+            status, body = _request(self.server_port, f"/api/manifest?src={td}")
+            self.assertEqual(status, 200)
+            self.assertNotIn("display_root", body)
+
+    def test_git_url_sets_display_root(self) -> None:
+        # Use a local bare repo so we don't hit the network.
+        with TemporaryDirectory() as td:
+            remote, _ = _make_fake_remote(Path(td))
+            # Use a file:// URL so _classify_source returns 'git'.
+            url = f"file://{remote}"
+            # Monkey-patch CACHE_ROOT so we don't pollute ~/.cache.
+            with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
+                status, body = _request(self.server_port, f"/api/manifest?src={url}")
+            self.assertEqual(status, 200)
+            self.assertEqual(body.get("display_root"), url)
+
+    def test_git_url_with_branch_appends_at_branch(self) -> None:
+        with TemporaryDirectory() as td:
+            remote, _ = _make_fake_remote(Path(td))
+            url = f"file://{remote}"
+            with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
+                status, body = _request(
+                    self.server_port, f"/api/manifest?src={url}&branch=feature"
+                )
+            self.assertEqual(status, 200)
+            self.assertEqual(body.get("display_root"), f"{url}@feature")
 
 
 if __name__ == "__main__":
