@@ -118,15 +118,16 @@
 
   /* ── SCALES — Spacing ─────────────────────────────────────────────────── */
   --cc-space-0:    0;
-  --cc-space-1:    4px;
-  --cc-space-2:    6px;
-  --cc-space-3:    8px;
-  --cc-space-4:    10px;
-  --cc-space-5:    12px;
-  --cc-space-6:    16px;
-  --cc-space-7:    24px;
-  --cc-space-8:    32px;
-  --cc-space-base: var(--cc-space-3);  /* 8px */
+  --cc-space-1:    2px;     /* tightest gap (chevron-label, crumb segments) */
+  --cc-space-2:    4px;
+  --cc-space-3:    6px;
+  --cc-space-4:    8px;
+  --cc-space-5:    10px;
+  --cc-space-6:    12px;
+  --cc-space-7:    16px;
+  --cc-space-8:    24px;
+  --cc-space-9:    32px;
+  --cc-space-base: var(--cc-space-4);  /* 8px */
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
   --cc-radius-0:      0;
@@ -174,6 +175,88 @@
   --cc-shadow-base:  var(--cc-shadow-md);
   --cc-shadow-text:  0 1px 2px rgba(0, 0, 0, 0.5);     /* canvas overlay text */
   --cc-glow-accent:  0 0 6px rgba(91, 157, 255, 0.35); /* range-pair fill */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Text
+   ═══════════════════════════════════════════════════════════════════════════
+   One class per text role. Components compose 1–2 of these instead of
+   each rolling its own color + font-size + font-weight + family triplet.
+
+   Atomic (color-only):    .text-{primary,secondary,muted,faint,ghost,
+                                  inverse,accent,success,warning,error}
+   Atomic (family-only):   .text-mono
+   Utility:                .text-truncate  (nowrap + ellipsis)
+   Composite roles:        .text-label     (uppercase section labels)
+                           .text-pane-title (pane header titles)
+                           .text-card-title / .text-card-sub (state cards)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Atomic color classes — drop into a selector list as an alias. */
+.text-primary   { color: var(--cc-text-primary); }
+.text-secondary { color: var(--cc-text-secondary); }
+.text-muted     { color: var(--cc-text-muted); }
+.text-faint     { color: var(--cc-text-faint); }
+.text-ghost     { color: var(--cc-text-ghost); }
+.text-inverse   { color: var(--cc-text-inverse); }
+.text-accent    { color: var(--cc-accent); }
+.text-success   { color: var(--cc-success); }
+.text-warning   { color: var(--cc-warning); }
+.text-error     { color: var(--cc-error); }
+
+/* Atomic family class. */
+.text-mono { font-family: var(--cc-font-mono); }
+
+/* Truncation utility — collapses 3 declarations used 6+ times in the file. */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Composite: uppercase section label.
+   .info-markdown h5/h6 are NOT aliased — they need a larger size and live
+   in body-text context; they get their own per-class declaration. */
+.text-label,
+.controls-section-label,
+.theme-subgroup-label,
+.recents-list h3 {
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: var(--cc-track-label);
+  text-transform: uppercase;
+  color: var(--cc-text-secondary);
+}
+
+/* Composite: pane header title. */
+.text-pane-title,
+.pane-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-secondary);
+}
+
+/* Composite: state-card title (loading, empty preview, empty search). */
+.text-card-title,
+.search-state-title,
+.preview-state-title,
+.loading-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-secondary);
+}
+/* Loading title is emphasized: brighter color, heavier weight. */
+.loading-title {
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+/* Composite: state-card subtitle. */
+.text-card-sub,
+.search-state-sub,
+.preview-state-sub {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-faint);
 }
 
 /* ── Icon buttons (unified shell) ───────────────────────────────────────────
@@ -1036,26 +1119,20 @@ canvas {
  * panels of content rather than each shouting for attention. The
  * .is-mono modifier flips to monospace for filename-style titles
  * (right-sidebar file-preview). */
+/* .pane-title — typography in .text-pane-title; this rule adds layout
+   (flex-fill, truncation, sub-segment gap). */
 .pane-title {
   flex: 1 1 auto;
   min-width: 0;
   margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--cc-text-secondary);
-  letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  /* Flex layout so middle-truncation segments can share a row and the
-   * algorithm's scrollWidth/clientWidth comparison works correctly. */
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
 }
-.pane-title.is-mono {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-}
+.pane-title.is-mono { font-family: var(--cc-font-mono); }
 
 .tree-root {
   flex: 1;
@@ -1080,13 +1157,7 @@ canvas {
   border-top: 1px solid var(--cc-track);
 }
 
-.controls-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--cc-text-secondary);
-}
+/* .controls-section-label — typography in .text-label. */
 
 .controls-section-hint {
   font-size: 11px;
@@ -1379,13 +1450,12 @@ canvas {
   border-top: none;
 }
 
+/* .theme-subgroup-label — typography in .text-label; this rule keeps the
+   bottom margin and overrides the color to muted (slightly dimmer than
+   the canonical secondary label color). */
 .theme-subgroup-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--cc-text-muted);
-  margin-bottom: 8px;
+  margin-bottom: var(--cc-space-4); /* 8px */
 }
 
 /* Collapsible subgroup variant — a <details> whose <summary> doubles as
@@ -1961,18 +2031,12 @@ canvas {
   opacity: 0.55;
   margin-bottom: 2px;
 }
-.search-state-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--cc-text-secondary);
-}
+/* Typography in .text-card-title / .text-card-sub. */
+.search-state-title { margin: 0; }
 .search-state-sub {
   margin: 0;
   max-width: 240px;
-  font-size: 11px;
   line-height: 1.5;
-  color: var(--cc-text-faint);
 }
 
 .search-results {
@@ -2269,18 +2333,12 @@ canvas {
   opacity: 0.55;
   margin-bottom: 4px;
 }
-.preview-state-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--cc-text-secondary);
-}
+/* Typography in .text-card-title / .text-card-sub. */
+.preview-state-title { margin: 0; }
 .preview-state-sub {
   margin: 0;
   max-width: 280px;
-  font-size: 11px;
   line-height: 1.5;
-  color: var(--cc-text-faint);
 }
 
 /* ── Code editor (text preview) ─────────────────────────────────────────
@@ -2584,13 +2642,8 @@ canvas {
   border-top: 1px solid var(--cc-overlay-bg-strong);
   padding-top: 10px;
 }
-.recents-list h3 {
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--cc-text-muted);
-  margin: 0 0 8px;
-}
+/* Typography in .text-label. */
+.recents-list h3 { margin: 0 0 var(--cc-space-4); /* 0 0 8px */ }
 .recent-row {
   display: flex;
   align-items: center;
@@ -2668,12 +2721,8 @@ canvas {
 @keyframes cc-spin {
   to { transform: rotate(360deg); }
 }
-.loading-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--cc-text-primary);
-  text-align: center;
-}
+/* Typography in .text-card-title (loading variant). */
+.loading-title { text-align: center; }
 .loading-steps {
   list-style: none;
   margin: 0;
