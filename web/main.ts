@@ -916,13 +916,6 @@ if (_canvas) {
         else pageUrl.searchParams.delete('branch');
         history.replaceState(null, '', pageUrl.toString());
 
-        // Update the header branch pill + repo link immediately so the new
-        // source is reflected without waiting for the manifest to apply.
-        handle.coordinator.setSourceInfo(
-          payload.branch,
-          _srcKind(payload.src) === 'git' ? payload.src : undefined,
-        );
-
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
 
         try {
@@ -933,6 +926,15 @@ if (_canvas) {
 
         _applyDisplayLabel(manifest);
         await handle.cityScene.applyManifest(manifest);
+
+        // Update the header (project label, branch pill) + footer (repo link)
+        // AFTER applyManifest so cityScene.getManifest() inside the coordinator
+        // resolves to the just-applied manifest — otherwise the label is stale.
+        handle.coordinator.setSourceInfo(
+          payload.branch,
+          _srcKind(payload.src) === 'git' ? payload.src : undefined,
+        );
+
         _liveUpdates?.setSignature(manifest.signature);
         pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });
 
