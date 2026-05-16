@@ -30,8 +30,15 @@ interface FooterFileSelection {
 
 interface FooterDirectorySelection {
   kind: NodeKind.Directory;
-  files?: number | null;
-  dirs?: number | null;
+  /** Files that are direct children of this directory. */
+  directFiles?: number | null;
+  /** All files recursively under this directory. */
+  totalFiles?: number | null;
+  /** Subdirectories that are direct children of this directory. */
+  directDirs?: number | null;
+  /** All subdirectories recursively under this directory. */
+  totalDirs?: number | null;
+  /** Total bytes of all descendant files. */
   size?: number | null;
 }
 
@@ -164,8 +171,10 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
       }
     } else if (sel.kind === NodeKind.Directory) {
       items.push(_item('Directory'));
-      if (sel.files != null) items.push(_item(`${sel.files} files`));
-      if (sel.dirs != null) items.push(_item(`${sel.dirs} dirs`));
+      const filesItem = _directoryCountItem(sel.directFiles, sel.totalFiles, 'files');
+      if (filesItem) items.push(filesItem);
+      const dirsItem = _directoryCountItem(sel.directDirs, sel.totalDirs, 'dirs');
+      if (dirsItem) items.push(dirsItem);
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
     }
     for (let i = 0; i < items.length; i++) {
@@ -226,6 +235,30 @@ function _formatBytes(bytes: number): string {
   if (bytes < BYTES_PER_KB) return `${bytes} B`;
   if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
   return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
+}
+
+/**
+ * Build a directory-count item showing both direct-children and recursive
+ * descendant counts. Renders compact when they're equal (leaf-ish dirs) and
+ * `direct / total` otherwise. Returns null if both counts are absent.
+ *
+ * Title attribute clarifies the meaning on hover.
+ */
+function _directoryCountItem(
+  direct: number | null | undefined,
+  total: number | null | undefined,
+  label: string
+): HTMLSpanElement | null {
+  if (direct == null && total == null) return null;
+  if (direct == null) return _item(`${total} ${label}`, undefined, `${total} total`);
+  if (total == null || direct === total) {
+    return _item(`${direct} ${label}`, undefined, `${direct} direct`);
+  }
+  return _item(
+    `${direct} / ${total} ${label}`,
+    undefined,
+    `${direct} direct · ${total} total`,
+  );
 }
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {

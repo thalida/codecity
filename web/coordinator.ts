@@ -249,8 +249,10 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       const d: DirNode = target.dir;
       appFooter.setSelection({
         kind: NodeKind.Directory,
-        files: d.descendants_file_count ?? 0,
-        dirs: d.descendants_dir_count ?? 0,
+        directFiles: d.children_file_count ?? 0,
+        totalFiles: d.descendants_file_count ?? 0,
+        directDirs: d.children_dir_count ?? 0,
+        totalDirs: d.descendants_dir_count ?? 0,
         size: d.descendants_size ?? 0,
       });
     } else {
