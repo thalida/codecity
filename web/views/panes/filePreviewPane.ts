@@ -16,7 +16,6 @@ import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { makeExtensionBadge } from '@/views/shell/badge.js';
-import { fitSegments } from '@/views/shell/pathTruncate.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;
@@ -159,17 +158,6 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   // Track the active file so palette/asphalt changes can re-render the badge.
   let _activeFile: FileNode | null = null;
 
-  // Cached segment/separator refs for the ResizeObserver.
-  let _segEls: HTMLElement[] = [];
-  let _sepEls: HTMLElement[] = [];
-
-  // ResizeObserver on the pane-title element so that sidebar-resize triggers
-  // re-truncation. Observed once; the callback always uses the latest cached refs.
-  const _resizeObserver = new ResizeObserver(() => {
-    if (_segEls.length > 0) fitSegments(headerApi.titleEl, _segEls, _sepEls);
-  });
-  _resizeObserver.observe(headerApi.titleEl);
-
   function _renderBadge(): void {
     if (!_activeFile) {
       headerApi.setPrefixEl(null);
@@ -182,44 +170,17 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
     );
   }
 
-  /** Build segmented path children for the pane-title element. */
-  function _renderPathTitle(file: { path?: string; name?: string } | null): void {
+  /** Render just the leaf filename in the pane-title element. The full
+   *  path lives in the header breadcrumb (sitewide app header); the
+   *  sidebar header stays compact. Hovering the title shows the full
+   *  path as a native browser tooltip. */
+  function _renderFilenameTitle(file: { path?: string; name?: string } | null): void {
     const rawPath = (file as FileNode | null)?.path ?? '';
     const segs = rawPath.split('/').filter(Boolean);
-
-    if (segs.length === 0) {
-      // No path info — fall back to just the filename (or "No file").
-      headerApi.setTitle(file?.name ? String(file.name) : 'No file');
-      _segEls = [];
-      _sepEls = [];
-      return;
-    }
-
-    const segmentEls: HTMLElement[] = [];
-    const separatorEls: HTMLElement[] = [];
-    const nodes: Node[] = [];
-
-    for (let i = 0; i < segs.length; i++) {
-      if (i > 0) {
-        const sep = document.createElement('span');
-        sep.className = 'file-path-sep';
-        sep.textContent = '›';
-        sep.setAttribute('aria-hidden', 'true');
-        separatorEls.push(sep);
-        nodes.push(sep);
-      }
-      const seg = document.createElement('span');
-      seg.className = 'file-path-segment';
-      if (i === segs.length - 1) seg.classList.add('is-leaf');
-      seg.textContent = segs[i];
-      segmentEls.push(seg);
-      nodes.push(seg);
-    }
-
-    headerApi.setTitleChildren(nodes);
-    _segEls = segmentEls;
-    _sepEls = separatorEls;
-    fitSegments(headerApi.titleEl, _segEls, _sepEls);
+    const leaf = segs.length > 0 ? segs[segs.length - 1] : file?.name ? String(file.name) : 'No file';
+    headerApi.setTitle(leaf);
+    if (rawPath) headerApi.titleEl.title = rawPath;
+    else headerApi.titleEl.removeAttribute('title');
   }
 
   // Re-render badge when palette or asphalt color changes mid-session.
@@ -244,7 +205,7 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
       | null
   ): void {
     _activeFile = file as FileNode | null;
-    _renderPathTitle(file as FileNode | null);
+    _renderFilenameTitle(file as FileNode | null);
     _renderBadge();
     headerApi.setFocusEnabled(!!_activeFile);
     body.replaceChildren();
