@@ -135,11 +135,12 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.className = 'controls-body';
 
   // Sections are organized by render scope, then interaction:
-  //   Scene → Layout → Buildings → Streets → Root gem → Effects
-  //   then Camera & Interaction (perspective, orbit, transitions, input,
-  //                              tooltip, keyboard shortcuts)
-  //   then Scan & Updates (file scanner config + live polling)
-  //   then Debug (developer diagnostics, collapsed by default).
+  //   Keyboard & mouse → Scan & Updates → Scene → Layout → Buildings →
+  //   Streets → Root gem → Effects → File Preview → Debug.
+  //
+  // (Camera tween timing / easing — BASE_DURATION_MS, EASING_POWER — is
+  // intentionally NOT exposed to users. The defaults are tuned for the
+  // intended feel; let developers tweak ANIMATION_TIMING in code if needed.)
   //
   // All sections are <details> elements. Open/closed state is NOT persisted —
   // every time the Controls tab becomes visible all sections start collapsed.
@@ -152,7 +153,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
-  body.appendChild(_buildCameraSection());
   body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
@@ -237,26 +237,6 @@ function _buildShortcutsSection(): HTMLElement {
       { mouse: 'Double-click', action: 'Focus camera on the target' },
     ])
   );
-  return section;
-}
-
-function _buildCameraSection(): HTMLElement {
-  const section = _section(
-    'Camera & Interaction',
-    'Camera tween timing and easing.'
-  );
-
-  section.appendChild(
-    _subgroup('Camera transitions', [
-      _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
-        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
-      }),
-      _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
-        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function. Shared by camera tweens and building fade-ins.',
-      }),
-    ])
-  );
-
   return section;
 }
 
@@ -516,7 +496,7 @@ function _buildBuildingsSection(): HTMLElement {
   // (Building size — floors / width / path — lives in the Layout section now.)
 
   section.appendChild(
-    _subgroup('Transitions', [
+    _collapsibleSubgroup('buildings-transitions', 'Transitions', () => [
       _number('Enter / refresh (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
         tip: 'Fade-in / stay duration for buildings as they enter on initial render or refresh when the manifest changes. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
@@ -524,7 +504,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Color palette (HSL)', [
+    _collapsibleSubgroup('buildings-palette', 'Color palette (HSL)', () => [
       _rangePair(
         'Saturation range',
         BUILDING_PALETTE,
@@ -562,7 +542,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Outlines', [
+    _collapsibleSubgroup('buildings-outlines', 'Outlines', () => [
       _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
         tip: 'Pixel thickness shared by per-building, hover, and selected outlines. Above 10 pixels the wireframe occludes facade detail; below 1 it vanishes at typical zoom.',
       }),
@@ -577,7 +557,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Billboards (media files)', [
+    _collapsibleSubgroup('buildings-billboards', 'Billboards (media files)', () => [
       _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
         tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait. Below 0.3 the panel is too thin to read; above 1.5 a portrait panel taller than 1.5× its width clips into the street tier above.',
       }),
@@ -608,7 +588,7 @@ function _buildBuildingsSection(): HTMLElement {
       _color('Placeholder color', BILLBOARD_GEOMETRY, 'PANEL_PLACEHOLDER_COLOR', {
         tip: 'Fallback panel color shown while the image loads (or if the load fails).',
       }),
-    ])
+    ]),
   );
 
   // Facade parent — geometry, contrast, and window lighting share the
