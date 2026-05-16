@@ -717,15 +717,12 @@ function setupLiveUpdates(
 
 // ── Boot helpers ────────────────────────────────────────────────────────────
 
-function _captionFor(src: string, branch?: string): string {
-  const label = _deriveLabel(src);
-  return branch
-    ? `Loading ${label} (branch ${branch})…`
-    : `Loading ${label}…`;
+function _srcKind(src: string): 'git' | 'local' {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
 }
 
 function _deriveLabel(src: string): string {
-  if (/:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src)) {
+  if (_srcKind(src) === 'git') {
     // git URL — try "owner/repo" from the last two path segments
     const m = src.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
     if (m) return `${m[1]}/${m[2]}`;
@@ -815,13 +812,20 @@ if (_canvas) {
     let initialManifest: Manifest;
     let initialError: string | null = null;
     if (hasSrc) {
-      loadingOverlay.show(_captionFor(qp.get('src')!, qp.get('branch') ?? undefined));
+      const _bootSrc = qp.get('src')!;
+      const _bootBranch = qp.get('branch') ?? undefined;
+      loadingOverlay.show({
+        kind: _srcKind(_bootSrc),
+        label: _deriveLabel(_bootSrc),
+        branch: _bootBranch,
+      });
       try {
         const resp = await fetch(manifestUrl());
         if (!resp.ok) {
           const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
           throw new Error(err.error || `HTTP ${resp.status}`);
         }
+        loadingOverlay.setStep('building');
         initialManifest = await resp.json();
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
@@ -862,7 +866,11 @@ if (_canvas) {
 
     async function applyNewSource(payload: SourcePayload): Promise<void> {
       const dismissibleOnError = _lastDismissible;
-      loadingOverlay.show(_captionFor(payload.src, payload.branch));
+      loadingOverlay.show({
+        kind: _srcKind(payload.src),
+        label: _deriveLabel(payload.src),
+        branch: payload.branch,
+      });
       try {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
@@ -872,6 +880,7 @@ if (_canvas) {
           const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
           throw new Error(err.error || `HTTP ${resp.status}`);
         }
+        loadingOverlay.setStep('building');
         const manifest: Manifest = await resp.json();
 
         // Update URL first so per-source persistence subscriptions see the
