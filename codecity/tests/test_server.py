@@ -15,7 +15,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from codecity import server as server_mod
-from codecity.server import start_server
+from codecity.server import _classify_source, start_server
 
 
 class _CacheRedirectMixin:
@@ -502,6 +502,34 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(ctype, "image/png")
         # Body is the raw "PNG" bytes — not gzipped.
         self.assertTrue(body.startswith(b"\x89PNG"))
+
+
+class ClassifySourceTests(unittest.TestCase):
+    def test_absolute_path(self) -> None:
+        self.assertEqual(_classify_source("/Users/foo/bar"), "local")
+
+    def test_home_path(self) -> None:
+        self.assertEqual(_classify_source("~/code/foo"), "local")
+
+    def test_relative_path_dot(self) -> None:
+        self.assertEqual(_classify_source("./foo"), "local")
+        self.assertEqual(_classify_source("../foo"), "local")
+
+    def test_windows_drive_path(self) -> None:
+        self.assertEqual(_classify_source("C:\\Users\\foo"), "local")
+        self.assertEqual(_classify_source("D:/foo/bar"), "local")
+
+    def test_https_url(self) -> None:
+        self.assertEqual(_classify_source("https://github.com/owner/repo"), "git")
+        self.assertEqual(_classify_source("http://example.com/x.git"), "git")
+
+    def test_git_ssh_url(self) -> None:
+        self.assertEqual(_classify_source("git@github.com:owner/repo.git"), "git")
+
+    def test_garbage(self) -> None:
+        self.assertEqual(_classify_source("garbage"), "invalid")
+        self.assertEqual(_classify_source(""), "invalid")
+        self.assertEqual(_classify_source("just-a-word"), "invalid")
 
 
 if __name__ == "__main__":

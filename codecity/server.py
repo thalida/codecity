@@ -20,11 +20,12 @@ from __future__ import annotations
 import gzip
 import json
 import mimetypes
+import re
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 from urllib.parse import parse_qs, urlparse
 
 from codecity.clone import CloneError, ensure_clone
@@ -54,6 +55,26 @@ def _is_media(ctype: str | None) -> bool:
     if ctype in _MEDIA_EXACT:
         return True
     return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
+
+
+_LOCAL_PATH_PREFIX = re.compile(r"^(/|~|\./|\.\./|[A-Za-z]:[\\/])")
+_GIT_SSH_FORM = re.compile(r"^[^@]+@[^:]+:")
+
+
+def _classify_source(raw: str) -> Literal["local", "git", "invalid"]:
+    """Classify a raw `?src=` value as a local path, a git URL, or invalid.
+
+    Path-like prefixes (absolute, home, relative, Windows drive) → 'local'.
+    URLs (scheme:// or git@host:path SSH form) → 'git'.
+    Anything else → 'invalid'.
+    """
+    if not raw:
+        return "invalid"
+    if _LOCAL_PATH_PREFIX.match(raw):
+        return "local"
+    if "://" in raw or _GIT_SSH_FORM.match(raw):
+        return "git"
+    return "invalid"
 
 
 # Bodies under this threshold skip compression — gzip's framing
