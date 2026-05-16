@@ -1,8 +1,10 @@
 """Local HTTP server backing the browser-served frontend.
 
 Serves the Vite-built frontend out of `codecity/static/` and computes a
-scan manifest on demand at `/api/manifest?path=…` (or `?clone=URL` for a
-remote repo). Bound to 127.0.0.1 only — no remote access.
+scan manifest on demand at `/api/manifest?src=…[&branch=…]`. `src` is
+either a local absolute path or a git URL; for git URLs, the repo is
+cloned into `~/.cache/codecity/clones/` and scanned from there. Bound to
+127.0.0.1 only — no remote access.
 
 Threading: ``ThreadingHTTPServer`` so concurrent /api/file fetches and a
 manifest scan don't serialize on each other. The server runs on a daemon
@@ -144,8 +146,6 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
     handler.wfile.write(payload)
 
 
-
-
 def _parse_include_all(query: str) -> bool:
     """Parse ?include_all=… as a boolean. Strict: only 'true' (any case)
     and '1' count as on; absent or anything else is off. Used by both
@@ -163,10 +163,10 @@ def _parse_no_cache(query: str) -> bool:
 
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
-) -> tuple[Path, str, str | None] | None:
+) -> tuple[Path, str, str | None, Literal["local", "git"]] | None:
     """Parse ?src=… [&branch=…] and resolve to a scan root.
 
-    Returns (resolved_path, original_src, branch_or_None) on success, or
+    Returns (resolved_path, original_src, branch_or_None, kind) on success, or
     None after sending the appropriate 4xx/5xx error response.
 
     Branch semantics:
@@ -194,7 +194,7 @@ def _resolve_scan_target(
         try:
             with _State.clone_lock:
                 local = ensure_clone(raw_src, raw_branch)
-            return local, raw_src, raw_branch
+            return local, raw_src, raw_branch, "git"
         except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
             _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": str(e)})
             return None
@@ -213,7 +213,7 @@ def _resolve_scan_target(
             handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
         )
         return None
-    return scan_target, raw_src, None
+    return scan_target, raw_src, None, "local"
 
 
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
@@ -221,7 +221,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     resolved = _resolve_scan_target(handler, query)
     if resolved is None:
         return
-    scan_target, raw_src, raw_branch = resolved
+    scan_target, raw_src, raw_branch, kind = resolved
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 
@@ -237,7 +237,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     # For cache-cloned sources (git URLs), surface the user-friendly source
     # string as display_root so the breadcrumb doesn't show the cache hash.
-    if _classify_source(raw_src) == "git":
+    if kind == "git":
         manifest["display_root"] = (
             f"{raw_src}@{raw_branch}" if raw_branch else raw_src
         )
@@ -257,7 +257,7 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     resolved = _resolve_scan_target(handler, query)
     if resolved is None:
         return
-    scan_target, _raw_src, _raw_branch = resolved
+    scan_target, _raw_src, _raw_branch, _kind = resolved
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 

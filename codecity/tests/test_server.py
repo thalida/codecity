@@ -544,7 +544,6 @@ class ResolveScanTargetTests(unittest.TestCase):
     """Behavior tests via the HTTP layer, since _resolve_scan_target is internal."""
 
     def setUp(self) -> None:
-        from codecity.server import start_server
         self.server, self.server_port, self.shutdown = start_server(port=0)
         self.addCleanup(self.shutdown)
 
