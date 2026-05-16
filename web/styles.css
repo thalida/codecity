@@ -89,7 +89,7 @@
 .app-footer-button:hover,
 .pane-header-close:hover,
 .recent-row .recent-remove:hover {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -98,7 +98,7 @@
 .btn-icon {
   width: 24px;
   height: 24px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   border-radius: 4px;
   font-size: 14px;
 }
@@ -115,7 +115,7 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0a0b10;
+  background: var(--cc-bg-app);
   color: #e0e0e0;
   font-family:
     'Inter',
@@ -168,11 +168,11 @@ body {
   gap: 4px;
   height: 32px;
   padding: 0 8px;
-  background: #0c0d14;
-  border-bottom: 1px solid #1e2030;
+  background: var(--cc-bg-chrome);
+  border-bottom: 1px solid var(--cc-border-subtle);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 11px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
 }
@@ -185,7 +185,7 @@ body {
   gap: 8px;
   min-width: 0;
   letter-spacing: 0.02em;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
 }
 
 /* .app-header-icon — alias of .btn-icon (shell + hover shared). Overrides:
@@ -193,7 +193,7 @@ body {
 .app-header-icon {
   width: 26px;
   height: 24px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   border-radius: 3px;
   -webkit-app-region: no-drag;
 }
@@ -207,7 +207,7 @@ canvas {
   height: 100%;
   /* Match the body bg so any sub-frame transparency during resize blends
      in instead of flashing. */
-  background: #0a0b10;
+  background: var(--cc-bg-app);
 }
 
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
@@ -221,7 +221,7 @@ canvas {
   width: 0;
   height: 100%;
   background: #12131a;
-  border-left: 1px solid #1e2030;
+  border-left: 1px solid var(--cc-border-subtle);
   /* No transition during drag (would lag the cursor); transition is added
      by .is-animating which we toggle around open/close. */
   display: flex;
@@ -250,7 +250,7 @@ canvas {
 }
 .sidebar-resize-handle-right:hover,
 .sidebar-resize-handle-right.dragging {
-  background: rgba(108, 138, 255, 0.25);
+  background: var(--cc-accent-strong);
 }
 
 /* ── Sitewide header content (chip + breadcrumb + copy) ──────────────────
@@ -299,17 +299,17 @@ canvas {
   padding: 1px 4px;
   margin: 0;
   font: inherit;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   cursor: pointer;
   border-radius: 3px;
   -webkit-app-region: no-drag;
 }
 .app-header-segment:hover {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 .app-header-segment.is-leaf {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   cursor: default;
 }
 .app-header-segment.is-leaf:hover {
@@ -318,7 +318,7 @@ canvas {
 
 .app-header-sep {
   flex: 0 0 auto;
-  color: #44485e;
+  color: var(--cc-text-sep);
   font-size: 12px;
   pointer-events: none;
 }
@@ -330,7 +330,7 @@ canvas {
 .app-header-ellipsis,
 .file-path-ellipsis {
   flex: 0 0 auto;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   padding: 0 2px;
   cursor: help;
   user-select: none;
@@ -339,22 +339,22 @@ canvas {
 /* File-preview pane path segments rendered inside .pane-title. */
 .file-path-segment {
   flex: 0 0 auto;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 .file-path-segment.is-leaf {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 .file-path-sep {
   flex: 0 0 auto;
-  color: #44485e;
+  color: var(--cc-text-sep);
   font-size: 12px;
   pointer-events: none;
   padding: 0 1px;
 }
 
 .app-header-icon.is-copied {
-  color: #4ade80;
+  color: var(--cc-success);
   background: rgba(74, 222, 128, 0.1);
 }
 
@@ -375,7 +375,7 @@ canvas {
   margin-right: 0;
   background: none;
   border: none;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   cursor: pointer;
   border-radius: 3px;
   font: inherit;
@@ -385,14 +385,14 @@ canvas {
   -webkit-app-region: no-drag;
 }
 .project-btn:hover {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 .project-btn:disabled {
   cursor: default;
 }
 .project-btn:disabled:hover {
-  color: #7279a2;
+  color: var(--cc-text-faint);
   background: none;
 }
 .project-btn .project-btn-label {
@@ -452,7 +452,7 @@ canvas {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #0a0b10;
+  background: var(--cc-bg-app);
 }
 
 .editor-body > * {
@@ -477,11 +477,11 @@ canvas {
   gap: 14px;
   padding: 0 12px;
   height: 24px;
-  background: #0c0d14;
+  background: var(--cc-bg-chrome);
   border-top: 1px solid #1a1c28;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 10.5px;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
@@ -518,7 +518,7 @@ canvas {
 }
 .app-footer-source {
   margin-left: 3px;
-  color: #44485e;
+  color: var(--cc-text-sep);
   font-size: 9.5px;
 }
 
@@ -528,7 +528,7 @@ canvas {
  * fall on the dot. */
 .app-footer-sep {
   flex: 0 0 auto;
-  color: #44485e;
+  color: var(--cc-text-sep);
   pointer-events: none;
 }
 
@@ -539,7 +539,7 @@ canvas {
 .app-footer-button {
   width: 22px;
   height: 22px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   border-radius: 3px;
 }
 .app-footer-button .lucide-icon {
@@ -565,7 +565,7 @@ canvas {
   flex: 0 0 auto;
 }
 .app-footer-status-detail {
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -573,13 +573,13 @@ canvas {
 
 /* Color by rebuild state. */
 .app-footer-status.is-ready .app-footer-status-dot {
-  background: #4ade80;
+  background: var(--cc-success);
 }
 .app-footer-status.is-rebuilding .app-footer-status-dot {
-  background: #fbbf24;
+  background: var(--cc-warning);
 }
 .app-footer-status.is-error .app-footer-status-dot {
-  background: #ef4444;
+  background: var(--cc-error);
 }
 
 /* Animation by combined state. */
@@ -638,7 +638,7 @@ canvas {
 }
 
 #sidebar ::-webkit-scrollbar-thumb {
-  background: #252838;
+  background: var(--cc-border-input);
   border-radius: 4px;
 }
 
@@ -650,7 +650,7 @@ canvas {
 #sidebar .editor-body,
 #sidebar .code-editor {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 /* ── Selected building glow (applied by interactions.js) ────────────────────── */
@@ -663,8 +663,8 @@ canvas {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(108, 138, 255, 0.15);
-  border: 1px solid rgba(108, 138, 255, 0.35);
+  background: rgba(91, 157, 255, 0.15);
+  border: 1px solid rgba(91, 157, 255, 0.35);
   border-radius: 100px;
   padding: 6px 16px;
   font-size: 12px;
@@ -726,8 +726,8 @@ canvas {
   min-width: 280px;
   max-width: 600px;
   height: 100%;
-  background: #10111a;
-  border-right: 1px solid #1e2030;
+  background: var(--cc-bg-sidebar);
+  border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: row;
   z-index: 90;
@@ -754,7 +754,7 @@ canvas {
 }
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle.dragging {
-  background: rgba(108, 138, 255, 0.25);
+  background: var(--cc-accent-strong);
 }
 
 /* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
@@ -776,7 +776,7 @@ canvas {
 /* .pane-header-close — alias of .btn-icon. Overrides: auto size via 4px
    padding, 4px radius, 14px font, line-height 1 for the × glyph. */
 .pane-header-close {
-  color: #7279a2;
+  color: var(--cc-text-faint);
   padding: 4px;
   border-radius: 4px;
   font-size: 14px;
@@ -790,7 +790,7 @@ canvas {
   flex: 0 0 auto;
   background: none;
   border: none;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
@@ -801,7 +801,7 @@ canvas {
   line-height: 1;
 }
 .pane-header-action:not(:disabled):hover {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   background: rgba(255, 255, 255, 0.06);
 }
 .pane-header-action:disabled {
@@ -816,8 +816,8 @@ canvas {
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
-  background: #0c0d14;
-  border-right: 1px solid #1e2030;
+  background: var(--cc-bg-chrome);
+  border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -849,14 +849,14 @@ canvas {
 }
 
 .activity-bar-icon:hover {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   background: rgba(255, 255, 255, 0.03);
 }
 
 .activity-bar-icon.active {
-  color: #e0e4f5;
-  border-left-color: #6c8aff;
-  background: rgba(108, 138, 255, 0.06);
+  color: var(--cc-text-primary);
+  border-left-color: var(--cc-accent);
+  background: rgba(91, 157, 255, 0.06);
 }
 
 /* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
@@ -909,7 +909,7 @@ canvas {
  * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
   padding: 12px 12px 12px 16px;
-  border-bottom: 1px solid #1e2030;
+  border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -927,7 +927,7 @@ canvas {
   margin: 0;
   font-size: 12px;
   font-weight: 600;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   letter-spacing: 0.02em;
   white-space: nowrap;
   overflow: hidden;
@@ -970,12 +970,12 @@ canvas {
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 
 .controls-section-hint {
   font-size: 11px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   line-height: 1.5;
   margin-bottom: 12px;
 }
@@ -984,10 +984,10 @@ canvas {
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
   display: inline-block;
-  background: rgba(108, 138, 255, 0.1);
-  border: 1px solid rgba(108, 138, 255, 0.3);
+  background: var(--cc-accent-dim);
+  border: 1px solid rgba(91, 157, 255, 0.3);
   border-radius: 3px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 10px;
   padding: 1px 5px;
@@ -1033,7 +1033,7 @@ canvas {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   transition: transform 0.1s ease;
 }
 .controls-section[open] > summary.controls-section-summary > .controls-section-chevron {
@@ -1061,11 +1061,11 @@ canvas {
 }
 .controls-section-reset:not(:disabled):hover {
   color: #fff;
-  background: rgba(91, 157, 255, 0.18);
+  background: var(--cc-accent-mid);
   border-color: rgba(91, 157, 255, 0.45);
 }
 .controls-section-reset:not(:disabled):active {
-  background: rgba(91, 157, 255, 0.25);
+  background: var(--cc-accent-strong);
 }
 .controls-section-reset:disabled {
   color: rgba(91, 157, 255, 0.22);
@@ -1085,16 +1085,16 @@ canvas {
   font-size: 11px;
 }
 .shortcuts-list dt {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 .shortcuts-list dd {
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   margin: 0;
   line-height: 1.3;
 }
 .shortcuts-list .shortcuts-or {
-  color: #7279a2;
+  color: var(--cc-text-faint);
   font-size: 10px;
   margin-left: 2px;
 }
@@ -1107,8 +1107,8 @@ canvas {
 
 .segmented-control {
   display: flex;
-  background: #0c0d14;
-  border: 1px solid #252838;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
   border-radius: 6px;
   padding: 2px;
 }
@@ -1117,7 +1117,7 @@ canvas {
   flex: 1;
   background: none;
   border: none;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -1130,22 +1130,22 @@ canvas {
 }
 
 .segmented-option:hover {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 
 .segmented-option.active {
-  background: rgba(108, 138, 255, 0.18);
-  color: #e0e4f5;
+  background: var(--cc-accent-mid);
+  color: var(--cc-text-primary);
 }
 
 .controls-button {
   display: block;
   width: 100%;
   box-sizing: border-box;
-  background: rgba(108, 138, 255, 0.1);
-  border: 1px solid rgba(108, 138, 255, 0.25);
+  background: var(--cc-accent-dim);
+  border: 1px solid var(--cc-accent-strong);
   border-radius: 5px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
@@ -1158,13 +1158,13 @@ canvas {
 }
 
 .controls-button:hover {
-  background: rgba(108, 138, 255, 0.18);
-  border-color: rgba(108, 138, 255, 0.4);
-  color: #e0e4f5;
+  background: var(--cc-accent-mid);
+  border-color: rgba(91, 157, 255, 0.4);
+  color: var(--cc-text-primary);
 }
 
 .controls-button:active:not(:disabled) {
-  background: rgba(108, 138, 255, 0.25);
+  background: var(--cc-accent-strong);
 }
 .controls-button:disabled {
   opacity: 0.4;
@@ -1180,7 +1180,7 @@ canvas {
 .controls-button-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.25);
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
 }
 
 /* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
@@ -1193,8 +1193,8 @@ canvas {
   justify-content: space-between;
   gap: 8px;
   padding: 10px 16px;
-  background: #10111a;
-  border-top: 1px solid #1e2030;
+  background: var(--cc-bg-sidebar);
+  border-top: 1px solid var(--cc-border-subtle);
 }
 .controls-actions-left,
 .controls-actions-right {
@@ -1233,7 +1233,7 @@ canvas {
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   margin-bottom: 8px;
 }
 
@@ -1265,7 +1265,7 @@ canvas {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   transition: transform 0.1s ease;
 }
 .theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
@@ -1302,7 +1302,7 @@ canvas {
   gap: 12px;
   padding: 4px 0;
   font-size: 11px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   cursor: default;
   min-width: 0;
 }
@@ -1338,22 +1338,22 @@ canvas {
   padding: 3px 5px;
   margin: 0;
   cursor: pointer;
-  color: rgba(108, 138, 255, 0.85);
+  color: rgba(91, 157, 255, 0.85);
   border-radius: 4px;
   font-size: 14px;
   line-height: 1;
 }
 .theme-row-reset:not(:disabled):hover {
   color: #ffffff;
-  background: rgba(108, 138, 255, 0.18);
-  border-color: rgba(108, 138, 255, 0.45);
+  background: var(--cc-accent-mid);
+  border-color: rgba(91, 157, 255, 0.45);
 }
 .theme-row-reset:not(:disabled):active {
-  background: rgba(108, 138, 255, 0.3);
+  background: rgba(91, 157, 255, 0.3);
 }
 .theme-row-reset:disabled {
   cursor: default;
-  color: rgba(108, 138, 255, 0.22);
+  color: rgba(91, 157, 255, 0.22);
 }
 
 /* Color swatch — small native color picker */
@@ -1397,8 +1397,8 @@ canvas {
  * / hidden". One button per option; the active option lights up. */
 .theme-select {
   display: inline-flex;
-  background: #0c0d14;
-  border: 1px solid #252838;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
   border-radius: 4px;
   overflow: hidden;
 }
@@ -1406,7 +1406,7 @@ canvas {
   background: none;
   border: none;
   border-right: 1px solid #1a1c28;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   font-family: inherit;
   font-size: 10px;
   padding: 3px 8px;
@@ -1419,12 +1419,12 @@ canvas {
   border-right: none;
 }
 .theme-select-option:hover {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   background: rgba(255, 255, 255, 0.04);
 }
 .theme-select-option.is-active {
-  background: rgba(108, 138, 255, 0.18);
-  color: #e0e4f5;
+  background: var(--cc-accent-mid);
+  color: var(--cc-text-primary);
 }
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
@@ -1432,17 +1432,17 @@ canvas {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #6c8aff;
+  accent-color: var(--cc-accent);
   margin: 0;
 }
 
 /* Number input — narrow box on the right of the row */
 .theme-number {
   width: 70px;
-  background: #0c0d14;
-  border: 1px solid #252838;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
   border-radius: 4px;
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 11px;
   padding: 3px 6px;
@@ -1450,7 +1450,7 @@ canvas {
 }
 .theme-number:focus {
   outline: none;
-  border-color: rgba(108, 138, 255, 0.5);
+  border-color: rgba(91, 157, 255, 0.5);
 }
 
 /* Slider — the range input grows into available space; the readout is
@@ -1480,7 +1480,7 @@ canvas {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: rgba(108, 138, 255, 0.85);
+  background: rgba(91, 157, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
@@ -1488,7 +1488,7 @@ canvas {
 .theme-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: rgba(108, 138, 255, 0.85);
+  background: rgba(91, 157, 255, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   cursor: pointer;
@@ -1500,7 +1500,7 @@ canvas {
   text-align: right;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 10px;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
@@ -1533,10 +1533,10 @@ canvas {
   top: 50%;
   transform: translateY(-50%);
   height: 4px;
-  background: linear-gradient(90deg, rgba(108, 138, 255, 0.85), rgba(108, 138, 255, 0.55));
+  background: linear-gradient(90deg, rgba(91, 157, 255, 0.85), rgba(91, 157, 255, 0.55));
   border-radius: 2px;
   pointer-events: none;
-  box-shadow: 0 0 6px rgba(108, 138, 255, 0.35);
+  box-shadow: 0 0 6px rgba(91, 157, 255, 0.35);
 }
 
 /* Both range inputs overlay the pair container exactly. The track itself
@@ -1583,7 +1583,7 @@ canvas {
   appearance: none;
   width: 14px;
   height: 14px;
-  background: #6c8aff;
+  background: var(--cc-accent);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
   cursor: pointer;
@@ -1593,7 +1593,7 @@ canvas {
 .theme-range-pair input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #6c8aff;
+  background: var(--cc-accent);
   border: 1px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
   cursor: pointer;
@@ -1617,7 +1617,7 @@ canvas {
   background: transparent;
 }
 #tree-sidebar ::-webkit-scrollbar-thumb {
-  background: #252838;
+  background: var(--cc-border-input);
   border-radius: 4px;
 }
 #tree-sidebar ::-webkit-scrollbar-thumb:hover {
@@ -1625,7 +1625,7 @@ canvas {
 }
 #tree-sidebar .tree-root {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 .tree-list {
@@ -1682,11 +1682,11 @@ canvas {
    Wins over the hover background since the .tree-selected rule is
    declared after .tree-hovered. */
 .tree-item.tree-selected > .tree-row {
-  background: rgba(108, 138, 255, 0.18);
+  background: var(--cc-accent-mid);
 }
 .tree-item.tree-selected > .tree-row:hover,
 .tree-item.tree-selected.tree-hovered > .tree-row {
-  background: rgba(108, 138, 255, 0.24);
+  background: rgba(91, 157, 255, 0.24);
 }
 
 .tree-chevron {
@@ -1737,7 +1737,7 @@ canvas {
 }
 
 .tree-icon-dir {
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
 }
 
 .tree-label {
@@ -1749,7 +1749,7 @@ canvas {
 }
 
 .tree-dir > .tree-row > .tree-label {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   font-weight: 500;
 }
 
@@ -1767,22 +1767,22 @@ canvas {
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid #1e2030;
+  border-bottom: 1px solid var(--cc-border-subtle);
 }
 
 .search-input-icon {
   flex: 0 0 auto;
   font-size: 14px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
 }
 
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
-  background: #0c0d14;
-  border: 1px solid #252838;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
   border-radius: 4px;
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   font-family: inherit;
   font-size: 12px;
   padding: 5px 8px;
@@ -1792,7 +1792,7 @@ canvas {
   color: #6a7090;
 }
 .search-input:focus {
-  border-color: rgba(108, 138, 255, 0.5);
+  border-color: rgba(91, 157, 255, 0.5);
 }
 /* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
 .search-input::-webkit-search-cancel-button {
@@ -1816,7 +1816,7 @@ canvas {
   justify-content: center;
   gap: 8px;
   padding: 24px 18px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   text-align: center;
 }
 .search-state .lucide-icon {
@@ -1828,14 +1828,14 @@ canvas {
   margin: 0;
   font-size: 12px;
   font-weight: 500;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 .search-state-sub {
   margin: 0;
   max-width: 240px;
   font-size: 11px;
   line-height: 1.5;
-  color: #7279a2;
+  color: var(--cc-text-faint);
 }
 
 .search-results {
@@ -1858,16 +1858,16 @@ canvas {
 }
 .search-result:hover {
   background: rgba(255, 255, 255, 0.04);
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
 }
 .search-result:focus-visible {
-  background: rgba(108, 138, 255, 0.12);
-  border-left-color: #6c8aff;
-  color: #e0e4f5;
+  background: rgba(91, 157, 255, 0.12);
+  border-left-color: var(--cc-accent);
+  color: var(--cc-text-primary);
 }
 .search-result mark {
   background: transparent;
-  color: #6c8aff;
+  color: var(--cc-accent);
   font-weight: 700;
 }
 .search-result:hover mark,
@@ -1878,7 +1878,7 @@ canvas {
 /* Scrollbar tuned to match the tree pane's. */
 #tree-sidebar .search-body {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
@@ -1898,12 +1898,12 @@ canvas {
 }
 #tree-sidebar .info-body {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 .info-markdown {
   padding: 16px 18px 24px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   font-size: 13px;
   line-height: 1.6;
   word-wrap: break-word;
@@ -1915,7 +1915,7 @@ canvas {
 .info-markdown h4,
 .info-markdown h5,
 .info-markdown h6 {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   font-weight: 700;
   margin: 18px 0 8px;
   line-height: 1.3;
@@ -1928,7 +1928,7 @@ canvas {
 .info-markdown h1 {
   font-size: 20px;
   padding-bottom: 6px;
-  border-bottom: 1px solid #1e2030;
+  border-bottom: 1px solid var(--cc-border-subtle);
 }
 .info-markdown h2 {
   font-size: 17px;
@@ -1940,12 +1940,12 @@ canvas {
 }
 .info-markdown h4 {
   font-size: 13px;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 .info-markdown h5,
 .info-markdown h6 {
   font-size: 12px;
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -1955,7 +1955,7 @@ canvas {
 }
 
 .info-markdown a {
-  color: #6c8aff;
+  color: var(--cc-accent);
   text-decoration: none;
 }
 .info-markdown a:hover {
@@ -1963,7 +1963,7 @@ canvas {
 }
 
 .info-markdown strong {
-  color: #e0e4f5;
+  color: var(--cc-text-primary);
   font-weight: 700;
 }
 .info-markdown em {
@@ -1987,8 +1987,8 @@ canvas {
   margin: 10px 0;
   padding: 4px 12px;
   border-left: 3px solid #2a3050;
-  color: #8a8fa8;
-  background: rgba(108, 138, 255, 0.04);
+  color: var(--cc-text-muted);
+  background: rgba(91, 157, 255, 0.04);
 }
 .info-markdown blockquote > p {
   margin: 4px 0;
@@ -1996,22 +1996,22 @@ canvas {
 
 .info-markdown hr {
   border: none;
-  border-top: 1px solid #1e2030;
+  border-top: 1px solid var(--cc-border-subtle);
   margin: 16px 0;
 }
 
 .info-markdown code {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 12px;
-  background: rgba(108, 138, 255, 0.08);
-  border: 1px solid rgba(108, 138, 255, 0.18);
+  background: rgba(91, 157, 255, 0.08);
+  border: 1px solid var(--cc-accent-mid);
   border-radius: 3px;
   padding: 1px 5px;
   color: #d8dceb;
 }
 
 .info-markdown pre {
-  background: #0c0d14;
+  background: var(--cc-bg-chrome);
   border: 1px solid #1a1c28;
   border-radius: 5px;
   padding: 10px 12px;
@@ -2025,7 +2025,7 @@ canvas {
   background: transparent;
   border: none;
   padding: 0;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   font-size: inherit;
 }
 
@@ -2041,18 +2041,18 @@ canvas {
 }
 .info-markdown th,
 .info-markdown td {
-  border: 1px solid #1e2030;
+  border: 1px solid var(--cc-border-subtle);
   padding: 5px 10px;
   text-align: left;
 }
 .info-markdown th {
-  background: #0c0d14;
-  color: #e0e4f5;
+  background: var(--cc-bg-chrome);
+  color: var(--cc-text-primary);
 }
 
 .info-markdown input[type='checkbox'] {
   margin: 0 6px 0 0;
-  accent-color: #6c8aff;
+  accent-color: var(--cc-accent);
 }
 
 /* ── File preview elements (children of .editor-body) ───────────────────
@@ -2065,10 +2065,10 @@ canvas {
   height: 100%;
   object-fit: contain;
   background:
-    linear-gradient(45deg, #0c0d14 25%, transparent 25%),
-    linear-gradient(-45deg, #0c0d14 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #0c0d14 75%),
-    linear-gradient(-45deg, transparent 75%, #0c0d14 75%);
+    linear-gradient(45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--cc-bg-chrome) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--cc-bg-chrome) 75%);
   background-size: 16px 16px;
   background-position:
     0 0,
@@ -2118,7 +2118,7 @@ canvas {
   justify-content: center;
   gap: 10px;
   padding: 32px 20px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   text-align: center;
   font-family:
     'Inter',
@@ -2136,14 +2136,14 @@ canvas {
   margin: 0;
   font-size: 13px;
   font-weight: 500;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 .preview-state-sub {
   margin: 0;
   max-width: 280px;
   font-size: 11px;
   line-height: 1.5;
-  color: #7279a2;
+  color: var(--cc-text-faint);
 }
 
 /* ── Code editor (text preview) ─────────────────────────────────────────
@@ -2173,8 +2173,8 @@ canvas {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(108, 138, 255, 0.06);
-  border-bottom: 1px solid rgba(108, 138, 255, 0.18);
+  background: rgba(91, 157, 255, 0.06);
+  border-bottom: 1px solid var(--cc-accent-mid);
   color: #8a9eff;
   font-family:
     'Inter',
@@ -2198,7 +2198,7 @@ canvas {
   align-items: stretch;
   width: 100%;
   overflow: auto;
-  background: #0a0b10;
+  background: var(--cc-bg-app);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 12px;
   line-height: 1.55;
@@ -2210,9 +2210,9 @@ canvas {
   display: flex;
   flex-direction: column;
   padding: 10px 8px 10px 10px;
-  background: #0c0d14;
+  background: var(--cc-bg-chrome);
   border-right: 1px solid #1a1c28;
-  color: #626678; /* was #44485e (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+  color: #626678; /* was var(--cc-text-sep) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
   /* The gutter's width is content-driven (3 digits + padding) and stays
@@ -2235,7 +2235,7 @@ canvas {
   flex: 1 1 auto;
   white-space: pre;
   background: transparent;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 
 .code-editor-code {
@@ -2247,7 +2247,7 @@ canvas {
 
 /* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
 .hljs {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   background: transparent;
 }
 .hljs-keyword,
@@ -2268,13 +2268,13 @@ canvas {
 .hljs-quote,
 .hljs-template-tag,
 .hljs-type {
-  color: #fbbf24;
+  color: var(--cc-warning);
 } /* amber */
 .hljs-title,
 .hljs-name,
 .hljs-selector-id,
 .hljs-selector-class {
-  color: #6c8aff;
+  color: var(--cc-accent);
 } /* brand blue */
 .hljs-built_in,
 .hljs-builtin-name {
@@ -2330,7 +2330,7 @@ canvas {
   max-height: 80vh;
   display: flex;
   flex-direction: column;
-  background: #1d1d22;
+  background: var(--cc-bg-modal);
   color: #e8e8ed;
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
@@ -2404,7 +2404,7 @@ canvas {
   font: inherit;
 }
 .modal-field input:focus {
-  outline: 2px solid #5b9dff;
+  outline: 2px solid var(--cc-accent);
   outline-offset: 0;
 }
 
@@ -2425,7 +2425,7 @@ canvas {
 }
 .modal-actions button {
   appearance: none;
-  background: #5b9dff;
+  background: var(--cc-accent);
   border: 0;
   color: #0a0a10;
   padding: 8px 16px;
@@ -2474,7 +2474,7 @@ canvas {
    pattern (was opacity-based — converted per audit Inconsistency 5). */
 .recent-row .recent-remove {
   margin-left: auto;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   padding: 4px 8px;
 }
 
@@ -2490,7 +2490,7 @@ canvas {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: #5b9dff;
+  color: var(--cc-accent);
   background: rgba(91, 157, 255, 0.15);
   border: 1px solid rgba(91, 157, 255, 0.35);
   border-radius: 10px;
@@ -2511,7 +2511,7 @@ canvas {
   align-items: center;
   gap: 14px;
   padding: 24px 32px;
-  background: #1d1d22;
+  background: var(--cc-bg-modal);
   color: #e8e8ed;
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
@@ -2521,7 +2521,7 @@ canvas {
   width: 28px;
   height: 28px;
   border: 3px solid rgba(255, 255, 255, 0.15);
-  border-top-color: #5b9dff;
+  border-top-color: var(--cc-accent);
   border-radius: 50%;
   animation: cc-spin 0.8s linear infinite;
 }
@@ -2564,11 +2564,11 @@ canvas {
   color: rgba(232, 232, 237, 0.5); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
 }
 .loading-steps li[data-state="active"] {
-  color: #5b9dff;
+  color: var(--cc-accent);
 }
 .loading-steps li[data-state="active"]::before {
   content: '›';
-  color: #5b9dff;
+  color: var(--cc-accent);
   font-size: 14px;
   font-weight: 700;
 }
@@ -2594,7 +2594,7 @@ canvas {
 .app-header-repo-link {
   width: 24px;
   height: 24px;
-  color: #7279a2;
+  color: var(--cc-text-faint);
   border-radius: 3px;
   text-decoration: none;
   -webkit-app-region: no-drag;
