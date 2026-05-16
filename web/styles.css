@@ -417,19 +417,11 @@ canvas {
   font-family: 'SF Mono', 'Fira Code', monospace;
   white-space: nowrap;
 }
-.app-header-repo-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-left: 4px;
-  padding: 2px 4px;
-  border-radius: 4px;
-  color: inherit;
-  opacity: 0.55;
-  text-decoration: none;
-}
-.app-header-repo-link:hover { opacity: 1; background: rgba(255,255,255,0.06); }
-.app-header-repo-link svg { display: block; }
+/* .app-header-repo-link rules consolidated into the merged
+   .switch-source-btn/.app-header-refresh-btn/.app-header-repo-link block
+   below (and the .btn-icon shared shell at the top of the file).
+   Per audit Step 7: drops the dead-on-arrival margin-left + opacity dim;
+   keeps the 2px 4px padding as a per-class override. */
 
 /* ── File preview pane (right sidebar) ──────────────────────────────────
    Outer container that wraps the pane header (filename + × close) and the
@@ -2629,7 +2621,7 @@ canvas {
 }
 .switch-source-btn { margin-right: 0; }
 .app-header-refresh-btn { margin-left: 4px; }
-.app-header-repo-link { margin-right: 4px; }
+.app-header-repo-link { margin-right: 4px; padding: 2px 4px; }
 .switch-source-btn .lucide-icon,
 .app-header-refresh-btn .lucide-icon,
 .app-header-repo-link .lucide-icon {
