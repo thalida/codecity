@@ -111,5 +111,66 @@ class EnsureCloneTests(unittest.TestCase):
             ensure_clone(str(self.tmp_path / "does-not-exist.git"))
 
 
+from codecity.clone import (
+    BranchNotFoundError,
+    RepoNotFoundError,
+    HostUnreachableError,
+    _maybe_raise_clean_clone_error,
+)
+
+
+class CleanCloneErrorDispatcherTests(unittest.TestCase):
+    def test_branch_not_found_first_clone_stderr(self) -> None:
+        with self.assertRaises(BranchNotFoundError) as ctx:
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                "feature-x",
+                "fatal: Remote branch feature-x not found in upstream origin",
+            )
+        self.assertIn("feature-x", str(ctx.exception))
+
+    def test_branch_not_found_reset_stderr(self) -> None:
+        with self.assertRaises(BranchNotFoundError):
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                "feature-x",
+                "fatal: ambiguous argument 'origin/feature-x': "
+                "unknown revision or path not in the working tree.",
+            )
+
+    def test_repo_not_found(self) -> None:
+        with self.assertRaises(RepoNotFoundError):
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                None,
+                "ERROR: Repository not found.\n"
+                "fatal: Could not read from remote repository.",
+            )
+
+    def test_host_unreachable(self) -> None:
+        with self.assertRaises(HostUnreachableError):
+            _maybe_raise_clean_clone_error(
+                "https://no-such-host.example/x.git",
+                None,
+                "fatal: unable to access 'https://no-such-host.example/x.git/': "
+                "Could not resolve host: no-such-host.example",
+            )
+
+    def test_auth_failure_passes_through(self) -> None:
+        # Auth failures are NOT translated. Caller sees no exception from
+        # the dispatcher — generic CloneError propagates from elsewhere.
+        result = _maybe_raise_clean_clone_error(
+            "https://example.com/x.git",
+            None,
+            "fatal: Authentication failed for 'https://example.com/x.git/'",
+        )
+        self.assertIsNone(result)
+
+    def test_subclass_relationship(self) -> None:
+        self.assertTrue(issubclass(BranchNotFoundError, CloneError))
+        self.assertTrue(issubclass(RepoNotFoundError, CloneError))
+        self.assertTrue(issubclass(HostUnreachableError, CloneError))
+
+
 if __name__ == "__main__":
     unittest.main()

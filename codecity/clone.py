@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -33,6 +34,53 @@ CACHE_ROOT = Path.home() / ".cache" / "codecity" / "clones"
 
 class CloneError(RuntimeError):
     """Raised when a git operation fails. Carries the captured stderr."""
+
+
+class BranchNotFoundError(CloneError):
+    """Raised when the requested branch doesn't exist on the remote."""
+
+
+class RepoNotFoundError(CloneError):
+    """Raised when the remote repo URL doesn't exist or isn't accessible."""
+
+
+class HostUnreachableError(CloneError):
+    """Raised when DNS / network can't reach the remote host."""
+
+
+_BRANCH_NOT_FOUND_PATTERNS = (
+    re.compile(r"Remote branch \S+ not found", re.IGNORECASE),
+    re.compile(r"unknown revision or path not in the working tree"),
+)
+_REPO_NOT_FOUND_PATTERNS = (
+    re.compile(r"Repository not found", re.IGNORECASE),
+    re.compile(r"does not exist or you do not have access", re.IGNORECASE),
+)
+_HOST_UNREACHABLE_PATTERNS = (
+    re.compile(r"Could not resolve host", re.IGNORECASE),
+    re.compile(
+        r"unable to access .+: (?:Couldn't resolve host|Failed to connect)",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _maybe_raise_clean_clone_error(
+    url: str, branch: str | None, stderr_text: str
+) -> None:
+    """Inspect git stderr and raise a user-friendly CloneError subclass when
+    a known pattern matches. Returns None when nothing matched — caller is
+    responsible for raising the original generic CloneError in that case."""
+    if branch:
+        for pat in _BRANCH_NOT_FOUND_PATTERNS:
+            if pat.search(stderr_text):
+                raise BranchNotFoundError(f"branch '{branch}' not found")
+    for pat in _REPO_NOT_FOUND_PATTERNS:
+        if pat.search(stderr_text):
+            raise RepoNotFoundError(f"repository not found at {url}")
+    for pat in _HOST_UNREACHABLE_PATTERNS:
+        if pat.search(stderr_text):
+            raise HostUnreachableError("could not resolve host")
 
 
 def _run_git(*args: str, cwd: Path | None = None) -> str:
