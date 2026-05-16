@@ -53,6 +53,61 @@
   --cc-hover-overlay-sm: rgba(255, 255, 255, 0.04);
 }
 
+/* ── Icon buttons (unified shell) ───────────────────────────────────────────
+   .btn-icon is the canonical icon-button class. The selectors below are
+   aliases sharing this shell; a follow-up commit will rename the DOM class
+   names to .btn-icon. Per-class overrides (size, radius, color, font-size,
+   padding) live with each original rule block further down in the file. */
+
+.btn-icon,
+.app-header-icon,
+.switch-source-btn,
+.app-header-refresh-btn,
+.app-header-repo-link,
+.app-footer-button,
+.pane-header-close,
+.modal-header button.modal-close,
+.recent-row .recent-remove {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* Shared hover — color brightens, subtle .06 overlay added.
+   .modal-header button.modal-close opts out: it uses a .08 overlay and
+   keeps inherited text color. */
+.btn-icon:hover,
+.app-header-icon:hover,
+.switch-source-btn:hover,
+.app-header-refresh-btn:hover,
+.app-header-repo-link:hover,
+.app-footer-button:hover,
+.pane-header-close:hover,
+.recent-row .recent-remove:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* Standalone .btn-icon defaults — apply only when the class is used on its
+   own (no aliased class on the element). Per docs/ui-styleguide-audit.md §7. */
+.btn-icon {
+  width: 24px;
+  height: 24px;
+  color: #7279a2;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.btn-icon:disabled { cursor: default; }
+.btn-icon.is-active {
+  color: var(--cc-accent);
+  background: var(--cc-accent-dim);
+}
+
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 
 html,
@@ -133,23 +188,14 @@ body {
   color: #8a8fa8;
 }
 
+/* .app-header-icon — alias of .btn-icon (shell + hover shared). Overrides:
+   26×24 footprint, 3px radius, -webkit-app-region: no-drag. */
 .app-header-icon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 26px;
   height: 24px;
-  background: none;
-  border: none;
   color: #7279a2;
-  cursor: pointer;
   border-radius: 3px;
   -webkit-app-region: no-drag;
-}
-.app-header-icon:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
 }
 .app-header-icon .lucide-icon {
   font-size: 14px;
@@ -488,22 +534,13 @@ canvas {
 
 /* Small icon button — used by the reset-view trigger that lives in
  * the right section next to the status indicator. */
+/* .app-footer-button — alias of .btn-icon. Overrides: 22×22 footprint,
+   3px radius, 13px icon. */
 .app-footer-button {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 22px;
   height: 22px;
-  background: none;
-  border: none;
   color: #7279a2;
-  cursor: pointer;
   border-radius: 3px;
-}
-.app-footer-button:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
 }
 .app-footer-button .lucide-icon {
   font-size: 13px;
@@ -736,23 +773,14 @@ canvas {
 /* "×" close button rendered inside each pane's header. Flexbox in the
  * header takes care of vertical centering against the title — this rule
  * just provides the button's own visual shell. */
+/* .pane-header-close — alias of .btn-icon. Overrides: auto size via 4px
+   padding, 4px radius, 14px font, line-height 1 for the × glyph. */
 .pane-header-close {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
   color: #7279a2;
-  cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   font-size: 14px;
   line-height: 1;
-}
-.pane-header-close:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
 }
 
 /* Generic header action button — same shell as .pane-header-close, used
@@ -2319,13 +2347,12 @@ canvas {
   font-weight: 600;
 }
 
+/* .modal-close — alias of .btn-icon (shell shared). Overrides:
+   inherited color, 18px font, 4px 8px padding, 6px radius.
+   Uses its own hover (.08 overlay, no color change) — not the shared hover. */
 .modal-header button.modal-close {
-  appearance: none;
-  background: transparent;
-  border: 0;
   color: inherit;
   font-size: 18px;
-  cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
 }
@@ -2442,17 +2469,14 @@ canvas {
   font-size: 11px;
   color: rgba(232, 232, 237, 0.55);
 }
+/* .recent-remove — alias of .btn-icon. Overrides: pushed right via auto
+   margin, 4px 8px padding. Hover transition uses the shared color+bg
+   pattern (was opacity-based — converted per audit Inconsistency 5). */
 .recent-row .recent-remove {
   margin-left: auto;
-  appearance: none;
-  background: transparent;
-  border: 0;
-  color: inherit;
-  cursor: pointer;
-  opacity: 0.55;
+  color: #7279a2;
   padding: 4px 8px;
 }
-.recent-row .recent-remove:hover { opacity: 1; }
 
 .recent-row--active {
   background: rgba(91, 157, 255, 0.08);
@@ -2561,19 +2585,16 @@ canvas {
  * read as the same affordance: fixed 22×22 square, muted blue-grey,
  * brightens on hover. Margins differ to anchor each to its end of the
  * flex row. */
+/* .switch-source-btn, .app-header-refresh-btn, .app-header-repo-link —
+   aliases of .btn-icon (shell + hover shared). Overrides: 24×24 footprint,
+   3px radius, text-decoration: none (since repo-link is an <a>),
+   -webkit-app-region: no-drag for the Electron drag region. */
 .switch-source-btn,
 .app-header-refresh-btn,
 .app-header-repo-link {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   width: 24px;
   height: 24px;
-  background: none;
-  border: none;
   color: #7279a2;
-  cursor: pointer;
   border-radius: 3px;
   text-decoration: none;
   -webkit-app-region: no-drag;
@@ -2581,12 +2602,6 @@ canvas {
 .switch-source-btn { margin-right: 0; }
 .app-header-refresh-btn { margin-left: 4px; }
 .app-header-repo-link { margin-right: 4px; }
-.switch-source-btn:hover,
-.app-header-refresh-btn:hover,
-.app-header-repo-link:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
-}
 .switch-source-btn .lucide-icon,
 .app-header-refresh-btn .lucide-icon,
 .app-header-repo-link .lucide-icon {
