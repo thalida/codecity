@@ -702,19 +702,30 @@ if (_canvas) {
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
 
-    // One-shot migration: pre-this-change, PICKER_SELECTION_KEY was persisted
-    // as a global key (cc.PICKER_SELECTION_KEY). If it's still there AND we
-    // have a source loaded (URL has ?src=), copy it under the source's namespace
-    // and drop the legacy slot.
+    // One-shot migration: pre-this-change, PICKER_SELECTION_KEY and cameraPose
+    // were both persisted as global keys. If they're still there AND we have a
+    // source loaded (URL has ?src=), copy them under the source's namespace
+    // and drop the legacy slots.
     {
-      const legacy = localStorage.getItem('cc.PICKER_SELECTION_KEY');
-      if (legacy !== null && new URLSearchParams(window.location.search).has('src')) {
-        const qp = new URLSearchParams(window.location.search);
+      const qp = new URLSearchParams(window.location.search);
+      if (qp.has('src')) {
         const k = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
-        if (localStorage.getItem(`cc.source.${k}.selection`) === null) {
-          localStorage.setItem(`cc.source.${k}.selection`, legacy);
+
+        const legacySel = localStorage.getItem('cc.PICKER_SELECTION_KEY');
+        if (legacySel !== null) {
+          if (localStorage.getItem(`cc.source.${k}.selection`) === null) {
+            localStorage.setItem(`cc.source.${k}.selection`, legacySel);
+          }
+          localStorage.removeItem('cc.PICKER_SELECTION_KEY');
         }
-        localStorage.removeItem('cc.PICKER_SELECTION_KEY');
+
+        const legacyCam = localStorage.getItem('cc.cameraPose');
+        if (legacyCam !== null) {
+          if (localStorage.getItem(`cc.source.${k}.cameraPose`) === null) {
+            localStorage.setItem(`cc.source.${k}.cameraPose`, legacyCam);
+          }
+          localStorage.removeItem('cc.cameraPose');
+        }
       }
     }
 
