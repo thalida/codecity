@@ -52,6 +52,20 @@ import { createSourcePicker, type SourcePayload } from './views/shell/sourcePick
 import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
+import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
+
+// Rewrite manifest.tree.name to the friendly label derived from display_root
+// so that every downstream consumer (root street label, file tree root row,
+// footer name, document.title) shows the human-readable source name instead
+// of the cache-directory hash. Server returns the cache path as `root`; this
+// client-side mutation is the single point of policy. Must be called BEFORE
+// applyManifest so the scene is built with the correct name from the start.
+function _applyDisplayLabel(manifest: Manifest): void {
+  const friendly = labelFromDisplayRoot(manifest.display_root, manifest.tree?.name ?? '');
+  if (manifest.tree && friendly) {
+    manifest.tree.name = friendly;
+  }
+}
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -68,6 +82,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // every other module reads cityScene directly through accessors.
   const cityScene = createCityScene(canvas);
   const scene = cityScene.scene;
+  _applyDisplayLabel(manifest);
   await cityScene.applyManifest(manifest);
 
   // -- 3. Renderer -------------------------------------------------------------
@@ -599,6 +614,7 @@ function setupLiveUpdates(
       const m: Manifest | null = await resp.json();
       if (m?.signature) {
         lastSignature = m.signature;
+        _applyDisplayLabel(m);
         await handle.cityScene.applyManifest(m);
       }
       REBUILD_STATUS.set('idle');
@@ -874,6 +890,7 @@ if (_canvas) {
           console.warn('[codecity] icon atlas build failed', err);
         }
 
+        _applyDisplayLabel(manifest);
         await handle.cityScene.applyManifest(manifest);
         _liveUpdates?.setSignature(manifest.signature);
         pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });

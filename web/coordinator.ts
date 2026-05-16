@@ -80,15 +80,10 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
   const _initManifest = cityScene.getManifest();
-  // Derive the friendly label once and, critically, WRITE IT BACK into
-  // manifest.tree.name so every downstream consumer (tree pane root row,
-  // street label, footer name) automatically sees the friendly label
-  // without each needing its own display_root lookup. This is a
-  // controlled client-side mutation — the server-supplied cache-directory
-  // hash is only meaningful to the server; the UI should always show the
-  // human-readable source name.
+  // Derive the friendly label for the header breadcrumb and document title.
+  // manifest.tree.name is already set to the friendly value by main.ts
+  // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
   const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
-  if (_initManifest && _rootLabel) _initManifest.tree.name = _rootLabel;
   document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
   const appHeader = initAppHeader({
     rootLabel: _rootLabel,
@@ -300,12 +295,11 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // polls (commit, checkout, edit) so the footer follows the manifest.
   const _changeUnsub = cityScene.onChange(() => {
     const m = cityScene.getManifest();
-    // Apply the same friendly-label mutation on each manifest refresh so
-    // live-update polls and source switches always surface the human-readable
-    // name, not the cache-directory hash.
+    // manifest.tree.name is already the friendly label — main.ts calls
+    // _applyDisplayLabel before every applyManifest, so no mutation needed here.
+    // Keep document.title in sync with the now-correct name.
     if (m) {
       const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
-      if (freshLabel) m.tree.name = freshLabel;
       document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
     }
     appFooter.setRepoInfo(_repoInfoFromManifest(m));
