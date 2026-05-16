@@ -311,6 +311,41 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Small atoms (dots, inline code)
+   ═══════════════════════════════════════════════════════════════════════════
+   .dot          — 6×6 status indicator. Pair with a .dot--success /
+                   --warning / --error modifier for semantic color.
+   .code-inline  — accent-tinted mono pill for inline code / kbd keys.
+                   Two variants in the aliases below: kbd (smaller, secondary
+                   text, stronger border) and info-markdown code (larger,
+                   primary text).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dot,
+.app-footer-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cc-radius-circle);
+  flex: 0 0 auto;
+}
+.dot--success { background: var(--cc-success); }
+.dot--warning { background: var(--cc-warning); }
+.dot--error   { background: var(--cc-error); }
+
+.code-inline,
+.controls-section-hint kbd,
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse,
+.info-markdown code {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Pane structure
    ═══════════════════════════════════════════════════════════════════════════
    .pane       — fills the available flex space, lays out children in a
@@ -1023,12 +1058,8 @@ canvas {
   align-items: center;
   gap: var(--cc-space-3);
 }
-.app-footer-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--cc-radius-circle);
-  flex: 0 0 auto;
-}
+/* Shape in .dot above; state-driven colors come from the .is-* parent
+   modifiers below. */
 .app-footer-status-detail {
   color: var(--cc-text-muted);
   overflow: hidden;
@@ -1397,17 +1428,14 @@ canvas {
   margin-bottom: var(--cc-space-6);
 }
 
+/* Shell from .code-inline; this rule adds the kbd-specific border, color,
+   small font, hairline horizontal margin, and resets italics. */
 .controls-section-hint kbd,
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
-  display: inline-block;
-  background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg-strong);
-  border-radius: var(--cc-radius-sm);
   color: var(--cc-text-secondary);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: var(--cc-font-sm);
-  padding: var(--cc-space-px) var(--cc-space-3);
   margin: 0 var(--cc-space-px);
   line-height: 1.2;
   font-style: normal;
@@ -2256,14 +2284,12 @@ canvas {
   margin: var(--cc-space-7) 0;
 }
 
+/* Shell from .code-inline; this rule adds the info-markdown specific
+   larger font and primary text color. */
 .info-markdown code {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: var(--cc-font-lg);
-  background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg);
-  border-radius: var(--cc-radius-sm);
-  padding: var(--cc-space-px) var(--cc-space-3);
   color: var(--cc-text-primary);
+  font-size: var(--cc-font-lg);
 }
 
 .info-markdown pre {
