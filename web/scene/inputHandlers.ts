@@ -56,6 +56,15 @@ export function createInputHandlers({
   let _hoverPending = null;
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
+  let _cameraMoving = false;
+  let _cameraSettleTimeout: ReturnType<typeof setTimeout> | 0 = 0;
+
+  // ms of camera idle after a change event before hover re-enables.
+  // Covers orbit damping (which keeps firing change events for ~100ms
+  // after release), zoom inertia, and the tail end of programmatic
+  // camera tweens (rig.focusBuilding etc.).
+  const CAMERA_SETTLE_MS = 80;
+
   // Prepend the root directory name (with a leading slash) to a manifest-
   // relative path so the hover tooltip reads as an absolute-looking path
   // (e.g. "/codecity/web/main.ts" rather than "web/main.ts"). The manifest
@@ -115,6 +124,7 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
+    if (_cameraMoving) return;  // suppress hover while camera is moving
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
@@ -268,6 +278,40 @@ export function createInputHandlers({
       } else if (sel.kind === NodeKind.Directory) {
         rig.focusStreet(sel.street, null);
       }
+    }
+  });
+
+  // OrbitControls extends EventDispatcher (not EventTarget) so we can't
+  // use the _on helper here — register and dispose manually.
+  const _cameraChangeHandler = () => {
+    if (!_cameraMoving) {
+      _cameraMoving = true;
+      // Drop any in-flight hover so the highlight doesn't linger from
+      // before the camera started moving.
+      if (_hoverCommitId) {
+        clearTimeout(_hoverCommitId);
+        _hoverCommitId = 0;
+      }
+      _hoverPending = null;
+      if (picker.hover.get()) picker.setHover(null);
+      hideTooltip();
+      // Cursor: default cursor while camera moves; the next post-settle
+      // hover RAF will re-set 'pointer' or 'grab' as appropriate.
+      canvas.style.cursor = 'grabbing';
+    }
+    if (_cameraSettleTimeout) clearTimeout(_cameraSettleTimeout);
+    _cameraSettleTimeout = setTimeout(() => {
+      _cameraMoving = false;
+      _cameraSettleTimeout = 0;
+      canvas.style.cursor = 'grab';
+    }, CAMERA_SETTLE_MS);
+  };
+  rig.controls.addEventListener('change', _cameraChangeHandler);
+  _disposers.push(() => {
+    rig.controls.removeEventListener('change', _cameraChangeHandler);
+    if (_cameraSettleTimeout) {
+      clearTimeout(_cameraSettleTimeout);
+      _cameraSettleTimeout = 0;
     }
   });
 
