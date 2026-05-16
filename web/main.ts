@@ -48,6 +48,9 @@ import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
+import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
+import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
+import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
@@ -687,6 +690,48 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
   });
 }
 
+// ── Boot helpers ────────────────────────────────────────────────────────────
+
+function _captionFor(src: string, branch?: string): string {
+  const label = _deriveLabel(src);
+  return branch
+    ? `Loading ${label} (branch ${branch})…`
+    : `Loading ${label}…`;
+}
+
+function _deriveLabel(src: string): string {
+  if (/:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src)) {
+    // git URL — try "owner/repo" from the last two path segments
+    const m = src.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    if (m) return `${m[1]}/${m[2]}`;
+    return src;
+  }
+  // Local path — basename
+  const parts = src.split(/[\/\\]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : src;
+}
+
+const EMPTY_MANIFEST: Manifest = {
+  root: '',
+  scanned_at: new Date().toISOString(),
+  signature: '',
+  tree: {
+    name: '',
+    type: NodeKind.Directory,
+    path: '',
+    fullPath: '',
+    children: [],
+    children_count: 0,
+    children_file_count: 0,
+    children_dir_count: 0,
+    descendants_count: 0,
+    descendants_file_count: 0,
+    descendants_dir_count: 0,
+    descendants_size: 0,
+  },
+  repo: null,
+};
+
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
@@ -698,9 +743,6 @@ if (_canvas) {
     // session — otherwise the first paint ignores the saved value and
     // only corrects itself on the next poll.
     attachPersistence(Config);
-    // Picker's selectionKey atom isn't part of the Config barrel, so
-    // wire its persistence directly. Hydrating BEFORE startRenderLoop
-    // lets the picker's first key→selection resolve see the saved key.
 
     // One-shot migration: pre-this-change, PICKER_SELECTION_KEY and cameraPose
     // were both persisted as global keys. If they're still there AND we have a
@@ -729,9 +771,8 @@ if (_canvas) {
       }
     }
 
-    // Set CURRENT_SOURCE_KEY before per-source persistence wires up so the
-    // initial hydration sees the right key. Note: this is also done in
-    // Task 19's boot rewrite — keep it minimal here.
+    // Set CURRENT_SOURCE_KEY from URL params BEFORE wiring per-source
+    // persistence so hydration sees the right key.
     {
       const qp = new URLSearchParams(window.location.search);
       if (qp.has('src')) {
@@ -740,26 +781,148 @@ if (_canvas) {
     }
 
     persistAtomPerSource('selection', PICKER_SELECTION_KEY, null);
-    const resp = await fetch(manifestUrl());
-    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
-    const manifest: Manifest = await resp.json();
 
-    // Build the file-icon atlas before the city's first paint so
-    // building roofs already wear their file-type glyph on the very
-    // first frame. Failure here just means a city without roof icons —
-    // boot still continues.
-    try {
-      const atlas = await buildIconAtlas(manifest);
-      setIconAtlas(atlas);
-    } catch (err) {
-      console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+    const qp = new URLSearchParams(window.location.search);
+    const hasSrc = qp.has('src');
+
+    const loadingOverlay = createLoadingOverlay();
+
+    let initialManifest: Manifest;
+    let initialError: string | null = null;
+    if (hasSrc) {
+      loadingOverlay.show(_captionFor(qp.get('src')!, qp.get('branch') ?? undefined));
+      try {
+        const resp = await fetch(manifestUrl());
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        initialManifest = await resp.json();
+      } catch (err) {
+        initialError = err instanceof Error ? err.message : String(err);
+        initialManifest = EMPTY_MANIFEST;
+      }
+    } else {
+      initialManifest = EMPTY_MANIFEST;
     }
 
-    const handle = await startRenderLoop(_canvas, manifest);
+    if (hasSrc && !initialError) {
+      try {
+        const atlas = await buildIconAtlas(initialManifest);
+        setIconAtlas(atlas);
+      } catch (err) {
+        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+      }
+    }
+
+    const handle = await startRenderLoop(_canvas, initialManifest);
     attachHotReload({
       cityScene: handle.cityScene,
       applyTheme: handle.applyTheme,
     });
-    setupLiveUpdates(handle, manifest.signature);
+
+    let liveUpdatesStarted = false;
+    if (hasSrc && !initialError) {
+      setupLiveUpdates(handle, initialManifest.signature);
+      liveUpdatesStarted = true;
+    }
+
+    let picker: ReturnType<typeof createSourcePicker>;
+
+    // Remember the dismissible flag of the most recent open() call so error
+    // reopen preserves it (header-switch reopen stays dismissible after a
+    // failed submit; cold-boot reopen stays non-dismissible).
+    let _lastDismissible = false;
+
+    async function applyNewSource(payload: SourcePayload): Promise<void> {
+      const dismissibleOnError = _lastDismissible;
+      loadingOverlay.show(_captionFor(payload.src, payload.branch));
+      try {
+        const url = new URL('/api/manifest', window.location.origin);
+        url.searchParams.set('src', payload.src);
+        if (payload.branch) url.searchParams.set('branch', payload.branch);
+        const resp = await fetch(url.toString());
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        const manifest: Manifest = await resp.json();
+
+        // Update URL first so per-source persistence subscriptions see the
+        // right CURRENT_SOURCE_KEY on the next tick.
+        const pageUrl = new URL(window.location.href);
+        pageUrl.searchParams.set('src', payload.src);
+        if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
+        else pageUrl.searchParams.delete('branch');
+        history.replaceState(null, '', pageUrl.toString());
+
+        CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
+
+        try {
+          setIconAtlas(await buildIconAtlas(manifest));
+        } catch (err) {
+          console.warn('[codecity] icon atlas build failed', err);
+        }
+
+        await handle.cityScene.applyManifest(manifest);
+        pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });
+
+        if (!liveUpdatesStarted) {
+          setupLiveUpdates(handle, manifest.signature);
+          liveUpdatesStarted = true;
+        }
+      } catch (err) {
+        loadingOverlay.hide();
+        picker.open({
+          dismissible: dismissibleOnError,
+          prefill: payload,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return;
+      } finally {
+        loadingOverlay.hide();
+      }
+    }
+
+    picker = createSourcePicker({
+      onSubmit: (payload) => {
+        picker.close();
+        applyNewSource(payload);
+      },
+    });
+
+    // Wrap open() so we remember the dismissible flag for the next error reopen.
+    const _originalOpen = picker.open.bind(picker);
+    picker.open = (o = {}) => {
+      _lastDismissible = !!o.dismissible;
+      _originalOpen(o);
+    };
+
+    // Boot decisions:
+    if (initialError) {
+      // Direct-boot fetch failed → modal in non-dismissible mode with the error.
+      picker.open({
+        dismissible: false,
+        prefill: { src: qp.get('src')!, branch: qp.get('branch') ?? undefined },
+        error: initialError,
+      });
+    } else if (!hasSrc) {
+      // Cold boot, no URL params → modal in non-dismissible mode.
+      picker.open({ dismissible: false });
+    } else {
+      // Boot complete with manifest applied.
+      loadingOverlay.hide();
+    }
+
+    // Wire the header "switch source" button via a global hook.
+    (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker = () => {
+      const cur = new URLSearchParams(window.location.search);
+      picker.open({
+        dismissible: true,
+        prefill: cur.has('src')
+          ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
+          : undefined,
+      });
+    };
   })();
 }

@@ -2285,3 +2285,18 @@ canvas {
 @keyframes cc-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Switch-source button (header, next to breadcrumb) */
+.switch-source-btn {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  padding: 4px 8px;
+  margin-left: 8px;
+  border-radius: 4px;
+  opacity: 0.6;
+  font: inherit;
+}
+.switch-source-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }

@@ -84,6 +84,10 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
+    onSwitchSource() {
+      const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
+      fn?.();
+    },
   });
   appHeader.setSelection(null);
 

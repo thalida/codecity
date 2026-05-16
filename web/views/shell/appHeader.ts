@@ -25,6 +25,8 @@ interface InitAppHeaderOpts {
   rootPath?: string;
   /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
   onSegmentClick?: ((path: string) => void) | null;
+  /** fires when the user clicks the switch-source button in the header */
+  onSwitchSource?: () => void;
 }
 
 /**
@@ -34,7 +36,7 @@ interface InitAppHeaderOpts {
  * asphalt color in Controls live-repaints the currently-shown badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const { rootLabel = '', rootPath = '', onSegmentClick = null } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource } = opts;
 
   const titleEl = document.getElementById('app-title');
   if (!titleEl) {
@@ -132,6 +134,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       _copy(path, btn);
     });
     return btn;
+  }
+
+  // Switch-source button — sits in the header row next to the title slot.
+  // Rendered once outside setSelection because it doesn't depend on the
+  // current breadcrumb selection; it just needs to exist alongside it.
+  if (onSwitchSource) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'switch-source-btn';
+    btn.title = 'Switch source';
+    btn.setAttribute('aria-label', 'Switch source');
+    btn.textContent = '⟳';
+    btn.addEventListener('click', () => onSwitchSource());
+    titleEl.parentElement?.appendChild(btn);
   }
 
   // Live config: re-render the cached selection whenever a store that
