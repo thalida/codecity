@@ -2304,7 +2304,10 @@ canvas {
   font-weight: 600;
 }
 
-/* ── Source picker modal + loading overlay ─────────────────────────────── */
+/* ── Source picker modal + loading overlay ───────────────────────────────
+   Radius convention (per docs/ui-styleguide-audit.md §6 Inconsistency 3):
+   outer .modal-card is 10px; every interactive child (close button, tabs,
+   input, error, submit button) is 6px. Keep new modal children at 6px. */
 
 .modal-backdrop,
 .loading-backdrop {
