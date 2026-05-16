@@ -15,8 +15,6 @@
 // The refresh/reset-view button has moved to the header (far right).
 
 import { DateSource, NodeKind } from '@/types';
-import { makeLucideIcon } from './icon.js';
-import { toHttpsRepoUrl } from './displayLabel.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -53,13 +51,9 @@ export interface FooterStatus {
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
   setStatus(_status: FooterStatus) {},
-  setSourceUrl(_url?: string) {},
 };
 
-interface InitAppFooterOpts {
-  /** Original src URL when the loaded source is a git URL. Used to render the open-repo link. */
-  sourceUrl?: string;
-}
+interface InitAppFooterOpts {}
 
 /**
  * Initialise the sitewide footer. Returns:
@@ -80,39 +74,6 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
   const statusEl = document.createElement('span');
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
-
-  // Repo link — rendered after status detail when a git URL source is loaded.
-  let _repoLinkEl: HTMLAnchorElement | null = null;
-  let _sourceUrl: string | undefined = opts.sourceUrl;
-
-  function _syncRepoLink(): void {
-    if (_sourceUrl) {
-      if (!_repoLinkEl) {
-        const a = document.createElement('a');
-        a.className = 'app-footer-repo-link';
-        a.target = '_blank';
-        a.rel = 'noopener noreferrer';
-        a.appendChild(makeLucideIcon('external-link'));
-        _repoLinkEl = a;
-        statusContainerEl.appendChild(_repoLinkEl);
-      }
-      _repoLinkEl.href = toHttpsRepoUrl(_sourceUrl);
-      _repoLinkEl.title = `Open repo: ${_sourceUrl}`;
-    } else {
-      if (_repoLinkEl) {
-        _repoLinkEl.remove();
-        _repoLinkEl = null;
-      }
-    }
-  }
-
-  function setSourceUrl(url?: string): void {
-    _sourceUrl = url;
-    _syncRepoLink();
-  }
-
-  // Initial render of repo link if sourceUrl was passed at init time.
-  _syncRepoLink();
 
   const selectionEl = document.createElement('div');
   selectionEl.className = 'app-footer-section app-footer-right';
@@ -213,7 +174,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     }
   }
 
-  return { setSelection, setStatus, setSourceUrl };
+  return { setSelection, setStatus };
 }
 
 const SEC_MS = 1000;

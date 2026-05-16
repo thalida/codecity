@@ -112,13 +112,12 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       rig.reset();
     },
     branch: _initBranch,
+    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter({
-    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
-  });
+  const appFooter = initAppFooter({});
   const initialManifest = cityScene.getManifest();
   appFooter.setSelection({
     kind: NodeKind.Directory,
@@ -362,8 +361,7 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
     const m = cityScene.getManifest();
     const label = labelFromDisplayRoot(m?.display_root, m?.tree?.name ?? '');
-    appHeader.setSourceInfo(label, branch);
-    appFooter.setSourceUrl(sourceUrl);
+    appHeader.setSourceInfo(label, branch, sourceUrl);
   }
 
   return {

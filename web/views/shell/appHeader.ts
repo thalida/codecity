@@ -8,6 +8,7 @@
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
 import { makeExtensionBadge } from './badge.js';
+import { toHttpsRepoUrl } from './displayLabel.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -32,6 +33,8 @@ interface InitAppHeaderOpts {
   onRefresh?: () => void;
   /** Branch name when the loaded source is a git URL with an explicit branch. */
   branch?: string;
+  /** Original src URL when the loaded source is a git URL — used to render the open-repo link next to the project button. */
+  sourceUrl?: string;
 }
 
 /**
@@ -50,7 +53,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
-      setSourceInfo(_rootLabel?: string, _branch?: string) {},
+      setSourceInfo(_rootLabel?: string, _branch?: string, _sourceUrl?: string) {},
     };
   }
 
@@ -60,6 +63,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   // Current branch — updated by setSourceInfo after mid-session source switches.
   let _branch = opts.branch;
+  let _sourceUrl = opts.sourceUrl;
+  let _repoLinkEl: HTMLAnchorElement | null = null;
 
   // Project button — rendered once and mutated by setSourceInfo.
   let _projectBtn: HTMLButtonElement | null = null;
@@ -136,7 +141,27 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
    * Either argument can be omitted to leave that field unchanged. Pass
    * `null` to explicitly clear (e.g., `branch: null` removes the pill).
    */
-  function setSourceInfo(rootLabel?: string, branch?: string): void {
+  function _syncRepoLink(): void {
+    if (_sourceUrl && _projectBtn?.parentElement) {
+      if (!_repoLinkEl) {
+        const a = document.createElement('a');
+        a.className = 'app-header-repo-link';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.setAttribute('aria-label', 'Open repository in a new tab');
+        a.appendChild(makeLucideIcon('external-link'));
+        _repoLinkEl = a;
+        _projectBtn.parentElement.insertBefore(_repoLinkEl, _projectBtn.nextSibling);
+      }
+      _repoLinkEl.href = toHttpsRepoUrl(_sourceUrl);
+      _repoLinkEl.title = `Open repo: ${_sourceUrl}`;
+    } else if (_repoLinkEl) {
+      _repoLinkEl.remove();
+      _repoLinkEl = null;
+    }
+  }
+
+  function setSourceInfo(rootLabel?: string, branch?: string, sourceUrl?: string): void {
     if (typeof rootLabel === 'string') {
       _rootLabel = rootLabel;
       if (_projectLabelEl) _projectLabelEl.textContent = _rootLabel;
@@ -155,6 +180,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         _projectBtn.appendChild(_branchPillEl);
       }
     }
+
+    _sourceUrl = sourceUrl;
+    _syncRepoLink();
+
     setSelection(lastSelection);
   }
 
@@ -213,6 +242,12 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     _projectBtn = btn;
     titleEl.parentElement?.prepend(btn);
+
+    // Render the open-repo link IMMEDIATELY AFTER the project button if a
+    // git source URL was passed at init. _syncRepoLink relies on _projectBtn
+    // being inserted into the DOM (it positions the link via .nextSibling),
+    // so this call must happen after the prepend above.
+    _syncRepoLink();
   }
 
   // Refresh button — sits at the far right of the header row, appended

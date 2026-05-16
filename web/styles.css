@@ -1055,12 +1055,12 @@ canvas {
 /* ── Theme + Advanced widgets ───────────────────────────────────────── */
 
 .theme-subgroup {
-  margin-top: 14px;
-  padding-top: 10px;
+  margin-top: 4px;
+  padding-top: 4px;
   border-top: 1px dashed #1a1c28;
 }
 .theme-subgroup:first-of-type {
-  margin-top: 12px;
+  margin-top: 6px;
   padding-top: 0;
   border-top: none;
 }
@@ -1085,8 +1085,12 @@ canvas {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 16px;
-  margin-left: -16px;
+  /* Indented inside the section — top-level summaries get -16px to stretch
+   * edge-to-edge; nested sub-accordions stay inset so the hierarchy reads.
+   * Left padding (12px) shifts the chevron + label rightward; the negative
+   * right margin keeps the hover bg edge-to-edge on that side. */
+  padding: 3px 16px 3px 12px;
+  margin-left: 0;
   margin-right: -16px;
   margin-bottom: 4px;
   border-radius: 4px;
@@ -2427,7 +2431,8 @@ canvas {
  * brightens on hover. Margins differ to anchor each to its end of the
  * flex row. */
 .switch-source-btn,
-.app-header-refresh-btn {
+.app-header-refresh-btn,
+.app-header-repo-link {
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -2439,18 +2444,23 @@ canvas {
   color: #7279a2;
   cursor: pointer;
   border-radius: 3px;
+  text-decoration: none;
   -webkit-app-region: no-drag;
 }
 .switch-source-btn { margin-right: 4px; }
 .app-header-refresh-btn { margin-left: 4px; }
+.app-header-repo-link { margin-right: 4px; }
 .switch-source-btn:hover,
-.app-header-refresh-btn:hover {
+.app-header-refresh-btn:hover,
+.app-header-repo-link:hover {
   color: #e0e4f5;
   background: rgba(255, 255, 255, 0.06);
 }
 .switch-source-btn .lucide-icon,
-.app-header-refresh-btn .lucide-icon {
+.app-header-refresh-btn .lucide-icon,
+.app-header-repo-link .lucide-icon {
   font-size: 14px;
 }
 .switch-source-btn svg,
-.app-header-refresh-btn svg { display: block; }
+.app-header-refresh-btn svg,
+.app-header-repo-link svg { display: block; }
