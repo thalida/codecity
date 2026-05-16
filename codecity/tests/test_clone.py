@@ -171,5 +171,29 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
         self.assertTrue(issubclass(HostUnreachableError, CloneError))
 
 
+class RunGitEnvTests(unittest.TestCase):
+    def test_run_git_disables_terminal_prompt(self) -> None:
+        from codecity import clone as clone_mod
+
+        captured = {}
+
+        def fake_run(*args, **kwargs):
+            captured["env"] = kwargs.get("env")
+            class R:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return R()
+
+        with mock.patch.object(subprocess, "run", side_effect=fake_run):
+            clone_mod._run_git("status")
+
+        env = captured["env"]
+        self.assertIsNotNone(env)
+        self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+        self.assertEqual(env["GIT_ASKPASS"], "/usr/bin/true")
+        self.assertEqual(env["SSH_ASKPASS"], "/usr/bin/true")
+
+
 if __name__ == "__main__":
     unittest.main()

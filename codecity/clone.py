@@ -84,6 +84,12 @@ def _maybe_raise_clean_clone_error(
 
 
 def _run_git(*args: str, cwd: Path | None = None) -> str:
+    env = {
+        **os.environ,
+        "GIT_TERMINAL_PROMPT": "0",
+        "GIT_ASKPASS": "/usr/bin/true",
+        "SSH_ASKPASS": "/usr/bin/true",
+    }
     try:
         proc = subprocess.run(
             ["git", *args],
@@ -91,6 +97,7 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
             capture_output=True,
             text=True,
             check=False,
+            env=env,
         )
     except FileNotFoundError as e:
         raise CloneError("git executable not found on PATH") from e
