@@ -34,12 +34,12 @@ export interface BuildingDimensionsConfig {
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   MIN_FLOORS: 2,
-  MAX_FLOORS: 100,
-  FLOOR_HEIGHT: 10, // scene units per floor
-  MIN_WIDTH: 5,
-  MAX_WIDTH: 80,
-  PATH_LENGTH: 4, // connector strip length (building wall → sidewalk)
-  PATH_WIDTH_FRAC: 0.4, // per-building: pathWidth = building.w × this; also drives door width
+  MAX_FLOORS: 96,
+  FLOOR_HEIGHT: 16, // scene units per floor
+  MIN_WIDTH: 8,
+  MAX_WIDTH: 96,
+  PATH_LENGTH: 8, // connector strip length (building wall → sidewalk)
+  PATH_WIDTH_FRAC: 0.5, // per-building: pathWidth = building.w × this; also drives door width
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
@@ -63,7 +63,7 @@ export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   // point: above that, channels start blending toward white and the
   // hue washes out into pastel. 55 is a touch above peak to keep
   // newest buildings reading as bright, without losing chroma.
-  SATURATION_MIN: 10,
+  SATURATION_MIN: 5,
   SATURATION_MAX: 100,
   LIGHTNESS_MIN: 5,
   LIGHTNESS_MAX: 50,
@@ -220,7 +220,7 @@ export interface BuildingOutlineConfig {
 export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
   WIDTH: 4, // shared by default + hover + selected
   HOVER_COLOR: '#ffffff',
-  HOVER_OPACITY: 0.85,
+  HOVER_OPACITY: 0.50,
   SELECTED_OPACITY: 1.0,
 });
 
@@ -248,7 +248,7 @@ export interface BuildingAgingConfig {
 
 export const BUILDING_AGING = map<BuildingAgingConfig>({
   GRIME_ENABLED: true,
-  GRIME_INTENSITY: 0.7,
+  GRIME_INTENSITY: 0.75,
   GRIME_COVERAGE: 0.55,
   TILT_ENABLED: true,
   TILT_DEGREES: 1,

@@ -104,7 +104,7 @@ describe('buildBuildingInstanceBuffer', () => {
     expect(buf.floors.length).toBe(3);
     expect(buf.orient.length).toBe(3);
     expect(buf.doorWidth.length).toBe(3);
-    expect(buf.opacity.length).toBe(3);
+    expect(buf.fade.length).toBe(3 * 3);
   });
 
   it('matrix decodes back to the building dimensions', () => {
@@ -143,6 +143,6 @@ describe('buildBuildingInstanceBuffer', () => {
       [fakeStreet('src')],
     );
     const buf = buildBuildingInstanceBuffer(blocks[0]);
-    expect(Array.from(buf.opacity)).toEqual([1.0, 1.0]);
+    expect(Array.from(buf.fade)).toEqual([1.0, 0, 0, 1.0, 0, 0]);
   });
 });

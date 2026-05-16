@@ -44,7 +44,7 @@ export const SCENE_COLORS = map<SceneColorsConfig>({
   FOG_ENABLED: true,
   FOG_COLOR: '#0f0821',
   FOG_INTENSITY: 0.8,
-  FOG_HEIGHT_FRAC: 0.25,
+  FOG_HEIGHT_FRAC: 0.50,
 });
 
 // ─── Camera lens ───────────────────────────────────────────────────────────

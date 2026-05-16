@@ -22,15 +22,25 @@ attribute vec2 iCols;           // (cols_ew, cols_ns) — window column counts
 attribute float iFloors;        // window row count
 attribute float iOrient;        // 0=S, 1=N, 2=E, 3=W (door face)
 attribute float iDoorWidth;     // door world-width
-attribute float iOpacity;       // [0..1] alpha for fader
-attribute float iSilhouette;    // 0 = full facade, 1 = solid silhouette (no windows/door/slab)
-attribute float iOutlineOpacity; // [0..1] composite outline at face edges (Hidden tier wireframe)
+// Packed fader state in a single vec3 attribute (1 slot instead of 3) so
+// we stay under GL_MAX_VERTEX_ATTRIBS=16. Unpacked to the three existing
+// varyings in main(). Mutated at runtime by scene/effects/buildingFader.ts.
+//   .x = opacity        — [0..1] alpha for body fade
+//   .y = silhouette     — 0 = full facade, 1 = solid silhouette
+//   .z = outlineOpacity — [0..1] outline alpha for Hidden tier wireframe
+attribute vec3 iFade;
 // Packed attribute (stays under GL_MAX_VERTEX_ATTRIBS=16):
 //   .xy = top-left UV of file-icon slot in the atlas, or (-1,-1) for "no icon"
 //   .z  = per-file random in [0, 1] driving the window gap / lit hash
 //   .w  = createdAge — 0 (newest file) to 1 (oldest), repo-relative.
-//         Independent of color/freshness; drives grime/weathering.
+//         Independent of modifiedAge; drives grime/weathering.
 attribute vec4 iIconUV;
+// Per-instance modifiedAge in [0, 1]. 0 = most recently modified
+// (vivid, fully lit windows); 1 = longest-untouched (dim, mostly
+// dark windows). Mirrors iIconUV.w (createdAge) in polarity but
+// keyed off the modified-date axis. Used in the fragment shader's
+// renderWallFace via vModifiedAge.
+attribute float iModifiedAge;
 
 // Max age-tilt in radians (config: BUILDING_AGING.TILT_DEGREES → radians;
 // or 0 when TILT_ENABLED is off). Pushed from refreshBuildingMaterial.
@@ -49,6 +59,7 @@ flat varying float vOutlineOpacity;
 flat varying vec3 vColor;
 flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
+flat varying float vModifiedAge; // pass-through of iModifiedAge
 varying float vWorldY;          // world-space height, for height-based ground haze in frag
 
 void main() {
@@ -66,10 +77,11 @@ void main() {
   vFloors = iFloors;
   vOrient = iOrient;
   vDoorWidth = iDoorWidth;
-  vOpacity = iOpacity;
-  vSilhouette = iSilhouette;
-  vOutlineOpacity = iOutlineOpacity;
+  vOpacity = iFade.x;
+  vSilhouette = iFade.y;
+  vOutlineOpacity = iFade.z;
   vIconUV = iIconUV;
+  vModifiedAge = iModifiedAge;
   // Three.js sets `instanceColor` automatically when an InstancedBufferAttribute
   // named `instanceColor` is added; access via the predefined uniform path.
   // For our case we declare it as a varying derived from a custom attribute.

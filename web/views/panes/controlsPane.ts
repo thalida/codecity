@@ -177,7 +177,7 @@ function _buildUpdatesSection(): HTMLElement {
         tip: "When on, the city re-renders in place every poll interval if the scanned tree's mtime/size signature changed.",
       }),
       _number('Poll interval (s)', LIVE_UPDATES, 'POLL_SECONDS', 1, 60, 1, {
-        tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server.',
+        tip: 'How often to re-fetch the manifest. Lower = snappier; higher = lighter on the local server. Below 1s hammers the backend; above 60s the city feels stale.',
       }),
     ])
   );
@@ -225,13 +225,13 @@ function _buildCameraSection(): HTMLElement {
   section.appendChild(
     _subgroup('Transitions', [
       _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
-        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio.',
+        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
       _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
-        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish.',
+        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function.',
       }),
       _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
-        tip: 'Enter / stay duration for buildings as they fade in or refresh.',
+        tip: 'Enter / stay duration for buildings as they fade in or refresh. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
     ])
   );
@@ -347,13 +347,13 @@ function _buildLayoutSection(): HTMLElement {
   section.appendChild(
     _subgroup('Street spacing', [
       _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
-        tip: 'Distance between sibling children (file or subdir) packed along a street.',
+        tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
       _number('Root end pad', STREET_LAYOUT, 'ROOT_END_PAD', 0, 50, 1, {
-        tip: 'Fallback pad at each end of the root street (which has no parent intersection).',
+        tip: 'Fallback pad at each end of the root street (which has no parent intersection). 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
-      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 20, 1, {
-        tip: 'Extra clear space where a child street meets its parent.',
+      _number('Parent join pad', STREET_LAYOUT, 'PARENT_JOIN_PAD', 0, 50, 1, {
+        tip: 'Extra clear space where a child street meets its parent. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
     ])
   );
@@ -364,13 +364,13 @@ function _buildLayoutSection(): HTMLElement {
         tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
       }),
       _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-        tip: 'Vertical world units per floor (multiplier on the floor count above).',
+        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
       }),
       _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
         tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
       }),
       _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap.",
+        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
       }),
       _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
         tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
@@ -421,25 +421,25 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
       }),
       _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
-        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down.',
+        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down. 0.5 is half the natural 0–1 dot-product range — beyond this the dead zone is so wide labels spend most of the orbit upside-down.',
       }),
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
-        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory.',
+        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory. 512 fits the largest street-label canvas at maximum zoom; below 32 labels are illegible.',
       }),
       _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
         tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
       }),
       _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
-        tip: 'Text outline thickness, as a fraction of the font size.',
+        tip: 'Text outline thickness, as a fraction of the font size. 0.5 is half the natural 0–1 fraction range — above this the stroke overwhelms the glyph fill.',
       }),
       _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
-        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels.',
+        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels. Labels above 2× the street width clip into adjacent rows.',
       }),
       _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
-        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width.',
+        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width. Below 0.5 labels overlap themselves; above 10 the street reads as unlabeled.',
       }),
       _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
-        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up).',
+        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up). Beyond ~1000 world units the spacing forces labels off the visible street.',
       }),
     ])
   );
@@ -450,7 +450,7 @@ function _buildStreetsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Selection path line', [
       _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the rainbow line.',
+        tip: 'Pixel thickness of the rainbow line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
       }),
       _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
@@ -471,7 +471,7 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
       }),
       _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the preview line.',
+        tip: 'Pixel thickness of the preview line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
       }),
       _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
@@ -535,7 +535,7 @@ function _buildBuildingsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Outlines', [
       _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
-        tip: 'Pixel thickness shared by per-building, hover, and selected outlines.',
+        tip: 'Pixel thickness shared by per-building, hover, and selected outlines. Above 10 pixels the wireframe occludes facade detail; below 1 it vanishes at typical zoom.',
       }),
       _color('Hover color', BUILDING_OUTLINE, 'HOVER_COLOR', {
         tip: 'Outline color when the cursor is over a building.',
@@ -550,25 +550,25 @@ function _buildBuildingsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Billboards (media files)', [
       _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
-        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait.',
+        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait. Below 0.3 the panel is too thin to read; above 1.5 a portrait panel taller than 1.5× its width clips into the street tier above.',
       }),
       _slider('Panel depth × width', BILLBOARD_GEOMETRY, 'PANEL_DEPTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Body depth (front-to-back thickness) as a fraction of panel width.',
+        tip: 'Body depth (front-to-back thickness) as a fraction of panel width. Above 0.3 the panel reads as a thick slab rather than a sign.',
       }),
       _slider('Image inset × height', BILLBOARD_GEOMETRY, 'PANEL_INSET_FRAC', 0, 0.2, 0.01, {
-        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness.',
+        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness. Above 0.2 the inset eats more than 20% of the panel height on each side, leaving little visible image area.',
       }),
       _slider('Image offset', BILLBOARD_GEOMETRY, 'IMAGE_OFFSET', 0, 0.2, 0.01, {
-        tip: 'How far in front of the body face the image plane sits.',
+        tip: 'How far in front of the body face the image plane sits. Above 0.2 the image floats noticeably away from the panel body.',
       }),
       _slider('Post height × panel', BILLBOARD_GEOMETRY, 'POST_HEIGHT_FRAC', 0, 3, 0.05, {
-        tip: 'Support post height as a multiple of panel height.',
+        tip: 'Support post height as a multiple of panel height. Above 3× the post towers over the sign and the billboard reads as a flagpole.',
       }),
       _slider('Post width × panel', BILLBOARD_GEOMETRY, 'POST_WIDTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Support post width as a fraction of panel width.',
+        tip: 'Support post width as a fraction of panel width. Above 0.3 the post is wider than a third of the panel and visually dominates the sign.',
       }),
       _slider('Post offset × width', BILLBOARD_GEOMETRY, 'POST_INSET_FRAC', 0, 0.5, 0.01, {
-        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing).',
+        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing). 0.5 places each post at the panel edge; beyond that posts would extend past the panel boundary.',
       }),
       _color('Post color', BILLBOARD_GEOMETRY, 'POST_COLOR', {
         tip: 'Support post color. Default matches the sidewalk gray.',
@@ -591,7 +591,7 @@ function _buildBuildingsSection(): HTMLElement {
     _collapsibleSubgroup('facade', 'Facade', () => [
       _subgroup('Geometry', [
         _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
-          tip: 'Floor-slab strip height as a fraction of one floor.',
+          tip: 'Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor\'s window band — the facade reads as horizontal banding instead of windowed.',
         }),
         _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
           tip: 'Window width as a fraction of its grid cell.',
@@ -600,19 +600,19 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Window height as a fraction of one floor.',
         }),
         _slider('Window margin × face', FACADE_GEOMETRY, 'WINDOW_MARGIN_FRAC', 0, 0.2, 0.005, {
-          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width.',
+          tip: 'Horizontal margin per edge of the window grid, as a fraction of face width. Above 0.2 there is only room for ~3 window columns on a typical building.',
         }),
         _slider('Door height × floor', FACADE_GEOMETRY, 'DOOR_HEIGHT_FRAC', 0, 1, 0.01, {
           tip: 'Door height as a fraction of one floor.',
         }),
         _slider('Roof border × face', FACADE_GEOMETRY, 'ROOF_BORDER_FRAC', 0, 0.1, 0.005, {
-          tip: 'Width of the roof border strip, as a fraction of the face.',
+          tip: 'Width of the roof border strip, as a fraction of the face. Above 0.1 (10% of face width) the border eats into the icon area at the top of the facade.',
         }),
         _number('Max window columns', FACADE_GEOMETRY, 'WINDOW_COLS_MAX', 1, 10, 1, {
-          tip: 'Hard cap on window columns per face. Rebuild required.',
+          tip: 'Hard cap on window columns per face. Rebuild required. Above 10 the window grid becomes too dense to read at typical zoom.',
         }),
         _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
-          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required.',
+          tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows.',
         }),
         _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
           tip: 'Door width as a fraction of the building path width. Rebuild required.',
@@ -639,8 +639,11 @@ function _buildBuildingsSection(): HTMLElement {
         _slider('Gap fraction (age bonus)', WINDOW_LIGHTING, 'GAP_AGE_BONUS', 0, 1, 0.01, {
           tip: 'Extra empty-cell fraction added for the oldest building (interpolates down to 0 for the newest).',
         }),
+        _slider('Lit-window dim curve', WINDOW_LIGHTING, 'LIT_FRESHNESS_EXPONENT', 1, 4, 0.1, {
+          tip: 'Exponent on the recency curve that drives lit-window count + HDR emission. 1 = linear; higher dims mid-age buildings faster so only the freshest ones glow. Beyond 4 only the newest ~6% of files visibly emit (exponent applied to recency).',
+        }),
         _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
-          tip: 'Warm-amber tint that lit panes drift toward as buildings age.',
+          tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
         }),
       ]),
     ])
@@ -666,7 +669,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
         }),
         _slider('Max degrees', BUILDING_AGING, 'TILT_DEGREES', 0, 10, 0.1, {
-          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0.',
+          tip: 'Maximum lean angle (degrees) applied to the oldest building. Newer buildings interpolate down to 0. Above 10° buildings visually clip into their neighbors.',
         }),
       ]),
     ])
@@ -727,13 +730,13 @@ function _buildGemSection(): HTMLElement {
         tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
       }),
       _number('Min radius', GEM_SIZING, 'MIN_RADIUS', 1, 50, 1, {
-        tip: 'Floor for narrow root streets so the gem stays visible.',
+        tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes; above 50 it dwarfs the root plaza.',
       }),
       _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
-        tip: 'Extra vertical lift above the road, on top of the gem radius.',
+        tip: 'Extra vertical lift above the road, on top of the gem radius. Above 2× the gem radius it floats clearly off the ground into the void.',
       }),
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
-        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long.",
+        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
       }),
     ])
   );
@@ -755,13 +758,13 @@ function _buildGemSection(): HTMLElement {
         tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
       }),
       _slider('Inner scale × radius', GEM_GLOW, 'INNER_SCALE', 1, 12, 0.1, {
-        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk.',
+        tip: 'Size of the inner "hot core" halo, as a multiple of the gem radius. Larger = bigger soft disk. Beyond 12× radius the inner core overlaps the outer halo.',
       }),
       _slider('Inner opacity', GEM_GLOW, 'INNER_OPACITY', 0, 1, 0.05, {
         tip: 'Brightness of the hot core. Lower for a subtler halo.',
       }),
       _slider('Outer scale × radius', GEM_GLOW, 'OUTER_SCALE', 1, 30, 0.5, {
-        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem.',
+        tip: 'Size of the outer atmospheric halo. Much larger than the inner one so the falloff reaches far past the gem. Beyond 30× radius the outer halo extends past the typical camera frame.',
       }),
       _slider('Outer opacity', GEM_GLOW, 'OUTER_OPACITY', 0, 1, 0.05, {
         tip: 'Brightness of the atmospheric halo.',
@@ -770,22 +773,24 @@ function _buildGemSection(): HTMLElement {
         tip: 'Cycle the halo color through the gem face palette. Off = halo uses the edge color from Appearance above.',
       }),
       _slider('Cycle period (s)', GEM_GLOW, 'CYCLE_PERIOD_SECONDS', 1, 30, 0.5, {
-        tip: 'Seconds for one full pass through every palette color.',
+        tip: 'Seconds for one full pass through every palette color. Below 1s reads as flicker; above 30s the cycle feels static.',
       }),
     ])
   );
 
   section.appendChild(
     _subgroup('Animation', [
-      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {}),
+      _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {
+        tip: 'Radians per second. Above 3 rad/sec the gem looks frantic.',
+      }),
       _slider('Bob frequency', GEM_ANIMATION, 'BOB_FREQUENCY', 0, 5, 0.1, {
-        tip: 'How fast the gem oscillates vertically.',
+        tip: 'How fast the gem oscillates vertically. Above 5 cycles/sec it reads as vibration, not bobbing.',
       }),
       _slider('Bob amplitude', GEM_ANIMATION, 'BOB_AMPLITUDE_FRAC', 0, 2, 0.05, {
-        tip: 'Vertical bob distance, as a fraction of the gem radius.',
+        tip: 'Vertical bob distance, as a fraction of the gem radius. Above 2× radius the gem flies off the street.',
       }),
       _slider('Hover scale', GEM_ANIMATION, 'HOVER_SCALE', 1, 3, 0.05, {
-        tip: 'Multiplier applied to the gem when the cursor is over it.',
+        tip: 'Multiplier applied to the gem when the cursor is over it. Above 3× the gem dominates the scene on hover.',
       }),
       _slider('Hover lerp', GEM_ANIMATION, 'SCALE_LERP_SPEED', 0.01, 1, 0.01, {
         tip: 'Per-frame ease toward the hover scale.',
@@ -1352,7 +1357,7 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
   const control = _sliderWidget(
     initial,
     1,
-    100,
+    256,
     1,
     (v) => {
       const current = effectiveTiers();
@@ -1374,7 +1379,7 @@ function _tierWidthSlider(index: number, minDescendants: number): HTMLLabelEleme
   subscribeDrafts(refresh);
 
   const rowOpts: ControlOpts = {
-    tip: 'World-unit width for streets in this descendant-count tier.',
+    tip: 'World-unit width for streets in this descendant-count tier. Above ~256 streets overwhelm building footprints; below 1 they disappear.',
   };
   const row = _row(label, control, null, null, rowOpts);
   row

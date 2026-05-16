@@ -36,15 +36,15 @@ export interface FacadeGeometryConfig {
 }
 
 export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
-  SLAB_HEIGHT_FRAC: 0.12,
-  WINDOW_WIDTH_FRAC: 0.45,
+  SLAB_HEIGHT_FRAC: 0.05,
+  WINDOW_WIDTH_FRAC: 0.50,
   WINDOW_HEIGHT_FRAC: 0.45,
   WINDOW_MARGIN_FRAC: 0.08,
-  DOOR_HEIGHT_FRAC: 0.7,
-  ROOF_BORDER_FRAC: 0.03125,
+  DOOR_HEIGHT_FRAC: 0.75,
+  ROOF_BORDER_FRAC: 0.05,
   WINDOW_COLS_MAX: 8,
   WIDTH_PER_WINDOW_COL: 12,
-  DOOR_WIDTH_FRAC_OF_PATH: 0.8,
+  DOOR_WIDTH_FRAC_OF_PATH: 0.75,
 });
 
 // HSL lightness deltas applied via shadeColor() / shadeAndShiftHue() in the
@@ -60,9 +60,9 @@ export interface FacadeDetailConfig {
 }
 
 export const FACADE_DETAIL = map<FacadeDetailConfig>({
-  SLAB_LIGHTNESS_DELTA: -12,
-  DOOR_LIGHTNESS_DELTA: -55,
-  ROOF_BORDER_LIGHTNESS_DELTA: -15,
+  SLAB_LIGHTNESS_DELTA: -10,
+  DOOR_LIGHTNESS_DELTA: -50,
+  ROOF_BORDER_LIGHTNESS_DELTA: -10,
 });
 
 // Window-pane lighting: how panes glow when lit, fade when unlit, and gap
@@ -74,11 +74,18 @@ export interface WindowLightingConfig {
   GAP_BASE_THRESHOLD: number;     // 0..1 (default 0.18) — base fraction of empty cells
   GAP_AGE_BONUS: number;          // 0..1 (default 0.32) — extra empty fraction for oldest
   DIM_GLOW_COLOR: string;         // CSS color (default '#806626') — old-building lit pane tint
+  // Exponent applied to (1 - modifiedAge) when computing lit-window
+  // count and emission. 1.0 = linear (every mid-age building has
+  // proportionally lit windows + emission); >1.0 dims mid-age
+  // buildings faster (a building at modifiedAge=0.5 with exp=2.0
+  // gets recencyCurve=0.25 instead of 0.5). Range: [1.0, 4.0].
+  LIT_FRESHNESS_EXPONENT: number;
 }
 
 export const WINDOW_LIGHTING = map<WindowLightingConfig>({
   UNLIT_LIGHTNESS_DELTA: -4,
-  GAP_BASE_THRESHOLD: 0.15,
+  GAP_BASE_THRESHOLD: 0.25,
   GAP_AGE_BONUS: 0.5,
   DIM_GLOW_COLOR: '#806626', // approx rgb(128, 102, 38) approx (0.5, 0.4, 0.15) * 255
+  LIT_FRESHNESS_EXPONENT: 2.0,
 });

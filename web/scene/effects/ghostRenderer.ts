@@ -9,7 +9,7 @@
 // for the currently active ghost (if any).
 //
 // Field ownership:
-//   buildingFader   → block.detailMesh iOpacity attribute (building body fade)
+//   buildingFader   → block.detailMesh iFade.x attribute (building body fade)
 //   outlineRenderer → hoverOutline + selectedOutline transform + visibility
 //   ghostRenderer   → ghostMesh transform + color + visibility
 //

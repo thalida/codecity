@@ -1,6 +1,6 @@
 // scene/effects/buildingFader.ts — per-instance opacity writes for the
 // building InstancedMesh. Subscribes to picker.selection and picker.hover;
-// on either change, sweeps all blocks and writes the iOpacity
+// on either change, sweeps all blocks and writes the iFade
 // InstancedBufferAttribute for each instance based on tree-distance from
 // the resolved directory target. Marks needsUpdate = true so the shader
 // picks up the new alpha next frame.
@@ -8,7 +8,7 @@
 // Per-frame cost: zero. All work happens once per selection/hover change.
 //
 // Field ownership:
-//   buildingFader   → block.detailMesh geometry attribute 'iOpacity'
+//   buildingFader   → block.detailMesh geometry attribute 'iFade'
 //   outlineRenderer → ghost/outline opacities          (Task 12)
 //   ghostRenderer   → ghost mesh opacity               (Task 13)
 //
@@ -151,39 +151,27 @@ export function createBuildingFader({
     for (const block of cityScene.getBlocks()) {
       // ---- Building instances ----
       if (block.detailMesh) {
-        const iOpacityAttr = block.detailMesh.geometry.getAttribute(
-          'iOpacity'
-        ) as THREE.InstancedBufferAttribute | undefined;
-        const iSilhouetteAttr = block.detailMesh.geometry.getAttribute(
-          'iSilhouette'
-        ) as THREE.InstancedBufferAttribute | undefined;
-        const iOutlineOpacityAttr = block.detailMesh.geometry.getAttribute(
-          'iOutlineOpacity'
-        ) as THREE.InstancedBufferAttribute | undefined;
-        if (iOpacityAttr && iSilhouetteAttr && iOutlineOpacityAttr) {
+        const iFadeAttr = block.detailMesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+        if (iFadeAttr) {
           for (let i = 0; i < block.buildings.length; i++) {
             const building = block.buildings[i];
             const tier = _tierFor(building.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
 
-            // Translate detail + bodyOpacity → final alpha written to iOpacity.
+            // Translate detail + bodyOpacity → final values written to iFade.
             // Full       → body visible at bodyOpacity, full facade detail.
             // Silhouette → body visible at bodyOpacity, shader skips per-cell
             //              window/door/slab math and renders solid base color.
             // Hidden     → body opacity 0; only the per-instance outline
             //              composites at face edges, leaving the road visible
             //              through the empty body.
-            const iOpacity = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
-            const iSilhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
-            const iOutlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
+            const opacity        = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
+            const silhouette     = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+            const outlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
-            iOpacityAttr.setX(i, iOpacity);
-            iSilhouetteAttr.setX(i, iSilhouette);
-            iOutlineOpacityAttr.setX(i, iOutlineOpacity);
+            iFadeAttr.setXYZ(i, opacity, silhouette, outlineOpacity);
           }
 
-          iOpacityAttr.needsUpdate = true;
-          iSilhouetteAttr.needsUpdate = true;
-          iOutlineOpacityAttr.needsUpdate = true;
+          iFadeAttr.needsUpdate = true;
         }
       }
 
@@ -210,8 +198,8 @@ export function createBuildingFader({
   const _unsubSel = picker.selection.subscribe(() => _sweepAll());
   const _unsubHov = picker.hover.subscribe(() => _sweepAll());
 
-  // Re-sweep after a manifest rebuild — new blocks have fresh iOpacity
-  // buffers (all 1.0) and the current selection still applies.
+  // Re-sweep after a manifest rebuild — new blocks have fresh iFade
+  // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current selection still applies.
   const _unsubChange = cityScene.onChange(() => _sweepAll());
 
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)

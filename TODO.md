@@ -28,5 +28,11 @@
 - [x] add back gitignore flag -- make it a user facing config option
 - [-] allow clicking on a file in file tree to deselect it
 - [ ] fix building focus with the new compact mode
+- [ ] fix loading by git url via cmd line
+- [ ] add ability to set path in ui
+- [ ] make controls tab more compact
+- [ ] change the info panel to be about codecity not the repo readme
+- [ ] fix alignment in file tree
+- [x] don't select when rotating the world
 
 ## Pending Agent Prompts

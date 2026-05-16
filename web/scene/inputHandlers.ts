@@ -56,6 +56,8 @@ export function createInputHandlers({
   let _hoverPending = null;
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
+  let _cameraMoving = false;
+
   // Prepend the root directory name (with a leading slash) to a manifest-
   // relative path so the hover tooltip reads as an absolute-looking path
   // (e.g. "/codecity/web/main.ts" rather than "web/main.ts"). The manifest
@@ -115,6 +117,7 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
+    if (_cameraMoving) return;  // suppress hover while camera is moving
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
@@ -269,6 +272,40 @@ export function createInputHandlers({
         rig.focusStreet(sel.street, null);
       }
     }
+  });
+
+  // Suppress hover while the user is orbiting/panning/zooming the camera.
+  // Listens to OrbitControls' start/end (NOT change) so hover resumes
+  // instantly on release, even while damping inertia continues. The
+  // tradeoff: hover is not suppressed during programmatic camera tweens
+  // (focusBuilding, reset) since those don't fire start/end — acceptable
+  // because tweens are short and self-triggered.
+  //
+  // OrbitControls extends EventDispatcher (not EventTarget) so we can't
+  // use the _on helper here — register and dispose manually.
+  const _cameraStartHandler = () => {
+    if (_cameraMoving) return;
+    _cameraMoving = true;
+    // Drop any in-flight hover so the highlight doesn't linger from
+    // before the camera started moving.
+    if (_hoverCommitId) {
+      clearTimeout(_hoverCommitId);
+      _hoverCommitId = 0;
+    }
+    _hoverPending = null;
+    if (picker.hover.get()) picker.setHover(null);
+    hideTooltip();
+    canvas.style.cursor = 'grabbing';
+  };
+  const _cameraEndHandler = () => {
+    _cameraMoving = false;
+    canvas.style.cursor = 'grab';
+  };
+  rig.controls.addEventListener('start', _cameraStartHandler);
+  rig.controls.addEventListener('end', _cameraEndHandler);
+  _disposers.push(() => {
+    rig.controls.removeEventListener('start', _cameraStartHandler);
+    rig.controls.removeEventListener('end', _cameraEndHandler);
   });
 
   function _resize() {

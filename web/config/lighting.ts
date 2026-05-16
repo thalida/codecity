@@ -36,5 +36,5 @@ export const LIGHTING = map<LightingConfig>({
   SUN_AZIMUTH_DEG: 51,
   SUN_ELEVATION_DEG: 58,
   AMBIENT: 0.72,
-  SUN_CONTRAST: 0.28,
+  SUN_CONTRAST: 0.50,
 });

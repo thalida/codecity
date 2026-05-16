@@ -20,7 +20,7 @@
 //   animator.dispose();
 //
 // Field ownership: animator owns the instance matrix (scale + position).
-// buildingFader owns iOpacity. They write to disjoint fields so they
+// buildingFader owns iFade. They write to disjoint fields so they
 // cannot conflict by construction.
 
 import * as THREE from 'three';

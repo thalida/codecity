@@ -29,9 +29,16 @@ export interface BuildingInstanceBuffer {
   floors: Float32Array; // N
   orient: Float32Array; // N (0=S, 1=N, 2=E, 3=W — matches shader's iOrient contract)
   doorWidth: Float32Array; // N
-  opacity: Float32Array; // N (defaults to 1.0)
-  silhouette: Float32Array; // N (0 = full facade, 1 = solid silhouette — set by fader)
-  outlineOpacity: Float32Array; // N (0 = no per-building wireframe; >0 = composited at alpha)
+  /**
+   * N × 3 — packed fader state per instance (1 attribute slot vs 3):
+   *   .x = opacity        ([0..1] alpha for body fade)
+   *   .y = silhouette     (0 = full facade, 1 = solid silhouette — no windows/door/slab)
+   *   .z = outlineOpacity ([0..1] composite outline at face edges, Hidden tier wireframe)
+   * Packed together so all three add up to one attribute slot — frees room
+   * under the GL_MAX_VERTEX_ATTRIBS=16 cap. The fader at scene/effects/buildingFader.ts
+   * is the sole runtime mutator; writes go through setXYZ on the InstancedBufferAttribute.
+   */
+  fade: Float32Array;
   /**
    * N × 3 — packed attribute to stay under the GL_MAX_VERTEX_ATTRIBS=16 cap:
    *   .xy = top-left UV of the file-icon slot in the atlas, or (-1, -1) for "no icon"
@@ -41,6 +48,12 @@ export interface BuildingInstanceBuffer {
    *         FNV-1a hash of file.path.
    */
   iconUV: Float32Array;
+  /**
+   * N × 1 — modifiedAge per instance (0 = most recently modified, 1 = most stale).
+   * Mirror of the createdAge slot in `iconUV.w` but on the modified-date axis.
+   * Drives lit-window count + HDR emission curve in the building fragment shader.
+   */
+  modifiedAge: Float32Array;
 }
 
 // ---------------------------------------------------------------------------
@@ -63,7 +76,7 @@ export interface BuildingInstanceBuffer {
  *   floors    → iFloors attribute
  *   orient    → iOrient attribute (0=S, 1=N, 2=E, 3=W)
  *   doorWidth → iDoorWidth attribute
- *   opacity   → iOpacity attribute
+ *   fade      → iFade attribute (.x=opacity, .y=silhouette, .z=outlineOpacity)
  */
 export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstanceBuffer {
   const n = block.buildings.length;
@@ -74,10 +87,9 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     floors: new Float32Array(n),
     orient: new Float32Array(n),
     doorWidth: new Float32Array(n),
-    opacity: new Float32Array(n),
-    silhouette: new Float32Array(n),
-    outlineOpacity: new Float32Array(n),
+    fade: new Float32Array(n * 3),
     iconUV: new Float32Array(n * 4),
+    modifiedAge: new Float32Array(n),
   };
 
   const m = new THREE.Matrix4();
@@ -115,6 +127,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
       buf.iconUV[i * 4 + 1] = -1.0;
       buf.iconUV[i * 4 + 2] = seed;
       buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
+      buf.modifiedAge[i] = b.modifiedAge ?? 0;
       continue;
     }
 
@@ -159,8 +172,9 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_FRAC_OF_PATH;
     buf.doorWidth[i] = b.w * pathWidthFrac * doorWidthFracOfPath;
 
-    // --- Opacity (default 1.0; fader updates in-place at runtime) ---
-    buf.opacity[i] = 1.0;
+    // --- Fade (opacity defaults to 1.0; fader updates in-place at runtime) ---
+    buf.fade[i * 3 + 0] = 1.0; // opacity defaults to full visibility
+    // .y (silhouette) and .z (outlineOpacity) default to 0 via Float32Array zero-init
 
     // --- Icon UV (top-left of slot in atlas) + per-instance seed + createdAge ---
     // (-1, -1) on .xy means "no icon" — the shader checks .x < 0 and
@@ -172,6 +186,7 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
     buf.iconUV[i * 4 + 1] = -1.0;
     buf.iconUV[i * 4 + 2] = seed;
     buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
+    buf.modifiedAge[i] = b.modifiedAge ?? 0;
     if (_atlas) {
       const file = b.file;
       if (file) {
@@ -297,7 +312,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
   _sharedMaterial = new THREE.ShaderMaterial({
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
-    // transparent: true so iOpacity can fade buildings (Task 11).
+    // transparent: true so iFade.x can fade buildings (Task 11).
     transparent: true,
     uniforms: {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
@@ -308,14 +323,6 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // sampling behind iIconUV.x >= 0.
       uIconAtlas: { value: _atlas ? _atlas.texture : null },
       uIconSlotSize: { value: _atlas ? _atlas.slotSize : 0 },
-      // Palette lightness range (HSL %, 0–100 domain). The shader
-      // recovers a 0..1 "freshness" signal by reading HSL lightness
-      // out of the per-instance base color and normalising against
-      // this range — newest file = 1.0, oldest = 0.0. Used to drive
-      // window lit/dark count, glow brightness, glow hue, and gap
-      // density. Refreshed on live-config edits.
-      uLightnessMin: { value: BUILDING_PALETTE.get().LIGHTNESS_MIN },
-      uLightnessMax: { value: BUILDING_PALETTE.get().LIGHTNESS_MAX },
       // Ground-haze uniforms — height-based volumetric fog applied
       // in the building shader. Independent of camera distance.
       // Fog color is mixed into the post-tonemap sRGB framebuffer; pass
@@ -330,7 +337,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // from windows; higher = brighter glow on new buildings.
       uWindowEmissionBoost: { value: BLOOM.get().WINDOW_EMISSION },
       // Age-driven decay uniforms (createdAge-gated, independent of
-      // color/freshness). See BUILDING_AGING config.
+      // modifiedAge). See BUILDING_AGING config.
       uGrimeIntensity: {
         value: BUILDING_AGING.get().GRIME_ENABLED ? BUILDING_AGING.get().GRIME_INTENSITY : 0,
       },
@@ -377,6 +384,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
       // through unchanged.
       uDimGlowColor: { value: new THREE.Color().setStyle(WINDOW_LIGHTING.get().DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace) },
+      uLitFreshnessExponent: { value: WINDOW_LIGHTING.get().LIT_FRESHNESS_EXPONENT },
     },
   });
   _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
@@ -393,8 +401,6 @@ export function refreshBuildingMaterial(): void {
   const sceneCfg = SCENE_COLORS.get();
   const bloomCfg = BLOOM.get();
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
-  _sharedMaterial.uniforms.uLightnessMin.value = BUILDING_PALETTE.get().LIGHTNESS_MIN;
-  _sharedMaterial.uniforms.uLightnessMax.value = BUILDING_PALETTE.get().LIGHTNESS_MAX;
   (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
     sceneCfg.FOG_COLOR,
     THREE.LinearSRGBColorSpace,
@@ -447,6 +453,7 @@ export function refreshBuildingMaterial(): void {
     windowLighting.DIM_GLOW_COLOR,
     THREE.LinearSRGBColorSpace,
   );
+  _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
 }
 
 /**
@@ -454,7 +461,7 @@ export function refreshBuildingMaterial(): void {
  *
  * One mesh per directory block; shared geometry + shader material.
  * Per-instance transforms (matrix), colors, and custom attributes
- * (iCols, iFloors, iOrient, iDoorWidth, iOpacity) are sourced from
+ * (iCols, iFloors, iOrient, iDoorWidth, iFade) are sourced from
  * buildBuildingInstanceBuffer.
  *
  * mesh.userData.kind = 'buildings' — used by the picker (Task 10).
@@ -486,16 +493,12 @@ export function createBuildingsInstancedMesh(block: SceneBlock): THREE.Instanced
   mesh.geometry.setAttribute('iFloors', new THREE.InstancedBufferAttribute(buf.floors, 1));
   mesh.geometry.setAttribute('iOrient', new THREE.InstancedBufferAttribute(buf.orient, 1));
   mesh.geometry.setAttribute('iDoorWidth', new THREE.InstancedBufferAttribute(buf.doorWidth, 1));
-  mesh.geometry.setAttribute('iOpacity', new THREE.InstancedBufferAttribute(buf.opacity, 1));
-  mesh.geometry.setAttribute(
-    'iSilhouette',
-    new THREE.InstancedBufferAttribute(buf.silhouette, 1),
-  );
-  mesh.geometry.setAttribute(
-    'iOutlineOpacity',
-    new THREE.InstancedBufferAttribute(buf.outlineOpacity, 1),
-  );
+  mesh.geometry.setAttribute('iFade', new THREE.InstancedBufferAttribute(buf.fade, 3));
   mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 4));
+  mesh.geometry.setAttribute(
+    'iModifiedAge',
+    new THREE.InstancedBufferAttribute(buf.modifiedAge, 1),
+  );
 
   // Compute bounding sphere from instance positions, then expand the
   // radius to cover the worst-case lateral displacement the tilt

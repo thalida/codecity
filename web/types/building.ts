@@ -41,6 +41,18 @@ export interface Building {
    * date ranges are known. Buffer-builder defaults to 0 when absent.
    */
   createdAge?: number;
+
+  /**
+   * 0..1 staleness signal — 0 = file modified most recently in the repo,
+   * 1 = file modified earliest. Normalized against the repo's
+   * modifiedMin/modifiedMax so the scale rescales as the codebase ages.
+   * Mirror of `createdAge` but on the modified-date axis.
+   *
+   * Optional because layout produces buildings without it; the
+   * cityScene post-layout step fills it in after the manifest's
+   * date ranges are known. Buffer-builder defaults to 0 when absent.
+   */
+  modifiedAge?: number;
   file: FileNode;
   orient: BuildingOrient;
   floors?: number;

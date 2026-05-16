@@ -60,16 +60,16 @@ export interface LabelTypographyConfig {
 }
 
 export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
-  FILL: '#f4f6ff',
+  FILL: '#ffffff',
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
   FONT_WEIGHT: 700,
   FONT_SIZE_PX: 192,
   CANVAS_PADDING_FRAC: 0.25,
-  STROKE_WIDTH_FRAC: 1 / 6,
-  HEIGHT_FRAC: 0.45, // label plane height = street width × this
-  SPACING_MULT: 3.5, // repeat spacing = label width × this
-  SPACING_FLOOR: 300, // …or this floor (world units), whichever is larger
+  STROKE_WIDTH_FRAC: 0.20,
+  HEIGHT_FRAC: 0.50, // label plane height = street width × this
+  SPACING_MULT: 8.0, // repeat spacing = label width × this
+  SPACING_FLOOR: 256, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
   FLIP_HYSTERESIS: 0.15, // dead zone before camera-orbit flip
 });
@@ -108,7 +108,7 @@ export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
   ENABLED: true,
   LINEWIDTH: 8,
   COLOR: '#ffffff',
-  OPACITY: 0.35,
+  OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
 });
 
@@ -123,10 +123,10 @@ export interface StreetTier {
 }
 
 export const STREET_TIERS = atom<StreetTier[]>([
-  { min_descendants: 0, width: 20 },
-  { min_descendants: 4, width: 32 },
-  { min_descendants: 8, width: 48 },
-  { min_descendants: 16, width: 64 },
+  { min_descendants: 0, width: 32 },
+  { min_descendants: 4, width: 48 },
+  { min_descendants: 8, width: 80 },
+  { min_descendants: 16, width: 96 },
   { min_descendants: 32, width: 128 },
 ]);
 
@@ -146,5 +146,5 @@ export interface StreetLayoutConfig {
 export const STREET_LAYOUT = map<StreetLayoutConfig>({
   CHILD_GAP: 8,
   ROOT_END_PAD: 8,
-  PARENT_JOIN_PAD: 4,
+  PARENT_JOIN_PAD: 8,
 });
