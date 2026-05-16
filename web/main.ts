@@ -156,7 +156,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
-  createCoordinator({
+  const coordinator = createCoordinator({
     cityScene,
     picker,
     rig,
@@ -432,10 +432,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   }
   animate();
 
-  // Expose cityScene + applyTheme to the boot block so setupLiveUpdates
-  // can swap in fresh manifests, and attachHotReload can dispatch
-  // material refreshes without restarting the renderer.
-  return { cityScene, applyTheme };
+  // Expose cityScene, applyTheme, and coordinator to the boot block so
+  // setupLiveUpdates can swap in fresh manifests, attachHotReload can
+  // dispatch material refreshes, and applyNewSource can update the header
+  // branch pill + repo link after a mid-session source switch.
+  return { cityScene, applyTheme, coordinator };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
@@ -890,6 +891,13 @@ if (_canvas) {
         if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
         else pageUrl.searchParams.delete('branch');
         history.replaceState(null, '', pageUrl.toString());
+
+        // Update the header branch pill + repo link immediately so the new
+        // source is reflected without waiting for the manifest to apply.
+        handle.coordinator.setSourceInfo(
+          payload.branch,
+          _srcKind(payload.src) === 'git' ? payload.src : undefined,
+        );
 
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
 

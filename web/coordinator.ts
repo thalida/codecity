@@ -30,8 +30,7 @@ import {
   refreshManifest,
 } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
-import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
-import type { FooterRepoInfo } from './views/shell/appFooter.js';
+import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createCityScene } from './scene/cityScene.js';
 import type { createPicker } from './scene/picker.js';
 import type { createCameraRig } from './scene/cameraRig.js';
@@ -85,6 +84,15 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
   const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
   document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
+  // Read initial branch + source URL from the current page URL so the header
+  // can show the branch pill and repo link on first paint.
+  const _qp = new URLSearchParams(window.location.search);
+  const _initSrc = _qp.get('src') ?? undefined;
+  const _initBranch = _qp.get('branch') ?? undefined;
+  const _initIsGitUrl = _initSrc
+    ? /:\/\//.test(_initSrc) || /^[^@]+@[^:]+:/.test(_initSrc)
+    : false;
+
   const appHeader = initAppHeader({
     rootLabel: _rootLabel,
     rootPath: rootNode?.path || '',
@@ -95,6 +103,8 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
       fn?.();
     },
+    branch: _initBranch,
+    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
 
@@ -112,7 +122,6 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     },
   });
   const initialManifest = cityScene.getManifest();
-  appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
   appFooter.setSelection({
     kind: NodeKind.Directory,
     files: rootNode?.descendants_file_count ?? 0,
@@ -314,9 +323,9 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
 
   // Push the freshly-applied manifest into the Info pane so an edited
   // README on disk re-renders without a page reload (live-update poll
-  // fires applyManifest, which fires onChange). Also refresh the
-  // footer's repo info — branch / dirty / head can change between
-  // polls (commit, checkout, edit) so the footer follows the manifest.
+  // fires applyManifest, which fires onChange). The header branch pill /
+  // repo link now follows the live URL (set by applyNewSource) rather
+  // than the manifest, so we only need to keep document.title in sync here.
   const _changeUnsub = cityScene.onChange(() => {
     const m = cityScene.getManifest();
     // manifest.tree.name is already the friendly label — main.ts calls
@@ -326,7 +335,6 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
       document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
     }
-    appFooter.setRepoInfo(_repoInfoFromManifest(m));
     LAST_UPDATED_AT.set(Date.now());
     if (leftSidebarApi.setInfoManifest) {
       leftSidebarApi.setInfoManifest(m);
@@ -350,23 +358,16 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     window.clearInterval(_tickHandle);
   }
 
+  function setSourceInfo(branch?: string, sourceUrl?: string): void {
+    appHeader.setSourceInfo(branch, sourceUrl);
+  }
+
   return {
     appHeader,
     appFooter,
     leftSidebarApi,
     dispose,
+    setSourceInfo,
   };
 }
 
-function _repoInfoFromManifest(m: Manifest | null): FooterRepoInfo | null {
-  if (!m) return null;
-  return {
-    name: m.tree?.name || '',
-    root: m.root || '',
-    branch: m.repo?.branch ?? null,
-    remoteUrl: m.repo?.remote_url ?? null,
-    headSha: m.repo?.head_sha ?? null,
-    headSubject: m.repo?.head_subject ?? null,
-    dirty: !!m.repo?.dirty,
-  };
-}

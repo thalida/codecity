@@ -1,16 +1,16 @@
-// views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
+// views/shell/appFooter.ts — Sitewide bottom status bar. Two sections:
 //   left   — current selection metadata (language · lines · size · created
 //            · modified for files; file/dir counts + size for directories)
-//   center — repo information (project name + absolute root path)
-//   right  — combined status indicator: [dot] <status text>
+//   right  — combined status indicator: [dot] + reset button
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
 //              animation — live state (slow heartbeat when polling on,
 //                         static when paused, fast pulse when rebuilding,
 //                         static when error)
-//            Hover tooltip surfaces the live state ("Live updates: on/off")
-//            and the rebuild error message (when applicable).
+//            title= on the .app-footer-status wrapper surfaces the live
+//            state ("Live updates: on/off · rebuilt 5s ago") and the
+//            rebuild error message (when applicable).
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
@@ -49,27 +49,9 @@ export interface FooterStatus {
   errorMessage: string | null;
 }
 
-export interface FooterRepoInfo {
-  /** Working-tree directory name — always present. */
-  name: string;
-  /** Absolute filesystem path of the working tree. */
-  root: string;
-  /** Current branch (e.g. "main") or "detached @ <sha>". null for non-git. */
-  branch: string | null;
-  /** Web URL for the origin remote ("" / null when no parseable remote). */
-  remoteUrl: string | null;
-  /** Last commit's short SHA — surfaced in the title tooltip. */
-  headSha: string | null;
-  /** Last commit's subject line — surfaced in the title tooltip. */
-  headSubject: string | null;
-  /** Working tree differs from HEAD or has untracked files. */
-  dirty: boolean;
-}
-
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
   setStatus(_status: FooterStatus) {},
-  setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
 interface InitAppFooterOpts {
@@ -81,7 +63,6 @@ interface InitAppFooterOpts {
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
  *                                            — right section (combined indicator)
- *   setRepoInfo({ ... })                     — center section
  *   setSelection(sel | null)                 — left section (badge + metadata)
  *
  * The leading path-badge reads palette + asphalt from the live config
@@ -95,9 +76,6 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
 
   const selectionEl = document.createElement('div');
   selectionEl.className = 'app-footer-section app-footer-left';
-
-  const centerEl = document.createElement('div');
-  centerEl.className = 'app-footer-section app-footer-center';
 
   const statusContainerEl = document.createElement('div');
   statusContainerEl.className = 'app-footer-section app-footer-right';
@@ -122,7 +100,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     statusContainerEl.appendChild(resetBtn);
   }
 
-  footer.replaceChildren(selectionEl, centerEl, statusContainerEl);
+  footer.replaceChildren(selectionEl, statusContainerEl);
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
@@ -142,7 +120,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
       detailText = 'rebuilding…';
     } else if (status.rebuildStatus === 'error') {
       buildModifier = 'is-error';
-      detailText = 'error';
+      detailText = status.errorMessage ? `error: ${status.errorMessage}` : 'error';
     } else {
       buildModifier = 'is-ready';
       // 'ready' literal is a guard for unit tests or any code path that
@@ -156,80 +134,27 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     statusEl.classList.add(buildModifier);
     statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
 
-    // Compose the hover tooltip. Error message wins when present —
+    // Compose the hover tooltip on the wrapper so the dot-only layout
+    // still surfaces full context on hover. Error message wins when present —
     // otherwise show the live-state summary so users can discover the
     // play/pause distinction (the dot's heartbeat already hints at it).
     const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
     if (status.rebuildStatus === 'error' && status.errorMessage) {
-      statusEl.title = `${liveLabel} · ${status.errorMessage}`;
+      statusEl.title = `${liveLabel} · error: ${status.errorMessage}`;
     } else if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
-      const exact = new Date(status.lastUpdatedAt).toLocaleString();
-      statusEl.title = `${liveLabel} · last rebuild ${exact}`;
+      statusEl.title = `${liveLabel} · rebuilt ${detailText}`;
+    } else if (status.rebuildStatus === 'rebuilding') {
+      statusEl.title = `${liveLabel} · rebuilding…`;
     } else {
       statusEl.title = liveLabel;
     }
     statusEl.setAttribute('aria-label', statusEl.title);
 
-    // Dot (color = rebuild state; animation = live state, scoped by CSS).
+    // Dot only — color = rebuild state; animation = live state, scoped by CSS.
+    // Detail text is now surfaced exclusively via the title= tooltip above.
     const dot = document.createElement('span');
     dot.className = 'app-footer-status-dot';
     statusEl.appendChild(dot);
-
-    // Status detail (timestamp / "rebuilding…" / "error")
-    const detail = document.createElement('span');
-    detail.className = 'app-footer-status-detail';
-    detail.textContent = detailText;
-    statusEl.appendChild(detail);
-  }
-
-  function setRepoInfo(info: FooterRepoInfo | null): void {
-    centerEl.replaceChildren();
-    if (!info) return;
-
-    const wrap = document.createElement('span');
-    wrap.className = 'app-footer-repo';
-
-    // Project name — shown first so the label anchors the rest of the row.
-    // coordinator.ts stamps the friendly display label onto info.name before
-    // calling setRepoInfo, so this always shows "owner/repo" for URL sources
-    // instead of the raw cache-directory hash.
-    if (info.name) {
-      const nameEl = document.createElement('span');
-      nameEl.className = 'app-footer-repo-name';
-      nameEl.textContent = info.name;
-      nameEl.title = info.root || info.name;
-      wrap.appendChild(nameEl);
-    }
-
-    if (info.branch) {
-      if (info.name) wrap.appendChild(_makeSep());
-      const branch = document.createElement('span');
-      branch.className = 'app-footer-repo-branch';
-      if (info.dirty) branch.classList.add('is-dirty');
-      // Lucide-style git-branch glyph wouldn't load here (the icon
-      // helper is for buttons); a textual prefix keeps the bar
-      // monospace-friendly without pulling in another dependency.
-      branch.textContent = info.dirty ? `⎇ ${info.branch}●` : `⎇ ${info.branch}`;
-      wrap.appendChild(branch);
-    }
-
-    if (info.remoteUrl) {
-      if (info.name || info.branch) wrap.appendChild(_makeSep());
-      const link = document.createElement('a');
-      link.className = 'app-footer-repo-link';
-      link.href = _branchAwareRepoUrl(info.remoteUrl, info.branch);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = 'repo';
-      // Hover tooltip surfaces the destination so users can see where
-      // a click will take them (and which branch the link is pointing at).
-      link.title = info.branch
-        ? `${info.remoteUrl} · ⎇ ${info.branch}`
-        : info.remoteUrl;
-      wrap.appendChild(link);
-    }
-
-    centerEl.appendChild(wrap);
   }
 
   // Last selection cached so config-store subscriptions can re-render
@@ -293,7 +218,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
   ASPHALT.subscribe(_reRender);
   _ready = true;
 
-  return { setSelection, setStatus, setRepoInfo };
+  return { setSelection, setStatus };
 }
 
 const SEC_MS = 1000;
@@ -314,21 +239,6 @@ function _makeSep(): HTMLSpanElement {
   sep.className = 'app-footer-sep';
   sep.textContent = '·';
   return sep;
-}
-
-/**
- * Append the host-appropriate "view at branch" path to a repo URL so
- * the link opens the repo on the same branch the user is looking at.
- * Falls back to the bare URL for hosts we don't recognize — better a
- * working repo home than a broken /tree URL.
- */
-function _branchAwareRepoUrl(url: string, branch: string | null): string {
-  if (!branch) return url;
-  const safeBranch = encodeURIComponent(branch);
-  if (/github\.com/i.test(url)) return `${url}/tree/${safeBranch}`;
-  if (/gitlab\./i.test(url)) return `${url}/-/tree/${safeBranch}`;
-  if (/bitbucket\.org/i.test(url)) return `${url}/src/${safeBranch}`;
-  return url;
 }
 
 function _item(text: string, source?: string, hoverText?: string): HTMLSpanElement {

@@ -11,6 +11,9 @@ import { makeExtensionBadge } from './badge.js';
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
 
+const ARROW_OUT_ICON_SVG =
+  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
+
 interface HeaderSelection {
   path: string;
   fullPath?: string;
@@ -27,6 +30,28 @@ interface InitAppHeaderOpts {
   onSegmentClick?: ((path: string) => void) | null;
   /** fires when the user clicks the switch-source button in the header */
   onSwitchSource?: () => void;
+  /** Branch name when the loaded source is a git URL with an explicit branch. */
+  branch?: string;
+  /** Original src URL when the loaded source is a git URL. */
+  sourceUrl?: string;
+}
+
+/**
+ * Convert any recognisable repo URL form to an https:// URL.
+ *   https://… / http://… → returned as-is.
+ *   git@host:path.git    → https://host/path  (SSH → HTTPS)
+ *   anything else        → returned unchanged (best effort).
+ */
+export function _toHttpsRepoUrl(src: string): string {
+  if (src.startsWith('https://') || src.startsWith('http://')) return src;
+  // SSH form: git@github.com:owner/repo.git
+  const sshMatch = /^[^@]+@([^:]+):(.+?)(?:\.git)?$/.exec(src);
+  if (sshMatch) {
+    const host = sshMatch[1];
+    const path = sshMatch[2];
+    return `https://${host}/${path}`;
+  }
+  return src;
 }
 
 /**
@@ -42,12 +67,18 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
+      setSourceInfo(_branch?: string, _sourceUrl?: string) {},
     };
   }
 
   // Last selection cached so config-store subscriptions can re-render
   // with the same selection when the palette / asphalt color changes.
   let lastSelection: HeaderSelection | null = null;
+
+  // Current branch + sourceUrl — updated by setSourceInfo after mid-session
+  // source switches.
+  let _branch = opts.branch;
+  let _sourceUrl = opts.sourceUrl;
 
   /**
    * Render the title slot for a selection.
@@ -88,6 +119,28 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     // Always lead with the root.
     crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
 
+    // Branch pill — shown only when the source has an explicit branch.
+    if (_branch) {
+      const pill = document.createElement('span');
+      pill.className = 'app-header-branch-pill';
+      pill.textContent = `@${_branch}`;
+      pill.title = `Branch: ${_branch}`;
+      crumbs.appendChild(pill);
+    }
+
+    // Open-repo link — shown only for git URL sources.
+    if (_sourceUrl) {
+      const link = document.createElement('a');
+      link.className = 'app-header-repo-link';
+      link.href = _toHttpsRepoUrl(_sourceUrl);
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = `Open repo: ${_sourceUrl}`;
+      link.setAttribute('aria-label', 'Open repository in a new tab');
+      link.innerHTML = ARROW_OUT_ICON_SVG;
+      crumbs.appendChild(link);
+    }
+
     if (hasSel && sel) {
       const segs = sel.path.split('/').filter(Boolean);
       let acc = '';
@@ -109,6 +162,17 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       // stays project-relative for readability.
       titleEl!.appendChild(_makeCopyButton(sel.fullPath || sel.path));
     }
+  }
+
+  /**
+   * Update the branch pill and repo link after a mid-session source switch.
+   * Re-renders with the current cached selection so the header reflects the
+   * new source immediately.
+   */
+  function setSourceInfo(branch?: string, sourceUrl?: string): void {
+    _branch = branch;
+    _sourceUrl = sourceUrl;
+    setSelection(lastSelection);
   }
 
   function _makeSegment(label: string, path: string, isLeaf: boolean): HTMLButtonElement {
@@ -171,6 +235,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   return {
     setSelection,
+    setSourceInfo,
   };
 }
 

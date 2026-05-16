@@ -247,6 +247,33 @@ canvas {
   background: rgba(74, 222, 128, 0.1);
 }
 
+.app-header-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 6px;
+  margin-left: 6px;
+  border-radius: 8px;
+  background: rgba(91, 157, 255, 0.14);
+  color: #9bc1ff;
+  font-size: 10.5px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  white-space: nowrap;
+}
+.app-header-repo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  color: inherit;
+  opacity: 0.55;
+  text-decoration: none;
+}
+.app-header-repo-link:hover { opacity: 1; background: rgba(255,255,255,0.06); }
+.app-header-repo-link svg { display: block; }
+
 /* ── File preview pane (right sidebar) ──────────────────────────────────
    Outer container that wraps the pane header (filename + × close) and the
    editor body. The wrapper itself fills the sidebar's vertical space; the
@@ -288,7 +315,7 @@ canvas {
 #app-footer {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 14px;
   padding: 0 12px;
@@ -321,9 +348,6 @@ canvas {
 }
 .app-footer-section.app-footer-left {
   justify-content: flex-start;
-}
-.app-footer-section.app-footer-center {
-  justify-content: center;
 }
 .app-footer-section.app-footer-right {
   justify-content: flex-end;
@@ -416,13 +440,6 @@ canvas {
 /* is-ready.is-paused → no animation (static green dot).
  * is-error           → no animation (static red dot). */
 
-.app-footer-status-detail {
-  color: #6b7090;
-}
-.app-footer-status.is-error .app-footer-status-detail {
-  color: #fca5a5;
-}
-
 @keyframes app-footer-pulse {
   0%,
   100% {
@@ -442,42 +459,6 @@ canvas {
   }
 }
 
-/* ── Repo information (center section) ────────────────────────────── */
-.app-footer-repo {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  overflow: hidden;
-  min-width: 0;
-  max-width: 100%;
-}
-.app-footer-repo-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1 1 auto;
-  min-width: 0;
-}
-.app-footer-repo-branch {
-  color: #8a8fa8;
-  flex: 0 0 auto;
-}
-.app-footer-repo-branch.is-dirty {
-  color: #fbbf24;
-}
-.app-footer-repo-link {
-  color: #6b8eff;
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  min-width: 0;
-  flex: 0 0 auto;
-}
-.app-footer-repo-link:hover {
-  text-decoration: underline;
-}
-
 /* ── Footer responsive narrowing ───────────────────────────────────────────── */
 /* At narrow widths the status timestamp / "rebuilding…" text is secondary
    information — hide it so the dot alone represents the status and the
@@ -486,9 +467,6 @@ canvas {
   #app-footer {
     gap: 6px;
     padding: 0 8px;
-  }
-  .app-footer-status-detail {
-    display: none;
   }
 }
 
