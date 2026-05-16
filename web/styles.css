@@ -2382,12 +2382,6 @@ canvas {
   color: #4caf7a;
   font-size: 10px;
 }
-.loading-elapsed {
-  font-size: 11px;
-  color: rgba(232, 232, 237, 0.4);
-  letter-spacing: 0.02em;
-}
-
 /* Header icon buttons — switch-source (far left) + refresh (far right).
  * Both use the same styling as the old footer reset-view button so they
  * read as the same affordance: fixed 22×22 square, muted blue-grey,

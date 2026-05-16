@@ -10,10 +10,12 @@
 // views/shell/rightSidebar.js.
 
 import hljs from 'highlight.js/lib/common';
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
+import { makeExtensionBadge } from '@/views/shell/badge.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;
@@ -141,6 +143,30 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   body.className = 'editor-body';
   pane.appendChild(body);
 
+  // Track the active file so palette/asphalt changes can re-render the badge.
+  let _activeFile: FileNode | null = null;
+
+  function _renderBadge(): void {
+    if (!_activeFile) {
+      headerApi.setPrefixEl(null);
+      return;
+    }
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
+    headerApi.setPrefixEl(
+      makeExtensionBadge(_activeFile.extension ?? null, false, huePalette, asphaltColor)
+    );
+  }
+
+  // Re-render badge when palette or asphalt color changes mid-session.
+  // Drop the initial synchronous callback at subscribe time (same pattern
+  // as appHeader) — _ready gates it until after first setFile().
+  let _ready = false;
+  const _onConfigChange = () => { if (_ready) _renderBadge(); };
+  BUILDING_PALETTE.subscribe(_onConfigChange);
+  ASPHALT.subscribe(_onConfigChange);
+  _ready = true;
+
   function setFile(
     file:
       | FileNode
@@ -153,7 +179,9 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
         }
       | null
   ): void {
+    _activeFile = file as FileNode | null;
     headerApi.setTitle(file?.name ? String(file.name) : 'No file');
+    _renderBadge();
     body.replaceChildren();
     if (!file) {
       body.appendChild(

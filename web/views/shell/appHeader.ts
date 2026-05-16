@@ -181,7 +181,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.className = 'project-btn';
     btn.title = 'Switch project';
     btn.setAttribute('aria-label', 'Switch project');
-    btn.appendChild(makeLucideIcon('replace'));
+    btn.appendChild(makeLucideIcon('map'));
 
     const labelSpan = document.createElement('span');
     labelSpan.className = 'project-btn-label';
@@ -213,7 +213,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.className = 'app-header-refresh-btn';
     btn.title = 'Refresh — rebuild the city and reset the view';
     btn.setAttribute('aria-label', 'Refresh');
-    btn.appendChild(makeLucideIcon('refresh-cw'));
+    btn.appendChild(makeLucideIcon('map-pin-house'));
     btn.addEventListener('click', () => onRefresh());
     titleEl.parentElement?.appendChild(btn);
   }

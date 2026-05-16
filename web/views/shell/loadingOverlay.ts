@@ -55,14 +55,11 @@ export function createLoadingOverlay(): LoadingOverlay {
   }
 
   let _kind: 'git' | 'local' = 'local';
-  let _startMs = 0;
   let _timerIds: number[] = [];
-  let _elapsedTimer: number | null = null;
   let _currentStep: LoadingStep = 'scanning';
 
   // DOM refs — populated on first show().
   let _titleEl: HTMLElement | null = null;
-  let _elapsedEl: HTMLElement | null = null;
   let _stepEls: Partial<Record<LoadingStep, HTMLElement>> = {};
 
   function _buildDOM(): void {
@@ -77,13 +74,11 @@ export function createLoadingOverlay(): LoadingOverlay {
             <li data-step="scanning"  data-state="pending">${STEP_LABELS.scanning}</li>
             <li data-step="building"  data-state="pending">${STEP_LABELS.building}</li>
           </ol>
-          <div class="loading-elapsed">0s</div>
         </div>
       </div>
     `;
 
     _titleEl   = root.querySelector('.loading-title');
-    _elapsedEl = root.querySelector('.loading-elapsed');
     _stepEls   = {};
     for (const step of ALL_STEPS) {
       _stepEls[step] = root.querySelector(`[data-step="${step}"]`) as HTMLElement | null ?? undefined;
@@ -112,30 +107,9 @@ export function createLoadingOverlay(): LoadingOverlay {
     }
   }
 
-  function _formatElapsed(ms: number): string {
-    const s = Math.floor(ms / 1000);
-    if (s < 60) return `${s}s`;
-    const m = Math.floor(s / 60);
-    const rem = s % 60;
-    return `${m}m ${rem}s`;
-  }
-
-  function _startElapsedTick(): void {
-    if (_elapsedTimer != null) return;
-    _elapsedTimer = window.setInterval(() => {
-      if (_elapsedEl) {
-        _elapsedEl.textContent = _formatElapsed(Date.now() - _startMs);
-      }
-    }, 1_000);
-  }
-
   function _clearTimers(): void {
     for (const id of _timerIds) window.clearTimeout(id);
     _timerIds = [];
-    if (_elapsedTimer != null) {
-      window.clearInterval(_elapsedTimer);
-      _elapsedTimer = null;
-    }
   }
 
   function _scheduleGitHeuristics(): void {
@@ -157,7 +131,6 @@ export function createLoadingOverlay(): LoadingOverlay {
     show({ kind, label, branch }: LoadingOverlayShowOpts) {
       _clearTimers();
       _kind = kind;
-      _startMs = Date.now();
 
       _buildDOM();
 
@@ -180,9 +153,7 @@ export function createLoadingOverlay(): LoadingOverlay {
         _scheduleGitHeuristics();
       }
 
-      if (_elapsedEl) _elapsedEl.textContent = '0s';
       root.style.display = 'block';
-      _startElapsedTick();
     },
 
     setStep(step: LoadingStep) {

@@ -22,6 +22,10 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   const header = document.createElement('div');
   header.className = 'pane-header';
 
+  // Slot for an optional leading element (e.g. an extension badge in the
+  // file-preview pane). Inserted before the title; absent by default.
+  let _prefixEl: HTMLElement | null = null;
+
   const title = document.createElement('h3');
   title.className = 'pane-title';
   if (opts.mono) title.classList.add('is-mono');
@@ -47,6 +51,17 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
     api: {
       setTitle(text: string): void {
         title.textContent = text;
+      },
+      /** Replace (or remove) the leading prefix element before the title. */
+      setPrefixEl(el: HTMLElement | null): void {
+        if (_prefixEl) {
+          _prefixEl.remove();
+          _prefixEl = null;
+        }
+        if (el) {
+          _prefixEl = el;
+          header.insertBefore(el, title);
+        }
       },
     },
   };

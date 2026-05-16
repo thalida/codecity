@@ -14,9 +14,7 @@
 //
 // The refresh/reset-view button has moved to the header (far right).
 
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
-import { makeExtensionBadge } from './badge.js';
 import { makeLucideIcon } from './icon.js';
 import { toHttpsRepoUrl } from './displayLabel.js';
 
@@ -181,30 +179,15 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     statusEl.appendChild(detail);
   }
 
-  // Last selection cached so config-store subscriptions can re-render
-  // with the same selection when the palette / asphalt color changes.
-  let lastSelection: FooterSelection | null = null;
-
   function setSelection(sel: FooterSelection | null): void {
-    lastSelection = sel;
     selectionEl.replaceChildren();
     if (!sel) return;
 
-    // Palette + asphalt read fresh at render time so the badge follows
-    // live config edits (re-render is triggered by the subscriptions
-    // below when those stores change).
-    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
-    const asphaltColor = ASPHALT.get().COLOR;
-
-    // Always-leading chip (no dot before it). After the chip, the
-    // metadata items are joined with `·` separators to mirror the
+    // Metadata items are joined with `·` separators to mirror the
     // center repo section and reduce visual ambiguity between adjacent
     // values.
     const items: HTMLElement[] = [];
     if (sel.kind === NodeKind.File) {
-      const extBadge = makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor);
-      if (sel.language) extBadge.title = sel.language;
-      selectionEl.appendChild(extBadge);
       if (sel.language) items.push(_item(sel.language));
       if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
@@ -219,7 +202,6 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
         items.push(_item(relCre, sel.dateSource, absCre));
       }
     } else if (sel.kind === NodeKind.Directory) {
-      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
       items.push(_item('Directory'));
       if (sel.files != null) items.push(_item(`${sel.files} files`));
       if (sel.dirs != null) items.push(_item(`${sel.dirs} dirs`));
@@ -231,17 +213,6 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     }
   }
 
-  // Live config: see appHeader for the same pattern. Drop the initial
-  // synchronous callback that nanostores fires at subscribe time so we
-  // don't re-render before the host has set an initial selection.
-  let _ready = false;
-  const _reRender = () => {
-    if (_ready) setSelection(lastSelection);
-  };
-  BUILDING_PALETTE.subscribe(_reRender);
-  ASPHALT.subscribe(_reRender);
-  _ready = true;
-
   return { setSelection, setStatus, setSourceUrl };
 }
 
@@ -249,13 +220,17 @@ const SEC_MS = 1000;
 const MIN_MS = 60 * SEC_MS;
 const HOUR_MS = 60 * MIN_MS;
 const DAY_MS = 24 * HOUR_MS;
+const MONTH_MS = 30 * DAY_MS;
+const YEAR_MS = 365 * DAY_MS;
 function _relativeTime(then: number, now: number): string {
   const diff = Math.max(0, now - then);
   if (diff < 5 * SEC_MS) return 'just now';
   if (diff < MIN_MS) return `${Math.floor(diff / SEC_MS)}s ago`;
   if (diff < HOUR_MS) return `${Math.floor(diff / MIN_MS)}m ago`;
   if (diff < DAY_MS) return `${Math.floor(diff / HOUR_MS)}h ago`;
-  return `${Math.floor(diff / DAY_MS)}d ago`;
+  if (diff < MONTH_MS) return `${Math.floor(diff / DAY_MS)}d ago`;
+  if (diff < YEAR_MS) return `${Math.floor(diff / MONTH_MS)}mo ago`;
+  return `${Math.floor(diff / YEAR_MS)}y ago`;
 }
 
 function _makeSep(): HTMLSpanElement {

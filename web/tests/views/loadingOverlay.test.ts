@@ -87,9 +87,4 @@ describe('loadingOverlay', () => {
     expect(root.querySelector('[data-step="building"]')?.getAttribute('data-state')).toBe('pending');
   });
 
-  it('elapsed timer element is present after show', () => {
-    const o = createLoadingOverlay();
-    o.show({ kind: 'local', label: 'x' });
-    expect(root.querySelector('.loading-elapsed')).toBeTruthy();
-  });
 });
