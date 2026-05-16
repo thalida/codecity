@@ -243,19 +243,16 @@ function _buildShortcutsSection(): HTMLElement {
 function _buildCameraSection(): HTMLElement {
   const section = _section(
     'Camera & Interaction',
-    'Camera and building transition timing.'
+    'Camera tween timing and easing.'
   );
 
   section.appendChild(
-    _subgroup('Transitions', [
+    _subgroup('Camera transitions', [
       _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
         tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
       }),
       _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
-        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function.',
-      }),
-      _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
-        tip: 'Enter / stay duration for buildings as they fade in or refresh. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
+        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function. Shared by camera tweens and building fade-ins.',
       }),
     ])
   );
@@ -517,6 +514,14 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   // (Building size — floors / width / path — lives in the Layout section now.)
+
+  section.appendChild(
+    _subgroup('Transitions', [
+      _number('Enter / refresh (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
+        tip: 'Fade-in / stay duration for buildings as they enter on initial render or refresh when the manifest changes. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
+      }),
+    ])
+  );
 
   section.appendChild(
     _subgroup('Color palette (HSL)', [
