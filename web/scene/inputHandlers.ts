@@ -57,13 +57,6 @@ export function createInputHandlers({
   let _hoverCommitId: ReturnType<typeof setTimeout> | 0 = 0;
 
   let _cameraMoving = false;
-  let _cameraSettleTimeout: ReturnType<typeof setTimeout> | 0 = 0;
-
-  // ms of camera idle after a change event before hover re-enables.
-  // 30ms: fast enough to feel instant on release, long enough to absorb
-  // damping change-events fired in rapid succession. Covers zoom inertia
-  // and the tail end of programmatic tweens (rig.focusBuilding etc.).
-  const CAMERA_SETTLE_MS = 30;
 
   // Prepend the root directory name (with a leading slash) to a manifest-
   // relative path so the hover tooltip reads as an absolute-looking path
@@ -282,38 +275,38 @@ export function createInputHandlers({
     }
   });
 
+  // Suppress hover while the user is orbiting/panning/zooming the camera.
+  // Listens to OrbitControls' start/end (NOT change) so hover resumes
+  // instantly on release, even while damping inertia continues. The
+  // tradeoff: hover is not suppressed during programmatic camera tweens
+  // (focusBuilding, reset) since those don't fire start/end — acceptable
+  // because tweens are short and self-triggered.
+  //
   // OrbitControls extends EventDispatcher (not EventTarget) so we can't
   // use the _on helper here — register and dispose manually.
-  const _cameraChangeHandler = () => {
-    if (!_cameraMoving) {
-      _cameraMoving = true;
-      // Drop any in-flight hover so the highlight doesn't linger from
-      // before the camera started moving.
-      if (_hoverCommitId) {
-        clearTimeout(_hoverCommitId);
-        _hoverCommitId = 0;
-      }
-      _hoverPending = null;
-      if (picker.hover.get()) picker.setHover(null);
-      hideTooltip();
-      // Cursor: default cursor while camera moves; the next post-settle
-      // hover RAF will re-set 'pointer' or 'grab' as appropriate.
-      canvas.style.cursor = 'grabbing';
+  const _cameraStartHandler = () => {
+    if (_cameraMoving) return;
+    _cameraMoving = true;
+    // Drop any in-flight hover so the highlight doesn't linger from
+    // before the camera started moving.
+    if (_hoverCommitId) {
+      clearTimeout(_hoverCommitId);
+      _hoverCommitId = 0;
     }
-    if (_cameraSettleTimeout) clearTimeout(_cameraSettleTimeout);
-    _cameraSettleTimeout = setTimeout(() => {
-      _cameraMoving = false;
-      _cameraSettleTimeout = 0;
-      canvas.style.cursor = 'grab';
-    }, CAMERA_SETTLE_MS);
+    _hoverPending = null;
+    if (picker.hover.get()) picker.setHover(null);
+    hideTooltip();
+    canvas.style.cursor = 'grabbing';
   };
-  rig.controls.addEventListener('change', _cameraChangeHandler);
+  const _cameraEndHandler = () => {
+    _cameraMoving = false;
+    canvas.style.cursor = 'grab';
+  };
+  rig.controls.addEventListener('start', _cameraStartHandler);
+  rig.controls.addEventListener('end', _cameraEndHandler);
   _disposers.push(() => {
-    rig.controls.removeEventListener('change', _cameraChangeHandler);
-    if (_cameraSettleTimeout) {
-      clearTimeout(_cameraSettleTimeout);
-      _cameraSettleTimeout = 0;
-    }
+    rig.controls.removeEventListener('start', _cameraStartHandler);
+    rig.controls.removeEventListener('end', _cameraEndHandler);
   });
 
   function _resize() {
