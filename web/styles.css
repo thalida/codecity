@@ -220,7 +220,7 @@ canvas {
      handle can mutate it without fighting the open/close transitions. */
   width: 0;
   height: 100%;
-  background: #12131a;
+  background: var(--cc-bg-sidebar);
   border-left: 1px solid var(--cc-border-subtle);
   /* No transition during drag (would lag the cursor); transition is added
      by .is-animating which we toggle around open/close. */
