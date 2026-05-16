@@ -288,7 +288,7 @@ canvas {
 #app-footer {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, auto) minmax(0, 1fr);
   align-items: center;
   gap: 14px;
   padding: 0 12px;
@@ -309,6 +309,7 @@ canvas {
    * against the dots. */
   gap: 6px;
   min-width: 0;
+  overflow: hidden;
 }
 .app-footer-section.app-footer-left {
   justify-self: start;

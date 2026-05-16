@@ -253,9 +253,9 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     // values.
     const items: HTMLElement[] = [];
     if (sel.kind === NodeKind.File) {
-      selectionEl.appendChild(
-        makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor)
-      );
+      const extBadge = makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor);
+      if (sel.language) extBadge.title = sel.language;
+      selectionEl.appendChild(extBadge);
       if (sel.language) items.push(_item(sel.language));
       if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
@@ -334,11 +334,7 @@ function _branchAwareRepoUrl(url: string, branch: string | null): string {
 function _item(text: string, source?: string, hoverText?: string): HTMLSpanElement {
   const span = document.createElement('span');
   span.className = 'app-footer-item';
-
-  // Use a dedicated label node so that swapping text on hover doesn't wipe
-  // the source-badge child element that may be appended below.
-  const labelNode = document.createTextNode(text);
-  span.appendChild(labelNode);
+  span.textContent = text;
 
   if (source) {
     const src = document.createElement('span');
@@ -348,13 +344,7 @@ function _item(text: string, source?: string, hoverText?: string): HTMLSpanEleme
   }
 
   if (hoverText) {
-    span.style.cursor = 'help';
-    span.addEventListener('mouseenter', () => {
-      labelNode.textContent = hoverText;
-    });
-    span.addEventListener('mouseleave', () => {
-      labelNode.textContent = text;
-    });
+    span.title = hoverText;
   }
 
   return span;
