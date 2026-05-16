@@ -12,6 +12,12 @@ interface BuildPaneHeaderOpts {
   /** Render the title in monospace — used by panes whose title is a
    *  filename / path identifier instead of a label. Defaults to false. */
   mono?: boolean;
+  /** fn() when the user clicks the focus button. Omit to render no button.
+   *  The button equivalent of pressing F on the canvas — used by the
+   *  file-preview pane to frame the camera on the currently-shown file. */
+  onFocus?: () => void;
+  /** Tooltip text on the focus button. Defaults to "Focus camera". */
+  focusTitle?: string;
   /** fn() when the user clicks the × close button. Omit to render no button. */
   onClose?: () => void;
   /** Tooltip text on the × button. Defaults to "Hide sidebar". */
@@ -31,6 +37,25 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   if (opts.mono) title.classList.add('is-mono');
   title.textContent = opts.title;
   header.appendChild(title);
+
+  // Focus button (optional) — sits between the title and the × button.
+  // Used by the file-preview pane to mirror the F-key behaviour for the
+  // currently-shown file.
+  let _focusBtn: HTMLButtonElement | null = null;
+  if (typeof opts.onFocus === 'function') {
+    const focusBtn = document.createElement('button');
+    focusBtn.type = 'button';
+    focusBtn.className = 'pane-header-action';
+    const tooltip = opts.focusTitle ?? 'Focus camera';
+    focusBtn.title = tooltip;
+    focusBtn.setAttribute('aria-label', tooltip);
+    focusBtn.appendChild(makeLucideIcon('focus'));
+    focusBtn.addEventListener('click', () => {
+      opts.onFocus!();
+    });
+    header.appendChild(focusBtn);
+    _focusBtn = focusBtn;
+  }
 
   if (typeof opts.onClose === 'function') {
     const closeBtn = document.createElement('button');
@@ -74,6 +99,10 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
           _prefixEl = el;
           header.insertBefore(el, title);
         }
+      },
+      /** Enable / disable the focus button (no-op if no onFocus was passed). */
+      setFocusEnabled(enabled: boolean): void {
+        if (_focusBtn) _focusBtn.disabled = !enabled;
       },
     },
   };

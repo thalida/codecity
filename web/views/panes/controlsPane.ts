@@ -1105,11 +1105,16 @@ function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement
 
   function refreshSectionReset() {
     const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    // If the section has no resettable rows at all (e.g. Keyboard & mouse,
+    // Debug), there's nothing this button could do — hide it entirely
+    // rather than render a permanently-disabled affordance.
+    if (rowResets.length === 0) {
+      sectionReset.style.display = 'none';
+      return;
+    }
+    sectionReset.style.display = '';
     // Enabled = at least one row's reset is enabled (i.e., that row differs
-    // from default). If there are no per-row resets (e.g., the Keyboard &
-    // mouse shortcuts section, the File Preview syntax-theme section — which
-    // uses .theme-row-reset too — or the Debug section), the section reset
-    // stays disabled.
+    // from default).
     sectionReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
   }
 

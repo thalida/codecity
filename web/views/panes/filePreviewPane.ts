@@ -114,6 +114,12 @@ interface BuildFilePreviewPaneOpts {
    *  hide the sidebar AND update any shell-level visibility tracker so a
    *  subsequent re-open isn't suppressed. */
   onClose?: () => void;
+  /** Called when the user clicks the focus button in the pane header.
+   *  Equivalent of pressing F on the canvas with the current file selected
+   *  — host should frame the camera on the currently-previewed file. The
+   *  callback receives the file the pane is currently showing (so the host
+   *  doesn't have to read from picker state). */
+  onFocus?: (file: FileNode) => void;
 }
 
 /**
@@ -137,6 +143,12 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
     title: 'No file',
     mono: true,
     onClose: opts.onClose,
+    onFocus: opts.onFocus
+      ? () => {
+          if (_activeFile) opts.onFocus!(_activeFile);
+        }
+      : undefined,
+    focusTitle: 'Focus the camera on this file (F)',
   });
   pane.appendChild(header);
 
@@ -234,6 +246,7 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
     _activeFile = file as FileNode | null;
     _renderPathTitle(file as FileNode | null);
     _renderBadge();
+    headerApi.setFocusEnabled(!!_activeFile);
     body.replaceChildren();
     if (!file) {
       body.appendChild(

@@ -716,6 +716,32 @@ canvas {
   background: rgba(255, 255, 255, 0.06);
 }
 
+/* Generic header action button — same shell as .pane-header-close, used
+ * for non-close affordances like the focus camera button in the file
+ * preview pane. */
+.pane-header-action {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #7279a2;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  line-height: 1;
+}
+.pane-header-action:not(:disabled):hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.pane-header-action:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* Activity bar splits into two nested flex columns: a top group that
  * stacks from the top and a bottom group that pins to the bottom. The
  * outer bar's `justify-content: space-between` pushes the two groups

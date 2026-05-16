@@ -283,7 +283,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.className = 'app-header-refresh-btn';
     btn.title = 'Refresh — rebuild the city and reset the view';
     btn.setAttribute('aria-label', 'Refresh');
-    btn.appendChild(makeLucideIcon('map-pin-house'));
+    btn.appendChild(makeLucideIcon('gem'));
     btn.addEventListener('click', () => onRefresh());
     titleEl.parentElement?.appendChild(btn);
   }

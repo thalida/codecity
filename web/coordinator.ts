@@ -60,6 +60,13 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       sidebarVisible = false;
       _renderSidebar();
     },
+    // Focus button in the pane header — mirrors pressing F on the canvas.
+    // The pane passes the file it's currently rendering, so we look up the
+    // matching building mesh and hand it to the camera rig.
+    onFocus(file) {
+      const b = cityScene.getBuildingByPath(file.path);
+      if (b) rig.focusBuilding(b.mesh, b.building);
+    },
   });
 
   function _renderSidebar(): void {
