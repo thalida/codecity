@@ -45,6 +45,7 @@ import {
   SCAN_FILTERS,
   // File preview
   SYNTAX_THEME,
+  SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
@@ -884,14 +885,36 @@ function _buildFilePreviewSection(): HTMLElement {
     sel.appendChild(el);
   }
 
-  // Sync <select> value with the atom (covers both initial hydration and
-  // external resets such as "Reset all").
-  const refresh = () => { sel.value = SYNTAX_THEME.get(); };
-  SYNTAX_THEME.subscribe(refresh);
-
   sel.addEventListener('change', () => {
     SYNTAX_THEME.set(sel.value);
   });
+
+  // Reset button — mirrors the rotate-ccw affordance other rows use, but
+  // wired to the SYNTAX_THEME atom (not the drafts layer, which the rest
+  // of Controls uses). Disabled when the current value already matches the
+  // default; clicking writes the default back into the atom.
+  const resetBtn = document.createElement('button');
+  resetBtn.type = 'button';
+  resetBtn.className = 'theme-row-reset';
+  resetBtn.title = `Default: ${SYNTAX_THEME_OPTIONS.find(o => o.value === SYNTAX_THEME_DEFAULT)?.label ?? SYNTAX_THEME_DEFAULT}`;
+  resetBtn.setAttribute('aria-label', 'Reset syntax theme to default');
+  resetBtn.appendChild(makeLucideIcon('rotate-ccw'));
+  resetBtn.addEventListener('click', (e) => {
+    if (resetBtn.disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+    SYNTAX_THEME.set(SYNTAX_THEME_DEFAULT);
+  });
+
+  // Sync <select> value AND reset-button disabled state with the atom
+  // (covers initial hydration, external resets such as "Reset all", and
+  // every user change via this same select).
+  const refresh = () => {
+    const v = SYNTAX_THEME.get();
+    sel.value = v;
+    resetBtn.disabled = v === SYNTAX_THEME_DEFAULT;
+  };
+  SYNTAX_THEME.subscribe(refresh);
 
   const row = document.createElement('label');
   row.className = 'theme-row';
@@ -902,6 +925,7 @@ function _buildFilePreviewSection(): HTMLElement {
   const ctrl = document.createElement('span');
   ctrl.className = 'theme-row-control';
   ctrl.appendChild(sel);
+  ctrl.appendChild(resetBtn);
   row.appendChild(ctrl);
   section.appendChild(row);
 
