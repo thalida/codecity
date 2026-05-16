@@ -829,8 +829,8 @@ canvas {
 }
 
 .controls-section + .controls-section {
-  margin-top: 24px;
-  padding-top: 20px;
+  margin-top: 6px;
+  padding-top: 6px;
   border-top: 1px solid #1a1c28;
 }
 
