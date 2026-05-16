@@ -310,6 +310,51 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Form inputs
+   ═══════════════════════════════════════════════════════════════════════════
+   .form-input — base text-input style (sidebar/controls).
+   Aliases: .search-input, .theme-number, .modal-field input.
+   The modal-field variant overrides bg/border/padding for the modal context.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.form-input,
+.search-input,
+.theme-number {
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-text-primary);
+  font-family: inherit;
+  font-size: var(--cc-font-lg);
+  padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
+  outline: none;
+}
+.form-input::placeholder,
+.search-input::placeholder,
+.theme-number::placeholder {
+  color: var(--cc-text-faint);
+}
+.form-input:focus,
+.search-input:focus,
+.theme-number:focus {
+  border-color: var(--cc-accent-border);
+}
+
+/* Modal-context variant: lighter bg/border to read against the modal card. */
+.modal-field input {
+  background: var(--cc-overlay-bg-soft);
+  border: 1px solid var(--cc-overlay-bg-strong);
+  border-radius: var(--cc-radius-md);
+  color: inherit;
+  font: inherit;
+  padding: var(--cc-space-4) var(--cc-space-5); /* 8px 10px */
+  outline: none;
+}
+.modal-field input:focus {
+  border-color: var(--cc-accent-border);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Buttons
    ═══════════════════════════════════════════════════════════════════════════
    .btn-primary       — solid accent CTA (modal submit, save).
@@ -1714,20 +1759,14 @@ canvas {
 }
 
 /* Number input — narrow box on the right of the row */
+/* Visual style in .form-input; this rule adds the fixed width, mono font,
+   compact padding, and right-align for numeric value display. */
 .theme-number {
   width: 70px;
-  background: var(--cc-bg-chrome);
-  border: 1px solid var(--cc-border-input);
-  border-radius: var(--cc-radius-sm);
-  color: var(--cc-text-primary);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md);
-  padding: 3px 6px;
+  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
   text-align: right;
-}
-.theme-number:focus {
-  outline: none;
-  border-color: var(--cc-accent-border);
 }
 
 /* Slider — the range input grows into available space; the readout is
@@ -2050,23 +2089,10 @@ canvas {
   color: var(--cc-text-faint);
 }
 
+/* Visual style in .form-input; this rule adds the flex-fill layout. */
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
-  background: var(--cc-bg-chrome);
-  border: 1px solid var(--cc-border-input);
-  border-radius: var(--cc-radius-sm);
-  color: var(--cc-text-primary);
-  font-family: inherit;
-  font-size: var(--cc-font-lg);
-  padding: 5px 8px;
-  outline: none;
-}
-.search-input::placeholder {
-  color: var(--cc-text-faint);
-}
-.search-input:focus {
-  border-color: var(--cc-accent-border);
 }
 /* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
 .search-input::-webkit-search-cancel-button {
@@ -2660,18 +2686,8 @@ canvas {
   font-size: var(--cc-font-lg);
   color: var(--cc-text-muted);
 }
-.modal-field input {
-  background: var(--cc-overlay-bg-soft);
-  border: 1px solid var(--cc-overlay-bg-strong);
-  color: inherit;
-  padding: 8px 10px;
-  border-radius: var(--cc-radius-md);
-  font: inherit;
-}
-.modal-field input:focus {
-  outline: 2px solid var(--cc-accent);
-  outline-offset: 0;
-}
+/* Visual style consolidated in the .modal-field input rule near the top
+   of the file (next to .form-input). */
 
 .modal-error {
   background: var(--cc-error-bg);
