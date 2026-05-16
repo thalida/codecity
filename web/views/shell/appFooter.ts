@@ -259,9 +259,16 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
       if (sel.language) items.push(_item(sel.language));
       if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
-      if (sel.modified)
-        items.push(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
-      if (sel.created) items.push(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
+      if (sel.modified) {
+        const relMod = `modified ${_relativeTime(new Date(sel.modified).getTime(), Date.now())}`;
+        const absMod = `modified ${_formatDate(sel.modified)}`;
+        items.push(_item(relMod, sel.dateSource, absMod));
+      }
+      if (sel.created) {
+        const relCre = `created ${_relativeTime(new Date(sel.created).getTime(), Date.now())}`;
+        const absCre = `created ${_formatDate(sel.created)}`;
+        items.push(_item(relCre, sel.dateSource, absCre));
+      }
     } else if (sel.kind === NodeKind.Directory) {
       selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
       items.push(_item('Directory'));
@@ -324,16 +331,32 @@ function _branchAwareRepoUrl(url: string, branch: string | null): string {
   return url;
 }
 
-function _item(text: string, source?: string): HTMLSpanElement {
+function _item(text: string, source?: string, hoverText?: string): HTMLSpanElement {
   const span = document.createElement('span');
   span.className = 'app-footer-item';
-  span.textContent = text;
+
+  // Use a dedicated label node so that swapping text on hover doesn't wipe
+  // the source-badge child element that may be appended below.
+  const labelNode = document.createTextNode(text);
+  span.appendChild(labelNode);
+
   if (source) {
     const src = document.createElement('span');
     src.className = 'app-footer-source';
     src.textContent = `(${source})`;
     span.appendChild(src);
   }
+
+  if (hoverText) {
+    span.style.cursor = 'help';
+    span.addEventListener('mouseenter', () => {
+      labelNode.textContent = hoverText;
+    });
+    span.addEventListener('mouseleave', () => {
+      labelNode.textContent = text;
+    });
+  }
+
   return span;
 }
 
