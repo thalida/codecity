@@ -425,39 +425,31 @@ h1, h2, h3, h4, h5, h6 {
    The modal-field variant overrides bg/border/padding for the modal context.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+/* .form-input — the one text-input style for every context (sidebar,
+   controls, modal). Reads as a "depressed" element against any of the
+   four surface backgrounds. */
 .form-input,
 .search-input,
-.theme-number {
+.theme-number,
+.modal-field input {
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
   color: var(--cc-text-primary);
-  font-family: inherit;
+  font: inherit;
   font-size: var(--cc-font-lg);
   padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
   outline: none;
 }
 .form-input::placeholder,
 .search-input::placeholder,
-.theme-number::placeholder {
+.theme-number::placeholder,
+.modal-field input::placeholder {
   color: var(--cc-text-faint);
 }
 .form-input:focus,
 .search-input:focus,
-.theme-number:focus {
-  border-color: var(--cc-accent-border);
-}
-
-/* Modal-context variant: lighter bg/border to read against the modal card. */
-.modal-field input {
-  background: var(--cc-overlay-bg-soft);
-  border: 1px solid var(--cc-overlay-bg-strong);
-  border-radius: var(--cc-radius-md);
-  color: inherit;
-  font: inherit;
-  padding: var(--cc-space-4) var(--cc-space-5); /* 8px 10px */
-  outline: none;
-}
+.theme-number:focus,
 .modal-field input:focus {
   border-color: var(--cc-accent-border);
 }
@@ -473,18 +465,28 @@ h1, h2, h3, h4, h5, h6 {
    .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* .btn-primary — solid accent CTA. Aliases: .modal-actions button. */
+/* .btn-primary — solid accent CTA. Used everywhere a "primary action"
+   appears: modal Open Project, controls Save, etc.
+   Alias for legacy .modal-actions button selector. */
 .btn-primary,
 .modal-actions button {
   appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--cc-accent);
   border: 0;
   color: var(--cc-text-inverse);
-  padding: var(--cc-space-4) var(--cc-space-7); /* 8px 16px */
+  padding: var(--cc-space-4) var(--cc-space-7);
   border-radius: var(--cc-radius-md);
   cursor: pointer;
   font: inherit;
   font-weight: var(--cc-fw-semibold);
+  transition: background var(--cc-t-base);
+}
+.btn-primary:hover:not(:disabled),
+.modal-actions button:hover:not(:disabled) {
+  background: var(--cc-accent-light);
 }
 .btn-primary:disabled,
 .modal-actions button:disabled {
@@ -542,6 +544,7 @@ h1, h2, h3, h4, h5, h6 {
 .app-header-repo-link,
 .app-footer-button,
 .pane-header-close,
+.pane-header-action,
 .modal-header button.modal-close,
 .recent-row .recent-remove {
   appearance: none;
@@ -554,9 +557,9 @@ h1, h2, h3, h4, h5, h6 {
   cursor: pointer;
 }
 
-/* Shared hover — color brightens, subtle .06 overlay added.
-   .modal-header button.modal-close opts out: it uses a .08 overlay and
-   keeps inherited text color. */
+/* Shared hover — color brightens, subtle overlay added.
+   .modal-header button.modal-close opts out: it uses a stronger overlay
+   and keeps inherited text color. */
 .btn-icon:hover,
 .app-header-icon:hover,
 .switch-source-btn:hover,
@@ -564,6 +567,7 @@ h1, h2, h3, h4, h5, h6 {
 .app-header-repo-link:hover,
 .app-footer-button:hover,
 .pane-header-close:hover,
+.pane-header-action:not(:disabled):hover,
 .recent-row .recent-remove:hover {
   color: var(--cc-text-primary);
   background: var(--cc-overlay-bg);
@@ -1239,23 +1243,14 @@ canvas {
 /* Generic header action button — same shell as .pane-header-close, used
  * for non-close affordances like the focus camera button in the file
  * preview pane. */
+/* .pane-header-action — alias of .btn-icon. Overrides: padding-based size,
+   14px font, faint resting color, 35% disabled opacity. */
 .pane-header-action {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
   color: var(--cc-text-faint);
-  cursor: pointer;
   padding: var(--cc-space-2);
   border-radius: var(--cc-radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
   font-size: var(--cc-font-xl);
   line-height: 1;
-}
-.pane-header-action:not(:disabled):hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
 }
 .pane-header-action:disabled {
   opacity: 0.35;
@@ -1545,59 +1540,37 @@ canvas {
   border-radius: var(--cc-radius-sm);
 }
 
-/* .btn-accent-outline — accent-tinted outlined button for the controls
-   pane's primary actions (Save, debug). .controls-button is kept as an
-   alias for the DOM elements that still carry the old class name. */
-.btn-accent-outline,
-.controls-button {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--cc-accent-bg-soft);
-  border: 1px solid var(--cc-accent-bg-strong);
+/* .btn-secondary — standalone outlined neutral button. Used for any
+   "less prominent action" (Cancel, Reset all, Discard, dev tools). */
+.btn-secondary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cc-overlay-bg-soft);
+  border: 1px solid var(--cc-overlay-bg-strong);
   border-radius: var(--cc-radius-md);
   color: var(--cc-text-secondary);
-  font-family: inherit;
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-medium);
-  padding: var(--cc-space-4) var(--cc-space-5);
+  padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
   cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-medium);
   transition:
     color var(--cc-t-base),
     background var(--cc-t-base),
     border-color var(--cc-t-base);
 }
-
-.btn-accent-outline:hover,
-.controls-button:hover {
-  background: var(--cc-accent-bg);
-  border-color: var(--cc-accent-border);
-  color: var(--cc-text-primary);
-}
-
-.btn-accent-outline:active:not(:disabled),
-.controls-button:active:not(:disabled) {
-  background: var(--cc-accent-bg-strong);
-}
-.btn-accent-outline:disabled,
-.controls-button:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-/* .btn-secondary — muted variant. Composes with .btn-accent-outline (or
- * .controls-button) to override background and border so it sits beside
- * the primary "Save" button without competing visually. */
-.btn-secondary,
-.controls-button-secondary {
-  background: var(--cc-overlay-bg-soft);
-  border-color: var(--cc-overlay-bg-strong);
-}
-.btn-secondary:hover:not(:disabled),
-.controls-button-secondary:hover:not(:disabled) {
+.btn-secondary:hover:not(:disabled) {
   background: var(--cc-overlay-bg-strong);
   border-color: var(--cc-overlay-border);
   color: var(--cc-text-primary);
+}
+.btn-secondary:active:not(:disabled) {
+  background: var(--cc-overlay-border);
+}
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 /* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
@@ -1619,13 +1592,10 @@ canvas {
   align-items: center;
   gap: var(--cc-space-4);
 }
-.controls-actions .btn-accent-outline,
-.controls-actions .controls-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* Buttons inside the sticky controls action bar share an icon-text layout. */
+.controls-actions .btn-primary,
+.controls-actions .btn-secondary {
   gap: var(--cc-space-3);
-  width: auto;
 }
 .controls-button-icon {
   width: 14px;
@@ -2608,7 +2578,7 @@ canvas {
   align-items: center;
   justify-content: space-between;
   padding: var(--cc-space-7) var(--cc-space-7);
-  border-bottom: 1px solid var(--cc-overlay-bg-strong);
+  border-bottom: 1px solid var(--cc-border-subtle);
   font-weight: var(--cc-fw-semibold);
 }
 
@@ -2631,23 +2601,37 @@ canvas {
   flex: 1;
 }
 
+/* Tab strip — classic underline-tab pattern. The container draws the
+   horizontal rule under the row; each tab paints a 2px transparent
+   border-bottom that overlaps that rule (negative bottom margin) and
+   switches to the accent color on the active tab. */
 .modal-tabs {
   display: flex;
-  gap: var(--cc-space-2);
+  gap: 0;
+  border-bottom: 1px solid var(--cc-border-subtle);
   margin-bottom: var(--cc-space-7);
 }
 .modal-tabs button {
   appearance: none;
-  background: transparent;
-  border: 1px solid var(--cc-overlay-bg-strong);
-  color: inherit;
-  padding: var(--cc-space-3) var(--cc-space-7);
-  border-radius: var(--cc-radius-md);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--cc-text-muted);
+  padding: var(--cc-space-3) var(--cc-space-5);
   cursor: pointer;
   font: inherit;
+  font-weight: var(--cc-fw-medium);
+  transition:
+    color var(--cc-t-base),
+    border-color var(--cc-t-base);
+}
+.modal-tabs button:hover {
+  color: var(--cc-text-primary);
 }
 .modal-tabs button.active {
-  background: var(--cc-overlay-bg-strong);
+  color: var(--cc-text-primary);
+  border-bottom-color: var(--cc-accent);
 }
 
 .modal-field {
@@ -2682,7 +2666,7 @@ canvas {
 
 .recents-list {
   margin-top: var(--cc-space-7);
-  border-top: 1px solid var(--cc-overlay-bg-strong);
+  border-top: 1px solid var(--cc-border-subtle);
   padding-top: var(--cc-space-5);
 }
 /* Typography in .text-label. */
