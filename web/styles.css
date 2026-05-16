@@ -253,7 +253,10 @@ canvas {
   align-items: center;
   gap: 6px;
   height: 24px;
-  padding: 0 8px;
+  /* Asymmetric padding: more on the left so the icon breathes; tight on
+   * the right so the @branch pill / label hugs the next header element
+   * (open-repo link or breadcrumb chip). */
+  padding: 0 2px 0 8px;
   margin-right: 0;
   background: none;
   border: none;
