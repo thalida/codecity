@@ -577,7 +577,10 @@ interface SignatureResponse {
   signature: string;
 }
 
-function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): void {
+function setupLiveUpdates(
+  handle: LiveUpdateHandle,
+  initialSignature: string,
+): { setSignature(sig: string): void } {
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
   let inFlight = false;
@@ -688,6 +691,12 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
     }
     refreshFromToggle();
   });
+
+  return {
+    setSignature(sig: string) {
+      lastSignature = sig;
+    },
+  };
 }
 
 // ── Boot helpers ────────────────────────────────────────────────────────────
@@ -822,8 +831,9 @@ if (_canvas) {
     });
 
     let liveUpdatesStarted = false;
+    let _liveUpdates: { setSignature(sig: string): void } | null = null;
     if (hasSrc && !initialError) {
-      setupLiveUpdates(handle, initialManifest.signature);
+      _liveUpdates = setupLiveUpdates(handle, initialManifest.signature);
       liveUpdatesStarted = true;
     }
 
@@ -865,14 +875,14 @@ if (_canvas) {
         }
 
         await handle.cityScene.applyManifest(manifest);
+        _liveUpdates?.setSignature(manifest.signature);
         pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });
 
         if (!liveUpdatesStarted) {
-          setupLiveUpdates(handle, manifest.signature);
+          _liveUpdates = setupLiveUpdates(handle, manifest.signature);
           liveUpdatesStarted = true;
         }
       } catch (err) {
-        loadingOverlay.hide();
         picker.open({
           dismissible: dismissibleOnError,
           prefill: payload,
@@ -891,16 +901,10 @@ if (_canvas) {
       },
     });
 
-    // Wrap open() so we remember the dismissible flag for the next error reopen.
-    const _originalOpen = picker.open.bind(picker);
-    picker.open = (o = {}) => {
-      _lastDismissible = !!o.dismissible;
-      _originalOpen(o);
-    };
-
     // Boot decisions:
     if (initialError) {
       // Direct-boot fetch failed → modal in non-dismissible mode with the error.
+      _lastDismissible = false;
       picker.open({
         dismissible: false,
         prefill: { src: qp.get('src')!, branch: qp.get('branch') ?? undefined },
@@ -908,6 +912,7 @@ if (_canvas) {
       });
     } else if (!hasSrc) {
       // Cold boot, no URL params → modal in non-dismissible mode.
+      _lastDismissible = false;
       picker.open({ dismissible: false });
     } else {
       // Boot complete with manifest applied.
@@ -917,6 +922,7 @@ if (_canvas) {
     // Wire the header "switch source" button via a global hook.
     (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker = () => {
       const cur = new URLSearchParams(window.location.search);
+      _lastDismissible = true;
       picker.open({
         dismissible: true,
         prefill: cur.has('src')
