@@ -661,16 +661,22 @@ canvas {
 
 /* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
    6px hit zone half-on/half-off so it's easy to grab. */
+/* Sidebar resize handles — base rule shared with .sidebar-resize-handle.
+   Per-class lines below set which edge (left/right) the handle anchors to
+   and the z-index. */
+.sidebar-resize-handle,
 .sidebar-resize-handle-right {
   position: absolute;
   top: 0;
-  left: -3px;
   width: 6px;
   height: 100%;
   cursor: ew-resize;
   background: transparent;
-  z-index: 101;
 }
+.sidebar-resize-handle-right { left:  -3px; z-index: 101; }
+.sidebar-resize-handle       { right: -3px; z-index: 91; }
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging,
 .sidebar-resize-handle-right:hover,
 .sidebar-resize-handle-right.dragging {
   background: var(--cc-accent-bg-strong);
@@ -1044,20 +1050,25 @@ canvas {
 
 /* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
 
-#sidebar ::-webkit-scrollbar {
+/* Scrollbars — shared rules for both sidebars.
+   Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
+   scrollbar-width / scrollbar-color (set further down on the scrolling
+   children that actually overflow). */
+#sidebar ::-webkit-scrollbar,
+#tree-sidebar ::-webkit-scrollbar {
   width: 4px;
 }
-
-#sidebar ::-webkit-scrollbar-track {
+#sidebar ::-webkit-scrollbar-track,
+#tree-sidebar ::-webkit-scrollbar-track {
   background: transparent;
 }
-
-#sidebar ::-webkit-scrollbar-thumb {
+#sidebar ::-webkit-scrollbar-thumb,
+#tree-sidebar ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
 }
-
-#sidebar ::-webkit-scrollbar-thumb:hover {
+#sidebar ::-webkit-scrollbar-thumb:hover,
+#tree-sidebar ::-webkit-scrollbar-thumb:hover {
   background: var(--cc-track-hover);
 }
 
@@ -1157,20 +1168,7 @@ canvas {
 
 /* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
  * 6px hit zone makes it easy to grab. */
-.sidebar-resize-handle {
-  position: absolute;
-  top: 0;
-  right: -3px; /* sit half-on, half-off the edge for an easier grab */
-  width: 6px;
-  height: 100%;
-  cursor: ew-resize;
-  background: transparent;
-  z-index: 91;
-}
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.dragging {
-  background: var(--cc-accent-bg-strong);
-}
+/* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
 
 /* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
  * (set by the resize handle) is overridden by !important so we get the
@@ -1414,16 +1412,18 @@ canvas {
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-.controls-section-chevron {
-  /* Match .tree-chevron's 14px slot so labels line up with the file
-   * tree's labels at the same horizontal position. */
+/* Section chevrons — consolidated rule shared with .theme-subgroup-chevron.
+   Width matches .tree-chevron so labels at all depths line up. */
+.controls-section-chevron,
+.theme-subgroup-chevron {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
   color: var(--cc-text-secondary);
   transition: transform var(--cc-t-fast) ease;
 }
-.controls-section[open] > summary.controls-section-summary > .controls-section-chevron {
+.controls-section[open] > summary.controls-section-summary > .controls-section-chevron,
+.theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
   transform: rotate(90deg);
 }
 
@@ -1645,16 +1645,7 @@ canvas {
 .theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
   display: none;
 }
-.theme-subgroup-chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: var(--cc-text-muted);
-  transition: transform var(--cc-t-fast) ease;
-}
-.theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
-  transform: rotate(90deg);
-}
+/* Chevron rule consolidated with .controls-section-chevron above. */
 
 /* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
  * Geometry / Contrast / Window lighting). The parent's <summary> already
@@ -1953,19 +1944,9 @@ canvas {
 }
 
 /* Scrollbar for tree */
-#tree-sidebar ::-webkit-scrollbar {
-  width: 4px;
-}
-#tree-sidebar ::-webkit-scrollbar-track {
-  background: transparent;
-}
-#tree-sidebar ::-webkit-scrollbar-thumb {
-  background: var(--cc-border-input);
-  border-radius: var(--cc-radius-sm);
-}
-#tree-sidebar ::-webkit-scrollbar-thumb:hover {
-  background: var(--cc-track-hover);
-}
+/* Webkit scrollbar rules consolidated with #sidebar earlier in the file.
+   This block only sets the Firefox scrollbar style on the actual
+   scrolling child of #tree-sidebar. */
 #tree-sidebar .tree-root {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
@@ -2100,21 +2081,33 @@ canvas {
   flex-direction: column;
 }
 
-.search-state {
+/* Empty-state layout shared with .preview-state (per-class overrides for
+   gap / padding / icon size live with each rule below). Icon: opacity 0.55,
+   small bottom margin to separate from the title beneath. */
+.empty-state,
+.search-state,
+.preview-state {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px 18px;
   color: var(--cc-text-faint);
   text-align: center;
 }
+.empty-state .lucide-icon,
+.search-state .lucide-icon,
+.preview-state .lucide-icon {
+  opacity: 0.55;
+}
+
+.search-state {
+  gap: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px (was 18) */
+}
 .search-state .lucide-icon {
   font-size: var(--cc-font-3xl);
-  opacity: 0.55;
-  margin-bottom: 2px;
+  margin-bottom: var(--cc-space-1); /* 2px */
 }
 /* Typography in .text-card-title / .text-card-sub. */
 .search-state-title { margin: 0; }
@@ -2396,27 +2389,15 @@ canvas {
 
 /* Centered state message (matches .editor-empty-hint shape). Used for
    load errors, file-too-large notices, etc. */
+/* Layout in .empty-state above; this rule sets the larger
+   gap / padding / icon used by the file-preview empty state. */
 .preview-state {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 32px 20px;
-  color: var(--cc-text-faint);
-  text-align: center;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+  gap: var(--cc-space-4); /* 8px (was 10) — unified with search-state */
+  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px (was 32 20) */
 }
 .preview-state .lucide-icon {
   font-size: var(--cc-font-4xl);
-  opacity: 0.55;
-  margin-bottom: 4px;
+  margin-bottom: var(--cc-space-2); /* 4px */
 }
 /* Typography in .text-card-title / .text-card-sub. */
 .preview-state-title { margin: 0; }
