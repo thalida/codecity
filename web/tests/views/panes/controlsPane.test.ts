@@ -9,18 +9,21 @@ describe('buildControlsPane', () => {
     expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('Keyboard & mouse');
   });
 
-  it('renders a shortcuts list in the Camera & Interaction section (no Reset camera button)', () => {
+  it('renders a shortcuts list in the Keyboard & mouse section', () => {
     const { pane } = buildControlsPane({});
     const shortcuts = pane.querySelector<HTMLElement>('.shortcuts-list');
     expect(shortcuts).not.toBeNull();
     // Must include both keyboard and mouse rows.
     expect(pane.querySelector('.shortcuts-list kbd')).not.toBeNull();
     expect(pane.querySelector('.shortcuts-list .shortcuts-mouse')).not.toBeNull();
-    // The shortcuts list lives in the new "Camera & Interaction" section.
+    // The shortcuts list lives in the "Keyboard & mouse" section. The old
+    // "Camera & Interaction" section was removed — its only remaining
+    // tunables (BASE_DURATION_MS, EASING_POWER) are dev-only now.
     const sectionLabels = Array.from(
       pane.querySelectorAll<HTMLElement>('.controls-section-label')
     ).map((el) => el.textContent);
-    expect(sectionLabels).toContain('Camera & Interaction');
+    expect(sectionLabels).toContain('Keyboard & mouse');
+    expect(sectionLabels).not.toContain('Camera & Interaction');
     expect(sectionLabels).not.toContain('View');
   });
 
