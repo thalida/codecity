@@ -15,7 +15,14 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from codecity import clone as clone_mod
-from codecity.clone import CloneError, ensure_clone
+from codecity.clone import (
+    BranchNotFoundError,
+    CloneError,
+    HostUnreachableError,
+    RepoNotFoundError,
+    _maybe_raise_clean_clone_error,
+    ensure_clone,
+)
 
 
 os.environ["CODECITY_QUIET"] = "1"
@@ -109,14 +116,6 @@ class EnsureCloneTests(unittest.TestCase):
     def test_missing_remote_raises_clone_error(self) -> None:
         with self.assertRaises(CloneError):
             ensure_clone(str(self.tmp_path / "does-not-exist.git"))
-
-
-from codecity.clone import (
-    BranchNotFoundError,
-    RepoNotFoundError,
-    HostUnreachableError,
-    _maybe_raise_clean_clone_error,
-)
 
 
 class CleanCloneErrorDispatcherTests(unittest.TestCase):
