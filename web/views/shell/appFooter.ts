@@ -189,7 +189,20 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     const wrap = document.createElement('span');
     wrap.className = 'app-footer-repo';
 
+    // Project name — shown first so the label anchors the rest of the row.
+    // coordinator.ts stamps the friendly display label onto info.name before
+    // calling setRepoInfo, so this always shows "owner/repo" for URL sources
+    // instead of the raw cache-directory hash.
+    if (info.name) {
+      const nameEl = document.createElement('span');
+      nameEl.className = 'app-footer-repo-name';
+      nameEl.textContent = info.name;
+      nameEl.title = info.root || info.name;
+      wrap.appendChild(nameEl);
+    }
+
     if (info.branch) {
+      if (info.name) wrap.appendChild(_makeSep());
       const branch = document.createElement('span');
       branch.className = 'app-footer-repo-branch';
       if (info.dirty) branch.classList.add('is-dirty');
@@ -201,7 +214,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     }
 
     if (info.remoteUrl) {
-      if (info.branch) wrap.appendChild(_makeSep());
+      if (info.name || info.branch) wrap.appendChild(_makeSep());
       const link = document.createElement('a');
       link.className = 'app-footer-repo-link';
       link.href = _branchAwareRepoUrl(info.remoteUrl, info.branch);

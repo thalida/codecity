@@ -21,6 +21,7 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
+import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
 import {
   REBUILD_STATUS,
@@ -40,26 +41,6 @@ interface CoordinatorOpts {
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   applyTheme: () => void;
-}
-
-/**
- * Derive a short, human-friendly label from a `display_root` value that the
- * server stamps on git-URL sources (e.g. "https://github.com/foo/bar@main").
- * Mirrors the `_deriveLabel` logic in main.ts without importing it (coordinator
- * must not import from main to avoid circular dependencies).
- */
-function _labelFromDisplayRoot(displayRoot: string): string {
-  // Strip optional @branch suffix before analysing the URL/path
-  const noBranch = displayRoot.replace(/@[^@\/]+$/, '');
-  // git URL: "owner/repo" from last two path segments
-  if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
-    const m = noBranch.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
-    if (m) return `${m[1]}/${m[2]}`;
-    return noBranch;
-  }
-  // Local path: basename
-  const parts = noBranch.split(/[\/\\]/).filter(Boolean);
-  return parts.length ? parts[parts.length - 1] : noBranch;
 }
 
 export function createCoordinator({ cityScene, picker, rig, applyTheme }: CoordinatorOpts) {
@@ -99,9 +80,16 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
   const _initManifest = cityScene.getManifest();
-  const _rootLabel = _initManifest?.display_root
-    ? _labelFromDisplayRoot(_initManifest.display_root)
-    : (rootNode?.name ?? '');
+  // Derive the friendly label once and, critically, WRITE IT BACK into
+  // manifest.tree.name so every downstream consumer (tree pane root row,
+  // street label, footer name) automatically sees the friendly label
+  // without each needing its own display_root lookup. This is a
+  // controlled client-side mutation — the server-supplied cache-directory
+  // hash is only meaningful to the server; the UI should always show the
+  // human-readable source name.
+  const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
+  if (_initManifest && _rootLabel) _initManifest.tree.name = _rootLabel;
+  document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
   const appHeader = initAppHeader({
     rootLabel: _rootLabel,
     rootPath: rootNode?.path || '',
@@ -312,6 +300,14 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // polls (commit, checkout, edit) so the footer follows the manifest.
   const _changeUnsub = cityScene.onChange(() => {
     const m = cityScene.getManifest();
+    // Apply the same friendly-label mutation on each manifest refresh so
+    // live-update polls and source switches always surface the human-readable
+    // name, not the cache-directory hash.
+    if (m) {
+      const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
+      if (freshLabel) m.tree.name = freshLabel;
+      document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
+    }
     appFooter.setRepoInfo(_repoInfoFromManifest(m));
     LAST_UPDATED_AT.set(Date.now());
     if (leftSidebarApi.setInfoManifest) {
