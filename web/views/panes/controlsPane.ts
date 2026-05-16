@@ -1591,7 +1591,7 @@ function _select(
   const buttons = options.map((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'theme-select-option';
+    btn.className = 'btn-toggle theme-select-option';
     btn.dataset.value = opt.value;
     btn.textContent = opt.label;
     btn.addEventListener('click', (e) => {

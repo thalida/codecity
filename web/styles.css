@@ -1113,29 +1113,54 @@ canvas {
   padding: 2px;
 }
 
-.segmented-option {
-  flex: 1;
+/* .btn-toggle — segmented / theme-select toggle option (choose one of N).
+   .segmented-option and .theme-select-option are aliases sharing this
+   shell. Per-class overrides handle the size, padding, and separator-border
+   differences. Active state: .btn-toggle and .theme-select-option use
+   .is-active; .segmented-option uses .active (legacy class name, kept). */
+.btn-toggle,
+.segmented-option,
+.theme-select-option {
+  appearance: none;
   background: none;
   border: none;
   color: var(--cc-text-faint);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 10px;
   cursor: pointer;
-  border-radius: 4px;
   transition:
     color 0.15s,
     background 0.15s;
 }
 
-.segmented-option:hover {
+.btn-toggle:hover,
+.segmented-option:hover,
+.theme-select-option:hover {
   color: var(--cc-text-secondary);
 }
 
-.segmented-option.active {
+.btn-toggle.is-active,
+.segmented-option.active,
+.theme-select-option.is-active {
   background: var(--cc-accent-mid);
   color: var(--cc-text-primary);
+}
+
+/* Standalone .btn-toggle defaults (when used without an alias). */
+.btn-toggle {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 4px;
+}
+
+/* .segmented-option — alias of .btn-toggle. Overrides: flex-fill, 12px/500
+   font, 6px 10px padding, 4px radius. */
+.segmented-option {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 10px;
+  border-radius: 4px;
 }
 
 /* .btn-accent-outline — accent-tinted outlined button for the controls
@@ -1413,29 +1438,18 @@ canvas {
   border-radius: 4px;
   overflow: hidden;
 }
+/* .theme-select-option — alias of .btn-toggle. Overrides: separator border
+   between items, 10px font, 3px 8px padding, subtle bg overlay on hover. */
 .theme-select-option {
-  background: none;
-  border: none;
   border-right: 1px solid #1a1c28;
-  color: var(--cc-text-faint);
-  font-family: inherit;
   font-size: 10px;
   padding: 3px 8px;
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s;
 }
 .theme-select-option:last-child {
   border-right: none;
 }
 .theme-select-option:hover {
-  color: var(--cc-text-secondary);
   background: rgba(255, 255, 255, 0.04);
-}
-.theme-select-option.is-active {
-  background: var(--cc-accent-mid);
-  color: var(--cc-text-primary);
 }
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
