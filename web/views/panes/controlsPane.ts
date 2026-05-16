@@ -936,7 +936,7 @@ function _buildDebugSection(
     row.className = 'theme-row';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'controls-button';
+    button.className = 'btn-accent-outline controls-button';
     button.textContent = 'Run collision check';
     button.title = 'Walks the current layout and logs any rect/rect overlaps.';
     button.addEventListener('click', () => {
@@ -951,7 +951,7 @@ function _buildDebugSection(
     row.className = 'theme-row';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'controls-button';
+    button.className = 'btn-accent-outline controls-button';
     button.textContent = 'Diagnose stem placement';
     button.title =
       'Re-runs layout under tracing and logs, per road, the chosen stem and binding obstacle for each child placement.';
@@ -983,7 +983,7 @@ function _buildActionsSection(): HTMLElement {
 
   const resetAll = document.createElement('button');
   resetAll.type = 'button';
-  resetAll.className = 'controls-button controls-button-secondary';
+  resetAll.className = 'btn-accent-outline btn-secondary controls-button controls-button-secondary';
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
   resetAll.title = 'Stage every overridden value back to its default. Click Save to apply.';
@@ -995,7 +995,7 @@ function _buildActionsSection(): HTMLElement {
 
   const discard = document.createElement('button');
   discard.type = 'button';
-  discard.className = 'controls-button controls-button-secondary';
+  discard.className = 'btn-accent-outline btn-secondary controls-button controls-button-secondary';
   discard.textContent = 'Discard';
   discard.title = 'Drop all unsaved changes.';
   discard.addEventListener('click', () => {
@@ -1006,7 +1006,7 @@ function _buildActionsSection(): HTMLElement {
 
   const save = document.createElement('button');
   save.type = 'button';
-  save.className = 'controls-button';
+  save.className = 'btn-accent-outline controls-button';
   save.textContent = 'Save';
   save.title = 'Apply unsaved changes to the scene.';
   save.addEventListener('click', () => {

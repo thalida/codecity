@@ -1138,6 +1138,10 @@ canvas {
   color: var(--cc-text-primary);
 }
 
+/* .btn-accent-outline — accent-tinted outlined button for the controls
+   pane's primary actions (Save, debug). .controls-button is kept as an
+   alias for the DOM elements that still carry the old class name. */
+.btn-accent-outline,
 .controls-button {
   display: block;
   width: 100%;
@@ -1157,26 +1161,32 @@ canvas {
     border-color 0.15s;
 }
 
+.btn-accent-outline:hover,
 .controls-button:hover {
   background: var(--cc-accent-mid);
   border-color: rgba(91, 157, 255, 0.4);
   color: var(--cc-text-primary);
 }
 
+.btn-accent-outline:active:not(:disabled),
 .controls-button:active:not(:disabled) {
   background: var(--cc-accent-strong);
 }
+.btn-accent-outline:disabled,
 .controls-button:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Secondary variant: muted background + border, used by "Reset all" so
- * it sits beside the primary "Save" button without competing visually. */
+/* .btn-secondary — muted variant. Composes with .btn-accent-outline (or
+ * .controls-button) to override background and border so it sits beside
+ * the primary "Save" button without competing visually. */
+.btn-secondary,
 .controls-button-secondary {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.1);
 }
+.btn-secondary:hover:not(:disabled),
 .controls-button-secondary:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.25);
@@ -1202,6 +1212,7 @@ canvas {
   align-items: center;
   gap: 8px;
 }
+.controls-actions .btn-accent-outline,
 .controls-actions .controls-button {
   display: inline-flex;
   align-items: center;
