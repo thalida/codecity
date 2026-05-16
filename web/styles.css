@@ -45,8 +45,42 @@
 
   /* Semantic */
   --cc-success:         #4ade80;
+  --cc-success-soft:    #4caf7a;
   --cc-warning:         #fbbf24;
   --cc-error:           #ef4444;
+  --cc-error-soft:      #ffb4be;
+
+  /* Extended text family (one step lighter / heavier / contextual variants) */
+  --cc-text-row:        #a0a4bc;  /* tree leaf labels, search result text */
+  --cc-text-faintest:   #6a7090;  /* activity bar icons, placeholders */
+  --cc-text-body:       #e0e0e0;  /* root body text (neutral, no blue tint) */
+  --cc-text-on-modal:   #e8e8ed;  /* text inside modal/loading card */
+  --cc-text-on-accent:  #0a0a10;  /* near-black text on the accent CTA */
+  --cc-text-tooltip:    #d8dceb;  /* hover tooltip, inline code in info pane */
+  --cc-text-info-em:    #d0d4e8;  /* info-markdown emphasized body */
+  --cc-text-sep-strong: #626678;  /* gutter text (WCAG-fixed sep variant) */
+
+  /* Tracks / dividers (background OR border depending on usage) */
+  --cc-track:           #1a1c28;
+  --cc-track-hover:     #363a52;
+  --cc-border-tooltip:  #2a3050;
+
+  /* Accent family extensions */
+  --cc-accent-light:    #9bc1ff;
+  --cc-accent-soft:     #8a9eff;
+  --cc-accent-mark:     #a8baff;
+  --cc-accent-thumb-lo: #4d6fef;
+
+  /* Pure neutral */
+  --cc-white:           #ffffff;
+
+  /* Syntax highlighting palette (highlight.js variant) */
+  --cc-syntax-keyword:  #c084fc;
+  --cc-syntax-string:   #86efac;
+  --cc-syntax-builtin:  #38bdf8;
+  --cc-syntax-variable: #fda4af;
+  --cc-syntax-comment:  #5b6178;
+  --cc-syntax-deletion: #fca5a5;
 
   /* Hover overlay (applied on top of any bg) */
   --cc-hover-overlay:    rgba(255, 255, 255, 0.06);
@@ -116,7 +150,7 @@ body {
   height: 100%;
   overflow: hidden;
   background: var(--cc-bg-app);
-  color: #e0e0e0;
+  color: var(--cc-text-body);
   font-family:
     'Inter',
     -apple-system,
@@ -412,7 +446,7 @@ canvas {
   margin-left: 6px;
   border-radius: 8px;
   background: rgba(91, 157, 255, 0.14);
-  color: #9bc1ff;
+  color: var(--cc-accent-light);
   font-size: 10.5px;
   font-family: 'SF Mono', 'Fira Code', monospace;
   white-space: nowrap;
@@ -470,7 +504,7 @@ canvas {
   padding: 0 12px;
   height: 24px;
   background: var(--cc-bg-chrome);
-  border-top: 1px solid #1a1c28;
+  border-top: 1px solid var(--cc-track);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 10.5px;
   color: var(--cc-text-muted);
@@ -635,7 +669,7 @@ canvas {
 }
 
 #sidebar ::-webkit-scrollbar-thumb:hover {
-  background: #363a52;
+  background: var(--cc-track-hover);
 }
 
 /* Firefox */
@@ -660,7 +694,7 @@ canvas {
   border-radius: 100px;
   padding: 6px 16px;
   font-size: 12px;
-  color: #8a9eff;
+  color: var(--cc-accent-soft);
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.2s;
@@ -675,8 +709,8 @@ canvas {
 #hover-tooltip {
   position: fixed;
   background: rgba(15, 17, 26, 0.94);
-  border: 1px solid #2a3050;
-  color: #d8dceb;
+  border: 1px solid var(--cc-border-tooltip);
+  color: var(--cc-text-tooltip);
   font-size: 11px;
   padding: 4px 9px;
   border-radius: 4px;
@@ -826,7 +860,7 @@ canvas {
 .activity-bar-icon {
   background: none;
   border: none;
-  color: #6a7090;
+  color: var(--cc-text-faintest);
   height: 40px;
   display: flex;
   align-items: center;
@@ -954,7 +988,7 @@ canvas {
 .controls-section + .controls-section {
   margin-top: 6px;
   padding-top: 6px;
-  border-top: 1px solid #1a1c28;
+  border-top: 1px solid var(--cc-track);
 }
 
 .controls-section-label {
@@ -1093,7 +1127,7 @@ canvas {
 .shortcuts-divider {
   grid-column: 1 / -1;
   height: 1px;
-  background: #1a1c28;
+  background: var(--cc-track);
   margin: 4px 0;
 }
 
@@ -1248,7 +1282,7 @@ canvas {
 .theme-subgroup {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px dashed #1a1c28;
+  border-top: 1px dashed var(--cc-track);
 }
 .theme-subgroup:first-of-type {
   margin-top: 6px;
@@ -1372,7 +1406,7 @@ canvas {
   line-height: 1;
 }
 .theme-row-reset:not(:disabled):hover {
-  color: #ffffff;
+  color: var(--cc-white);
   background: var(--cc-accent-mid);
   border-color: rgba(91, 157, 255, 0.45);
 }
@@ -1433,7 +1467,7 @@ canvas {
 /* .theme-select-option — alias of .btn-toggle. Overrides: separator border
    between items, 10px font, 3px 8px padding, subtle bg overlay on hover. */
 .theme-select-option {
-  border-right: 1px solid #1a1c28;
+  border-right: 1px solid var(--cc-track);
   font-size: 10px;
   padding: 3px 8px;
 }
@@ -1488,7 +1522,7 @@ canvas {
   flex: 1 1 auto;
   min-width: 60px;
   height: 4px;
-  background: #1a1c28;
+  background: var(--cc-track);
   border-radius: 2px;
   cursor: pointer;
 }
@@ -1542,7 +1576,7 @@ canvas {
   left: 0;
   right: 0;
   height: 4px;
-  background: #1a1c28;
+  background: var(--cc-track);
   border-radius: 2px;
 }
 .theme-range-pair-fill {
@@ -1620,10 +1654,10 @@ canvas {
 /* Lo thumb a touch darker so it reads as the "lower" anchor when the
  * two thumbs sit at the same value (otherwise they'd be a single dot). */
 .theme-range-pair input.theme-range-pair-lo::-webkit-slider-thumb {
-  background: #4d6fef;
+  background: var(--cc-accent-thumb-lo);
 }
 .theme-range-pair input.theme-range-pair-lo::-moz-range-thumb {
-  background: #4d6fef;
+  background: var(--cc-accent-thumb-lo);
 }
 
 /* Scrollbar for tree */
@@ -1638,7 +1672,7 @@ canvas {
   border-radius: 4px;
 }
 #tree-sidebar ::-webkit-scrollbar-thumb:hover {
-  background: #363a52;
+  background: var(--cc-track-hover);
 }
 #tree-sidebar .tree-root {
   scrollbar-width: thin;
@@ -1759,7 +1793,7 @@ canvas {
 
 .tree-label {
   font-size: 12px;
-  color: #a0a4bc;
+  color: var(--cc-text-row);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1771,7 +1805,7 @@ canvas {
 }
 
 .tree-file > .tree-row > .tree-label {
-  color: #8a8ea0;
+  color: var(--cc-text-muted);
 }
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
@@ -1806,7 +1840,7 @@ canvas {
   outline: none;
 }
 .search-input::placeholder {
-  color: #6a7090;
+  color: var(--cc-text-faintest);
 }
 .search-input:focus {
   border-color: rgba(91, 157, 255, 0.5);
@@ -1867,7 +1901,7 @@ canvas {
   border-left: 2px solid transparent;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 11.5px;
-  color: #a0a4bc;
+  color: var(--cc-text-row);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1889,7 +1923,7 @@ canvas {
 }
 .search-result:hover mark,
 .search-result:focus-visible mark {
-  color: #a8baff;
+  color: var(--cc-accent-mark);
 }
 
 /* Scrollbar tuned to match the tree pane's. */
@@ -1950,7 +1984,7 @@ canvas {
 .info-markdown h2 {
   font-size: 17px;
   padding-bottom: 4px;
-  border-bottom: 1px solid #1a1c28;
+  border-bottom: 1px solid var(--cc-track);
 }
 .info-markdown h3 {
   font-size: 14px;
@@ -1984,7 +2018,7 @@ canvas {
   font-weight: 700;
 }
 .info-markdown em {
-  color: #d0d4e8;
+  color: var(--cc-text-info-em);
   font-style: italic;
 }
 
@@ -2003,7 +2037,7 @@ canvas {
 .info-markdown blockquote {
   margin: 10px 0;
   padding: 4px 12px;
-  border-left: 3px solid #2a3050;
+  border-left: 3px solid var(--cc-border-tooltip);
   color: var(--cc-text-muted);
   background: rgba(91, 157, 255, 0.04);
 }
@@ -2024,12 +2058,12 @@ canvas {
   border: 1px solid var(--cc-accent-mid);
   border-radius: 3px;
   padding: 1px 5px;
-  color: #d8dceb;
+  color: var(--cc-text-tooltip);
 }
 
 .info-markdown pre {
   background: var(--cc-bg-chrome);
-  border: 1px solid #1a1c28;
+  border: 1px solid var(--cc-track);
   border-radius: 5px;
   padding: 10px 12px;
   margin: 10px 0;
@@ -2192,7 +2226,7 @@ canvas {
   padding: 6px 12px;
   background: rgba(91, 157, 255, 0.06);
   border-bottom: 1px solid var(--cc-accent-mid);
-  color: #8a9eff;
+  color: var(--cc-accent-soft);
   font-family:
     'Inter',
     -apple-system,
@@ -2228,8 +2262,8 @@ canvas {
   flex-direction: column;
   padding: 10px 8px 10px 10px;
   background: var(--cc-bg-chrome);
-  border-right: 1px solid #1a1c28;
-  color: #626678; /* was var(--cc-text-sep) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+  border-right: 1px solid var(--cc-track);
+  color: var(--cc-text-sep-strong); /* was var(--cc-text-sep) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
   /* The gutter's width is content-driven (3 digits + padding) and stays
@@ -2272,14 +2306,14 @@ canvas {
 .hljs-literal,
 .hljs-section,
 .hljs-link {
-  color: #c084fc;
+  color: var(--cc-syntax-keyword);
 } /* purple */
 .hljs-string,
 .hljs-attr,
 .hljs-symbol,
 .hljs-bullet,
 .hljs-meta-string {
-  color: #86efac;
+  color: var(--cc-syntax-string);
 } /* green */
 .hljs-number,
 .hljs-quote,
@@ -2295,23 +2329,23 @@ canvas {
 } /* brand blue */
 .hljs-built_in,
 .hljs-builtin-name {
-  color: #38bdf8;
+  color: var(--cc-syntax-builtin);
 } /* sky */
 .hljs-variable,
 .hljs-template-variable {
-  color: #fda4af;
+  color: var(--cc-syntax-variable);
 } /* rose */
 .hljs-comment,
 .hljs-meta {
-  color: #5b6178;
+  color: var(--cc-syntax-comment);
   font-style: italic;
 }
 .hljs-deletion {
-  color: #fca5a5;
+  color: var(--cc-syntax-deletion);
   background: rgba(252, 165, 165, 0.08);
 }
 .hljs-addition {
-  color: #86efac;
+  color: var(--cc-syntax-string);
   background: rgba(134, 239, 172, 0.08);
 }
 .hljs-emphasis {
@@ -2351,7 +2385,7 @@ canvas {
   display: flex;
   flex-direction: column;
   background: var(--cc-bg-modal);
-  color: #e8e8ed;
+  color: var(--cc-text-on-modal);
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   overflow: hidden;
@@ -2431,7 +2465,7 @@ canvas {
 .modal-error {
   background: rgba(220, 50, 70, 0.18);
   border: 1px solid rgba(220, 50, 70, 0.45);
-  color: #ffb4be;
+  color: var(--cc-error-soft);
   padding: 8px 10px;
   border-radius: 6px;
   margin-bottom: 12px;
@@ -2447,7 +2481,7 @@ canvas {
   appearance: none;
   background: var(--cc-accent);
   border: 0;
-  color: #0a0a10;
+  color: var(--cc-text-on-accent);
   padding: 8px 16px;
   border-radius: 6px;
   cursor: pointer;
@@ -2532,7 +2566,7 @@ canvas {
   gap: 14px;
   padding: 24px 32px;
   background: var(--cc-bg-modal);
-  color: #e8e8ed;
+  color: var(--cc-text-on-modal);
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   min-width: 260px;
@@ -2551,7 +2585,7 @@ canvas {
 .loading-title {
   font-size: 13px;
   font-weight: 600;
-  color: #e8e8ed;
+  color: var(--cc-text-on-modal);
   text-align: center;
 }
 .loading-steps {
@@ -2597,7 +2631,7 @@ canvas {
 }
 .loading-steps li[data-state="done"]::before {
   content: '✓';
-  color: #4caf7a;
+  color: var(--cc-success-soft);
   font-size: 10px;
 }
 /* Header icon buttons — switch-source (far left) + refresh (far right).
