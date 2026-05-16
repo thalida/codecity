@@ -68,6 +68,10 @@ export interface RepoInfo {
 
 export interface Manifest {
   root: string;
+  /** Friendly label for the source root, set by the server for git URL
+   *  sources (e.g. "https://github.com/foo/bar@main"). Absent for
+   *  local-path sources. Prefer this over `root` when building UI labels. */
+  display_root?: string;
   scanned_at: string;
   signature: string;
   tree: DirNode;

@@ -42,6 +42,26 @@ interface CoordinatorOpts {
   applyTheme: () => void;
 }
 
+/**
+ * Derive a short, human-friendly label from a `display_root` value that the
+ * server stamps on git-URL sources (e.g. "https://github.com/foo/bar@main").
+ * Mirrors the `_deriveLabel` logic in main.ts without importing it (coordinator
+ * must not import from main to avoid circular dependencies).
+ */
+function _labelFromDisplayRoot(displayRoot: string): string {
+  // Strip optional @branch suffix before analysing the URL/path
+  const noBranch = displayRoot.replace(/@[^@\/]+$/, '');
+  // git URL: "owner/repo" from last two path segments
+  if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
+    const m = noBranch.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    if (m) return `${m[1]}/${m[2]}`;
+    return noBranch;
+  }
+  // Local path: basename
+  const parts = noBranch.split(/[\/\\]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : noBranch;
+}
+
 export function createCoordinator({ cityScene, picker, rig, applyTheme }: CoordinatorOpts) {
   // Right sidebar opens on file selection and closes via its × button.
   // The previous header-toggle was removed, so the boot state is simply
@@ -78,8 +98,12 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
 
   // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
+  const _initManifest = cityScene.getManifest();
+  const _rootLabel = _initManifest?.display_root
+    ? _labelFromDisplayRoot(_initManifest.display_root)
+    : (rootNode?.name ?? '');
   const appHeader = initAppHeader({
-    rootLabel: rootNode?.name || '',
+    rootLabel: _rootLabel,
     rootPath: rootNode?.path || '',
     onSegmentClick(path: string) {
       picker.selectByPath(path);
