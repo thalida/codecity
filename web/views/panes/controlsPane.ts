@@ -114,7 +114,15 @@ interface BuildControlsPaneOpts {
   onRunStemDiagnostic?: () => void;
 }
 
-export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
+interface ControlsPaneBundle {
+  pane: HTMLElement;
+  /** Collapse every <details> section inside the pane. Called by the left
+   *  sidebar whenever the Controls tab becomes visible so the panel always
+   *  opens fresh — no state memory between opens. */
+  resetCollapsed: () => void;
+}
+
+export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
 
   const pane = document.createElement('div');
   pane.className = 'left-pane controls-pane';
@@ -132,8 +140,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   //   then Scan & Updates (file scanner config + live polling)
   //   then Debug (developer diagnostics, collapsed by default).
   //
-  // All sections are <details> with persisted open/closed state — see
-  // _section() below.
+  // All sections are <details> elements. Open/closed state is NOT persisted —
+  // every time the Controls tab becomes visible all sections start collapsed.
+  // See _section() and resetCollapsed() below.
   body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
@@ -155,7 +164,14 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
 
   pane.appendChild(body);
   pane.appendChild(_buildActionsSection()); // sticky bottom — sibling of body
-  return pane;
+
+  function resetCollapsed(): void {
+    pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
+      d.open = false;
+    });
+  }
+
+  return { pane, resetCollapsed };
 }
 
 // ─── Scan & Updates ────────────────────────────────────────────────────────
@@ -1032,27 +1048,14 @@ function _buildActionsSection(): HTMLElement {
 
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
-function _section(name: string, hint?: string, defaultOpen = true): HTMLElement {
+function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement {
   const section = document.createElement('details');
   section.className = 'controls-section';
 
-  const storageKey =
-    'controls.section.' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const persisted = (() => {
-    try {
-      return localStorage.getItem(storageKey);
-    } catch {
-      return null;
-    }
-  })();
-  section.open = persisted === null ? defaultOpen : persisted !== 'closed';
-  section.addEventListener('toggle', () => {
-    try {
-      localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
-    } catch {
-      /* localStorage unavailable; ignore */
-    }
-  });
+  // Open/closed state is intentionally NOT persisted. The left sidebar resets
+  // all <details> to closed each time the Controls tab becomes visible, so the
+  // panel always opens fresh. _defaultOpen is kept as a parameter for call-site
+  // compatibility but has no effect — all sections start collapsed.
 
   const summary = document.createElement('summary');
   summary.className = 'controls-section-summary';
@@ -1102,26 +1105,16 @@ function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement
 // the user may never see — though in practice the rows are cheap and
 // built eagerly the first time.
 function _collapsibleSubgroup(
-  slug: string,
+  _slug: string,
   name: string,
   buildRows: () => HTMLElement[]
 ): HTMLElement {
   const details = document.createElement('details');
   details.className = 'theme-subgroup theme-subgroup-collapsible';
 
-  const storageKey = `controls.subgroup.${slug}`;
-  try {
-    details.open = localStorage.getItem(storageKey) === 'open';
-  } catch {
-    details.open = false;
-  }
-  details.addEventListener('toggle', () => {
-    try {
-      localStorage.setItem(storageKey, details.open ? 'open' : 'closed');
-    } catch {
-      /* localStorage unavailable; ignore */
-    }
-  });
+  // Open/closed state is intentionally NOT persisted — the panel resets all
+  // <details> to closed each time it becomes visible.
+  details.open = false;
 
   const summary = document.createElement('summary');
   summary.className = 'theme-subgroup-label';
