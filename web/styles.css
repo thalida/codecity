@@ -93,10 +93,6 @@ body {
   letter-spacing: 0.02em;
   color: #8a8fa8;
 }
-#app-title:empty::before {
-  content: 'CodeCity';
-  color: #44485e;
-}
 
 .app-header-icon {
   flex: 0 0 auto;
@@ -245,6 +241,49 @@ canvas {
 .app-header-icon.is-copied {
   color: #4ade80;
   background: rgba(74, 222, 128, 0.1);
+}
+
+/* Project button — far left of the header. Contains: icon + project label
+ * + optional @branch pill. Click opens the source picker. Styled to match
+ * the rest of the muted header (transparent bg, muted blue-grey, brightens
+ * on hover) — NOT a default browser button. */
+.project-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  margin-right: 8px;
+  background: none;
+  border: none;
+  color: #6a7090;
+  cursor: pointer;
+  border-radius: 3px;
+  font: inherit;
+  font-size: 12px;
+  white-space: nowrap;
+  max-width: 280px;
+  -webkit-app-region: no-drag;
+}
+.project-btn:hover {
+  color: #e0e4f5;
+  background: rgba(255, 255, 255, 0.06);
+}
+.project-btn:disabled {
+  cursor: default;
+}
+.project-btn:disabled:hover {
+  color: #6a7090;
+  background: none;
+}
+.project-btn .project-btn-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.project-btn .lucide-icon {
+  font-size: 14px;
+  flex: 0 0 auto;
 }
 
 .app-header-branch-pill {

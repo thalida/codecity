@@ -83,7 +83,7 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // manifest.tree.name is already set to the friendly value by main.ts
   // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
   const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
-  document.title = _rootLabel || 'codecity';
+  document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
   // Read initial branch + source URL from the current page URL so the header
   // can show the branch pill and repo link on first paint.
   const _qp = new URLSearchParams(window.location.search);
@@ -331,7 +331,7 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     // Keep document.title in sync with the now-correct name.
     if (m) {
       const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
-      document.title = freshLabel || 'codecity';
+      document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
     }
     LAST_UPDATED_AT.set(Date.now());
     if (leftSidebarApi.setInfoManifest) {
