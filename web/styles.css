@@ -85,6 +85,7 @@
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
   --cc-success:          #4ade80;
   --cc-success-dark:     #4caf7a;
+  --cc-success-bg:       color-mix(in srgb, var(--cc-success) 10%, transparent);
   --cc-warning:          #fbbf24;
   --cc-error:            #ef4444;
   --cc-error-light:      #ffb4be;
@@ -171,6 +172,7 @@
   --cc-shadow-md:    0 2px 10px rgba(0, 0, 0, 0.4);    /* tooltip */
   --cc-shadow-lg:    0 10px 40px rgba(0, 0, 0, 0.6);   /* modal, loading-card */
   --cc-shadow-base:  var(--cc-shadow-md);
+  --cc-shadow-text:  0 1px 2px rgba(0, 0, 0, 0.5);     /* canvas overlay text */
   --cc-glow-accent:  0 0 6px rgba(91, 157, 255, 0.35); /* range-pair fill */
 }
 
@@ -211,7 +213,7 @@
 .pane-header-close:hover,
 .recent-row .recent-remove:hover {
   color: var(--cc-text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cc-overlay-bg);
 }
 
 /* Standalone .btn-icon defaults — apply only when the class is used on its
@@ -427,7 +429,7 @@ canvas {
 }
 .app-header-segment:hover {
   color: var(--cc-text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cc-overlay-bg);
 }
 .app-header-segment.is-leaf {
   color: var(--cc-text-primary);
@@ -476,7 +478,7 @@ canvas {
 
 .app-header-icon.is-copied {
   color: var(--cc-success);
-  background: rgba(74, 222, 128, 0.1);
+  background: var(--cc-success-bg);
 }
 
 /* Project button — far left of the header. Contains: icon + project label
@@ -507,7 +509,7 @@ canvas {
 }
 .project-btn:hover {
   color: var(--cc-text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cc-overlay-bg);
 }
 .project-btn:disabled {
   cursor: default;
@@ -532,7 +534,7 @@ canvas {
   padding: 0 6px;
   margin-left: 6px;
   border-radius: 8px;
-  background: rgba(91, 157, 255, 0.14);
+  background: var(--cc-accent-bg-soft);
   color: var(--cc-accent-light);
   font-size: 10.5px;
   font-family: 'SF Mono', 'Fira Code', monospace;
@@ -776,8 +778,8 @@ canvas {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(91, 157, 255, 0.15);
-  border: 1px solid rgba(91, 157, 255, 0.35);
+  background: var(--cc-accent-bg);
+  border: 1px solid var(--cc-accent-border);
   border-radius: 100px;
   padding: 6px 16px;
   font-size: 12px;
@@ -795,7 +797,7 @@ canvas {
 
 #hover-tooltip {
   position: fixed;
-  background: rgba(15, 17, 26, 0.94);
+  background: var(--cc-bg-tooltip);
   border: 1px solid var(--cc-border-tooltip);
   color: var(--cc-text-primary);
   font-size: 11px;
@@ -805,7 +807,7 @@ canvas {
   z-index: 200;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-md);
 }
 
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
@@ -820,10 +822,10 @@ canvas {
     sans-serif;
   font-size: 10px;
   font-weight: 500;
-  color: rgba(140, 160, 200, 0.7);
+  color: var(--cc-text-base);
   pointer-events: none;
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: var(--cc-shadow-text);
   user-select: none;
 }
 
@@ -915,7 +917,7 @@ canvas {
 }
 .pane-header-action:not(:disabled):hover {
   color: var(--cc-text-primary);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cc-overlay-bg);
 }
 .pane-header-action:disabled {
   opacity: 0.35;
@@ -963,13 +965,13 @@ canvas {
 
 .activity-bar-icon:hover {
   color: var(--cc-text-secondary);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--cc-overlay-bg-soft);
 }
 
 .activity-bar-icon.active {
   color: var(--cc-text-primary);
   border-left-color: var(--cc-accent);
-  background: rgba(91, 157, 255, 0.06);
+  background: var(--cc-accent-bg-soft);
 }
 
 /* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
@@ -1098,7 +1100,7 @@ canvas {
 .shortcuts-list .shortcuts-mouse {
   display: inline-block;
   background: var(--cc-accent-bg-soft);
-  border: 1px solid rgba(91, 157, 255, 0.3);
+  border: 1px solid var(--cc-accent-bg-strong);
   border-radius: 3px;
   color: var(--cc-text-secondary);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -1135,7 +1137,7 @@ canvas {
   transition: background 0.1s;
 }
 .controls-section > summary.controls-section-summary:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
@@ -1168,20 +1170,20 @@ canvas {
   border: 1px solid transparent;
   padding: 3px 5px;
   border-radius: 4px;
-  color: rgba(91, 157, 255, 0.85);
+  color: var(--cc-accent);
   font-size: 14px;
   cursor: pointer;
 }
 .controls-section-reset:not(:disabled):hover {
   color: #fff;
   background: var(--cc-accent-bg);
-  border-color: rgba(91, 157, 255, 0.45);
+  border-color: var(--cc-accent-border);
 }
 .controls-section-reset:not(:disabled):active {
   background: var(--cc-accent-bg-strong);
 }
 .controls-section-reset:disabled {
-  color: rgba(91, 157, 255, 0.22);
+  color: var(--cc-accent-bg);
   cursor: default;
 }
 
@@ -1302,7 +1304,7 @@ canvas {
 .btn-accent-outline:hover,
 .controls-button:hover {
   background: var(--cc-accent-bg);
-  border-color: rgba(91, 157, 255, 0.4);
+  border-color: var(--cc-accent-border);
   color: var(--cc-text-primary);
 }
 
@@ -1321,13 +1323,13 @@ canvas {
  * the primary "Save" button without competing visually. */
 .btn-secondary,
 .controls-button-secondary {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
+  background: var(--cc-overlay-bg-soft);
+  border-color: var(--cc-overlay-bg-strong);
 }
 .btn-secondary:hover:not(:disabled),
 .controls-button-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--cc-overlay-bg-strong);
+  border-color: var(--cc-overlay-border);
   color: var(--cc-text-primary);
 }
 
@@ -1405,7 +1407,7 @@ canvas {
   transition: background 0.1s;
 }
 .theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
 }
 .theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
   display: none;
@@ -1487,7 +1489,7 @@ canvas {
   padding: 3px 5px;
   margin: 0;
   cursor: pointer;
-  color: rgba(91, 157, 255, 0.85);
+  color: var(--cc-accent);
   border-radius: 4px;
   font-size: 14px;
   line-height: 1;
@@ -1495,14 +1497,14 @@ canvas {
 .theme-row-reset:not(:disabled):hover {
   color: var(--cc-white);
   background: var(--cc-accent-bg);
-  border-color: rgba(91, 157, 255, 0.45);
+  border-color: var(--cc-accent-border);
 }
 .theme-row-reset:not(:disabled):active {
-  background: rgba(91, 157, 255, 0.3);
+  background: var(--cc-accent-bg-strong);
 }
 .theme-row-reset:disabled {
   cursor: default;
-  color: rgba(91, 157, 255, 0.22);
+  color: var(--cc-accent-bg);
 }
 
 /* Color swatch — small native color picker */
@@ -1513,7 +1515,7 @@ canvas {
   height: 22px;
   padding: 0;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--cc-overlay-border);
   border-radius: 4px;
   cursor: pointer;
 }
@@ -1537,7 +1539,7 @@ canvas {
   width: 18px;
   height: 18px;
   border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border: 1px solid var(--cc-overlay-border);
   flex: 0 0 auto;
   margin-left: 6px;
 }
@@ -1562,7 +1564,7 @@ canvas {
   border-right: none;
 }
 .theme-select-option:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
 }
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
@@ -1588,7 +1590,7 @@ canvas {
 }
 .theme-number:focus {
   outline: none;
-  border-color: rgba(91, 157, 255, 0.5);
+  border-color: var(--cc-accent-border);
 }
 
 /* Slider — the range input grows into available space; the readout is
@@ -1618,16 +1620,16 @@ canvas {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: rgba(91, 157, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
   border-radius: 50%;
   cursor: pointer;
 }
 .theme-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: rgba(91, 157, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
   border-radius: 50%;
   cursor: pointer;
 }
@@ -1671,10 +1673,10 @@ canvas {
   top: 50%;
   transform: translateY(-50%);
   height: 4px;
-  background: linear-gradient(90deg, rgba(91, 157, 255, 0.85), rgba(91, 157, 255, 0.55));
+  background: linear-gradient(90deg, var(--cc-accent), var(--cc-accent-border));
   border-radius: 2px;
   pointer-events: none;
-  box-shadow: 0 0 6px rgba(91, 157, 255, 0.35);
+  box-shadow: var(--cc-glow-accent);
 }
 
 /* Both range inputs overlay the pair container exactly. The track itself
@@ -1722,21 +1724,21 @@ canvas {
   width: 14px;
   height: 14px;
   background: var(--cc-accent);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid var(--cc-overlay-border);
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-sm);
 }
 .theme-range-pair input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
   background: var(--cc-accent);
-  border: 1px solid rgba(255, 255, 255, 0.35);
+  border: 1px solid var(--cc-overlay-border);
   border-radius: 50%;
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-sm);
 }
 /* Lo thumb a touch darker so it reads as the "lower" anchor when the
  * two thumbs sit at the same value (otherwise they'd be a single dot). */
@@ -1804,7 +1806,7 @@ canvas {
 }
 
 .tree-row:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
 }
 
 /* Hover mirror: pushed in by leftSidebarApi.setHoveredTreePath from
@@ -1812,7 +1814,7 @@ canvas {
    the matching row. Same look as the native :hover bg so the source of the
    hover (cursor vs. city) is visually identical. */
 .tree-item.tree-hovered > .tree-row {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
 }
 
 /* Selection highlight: pushed in by leftSidebarApi.setSelectedTreePath
@@ -1824,7 +1826,7 @@ canvas {
 }
 .tree-item.tree-selected > .tree-row:hover,
 .tree-item.tree-selected.tree-hovered > .tree-row {
-  background: rgba(91, 157, 255, 0.24);
+  background: var(--cc-accent-bg);
 }
 
 .tree-chevron {
@@ -1927,7 +1929,7 @@ canvas {
   color: var(--cc-text-faint);
 }
 .search-input:focus {
-  border-color: rgba(91, 157, 255, 0.5);
+  border-color: var(--cc-accent-border);
 }
 /* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
 .search-input::-webkit-search-cancel-button {
@@ -1992,11 +1994,11 @@ canvas {
   outline: none;
 }
 .search-result:hover {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--cc-overlay-bg-soft);
   color: var(--cc-text-primary);
 }
 .search-result:focus-visible {
-  background: rgba(91, 157, 255, 0.12);
+  background: var(--cc-accent-bg);
   border-left-color: var(--cc-accent);
   color: var(--cc-text-primary);
 }
@@ -2123,7 +2125,7 @@ canvas {
   padding: 4px 12px;
   border-left: 3px solid var(--cc-border-tooltip);
   color: var(--cc-text-muted);
-  background: rgba(91, 157, 255, 0.04);
+  background: var(--cc-accent-bg-soft);
 }
 .info-markdown blockquote > p {
   margin: 4px 0;
@@ -2138,7 +2140,7 @@ canvas {
 .info-markdown code {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   font-size: 12px;
-  background: rgba(91, 157, 255, 0.08);
+  background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg);
   border-radius: 3px;
   padding: 1px 5px;
@@ -2308,7 +2310,7 @@ canvas {
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: rgba(91, 157, 255, 0.06);
+  background: var(--cc-accent-bg-soft);
   border-bottom: 1px solid var(--cc-accent-bg);
   color: var(--cc-accent-light);
   font-family:
@@ -2426,11 +2428,11 @@ canvas {
 }
 .hljs-deletion {
   color: var(--cc-syntax-deletion);
-  background: rgba(252, 165, 165, 0.08);
+  background: var(--cc-syntax-deletion-bg);
 }
 .hljs-addition {
   color: var(--cc-syntax-string);
-  background: rgba(134, 239, 172, 0.08);
+  background: var(--cc-syntax-string-bg);
 }
 .hljs-emphasis {
   font-style: italic;
@@ -2448,7 +2450,7 @@ canvas {
 .loading-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--cc-bg-backdrop);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2471,7 +2473,7 @@ canvas {
   background: var(--cc-bg-modal);
   color: var(--cc-text-base);
   border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--cc-shadow-lg);
   overflow: hidden;
   font-family: inherit;
 }
@@ -2481,7 +2483,7 @@ canvas {
   align-items: center;
   justify-content: space-between;
   padding: 14px 18px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--cc-overlay-bg-strong);
   font-weight: 600;
 }
 
@@ -2495,7 +2497,7 @@ canvas {
   border-radius: 6px;
 }
 .modal-header button.modal-close:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--cc-overlay-bg-strong);
 }
 
 .modal-body {
@@ -2512,7 +2514,7 @@ canvas {
 .modal-tabs button {
   appearance: none;
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--cc-overlay-bg-strong);
   color: inherit;
   padding: 6px 14px;
   border-radius: 6px;
@@ -2520,7 +2522,7 @@ canvas {
   font: inherit;
 }
 .modal-tabs button.active {
-  background: rgba(255, 255, 255, 0.10);
+  background: var(--cc-overlay-bg-strong);
 }
 
 .modal-field {
@@ -2531,11 +2533,11 @@ canvas {
 }
 .modal-field label {
   font-size: 12px;
-  color: rgba(232, 232, 237, 0.7);
+  color: var(--cc-text-muted);
 }
 .modal-field input {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--cc-overlay-bg-soft);
+  border: 1px solid var(--cc-overlay-bg-strong);
   color: inherit;
   padding: 8px 10px;
   border-radius: 6px;
@@ -2547,8 +2549,8 @@ canvas {
 }
 
 .modal-error {
-  background: rgba(220, 50, 70, 0.18);
-  border: 1px solid rgba(220, 50, 70, 0.45);
+  background: var(--cc-error-bg);
+  border: 1px solid var(--cc-error-border);
   color: var(--cc-error-light);
   padding: 8px 10px;
   border-radius: 6px;
@@ -2579,14 +2581,14 @@ canvas {
 
 .recents-list {
   margin-top: 14px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  border-top: 1px solid var(--cc-overlay-bg-strong);
   padding-top: 10px;
 }
 .recents-list h3 {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  color: rgba(232, 232, 237, 0.55);
+  color: var(--cc-text-muted);
   margin: 0 0 8px;
 }
 .recent-row {
@@ -2598,14 +2600,14 @@ canvas {
   cursor: pointer;
 }
 .recent-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--cc-overlay-bg);
 }
 .recent-row .recent-label {
   font-weight: 500;
 }
 .recent-row .recent-sub {
   font-size: 11px;
-  color: rgba(232, 232, 237, 0.55);
+  color: var(--cc-text-muted);
 }
 /* .recent-remove — alias of .btn-icon. Overrides: pushed right via auto
    margin, 4px 8px padding. Hover transition uses the shared color+bg
@@ -2617,11 +2619,11 @@ canvas {
 }
 
 .recent-row--active {
-  background: rgba(91, 157, 255, 0.08);
+  background: var(--cc-accent-bg-soft);
   cursor: default;
 }
 .recent-row--active:hover {
-  background: rgba(91, 157, 255, 0.12);
+  background: var(--cc-accent-bg);
 }
 .recent-row-badge {
   margin-left: auto;
@@ -2629,8 +2631,8 @@ canvas {
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--cc-accent);
-  background: rgba(91, 157, 255, 0.15);
-  border: 1px solid rgba(91, 157, 255, 0.35);
+  background: var(--cc-accent-bg);
+  border: 1px solid var(--cc-accent-border);
   border-radius: 10px;
   padding: 2px 7px;
   white-space: nowrap;
@@ -2638,7 +2640,7 @@ canvas {
 
 .modal-field-help {
   font-size: 11px;
-  color: rgba(232, 232, 237, 0.6); /* was 0.45 (3.82:1 → now 5.70:1, WCAG AA) */
+  color: var(--cc-text-muted); /* was 0.45 (3.82:1 → now 5.70:1, WCAG AA) */
   margin-top: 4px;
 }
 
@@ -2652,13 +2654,13 @@ canvas {
   background: var(--cc-bg-modal);
   color: var(--cc-text-base);
   border-radius: 10px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--cc-shadow-lg);
   min-width: 260px;
 }
 .loading-spinner {
   width: 28px;
   height: 28px;
-  border: 3px solid rgba(255, 255, 255, 0.15);
+  border: 3px solid var(--cc-overlay-border);
   border-top-color: var(--cc-accent);
   border-radius: 50%;
   animation: cc-spin 0.8s linear infinite;
@@ -2685,7 +2687,7 @@ canvas {
   font-size: 12px;
   padding: 2px 0 2px 20px;
   position: relative;
-  color: rgba(232, 232, 237, 0.5); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
   transition: color 0.2s;
 }
 .loading-steps li::before {
@@ -2699,7 +2701,7 @@ canvas {
   font-size: 11px;
 }
 .loading-steps li[data-state="pending"] {
-  color: rgba(232, 232, 237, 0.5); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
 }
 .loading-steps li[data-state="active"] {
   color: var(--cc-accent);
@@ -2711,7 +2713,7 @@ canvas {
   font-weight: 700;
 }
 .loading-steps li[data-state="done"] {
-  color: rgba(232, 232, 237, 0.55);
+  color: var(--cc-text-muted);
 }
 .loading-steps li[data-state="done"]::before {
   content: '✓';
