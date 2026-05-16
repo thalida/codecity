@@ -267,15 +267,35 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             tmp = Path(td)
             self._patch_cache(tmp)
             remote, _ = _make_fake_remote(tmp)
-            # First clone should succeed.
-            target = ensure_clone(str(remote), None)
+            url = str(remote)
+
+            # Step 1: Clone the 'feature' branch successfully — populates the
+            # cache at _cache_dir_for(url, "feature").
+            target = ensure_clone(url, branch="feature")
             self.assertTrue(target.exists())
-            # Now corrupt the situation so the update path fails: invoke
-            # ensure_clone with a non-existent branch — fetch succeeds, reset fails.
+            self.assertTrue((target / "FEATURE.md").is_file())
+
+            # Step 2: Delete the 'feature' branch from the underlying remote so
+            # that the next fetch prunes it from the remote-tracking refs.
+            subprocess.run(
+                ["git", "-C", str(remote), "branch", "-D", "feature"],
+                check=True,
+                capture_output=True,
+            )
+
+            # Step 3: Call ensure_clone again for the same (url, "feature") pair.
+            # The cache dir exists → update path runs:
+            #   git fetch --prune origin  (succeeds, prunes origin/feature)
+            #   git reset --hard origin/feature  (fails — unknown revision)
+            # → caught by dispatcher → BranchNotFoundError.
             with self.assertRaises(BranchNotFoundError):
-                ensure_clone(str(remote), branch="no-such-branch-on-update")
-            # IMPORTANT: target for the (url, None) key should still exist.
-            self.assertTrue(target.exists(), "update-path failure nuked the existing clone")
+                ensure_clone(url, branch="feature")
+
+            # Step 4: The existing cache dir must NOT have been removed.
+            self.assertTrue(
+                target.exists(),
+                "update-path failure removed the existing clone directory",
+            )
 
 
 if __name__ == "__main__":
