@@ -4,7 +4,21 @@
    crisp monospace for code metadata, subtle transitions.
    ============================================================================= */
 
-/* ── Reset ──────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESET — opinionated normalize for this dark internal app.
+
+   - Box-sizing + zeroed margins/padding on every element.
+   - Form elements inherit font + color (no browser default chrome).
+   - Buttons are unstyled by default — components opt back into appearance.
+   - Anchors inherit color and have no underline.
+   - Media elements are block-level (no inline-baseline gap below imgs/svg).
+   - Tables collapse borders.
+   - Headings inherit size + weight so .text-* composites have full control.
+
+   Lists are NOT reset (list-style stays browser-default) — info-markdown
+   relies on default bullets/numbers and the few unstyled lists in the app
+   already declare `list-style: none` per-rule.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 *,
 *::before,
@@ -12,6 +26,42 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -259,6 +309,73 @@
   color: var(--cc-text-faint);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-primary       — solid accent CTA (modal submit, save).
+   .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
+   .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
+   .btn-icon          — 24x24 icon-only button.
+   .btn-toggle        — one-of-N option button (segmented / theme-select).
+   .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .btn-primary — solid accent CTA. Aliases: .modal-actions button. */
+.btn-primary,
+.modal-actions button {
+  appearance: none;
+  background: var(--cc-accent);
+  border: 0;
+  color: var(--cc-text-inverse);
+  padding: var(--cc-space-4) var(--cc-space-7); /* 8px 16px */
+  border-radius: var(--cc-radius-md);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-semibold);
+}
+.btn-primary:disabled,
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Tiny accent reset buttons (controls section + theme row).
+   Two near-identical rules from the audit consolidated into a shared
+   ruleset; no new component class. */
+.controls-section-reset,
+.theme-row-reset {
+  flex: 0 0 auto;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  padding: var(--cc-space-1) var(--cc-space-2); /* 2px 4px */
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-accent);
+  font-size: var(--cc-font-xl); /* 14px */
+  line-height: 1;
+  cursor: pointer;
+}
+.controls-section-reset:not(:disabled):hover,
+.theme-row-reset:not(:disabled):hover {
+  color: var(--cc-white);
+  background: var(--cc-accent-bg);
+  border-color: var(--cc-accent-border);
+}
+.controls-section-reset:not(:disabled):active,
+.theme-row-reset:not(:disabled):active {
+  background: var(--cc-accent-bg-strong);
+}
+.controls-section-reset:disabled,
+.theme-row-reset:disabled {
+  color: var(--cc-accent-bg);
+  cursor: default;
+}
+/* Controls-section variant pushes itself to the right end of its summary row. */
+.controls-section-reset { margin-left: auto; }
+
 /* ── Icon buttons (unified shell) ───────────────────────────────────────────
    .btn-icon is the canonical icon-button class. The selectors below are
    aliases sharing this shell; a follow-up commit will rename the DOM class
@@ -305,8 +422,8 @@
   width: 24px;
   height: 24px;
   color: var(--cc-text-faint);
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-xl);
 }
 .btn-icon:disabled { cursor: default; }
 .btn-icon.is-active {
@@ -332,7 +449,7 @@ body {
     Oxygen,
     Ubuntu,
     sans-serif;
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -377,7 +494,7 @@ body {
   background: var(--cc-bg-chrome);
   border-bottom: 1px solid var(--cc-border-subtle);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-secondary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
@@ -390,7 +507,7 @@ body {
   justify-content: center;
   gap: 8px;
   min-width: 0;
-  letter-spacing: 0.02em;
+  letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
   color: var(--cc-text-muted);
 }
 
@@ -400,11 +517,11 @@ body {
   width: 26px;
   height: 24px;
   color: var(--cc-text-faint);
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   -webkit-app-region: no-drag;
 }
 .app-header-icon .lucide-icon {
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
 }
 
 canvas {
@@ -476,10 +593,10 @@ canvas {
   flex: 0 0 auto;
   display: inline-block;
   padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: var(--cc-track-label);
   text-transform: lowercase;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
   background: hsl(var(--badge-hue, 0), 60%, 35%);
@@ -507,7 +624,7 @@ canvas {
   font: inherit;
   color: var(--cc-text-muted);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   -webkit-app-region: no-drag;
 }
 .app-header-segment:hover {
@@ -525,7 +642,7 @@ canvas {
 .app-header-sep {
   flex: 0 0 auto;
   color: var(--cc-text-ghost);
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   pointer-events: none;
 }
 
@@ -554,7 +671,7 @@ canvas {
 .file-path-sep {
   flex: 0 0 auto;
   color: var(--cc-text-ghost);
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   pointer-events: none;
   padding: 0 1px;
 }
@@ -583,9 +700,9 @@ canvas {
   border: none;
   color: var(--cc-text-faint);
   cursor: pointer;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   font: inherit;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   white-space: nowrap;
   max-width: 280px;
   -webkit-app-region: no-drag;
@@ -606,7 +723,7 @@ canvas {
   text-overflow: ellipsis;
 }
 .project-btn .lucide-icon {
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   flex: 0 0 auto;
 }
 
@@ -616,10 +733,10 @@ canvas {
   height: 16px;
   padding: 0 6px;
   margin-left: 6px;
-  border-radius: 8px;
+  border-radius: var(--cc-radius-md);
   background: var(--cc-accent-bg-soft);
   color: var(--cc-accent-light);
-  font-size: 10.5px;
+  font-size: var(--cc-font-sm);
   font-family: 'SF Mono', 'Fira Code', monospace;
   white-space: nowrap;
 }
@@ -678,7 +795,7 @@ canvas {
   background: var(--cc-bg-chrome);
   border-top: 1px solid var(--cc-track);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10.5px;
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
   white-space: nowrap;
 }
@@ -717,7 +834,7 @@ canvas {
 .app-footer-source {
   margin-left: 3px;
   color: var(--cc-text-ghost);
-  font-size: 9.5px;
+  font-size: var(--cc-font-sm);
 }
 
 /* Shared muted-dot separator. Used between metadata items in the left
@@ -738,10 +855,10 @@ canvas {
   width: 22px;
   height: 22px;
   color: var(--cc-text-faint);
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
 }
 .app-footer-button .lucide-icon {
-  font-size: 13px;
+  font-size: var(--cc-font-lg);
 }
 
 /* ── Combined status indicator (left section) ─────────────────────── */
@@ -759,7 +876,7 @@ canvas {
 .app-footer-status-dot {
   width: 6px;
   height: 6px;
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   flex: 0 0 auto;
 }
 .app-footer-status-detail {
@@ -837,7 +954,7 @@ canvas {
 
 #sidebar ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 
 #sidebar ::-webkit-scrollbar-thumb:hover {
@@ -863,13 +980,13 @@ canvas {
   transform: translateX(-50%);
   background: var(--cc-accent-bg);
   border: 1px solid var(--cc-accent-border);
-  border-radius: 100px;
+  border-radius: var(--cc-radius-pill);
   padding: 6px 16px;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   color: var(--cc-accent-light);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--cc-t-base);
 }
 
 .building-selected-indicator.visible {
@@ -883,9 +1000,9 @@ canvas {
   background: var(--cc-bg-tooltip);
   border: 1px solid var(--cc-border-tooltip);
   color: var(--cc-text-primary);
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   padding: 4px 9px;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   pointer-events: none;
   z-index: 200;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -903,8 +1020,8 @@ canvas {
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  font-size: 10px;
-  font-weight: 500;
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-medium);
   color: var(--cc-text-base);
   pointer-events: none;
   white-space: nowrap;
@@ -976,8 +1093,8 @@ canvas {
 .pane-header-close {
   color: var(--cc-text-faint);
   padding: 4px;
-  border-radius: 4px;
-  font-size: 14px;
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-xl);
   line-height: 1;
 }
 
@@ -991,11 +1108,11 @@ canvas {
   color: var(--cc-text-faint);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   line-height: 1;
 }
 .pane-header-action:not(:disabled):hover {
@@ -1040,9 +1157,9 @@ canvas {
   cursor: pointer;
   border-left: 2px solid transparent;
   transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
+    color var(--cc-t-base),
+    background var(--cc-t-base),
+    border-color var(--cc-t-base);
   padding: 0;
 }
 
@@ -1160,7 +1277,7 @@ canvas {
 /* .controls-section-label — typography in .text-label. */
 
 .controls-section-hint {
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-faint);
   line-height: 1.5;
   margin-bottom: 12px;
@@ -1172,10 +1289,10 @@ canvas {
   display: inline-block;
   background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg-strong);
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   color: var(--cc-text-secondary);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10px;
+  font-size: var(--cc-font-sm);
   padding: 1px 5px;
   margin: 0 1px;
   line-height: 1.2;
@@ -1204,8 +1321,8 @@ canvas {
   margin-left: -16px;
   margin-right: -16px;
   margin-bottom: 4px;
-  border-radius: 4px;
-  transition: background 0.1s;
+  border-radius: var(--cc-radius-sm);
+  transition: background var(--cc-t-fast);
 }
 .controls-section > summary.controls-section-summary:hover {
   background: var(--cc-overlay-bg-soft);
@@ -1220,7 +1337,7 @@ canvas {
   height: 14px;
   flex-shrink: 0;
   color: var(--cc-text-secondary);
-  transition: transform 0.1s ease;
+  transition: transform var(--cc-t-fast) ease;
 }
 .controls-section[open] > summary.controls-section-summary > .controls-section-chevron {
   transform: rotate(90deg);
@@ -1230,33 +1347,7 @@ canvas {
  * section summary. Styled like the per-row reset (.theme-row-reset) so the
  * two read as the same affordance: accent-tinted at rest when any value
  * differs from default, faded when everything matches. */
-.controls-section-reset {
-  margin-left: auto;
-  flex: 0 0 auto;
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: none;
-  border: 1px solid transparent;
-  padding: 3px 5px;
-  border-radius: 4px;
-  color: var(--cc-accent);
-  font-size: 14px;
-  cursor: pointer;
-}
-.controls-section-reset:not(:disabled):hover {
-  color: #fff;
-  background: var(--cc-accent-bg);
-  border-color: var(--cc-accent-border);
-}
-.controls-section-reset:not(:disabled):active {
-  background: var(--cc-accent-bg-strong);
-}
-.controls-section-reset:disabled {
-  color: var(--cc-accent-bg);
-  cursor: default;
-}
+/* .controls-section-reset typography in .btn-reset-inline. */
 
 /* Keyboard / mouse shortcuts table in the View section. Two-column grid:
  *   [keys / mouse]   [action]
@@ -1268,7 +1359,7 @@ canvas {
   gap: 6px 14px;
   align-items: center;
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
 }
 .shortcuts-list dt {
   color: var(--cc-text-secondary);
@@ -1281,7 +1372,7 @@ canvas {
 }
 .shortcuts-list .shortcuts-or {
   color: var(--cc-text-faint);
-  font-size: 10px;
+  font-size: var(--cc-font-sm);
   margin-left: 2px;
 }
 .shortcuts-divider {
@@ -1295,7 +1386,7 @@ canvas {
   display: flex;
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
   padding: 2px;
 }
 
@@ -1314,8 +1405,8 @@ canvas {
   font-family: inherit;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--cc-t-base),
+    background var(--cc-t-base);
 }
 
 .btn-toggle:hover,
@@ -1333,20 +1424,20 @@ canvas {
 
 /* Standalone .btn-toggle defaults (when used without an alias). */
 .btn-toggle {
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
   padding: 5px 10px;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 
 /* .segmented-option — alias of .btn-toggle. Overrides: flex-fill, 12px/500
    font, 6px 10px padding, 4px radius. */
 .segmented-option {
   flex: 1;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 
 /* .btn-accent-outline — accent-tinted outlined button for the controls
@@ -1359,17 +1450,17 @@ canvas {
   box-sizing: border-box;
   background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg-strong);
-  border-radius: 5px;
+  border-radius: var(--cc-radius-md);
   color: var(--cc-text-secondary);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
   padding: 8px 10px;
   cursor: pointer;
   transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
+    color var(--cc-t-base),
+    background var(--cc-t-base),
+    border-color var(--cc-t-base);
 }
 
 .btn-accent-outline:hover,
@@ -1473,8 +1564,8 @@ canvas {
   margin-left: -16px;
   margin-right: -16px;
   margin-bottom: 4px;
-  border-radius: 4px;
-  transition: background 0.1s;
+  border-radius: var(--cc-radius-sm);
+  transition: background var(--cc-t-fast);
 }
 .theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
   background: var(--cc-overlay-bg-soft);
@@ -1487,7 +1578,7 @@ canvas {
   height: 14px;
   flex-shrink: 0;
   color: var(--cc-text-muted);
-  transition: transform 0.1s ease;
+  transition: transform var(--cc-t-fast) ease;
 }
 .theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
   transform: rotate(90deg);
@@ -1522,7 +1613,7 @@ canvas {
   align-items: center;
   gap: 12px;
   padding: 4px 0;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-secondary);
   cursor: default;
   min-width: 0;
@@ -1550,32 +1641,8 @@ canvas {
 
 /* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
  * row's value differs from its default, fades in on hover. */
-.theme-row-reset {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: 1px solid transparent;
-  padding: 3px 5px;
-  margin: 0;
-  cursor: pointer;
-  color: var(--cc-accent);
-  border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
-}
-.theme-row-reset:not(:disabled):hover {
-  color: var(--cc-white);
-  background: var(--cc-accent-bg);
-  border-color: var(--cc-accent-border);
-}
-.theme-row-reset:not(:disabled):active {
-  background: var(--cc-accent-bg-strong);
-}
-.theme-row-reset:disabled {
-  cursor: default;
-  color: var(--cc-accent-bg);
-}
+/* .theme-row-reset typography in .btn-reset-inline. */
+.theme-row-reset { margin: 0; }
 
 /* Color swatch — small native color picker */
 .theme-color {
@@ -1586,7 +1653,7 @@ canvas {
   padding: 0;
   background: transparent;
   border: 1px solid var(--cc-overlay-border);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
 .theme-color::-webkit-color-swatch-wrapper {
@@ -1594,11 +1661,11 @@ canvas {
 }
 .theme-color::-webkit-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
 }
 .theme-color::-moz-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
 }
 
 /* Hue preview — sits at the right end of a hue slider row, showing the
@@ -1608,7 +1675,7 @@ canvas {
   display: inline-block;
   width: 18px;
   height: 18px;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   border: 1px solid var(--cc-overlay-border);
   flex: 0 0 auto;
   margin-left: 6px;
@@ -1620,14 +1687,14 @@ canvas {
   display: inline-flex;
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   overflow: hidden;
 }
 /* .theme-select-option — alias of .btn-toggle. Overrides: separator border
    between items, 10px font, 3px 8px padding, subtle bg overlay on hover. */
 .theme-select-option {
   border-right: 1px solid var(--cc-track);
-  font-size: 10px;
+  font-size: var(--cc-font-sm);
   padding: 3px 8px;
 }
 .theme-select-option:last-child {
@@ -1651,10 +1718,10 @@ canvas {
   width: 70px;
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   color: var(--cc-text-primary);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   padding: 3px 6px;
   text-align: right;
 }
@@ -1682,7 +1749,7 @@ canvas {
   min-width: 60px;
   height: 4px;
   background: var(--cc-track);
-  border-radius: 2px;
+  border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
 .theme-slider::-webkit-slider-thumb {
@@ -1692,7 +1759,7 @@ canvas {
   height: 12px;
   background: var(--cc-accent);
   border: 1px solid var(--cc-overlay-border);
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
 }
 .theme-slider::-moz-range-thumb {
@@ -1700,7 +1767,7 @@ canvas {
   height: 12px;
   background: var(--cc-accent);
   border: 1px solid var(--cc-overlay-border);
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
 }
 
@@ -1709,7 +1776,7 @@ canvas {
   min-width: 36px;
   text-align: right;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10px;
+  font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
   white-space: nowrap;
 }
@@ -1736,7 +1803,7 @@ canvas {
   right: 0;
   height: 4px;
   background: var(--cc-track);
-  border-radius: 2px;
+  border-radius: var(--cc-radius-sm);
 }
 .theme-range-pair-fill {
   position: absolute;
@@ -1744,7 +1811,7 @@ canvas {
   transform: translateY(-50%);
   height: 4px;
   background: linear-gradient(90deg, var(--cc-accent), var(--cc-accent-border));
-  border-radius: 2px;
+  border-radius: var(--cc-radius-sm);
   pointer-events: none;
   box-shadow: var(--cc-glow-accent);
 }
@@ -1795,7 +1862,7 @@ canvas {
   height: 14px;
   background: var(--cc-accent);
   border: 1px solid var(--cc-overlay-border);
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
   pointer-events: auto;
   box-shadow: var(--cc-shadow-sm);
@@ -1805,7 +1872,7 @@ canvas {
   height: 14px;
   background: var(--cc-accent);
   border: 1px solid var(--cc-overlay-border);
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
   pointer-events: auto;
   box-shadow: var(--cc-shadow-sm);
@@ -1828,7 +1895,7 @@ canvas {
 }
 #tree-sidebar ::-webkit-scrollbar-thumb {
   background: var(--cc-border-input);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 #tree-sidebar ::-webkit-scrollbar-thumb:hover {
   background: var(--cc-track-hover);
@@ -1870,8 +1937,8 @@ canvas {
    * 8px via .tree-list — no compounding padding inside the row itself. */
   padding: 3px 16px;
   cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.1s;
+  border-radius: var(--cc-radius-sm);
+  transition: background var(--cc-t-fast);
   user-select: none;
 }
 
@@ -1939,7 +2006,7 @@ canvas {
 }
 
 .tree-icon {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   width: 14px;
   text-align: center;
   flex-shrink: 0;
@@ -1951,7 +2018,7 @@ canvas {
 }
 
 .tree-label {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;
@@ -1961,7 +2028,7 @@ canvas {
 /* Tree dir / file labels share the same color; the chevron + dir/file icon
    already distinguish the two. */
 .tree-dir > .tree-row > .tree-label {
-  font-weight: 500;
+  font-weight: var(--cc-fw-medium);
 }
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
@@ -1979,7 +2046,7 @@ canvas {
 
 .search-input-icon {
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   color: var(--cc-text-faint);
 }
 
@@ -1988,10 +2055,10 @@ canvas {
   min-width: 0;
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
   color: var(--cc-text-primary);
   font-family: inherit;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   padding: 5px 8px;
   outline: none;
 }
@@ -2027,7 +2094,7 @@ canvas {
   text-align: center;
 }
 .search-state .lucide-icon {
-  font-size: 22px;
+  font-size: var(--cc-font-3xl);
   opacity: 0.55;
   margin-bottom: 2px;
 }
@@ -2050,7 +2117,7 @@ canvas {
   cursor: pointer;
   border-left: 2px solid transparent;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11.5px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -2069,7 +2136,7 @@ canvas {
 .search-result mark {
   background: transparent;
   color: var(--cc-accent);
-  font-weight: 700;
+  font-weight: var(--cc-fw-bold);
 }
 .search-result:hover mark,
 .search-result:focus-visible mark {
@@ -2105,7 +2172,7 @@ canvas {
 .info-markdown {
   padding: 16px 18px 24px;
   color: var(--cc-text-secondary);
-  font-size: 13px;
+  font-size: var(--cc-font-lg);
   line-height: 1.6;
   word-wrap: break-word;
 }
@@ -2117,7 +2184,7 @@ canvas {
 .info-markdown h5,
 .info-markdown h6 {
   color: var(--cc-text-primary);
-  font-weight: 700;
+  font-weight: var(--cc-fw-bold);
   margin: 18px 0 8px;
   line-height: 1.3;
 }
@@ -2127,28 +2194,28 @@ canvas {
   margin-top: 0;
 }
 .info-markdown h1 {
-  font-size: 20px;
+  font-size: var(--cc-font-3xl);
   padding-bottom: 6px;
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 .info-markdown h2 {
-  font-size: 17px;
+  font-size: var(--cc-font-2xl);
   padding-bottom: 4px;
   border-bottom: 1px solid var(--cc-track);
 }
 .info-markdown h3 {
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
 }
 .info-markdown h4 {
-  font-size: 13px;
+  font-size: var(--cc-font-lg);
   color: var(--cc-text-secondary);
 }
 .info-markdown h5,
 .info-markdown h6 {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   color: var(--cc-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--cc-track-label);
 }
 
 .info-markdown p {
@@ -2165,7 +2232,7 @@ canvas {
 
 .info-markdown strong {
   color: var(--cc-text-primary);
-  font-weight: 700;
+  font-weight: var(--cc-fw-bold);
 }
 .info-markdown em {
   color: var(--cc-text-primary);
@@ -2203,10 +2270,10 @@ canvas {
 
 .info-markdown code {
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   background: var(--cc-accent-bg-soft);
   border: 1px solid var(--cc-accent-bg);
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   padding: 1px 5px;
   color: var(--cc-text-primary);
 }
@@ -2214,12 +2281,12 @@ canvas {
 .info-markdown pre {
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-track);
-  border-radius: 5px;
+  border-radius: var(--cc-radius-md);
   padding: 10px 12px;
   margin: 10px 0;
   overflow-x: auto;
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   line-height: 1.5;
 }
 .info-markdown pre code {
@@ -2232,13 +2299,13 @@ canvas {
 
 .info-markdown img {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 
 .info-markdown table {
   border-collapse: collapse;
   margin: 10px 0;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
 }
 .info-markdown th,
 .info-markdown td {
@@ -2329,7 +2396,7 @@ canvas {
     sans-serif;
 }
 .preview-state .lucide-icon {
-  font-size: 28px;
+  font-size: var(--cc-font-4xl);
   opacity: 0.55;
   margin-bottom: 4px;
 }
@@ -2377,12 +2444,12 @@ canvas {
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   line-height: 1.4;
 }
 .code-editor-banner .lucide-icon {
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   opacity: 0.85;
 }
 
@@ -2395,7 +2462,7 @@ canvas {
   overflow: auto;
   background: var(--cc-bg-app);
   font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   line-height: 1.55;
   tab-size: 4;
 }
@@ -2496,7 +2563,7 @@ canvas {
   font-style: italic;
 }
 .hljs-strong {
-  font-weight: 600;
+  font-weight: var(--cc-fw-semibold);
 }
 
 /* ── Source picker modal + loading overlay ───────────────────────────────
@@ -2530,7 +2597,7 @@ canvas {
   flex-direction: column;
   background: var(--cc-bg-modal);
   color: var(--cc-text-base);
-  border-radius: 10px;
+  border-radius: var(--cc-radius-lg);
   box-shadow: var(--cc-shadow-lg);
   overflow: hidden;
   font-family: inherit;
@@ -2542,7 +2609,7 @@ canvas {
   justify-content: space-between;
   padding: 14px 18px;
   border-bottom: 1px solid var(--cc-overlay-bg-strong);
-  font-weight: 600;
+  font-weight: var(--cc-fw-semibold);
 }
 
 /* .modal-close — alias of .btn-icon (shell shared). Overrides:
@@ -2550,9 +2617,9 @@ canvas {
    Uses its own hover (.08 overlay, no color change) — not the shared hover. */
 .modal-header button.modal-close {
   color: inherit;
-  font-size: 18px;
+  font-size: var(--cc-font-2xl);
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
 }
 .modal-header button.modal-close:hover {
   background: var(--cc-overlay-bg-strong);
@@ -2575,7 +2642,7 @@ canvas {
   border: 1px solid var(--cc-overlay-bg-strong);
   color: inherit;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
   cursor: pointer;
   font: inherit;
 }
@@ -2590,7 +2657,7 @@ canvas {
   margin-bottom: 12px;
 }
 .modal-field label {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   color: var(--cc-text-muted);
 }
 .modal-field input {
@@ -2598,7 +2665,7 @@ canvas {
   border: 1px solid var(--cc-overlay-bg-strong);
   color: inherit;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
   font: inherit;
 }
 .modal-field input:focus {
@@ -2611,9 +2678,9 @@ canvas {
   border: 1px solid var(--cc-error-border);
   color: var(--cc-error-light);
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
   margin-bottom: 12px;
-  font-size: 13px;
+  font-size: var(--cc-font-lg);
 }
 
 .modal-actions {
@@ -2621,21 +2688,7 @@ canvas {
   justify-content: flex-end;
   margin-top: 6px;
 }
-.modal-actions button {
-  appearance: none;
-  background: var(--cc-accent);
-  border: 0;
-  color: var(--cc-text-inverse);
-  padding: 8px 16px;
-  border-radius: 6px;
-  cursor: pointer;
-  font: inherit;
-  font-weight: 600;
-}
-.modal-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
+/* .modal-actions button typography in .btn-primary. */
 
 .recents-list {
   margin-top: 14px;
@@ -2649,17 +2702,17 @@ canvas {
   align-items: center;
   gap: 10px;
   padding: 8px 4px;
-  border-radius: 6px;
+  border-radius: var(--cc-radius-md);
   cursor: pointer;
 }
 .recent-row:hover {
   background: var(--cc-overlay-bg);
 }
 .recent-row .recent-label {
-  font-weight: 500;
+  font-weight: var(--cc-fw-medium);
 }
 .recent-row .recent-sub {
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
 }
 /* .recent-remove — alias of .btn-icon. Overrides: pushed right via auto
@@ -2680,19 +2733,19 @@ canvas {
 }
 .recent-row-badge {
   margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-semibold);
+  letter-spacing: var(--cc-track-label);
   color: var(--cc-accent);
   background: var(--cc-accent-bg);
   border: 1px solid var(--cc-accent-border);
-  border-radius: 10px;
+  border-radius: var(--cc-radius-lg);
   padding: 2px 7px;
   white-space: nowrap;
 }
 
 .modal-field-help {
-  font-size: 11px;
+  font-size: var(--cc-font-md);
   color: var(--cc-text-muted); /* was 0.45 (3.82:1 → now 5.70:1, WCAG AA) */
   margin-top: 4px;
 }
@@ -2706,7 +2759,7 @@ canvas {
   padding: 24px 32px;
   background: var(--cc-bg-modal);
   color: var(--cc-text-base);
-  border-radius: 10px;
+  border-radius: var(--cc-radius-lg);
   box-shadow: var(--cc-shadow-lg);
   min-width: 260px;
 }
@@ -2715,7 +2768,7 @@ canvas {
   height: 28px;
   border: 3px solid var(--cc-overlay-border);
   border-top-color: var(--cc-accent);
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   animation: cc-spin 0.8s linear infinite;
 }
 @keyframes cc-spin {
@@ -2733,11 +2786,11 @@ canvas {
   gap: 6px;
 }
 .loading-steps li {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   padding: 2px 0 2px 20px;
   position: relative;
   color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
-  transition: color 0.2s;
+  transition: color var(--cc-t-base);
 }
 .loading-steps li::before {
   content: '';
@@ -2747,7 +2800,7 @@ canvas {
   transform: translateY(-50%);
   width: 12px;
   text-align: center;
-  font-size: 11px;
+  font-size: var(--cc-font-md);
 }
 .loading-steps li[data-state="pending"] {
   color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
@@ -2758,8 +2811,8 @@ canvas {
 .loading-steps li[data-state="active"]::before {
   content: '›';
   color: var(--cc-accent);
-  font-size: 14px;
-  font-weight: 700;
+  font-size: var(--cc-font-xl);
+  font-weight: var(--cc-fw-bold);
 }
 .loading-steps li[data-state="done"] {
   color: var(--cc-text-muted);
@@ -2767,7 +2820,7 @@ canvas {
 .loading-steps li[data-state="done"]::before {
   content: '✓';
   color: var(--cc-success-dark);
-  font-size: 10px;
+  font-size: var(--cc-font-sm);
 }
 /* Header icon buttons — switch-source (far left) + refresh (far right).
  * Both use the same styling as the old footer reset-view button so they
@@ -2784,7 +2837,7 @@ canvas {
   width: 24px;
   height: 24px;
   color: var(--cc-text-faint);
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
   text-decoration: none;
   -webkit-app-region: no-drag;
 }
@@ -2794,7 +2847,7 @@ canvas {
 .switch-source-btn .lucide-icon,
 .app-header-refresh-btn .lucide-icon,
 .app-header-repo-link .lucide-icon {
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
 }
 .switch-source-btn svg,
 .app-header-refresh-btn svg,
