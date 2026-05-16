@@ -18,7 +18,7 @@ export interface RainbowConfig {
 export const RAINBOW = map<RainbowConfig>({
   SPEED: 0.0005, // hue cycles per millisecond
   SATURATION: 1.0,
-  LIGHTNESS: 0.6,
+  LIGHTNESS: 0.50,
 });
 
 // Bloom (UnrealBloomPass) — screen-space neon glow for HDR pixels.
@@ -70,5 +70,5 @@ export const BLOOM = map<BloomConfig>({
   THRESHOLD: 0.5,
   WINDOW_EMISSION: 1.0,
   GEM_EMISSION: 0.5,
-  BILLBOARD_EMISSION: 1.8,
+  BILLBOARD_EMISSION: 2.0,
 });
