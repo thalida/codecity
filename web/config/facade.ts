@@ -36,15 +36,15 @@ export interface FacadeGeometryConfig {
 }
 
 export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
-  SLAB_HEIGHT_FRAC: 0.12,
-  WINDOW_WIDTH_FRAC: 0.45,
+  SLAB_HEIGHT_FRAC: 0.05,
+  WINDOW_WIDTH_FRAC: 0.50,
   WINDOW_HEIGHT_FRAC: 0.45,
   WINDOW_MARGIN_FRAC: 0.08,
-  DOOR_HEIGHT_FRAC: 0.7,
-  ROOF_BORDER_FRAC: 0.03125,
+  DOOR_HEIGHT_FRAC: 0.75,
+  ROOF_BORDER_FRAC: 0.05,
   WINDOW_COLS_MAX: 8,
   WIDTH_PER_WINDOW_COL: 12,
-  DOOR_WIDTH_FRAC_OF_PATH: 0.8,
+  DOOR_WIDTH_FRAC_OF_PATH: 0.75,
 });
 
 // HSL lightness deltas applied via shadeColor() / shadeAndShiftHue() in the
@@ -60,9 +60,9 @@ export interface FacadeDetailConfig {
 }
 
 export const FACADE_DETAIL = map<FacadeDetailConfig>({
-  SLAB_LIGHTNESS_DELTA: -12,
-  DOOR_LIGHTNESS_DELTA: -55,
-  ROOF_BORDER_LIGHTNESS_DELTA: -15,
+  SLAB_LIGHTNESS_DELTA: -10,
+  DOOR_LIGHTNESS_DELTA: -50,
+  ROOF_BORDER_LIGHTNESS_DELTA: -10,
 });
 
 // Window-pane lighting: how panes glow when lit, fade when unlit, and gap
@@ -84,7 +84,7 @@ export interface WindowLightingConfig {
 
 export const WINDOW_LIGHTING = map<WindowLightingConfig>({
   UNLIT_LIGHTNESS_DELTA: -4,
-  GAP_BASE_THRESHOLD: 0.15,
+  GAP_BASE_THRESHOLD: 0.25,
   GAP_AGE_BONUS: 0.5,
   DIM_GLOW_COLOR: '#806626', // approx rgb(128, 102, 38) approx (0.5, 0.4, 0.15) * 255
   LIT_FRESHNESS_EXPONENT: 2.0,
