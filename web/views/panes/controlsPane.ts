@@ -1103,7 +1103,7 @@ function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement
   });
   summary.appendChild(sectionReset);
 
-  function refreshSectionReset() {
+  function _doRefreshSectionReset() {
     const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
     // If the section has no resettable rows at all (e.g. Keyboard & mouse,
     // Debug), there's nothing this button could do — hide it entirely
@@ -1118,10 +1118,26 @@ function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement
     sectionReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
   }
 
-  // The first refresh must run AFTER the caller has appended rows. The
-  // section is built synchronously by callers like _buildBuildingsSection,
-  // so by the time the current sync stack unwinds, all rows are in place.
-  queueMicrotask(refreshSectionReset);
+  // Queue the actual refresh into a microtask so it runs AFTER every per-row
+  // reset has already updated its own `disabled` state for the same store /
+  // draft event. The section subscribes BEFORE the rows do (sections are
+  // built before their rows are appended), so reading button.disabled
+  // synchronously would otherwise see stale values from the previous tick.
+  let _scheduled = false;
+  function refreshSectionReset() {
+    if (_scheduled) return;
+    _scheduled = true;
+    queueMicrotask(() => {
+      _scheduled = false;
+      _doRefreshSectionReset();
+    });
+  }
+
+  // First refresh runs after the caller has appended rows (same microtask
+  // guarantee — the section is built synchronously by callers like
+  // _buildBuildingsSection, so by the time the microtask fires, all rows
+  // are in place AND have wired their own subscribers).
+  refreshSectionReset();
   // Subsequent refreshes ride on the same hooks the per-row resets use, so
   // the section button always stays in sync with the rows.
   subscribeDrafts(refreshSectionReset);
