@@ -1880,19 +1880,16 @@ canvas {
 
 .tree-label {
   font-size: 12px;
-  color: var(--cc-text-muted);
+  color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+/* Tree dir / file labels share the same color; the chevron + dir/file icon
+   already distinguish the two. */
 .tree-dir > .tree-row > .tree-label {
-  color: var(--cc-text-secondary);
   font-weight: 500;
-}
-
-.tree-file > .tree-row > .tree-label {
-  color: var(--cc-text-muted);
 }
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
@@ -2472,7 +2469,7 @@ canvas {
   display: flex;
   flex-direction: column;
   background: var(--cc-bg-modal);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-base);
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   overflow: hidden;
@@ -2653,7 +2650,7 @@ canvas {
   gap: 14px;
   padding: 24px 32px;
   background: var(--cc-bg-modal);
-  color: var(--cc-text-primary);
+  color: var(--cc-text-base);
   border-radius: 10px;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
   min-width: 260px;
