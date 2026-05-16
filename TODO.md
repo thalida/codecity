@@ -33,6 +33,6 @@
 - [ ] make controls tab more compact
 - [ ] change the info panel to be about codecity not the repo readme
 - [ ] fix alignment in file tree
-- [ ] don't select when rotating the world
+- [x] don't select when rotating the world
 
 ## Pending Agent Prompts
