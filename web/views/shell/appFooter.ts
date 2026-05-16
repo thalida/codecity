@@ -239,10 +239,11 @@ function _formatBytes(bytes: number): string {
 
 /**
  * Build a directory-count item showing both direct-children and recursive
- * descendant counts. Renders compact when they're equal (leaf-ish dirs) and
- * `direct / total` otherwise. Returns null if both counts are absent.
+ * descendant counts. When the two counts match (leaf-ish dirs) it renders
+ * just the single number. When they differ, the recursive total appears in
+ * parentheses after the direct count: e.g. `12 files (1375 total)`.
  *
- * Title attribute clarifies the meaning on hover.
+ * Returns null if both counts are absent.
  */
 function _directoryCountItem(
   direct: number | null | undefined,
@@ -252,12 +253,12 @@ function _directoryCountItem(
   if (direct == null && total == null) return null;
   if (direct == null) return _item(`${total} ${label}`, undefined, `${total} total`);
   if (total == null || direct === total) {
-    return _item(`${direct} ${label}`, undefined, `${direct} direct`);
+    return _item(`${direct} ${label}`, undefined, `${direct} direct children`);
   }
   return _item(
-    `${direct} / ${total} ${label}`,
+    `${direct} ${label} (${total} total)`,
     undefined,
-    `${direct} direct · ${total} total`,
+    `${direct} direct · ${total} total in this subtree`,
   );
 }
 
