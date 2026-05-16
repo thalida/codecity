@@ -119,12 +119,11 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter({});
   const initialManifest = cityScene.getManifest();
-  appFooter.setSelection({
-    kind: NodeKind.Directory,
-    files: rootNode?.descendants_file_count ?? 0,
-    dirs: rootNode?.descendants_dir_count ?? 0,
-    size: rootNode?.descendants_size ?? 0,
-  });
+  // Empty by default — selection metadata only appears once the user
+  // hovers or picks something. The previous fallback that showed root
+  // directory totals was confusing because it looked like a real "current"
+  // selection.
+  appFooter.setSelection(null);
 
   // Seed the "last updated" stamp from the initial manifest apply that
   // already happened in startRenderLoop — cityScene.onChange won't fire
@@ -246,16 +245,19 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
         created: (f.git && f.git.created) || f.created || null,
         dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
       });
-    } else {
-      const d: DirNode | null =
-        (target && target.kind === NodeKind.Directory ? target.dir : null) ||
-        cityScene.getRoot();
+    } else if (target && target.kind === NodeKind.Directory) {
+      const d: DirNode = target.dir;
       appFooter.setSelection({
         kind: NodeKind.Directory,
-        files: d?.descendants_file_count ?? 0,
-        dirs: d?.descendants_dir_count ?? 0,
-        size: d?.descendants_size ?? 0,
+        files: d.descendants_file_count ?? 0,
+        dirs: d.descendants_dir_count ?? 0,
+        size: d.descendants_size ?? 0,
       });
+    } else {
+      // No selection / no hover — empty the footer right section. The
+      // previous fallback to root directory totals read as a misleading
+      // "current selection" when nothing was actually picked.
+      appFooter.setSelection(null);
     }
   }
 
