@@ -60,10 +60,10 @@ export function createInputHandlers({
   let _cameraSettleTimeout: ReturnType<typeof setTimeout> | 0 = 0;
 
   // ms of camera idle after a change event before hover re-enables.
-  // Covers orbit damping (which keeps firing change events for ~100ms
-  // after release), zoom inertia, and the tail end of programmatic
-  // camera tweens (rig.focusBuilding etc.).
-  const CAMERA_SETTLE_MS = 80;
+  // 30ms: fast enough to feel instant on release, long enough to absorb
+  // damping change-events fired in rapid succession. Covers zoom inertia
+  // and the tail end of programmatic tweens (rig.focusBuilding etc.).
+  const CAMERA_SETTLE_MS = 30;
 
   // Prepend the root directory name (with a leading slash) to a manifest-
   // relative path so the hover tooltip reads as an absolute-looking path
@@ -224,6 +224,7 @@ export function createInputHandlers({
   _on(canvas, 'pointerup', (e: Event) => {
     const ev = e as PointerEvent;
     if (ev.button !== 0) return;
+    if (_cameraMoving) return;
     const dx = ev.clientX - downX;
     const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
