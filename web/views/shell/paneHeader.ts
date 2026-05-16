@@ -38,9 +38,10 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   title.textContent = opts.title;
   header.appendChild(title);
 
-  // Focus button (optional) — sits between the title and the × button.
-  // Used by the file-preview pane to mirror the F-key behaviour for the
-  // currently-shown file.
+  // Focus button (optional) — sits at the FAR LEFT of the header, before
+  // the prefix element (e.g. extension badge) and the title. Used by the
+  // file-preview pane to mirror the F-key behaviour for the currently-shown
+  // file.
   let _focusBtn: HTMLButtonElement | null = null;
   if (typeof opts.onFocus === 'function') {
     const focusBtn = document.createElement('button');
@@ -53,7 +54,10 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
     focusBtn.addEventListener('click', () => {
       opts.onFocus!();
     });
-    header.appendChild(focusBtn);
+    // Prepend so the button is the leftmost element. setPrefixEl (called
+    // later by the file-preview pane) inserts BEFORE the title, which
+    // keeps the badge between this button and the title.
+    header.prepend(focusBtn);
     _focusBtn = focusBtn;
   }
 
