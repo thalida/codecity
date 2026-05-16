@@ -136,18 +136,23 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     return btn;
   }
 
-  // Switch-source button — sits in the header row next to the title slot.
-  // Rendered once outside setSelection because it doesn't depend on the
-  // current breadcrumb selection; it just needs to exist alongside it.
+  // Switch-source button — sits at the far left of the header row,
+  // prepended before the title/breadcrumb slot. Rendered once outside
+  // setSelection because it doesn't depend on the current selection.
   if (onSwitchSource) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'switch-source-btn';
-    btn.title = 'Switch source';
-    btn.setAttribute('aria-label', 'Switch source');
-    btn.textContent = '⟳';
+    btn.title = 'Switch project';
+    btn.setAttribute('aria-label', 'Switch project');
+    btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/>
+  <path d="M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z"/>
+  <path d="M3 5a2 2 0 0 0 2 2h3"/>
+  <path d="M3 3v13a2 2 0 0 0 2 2h3"/>
+</svg>`;
     btn.addEventListener('click', () => onSwitchSource());
-    titleEl.parentElement?.appendChild(btn);
+    titleEl.parentElement?.prepend(btn);
   }
 
   // Live config: re-render the cached selection whenever a store that

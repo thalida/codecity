@@ -2315,17 +2315,22 @@ canvas {
   to { transform: rotate(360deg); }
 }
 
-/* Switch-source button (header, next to breadcrumb) */
+/* Switch-source button (header far-left, before breadcrumb) */
 .switch-source-btn {
   appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
-  padding: 4px 8px;
-  margin-left: 8px;
+  padding: 4px 6px;
+  margin-right: 4px;
   border-radius: 4px;
   opacity: 0.6;
-  font: inherit;
+  -webkit-app-region: no-drag;
 }
+.switch-source-btn svg { display: block; }
 .switch-source-btn:hover { opacity: 1; background: rgba(255,255,255,0.06); }
