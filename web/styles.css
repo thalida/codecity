@@ -308,24 +308,25 @@ canvas {
    * visual breathing room; the gap just keeps things from butting up
    * against the dots. */
   gap: 6px;
+  /* Stretch to fill the grid cell + clip at the cell boundary. The
+   * previous attempt used justify-self: start/center/end, which made
+   * each section's box content-sized (not cell-sized) — overflow:hidden
+   * then clipped against the content box, NOT the cell, so long text in
+   * the left section painted on top of the center section's repo name.
+   * Stretching the box to the cell + aligning children with
+   * justify-content fixes this properly. */
   min-width: 0;
+  width: 100%;
   overflow: hidden;
 }
 .app-footer-section.app-footer-left {
-  justify-self: start;
-  overflow: hidden;
+  justify-content: flex-start;
 }
 .app-footer-section.app-footer-center {
-  justify-self: center;
-  overflow: hidden;
-  /* Center shrinks last — the repo name is the most stable anchor. */
-  flex-shrink: 0;
-  min-width: 0;
-  max-width: 100%;
+  justify-content: center;
 }
 .app-footer-section.app-footer-right {
-  justify-self: end;
-  overflow: hidden;
+  justify-content: flex-end;
 }
 
 .app-footer-item {
