@@ -24,7 +24,8 @@ import {
   SCAN_FILTERS,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
-import { attachPersistence, persistStore } from './config/persist.js';
+import { attachPersistence, persistAtomPerSource } from './config/persist.js';
+import { sourceKey, CURRENT_SOURCE_KEY } from './sourceContext.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
@@ -700,7 +701,34 @@ if (_canvas) {
     // Picker's selectionKey atom isn't part of the Config barrel, so
     // wire its persistence directly. Hydrating BEFORE startRenderLoop
     // lets the picker's first key→selection resolve see the saved key.
-    persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
+
+    // One-shot migration: pre-this-change, PICKER_SELECTION_KEY was persisted
+    // as a global key (cc.PICKER_SELECTION_KEY). If it's still there AND we
+    // have a source loaded (URL has ?src=), copy it under the source's namespace
+    // and drop the legacy slot.
+    {
+      const legacy = localStorage.getItem('cc.PICKER_SELECTION_KEY');
+      if (legacy !== null && new URLSearchParams(window.location.search).has('src')) {
+        const qp = new URLSearchParams(window.location.search);
+        const k = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
+        if (localStorage.getItem(`cc.source.${k}.selection`) === null) {
+          localStorage.setItem(`cc.source.${k}.selection`, legacy);
+        }
+        localStorage.removeItem('cc.PICKER_SELECTION_KEY');
+      }
+    }
+
+    // Set CURRENT_SOURCE_KEY before per-source persistence wires up so the
+    // initial hydration sees the right key. Note: this is also done in
+    // Task 19's boot rewrite — keep it minimal here.
+    {
+      const qp = new URLSearchParams(window.location.search);
+      if (qp.has('src')) {
+        CURRENT_SOURCE_KEY.set(sourceKey(qp.get('src')!, qp.get('branch') ?? undefined));
+      }
+    }
+
+    persistAtomPerSource('selection', PICKER_SELECTION_KEY, null);
     const resp = await fetch(manifestUrl());
     if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
     const manifest: Manifest = await resp.json();
