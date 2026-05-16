@@ -21,7 +21,7 @@
 // then clears the flag. There's no surface for an accidental re-frame.
 //
 // Camera-pose persistence: every controls 'change' event debounces a
-// localStorage save (cc.cameraPose). Restoration happens after the
+// localStorage save (cc.source.<key>.cameraPose). Restoration happens after the
 // initial framing snapshot so reset() always animates back to the true
 // default fit, not the user's last navigated pose.
 
@@ -33,7 +33,6 @@ import {
   CAMERA_ANIMATION,
   ANIMATION_TIMING,
 } from '@/config/index.js';
-import { STORAGE_KEYS } from '@/constants';
 import { CURRENT_SOURCE_KEY } from '../sourceContext.js';
 import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
