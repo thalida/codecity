@@ -25,6 +25,7 @@ import {
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
+import { SYNTAX_THEME } from './config/syntaxTheme.js';
 import { sourceKey, CURRENT_SOURCE_KEY } from './sourceContext.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
@@ -755,6 +756,24 @@ const EMPTY_MANIFEST: Manifest = {
   repo: null,
 };
 
+// _applyHljsTheme — swap the <link id="hljs-theme"> element's href so
+// the chosen highlight.js CSS theme loads immediately without a re-render.
+// The .hljs-* token classes are already in the DOM; only the colours change.
+// Called once on boot (after attachPersistence hydrates the stored choice)
+// and again on every subsequent SYNTAX_THEME change.
+const HLJS_VERSION = '11.11.1';
+function _applyHljsTheme(theme: string): void {
+  const id = 'hljs-theme';
+  let link = document.getElementById(id) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  link.href = `https://cdn.jsdelivr.net/npm/highlight.js@${HLJS_VERSION}/styles/${theme}.min.css`;
+}
+
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
@@ -766,6 +785,11 @@ if (_canvas) {
     // session — otherwise the first paint ignores the saved value and
     // only corrects itself on the next poll.
     attachPersistence(Config);
+
+    // Apply the persisted (or default) syntax theme immediately after
+    // hydration, then track future changes. The subscribe call fires
+    // synchronously on registration — that first fire covers the boot case.
+    SYNTAX_THEME.subscribe(_applyHljsTheme);
 
     // One-shot migration: pre-this-change, PICKER_SELECTION_KEY and cameraPose
     // were both persisted as global keys. If they're still there AND we have a

@@ -43,6 +43,9 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
+  // File preview
+  SYNTAX_THEME,
+  SYNTAX_THEME_OPTIONS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
@@ -140,6 +143,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildCameraSection());
+  body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
@@ -843,6 +847,47 @@ function _buildEffectsSection(): HTMLElement {
       }),
     ])
   );
+
+  return section;
+}
+
+// ─── File Preview ──────────────────────────────────────────────────────────
+// File-preview sidebar settings. Currently just the syntax highlight theme
+// picker: a native <select> that writes directly to SYNTAX_THEME (no draft
+// layer — the CSS link swaps instantly, no Save required).
+function _buildFilePreviewSection(): HTMLElement {
+  const section = _section('File Preview', 'Syntax highlight theme for the code preview pane.');
+
+  // Native <select> — 8 theme options don't suit the segmented button style.
+  const sel = document.createElement('select');
+  sel.className = 'theme-native-select';
+  for (const opt of SYNTAX_THEME_OPTIONS) {
+    const el = document.createElement('option');
+    el.value = opt.value;
+    el.textContent = opt.label;
+    sel.appendChild(el);
+  }
+
+  // Sync <select> value with the atom (covers both initial hydration and
+  // external resets such as "Reset all").
+  const refresh = () => { sel.value = SYNTAX_THEME.get(); };
+  SYNTAX_THEME.subscribe(refresh);
+
+  sel.addEventListener('change', () => {
+    SYNTAX_THEME.set(sel.value);
+  });
+
+  const row = document.createElement('label');
+  row.className = 'theme-row';
+  const lbl = document.createElement('span');
+  lbl.className = 'theme-row-label';
+  lbl.textContent = 'Syntax theme';
+  row.appendChild(lbl);
+  const ctrl = document.createElement('span');
+  ctrl.className = 'theme-row-control';
+  ctrl.appendChild(sel);
+  row.appendChild(ctrl);
+  section.appendChild(row);
 
   return section;
 }

@@ -32,3 +32,4 @@ export * from './billboards.js'; // procedural billboard geometry (panel/post si
 export * from './live.js'; // live-update polling toggle + interval
 export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
 export * from './lod.js'; // per-block LOD swap thresholds
+export * from './syntaxTheme.js'; // syntax highlight theme picker
