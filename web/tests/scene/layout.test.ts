@@ -145,7 +145,7 @@ describe('getStreetWidth', () => {
   it('count 31 → fifth tier width (52)', () => expect(getStreetWidth(31, TEST_TIERS)).toBe(52));
   it('count 100 → fifth tier width (52)', () => expect(getStreetWidth(100, TEST_TIERS)).toBe(52));
   it('falls back to built-in tiers if none provided', () => {
-    expect(getStreetWidth(0)).toBe(20);
+    expect(getStreetWidth(0)).toBe(32);
     expect(getStreetWidth(100)).toBe(128);
   });
 });
@@ -1115,10 +1115,10 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertStemOrder(layout)).not.toThrow();
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
     // Measured ~115.4 under v3 with the prior STREET_TIERS defaults; after
-    // doubling the tier widths (10→20, 16→32, …) the natural length is
-    // ~210. Threshold scaled to ~240 to keep ~30u headroom while still
+    // widening tiers (0→32, 4→48, 8→80, 16→96) the natural length is
+    // ~264. Threshold scaled to ~300 to keep ~36u headroom while still
     // catching a 2× regression.
-    expect(rootStreet.length).toBeLessThan(240);
+    expect(rootStreet.length).toBeLessThan(300);
   });
 
   it('TEST_TREE is tree-respecting', () => {
@@ -1215,11 +1215,11 @@ describe('v3 quickjs-scenario regression', () => {
 
     // The bug case: quickjs road extends way past where qf1, qf2, qf3
     // alone would justify, because src/ branched back toward node_modules.
-    // For 3 files (each ~6-12 units wide) plus end pads, a non-pathological
-    // quickjs road length is bounded above by roughly 100 units. The bug
-    // produced lengths 2-3× that. We assert quickjs.length < 150 — well
+    // For 3 files (each ~8-16 units wide with updated STREET_TIERS) plus
+    // end pads, a non-pathological quickjs road length is ~156. The bug
+    // produced lengths 2-3× that. We assert quickjs.length < 210 — well
     // above the legitimate floor, well below the bug regime.
-    expect(quickjsStreet!.length).toBeLessThan(150);
+    expect(quickjsStreet!.length).toBeLessThan(210);
   });
 });
 
