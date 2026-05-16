@@ -14,6 +14,45 @@
   box-sizing: border-box;
 }
 
+/* ── Design tokens ──────────────────────────────────────────────────────────
+   Single source of truth for surface, border, text, accent, and semantic
+   colors. Per docs/ui-styleguide-audit.md §7. Purely additive in this commit;
+   subsequent migration steps replace hex literals with var() references. */
+
+:root {
+  /* Surfaces */
+  --cc-bg-app:          #0a0b10;
+  --cc-bg-chrome:       #0c0d14;
+  --cc-bg-sidebar:      #10111a;
+  --cc-bg-modal:        #1d1d22;
+
+  /* Borders */
+  --cc-border-subtle:   #1e2030;
+  --cc-border-input:    #252838;
+
+  /* Text */
+  --cc-text-primary:    #e0e4f5;
+  --cc-text-secondary:  #c0c4d8;
+  --cc-text-muted:      #8a8fa8;
+  --cc-text-faint:      #7279a2;
+  --cc-text-sep:        #44485e;
+
+  /* Accent (unified — replaces both #6c8aff and #5b9dff with the brighter blue) */
+  --cc-accent:          #5b9dff;
+  --cc-accent-dim:      rgba(91, 157, 255, 0.10);
+  --cc-accent-mid:      rgba(91, 157, 255, 0.18);
+  --cc-accent-strong:   rgba(91, 157, 255, 0.25);
+
+  /* Semantic */
+  --cc-success:         #4ade80;
+  --cc-warning:         #fbbf24;
+  --cc-error:           #ef4444;
+
+  /* Hover overlay (applied on top of any bg) */
+  --cc-hover-overlay:    rgba(255, 255, 255, 0.06);
+  --cc-hover-overlay-sm: rgba(255, 255, 255, 0.04);
+}
+
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 
 html,
