@@ -217,7 +217,6 @@ export function createInputHandlers({
   _on(canvas, 'pointerup', (e: Event) => {
     const ev = e as PointerEvent;
     if (ev.button !== 0) return;
-    if (_cameraMoving) return;
     const dx = ev.clientX - downX;
     const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
