@@ -1085,12 +1085,8 @@ canvas {
   display: flex;
   align-items: center;
   gap: 4px;
-  /* Indented inside the section — top-level summaries get -16px to stretch
-   * edge-to-edge; nested sub-accordions stay inset so the hierarchy reads.
-   * Left padding (12px) shifts the chevron + label rightward; the negative
-   * right margin keeps the hover bg edge-to-edge on that side. */
-  padding: 3px 16px 3px 12px;
-  margin-left: 0;
+  padding: 3px 16px;
+  margin-left: -16px;
   margin-right: -16px;
   margin-bottom: 4px;
   border-radius: 4px;
@@ -2267,18 +2263,33 @@ canvas {
 }
 .modal-actions button {
   appearance: none;
-  background: #5b9dff;
+  background: linear-gradient(180deg, #6ea8ff 0%, #4a8def 100%);
   border: 0;
   color: #0a0a10;
-  padding: 8px 16px;
+  padding: 9px 20px;
   border-radius: 6px;
   cursor: pointer;
   font: inherit;
-  font-weight: 600;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 0 0 1px rgba(91, 157, 255, 0.6),
+    0 4px 14px rgba(91, 157, 255, 0.35);
+  transition: background 0.12s ease, box-shadow 0.12s ease, transform 0.04s ease;
+}
+.modal-actions button:hover {
+  background: linear-gradient(180deg, #82b6ff 0%, #5b9dff 100%);
+  box-shadow:
+    0 0 0 1px rgba(91, 157, 255, 0.8),
+    0 6px 18px rgba(91, 157, 255, 0.45);
+}
+.modal-actions button:active {
+  transform: translateY(1px);
 }
 .modal-actions button:disabled {
-  opacity: 0.5;
+  opacity: 0.45;
   cursor: default;
+  box-shadow: none;
 }
 
 .recents-list {
@@ -2447,7 +2458,7 @@ canvas {
   text-decoration: none;
   -webkit-app-region: no-drag;
 }
-.switch-source-btn { margin-right: 4px; }
+.switch-source-btn { margin-right: 0; }
 .app-header-refresh-btn { margin-left: 4px; }
 .app-header-repo-link { margin-right: 4px; }
 .switch-source-btn:hover,
