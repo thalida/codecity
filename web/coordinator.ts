@@ -112,12 +112,13 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       rig.reset();
     },
     branch: _initBranch,
-    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter();
+  const appFooter = initAppFooter({
+    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
+  });
   const initialManifest = cityScene.getManifest();
   appFooter.setSelection({
     kind: NodeKind.Directory,
@@ -356,7 +357,8 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
   }
 
   function setSourceInfo(branch?: string, sourceUrl?: string): void {
-    appHeader.setSourceInfo(branch, sourceUrl);
+    appHeader.setSourceInfo(branch);
+    appFooter.setSourceUrl(sourceUrl);
   }
 
   return {

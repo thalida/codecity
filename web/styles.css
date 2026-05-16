@@ -2399,8 +2399,8 @@ canvas {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   background: none;
   border: none;
   color: #6a7090;
@@ -2417,7 +2417,7 @@ canvas {
 }
 .switch-source-btn .lucide-icon,
 .app-header-refresh-btn .lucide-icon {
-  font-size: 13px;
+  font-size: 14px;
 }
 .switch-source-btn svg,
 .app-header-refresh-btn svg { display: block; }

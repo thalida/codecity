@@ -17,6 +17,8 @@
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
 import { makeExtensionBadge } from './badge.js';
+import { makeLucideIcon } from './icon.js';
+import { toHttpsRepoUrl } from './displayLabel.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -53,10 +55,13 @@ export interface FooterStatus {
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
   setStatus(_status: FooterStatus) {},
+  setSourceUrl(_url?: string) {},
 };
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
-interface InitAppFooterOpts {}
+interface InitAppFooterOpts {
+  /** Original src URL when the loaded source is a git URL. Used to render the open-repo link. */
+  sourceUrl?: string;
+}
 
 /**
  * Initialise the sitewide footer. Returns:
@@ -68,7 +73,7 @@ interface InitAppFooterOpts {}
  * stores at render time and re-renders on any change, so editing an
  * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter(_opts: InitAppFooterOpts = {}) {
+export function initAppFooter(opts: InitAppFooterOpts = {}) {
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
@@ -77,6 +82,39 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   const statusEl = document.createElement('span');
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
+
+  // Repo link — rendered after status detail when a git URL source is loaded.
+  let _repoLinkEl: HTMLAnchorElement | null = null;
+  let _sourceUrl: string | undefined = opts.sourceUrl;
+
+  function _syncRepoLink(): void {
+    if (_sourceUrl) {
+      if (!_repoLinkEl) {
+        const a = document.createElement('a');
+        a.className = 'app-footer-repo-link';
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.appendChild(makeLucideIcon('external-link'));
+        _repoLinkEl = a;
+        statusContainerEl.appendChild(_repoLinkEl);
+      }
+      _repoLinkEl.href = toHttpsRepoUrl(_sourceUrl);
+      _repoLinkEl.title = `Open repo: ${_sourceUrl}`;
+    } else {
+      if (_repoLinkEl) {
+        _repoLinkEl.remove();
+        _repoLinkEl = null;
+      }
+    }
+  }
+
+  function setSourceUrl(url?: string): void {
+    _sourceUrl = url;
+    _syncRepoLink();
+  }
+
+  // Initial render of repo link if sourceUrl was passed at init time.
+  _syncRepoLink();
 
   const selectionEl = document.createElement('div');
   selectionEl.className = 'app-footer-section app-footer-right';
@@ -204,7 +242,7 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   ASPHALT.subscribe(_reRender);
   _ready = true;
 
-  return { setSelection, setStatus };
+  return { setSelection, setStatus, setSourceUrl };
 }
 
 const SEC_MS = 1000;

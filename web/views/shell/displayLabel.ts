@@ -6,6 +6,24 @@
 // URL/path parsing logic.
 
 /**
+ * Convert any recognisable repo URL form to an https:// URL.
+ *   https://… / http://… → returned as-is.
+ *   git@host:path.git    → https://host/path  (SSH → HTTPS)
+ *   anything else        → returned unchanged (best effort).
+ */
+export function toHttpsRepoUrl(src: string): string {
+  if (src.startsWith('https://') || src.startsWith('http://')) return src;
+  // SSH form: git@github.com:owner/repo.git
+  const sshMatch = /^[^@]+@([^:]+):(.+?)(?:\.git)?$/.exec(src);
+  if (sshMatch) {
+    const host = sshMatch[1];
+    const path = sshMatch[2];
+    return `https://${host}/${path}`;
+  }
+  return src;
+}
+
+/**
  * Derive a short, human-friendly label from a `display_root` value and an
  * optional fallback name.
  *

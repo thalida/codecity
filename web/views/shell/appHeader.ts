@@ -1,6 +1,9 @@
-// views/shell/appHeader.ts — Sitewide top header. Renders the current
-// selection as a breadcrumb (chip + clickable path segments + copy-path
-// button). Side buttons: switch-source (far left) and refresh (far right).
+// views/shell/appHeader.ts — Sitewide top header. Three zones:
+//   left   — project button (icon + label + @branch pill) → opens source picker
+//   center — #app-title slot: chip + path breadcrumb + copy button
+//   right  — refresh icon button
+//
+// When no path is selected (or only the root), #app-title is empty.
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeLucideIcon } from './icon.js';
@@ -8,9 +11,6 @@ import { makeExtensionBadge } from './badge.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
-
-const ARROW_OUT_ICON_SVG =
-  '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>';
 
 interface HeaderSelection {
   path: string;
@@ -20,45 +20,28 @@ interface HeaderSelection {
 }
 
 interface InitAppHeaderOpts {
-  /** project name shown as the leftmost breadcrumb segment (clicking it selects the project root) */
+  /** project name shown in the project button on the left */
   rootLabel?: string;
   /** the path string the segment-click handler should receive when the root is clicked (e.g. "." or "") */
   rootPath?: string;
   /** fn(path:string) — fires when the user clicks a breadcrumb segment. Caller selects the matching node. */
   onSegmentClick?: ((path: string) => void) | null;
-  /** fires when the user clicks the switch-source button in the header */
+  /** fires when the user clicks the project button in the header */
   onSwitchSource?: () => void;
   /** fires when the user clicks the refresh button in the header (far right) */
   onRefresh?: () => void;
   /** Branch name when the loaded source is a git URL with an explicit branch. */
   branch?: string;
-  /** Original src URL when the loaded source is a git URL. */
-  sourceUrl?: string;
 }
 
 /**
- * Convert any recognisable repo URL form to an https:// URL.
- *   https://… / http://… → returned as-is.
- *   git@host:path.git    → https://host/path  (SSH → HTTPS)
- *   anything else        → returned unchanged (best effort).
- */
-export function _toHttpsRepoUrl(src: string): string {
-  if (src.startsWith('https://') || src.startsWith('http://')) return src;
-  // SSH form: git@github.com:owner/repo.git
-  const sshMatch = /^[^@]+@([^:]+):(.+?)(?:\.git)?$/.exec(src);
-  if (sshMatch) {
-    const host = sshMatch[1];
-    const path = sshMatch[2];
-    return `https://${host}/${path}`;
-  }
-  return src;
-}
-
-/**
- * Initialise the sitewide header. Populates the title slot with chip +
- * breadcrumb + copy widgets. The path-badge subscribes to
- * BUILDING_PALETTE + ASPHALT so changing an extension hue or the
- * asphalt color in Controls live-repaints the currently-shown badge.
+ * Initialise the sitewide header. The header has three zones:
+ *   left   — project button (icon + label + @branch pill)
+ *   center — #app-title slot (chip + path segments + copy) — empty at root
+ *   right  — refresh button
+ *
+ * The path-badge subscribes to BUILDING_PALETTE + ASPHALT so changing an
+ * extension hue or the asphalt color in Controls live-repaints the badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onRefresh } = opts;
@@ -67,7 +50,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (!titleEl) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
-      setSourceInfo(_branch?: string, _sourceUrl?: string) {},
+      setSourceInfo(_branch?: string) {},
     };
   }
 
@@ -75,32 +58,37 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   // with the same selection when the palette / asphalt color changes.
   let lastSelection: HeaderSelection | null = null;
 
-  // Current branch + sourceUrl — updated by setSourceInfo after mid-session
-  // source switches.
+  // Current branch — updated by setSourceInfo after mid-session source switches.
   let _branch = opts.branch;
-  let _sourceUrl = opts.sourceUrl;
+
+  // Project button — rendered once and mutated by setSourceInfo.
+  let _projectBtn: HTMLButtonElement | null = null;
+  let _branchPillEl: HTMLSpanElement | null = null;
 
   /**
    * Render the title slot for a selection.
    *
    * sel shape:
-   *   null                                   → just the root segment (the
-   *                                            project name) with a dir chip
-   *   { path, extension, isDir }             → chip + breadcrumb + copy
+   *   null                               → #app-title is EMPTY
+   *   { path, extension, isDir }         → chip + breadcrumb + copy
    *
-   * The breadcrumb is always prefixed by the root segment (clickable —
-   * fires onSegmentClick with rootPath). When sel is null we show only
-   * the root.
+   * The chip leads the breadcrumb. The root segment and branch pill are
+   * now in the project button on the far left — NOT inside #app-title.
    */
   function setSelection(sel: HeaderSelection | null): void {
     lastSelection = sel;
     titleEl!.replaceChildren();
     const hasSel = !!(sel?.path && sel.path !== rootPath);
 
+    if (!hasSel) {
+      // Empty title — project button on the left carries the project identity.
+      return;
+    }
+
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
-    // for the root or any directory selection. Palette + asphalt are
-    // read fresh from the stores so the badge follows live config edits.
-    const isFileSel = hasSel && sel && !sel.isDir;
+    // for any directory selection. Palette + asphalt are read fresh from
+    // the stores so the badge follows live config edits.
+    const isFileSel = sel && !sel.isDir;
     const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
     const asphaltColor = ASPHALT.get().COLOR;
     titleEl!.appendChild(
@@ -114,64 +102,49 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = hasSel && sel ? `${rootLabel}/${sel.path}` : rootLabel;
+    crumbs.title = sel ? `${rootLabel}/${sel.path}` : rootLabel;
 
-    // Always lead with the root.
-    crumbs.appendChild(_makeSegment(rootLabel || '/', rootPath, !hasSel));
-
-    // Branch pill — shown only when the source has an explicit branch.
-    if (_branch) {
-      const pill = document.createElement('span');
-      pill.className = 'app-header-branch-pill';
-      pill.textContent = `@${_branch}`;
-      pill.title = `Branch: ${_branch}`;
-      crumbs.appendChild(pill);
-    }
-
-    // Open-repo link — shown only for git URL sources.
-    if (_sourceUrl) {
-      const link = document.createElement('a');
-      link.className = 'app-header-repo-link';
-      link.href = _toHttpsRepoUrl(_sourceUrl);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.title = `Open repo: ${_sourceUrl}`;
-      link.setAttribute('aria-label', 'Open repository in a new tab');
-      link.innerHTML = ARROW_OUT_ICON_SVG;
-      crumbs.appendChild(link);
-    }
-
-    if (hasSel && sel) {
-      const segs = sel.path.split('/').filter(Boolean);
-      let acc = '';
-      for (let i = 0; i < segs.length; i++) {
-        acc = acc ? `${acc}/${segs[i]}` : segs[i];
-        const isLeaf = i === segs.length - 1;
+    // Path segments — the root is in the project button, so we start
+    // directly with the selection's path segments.
+    const segs = sel!.path.split('/').filter(Boolean);
+    let acc = '';
+    for (let i = 0; i < segs.length; i++) {
+      acc = acc ? `${acc}/${segs[i]}` : segs[i];
+      const isLeaf = i === segs.length - 1;
+      if (i > 0) {
         const sep = document.createElement('span');
         sep.className = 'app-header-sep';
         sep.textContent = '›';
         crumbs.appendChild(sep);
-        crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
       }
+      crumbs.appendChild(_makeSegment(segs[i], acc, isLeaf));
     }
     titleEl!.appendChild(crumbs);
 
-    if (hasSel && sel) {
-      // Copy button copies the absolute filesystem path so users can
-      // paste it into a terminal / editor; the breadcrumb display
-      // stays project-relative for readability.
-      titleEl!.appendChild(_makeCopyButton(sel.fullPath || sel.path));
-    }
+    // Copy button copies the absolute filesystem path.
+    titleEl!.appendChild(_makeCopyButton(sel!.fullPath || sel!.path));
   }
 
   /**
-   * Update the branch pill and repo link after a mid-session source switch.
-   * Re-renders with the current cached selection so the header reflects the
-   * new source immediately.
+   * Update the branch pill inside the project button after a mid-session
+   * source switch. Re-renders with the current cached selection so the
+   * header reflects the new source immediately.
    */
-  function setSourceInfo(branch?: string, sourceUrl?: string): void {
+  function setSourceInfo(branch?: string): void {
     _branch = branch;
-    _sourceUrl = sourceUrl;
+    // Update the branch pill inside the project button in-place.
+    if (_projectBtn) {
+      if (_branchPillEl) {
+        _branchPillEl.remove();
+        _branchPillEl = null;
+      }
+      if (_branch) {
+        _branchPillEl = document.createElement('span');
+        _branchPillEl.className = 'app-header-branch-pill';
+        _branchPillEl.textContent = `@${_branch}`;
+        _projectBtn.appendChild(_branchPillEl);
+      }
+    }
     setSelection(lastSelection);
   }
 
@@ -200,25 +173,40 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     return btn;
   }
 
-  // Switch-source button — sits at the far left of the header row,
-  // prepended before the title/breadcrumb slot. Rendered once outside
-  // setSelection because it doesn't depend on the current selection.
-  if (onSwitchSource) {
+  // Project button — sits at the far left of the header row, prepended
+  // before the title/breadcrumb slot. Contains: icon + project label + branch pill.
+  {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'switch-source-btn';
+    btn.className = 'project-btn';
     btn.title = 'Switch project';
     btn.setAttribute('aria-label', 'Switch project');
-    // `replace` reads as "swap one for another" — distinct from the
-    // file-tree icon in the sidebar (which uses `folder-tree`).
     btn.appendChild(makeLucideIcon('replace'));
-    btn.addEventListener('click', () => onSwitchSource());
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'project-btn-label';
+    labelSpan.textContent = rootLabel;
+    btn.appendChild(labelSpan);
+
+    if (_branch) {
+      _branchPillEl = document.createElement('span');
+      _branchPillEl.className = 'app-header-branch-pill';
+      _branchPillEl.textContent = `@${_branch}`;
+      btn.appendChild(_branchPillEl);
+    }
+
+    if (onSwitchSource) {
+      btn.addEventListener('click', () => onSwitchSource());
+    } else {
+      btn.disabled = true;
+    }
+
+    _projectBtn = btn;
     titleEl.parentElement?.prepend(btn);
   }
 
   // Refresh button — sits at the far right of the header row, appended
-  // after all other header content. Mirrors the switch-source button in
-  // style but sits on the opposite end of the flex row.
+  // after all other header content.
   if (onRefresh) {
     const btn = document.createElement('button');
     btn.type = 'button';
@@ -231,11 +219,9 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   }
 
   // Live config: re-render the cached selection whenever a store that
-  // feeds the badge changes — the user editing an extension hue or the
-  // asphalt color in Controls should be visible immediately. Nanostores
-  // fire .subscribe() synchronously with the current value at hook-up
-  // time; we drop that first call so we don't double-render before the
-  // host has set an initial selection.
+  // feeds the badge changes. Nanostores fire .subscribe() synchronously
+  // with the current value at hook-up time; we drop that first call so
+  // we don't double-render before the host has set an initial selection.
   let _ready = false;
   const _reRender = () => {
     if (_ready) setSelection(lastSelection);
