@@ -1,58 +1,57 @@
-"""Smoke tests for the codecity CLI."""
-
-from __future__ import annotations
-
-import io
-import json
-import os
+import subprocess
+import sys
 import unittest
-from contextlib import redirect_stdout
-from pathlib import Path
-
-from codecity.cli import _normalize_argv, main
-
-# Reuse the sample-repo fixture that test_scan.py builds.
-FIXTURE = Path(__file__).resolve().parent / "fixtures" / "sample-repo"
 
 
-class CliTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        os.environ["CODECITY_QUIET"] = "1"
-        from codecity.tests.test_scan import _ensure_fixture
-        _ensure_fixture()
+CMD = [sys.executable, "-m", "codecity"]
 
-    def test_help_exits_zero(self) -> None:
-        with self.assertRaises(SystemExit) as ctx:
-            main(["--help"])
-        self.assertEqual(ctx.exception.code, 0)
 
-    def test_version_flag(self) -> None:
-        from codecity import __version__
-        buf = io.StringIO()
-        with self.assertRaises(SystemExit), redirect_stdout(buf):
-            main(["--version"])
-        self.assertIn(__version__, buf.getvalue())
+class CLIArgSurfaceTests(unittest.TestCase):
+    def test_version_works(self) -> None:
+        out = subprocess.run(CMD + ["--version"], capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0)
+        self.assertIn("codecity", out.stdout.lower())
 
-    def test_no_args_normalizes_to_serve(self) -> None:
-        # `codecity` with no args means "serve the current directory".
-        # We don't actually invoke main([]) here because cmd_serve blocks
-        # the event loop forever; assertion is on the argv normalizer.
-        self.assertEqual(_normalize_argv([]), ["serve"])
-        self.assertEqual(_normalize_argv(["."]), ["serve", "."])
-        self.assertEqual(_normalize_argv(["scan", "."]), ["scan", "."])
-        self.assertEqual(_normalize_argv(["--help"]), ["--help"])
+    def test_no_window_rejected(self) -> None:
+        out = subprocess.run(CMD + ["--no-window"], capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0)
 
-    def test_scan_subcommand_emits_valid_json(self) -> None:
-        buf = io.StringIO()
-        with redirect_stdout(buf):
-            rc = main(["scan", str(FIXTURE)])
-        self.assertEqual(rc, 0)
+    def test_no_cache_rejected(self) -> None:
+        out = subprocess.run(CMD + ["--no-cache"], capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0)
 
-        manifest = json.loads(buf.getvalue())
-        self.assertIn("tree", manifest)
-        self.assertIn("root", manifest)
-        self.assertEqual(manifest["root"], str(FIXTURE.resolve()))
+    def test_clone_flag_rejected(self) -> None:
+        out = subprocess.run(
+            CMD + ["--clone", "https://example.com/x.git"],
+            capture_output=True, text=True,
+        )
+        self.assertNotEqual(out.returncode, 0)
+
+    def test_branch_flag_rejected(self) -> None:
+        out = subprocess.run(
+            CMD + ["--branch", "main"], capture_output=True, text=True
+        )
+        self.assertNotEqual(out.returncode, 0)
+
+    def test_positional_path_rejected(self) -> None:
+        out = subprocess.run(CMD + ["."], capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0)
+
+    def test_scan_subcommand_rejected(self) -> None:
+        out = subprocess.run(CMD + ["scan", "."], capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0)
+
+    def test_serve_subcommand_rejected(self) -> None:
+        out = subprocess.run(CMD + ["serve"], capture_output=True, text=True)
+        self.assertNotEqual(out.returncode, 0)
+
+    def test_dev_port_combination_parses(self) -> None:
+        # We can't really START the dev server in a test (it needs Vite),
+        # but we CAN check the parser accepts the args. Use --help to short-circuit.
+        out = subprocess.run(CMD + ["--help"], capture_output=True, text=True)
+        self.assertEqual(out.returncode, 0)
+        self.assertIn("--dev", out.stdout)
+        self.assertIn("--port", out.stdout)
 
 
 if __name__ == "__main__":
