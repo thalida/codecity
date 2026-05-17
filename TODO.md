@@ -30,7 +30,7 @@
 - [ ] fix building focus with the new compact mode
 - [x] fix loading by git url via cmd line
 - [x] add ability to set path in ui
-- [ ] make controls tab more compact
+- [x] make controls tab more compact
 - [ ] change the info panel to be about codecity not the repo readme
 - [ ] fix alignment in file tree
 - [x] don't select when rotating the world
