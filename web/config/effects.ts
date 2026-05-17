@@ -70,5 +70,5 @@ export const BLOOM = map<BloomConfig>({
   THRESHOLD: 0.5,
   WINDOW_EMISSION: 1.0,
   GEM_EMISSION: 0.5,
-  AD_EMISSION: 2.0,
+  AD_EMISSION: 0.9,
 });
