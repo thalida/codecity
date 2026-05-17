@@ -66,16 +66,14 @@ export function createPicker({
     pickables = cityScene.getStreetPickables().slice();
     for (const block of cityScene.getBlocks()) {
       if (block.detailMesh) pickables.push(block.detailMesh);
-      // Billboard groups (image / video files) — each group contains
-      // a textured panel + two posts. Push the child meshes directly
-      // (not the group) so the non-recursive raycast picks them up;
-      // each mesh carries userData.building so interpretHit resolves
-      // through the legacy per-building-mesh path.
-      if (block.billboards) {
-        for (const g of block.billboards) {
-          for (const child of g.children) {
-            if (child instanceof THREE.Mesh) pickables.push(child);
-          }
+      // Ad panels (image / video files) — each is a single textured
+      // plane mesh mounted on the front face of its building. Pushed
+      // directly into pickables so the non-recursive raycast catches
+      // clicks on the ad face; each carries userData.building so
+      // interpretHit resolves to the file selection.
+      if (block.adPanels) {
+        for (const mesh of block.adPanels) {
+          pickables.push(mesh);
         }
       }
     }
