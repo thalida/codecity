@@ -1026,6 +1026,28 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         for f in skeleton_files.values():
             self.assertEqual(f["lines"], 1)
 
+    def test_mid_stream_error_emits_error_event(self) -> None:
+        """If scan_tree_streaming raises unexpectedly after the skeleton
+        has emitted, the server emits a {phase:'error'} event so the
+        client gets a clean message, not a truncated stream."""
+        from unittest.mock import patch
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            # Patch _populate_file_metadata to blow up. The skeleton has
+            # already been yielded by the time this runs, so we exercise
+            # the mid-stream-error path specifically.
+            with patch("codecity.scan._populate_file_metadata") as mock_pop:
+                mock_pop.side_effect = RuntimeError("disk on fire")
+                status, events = _request_stream(
+                    self.server_port, f"/api/manifest?src={td}",
+                )
+        self.assertEqual(status, 200)
+        # Expect: skeleton + error (or just error if the skeleton
+        # boundary check fires first — either is acceptable).
+        error_events = [e for e in events if e.get("phase") == "error"]
+        self.assertEqual(len(error_events), 1)
+        self.assertIn("disk on fire", error_events[0]["error"])
+
     def test_response_headers(self) -> None:
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)

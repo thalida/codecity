@@ -420,16 +420,29 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
         def _events() -> Iterable[dict[str, Any]]:
             nonlocal final_manifest
-            for event in scan_tree_streaming(
-                str(scan_target),
-                include_all=include_all,
-                use_cache=use_cache,
-                cancel_event=cancel_event,
-            ):
-                m = _stamp_display_root(event["manifest"])
-                if event["phase"] == "final":
-                    final_manifest = m
-                yield event  # type: ignore[misc]
+            try:
+                for event in scan_tree_streaming(
+                    str(scan_target),
+                    include_all=include_all,
+                    use_cache=use_cache,
+                    cancel_event=cancel_event,
+                ):
+                    m = _stamp_display_root(event["manifest"])
+                    if event["phase"] == "final":
+                        final_manifest = m
+                    yield event  # type: ignore[misc]
+            except ScanCancelledError:
+                # Cancellation isn't an error to surface to the client —
+                # they disconnected, so there's nobody to read a message.
+                # Re-raise so the outer try in _serve_manifest skips the
+                # cache write and logs the disconnect.
+                raise
+            except Exception as e:  # pylint: disable=broad-except
+                # Unexpected mid-stream failure (e.g., disk read error
+                # during _populate_file_metadata). Emit one final error
+                # event so the client sees a clear message instead of a
+                # truncated stream / parse error.
+                yield {"phase": "error", "error": f"scan failed: {e}"}
 
         _stream_events(handler, _events(), cancel_event)
 
