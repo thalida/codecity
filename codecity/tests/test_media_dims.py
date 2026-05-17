@@ -9,7 +9,7 @@ import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from codecity.media_dims import probe_media_dims
+from codecity.media_dims import _parse_svg_length, probe_media_dims
 
 
 def _write_minimal_png(path: Path, width: int, height: int) -> None:
@@ -83,6 +83,57 @@ class ImageProbingTests(unittest.TestCase):
             w, h = probe_media_dims(p)
             self.assertIsNone(w)
             self.assertIsNone(h)
+
+    def test_svg_with_negative_viewbox_returns_none(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "icon.svg"
+            _write_svg(
+                p,
+                '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 -100 200"></svg>',
+            )
+            w, h = probe_media_dims(p)
+            self.assertIsNone(w)
+            self.assertIsNone(h)
+
+
+class ParseSvgLengthTests(unittest.TestCase):
+    """Unit tests for the private _parse_svg_length helper."""
+
+    def test_plain_integer(self):
+        self.assertEqual(_parse_svg_length("100"), 100)
+
+    def test_with_px_unit(self):
+        self.assertEqual(_parse_svg_length("100px"), 100)
+
+    def test_decimal_rounds(self):
+        # 100.5 rounds to 100 (banker's rounding) or 101 — accept either.
+        result = _parse_svg_length("100.5")
+        self.assertIn(result, (100, 101))
+
+    def test_with_em_unit(self):
+        self.assertEqual(_parse_svg_length("100em"), 100)
+
+    def test_percentage_returns_none(self):
+        self.assertIsNone(_parse_svg_length("100%"))
+
+    def test_empty_string_returns_none(self):
+        self.assertIsNone(_parse_svg_length(""))
+
+    def test_none_returns_none(self):
+        self.assertIsNone(_parse_svg_length(None))
+
+    def test_alpha_only_returns_none(self):
+        self.assertIsNone(_parse_svg_length("abc"))
+
+    def test_scientific_notation_returns_none(self):
+        # "1e2" == 100 in Python float, but SVG lengths don't permit this.
+        self.assertIsNone(_parse_svg_length("1e2"))
+
+    def test_negative_value_returns_none(self):
+        self.assertIsNone(_parse_svg_length("-1"))
+
+    def test_negative_with_unit_returns_none(self):
+        self.assertIsNone(_parse_svg_length("-1px"))
 
 
 if __name__ == "__main__":

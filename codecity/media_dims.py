@@ -72,6 +72,8 @@ def _probe_svg(path: Path) -> tuple[int | None, int | None]:
             try:
                 vb_w = int(round(float(parts[2])))
                 vb_h = int(round(float(parts[3])))
+                if vb_w < 0 or vb_h < 0:
+                    return None, None
                 return vb_w, vb_h
             except ValueError:
                 pass
@@ -82,17 +84,33 @@ def _probe_svg(path: Path) -> tuple[int | None, int | None]:
 def _parse_svg_length(value: str | None) -> int | None:
     """SVG width/height may carry units (px, pt, em). Strip a trailing
     non-numeric suffix and parse the leading number; reject percentages
-    (no intrinsic pixel value)."""
+    (no intrinsic pixel value).
+
+    Scientific notation (e.g. "1e2") and negative values are rejected
+    because SVG <length> values for width/height must be non-negative
+    real numbers without exponent syntax.
+    """
     if value is None:
         return None
     v = value.strip()
     if not v or v.endswith("%"):
         return None
     # Walk back from the end to find where the numeric prefix ends.
+    # Stop at digits and "." only — stopping at "e"/"E" prevents
+    # scientific-notation strings from silently parsing as a number.
     i = len(v)
     while i > 0 and not (v[i - 1].isdigit() or v[i - 1] == "."):
         i -= 1
+    numeric = v[:i]
+    # Reject scientific notation: a valid SVG length prefix contains only
+    # digits and at most one decimal point.
+    if "e" in numeric or "E" in numeric:
+        return None
     try:
-        return int(round(float(v[:i])))
+        result = int(round(float(numeric)))
     except ValueError:
         return None
+    # SVG width/height must be non-negative.
+    if result < 0:
+        return None
+    return result
