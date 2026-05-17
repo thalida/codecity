@@ -263,6 +263,14 @@ def _start_disconnect_watchdog(  # pyright: ignore[reportUnusedFunction]
                 # EOF — client closed its end.
                 cancel_event.set()
                 return
+            # Unexpected data from the client mid-scan (the browser
+            # isn't supposed to send anything until it reads the
+            # response). MSG_PEEK didn't consume the byte, so select()
+            # will keep waking us up on it forever — sleep one poll
+            # cycle to avoid spinning at 100% CPU. cancel_event.wait()
+            # both serves as the sleep AND lets the loop exit promptly
+            # if anyone sets the event during the wait.
+            cancel_event.wait(_WATCHDOG_POLL_SEC)
 
     t = threading.Thread(target=_loop, daemon=True, name="cc-disconnect-watchdog")
     t.start()
