@@ -27,6 +27,7 @@ import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BufferedIOBase
 from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
@@ -157,8 +158,20 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
     Each event becomes one line: `<json>\\n`. Encoded via iterencode
     so peak memory is bounded by one ~64 KB chunk, not the serialized
     size of the manifest. Wraps wfile in gzip when the client
-    advertises it. Sets cancel_event on BrokenPipe/ConnectionReset so
-    a concurrently-running scan thread can stop ASAP."""
+    advertises it.
+
+    Flushes after every event boundary: ``gz.flush()`` emits a
+    ``Z_SYNC_FLUSH`` DEFLATE block (so decompressors actually see the
+    bytes — ``GzipFile.write()`` buffers internally and would
+    otherwise emit nothing until close), then ``handler.wfile.flush()``
+    pushes the BufferedWriter into the socket. Without this the
+    skeleton event would be stuck behind the final event in
+    production.
+
+    Sets cancel_event on BrokenPipe/ConnectionReset (write-time AND
+    close-time) so a concurrently-running scan thread can stop ASAP.
+    Also checks cancel_event between events so a watchdog can
+    interrupt iteration without waiting for a write to fail."""
     accept = handler.headers.get("Accept-Encoding", "")
     use_gzip = "gzip" in accept.lower()
 
@@ -169,13 +182,15 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
     # No Content-Length → chunked transfer.
     handler.end_headers()
 
-    sink = handler.wfile
+    # Both BufferedWriter (handler.wfile) and GzipFile inherit from
+    # io.BufferedIOBase, so we can reassign without a `# type: ignore`.
+    sink: BufferedIOBase = handler.wfile
     gz: gzip.GzipFile | None = None
     if use_gzip:
         # mtime=0 → deterministic bytes (helps tests). compresslevel=6
         # matches the existing _maybe_gzip path's choice.
         gz = gzip.GzipFile(fileobj=sink, mode="wb", compresslevel=6, mtime=0)
-        sink = gz  # type: ignore[assignment]
+        sink = gz
 
     try:
         encoder = json.JSONEncoder()
@@ -183,6 +198,16 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
             for chunk in encoder.iterencode(event):
                 sink.write(chunk.encode("utf-8"))
             sink.write(b"\n")
+            # Boundary flush: emit a Z_SYNC_FLUSH DEFLATE block so the
+            # decompressor sees this event's bytes, then push from the
+            # BufferedWriter into the socket.
+            if gz is not None:
+                gz.flush()
+            handler.wfile.flush()
+            # Let a watchdog interrupt between events without needing a
+            # write to fail first.
+            if cancel_event.is_set():
+                break
     except (BrokenPipeError, ConnectionResetError):
         cancel_event.set()
         raise
@@ -191,7 +216,12 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
             try:
                 gz.close()
             except (BrokenPipeError, ConnectionResetError):
-                pass
+                # Gzip buffers most output, so a peer that already
+                # disconnected often only surfaces at close time.
+                # Mirror the write-path behavior: surface cancel to the
+                # surrounding scan, but don't re-raise (we're in
+                # finally; any real exception already propagated).
+                cancel_event.set()
 
 
 def _parse_include_all(query: str) -> bool:

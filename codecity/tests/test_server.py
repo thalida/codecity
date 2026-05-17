@@ -7,10 +7,12 @@ import http.client
 import io
 import json
 import os
+import threading
 import unittest
 import urllib.error
 import urllib.parse
 import urllib.request
+import zlib
 from http import HTTPStatus
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -18,7 +20,7 @@ from unittest import mock
 
 from codecity import clone as clone_mod
 from codecity import server as server_mod
-from codecity.server import _classify_source, start_server
+from codecity.server import _classify_source, _stream_events, start_server
 from codecity.tests.test_clone import _make_fake_remote
 
 
@@ -699,8 +701,6 @@ class StreamEventsHelperTests(unittest.TestCase):
         return _Stub()
 
     def test_writes_ndjson_lines(self) -> None:
-        import threading
-        from codecity.server import _stream_events
         h = self._make_handler(accept_encoding="identity")
         _stream_events(h, [
             {"phase": "skeleton", "manifest": {"x": 1}},
@@ -713,8 +713,6 @@ class StreamEventsHelperTests(unittest.TestCase):
         self.assertEqual(json.loads(lines[1])["phase"], "final")
 
     def test_sends_correct_headers(self) -> None:
-        import threading
-        from codecity.server import _stream_events
         h = self._make_handler(accept_encoding="gzip, deflate")
         _stream_events(h, [{"phase": "final", "manifest": {}}], threading.Event())
         self.assertEqual(h._sent_status, 200)
@@ -725,18 +723,13 @@ class StreamEventsHelperTests(unittest.TestCase):
         self.assertNotIn("Content-Length", header_dict)
 
     def test_gzip_round_trip(self) -> None:
-        import threading
-        import gzip as gz
-        from codecity.server import _stream_events
         h = self._make_handler(accept_encoding="gzip")
         _stream_events(h, [{"phase": "final", "manifest": {"k": "v"}}], threading.Event())
-        decompressed = gz.decompress(h.wfile.getvalue())
+        decompressed = gzip.decompress(h.wfile.getvalue())
         line = decompressed.decode("utf-8").strip()
         self.assertEqual(json.loads(line)["manifest"], {"k": "v"})
 
     def test_broken_pipe_sets_cancel_event(self) -> None:
-        import threading
-        from codecity.server import _stream_events
         h = self._make_handler(accept_encoding="identity")
         # Replace wfile with one that raises on write.
         class _Broken:
@@ -747,6 +740,80 @@ class StreamEventsHelperTests(unittest.TestCase):
         with self.assertRaises(BrokenPipeError):
             _stream_events(h, [{"phase": "final", "manifest": {}}], ev)
         self.assertTrue(ev.is_set())
+
+    def test_gzip_flushes_between_events(self) -> None:
+        """Regression: GzipFile.write() buffers internally. Without an
+        explicit flush between events, the skeleton bytes wouldn't reach
+        the wire until the final event closes the stream. This test
+        decompresses what's in the buffer AFTER the first event but
+        BEFORE the second event finishes — that bytestream must contain
+        the first event's JSON."""
+        h = self._make_handler(accept_encoding="gzip")
+        snapshots: list[bytes] = []
+
+        def _events():
+            yield {"phase": "skeleton", "manifest": {"x": 1}}
+            # Snapshot the wire bytes BEFORE the final event is written.
+            snapshots.append(h.wfile.getvalue())
+            yield {"phase": "final", "manifest": {"x": 2}}
+
+        _stream_events(h, _events(), threading.Event())
+        # Decompress the snapshot. With Z_SYNC_FLUSH, the partial gzip
+        # stream is decodable up to the sync marker.
+        # Strip the gzip header (10 bytes) and feed raw DEFLATE to a
+        # decompressor. Z_SYNC_FLUSH means each flushed block is
+        # self-contained DEFLATE, so this works.
+        decomp = zlib.decompressobj(wbits=-zlib.MAX_WBITS)
+        partial = decomp.decompress(snapshots[0][10:])
+        self.assertIn(b'"skeleton"', partial,
+                      "skeleton event must reach wire before final event")
+
+    def test_close_time_broken_pipe_sets_cancel_event(self) -> None:
+        """If the broken pipe surfaces only at gzip-close time (common in
+        practice — gzip buffers most writes), cancel_event must still be
+        set so the surrounding scan thread stops.
+
+        Note: ``GzipFile.close()`` doesn't propagate to
+        ``fileobj.close()``; the real close-time failure mode is the
+        trailer ``write()`` call. We simulate that here by making writes
+        succeed during the event loop (and during the per-event
+        ``gz.flush()`` sync blocks) but fail once the loop has exited —
+        i.e. when GzipFile writes its 8-byte trailer."""
+        h = self._make_handler(accept_encoding="gzip")
+
+        class _TrailerFails:
+            def __init__(self) -> None:
+                self._written: bytes = b""
+                self._loop_done: bool = False
+
+            def write(self, b: bytes) -> int:
+                if self._loop_done:
+                    raise BrokenPipeError(32, "broken at close")
+                self._written += b
+                return len(b)
+
+            def flush(self) -> None:
+                pass
+
+        stub = _TrailerFails()
+        h.wfile = stub
+
+        def _events():
+            try:
+                yield {"phase": "final", "manifest": {}}
+            finally:
+                # Generator finally fires when the for-loop in
+                # _stream_events exhausts it (next() → StopIteration),
+                # which happens before gz.close() writes the trailer.
+                stub._loop_done = True
+
+        ev = threading.Event()
+        # Event writes + per-boundary flush succeed; the gzip trailer
+        # write in finally raises BrokenPipeError, which the finally
+        # block must swallow AND propagate to cancel_event.
+        _stream_events(h, _events(), ev)
+        self.assertTrue(ev.is_set(),
+                        "close-time BrokenPipe must set cancel_event")
 
 
 if __name__ == "__main__":
