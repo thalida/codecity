@@ -621,6 +621,12 @@ function setupLiveUpdates(
     try {
       for await (const event of streamManifest(manifestUrl())) {
         if (event.phase === 'error') throw new Error(event.error);
+        // Live-update path: skip skeleton. The city is already drawn
+        // with the previous final manifest; applying a skeleton would
+        // animate every building down to placeholder heights and back
+        // up on every save — visible oscillation. Only the final
+        // tweens into the actual new state.
+        if (event.phase !== 'final') continue;
         const m = event.manifest;
         if (m?.signature) {
           lastSignature = m.signature;
@@ -858,12 +864,19 @@ if (_canvas) {
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
           if (event.phase === 'skeleton') {
+            // Boot path: the renderer isn't constructed yet, so the skeleton
+            // can't be pre-painted. We just advance the overlay step; the hide
+            // happens on the final event so the overlay stays visible until
+            // the city is actually about to render.
             loadingOverlay.setStep('building');
+          }
+          if (event.phase === 'final') {
             loadingOverlay.hide();
           }
           lastEvent = { manifest: event.manifest };
         }
-        initialManifest = lastEvent!.manifest;
+        if (!lastEvent) throw new Error('No manifest received');
+        initialManifest = lastEvent.manifest;
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
         initialManifest = EMPTY_MANIFEST;
