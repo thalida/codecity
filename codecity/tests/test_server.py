@@ -1060,5 +1060,75 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             resp.read()  # drain
 
 
+def _delete(url: str) -> tuple[int, dict]:
+    """Issue a DELETE; return (status, parsed_json_body)."""
+    req = urllib.request.Request(url, method="DELETE")
+    try:
+        resp = urllib.request.urlopen(req)
+        return resp.status, json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
+
+
+class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
+    """DELETE /api/manifest/cache wipes every cached manifest for a
+    given source. Used by the frontend's recents-remove flow."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+
+    def test_clears_cache_for_local_source(self) -> None:
+        with TemporaryDirectory() as td:
+            (Path(td) / "a.py").write_text("x = 1\n")
+            # Warm the cache by hitting /api/manifest once.
+            _request_stream(self.server_port, f"/api/manifest?src={td}")
+            manifests_dir = Path(self._cache_tmp.name) / "manifests"
+            self.assertEqual(len(list(manifests_dir.iterdir())), 1)
+
+            # DELETE the cache for this source.
+            url = (
+                f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
+                f"?src={td}"
+            )
+            status, body = _delete(url)
+            self.assertEqual(status, 200)
+            self.assertEqual(body, {"deleted": 1})
+            self.assertEqual(list(manifests_dir.iterdir()), [])
+
+    def test_missing_src_returns_400(self) -> None:
+        url = f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
+        status, body = _delete(url)
+        self.assertEqual(status, 400)
+        self.assertIn("missing", body["error"])
+
+    def test_invalid_src_returns_400(self) -> None:
+        url = (
+            f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
+            f"?src=neither-a-path-nor-a-url"
+        )
+        status, body = _delete(url)
+        self.assertEqual(status, 400)
+        self.assertIn("unrecognized", body["error"])
+
+    def test_no_cache_entries_returns_zero(self) -> None:
+        # Path was never scanned — DELETE is a no-op success.
+        with TemporaryDirectory() as td:
+            url = (
+                f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
+                f"?src={td}"
+            )
+            status, body = _delete(url)
+            self.assertEqual(status, 200)
+            self.assertEqual(body, {"deleted": 0})
+
+    def test_unknown_delete_route_returns_404(self) -> None:
+        url = f"http://127.0.0.1:{self.server_port}/api/nope"
+        status, body = _delete(url)
+        self.assertEqual(status, 404)
+        self.assertIn("unknown api route", body["error"])
+
+
 if __name__ == "__main__":
     unittest.main()

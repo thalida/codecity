@@ -264,3 +264,25 @@ def cache_save_manifest(
         os.replace(tmp, path)
     except OSError:
         Path(tmp).unlink(missing_ok=True)
+
+
+def cache_clear_manifests(abs_root: Path) -> int:
+    """Delete every cached manifest file for this root, across all
+    signatures. Returns the count deleted.
+
+    Used by the frontend's "remove from recents" flow so a user who
+    forgets a source also reclaims its cache. Silently ignores I/O
+    errors per the rest of this module's hygiene — cache cleanup
+    failures must never break the response."""
+    manifests_dir = CACHE_ROOT / "manifests"
+    if not manifests_dir.exists():
+        return 0
+    pattern = f"{repo_key(abs_root)}__*.json.gz"
+    count = 0
+    for path in manifests_dir.glob(pattern):
+        try:
+            path.unlink()
+            count += 1
+        except OSError:
+            pass
+    return count

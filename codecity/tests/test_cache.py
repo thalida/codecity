@@ -212,6 +212,29 @@ class ManifestCacheTests(CacheTestBase):
             fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
 
+    def test_clear_manifests_deletes_every_signature(self) -> None:
+        root = Path("/x")
+        manifest = self._make_manifest()
+        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
+        cache_mod.cache_save_manifest(root, "b" * 32, manifest)
+        # Unrelated root — must NOT be deleted.
+        cache_mod.cache_save_manifest(Path("/y"), "c" * 32, manifest)
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "b" * 32))
+        # Unrelated root's cache survives.
+        self.assertIsNotNone(cache_mod.cache_load_manifest(Path("/y"), "c" * 32))
+
+    def test_clear_manifests_no_entries_returns_zero(self) -> None:
+        self.assertEqual(cache_mod.cache_clear_manifests(Path("/never/scanned")), 0)
+
+    def test_clear_manifests_missing_dir_returns_zero(self) -> None:
+        # CACHE_ROOT/manifests doesn't exist yet (no saves have happened).
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

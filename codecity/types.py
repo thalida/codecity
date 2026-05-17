@@ -126,6 +126,13 @@ class FileTooLargeResponse(TypedDict):
     limit: int
 
 
+class CacheClearResponse(TypedDict):
+    """Body of DELETE /api/manifest/cache — reports how many cached
+    manifest files were removed for the requested source."""
+
+    deleted: int
+
+
 class HealthResponse(TypedDict):
     """/api/health body."""
 

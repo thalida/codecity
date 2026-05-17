@@ -42,13 +42,18 @@ from codecity.clone import (
     HostUnreachableError,
     ensure_clone,
 )
-from codecity.cache import cache_load_manifest, cache_save_manifest
+from codecity.cache import (
+    cache_clear_manifests,
+    cache_load_manifest,
+    cache_save_manifest,
+)
 from codecity.scan import (
     ScanCancelledError,
     scan_tree_streaming,
     signature_tree,
 )
 from codecity.types import (
+    CacheClearResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -140,7 +145,12 @@ class _State:
 
 
 JsonBody = (
-    Manifest | SignatureResponse | ErrorResponse | FileTooLargeResponse | HealthResponse
+    Manifest
+    | SignatureResponse
+    | ErrorResponse
+    | FileTooLargeResponse
+    | HealthResponse
+    | CacheClearResponse
 )
 
 
@@ -463,6 +473,44 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         watchdog.join(timeout=1.0)
 
 
+def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Clear every cached manifest for the given source.
+
+    Used by the frontend when the user removes an entry from the recents
+    list — they're done with this source, so its disk cache should go
+    too. Resolves git URLs to their clone-dir without actually cloning;
+    resolves local paths non-strictly so cleanup still works for paths
+    that no longer exist on disk."""
+    params = parse_qs(query)
+    raw_src = params.get("src", [""])[0]
+    raw_branch = params.get("branch", [""])[0] or None
+
+    if not raw_src:
+        _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'src' query param"})
+        return
+
+    kind = _classify_source(raw_src)
+    if kind == "invalid":
+        _send_json(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "unrecognized source — pass a local path or a git URL"},
+        )
+        return
+
+    if kind == "git":
+        # Pure path derivation — no clone, no network.
+        from codecity.clone import clone_dir_for
+        abs_root = clone_dir_for(raw_src, raw_branch)
+    else:
+        # Local source: non-strict resolve so a recents entry for a
+        # since-deleted path still drops its cache.
+        abs_root = Path(raw_src).resolve(strict=False)
+
+    deleted = cache_clear_manifests(abs_root)
+    _send_json(handler, HTTPStatus.OK, {"deleted": deleted})
+
+
 def _log_quiet(msg: str) -> None:
     """Same env-gated logger as scan._log, duplicated here so server
     doesn't import a private from scan. CODECITY_QUIET=1 silences."""
@@ -640,6 +688,13 @@ class Handler(BaseHTTPRequestHandler):
 
         rel = "index.html" if path in ("/", "") else path.lstrip("/")
         _send_static(self, rel)
+
+    def do_DELETE(self) -> None:  # noqa: N802 (stdlib API)
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/manifest/cache":
+            _delete_manifest_cache(self, parsed.query)
+            return
+        _send_json(self, HTTPStatus.NOT_FOUND, {"error": "unknown api route"})
 
 
 class _Server(ThreadingHTTPServer):
