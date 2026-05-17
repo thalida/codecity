@@ -104,8 +104,8 @@ export function createAdPanel(building: Building): THREE.Mesh {
     transparent: true,
     depthWrite: false,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
 
   const mesh = new THREE.Mesh(geo, mat);
@@ -147,8 +147,8 @@ export function createAdPanel(building: Building): THREE.Mesh {
         depthWrite: false,
         opacity: (mesh.material as THREE.MeshBasicMaterial).opacity,
         polygonOffset: true,
-        polygonOffsetFactor: -1,
-        polygonOffsetUnits: -1,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4,
       });
       (mesh.material as THREE.Material).dispose();
       mesh.material = newMat;

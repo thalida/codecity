@@ -17,6 +17,6 @@ export interface AdPanelConfig {
 export const AD_PANEL = map<AdPanelConfig>({
   AD_SIDE_MARGIN_FRAC: 0.10,
   AD_BOTTOM_OFFSET_FLOORS: 1.0,
-  AD_OFFSET: 0.02,
+  AD_OFFSET: 0.5,
   AD_PLACEHOLDER_COLOR: '#1a1d28',
 });
