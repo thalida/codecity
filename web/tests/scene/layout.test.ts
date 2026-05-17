@@ -247,6 +247,92 @@ describe('getBuildingDimensions', () => {
   });
 });
 
+// ---- getBuildingDimensions for media files ----
+//
+// Media files (image/video) get an aspect-driven height: building's
+// silhouette mirrors the image. Width still comes from bytes; height
+// = floors × FLOOR_HEIGHT where floors snaps to round(width × aspect
+// / FLOOR_HEIGHT). Missing dims → square fallback (aspect = 1).
+describe('getBuildingDimensions — media files', () => {
+  const PNG = '.png';
+
+  it('media file without dims falls back to square (aspect=1)', () => {
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 1000, extension: PNG },
+      { min: 10, max: 10000 },
+      { min: 10, max: 10000 },
+    );
+    // Square aspect → floors = round(width / FLOOR_HEIGHT), min MIN_FLOORS.
+    expect(dim.d).toBe(dim.w);
+    expect(dim.floors).toBeGreaterThanOrEqual(TEST_BUILDING_DIMS.MIN_FLOORS);
+    // raw_h ≈ width; height = floors × FLOOR_HEIGHT.
+    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
+  });
+
+  it('portrait image gives a tall building (height > width)', () => {
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 1000, extension: PNG, media_width: 100, media_height: 200 },
+      { min: 10, max: 10000 },
+      { min: 10, max: 10000 },
+    );
+    expect(dim.h).toBeGreaterThan(dim.w);
+  });
+
+  it('landscape image gives a short wide building (height < width)', () => {
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 1000, extension: PNG, media_width: 200, media_height: 50 },
+      { min: 10, max: 10000 },
+      { min: 10, max: 10000 },
+    );
+    // Aspect 0.25 → raw_h = width × 0.25, but clamped at 0.4 → raw_h ≥ 0.4w.
+    // Still: height < width.
+    expect(dim.h).toBeLessThan(dim.w);
+  });
+
+  it('clamps very tall portrait at aspect 2.5', () => {
+    // Aspect 10 (5000 / 500) clamps to 2.5.
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 1000, extension: PNG, media_width: 500, media_height: 5000 },
+      { min: 10, max: 10000 },
+      { min: 10, max: 10000 },
+    );
+    // raw_h = w × 2.5, floors = round(raw_h / FLOOR_HEIGHT), h = floors × FLOOR_HEIGHT.
+    const expectedFloors = Math.max(
+      TEST_BUILDING_DIMS.MIN_FLOORS,
+      Math.round((dim.w * 2.5) / TEST_BUILDING_DIMS.FLOOR_HEIGHT),
+    );
+    expect(dim.floors).toBe(expectedFloors);
+  });
+
+  it('clamps very wide panorama at aspect 0.4', () => {
+    const dim = getBuildingDimensions(
+      { lines: 0, size: 1000, extension: PNG, media_width: 5000, media_height: 500 },
+      { min: 10, max: 10000 },
+      { min: 10, max: 10000 },
+    );
+    const expectedFloors = Math.max(
+      TEST_BUILDING_DIMS.MIN_FLOORS,
+      Math.round((dim.w * 0.4) / TEST_BUILDING_DIMS.FLOOR_HEIGHT),
+    );
+    expect(dim.floors).toBe(expectedFloors);
+  });
+
+  it('non-media file ignores media_width/media_height', () => {
+    // Should follow the normal lines-based height path.
+    const dim = getBuildingDimensions(
+      { lines: 100, size: 1000, extension: '.ts', media_width: 9999, media_height: 1 },
+      { min: 10, max: 1000 },
+      { min: 10, max: 10000 },
+    );
+    // Height should be lines-derived (sqrt-interpolation), not byte-aspect-derived.
+    // For a non-media file the media_* fields are ignored entirely.
+    expect(dim.h).toBe(dim.floors * TEST_BUILDING_DIMS.FLOOR_HEIGHT);
+    // The clamp-aspect-0.0001 case would have produced a 1-floor building;
+    // for a 100-line file the test fixture's sqrt interpolation lands at 8 floors.
+    expect(dim.floors).toBeGreaterThan(1);
+  });
+});
+
 // ---- computeLineStats ----
 describe('computeLineStats', () => {
   it('walks the tree and returns min/max non-zero line counts', () => {
