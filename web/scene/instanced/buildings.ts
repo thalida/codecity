@@ -18,7 +18,6 @@ import {
 } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
-import { isMediaFile } from '../billboards.js';
 import type { IconAtlas } from '../iconAtlas.js';
 import type { SceneBlock } from '../blocks.js';
 
@@ -109,27 +108,9 @@ export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstance
   for (let i = 0; i < n; i++) {
     const b = block.buildings[i];
 
-    // Media files (images / videos) are rendered as separate billboard
-    // meshes; we keep their slot in the InstancedMesh so per-instance
-    // indices stay aligned with block.buildings, but collapse the
-    // matrix to a zero-scale so the cube vanishes from the GPU pipeline
-    // (no fragments, no raycast hits).
-    // The path-derived seed is set on EVERY building (including media)
-    // so we don't leave an uninitialized z component dangling — even
-    // the zero-scaled slot needs a valid stride.
+    // The path-derived seed is set on EVERY building so we don't leave
+    // an uninitialized z component dangling in the iconUV buffer.
     const seed = _seedFromPath(b.file?.path ?? '');
-
-    if (b.file && isMediaFile(b.file)) {
-      m.makeScale(0, 0, 0);
-      m.setPosition(b.x, 0, b.y);
-      buf.matrix.set(m.toArray(), i * 16);
-      buf.iconUV[i * 4 + 0] = -1.0;
-      buf.iconUV[i * 4 + 1] = -1.0;
-      buf.iconUV[i * 4 + 2] = seed;
-      buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
-      buf.modifiedAge[i] = b.modifiedAge ?? 0;
-      continue;
-    }
 
     // --- Transform matrix ---
     // Layout (x, y) → scene (x, z); building.h is scene-Y.

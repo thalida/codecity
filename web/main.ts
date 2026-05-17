@@ -34,7 +34,7 @@ import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
 import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
-import { refreshBillboards } from './scene/billboards.js';
+import { refreshAdPanels } from './scene/adPanels.js';
 import type { SceneBlock } from './scene/blocks.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createAnimator } from './scene/animator.js';
@@ -238,13 +238,13 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     refreshBuildingMaterial();
     postFx.refresh();
 
-    // Push fresh BLOOM.BILLBOARD_EMISSION into every billboard's
-    // panel material so the bloom slider affects billboards live.
-    const billboardGroups: THREE.Group[] = [];
+    // Push fresh BLOOM.AD_EMISSION into every ad-panel mesh so the
+    // bloom slider affects media-building ads live.
+    const adMeshes: THREE.Mesh[] = [];
     for (const block of cityScene.getBlocks()) {
-      if (block.billboards) for (const g of block.billboards) billboardGroups.push(g);
+      if (block.adPanels) for (const m of block.adPanels) adMeshes.push(m);
     }
-    refreshBillboards(billboardGroups);
+    refreshAdPanels(adMeshes);
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();

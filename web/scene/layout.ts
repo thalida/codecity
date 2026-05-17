@@ -18,7 +18,7 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
 import { layoutCityV4 } from './layoutV4';
-import { isMediaFile, getBillboardHeightFrac } from './billboards.js';
+import { isMediaFile } from './adPanels.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -226,7 +226,7 @@ export function computeLineStats(tree: TreeLike): RangeStat {
 // width uses log (file sizes span many orders of magnitude). Without a
 // stats object, the corresponding dimension falls back to MIN_*.
 export function getBuildingDimensions(
-  file: FileLike,
+  file: { lines?: number | null; size?: number | null; extension?: string; media_width?: number; media_height?: number },
   lineStats?: RangeStat,
   byteStats?: RangeStat
 ): { w: number; d: number; h: number; floors: number } {
@@ -261,15 +261,21 @@ export function getBuildingDimensions(
     width = dims.MIN_WIDTH + tW * (dims.MAX_WIDTH - dims.MIN_WIDTH);
   }
 
-  // Media files render as billboards instead of building cuboids — the
-  // sign's visual extent isn't the byte-derived `height` above (which
-  // for binary files is just MIN_FLOORS × FLOOR_HEIGHT, basically a
-  // flat slab on the ground). Override `h` to the billboard's actual
-  // height so the selection outline, camera focus framing, and bbox
-  // wrap the whole sign instead of clinging to the lot.
+  // Media files (image/video) override the lines-driven height: the
+  // building's silhouette mirrors the image's natural aspect ratio
+  // instead. Width still comes from bytes; height snaps to a whole-
+  // floor count so the facade shader's window tiling stays consistent
+  // with regular buildings. Missing dims → 1:1 aspect (square fallback).
   let h = height;
+  let mediaFloors = floors;
   if (isMediaFile(file)) {
-    h = width * getBillboardHeightFrac();
+    const mw = file.media_width;
+    const mh = file.media_height;
+    const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
+    const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
+    const rawHeight = width * aspect;
+    mediaFloors = Math.max(dims.MIN_FLOORS, Math.round(rawHeight / dims.FLOOR_HEIGHT));
+    h = mediaFloors * dims.FLOOR_HEIGHT;
   }
 
   // Depth == width keeps footprints square so tall thin towers don't
@@ -278,7 +284,7 @@ export function getBuildingDimensions(
     w: Math.round(width * 10) / 10,
     d: Math.round(width * 10) / 10,
     h: Math.round(h * 10) / 10,
-    floors,
+    floors: mediaFloors,
   };
 }
 

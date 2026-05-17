@@ -781,5 +781,51 @@ class ScanTreeStreamingTests(unittest.TestCase):
                 next(gen)
 
 
+class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
+    def test_scan_stamps_png_dimensions(self):
+        import struct, zlib
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            png = tmp_path / "pic.png"
+            # Minimal 50x30 PNG.
+            def chunk(tag, data):
+                return (
+                    struct.pack(">I", len(data))
+                    + tag + data
+                    + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
+                )
+            sig = b"\x89PNG\r\n\x1a\n"
+            ihdr = chunk(b"IHDR", struct.pack(">IIBBBBB", 50, 30, 8, 2, 0, 0, 0))
+            raw = (b"\x00" + b"\xff\x00\x00" * 50) * 30
+            idat = chunk(b"IDAT", zlib.compress(raw))
+            iend = chunk(b"IEND", b"")
+            png.write_bytes(sig + ihdr + idat + iend)
+
+            manifest = scan_tree(str(tmp_path))
+            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            self.assertEqual(len(files), 1)
+            self.assertEqual(files[0]["media_width"], 50)
+            self.assertEqual(files[0]["media_height"], 30)
+
+            # Warm path: second scan should hit the file-stat cache and
+            # still stamp media_width / media_height on the node — the
+            # cache-hit branch in _populate_file_metadata.
+            manifest2 = scan_tree(str(tmp_path))
+            files2 = [c for c in manifest2["tree"]["children"] if c["type"] == "file"]
+            self.assertEqual(len(files2), 1)
+            self.assertEqual(files2[0]["media_width"], 50)
+            self.assertEqual(files2[0]["media_height"], 30)
+
+    def test_scan_omits_media_dims_for_non_media(self):
+        with TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            (tmp_path / "code.py").write_text("print('hi')\n")
+            manifest = scan_tree(str(tmp_path))
+            files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
+            self.assertEqual(len(files), 1)
+            self.assertNotIn("media_width", files[0])
+            self.assertNotIn("media_height", files[0])
+
+
 if __name__ == "__main__":
     unittest.main()

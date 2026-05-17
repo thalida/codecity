@@ -50,7 +50,7 @@ export interface BloomConfig {
   THRESHOLD: number;
   WINDOW_EMISSION: number;
   GEM_EMISSION: number;
-  BILLBOARD_EMISSION: number;
+  AD_EMISSION: number;
 }
 
 // ENABLED off → bloom pass bypassed AND shader pushes lit windows /
@@ -59,7 +59,7 @@ export interface BloomConfig {
 // comparison. The other knobs stay in config so flipping ENABLED back
 // picks up where you left off.
 //
-// BILLBOARD_EMISSION multiplies the image-panel MeshBasicMaterial's
+// AD_EMISSION multiplies the ad-panel MeshBasicMaterial's
 // color tint so bright pixels in the texture push past 1.0 in linear
 // space → bloom picks them up. 1.0 = LDR (no bloom); 2.5 = neon
 // storefront. Dark image pixels stay below threshold.
@@ -70,5 +70,5 @@ export const BLOOM = map<BloomConfig>({
   THRESHOLD: 0.5,
   WINDOW_EMISSION: 1.0,
   GEM_EMISSION: 0.5,
-  BILLBOARD_EMISSION: 2.0,
+  AD_EMISSION: 0.9,
 });

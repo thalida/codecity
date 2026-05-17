@@ -33,6 +33,15 @@ export interface FileNode {
   created: string;
   modified: string;
   git: GitMeta | null;
+  /**
+   * Optional pixel dimensions for recognized media files (png/jpg/svg/
+   * mp4/etc.). Either both keys appear together or neither does. Layout
+   * uses these to size the building's silhouette; absence triggers a
+   * 1:1 aspect fallback. Stamped by the Python scanner via
+   * codecity/media_dims.py.
+   */
+  media_width?: number;
+  media_height?: number;
 }
 
 export interface DirNode {
