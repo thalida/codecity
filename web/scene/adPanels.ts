@@ -94,11 +94,18 @@ export function createAdPanel(building: Building): THREE.Mesh {
 
   const geo = new THREE.PlaneGeometry(adWidth, adHeight);
   const placeholderColor = new THREE.Color(cfg.AD_PLACEHOLDER_COLOR).multiplyScalar(adEmission);
+  // polygonOffset pulls the ad mesh's depth toward the camera by a
+  // tiny GPU-side bias, eliminating z-fighting with the building wall
+  // it's flush against — independent of the 0.02 world-unit AD_OFFSET
+  // which alone isn't enough at typical camera distances.
   const mat = new THREE.MeshBasicMaterial({
     color: placeholderColor,
     side: THREE.FrontSide,
     transparent: true,
     depthWrite: false,
+    polygonOffset: true,
+    polygonOffsetFactor: -1,
+    polygonOffsetUnits: -1,
   });
 
   const mesh = new THREE.Mesh(geo, mat);
@@ -139,6 +146,9 @@ export function createAdPanel(building: Building): THREE.Mesh {
         transparent: true,
         depthWrite: false,
         opacity: (mesh.material as THREE.MeshBasicMaterial).opacity,
+        polygonOffset: true,
+        polygonOffsetFactor: -1,
+        polygonOffsetUnits: -1,
       });
       (mesh.material as THREE.Material).dispose();
       mesh.material = newMat;
