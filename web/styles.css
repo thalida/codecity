@@ -96,71 +96,71 @@ h1, h2, h3, h4, h5, h6 {
      ────────────────────────────────────────────────────────────────────── */
 
   /* ── COLORS — Surfaces ────────────────────────────────────────────────── */
-  --cc-bg-app:           #0a0b10;
-  --cc-bg-chrome:        #0c0d14;
-  --cc-bg-sidebar:       #10111a;
+  --cc-bg-app:           oklch(0.151 0.011 276.2);
+  --cc-bg-chrome:        oklch(0.162 0.015 278.3);
+  --cc-bg-sidebar:       oklch(0.181 0.019 279.4);
   --cc-bg-modal:         var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
-  --cc-bg-backdrop:      color-mix(in srgb, var(--cc-black) 55%, transparent);
-  --cc-bg-tooltip:       color-mix(in srgb, var(--cc-bg-app) 94%, transparent);
+  --cc-bg-backdrop:      color-mix(in oklch, var(--cc-black) 55%, transparent);
+  --cc-bg-tooltip:       color-mix(in oklch, var(--cc-bg-app) 94%, transparent);
   --cc-bg-base:          var(--cc-bg-app);
 
   /* ── COLORS — Borders & tracks ────────────────────────────────────────── */
-  --cc-border-subtle:    #1e2030;
-  --cc-border-input:     #252838;
-  --cc-border-tooltip:   #2a3050;
-  --cc-track:            #1a1c28;
-  --cc-track-hover:      #363a52;
+  --cc-border-subtle:    oklch(0.249 0.030 278.4);
+  --cc-border-input:     oklch(0.281 0.030 276.1);
+  --cc-border-tooltip:   oklch(0.320 0.058 274.6);
+  --cc-track:            oklch(0.230 0.023 277.0);
+  --cc-track-hover:      oklch(0.355 0.042 276.7);
   --cc-border-base:      var(--cc-border-subtle);
 
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
-  --cc-text-primary:     #e0e4f5;  /* brightest — active/hover text */
-  --cc-text-secondary:   #c0c4d8;  /* default body, tree directories */
-  --cc-text-muted:       #8a8fa8;  /* breadcrumbs, footer chrome, modal labels, tree files */
-  --cc-text-faint:       #7279a2;  /* icon buttons rest, hints, placeholders */
-  --cc-text-ghost:       #44485e;  /* decorative separators ("·") only */
-  --cc-text-inverse:     #0a0a10;  /* dark text on accent CTA */
+  --cc-text-primary:     oklch(0.921 0.023 275.3);  /* brightest — active/hover text */
+  --cc-text-secondary:   oklch(0.823 0.028 276.8);  /* default body, tree directories */
+  --cc-text-muted:       oklch(0.655 0.038 276.4);  /* breadcrumbs, footer chrome, modal labels, tree files */
+  --cc-text-faint:       oklch(0.586 0.063 276.8);  /* icon buttons rest, hints, placeholders */
+  --cc-text-ghost:       oklch(0.407 0.037 276.6);  /* decorative separators ("·") only */
+  --cc-text-inverse:     oklch(0.148 0.013 284.7);  /* dark text on accent CTA */
   --cc-text-base:        var(--cc-text-secondary);
 
   /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
      Alpha variants derive from --cc-accent via color-mix → swap that one
      to recolor the brand everywhere. */
-  --cc-accent:           #5b9dff;
-  --cc-accent-light:     #9bc1ff;
-  --cc-accent-dark:      #4d6fef;
-  --cc-accent-bg-soft:   color-mix(in srgb, var(--cc-accent) 10%, transparent);
-  --cc-accent-bg:        color-mix(in srgb, var(--cc-accent) 18%, transparent);
-  --cc-accent-bg-strong: color-mix(in srgb, var(--cc-accent) 30%, transparent);
-  --cc-accent-border:    color-mix(in srgb, var(--cc-accent) 45%, transparent);
+  --cc-accent:           oklch(0.697 0.160 258.2);
+  --cc-accent-light:     oklch(0.806 0.097 260.0);
+  --cc-accent-dark:      oklch(0.588 0.196 268.5);
+  --cc-accent-bg-soft:   color-mix(in oklch, var(--cc-accent) 10%, transparent);
+  --cc-accent-bg:        color-mix(in oklch, var(--cc-accent) 18%, transparent);
+  --cc-accent-bg-strong: color-mix(in oklch, var(--cc-accent) 30%, transparent);
+  --cc-accent-border:    color-mix(in oklch, var(--cc-accent) 45%, transparent);
 
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
-  --cc-success:          #4ade80;
-  --cc-success-dark:     #4caf7a;
-  --cc-success-bg:       color-mix(in srgb, var(--cc-success) 10%, transparent);
-  --cc-warning:          #fbbf24;
-  --cc-error:            #ef4444;
-  --cc-error-light:      #ffb4be;
-  --cc-error-bg:         color-mix(in srgb, var(--cc-error) 18%, transparent);
-  --cc-error-border:     color-mix(in srgb, var(--cc-error) 45%, transparent);
+  --cc-success:          oklch(0.800 0.182 151.7);
+  --cc-success-dark:     oklch(0.681 0.123 157.3);
+  --cc-success-bg:       color-mix(in oklch, var(--cc-success) 10%, transparent);
+  --cc-warning:          oklch(0.837 0.164 84.4);
+  --cc-error:            oklch(0.637 0.208 25.3);
+  --cc-error-light:      oklch(0.843 0.088 10.3);
+  --cc-error-bg:         color-mix(in oklch, var(--cc-error) 18%, transparent);
+  --cc-error-border:     color-mix(in oklch, var(--cc-error) 45%, transparent);
 
   /* ── COLORS — Overlay (white-on-dark hovers & borders) ────────────────── */
-  --cc-overlay-bg-soft:   color-mix(in srgb, var(--cc-white)  4%, transparent);
-  --cc-overlay-bg:        color-mix(in srgb, var(--cc-white)  6%, transparent);
-  --cc-overlay-bg-strong: color-mix(in srgb, var(--cc-white) 10%, transparent);
-  --cc-overlay-border:    color-mix(in srgb, var(--cc-white) 18%, transparent);
+  --cc-overlay-bg-soft:   color-mix(in oklch, var(--cc-white)  4%, transparent);
+  --cc-overlay-bg:        color-mix(in oklch, var(--cc-white)  6%, transparent);
+  --cc-overlay-bg-strong: color-mix(in oklch, var(--cc-white) 10%, transparent);
+  --cc-overlay-border:    color-mix(in oklch, var(--cc-white) 18%, transparent);
 
   /* ── COLORS — Pure neutrals ───────────────────────────────────────────── */
-  --cc-black:            #000000;
-  --cc-white:            #ffffff;
+  --cc-black:            oklch(0 0 0);
+  --cc-white:            oklch(1 0 0);
 
   /* ── COLORS — Syntax palette (highlight.js consumers) ─────────────────── */
-  --cc-syntax-keyword:   #c084fc;
-  --cc-syntax-string:    #86efac;
-  --cc-syntax-builtin:   #38bdf8;
-  --cc-syntax-variable:  #fda4af;
-  --cc-syntax-comment:   #5b6178;
-  --cc-syntax-deletion:  #fca5a5;
-  --cc-syntax-string-bg:   color-mix(in srgb, var(--cc-syntax-string)   8%, transparent);
-  --cc-syntax-deletion-bg: color-mix(in srgb, var(--cc-syntax-deletion) 8%, transparent);
+  --cc-syntax-keyword:   oklch(0.722 0.177 305.5);
+  --cc-syntax-string:    oklch(0.871 0.136 154.4);
+  --cc-syntax-builtin:   oklch(0.754 0.139 232.7);
+  --cc-syntax-variable:  oklch(0.810 0.106 11.6);
+  --cc-syntax-comment:   oklch(0.496 0.038 273.5);
+  --cc-syntax-deletion:  oklch(0.808 0.103 19.6);
+  --cc-syntax-string-bg:   color-mix(in oklch, var(--cc-syntax-string)   8%, transparent);
+  --cc-syntax-deletion-bg: color-mix(in oklch, var(--cc-syntax-deletion) 8%, transparent);
 
   /* ── Back-compat aliases for prior commits ───────────────────────────── */
   --cc-hover-overlay:    var(--cc-overlay-bg);
@@ -220,12 +220,12 @@ h1, h2, h3, h4, h5, h6 {
   --cc-t-base:  0.15s;  /* button/input hover (default) */
 
   /* ── SCALES — Shadows ────────────────────────────────────────────────── */
-  --cc-shadow-sm:    0 1px 3px rgba(0, 0, 0, 0.4);     /* slider thumb */
-  --cc-shadow-md:    0 2px 10px rgba(0, 0, 0, 0.4);    /* tooltip */
-  --cc-shadow-lg:    0 10px 40px rgba(0, 0, 0, 0.6);   /* modal, loading-card */
+  --cc-shadow-sm:    0 1px 3px oklch(0 0 0 / 0.4);     /* slider thumb */
+  --cc-shadow-md:    0 2px 10px oklch(0 0 0 / 0.4);    /* tooltip */
+  --cc-shadow-lg:    0 10px 40px oklch(0 0 0 / 0.6);   /* modal, loading-card */
   --cc-shadow-base:  var(--cc-shadow-md);
-  --cc-shadow-text:  0 1px 2px rgba(0, 0, 0, 0.5);     /* canvas overlay text */
-  --cc-glow-accent:  0 0 6px rgba(91, 157, 255, 0.35); /* range-pair fill */
+  --cc-shadow-text:  0 1px 2px oklch(0 0 0 / 0.5);     /* canvas overlay text */
+  --cc-glow-accent:  0 0 6px oklch(0.697 0.160 258.2 / 0.35); /* range-pair fill */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -662,19 +662,31 @@ h1, h2, h3, h4, h5, h6 {
   opacity: 0.7;
 }
 
-/* .btn-icon--rainbow — paints the inner lucide-icon mask with a
-   conic gradient instead of currentColor. Used by the header gem
-   button to make the refresh affordance more eye-catching. */
+/* .btn-icon--rainbow — paints the inner lucide-icon mask with a soft
+   pink → yellow → neon chartreuse → purple gradient instead of
+   currentColor. Pastel pink/yellow/purple anchors with a punchy
+   yellow-green in the middle for life. */
 .btn-icon--rainbow .lucide-icon {
-  background-image: conic-gradient(
-    from 200deg,
-    #ff6b9d 0%,
-    #ffd33d 25%,
-    #4ade80 50%,
-    #38bdf8 75%,
-    #a78bfa 100%,
-    #ff6b9d
+  /* Neon yellow → neon electric blue via OKLCH interpolation, with a
+     slowly rotating gradient angle so the gem reads as alive without
+     calling attention to itself. The @property declaration lets the
+     CSS engine tween the <angle> custom property (un-typed custom
+     props don't interpolate). */
+  background-image: linear-gradient(
+    in oklch var(--gem-angle, 180deg),
+    oklch(0.951 0.204 107.3) 0%,    /* neon yellow */
+    oklch(0.531 0.261 265.0) 100%   /* neon electric blue */
   );
+  animation: gem-shimmer 12s linear infinite;
+}
+@property --gem-angle {
+  syntax: '<angle>';
+  initial-value: 180deg;
+  inherits: false;
+}
+@keyframes gem-shimmer {
+  from { --gem-angle:   0deg; }
+  to   { --gem-angle: 360deg; }
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -2291,7 +2303,7 @@ canvas {
   width: 100%;
   height: 100%;
   outline: none;
-  background: #000;
+  background: oklch(0 0 0);
 }
 
 .preview-pdf {
