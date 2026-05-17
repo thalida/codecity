@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from pathlib import Path
+from typing import Any
 
 _PIL_IMAGE_EXTS = frozenset({
     ".png", ".jpg", ".jpeg", ".gif", ".webp",
     ".bmp", ".ico", ".avif", ".tiff",
 })
 _SVG_EXTS = frozenset({".svg"})
+_VIDEO_EXTS = frozenset({
+    ".mp4", ".webm", ".mov", ".ogv", ".m4v", ".mkv",
+})
 
 
 def probe_media_dims(path: Path) -> tuple[int | None, int | None]:
@@ -30,6 +34,8 @@ def probe_media_dims(path: Path) -> tuple[int | None, int | None]:
         return _probe_svg(path)
     if ext in _PIL_IMAGE_EXTS:
         return _probe_image(path)
+    if ext in _VIDEO_EXTS:
+        return _probe_video(path)
     return None, None
 
 
@@ -114,3 +120,37 @@ def _parse_svg_length(value: str | None) -> int | None:
     if result < 0:
         return None
     return result
+
+
+def _probe_video(path: Path) -> tuple[int | None, int | None]:
+    """Read video dimensions from container headers via hachoir. No frame
+    decoding — hachoir parses metadata atoms only. Returns (None, None)
+    when the parser can't open the file or the metadata is missing the
+    width/height pair (some exotic codecs)."""
+    try:
+        from hachoir.parser import createParser  # type: ignore[import-not-found]
+        from hachoir.metadata import extractMetadata  # type: ignore[import-not-found]
+    except ImportError:
+        return None, None
+
+    parser: Any = None
+    try:
+        parser = createParser(str(path))  # type: ignore[reportUnknownVariableType]
+        if parser is None:
+            return None, None
+        metadata: Any = extractMetadata(parser)  # type: ignore[reportUnknownVariableType,reportUnknownArgumentType]
+        if metadata is None:
+            return None, None
+        w: Any = metadata.get("width") if metadata.has("width") else None  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]
+        h: Any = metadata.get("height") if metadata.has("height") else None  # type: ignore[reportUnknownVariableType,reportUnknownMemberType]
+        if w is None or h is None:
+            return None, None
+        return int(w), int(h)  # type: ignore[reportUnknownArgumentType]
+    except Exception:
+        return None, None
+    finally:
+        if parser is not None:
+            try:
+                parser.stream._input.close()  # type: ignore[attr-defined]
+            except Exception:
+                pass

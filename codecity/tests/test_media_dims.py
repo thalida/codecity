@@ -136,5 +136,23 @@ class ParseSvgLengthTests(unittest.TestCase):
         self.assertIsNone(_parse_svg_length("-1px"))
 
 
+class VideoProbingTests(unittest.TestCase):
+    def test_corrupt_video_returns_none(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "broken.mp4"
+            p.write_bytes(b"not really an mp4")
+            w, h = probe_media_dims(p)
+            self.assertIsNone(w)
+            self.assertIsNone(h)
+
+    def test_empty_video_returns_none(self):
+        with TemporaryDirectory() as tmp:
+            p = Path(tmp) / "empty.webm"
+            p.write_bytes(b"")
+            w, h = probe_media_dims(p)
+            self.assertIsNone(w)
+            self.assertIsNone(h)
+
+
 if __name__ == "__main__":
     unittest.main()
