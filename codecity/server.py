@@ -41,7 +41,12 @@ from codecity.clone import (
     HostUnreachableError,
     ensure_clone,
 )
-from codecity.scan import scan_tree, signature_tree
+from codecity.cache import cache_load_manifest, cache_save_manifest
+from codecity.scan import (
+    ScanCancelledError,
+    scan_tree_streaming,
+    signature_tree,
+)
 from codecity.types import (
     ErrorResponse,
     FileTooLargeResponse,
@@ -150,7 +155,7 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
     handler.wfile.write(payload)
 
 
-def _stream_events(  # pyright: ignore[reportUnusedFunction]
+def _stream_events(
     handler: BaseHTTPRequestHandler,
     events: Iterable[dict[str, Any]],
     cancel_event: threading.Event,
@@ -229,7 +234,7 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
 _WATCHDOG_POLL_SEC = 0.5
 
 
-def _start_disconnect_watchdog(  # pyright: ignore[reportUnusedFunction]
+def _start_disconnect_watchdog(
     handler: BaseHTTPRequestHandler,
     cancel_event: threading.Event,
 ) -> threading.Thread:
@@ -348,7 +353,12 @@ def _resolve_scan_target(
 
 
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """Compute and return the scan manifest for the requested source."""
+    """Stream the scan manifest for the requested source as NDJSON.
+
+    Two events on a cold scan (skeleton, final); one on a warm cache
+    hit (just final). On client disconnect, the watchdog sets the
+    cancel event within ~500ms; the scan exits via ScanCancelledError
+    and no cache write happens."""
     resolved = _resolve_scan_target(handler, query)
     if resolved is None:
         return
@@ -356,25 +366,96 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 
+    # Cheap signature probe — same call the live-poll endpoint uses.
     try:
-        manifest = scan_tree(
-            str(scan_target),
-            include_all=include_all,
-            use_cache=use_cache,
+        sig_response = signature_tree(
+            str(scan_target), include_all=include_all, use_cache=use_cache,
         )
     except Exception as e:  # pylint: disable=broad-except
-        _send_json(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"scan failed: {e}"})
-        return
-
-    # For cache-cloned sources (git URLs), surface the user-friendly source
-    # string as display_root so the breadcrumb doesn't show the cache hash.
-    if kind == "git":
-        manifest["display_root"] = (
-            f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+        _send_json(
+            handler, HTTPStatus.INTERNAL_SERVER_ERROR,
+            {"error": f"scan failed: {e}"},
         )
+        return
+    sig = sig_response["signature"]
 
+    # Cache lookup.
+    cached: Manifest | None = None
+    if use_cache:
+        cached = cache_load_manifest(scan_target.resolve(), sig)
+        if cached is not None and kind == "git":
+            cached["display_root"] = (
+                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+            )
+
+    cancel_event = threading.Event()
+    watchdog = _start_disconnect_watchdog(handler, cancel_event)
+
+    # Register the trust root BEFORE any event is emitted. The user
+    # might click a file in the tree during skeleton paint and fire
+    # /api/file — that has to be served. scan_target was already
+    # validated by _resolve_scan_target, so registering it here is
+    # safe regardless of whether the scan itself completes.
     _State.allowed_roots.add(scan_target.resolve())
-    _send_json(handler, HTTPStatus.OK, manifest)
+
+    try:
+        if cached is not None:
+            _stream_events(
+                handler,
+                [{"phase": "final", "manifest": cached}],
+                cancel_event,
+            )
+            return
+
+        # Cache miss — stream live.
+        final_manifest: Manifest | None = None
+
+        def _stamp_display_root(m: "Manifest") -> "Manifest":
+            if kind == "git":
+                m["display_root"] = (
+                    f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+                )
+            return m
+
+        def _events() -> Iterable[dict[str, Any]]:
+            nonlocal final_manifest
+            for event in scan_tree_streaming(
+                str(scan_target),
+                include_all=include_all,
+                use_cache=use_cache,
+                cancel_event=cancel_event,
+            ):
+                m = _stamp_display_root(event["manifest"])
+                if event["phase"] == "final":
+                    final_manifest = m
+                yield event  # type: ignore[misc]
+
+        _stream_events(handler, _events(), cancel_event)
+
+        # Only cache on successful completion AND only when use_cache.
+        if use_cache and final_manifest is not None:
+            cache_save_manifest(scan_target.resolve(), sig, final_manifest)
+
+    except ScanCancelledError:
+        _log_quiet("[scan] cancelled (client disconnected)")
+    except (BrokenPipeError, ConnectionResetError):
+        # Writer noticed the disconnect first. handle_error from
+        # fix #1 swallows the propagated exception at the socketserver
+        # layer; we just need to skip the cache write.
+        _log_quiet("[scan] client disconnected mid-stream")
+        raise
+    finally:
+        cancel_event.set()
+        watchdog.join(timeout=1.0)
+
+
+def _log_quiet(msg: str) -> None:
+    """Same env-gated logger as scan._log, duplicated here so server
+    doesn't import a private from scan. CODECITY_QUIET=1 silences."""
+    import os
+    import sys
+    if os.environ.get("CODECITY_QUIET") != "1":
+        print(msg, file=sys.stderr, flush=True)
 
 
 def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> None:

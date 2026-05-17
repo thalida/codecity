@@ -75,6 +75,23 @@ def _request(port: int, path: str) -> tuple[int, dict]:
         return e.code, json.loads(e.read())
 
 
+def _request_stream(port: int, path: str) -> tuple[int, list[dict]]:
+    """Issue a GET expecting an NDJSON streaming response. Returns
+    (status, list_of_parsed_events). Error responses (4xx/5xx) are
+    returned as a single-element list with the parsed JSON body."""
+    url = f"http://127.0.0.1:{port}{path}"
+    req = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
+    try:
+        resp = urllib.request.urlopen(req)
+    except urllib.error.HTTPError as e:
+        return e.code, [json.loads(e.read())]
+    body = resp.read()
+    if resp.headers.get("Content-Encoding") == "gzip":
+        body = gzip.decompress(body)
+    events = [json.loads(line) for line in body.splitlines() if line]
+    return resp.status, events
+
+
 def _get_with_headers(
     url: str, headers: dict[str, str],
 ) -> tuple[int, bytes, str, str]:
@@ -128,10 +145,10 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_manifest_route_scans_query_path(self) -> None:
         q = urllib.parse.urlencode({"src": str(self.project)})
-        status, body, ctype = _get(self.base + f"/api/manifest?{q}")
+        status, events = _request_stream(self.port, f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.OK)
-        self.assertIn("application/json", ctype)
-        payload = json.loads(body)
+        final = next(e for e in events if e["phase"] == "final")
+        payload = final["manifest"]
         self.assertEqual(payload["tree"]["name"], "project")
         self.assertIn("signature", payload)
         # Successful scan must register the root.
@@ -151,12 +168,12 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         # The contract powering the cheap-poll: the signature endpoint
         # returns the same digest the full manifest would have produced.
         q = urllib.parse.urlencode({"src": str(self.project)})
-        m_status, m_body, _ = _get(self.base + f"/api/manifest?{q}")
+        m_status, m_events = _request_stream(self.port, f"/api/manifest?{q}")
         s_status, s_body, s_ctype = _get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(m_status, HTTPStatus.OK)
         self.assertEqual(s_status, HTTPStatus.OK)
         self.assertIn("application/json", s_ctype)
-        manifest = json.loads(m_body)
+        manifest = next(e for e in m_events if e["phase"] == "final")["manifest"]
         sig = json.loads(s_body)
         self.assertEqual(sig["signature"], manifest["signature"])
         # Lean shape — no tree / repo fields on the signature endpoint.
@@ -231,17 +248,19 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         (self.project / "untracked.txt").write_text("hidden by default")
 
         q = urllib.parse.urlencode({"src": str(self.project)})
-        _, body_default, _ = _get(self.base + f"/api/manifest?{q}")
-        names_default = [
-            c["name"] for c in json.loads(body_default)["tree"]["children"]
-        ]
+        _, events_default = _request_stream(self.port, f"/api/manifest?{q}")
+        final_default = next(
+            e for e in events_default if e["phase"] == "final"
+        )["manifest"]
+        names_default = [c["name"] for c in final_default["tree"]["children"]]
         self.assertNotIn("untracked.txt", names_default)
 
         q_all = urllib.parse.urlencode(
             {"src": str(self.project), "include_all": "true"}
         )
-        _, body_all, _ = _get(self.base + f"/api/manifest?{q_all}")
-        names_all = [c["name"] for c in json.loads(body_all)["tree"]["children"]]
+        _, events_all = _request_stream(self.port, f"/api/manifest?{q_all}")
+        final_all = next(e for e in events_all if e["phase"] == "final")["manifest"]
+        names_all = [c["name"] for c in final_all["tree"]["children"]]
         self.assertIn("untracked.txt", names_all)
 
     def test_signature_route_honors_include_all(self) -> None:
@@ -324,8 +343,9 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         q = urllib.parse.urlencode({
             "src": str(self.project), "include_all": "true",
         })
-        _, body, _ = _get(self.base + f"/api/manifest?{q}")
-        names = [c["name"] for c in json.loads(body)["tree"]["children"]]
+        _, events = _request_stream(self.port, f"/api/manifest?{q}")
+        final = next(e for e in events if e["phase"] == "final")["manifest"]
+        names = [c["name"] for c in final["tree"]["children"]]
         self.assertNotIn("node_modules", names)
 
     def test_no_cache_query_param_truthy_parsing(self) -> None:
@@ -339,8 +359,8 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertFalse(_parse_no_cache("path=/tmp"))
 
     def test_manifest_response_gzipped_when_requested(self) -> None:
-        # Client advertises gzip; server compresses; decompressed body
-        # parses as the same JSON the uncompressed path would return.
+        # Client advertises gzip; server compresses the NDJSON stream;
+        # decompressed body parses line-by-line as JSON events.
         q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, ctype, enc = _get_with_headers(
             self.base + f"/api/manifest?{q}",
@@ -348,23 +368,25 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         )
         self.assertEqual(status, HTTPStatus.OK)
         self.assertEqual(enc, "gzip")
-        self.assertIn("application/json", ctype)
+        self.assertEqual(ctype, "application/x-ndjson")
         decoded = gzip.decompress(body)
-        payload = json.loads(decoded)
-        self.assertEqual(payload["tree"]["name"], "project")
+        events = [json.loads(line) for line in decoded.splitlines() if line]
+        final = next(e for e in events if e["phase"] == "final")
+        self.assertEqual(final["manifest"]["tree"]["name"], "project")
 
     def test_manifest_response_uncompressed_without_accept_encoding(self) -> None:
         # No Accept-Encoding header at all -> no Content-Encoding,
-        # body parses directly as JSON.
+        # body parses directly as NDJSON.
         q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, ctype, enc = _get_with_headers(
             self.base + f"/api/manifest?{q}", {},
         )
         self.assertEqual(status, HTTPStatus.OK)
         self.assertEqual(enc, "")
-        self.assertIn("application/json", ctype)
-        payload = json.loads(body)
-        self.assertEqual(payload["tree"]["name"], "project")
+        self.assertEqual(ctype, "application/x-ndjson")
+        events = [json.loads(line) for line in body.splitlines() if line]
+        final = next(e for e in events if e["phase"] == "final")
+        self.assertEqual(final["manifest"]["tree"]["name"], "project")
 
     def test_manifest_response_uncompressed_when_gzip_not_in_accept(self) -> None:
         # Client supports brotli but not gzip -> no compression.
@@ -375,8 +397,9 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         )
         self.assertEqual(status, HTTPStatus.OK)
         self.assertEqual(enc, "")
-        # Sanity: it's still valid JSON.
-        json.loads(body)
+        # Sanity: each line is valid JSON.
+        events = [json.loads(line) for line in body.splitlines() if line]
+        self.assertGreaterEqual(len(events), 1)
 
     def test_health_response_below_threshold_uncompressed(self) -> None:
         # /api/health body is ~15 bytes — below the 256-byte threshold.
@@ -562,19 +585,25 @@ class ResolveScanTargetTests(unittest.TestCase):
     def test_local_path_ok(self) -> None:
         with TemporaryDirectory() as td:
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, body = _request(self.server_port, f"/api/manifest?src={td}")
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
             self.assertEqual(status, 200)
+            final = next(e for e in events if e["phase"] == "final")["manifest"]
             # resolve() follows macOS /var -> /private/var symlinks; the
             # manifest's root field reflects the real resolved path.
-            self.assertEqual(body.get("root"), str(Path(td).resolve()))
+            self.assertEqual(final.get("root"), str(Path(td).resolve()))
 
     def test_local_path_with_branch_silently_ignored(self) -> None:
         with TemporaryDirectory() as td:
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, body = _request(self.server_port, f"/api/manifest?src={td}&branch=main")
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}&branch=main",
+            )
             self.assertEqual(status, 200)
+            final = next(e for e in events if e["phase"] == "final")["manifest"]
             # display_root not set for in-place local scan
-            self.assertNotIn("display_root", body)
+            self.assertNotIn("display_root", final)
 
     def test_invalid_source(self) -> None:
         status, body = _request(self.server_port, "/api/manifest?src=garbage")
@@ -615,9 +644,12 @@ class DisplayRootTests(unittest.TestCase):
     def test_local_src_no_display_root(self) -> None:
         with TemporaryDirectory() as td:
             (Path(td) / "x.py").write_text("\n")
-            status, body = _request(self.server_port, f"/api/manifest?src={td}")
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
             self.assertEqual(status, 200)
-            self.assertNotIn("display_root", body)
+            final = next(e for e in events if e["phase"] == "final")["manifest"]
+            self.assertNotIn("display_root", final)
 
     def test_git_url_sets_display_root(self) -> None:
         # Use a local bare repo so we don't hit the network.
@@ -627,20 +659,25 @@ class DisplayRootTests(unittest.TestCase):
             url = f"file://{remote}"
             # Monkey-patch CACHE_ROOT so we don't pollute ~/.cache.
             with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
-                status, body = _request(self.server_port, f"/api/manifest?src={url}")
+                status, events = _request_stream(
+                    self.server_port, f"/api/manifest?src={url}",
+                )
             self.assertEqual(status, 200)
-            self.assertEqual(body.get("display_root"), url)
+            final = next(e for e in events if e["phase"] == "final")["manifest"]
+            self.assertEqual(final.get("display_root"), url)
 
     def test_git_url_with_branch_appends_at_branch(self) -> None:
         with TemporaryDirectory() as td:
             remote, _ = _make_fake_remote(Path(td))
             url = f"file://{remote}"
             with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
-                status, body = _request(
-                    self.server_port, f"/api/manifest?src={url}&branch=feature"
+                status, events = _request_stream(
+                    self.server_port,
+                    f"/api/manifest?src={url}&branch=feature",
                 )
             self.assertEqual(status, 200)
-            self.assertEqual(body.get("display_root"), f"{url}@feature")
+            final = next(e for e in events if e["phase"] == "final")["manifest"]
+            self.assertEqual(final.get("display_root"), f"{url}@feature")
 
 
 class ClientDisconnectTests(unittest.TestCase):
@@ -861,6 +898,134 @@ class DisconnectWatchdogTests(unittest.TestCase):
         ev.set()
         t.join(timeout=2.0)
         self.assertFalse(t.is_alive())
+
+
+class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
+    """End-to-end /api/manifest tests for the NDJSON streaming
+    behavior and the disk-cache lifecycle."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+
+    def _make_tiny_repo(self, td: str) -> None:
+        (Path(td) / "a.py").write_text("x = 1\n")
+        (Path(td) / "b.py").write_text("y = 2\ny = 3\n")
+
+    def test_cold_cache_emits_skeleton_then_final(self) -> None:
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0]["phase"], "skeleton")
+        self.assertEqual(events[1]["phase"], "final")
+
+    def test_warm_cache_emits_one_final(self) -> None:
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            # Warm the cache.
+            _request_stream(self.server_port, f"/api/manifest?src={td}")
+            # Second hit should be a single-final response.
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+        self.assertEqual(status, 200)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["phase"], "final")
+
+    def test_no_cache_skips_lookup_and_save(self) -> None:
+        from codecity import cache as cache_mod
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            # Warm the cache first.
+            _request_stream(self.server_port, f"/api/manifest?src={td}")
+            # no_cache=true should NOT serve from cache.
+            _, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}&no_cache=true",
+            )
+            self.assertEqual(len(events), 2, "no_cache should force a fresh scan")
+            # Delete the cache file and verify no_cache also skipped
+            # the save — the cache should remain absent after this
+            # request.
+            import shutil
+            shutil.rmtree(self._cache_tmp.name, ignore_errors=True)
+            Path(self._cache_tmp.name).mkdir(parents=True, exist_ok=True)
+            _request_stream(
+                self.server_port, f"/api/manifest?src={td}&no_cache=true",
+            )
+            manifests_dir = Path(self._cache_tmp.name) / "manifests"
+            if manifests_dir.exists():
+                self.assertEqual(
+                    list(manifests_dir.iterdir()), [],
+                    "no_cache=true must not write to the manifest cache",
+                )
+
+    def test_include_all_uses_different_cache_key(self) -> None:
+        # The signature naturally differs between include_all=true/false
+        # because the tracked-file set differs. Verify that warming one
+        # variant does NOT serve the other from cache.
+        import subprocess
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            # Init a git repo and commit only a.py — b.py is untracked,
+            # so include_all=false hides it and include_all=true shows
+            # it. That divergence means the signatures (and cache keys)
+            # for the two variants must differ.
+            subprocess.run(["git", "-C", td, "init", "-q"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "config", "user.email", "t@t"], check=True,
+            )
+            subprocess.run(
+                ["git", "-C", td, "config", "user.name", "t"], check=True,
+            )
+            subprocess.run(["git", "-C", td, "add", "a.py"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "commit", "-q", "-m", "init"], check=True,
+            )
+            # Warm with include_all=false (b.py excluded).
+            _request_stream(
+                self.server_port, f"/api/manifest?src={td}&include_all=false",
+            )
+            # include_all=true must re-scan (skeleton+final), not single-final.
+            _, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}&include_all=true",
+            )
+            self.assertEqual(
+                len(events), 2,
+                "include_all=true must not be served from include_all=false cache",
+            )
+
+    def test_skeleton_has_placeholder_lines(self) -> None:
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+        skeleton_tree = events[0]["manifest"]["tree"]
+        # Every file node should have lines=1 in the skeleton.
+        def files(node):
+            for child in node["children"]:
+                if child["type"] == "file":
+                    yield child
+                else:
+                    yield from files(child)
+        for f in files(skeleton_tree):
+            self.assertEqual(f["lines"], 1)
+
+    def test_response_headers(self) -> None:
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            url = f"http://127.0.0.1:{self.server_port}/api/manifest?src={td}"
+            req = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
+            resp = urllib.request.urlopen(req)
+            self.assertEqual(resp.headers.get("Content-Type"), "application/x-ndjson")
+            self.assertEqual(resp.headers.get("Content-Encoding"), "gzip")
+            self.assertIsNone(resp.headers.get("Content-Length"))
+            resp.read()  # drain
 
 
 if __name__ == "__main__":
