@@ -96,7 +96,11 @@ export function getBillboardHeightFrac(): number {
   return PANEL_ASPECT * (1 + POST_HEIGHT_FRAC);
 }
 
-// Convert BuildingOrient → Y-axis rotation so the panel faces the door's direction.
+// Convert BuildingOrient → Y-axis rotation so the panel faces the door's
+// direction. The image plane's default normal is +Z (its local front).
+// Right-hand rule on Y means a positive rotation maps +Z → +X. Door
+// directions match cameraRig.ts's focusBuilding contract:
+//   South → +Z, North → -Z, East → +X, West → -X.
 function orientToYRotation(orient: BuildingOrient): number {
   switch (orient) {
     case BuildingOrient.South:
@@ -104,9 +108,9 @@ function orientToYRotation(orient: BuildingOrient): number {
     case BuildingOrient.North:
       return Math.PI;
     case BuildingOrient.East:
-      return -Math.PI / 2;
-    case BuildingOrient.West:
       return Math.PI / 2;
+    case BuildingOrient.West:
+      return -Math.PI / 2;
     default:
       return 0;
   }
