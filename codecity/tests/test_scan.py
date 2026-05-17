@@ -752,6 +752,34 @@ class ScanTreeStreamingTests(unittest.TestCase):
         # signature and scanned_at differ across separate calls; compare tree shape.
         self.assertEqual(final["manifest"]["tree"], eager["tree"])
 
+    def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
+        import threading
+        from codecity.scan import scan_tree_streaming, ScanCancelledError
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            ev = threading.Event()
+            ev.set()
+            gen = scan_tree_streaming(td, cancel_event=ev)
+            with self.assertRaises(ScanCancelledError):
+                list(gen)
+
+    def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
+        import threading
+        from codecity.scan import scan_tree_streaming, ScanCancelledError
+        with TemporaryDirectory() as td:
+            # Make enough files that the pool has work to do AFTER the
+            # skeleton emits, so the event-set-after-skeleton case
+            # genuinely interrupts metadata population.
+            for i in range(20):
+                (Path(td) / f"f{i}.py").write_text("x = 1\n" * 50)
+            ev = threading.Event()
+            gen = scan_tree_streaming(td, cancel_event=ev)
+            skeleton = next(gen)
+            self.assertEqual(skeleton["phase"], "skeleton")
+            ev.set()
+            with self.assertRaises(ScanCancelledError):
+                next(gen)
+
 
 if __name__ == "__main__":
     unittest.main()

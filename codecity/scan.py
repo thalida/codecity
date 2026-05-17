@@ -24,7 +24,8 @@ import json
 import os
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
@@ -54,6 +55,15 @@ class ScanCancelledError(Exception):
     Caller (the server's _serve_manifest) is expected to swallow this
     — it means 'the client disconnected, we asked the scan to stop,
     it stopped.' Not a bug, not an error to report to anyone."""
+
+
+def _check_cancel(event: "threading.Event | None") -> None:
+    """Raise ScanCancelledError if the cancellation event is set.
+
+    Cheap; called at every phase boundary in scan_tree_streaming and
+    between batches in _populate_file_metadata."""
+    if event is not None and event.is_set():
+        raise ScanCancelledError()
 
 
 # ── Progress logging ─────────────────────────────────────────────────────────
@@ -520,6 +530,7 @@ def _node_mtime(node: FileNode) -> float:
 
 def _populate_file_metadata(
     tree: DirNode, abs_root: Path, *, use_cache: bool,
+    cancel_event: "threading.Event | None" = None,
 ) -> None:
     """Walk the skeleton tree and fill in `lines` + `binary` for every
     FileNode.
@@ -556,10 +567,26 @@ def _populate_file_metadata(
 
     if miss_paths:
         with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
-            results = list(pool.map(_read_file_metadata, miss_paths))
-        for idx, (binary, lines) in zip(miss_indices, results):
-            nodes[idx]["binary"] = binary
-            nodes[idx]["lines"] = lines
+            future_to_idx = {
+                pool.submit(_read_file_metadata, p): i
+                for i, p in zip(miss_indices, miss_paths)
+            }
+            try:
+                for fut in as_completed(future_to_idx):
+                    if cancel_event is not None and cancel_event.is_set():
+                        # Stop accepting new completions; cancel
+                        # un-started futures. In-flight workers will
+                        # finish their current file then exit.
+                        for f in future_to_idx:
+                            f.cancel()
+                        raise ScanCancelledError()
+                    idx = future_to_idx[fut]
+                    binary, lines = fut.result()
+                    nodes[idx]["binary"] = binary
+                    nodes[idx]["lines"] = lines
+            except ScanCancelledError:
+                pool.shutdown(wait=False)
+                raise
 
     if use_cache:
         # Union-merge: start from the loaded cache (preserves entries
@@ -742,6 +769,7 @@ def scan_tree_streaming(
     *,
     include_all: bool = False,
     use_cache: bool = True,
+    cancel_event: "threading.Event | None" = None,
 ) -> Iterator["ScanStreamEvent"]:
     """Generator form of scan_tree: yields a skeleton event after the
     tree walk, then a final event after metadata population. The
@@ -750,6 +778,8 @@ def scan_tree_streaming(
     (CLI, tests that don't care about phasing)."""
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
+
+    _check_cancel(cancel_event)  # before _collect_git_metadata
 
     git_created: dict[str, str] = {}
     git_modified: dict[str, str] = {}
@@ -765,6 +795,8 @@ def scan_tree_streaming(
         repo_info = _collect_repo_info(Path(root_abs))
     else:
         _log("not a git repo — filesystem dates only")
+
+    _check_cancel(cancel_event)  # after git metadata, before tree walk
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = (
         _load_codecityignore(Path(root_abs))
@@ -784,6 +816,8 @@ def scan_tree_streaming(
     )
     _log(f"walked {_files_seen} files; emitting skeleton")
 
+    _check_cancel(cancel_event)  # after tree walk, before skeleton emit
+
     # We deep-copy here so the skeleton's placeholder-mutation doesn't
     # affect the tree that _populate_file_metadata is about to modify
     # in-place. Cheap for small repos; for Linux this is ~50ms.
@@ -795,7 +829,10 @@ def scan_tree_streaming(
     }
 
     _log("resolving file metadata")
-    _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
+    _populate_file_metadata(
+        tree, Path(root_abs), use_cache=use_cache, cancel_event=cancel_event,
+    )
+    _check_cancel(cancel_event)  # after populate, before final emit
     _log("emitting final manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
