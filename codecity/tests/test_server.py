@@ -7,6 +7,7 @@ import http.client
 import io
 import json
 import os
+import socket
 import threading
 import unittest
 import urllib.error
@@ -20,7 +21,12 @@ from unittest import mock
 
 from codecity import clone as clone_mod
 from codecity import server as server_mod
-from codecity.server import _classify_source, _stream_events, start_server
+from codecity.server import (
+    _classify_source,
+    _start_disconnect_watchdog,
+    _stream_events,
+    start_server,
+)
 from codecity.tests.test_clone import _make_fake_remote
 
 
@@ -814,6 +820,47 @@ class StreamEventsHelperTests(unittest.TestCase):
         _stream_events(h, _events(), ev)
         self.assertTrue(ev.is_set(),
                         "close-time BrokenPipe must set cancel_event")
+
+
+class DisconnectWatchdogTests(unittest.TestCase):
+    """The watchdog is a daemon thread that polls a connection for
+    EOF and trips a cancel event. Tested against a real socketpair
+    so we can close one end and observe the watchdog's reaction."""
+
+    def test_sets_event_on_client_close(self) -> None:
+        srv, cli = socket.socketpair()
+        self.addCleanup(srv.close)
+        self.addCleanup(cli.close)
+
+        class _Handler:
+            def __init__(self, s):
+                self.connection = s
+
+        ev = threading.Event()
+        t = _start_disconnect_watchdog(_Handler(srv), ev)
+        # Client closes its end → server-side select wakes,
+        # MSG_PEEK returns 0 bytes, watchdog sets the event.
+        cli.close()
+        self.assertTrue(ev.wait(timeout=2.0), "watchdog should set event within 2s")
+        t.join(timeout=1.0)
+        self.assertFalse(t.is_alive())
+
+    def test_exits_when_event_set_externally(self) -> None:
+        srv, cli = socket.socketpair()
+        self.addCleanup(srv.close)
+        self.addCleanup(cli.close)
+
+        class _Handler:
+            def __init__(self, s):
+                self.connection = s
+
+        ev = threading.Event()
+        t = _start_disconnect_watchdog(_Handler(srv), ev)
+        # Normal scan finish path: caller signals event; watchdog
+        # observes it next poll cycle and exits cleanly.
+        ev.set()
+        t.join(timeout=2.0)
+        self.assertFalse(t.is_alive())
 
 
 if __name__ == "__main__":

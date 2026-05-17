@@ -23,6 +23,8 @@ import gzip
 import json
 import mimetypes
 import re
+import select
+import socket as _socket
 import sys
 import threading
 from http import HTTPStatus
@@ -222,6 +224,49 @@ def _stream_events(  # pyright: ignore[reportUnusedFunction]
                 # surrounding scan, but don't re-raise (we're in
                 # finally; any real exception already propagated).
                 cancel_event.set()
+
+
+_WATCHDOG_POLL_SEC = 0.5
+
+
+def _start_disconnect_watchdog(  # pyright: ignore[reportUnusedFunction]
+    handler: BaseHTTPRequestHandler,
+    cancel_event: threading.Event,
+) -> threading.Thread:
+    """Spawn a daemon thread that watches `handler.connection` for
+    client-side EOF and sets `cancel_event` when seen.
+
+    Polls every ~500ms via select(); when the socket becomes
+    readable, peeks one byte — an empty peek means the peer closed.
+    Loop also exits if cancel_event is set by anyone else (normal
+    scan completion, or the writer noticing a broken pipe first).
+    """
+    sock = handler.connection
+
+    def _loop() -> None:
+        while not cancel_event.is_set():
+            try:
+                readable, _, _ = select.select(
+                    [sock], [], [], _WATCHDOG_POLL_SEC,
+                )
+            except (OSError, ValueError):
+                cancel_event.set()
+                return
+            if not readable:
+                continue
+            try:
+                peek = sock.recv(1, _socket.MSG_PEEK)
+            except OSError:
+                cancel_event.set()
+                return
+            if not peek:
+                # EOF — client closed its end.
+                cancel_event.set()
+                return
+
+    t = threading.Thread(target=_loop, daemon=True, name="cc-disconnect-watchdog")
+    t.start()
+    return t
 
 
 def _parse_include_all(query: str) -> bool:
