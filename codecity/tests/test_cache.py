@@ -290,6 +290,42 @@ class MediaDimsCacheTests(CacheTestBase):
         self.assertNotIn("media_width", loaded["weird.png"])
         self.assertNotIn("media_height", loaded["weird.png"])
 
+    def test_bool_media_dims_are_rejected(self) -> None:
+        """bool is a subclass of int but must not coerce into media dims."""
+        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({
+            "version": 1,
+            "entries": {
+                "fake.png": {
+                    "size": 10, "mtime": 1.0, "lines": 0,
+                    "binary": True, "ext": ".png",
+                    "media_width": True, "media_height": False,
+                },
+            },
+        }), encoding="utf-8")
+        loaded = cache_mod.cache_load_files(self.abs_root)
+        self.assertNotIn("media_width", loaded["fake.png"])
+        self.assertNotIn("media_height", loaded["fake.png"])
+
+    def test_partial_media_dims_height_only_drops_both(self) -> None:
+        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({
+            "version": 1,
+            "entries": {
+                "weird.png": {
+                    "size": 10, "mtime": 1.0, "lines": 0,
+                    "binary": True, "ext": ".png",
+                    "media_height": 200,
+                    # media_width intentionally missing
+                },
+            },
+        }), encoding="utf-8")
+        loaded = cache_mod.cache_load_files(self.abs_root)
+        self.assertNotIn("media_width", loaded["weird.png"])
+        self.assertNotIn("media_height", loaded["weird.png"])
+
 
 if __name__ == "__main__":
     unittest.main()

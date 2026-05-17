@@ -93,9 +93,11 @@ def _coerce_file_entry(value: object) -> FileEntry | None:
         "ext": ext,
     }
     # Optional media dims — both must be present and int-typed, else drop both.
+    # Reject bool (which is a subclass of int in Python) to avoid corrupting dims.
     mw = d.get("media_width")
     mh = d.get("media_height")
-    if isinstance(mw, int) and isinstance(mh, int):
+    if (isinstance(mw, int) and isinstance(mh, int) and
+            not isinstance(mw, bool) and not isinstance(mh, bool)):
         entry["media_width"] = mw
         entry["media_height"] = mh
     return entry
