@@ -4,7 +4,21 @@
    crisp monospace for code metadata, subtle transitions.
    ============================================================================= */
 
-/* ── Reset ──────────────────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   RESET — opinionated normalize for this dark internal app.
+
+   - Box-sizing + zeroed margins/padding on every element.
+   - Form elements inherit font + color (no browser default chrome).
+   - Buttons are unstyled by default — components opt back into appearance.
+   - Anchors inherit color and have no underline.
+   - Media elements are block-level (no inline-baseline gap below imgs/svg).
+   - Tables collapse borders.
+   - Headings inherit size + weight so .text-* composites have full control.
+
+   Lists are NOT reset (list-style stays browser-default) — info-markdown
+   relies on default bullets/numbers and the few unstyled lists in the app
+   already declare `list-style: none` per-rule.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
 *,
 *::before,
@@ -14,6 +28,667 @@
   box-sizing: border-box;
 }
 
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+img,
+svg,
+video,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-size: inherit;
+  font-weight: inherit;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — single source of truth.
+
+   Layer-1 of the system per docs/ui-component-system.md. Two kinds of tokens:
+
+   ① SCALE TOKENS — concrete values on a scale (e.g. --cc-font-sm = 10px,
+                    --cc-overlay-strong = rgba(...,.18))
+   ② BASE ALIASES — semantic names that point AT a scale token
+                    (e.g. --cc-font-base = var(--cc-font-md))
+
+   Components reference base aliases when they want the "default" of that
+   scale. Components reference a scale token directly when they want a
+   specific step. Swap a base alias to change the default everywhere.
+
+   Page-level CSS NEVER hard-codes a value — it references one of these.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* ──────────────────────────────────────────────────────────────────────
+     NAMING CONVENTIONS
+
+     Color shade variants:        {color}-light  (brighter hex)
+                                  {color}-dark   (darker hex)
+     Color alpha variants (role): {color}-bg-soft    — subtle background tint
+                                  {color}-bg         — default background fill
+                                  {color}-bg-strong  — pressed / heavy fill
+                                  {color}-border     — border or focus ring
+     Base aliases:                {scale}-base — points at a tier; swap to
+                                  rebase the default of that scale globally.
+     ────────────────────────────────────────────────────────────────────── */
+
+  /* ── COLORS — Surfaces ────────────────────────────────────────────────── */
+  --cc-bg-app:           oklch(0.151 0.011 276.2);
+  --cc-bg-chrome:        oklch(0.162 0.015 278.3);
+  --cc-bg-sidebar:       oklch(0.181 0.019 279.4);
+  --cc-bg-modal:         var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
+  --cc-bg-backdrop:      color-mix(in oklch, var(--cc-black) 55%, transparent);
+  --cc-bg-tooltip:       color-mix(in oklch, var(--cc-bg-app) 94%, transparent);
+  --cc-bg-base:          var(--cc-bg-app);
+
+  /* ── COLORS — Borders & tracks ────────────────────────────────────────── */
+  --cc-border-subtle:    oklch(0.249 0.030 278.4);
+  --cc-border-input:     oklch(0.281 0.030 276.1);
+  --cc-border-tooltip:   oklch(0.320 0.058 274.6);
+  --cc-track:            oklch(0.230 0.023 277.0);
+  --cc-track-hover:      oklch(0.355 0.042 276.7);
+  --cc-border-base:      var(--cc-border-subtle);
+
+  /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
+  --cc-text-primary:     oklch(0.921 0.023 275.3);  /* brightest — active/hover text */
+  --cc-text-secondary:   oklch(0.823 0.028 276.8);  /* default body, tree directories */
+  --cc-text-muted:       oklch(0.655 0.038 276.4);  /* breadcrumbs, footer chrome, modal labels, tree files */
+  --cc-text-faint:       oklch(0.586 0.063 276.8);  /* icon buttons rest, hints, placeholders */
+  --cc-text-ghost:       oklch(0.407 0.037 276.6);  /* decorative separators ("·") only */
+  --cc-text-inverse:     oklch(0.148 0.013 284.7);  /* dark text on accent CTA */
+  --cc-text-base:        var(--cc-text-secondary);
+
+  /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
+     Alpha variants derive from --cc-accent via color-mix → swap that one
+     to recolor the brand everywhere. */
+  --cc-accent:           oklch(0.697 0.160 258.2);
+  --cc-accent-light:     oklch(0.806 0.097 260.0);
+  --cc-accent-dark:      oklch(0.588 0.196 268.5);
+  --cc-accent-bg-soft:   color-mix(in oklch, var(--cc-accent) 10%, transparent);
+  --cc-accent-bg:        color-mix(in oklch, var(--cc-accent) 18%, transparent);
+  --cc-accent-bg-strong: color-mix(in oklch, var(--cc-accent) 30%, transparent);
+  --cc-accent-border:    color-mix(in oklch, var(--cc-accent) 45%, transparent);
+
+  /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
+  --cc-success:          oklch(0.800 0.182 151.7);
+  --cc-success-dark:     oklch(0.681 0.123 157.3);
+  --cc-success-bg:       color-mix(in oklch, var(--cc-success) 10%, transparent);
+  --cc-warning:          oklch(0.837 0.164 84.4);
+  --cc-error:            oklch(0.637 0.208 25.3);
+  --cc-error-light:      oklch(0.843 0.088 10.3);
+  --cc-error-bg:         color-mix(in oklch, var(--cc-error) 18%, transparent);
+  --cc-error-border:     color-mix(in oklch, var(--cc-error) 45%, transparent);
+
+  /* ── COLORS — Overlay (white-on-dark hovers & borders) ────────────────── */
+  --cc-overlay-bg-soft:   color-mix(in oklch, var(--cc-white)  4%, transparent);
+  --cc-overlay-bg:        color-mix(in oklch, var(--cc-white)  6%, transparent);
+  --cc-overlay-bg-strong: color-mix(in oklch, var(--cc-white) 10%, transparent);
+  --cc-overlay-border:    color-mix(in oklch, var(--cc-white) 18%, transparent);
+
+  /* ── COLORS — Pure neutrals ───────────────────────────────────────────── */
+  --cc-black:            oklch(0 0 0);
+  --cc-white:            oklch(1 0 0);
+
+  /* ── COLORS — Syntax palette (highlight.js consumers) ─────────────────── */
+  --cc-syntax-keyword:   oklch(0.722 0.177 305.5);
+  --cc-syntax-string:    oklch(0.871 0.136 154.4);
+  --cc-syntax-builtin:   oklch(0.754 0.139 232.7);
+  --cc-syntax-variable:  oklch(0.810 0.106 11.6);
+  --cc-syntax-comment:   oklch(0.496 0.038 273.5);
+  --cc-syntax-deletion:  oklch(0.808 0.103 19.6);
+  --cc-syntax-string-bg:   color-mix(in oklch, var(--cc-syntax-string)   8%, transparent);
+  --cc-syntax-deletion-bg: color-mix(in oklch, var(--cc-syntax-deletion) 8%, transparent);
+
+  /* ── Back-compat aliases for prior commits ───────────────────────────── */
+  --cc-hover-overlay:    var(--cc-overlay-bg);
+  --cc-hover-overlay-sm: var(--cc-overlay-bg-soft);
+
+  /* ── SCALES — Spacing ─────────────────────────────────────────────────── */
+  --cc-space-0:    0;
+  --cc-space-px:   1px;     /* hairline (kbd padding, dense badges) */
+  --cc-space-1:    2px;     /* tightest gap (chevron-label, crumb segments) */
+  --cc-space-2:    4px;
+  --cc-space-3:    6px;
+  --cc-space-4:    8px;
+  --cc-space-5:    10px;
+  --cc-space-6:    12px;
+  --cc-space-7:    16px;
+  --cc-space-8:    24px;
+  --cc-space-9:    32px;
+  --cc-space-base: var(--cc-space-4);  /* 8px */
+
+  /* ── SCALES — Radius ──────────────────────────────────────────────────── */
+  --cc-radius-0:      0;
+  --cc-radius-sm:     4px;    /* every interactive control */
+  --cc-radius-md:     6px;    /* modal-context controls, card-internal */
+  --cc-radius-lg:     10px;   /* outer modal/loading card */
+  --cc-radius-pill:   100px;  /* fully rounded pill */
+  --cc-radius-circle: 50%;    /* dots, slider thumbs, spinner */
+  --cc-radius-base:   var(--cc-radius-sm);
+
+  /* ── SCALES — Font sizes ──────────────────────────────────────────────── */
+  --cc-font-sm:    10px;
+  --cc-font-md:    11px;
+  --cc-font-lg:    12px;
+  --cc-font-xl:    14px;
+  --cc-font-2xl:   18px;
+  --cc-font-3xl:   22px;
+  --cc-font-4xl:   28px;
+  --cc-font-base:  var(--cc-font-lg);   /* 12px */
+  --cc-font-root:  var(--cc-font-xl);   /* 14px — html/body */
+
+  /* ── SCALES — Font weights ────────────────────────────────────────────── */
+  --cc-fw-normal:   400;
+  --cc-fw-medium:   500;
+  --cc-fw-semibold: 600;
+  --cc-fw-bold:     700;
+  --cc-fw-base:     var(--cc-fw-normal);
+
+  /* ── SCALES — Font families ───────────────────────────────────────────── */
+  --cc-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --cc-font-mono: var(--cc-font-mono);
+
+  /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
+  --cc-track-label: 0.08em;  /* uppercase section labels */
+  --cc-track-base:  0;
+
+  /* ── SCALES — Transition durations ───────────────────────────────────── */
+  --cc-t-fast:  0.1s;   /* row hover */
+  --cc-t-base:  0.15s;  /* button/input hover (default) */
+
+  /* ── SCALES — Shadows ────────────────────────────────────────────────── */
+  --cc-shadow-sm:    0 1px 3px oklch(0 0 0 / 0.4);     /* slider thumb */
+  --cc-shadow-md:    0 2px 10px oklch(0 0 0 / 0.4);    /* tooltip */
+  --cc-shadow-lg:    0 10px 40px oklch(0 0 0 / 0.6);   /* modal, loading-card */
+  --cc-shadow-base:  var(--cc-shadow-md);
+  --cc-shadow-text:  0 1px 2px oklch(0 0 0 / 0.5);     /* canvas overlay text */
+  --cc-glow-accent:  0 0 6px oklch(0.697 0.160 258.2 / 0.35); /* range-pair fill */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Text
+   ═══════════════════════════════════════════════════════════════════════════
+   One class per text role. Components compose 1–2 of these instead of
+   each rolling its own color + font-size + font-weight + family triplet.
+
+   Atomic (color-only):    .text-{primary,secondary,muted,faint,ghost,
+                                  inverse,accent,success,warning,error}
+   Atomic (family-only):   .text-mono
+   Utility:                .text-truncate  (nowrap + ellipsis)
+   Composite roles:        .text-label     (uppercase section labels)
+                           .text-pane-title (pane header titles)
+                           .text-card-title / .text-card-sub (state cards)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Atomic color classes — drop into a selector list as an alias. */
+.text-primary   { color: var(--cc-text-primary); }
+.text-secondary { color: var(--cc-text-secondary); }
+.text-muted     { color: var(--cc-text-muted); }
+.text-faint     { color: var(--cc-text-faint); }
+.text-ghost     { color: var(--cc-text-ghost); }
+.text-inverse   { color: var(--cc-text-inverse); }
+.text-accent    { color: var(--cc-accent); }
+.text-success   { color: var(--cc-success); }
+.text-warning   { color: var(--cc-warning); }
+.text-error     { color: var(--cc-error); }
+
+/* Atomic family class. */
+.text-mono { font-family: var(--cc-font-mono); }
+
+/* Truncation utility — collapses 3 declarations used 6+ times in the file. */
+.text-truncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Composite: uppercase section label.
+   .info-markdown h5/h6 are NOT aliased — they need a larger size and live
+   in body-text context; they get their own per-class declaration.
+   .recents-list h3 is kept as an alias because it's a semantic <h3>
+   element inside the recents list — no canonical class to attach. */
+.text-label,
+.recents-list h3 {
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: var(--cc-track-label);
+  text-transform: uppercase;
+  color: var(--cc-text-secondary);
+}
+/* Muted variant — dimmer than the default secondary text color. Used by
+   the theme-subgroup label (both the <div> non-collapsible and the
+   <summary> collapsible). */
+.text-label--muted {
+  color: var(--cc-text-muted);
+}
+
+/* Composite: pane header title. */
+.text-pane-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-secondary);
+}
+
+/* Composite: state-card title (loading, empty preview, empty search). */
+.text-card-title {
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-secondary);
+}
+/* Loading-state title is emphasized: brighter color, heavier weight. */
+.text-card-title.is-loading {
+  font-weight: var(--cc-fw-semibold);
+  color: var(--cc-text-primary);
+}
+
+/* Composite: state-card subtitle. */
+.text-card-sub {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-faint);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Small atoms (dots, inline code)
+   ═══════════════════════════════════════════════════════════════════════════
+   .dot          — 6×6 status indicator. Pair with a .dot--success /
+                   --warning / --error modifier for semantic color.
+   .code-inline  — accent-tinted mono pill for inline code / kbd keys.
+                   Two variants in the aliases below: kbd (smaller, secondary
+                   text, stronger border) and info-markdown code (larger,
+                   primary text).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.dot,
+.app-footer-status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--cc-radius-circle);
+  flex: 0 0 auto;
+}
+.dot--success { background: var(--cc-success); }
+.dot--warning { background: var(--cc-warning); }
+.dot--error   { background: var(--cc-error); }
+
+.code-inline,
+.controls-section-hint kbd,
+.shortcuts-list kbd,
+.shortcuts-list .shortcuts-mouse,
+.info-markdown code {
+  display: inline-block;
+  background: var(--cc-accent-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  font-family: var(--cc-font-mono);
+  padding: var(--cc-space-px) var(--cc-space-3);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Pane structure
+   ═══════════════════════════════════════════════════════════════════════════
+   .pane       — fills the available flex space, lays out children in a
+                 vertical column, hides overflow. Used for top-level pane
+                 shells that don't scroll themselves.
+   .pane-body  — like .pane, but the body itself scrolls vertically. Used
+                 when the contents need to scroll inside the pane.
+                 .pane-body--padded adds 16px of inset padding.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pane,
+.pane-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* .pane hides overflow; children scroll instead. */
+.pane {
+  overflow: hidden;
+}
+
+/* .pane-body scrolls vertically. */
+.pane-body {
+  overflow-y: auto;
+}
+
+.pane-body--padded {
+  padding: var(--cc-space-7); /* 16px */
+  box-sizing: border-box;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Rows
+   ═══════════════════════════════════════════════════════════════════════════
+   .row — clickable flex row with subtle hover. Used for tree rows and the
+   two collapsible-section summary rows. Padding aligns to the pane's 16px
+   horizontal padding so depth-0 entries line up under pane titles.
+
+   Variants:
+     .row--bleed     — negative inline margins so the hover background
+                       extends to the pane edge.
+     .row--selected  — accent-tinted "selected" background (used by tree).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);  /* 4px default; --tight overrides to 2px */
+  padding: var(--cc-space-2) var(--cc-space-7);  /* 4px 16px */
+  border-radius: var(--cc-radius-sm);
+  cursor: pointer;
+  user-select: none;
+  transition: background var(--cc-t-fast);
+}
+.row:hover,
+.tree-item.tree-hovered > .row {
+  background: var(--cc-overlay-bg-soft);
+}
+
+/* Tight variant — chevron/icon/label gap collapses from 4px to 2px so
+   the chevron + folder icon read as a single unit. Used by tree rows. */
+.row--tight {
+  gap: var(--cc-space-1); /* 2px */
+}
+
+/* Bleed variant — extends hover background to the pane edge. Used by
+   collapsible summaries inside the controls-pane. */
+.row--bleed {
+  margin-left:  calc(-1 * var(--cc-space-7));
+  margin-right: calc(-1 * var(--cc-space-7));
+  margin-bottom: var(--cc-space-2);
+}
+
+/* Selected variant — tree row in selected state. */
+.row--selected,
+.tree-item.tree-selected > .row {
+  background: var(--cc-accent-bg);
+}
+.row--selected:hover,
+.tree-item.tree-selected > .row:hover,
+.tree-item.tree-selected.tree-hovered > .row {
+  background: var(--cc-accent-bg);  /* keep selected state on hover */
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Form inputs
+   ═══════════════════════════════════════════════════════════════════════════
+   .form-input — base text-input style (sidebar/controls/modal).
+   Variants:
+     .form-input--mono — narrow mono numeric input (used by theme rows).
+   .search-input is kept as a per-class marker for the flex-fill layout
+   rule in the search pane; .modal-field input is kept because it's a
+   bare <input> inside a labeled wrapper (no canonical class to attach).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .form-input — the one text-input style for every context (sidebar,
+   controls, modal). Reads as a "depressed" element against any of the
+   four surface backgrounds.
+   background-color (not the `background` shorthand) so .form-input--select
+   can layer its chevron in via background-image. */
+.form-input,
+.modal-field input {
+  background-color: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-text-primary);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  padding: var(--cc-space-2) var(--cc-space-4); /* 4px 8px */
+  outline: none;
+}
+.form-input::placeholder,
+.modal-field input::placeholder {
+  color: var(--cc-text-faint);
+}
+.form-input:focus,
+.modal-field input:focus {
+  border-color: var(--cc-accent-border);
+}
+
+/* .form-input--mono — narrow numeric variant. Mono font, smaller font-size,
+   fixed 70px width, right-aligned, compact 2px/6px padding. Used by the
+   per-row number inputs in the Controls pane. */
+.form-input--mono {
+  width: 70px;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
+  text-align: right;
+}
+
+/* .form-input--select — native <select> variant. Drops the OS chrome
+   (appearance: none), paints a chevron-down on the right via an inline
+   SVG, and adds enough right padding for the value text to clear it. */
+.form-input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--cc-space-8); /* 24px — room for the chevron */
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right var(--cc-space-3) center;
+  background-size: 14px 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-primary       — solid accent CTA (modal submit, save).
+   .btn-secondary     — outlined neutral (modifier on .btn-accent-outline).
+   .btn-accent-outline — accent-tinted outlined (controls-pane Save / debug).
+   .btn-icon          — 24x24 icon-only button.
+   .btn-toggle        — one-of-N option button (segmented / theme-select).
+   .btn-reset-inline  — tiny inline reset (controls-section + theme-row).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* .btn-primary — solid accent CTA. Used everywhere a "primary action"
+   appears: modal Open Project, controls Save, etc.
+   Alias for legacy .modal-actions button selector. */
+.btn-primary,
+.modal-actions button {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cc-accent);
+  border: 0;
+  color: var(--cc-text-inverse);
+  padding: var(--cc-space-4) var(--cc-space-7);
+  border-radius: var(--cc-radius-md);
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-semibold);
+  transition: background var(--cc-t-base);
+}
+.btn-primary:hover:not(:disabled),
+.modal-actions button:hover:not(:disabled) {
+  background: var(--cc-accent-light);
+}
+.btn-primary:disabled,
+.modal-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Tiny accent reset buttons (controls section + theme row).
+   Two near-identical rules from the audit consolidated into a shared
+   ruleset; no new component class. */
+.controls-section-reset,
+.theme-row-reset {
+  flex: 0 0 auto;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: 1px solid transparent;
+  padding: var(--cc-space-1) var(--cc-space-2); /* 2px 4px */
+  border-radius: var(--cc-radius-sm);
+  color: var(--cc-accent);
+  font-size: var(--cc-font-xl); /* 14px */
+  line-height: 1;
+  cursor: pointer;
+}
+.controls-section-reset:not(:disabled):hover,
+.theme-row-reset:not(:disabled):hover {
+  color: var(--cc-white);
+  background: var(--cc-accent-bg);
+  border-color: var(--cc-accent-border);
+}
+.controls-section-reset:not(:disabled):active,
+.theme-row-reset:not(:disabled):active {
+  background: var(--cc-accent-bg-strong);
+}
+.controls-section-reset:disabled,
+.theme-row-reset:disabled {
+  color: var(--cc-accent-bg);
+  cursor: default;
+}
+/* Controls-section variant pushes itself to the right end of its summary row. */
+.controls-section-reset { margin-left: auto; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-icon    — default 24×24 icon button with hover overlay.
+   Modifiers:
+     .btn-icon--sm    — 22×22 (footer chrome).
+     .btn-icon--lg    — auto size via padding, 18px font, 6px radius
+                        (large × glyph like modal close).
+     .btn-icon--text  — auto size via padding, inherits font/color
+                        (text-style buttons like breadcrumb segments).
+     .btn-icon--link  — anchor-tag variant (text-decoration removed).
+     .btn-icon--no-drag — Electron drag-region marker.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.btn-icon {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-xl);
+  cursor: pointer;
+}
+.btn-icon:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+.btn-icon:disabled { cursor: default; }
+.btn-icon.is-active {
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
+}
+
+/* Modifiers */
+.btn-icon--sm   { width: 22px; height: 22px; font-size: var(--cc-font-lg); }
+.btn-icon--lg   { width: auto; height: auto; padding: var(--cc-space-2) var(--cc-space-4); border-radius: var(--cc-radius-md); font-size: var(--cc-font-2xl); color: inherit; }
+.btn-icon--text { width: auto; height: auto; padding: var(--cc-space-px) var(--cc-space-2); font: inherit; color: var(--cc-text-muted); }
+.btn-icon--link { text-decoration: none; }
+.btn-icon--no-drag { -webkit-app-region: no-drag; }
+
+/* Modal-close uses a stronger hover overlay than other btn-icons. */
+.modal-header .btn-icon:not(:disabled):hover {
+  background: var(--cc-overlay-bg-strong);
+}
+
+/* The header flex container already sets gap: 4px (--cc-space-2), so
+   header buttons don't need their own margins. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
+   ═══════════════════════════════════════════════════════════════════════════
+   Used by the header project switcher (icon + label + optional badge).
+   Different from .btn-icon — has gap, asymmetric padding, max-width,
+   ellipsis truncation on its label. */
+
+.btn-chip {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  height: 24px;
+  padding: 0 var(--cc-space-3); /* symmetric 6px each side */
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  border-radius: var(--cc-radius-sm);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  white-space: nowrap;
+  max-width: 280px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.btn-chip:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+.btn-chip:disabled { cursor: default; }
+/* Trailing chevron — visual cue that the chip opens a picker. */
+.btn-chip-chevron {
+  margin-left: var(--cc-space-1);
+  font-size: var(--cc-font-md);
+  opacity: 0.7;
+}
+
+/* .btn-icon--rainbow — paints the inner lucide-icon mask with a soft
+   pink → yellow → neon chartreuse → purple gradient instead of
+   currentColor. Pastel pink/yellow/purple anchors with a punchy
+   yellow-green in the middle for life. */
+.btn-icon--rainbow .lucide-icon {
+  /* Neon yellow → neon electric blue via OKLCH interpolation, with a
+     slowly rotating gradient angle so the gem reads as alive without
+     calling attention to itself. The @property declaration lets the
+     CSS engine tween the <angle> custom property (un-typed custom
+     props don't interpolate). */
+  background-image: linear-gradient(
+    in oklch var(--gem-angle, 180deg),
+    oklch(0.951 0.204 107.3) 0%,    /* neon yellow */
+    oklch(0.531 0.261 265.0) 100%   /* neon electric blue */
+  );
+  animation: gem-shimmer 12s linear infinite;
+}
+@property --gem-angle {
+  syntax: '<angle>';
+  initial-value: 180deg;
+  inherits: false;
+}
+@keyframes gem-shimmer {
+  from { --gem-angle:   0deg; }
+  to   { --gem-angle: 360deg; }
+}
+
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 
 html,
@@ -21,18 +696,10 @@ body {
   width: 100%;
   height: 100%;
   overflow: hidden;
-  background: #0a0b10;
-  color: #e0e0e0;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    sans-serif;
-  font-size: 14px;
+  background: var(--cc-bg-app);
+  color: var(--cc-text-primary);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-xl);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -71,14 +738,14 @@ body {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--cc-space-2);
   height: 32px;
-  padding: 0 8px;
-  background: #0c0d14;
-  border-bottom: 1px solid #1e2030;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
-  color: #c0c4d8;
+  padding: 0 var(--cc-space-4);
+  background: var(--cc-bg-chrome);
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
   user-select: none;
 }
@@ -88,37 +755,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
   min-width: 0;
-  letter-spacing: 0.02em;
-  color: #8a8fa8;
-}
-#app-title:empty::before {
-  content: 'CodeCity';
-  color: #44485e;
+  letter-spacing: var(--cc-track-base); /* was 0.02em (dropped) */
+  color: var(--cc-text-muted);
 }
 
-.app-header-icon {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 24px;
-  background: none;
-  border: none;
-  color: #6a7090;
-  cursor: pointer;
-  border-radius: 3px;
-  -webkit-app-region: no-drag;
-}
-.app-header-icon:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
-}
-.app-header-icon .lucide-icon {
-  font-size: 14px;
-}
+/* Visual style fully in .btn-icon (with --no-drag modifier where needed). */
 
 canvas {
   display: block;
@@ -126,7 +769,7 @@ canvas {
   height: 100%;
   /* Match the body bg so any sub-frame transparency during resize blends
      in instead of flashing. */
-  background: #0a0b10;
+  background: var(--cc-bg-app);
 }
 
 /* ── Sidebar shell ──────────────────────────────────────────────────────────── */
@@ -139,8 +782,8 @@ canvas {
      handle can mutate it without fighting the open/close transitions. */
   width: 0;
   height: 100%;
-  background: #12131a;
-  border-left: 1px solid #1e2030;
+  background: var(--cc-bg-sidebar);
+  border-left: 1px solid var(--cc-border-subtle);
   /* No transition during drag (would lag the cursor); transition is added
      by .is-animating which we toggle around open/close. */
   display: flex;
@@ -157,19 +800,25 @@ canvas {
 
 /* Drag-handle on the LEFT edge (mirror of the left sidebar's right edge).
    6px hit zone half-on/half-off so it's easy to grab. */
+/* Sidebar resize handles — base rule shared with .sidebar-resize-handle.
+   Per-class lines below set which edge (left/right) the handle anchors to
+   and the z-index. */
+.sidebar-resize-handle,
 .sidebar-resize-handle-right {
   position: absolute;
   top: 0;
-  left: -3px;
   width: 6px;
   height: 100%;
   cursor: ew-resize;
   background: transparent;
-  z-index: 101;
 }
+.sidebar-resize-handle-right { left:  -3px; z-index: 101; }
+.sidebar-resize-handle       { right: -3px; z-index: 91; }
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.dragging,
 .sidebar-resize-handle-right:hover,
 .sidebar-resize-handle-right.dragging {
-  background: rgba(108, 138, 255, 0.25);
+  background: var(--cc-accent-bg-strong);
 }
 
 /* ── Sitewide header content (chip + breadcrumb + copy) ──────────────────
@@ -188,13 +837,13 @@ canvas {
 .path-badge {
   flex: 0 0 auto;
   display: inline-block;
-  padding: 1px 6px;
-  border-radius: 3px;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
+  padding: var(--cc-space-px) var(--cc-space-3);
+  border-radius: var(--cc-radius-sm);
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-bold);
+  letter-spacing: var(--cc-track-label);
   text-transform: lowercase;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   background: hsl(var(--badge-hue, 0), 60%, 35%);
   white-space: nowrap;
   -webkit-app-region: no-drag;
@@ -205,79 +854,119 @@ canvas {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--cc-space-1);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.app-header-segment {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
-  padding: 1px 4px;
-  margin: 0;
-  font: inherit;
-  color: #8a8fa8;
-  cursor: pointer;
-  border-radius: 3px;
-  -webkit-app-region: no-drag;
-}
-.app-header-segment:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
-}
-.app-header-segment.is-leaf {
-  color: #e0e4f5;
+/* Shell + hover in .btn-icon. Per-class overrides: smaller padding,
+   inherited font, muted color, and the Electron drag-region marker.
+   The leaf modifier disables interactivity (last crumb = current). */
+/* Visual style in .btn-icon + .btn-icon--text + .btn-icon--no-drag.
+   Leaf-state behavior moved to .is-leaf modifier (used by breadcrumb
+   leaf segment + file-path-segment leaf). */
+.btn-icon.is-leaf {
+  color: var(--cc-text-primary);
   cursor: default;
 }
-.app-header-segment.is-leaf:hover {
+.btn-icon.is-leaf:not(:disabled):hover {
   background: transparent;
 }
 
 .app-header-sep {
   flex: 0 0 auto;
-  color: #44485e;
-  font-size: 12px;
+  color: var(--cc-text-ghost);
+  font-size: var(--cc-font-lg);
   pointer-events: none;
 }
 
-.app-header-icon.is-copied {
-  color: #4ade80;
-  background: rgba(74, 222, 128, 0.1);
+/* Middle-truncation ellipsis placeholder — shared by the header breadcrumb
+ * and the file-preview pane path. Shown when middle segments are hidden to
+ * prevent the row from overflowing. Hovering reveals a tooltip listing the
+ * hidden segment names. */
+.app-header-ellipsis,
+.file-path-ellipsis {
+  flex: 0 0 auto;
+  color: var(--cc-text-faint);
+  padding: 0 var(--cc-space-1);
+  cursor: help;
+  user-select: none;
 }
+
+/* File-preview pane path segments rendered inside .text-pane-title. */
+.file-path-segment {
+  flex: 0 0 auto;
+  color: var(--cc-text-muted);
+  white-space: nowrap;
+}
+.file-path-segment.is-leaf {
+  color: var(--cc-text-secondary);
+}
+.file-path-sep {
+  flex: 0 0 auto;
+  color: var(--cc-text-ghost);
+  font-size: var(--cc-font-lg);
+  pointer-events: none;
+  padding: 0 var(--cc-space-px);
+}
+
+/* Copy-feedback state — green pulse after click. Applied via JS by the
+   copy-button click handler (appHeader.ts). */
+.btn-icon.is-copied {
+  color: var(--cc-success);
+  background: var(--cc-success-bg);
+}
+
+/* The project switcher button is now .btn-chip (defined with the button
+   components near the top of the file). This rule only styles its
+   ellipsis-truncated label child. */
+.btn-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn-chip .lucide-icon {
+  font-size: var(--cc-font-xl);
+  flex: 0 0 auto;
+}
+
+.app-header-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 16px;
+  padding: 0 var(--cc-space-3);
+  margin-left: var(--cc-space-3);
+  border-radius: var(--cc-radius-md);
+  background: var(--cc-accent-bg-soft);
+  color: var(--cc-accent-light);
+  font-size: var(--cc-font-sm);
+  font-family: var(--cc-font-mono);
+  white-space: nowrap;
+}
+/* .app-header-repo-link rules consolidated into the merged
+   .switch-source-btn/.app-header-refresh-btn/.app-header-repo-link block
+   below (and the .btn-icon shared shell at the top of the file).
+   Per audit Step 7: drops the dead-on-arrival margin-left + opacity dim;
+   keeps the 2px 4px padding as a per-class override. */
 
 /* ── File preview pane (right sidebar) ──────────────────────────────────
    Outer container that wraps the pane header (filename + × close) and the
    editor body. The wrapper itself fills the sidebar's vertical space; the
    body grows inside it under the fixed-height header. */
 
-.file-preview-pane {
-  flex: 1 1 auto;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
+/* Layout in .pane. */
 
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
-.editor-body {
-  flex: 1 1 auto;
-  min-height: 0; /* let children scroll inside the flex */
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #0a0b10;
-}
-
+/* Layout in .pane; this rule only adds the app-bg fill behind the canvas. */
+.editor-body { background: var(--cc-bg-app); }
 .editor-body > * {
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* Empty/error/too-large states all use the .preview-state helper below
-   (centered icon + headline + subtitle). */
+/* Empty/error/too-large states all use the .empty-state + .empty-state--lg
+   helper (centered icon + headline + subtitle) in the search-pane section. */
 
 /* ── Sitewide footer (status bar) ───────────────────────────────────────
    Lives at the bottom of the app shell (sibling of #app-header /
@@ -288,16 +977,16 @@ canvas {
 #app-footer {
   flex: 0 0 auto;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
-  gap: 14px;
-  padding: 0 12px;
+  gap: var(--cc-space-7);
+  padding: 0 var(--cc-space-6);
   height: 24px;
-  background: #0c0d14;
-  border-top: 1px solid #1a1c28;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10.5px;
-  color: #8a8fa8;
+  background: var(--cc-bg-chrome);
+  border-top: 1px solid var(--cc-track);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
@@ -307,31 +996,35 @@ canvas {
   /* Tight gap — the `·` separators between items provide most of the
    * visual breathing room; the gap just keeps things from butting up
    * against the dots. */
-  gap: 6px;
+  gap: var(--cc-space-3);
+  /* Stretch to fill the grid cell + clip at the cell boundary. The
+   * previous attempt used justify-self: start/center/end, which made
+   * each section's box content-sized (not cell-sized) — overflow:hidden
+   * then clipped against the content box, NOT the cell, so long text in
+   * the left section painted on top of the center section's repo name.
+   * Stretching the box to the cell + aligning children with
+   * justify-content fixes this properly. */
   min-width: 0;
-}
-.app-footer-section.app-footer-left {
-  justify-self: start;
-  overflow-x: auto;
-}
-.app-footer-section.app-footer-left::-webkit-scrollbar {
-  height: 0;
-}
-.app-footer-section.app-footer-center {
-  justify-self: center;
+  width: 100%;
   overflow: hidden;
 }
+.app-footer-section.app-footer-left {
+  justify-content: flex-start;
+}
 .app-footer-section.app-footer-right {
-  justify-self: end;
+  justify-content: flex-end;
 }
 
 .app-footer-item {
-  flex: 0 0 auto;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .app-footer-source {
-  margin-left: 3px;
-  color: #44485e;
-  font-size: 9.5px;
+  margin-left: var(--cc-space-2);
+  color: var(--cc-text-ghost);
+  font-size: var(--cc-font-sm);
 }
 
 /* Shared muted-dot separator. Used between metadata items in the left
@@ -340,32 +1033,12 @@ canvas {
  * fall on the dot. */
 .app-footer-sep {
   flex: 0 0 auto;
-  color: #44485e;
+  color: var(--cc-text-ghost);
   pointer-events: none;
 }
 
-/* Small icon button — used by the reset-view trigger that lives in
- * the right section next to the status indicator. */
-.app-footer-button {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: none;
-  border: none;
-  color: #6a7090;
-  cursor: pointer;
-  border-radius: 3px;
-}
-.app-footer-button:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
-}
-.app-footer-button .lucide-icon {
-  font-size: 13px;
-}
+/* Footer button uses .btn-icon + .btn-icon--sm (defined with the icon
+   button component near the top of the file). */
 
 /* ── Combined status indicator (left section) ─────────────────────── */
 /* Layout: [dot] <status text>
@@ -377,24 +1050,26 @@ canvas {
 .app-footer-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cc-space-3);
 }
-.app-footer-status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex: 0 0 auto;
+/* Shape in .dot above; state-driven colors come from the .is-* parent
+   modifiers below. */
+.app-footer-status-detail {
+  color: var(--cc-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* Color by rebuild state. */
 .app-footer-status.is-ready .app-footer-status-dot {
-  background: #4ade80;
+  background: var(--cc-success);
 }
 .app-footer-status.is-rebuilding .app-footer-status-dot {
-  background: #fbbf24;
+  background: var(--cc-warning);
 }
 .app-footer-status.is-error .app-footer-status-dot {
-  background: #ef4444;
+  background: var(--cc-error);
 }
 
 /* Animation by combined state. */
@@ -408,13 +1083,6 @@ canvas {
 }
 /* is-ready.is-paused → no animation (static green dot).
  * is-error           → no animation (static red dot). */
-
-.app-footer-status-detail {
-  color: #6b7090;
-}
-.app-footer-status.is-error .app-footer-status-detail {
-  color: #fca5a5;
-}
 
 @keyframes app-footer-pulse {
   0%,
@@ -435,56 +1103,49 @@ canvas {
   }
 }
 
-/* ── Repo information (center section) ────────────────────────────── */
-.app-footer-repo {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  overflow: hidden;
-  min-width: 0;
-}
-.app-footer-repo-branch {
-  color: #8a8fa8;
-  flex: 0 0 auto;
-}
-.app-footer-repo-branch.is-dirty {
-  color: #fbbf24;
-}
-.app-footer-repo-link {
-  color: #6b8eff;
-  text-decoration: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-.app-footer-repo-link:hover {
-  text-decoration: underline;
+/* ── Footer responsive narrowing ───────────────────────────────────────────── */
+/* At narrow widths the status timestamp / "rebuilding…" text is secondary
+   information — hide it so the dot alone represents the status and the
+   left / center sections keep their space. */
+@media (max-width: 580px) {
+  #app-footer {
+    gap: var(--cc-space-3);
+    padding: 0 var(--cc-space-4);
+  }
+  .app-footer-status-detail {
+    display: none;
+  }
 }
 
 /* ── Custom scrollbar (WebKit) ──────────────────────────────────────────────── */
 
-#sidebar ::-webkit-scrollbar {
+/* Scrollbars — shared rules for both sidebars.
+   Webkit (Chrome / Safari / Edge) uses ::-webkit-scrollbar*; Firefox uses
+   scrollbar-width / scrollbar-color (set further down on the scrolling
+   children that actually overflow). */
+#sidebar ::-webkit-scrollbar,
+#tree-sidebar ::-webkit-scrollbar {
   width: 4px;
 }
-
-#sidebar ::-webkit-scrollbar-track {
+#sidebar ::-webkit-scrollbar-track,
+#tree-sidebar ::-webkit-scrollbar-track {
   background: transparent;
 }
-
-#sidebar ::-webkit-scrollbar-thumb {
-  background: #252838;
-  border-radius: 4px;
+#sidebar ::-webkit-scrollbar-thumb,
+#tree-sidebar ::-webkit-scrollbar-thumb {
+  background: var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
 }
-
-#sidebar ::-webkit-scrollbar-thumb:hover {
-  background: #363a52;
+#sidebar ::-webkit-scrollbar-thumb:hover,
+#tree-sidebar ::-webkit-scrollbar-thumb:hover {
+  background: var(--cc-track-hover);
 }
 
 /* Firefox */
 #sidebar .editor-body,
 #sidebar .code-editor {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 /* ── Selected building glow (applied by interactions.js) ────────────────────── */
@@ -497,15 +1158,15 @@ canvas {
   bottom: 16px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(108, 138, 255, 0.15);
-  border: 1px solid rgba(108, 138, 255, 0.35);
-  border-radius: 100px;
-  padding: 6px 16px;
-  font-size: 12px;
-  color: #8a9eff;
+  background: var(--cc-accent-bg);
+  border: 1px solid var(--cc-accent-border);
+  border-radius: var(--cc-radius-pill);
+  padding: var(--cc-space-3) var(--cc-space-7);
+  font-size: var(--cc-font-lg);
+  color: var(--cc-accent-light);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--cc-t-base);
 }
 
 .building-selected-indicator.visible {
@@ -516,35 +1177,30 @@ canvas {
 
 #hover-tooltip {
   position: fixed;
-  background: rgba(15, 17, 26, 0.94);
-  border: 1px solid #2a3050;
-  color: #d8dceb;
-  font-size: 11px;
-  padding: 4px 9px;
-  border-radius: 4px;
+  background: var(--cc-bg-tooltip);
+  border: 1px solid var(--cc-border-tooltip);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-md);
+  padding: var(--cc-space-2) var(--cc-space-4);
+  border-radius: var(--cc-radius-sm);
   pointer-events: none;
   z-index: 200;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   white-space: nowrap;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-md);
 }
 
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {
   position: absolute;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  font-size: 10px;
-  font-weight: 500;
-  color: rgba(140, 160, 200, 0.7);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-medium);
+  color: var(--cc-text-base);
   pointer-events: none;
   white-space: nowrap;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  text-shadow: var(--cc-shadow-text);
   user-select: none;
 }
 
@@ -560,8 +1216,8 @@ canvas {
   min-width: 280px;
   max-width: 600px;
   height: 100%;
-  background: #10111a;
-  border-right: 1px solid #1e2030;
+  background: var(--cc-bg-sidebar);
+  border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: row;
   z-index: 90;
@@ -576,20 +1232,7 @@ canvas {
 
 /* Drag-handle on the right edge. Thin so it doesn't steal real estate; the
  * 6px hit zone makes it easy to grab. */
-.sidebar-resize-handle {
-  position: absolute;
-  top: 0;
-  right: -3px; /* sit half-on, half-off the edge for an easier grab */
-  width: 6px;
-  height: 100%;
-  cursor: ew-resize;
-  background: transparent;
-  z-index: 91;
-}
-.sidebar-resize-handle:hover,
-.sidebar-resize-handle.dragging {
-  background: rgba(108, 138, 255, 0.25);
-}
+/* Resize handle rules consolidated with .sidebar-resize-handle-right above. */
 
 /* Collapsed: just the activity bar shows. Inline width on #tree-sidebar
  * (set by the resize handle) is overridden by !important so we get the
@@ -599,32 +1242,14 @@ canvas {
   width: 44px !important;
   min-width: 44px;
 }
-#tree-sidebar.is-collapsed .left-panel,
+#tree-sidebar.is-collapsed > .pane,
 #tree-sidebar.is-collapsed .sidebar-resize-handle {
   display: none;
 }
 
-/* "×" close button rendered inside each pane's header. Flexbox in the
- * header takes care of vertical centering against the title — this rule
- * just provides the button's own visual shell. */
-.pane-header-close {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
-  color: #6a7090;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  line-height: 1;
-}
-.pane-header-close:hover {
-  color: #e0e4f5;
-  background: rgba(255, 255, 255, 0.06);
-}
+/* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
+.pane-header .btn-icon--text { line-height: 1; }
+.pane-header .btn-icon--text:disabled { opacity: 0.35; }
 
 /* Activity bar splits into two nested flex columns: a top group that
  * stacks from the top and a bottom group that pins to the bottom. The
@@ -633,25 +1258,25 @@ canvas {
 .activity-bar {
   width: 44px;
   flex-shrink: 0;
-  background: #0c0d14;
-  border-right: 1px solid #1e2030;
+  background: var(--cc-bg-chrome);
+  border-right: 1px solid var(--cc-border-subtle);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: stretch;
-  padding: 8px 0;
+  padding: var(--cc-space-4) 0;
 }
 .activity-bar-group {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 2px;
+  gap: var(--cc-space-1);
 }
 
 .activity-bar-icon {
   background: none;
   border: none;
-  color: #565a72;
+  color: var(--cc-text-faint);
   height: 40px;
   display: flex;
   align-items: center;
@@ -659,21 +1284,21 @@ canvas {
   cursor: pointer;
   border-left: 2px solid transparent;
   transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
-  padding: 0;
+    color var(--cc-t-base),
+    background var(--cc-t-base),
+    border-color var(--cc-t-base);
+  padding: var(--cc-space-0);
 }
 
 .activity-bar-icon:hover {
-  color: #c0c4d8;
-  background: rgba(255, 255, 255, 0.03);
+  color: var(--cc-text-secondary);
+  background: var(--cc-overlay-bg-soft);
 }
 
 .activity-bar-icon.active {
-  color: #e0e4f5;
-  border-left-color: #6c8aff;
-  background: rgba(108, 138, 255, 0.06);
+  color: var(--cc-text-primary);
+  border-left-color: var(--cc-accent);
+  background: var(--cc-accent-bg-soft);
 }
 
 /* Lucide SVG icons rendered via CSS mask-image so they pick up currentColor.
@@ -702,19 +1327,7 @@ canvas {
   vertical-align: -0.15em;
 }
 
-.left-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.left-pane {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  overflow: hidden;
-}
+/* Layout in .pane. */
 
 /* Pane headers — title on the left, × close button on the right.
  * Flexbox keeps the two vertically centered against each other regardless
@@ -725,85 +1338,66 @@ canvas {
  * file-preview — mounts this same DOM so they look identical and
  * adding a pane is a single buildPaneHeader() call. */
 .pane-header {
-  padding: 12px 12px 12px 16px;
-  border-bottom: 1px solid #1e2030;
+  padding: var(--cc-space-6) var(--cc-space-6) var(--cc-space-6) var(--cc-space-7);
+  border-bottom: 1px solid var(--cc-border-subtle);
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--cc-space-4);
 }
 
 /* Smaller + lighter than a traditional heading so the panes read as
  * panels of content rather than each shouting for attention. The
  * .is-mono modifier flips to monospace for filename-style titles
  * (right-sidebar file-preview). */
-.pane-title {
+/* Typography in .text-pane-title; this rule adds layout
+   (flex-fill, truncation, sub-segment gap). */
+.text-pane-title {
   flex: 1 1 auto;
   min-width: 0;
-  margin: 0;
-  font-size: 12px;
-  font-weight: 600;
-  color: #c0c4d8;
-  letter-spacing: 0.02em;
+  margin: var(--cc-space-0);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
 }
-.pane-title.is-mono {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-}
+.text-pane-title.is-mono { font-family: var(--cc-font-mono); }
 
 .tree-root {
   flex: 1;
   overflow-y: auto;
-  padding: 8px 0;
+  padding: var(--cc-space-4) 0;
 }
 
 /* ── Controls pane ─────────────────────────────────────────────────────────── */
 
-.controls-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: 16px;
-  /* Padding here was pushing children past the pane width under default
-   * content-box. Border-box keeps the body's 16px padding inside its width. */
-  box-sizing: border-box;
-}
+/* Layout in .pane-body--padded. */
 
 .controls-section + .controls-section {
-  margin-top: 24px;
-  padding-top: 20px;
-  border-top: 1px solid #1a1c28;
-}
-
-.controls-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #c0c4d8;
+  margin-top: var(--cc-space-3);
+  padding-top: var(--cc-space-3);
+  border-top: 1px solid var(--cc-track);
 }
 
 .controls-section-hint {
-  font-size: 11px;
-  color: #6a7090;
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-faint);
   line-height: 1.5;
-  margin-bottom: 12px;
+  margin-bottom: var(--cc-space-6);
 }
 
+/* Shell from .code-inline; this rule adds the kbd-specific border, color,
+   small font, hairline horizontal margin, and resets italics. */
 .controls-section-hint kbd,
 .shortcuts-list kbd,
 .shortcuts-list .shortcuts-mouse {
-  display: inline-block;
-  background: rgba(108, 138, 255, 0.1);
-  border: 1px solid rgba(108, 138, 255, 0.3);
-  border-radius: 3px;
-  color: #c0c4d8;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10px;
-  padding: 1px 5px;
-  margin: 0 1px;
+  border: 1px solid var(--cc-accent-bg-strong);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-sm);
+  margin: 0 var(--cc-space-px);
   line-height: 1.2;
   font-style: normal;
 }
@@ -811,46 +1405,38 @@ canvas {
 /* Every controls section is a <details> for native collapse. Summary
  * is styled to match the file tree's accordion row: Lucide chevron +
  * label, with the same hover background, border radius, and padding
- * as .tree-row so the two activity-bar tabs feel like the same UI.
+ * as the tree rows so the two activity-bar tabs feel like the same UI.
  *
  * The chevron is a Lucide icon (via makeLucideIcon) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
+/* Style in .row + .row--bleed; this rule only hides the native disclosure
+   triangle (a custom .controls-section-chevron renders instead). */
 .controls-section > summary.controls-section-summary {
-  cursor: pointer;
   list-style: none;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  /* Match .tree-row padding so a section heading and a tree row sit at
-   * the same indent. Negative inline margins pull the row to the edge
-   * of the controls-pane padding for an edge-to-edge hover highlight,
-   * also mirroring .tree-row. */
-  padding: 3px 16px;
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-bottom: 4px;
-  border-radius: 4px;
-  transition: background 0.1s;
-}
-.controls-section > summary.controls-section-summary:hover {
-  background: rgba(255, 255, 255, 0.04);
 }
 .controls-section > summary.controls-section-summary::-webkit-details-marker {
   display: none;
 }
-.controls-section-chevron {
-  /* Match .tree-chevron's 14px slot so labels line up with the file
-   * tree's labels at the same horizontal position. */
+/* Section chevrons — consolidated rule shared with .theme-subgroup-chevron.
+   Width matches .tree-chevron so labels at all depths line up. */
+.controls-section-chevron,
+.theme-subgroup-chevron {
   width: 14px;
   height: 14px;
   flex-shrink: 0;
-  color: #c0c4d8;
-  transition: transform 0.1s ease;
+  color: var(--cc-text-secondary);
+  transition: transform var(--cc-t-fast) ease;
 }
-.controls-section[open] > summary.controls-section-summary > .controls-section-chevron {
+.controls-section[open] > summary.controls-section-summary > .controls-section-chevron,
+.theme-subgroup-collapsible[open] > summary > .theme-subgroup-chevron {
   transform: rotate(90deg);
 }
+
+/* Section-level reset button — sits at the far right of each top-level
+ * section summary. Styled like the per-row reset (.theme-row-reset) so the
+ * two read as the same affordance: accent-tinted at rest when any value
+ * differs from default, faded when everything matches. */
+/* .controls-section-reset typography in .btn-reset-inline. */
 
 /* Keyboard / mouse shortcuts table in the View section. Two-column grid:
  *   [keys / mouse]   [action]
@@ -859,111 +1445,105 @@ canvas {
 .shortcuts-list {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 6px 14px;
+  gap: var(--cc-space-3) var(--cc-space-7); /* 6px rows, 16px cols (was 14) */
   align-items: center;
-  margin: 8px 0 0;
-  font-size: 11px;
+  margin: var(--cc-space-4) 0 0;
+  font-size: var(--cc-font-md);
 }
 .shortcuts-list dt {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   white-space: nowrap;
 }
 .shortcuts-list dd {
-  color: #8a8fa8;
-  margin: 0;
+  color: var(--cc-text-muted);
+  margin: var(--cc-space-0);
   line-height: 1.3;
 }
 .shortcuts-list .shortcuts-or {
-  color: #6a7090;
-  font-size: 10px;
-  margin-left: 2px;
+  color: var(--cc-text-faint);
+  font-size: var(--cc-font-sm);
+  margin-left: var(--cc-space-1);
 }
 .shortcuts-divider {
   grid-column: 1 / -1;
   height: 1px;
-  background: #1a1c28;
-  margin: 4px 0;
+  background: var(--cc-track);
+  margin: var(--cc-space-2) 0;
 }
 
 .segmented-control {
   display: flex;
-  background: #0c0d14;
-  border: 1px solid #252838;
-  border-radius: 6px;
-  padding: 2px;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-1);
 }
 
-.segmented-option {
-  flex: 1;
+/* .btn-toggle — one-of-N option button (choose-one segmented control).
+   Base shell + active state. The `.is-active` class flips the option to
+   the accent-tinted "selected" look. Modifiers:
+     .btn-toggle--separated — adds vertical separator borders between
+       sibling options, used by the controls-pane theme-select where the
+       buttons sit edge-to-edge inside a bordered shell. */
+.btn-toggle {
+  appearance: none;
   background: none;
   border: none;
-  color: #6a7090;
+  color: var(--cc-text-faint);
   font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 10px;
   cursor: pointer;
-  border-radius: 4px;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
+  padding: var(--cc-space-2) var(--cc-space-5);
+  border-radius: var(--cc-radius-sm);
   transition:
-    color 0.15s,
-    background 0.15s;
+    color var(--cc-t-base),
+    background var(--cc-t-base);
 }
 
-.segmented-option:hover {
-  color: #c0c4d8;
+.btn-toggle:hover {
+  color: var(--cc-text-secondary);
 }
 
-.segmented-option.active {
-  background: rgba(108, 138, 255, 0.18);
-  color: #e0e4f5;
+.btn-toggle.is-active {
+  background: var(--cc-accent-bg);
+  color: var(--cc-text-primary);
 }
 
-.controls-button {
-  display: block;
-  width: 100%;
-  box-sizing: border-box;
-  background: rgba(108, 138, 255, 0.1);
-  border: 1px solid rgba(108, 138, 255, 0.25);
-  border-radius: 5px;
-  color: #c0c4d8;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 500;
-  padding: 8px 10px;
+/* .btn-secondary — standalone outlined neutral button. Used for any
+   "less prominent action" (Cancel, Reset all, Discard, dev tools). */
+.btn-secondary {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--cc-overlay-bg-soft);
+  border: 1px solid var(--cc-overlay-bg-strong);
+  border-radius: var(--cc-radius-md);
+  color: var(--cc-text-secondary);
+  padding: var(--cc-space-4) var(--cc-space-7); /* matches .btn-primary */
   cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-medium);
   transition:
-    color 0.15s,
-    background 0.15s,
-    border-color 0.15s;
+    color var(--cc-t-base),
+    background var(--cc-t-base),
+    border-color var(--cc-t-base);
 }
-
-.controls-button:hover {
-  background: rgba(108, 138, 255, 0.18);
-  border-color: rgba(108, 138, 255, 0.4);
-  color: #e0e4f5;
+.btn-secondary:hover:not(:disabled) {
+  background: var(--cc-overlay-bg-strong);
+  border-color: var(--cc-overlay-border);
+  color: var(--cc-text-primary);
 }
-
-.controls-button:active:not(:disabled) {
-  background: rgba(108, 138, 255, 0.25);
+.btn-secondary:active:not(:disabled) {
+  background: var(--cc-overlay-border);
 }
-.controls-button:disabled {
+.btn-secondary:disabled {
   opacity: 0.4;
   cursor: not-allowed;
 }
 
-/* Secondary variant: muted background + border, used by "Reset all" so
- * it sits beside the primary "Save" button without competing visually. */
-.controls-button-secondary {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-.controls-button-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.25);
-  color: #e0e4f5;
-}
-
-/* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
+/* Sticky bottom action bar — sibling of the .pane-body, NOT inside it,
  * so it stays visible while the form scrolls. Reset all sits on the
  * left; Discard + Save are paired on the right. */
 .controls-actions {
@@ -971,23 +1551,21 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
-  padding: 10px 16px;
-  background: #10111a;
-  border-top: 1px solid #1e2030;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-5) var(--cc-space-7);
+  background: var(--cc-bg-sidebar);
+  border-top: 1px solid var(--cc-border-subtle);
 }
 .controls-actions-left,
 .controls-actions-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
 }
-.controls-actions .controls-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: auto;
+/* Buttons inside the sticky controls action bar share an icon-text layout. */
+.controls-actions .btn-primary,
+.controls-actions .btn-secondary {
+  gap: var(--cc-space-3);
 }
 .controls-button-icon {
   width: 14px;
@@ -997,75 +1575,48 @@ canvas {
 
 /* ── Theme + Advanced widgets ───────────────────────────────────────── */
 
+/* Sub-accordions are separated by spacing only — no dividing border.
+   Only top-level .controls-section blocks get a divider between siblings. */
 .theme-subgroup {
-  margin-top: 14px;
-  padding-top: 10px;
-  border-top: 1px dashed #1a1c28;
+  margin-top: var(--cc-space-2);
+  padding-top: var(--cc-space-2);
 }
 .theme-subgroup:first-of-type {
-  margin-top: 12px;
-  padding-top: 0;
-  border-top: none;
+  margin-top: var(--cc-space-3);
+  padding-top: var(--cc-space-0);
 }
 
-.theme-subgroup-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #8a8fa8;
-  margin-bottom: 8px;
+/* Subgroup label spacing — the inline label <div> at the top of a
+   non-collapsible subgroup adds breathing room above its rows. Typography
+   (color, weight, size) comes from .text-label + .text-label--muted. */
+.theme-subgroup > .text-label {
+  margin-bottom: var(--cc-space-4); /* 8px */
 }
 
 /* Collapsible subgroup variant — a <details> whose <summary> doubles as
- * the .theme-subgroup-label. Same Lucide chevron + hover row treatment
- * as .controls-section-summary so the open/closed affordance is
- * consistent at every level of the panel. */
-.theme-subgroup-collapsible > summary.theme-subgroup-label {
-  cursor: pointer;
+ * the subgroup label. Same Lucide chevron + hover row treatment as
+ * .controls-section-summary so the open/closed affordance is consistent
+ * at every level of the panel. The <summary> carries
+ * .row + .row--bleed + .text-label + .text-label--muted in the DOM. */
+/* This rule only hides the native disclosure triangle (a custom
+   .theme-subgroup-chevron renders instead). */
+.theme-subgroup-collapsible > summary {
   list-style: none;
-  user-select: none;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 16px;
-  margin-left: -16px;
-  margin-right: -16px;
-  margin-bottom: 4px;
-  border-radius: 4px;
-  transition: background 0.1s;
 }
-.theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-.theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
+.theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;
 }
-.theme-subgroup-chevron {
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
-  color: #8a8fa8;
-  transition: transform 0.1s ease;
-}
-.theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
-  transform: rotate(90deg);
-}
+/* Chevron rule consolidated with .controls-section-chevron above. */
 
 /* Nested subgroups inside a collapsible parent (e.g. Buildings > Facade >
- * Geometry / Contrast / Window lighting). The parent's <summary> already
- * provides a visual divider, so the first nested child must drop its
- * dashed border-top — otherwise the open parent shows a double divider
- * between the summary and the first child's label. Subsequent nested
- * children keep their dashed border to separate sibling groups. A small
- * left padding indents the whole nested block so the hierarchy reads. */
+ * Geometry / Contrast / Window lighting). A small left padding indents
+ * the whole nested block so the hierarchy reads. */
 .theme-subgroup-collapsible > .theme-subgroup {
-  padding-left: 10px;
+  padding-left: var(--cc-space-5);
 }
 .theme-subgroup-collapsible > .theme-subgroup:first-of-type {
-  margin-top: 8px;
-  padding-top: 0;
-  border-top: none;
+  margin-top: var(--cc-space-4);
+  padding-top: var(--cc-space-0);
 }
 
 /* Row layout:
@@ -1079,10 +1630,10 @@ canvas {
 .theme-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 4px 0;
-  font-size: 11px;
-  color: #c0c4d8;
+  gap: var(--cc-space-6);
+  padding: var(--cc-space-2) 0;
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-secondary);
   cursor: default;
   min-width: 0;
 }
@@ -1093,7 +1644,7 @@ canvas {
   max-width: 55%;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--cc-space-3);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1103,38 +1654,14 @@ canvas {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
   justify-content: flex-end;
 }
 
 /* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
  * row's value differs from its default, fades in on hover. */
-.theme-row-reset {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  background: none;
-  border: 1px solid transparent;
-  padding: 3px 5px;
-  margin: 0;
-  cursor: pointer;
-  color: rgba(108, 138, 255, 0.85);
-  border-radius: 4px;
-  font-size: 14px;
-  line-height: 1;
-}
-.theme-row-reset:not(:disabled):hover {
-  color: #ffffff;
-  background: rgba(108, 138, 255, 0.18);
-  border-color: rgba(108, 138, 255, 0.45);
-}
-.theme-row-reset:not(:disabled):active {
-  background: rgba(108, 138, 255, 0.3);
-}
-.theme-row-reset:disabled {
-  cursor: default;
-  color: rgba(108, 138, 255, 0.22);
-}
+/* .theme-row-reset typography in .btn-reset-inline. */
+.theme-row-reset { margin: var(--cc-space-0); }
 
 /* Color swatch — small native color picker */
 .theme-color {
@@ -1142,22 +1669,22 @@ canvas {
   appearance: none;
   width: 32px;
   height: 22px;
-  padding: 0;
+  padding: var(--cc-space-0);
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 4px;
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
 .theme-color::-webkit-color-swatch-wrapper {
-  padding: 0;
+  padding: var(--cc-space-0);
 }
 .theme-color::-webkit-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
 }
 .theme-color::-moz-color-swatch {
   border: none;
-  border-radius: 3px;
+  border-radius: var(--cc-radius-sm);
 }
 
 /* Hue preview — sits at the right end of a hue slider row, showing the
@@ -1167,44 +1694,35 @@ canvas {
   display: inline-block;
   width: 18px;
   height: 18px;
-  border-radius: 3px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--cc-radius-sm);
+  border: 1px solid var(--cc-overlay-border);
   flex: 0 0 auto;
-  margin-left: 6px;
+  margin-left: var(--cc-space-3);
 }
 
 /* Segmented select — used for enum picks like "Detail: full / silhouette
  * / hidden". One button per option; the active option lights up. */
 .theme-select {
   display: inline-flex;
-  background: #0c0d14;
-  border: 1px solid #252838;
-  border-radius: 4px;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-border-input);
+  border-radius: var(--cc-radius-sm);
   overflow: hidden;
 }
-.theme-select-option {
-  background: none;
-  border: none;
-  border-right: 1px solid #1a1c28;
-  color: #6a7090;
-  font-family: inherit;
-  font-size: 10px;
-  padding: 3px 8px;
-  cursor: pointer;
-  transition:
-    color 0.15s,
-    background 0.15s;
+/* .btn-toggle--separated — modifier that adds a vertical separator
+   between sibling options. Used inside .theme-select where the buttons
+   sit edge-to-edge. Also tightens the padding + font for the dense
+   inline-flex shell, and adds a soft hover background. */
+.btn-toggle--separated {
+  border-right: 1px solid var(--cc-track);
+  font-size: var(--cc-font-sm);
+  padding: var(--cc-space-2) var(--cc-space-4);
 }
-.theme-select-option:last-child {
+.btn-toggle--separated:last-child {
   border-right: none;
 }
-.theme-select-option:hover {
-  color: #c0c4d8;
-  background: rgba(255, 255, 255, 0.04);
-}
-.theme-select-option.is-active {
-  background: rgba(108, 138, 255, 0.18);
-  color: #e0e4f5;
+.btn-toggle--separated:hover {
+  background: var(--cc-overlay-bg-soft);
 }
 
 /* Boolean toggle — native checkbox styled to match the brand blue. */
@@ -1212,26 +1730,12 @@ canvas {
   width: 16px;
   height: 16px;
   cursor: pointer;
-  accent-color: #6c8aff;
-  margin: 0;
+  accent-color: var(--cc-accent);
+  margin: var(--cc-space-0);
 }
 
-/* Number input — narrow box on the right of the row */
-.theme-number {
-  width: 70px;
-  background: #0c0d14;
-  border: 1px solid #252838;
-  border-radius: 4px;
-  color: #e0e4f5;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11px;
-  padding: 3px 6px;
-  text-align: right;
-}
-.theme-number:focus {
-  outline: none;
-  border-color: rgba(108, 138, 255, 0.5);
-}
+/* Number input — narrow box on the right of the row. Styled in
+   .form-input + .form-input--mono near the top of the file. */
 
 /* Slider — the range input grows into available space; the readout is
  * auto-sized to its content (with a small floor so short numbers don't
@@ -1242,7 +1746,7 @@ canvas {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--cc-space-4);
 }
 
 .theme-slider {
@@ -1251,8 +1755,8 @@ canvas {
   flex: 1 1 auto;
   min-width: 60px;
   height: 4px;
-  background: #1a1c28;
-  border-radius: 2px;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
   cursor: pointer;
 }
 .theme-slider::-webkit-slider-thumb {
@@ -1260,17 +1764,17 @@ canvas {
   appearance: none;
   width: 12px;
   height: 12px;
-  background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
 }
 .theme-slider::-moz-range-thumb {
   width: 12px;
   height: 12px;
-  background: rgba(108, 138, 255, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
 }
 
@@ -1278,9 +1782,9 @@ canvas {
   flex: 0 0 auto;
   min-width: 36px;
   text-align: right;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 10px;
-  color: #8a8fa8;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-sm);
+  color: var(--cc-text-muted);
   white-space: nowrap;
 }
 
@@ -1305,18 +1809,18 @@ canvas {
   left: 0;
   right: 0;
   height: 4px;
-  background: #1a1c28;
-  border-radius: 2px;
+  background: var(--cc-track);
+  border-radius: var(--cc-radius-sm);
 }
 .theme-range-pair-fill {
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
   height: 4px;
-  background: linear-gradient(90deg, rgba(108, 138, 255, 0.85), rgba(108, 138, 255, 0.55));
-  border-radius: 2px;
+  background: linear-gradient(90deg, var(--cc-accent), var(--cc-accent-border));
+  border-radius: var(--cc-radius-sm);
   pointer-events: none;
-  box-shadow: 0 0 6px rgba(108, 138, 255, 0.35);
+  box-shadow: var(--cc-glow-accent);
 }
 
 /* Both range inputs overlay the pair container exactly. The track itself
@@ -1332,8 +1836,8 @@ canvas {
   pointer-events: none;
   -webkit-appearance: none;
   appearance: none;
-  margin: 0;
-  padding: 0;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-0);
 }
 .theme-range-pair input[type='range']:focus {
   outline: none;
@@ -1363,111 +1867,64 @@ canvas {
   appearance: none;
   width: 14px;
   height: 14px;
-  background: #6c8aff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-sm);
 }
 .theme-range-pair input[type='range']::-moz-range-thumb {
   width: 14px;
   height: 14px;
-  background: #6c8aff;
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
+  background: var(--cc-accent);
+  border: 1px solid var(--cc-overlay-border);
+  border-radius: var(--cc-radius-circle);
   cursor: pointer;
   pointer-events: auto;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--cc-shadow-sm);
 }
 /* Lo thumb a touch darker so it reads as the "lower" anchor when the
  * two thumbs sit at the same value (otherwise they'd be a single dot). */
 .theme-range-pair input.theme-range-pair-lo::-webkit-slider-thumb {
-  background: #4d6fef;
+  background: var(--cc-accent-dark);
 }
 .theme-range-pair input.theme-range-pair-lo::-moz-range-thumb {
-  background: #4d6fef;
+  background: var(--cc-accent-dark);
 }
 
 /* Scrollbar for tree */
-#tree-sidebar ::-webkit-scrollbar {
-  width: 4px;
-}
-#tree-sidebar ::-webkit-scrollbar-track {
-  background: transparent;
-}
-#tree-sidebar ::-webkit-scrollbar-thumb {
-  background: #252838;
-  border-radius: 4px;
-}
-#tree-sidebar ::-webkit-scrollbar-thumb:hover {
-  background: #363a52;
-}
+/* Webkit scrollbar rules consolidated with #sidebar earlier in the file.
+   This block only sets the Firefox scrollbar style on the actual
+   scrolling child of #tree-sidebar. */
 #tree-sidebar .tree-root {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 .tree-list {
   list-style: none;
-  margin: 0;
+  margin: var(--cc-space-0);
   /* Per-level indent. Kept tighter than the historical 14px so deep
    * trees don't run off the side of a narrow sidebar; the chevron
    * column + folder icon already give each level a clear visual step. */
-  padding: 0 0 0 8px;
+  padding: 0 0 0 var(--cc-space-4);
 }
 
 .tree-root.tree-list {
-  /* The root folder row already brings its own .tree-row 8px padding;
+  /* The root folder row already brings its own 8px padding through .row;
      no need to indent the root list itself. */
-  padding-left: 0;
+  padding-left: var(--cc-space-0);
 }
 
 .tree-item {
-  margin: 0;
-  padding: 0;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-0);
 }
 
-.tree-row {
-  display: flex;
-  align-items: center;
-  /* Tight base gap so the chevron + folder/file icon read as one unit
-   * (VSCode-style). The icon's own margin-right (below) widens the
-   * effective space before the label. */
-  gap: 2px;
-  /* Left padding mirrors the .pane-header's 16px so depth-0 chevrons
-   * line up under the "Explorer" title. Nested levels add their own
-   * 8px via .tree-list — no compounding padding inside the row itself. */
-  padding: 3px 16px;
-  cursor: pointer;
-  border-radius: 4px;
-  transition: background 0.1s;
-  user-select: none;
-}
-
-.tree-row:hover {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* Hover mirror: pushed in by leftSidebarApi.setHoveredTreePath from
-   _setHover so hovering a building/street in the city visually highlights
-   the matching row. Same look as the native :hover bg so the source of the
-   hover (cursor vs. city) is visually identical. */
-.tree-item.tree-hovered > .tree-row {
-  background: rgba(255, 255, 255, 0.04);
-}
-
-/* Selection highlight: pushed in by leftSidebarApi.setSelectedTreePath
-   from _setSelection so the tree mirrors the city's currentSelection.
-   Wins over the hover background since the .tree-selected rule is
-   declared after .tree-hovered. */
-.tree-item.tree-selected > .tree-row {
-  background: rgba(108, 138, 255, 0.18);
-}
-.tree-item.tree-selected > .tree-row:hover,
-.tree-item.tree-selected.tree-hovered > .tree-row {
-  background: rgba(108, 138, 255, 0.24);
-}
+/* Tree rows use .row + .row--tight (the tight modifier collapses the
+   chevron-to-label gap to 2px). Selection highlight in .row--selected
+   near the top of the file. */
 
 .tree-chevron {
   display: inline-flex;
@@ -1492,7 +1949,7 @@ canvas {
   flex-shrink: 0;
   display: inline-block;
   vertical-align: middle;
-  margin-right: 4px;
+  margin-right: var(--cc-space-2);
   /* Hide the broken-image glyph for the brief window between src set
    * and the CDN fetch landing (or while the onerror fallback flips). */
   font-size: 0;
@@ -1500,16 +1957,16 @@ canvas {
 }
 
 /* Root row: chevron is removed from layout (display: none) so the
- * root folder icon sits flush at .tree-row's left padding (16px) —
+ * root folder icon sits flush at the row's left padding (16px) —
  * lined up directly under the "Explorer" header title. The chevron
  * element stays in the DOM so _setDirExpanded's selector keeps
  * working; only its layout box is suppressed. */
-.tree-root-item > .tree-row > .tree-chevron {
+.tree-root-item > .row > .tree-chevron {
   display: none;
 }
 
 .tree-icon {
-  font-size: 12px;
+  font-size: var(--cc-font-lg);
   width: 14px;
   text-align: center;
   flex-shrink: 0;
@@ -1517,24 +1974,21 @@ canvas {
 }
 
 .tree-icon-dir {
-  color: #8a8fa8;
+  color: var(--cc-text-muted);
 }
 
 .tree-label {
-  font-size: 12px;
-  color: #a0a4bc;
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-base);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tree-dir > .tree-row > .tree-label {
-  color: #c0c4d8;
-  font-weight: 500;
-}
-
-.tree-file > .tree-row > .tree-label {
-  color: #8a8ea0;
+/* Tree dir / file labels share the same color; the chevron + dir/file icon
+   already distinguish the two. */
+.tree-dir > .row > .tree-label {
+  font-weight: var(--cc-fw-medium);
 }
 
 /* ── Search pane (Search tab in left sidebar) ───────────────────────────
@@ -1545,34 +1999,21 @@ canvas {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #1e2030;
+  gap: var(--cc-space-3);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  border-bottom: 1px solid var(--cc-border-subtle);
 }
 
 .search-input-icon {
   flex: 0 0 auto;
-  font-size: 14px;
-  color: #6a7090;
+  font-size: var(--cc-font-xl);
+  color: var(--cc-text-faint);
 }
 
+/* Visual style in .form-input; this rule adds the flex-fill layout. */
 .search-input {
   flex: 1 1 auto;
   min-width: 0;
-  background: #0c0d14;
-  border: 1px solid #252838;
-  border-radius: 4px;
-  color: #e0e4f5;
-  font-family: inherit;
-  font-size: 12px;
-  padding: 5px 8px;
-  outline: none;
-}
-.search-input::placeholder {
-  color: #565a72;
-}
-.search-input:focus {
-  border-color: rgba(108, 138, 255, 0.5);
 }
 /* Drop the native ⓧ clear button in WebKit — we use Esc / focus loss. */
 .search-input::-webkit-search-cancel-button {
@@ -1580,111 +2021,113 @@ canvas {
   appearance: none;
 }
 
-.search-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
+/* Layout in .pane-body. */
 
-.search-state {
+/* Empty-state centered card — icon + title + subtitle stacked vertically.
+   Default sizing fits the search pane's empty-hint / no-matches state.
+   Modifiers:
+     .empty-state--lg — larger gap + padding + icon for file-preview
+       and info-pane states, where the panel has more vertical room. */
+.empty-state {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 24px 18px;
-  color: #6a7090;
+  gap: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px */
+  color: var(--cc-text-faint);
   text-align: center;
 }
-.search-state .lucide-icon {
-  font-size: 22px;
+.empty-state .lucide-icon {
   opacity: 0.55;
-  margin-bottom: 2px;
+  font-size: var(--cc-font-3xl);
+  margin-bottom: var(--cc-space-1); /* 2px */
 }
-.search-state-title {
-  margin: 0;
-  font-size: 12px;
-  font-weight: 500;
-  color: #c0c4d8;
+/* Large variant — bigger gap + padding + icon. Used by the file-preview
+   pane and the info pane's empty / error states. */
+.empty-state--lg .lucide-icon {
+  font-size: var(--cc-font-4xl);
+  margin-bottom: var(--cc-space-2); /* 4px */
 }
-.search-state-sub {
-  margin: 0;
+.empty-state--lg {
+  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px */
+}
+/* Typography of .text-card-title / .text-card-sub already covered. The
+   per-class margin-0 / max-width / line-height bits live here so the
+   card title + subtitle render tightly inside the state card regardless
+   of which alias they were dropped into. */
+.empty-state .text-card-title { margin: var(--cc-space-0); }
+.empty-state .text-card-sub {
+  margin: var(--cc-space-0);
   max-width: 240px;
-  font-size: 11px;
   line-height: 1.5;
-  color: #6a7090;
+}
+.empty-state--lg .text-card-sub {
+  max-width: 280px;
 }
 
 .search-results {
   list-style: none;
-  margin: 0;
-  padding: 4px 0;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-2) 0;
 }
 .search-result {
   display: block;
-  padding: 4px 12px;
+  padding: var(--cc-space-2) var(--cc-space-6);
   cursor: pointer;
   border-left: 2px solid transparent;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 11.5px;
-  color: #a0a4bc;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   outline: none;
 }
 .search-result:hover {
-  background: rgba(255, 255, 255, 0.04);
-  color: #e0e4f5;
+  background: var(--cc-overlay-bg-soft);
+  color: var(--cc-text-primary);
 }
 .search-result:focus-visible {
-  background: rgba(108, 138, 255, 0.12);
-  border-left-color: #6c8aff;
-  color: #e0e4f5;
+  background: var(--cc-accent-bg);
+  border-left-color: var(--cc-accent);
+  color: var(--cc-text-primary);
 }
 .search-result mark {
   background: transparent;
-  color: #6c8aff;
-  font-weight: 700;
+  color: var(--cc-accent);
+  font-weight: var(--cc-fw-bold);
 }
 .search-result:hover mark,
 .search-result:focus-visible mark {
-  color: #a8baff;
+  color: var(--cc-accent-light);
 }
 
-/* Scrollbar tuned to match the tree pane's. */
-#tree-sidebar .search-body {
+/* Scrollbar tuned to match the tree pane's. The search pane's body
+   uses .pane-body; the info pane's body adds the .info-body marker so
+   this Firefox scrollbar rule can target it specifically. */
+#tree-sidebar .search-pane > .pane-body {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
    Renders the project root README's markdown. Layout matches the other
    panes: header on top, scrollable body underneath. The body's empty /
-   error states reuse the .preview-state helper from the file sidebar. */
+   error states use the .empty-state + .empty-state--lg helper. */
 
-.info-body {
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-}
-.info-body > .preview-state {
-  flex: 1 1 auto;
-}
+/* Layout in .pane-body; this rule keeps the empty-state child fill. */
+.info-body > .empty-state { flex: 1 1 auto; }
 #tree-sidebar .info-body {
   scrollbar-width: thin;
-  scrollbar-color: #252838 transparent;
+  scrollbar-color: var(--cc-border-input) transparent;
 }
 
 .info-markdown {
-  padding: 16px 18px 24px;
-  color: #c0c4d8;
-  font-size: 13px;
+  padding: var(--cc-space-7) var(--cc-space-7) var(--cc-space-8);
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg);
   line-height: 1.6;
   word-wrap: break-word;
 }
@@ -1695,47 +2138,47 @@ canvas {
 .info-markdown h4,
 .info-markdown h5,
 .info-markdown h6 {
-  color: #e0e4f5;
-  font-weight: 700;
-  margin: 18px 0 8px;
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-bold);
+  margin: var(--cc-space-7) 0 var(--cc-space-4);
   line-height: 1.3;
 }
 .info-markdown h1:first-child,
 .info-markdown h2:first-child,
 .info-markdown h3:first-child {
-  margin-top: 0;
+  margin-top: var(--cc-space-0);
 }
 .info-markdown h1 {
-  font-size: 20px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid #1e2030;
+  font-size: var(--cc-font-3xl);
+  padding-bottom: var(--cc-space-3);
+  border-bottom: 1px solid var(--cc-border-subtle);
 }
 .info-markdown h2 {
-  font-size: 17px;
-  padding-bottom: 4px;
-  border-bottom: 1px solid #1a1c28;
+  font-size: var(--cc-font-2xl);
+  padding-bottom: var(--cc-space-2);
+  border-bottom: 1px solid var(--cc-track);
 }
 .info-markdown h3 {
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
 }
 .info-markdown h4 {
-  font-size: 13px;
-  color: #c0c4d8;
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-secondary);
 }
 .info-markdown h5,
 .info-markdown h6 {
-  font-size: 12px;
-  color: #8a8fa8;
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--cc-track-label);
 }
 
 .info-markdown p {
-  margin: 8px 0;
+  margin: var(--cc-space-4) 0;
 }
 
 .info-markdown a {
-  color: #6c8aff;
+  color: var(--cc-accent);
   text-decoration: none;
 }
 .info-markdown a:hover {
@@ -1743,96 +2186,94 @@ canvas {
 }
 
 .info-markdown strong {
-  color: #e0e4f5;
-  font-weight: 700;
+  color: var(--cc-text-primary);
+  font-weight: var(--cc-fw-bold);
 }
 .info-markdown em {
-  color: #d0d4e8;
+  color: var(--cc-text-primary);
   font-style: italic;
 }
 
 .info-markdown ul,
 .info-markdown ol {
-  margin: 8px 0;
-  padding-left: 22px;
+  margin: var(--cc-space-4) 0;
+  padding-left: var(--cc-space-8);
 }
 .info-markdown li {
-  margin: 3px 0;
+  margin: var(--cc-space-2) 0;
 }
 .info-markdown li > p {
-  margin: 0;
+  margin: var(--cc-space-0);
 }
 
 .info-markdown blockquote {
-  margin: 10px 0;
-  padding: 4px 12px;
-  border-left: 3px solid #2a3050;
-  color: #8a8fa8;
-  background: rgba(108, 138, 255, 0.04);
+  margin: var(--cc-space-5) 0;
+  padding: var(--cc-space-2) var(--cc-space-6);
+  border-left: 3px solid var(--cc-border-tooltip);
+  color: var(--cc-text-muted);
+  background: var(--cc-accent-bg-soft);
 }
 .info-markdown blockquote > p {
-  margin: 4px 0;
+  margin: var(--cc-space-2) 0;
 }
 
 .info-markdown hr {
   border: none;
-  border-top: 1px solid #1e2030;
-  margin: 16px 0;
+  border-top: 1px solid var(--cc-border-subtle);
+  margin: var(--cc-space-7) 0;
 }
 
+/* Shell from .code-inline; this rule adds the info-markdown specific
+   larger font and primary text color. */
 .info-markdown code {
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
-  background: rgba(108, 138, 255, 0.08);
-  border: 1px solid rgba(108, 138, 255, 0.18);
-  border-radius: 3px;
-  padding: 1px 5px;
-  color: #d8dceb;
+  border: 1px solid var(--cc-accent-bg);
+  color: var(--cc-text-primary);
+  font-size: var(--cc-font-lg);
 }
 
 .info-markdown pre {
-  background: #0c0d14;
-  border: 1px solid #1a1c28;
-  border-radius: 5px;
-  padding: 10px 12px;
-  margin: 10px 0;
+  background: var(--cc-bg-chrome);
+  border: 1px solid var(--cc-track);
+  border-radius: var(--cc-radius-md);
+  padding: var(--cc-space-5) var(--cc-space-6);
+  margin: var(--cc-space-5) 0;
   overflow-x: auto;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-lg);
   line-height: 1.5;
 }
 .info-markdown pre code {
   background: transparent;
   border: none;
-  padding: 0;
-  color: #c0c4d8;
+  padding: var(--cc-space-0);
+  color: var(--cc-text-secondary);
   font-size: inherit;
 }
 
 .info-markdown img {
   max-width: 100%;
-  border-radius: 4px;
+  border-radius: var(--cc-radius-sm);
 }
 
 .info-markdown table {
   border-collapse: collapse;
-  margin: 10px 0;
-  font-size: 12px;
+  margin: var(--cc-space-5) 0;
+  font-size: var(--cc-font-lg);
 }
 .info-markdown th,
 .info-markdown td {
-  border: 1px solid #1e2030;
-  padding: 5px 10px;
+  border: 1px solid var(--cc-border-subtle);
+  padding: var(--cc-space-2) var(--cc-space-5);
   text-align: left;
 }
 .info-markdown th {
-  background: #0c0d14;
-  color: #e0e4f5;
+  background: var(--cc-bg-chrome);
+  color: var(--cc-text-primary);
 }
 
 .info-markdown input[type='checkbox'] {
-  margin: 0 6px 0 0;
-  accent-color: #6c8aff;
+  margin: 0 var(--cc-space-3) 0 0;
+  accent-color: var(--cc-accent);
 }
 
 /* ── File preview elements (children of .editor-body) ───────────────────
@@ -1845,10 +2286,10 @@ canvas {
   height: 100%;
   object-fit: contain;
   background:
-    linear-gradient(45deg, #0c0d14 25%, transparent 25%),
-    linear-gradient(-45deg, #0c0d14 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #0c0d14 75%),
-    linear-gradient(-45deg, transparent 75%, #0c0d14 75%);
+    linear-gradient(45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--cc-bg-chrome) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--cc-bg-chrome) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--cc-bg-chrome) 75%);
   background-size: 16px 16px;
   background-position:
     0 0,
@@ -1862,7 +2303,7 @@ canvas {
   width: 100%;
   height: 100%;
   outline: none;
-  background: #000;
+  background: oklch(0 0 0);
 }
 
 .preview-pdf {
@@ -1875,56 +2316,16 @@ canvas {
 /* Wrapper that holds either the code editor (on success) or a centered
    state message (loading / too-large / fetch-failed). Exists so we can
    swap between those two without leaving an empty gutter behind. */
-.preview-shell {
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-}
+/* Layout in .pane; this rule only sizes the placeholder used while a
+   file-preview fetch is in flight. */
 .preview-shell:empty::before {
-  /* Subtle "loading" placeholder while the fetch is in flight. */
   content: '';
   flex: 1 1 auto;
 }
 
-/* Centered state message (matches .editor-empty-hint shape). Used for
-   load errors, file-too-large notices, etc. */
-.preview-state {
-  flex: 1 1 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 32px 20px;
-  color: #6a7090;
-  text-align: center;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-}
-.preview-state .lucide-icon {
-  font-size: 28px;
-  opacity: 0.55;
-  margin-bottom: 4px;
-}
-.preview-state-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: #c0c4d8;
-}
-.preview-state-sub {
-  margin: 0;
-  max-width: 280px;
-  font-size: 11px;
-  line-height: 1.5;
-  color: #6a7090;
-}
+/* Centered state messages (load errors, file-too-large notices, etc.)
+   use .empty-state + .empty-state--lg; see the empty-state rules in the
+   search-pane section above. */
 
 /* ── Code editor (text preview) ─────────────────────────────────────────
    Two-column flex: a sticky line-number gutter on the left and a
@@ -1951,23 +2352,18 @@ canvas {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
-  background: rgba(108, 138, 255, 0.06);
-  border-bottom: 1px solid rgba(108, 138, 255, 0.18);
-  color: #8a9eff;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
-  font-size: 11px;
+  gap: var(--cc-space-4);
+  padding: var(--cc-space-3) var(--cc-space-6);
+  background: var(--cc-accent-bg-soft);
+  border-bottom: 1px solid var(--cc-accent-bg);
+  color: var(--cc-accent-light);
+  font-family: var(--cc-font-sans);
+  font-size: var(--cc-font-md);
   line-height: 1.4;
 }
 .code-editor-banner .lucide-icon {
   flex: 0 0 auto;
-  font-size: 14px;
+  font-size: var(--cc-font-xl);
   opacity: 0.85;
 }
 
@@ -1978,9 +2374,9 @@ canvas {
   align-items: stretch;
   width: 100%;
   overflow: auto;
-  background: #0a0b10;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
-  font-size: 12px;
+  background: var(--cc-bg-app);
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-lg);
   line-height: 1.55;
   tab-size: 4;
 }
@@ -1989,10 +2385,10 @@ canvas {
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
-  padding: 10px 8px 10px 10px;
-  background: #0c0d14;
-  border-right: 1px solid #1a1c28;
-  color: #44485e;
+  padding: var(--cc-space-5) var(--cc-space-4) var(--cc-space-5) var(--cc-space-5);
+  background: var(--cc-bg-chrome);
+  border-right: 1px solid var(--cc-track);
+  color: var(--cc-text-faint); /* was var(--cc-text-ghost) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
   /* The gutter's width is content-driven (3 digits + padding) and stays
@@ -2010,12 +2406,12 @@ canvas {
 }
 
 .code-editor-pre {
-  margin: 0;
-  padding: 10px 12px;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-5) var(--cc-space-6);
   flex: 1 1 auto;
   white-space: pre;
   background: transparent;
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
 }
 
 .code-editor-code {
@@ -2027,7 +2423,7 @@ canvas {
 
 /* ── highlight.js token theme (dark, codecity-tinted) ─────────────────── */
 .hljs {
-  color: #c0c4d8;
+  color: var(--cc-text-secondary);
   background: transparent;
 }
 .hljs-keyword,
@@ -2035,51 +2431,353 @@ canvas {
 .hljs-literal,
 .hljs-section,
 .hljs-link {
-  color: #c084fc;
+  color: var(--cc-syntax-keyword);
 } /* purple */
 .hljs-string,
 .hljs-attr,
 .hljs-symbol,
 .hljs-bullet,
 .hljs-meta-string {
-  color: #86efac;
+  color: var(--cc-syntax-string);
 } /* green */
 .hljs-number,
 .hljs-quote,
 .hljs-template-tag,
 .hljs-type {
-  color: #fbbf24;
+  color: var(--cc-warning);
 } /* amber */
 .hljs-title,
 .hljs-name,
 .hljs-selector-id,
 .hljs-selector-class {
-  color: #6c8aff;
+  color: var(--cc-accent);
 } /* brand blue */
 .hljs-built_in,
 .hljs-builtin-name {
-  color: #38bdf8;
+  color: var(--cc-syntax-builtin);
 } /* sky */
 .hljs-variable,
 .hljs-template-variable {
-  color: #fda4af;
+  color: var(--cc-syntax-variable);
 } /* rose */
 .hljs-comment,
 .hljs-meta {
-  color: #5b6178;
+  color: var(--cc-syntax-comment);
   font-style: italic;
 }
 .hljs-deletion {
-  color: #fca5a5;
-  background: rgba(252, 165, 165, 0.08);
+  color: var(--cc-syntax-deletion);
+  background: var(--cc-syntax-deletion-bg);
 }
 .hljs-addition {
-  color: #86efac;
-  background: rgba(134, 239, 172, 0.08);
+  color: var(--cc-syntax-string);
+  background: var(--cc-syntax-string-bg);
 }
 .hljs-emphasis {
   font-style: italic;
 }
 .hljs-strong {
-  font-weight: 600;
+  font-weight: var(--cc-fw-semibold);
 }
+
+/* ── Source picker modal + loading overlay ───────────────────────────────
+   Radius convention (per docs/ui-styleguide-audit.md §6 Inconsistency 3):
+   outer .modal-card is 10px; every interactive child (close button, tabs,
+   input, error, submit button) is 6px. Keep new modal children at 6px. */
+
+.modal-backdrop,
+.loading-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--cc-bg-backdrop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+#source-picker-root,
+#loading-overlay-root {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+}
+
+.modal-card {
+  width: 560px;
+  max-width: 92vw;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--cc-bg-modal);
+  color: var(--cc-text-base);
+  border-radius: var(--cc-radius-lg);
+  box-shadow: var(--cc-shadow-lg);
+  overflow: hidden;
+  font-family: inherit;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
+  background: var(--cc-bg-chrome); /* chrome titlebar — matches activity bar surface */
+  border-bottom: 1px solid var(--cc-border-subtle);
+  font-weight: var(--cc-fw-semibold);
+}
+
+/* Modal-close × is a .btn-icon + .btn-icon--lg (button selector + data-action).
+   The hover override (stronger overlay, no color change) lives near the
+   icon-button component definition: .modal-header .btn-icon:not(:disabled):hover. */
+
+.modal-body {
+  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Tab strip — classic underline-tab pattern. The container draws the
+   horizontal rule under the row; each tab paints a 2px transparent
+   border-bottom that overlaps that rule (negative bottom margin) and
+   switches to the accent color on the active tab.
+
+   Layout:
+   - Negative inline margins pull the row out to the modal-card edges so
+     the underline spans the full card width.
+   - The row itself has padding that matches the modal body padding,
+     keeping the first/last tab aligned with the body content below.
+   - Individual tab buttons have no horizontal padding; the row's
+     gap property drives the spacing between tabs. */
+.modal-tabs {
+  display: flex;
+  gap: var(--cc-space-7); /* 16px between tabs */
+  margin-left: calc(-1 * var(--cc-space-6));
+  margin-right: calc(-1 * var(--cc-space-6));
+  margin-bottom: var(--cc-space-5);
+  padding: 0 var(--cc-space-6);
+  border-bottom: 1px solid var(--cc-border-subtle);
+}
+.modal-tabs button {
+  appearance: none;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--cc-text-muted);
+  padding: var(--cc-space-3) 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: var(--cc-fw-medium);
+  transition:
+    color var(--cc-t-base),
+    border-color var(--cc-t-base);
+}
+.modal-tabs button:hover {
+  color: var(--cc-text-primary);
+}
+.modal-tabs button.active {
+  color: var(--cc-text-primary);
+  border-bottom-color: var(--cc-accent);
+}
+
+.modal-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+  margin-bottom: var(--cc-space-6);
+}
+.modal-field label {
+  font-size: var(--cc-font-lg);
+  color: var(--cc-text-muted);
+}
+/* Visual style consolidated in the .modal-field input rule near the top
+   of the file (next to .form-input). */
+
+.modal-error {
+  background: var(--cc-error-bg);
+  border: 1px solid var(--cc-error-border);
+  color: var(--cc-error-light);
+  padding: var(--cc-space-4) var(--cc-space-5);
+  border-radius: var(--cc-radius-md);
+  margin-bottom: var(--cc-space-6);
+  font-size: var(--cc-font-lg);
+}
+
+.modal-actions {
+  display: flex;
+  margin-top: var(--cc-space-3);
+}
+.modal-actions button {
+  /* Primary action stretches the full row width in the modal. */
+  flex: 1 1 auto;
+}
+
+.recents-list {
+  margin-top: var(--cc-space-7);
+  border-top: 1px solid var(--cc-border-subtle);
+  padding-top: var(--cc-space-5);
+}
+/* Typography in .text-label. */
+.recents-list h3 { margin: 0 0 var(--cc-space-4); /* 0 0 8px */ }
+/* Each recent project is a .recent-item row: a .recent-row click target
+   that opens the project, plus a sibling .btn-icon that removes it.
+   Keeping them as siblings (not parent/child) means the row's hover
+   highlight has symmetric left/right padding, and the remove button has
+   its own independent hit area outside the highlighted region. */
+.recent-item {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+}
+.recent-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  background: none;
+  border: none;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-5);
+  padding: var(--cc-space-3) var(--cc-space-4); /* 6px 8px — symmetric */
+  border-radius: var(--cc-radius-md);
+  cursor: pointer;
+  color: inherit;
+  font: inherit;
+}
+.recent-row:hover {
+  background: var(--cc-overlay-bg);
+}
+.recent-row-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.recent-row .recent-label {
+  font-weight: var(--cc-fw-medium);
+}
+.recent-row .recent-sub {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
+}
+
+.recent-row--active {
+  background: var(--cc-accent-bg-soft);
+  cursor: default;
+}
+.recent-row--active:hover {
+  background: var(--cc-accent-bg);
+}
+
+/* Destructive trash button next to each recent — red icon at rest and
+   on hover, with a red-tinted hover background. Vertical padding gives
+   the icon breathing room and a generous vertical click target. */
+.recent-item .btn-icon[data-action="recent-remove"] {
+  padding: var(--cc-space-4) var(--cc-space-2); /* 8px 4px */
+  color: var(--cc-error);
+}
+.recent-item .btn-icon[data-action="recent-remove"]:hover {
+  color: var(--cc-error-light);
+  background: var(--cc-error-bg);
+}
+.recent-row-badge {
+  margin-left: auto;
+  font-size: var(--cc-font-sm);
+  font-weight: var(--cc-fw-semibold);
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-accent);
+  background: var(--cc-accent-bg);
+  border: 1px solid var(--cc-accent-border);
+  border-radius: var(--cc-radius-lg);
+  padding: var(--cc-space-1) var(--cc-space-3);
+  white-space: nowrap;
+}
+
+.modal-field-help {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted); /* was 0.45 (3.82:1 → now 5.70:1, WCAG AA) */
+  margin-top: var(--cc-space-2);
+}
+
+/* Loading overlay */
+.loading-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cc-space-7);
+  padding: var(--cc-space-8) var(--cc-space-9);
+  background: var(--cc-bg-modal);
+  color: var(--cc-text-base);
+  border-radius: var(--cc-radius-lg);
+  box-shadow: var(--cc-shadow-lg);
+  min-width: 260px;
+}
+.loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--cc-overlay-border);
+  border-top-color: var(--cc-accent);
+  border-radius: var(--cc-radius-circle);
+  animation: cc-spin 0.8s linear infinite;
+}
+@keyframes cc-spin {
+  to { transform: rotate(360deg); }
+}
+/* Typography in .text-card-title.is-loading (loading variant). */
+.text-card-title.is-loading { text-align: center; }
+.loading-steps {
+  list-style: none;
+  margin: var(--cc-space-0);
+  padding: var(--cc-space-0);
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3);
+}
+.loading-steps li {
+  font-size: var(--cc-font-lg);
+  padding: var(--cc-space-1) 0 var(--cc-space-1) var(--cc-space-8);
+  position: relative;
+  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+  transition: color var(--cc-t-base);
+}
+.loading-steps li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  text-align: center;
+  font-size: var(--cc-font-md);
+}
+.loading-steps li[data-state="pending"] {
+  color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
+}
+.loading-steps li[data-state="active"] {
+  color: var(--cc-accent);
+}
+.loading-steps li[data-state="active"]::before {
+  content: '›';
+  color: var(--cc-accent);
+  font-size: var(--cc-font-xl);
+  font-weight: var(--cc-fw-bold);
+}
+.loading-steps li[data-state="done"] {
+  color: var(--cc-text-muted);
+}
+.loading-steps li[data-state="done"]::before {
+  content: '✓';
+  color: var(--cc-success-dark);
+  font-size: var(--cc-font-sm);
+}
+/* Header icon buttons — switch-source (far left) + refresh (far right).
+ * Both use the same styling as the old footer reset-view button so they
+ * read as the same affordance: fixed 22×22 square, muted blue-grey,
+ * brightens on hover. Margins differ to anchor each to its end of the
+ * flex row. */
+/* Header buttons (switch-source, refresh, repo-link) now use
+   .btn-icon + .btn-icon--no-drag (refresh/switch) or
+   .btn-icon + .btn-icon--link + .btn-icon--no-drag (repo-link).
+   Inner svg rendering tweak applies to any svg child of a header btn-icon. */
+#app-header .btn-icon svg { display: block; }

@@ -1,44 +1,42 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildApiUrl } from '@/url.js';
-import { SCAN_FILTERS } from '@/config/scan.js';
+import { buildApiUrl } from '../url.js';
+import { SCAN_FILTERS } from '../config/scan.js';
 
 describe('buildApiUrl', () => {
   beforeEach(() => {
-    SCAN_FILTERS.setKey('SHOW_ALL_FILES', false);
+    SCAN_FILTERS.set({ SHOW_ALL_FILES: false, NO_CACHE: false });
   });
 
-  it('forwards path query param', () => {
-    const url = buildApiUrl('/api/manifest', '?path=/tmp/foo', 'http://x.test');
-    expect(url).toBe('http://x.test/api/manifest?path=%2Ftmp%2Ffoo');
+  it('forwards src param when present', () => {
+    const u = buildApiUrl('/api/manifest', '?src=/foo/bar', 'http://127.0.0.1:8765');
+    expect(u).toContain('src=%2Ffoo%2Fbar');
   });
 
-  it('forwards clone + branch query params', () => {
-    const url = buildApiUrl(
-      '/api/manifest/signature',
-      '?clone=https://github.com/a/b&branch=main',
-      'http://x.test'
+  it('forwards src and branch together', () => {
+    const u = buildApiUrl(
+      '/api/manifest',
+      '?src=https%3A%2F%2Fgithub.com%2Fo%2Fr&branch=main',
+      'http://127.0.0.1:8765'
     );
-    expect(url).toContain('clone=https%3A%2F%2Fgithub.com%2Fa%2Fb');
-    expect(url).toContain('branch=main');
+    expect(u).toContain('src=https');
+    expect(u).toContain('branch=main');
   });
 
-  it('omits include_all when SHOW_ALL_FILES is off (default)', () => {
-    const url = buildApiUrl('/api/manifest', '?path=/tmp', 'http://x.test');
-    expect(url).not.toContain('include_all');
+  it('returns endpoint with no source params when src absent', () => {
+    const u = buildApiUrl('/api/manifest', '', 'http://127.0.0.1:8765');
+    expect(u).not.toContain('src=');
+    expect(u).not.toContain('branch=');
   });
 
   it('appends include_all=true when SHOW_ALL_FILES is on', () => {
     SCAN_FILTERS.setKey('SHOW_ALL_FILES', true);
-    const url = buildApiUrl('/api/manifest', '?path=/tmp', 'http://x.test');
-    expect(url).toContain('include_all=true');
+    const u = buildApiUrl('/api/manifest', '?src=/foo', 'http://127.0.0.1:8765');
+    expect(u).toContain('include_all=true');
   });
 
-  it('drops unrelated query params from the page URL', () => {
-    const url = buildApiUrl(
-      '/api/manifest',
-      '?path=/tmp&unrelated=1',
-      'http://x.test'
-    );
-    expect(url).not.toContain('unrelated');
+  it('appends no_cache=true when NO_CACHE is on', () => {
+    SCAN_FILTERS.setKey('NO_CACHE', true);
+    const u = buildApiUrl('/api/manifest', '?src=/foo', 'http://127.0.0.1:8765');
+    expect(u).toContain('no_cache=true');
   });
 });

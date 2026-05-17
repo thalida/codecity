@@ -1,21 +1,20 @@
-// views/shell/appFooter.ts — Sitewide bottom status bar. Three sections:
-//   left   — current selection metadata (language · lines · size · created
-//            · modified for files; file/dir counts + size for directories)
-//   center — repo information (project name + absolute root path)
-//   right  — combined status indicator: [dot] <status text>
+// views/shell/appFooter.ts — Sitewide bottom status bar. Two sections:
+//   left   — combined status indicator: [dot] detail-text
 //            One dot, two channels of state:
 //              color    — rebuild state (green=idle, yellow=rebuilding,
 //                         red=error)
 //              animation — live state (slow heartbeat when polling on,
 //                         static when paused, fast pulse when rebuilding,
 //                         static when error)
-//            Hover tooltip surfaces the live state ("Live updates: on/off")
-//            and the rebuild error message (when applicable).
+//            A detail <span> next to the dot shows human-readable status
+//            ("rebuilt 5s ago", "rebuilding…", "error: <msg>", "paused").
+//            title= on the wrapper is a fallback tooltip for narrow widths.
+//   right  — current selection metadata (language · lines · size · created
+//            · modified for files; file/dir counts + size for directories)
+//
+// The refresh/reset-view button has moved to the header (far right).
 
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { DateSource, NodeKind } from '@/types';
-import { makeExtensionBadge } from './badge.js';
-import { makeLucideIcon } from './icon.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -31,8 +30,15 @@ interface FooterFileSelection {
 
 interface FooterDirectorySelection {
   kind: NodeKind.Directory;
-  files?: number | null;
-  dirs?: number | null;
+  /** Files that are direct children of this directory. */
+  directFiles?: number | null;
+  /** All files recursively under this directory. */
+  totalFiles?: number | null;
+  /** Subdirectories that are direct children of this directory. */
+  directDirs?: number | null;
+  /** All subdirectories recursively under this directory. */
+  totalDirs?: number | null;
+  /** Total bytes of all descendant files. */
   size?: number | null;
 }
 
@@ -49,39 +55,17 @@ export interface FooterStatus {
   errorMessage: string | null;
 }
 
-export interface FooterRepoInfo {
-  /** Working-tree directory name — always present. */
-  name: string;
-  /** Absolute filesystem path of the working tree. */
-  root: string;
-  /** Current branch (e.g. "main") or "detached @ <sha>". null for non-git. */
-  branch: string | null;
-  /** Web URL for the origin remote ("" / null when no parseable remote). */
-  remoteUrl: string | null;
-  /** Last commit's short SHA — surfaced in the title tooltip. */
-  headSha: string | null;
-  /** Last commit's subject line — surfaced in the title tooltip. */
-  headSubject: string | null;
-  /** Working tree differs from HEAD or has untracked files. */
-  dirty: boolean;
-}
-
 const NOOP_API = {
   setSelection(_sel: FooterSelection | null) {},
   setStatus(_status: FooterStatus) {},
-  setRepoInfo(_info: FooterRepoInfo | null) {},
 };
 
-interface InitAppFooterOpts {
-  /** fn() — fires when the user clicks the reset-view button in the footer's right section. Same handler the R key fires. */
-  onResetView?: (() => void) | null;
-}
+interface InitAppFooterOpts {}
 
 /**
  * Initialise the sitewide footer. Returns:
  *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
  *                                            — right section (combined indicator)
- *   setRepoInfo({ ... })                     — center section
  *   setSelection(sel | null)                 — left section (badge + metadata)
  *
  * The leading path-badge reads palette + asphalt from the live config
@@ -89,40 +73,19 @@ interface InitAppFooterOpts {
  * extension hue or the asphalt color in Controls repaints the pill.
  */
 export function initAppFooter(opts: InitAppFooterOpts = {}) {
-  const { onResetView = null } = opts;
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 
-  const selectionEl = document.createElement('div');
-  selectionEl.className = 'app-footer-section app-footer-left';
-
-  const centerEl = document.createElement('div');
-  centerEl.className = 'app-footer-section app-footer-center';
-
   const statusContainerEl = document.createElement('div');
-  statusContainerEl.className = 'app-footer-section app-footer-right';
+  statusContainerEl.className = 'app-footer-section app-footer-left';
   const statusEl = document.createElement('span');
   statusEl.className = 'app-footer-status';
   statusContainerEl.appendChild(statusEl);
 
-  // Refresh button — the footer's "act like a fresh page load" trigger.
-  // The host wires it to a callback that re-fetches the manifest AND
-  // resets the camera (the R key continues to fire just the camera
-  // reset via scene/inputHandlers).
-  if (typeof onResetView === 'function') {
-    const resetBtn = document.createElement('button');
-    resetBtn.type = 'button';
-    resetBtn.className = 'app-footer-button';
-    resetBtn.title = 'Refresh — rebuild the city and reset the view';
-    resetBtn.setAttribute('aria-label', 'Refresh');
-    resetBtn.appendChild(makeLucideIcon('refresh-cw'));
-    resetBtn.addEventListener('click', () => {
-      onResetView();
-    });
-    statusContainerEl.appendChild(resetBtn);
-  }
+  const selectionEl = document.createElement('div');
+  selectionEl.className = 'app-footer-section app-footer-right';
 
-  footer.replaceChildren(selectionEl, centerEl, statusContainerEl);
+  footer.replaceChildren(statusContainerEl, selectionEl);
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
@@ -142,7 +105,7 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
       detailText = 'rebuilding…';
     } else if (status.rebuildStatus === 'error') {
       buildModifier = 'is-error';
-      detailText = 'error';
+      detailText = status.errorMessage ? `error: ${status.errorMessage}` : 'error';
     } else {
       buildModifier = 'is-ready';
       // 'ready' literal is a guard for unit tests or any code path that
@@ -156,104 +119,62 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     statusEl.classList.add(buildModifier);
     statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
 
-    // Compose the hover tooltip. Error message wins when present —
+    // Compose the hover tooltip on the wrapper so the dot-only layout
+    // still surfaces full context on hover. Error message wins when present —
     // otherwise show the live-state summary so users can discover the
     // play/pause distinction (the dot's heartbeat already hints at it).
     const liveLabel = `Live updates: ${status.liveEnabled ? 'on' : 'off'}`;
     if (status.rebuildStatus === 'error' && status.errorMessage) {
-      statusEl.title = `${liveLabel} · ${status.errorMessage}`;
+      statusEl.title = `${liveLabel} · error: ${status.errorMessage}`;
     } else if (status.rebuildStatus === 'idle' && status.lastUpdatedAt > 0) {
-      const exact = new Date(status.lastUpdatedAt).toLocaleString();
-      statusEl.title = `${liveLabel} · last rebuild ${exact}`;
+      statusEl.title = `${liveLabel} · rebuilt ${detailText}`;
+    } else if (status.rebuildStatus === 'rebuilding') {
+      statusEl.title = `${liveLabel} · rebuilding…`;
     } else {
       statusEl.title = liveLabel;
     }
     statusEl.setAttribute('aria-label', statusEl.title);
 
-    // Dot (color = rebuild state; animation = live state, scoped by CSS).
+    // Dot — color = rebuild state; animation = live state, scoped by CSS.
     const dot = document.createElement('span');
     dot.className = 'app-footer-status-dot';
     statusEl.appendChild(dot);
 
-    // Status detail (timestamp / "rebuilding…" / "error")
+    // Detail text — sits next to the dot; hidden via CSS at narrow widths.
     const detail = document.createElement('span');
     detail.className = 'app-footer-status-detail';
     detail.textContent = detailText;
     statusEl.appendChild(detail);
   }
 
-  function setRepoInfo(info: FooterRepoInfo | null): void {
-    centerEl.replaceChildren();
-    if (!info) return;
-
-    const wrap = document.createElement('span');
-    wrap.className = 'app-footer-repo';
-
-    if (info.branch) {
-      const branch = document.createElement('span');
-      branch.className = 'app-footer-repo-branch';
-      if (info.dirty) branch.classList.add('is-dirty');
-      // Lucide-style git-branch glyph wouldn't load here (the icon
-      // helper is for buttons); a textual prefix keeps the bar
-      // monospace-friendly without pulling in another dependency.
-      branch.textContent = info.dirty ? `⎇ ${info.branch}●` : `⎇ ${info.branch}`;
-      wrap.appendChild(branch);
-    }
-
-    if (info.remoteUrl) {
-      if (info.branch) wrap.appendChild(_makeSep());
-      const link = document.createElement('a');
-      link.className = 'app-footer-repo-link';
-      link.href = _branchAwareRepoUrl(info.remoteUrl, info.branch);
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.textContent = 'repo';
-      // Hover tooltip surfaces the destination so users can see where
-      // a click will take them (and which branch the link is pointing at).
-      link.title = info.branch
-        ? `${info.remoteUrl} · ⎇ ${info.branch}`
-        : info.remoteUrl;
-      wrap.appendChild(link);
-    }
-
-    centerEl.appendChild(wrap);
-  }
-
-  // Last selection cached so config-store subscriptions can re-render
-  // with the same selection when the palette / asphalt color changes.
-  let lastSelection: FooterSelection | null = null;
-
   function setSelection(sel: FooterSelection | null): void {
-    lastSelection = sel;
     selectionEl.replaceChildren();
     if (!sel) return;
 
-    // Palette + asphalt read fresh at render time so the badge follows
-    // live config edits (re-render is triggered by the subscriptions
-    // below when those stores change).
-    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
-    const asphaltColor = ASPHALT.get().COLOR;
-
-    // Always-leading chip (no dot before it). After the chip, the
-    // metadata items are joined with `·` separators to mirror the
+    // Metadata items are joined with `·` separators to mirror the
     // center repo section and reduce visual ambiguity between adjacent
     // values.
     const items: HTMLElement[] = [];
     if (sel.kind === NodeKind.File) {
-      selectionEl.appendChild(
-        makeExtensionBadge(sel.extension ?? null, false, huePalette, asphaltColor)
-      );
       if (sel.language) items.push(_item(sel.language));
       if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
-      if (sel.modified)
-        items.push(_item(`modified ${_formatDate(sel.modified)}`, sel.dateSource));
-      if (sel.created) items.push(_item(`created ${_formatDate(sel.created)}`, sel.dateSource));
+      if (sel.modified) {
+        const relMod = `modified ${_relativeTime(new Date(sel.modified).getTime(), Date.now())}`;
+        const absMod = `modified ${_formatDate(sel.modified)}`;
+        items.push(_item(relMod, sel.dateSource, absMod));
+      }
+      if (sel.created) {
+        const relCre = `created ${_relativeTime(new Date(sel.created).getTime(), Date.now())}`;
+        const absCre = `created ${_formatDate(sel.created)}`;
+        items.push(_item(relCre, sel.dateSource, absCre));
+      }
     } else if (sel.kind === NodeKind.Directory) {
-      selectionEl.appendChild(makeExtensionBadge(null, true, huePalette, asphaltColor));
       items.push(_item('Directory'));
-      if (sel.files != null) items.push(_item(`${sel.files} files`));
-      if (sel.dirs != null) items.push(_item(`${sel.dirs} dirs`));
+      const filesItem = _directoryCountItem(sel.directFiles, sel.totalFiles, 'files');
+      if (filesItem) items.push(filesItem);
+      const dirsItem = _directoryCountItem(sel.directDirs, sel.totalDirs, 'dirs');
+      if (dirsItem) items.push(dirsItem);
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
     }
     for (let i = 0; i < items.length; i++) {
@@ -262,31 +183,24 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     }
   }
 
-  // Live config: see appHeader for the same pattern. Drop the initial
-  // synchronous callback that nanostores fires at subscribe time so we
-  // don't re-render before the host has set an initial selection.
-  let _ready = false;
-  const _reRender = () => {
-    if (_ready) setSelection(lastSelection);
-  };
-  BUILDING_PALETTE.subscribe(_reRender);
-  ASPHALT.subscribe(_reRender);
-  _ready = true;
-
-  return { setSelection, setStatus, setRepoInfo };
+  return { setSelection, setStatus };
 }
 
 const SEC_MS = 1000;
 const MIN_MS = 60 * SEC_MS;
 const HOUR_MS = 60 * MIN_MS;
 const DAY_MS = 24 * HOUR_MS;
+const MONTH_MS = 30 * DAY_MS;
+const YEAR_MS = 365 * DAY_MS;
 function _relativeTime(then: number, now: number): string {
   const diff = Math.max(0, now - then);
   if (diff < 5 * SEC_MS) return 'just now';
   if (diff < MIN_MS) return `${Math.floor(diff / SEC_MS)}s ago`;
   if (diff < HOUR_MS) return `${Math.floor(diff / MIN_MS)}m ago`;
   if (diff < DAY_MS) return `${Math.floor(diff / HOUR_MS)}h ago`;
-  return `${Math.floor(diff / DAY_MS)}d ago`;
+  if (diff < MONTH_MS) return `${Math.floor(diff / DAY_MS)}d ago`;
+  if (diff < YEAR_MS) return `${Math.floor(diff / MONTH_MS)}mo ago`;
+  return `${Math.floor(diff / YEAR_MS)}y ago`;
 }
 
 function _makeSep(): HTMLSpanElement {
@@ -296,31 +210,22 @@ function _makeSep(): HTMLSpanElement {
   return sep;
 }
 
-/**
- * Append the host-appropriate "view at branch" path to a repo URL so
- * the link opens the repo on the same branch the user is looking at.
- * Falls back to the bare URL for hosts we don't recognize — better a
- * working repo home than a broken /tree URL.
- */
-function _branchAwareRepoUrl(url: string, branch: string | null): string {
-  if (!branch) return url;
-  const safeBranch = encodeURIComponent(branch);
-  if (/github\.com/i.test(url)) return `${url}/tree/${safeBranch}`;
-  if (/gitlab\./i.test(url)) return `${url}/-/tree/${safeBranch}`;
-  if (/bitbucket\.org/i.test(url)) return `${url}/src/${safeBranch}`;
-  return url;
-}
-
-function _item(text: string, source?: string): HTMLSpanElement {
+function _item(text: string, source?: string, hoverText?: string): HTMLSpanElement {
   const span = document.createElement('span');
   span.className = 'app-footer-item';
   span.textContent = text;
+
   if (source) {
     const src = document.createElement('span');
     src.className = 'app-footer-source';
     src.textContent = `(${source})`;
     span.appendChild(src);
   }
+
+  if (hoverText) {
+    span.title = hoverText;
+  }
+
   return span;
 }
 
@@ -330,6 +235,31 @@ function _formatBytes(bytes: number): string {
   if (bytes < BYTES_PER_KB) return `${bytes} B`;
   if (bytes < BYTES_PER_MB) return `${(bytes / BYTES_PER_KB).toFixed(1)} KB`;
   return `${(bytes / BYTES_PER_MB).toFixed(1)} MB`;
+}
+
+/**
+ * Build a directory-count item showing both direct-children and recursive
+ * descendant counts. When the two counts match (leaf-ish dirs) it renders
+ * just the single number. When they differ, the recursive total appears in
+ * parentheses after the direct count: e.g. `12 files (1375 total)`.
+ *
+ * Returns null if both counts are absent.
+ */
+function _directoryCountItem(
+  direct: number | null | undefined,
+  total: number | null | undefined,
+  label: string
+): HTMLSpanElement | null {
+  if (direct == null && total == null) return null;
+  if (direct == null) return _item(`${total} ${label}`, undefined, `${total} total`);
+  if (total == null || direct === total) {
+    return _item(`${direct} ${label}`, undefined, `${direct} direct children`);
+  }
+  return _item(
+    `${direct} ${label} (${total} total)`,
+    undefined,
+    `${direct} direct · ${total} total in this subtree`,
+  );
 }
 
 const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {

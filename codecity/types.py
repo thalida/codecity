@@ -12,7 +12,7 @@ names + the file_node / build_tree return annotations.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
 
 class NodeKind:
@@ -93,6 +93,7 @@ class Manifest(TypedDict):
     signature: str
     tree: DirNode
     repo: RepoInfo | None
+    display_root: NotRequired[str]
 
 
 class SignatureResponse(TypedDict):

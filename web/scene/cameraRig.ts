@@ -21,7 +21,7 @@
 // then clears the flag. There's no surface for an accidental re-frame.
 //
 // Camera-pose persistence: every controls 'change' event debounces a
-// localStorage save (cc.cameraPose). Restoration happens after the
+// localStorage save (cc.source.<key>.cameraPose). Restoration happens after the
 // initial framing snapshot so reset() always animates back to the true
 // default fit, not the user's last navigated pose.
 
@@ -33,10 +33,15 @@ import {
   CAMERA_ANIMATION,
   ANIMATION_TIMING,
 } from '@/config/index.js';
-import { STORAGE_KEYS } from '@/constants';
+import { CURRENT_SOURCE_KEY } from '../sourceContext.js';
 import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 import type { createCityScene } from './cityScene.js';
+
+function _cameraPoseKey(): string | null {
+  const k = CURRENT_SOURCE_KEY.get();
+  return k ? `cc.source.${k}.cameraPose` : null;
+}
 
 // _focusBuilding tries head-on, then tilts up if the view is obstructed.
 const SIGHTLINE_STEP_DEG = 20;
@@ -97,13 +102,15 @@ export function createCameraRig({
   function _saveCameraPose() {
     if (typeof localStorage === 'undefined') return;
     try {
-      localStorage.setItem(
-        STORAGE_KEYS.CAMERA_POSE,
-        JSON.stringify({
-          pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-          target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
-        })
-      );
+      const _ck = _cameraPoseKey();
+      if (_ck)
+        localStorage.setItem(
+          _ck,
+          JSON.stringify({
+            pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+            target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
+          })
+        );
     } catch (_) {
       /* private mode / quota — ignore */
     }
@@ -217,6 +224,15 @@ export function createCameraRig({
   const _scratchUserPos = new THREE.Vector3();
   const _scratchUserTarget = new THREE.Vector3();
 
+  // Apply a persisted pose object { pos, target } to the camera and controls.
+  // Extracted so both the constructor hydration and the source-switch
+  // subscription share the same logic.
+  function _applyPose(p: { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null | undefined) {
+    if (!p?.pos || !p?.target) return;
+    camera.position.set(p.pos.x, p.pos.y, p.pos.z);
+    controls.target.set(p.target.x, p.target.y, p.target.z);
+  }
+
   function _frameToBbox() {
     if (!_captureFraming() || !initialCamPos || !initialTarget) return false;
 
@@ -227,19 +243,16 @@ export function createCameraRig({
 
     // Restore saved pose if any. Done BEFORE attaching the change
     // listener so the restore itself doesn't trigger a re-save.
-    try {
-      if (typeof localStorage !== 'undefined') {
-        const savedPoseRaw = localStorage.getItem(STORAGE_KEYS.CAMERA_POSE);
-        if (savedPoseRaw) {
-          const p = JSON.parse(savedPoseRaw);
-          if (p?.pos && p?.target) {
-            camera.position.set(p.pos.x, p.pos.y, p.pos.z);
-            controls.target.set(p.target.x, p.target.y, p.target.z);
-          }
+    {
+      const _ck = _cameraPoseKey();
+      const savedPoseRaw = _ck ? localStorage.getItem(_ck) : null;
+      if (savedPoseRaw) {
+        try {
+          _applyPose(JSON.parse(savedPoseRaw));
+        } catch (_) {
+          /* corrupt JSON / unavailable storage — stay at default */
         }
       }
-    } catch (_) {
-      /* corrupt JSON / unavailable storage — stay at default */
     }
 
     if (!_changeListenerAttached) {
@@ -250,6 +263,24 @@ export function createCameraRig({
     if (!_rebuildSubscribed) {
       cityScene.onChange(() => {
         _captureFraming();
+      });
+      // Re-hydrate pose when the user switches source mid-session.
+      // Skip the immediate fire (same key as what _frameToBbox already applied).
+      let _lastSourceKey = CURRENT_SOURCE_KEY.get();
+      CURRENT_SOURCE_KEY.subscribe((newKey) => {
+        if (newKey === null || newKey === _lastSourceKey) return;
+        _lastSourceKey = newKey;
+        const raw = localStorage.getItem(`cc.source.${newKey}.cameraPose`);
+        if (raw) {
+          try {
+            _applyPose(JSON.parse(raw));
+          } catch {
+            /* bad JSON — let next bbox-frame run */
+          }
+        } else {
+          // No saved pose for the new source — reset to bbox framing.
+          controls.reset();
+        }
       });
       _rebuildSubscribed = true;
     }
@@ -299,7 +330,8 @@ export function createCameraRig({
     // Wipe persisted camera pose so a partially-applied reset doesn't
     // leave a stale pose to be restored on next page load.
     try {
-      if (typeof localStorage !== 'undefined') localStorage.removeItem(STORAGE_KEYS.CAMERA_POSE);
+      const _ck = _cameraPoseKey();
+      if (_ck) localStorage.removeItem(_ck);
     } catch (_) {
       /* private mode / unavailable — ignore */
     }

@@ -188,6 +188,7 @@ export function createBillboard(building: Building): THREE.Group {
     color: placeholderColor,
     side: THREE.FrontSide,
     transparent: true,
+    depthWrite: false,
   });
   const image = new THREE.Mesh(imageGeo, imageMat);
   image.position.set(0, postH + panelH / 2, panelD / 2 + IMAGE_OFFSET);
@@ -236,6 +237,7 @@ export function createBillboard(building: Building): THREE.Group {
         color: new THREE.Color(e, e, e),
         side: THREE.FrontSide,
         transparent: true,
+        depthWrite: false,
         opacity: (image.material as THREE.MeshBasicMaterial).opacity,
       });
     })

@@ -15,7 +15,14 @@ from tempfile import TemporaryDirectory
 from unittest import mock
 
 from codecity import clone as clone_mod
-from codecity.clone import CloneError, ensure_clone
+from codecity.clone import (
+    BranchNotFoundError,
+    CloneError,
+    HostUnreachableError,
+    RepoNotFoundError,
+    _maybe_raise_clean_clone_error,
+    ensure_clone,
+)
 
 
 os.environ["CODECITY_QUIET"] = "1"
@@ -109,6 +116,186 @@ class EnsureCloneTests(unittest.TestCase):
     def test_missing_remote_raises_clone_error(self) -> None:
         with self.assertRaises(CloneError):
             ensure_clone(str(self.tmp_path / "does-not-exist.git"))
+
+
+class CleanCloneErrorDispatcherTests(unittest.TestCase):
+    def test_branch_not_found_first_clone_stderr(self) -> None:
+        with self.assertRaises(BranchNotFoundError) as ctx:
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                "feature-x",
+                "fatal: Remote branch feature-x not found in upstream origin",
+            )
+        self.assertIn("feature-x", str(ctx.exception))
+
+    def test_branch_not_found_reset_stderr(self) -> None:
+        with self.assertRaises(BranchNotFoundError):
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                "feature-x",
+                "fatal: ambiguous argument 'origin/feature-x': "
+                "unknown revision or path not in the working tree.",
+            )
+
+    def test_repo_not_found(self) -> None:
+        with self.assertRaises(RepoNotFoundError):
+            _maybe_raise_clean_clone_error(
+                "https://example.com/x.git",
+                None,
+                "ERROR: Repository not found.\n"
+                "fatal: Could not read from remote repository.",
+            )
+
+    def test_host_unreachable(self) -> None:
+        with self.assertRaises(HostUnreachableError):
+            _maybe_raise_clean_clone_error(
+                "https://no-such-host.example/x.git",
+                None,
+                "fatal: unable to access 'https://no-such-host.example/x.git/': "
+                "Could not resolve host: no-such-host.example",
+            )
+
+    def test_auth_failure_passes_through(self) -> None:
+        # Auth failures are NOT translated. Caller sees no exception from
+        # the dispatcher — generic CloneError propagates from elsewhere.
+        result = _maybe_raise_clean_clone_error(
+            "https://example.com/x.git",
+            None,
+            "fatal: Authentication failed for 'https://example.com/x.git/'",
+        )
+        self.assertIsNone(result)
+
+    def test_subclass_relationship(self) -> None:
+        self.assertTrue(issubclass(BranchNotFoundError, CloneError))
+        self.assertTrue(issubclass(RepoNotFoundError, CloneError))
+        self.assertTrue(issubclass(HostUnreachableError, CloneError))
+
+
+class RunGitEnvTests(unittest.TestCase):
+    def test_run_git_disables_terminal_prompt(self) -> None:
+        from codecity import clone as clone_mod
+
+        captured = {}
+
+        def fake_run(*args, **kwargs):
+            captured["env"] = kwargs.get("env")
+            class R:
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return R()
+
+        with mock.patch.object(subprocess, "run", side_effect=fake_run):
+            clone_mod._run_git("status")
+
+        env = captured["env"]
+        self.assertIsNotNone(env)
+        self.assertEqual(env["GIT_TERMINAL_PROMPT"], "0")
+        self.assertEqual(env["GIT_ASKPASS"], "/usr/bin/true")
+        self.assertEqual(env["SSH_ASKPASS"], "/usr/bin/true")
+
+
+class EnsureCloneErrorRoutingTests(unittest.TestCase):
+    def _patch_cache(self, tmp: Path) -> None:
+        self._cache_patch = mock.patch.object(
+            clone_mod, "CACHE_ROOT", tmp / "cache"
+        )
+        self._cache_patch.start()
+        self.addCleanup(self._cache_patch.stop)
+
+    def test_first_clone_branch_not_found_translated_and_cleaned(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            remote, _ = _make_fake_remote(tmp)
+            with self.assertRaises(BranchNotFoundError):
+                ensure_clone(str(remote), branch="no-such-branch")
+            # Target dir should have been cleaned up.
+            target = clone_mod._cache_dir_for(str(remote), "no-such-branch")
+            self.assertFalse(target.exists(), "partial clone dir was left behind")
+
+    def test_repo_not_found_translated(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(RepoNotFoundError):
+                # /nonexistent.git: git emits "Repository ... does not exist"
+                # On macOS/Linux this manifests as "fatal: ...: '...' does not appear to be a git repository"
+                # We mock _run_git to emit the canonical Repository not found.
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): ERROR: Repository not found."
+                    ),
+                ):
+                    ensure_clone("https://example.com/nonexistent.git", None)
+
+    def test_host_unreachable_translated(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(HostUnreachableError):
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): "
+                        "fatal: unable to access 'https://nope.example/': "
+                        "Could not resolve host: nope.example"
+                    ),
+                ):
+                    ensure_clone("https://nope.example/x.git", None)
+
+    def test_auth_failure_passes_through_as_generic(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            with self.assertRaises(CloneError) as ctx:
+                with mock.patch.object(
+                    clone_mod, "_run_git",
+                    side_effect=CloneError(
+                        "git clone failed (exit 128): "
+                        "fatal: Authentication failed for 'https://example.com/x.git/'"
+                    ),
+                ):
+                    ensure_clone("https://example.com/x.git", None)
+            self.assertNotIsInstance(ctx.exception, BranchNotFoundError)
+            self.assertNotIsInstance(ctx.exception, RepoNotFoundError)
+            self.assertNotIsInstance(ctx.exception, HostUnreachableError)
+
+    def test_update_path_failure_keeps_existing_dir(self) -> None:
+        with TemporaryDirectory() as td:
+            tmp = Path(td)
+            self._patch_cache(tmp)
+            remote, _ = _make_fake_remote(tmp)
+            url = str(remote)
+
+            # Step 1: Clone the 'feature' branch successfully — populates the
+            # cache at _cache_dir_for(url, "feature").
+            target = ensure_clone(url, branch="feature")
+            self.assertTrue(target.exists())
+            self.assertTrue((target / "FEATURE.md").is_file())
+
+            # Step 2: Delete the 'feature' branch from the underlying remote so
+            # that the next fetch prunes it from the remote-tracking refs.
+            subprocess.run(
+                ["git", "-C", str(remote), "branch", "-D", "feature"],
+                check=True,
+                capture_output=True,
+            )
+
+            # Step 3: Call ensure_clone again for the same (url, "feature") pair.
+            # The cache dir exists → update path runs:
+            #   git fetch --prune origin  (succeeds, prunes origin/feature)
+            #   git reset --hard origin/feature  (fails — unknown revision)
+            # → caught by dispatcher → BranchNotFoundError.
+            with self.assertRaises(BranchNotFoundError):
+                ensure_clone(url, branch="feature")
+
+            # Step 4: The existing cache dir must NOT have been removed.
+            self.assertTrue(
+                target.exists(),
+                "update-path failure removed the existing clone directory",
+            )
 
 
 if __name__ == "__main__":

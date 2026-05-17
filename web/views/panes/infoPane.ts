@@ -49,13 +49,13 @@ export function buildInfoPane(
   opts: BuildInfoPaneOpts = {}
 ) {
   const pane = document.createElement('div');
-  pane.className = 'left-pane info-pane';
+  pane.className = 'pane info-pane';
 
   const { el: header } = buildPaneHeader({ title: 'Info', onClose: opts.onClose });
   pane.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'info-body';
+  body.className = 'pane-body info-body';
   pane.appendChild(body);
 
   // Track the current fetch so a stale response from a previous manifest
@@ -66,14 +66,14 @@ export function buildInfoPane(
   function _renderEmptyState(): void {
     body.replaceChildren();
     const box = document.createElement('div');
-    box.className = 'preview-state';
+    box.className = 'empty-state empty-state--lg';
     box.appendChild(makeLucideIcon('book-open'));
     const h = document.createElement('p');
-    h.className = 'preview-state-title';
+    h.className = 'text-card-title';
     h.textContent = 'No README';
     box.appendChild(h);
     const sub = document.createElement('p');
-    sub.className = 'preview-state-sub';
+    sub.className = 'text-card-sub';
     sub.textContent = 'Add a README at the project root to fill this panel.';
     box.appendChild(sub);
     body.appendChild(box);
@@ -82,15 +82,15 @@ export function buildInfoPane(
   function _renderError(message: string): void {
     body.replaceChildren();
     const box = document.createElement('div');
-    box.className = 'preview-state';
+    box.className = 'empty-state empty-state--lg';
     box.appendChild(makeLucideIcon('file-warning'));
     const h = document.createElement('p');
-    h.className = 'preview-state-title';
+    h.className = 'text-card-title';
     h.textContent = 'Couldn’t load README';
     box.appendChild(h);
     if (message) {
       const sub = document.createElement('p');
-      sub.className = 'preview-state-sub';
+      sub.className = 'text-card-sub';
       sub.textContent = message;
       box.appendChild(sub);
     }

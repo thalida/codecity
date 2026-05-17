@@ -2,7 +2,7 @@
 //
 // Layout:
 //   .controls-pane (flex column)
-//     .controls-header   — title
+//     .pane-header       — shared header (title + × close) via buildPaneHeader()
 //     .controls-body     — scrollable column of sections (one per scene element)
 //     .controls-actions  — sticky bottom bar: Reset all (left) · Discard · Save (right)
 //
@@ -43,6 +43,10 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
+  // File preview
+  SYNTAX_THEME,
+  SYNTAX_THEME_DEFAULT,
+  SYNTAX_THEME_OPTIONS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
@@ -111,26 +115,36 @@ interface BuildControlsPaneOpts {
   onRunStemDiagnostic?: () => void;
 }
 
-export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement {
+interface ControlsPaneBundle {
+  pane: HTMLElement;
+  /** Collapse every <details> section inside the pane. Called by the left
+   *  sidebar whenever the Controls tab becomes visible so the panel always
+   *  opens fresh — no state memory between opens. */
+  resetCollapsed: () => void;
+}
+
+export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
 
   const pane = document.createElement('div');
-  pane.className = 'left-pane controls-pane';
+  pane.className = 'pane controls-pane';
 
   const { el: header } = buildPaneHeader({ title: 'Controls', onClose: opts.onClose });
   pane.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'controls-body';
+  body.className = 'pane-body pane-body--padded';
 
   // Sections are organized by render scope, then interaction:
-  //   Scene → Layout → Buildings → Streets → Root gem → Effects
-  //   then Camera & Interaction (perspective, orbit, transitions, input,
-  //                              tooltip, keyboard shortcuts)
-  //   then Scan & Updates (file scanner config + live polling)
-  //   then Debug (developer diagnostics, collapsed by default).
+  //   Keyboard & mouse → Scan & Updates → Scene → Layout → Buildings →
+  //   Streets → Root gem → Effects → File Preview → Debug.
   //
-  // All sections are <details> with persisted open/closed state — see
-  // _section() below.
+  // (Camera tween timing / easing — BASE_DURATION_MS, EASING_POWER — is
+  // intentionally NOT exposed to users. The defaults are tuned for the
+  // intended feel; let developers tweak ANIMATION_TIMING in code if needed.)
+  //
+  // All sections are <details> elements. Open/closed state is NOT persisted —
+  // every time the Controls tab becomes visible all sections start collapsed.
+  // See _section() and resetCollapsed() below.
   body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
@@ -139,7 +153,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
-  body.appendChild(_buildCameraSection());
+  body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
@@ -151,7 +165,14 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): HTMLElement
 
   pane.appendChild(body);
   pane.appendChild(_buildActionsSection()); // sticky bottom — sibling of body
-  return pane;
+
+  function resetCollapsed(): void {
+    pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
+      d.open = false;
+    });
+  }
+
+  return { pane, resetCollapsed };
 }
 
 // ─── Scan & Updates ────────────────────────────────────────────────────────
@@ -168,6 +189,9 @@ function _buildUpdatesSection(): HTMLElement {
     _subgroup('Filters', [
       _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
         tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
+      }),
+      _toggle('Bypass disk caches', SCAN_FILTERS, 'NO_CACHE', {
+        tip: 'Re-scan every file and re-walk git history on each fetch. Slower; only useful when debugging cache staleness.',
       }),
     ])
   );
@@ -200,7 +224,7 @@ function _buildShortcutsSection(): HTMLElement {
   );
   section.appendChild(
     _buildShortcutsList([
-      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera framing' },
+      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Refresh — rebuild the city and reset the view' },
       { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
       { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
       null, // section break
@@ -213,29 +237,6 @@ function _buildShortcutsSection(): HTMLElement {
       { mouse: 'Double-click', action: 'Focus camera on the target' },
     ])
   );
-  return section;
-}
-
-function _buildCameraSection(): HTMLElement {
-  const section = _section(
-    'Camera & Interaction',
-    'Camera and building transition timing.'
-  );
-
-  section.appendChild(
-    _subgroup('Transitions', [
-      _number('Base duration (ms)', ANIMATION_TIMING, 'BASE_DURATION_MS', 50, 3000, 10, {
-        tip: 'Base camera tween duration. Every camera action scales this by a fixed per-action ratio. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
-      }),
-      _slider('Easing power', ANIMATION_TIMING, 'EASING_POWER', 1, 6, 0.1, {
-        tip: 'Exponent for the easeOutPower curve: 1 = linear, 3 = ease-out cubic (default), higher = snappier finish. Beyond 6 the curve is indistinguishable from a step function.',
-      }),
-      _number('Building transition (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
-        tip: 'Enter / stay duration for buildings as they fade in or refresh. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
-      }),
-    ])
-  );
-
   return section;
 }
 
@@ -495,7 +496,15 @@ function _buildBuildingsSection(): HTMLElement {
   // (Building size — floors / width / path — lives in the Layout section now.)
 
   section.appendChild(
-    _subgroup('Color palette (HSL)', [
+    _collapsibleSubgroup('buildings-transitions', 'Transitions', () => [
+      _number('Enter / refresh (ms)', ANIMATION_TIMING, 'BUILDING_TRANSITION_MS', 50, 3000, 10, {
+        tip: 'Fade-in / stay duration for buildings as they enter on initial render or refresh when the manifest changes. Above 3000ms tweens feel sluggish; below 50ms reads as a hard cut.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('buildings-palette', 'Color palette (HSL)', () => [
       _rangePair(
         'Saturation range',
         BUILDING_PALETTE,
@@ -533,7 +542,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Outlines', [
+    _collapsibleSubgroup('buildings-outlines', 'Outlines', () => [
       _number('Linewidth', BUILDING_OUTLINE, 'WIDTH', 1, 10, 1, {
         tip: 'Pixel thickness shared by per-building, hover, and selected outlines. Above 10 pixels the wireframe occludes facade detail; below 1 it vanishes at typical zoom.',
       }),
@@ -548,7 +557,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Billboards (media files)', [
+    _collapsibleSubgroup('buildings-billboards', 'Billboards (media files)', () => [
       _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
         tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait. Below 0.3 the panel is too thin to read; above 1.5 a portrait panel taller than 1.5× its width clips into the street tier above.',
       }),
@@ -579,7 +588,7 @@ function _buildBuildingsSection(): HTMLElement {
       _color('Placeholder color', BILLBOARD_GEOMETRY, 'PANEL_PLACEHOLDER_COLOR', {
         tip: 'Fallback panel color shown while the image loads (or if the load fails).',
       }),
-    ])
+    ]),
   );
 
   // Facade parent — geometry, contrast, and window lighting share the
@@ -844,6 +853,70 @@ function _buildEffectsSection(): HTMLElement {
   return section;
 }
 
+// ─── File Preview ──────────────────────────────────────────────────────────
+// File-preview sidebar settings. Currently just the syntax highlight theme
+// picker: a native <select> that writes directly to SYNTAX_THEME (no draft
+// layer — the CSS link swaps instantly, no Save required).
+function _buildFilePreviewSection(): HTMLElement {
+  const section = _section('File Preview', 'Syntax highlight theme for the code preview pane.');
+
+  // Native <select> — 8 theme options don't suit the segmented button style.
+  const sel = document.createElement('select');
+  sel.className = 'form-input form-input--select';
+  for (const opt of SYNTAX_THEME_OPTIONS) {
+    const el = document.createElement('option');
+    el.value = opt.value;
+    el.textContent = opt.label;
+    sel.appendChild(el);
+  }
+
+  sel.addEventListener('change', () => {
+    SYNTAX_THEME.set(sel.value);
+  });
+
+  // Reset button — mirrors the rotate-ccw affordance other rows use, but
+  // wired to the SYNTAX_THEME atom (not the drafts layer, which the rest
+  // of Controls uses). Disabled when the current value already matches the
+  // default; clicking writes the default back into the atom.
+  const resetBtn = document.createElement('button');
+  resetBtn.type = 'button';
+  resetBtn.className = 'theme-row-reset';
+  resetBtn.title = `Default: ${SYNTAX_THEME_OPTIONS.find(o => o.value === SYNTAX_THEME_DEFAULT)?.label ?? SYNTAX_THEME_DEFAULT}`;
+  resetBtn.setAttribute('aria-label', 'Reset syntax theme to default');
+  resetBtn.appendChild(makeLucideIcon('rotate-ccw'));
+  resetBtn.addEventListener('click', (e) => {
+    if (resetBtn.disabled) return;
+    e.preventDefault();
+    e.stopPropagation();
+    SYNTAX_THEME.set(SYNTAX_THEME_DEFAULT);
+  });
+
+  // Sync <select> value AND reset-button disabled state with the atom
+  // (covers initial hydration, external resets such as "Reset all", and
+  // every user change via this same select).
+  const refresh = () => {
+    const v = SYNTAX_THEME.get();
+    sel.value = v;
+    resetBtn.disabled = v === SYNTAX_THEME_DEFAULT;
+  };
+  SYNTAX_THEME.subscribe(refresh);
+
+  const row = document.createElement('label');
+  row.className = 'theme-row';
+  const lbl = document.createElement('span');
+  lbl.className = 'theme-row-label';
+  lbl.textContent = 'Syntax theme';
+  row.appendChild(lbl);
+  const ctrl = document.createElement('span');
+  ctrl.className = 'theme-row-control';
+  ctrl.appendChild(sel);
+  ctrl.appendChild(resetBtn);
+  row.appendChild(ctrl);
+  section.appendChild(row);
+
+  return section;
+}
+
 // ─── Debug ─────────────────────────────────────────────────────────────────
 // Developer-only diagnostics. Collapsibility (and persisted open/closed
 // state) comes from the shared `_section()` helper. Buttons are rendered
@@ -863,7 +936,7 @@ function _buildDebugSection(
     row.className = 'theme-row';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'controls-button';
+    button.className = 'btn-secondary';
     button.textContent = 'Run collision check';
     button.title = 'Walks the current layout and logs any rect/rect overlaps.';
     button.addEventListener('click', () => {
@@ -878,7 +951,7 @@ function _buildDebugSection(
     row.className = 'theme-row';
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'controls-button';
+    button.className = 'btn-secondary';
     button.textContent = 'Diagnose stem placement';
     button.title =
       'Re-runs layout under tracing and logs, per road, the chosen stem and binding obstacle for each child placement.';
@@ -910,7 +983,7 @@ function _buildActionsSection(): HTMLElement {
 
   const resetAll = document.createElement('button');
   resetAll.type = 'button';
-  resetAll.className = 'controls-button controls-button-secondary';
+  resetAll.className = 'btn-secondary controls-button';
   resetAll.appendChild(makeLucideIcon('rotate-ccw', { class: 'controls-button-icon' }));
   resetAll.appendChild(document.createTextNode('Reset all'));
   resetAll.title = 'Stage every overridden value back to its default. Click Save to apply.';
@@ -922,7 +995,7 @@ function _buildActionsSection(): HTMLElement {
 
   const discard = document.createElement('button');
   discard.type = 'button';
-  discard.className = 'controls-button controls-button-secondary';
+  discard.className = 'btn-secondary controls-button';
   discard.textContent = 'Discard';
   discard.title = 'Drop all unsaved changes.';
   discard.addEventListener('click', () => {
@@ -933,7 +1006,7 @@ function _buildActionsSection(): HTMLElement {
 
   const save = document.createElement('button');
   save.type = 'button';
-  save.className = 'controls-button';
+  save.className = 'btn-primary controls-button';
   save.textContent = 'Save';
   save.title = 'Apply unsaved changes to the scene.';
   save.addEventListener('click', () => {
@@ -984,39 +1057,92 @@ function _buildActionsSection(): HTMLElement {
 
 // ─── Section + subgroup primitives ─────────────────────────────────────────
 
-function _section(name: string, hint?: string, defaultOpen = true): HTMLElement {
+function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement {
   const section = document.createElement('details');
   section.className = 'controls-section';
 
-  const storageKey =
-    'controls.section.' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-  const persisted = (() => {
-    try {
-      return localStorage.getItem(storageKey);
-    } catch {
-      return null;
-    }
-  })();
-  section.open = persisted === null ? defaultOpen : persisted !== 'closed';
-  section.addEventListener('toggle', () => {
-    try {
-      localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
-    } catch {
-      /* localStorage unavailable; ignore */
-    }
-  });
+  // Open/closed state is intentionally NOT persisted. The left sidebar resets
+  // all <details> to closed each time the Controls tab becomes visible, so the
+  // panel always opens fresh. _defaultOpen is kept as a parameter for call-site
+  // compatibility but has no effect — all sections start collapsed.
 
   const summary = document.createElement('summary');
-  summary.className = 'controls-section-summary';
+  summary.className = 'row row--bleed controls-section-summary';
   // Lucide chevron, rotated via CSS on [open] — matches the file tree
   // accordion's visual language (Lucide icon + currentColor mask) rather
   // than the previous unicode triangle.
   const chevron = makeLucideIcon('chevron-right', { class: 'controls-section-chevron' });
   summary.appendChild(chevron);
   const label = document.createElement('span');
-  label.className = 'controls-section-label';
+  label.className = 'text-label';
   label.textContent = name;
   summary.appendChild(label);
+
+  // Section-level reset — stages defaults for every row in this section in
+  // one click. Uses the per-row `.theme-row-reset` buttons (already wired to
+  // their own store + keys) as the registry, so we don't need to track which
+  // stores belong to which section. Enabled iff ANY child row differs from
+  // its default (i.e., at least one row reset is enabled). Sub-accordions
+  // are NOT given their own reset — only top-level sections via this helper.
+  const sectionReset = document.createElement('button');
+  sectionReset.type = 'button';
+  sectionReset.className = 'controls-section-reset';
+  sectionReset.title = 'Reset all values in this section to defaults';
+  sectionReset.setAttribute('aria-label', 'Reset section to defaults');
+  sectionReset.appendChild(makeLucideIcon('rotate-ccw'));
+  sectionReset.addEventListener('click', (e) => {
+    e.preventDefault();
+    // Without stopPropagation the <summary> click would toggle the <details>
+    // open state. The user clicked reset, not the section.
+    e.stopPropagation();
+    if (sectionReset.disabled) return;
+    const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    rowResets.forEach((b) => {
+      if (!b.disabled) b.click();
+    });
+  });
+  summary.appendChild(sectionReset);
+
+  function _doRefreshSectionReset() {
+    const rowResets = section.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    // If the section has no resettable rows at all (e.g. Keyboard & mouse,
+    // Debug), there's nothing this button could do — hide it entirely
+    // rather than render a permanently-disabled affordance.
+    if (rowResets.length === 0) {
+      sectionReset.style.display = 'none';
+      return;
+    }
+    sectionReset.style.display = '';
+    // Enabled = at least one row's reset is enabled (i.e., that row differs
+    // from default).
+    sectionReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
+  }
+
+  // Queue the actual refresh into a microtask so it runs AFTER every per-row
+  // reset has already updated its own `disabled` state for the same store /
+  // draft event. The section subscribes BEFORE the rows do (sections are
+  // built before their rows are appended), so reading button.disabled
+  // synchronously would otherwise see stale values from the previous tick.
+  let _scheduled = false;
+  function refreshSectionReset() {
+    if (_scheduled) return;
+    _scheduled = true;
+    queueMicrotask(() => {
+      _scheduled = false;
+      _doRefreshSectionReset();
+    });
+  }
+
+  // First refresh runs after the caller has appended rows (same microtask
+  // guarantee — the section is built synchronously by callers like
+  // _buildBuildingsSection, so by the time the microtask fires, all rows
+  // are in place AND have wired their own subscribers).
+  refreshSectionReset();
+  // Subsequent refreshes ride on the same hooks the per-row resets use, so
+  // the section button always stays in sync with the rows.
+  subscribeDrafts(refreshSectionReset);
+  onAnyChange(refreshSectionReset);
+
   section.appendChild(summary);
 
   if (hint) {
@@ -1035,7 +1161,7 @@ function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement
   const wrap = document.createElement('div');
   wrap.className = 'theme-subgroup';
   const h = document.createElement('div');
-  h.className = 'theme-subgroup-label';
+  h.className = 'text-label text-label--muted';
   h.textContent = name;
   wrap.appendChild(h);
   const list = Array.isArray(rows) ? rows : [rows];
@@ -1054,29 +1180,19 @@ function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement
 // the user may never see — though in practice the rows are cheap and
 // built eagerly the first time.
 function _collapsibleSubgroup(
-  slug: string,
+  _slug: string,
   name: string,
   buildRows: () => HTMLElement[]
 ): HTMLElement {
   const details = document.createElement('details');
   details.className = 'theme-subgroup theme-subgroup-collapsible';
 
-  const storageKey = `controls.subgroup.${slug}`;
-  try {
-    details.open = localStorage.getItem(storageKey) === 'open';
-  } catch {
-    details.open = false;
-  }
-  details.addEventListener('toggle', () => {
-    try {
-      localStorage.setItem(storageKey, details.open ? 'open' : 'closed');
-    } catch {
-      /* localStorage unavailable; ignore */
-    }
-  });
+  // Open/closed state is intentionally NOT persisted — the panel resets all
+  // <details> to closed each time it becomes visible.
+  details.open = false;
 
   const summary = document.createElement('summary');
-  summary.className = 'theme-subgroup-label';
+  summary.className = 'row row--bleed text-label text-label--muted';
   // Lucide chevron matched to the section accordion's chevron — same
   // family as the file tree's expand/collapse glyph.
   const chevron = makeLucideIcon('chevron-right', { class: 'theme-subgroup-chevron' });
@@ -1231,7 +1347,7 @@ function _number(
   input.max = String(max);
   input.step = String(step);
   input.value = String(getEffective(store, key));
-  input.className = 'theme-number';
+  input.className = 'form-input form-input--mono';
   input.addEventListener('input', () => {
     const v = parseFloat(input.value);
     if (Number.isFinite(v)) setDraft(store, key, v);
@@ -1475,7 +1591,7 @@ function _select(
   const buttons = options.map((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'theme-select-option';
+    btn.className = 'btn-toggle btn-toggle--separated';
     btn.dataset.value = opt.value;
     btn.textContent = opt.label;
     btn.addEventListener('click', (e) => {

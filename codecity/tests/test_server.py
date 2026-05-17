@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import http.client
+import io
 import json
 import os
 import unittest
@@ -13,9 +14,12 @@ import urllib.request
 from http import HTTPStatus
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
+from codecity import clone as clone_mod
 from codecity import server as server_mod
-from codecity.server import start_server
+from codecity.server import _classify_source, start_server
+from codecity.tests.test_clone import _make_fake_remote
 
 
 class _CacheRedirectMixin:
@@ -48,6 +52,19 @@ def _get(url: str) -> tuple[int, bytes, str]:
     except urllib.error.HTTPError as e:
         return e.code, e.read(), e.headers.get("Content-Type", "")
     return resp.status, resp.read(), resp.headers.get("Content-Type", "")
+
+
+def _request(port: int, path: str) -> tuple[int, dict]:
+    """Issue a GET to the local server at *port*; return (status, parsed_json_body).
+
+    path should start with '/' (e.g. '/api/manifest?src=…').
+    Error responses (4xx/5xx) are parsed from the HTTPError body."""
+    url = f"http://127.0.0.1:{port}{path}"
+    try:
+        resp = urllib.request.urlopen(url)
+        return resp.status, json.loads(resp.read())
+    except urllib.error.HTTPError as e:
+        return e.code, json.loads(e.read())
 
 
 def _get_with_headers(
@@ -102,7 +119,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(json.loads(body), {"ok": True})
 
     def test_manifest_route_scans_query_path(self) -> None:
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, ctype = _get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertIn("application/json", ctype)
@@ -117,20 +134,15 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
         self.assertIn("missing", json.loads(body)["error"])
 
-    def test_manifest_both_path_and_clone_returns_400(self) -> None:
-        q = urllib.parse.urlencode({"path": str(self.project), "clone": "x"})
-        status, _, _ = _get(self.base + f"/api/manifest?{q}")
-        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
-
     def test_manifest_nonexistent_path_returns_404(self) -> None:
-        q = urllib.parse.urlencode({"path": str(self.project / "nope")})
+        q = urllib.parse.urlencode({"src": str(self.project / "nope")})
         status, _, _ = _get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_signature_route_matches_manifest_signature(self) -> None:
         # The contract powering the cheap-poll: the signature endpoint
         # returns the same digest the full manifest would have produced.
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         m_status, m_body, _ = _get(self.base + f"/api/manifest?{q}")
         s_status, s_body, s_ctype = _get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(m_status, HTTPStatus.OK)
@@ -148,7 +160,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
 
     def test_signature_route_nonexistent_path_returns_404(self) -> None:
-        q = urllib.parse.urlencode({"path": str(self.project / "nope")})
+        q = urllib.parse.urlencode({"src": str(self.project / "nope")})
         status, _, _ = _get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
@@ -210,7 +222,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         )
         (self.project / "untracked.txt").write_text("hidden by default")
 
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         _, body_default, _ = _get(self.base + f"/api/manifest?{q}")
         names_default = [
             c["name"] for c in json.loads(body_default)["tree"]["children"]
@@ -218,7 +230,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertNotIn("untracked.txt", names_default)
 
         q_all = urllib.parse.urlencode(
-            {"path": str(self.project), "include_all": "true"}
+            {"src": str(self.project), "include_all": "true"}
         )
         _, body_all, _ = _get(self.base + f"/api/manifest?{q_all}")
         names_all = [c["name"] for c in json.loads(body_all)["tree"]["children"]]
@@ -248,12 +260,12 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         )
         (self.project / "untracked.txt").write_text("hidden by default")
 
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         _, body_default, _ = _get(self.base + f"/api/manifest/signature?{q}")
         sig_default = json.loads(body_default)["signature"]
 
         q_all = urllib.parse.urlencode(
-            {"path": str(self.project), "include_all": "true"}
+            {"src": str(self.project), "include_all": "true"}
         )
         _, body_all, _ = _get(self.base + f"/api/manifest/signature?{q_all}")
         sig_all = json.loads(body_all)["signature"]
@@ -302,7 +314,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         (nm / "x.js").write_text("x")
 
         q = urllib.parse.urlencode({
-            "path": str(self.project), "include_all": "true",
+            "src": str(self.project), "include_all": "true",
         })
         _, body, _ = _get(self.base + f"/api/manifest?{q}")
         names = [c["name"] for c in json.loads(body)["tree"]["children"]]
@@ -321,7 +333,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def test_manifest_response_gzipped_when_requested(self) -> None:
         # Client advertises gzip; server compresses; decompressed body
         # parses as the same JSON the uncompressed path would return.
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, ctype, enc = _get_with_headers(
             self.base + f"/api/manifest?{q}",
             {"Accept-Encoding": "gzip"},
@@ -336,7 +348,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def test_manifest_response_uncompressed_without_accept_encoding(self) -> None:
         # No Accept-Encoding header at all -> no Content-Encoding,
         # body parses directly as JSON.
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, ctype, enc = _get_with_headers(
             self.base + f"/api/manifest?{q}", {},
         )
@@ -348,7 +360,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_manifest_response_uncompressed_when_gzip_not_in_accept(self) -> None:
         # Client supports brotli but not gzip -> no compression.
-        q = urllib.parse.urlencode({"path": str(self.project)})
+        q = urllib.parse.urlencode({"src": str(self.project)})
         status, body, _, enc = _get_with_headers(
             self.base + f"/api/manifest?{q}",
             {"Accept-Encoding": "br"},
@@ -502,6 +514,162 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(ctype, "image/png")
         # Body is the raw "PNG" bytes — not gzipped.
         self.assertTrue(body.startswith(b"\x89PNG"))
+
+
+class ClassifySourceTests(unittest.TestCase):
+    def test_absolute_path(self) -> None:
+        self.assertEqual(_classify_source("/Users/foo/bar"), "local")
+
+    def test_home_path(self) -> None:
+        self.assertEqual(_classify_source("~/code/foo"), "local")
+
+    def test_relative_path_dot(self) -> None:
+        self.assertEqual(_classify_source("./foo"), "local")
+        self.assertEqual(_classify_source("../foo"), "local")
+
+    def test_windows_drive_path(self) -> None:
+        self.assertEqual(_classify_source("C:\\Users\\foo"), "local")
+        self.assertEqual(_classify_source("D:/foo/bar"), "local")
+
+    def test_https_url(self) -> None:
+        self.assertEqual(_classify_source("https://github.com/owner/repo"), "git")
+        self.assertEqual(_classify_source("http://example.com/x.git"), "git")
+
+    def test_git_ssh_url(self) -> None:
+        self.assertEqual(_classify_source("git@github.com:owner/repo.git"), "git")
+
+    def test_garbage(self) -> None:
+        self.assertEqual(_classify_source("garbage"), "invalid")
+        self.assertEqual(_classify_source(""), "invalid")
+        self.assertEqual(_classify_source("just-a-word"), "invalid")
+
+
+class ResolveScanTargetTests(unittest.TestCase):
+    """Behavior tests via the HTTP layer, since _resolve_scan_target is internal."""
+
+    def setUp(self) -> None:
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+
+    def test_local_path_ok(self) -> None:
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("print('hi')\n")
+            status, body = _request(self.server_port, f"/api/manifest?src={td}")
+            self.assertEqual(status, 200)
+            # resolve() follows macOS /var -> /private/var symlinks; the
+            # manifest's root field reflects the real resolved path.
+            self.assertEqual(body.get("root"), str(Path(td).resolve()))
+
+    def test_local_path_with_branch_silently_ignored(self) -> None:
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("print('hi')\n")
+            status, body = _request(self.server_port, f"/api/manifest?src={td}&branch=main")
+            self.assertEqual(status, 200)
+            # display_root not set for in-place local scan
+            self.assertNotIn("display_root", body)
+
+    def test_invalid_source(self) -> None:
+        status, body = _request(self.server_port, "/api/manifest?src=garbage")
+        self.assertEqual(status, 400)
+        self.assertIn("unrecognized source", body.get("error", "").lower())
+
+    def test_missing_src(self) -> None:
+        status, body = _request(self.server_port, "/api/manifest")
+        self.assertEqual(status, 400)
+        self.assertIn("'src'", body.get("error", ""))
+
+    def test_old_path_param_rejected(self) -> None:
+        # ?path= is no longer recognized — server should 400 missing 'src'.
+        with TemporaryDirectory() as td:
+            status, body = _request(self.server_port, f"/api/manifest?path={td}")
+            self.assertEqual(status, 400)
+            self.assertIn("'src'", body.get("error", ""))
+
+    def test_nonexistent_path(self) -> None:
+        status, body = _request(self.server_port, "/api/manifest?src=/this/does/not/exist/xyzzy")
+        self.assertEqual(status, 404)
+        self.assertIn("path not found", body.get("error", ""))
+
+    def test_path_is_file_not_directory(self) -> None:
+        with TemporaryDirectory() as td:
+            f = Path(td) / "afile.txt"
+            f.write_text("hi")
+            status, body = _request(self.server_port, f"/api/manifest?src={f}")
+            self.assertEqual(status, 400)
+            self.assertIn("not a directory", body.get("error", ""))
+
+
+class DisplayRootTests(unittest.TestCase):
+    def setUp(self) -> None:
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+
+    def test_local_src_no_display_root(self) -> None:
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("\n")
+            status, body = _request(self.server_port, f"/api/manifest?src={td}")
+            self.assertEqual(status, 200)
+            self.assertNotIn("display_root", body)
+
+    def test_git_url_sets_display_root(self) -> None:
+        # Use a local bare repo so we don't hit the network.
+        with TemporaryDirectory() as td:
+            remote, _ = _make_fake_remote(Path(td))
+            # Use a file:// URL so _classify_source returns 'git'.
+            url = f"file://{remote}"
+            # Monkey-patch CACHE_ROOT so we don't pollute ~/.cache.
+            with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
+                status, body = _request(self.server_port, f"/api/manifest?src={url}")
+            self.assertEqual(status, 200)
+            self.assertEqual(body.get("display_root"), url)
+
+    def test_git_url_with_branch_appends_at_branch(self) -> None:
+        with TemporaryDirectory() as td:
+            remote, _ = _make_fake_remote(Path(td))
+            url = f"file://{remote}"
+            with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
+                status, body = _request(
+                    self.server_port, f"/api/manifest?src={url}&branch=feature"
+                )
+            self.assertEqual(status, 200)
+            self.assertEqual(body.get("display_root"), f"{url}@feature")
+
+
+class ClientDisconnectTests(unittest.TestCase):
+    """Browsers routinely close the TCP socket mid-response — tab reload,
+    navigating away, or giving up on a multi-minute large-repo scan. The
+    resulting BrokenPipeError / ConnectionResetError surfaces in
+    BaseServer.handle_error, which would otherwise dump a full traceback
+    to stderr for every disconnect. The server overrides handle_error to
+    swallow those specific exceptions while still logging real bugs."""
+
+    def setUp(self) -> None:
+        self.server, _port, shutdown = start_server(port=0)
+        self.addCleanup(shutdown)
+
+    def _drive(self, exc: BaseException) -> str:
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            try:
+                raise exc
+            except type(exc):
+                self.server.handle_error(None, ("127.0.0.1", 12345))
+            return stderr.getvalue()
+
+    def test_broken_pipe_is_silent(self) -> None:
+        self.assertEqual(self._drive(BrokenPipeError(32, "broken pipe")), "")
+
+    def test_connection_reset_is_silent(self) -> None:
+        self.assertEqual(self._drive(ConnectionResetError(54, "reset")), "")
+
+    def test_connection_aborted_is_silent(self) -> None:
+        self.assertEqual(
+            self._drive(ConnectionAbortedError(53, "aborted")), ""
+        )
+
+    def test_real_errors_still_log(self) -> None:
+        out = self._drive(RuntimeError("kaboom"))
+        self.assertIn("RuntimeError", out)
+        self.assertIn("kaboom", out)
 
 
 if __name__ == "__main__":

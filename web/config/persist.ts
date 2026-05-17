@@ -15,7 +15,9 @@
 // Keep this module side-effect-free until `attachPersistence()` is called —
 // tests + non-browser environments shouldn't touch localStorage.
 
+import type { WritableAtom } from 'nanostores';
 import { STORAGE_PREFIX } from '@/constants';
+import { CURRENT_SOURCE_KEY } from '../sourceContext.js';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
 // "reset to default" UI restores to and what the diff-vs-default check uses.
@@ -263,4 +265,85 @@ export function forEachRegisteredStore(
     if (!store) continue;
     cb(name, store, _DEFAULTS_BY_NAME[name]);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Per-source persistence — scoped to a (source, baseName) slot in localStorage
+// ---------------------------------------------------------------------------
+
+const PER_SOURCE_PREFIX = 'cc.source.';
+
+function perSourceKey(sourceKey: string, baseName: string): string {
+  return `${PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
+}
+
+/**
+ * Wire a writable atom to per-source localStorage persistence. The atom's
+ * value is stored under `cc.source.<sourceKey>.<baseName>` and rehydrated
+ * whenever CURRENT_SOURCE_KEY changes.
+ *
+ * - When CURRENT_SOURCE_KEY is null, the atom is not persisted (writes
+ *   don't reach localStorage; reads return whatever the atom currently holds).
+ * - On CURRENT_SOURCE_KEY change: the current atom value is saved to the
+ *   OLD key, then the atom is set to whatever is stored under the NEW key
+ *   (or `defaultValue` if absent).
+ * - Direct atom writes propagate to the active source key's slot.
+ */
+export function persistAtomPerSource<T>(
+  baseName: string,
+  store: WritableAtom<T>,
+  defaultValue: T,
+): void {
+  let lastKey: string | null = CURRENT_SOURCE_KEY.get();
+
+  // Hydrate at attach time if a key is already set (e.g., URL had ?src=).
+  if (lastKey !== null) {
+    const raw = localStorage.getItem(perSourceKey(lastKey, baseName));
+    if (raw !== null) {
+      try {
+        store.set(JSON.parse(raw) as T);
+      } catch {
+        store.set(defaultValue);
+      }
+    } else {
+      store.set(defaultValue);
+    }
+  }
+
+  store.subscribe((value) => {
+    const k = CURRENT_SOURCE_KEY.get();
+    if (k === null) return;
+    localStorage.setItem(perSourceKey(k, baseName), JSON.stringify(value));
+  });
+
+  CURRENT_SOURCE_KEY.subscribe((nextKey) => {
+    if (nextKey === lastKey) return;
+    // Save current atom to OLD slot only when transitioning between two real
+    // keys. On key→null (source unloaded) we skip the write: the
+    // store.subscribe handler above already persisted the latest value
+    // whenever the atom was last mutated, so a redundant write here would
+    // cause stale-subscriber cross-test pollution and isn't needed.
+    if (lastKey !== null && nextKey !== null) {
+      localStorage.setItem(
+        perSourceKey(lastKey, baseName),
+        JSON.stringify(store.get()),
+      );
+    }
+    // Hydrate atom from NEW slot.
+    if (nextKey !== null) {
+      const raw = localStorage.getItem(perSourceKey(nextKey, baseName));
+      if (raw !== null) {
+        try {
+          store.set(JSON.parse(raw) as T);
+        } catch {
+          store.set(defaultValue);
+        }
+      } else {
+        store.set(defaultValue);
+      }
+    } else {
+      store.set(defaultValue);
+    }
+    lastKey = nextKey;
+  });
 }

@@ -50,7 +50,7 @@ export function buildSearchPane(
   opts: BuildSearchPaneOpts = {}
 ) {
   const pane = document.createElement('div');
-  pane.className = 'left-pane search-pane';
+  pane.className = 'pane search-pane';
 
   const { el: header } = buildPaneHeader({ title: 'Search', onClose: opts.onClose });
   pane.appendChild(header);
@@ -60,7 +60,7 @@ export function buildSearchPane(
   inputWrap.appendChild(makeLucideIcon('search', { class: 'search-input-icon' }));
   const input = document.createElement('input');
   input.type = 'search';
-  input.className = 'search-input';
+  input.className = 'form-input search-input';
   input.placeholder = 'Search files by path';
   input.spellcheck = false;
   input.autocapitalize = 'off';
@@ -69,7 +69,7 @@ export function buildSearchPane(
   pane.appendChild(inputWrap);
 
   const body = document.createElement('div');
-  body.className = 'search-body';
+  body.className = 'pane-body';
   pane.appendChild(body);
 
   let files: FileNode[] = _flattenFiles(manifest);
@@ -264,15 +264,15 @@ function _highlight(path: string, positions: number[]): DocumentFragment {
 
 function _makeStateMessage(iconName: string, title: string, subtitle?: string): HTMLElement {
   const box = document.createElement('div');
-  box.className = 'search-state';
+  box.className = 'empty-state';
   box.appendChild(makeLucideIcon(iconName));
   const h = document.createElement('p');
-  h.className = 'search-state-title';
+  h.className = 'text-card-title';
   h.textContent = title;
   box.appendChild(h);
   if (subtitle) {
     const sub = document.createElement('p');
-    sub.className = 'search-state-sub';
+    sub.className = 'text-card-sub';
     sub.textContent = subtitle;
     box.appendChild(sub);
   }

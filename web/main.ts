@@ -23,8 +23,10 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
-import { attachPersistence, persistStore } from './config/persist.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
+import { attachPersistence, persistAtomPerSource } from './config/persist.js';
+import { SYNTAX_THEME } from './config/syntaxTheme.js';
+import { sourceKey, CURRENT_SOURCE_KEY } from './sourceContext.js';
 import { attachHotReload } from './config/hotReload.js';
 import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
@@ -47,7 +49,24 @@ import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
+import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
+import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
+import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
+import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
+
+// Rewrite manifest.tree.name to the friendly label derived from display_root
+// so that every downstream consumer (root street label, file tree root row,
+// footer name, document.title) shows the human-readable source name instead
+// of the cache-directory hash. Server returns the cache path as `root`; this
+// client-side mutation is the single point of policy. Must be called BEFORE
+// applyManifest so the scene is built with the correct name from the start.
+function _applyDisplayLabel(manifest: Manifest): void {
+  const friendly = labelFromDisplayRoot(manifest.display_root, manifest.tree?.name ?? '');
+  if (manifest.tree && friendly) {
+    manifest.tree.name = friendly;
+  }
+}
 
 async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Every visual / layout tunable comes from the named exports of
@@ -64,6 +83,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // every other module reads cityScene directly through accessors.
   const cityScene = createCityScene(canvas);
   const scene = cityScene.scene;
+  _applyDisplayLabel(manifest);
   await cityScene.applyManifest(manifest);
 
   // -- 3. Renderer -------------------------------------------------------------
@@ -137,7 +157,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
-  createCoordinator({
+  const coordinator = createCoordinator({
     cityScene,
     picker,
     rig,
@@ -304,6 +324,13 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       // must match animate() so bloom shows immediately on the new size.
       postFx.render();
     },
+    // Same action as the header gem button: rebuild the manifest +
+    // reset the camera. Fired by the R key and by clicking the root
+    // gem mesh in the scene.
+    onRefresh() {
+      void refreshManifest();
+      rig.reset();
+    },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });
 
@@ -413,10 +440,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   }
   animate();
 
-  // Expose cityScene + applyTheme to the boot block so setupLiveUpdates
-  // can swap in fresh manifests, and attachHotReload can dispatch
-  // material refreshes without restarting the renderer.
-  return { cityScene, applyTheme };
+  // Expose cityScene, applyTheme, and coordinator to the boot block so
+  // setupLiveUpdates can swap in fresh manifests, attachHotReload can
+  // dispatch material refreshes, and applyNewSource can update the header
+  // branch pill + repo link after a mid-session source switch.
+  return { cityScene, applyTheme, coordinator };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
@@ -573,7 +601,10 @@ interface SignatureResponse {
   signature: string;
 }
 
-function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): void {
+function setupLiveUpdates(
+  handle: LiveUpdateHandle,
+  initialSignature: string,
+): { setSignature(sig: string): void } {
   let lastSignature = initialSignature || '';
   let timer: number | null = null;
   let inFlight = false;
@@ -592,6 +623,7 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
       const m: Manifest | null = await resp.json();
       if (m?.signature) {
         lastSignature = m.signature;
+        _applyDisplayLabel(m);
         await handle.cityScene.applyManifest(m);
       }
       REBUILD_STATUS.set('idle');
@@ -684,6 +716,69 @@ function setupLiveUpdates(handle: LiveUpdateHandle, initialSignature: string): v
     }
     refreshFromToggle();
   });
+
+  return {
+    setSignature(sig: string) {
+      lastSignature = sig;
+    },
+  };
+}
+
+// ── Boot helpers ────────────────────────────────────────────────────────────
+
+function _srcKind(src: string): 'git' | 'local' {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
+}
+
+function _deriveLabel(src: string): string {
+  if (_srcKind(src) === 'git') {
+    // git URL — try "owner/repo" from the last two path segments
+    const m = src.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    if (m) return `${m[1]}/${m[2]}`;
+    return src;
+  }
+  // Local path — basename
+  const parts = src.split(/[\/\\]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : src;
+}
+
+const EMPTY_MANIFEST: Manifest = {
+  root: '',
+  scanned_at: new Date().toISOString(),
+  signature: '',
+  tree: {
+    name: '',
+    type: NodeKind.Directory,
+    path: '',
+    fullPath: '',
+    children: [],
+    children_count: 0,
+    children_file_count: 0,
+    children_dir_count: 0,
+    descendants_count: 0,
+    descendants_file_count: 0,
+    descendants_dir_count: 0,
+    descendants_size: 0,
+  },
+  repo: null,
+};
+
+// _applyHljsTheme — swap the <link id="hljs-theme"> element's href so
+// the chosen highlight.js CSS theme loads immediately without a re-render.
+// The .hljs-* token classes are already in the DOM; only the colours change.
+// Called once on boot (after attachPersistence hydrates the stored choice)
+// and again on every subsequent SYNTAX_THEME change.
+const HLJS_VERSION = '11.11.1';
+function _applyHljsTheme(theme: string): void {
+  const id = 'hljs-theme';
+  let link = document.getElementById(id) as HTMLLinkElement | null;
+  if (!link) {
+    link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    document.head.appendChild(link);
+  }
+  link.href = `https://cdn.jsdelivr.net/npm/highlight.js@${HLJS_VERSION}/styles/${theme}.min.css`;
 }
 
 // Boot. Guarded by a canvas check so unit tests can import this module
@@ -697,30 +792,210 @@ if (_canvas) {
     // session — otherwise the first paint ignores the saved value and
     // only corrects itself on the next poll.
     attachPersistence(Config);
-    // Picker's selectionKey atom isn't part of the Config barrel, so
-    // wire its persistence directly. Hydrating BEFORE startRenderLoop
-    // lets the picker's first key→selection resolve see the saved key.
-    persistStore('PICKER_SELECTION_KEY', PICKER_SELECTION_KEY);
-    const resp = await fetch(manifestUrl());
-    if (!resp.ok) throw new Error(`manifest fetch failed: ${resp.status}`);
-    const manifest: Manifest = await resp.json();
 
-    // Build the file-icon atlas before the city's first paint so
-    // building roofs already wear their file-type glyph on the very
-    // first frame. Failure here just means a city without roof icons —
-    // boot still continues.
-    try {
-      const atlas = await buildIconAtlas(manifest);
-      setIconAtlas(atlas);
-    } catch (err) {
-      console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+    // Apply the persisted (or default) syntax theme immediately after
+    // hydration, then track future changes. The subscribe call fires
+    // synchronously on registration — that first fire covers the boot case.
+    SYNTAX_THEME.subscribe(_applyHljsTheme);
+
+    // One-shot migration: pre-this-change, PICKER_SELECTION_KEY and cameraPose
+    // were both persisted as global keys. If they're still there AND we have a
+    // source loaded (URL has ?src=), copy them under the source's namespace
+    // and drop the legacy slots.
+    {
+      const qp = new URLSearchParams(window.location.search);
+      if (qp.has('src')) {
+        const k = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
+
+        const legacySel = localStorage.getItem('cc.PICKER_SELECTION_KEY');
+        if (legacySel !== null) {
+          if (localStorage.getItem(`cc.source.${k}.selection`) === null) {
+            localStorage.setItem(`cc.source.${k}.selection`, legacySel);
+          }
+          localStorage.removeItem('cc.PICKER_SELECTION_KEY');
+        }
+
+        const legacyCam = localStorage.getItem('cc.cameraPose');
+        if (legacyCam !== null) {
+          if (localStorage.getItem(`cc.source.${k}.cameraPose`) === null) {
+            localStorage.setItem(`cc.source.${k}.cameraPose`, legacyCam);
+          }
+          localStorage.removeItem('cc.cameraPose');
+        }
+      }
     }
 
-    const handle = await startRenderLoop(_canvas, manifest);
+    // Set CURRENT_SOURCE_KEY from URL params BEFORE wiring per-source
+    // persistence so hydration sees the right key.
+    {
+      const qp = new URLSearchParams(window.location.search);
+      if (qp.has('src')) {
+        CURRENT_SOURCE_KEY.set(sourceKey(qp.get('src')!, qp.get('branch') ?? undefined));
+      }
+    }
+
+    persistAtomPerSource('selection', PICKER_SELECTION_KEY, null);
+
+    const qp = new URLSearchParams(window.location.search);
+    const hasSrc = qp.has('src');
+
+    const loadingOverlay = createLoadingOverlay();
+
+    let initialManifest: Manifest;
+    let initialError: string | null = null;
+    if (hasSrc) {
+      const _bootSrc = qp.get('src')!;
+      const _bootBranch = qp.get('branch') ?? undefined;
+      loadingOverlay.show({
+        kind: _srcKind(_bootSrc),
+        label: _deriveLabel(_bootSrc),
+        branch: _bootBranch,
+      });
+      try {
+        const resp = await fetch(manifestUrl());
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        loadingOverlay.setStep('building');
+        initialManifest = await resp.json();
+      } catch (err) {
+        initialError = err instanceof Error ? err.message : String(err);
+        initialManifest = EMPTY_MANIFEST;
+      }
+    } else {
+      initialManifest = EMPTY_MANIFEST;
+    }
+
+    if (hasSrc && !initialError) {
+      try {
+        const atlas = await buildIconAtlas(initialManifest);
+        setIconAtlas(atlas);
+      } catch (err) {
+        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+      }
+    }
+
+    const handle = await startRenderLoop(_canvas, initialManifest);
     attachHotReload({
       cityScene: handle.cityScene,
       applyTheme: handle.applyTheme,
     });
-    setupLiveUpdates(handle, manifest.signature);
+
+    let liveUpdatesStarted = false;
+    let _liveUpdates: { setSignature(sig: string): void } | null = null;
+    if (hasSrc && !initialError) {
+      _liveUpdates = setupLiveUpdates(handle, initialManifest.signature);
+      liveUpdatesStarted = true;
+    }
+
+    let picker: ReturnType<typeof createSourcePicker>;
+
+    // Remember the dismissible flag of the most recent open() call so error
+    // reopen preserves it (header-switch reopen stays dismissible after a
+    // failed submit; cold-boot reopen stays non-dismissible).
+    let _lastDismissible = false;
+
+    async function applyNewSource(payload: SourcePayload): Promise<void> {
+      const dismissibleOnError = _lastDismissible;
+      loadingOverlay.show({
+        kind: _srcKind(payload.src),
+        label: _deriveLabel(payload.src),
+        branch: payload.branch,
+      });
+      try {
+        const url = new URL('/api/manifest', window.location.origin);
+        url.searchParams.set('src', payload.src);
+        if (payload.branch) url.searchParams.set('branch', payload.branch);
+        const resp = await fetch(url.toString());
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
+          throw new Error(err.error || `HTTP ${resp.status}`);
+        }
+        loadingOverlay.setStep('building');
+        const manifest: Manifest = await resp.json();
+
+        // Update URL first so per-source persistence subscriptions see the
+        // right CURRENT_SOURCE_KEY on the next tick.
+        const pageUrl = new URL(window.location.href);
+        pageUrl.searchParams.set('src', payload.src);
+        if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
+        else pageUrl.searchParams.delete('branch');
+        history.replaceState(null, '', pageUrl.toString());
+
+        CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
+
+        try {
+          setIconAtlas(await buildIconAtlas(manifest));
+        } catch (err) {
+          console.warn('[codecity] icon atlas build failed', err);
+        }
+
+        _applyDisplayLabel(manifest);
+        await handle.cityScene.applyManifest(manifest);
+
+        // Update the header (project label, branch pill) + footer (repo link)
+        // AFTER applyManifest so cityScene.getManifest() inside the coordinator
+        // resolves to the just-applied manifest — otherwise the label is stale.
+        handle.coordinator.setSourceInfo(
+          payload.branch,
+          _srcKind(payload.src) === 'git' ? payload.src : undefined,
+        );
+
+        _liveUpdates?.setSignature(manifest.signature);
+        pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });
+
+        if (!liveUpdatesStarted) {
+          _liveUpdates = setupLiveUpdates(handle, manifest.signature);
+          liveUpdatesStarted = true;
+        }
+      } catch (err) {
+        picker.open({
+          dismissible: dismissibleOnError,
+          prefill: payload,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        return;
+      } finally {
+        loadingOverlay.hide();
+      }
+    }
+
+    picker = createSourcePicker({
+      onSubmit: (payload) => {
+        picker.close();
+        applyNewSource(payload);
+      },
+    });
+
+    // Boot decisions:
+    if (initialError) {
+      // Direct-boot fetch failed → modal in non-dismissible mode with the error.
+      _lastDismissible = false;
+      picker.open({
+        dismissible: false,
+        prefill: { src: qp.get('src')!, branch: qp.get('branch') ?? undefined },
+        error: initialError,
+      });
+    } else if (!hasSrc) {
+      // Cold boot, no URL params → modal in non-dismissible mode.
+      _lastDismissible = false;
+      picker.open({ dismissible: false });
+    } else {
+      // Boot complete with manifest applied.
+      loadingOverlay.hide();
+    }
+
+    // Wire the header "switch source" button via a global hook.
+    (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker = () => {
+      const cur = new URLSearchParams(window.location.search);
+      _lastDismissible = true;
+      picker.open({
+        dismissible: true,
+        prefill: cur.has('src')
+          ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
+          : undefined,
+      });
+    };
   })();
 }

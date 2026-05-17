@@ -10,10 +10,12 @@
 // views/shell/rightSidebar.js.
 
 import hljs from 'highlight.js/lib/common';
+import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/shell/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
+import { makeExtensionBadge } from '@/views/shell/badge.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;
@@ -111,6 +113,12 @@ interface BuildFilePreviewPaneOpts {
    *  hide the sidebar AND update any shell-level visibility tracker so a
    *  subsequent re-open isn't suppressed. */
   onClose?: () => void;
+  /** Called when the user clicks the focus button in the pane header.
+   *  Equivalent of pressing F on the canvas with the current file selected
+   *  — host should frame the camera on the currently-previewed file. The
+   *  callback receives the file the pane is currently showing (so the host
+   *  doesn't have to read from picker state). */
+  onFocus?: (file: FileNode) => void;
 }
 
 /**
@@ -128,18 +136,61 @@ interface BuildFilePreviewPaneOpts {
  */
 export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   const pane = document.createElement('div');
-  pane.className = 'file-preview-pane';
+  pane.className = 'pane';
 
   const { el: header, api: headerApi } = buildPaneHeader({
     title: 'No file',
     mono: true,
     onClose: opts.onClose,
+    onFocus: opts.onFocus
+      ? () => {
+          if (_activeFile) opts.onFocus!(_activeFile);
+        }
+      : undefined,
+    focusTitle: 'Focus the camera on this file (F)',
   });
   pane.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'editor-body';
+  body.className = 'pane editor-body';
   pane.appendChild(body);
+
+  // Track the active file so palette/asphalt changes can re-render the badge.
+  let _activeFile: FileNode | null = null;
+
+  function _renderBadge(): void {
+    if (!_activeFile) {
+      headerApi.setPrefixEl(null);
+      return;
+    }
+    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.get().COLOR;
+    headerApi.setPrefixEl(
+      makeExtensionBadge(_activeFile.extension ?? null, false, huePalette, asphaltColor)
+    );
+  }
+
+  /** Render just the leaf filename in the pane-title element. The full
+   *  path lives in the header breadcrumb (sitewide app header); the
+   *  sidebar header stays compact. Hovering the title shows the full
+   *  path as a native browser tooltip. */
+  function _renderFilenameTitle(file: { path?: string; name?: string } | null): void {
+    const rawPath = (file as FileNode | null)?.path ?? '';
+    const segs = rawPath.split('/').filter(Boolean);
+    const leaf = segs.length > 0 ? segs[segs.length - 1] : file?.name ? String(file.name) : 'No file';
+    headerApi.setTitle(leaf);
+    if (rawPath) headerApi.titleEl.title = rawPath;
+    else headerApi.titleEl.removeAttribute('title');
+  }
+
+  // Re-render badge when palette or asphalt color changes mid-session.
+  // Drop the initial synchronous callback at subscribe time (same pattern
+  // as appHeader) — _ready gates it until after first setFile().
+  let _ready = false;
+  const _onConfigChange = () => { if (_ready) _renderBadge(); };
+  BUILDING_PALETTE.subscribe(_onConfigChange);
+  ASPHALT.subscribe(_onConfigChange);
+  _ready = true;
 
   function setFile(
     file:
@@ -153,7 +204,10 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
         }
       | null
   ): void {
-    headerApi.setTitle(file?.name ? String(file.name) : 'No file');
+    _activeFile = file as FileNode | null;
+    _renderFilenameTitle(file as FileNode | null);
+    _renderBadge();
+    headerApi.setFocusEnabled(!!_activeFile);
     body.replaceChildren();
     if (!file) {
       body.appendChild(
@@ -304,7 +358,7 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
   // an empty editor scaffold up-front) so the line-number gutter and
   // <pre><code> never linger empty next to an error message.
   const shell = document.createElement('div');
-  shell.className = 'preview-shell';
+  shell.className = 'pane preview-shell';
 
   fetch(url)
     .then((resp) => {
@@ -344,15 +398,15 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
  */
 function _makeStateMessage(iconName: string, title: string, subtitle?: string): HTMLElement {
   const box = document.createElement('div');
-  box.className = 'preview-state';
+  box.className = 'empty-state empty-state--lg';
   box.appendChild(makeLucideIcon(iconName));
   const h = document.createElement('p');
-  h.className = 'preview-state-title';
+  h.className = 'text-card-title';
   h.textContent = title;
   box.appendChild(h);
   if (subtitle) {
     const sub = document.createElement('p');
-    sub.className = 'preview-state-sub';
+    sub.className = 'text-card-sub';
     sub.textContent = subtitle;
     box.appendChild(sub);
   }

@@ -5,10 +5,10 @@
 import { SCAN_FILTERS } from './config/scan.js';
 
 /**
- * Build the URL for a server endpoint, forwarding the page's path/clone/branch
- * params (set by the CLI on initial open) and appending include_all when the
- * SHOW_ALL_FILES toggle is on. Other query params on the page are intentionally
- * dropped — only the ones the server cares about are forwarded.
+ * Build the URL for a server endpoint, forwarding the page's `src` (and
+ * optional `branch`) params plus SCAN_FILTERS toggles (`include_all`,
+ * `no_cache`). When no `src` is present, returns the endpoint URL without
+ * any source params — boot uses this to detect "no source picked yet".
  */
 export function buildApiUrl(
   endpoint: string,
@@ -17,14 +17,16 @@ export function buildApiUrl(
 ): string {
   const qp = new URLSearchParams(pageSearch);
   const u = new URL(endpoint, origin);
-  if (qp.has('clone')) {
-    u.searchParams.set('clone', qp.get('clone'));
-    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch'));
-  } else if (qp.has('path')) {
-    u.searchParams.set('path', qp.get('path'));
+  if (qp.has('src')) {
+    u.searchParams.set('src', qp.get('src')!);
+    if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch')!);
   }
-  if (SCAN_FILTERS.get().SHOW_ALL_FILES) {
+  const filters = SCAN_FILTERS.get();
+  if (filters.SHOW_ALL_FILES) {
     u.searchParams.set('include_all', 'true');
+  }
+  if (filters.NO_CACHE) {
+    u.searchParams.set('no_cache', 'true');
   }
   return u.toString();
 }

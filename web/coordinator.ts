@@ -21,6 +21,7 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
+import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
 import {
   REBUILD_STATUS,
@@ -29,8 +30,7 @@ import {
   refreshManifest,
 } from './liveStatus.js';
 import { DateSource, NodeKind } from './types';
-import type { DirNode, FileNode, Manifest, PickTarget, TreeNode } from './types';
-import type { FooterRepoInfo } from './views/shell/appFooter.js';
+import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createCityScene } from './scene/cityScene.js';
 import type { createPicker } from './scene/picker.js';
 import type { createCameraRig } from './scene/cameraRig.js';
@@ -60,6 +60,13 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       sidebarVisible = false;
       _renderSidebar();
     },
+    // Focus button in the pane header — mirrors pressing F on the canvas.
+    // The pane passes the file it's currently rendering, so we look up the
+    // matching building mesh and hand it to the camera rig.
+    onFocus(file) {
+      const b = cityScene.getBuildingByPath(file.path);
+      if (b) rig.focusBuilding(b.mesh, b.building);
+    },
   });
 
   function _renderSidebar(): void {
@@ -78,36 +85,64 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
 
   // ── App header (breadcrumb + Up + Reset View) ──────────────────────
   const rootNode: DirNode | null = cityScene.getRoot();
+  const _initManifest = cityScene.getManifest();
+  // Derive the friendly label for the header breadcrumb and document title.
+  // manifest.tree.name is already set to the friendly value by main.ts
+  // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
+  const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
+  document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
+  // Read initial branch + source URL from the current page URL so the header
+  // can show the branch pill and repo link on first paint.
+  const _qp = new URLSearchParams(window.location.search);
+  const _initSrc = _qp.get('src') ?? undefined;
+  const _initBranch = _qp.get('branch') ?? undefined;
+  const _initIsGitUrl = _initSrc
+    ? /:\/\//.test(_initSrc) || /^[^@]+@[^:]+:/.test(_initSrc)
+    : false;
+
   const appHeader = initAppHeader({
-    rootLabel: rootNode?.name || '',
+    rootLabel: _rootLabel,
     rootPath: rootNode?.path || '',
     onSegmentClick(path: string) {
       picker.selectByPath(path);
     },
+    onSwitchSource() {
+      const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
+      fn?.();
+    },
+    // Refresh button (header far left) — equivalent of a page reload:
+    // kicks off a manifest re-fetch / rebuild AND resets the camera to
+    // its default pose. refreshManifest is async; we don't await it here
+    // because REBUILD_STATUS already reflects the in-flight state.
+    onRefresh() {
+      void refreshManifest();
+      rig.reset();
+    },
+    // Focus button next to the selected path — mirrors pressing F on the
+    // canvas. Looks at the current picker selection and dispatches the
+    // matching camera-rig call.
+    onFocus() {
+      const sel = picker.selection.get();
+      if (!sel) return;
+      if (sel.kind === NodeKind.File) {
+        rig.focusBuilding(sel.mesh, sel.data);
+      } else if (sel.kind === NodeKind.Directory) {
+        rig.focusStreet(sel.street, null);
+      }
+    },
+    branch: _initBranch,
+    sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
 
   // ── App footer ─────────────────────────────────────────────────────
-  const appFooter = initAppFooter({
-    // The footer's refresh button is the equivalent of a page reload:
-    // it kicks off a manifest re-fetch / rebuild AND resets the camera
-    // to its default pose, so the user lands on the same initial view
-    // they'd see right after boot. refreshManifest is async; we don't
-    // await it here because the rest of the UI (REBUILD_STATUS, etc.)
-    // already reflects the in-flight state.
-    onResetView() {
-      void refreshManifest();
-      rig.reset();
-    },
-  });
+  const appFooter = initAppFooter({});
   const initialManifest = cityScene.getManifest();
-  appFooter.setRepoInfo(_repoInfoFromManifest(initialManifest));
-  appFooter.setSelection({
-    kind: NodeKind.Directory,
-    files: rootNode?.descendants_file_count ?? 0,
-    dirs: rootNode?.descendants_dir_count ?? 0,
-    size: rootNode?.descendants_size ?? 0,
-  });
+  // Empty by default — selection metadata only appears once the user
+  // hovers or picks something. The previous fallback that showed root
+  // directory totals was confusing because it looked like a real "current"
+  // selection.
+  appFooter.setSelection(null);
 
   // Seed the "last updated" stamp from the initial manifest apply that
   // already happened in startRenderLoop — cityScene.onChange won't fire
@@ -210,6 +245,52 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     return null;
   }
 
+  // ── Footer selection helper ────────────────────────────────────────
+  // Converts a PickTarget (or null) to the FooterSelectionInfo shape and
+  // pushes it into appFooter.  When the target is null or a non-file /
+  // non-directory kind (e.g. Gem), falls back to the repo root directory
+  // stats so the footer never shows a blank state.
+  function _setFooterForTarget(target: PickTarget | null): void {
+    if (target && target.kind === NodeKind.File) {
+      const f: FileNode = target.file;
+      const hasGit = !!(f.git && (f.git.created || f.git.modified));
+      appFooter.setSelection({
+        kind: NodeKind.File,
+        extension: f.extension || '',
+        language: humanLanguageFor(f),
+        lines: f.lines,
+        size: f.size || 0,
+        modified: (f.git && f.git.modified) || f.modified || null,
+        created: (f.git && f.git.created) || f.created || null,
+        dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
+      });
+    } else if (target && target.kind === NodeKind.Directory) {
+      const d: DirNode = target.dir;
+      appFooter.setSelection({
+        kind: NodeKind.Directory,
+        directFiles: d.children_file_count ?? 0,
+        totalFiles: d.descendants_file_count ?? 0,
+        directDirs: d.children_dir_count ?? 0,
+        totalDirs: d.descendants_dir_count ?? 0,
+        size: d.descendants_size ?? 0,
+      });
+    } else {
+      // No selection / no hover — empty the footer right section. The
+      // previous fallback to root directory totals read as a misleading
+      // "current selection" when nothing was actually picked.
+      appFooter.setSelection(null);
+    }
+  }
+
+  // Footer follows hover when present, falls back to selection when
+  // hover ends.  Both subscriptions call this shared updater so the
+  // displayed info is always consistent with whichever atom changed last.
+  function _updateFooterFromState(): void {
+    const hov = picker.hover.get();
+    const sel = picker.selection.get();
+    _setFooterForTarget(hov ?? sel);
+  }
+
   // ── picker → sidebar reactions ─────────────────────────────────────
   const _selUnsub = picker.selection.subscribe((sel: PickTarget | null) => {
     // Tree highlight follows selection.
@@ -236,30 +317,9 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
         : null
     );
 
-    // Footer mirrors selection metadata
-    if (sel && sel.kind === NodeKind.File) {
-      const f: FileNode = sel.file;
-      const hasGit = !!(f.git && (f.git.created || f.git.modified));
-      appFooter.setSelection({
-        kind: NodeKind.File,
-        extension: f.extension || '',
-        language: humanLanguageFor(f),
-        lines: f.lines,
-        size: f.size || 0,
-        modified: (f.git && f.git.modified) || f.modified || null,
-        created: (f.git && f.git.created) || f.created || null,
-        dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
-      });
-    } else {
-      const d: DirNode | null =
-        (sel && sel.kind === NodeKind.Directory ? sel.dir : null) || cityScene.getRoot();
-      appFooter.setSelection({
-        kind: NodeKind.Directory,
-        files: d?.descendants_file_count ?? 0,
-        dirs: d?.descendants_dir_count ?? 0,
-        size: d?.descendants_size ?? 0,
-      });
-    }
+    // Footer: if nothing is hovered, mirror the new selection; if a
+    // hover is active the hover subscriber already owns the footer.
+    _updateFooterFromState();
 
     // Right sidebar mirrors "is there a file to preview": a building
     // (file) selection opens it; a road (directory) selection or
@@ -275,16 +335,26 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     if (leftSidebarApi.setHoveredTreePath) {
       leftSidebarApi.setHoveredTreePath(_pathOf(h));
     }
+
+    // Footer follows hover in real time; when hover clears (h === null)
+    // _updateFooterFromState falls back to the current selection.
+    _updateFooterFromState();
   });
 
   // Push the freshly-applied manifest into the Info pane so an edited
   // README on disk re-renders without a page reload (live-update poll
-  // fires applyManifest, which fires onChange). Also refresh the
-  // footer's repo info — branch / dirty / head can change between
-  // polls (commit, checkout, edit) so the footer follows the manifest.
+  // fires applyManifest, which fires onChange). The header branch pill /
+  // repo link now follows the live URL (set by applyNewSource) rather
+  // than the manifest, so we only need to keep document.title in sync here.
   const _changeUnsub = cityScene.onChange(() => {
     const m = cityScene.getManifest();
-    appFooter.setRepoInfo(_repoInfoFromManifest(m));
+    // manifest.tree.name is already the friendly label — main.ts calls
+    // _applyDisplayLabel before every applyManifest, so no mutation needed here.
+    // Keep document.title in sync with the now-correct name.
+    if (m) {
+      const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
+      document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
+    }
     LAST_UPDATED_AT.set(Date.now());
     if (leftSidebarApi.setInfoManifest) {
       leftSidebarApi.setInfoManifest(m);
@@ -308,23 +378,21 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     window.clearInterval(_tickHandle);
   }
 
+  function setSourceInfo(branch?: string, sourceUrl?: string): void {
+    // Derive the friendly label from the new source's manifest so the
+    // project-btn updates after a switch. manifest.tree.name is already
+    // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
+    const m = cityScene.getManifest();
+    const label = labelFromDisplayRoot(m?.display_root, m?.tree?.name ?? '');
+    appHeader.setSourceInfo(label, branch, sourceUrl);
+  }
+
   return {
     appHeader,
     appFooter,
     leftSidebarApi,
     dispose,
+    setSourceInfo,
   };
 }
 
-function _repoInfoFromManifest(m: Manifest | null): FooterRepoInfo | null {
-  if (!m) return null;
-  return {
-    name: m.tree?.name || '',
-    root: m.root || '',
-    branch: m.repo?.branch ?? null,
-    remoteUrl: m.repo?.remote_url ?? null,
-    headSha: m.repo?.head_sha ?? null,
-    headSubject: m.repo?.head_subject ?? null,
-    dirty: !!m.repo?.dirty,
-  };
-}

@@ -77,6 +77,12 @@ export function showLeftSidebar(
 
   while (container.firstChild) container.removeChild(container.firstChild);
 
+  // Clear legacy localStorage entries that were used to persist the open/closed
+  // state of individual Controls sections. These keys are no longer written, but
+  // may exist from earlier sessions. Remove them so old state cannot leak back
+  // via direct localStorage.getItem() calls or devtools inspection.
+  _clearLegacyControlsState();
+
   // Restore persisted width, if any.
   _applyPersistedWidth(container);
 
@@ -84,7 +90,7 @@ export function showLeftSidebar(
   activityBar.className = 'activity-bar';
 
   const panel = document.createElement('div');
-  panel.className = 'left-panel';
+  panel.className = 'pane';
 
   // Each pane renders its own × close button inside its header (flexbox
   // layout in the header keeps title + button vertically aligned without
@@ -104,15 +110,16 @@ export function showLeftSidebar(
     onSelect: opts.onSearchSelect,
     onFocus: opts.onSearchFocus,
   });
-  const panes: Record<string, HTMLElement> = {};
-  panes[SidebarTab.Tree] = treeBundle.pane;
-  panes[SidebarTab.Search] = searchBundle.pane;
-  panes[SidebarTab.Info] = infoBundle.pane;
-  panes[SidebarTab.Controls] = buildControlsPane({
+  const controlsBundle = buildControlsPane({
     onClose: paneOnClose,
     onRunCollisionCheck: opts.onRunCollisionCheck,
     onRunStemDiagnostic: opts.onRunStemDiagnostic,
   });
+  const panes: Record<string, HTMLElement> = {};
+  panes[SidebarTab.Tree] = treeBundle.pane;
+  panes[SidebarTab.Search] = searchBundle.pane;
+  panes[SidebarTab.Info] = infoBundle.pane;
+  panes[SidebarTab.Controls] = controlsBundle.pane;
 
   for (const key in panes) {
     if (Object.hasOwn(panes, key)) {
@@ -181,6 +188,7 @@ export function showLeftSidebar(
 
   function _setActive(tabId: string): void {
     if (!panes[tabId]) return;
+    const prev = activeTab;
     activeTab = tabId as SidebarTab;
     _refreshActiveStates();
     // Auto-focus the search input when switching to the Search tab —
@@ -192,13 +200,25 @@ export function showLeftSidebar(
       // no-op in some browsers).
       requestAnimationFrame(() => searchBundle.api.focus());
     }
+    // Controls panel: reset all collapsible sections to closed whenever
+    // the tab becomes visible. This runs both when switching from another
+    // tab and when the sidebar un-collapses directly onto the Controls tab.
+    if (activeTab === SidebarTab.Controls && prev !== SidebarTab.Controls) {
+      controlsBundle.resetCollapsed();
+    }
   }
 
   function _setCollapsed(value: boolean): void {
+    const wasCollapsed = collapsed;
     collapsed = value;
     container.classList.toggle('is-collapsed', collapsed);
     _refreshActiveStates();
     saveFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, collapsed);
+    // If the sidebar re-opens while already parked on the Controls tab,
+    // reset all sections — _setActive won't fire in that path.
+    if (wasCollapsed && !collapsed && activeTab === SidebarTab.Controls) {
+      controlsBundle.resetCollapsed();
+    }
   }
 
   // Sync the visible state of all panes + activity-bar icons against
@@ -289,6 +309,28 @@ function _persistWidth(w: number): void {
     localStorage.setItem(STORAGE_KEYS.SIDEBAR_WIDTH, String(w));
   } catch (_) {
     /* quota / private — drop */
+  }
+}
+
+// Remove any localStorage entries written by earlier versions of the controls
+// pane that persisted the open/closed state of individual sections and
+// collapsible subgroups. Keys had the form:
+//   controls.section.<name>
+//   controls.subgroup.<slug>
+// We no longer write these; wipe them on boot so stale values don't linger.
+function _clearLegacyControlsState(): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const toRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('controls.section.') || key.startsWith('controls.subgroup.'))) {
+        toRemove.push(key);
+      }
+    }
+    for (const key of toRemove) localStorage.removeItem(key);
+  } catch (_) {
+    /* private mode / quota — silently skip */
   }
 }
 

@@ -1,8 +1,10 @@
 """Local HTTP server backing the browser-served frontend.
 
 Serves the Vite-built frontend out of `codecity/static/` and computes a
-scan manifest on demand at `/api/manifest?path=…` (or `?clone=URL` for a
-remote repo). Bound to 127.0.0.1 only — no remote access.
+scan manifest on demand at `/api/manifest?src=…[&branch=…]`. `src` is
+either a local absolute path or a git URL; for git URLs, the repo is
+cloned into `~/.cache/codecity/clones/` and scanned from there. Bound to
+127.0.0.1 only — no remote access.
 
 Threading: ``ThreadingHTTPServer`` so concurrent /api/file fetches and a
 manifest scan don't serialize on each other. The server runs on a daemon
@@ -20,14 +22,22 @@ from __future__ import annotations
 import gzip
 import json
 import mimetypes
+import re
+import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 from urllib.parse import parse_qs, urlparse
 
-from codecity.clone import CloneError, ensure_clone
+from codecity.clone import (
+    CloneError,
+    BranchNotFoundError,
+    RepoNotFoundError,
+    HostUnreachableError,
+    ensure_clone,
+)
 from codecity.scan import scan_tree, signature_tree
 from codecity.types import (
     ErrorResponse,
@@ -54,6 +64,26 @@ def _is_media(ctype: str | None) -> bool:
     if ctype in _MEDIA_EXACT:
         return True
     return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
+
+
+_LOCAL_PATH_PREFIX = re.compile(r"^(/|~|\./|\.\./|[A-Za-z]:[\\/])")
+_GIT_SSH_FORM = re.compile(r"^[^@]+@[^:]+:")
+
+
+def _classify_source(raw: str) -> Literal["local", "git", "invalid"]:
+    """Classify a raw `?src=` value as a local path, a git URL, or invalid.
+
+    Path-like prefixes (absolute, home, relative, Windows drive) → 'local'.
+    URLs (scheme:// or git@host:path SSH form) → 'git'.
+    Anything else → 'invalid'.
+    """
+    if not raw:
+        return "invalid"
+    if _LOCAL_PATH_PREFIX.match(raw):
+        return "local"
+    if "://" in raw or _GIT_SSH_FORM.match(raw):
+        return "git"
+    return "invalid"
 
 
 # Bodies under this threshold skip compression — gzip's framing
@@ -117,14 +147,6 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
     handler.wfile.write(payload)
 
 
-def _resolve_clone(url: str, branch: str | None) -> Path:
-    """Clone-or-update under the cache lock so concurrent requests for the
-    same (url, branch) don't trample each other's working tree. Always
-    runs ensure_clone so upstream commits are pulled even on cache hits."""
-    with _State.clone_lock:
-        return ensure_clone(url, branch)
-
-
 def _parse_include_all(query: str) -> bool:
     """Parse ?include_all=… as a boolean. Strict: only 'true' (any case)
     and '1' count as on; absent or anything else is off. Used by both
@@ -142,42 +164,48 @@ def _parse_no_cache(query: str) -> bool:
 
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
-) -> Path | None:
-    """Parse ?path=… / ?clone=…&branch=… and return the resolved scan root.
+) -> tuple[Path, str, str | None, Literal["local", "git"]] | None:
+    """Parse ?src=… [&branch=…] and resolve to a scan root.
 
-    Sends the appropriate 4xx/5xx JSON error and returns None if the
-    params are missing/conflicting, the path doesn't resolve, or the
-    clone fails. Shared by /api/manifest and /api/manifest/signature.
+    Returns (resolved_path, original_src, branch_or_None, kind) on success, or
+    None after sending the appropriate 4xx/5xx error response.
+
+    Branch semantics:
+      - Local src: branch is silently ignored. Scan the live working tree.
+      - Git URL src: branch is passed through to ensure_clone.
     """
     params = parse_qs(query)
-    raw_path = params.get("path", [""])[0]
-    raw_clone = params.get("clone", [""])[0]
+    raw_src = params.get("src", [""])[0]
     raw_branch = params.get("branch", [""])[0] or None
 
-    if raw_clone and raw_path:
-        _send_json(
-            handler,
-            HTTPStatus.BAD_REQUEST,
-            {"error": "pass either 'path' or 'clone', not both"},
-        )
+    if not raw_src:
+        _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'src' query param"})
         return None
-    if not raw_clone and not raw_path:
+
+    kind = _classify_source(raw_src)
+    if kind == "invalid":
         _send_json(
             handler,
             HTTPStatus.BAD_REQUEST,
-            {"error": "missing 'path' or 'clone' query param"},
+            {"error": "unrecognized source — pass a local path or a git URL"},
         )
         return None
 
-    if raw_clone:
+    if kind == "git":
         try:
-            return _resolve_clone(raw_clone, raw_branch)
+            with _State.clone_lock:
+                local = ensure_clone(raw_src, raw_branch)
+            return local, raw_src, raw_branch, "git"
+        except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
+            _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": str(e)})
+            return None
         except CloneError as e:
             _send_json(handler, HTTPStatus.BAD_GATEWAY, {"error": str(e)})
             return None
 
+    # kind == "local" — ignore any &branch=, scan the working tree in place
     try:
-        scan_target = Path(raw_path).resolve(strict=True)
+        scan_target = Path(raw_src).resolve(strict=True)
     except (OSError, RuntimeError):
         _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "path not found"})
         return None
@@ -186,14 +214,15 @@ def _resolve_scan_target(
             handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
         )
         return None
-    return scan_target
+    return scan_target, raw_src, None, "local"
 
 
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """Compute and return the scan manifest for the requested path or clone."""
-    scan_target = _resolve_scan_target(handler, query)
-    if scan_target is None:
+    """Compute and return the scan manifest for the requested source."""
+    resolved = _resolve_scan_target(handler, query)
+    if resolved is None:
         return
+    scan_target, raw_src, raw_branch, kind = resolved
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 
@@ -207,6 +236,13 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         _send_json(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"scan failed: {e}"})
         return
 
+    # For cache-cloned sources (git URLs), surface the user-friendly source
+    # string as display_root so the breadcrumb doesn't show the cache hash.
+    if kind == "git":
+        manifest["display_root"] = (
+            f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+        )
+
     _State.allowed_roots.add(scan_target.resolve())
     _send_json(handler, HTTPStatus.OK, manifest)
 
@@ -219,9 +255,10 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     history walks on every tick. The client only fetches the full
     manifest when the signature changes.
     """
-    scan_target = _resolve_scan_target(handler, query)
-    if scan_target is None:
+    resolved = _resolve_scan_target(handler, query)
+    if resolved is None:
         return
+    scan_target, _raw_src, _raw_branch, _kind = resolved
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 
@@ -382,6 +419,26 @@ class Handler(BaseHTTPRequestHandler):
         _send_static(self, rel)
 
 
+class _Server(ThreadingHTTPServer):
+    """Server that doesn't shout into stderr when a client disconnects.
+
+    A browser reloading the tab or giving up on a multi-minute scan of a
+    large repo (the Linux kernel manifest is hundreds of MB) closes the
+    socket while we're still writing. BaseServer.handle_error would
+    print the whole traceback for that, which is benign noise — the
+    scan still completed, the response just never reaches a peer that
+    cares. Swallow the connection-family errors; let real bugs through.
+    """
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        exc = sys.exc_info()[1]
+        if isinstance(
+            exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+        ):
+            return
+        super().handle_error(request, client_address)
+
+
 def start_server(
     port: int = 0,
     static_dir: Path | None = None,
@@ -401,7 +458,7 @@ def start_server(
     # cases. Production only ever calls start_server once per process.
     _State.allowed_roots = set()
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = _Server(("127.0.0.1", port), Handler)
     bound_port = server.server_address[1]
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
