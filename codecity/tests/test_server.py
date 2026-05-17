@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import gzip
 import http.client
+import io
 import json
 import os
 import unittest
@@ -632,6 +633,43 @@ class DisplayRootTests(unittest.TestCase):
                 )
             self.assertEqual(status, 200)
             self.assertEqual(body.get("display_root"), f"{url}@feature")
+
+
+class ClientDisconnectTests(unittest.TestCase):
+    """Browsers routinely close the TCP socket mid-response — tab reload,
+    navigating away, or giving up on a multi-minute large-repo scan. The
+    resulting BrokenPipeError / ConnectionResetError surfaces in
+    BaseServer.handle_error, which would otherwise dump a full traceback
+    to stderr for every disconnect. The server overrides handle_error to
+    swallow those specific exceptions while still logging real bugs."""
+
+    def setUp(self) -> None:
+        self.server, _port, shutdown = start_server(port=0)
+        self.addCleanup(shutdown)
+
+    def _drive(self, exc: BaseException) -> str:
+        with mock.patch("sys.stderr", new_callable=io.StringIO) as stderr:
+            try:
+                raise exc
+            except type(exc):
+                self.server.handle_error(None, ("127.0.0.1", 12345))
+            return stderr.getvalue()
+
+    def test_broken_pipe_is_silent(self) -> None:
+        self.assertEqual(self._drive(BrokenPipeError(32, "broken pipe")), "")
+
+    def test_connection_reset_is_silent(self) -> None:
+        self.assertEqual(self._drive(ConnectionResetError(54, "reset")), "")
+
+    def test_connection_aborted_is_silent(self) -> None:
+        self.assertEqual(
+            self._drive(ConnectionAbortedError(53, "aborted")), ""
+        )
+
+    def test_real_errors_still_log(self) -> None:
+        out = self._drive(RuntimeError("kaboom"))
+        self.assertIn("RuntimeError", out)
+        self.assertIn("kaboom", out)
 
 
 if __name__ == "__main__":

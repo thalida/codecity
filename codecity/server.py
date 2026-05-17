@@ -23,6 +23,7 @@ import gzip
 import json
 import mimetypes
 import re
+import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -418,6 +419,26 @@ class Handler(BaseHTTPRequestHandler):
         _send_static(self, rel)
 
 
+class _Server(ThreadingHTTPServer):
+    """Server that doesn't shout into stderr when a client disconnects.
+
+    A browser reloading the tab or giving up on a multi-minute scan of a
+    large repo (the Linux kernel manifest is hundreds of MB) closes the
+    socket while we're still writing. BaseServer.handle_error would
+    print the whole traceback for that, which is benign noise — the
+    scan still completed, the response just never reaches a peer that
+    cares. Swallow the connection-family errors; let real bugs through.
+    """
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        exc = sys.exc_info()[1]
+        if isinstance(
+            exc, (BrokenPipeError, ConnectionResetError, ConnectionAbortedError)
+        ):
+            return
+        super().handle_error(request, client_address)
+
+
 def start_server(
     port: int = 0,
     static_dir: Path | None = None,
@@ -437,7 +458,7 @@ def start_server(
     # cases. Production only ever calls start_server once per process.
     _State.allowed_roots = set()
 
-    server = ThreadingHTTPServer(("127.0.0.1", port), Handler)
+    server = _Server(("127.0.0.1", port), Handler)
     bound_port = server.server_address[1]
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
