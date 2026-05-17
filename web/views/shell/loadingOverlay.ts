@@ -9,7 +9,7 @@
 //                                    setStep('building') when fetch returns)
 //   hide()                         — dismiss overlay; clears timers
 
-export type LoadingStep = 'resolving' | 'cloning' | 'scanning' | 'building';
+export type LoadingStep = 'resolving' | 'cloning' | 'scanning' | 'skeleton' | 'building';
 
 export interface LoadingOverlayShowOpts {
   kind: 'git' | 'local';
@@ -23,14 +23,17 @@ export interface LoadingOverlay {
   hide(): void;
 }
 
-// Steps in display order.
-const ALL_STEPS: LoadingStep[] = ['resolving', 'cloning', 'scanning', 'building'];
+// Steps in display order. 'skeleton' is the placeholder-painting phase
+// while the server resolves per-file metadata; 'building' is the final
+// tween-in of real building heights from the populated manifest.
+const ALL_STEPS: LoadingStep[] = ['resolving', 'cloning', 'scanning', 'skeleton', 'building'];
 
 // Human-readable label for each step.
 const STEP_LABELS: Record<LoadingStep, string> = {
   resolving: 'Resolving source',
   cloning: 'Cloning',
   scanning: 'Scanning files',
+  skeleton: 'Sketching layout',
   building: 'Building city',
 };
 
@@ -72,6 +75,7 @@ export function createLoadingOverlay(): LoadingOverlay {
             <li data-step="resolving" data-state="pending">${STEP_LABELS.resolving}</li>
             <li data-step="cloning"   data-state="pending">${STEP_LABELS.cloning}</li>
             <li data-step="scanning"  data-state="pending">${STEP_LABELS.scanning}</li>
+            <li data-step="skeleton"  data-state="pending">${STEP_LABELS.skeleton}</li>
             <li data-step="building"  data-state="pending">${STEP_LABELS.building}</li>
           </ol>
         </div>

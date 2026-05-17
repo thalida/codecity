@@ -864,14 +864,18 @@ if (_canvas) {
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
           const m = event.manifest;
+          // Advance the overlay step BEFORE the (synchronous-looking) work
+          // begins so the user sees the phase update before the city paints
+          // behind the semi-transparent backdrop.
+          loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
           if (handle === null) {
             // First event — skeleton on cold cache, or final on cache hit.
             // Either way: bootstrap the renderer NOW so the city becomes
-            // visible. The skeleton manifest has the full tree shape, so the
-            // icon atlas built from it is correct for the final manifest too
-            // — no rebuild needed when final arrives. cityScene.applyManifest
-            // will diff-and-tween the skeleton → final transition.
-            loadingOverlay.setStep('building');
+            // visible behind the overlay. The skeleton manifest has the full
+            // tree shape, so the icon atlas built from it is correct for the
+            // final manifest too — no rebuild needed when final arrives.
+            // cityScene.applyManifest diff-and-tweens the skeleton → final
+            // transition.
             try {
               setIconAtlas(await buildIconAtlas(m));
             } catch (err) {
@@ -882,7 +886,6 @@ if (_canvas) {
               cityScene: handle.cityScene,
               applyTheme: handle.applyTheme,
             });
-            loadingOverlay.hide();
           } else {
             // Second event (final after skeleton) — tween the city into its
             // final state. startRenderLoop already applied the skeleton, so
@@ -908,6 +911,11 @@ if (_canvas) {
           });
         }
         initialManifest = EMPTY_MANIFEST;
+      } finally {
+        // Hide only after both events (or cache-hit single final) have been
+        // fully applied — the spec's "modal stays up until the city is
+        // fully built" invariant.
+        loadingOverlay.hide();
       }
     } else {
       handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
@@ -946,11 +954,13 @@ if (_canvas) {
         let manifest: Manifest | null = null;
         for await (const event of streamManifest(url.toString())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // Skeleton step covers the placeholder paint while the server
+          // resolves per-file metadata; building step covers the final
+          // tween. Overlay stays up through both — hidden only in finally.
+          loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
           if (event.phase === 'skeleton') {
-            loadingOverlay.setStep('building');
-            loadingOverlay.hide();
-            // Apply the skeleton so the new city paints in immediately —
-            // the final event will tween into final heights.
+            // Apply the skeleton so the new city paints behind the overlay
+            // — the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
             await handle.cityScene.applyManifest(event.manifest);
             // Update the header (project label, branch pill) right after the
