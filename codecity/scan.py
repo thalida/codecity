@@ -46,6 +46,14 @@ from .types import (
 )
 
 
+class ScanCancelledError(Exception):
+    """Raised when a scan_tree_streaming cancel_event is set mid-scan.
+
+    Caller (the server's _serve_manifest) is expected to swallow this
+    — it means 'the client disconnected, we asked the scan to stop,
+    it stopped.' Not a bug, not an error to report to anyone."""
+
+
 # ── Progress logging ─────────────────────────────────────────────────────────
 
 
