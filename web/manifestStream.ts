@@ -15,11 +15,18 @@ export async function* streamManifest(
 ): AsyncIterable<ScanStreamEvent> {
   const resp = await fetchImpl(url);
   if (!resp.ok) {
-    const body = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-    throw new Error(body.error || `HTTP ${resp.status}`);
+    const body = await resp.json().catch(() => null);
+    const errMsg = (body && typeof body.error === 'string') ? body.error : `HTTP ${resp.status}`;
+    throw new Error(errMsg);
   }
-  const reader = resp.body!.getReader();
+  if (!resp.body) {
+    throw new Error('Response has no body');
+  }
+  const reader = resp.body.getReader();
   const decoder = new TextDecoder();
+  // Buffer grows up to one full NDJSON line — for the final-manifest
+  // event that can be 10MB-300MB of UTF-8. Acceptable here because
+  // the server emits at most 2 events per response.
   let buf = '';
   while (true) {
     const { done, value } = await reader.read();
@@ -29,7 +36,7 @@ export async function* streamManifest(
     while ((nl = buf.indexOf('\n')) >= 0) {
       const line = buf.slice(0, nl);
       buf = buf.slice(nl + 1);
-      if (line) yield JSON.parse(line) as ScanStreamEvent;
+      if (line.trim()) yield JSON.parse(line) as ScanStreamEvent;
     }
   }
   if (buf.trim()) yield JSON.parse(buf) as ScanStreamEvent;
