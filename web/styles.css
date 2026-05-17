@@ -577,11 +577,13 @@ h1, h2, h3, h4, h5, h6 {
 .switch-source-btn,
 .app-header-refresh-btn,
 .app-header-repo-link,
+.app-header-segment,
 .app-footer-button,
 .pane-header-close,
 .pane-header-action,
 .modal-header button.modal-close,
-.recent-row .recent-remove {
+.recent-row .recent-remove,
+.project-btn {
   appearance: none;
   flex: 0 0 auto;
   display: inline-flex;
@@ -600,10 +602,12 @@ h1, h2, h3, h4, h5, h6 {
 .switch-source-btn:hover,
 .app-header-refresh-btn:hover,
 .app-header-repo-link:hover,
+.app-header-segment:hover,
 .app-footer-button:hover,
 .pane-header-close:hover,
 .pane-header-action:not(:disabled):hover,
-.recent-row .recent-remove:hover {
+.recent-row .recent-remove:hover,
+.project-btn:not(:disabled):hover {
   color: var(--cc-text-primary);
   background: var(--cc-overlay-bg);
 }
@@ -805,21 +809,15 @@ canvas {
   text-overflow: ellipsis;
 }
 
+/* Shell + hover in .btn-icon. Per-class overrides: smaller padding,
+   inherited font, muted color, and the Electron drag-region marker.
+   The leaf modifier disables interactivity (last crumb = current). */
 .app-header-segment {
-  flex: 0 0 auto;
-  background: none;
-  border: none;
   padding: var(--cc-space-px) var(--cc-space-2);
-  margin: var(--cc-space-0);
   font: inherit;
   color: var(--cc-text-muted);
-  cursor: pointer;
   border-radius: var(--cc-radius-sm);
   -webkit-app-region: no-drag;
-}
-.app-header-segment:hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
 }
 .app-header-segment.is-leaf {
   color: var(--cc-text-primary);
@@ -875,21 +873,15 @@ canvas {
  * + optional @branch pill. Click opens the source picker. Styled to match
  * the rest of the muted header (transparent bg, muted blue-grey, brightens
  * on hover) — NOT a default browser button. */
+/* Shell + hover in .btn-icon. This rule adds the chip-specific layout:
+   24px height, icon-label gap, asymmetric padding (icon breathes on the
+   left; right side hugs the next header element), and the Electron
+   drag-region marker. */
 .project-btn {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
   gap: var(--cc-space-3);
   height: 24px;
-  /* Asymmetric padding: more on the left so the icon breathes; tight on
-   * the right so the @branch pill / label hugs the next header element
-   * (open-repo link or breadcrumb chip). */
   padding: 0 var(--cc-space-1) 0 var(--cc-space-4);
-  margin-right: var(--cc-space-0);
-  background: none;
-  border: none;
   color: var(--cc-text-faint);
-  cursor: pointer;
   border-radius: var(--cc-radius-sm);
   font: inherit;
   font-size: var(--cc-font-lg);
@@ -897,17 +889,7 @@ canvas {
   max-width: 280px;
   -webkit-app-region: no-drag;
 }
-.project-btn:hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
-}
-.project-btn:disabled {
-  cursor: default;
-}
-.project-btn:disabled:hover {
-  color: var(--cc-text-faint);
-  background: none;
-}
+.project-btn:disabled { cursor: default; }
 .project-btn .project-btn-label {
   overflow: hidden;
   text-overflow: ellipsis;
