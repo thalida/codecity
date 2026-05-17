@@ -672,5 +672,82 @@ class ClientDisconnectTests(unittest.TestCase):
         self.assertIn("kaboom", out)
 
 
+class StreamEventsHelperTests(unittest.TestCase):
+    """Unit tests for the server's NDJSON streaming primitive.
+
+    Tested with a stub handler whose `wfile` is a BytesIO so we can
+    inspect the exact wire bytes without spinning up a real server."""
+
+    def _make_handler(self, accept_encoding: str = "gzip") -> object:
+        class _Stub:
+            def __init__(self):
+                self.wfile = io.BytesIO()
+                self.headers = {"Accept-Encoding": accept_encoding}
+                self._sent_status: int | None = None
+                self._sent_headers: list[tuple[str, str]] = []
+                self._ended = False
+
+            def send_response(self, code: int) -> None:
+                self._sent_status = code
+
+            def send_header(self, k: str, v: str) -> None:
+                self._sent_headers.append((k, v))
+
+            def end_headers(self) -> None:
+                self._ended = True
+
+        return _Stub()
+
+    def test_writes_ndjson_lines(self) -> None:
+        import threading
+        from codecity.server import _stream_events
+        h = self._make_handler(accept_encoding="identity")
+        _stream_events(h, [
+            {"phase": "skeleton", "manifest": {"x": 1}},
+            {"phase": "final", "manifest": {"x": 2}},
+        ], threading.Event())
+        # identity encoding — wire bytes are plain JSON-lines.
+        lines = h.wfile.getvalue().decode("utf-8").splitlines()
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(json.loads(lines[0])["phase"], "skeleton")
+        self.assertEqual(json.loads(lines[1])["phase"], "final")
+
+    def test_sends_correct_headers(self) -> None:
+        import threading
+        from codecity.server import _stream_events
+        h = self._make_handler(accept_encoding="gzip, deflate")
+        _stream_events(h, [{"phase": "final", "manifest": {}}], threading.Event())
+        self.assertEqual(h._sent_status, 200)
+        header_dict = dict(h._sent_headers)
+        self.assertEqual(header_dict.get("Content-Type"), "application/x-ndjson")
+        self.assertEqual(header_dict.get("Content-Encoding"), "gzip")
+        # No Content-Length — chunked.
+        self.assertNotIn("Content-Length", header_dict)
+
+    def test_gzip_round_trip(self) -> None:
+        import threading
+        import gzip as gz
+        from codecity.server import _stream_events
+        h = self._make_handler(accept_encoding="gzip")
+        _stream_events(h, [{"phase": "final", "manifest": {"k": "v"}}], threading.Event())
+        decompressed = gz.decompress(h.wfile.getvalue())
+        line = decompressed.decode("utf-8").strip()
+        self.assertEqual(json.loads(line)["manifest"], {"k": "v"})
+
+    def test_broken_pipe_sets_cancel_event(self) -> None:
+        import threading
+        from codecity.server import _stream_events
+        h = self._make_handler(accept_encoding="identity")
+        # Replace wfile with one that raises on write.
+        class _Broken:
+            def write(self, _b): raise BrokenPipeError(32, "broken")
+            def flush(self): pass
+        h.wfile = _Broken()
+        ev = threading.Event()
+        with self.assertRaises(BrokenPipeError):
+            _stream_events(h, [{"phase": "final", "manifest": {}}], ev)
+        self.assertTrue(ev.is_set())
+
+
 if __name__ == "__main__":
     unittest.main()

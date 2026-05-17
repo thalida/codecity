@@ -28,7 +28,7 @@ import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
 from codecity.clone import (
@@ -145,6 +145,53 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
     handler.wfile.write(payload)
+
+
+def _stream_events(  # pyright: ignore[reportUnusedFunction]
+    handler: BaseHTTPRequestHandler,
+    events: Iterable[dict[str, Any]],
+    cancel_event: threading.Event,
+) -> None:
+    """Stream NDJSON events over a chunked HTTP response.
+
+    Each event becomes one line: `<json>\\n`. Encoded via iterencode
+    so peak memory is bounded by one ~64 KB chunk, not the serialized
+    size of the manifest. Wraps wfile in gzip when the client
+    advertises it. Sets cancel_event on BrokenPipe/ConnectionReset so
+    a concurrently-running scan thread can stop ASAP."""
+    accept = handler.headers.get("Accept-Encoding", "")
+    use_gzip = "gzip" in accept.lower()
+
+    handler.send_response(HTTPStatus.OK)
+    handler.send_header("Content-Type", "application/x-ndjson")
+    if use_gzip:
+        handler.send_header("Content-Encoding", "gzip")
+    # No Content-Length → chunked transfer.
+    handler.end_headers()
+
+    sink = handler.wfile
+    gz: gzip.GzipFile | None = None
+    if use_gzip:
+        # mtime=0 → deterministic bytes (helps tests). compresslevel=6
+        # matches the existing _maybe_gzip path's choice.
+        gz = gzip.GzipFile(fileobj=sink, mode="wb", compresslevel=6, mtime=0)
+        sink = gz  # type: ignore[assignment]
+
+    try:
+        encoder = json.JSONEncoder()
+        for event in events:
+            for chunk in encoder.iterencode(event):
+                sink.write(chunk.encode("utf-8"))
+            sink.write(b"\n")
+    except (BrokenPipeError, ConnectionResetError):
+        cancel_event.set()
+        raise
+    finally:
+        if gz is not None:
+            try:
+                gz.close()
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
 
 def _parse_include_all(query: str) -> bool:
