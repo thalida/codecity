@@ -236,5 +236,60 @@ class ManifestCacheTests(CacheTestBase):
         self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
 
 
+class MediaDimsCacheTests(CacheTestBase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.abs_root = Path(self._tmp.name) / "fake-repo"
+
+    def test_media_dims_round_trip(self) -> None:
+        entry: cache_mod.FileEntry = {
+            "size": 100,
+            "mtime": 1.5,
+            "lines": 0,
+            "binary": True,
+            "ext": ".png",
+            "media_width": 320,
+            "media_height": 240,
+        }
+        cache_mod.cache_save_files(self.abs_root, {"img.png": entry})
+        loaded = cache_mod.cache_load_files(self.abs_root)
+        self.assertIn("img.png", loaded)
+        self.assertEqual(loaded["img.png"]["media_width"], 320)
+        self.assertEqual(loaded["img.png"]["media_height"], 240)
+
+    def test_entry_without_media_dims_loads_cleanly(self) -> None:
+        entry: cache_mod.FileEntry = {
+            "size": 100,
+            "mtime": 1.5,
+            "lines": 50,
+            "binary": False,
+            "ext": ".py",
+        }
+        cache_mod.cache_save_files(self.abs_root, {"code.py": entry})
+        loaded = cache_mod.cache_load_files(self.abs_root)
+        self.assertIn("code.py", loaded)
+        self.assertNotIn("media_width", loaded["code.py"])
+        self.assertNotIn("media_height", loaded["code.py"])
+
+    def test_partial_media_dims_drops_both(self) -> None:
+        # Manually write a cache file with only media_width (no height);
+        # the coercer must drop both rather than carry a half-populated entry.
+        cache_path = cache_mod._file_cache_path(self.abs_root)
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        cache_path.write_text(json.dumps({
+            "version": 1,
+            "entries": {
+                "weird.png": {
+                    "size": 10, "mtime": 1.0, "lines": 0,
+                    "binary": True, "ext": ".png", "media_width": 100,
+                    # media_height intentionally missing
+                },
+            },
+        }), encoding="utf-8")
+        loaded = cache_mod.cache_load_files(self.abs_root)
+        self.assertNotIn("media_width", loaded["weird.png"])
+        self.assertNotIn("media_height", loaded["weird.png"])
+
+
 if __name__ == "__main__":
     unittest.main()

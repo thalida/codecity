@@ -29,7 +29,7 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict, cast
+from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
     from codecity.types import Manifest
@@ -44,27 +44,35 @@ _GIT_HISTORY_CACHE_VERSION = 1
 
 
 class FileEntry(TypedDict):
+    # Required (always present in a valid entry):
     size: int
     mtime: float
     lines: int
     binary: bool
     ext: str
+    # Optional — populated only for recognized media files. Either both
+    # or neither is present; layout treats absence as "no signal" and
+    # falls back to a square aspect.
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
     """Validate a parsed JSON value is a well-formed FileEntry. Returns
-    the entry on success, None if any field is missing or wrong-typed.
+    the entry on success, None if any required field is missing or
+    wrong-typed.
 
     Drops the entry rather than raising — a partially-corrupt cache
     file should yield only valid entries, not block the whole load."""
     if not isinstance(value, dict):
         return None
+    d = cast(dict[str, object], value)
     try:
-        size = value["size"]
-        mtime = value["mtime"]
-        lines = value["lines"]
-        binary = value["binary"]
-        ext = value["ext"]
+        size = d["size"]
+        mtime = d["mtime"]
+        lines = d["lines"]
+        binary = d["binary"]
+        ext = d["ext"]
     except KeyError:
         return None
     if not isinstance(size, int):
@@ -77,13 +85,20 @@ def _coerce_file_entry(value: object) -> FileEntry | None:
         return None
     if not isinstance(ext, str):
         return None
-    return {
+    entry: FileEntry = {
         "size": size,
         "mtime": float(mtime),
         "lines": lines,
         "binary": binary,
         "ext": ext,
     }
+    # Optional media dims — both must be present and int-typed, else drop both.
+    mw = d.get("media_width")
+    mh = d.get("media_height")
+    if isinstance(mw, int) and isinstance(mh, int):
+        entry["media_width"] = mw
+        entry["media_height"] = mh
+    return entry
 
 
 def repo_key(abs_root: Path) -> str:
