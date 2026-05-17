@@ -445,10 +445,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* .form-input — the one text-input style for every context (sidebar,
    controls, modal). Reads as a "depressed" element against any of the
-   four surface backgrounds. */
+   four surface backgrounds.
+   background-color (not the `background` shorthand) so .form-input--select
+   can layer its chevron in via background-image. */
 .form-input,
 .modal-field input {
-  background: var(--cc-bg-chrome);
+  background-color: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
   color: var(--cc-text-primary);
@@ -475,6 +477,20 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--cc-font-md);
   padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
   text-align: right;
+}
+
+/* .form-input--select — native <select> variant. Drops the OS chrome
+   (appearance: none), paints a chevron-down on the right via an inline
+   SVG, and adds enough right padding for the value text to clear it. */
+.form-input--select {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: var(--cc-space-8); /* 24px — room for the chevron */
+  cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237279a2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right var(--cc-space-3) center;
+  background-size: 14px 14px;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

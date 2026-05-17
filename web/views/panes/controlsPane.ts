@@ -862,7 +862,7 @@ function _buildFilePreviewSection(): HTMLElement {
 
   // Native <select> — 8 theme options don't suit the segmented button style.
   const sel = document.createElement('select');
-  sel.className = 'theme-native-select';
+  sel.className = 'form-input form-input--select';
   for (const opt of SYNTAX_THEME_OPTIONS) {
     const el = document.createElement('option');
     el.value = opt.value;
