@@ -2477,7 +2477,8 @@ canvas {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px (tightened from 16/16) */
+  padding: var(--cc-space-5) var(--cc-space-6); /* 10px 12px */
+  background: var(--cc-bg-chrome); /* chrome titlebar — matches activity bar surface */
   border-bottom: 1px solid var(--cc-border-subtle);
   font-weight: var(--cc-fw-semibold);
 }
@@ -2495,12 +2496,20 @@ canvas {
 /* Tab strip — classic underline-tab pattern. The container draws the
    horizontal rule under the row; each tab paints a 2px transparent
    border-bottom that overlaps that rule (negative bottom margin) and
-   switches to the accent color on the active tab. */
+   switches to the accent color on the active tab.
+
+   Negative inline margins + matching inset padding extend the underline
+   edge-to-edge of the modal card while keeping the tab buttons aligned
+   with the rest of the body content. */
 .modal-tabs {
   display: flex;
   gap: 0;
+  margin-left: calc(-1 * var(--cc-space-6));
+  margin-right: calc(-1 * var(--cc-space-6));
+  margin-bottom: var(--cc-space-5);
+  padding-left: var(--cc-space-6);
+  padding-right: var(--cc-space-6);
   border-bottom: 1px solid var(--cc-border-subtle);
-  margin-bottom: var(--cc-space-5); /* 10px (tightened from 16) */
 }
 .modal-tabs button {
   appearance: none;
@@ -2550,10 +2559,12 @@ canvas {
 
 .modal-actions {
   display: flex;
-  justify-content: flex-end;
   margin-top: var(--cc-space-3);
 }
-/* .modal-actions button typography in .btn-primary. */
+.modal-actions button {
+  /* Primary action stretches the full row width in the modal. */
+  flex: 1 1 auto;
+}
 
 .recents-list {
   margin-top: var(--cc-space-7);
@@ -2609,6 +2620,16 @@ canvas {
 }
 .recent-row--active:hover {
   background: var(--cc-accent-bg);
+}
+
+/* Destructive trash button next to each recent — red icon at rest and
+   on hover, with a red-tinted hover background. */
+.recent-item .btn-icon[data-action="recent-remove"] {
+  color: var(--cc-error);
+}
+.recent-item .btn-icon[data-action="recent-remove"]:hover {
+  color: var(--cc-error-light);
+  background: var(--cc-error-bg);
 }
 .recent-row-badge {
   margin-left: auto;

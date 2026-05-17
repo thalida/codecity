@@ -950,10 +950,10 @@ https://github.com/highlightjs/highlight.js/issues/2277`),i=e,r=t),n===void 0&&(
                   value="${r===`git`?tu(i):``}">
               </div>
               <div class="modal-field">
-                <label>Branch (optional)</label>
+                <label>Branch</label>
                 <input data-field="branch" type="text" autocomplete="off" spellcheck="false"
+                  placeholder="default"
                   value="${tu(o)}">
-                <div class="modal-field-help">Leave empty to use the remote's default branch.</div>
               </div>
             </div>
 
@@ -976,7 +976,7 @@ https://github.com/highlightjs/highlight.js/issues/2277`),i=e,r=t),n===void 0&&(
             <div class="recent-label">${eu(n.label)}</div>
             <div class="recent-sub">${eu(n.src)}${n.branch?` · `+eu(n.branch):``}</div>
           </div>
-          ${a?`<span class="recent-row-badge">Open</span>`:``}
+          ${a?`<span class="recent-row-badge">Active</span>`:``}
         </button>
         <button type="button"
                 class="btn-icon btn-icon--text"

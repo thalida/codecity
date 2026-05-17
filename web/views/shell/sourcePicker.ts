@@ -115,10 +115,10 @@ export function createSourcePicker(opts: {
                   value="${activeTab === 'git' ? escapeAttr(prefillSrc) : ''}">
               </div>
               <div class="modal-field">
-                <label>Branch (optional)</label>
+                <label>Branch</label>
                 <input data-field="branch" type="text" autocomplete="off" spellcheck="false"
+                  placeholder="default"
                   value="${escapeAttr(prefillBranch)}">
-                <div class="modal-field-help">Leave empty to use the remote's default branch.</div>
               </div>
             </div>
 
@@ -159,7 +159,7 @@ export function createSourcePicker(opts: {
               r.branch ? ' · ' + escapeHtml(r.branch) : ''
             }</div>
           </div>
-          ${isActive ? '<span class="recent-row-badge">Open</span>' : ''}
+          ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}
         </button>
         <button type="button"
                 class="btn-icon btn-icon--text"
