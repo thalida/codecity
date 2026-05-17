@@ -151,6 +151,6 @@ def _probe_video(path: Path) -> tuple[int | None, int | None]:
     finally:
         if parser is not None:
             try:
-                parser.stream._input.close()  # type: ignore[attr-defined]
+                parser.stream.close()  # type: ignore[reportUnknownMemberType]
             except Exception:
                 pass
