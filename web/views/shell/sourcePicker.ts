@@ -3,6 +3,7 @@
 // are pulled from sourceRecents.ts each time the modal renders.
 
 import { listRecents, removeRecent } from './sourceRecents.js';
+import { LUCIDE_ICON_BASE_URL } from '@/constants';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
@@ -139,24 +140,34 @@ export function createSourcePicker(opts: {
   function renderRecents(currentSrc: string, currentBranch: string): string {
     const list = listRecents();
     if (list.length === 0) return '';
+    const trashMaskUrl = `url(${LUCIDE_ICON_BASE_URL}trash-2.svg)`;
     const rows = list.map((r) => {
       const isActive =
         r.src === currentSrc &&
         (r.branch ?? '') === (currentBranch ?? '');
       const icon = isGitLike(r.src) ? _hostingIconSvg(r.src) : '📁';
       return `
-      <div class="recent-row${isActive ? ' recent-row--active' : ''}"
-           data-src="${escapeAttr(r.src)}"
-           data-branch="${escapeAttr(r.branch ?? '')}">
-        <span class="recent-icon">${icon}</span>
-        <div>
-          <div class="recent-label">${escapeHtml(r.label)}</div>
-          <div class="recent-sub">${escapeHtml(r.src)}${
-            r.branch ? ' · ' + escapeHtml(r.branch) : ''
-          }</div>
-        </div>
-        ${isActive ? '<span class="recent-row-badge">Open</span>' : ''}
-        <button class="btn-icon btn-icon--text" data-action="recent-remove" aria-label="Remove from recents">×</button>
+      <div class="recent-item">
+        <button type="button"
+                class="recent-row${isActive ? ' recent-row--active' : ''}"
+                data-src="${escapeAttr(r.src)}"
+                data-branch="${escapeAttr(r.branch ?? '')}">
+          <span class="recent-icon">${icon}</span>
+          <div class="recent-row-body">
+            <div class="recent-label">${escapeHtml(r.label)}</div>
+            <div class="recent-sub">${escapeHtml(r.src)}${
+              r.branch ? ' · ' + escapeHtml(r.branch) : ''
+            }</div>
+          </div>
+          ${isActive ? '<span class="recent-row-badge">Open</span>' : ''}
+        </button>
+        <button type="button"
+                class="btn-icon btn-icon--text"
+                data-action="recent-remove"
+                aria-label="Remove from recents">
+          <span class="lucide-icon" aria-hidden="true"
+                style="mask-image:${trashMaskUrl};-webkit-mask-image:${trashMaskUrl}"></span>
+        </button>
       </div>
     `;
     }).join('');
@@ -183,24 +194,23 @@ export function createSourcePicker(opts: {
     root!.querySelector<HTMLButtonElement>('button.submit')!
       .addEventListener('click', submitFromForm);
 
-    // Recent rows
-    root!.querySelectorAll<HTMLElement>('.recent-row').forEach((row) => {
-      row.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).closest('[data-action="recent-remove"]')) return;
+    // Recent rows — the row button opens the recent; the sibling trash
+    // button removes it. They live in a shared .recent-item container.
+    root!.querySelectorAll<HTMLElement>('.recent-item').forEach((item) => {
+      const row = item.querySelector<HTMLButtonElement>('.recent-row')!;
+      const removeBtn = item.querySelector<HTMLButtonElement>('[data-action="recent-remove"]');
+      const src = row.dataset.src!;
+      const branch = row.dataset.branch || undefined;
+
+      row.addEventListener('click', () => {
         if (row.classList.contains('recent-row--active')) return;
-        const src = row.dataset.src!;
-        const branch = row.dataset.branch || undefined;
         opts.onSubmit({ src, branch });
       });
-      row.querySelector<HTMLButtonElement>('[data-action="recent-remove"]')!
-        .addEventListener('click', (e) => {
-          e.stopPropagation();
-          const src = row.dataset.src!;
-          const branch = row.dataset.branch || undefined;
-          removeRecent(src, branch);
-          // Re-render: cheap.
-          render({ dismissible });
-        });
+
+      removeBtn?.addEventListener('click', () => {
+        removeRecent(src, branch);
+        render({ dismissible });
+      });
     });
 
     // Dismissible-only handlers

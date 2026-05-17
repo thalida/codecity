@@ -965,19 +965,28 @@ https://github.com/highlightjs/highlight.js/issues/2277`),i=e,r=t),n===void 0&&(
           </div>
         </div>
       </div>
-    `,c(),t.style.display=`block`,d()}function s(e,t){let n=Gl();return n.length===0?``:`<div class="recents-list"><h3>Recent</h3>${n.map(n=>{let r=n.src===e&&(n.branch??``)===(t??``),a=i(n.src)?Ql(n.src):`📁`;return`
-      <div class="recent-row${r?` recent-row--active`:``}"
-           data-src="${tu(n.src)}"
-           data-branch="${tu(n.branch??``)}">
-        <span class="recent-icon">${a}</span>
-        <div>
-          <div class="recent-label">${eu(n.label)}</div>
-          <div class="recent-sub">${eu(n.src)}${n.branch?` · `+eu(n.branch):``}</div>
-        </div>
-        ${r?`<span class="recent-row-badge">Open</span>`:``}
-        <button class="btn-icon btn-icon--text" data-action="recent-remove" aria-label="Remove from recents">×</button>
+    `,c(),t.style.display=`block`,d()}function s(e,t){let n=Gl();if(n.length===0)return``;let r=`url(${rt}trash-2.svg)`;return`<div class="recents-list"><h3>Recent</h3>${n.map(n=>{let a=n.src===e&&(n.branch??``)===(t??``),o=i(n.src)?Ql(n.src):`📁`;return`
+      <div class="recent-item">
+        <button type="button"
+                class="recent-row${a?` recent-row--active`:``}"
+                data-src="${tu(n.src)}"
+                data-branch="${tu(n.branch??``)}">
+          <span class="recent-icon">${o}</span>
+          <div class="recent-row-body">
+            <div class="recent-label">${eu(n.label)}</div>
+            <div class="recent-sub">${eu(n.src)}${n.branch?` · `+eu(n.branch):``}</div>
+          </div>
+          ${a?`<span class="recent-row-badge">Open</span>`:``}
+        </button>
+        <button type="button"
+                class="btn-icon btn-icon--text"
+                data-action="recent-remove"
+                aria-label="Remove from recents">
+          <span class="lucide-icon" aria-hidden="true"
+                style="mask-image:${r};-webkit-mask-image:${r}"></span>
+        </button>
       </div>
-    `}).join(``)}</div>`}function c(){t.querySelectorAll(`[data-tab]`).forEach(e=>{e.addEventListener(`click`,()=>{r=e.dataset.tab,t.querySelector(`[data-pane="local"]`).style.display=r===`local`?`block`:`none`,t.querySelector(`[data-pane="git"]`).style.display=r===`git`?`block`:`none`,t.querySelectorAll(`[data-tab]`).forEach(t=>{t.classList.toggle(`active`,t===e)}),d()})}),t.querySelector(`button.submit`).addEventListener(`click`,u),t.querySelectorAll(`.recent-row`).forEach(t=>{t.addEventListener(`click`,n=>{if(n.target.closest(`[data-action="recent-remove"]`)||t.classList.contains(`recent-row--active`))return;let r=t.dataset.src,i=t.dataset.branch||void 0;e.onSubmit({src:r,branch:i})}),t.querySelector(`[data-action="recent-remove"]`).addEventListener(`click`,e=>{e.stopPropagation();let r=t.dataset.src;ql(r,t.dataset.branch||void 0),o({dismissible:n})})}),n&&(t.querySelector(`[data-action="close"]`).addEventListener(`click`,f),t.querySelector(`.modal-backdrop`).addEventListener(`click`,e=>{e.target===e.currentTarget&&f()}),document.addEventListener(`keydown`,l))}function l(e){n&&e.key===`Escape`&&f()}function u(){let n=r===`local`?t.querySelector(`[data-field="path"]`).value.trim():t.querySelector(`[data-field="url"]`).value.trim();if(!n)return;let i=r===`git`&&t.querySelector(`[data-field="branch"]`).value.trim()||void 0;e.onSubmit({src:n,branch:i})}function d(){let e=r===`local`?`[data-field="path"]`:`[data-field="url"]`;t.querySelector(e)?.focus()}function f(){document.removeEventListener(`keydown`,l),t.style.display=`none`}return{open(e={}){o(e)},close:f}}function eu(e){return e.replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`).replace(/'/g,`&#39;`)}function tu(e){return eu(e)}var nu=[`resolving`,`cloning`,`scanning`,`building`],ru={resolving:`Resolving source`,cloning:`Cloning`,scanning:`Scanning files`,building:`Building city`},iu=[{ms:2e3,step:`cloning`},{ms:1e4,step:`scanning`}];function au(){let e=document.getElementById(`loading-overlay-root`);if(!e)return{show:()=>{},setStep:()=>{},hide:()=>{}};let t=[],n=`scanning`,r=null,i={};function a(){e.innerHTML=`
+    `}).join(``)}</div>`}function c(){t.querySelectorAll(`[data-tab]`).forEach(e=>{e.addEventListener(`click`,()=>{r=e.dataset.tab,t.querySelector(`[data-pane="local"]`).style.display=r===`local`?`block`:`none`,t.querySelector(`[data-pane="git"]`).style.display=r===`git`?`block`:`none`,t.querySelectorAll(`[data-tab]`).forEach(t=>{t.classList.toggle(`active`,t===e)}),d()})}),t.querySelector(`button.submit`).addEventListener(`click`,u),t.querySelectorAll(`.recent-item`).forEach(t=>{let r=t.querySelector(`.recent-row`),i=t.querySelector(`[data-action="recent-remove"]`),a=r.dataset.src,s=r.dataset.branch||void 0;r.addEventListener(`click`,()=>{r.classList.contains(`recent-row--active`)||e.onSubmit({src:a,branch:s})}),i?.addEventListener(`click`,()=>{ql(a,s),o({dismissible:n})})}),n&&(t.querySelector(`[data-action="close"]`).addEventListener(`click`,f),t.querySelector(`.modal-backdrop`).addEventListener(`click`,e=>{e.target===e.currentTarget&&f()}),document.addEventListener(`keydown`,l))}function l(e){n&&e.key===`Escape`&&f()}function u(){let n=r===`local`?t.querySelector(`[data-field="path"]`).value.trim():t.querySelector(`[data-field="url"]`).value.trim();if(!n)return;let i=r===`git`&&t.querySelector(`[data-field="branch"]`).value.trim()||void 0;e.onSubmit({src:n,branch:i})}function d(){let e=r===`local`?`[data-field="path"]`:`[data-field="url"]`;t.querySelector(e)?.focus()}function f(){document.removeEventListener(`keydown`,l),t.style.display=`none`}return{open(e={}){o(e)},close:f}}function eu(e){return e.replace(/&/g,`&amp;`).replace(/</g,`&lt;`).replace(/>/g,`&gt;`).replace(/"/g,`&quot;`).replace(/'/g,`&#39;`)}function tu(e){return eu(e)}var nu=[`resolving`,`cloning`,`scanning`,`building`],ru={resolving:`Resolving source`,cloning:`Cloning`,scanning:`Scanning files`,building:`Building city`},iu=[{ms:2e3,step:`cloning`},{ms:1e4,step:`scanning`}];function au(){let e=document.getElementById(`loading-overlay-root`);if(!e)return{show:()=>{},setStep:()=>{},hide:()=>{}};let t=[],n=`scanning`,r=null,i={};function a(){e.innerHTML=`
       <div class="loading-backdrop">
         <div class="loading-card">
           <div class="loading-spinner"></div>
