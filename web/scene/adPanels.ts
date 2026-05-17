@@ -54,7 +54,9 @@ function orientToYRotation(orient: BuildingOrient): number {
 }
 
 /**
- * Build the ad panel for a media-file building.
+ * Build the ad panels for a media-file building. Returns 4 meshes — one
+ * on each vertical face (South/North/East/West). All 4 share the same
+ * geometry and material (texture loads once and updates them all).
  *
  * Width = `building.w × (1 - 2 × AD_SIDE_MARGIN_FRAC)`.
  * Height = `ad_width × aspect` where aspect comes from the file's
@@ -62,14 +64,13 @@ function orientToYRotation(orient: BuildingOrient): number {
  * dims are missing).
  * Vertical anchor: bottom edge sits at `AD_BOTTOM_OFFSET_FLOORS × FLOOR_HEIGHT`
  * above the ground — guarantees the door (0.75 × FLOOR_HEIGHT tall) is
- * never covered. The ad top may exceed the building's roof for tall
- * portrait images on smaller buildings; that's the Times-Square effect.
+ * never covered on the door face. The ad top may exceed the building's
+ * roof for tall portrait images on smaller buildings (Times-Square effect).
  *
- * Returns a single Mesh tagged with userData.building so the picker
- * resolves clicks anywhere on the ad to the same file selection a
- * regular building click would produce.
+ * Each mesh is tagged with userData.building so the picker resolves
+ * clicks anywhere on any ad to the same file selection.
  */
-export function createAdPanel(building: Building): THREE.Mesh {
+export function createAdPanel(building: Building): THREE.Mesh[] {
   const kind = mediaKindOf(building.file);
   if (!kind) {
     throw new Error(`createAdPanel: ${building.file?.path} is not a media file`);
@@ -92,12 +93,11 @@ export function createAdPanel(building: Building): THREE.Mesh {
   const bottomY = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT;
   const centerY = bottomY + adHeight / 2;
 
+  // polygonOffset pulls the ad mesh's depth toward the camera by a
+  // GPU-side bias, eliminating z-fighting with the building wall it's
+  // flush against — independent of the AD_OFFSET world-unit nudge.
   const geo = new THREE.PlaneGeometry(adWidth, adHeight);
   const placeholderColor = new THREE.Color(cfg.AD_PLACEHOLDER_COLOR).multiplyScalar(adEmission);
-  // polygonOffset pulls the ad mesh's depth toward the camera by a
-  // tiny GPU-side bias, eliminating z-fighting with the building wall
-  // it's flush against — independent of the 0.02 world-unit AD_OFFSET
-  // which alone isn't enough at typical camera distances.
   const mat = new THREE.MeshBasicMaterial({
     color: placeholderColor,
     side: THREE.FrontSide,
@@ -108,30 +108,46 @@ export function createAdPanel(building: Building): THREE.Mesh {
     polygonOffsetUnits: -4,
   });
 
-  const mesh = new THREE.Mesh(geo, mat);
-  // The plane's local +Z is its front normal. We place it on the
-  // building's front face at (0, centerY, building.d/2 + AD_OFFSET)
-  // in the building's local frame, then rotate the whole thing per
-  // building.orient. We achieve this by setting the mesh's world
-  // position + rotation directly (no parent group needed — the picker
-  // and fader operate on the mesh itself).
+  // Build a mesh for each of the 4 vertical orientations. All four
+  // share the same geometry + material so a texture swap on load
+  // affects all of them in one assignment.
   const dHalf = building.d / 2;
-  const zOffset = dHalf + cfg.AD_OFFSET;
-  // Compute world position by rotating (0, centerY, zOffset) around Y
-  // by the orient angle, then translating to (building.x, 0, building.y).
-  const angle = orientToYRotation(building.orient);
-  const cos = Math.cos(angle);
-  const sin = Math.sin(angle);
-  const worldX = building.x + sin * zOffset;
-  const worldZ = building.y + cos * zOffset;
-  mesh.position.set(worldX, centerY, worldZ);
-  mesh.rotation.y = angle;
+  const wHalf = building.w / 2;
+  const orients: BuildingOrient[] = [
+    BuildingOrient.South,
+    BuildingOrient.North,
+    BuildingOrient.East,
+    BuildingOrient.West,
+  ];
+  const meshes: THREE.Mesh[] = [];
+  for (const orient of orients) {
+    const angle = orientToYRotation(orient);
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    // For South/North faces (angle 0 or π), the half-extent we step
+    // through is the building's DEPTH; for East/West faces (angle ±π/2),
+    // it's the WIDTH. Since the building is square (d === w), we can
+    // use either — but compute correctly anyway for clarity.
+    const halfExtent = (orient === BuildingOrient.South || orient === BuildingOrient.North)
+      ? dHalf
+      : wHalf;
+    const zOffset = halfExtent + cfg.AD_OFFSET;
+    const worldX = building.x + sin * zOffset;
+    const worldZ = building.y + cos * zOffset;
 
-  mesh.userData.kind = 'adPanel';
-  mesh.userData.role = 'panel';
-  mesh.userData.building = building;
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(worldX, centerY, worldZ);
+    mesh.rotation.y = angle;
+    mesh.userData.kind = 'adPanel';
+    mesh.userData.role = 'panel';
+    mesh.userData.building = building;
+    meshes.push(mesh);
+  }
 
-  // Async texture load — same texture sources as the old billboards.
+  // Async texture load — fired once. When it resolves, replace the
+  // shared material's map + tint and propagate to all 4 meshes by
+  // re-assigning material on each (dispose the old shared material
+  // once after the swap).
   const filePath = building.file.fullPath || building.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
   _loadAdTexture(url, kind)
@@ -145,17 +161,18 @@ export function createAdPanel(building: Building): THREE.Mesh {
         side: THREE.FrontSide,
         transparent: true,
         depthWrite: false,
-        opacity: (mesh.material as THREE.MeshBasicMaterial).opacity,
+        opacity: (meshes[0].material as THREE.MeshBasicMaterial).opacity,
         polygonOffset: true,
         polygonOffsetFactor: -4,
         polygonOffsetUnits: -4,
       });
-      (mesh.material as THREE.Material).dispose();
-      mesh.material = newMat;
+      const oldMat = meshes[0].material as THREE.Material;
+      for (const m of meshes) m.material = newMat;
+      oldMat.dispose();
     })
     .catch(() => { /* keep placeholder; picker still resolves */ });
 
-  return mesh;
+  return meshes;
 }
 
 /** Pulse the current BLOOM.AD_EMISSION value into every ad panel's
@@ -185,7 +202,9 @@ export function setAdPanelOpacity(mesh: THREE.Mesh, opacity: number): void {
   mat.opacity = opacity;
 }
 
-/** Dispose the ad mesh's geometry, material, and per-instance texture. */
+/** Dispose the ad mesh's geometry, material, and per-instance texture.
+ * Safe to call multiple times on meshes that share resources — THREE.js
+ * dispose() calls are idempotent (no-op after the first). */
 export function disposeAdPanel(mesh: THREE.Mesh): void {
   mesh.geometry.dispose();
   const mat = mesh.material as THREE.Material & { map?: THREE.Texture | null };

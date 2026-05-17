@@ -796,14 +796,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.buildings.length > 0) {
         block.detailMesh = createBuildingsInstancedMesh(block);
       }
-      // Image / video files get an ad-panel plane mounted on the front
-      // face of their (regular) building cuboid. Media buildings render
-      // through detailMesh like every other building; the ad is purely
-      // additive decoration with its own picker hits + fader/bloom hooks.
+      // Image / video files get ad-panel planes mounted on all 4
+      // vertical faces of their (regular) building cuboid — Times-Square
+      // wraparound, so the ad reads from any orbit angle. Media buildings
+      // render through detailMesh like every other building; the ads are
+      // purely additive decoration with their own picker hits + fader/
+      // bloom hooks.
       const adPanels: THREE.Mesh[] = [];
       for (const b of block.buildings) {
         if (b.file && isMediaFile(b.file)) {
-          adPanels.push(createAdPanel(b));
+          adPanels.push(...createAdPanel(b));
         }
       }
       if (adPanels.length > 0) block.adPanels = adPanels;
