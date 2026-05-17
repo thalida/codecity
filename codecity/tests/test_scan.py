@@ -7,6 +7,7 @@ import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from codecity.scan import (
     _extension,
@@ -708,6 +709,48 @@ def _line_count_real():
     real implementation while also mocking it."""
     from codecity.scan import _line_count
     return _line_count
+
+
+class ScanTreeStreamingTests(unittest.TestCase):
+    def _make_tiny_repo(self, tmpdir: str) -> str:
+        # Two files, no git init — keeps the test fast.
+        (Path(tmpdir) / "a.py").write_text("x = 1\ny = 2\n")
+        (Path(tmpdir) / "b.py").write_text("z = 3\n")
+        return tmpdir
+
+    def test_yields_skeleton_then_final(self) -> None:
+        from codecity.scan import scan_tree_streaming
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            events = list(scan_tree_streaming(td))
+        self.assertEqual(len(events), 2)
+        self.assertEqual(events[0]["phase"], "skeleton")
+        self.assertEqual(events[1]["phase"], "final")
+
+    def test_skeleton_has_placeholder_metadata(self) -> None:
+        from codecity.scan import scan_tree_streaming
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            skeleton, _final = list(scan_tree_streaming(td))
+        # Walk the tree and assert every file has placeholder lines/binary.
+        def files(node):
+            for child in node["children"]:
+                if child["type"] == "file":
+                    yield child
+                else:
+                    yield from files(child)
+        for f in files(skeleton["manifest"]["tree"]):
+            self.assertEqual(f["lines"], 1, f"{f['path']} should have placeholder lines=1")
+            self.assertFalse(f["binary"], f"{f['path']} should have placeholder binary=False")
+
+    def test_final_matches_scan_tree(self) -> None:
+        from codecity.scan import scan_tree, scan_tree_streaming
+        with TemporaryDirectory() as td:
+            self._make_tiny_repo(td)
+            _skeleton, final = list(scan_tree_streaming(td))
+            eager = scan_tree(td)
+        # signature and scanned_at differ across separate calls; compare tree shape.
+        self.assertEqual(final["manifest"]["tree"], eager["tree"])
 
 
 if __name__ == "__main__":

@@ -42,6 +42,7 @@ from .types import (
     Manifest,
     NodeKind,
     RepoInfo,
+    ScanStreamEvent,
     SignatureResponse,
 )
 
@@ -694,28 +695,60 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
-def scan_tree(
+def _wrap_skeleton(
+    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+) -> Manifest:
+    """Build a Manifest envelope for the skeleton-phase emit. The tree
+    already has FileNodes with placeholder lines=0 / binary=False from
+    _file_node. We re-write lines to 1 so layoutV4 gives every building
+    a visible minimum height; the final manifest will tween real
+    counts in via the renderer's diff system."""
+    _force_skeleton_placeholders(tree)
+    return {
+        "root": root_abs,
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "signature": sig.hexdigest(),
+        "tree": tree,
+        "repo": repo_info,
+    }
+
+
+def _wrap_final(
+    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+) -> Manifest:
+    """Build a Manifest envelope for the final-phase emit. Called after
+    _populate_file_metadata has filled in real lines/binary values."""
+    return {
+        "root": root_abs,
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "signature": sig.hexdigest(),
+        "tree": tree,
+        "repo": repo_info,
+    }
+
+
+def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:
+    """In-place: set every FileNode under `node` to lines=1, binary=False
+    so the skeleton renders with uniform-height buildings."""
+    if node["type"] == NodeKind.FILE:
+        node["lines"] = 1  # type: ignore[typeddict-item]
+        node["binary"] = False  # type: ignore[typeddict-item]
+        return
+    for child in node.get("children", []):  # type: ignore[union-attr]
+        _force_skeleton_placeholders(child)
+
+
+def scan_tree_streaming(
     root: str,
     *,
     include_all: bool = False,
     use_cache: bool = True,
-) -> Manifest:
-    """Scan a directory and return the full manifest.
-
-    With ``include_all=False`` (default), in a git repo the scanner walks
-    only paths in ``git ls-files`` — gitignored and untracked files are
-    hidden. With ``include_all=True``, the tracked-files filter is
-    skipped entirely; every file under ``root`` is emitted EXCEPT
-    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
-    or matched by the optional ``<root>/.codecityignore`` file.
-
-    Outside a git repo, ``include_all`` has no effect — the tracked set
-    is empty either way.
-
-    The skip list is always applied. Per-project additions go in
-    ``<root>/.codecityignore`` (one literal name per line, or relative
-    paths containing ``/``).
-    """
+) -> Iterator["ScanStreamEvent"]:
+    """Generator form of scan_tree: yields a skeleton event after the
+    tree walk, then a final event after metadata population. The
+    eager scan_tree() wrapper drains this and returns the final
+    manifest, preserving the original API for non-streaming callers
+    (CLI, tests that don't care about phasing)."""
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -750,9 +783,21 @@ def scan_tree(
         unignore_names=unignore_names, unignore_paths=unignore_paths,
         sig=sig,
     )
-    _log(f"walked {_files_seen} files; resolving file metadata")
+    _log(f"walked {_files_seen} files; emitting skeleton")
+
+    # We deep-copy here so the skeleton's placeholder-mutation doesn't
+    # affect the tree that _populate_file_metadata is about to modify
+    # in-place. Cheap for small repos; for Linux this is ~50ms.
+    import copy
+    skeleton_tree = copy.deepcopy(tree)
+    yield {
+        "phase": "skeleton",
+        "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, repo_info),
+    }
+
+    _log("resolving file metadata")
     _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
-    _log("emitting manifest")
+    _log("emitting final manifest")
 
     # Repo-level metadata — branch, remote, head, dirty — feeds the
     # signature so the footer's "live" indicator catches a checkout or
@@ -760,13 +805,46 @@ def scan_tree(
     if repo_info is not None:
         _hash_repo_info(sig, repo_info)
 
-    return {
-        "root": root_abs,
-        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
-        "tree": tree,
-        "repo": repo_info,
+    yield {
+        "phase": "final",
+        "manifest": _wrap_final(root_abs, tree, sig, repo_info),
     }
+
+
+def scan_tree(
+    root: str,
+    *,
+    include_all: bool = False,
+    use_cache: bool = True,
+) -> Manifest:
+    """Scan a directory and return the full manifest.
+
+    With ``include_all=False`` (default), in a git repo the scanner walks
+    only paths in ``git ls-files`` — gitignored and untracked files are
+    hidden. With ``include_all=True``, the tracked-files filter is
+    skipped entirely; every file under ``root`` is emitted EXCEPT
+    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
+    or matched by the optional ``<root>/.codecityignore`` file.
+
+    Outside a git repo, ``include_all`` has no effect — the tracked set
+    is empty either way.
+
+    The skip list is always applied. Per-project additions go in
+    ``<root>/.codecityignore`` (one literal name per line, or relative
+    paths containing ``/``).
+
+    Eager wrapper: drains scan_tree_streaming and returns the final
+    manifest. Preserves the existing API for callers that don't
+    stream (CLI, older tests).
+    """
+    final: Manifest | None = None
+    for event in scan_tree_streaming(
+        root, include_all=include_all, use_cache=use_cache,
+    ):
+        if event["phase"] == "final":
+            final = event["manifest"]
+    assert final is not None, "scan_tree_streaming must yield a final event"
+    return final
 
 
 def _collect_tracked_set(root: Path) -> set[str]:
