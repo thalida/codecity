@@ -14,7 +14,8 @@ export interface KeyBinding {
 }
 
 export const KEY_BINDINGS: Record<string, KeyBinding> = {
-  /** Reset the camera framing. */
+  /** Refresh — rebuild the city manifest AND reset the camera framing.
+   *  Mirrors the header gem button and clicking the gem in the city. */
   RESET_VIEW: { label: 'R', keys: ['r', 'R', 'Home'] },
   /** Focus camera on the current selection. */
   FOCUS_SELECTION: { label: 'F', keys: ['f', 'F'] },

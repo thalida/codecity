@@ -26,6 +26,7 @@ export function createInputHandlers({
   showTooltip,
   hideTooltip,
   onResize,
+  onRefresh,
   getRootName,
 }: {
   canvas: HTMLCanvasElement;
@@ -36,6 +37,10 @@ export function createInputHandlers({
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
+  /** Refresh action triggered by the R key AND clicking the root-gem in
+   *  the city. Equivalent to the header gem button: rebuilds the
+   *  manifest and resets the camera. */
+  onRefresh: () => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
   getRootName: () => string | null;
@@ -165,7 +170,7 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      rig.reset();
+      onRefresh();
       return;
     }
     picker.setSelection(picker.interpretHit(hit));
@@ -176,7 +181,7 @@ export function createInputHandlers({
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
-      rig.reset();
+      onRefresh();
       return;
     }
     // Use the picker's interpretHit so InstancedMesh hits (post-Task 8)
@@ -262,7 +267,7 @@ export function createInputHandlers({
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
-      rig.reset();
+      onRefresh();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();
       if (!sel) return;

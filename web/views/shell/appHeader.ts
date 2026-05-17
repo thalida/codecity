@@ -275,17 +275,19 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     _syncRepoLink();
   }
 
-  // Refresh button — sits at the far right of the header row, appended
-  // after all other header content.
+  // Refresh button — sits at the FAR LEFT of the header row, prepended
+  // before the project button. Same action as the R keyboard shortcut
+  // and as clicking the gem in the city: rebuild the manifest and
+  // reset the camera view.
   if (onRefresh) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-icon btn-icon--no-drag';
-    btn.title = 'Refresh — rebuild the city and reset the view';
+    btn.title = 'Refresh — rebuild the city and reset the view (R)';
     btn.setAttribute('aria-label', 'Refresh');
     btn.appendChild(makeLucideIcon('gem'));
     btn.addEventListener('click', () => onRefresh());
-    titleEl.parentElement?.appendChild(btn);
+    titleEl.parentElement?.prepend(btn);
   }
 
   // Live config: re-render the cached selection whenever a store that

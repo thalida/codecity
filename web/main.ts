@@ -23,7 +23,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
 } from './config/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from './liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
 import { SYNTAX_THEME } from './config/syntaxTheme.js';
 import { sourceKey, CURRENT_SOURCE_KEY } from './sourceContext.js';
@@ -323,6 +323,13 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       // between the resize and the next animate() tick. The render path
       // must match animate() so bloom shows immediately on the new size.
       postFx.render();
+    },
+    // Same action as the header gem button: rebuild the manifest +
+    // reset the camera. Fired by the R key and by clicking the root
+    // gem mesh in the scene.
+    onRefresh() {
+      void refreshManifest();
+      rig.reset();
     },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });
