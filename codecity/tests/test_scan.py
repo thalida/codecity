@@ -807,6 +807,15 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertEqual(files[0]["media_width"], 50)
             self.assertEqual(files[0]["media_height"], 30)
 
+            # Warm path: second scan should hit the file-stat cache and
+            # still stamp media_width / media_height on the node — the
+            # cache-hit branch in _populate_file_metadata.
+            manifest2 = scan_tree(str(tmp_path))
+            files2 = [c for c in manifest2["tree"]["children"] if c["type"] == "file"]
+            self.assertEqual(len(files2), 1)
+            self.assertEqual(files2[0]["media_width"], 50)
+            self.assertEqual(files2[0]["media_height"], 30)
+
     def test_scan_omits_media_dims_for_non_media(self):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

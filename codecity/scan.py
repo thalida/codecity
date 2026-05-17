@@ -590,6 +590,9 @@ def _populate_file_metadata(
                 raise
 
     if use_cache:
+        # Union-merge: start from the loaded cache (preserves entries
+        # for files not visited this scan, e.g. when include_all flips)
+        # and overwrite with current values for everything we did visit.
         for node in nodes:
             entry: FileEntry = {
                 "size": node["size"],
