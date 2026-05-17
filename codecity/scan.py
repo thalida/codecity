@@ -585,6 +585,10 @@ def _populate_file_metadata(
                     nodes[idx]["binary"] = binary
                     nodes[idx]["lines"] = lines
             except ScanCancelledError:
+                # Non-blocking shutdown — the `with` block's __exit__
+                # would otherwise wait for all in-flight workers. We've
+                # already cancelled un-started futures above; let the
+                # running ones finish on their own time and unwind.
                 pool.shutdown(wait=False)
                 raise
 
