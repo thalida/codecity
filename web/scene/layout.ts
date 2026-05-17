@@ -18,7 +18,7 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from './path.js';
 import { layoutCityV4 } from './layoutV4';
-import { isMediaFile } from './billboards.js';
+import { isMediaFile } from './adPanels.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay

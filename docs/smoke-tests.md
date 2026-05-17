@@ -48,6 +48,22 @@ Two tabs: keep the running app + the controls pane visible.
 | Click the gem | Camera resets to default view |
 | Click empty space | Selection clears; sidebar returns to default |
 
+## Media buildings (image + video files)
+
+| | |
+|---|---|
+| Load any repo containing image or video files (the codecity repo itself works) | Each media file renders as a full building cuboid — facade, windows, aging — NOT the old panel-on-posts billboard |
+| Look at a media building from any orbit angle | A glowing ad panel is visible on whichever face(s) you're looking at (ads sit on all 4 vertical faces) |
+| Inspect the front face (door side) | Door is **uncovered** — there's a clean strip of building wall in the bottom margin below the ad |
+| Find a media file with a tall portrait image (or a small media building) | Ad's top extends above the building roof — Times-Square wraparound effect |
+| Click the ad panel | Selects the file (right sidebar pane swaps in), same as clicking the building wall |
+| Select an unrelated file | Media building's cuboid AND its ad panels fade together (no half-fade where ads stay bright while building dims) |
+| Open controls pane → `AD_PANEL` group | Four controls present: side margin, bottom offset, front-face offset, placeholder color |
+| Drag `AD_SIDE_MARGIN_FRAC` from 0.10 → 0.25 | Ads shrink horizontally on rebuild — bigger margins of building wall visible to the sides |
+| Drag `AD_BOTTOM_OFFSET_FLOORS` from 1.0 → 2.0 | Ads lift higher on the building face |
+| Drag `BLOOM.AD_EMISSION` from 0.9 → 0.5 | Ads dim — emission drops without rebuild |
+| Video media file's ad | Shows the ▶ play overlay baked into the texture; clicking plays the video in the sidebar pane |
+
 ## Hover ghost (translucent overlay)
 
 | | |
