@@ -132,12 +132,12 @@ export function createBillboard(building: Building): THREE.Group {
   group.userData.kind = 'billboard';
   group.userData.building = building;
 
-  // BLOOM.BILLBOARD_EMISSION multiplies the image panel's color so
+  // BLOOM.AD_EMISSION multiplies the ad panel's color so
   // bright texture pixels push past 1.0 in linear space and the bloom
   // pass picks them up. Read once at creation; refreshBillboards()
   // (called from applyTheme) re-pushes on hot-reload.
   const bloomCfg = BLOOM.get();
-  const billboardEmission = bloomCfg.ENABLED ? bloomCfg.BILLBOARD_EMISSION : 1.0;
+  const billboardEmission = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
 
   // Snapshot the billboard config once per mesh — any mid-build slider
   // change is picked up on the next rebuild via rebuildStores.
@@ -197,7 +197,7 @@ export function createBillboard(building: Building): THREE.Group {
   const image = new THREE.Mesh(imageGeo, imageMat);
   image.position.set(0, postH + panelH / 2, panelD / 2 + IMAGE_OFFSET);
   // Tag for refreshBillboards() so it can find this mesh again to
-  // re-apply BILLBOARD_EMISSION when the BLOOM config hot-reloads.
+  // re-apply AD_EMISSION when the BLOOM config hot-reloads.
   image.userData.kind = 'billboard';
   image.userData.role = 'panel';
   image.userData.building = building;
@@ -235,7 +235,7 @@ export function createBillboard(building: Building): THREE.Group {
       // texture fetch. Color tint multiplies the texture sample —
       // bright spots push past 1.0 and bloom; dark spots stay dim.
       const cfg = BLOOM.get();
-      const e = cfg.ENABLED ? cfg.BILLBOARD_EMISSION : 1.0;
+      const e = cfg.ENABLED ? cfg.AD_EMISSION : 1.0;
       image.material = new THREE.MeshBasicMaterial({
         map: texture,
         color: new THREE.Color(e, e, e),
@@ -253,14 +253,14 @@ export function createBillboard(building: Building): THREE.Group {
 }
 
 /**
- * Push the current BLOOM.BILLBOARD_EMISSION value into every panel
+ * Push the current BLOOM.AD_EMISSION value into every panel
  * mesh's material color. Called from applyTheme() so the bloom slider
  * affects billboards live, without scene rebuild. The panel mesh is
  * identified by userData.role === 'panel' (set in createBillboard).
  */
 export function refreshBillboards(groups: Iterable<THREE.Group>): void {
   const cfg = BLOOM.get();
-  const e = cfg.ENABLED ? cfg.BILLBOARD_EMISSION : 1.0;
+  const e = cfg.ENABLED ? cfg.AD_EMISSION : 1.0;
   const tint = new THREE.Color(e, e, e);
   const placeholderHex = BILLBOARD_GEOMETRY.get().PANEL_PLACEHOLDER_COLOR;
   for (const group of groups) {

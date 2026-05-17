@@ -238,7 +238,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     refreshBuildingMaterial();
     postFx.refresh();
 
-    // Push fresh BLOOM.BILLBOARD_EMISSION into every billboard's
+    // Push fresh BLOOM.AD_EMISSION into every billboard's
     // panel material so the bloom slider affects billboards live.
     const billboardGroups: THREE.Group[] = [];
     for (const block of cityScene.getBlocks()) {

@@ -835,8 +835,8 @@ function _buildEffectsSection(): HTMLElement {
       _slider('Gem emission', BLOOM, 'GEM_EMISSION', 0, 5.0, 0.1, {
         tip: 'Multiplier on the root-gem\'s halo sprite colors. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem, independent of Window emission.',
       }),
-      _slider('Billboard emission', BLOOM, 'BILLBOARD_EMISSION', 0, 5.0, 0.1, {
-        tip: 'Multiplier on image/video billboard panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
+      _slider('Ad emission', BLOOM, 'AD_EMISSION', 0, 5.0, 0.1, {
+        tip: 'Multiplier on ad panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
       }),
       _slider('Strength', BLOOM, 'STRENGTH', 0, 1, 0.01, {
         tip: 'Overall bloom intensity multiplier. 0 = bloom pass produces nothing; 1 = full strength.',
