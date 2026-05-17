@@ -938,7 +938,6 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(events[0]["phase"], "final")
 
     def test_no_cache_skips_lookup_and_save(self) -> None:
-        from codecity import cache as cache_mod
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             # Warm the cache first.
@@ -1006,14 +1005,25 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
                 self.server_port, f"/api/manifest?src={td}",
             )
         skeleton_tree = events[0]["manifest"]["tree"]
-        # Every file node should have lines=1 in the skeleton.
+        final_tree = events[1]["manifest"]["tree"]
+
         def files(node):
             for child in node["children"]:
                 if child["type"] == "file":
                     yield child
                 else:
                     yield from files(child)
-        for f in files(skeleton_tree):
+
+        skeleton_files = {f["name"]: f for f in files(skeleton_tree)}
+        final_files = {f["name"]: f for f in files(final_tree)}
+
+        # b.py has 2 real lines; skeleton should still report 1.
+        self.assertEqual(skeleton_files["b.py"]["lines"], 1,
+                         "skeleton must use placeholder lines=1, not real count")
+        self.assertEqual(final_files["b.py"]["lines"], 2,
+                         "final must report real line count")
+        # Every skeleton file should be lines=1 (sanity check).
+        for f in skeleton_files.values():
             self.assertEqual(f["lines"], 1)
 
     def test_response_headers(self) -> None:

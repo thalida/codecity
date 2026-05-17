@@ -22,6 +22,7 @@ from __future__ import annotations
 import gzip
 import json
 import mimetypes
+import os
 import re
 import select
 import socket as _socket
@@ -452,8 +453,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 def _log_quiet(msg: str) -> None:
     """Same env-gated logger as scan._log, duplicated here so server
     doesn't import a private from scan. CODECITY_QUIET=1 silences."""
-    import os
-    import sys
     if os.environ.get("CODECITY_QUIET") != "1":
         print(msg, file=sys.stderr, flush=True)
 
