@@ -21,7 +21,7 @@ import { BUILDING_FADE } from '@/config/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/path.js';
-import { setBillboardOpacity } from '@/scene/billboards.js';
+import { setAdPanelOpacity } from '@/scene/adPanels.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
 
@@ -175,19 +175,20 @@ export function createBuildingFader({
         }
       }
 
-      // ---- Billboards (image/video files) ----
-      // Same tier logic produces an opacity that gets applied to every
-      // material in the billboard group. Detail levels don't translate
-      // 1:1 to billboards (the panel + posts aren't a procedural facade),
-      // so we collapse Full/Silhouette to bodyOpacity and Hidden to 0 —
-      // the user reads the same fade pattern across both representations.
-      if (block.billboards) {
-        for (const group of block.billboards) {
-          const building = group.userData.building as Building | undefined;
+      // ---- Ad panels (image/video files) ----
+      // Each media building gets its body fade via the standard iFade
+      // attribute path above (it's a normal building cuboid now). The
+      // ad panel mounted on its front face needs to fade in lockstep,
+      // so we apply the same tier's opacity to the ad mesh here.
+      // Hidden → 0; everything else collapses to bodyOpacity since the
+      // panel doesn't have a "silhouette" representation.
+      if (block.adPanels) {
+        for (const mesh of block.adPanels) {
+          const building = mesh.userData.building as Building | undefined;
           if (!building?.file) continue;
           const tier = _tierFor(building.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
           const opacity = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
-          setBillboardOpacity(group, opacity);
+          setAdPanelOpacity(mesh, opacity);
         }
       }
     }
