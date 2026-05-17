@@ -90,7 +90,7 @@ export function showLeftSidebar(
   activityBar.className = 'activity-bar';
 
   const panel = document.createElement('div');
-  panel.className = 'left-panel';
+  panel.className = 'pane';
 
   // Each pane renders its own × close button inside its header (flexbox
   // layout in the header keeps title + button vertically aligned without

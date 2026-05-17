@@ -267,10 +267,10 @@ h1, h2, h3, h4, h5, h6 {
 
 /* Composite: uppercase section label.
    .info-markdown h5/h6 are NOT aliased — they need a larger size and live
-   in body-text context; they get their own per-class declaration. */
+   in body-text context; they get their own per-class declaration.
+   .recents-list h3 is kept as an alias because it's a semantic <h3>
+   element inside the recents list — no canonical class to attach. */
 .text-label,
-.controls-section-label,
-.theme-subgroup-label,
 .recents-list h3 {
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-bold);
@@ -278,34 +278,34 @@ h1, h2, h3, h4, h5, h6 {
   text-transform: uppercase;
   color: var(--cc-text-secondary);
 }
+/* Muted variant — dimmer than the default secondary text color. Used by
+   the theme-subgroup label (both the <div> non-collapsible and the
+   <summary> collapsible). */
+.text-label--muted {
+  color: var(--cc-text-muted);
+}
 
 /* Composite: pane header title. */
-.text-pane-title,
-.pane-title {
+.text-pane-title {
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-secondary);
 }
 
 /* Composite: state-card title (loading, empty preview, empty search). */
-.text-card-title,
-.search-state-title,
-.preview-state-title,
-.loading-title {
+.text-card-title {
   font-size: var(--cc-font-lg);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-secondary);
 }
-/* Loading title is emphasized: brighter color, heavier weight. */
-.loading-title {
+/* Loading-state title is emphasized: brighter color, heavier weight. */
+.text-card-title.is-loading {
   font-weight: var(--cc-fw-semibold);
   color: var(--cc-text-primary);
 }
 
 /* Composite: state-card subtitle. */
-.text-card-sub,
-.search-state-sub,
-.preview-state-sub {
+.text-card-sub {
   font-size: var(--cc-font-md);
   color: var(--cc-text-faint);
 }
@@ -357,42 +357,24 @@ h1, h2, h3, h4, h5, h6 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .pane,
-.pane-body,
-.file-preview-pane,
-.editor-body,
-.preview-shell,
-.left-panel,
-.left-pane,
-.search-body,
-.info-body,
-.controls-body {
+.pane-body {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
   min-height: 0;
 }
 
-/* .pane (and aliases that don't scroll themselves) hide overflow; children
-   scroll instead. */
-.pane,
-.file-preview-pane,
-.editor-body,
-.preview-shell,
-.left-panel,
-.left-pane {
+/* .pane hides overflow; children scroll instead. */
+.pane {
   overflow: hidden;
 }
 
-/* .pane-body (and its aliases) scroll vertically. */
-.pane-body,
-.search-body,
-.info-body,
-.controls-body {
+/* .pane-body scrolls vertically. */
+.pane-body {
   overflow-y: auto;
 }
 
-.pane-body--padded,
-.controls-body {
+.pane-body--padded {
   padding: var(--cc-space-7); /* 16px */
   box-sizing: border-box;
 }
@@ -410,13 +392,10 @@ h1, h2, h3, h4, h5, h6 {
      .row--selected  — accent-tinted "selected" background (used by tree).
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.row,
-.tree-row,
-.controls-section > summary.controls-section-summary,
-.theme-subgroup-collapsible > summary.theme-subgroup-label {
+.row {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2);  /* 4px default; tree-row overrides to 2px */
+  gap: var(--cc-space-2);  /* 4px default; --tight overrides to 2px */
   padding: var(--cc-space-2) var(--cc-space-7);  /* 4px 16px */
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
@@ -424,48 +403,50 @@ h1, h2, h3, h4, h5, h6 {
   transition: background var(--cc-t-fast);
 }
 .row:hover,
-.tree-row:hover,
-.tree-item.tree-hovered > .tree-row,
-.controls-section > summary.controls-section-summary:hover,
-.theme-subgroup-collapsible > summary.theme-subgroup-label:hover {
+.tree-item.tree-hovered > .row {
   background: var(--cc-overlay-bg-soft);
+}
+
+/* Tight variant — chevron/icon/label gap collapses from 4px to 2px so
+   the chevron + folder icon read as a single unit. Used by tree rows. */
+.row--tight {
+  gap: var(--cc-space-1); /* 2px */
 }
 
 /* Bleed variant — extends hover background to the pane edge. Used by
    collapsible summaries inside the controls-pane. */
-.row--bleed,
-.controls-section > summary.controls-section-summary,
-.theme-subgroup-collapsible > summary.theme-subgroup-label {
+.row--bleed {
   margin-left:  calc(-1 * var(--cc-space-7));
   margin-right: calc(-1 * var(--cc-space-7));
   margin-bottom: var(--cc-space-2);
 }
 
-/* Selected variant — tree-row in selected state. */
+/* Selected variant — tree row in selected state. */
 .row--selected,
-.tree-item.tree-selected > .tree-row {
+.tree-item.tree-selected > .row {
   background: var(--cc-accent-bg);
 }
 .row--selected:hover,
-.tree-item.tree-selected > .tree-row:hover,
-.tree-item.tree-selected.tree-hovered > .tree-row {
+.tree-item.tree-selected > .row:hover,
+.tree-item.tree-selected.tree-hovered > .row {
   background: var(--cc-accent-bg);  /* keep selected state on hover */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Form inputs
    ═══════════════════════════════════════════════════════════════════════════
-   .form-input — base text-input style (sidebar/controls).
-   Aliases: .search-input, .theme-number, .modal-field input.
-   The modal-field variant overrides bg/border/padding for the modal context.
+   .form-input — base text-input style (sidebar/controls/modal).
+   Variants:
+     .form-input--mono — narrow mono numeric input (used by theme rows).
+   .search-input is kept as a per-class marker for the flex-fill layout
+   rule in the search pane; .modal-field input is kept because it's a
+   bare <input> inside a labeled wrapper (no canonical class to attach).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* .form-input — the one text-input style for every context (sidebar,
    controls, modal). Reads as a "depressed" element against any of the
    four surface backgrounds. */
 .form-input,
-.search-input,
-.theme-number,
 .modal-field input {
   background: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
@@ -477,16 +458,23 @@ h1, h2, h3, h4, h5, h6 {
   outline: none;
 }
 .form-input::placeholder,
-.search-input::placeholder,
-.theme-number::placeholder,
 .modal-field input::placeholder {
   color: var(--cc-text-faint);
 }
 .form-input:focus,
-.search-input:focus,
-.theme-number:focus,
 .modal-field input:focus {
   border-color: var(--cc-accent-border);
+}
+
+/* .form-input--mono — narrow numeric variant. Mono font, smaller font-size,
+   fixed 70px width, right-aligned, compact 2px/6px padding. Used by the
+   per-row number inputs in the Controls pane. */
+.form-input--mono {
+  width: 70px;
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md);
+  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
+  text-align: right;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -857,7 +845,7 @@ canvas {
   user-select: none;
 }
 
-/* File-preview pane path segments rendered inside .pane-title. */
+/* File-preview pane path segments rendered inside .text-pane-title. */
 .file-path-segment {
   flex: 0 0 auto;
   color: var(--cc-text-muted);
@@ -928,8 +916,8 @@ canvas {
   min-height: 0;
 }
 
-/* Empty/error/too-large states all use the .preview-state helper below
-   (centered icon + headline + subtitle). */
+/* Empty/error/too-large states all use the .empty-state + .empty-state--lg
+   helper (centered icon + headline + subtitle) in the search-pane section. */
 
 /* ── Sitewide footer (status bar) ───────────────────────────────────────
    Lives at the bottom of the app shell (sibling of #app-header /
@@ -1205,7 +1193,7 @@ canvas {
   width: 44px !important;
   min-width: 44px;
 }
-#tree-sidebar.is-collapsed .left-panel,
+#tree-sidebar.is-collapsed > .pane,
 #tree-sidebar.is-collapsed .sidebar-resize-handle {
   display: none;
 }
@@ -1290,7 +1278,7 @@ canvas {
   vertical-align: -0.15em;
 }
 
-/* Layout in .pane (.left-panel and .left-pane are aliases). */
+/* Layout in .pane. */
 
 /* Pane headers — title on the left, × close button on the right.
  * Flexbox keeps the two vertically centered against each other regardless
@@ -1314,9 +1302,9 @@ canvas {
  * panels of content rather than each shouting for attention. The
  * .is-mono modifier flips to monospace for filename-style titles
  * (right-sidebar file-preview). */
-/* .pane-title — typography in .text-pane-title; this rule adds layout
+/* Typography in .text-pane-title; this rule adds layout
    (flex-fill, truncation, sub-segment gap). */
-.pane-title {
+.text-pane-title {
   flex: 1 1 auto;
   min-width: 0;
   margin: var(--cc-space-0);
@@ -1327,7 +1315,7 @@ canvas {
   align-items: center;
   gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
 }
-.pane-title.is-mono { font-family: var(--cc-font-mono); }
+.text-pane-title.is-mono { font-family: var(--cc-font-mono); }
 
 .tree-root {
   flex: 1;
@@ -1344,8 +1332,6 @@ canvas {
   padding-top: var(--cc-space-3);
   border-top: 1px solid var(--cc-track);
 }
-
-/* .controls-section-label — typography in .text-label. */
 
 .controls-section-hint {
   font-size: var(--cc-font-md);
@@ -1370,7 +1356,7 @@ canvas {
 /* Every controls section is a <details> for native collapse. Summary
  * is styled to match the file tree's accordion row: Lucide chevron +
  * label, with the same hover background, border radius, and padding
- * as .tree-row so the two activity-bar tabs feel like the same UI.
+ * as the tree rows so the two activity-bar tabs feel like the same UI.
  *
  * The chevron is a Lucide icon (via makeLucideIcon) rather than a
  * unicode triangle — sharper at small sizes and currentColor-aware. */
@@ -1393,7 +1379,7 @@ canvas {
   transition: transform var(--cc-t-fast) ease;
 }
 .controls-section[open] > summary.controls-section-summary > .controls-section-chevron,
-.theme-subgroup-collapsible[open] > summary.theme-subgroup-label > .theme-subgroup-chevron {
+.theme-subgroup-collapsible[open] > summary > .theme-subgroup-chevron {
   transform: rotate(90deg);
 }
 
@@ -1444,54 +1430,35 @@ canvas {
   padding: var(--cc-space-1);
 }
 
-/* .btn-toggle — segmented / theme-select toggle option (choose one of N).
-   .segmented-option and .theme-select-option are aliases sharing this
-   shell. Per-class overrides handle the size, padding, and separator-border
-   differences. Active state: .btn-toggle and .theme-select-option use
-   .is-active; .segmented-option uses .active (legacy class name, kept). */
-.btn-toggle,
-.segmented-option,
-.theme-select-option {
+/* .btn-toggle — one-of-N option button (choose-one segmented control).
+   Base shell + active state. The `.is-active` class flips the option to
+   the accent-tinted "selected" look. Modifiers:
+     .btn-toggle--separated — adds vertical separator borders between
+       sibling options, used by the controls-pane theme-select where the
+       buttons sit edge-to-edge inside a bordered shell. */
+.btn-toggle {
   appearance: none;
   background: none;
   border: none;
   color: var(--cc-text-faint);
   font-family: inherit;
   cursor: pointer;
+  font-size: var(--cc-font-lg);
+  font-weight: var(--cc-fw-medium);
+  padding: var(--cc-space-2) var(--cc-space-5);
+  border-radius: var(--cc-radius-sm);
   transition:
     color var(--cc-t-base),
     background var(--cc-t-base);
 }
 
-.btn-toggle:hover,
-.segmented-option:hover,
-.theme-select-option:hover {
+.btn-toggle:hover {
   color: var(--cc-text-secondary);
 }
 
-.btn-toggle.is-active,
-.segmented-option.active,
-.theme-select-option.is-active {
+.btn-toggle.is-active {
   background: var(--cc-accent-bg);
   color: var(--cc-text-primary);
-}
-
-/* Standalone .btn-toggle defaults (when used without an alias). */
-.btn-toggle {
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-medium);
-  padding: var(--cc-space-2) var(--cc-space-5);
-  border-radius: var(--cc-radius-sm);
-}
-
-/* .segmented-option — alias of .btn-toggle. Overrides: flex-fill, 12px/500
-   font, 6px 10px padding, 4px radius. */
-.segmented-option {
-  flex: 1;
-  font-size: var(--cc-font-lg);
-  font-weight: var(--cc-fw-medium);
-  padding: var(--cc-space-3) var(--cc-space-5);
-  border-radius: var(--cc-radius-sm);
 }
 
 /* .btn-secondary — standalone outlined neutral button. Used for any
@@ -1527,7 +1494,7 @@ canvas {
   cursor: not-allowed;
 }
 
-/* Sticky bottom action bar — sibling of .controls-body, NOT inside it,
+/* Sticky bottom action bar — sibling of the .pane-body, NOT inside it,
  * so it stays visible while the form scrolls. Reset all sits on the
  * left; Discard + Save are paired on the right. */
 .controls-actions {
@@ -1570,24 +1537,24 @@ canvas {
   border-top: none;
 }
 
-/* .theme-subgroup-label — typography in .text-label; this rule keeps the
-   bottom margin and overrides the color to muted (slightly dimmer than
-   the canonical secondary label color). */
-.theme-subgroup-label {
-  color: var(--cc-text-muted);
+/* Subgroup label spacing — the inline label <div> at the top of a
+   non-collapsible subgroup adds breathing room above its rows. Typography
+   (color, weight, size) comes from .text-label + .text-label--muted. */
+.theme-subgroup > .text-label {
   margin-bottom: var(--cc-space-4); /* 8px */
 }
 
 /* Collapsible subgroup variant — a <details> whose <summary> doubles as
- * the .theme-subgroup-label. Same Lucide chevron + hover row treatment
- * as .controls-section-summary so the open/closed affordance is
- * consistent at every level of the panel. */
-/* Style in .row + .row--bleed; this rule only hides the native disclosure
-   triangle (a custom .theme-subgroup-chevron renders instead). */
-.theme-subgroup-collapsible > summary.theme-subgroup-label {
+ * the subgroup label. Same Lucide chevron + hover row treatment as
+ * .controls-section-summary so the open/closed affordance is consistent
+ * at every level of the panel. The <summary> carries
+ * .row + .row--bleed + .text-label + .text-label--muted in the DOM. */
+/* This rule only hides the native disclosure triangle (a custom
+   .theme-subgroup-chevron renders instead). */
+.theme-subgroup-collapsible > summary {
   list-style: none;
 }
-.theme-subgroup-collapsible > summary.theme-subgroup-label::-webkit-details-marker {
+.theme-subgroup-collapsible > summary::-webkit-details-marker {
   display: none;
 }
 /* Chevron rule consolidated with .controls-section-chevron above. */
@@ -1698,17 +1665,19 @@ canvas {
   border-radius: var(--cc-radius-sm);
   overflow: hidden;
 }
-/* .theme-select-option — alias of .btn-toggle. Overrides: separator border
-   between items, 10px font, 3px 8px padding, subtle bg overlay on hover. */
-.theme-select-option {
+/* .btn-toggle--separated — modifier that adds a vertical separator
+   between sibling options. Used inside .theme-select where the buttons
+   sit edge-to-edge. Also tightens the padding + font for the dense
+   inline-flex shell, and adds a soft hover background. */
+.btn-toggle--separated {
   border-right: 1px solid var(--cc-track);
   font-size: var(--cc-font-sm);
   padding: var(--cc-space-2) var(--cc-space-4);
 }
-.theme-select-option:last-child {
+.btn-toggle--separated:last-child {
   border-right: none;
 }
-.theme-select-option:hover {
+.btn-toggle--separated:hover {
   background: var(--cc-overlay-bg-soft);
 }
 
@@ -1721,16 +1690,8 @@ canvas {
   margin: var(--cc-space-0);
 }
 
-/* Number input — narrow box on the right of the row */
-/* Visual style in .form-input; this rule adds the fixed width, mono font,
-   compact padding, and right-align for numeric value display. */
-.theme-number {
-  width: 70px;
-  font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-md);
-  padding: var(--cc-space-1) var(--cc-space-3); /* 2px 6px */
-  text-align: right;
-}
+/* Number input — narrow box on the right of the row. Styled in
+   .form-input + .form-input--mono near the top of the file. */
 
 /* Slider — the range input grows into available space; the readout is
  * auto-sized to its content (with a small floor so short numbers don't
@@ -1907,7 +1868,7 @@ canvas {
 }
 
 .tree-root.tree-list {
-  /* The root folder row already brings its own .tree-row 8px padding;
+  /* The root folder row already brings its own 8px padding through .row;
      no need to indent the root list itself. */
   padding-left: var(--cc-space-0);
 }
@@ -1917,11 +1878,9 @@ canvas {
   padding: var(--cc-space-0);
 }
 
-/* Style in .row; this rule only tightens the chevron-to-label gap from
-   the .row default (4px) to 2px so chevron + icon read as one unit. */
-.tree-row { gap: var(--cc-space-1); /* 2px */ }
-
-/* Selection highlight in .row--selected near the top of the file. */
+/* Tree rows use .row + .row--tight (the tight modifier collapses the
+   chevron-to-label gap to 2px). Selection highlight in .row--selected
+   near the top of the file. */
 
 .tree-chevron {
   display: inline-flex;
@@ -1954,11 +1913,11 @@ canvas {
 }
 
 /* Root row: chevron is removed from layout (display: none) so the
- * root folder icon sits flush at .tree-row's left padding (16px) —
+ * root folder icon sits flush at the row's left padding (16px) —
  * lined up directly under the "Explorer" header title. The chevron
  * element stays in the DOM so _setDirExpanded's selector keeps
  * working; only its layout box is suppressed. */
-.tree-root-item > .tree-row > .tree-chevron {
+.tree-root-item > .row > .tree-chevron {
   display: none;
 }
 
@@ -1984,7 +1943,7 @@ canvas {
 
 /* Tree dir / file labels share the same color; the chevron + dir/file icon
    already distinguish the two. */
-.tree-dir > .tree-row > .tree-label {
+.tree-dir > .row > .tree-label {
   font-weight: var(--cc-fw-medium);
 }
 
@@ -2020,40 +1979,48 @@ canvas {
 
 /* Layout in .pane-body. */
 
-/* Empty-state layout shared with .preview-state (per-class overrides for
-   gap / padding / icon size live with each rule below). Icon: opacity 0.55,
-   small bottom margin to separate from the title beneath. */
-.empty-state,
-.search-state,
-.preview-state {
+/* Empty-state centered card — icon + title + subtitle stacked vertically.
+   Default sizing fits the search pane's empty-hint / no-matches state.
+   Modifiers:
+     .empty-state--lg — larger gap + padding + icon for file-preview
+       and info-pane states, where the panel has more vertical room. */
+.empty-state {
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px */
   color: var(--cc-text-faint);
   text-align: center;
 }
-.empty-state .lucide-icon,
-.search-state .lucide-icon,
-.preview-state .lucide-icon {
+.empty-state .lucide-icon {
   opacity: 0.55;
-}
-
-.search-state {
-  gap: var(--cc-space-4); /* 8px */
-  padding: var(--cc-space-8) var(--cc-space-7); /* 24px 16px (was 18) */
-}
-.search-state .lucide-icon {
   font-size: var(--cc-font-3xl);
   margin-bottom: var(--cc-space-1); /* 2px */
 }
-/* Typography in .text-card-title / .text-card-sub. */
-.search-state-title { margin: var(--cc-space-0); }
-.search-state-sub {
+/* Large variant — bigger gap + padding + icon. Used by the file-preview
+   pane and the info pane's empty / error states. */
+.empty-state--lg .lucide-icon {
+  font-size: var(--cc-font-4xl);
+  margin-bottom: var(--cc-space-2); /* 4px */
+}
+.empty-state--lg {
+  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px */
+}
+/* Typography of .text-card-title / .text-card-sub already covered. The
+   per-class margin-0 / max-width / line-height bits live here so the
+   card title + subtitle render tightly inside the state card regardless
+   of which alias they were dropped into. */
+.empty-state .text-card-title { margin: var(--cc-space-0); }
+.empty-state .text-card-sub {
   margin: var(--cc-space-0);
   max-width: 240px;
   line-height: 1.5;
+}
+.empty-state--lg .text-card-sub {
+  max-width: 280px;
 }
 
 .search-results {
@@ -2093,8 +2060,10 @@ canvas {
   color: var(--cc-accent-light);
 }
 
-/* Scrollbar tuned to match the tree pane's. */
-#tree-sidebar .search-body {
+/* Scrollbar tuned to match the tree pane's. The search pane's body
+   uses .pane-body; the info pane's body adds the .info-body marker so
+   this Firefox scrollbar rule can target it specifically. */
+#tree-sidebar .search-pane > .pane-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
 }
@@ -2102,10 +2071,10 @@ canvas {
 /* ── Info pane (Info tab in left sidebar) ───────────────────────────────
    Renders the project root README's markdown. Layout matches the other
    panes: header on top, scrollable body underneath. The body's empty /
-   error states reuse the .preview-state helper from the file sidebar. */
+   error states use the .empty-state + .empty-state--lg helper. */
 
 /* Layout in .pane-body; this rule keeps the empty-state child fill. */
-.info-body > .preview-state { flex: 1 1 auto; }
+.info-body > .empty-state { flex: 1 1 auto; }
 #tree-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
@@ -2310,25 +2279,9 @@ canvas {
   flex: 1 1 auto;
 }
 
-/* Centered state message (matches .editor-empty-hint shape). Used for
-   load errors, file-too-large notices, etc. */
-/* Layout in .empty-state above; this rule sets the larger
-   gap / padding / icon used by the file-preview empty state. */
-.preview-state {
-  gap: var(--cc-space-4); /* 8px (was 10) — unified with search-state */
-  padding: var(--cc-space-9) var(--cc-space-7); /* 32px 16px (was 32 20) */
-}
-.preview-state .lucide-icon {
-  font-size: var(--cc-font-4xl);
-  margin-bottom: var(--cc-space-2); /* 4px */
-}
-/* Typography in .text-card-title / .text-card-sub. */
-.preview-state-title { margin: var(--cc-space-0); }
-.preview-state-sub {
-  margin: var(--cc-space-0);
-  max-width: 280px;
-  line-height: 1.5;
-}
+/* Centered state messages (load errors, file-too-large notices, etc.)
+   use .empty-state + .empty-state--lg; see the empty-state rules in the
+   search-pane section above. */
 
 /* ── Code editor (text preview) ─────────────────────────────────────────
    Two-column flex: a sticky line-number gutter on the left and a
@@ -2681,8 +2634,8 @@ canvas {
 @keyframes cc-spin {
   to { transform: rotate(360deg); }
 }
-/* Typography in .text-card-title (loading variant). */
-.loading-title { text-align: center; }
+/* Typography in .text-card-title.is-loading (loading variant). */
+.text-card-title.is-loading { text-align: center; }
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);

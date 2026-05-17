@@ -1,7 +1,7 @@
 // views/shell/paneHeader.ts — Shared header bar used by every pane
 // (Tree, Search, Info, Controls on the left sidebar; file-preview on
 // the right). Single source of truth for the `.pane-header` row +
-// `.pane-title` + `.pane-header-close` triplet, so the panes look
+// `.text-pane-title` + `.pane-header-close` triplet, so the panes look
 // identical and adding a new pane is a one-call affair.
 
 import { makeLucideIcon } from './icon.js';
@@ -33,7 +33,7 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   let _prefixEl: HTMLElement | null = null;
 
   const title = document.createElement('h3');
-  title.className = 'pane-title';
+  title.className = 'text-pane-title';
   if (opts.mono) title.classList.add('is-mono');
   title.textContent = opts.title;
   header.appendChild(title);

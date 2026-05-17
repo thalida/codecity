@@ -50,7 +50,7 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
   if (child.path != null) li.dataset.path = child.path;
 
   const row = document.createElement('div');
-  row.className = 'tree-row';
+  row.className = 'row row--tight';
 
   const label = document.createElement('span');
   label.className = 'tree-label';
@@ -188,7 +188,7 @@ function _openOnlyChain(target: HTMLElement, rootList: HTMLElement | null): void
 // without callers needing to look up its own subtree + chevron icon.
 function _setDirExpanded(li: HTMLElement, expanded: boolean): void {
   const sub = li.querySelector<HTMLElement>(':scope > .tree-list');
-  const chev = li.querySelector<HTMLElement>(':scope > .tree-row > .tree-chevron > .tree-icon');
+  const chev = li.querySelector<HTMLElement>(':scope > .row > .tree-chevron > .tree-icon');
   if (!sub || !chev) return;
   if (expanded) {
     if (li.classList.contains('tree-expanded')) return;
@@ -258,7 +258,7 @@ export function buildTreePane(
   opts: BuildTreePaneOpts = {}
 ) {
   const pane = document.createElement('div');
-  pane.className = 'left-pane tree-pane';
+  pane.className = 'pane tree-pane';
 
   // Generic "Explorer" label so it doesn't duplicate the root folder name
   // shown right below it in the list (mirrors VSCode's section header).

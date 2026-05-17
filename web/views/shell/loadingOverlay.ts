@@ -67,7 +67,7 @@ export function createLoadingOverlay(): LoadingOverlay {
       <div class="loading-backdrop">
         <div class="loading-card">
           <div class="loading-spinner"></div>
-          <div class="loading-title" role="status" aria-live="polite"></div>
+          <div class="text-card-title is-loading" role="status" aria-live="polite"></div>
           <ol class="loading-steps">
             <li data-step="resolving" data-state="pending">${STEP_LABELS.resolving}</li>
             <li data-step="cloning"   data-state="pending">${STEP_LABELS.cloning}</li>
@@ -78,7 +78,7 @@ export function createLoadingOverlay(): LoadingOverlay {
       </div>
     `;
 
-    _titleEl   = root.querySelector('.loading-title');
+    _titleEl   = root.querySelector('.text-card-title.is-loading');
     _stepEls   = {};
     for (const step of ALL_STEPS) {
       _stepEls[step] = root.querySelector(`[data-step="${step}"]`) as HTMLElement | null ?? undefined;

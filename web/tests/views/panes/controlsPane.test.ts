@@ -5,8 +5,8 @@ describe('buildControlsPane', () => {
   it('returns a pane with the Controls header + Keyboard & mouse section first', () => {
     const { pane } = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    expect(pane.querySelector<HTMLElement>('.pane-title')!.textContent).toBe('Controls');
-    expect(pane.querySelector<HTMLElement>('.controls-section-label')!.textContent).toBe('Keyboard & mouse');
+    expect(pane.querySelector<HTMLElement>('.text-pane-title')!.textContent).toBe('Controls');
+    expect(pane.querySelector<HTMLElement>('.controls-section-summary .text-label')!.textContent).toBe('Keyboard & mouse');
   });
 
   it('renders a shortcuts list in the Keyboard & mouse section', () => {
@@ -20,7 +20,7 @@ describe('buildControlsPane', () => {
     // "Camera & Interaction" section was removed — its only remaining
     // tunables (BASE_DURATION_MS, EASING_POWER) are dev-only now.
     const sectionLabels = Array.from(
-      pane.querySelectorAll<HTMLElement>('.controls-section-label')
+      pane.querySelectorAll<HTMLElement>('.controls-section-summary .text-label')
     ).map((el) => el.textContent);
     expect(sectionLabels).toContain('Keyboard & mouse');
     expect(sectionLabels).not.toContain('Camera & Interaction');

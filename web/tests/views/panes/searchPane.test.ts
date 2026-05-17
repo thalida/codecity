@@ -96,7 +96,7 @@ describe('buildSearchPane', () => {
   it('renders the empty hint when no query is set', () => {
     const { pane } = buildSearchPane({ tree: TREE });
     document.body.appendChild(pane);
-    const state = pane.querySelector('.search-state-title');
+    const state = pane.querySelector('.text-card-title');
     expect(state).not.toBeNull();
     expect(state!.textContent).toContain('Start typing');
   });
@@ -165,7 +165,7 @@ describe('buildSearchPane', () => {
     input.value = 'xyzpdq';
     input.dispatchEvent(new Event('input'));
 
-    const state = pane.querySelector('.search-state-title');
+    const state = pane.querySelector('.text-card-title');
     expect(state).not.toBeNull();
     expect(state!.textContent).toContain('No files');
   });
@@ -216,7 +216,7 @@ describe('buildSearchPane', () => {
     const input = pane.querySelector<HTMLInputElement>('.search-input')!;
     input.value = 'newfile';
     input.dispatchEvent(new Event('input'));
-    expect(pane.querySelector('.search-state-title')!.textContent).toContain('No files');
+    expect(pane.querySelector('.text-card-title')!.textContent).toContain('No files');
 
     api.setManifest({
       tree: {

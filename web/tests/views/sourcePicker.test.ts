@@ -94,7 +94,7 @@ describe('sourcePicker', () => {
   it('non-dismissible: no × button, Escape ignored, backdrop click ignored', () => {
     const p = createSourcePicker({ onSubmit: () => {} });
     p.open({ dismissible: false });
-    expect(root.querySelector('button.modal-close')).toBeNull();
+    expect(root.querySelector('[data-action="close"]')).toBeNull();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     expect(root.style.display).not.toBe('none');
@@ -106,9 +106,9 @@ describe('sourcePicker', () => {
   it('dismissible: × / Escape / backdrop all close', () => {
     const p = createSourcePicker({ onSubmit: () => {} });
     p.open({ dismissible: true });
-    expect(root.querySelector('button.modal-close')).toBeTruthy();
+    expect(root.querySelector('[data-action="close"]')).toBeTruthy();
 
-    (root.querySelector('button.modal-close') as HTMLButtonElement).click();
+    (root.querySelector('[data-action="close"]') as HTMLButtonElement).click();
     expect(root.style.display).toBe('none');
 
     p.open({ dismissible: true });

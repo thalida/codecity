@@ -136,7 +136,7 @@ interface BuildFilePreviewPaneOpts {
  */
 export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   const pane = document.createElement('div');
-  pane.className = 'file-preview-pane';
+  pane.className = 'pane';
 
   const { el: header, api: headerApi } = buildPaneHeader({
     title: 'No file',
@@ -152,7 +152,7 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   pane.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'editor-body';
+  body.className = 'pane editor-body';
   pane.appendChild(body);
 
   // Track the active file so palette/asphalt changes can re-render the badge.
@@ -358,7 +358,7 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
   // an empty editor scaffold up-front) so the line-number gutter and
   // <pre><code> never linger empty next to an error message.
   const shell = document.createElement('div');
-  shell.className = 'preview-shell';
+  shell.className = 'pane preview-shell';
 
   fetch(url)
     .then((resp) => {
@@ -398,15 +398,15 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
  */
 function _makeStateMessage(iconName: string, title: string, subtitle?: string): HTMLElement {
   const box = document.createElement('div');
-  box.className = 'preview-state';
+  box.className = 'empty-state empty-state--lg';
   box.appendChild(makeLucideIcon(iconName));
   const h = document.createElement('p');
-  h.className = 'preview-state-title';
+  h.className = 'text-card-title';
   h.textContent = title;
   box.appendChild(h);
   if (subtitle) {
     const sub = document.createElement('p');
-    sub.className = 'preview-state-sub';
+    sub.className = 'text-card-sub';
     sub.textContent = subtitle;
     box.appendChild(sub);
   }

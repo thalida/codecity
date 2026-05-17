@@ -126,13 +126,13 @@ interface ControlsPaneBundle {
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
 
   const pane = document.createElement('div');
-  pane.className = 'left-pane controls-pane';
+  pane.className = 'pane controls-pane';
 
   const { el: header } = buildPaneHeader({ title: 'Controls', onClose: opts.onClose });
   pane.appendChild(header);
 
   const body = document.createElement('div');
-  body.className = 'controls-body';
+  body.className = 'pane-body pane-body--padded';
 
   // Sections are organized by render scope, then interaction:
   //   Keyboard & mouse → Scan & Updates → Scene → Layout → Buildings →
@@ -1067,14 +1067,14 @@ function _section(name: string, hint?: string, _defaultOpen = true): HTMLElement
   // compatibility but has no effect — all sections start collapsed.
 
   const summary = document.createElement('summary');
-  summary.className = 'controls-section-summary';
+  summary.className = 'row row--bleed controls-section-summary';
   // Lucide chevron, rotated via CSS on [open] — matches the file tree
   // accordion's visual language (Lucide icon + currentColor mask) rather
   // than the previous unicode triangle.
   const chevron = makeLucideIcon('chevron-right', { class: 'controls-section-chevron' });
   summary.appendChild(chevron);
   const label = document.createElement('span');
-  label.className = 'controls-section-label';
+  label.className = 'text-label';
   label.textContent = name;
   summary.appendChild(label);
 
@@ -1161,7 +1161,7 @@ function _subgroup(name: string, rows: HTMLElement[] | HTMLElement): HTMLElement
   const wrap = document.createElement('div');
   wrap.className = 'theme-subgroup';
   const h = document.createElement('div');
-  h.className = 'theme-subgroup-label';
+  h.className = 'text-label text-label--muted';
   h.textContent = name;
   wrap.appendChild(h);
   const list = Array.isArray(rows) ? rows : [rows];
@@ -1192,7 +1192,7 @@ function _collapsibleSubgroup(
   details.open = false;
 
   const summary = document.createElement('summary');
-  summary.className = 'theme-subgroup-label';
+  summary.className = 'row row--bleed text-label text-label--muted';
   // Lucide chevron matched to the section accordion's chevron — same
   // family as the file tree's expand/collapse glyph.
   const chevron = makeLucideIcon('chevron-right', { class: 'theme-subgroup-chevron' });
@@ -1347,7 +1347,7 @@ function _number(
   input.max = String(max);
   input.step = String(step);
   input.value = String(getEffective(store, key));
-  input.className = 'theme-number';
+  input.className = 'form-input form-input--mono';
   input.addEventListener('input', () => {
     const v = parseFloat(input.value);
     if (Number.isFinite(v)) setDraft(store, key, v);
@@ -1591,7 +1591,7 @@ function _select(
   const buttons = options.map((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn-toggle theme-select-option';
+    btn.className = 'btn-toggle btn-toggle--separated';
     btn.dataset.value = opt.value;
     btn.textContent = opt.label;
     btn.addEventListener('click', (e) => {
