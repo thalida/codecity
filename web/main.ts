@@ -953,6 +953,16 @@ if (_canvas) {
             // the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
             await handle.cityScene.applyManifest(event.manifest);
+            // Update the header (project label, branch pill) right after the
+            // skeleton lands so it reflects the new project immediately,
+            // not minutes later when the final manifest arrives. The
+            // post-loop call below covers the cache-hit case where this
+            // branch doesn't fire; both calls are idempotent for the same
+            // payload.
+            handle.coordinator.setSourceInfo(
+              payload.branch,
+              _srcKind(payload.src) === 'git' ? payload.src : undefined,
+            );
           }
           manifest = event.manifest;
         }
