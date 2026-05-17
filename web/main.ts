@@ -51,6 +51,7 @@ import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
 import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
 import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
+import { streamManifest } from './manifestStream.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
 import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
@@ -618,13 +619,14 @@ function setupLiveUpdates(
   async function refreshManifest(): Promise<void> {
     REBUILD_STATUS.set('rebuilding');
     try {
-      const resp = await fetch(manifestUrl());
-      if (!resp.ok) throw new Error(`Manifest fetch failed: HTTP ${resp.status}`);
-      const m: Manifest | null = await resp.json();
-      if (m?.signature) {
-        lastSignature = m.signature;
-        _applyDisplayLabel(m);
-        await handle.cityScene.applyManifest(m);
+      for await (const event of streamManifest(manifestUrl())) {
+        if (event.phase === 'error') throw new Error(event.error);
+        const m = event.manifest;
+        if (m?.signature) {
+          lastSignature = m.signature;
+          _applyDisplayLabel(m);
+          await handle.cityScene.applyManifest(m);
+        }
       }
       REBUILD_STATUS.set('idle');
       LAST_REBUILD_ERROR.set(null);
@@ -852,13 +854,16 @@ if (_canvas) {
         branch: _bootBranch,
       });
       try {
-        const resp = await fetch(manifestUrl());
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-          throw new Error(err.error || `HTTP ${resp.status}`);
+        let lastEvent: { manifest: Manifest } | null = null;
+        for await (const event of streamManifest(manifestUrl())) {
+          if (event.phase === 'error') throw new Error(event.error);
+          if (event.phase === 'skeleton') {
+            loadingOverlay.setStep('building');
+            loadingOverlay.hide();
+          }
+          lastEvent = { manifest: event.manifest };
         }
-        loadingOverlay.setStep('building');
-        initialManifest = await resp.json();
+        initialManifest = lastEvent!.manifest;
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
         initialManifest = EMPTY_MANIFEST;
@@ -907,13 +912,21 @@ if (_canvas) {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
-        const resp = await fetch(url.toString());
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-          throw new Error(err.error || `HTTP ${resp.status}`);
+
+        let manifest: Manifest | null = null;
+        for await (const event of streamManifest(url.toString())) {
+          if (event.phase === 'error') throw new Error(event.error);
+          if (event.phase === 'skeleton') {
+            loadingOverlay.setStep('building');
+            loadingOverlay.hide();
+            // Apply the skeleton so the new city paints in immediately —
+            // the final event will tween into final heights.
+            _applyDisplayLabel(event.manifest);
+            await handle.cityScene.applyManifest(event.manifest);
+          }
+          manifest = event.manifest;
         }
-        loadingOverlay.setStep('building');
-        const manifest: Manifest = await resp.json();
+        if (!manifest) throw new Error('No manifest received');
 
         // Update URL first so per-source persistence subscriptions see the
         // right CURRENT_SOURCE_KEY on the next tick.
