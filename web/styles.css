@@ -209,7 +209,7 @@ h1, h2, h3, h4, h5, h6 {
 
   /* ── SCALES — Font families ───────────────────────────────────────────── */
   --cc-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
-  --cc-font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --cc-font-mono: var(--cc-font-mono);
 
   /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
   --cc-track-label: 0.08em;  /* uppercase section labels */
@@ -632,15 +632,7 @@ body {
   overflow: hidden;
   background: var(--cc-bg-app);
   color: var(--cc-text-primary);
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    Roboto,
-    Oxygen,
-    Ubuntu,
-    sans-serif;
+  font-family: var(--cc-font-sans);
   font-size: var(--cc-font-xl);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
@@ -685,7 +677,7 @@ body {
   padding: 0 var(--cc-space-4);
   background: var(--cc-bg-chrome);
   border-bottom: 1px solid var(--cc-border-subtle);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md);
   color: var(--cc-text-secondary);
   -webkit-app-region: drag; /* in pywebview's native frame this lets you drag */
@@ -796,7 +788,7 @@ canvas {
   font-weight: var(--cc-fw-bold);
   letter-spacing: var(--cc-track-label);
   text-transform: lowercase;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   background: hsl(var(--badge-hue, 0), 60%, 35%);
   white-space: nowrap;
   -webkit-app-region: no-drag;
@@ -935,7 +927,7 @@ canvas {
   background: var(--cc-accent-bg-soft);
   color: var(--cc-accent-light);
   font-size: var(--cc-font-sm);
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: var(--cc-font-mono);
   white-space: nowrap;
 }
 /* .app-header-repo-link rules consolidated into the merged
@@ -979,7 +971,7 @@ canvas {
   height: 24px;
   background: var(--cc-bg-chrome);
   border-top: 1px solid var(--cc-track);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
   white-space: nowrap;
@@ -1191,7 +1183,7 @@ canvas {
   border-radius: var(--cc-radius-sm);
   pointer-events: none;
   z-index: 200;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   white-space: nowrap;
   box-shadow: var(--cc-shadow-md);
 }
@@ -1200,12 +1192,7 @@ canvas {
 
 .street-label {
   position: absolute;
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--cc-font-sans);
   font-size: var(--cc-font-sm);
   font-weight: var(--cc-fw-medium);
   color: var(--cc-text-base);
@@ -1851,7 +1838,7 @@ canvas {
   flex: 0 0 auto;
   min-width: 36px;
   text-align: right;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-sm);
   color: var(--cc-text-muted);
   white-space: nowrap;
@@ -2140,7 +2127,7 @@ canvas {
   padding: var(--cc-space-2) var(--cc-space-6);
   cursor: pointer;
   border-left: 2px solid transparent;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
   white-space: nowrap;
@@ -2299,7 +2286,7 @@ canvas {
   padding: var(--cc-space-5) var(--cc-space-6);
   margin: var(--cc-space-5) 0;
   overflow-x: auto;
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-lg);
   line-height: 1.5;
 }
@@ -2434,12 +2421,7 @@ canvas {
   background: var(--cc-accent-bg-soft);
   border-bottom: 1px solid var(--cc-accent-bg);
   color: var(--cc-accent-light);
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    sans-serif;
+  font-family: var(--cc-font-sans);
   font-size: var(--cc-font-md);
   line-height: 1.4;
 }
@@ -2457,7 +2439,7 @@ canvas {
   width: 100%;
   overflow: auto;
   background: var(--cc-bg-app);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  font-family: var(--cc-font-mono);
   font-size: var(--cc-font-lg);
   line-height: 1.55;
   tab-size: 4;
