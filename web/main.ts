@@ -849,8 +849,9 @@ if (_canvas) {
 
     const loadingOverlay = createLoadingOverlay();
 
-    let initialManifest: Manifest;
+    let initialManifest: Manifest = EMPTY_MANIFEST;
     let initialError: string | null = null;
+    let handle: Awaited<ReturnType<typeof startRenderLoop>> | null = null;
     if (hasSrc) {
       const _bootSrc = qp.get('src')!;
       const _bootBranch = qp.get('branch') ?? undefined;
@@ -860,45 +861,61 @@ if (_canvas) {
         branch: _bootBranch,
       });
       try {
-        let lastEvent: { manifest: Manifest } | null = null;
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
-          if (event.phase === 'skeleton') {
-            // Boot path: the renderer isn't constructed yet, so the skeleton
-            // can't be pre-painted. We just advance the overlay step; the hide
-            // happens on the final event so the overlay stays visible until
-            // the city is actually about to render.
+          const m = event.manifest;
+          if (handle === null) {
+            // First event — skeleton on cold cache, or final on cache hit.
+            // Either way: bootstrap the renderer NOW so the city becomes
+            // visible. The skeleton manifest has the full tree shape, so the
+            // icon atlas built from it is correct for the final manifest too
+            // — no rebuild needed when final arrives. cityScene.applyManifest
+            // will diff-and-tween the skeleton → final transition.
             loadingOverlay.setStep('building');
-          }
-          if (event.phase === 'final') {
+            try {
+              setIconAtlas(await buildIconAtlas(m));
+            } catch (err) {
+              console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+            }
+            handle = await startRenderLoop(_canvas, m);
+            attachHotReload({
+              cityScene: handle.cityScene,
+              applyTheme: handle.applyTheme,
+            });
             loadingOverlay.hide();
+          } else {
+            // Second event (final after skeleton) — tween the city into its
+            // final state. startRenderLoop already applied the skeleton, so
+            // re-call applyManifest on the existing scene.
+            await handle.cityScene.applyManifest(m);
           }
-          lastEvent = { manifest: event.manifest };
+          initialManifest = m;
         }
-        if (!lastEvent) throw new Error('No manifest received');
-        initialManifest = lastEvent.manifest;
+        if (handle === null) {
+          // Stream closed without emitting a single event.
+          throw new Error('No manifest received');
+        }
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
+        // If we never constructed a renderer, do it with EMPTY now so the
+        // rest of main.ts (picker, hot reload, live updates) has a valid
+        // handle to work against.
+        if (handle === null) {
+          handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
+          attachHotReload({
+            cityScene: handle.cityScene,
+            applyTheme: handle.applyTheme,
+          });
+        }
         initialManifest = EMPTY_MANIFEST;
       }
     } else {
-      initialManifest = EMPTY_MANIFEST;
+      handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
+      attachHotReload({
+        cityScene: handle.cityScene,
+        applyTheme: handle.applyTheme,
+      });
     }
-
-    if (hasSrc && !initialError) {
-      try {
-        const atlas = await buildIconAtlas(initialManifest);
-        setIconAtlas(atlas);
-      } catch (err) {
-        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
-      }
-    }
-
-    const handle = await startRenderLoop(_canvas, initialManifest);
-    attachHotReload({
-      cityScene: handle.cityScene,
-      applyTheme: handle.applyTheme,
-    });
 
     let liveUpdatesStarted = false;
     let _liveUpdates: { setSignature(sig: string): void } | null = null;
