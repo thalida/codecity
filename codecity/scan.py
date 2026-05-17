@@ -37,6 +37,7 @@ from .cache import (
     cache_save_files,
     cache_save_git_history,
 )
+from .media_dims import probe_media_dims
 from .types import (
     DirNode,
     FileNode,
@@ -510,12 +511,14 @@ def _file_node(
 _FILE_IO_POOL_SIZE = min(32, (os.cpu_count() or 1) * 2)
 
 
-def _read_file_metadata(path_obj: Path) -> tuple[bool, int]:
-    """Return (binary, lines) for one file. Worker function for
-    _populate_file_metadata's thread pool."""
+def _read_file_metadata(path_obj: Path) -> tuple[bool, int, int | None, int | None]:
+    """Return (binary, lines, media_width, media_height) for one file.
+    Worker function for _populate_file_metadata's thread pool. Media
+    dims are None for non-media files or files the probe can't read."""
     binary = _is_binary(path_obj)
     lines = 0 if binary else _line_count(path_obj)
-    return binary, lines
+    mw, mh = probe_media_dims(path_obj)
+    return binary, lines, mw, mh
 
 
 def _node_mtime(node: FileNode) -> float:
@@ -532,15 +535,8 @@ def _populate_file_metadata(
     tree: DirNode, abs_root: Path, *, use_cache: bool,
     cancel_event: "threading.Event | None" = None,
 ) -> None:
-    """Walk the skeleton tree and fill in `lines` + `binary` for every
-    FileNode.
-
-    With ``use_cache=True``, looks up each file in the persistent
-    file-stat cache by (rel-path, size, mtime); cache hits skip the
-    read entirely. Misses run concurrently in a thread pool (GIL
-    releases on file I/O). The cache is union-merged at end-of-scan
-    so files we didn't visit (e.g. excluded by include_all=False)
-    keep their existing entries."""
+    """Walk the skeleton tree and fill in `lines`, `binary`, and (for
+    media files) `media_width` / `media_height` for every FileNode."""
     nodes: list[FileNode] = list(_iter_file_nodes(tree))
     if not nodes:
         return
@@ -561,6 +557,11 @@ def _populate_file_metadata(
         ):
             node["binary"] = cached["binary"]
             node["lines"] = cached["lines"]
+            mw = cached.get("media_width")
+            mh = cached.get("media_height")
+            if mw is not None and mh is not None:
+                node["media_width"] = mw
+                node["media_height"] = mh
             continue
         miss_indices.append(i)
         miss_paths.append(Path(node["fullPath"]))
@@ -574,40 +575,37 @@ def _populate_file_metadata(
             try:
                 for fut in as_completed(future_to_idx):
                     if cancel_event is not None and cancel_event.is_set():
-                        # Stop accepting new completions; cancel
-                        # un-started futures. In-flight workers will
-                        # finish their current file then exit.
                         for f in future_to_idx:
                             f.cancel()
                         raise ScanCancelledError()
                     idx = future_to_idx[fut]
-                    binary, lines = fut.result()
+                    binary, lines, mw, mh = fut.result()
                     nodes[idx]["binary"] = binary
                     nodes[idx]["lines"] = lines
+                    if mw is not None and mh is not None:
+                        nodes[idx]["media_width"] = mw
+                        nodes[idx]["media_height"] = mh
             except ScanCancelledError:
-                # Non-blocking shutdown — the `with` block's __exit__
-                # would otherwise wait for all in-flight workers. We've
-                # already cancelled un-started futures above; let the
-                # running ones finish on their own time and unwind.
                 pool.shutdown(wait=False)
                 raise
 
     if use_cache:
-        # Union-merge: start from the loaded cache (preserves entries
-        # for files not visited this scan, e.g. when include_all flips)
-        # and overwrite with current values for everything we did visit.
         for node in nodes:
-            cache_entries[node["path"]] = {
+            entry: FileEntry = {
                 "size": node["size"],
                 "mtime": _node_mtime(node),
                 "lines": node["lines"],
                 "binary": node["binary"],
                 "ext": node["extension"],
             }
+            if "media_width" in node and "media_height" in node:
+                entry["media_width"] = node["media_width"]
+                entry["media_height"] = node["media_height"]
+            cache_entries[node["path"]] = entry
         try:
             cache_save_files(abs_root, cache_entries)
         except OSError:
-            pass  # cache save failures must never break scanning
+            pass
 
 
 def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
