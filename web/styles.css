@@ -2498,17 +2498,20 @@ canvas {
    border-bottom that overlaps that rule (negative bottom margin) and
    switches to the accent color on the active tab.
 
-   Negative inline margins + matching inset padding extend the underline
-   edge-to-edge of the modal card while keeping the tab buttons aligned
-   with the rest of the body content. */
+   Layout:
+   - Negative inline margins pull the row out to the modal-card edges so
+     the underline spans the full card width.
+   - The row itself has padding that matches the modal body padding,
+     keeping the first/last tab aligned with the body content below.
+   - Individual tab buttons have no horizontal padding; the row's
+     gap property drives the spacing between tabs. */
 .modal-tabs {
   display: flex;
-  gap: 0;
+  gap: var(--cc-space-7); /* 16px between tabs */
   margin-left: calc(-1 * var(--cc-space-6));
   margin-right: calc(-1 * var(--cc-space-6));
   margin-bottom: var(--cc-space-5);
-  padding-left: var(--cc-space-6);
-  padding-right: var(--cc-space-6);
+  padding: 0 var(--cc-space-6);
   border-bottom: 1px solid var(--cc-border-subtle);
 }
 .modal-tabs button {
@@ -2518,7 +2521,7 @@ canvas {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   color: var(--cc-text-muted);
-  padding: var(--cc-space-3) var(--cc-space-5);
+  padding: var(--cc-space-3) 0;
   cursor: pointer;
   font: inherit;
   font-weight: var(--cc-fw-medium);
@@ -2623,8 +2626,10 @@ canvas {
 }
 
 /* Destructive trash button next to each recent — red icon at rest and
-   on hover, with a red-tinted hover background. */
+   on hover, with a red-tinted hover background. Vertical padding gives
+   the icon breathing room and a generous vertical click target. */
 .recent-item .btn-icon[data-action="recent-remove"] {
+  padding: var(--cc-space-4) var(--cc-space-2); /* 8px 4px */
   color: var(--cc-error);
 }
 .recent-item .btn-icon[data-action="recent-remove"]:hover {
