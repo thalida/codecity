@@ -50,7 +50,7 @@ import {
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
-import { BILLBOARD_GEOMETRY } from '@/config/billboards.js';
+import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
 import {
   getDefault,
@@ -557,36 +557,18 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('buildings-billboards', 'Billboards (media files)', () => [
-      _slider('Panel aspect (h / w)', BILLBOARD_GEOMETRY, 'PANEL_ASPECT', 0.3, 1.5, 0.05, {
-        tip: 'Panel height as a fraction of panel width. <1 = landscape, >1 = portrait. Below 0.3 the panel is too thin to read; above 1.5 a portrait panel taller than 1.5× its width clips into the street tier above.',
+    _collapsibleSubgroup('buildings-ads', 'Ad panels (media files)', () => [
+      _slider('Side margin × width', AD_PANEL, 'AD_SIDE_MARGIN_FRAC', 0, 0.4, 0.01, {
+        tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
       }),
-      _slider('Panel depth × width', BILLBOARD_GEOMETRY, 'PANEL_DEPTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Body depth (front-to-back thickness) as a fraction of panel width. Above 0.3 the panel reads as a thick slab rather than a sign.',
+      _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
+        tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
       }),
-      _slider('Image inset × height', BILLBOARD_GEOMETRY, 'PANEL_INSET_FRAC', 0, 0.2, 0.01, {
-        tip: 'Image inset from the body edges as a fraction of panel height — reads as the frame thickness. Above 0.2 the inset eats more than 20% of the panel height on each side, leaving little visible image area.',
+      _slider('Front-face offset', AD_PANEL, 'AD_OFFSET', 0, 0.2, 0.005, {
+        tip: 'How far in front of the building face the ad plane sits — small z-offset to avoid z-fighting with the wall. Above 0.2 the ad noticeably floats away from the building.',
       }),
-      _slider('Image offset', BILLBOARD_GEOMETRY, 'IMAGE_OFFSET', 0, 0.2, 0.01, {
-        tip: 'How far in front of the body face the image plane sits. Above 0.2 the image floats noticeably away from the panel body.',
-      }),
-      _slider('Post height × panel', BILLBOARD_GEOMETRY, 'POST_HEIGHT_FRAC', 0, 3, 0.05, {
-        tip: 'Support post height as a multiple of panel height. Above 3× the post towers over the sign and the billboard reads as a flagpole.',
-      }),
-      _slider('Post width × panel', BILLBOARD_GEOMETRY, 'POST_WIDTH_FRAC', 0, 0.3, 0.01, {
-        tip: 'Support post width as a fraction of panel width. Above 0.3 the post is wider than a third of the panel and visually dominates the sign.',
-      }),
-      _slider('Post offset × width', BILLBOARD_GEOMETRY, 'POST_INSET_FRAC', 0, 0.5, 0.01, {
-        tip: 'Post x-offset from center as a fraction of panel width (controls post spacing). 0.5 places each post at the panel edge; beyond that posts would extend past the panel boundary.',
-      }),
-      _color('Post color', BILLBOARD_GEOMETRY, 'POST_COLOR', {
-        tip: 'Support post color. Default matches the sidewalk gray.',
-      }),
-      _color('Body color', BILLBOARD_GEOMETRY, 'BODY_COLOR', {
-        tip: 'Panel body / frame color (visible from behind and around the image).',
-      }),
-      _color('Placeholder color', BILLBOARD_GEOMETRY, 'PANEL_PLACEHOLDER_COLOR', {
-        tip: 'Fallback panel color shown while the image loads (or if the load fails).',
+      _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
+        tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
       }),
     ]),
   );
