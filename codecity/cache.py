@@ -23,12 +23,16 @@ Invariants:
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TypedDict
+from typing import TYPE_CHECKING, TypedDict, cast
+
+if TYPE_CHECKING:
+    from codecity.types import Manifest
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override
@@ -201,3 +205,62 @@ def cache_save_git_history(
         "modified": modified,
     }
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
+
+
+_MANIFEST_CACHE_VERSION = 1
+
+
+def _manifest_cache_path(abs_root: Path, signature: str) -> Path:
+    return CACHE_ROOT / "manifests" / f"{repo_key(abs_root)}__{signature}.json.gz"
+
+
+def cache_load_manifest(
+    abs_root: Path, signature: str,
+) -> "Manifest | None":
+    """Load the cached manifest for this (root, signature). Returns
+    None on any error (missing file, gzip corruption, JSON parse,
+    schema/version mismatch). Same hygiene as the other cache loaders:
+    a corrupt cache is treated as a miss, never a hard failure."""
+    path = _manifest_cache_path(abs_root, signature)
+    try:
+        with gzip.open(path, "rb") as fh:
+            raw = json.loads(fh.read().decode("utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(raw, dict):
+        return None
+    envelope = cast(dict[str, object], raw)
+    if envelope.get("version") != _MANIFEST_CACHE_VERSION:
+        return None
+    manifest = envelope.get("manifest")
+    if not isinstance(manifest, dict):
+        return None
+    # TypedDict is structurally compatible with dict at runtime; the
+    # `Manifest` annotation is a documentation aid for callers.
+    return manifest  # type: ignore[return-value]
+
+
+def cache_save_manifest(
+    abs_root: Path, signature: str, manifest: "Manifest",
+) -> None:
+    """Atomically write the manifest cache for this (root, signature).
+    Swallows OSError — cache save failures must never break the
+    response."""
+    path = _manifest_cache_path(abs_root, signature)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps({
+        "version": _MANIFEST_CACHE_VERSION,
+        "manifest": manifest,
+    }).encode("utf-8")
+    fd, tmp = tempfile.mkstemp(
+        dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp"
+    )
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            with gzip.GzipFile(fileobj=fh, mode="wb") as gz:
+                gz.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, path)
+    except OSError:
+        Path(tmp).unlink(missing_ok=True)
