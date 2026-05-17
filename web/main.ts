@@ -51,6 +51,7 @@ import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
 import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
 import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
+import { streamManifest } from './manifestStream.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
 import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
@@ -618,13 +619,20 @@ function setupLiveUpdates(
   async function refreshManifest(): Promise<void> {
     REBUILD_STATUS.set('rebuilding');
     try {
-      const resp = await fetch(manifestUrl());
-      if (!resp.ok) throw new Error(`Manifest fetch failed: HTTP ${resp.status}`);
-      const m: Manifest | null = await resp.json();
-      if (m?.signature) {
-        lastSignature = m.signature;
-        _applyDisplayLabel(m);
-        await handle.cityScene.applyManifest(m);
+      for await (const event of streamManifest(manifestUrl())) {
+        if (event.phase === 'error') throw new Error(event.error);
+        // Live-update path: skip skeleton. The city is already drawn
+        // with the previous final manifest; applying a skeleton would
+        // animate every building down to placeholder heights and back
+        // up on every save — visible oscillation. Only the final
+        // tweens into the actual new state.
+        if (event.phase !== 'final') continue;
+        const m = event.manifest;
+        if (m?.signature) {
+          lastSignature = m.signature;
+          _applyDisplayLabel(m);
+          await handle.cityScene.applyManifest(m);
+        }
       }
       REBUILD_STATUS.set('idle');
       LAST_REBUILD_ERROR.set(null);
@@ -841,8 +849,9 @@ if (_canvas) {
 
     const loadingOverlay = createLoadingOverlay();
 
-    let initialManifest: Manifest;
+    let initialManifest: Manifest = EMPTY_MANIFEST;
     let initialError: string | null = null;
+    let handle: Awaited<ReturnType<typeof startRenderLoop>> | null = null;
     if (hasSrc) {
       const _bootSrc = qp.get('src')!;
       const _bootBranch = qp.get('branch') ?? undefined;
@@ -852,35 +861,69 @@ if (_canvas) {
         branch: _bootBranch,
       });
       try {
-        const resp = await fetch(manifestUrl());
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-          throw new Error(err.error || `HTTP ${resp.status}`);
+        for await (const event of streamManifest(manifestUrl())) {
+          if (event.phase === 'error') throw new Error(event.error);
+          const m = event.manifest;
+          // Advance the overlay step BEFORE the (synchronous-looking) work
+          // begins so the user sees the phase update before the city paints
+          // behind the semi-transparent backdrop.
+          loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
+          if (handle === null) {
+            // First event — skeleton on cold cache, or final on cache hit.
+            // Either way: bootstrap the renderer NOW so the city becomes
+            // visible behind the overlay. The skeleton manifest has the full
+            // tree shape, so the icon atlas built from it is correct for the
+            // final manifest too — no rebuild needed when final arrives.
+            // cityScene.applyManifest diff-and-tweens the skeleton → final
+            // transition.
+            try {
+              setIconAtlas(await buildIconAtlas(m));
+            } catch (err) {
+              console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+            }
+            handle = await startRenderLoop(_canvas, m);
+            attachHotReload({
+              cityScene: handle.cityScene,
+              applyTheme: handle.applyTheme,
+            });
+          } else {
+            // Second event (final after skeleton) — tween the city into its
+            // final state. startRenderLoop already applied the skeleton, so
+            // re-call applyManifest on the existing scene.
+            await handle.cityScene.applyManifest(m);
+          }
+          initialManifest = m;
         }
-        loadingOverlay.setStep('building');
-        initialManifest = await resp.json();
+        if (handle === null) {
+          // Stream closed without emitting a single event.
+          throw new Error('No manifest received');
+        }
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
+        // If we never constructed a renderer, do it with EMPTY now so the
+        // rest of main.ts (picker, hot reload, live updates) has a valid
+        // handle to work against.
+        if (handle === null) {
+          handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
+          attachHotReload({
+            cityScene: handle.cityScene,
+            applyTheme: handle.applyTheme,
+          });
+        }
         initialManifest = EMPTY_MANIFEST;
+      } finally {
+        // Hide only after both events (or cache-hit single final) have been
+        // fully applied — the spec's "modal stays up until the city is
+        // fully built" invariant.
+        loadingOverlay.hide();
       }
     } else {
-      initialManifest = EMPTY_MANIFEST;
+      handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
+      attachHotReload({
+        cityScene: handle.cityScene,
+        applyTheme: handle.applyTheme,
+      });
     }
-
-    if (hasSrc && !initialError) {
-      try {
-        const atlas = await buildIconAtlas(initialManifest);
-        setIconAtlas(atlas);
-      } catch (err) {
-        console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
-      }
-    }
-
-    const handle = await startRenderLoop(_canvas, initialManifest);
-    attachHotReload({
-      cityScene: handle.cityScene,
-      applyTheme: handle.applyTheme,
-    });
 
     let liveUpdatesStarted = false;
     let _liveUpdates: { setSignature(sig: string): void } | null = null;
@@ -907,13 +950,33 @@ if (_canvas) {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
-        const resp = await fetch(url.toString());
-        if (!resp.ok) {
-          const err = await resp.json().catch(() => ({ error: `HTTP ${resp.status}` }));
-          throw new Error(err.error || `HTTP ${resp.status}`);
+
+        let manifest: Manifest | null = null;
+        for await (const event of streamManifest(url.toString())) {
+          if (event.phase === 'error') throw new Error(event.error);
+          // Skeleton step covers the placeholder paint while the server
+          // resolves per-file metadata; building step covers the final
+          // tween. Overlay stays up through both — hidden only in finally.
+          loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
+          if (event.phase === 'skeleton') {
+            // Apply the skeleton so the new city paints behind the overlay
+            // — the final event will tween into final heights.
+            _applyDisplayLabel(event.manifest);
+            await handle.cityScene.applyManifest(event.manifest);
+            // Update the header (project label, branch pill) right after the
+            // skeleton lands so it reflects the new project immediately,
+            // not minutes later when the final manifest arrives. The
+            // post-loop call below covers the cache-hit case where this
+            // branch doesn't fire; both calls are idempotent for the same
+            // payload.
+            handle.coordinator.setSourceInfo(
+              payload.branch,
+              _srcKind(payload.src) === 'git' ? payload.src : undefined,
+            );
+          }
+          manifest = event.manifest;
         }
-        loadingOverlay.setStep('building');
-        const manifest: Manifest = await resp.json();
+        if (!manifest) throw new Error('No manifest received');
 
         // Update URL first so per-source persistence subscriptions see the
         // right CURRENT_SOURCE_KEY on the next tick.

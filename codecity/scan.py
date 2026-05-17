@@ -18,12 +18,14 @@ are walked but unstaged additions and gitignored paths are skipped).
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
 import subprocess
 import sys
-from concurrent.futures import ThreadPoolExecutor
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
@@ -42,8 +44,26 @@ from .types import (
     Manifest,
     NodeKind,
     RepoInfo,
+    ScanStreamEvent,
     SignatureResponse,
 )
+
+
+class ScanCancelledError(Exception):
+    """Raised when a scan_tree_streaming cancel_event is set mid-scan.
+
+    Caller (the server's _serve_manifest) is expected to swallow this
+    — it means 'the client disconnected, we asked the scan to stop,
+    it stopped.' Not a bug, not an error to report to anyone."""
+
+
+def _check_cancel(event: "threading.Event | None") -> None:
+    """Raise ScanCancelledError if the cancellation event is set.
+
+    Cheap; called at every phase boundary in scan_tree_streaming and
+    between batches in _populate_file_metadata."""
+    if event is not None and event.is_set():
+        raise ScanCancelledError()
 
 
 # ── Progress logging ─────────────────────────────────────────────────────────
@@ -510,6 +530,7 @@ def _node_mtime(node: FileNode) -> float:
 
 def _populate_file_metadata(
     tree: DirNode, abs_root: Path, *, use_cache: bool,
+    cancel_event: "threading.Event | None" = None,
 ) -> None:
     """Walk the skeleton tree and fill in `lines` + `binary` for every
     FileNode.
@@ -546,10 +567,30 @@ def _populate_file_metadata(
 
     if miss_paths:
         with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
-            results = list(pool.map(_read_file_metadata, miss_paths))
-        for idx, (binary, lines) in zip(miss_indices, results):
-            nodes[idx]["binary"] = binary
-            nodes[idx]["lines"] = lines
+            future_to_idx = {
+                pool.submit(_read_file_metadata, p): i
+                for i, p in zip(miss_indices, miss_paths)
+            }
+            try:
+                for fut in as_completed(future_to_idx):
+                    if cancel_event is not None and cancel_event.is_set():
+                        # Stop accepting new completions; cancel
+                        # un-started futures. In-flight workers will
+                        # finish their current file then exit.
+                        for f in future_to_idx:
+                            f.cancel()
+                        raise ScanCancelledError()
+                    idx = future_to_idx[fut]
+                    binary, lines = fut.result()
+                    nodes[idx]["binary"] = binary
+                    nodes[idx]["lines"] = lines
+            except ScanCancelledError:
+                # Non-blocking shutdown — the `with` block's __exit__
+                # would otherwise wait for all in-flight workers. We've
+                # already cancelled un-started futures above; let the
+                # running ones finish on their own time and unwind.
+                pool.shutdown(wait=False)
+                raise
 
     if use_cache:
         # Union-merge: start from the loaded cache (preserves entries
@@ -686,6 +727,130 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
+def _wrap_skeleton(
+    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+) -> Manifest:
+    """Build a Manifest envelope for the skeleton-phase emit. Caller is
+    responsible for having already deep-copied the tree and applied
+    placeholder values via _force_skeleton_placeholders — this helper
+    is a pure envelope builder."""
+    return {
+        "root": root_abs,
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "signature": sig.hexdigest(),
+        "tree": tree,
+        "repo": repo_info,
+    }
+
+
+def _wrap_final(
+    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+) -> Manifest:
+    """Build a Manifest envelope for the final-phase emit. Called after
+    _populate_file_metadata has filled in real lines/binary values."""
+    return {
+        "root": root_abs,
+        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "signature": sig.hexdigest(),
+        "tree": tree,
+        "repo": repo_info,
+    }
+
+
+def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:
+    """In-place: set every FileNode under `node` to lines=1, binary=False
+    so the skeleton renders with uniform-height buildings."""
+    if node["type"] == NodeKind.FILE:
+        node["lines"] = 1  # type: ignore[typeddict-item]
+        node["binary"] = False  # type: ignore[typeddict-item]
+        return
+    for child in node.get("children", []):  # type: ignore[union-attr]
+        _force_skeleton_placeholders(child)
+
+
+def scan_tree_streaming(
+    root: str,
+    *,
+    include_all: bool = False,
+    use_cache: bool = True,
+    cancel_event: "threading.Event | None" = None,
+) -> Iterator["ScanStreamEvent"]:
+    """Generator form of scan_tree: yields a skeleton event after the
+    tree walk, then a final event after metadata population. The
+    eager scan_tree() wrapper drains this and returns the final
+    manifest, preserving the original API for non-streaming callers
+    (CLI, tests that don't care about phasing)."""
+    root_abs = str(Path(root).resolve())
+    _log(f"resolving {root_abs}")
+
+    _check_cancel(cancel_event)  # before _collect_git_metadata
+
+    git_created: dict[str, str] = {}
+    git_modified: dict[str, str] = {}
+    tracked_files: set[str] = set()
+    is_git_repo = _is_git_repo(Path(root_abs))
+    repo_info: RepoInfo | None = None
+
+    if is_git_repo:
+        _log("git repo detected — collecting metadata…")
+        git_created, git_modified, tracked_files = _collect_git_metadata(
+            Path(root_abs), use_cache=use_cache,
+        )
+        repo_info = _collect_repo_info(Path(root_abs))
+    else:
+        _log("not a git repo — filesystem dates only")
+
+    _check_cancel(cancel_event)  # after git metadata, before tree walk
+
+    ignore_names, ignore_paths, unignore_names, unignore_paths = (
+        _load_codecityignore(Path(root_abs))
+    )
+
+    _reset_heartbeat()
+    _log("walking tree…")
+    sig = hashlib.blake2b(digest_size=16)
+    tree = _build_tree(
+        root_abs, ".",
+        is_git_repo=is_git_repo,
+        git_created=git_created, git_modified=git_modified,
+        tracked_files=tracked_files, include_all=include_all,
+        ignore_names=ignore_names, ignore_paths=ignore_paths,
+        unignore_names=unignore_names, unignore_paths=unignore_paths,
+        sig=sig,
+    )
+    _log(f"walked {_files_seen} files; emitting skeleton")
+
+    _check_cancel(cancel_event)  # after tree walk, before skeleton emit
+
+    # We deep-copy here so the skeleton's placeholder-mutation doesn't
+    # affect the tree that _populate_file_metadata is about to modify
+    # in-place. Cheap for small repos; for Linux this is ~50ms.
+    skeleton_tree = copy.deepcopy(tree)
+    _force_skeleton_placeholders(skeleton_tree)
+    yield {
+        "phase": "skeleton",
+        "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, repo_info),
+    }
+
+    _log("resolving file metadata")
+    _populate_file_metadata(
+        tree, Path(root_abs), use_cache=use_cache, cancel_event=cancel_event,
+    )
+    _check_cancel(cancel_event)  # after populate, before final emit
+    _log("emitting final manifest")
+
+    # Repo-level metadata — branch, remote, head, dirty — feeds the
+    # signature so the footer's "live" indicator catches a checkout or
+    # commit without waiting for file mtimes to shift.
+    if repo_info is not None:
+        _hash_repo_info(sig, repo_info)
+
+    yield {
+        "phase": "final",
+        "manifest": _wrap_final(root_abs, tree, sig, repo_info),
+    }
+
+
 def scan_tree(
     root: str,
     *,
@@ -707,58 +872,19 @@ def scan_tree(
     The skip list is always applied. Per-project additions go in
     ``<root>/.codecityignore`` (one literal name per line, or relative
     paths containing ``/``).
+
+    Eager wrapper: drains scan_tree_streaming and returns the final
+    manifest. Preserves the existing API for callers that don't
+    stream (CLI, older tests).
     """
-    root_abs = str(Path(root).resolve())
-    _log(f"resolving {root_abs}")
-
-    git_created: dict[str, str] = {}
-    git_modified: dict[str, str] = {}
-    tracked_files: set[str] = set()
-    is_git_repo = _is_git_repo(Path(root_abs))
-    repo_info: RepoInfo | None = None
-
-    if is_git_repo:
-        _log("git repo detected — collecting metadata…")
-        git_created, git_modified, tracked_files = _collect_git_metadata(
-            Path(root_abs), use_cache=use_cache,
-        )
-        repo_info = _collect_repo_info(Path(root_abs))
-    else:
-        _log("not a git repo — filesystem dates only")
-
-    ignore_names, ignore_paths, unignore_names, unignore_paths = (
-        _load_codecityignore(Path(root_abs))
-    )
-
-    _reset_heartbeat()
-    _log("walking tree…")
-    sig = hashlib.blake2b(digest_size=16)
-    tree = _build_tree(
-        root_abs, ".",
-        is_git_repo=is_git_repo,
-        git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, include_all=include_all,
-        ignore_names=ignore_names, ignore_paths=ignore_paths,
-        unignore_names=unignore_names, unignore_paths=unignore_paths,
-        sig=sig,
-    )
-    _log(f"walked {_files_seen} files; resolving file metadata")
-    _populate_file_metadata(tree, Path(root_abs), use_cache=use_cache)
-    _log("emitting manifest")
-
-    # Repo-level metadata — branch, remote, head, dirty — feeds the
-    # signature so the footer's "live" indicator catches a checkout or
-    # commit without waiting for file mtimes to shift.
-    if repo_info is not None:
-        _hash_repo_info(sig, repo_info)
-
-    return {
-        "root": root_abs,
-        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
-        "tree": tree,
-        "repo": repo_info,
-    }
+    final: Manifest | None = None
+    for event in scan_tree_streaming(
+        root, include_all=include_all, use_cache=use_cache,
+    ):
+        if event["phase"] == "final":
+            final = event["manifest"]
+    assert final is not None, "scan_tree_streaming must yield a final event"
+    return final
 
 
 def _collect_tracked_set(root: Path) -> set[str]:

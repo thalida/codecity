@@ -211,7 +211,7 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             with self.assertRaises(BranchNotFoundError):
                 ensure_clone(str(remote), branch="no-such-branch")
             # Target dir should have been cleaned up.
-            target = clone_mod._cache_dir_for(str(remote), "no-such-branch")
+            target = clone_mod.clone_dir_for(str(remote), "no-such-branch")
             self.assertFalse(target.exists(), "partial clone dir was left behind")
 
     def test_repo_not_found_translated(self) -> None:
@@ -270,7 +270,7 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             url = str(remote)
 
             # Step 1: Clone the 'feature' branch successfully — populates the
-            # cache at _cache_dir_for(url, "feature").
+            # cache at clone_dir_for(url, "feature").
             target = ensure_clone(url, branch="feature")
             self.assertTrue(target.exists())
             self.assertTrue((target / "FEATURE.md").is_file())

@@ -208,7 +208,24 @@ export function createSourcePicker(opts: {
       });
 
       removeBtn?.addEventListener('click', () => {
+        const branchSuffix = branch ? ` (${branch})` : '';
+        const confirmed = window.confirm(
+          `Remove "${src}"${branchSuffix} from recents?\n\n` +
+          `This also clears its scan cache — re-adding it will trigger ` +
+          `a fresh scan.`,
+        );
+        if (!confirmed) return;
+
         removeRecent(src, branch);
+        // Best-effort: also drop the server-side manifest cache for this
+        // source so re-adding it triggers a fresh scan. Fire-and-forget;
+        // failure here is not user-visible and doesn't block the UI.
+        const cacheUrl = new URL('/api/manifest/cache', window.location.origin);
+        cacheUrl.searchParams.set('src', src);
+        if (branch) cacheUrl.searchParams.set('branch', branch);
+        fetch(cacheUrl.toString(), { method: 'DELETE' }).catch(() => {
+          /* swallow — the user already saw the recent disappear */
+        });
         render({ dismissible });
       });
     });

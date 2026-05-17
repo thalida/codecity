@@ -126,7 +126,35 @@ class FileTooLargeResponse(TypedDict):
     limit: int
 
 
+class CacheClearResponse(TypedDict):
+    """Body of DELETE /api/manifest/cache — reports how many cached
+    manifest files were removed for the requested source."""
+
+    deleted: int
+
+
 class HealthResponse(TypedDict):
     """/api/health body."""
 
     ok: bool
+
+
+class ScanStreamEvent(TypedDict):
+    """One NDJSON event emitted by scan_tree_streaming.
+
+    `phase` distinguishes the early skeleton emission (tree only,
+    placeholder metadata) from the final emission (full metadata).
+    Both carry a complete Manifest envelope; the skeleton's tree has
+    placeholder line counts that the final's tree replaces."""
+
+    phase: Literal["skeleton", "final"]
+    manifest: Manifest
+
+
+class ScanErrorEvent(TypedDict):
+    """Emitted only if a scan fails AFTER the response body has started
+    streaming. Errors before the first byte use the standard 500-JSON
+    path via _send_json, not this event."""
+
+    phase: Literal["error"]
+    error: str

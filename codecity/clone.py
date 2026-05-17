@@ -110,7 +110,7 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
     return proc.stdout
 
 
-def _cache_dir_for(url: str, branch: str | None) -> Path:
+def clone_dir_for(url: str, branch: str | None) -> Path:
     digest = hashlib.sha1(f"{url}\0{branch or ''}".encode("utf-8")).hexdigest()[:16]
     return CACHE_ROOT / digest
 
@@ -132,7 +132,7 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
       - HostUnreachableError — DNS / network failure
       - CloneError          — any other git failure (auth, ssl, etc.)
     """
-    target = _cache_dir_for(url, branch)
+    target = clone_dir_for(url, branch)
     if target.exists():
         try:
             _run_git("fetch", "--prune", "origin", cwd=target)

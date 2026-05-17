@@ -166,5 +166,75 @@ class GitHistoryCacheTests(CacheTestBase):
         self.assertEqual(modified, {"good.py": "2024-06-01T00:00:00Z"})
 
 
+class ManifestCacheTests(CacheTestBase):
+    def _make_manifest(self) -> dict:
+        return {
+            "root": "/some/repo",
+            "scanned_at": "2026-05-17T00:00:00Z",
+            "signature": "deadbeef" * 4,
+            "tree": {
+                "name": "repo", "type": "dir", "path": "", "fullPath": "/some/repo",
+                "children": [],
+            },
+            "repo": None,
+        }
+
+    def test_roundtrip(self) -> None:
+        root = Path("/some/repo")
+        sig = "deadbeef" * 4
+        manifest = self._make_manifest()
+        cache_mod.cache_save_manifest(root, sig, manifest)
+        self.assertEqual(cache_mod.cache_load_manifest(root, sig), manifest)
+
+    def test_load_missing_returns_none(self) -> None:
+        self.assertIsNone(
+            cache_mod.cache_load_manifest(Path("/never/scanned"), "x" * 32)
+        )
+
+    def test_load_wrong_signature_returns_none(self) -> None:
+        cache_mod.cache_save_manifest(
+            Path("/x"), "a" * 32, self._make_manifest(),
+        )
+        self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "b" * 32))
+
+    def test_load_corrupt_gzip_returns_none(self) -> None:
+        # Write a file at the cache path that is NOT valid gzip.
+        path = cache_mod._manifest_cache_path(Path("/x"), "a" * 32)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(b"not gzipped, definitely not JSON")
+        self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
+
+    def test_load_version_mismatch_returns_none(self) -> None:
+        path = cache_mod._manifest_cache_path(Path("/x"), "a" * 32)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        import gzip
+        with gzip.open(path, "wb") as fh:
+            fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
+        self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
+
+    def test_clear_manifests_deletes_every_signature(self) -> None:
+        root = Path("/x")
+        manifest = self._make_manifest()
+        cache_mod.cache_save_manifest(root, "a" * 32, manifest)
+        cache_mod.cache_save_manifest(root, "b" * 32, manifest)
+        # Unrelated root — must NOT be deleted.
+        cache_mod.cache_save_manifest(Path("/y"), "c" * 32, manifest)
+
+        deleted = cache_mod.cache_clear_manifests(root)
+        self.assertEqual(deleted, 2)
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "a" * 32))
+        self.assertIsNone(cache_mod.cache_load_manifest(root, "b" * 32))
+        # Unrelated root's cache survives.
+        self.assertIsNotNone(cache_mod.cache_load_manifest(Path("/y"), "c" * 32))
+
+    def test_clear_manifests_no_entries_returns_zero(self) -> None:
+        self.assertEqual(cache_mod.cache_clear_manifests(Path("/never/scanned")), 0)
+
+    def test_clear_manifests_missing_dir_returns_zero(self) -> None:
+        # CACHE_ROOT/manifests doesn't exist yet (no saves have happened).
+        self.assertFalse((cache_mod.CACHE_ROOT / "manifests").exists())
+        self.assertEqual(cache_mod.cache_clear_manifests(Path("/x")), 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -22,13 +22,17 @@ from __future__ import annotations
 import gzip
 import json
 import mimetypes
+import os
 import re
+import select
+import socket as _socket
 import sys
 import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from io import BufferedIOBase
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
 from codecity.clone import (
@@ -38,8 +42,18 @@ from codecity.clone import (
     HostUnreachableError,
     ensure_clone,
 )
-from codecity.scan import scan_tree, signature_tree
+from codecity.cache import (
+    cache_clear_manifests,
+    cache_load_manifest,
+    cache_save_manifest,
+)
+from codecity.scan import (
+    ScanCancelledError,
+    scan_tree_streaming,
+    signature_tree,
+)
 from codecity.types import (
+    CacheClearResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -131,7 +145,12 @@ class _State:
 
 
 JsonBody = (
-    Manifest | SignatureResponse | ErrorResponse | FileTooLargeResponse | HealthResponse
+    Manifest
+    | SignatureResponse
+    | ErrorResponse
+    | FileTooLargeResponse
+    | HealthResponse
+    | CacheClearResponse
 )
 
 
@@ -145,6 +164,133 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
     handler.send_header("Content-Length", str(len(payload)))
     handler.end_headers()
     handler.wfile.write(payload)
+
+
+def _stream_events(
+    handler: BaseHTTPRequestHandler,
+    events: Iterable[dict[str, Any]],
+    cancel_event: threading.Event,
+) -> None:
+    """Stream NDJSON events over a chunked HTTP response.
+
+    Each event becomes one line: `<json>\\n`. Encoded via iterencode
+    so peak memory is bounded by one ~64 KB chunk, not the serialized
+    size of the manifest. Wraps wfile in gzip when the client
+    advertises it.
+
+    Flushes after every event boundary: ``gz.flush()`` emits a
+    ``Z_SYNC_FLUSH`` DEFLATE block (so decompressors actually see the
+    bytes — ``GzipFile.write()`` buffers internally and would
+    otherwise emit nothing until close), then ``handler.wfile.flush()``
+    pushes the BufferedWriter into the socket. Without this the
+    skeleton event would be stuck behind the final event in
+    production.
+
+    Sets cancel_event on BrokenPipe/ConnectionReset (write-time AND
+    close-time) so a concurrently-running scan thread can stop ASAP.
+    Also checks cancel_event between events so a watchdog can
+    interrupt iteration without waiting for a write to fail."""
+    accept = handler.headers.get("Accept-Encoding", "")
+    use_gzip = "gzip" in accept.lower()
+
+    handler.send_response(HTTPStatus.OK)
+    handler.send_header("Content-Type", "application/x-ndjson")
+    if use_gzip:
+        handler.send_header("Content-Encoding", "gzip")
+    # No Content-Length → chunked transfer.
+    handler.end_headers()
+
+    # Both BufferedWriter (handler.wfile) and GzipFile inherit from
+    # io.BufferedIOBase, so we can reassign without a `# type: ignore`.
+    sink: BufferedIOBase = handler.wfile
+    gz: gzip.GzipFile | None = None
+    if use_gzip:
+        # mtime=0 → deterministic bytes (helps tests). compresslevel=6
+        # matches the existing _maybe_gzip path's choice.
+        gz = gzip.GzipFile(fileobj=sink, mode="wb", compresslevel=6, mtime=0)
+        sink = gz
+
+    try:
+        encoder = json.JSONEncoder()
+        for event in events:
+            for chunk in encoder.iterencode(event):
+                sink.write(chunk.encode("utf-8"))
+            sink.write(b"\n")
+            # Boundary flush: emit a Z_SYNC_FLUSH DEFLATE block so the
+            # decompressor sees this event's bytes, then push from the
+            # BufferedWriter into the socket.
+            if gz is not None:
+                gz.flush()
+            handler.wfile.flush()
+            # Let a watchdog interrupt between events without needing a
+            # write to fail first.
+            if cancel_event.is_set():
+                break
+    except (BrokenPipeError, ConnectionResetError):
+        cancel_event.set()
+        raise
+    finally:
+        if gz is not None:
+            try:
+                gz.close()
+            except (BrokenPipeError, ConnectionResetError):
+                # Gzip buffers most output, so a peer that already
+                # disconnected often only surfaces at close time.
+                # Mirror the write-path behavior: surface cancel to the
+                # surrounding scan, but don't re-raise (we're in
+                # finally; any real exception already propagated).
+                cancel_event.set()
+
+
+_WATCHDOG_POLL_SEC = 0.5
+
+
+def _start_disconnect_watchdog(
+    handler: BaseHTTPRequestHandler,
+    cancel_event: threading.Event,
+) -> threading.Thread:
+    """Spawn a daemon thread that watches `handler.connection` for
+    client-side EOF and sets `cancel_event` when seen.
+
+    Polls every ~500ms via select(); when the socket becomes
+    readable, peeks one byte — an empty peek means the peer closed.
+    Loop also exits if cancel_event is set by anyone else (normal
+    scan completion, or the writer noticing a broken pipe first).
+    """
+    sock = handler.connection
+
+    def _loop() -> None:
+        while not cancel_event.is_set():
+            try:
+                readable, _, _ = select.select(
+                    [sock], [], [], _WATCHDOG_POLL_SEC,
+                )
+            except (OSError, ValueError):
+                cancel_event.set()
+                return
+            if not readable:
+                continue
+            try:
+                peek = sock.recv(1, _socket.MSG_PEEK)
+            except OSError:
+                cancel_event.set()
+                return
+            if not peek:
+                # EOF — client closed its end.
+                cancel_event.set()
+                return
+            # Unexpected data from the client mid-scan (the browser
+            # isn't supposed to send anything until it reads the
+            # response). MSG_PEEK didn't consume the byte, so select()
+            # will keep waking us up on it forever — sleep one poll
+            # cycle to avoid spinning at 100% CPU. cancel_event.wait()
+            # both serves as the sleep AND lets the loop exit promptly
+            # if anyone sets the event during the wait.
+            cancel_event.wait(_WATCHDOG_POLL_SEC)
+
+    t = threading.Thread(target=_loop, daemon=True, name="cc-disconnect-watchdog")
+    t.start()
+    return t
 
 
 def _parse_include_all(query: str) -> bool:
@@ -218,7 +364,12 @@ def _resolve_scan_target(
 
 
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """Compute and return the scan manifest for the requested source."""
+    """Stream the scan manifest for the requested source as NDJSON.
+
+    Two events on a cold scan (skeleton, final); one on a warm cache
+    hit (just final). On client disconnect, the watchdog sets the
+    cancel event within ~500ms; the scan exits via ScanCancelledError
+    and no cache write happens."""
     resolved = _resolve_scan_target(handler, query)
     if resolved is None:
         return
@@ -226,25 +377,145 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
 
+    # Cheap signature probe — same call the live-poll endpoint uses.
     try:
-        manifest = scan_tree(
-            str(scan_target),
-            include_all=include_all,
-            use_cache=use_cache,
+        sig_response = signature_tree(
+            str(scan_target), include_all=include_all, use_cache=use_cache,
         )
     except Exception as e:  # pylint: disable=broad-except
-        _send_json(handler, HTTPStatus.INTERNAL_SERVER_ERROR, {"error": f"scan failed: {e}"})
+        _send_json(
+            handler, HTTPStatus.INTERNAL_SERVER_ERROR,
+            {"error": f"scan failed: {e}"},
+        )
+        return
+    sig = sig_response["signature"]
+
+    # Cache lookup.
+    cached: Manifest | None = None
+    if use_cache:
+        cached = cache_load_manifest(scan_target.resolve(), sig)
+        if cached is not None and kind == "git":
+            cached["display_root"] = (
+                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+            )
+
+    cancel_event = threading.Event()
+    watchdog = _start_disconnect_watchdog(handler, cancel_event)
+
+    # Register the trust root BEFORE any event is emitted. The user
+    # might click a file in the tree during skeleton paint and fire
+    # /api/file — that has to be served. scan_target was already
+    # validated by _resolve_scan_target, so registering it here is
+    # safe regardless of whether the scan itself completes.
+    _State.allowed_roots.add(scan_target.resolve())
+
+    try:
+        if cached is not None:
+            _stream_events(
+                handler,
+                [{"phase": "final", "manifest": cached}],
+                cancel_event,
+            )
+            return
+
+        # Cache miss — stream live.
+        final_manifest: Manifest | None = None
+
+        def _stamp_display_root(m: "Manifest") -> "Manifest":
+            if kind == "git":
+                m["display_root"] = (
+                    f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+                )
+            return m
+
+        def _events() -> Iterable[dict[str, Any]]:
+            nonlocal final_manifest
+            try:
+                for event in scan_tree_streaming(
+                    str(scan_target),
+                    include_all=include_all,
+                    use_cache=use_cache,
+                    cancel_event=cancel_event,
+                ):
+                    m = _stamp_display_root(event["manifest"])
+                    if event["phase"] == "final":
+                        final_manifest = m
+                    yield event  # type: ignore[misc]
+            except ScanCancelledError:
+                # Cancellation isn't an error to surface to the client —
+                # they disconnected, so there's nobody to read a message.
+                # Re-raise so the outer try in _serve_manifest skips the
+                # cache write and logs the disconnect.
+                raise
+            except Exception as e:  # pylint: disable=broad-except
+                # Unexpected mid-stream failure (e.g., disk read error
+                # during _populate_file_metadata). Emit one final error
+                # event so the client sees a clear message instead of a
+                # truncated stream / parse error.
+                yield {"phase": "error", "error": f"scan failed: {e}"}
+
+        _stream_events(handler, _events(), cancel_event)
+
+        # Only cache on successful completion AND only when use_cache.
+        if use_cache and final_manifest is not None:
+            cache_save_manifest(scan_target.resolve(), sig, final_manifest)
+
+    except ScanCancelledError:
+        _log_quiet("[scan] cancelled (client disconnected)")
+    except (BrokenPipeError, ConnectionResetError):
+        # Writer noticed the disconnect first. handle_error from
+        # fix #1 swallows the propagated exception at the socketserver
+        # layer; we just need to skip the cache write.
+        _log_quiet("[scan] client disconnected mid-stream")
+        raise
+    finally:
+        cancel_event.set()
+        watchdog.join(timeout=1.0)
+
+
+def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """Clear every cached manifest for the given source.
+
+    Used by the frontend when the user removes an entry from the recents
+    list — they're done with this source, so its disk cache should go
+    too. Resolves git URLs to their clone-dir without actually cloning;
+    resolves local paths non-strictly so cleanup still works for paths
+    that no longer exist on disk."""
+    params = parse_qs(query)
+    raw_src = params.get("src", [""])[0]
+    raw_branch = params.get("branch", [""])[0] or None
+
+    if not raw_src:
+        _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'src' query param"})
         return
 
-    # For cache-cloned sources (git URLs), surface the user-friendly source
-    # string as display_root so the breadcrumb doesn't show the cache hash.
-    if kind == "git":
-        manifest["display_root"] = (
-            f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+    kind = _classify_source(raw_src)
+    if kind == "invalid":
+        _send_json(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "unrecognized source — pass a local path or a git URL"},
         )
+        return
 
-    _State.allowed_roots.add(scan_target.resolve())
-    _send_json(handler, HTTPStatus.OK, manifest)
+    if kind == "git":
+        # Pure path derivation — no clone, no network.
+        from codecity.clone import clone_dir_for
+        abs_root = clone_dir_for(raw_src, raw_branch)
+    else:
+        # Local source: non-strict resolve so a recents entry for a
+        # since-deleted path still drops its cache.
+        abs_root = Path(raw_src).resolve(strict=False)
+
+    deleted = cache_clear_manifests(abs_root)
+    _send_json(handler, HTTPStatus.OK, {"deleted": deleted})
+
+
+def _log_quiet(msg: str) -> None:
+    """Same env-gated logger as scan._log, duplicated here so server
+    doesn't import a private from scan. CODECITY_QUIET=1 silences."""
+    if os.environ.get("CODECITY_QUIET") != "1":
+        print(msg, file=sys.stderr, flush=True)
 
 
 def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> None:
@@ -417,6 +688,13 @@ class Handler(BaseHTTPRequestHandler):
 
         rel = "index.html" if path in ("/", "") else path.lstrip("/")
         _send_static(self, rel)
+
+    def do_DELETE(self) -> None:  # noqa: N802 (stdlib API)
+        parsed = urlparse(self.path)
+        if parsed.path == "/api/manifest/cache":
+            _delete_manifest_cache(self, parsed.query)
+            return
+        _send_json(self, HTTPStatus.NOT_FOUND, {"error": "unknown api route"})
 
 
 class _Server(ThreadingHTTPServer):
