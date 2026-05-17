@@ -40,7 +40,7 @@ export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
 import { createBuildingsInstancedMesh } from './instanced/buildings.js';
-import { createBillboard, disposeBillboard, isMediaFile } from './billboards.js';
+import { createAdPanel, disposeAdPanel, isMediaFile } from './adPanels.js';
 import {
   buildLabelAtlas,
   truncateLabelToFit,
@@ -407,12 +407,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _removeAndDispose(block.placeholderMesh);
         block.placeholderMesh = undefined;
       }
-      if (block.billboards) {
-        for (const bm of block.billboards) {
-          if (bm.parent) bm.parent.remove(bm);
-          disposeBillboard(bm);
+      if (block.adPanels) {
+        for (const mesh of block.adPanels) {
+          if (mesh.parent) mesh.parent.remove(mesh);
+          disposeAdPanel(mesh);
         }
-        block.billboards = undefined;
+        block.adPanels = undefined;
       }
     }
     // Dispose all atlas page textures + their cached label materials.
@@ -568,18 +568,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const nb of blocks) {
       for (let i = 0; i < nb.buildings.length; i++) {
         const b = nb.buildings[i];
-        // Media files render as separate billboard meshes; the
-        // building's slot in the InstancedMesh stays zero-scaled so
-        // the building cuboid doesn't render OR catch raycasts. The
-        // diff has to mirror that — without this guard the animator
-        // would tween the matrix back up to (b.w, b.h, b.d) and wrap
-        // the billboard in a building-shaped dark box.
-        const isMedia = b.file && isMediaFile(b.file);
-        const newScaleX = isMedia ? 0 : b.w;
-        const newScaleY = isMedia ? 0 : b.h;
-        const newScaleZ = isMedia ? 0 : b.d;
+        // Media files now render as regular building cuboids (with an
+        // additive ad-panel mesh — see block.adPanels). No special case.
+        const newScaleX = b.w;
+        const newScaleY = b.h;
+        const newScaleZ = b.d;
         const newPosX = b.x;
-        const newPosY = isMedia ? 0 : b.h / 2;
+        const newPosY = b.h / 2;
         const newPosZ = b.y;
 
         const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
@@ -801,16 +796,17 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (block.buildings.length > 0) {
         block.detailMesh = createBuildingsInstancedMesh(block);
       }
-      // Image / video files get a separate billboard plane instead of
-      // a building cuboid. They still own a (zero-scale) slot in the
-      // detailMesh so per-instance indices line up with block.buildings.
-      const billboards: THREE.Group[] = [];
+      // Image / video files get an ad-panel plane mounted on the front
+      // face of their (regular) building cuboid. Media buildings render
+      // through detailMesh like every other building; the ad is purely
+      // additive decoration with its own picker hits + fader/bloom hooks.
+      const adPanels: THREE.Mesh[] = [];
       for (const b of block.buildings) {
         if (b.file && isMediaFile(b.file)) {
-          billboards.push(createBillboard(b));
+          adPanels.push(createAdPanel(b));
         }
       }
-      if (billboards.length > 0) block.billboards = billboards;
+      if (adPanels.length > 0) block.adPanels = adPanels;
       // Task 15: per-block label InstancedMesh. Built regardless of
       // direct-file count.
       const labelsMesh = createLabelsInstancedMesh(block, atlas, newAtlasTextures);
@@ -827,8 +823,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       for (const block of newBlocks) {
         if (block.detailMesh) _disposeObject(block.detailMesh);
         if (block.labelsMesh) _disposeObject(block.labelsMesh);
-        if (block.billboards) {
-          for (const bm of block.billboards) disposeBillboard(bm);
+        if (block.adPanels) {
+          for (const mesh of block.adPanels) disposeAdPanel(mesh);
         }
       }
       disposeLabelMaterials();
@@ -877,8 +873,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     for (const block of newBlocks) {
       if (block.detailMesh) scene.add(block.detailMesh);
       if (block.labelsMesh) scene.add(block.labelsMesh);
-      if (block.billboards) {
-        for (const bm of block.billboards) scene.add(bm);
+      if (block.adPanels) {
+        for (const mesh of block.adPanels) scene.add(mesh);
       }
     }
     blocks = newBlocks;

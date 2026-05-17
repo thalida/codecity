@@ -26,13 +26,14 @@ export interface SceneBlock {
   ghostMesh?: THREE.InstancedMesh;
   placeholderMesh?: THREE.Mesh;
   /**
-   * Billboard groups for image/video files in this block — each group
-   * holds a textured panel + two support posts (highway-sign shape).
-   * Every child mesh carries userData.building so the picker resolves
-   * a click anywhere on the structure to the same file selection a
-   * regular building click would produce.
+   * Ad-panel meshes for media files (image/video) in this block — one
+   * textured Plane per file, mounted on the front face of its building.
+   * Each carries userData.building so the picker resolves clicks anywhere
+   * on the ad to the same file selection a regular building click would.
+   * (Media buildings themselves now render through detailMesh like every
+   * other building; ads are an additive decoration.)
    */
-  billboards?: THREE.Group[];
+  adPanels?: THREE.Mesh[];
 
   // LOD state (managed by lodController):
   lodCurrent: 'detail' | 'placeholder' | 'hidden';
