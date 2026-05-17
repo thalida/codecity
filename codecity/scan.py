@@ -18,6 +18,7 @@ are walked but unstaged additions and gitignored paths are skipped).
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -698,12 +699,10 @@ def _build_tree(
 def _wrap_skeleton(
     root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
 ) -> Manifest:
-    """Build a Manifest envelope for the skeleton-phase emit. The tree
-    already has FileNodes with placeholder lines=0 / binary=False from
-    _file_node. We re-write lines to 1 so layoutV4 gives every building
-    a visible minimum height; the final manifest will tween real
-    counts in via the renderer's diff system."""
-    _force_skeleton_placeholders(tree)
+    """Build a Manifest envelope for the skeleton-phase emit. Caller is
+    responsible for having already deep-copied the tree and applied
+    placeholder values via _force_skeleton_placeholders — this helper
+    is a pure envelope builder."""
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -788,8 +787,8 @@ def scan_tree_streaming(
     # We deep-copy here so the skeleton's placeholder-mutation doesn't
     # affect the tree that _populate_file_metadata is about to modify
     # in-place. Cheap for small repos; for Linux this is ~50ms.
-    import copy
     skeleton_tree = copy.deepcopy(tree)
+    _force_skeleton_placeholders(skeleton_tree)
     yield {
         "phase": "skeleton",
         "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, repo_info),
