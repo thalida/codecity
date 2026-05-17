@@ -655,6 +655,27 @@ h1, h2, h3, h4, h5, h6 {
   background: var(--cc-overlay-bg);
 }
 .btn-chip:disabled { cursor: default; }
+/* Trailing chevron — visual cue that the chip opens a picker. */
+.btn-chip-chevron {
+  margin-left: var(--cc-space-1);
+  font-size: var(--cc-font-md);
+  opacity: 0.7;
+}
+
+/* .btn-icon--rainbow — paints the inner lucide-icon mask with a
+   conic gradient instead of currentColor. Used by the header gem
+   button to make the refresh affordance more eye-catching. */
+.btn-icon--rainbow .lucide-icon {
+  background-image: conic-gradient(
+    from 200deg,
+    #ff6b9d 0%,
+    #ffd33d 25%,
+    #4ade80 50%,
+    #38bdf8 75%,
+    #a78bfa 100%,
+    #ff6b9d
+  );
+}
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 

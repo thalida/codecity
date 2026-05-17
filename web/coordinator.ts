@@ -110,13 +110,25 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
       const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
       fn?.();
     },
-    // Refresh button (header far right) — equivalent of a page reload:
+    // Refresh button (header far left) — equivalent of a page reload:
     // kicks off a manifest re-fetch / rebuild AND resets the camera to
     // its default pose. refreshManifest is async; we don't await it here
     // because REBUILD_STATUS already reflects the in-flight state.
     onRefresh() {
       void refreshManifest();
       rig.reset();
+    },
+    // Focus button next to the selected path — mirrors pressing F on the
+    // canvas. Looks at the current picker selection and dispatches the
+    // matching camera-rig call.
+    onFocus() {
+      const sel = picker.selection.get();
+      if (!sel) return;
+      if (sel.kind === NodeKind.File) {
+        rig.focusBuilding(sel.mesh, sel.data);
+      } else if (sel.kind === NodeKind.Directory) {
+        rig.focusStreet(sel.street, null);
+      }
     },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,

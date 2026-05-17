@@ -30,8 +30,12 @@ interface InitAppHeaderOpts {
   onSegmentClick?: ((path: string) => void) | null;
   /** fires when the user clicks the project button in the header */
   onSwitchSource?: () => void;
-  /** fires when the user clicks the refresh button in the header (far right) */
+  /** fires when the user clicks the refresh button in the header (far left) */
   onRefresh?: () => void;
+  /** fires when the user clicks the focus button next to the selected path —
+   *  mirrors pressing F on the canvas. Caller looks at the current selection
+   *  and calls rig.focusBuilding / rig.focusStreet as appropriate. */
+  onFocus?: () => void;
   /** Branch name when the loaded source is a git URL with an explicit branch. */
   branch?: string;
   /** Original src URL when the loaded source is a git URL — used to render the open-repo link next to the project button. */
@@ -48,7 +52,7 @@ interface InitAppHeaderOpts {
  * extension hue or the asphalt color in Controls live-repaints the badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onRefresh } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onRefresh, onFocus } = opts;
 
   const titleEl = document.getElementById('app-title');
   if (!titleEl) {
@@ -105,6 +109,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     if (!hasSel) {
       // Empty title — project button on the left carries the project identity.
       return;
+    }
+
+    // Focus button — fires F-key equivalent (focus camera on selection).
+    // Sits LEFT of the extension badge so the order reads
+    // [focus] [ext tag] [path] [copy].
+    if (onFocus) {
+      const focusBtn = document.createElement('button');
+      focusBtn.type = 'button';
+      focusBtn.className = 'btn-icon btn-icon--no-drag';
+      focusBtn.title = 'Focus camera on selection (F)';
+      focusBtn.setAttribute('aria-label', 'Focus camera on selection');
+      focusBtn.appendChild(makeLucideIcon('focus'));
+      focusBtn.addEventListener('click', () => onFocus());
+      titleEl!.appendChild(focusBtn);
     }
 
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
@@ -259,6 +277,9 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       btn.appendChild(_branchPillEl);
     }
 
+    // Chevron at the end signals the chip is interactive (opens picker).
+    btn.appendChild(makeLucideIcon('chevron-down', { class: 'btn-chip-chevron' }));
+
     if (onSwitchSource) {
       btn.addEventListener('click', () => onSwitchSource());
     } else {
@@ -282,7 +303,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (onRefresh) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn-icon btn-icon--no-drag';
+    btn.className = 'btn-icon btn-icon--no-drag btn-icon--rainbow';
     btn.title = 'Refresh — rebuild the city and reset the view (R)';
     btn.setAttribute('aria-label', 'Refresh');
     btn.appendChild(makeLucideIcon('gem'));
