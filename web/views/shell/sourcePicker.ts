@@ -87,7 +87,7 @@ export function createSourcePicker(opts: {
           <div class="modal-header">
             <span>Open project</span>
             ${dismissible
-              ? '<button class="modal-close" aria-label="Close">×</button>'
+              ? '<button class="btn-icon btn-icon--lg" data-action="close" aria-label="Close">×</button>'
               : ''}
           </div>
           <div class="modal-body">
@@ -156,7 +156,7 @@ export function createSourcePicker(opts: {
           }</div>
         </div>
         ${isActive ? '<span class="recent-row-badge">Open</span>' : ''}
-        <button class="recent-remove" aria-label="Remove from recents">×</button>
+        <button class="btn-icon btn-icon--text" data-action="recent-remove" aria-label="Remove from recents">×</button>
       </div>
     `;
     }).join('');
@@ -186,13 +186,13 @@ export function createSourcePicker(opts: {
     // Recent rows
     root!.querySelectorAll<HTMLElement>('.recent-row').forEach((row) => {
       row.addEventListener('click', (e) => {
-        if ((e.target as HTMLElement).classList.contains('recent-remove')) return;
+        if ((e.target as HTMLElement).closest('[data-action="recent-remove"]')) return;
         if (row.classList.contains('recent-row--active')) return;
         const src = row.dataset.src!;
         const branch = row.dataset.branch || undefined;
         opts.onSubmit({ src, branch });
       });
-      row.querySelector<HTMLButtonElement>('.recent-remove')!
+      row.querySelector<HTMLButtonElement>('[data-action="recent-remove"]')!
         .addEventListener('click', (e) => {
           e.stopPropagation();
           const src = row.dataset.src!;
@@ -205,7 +205,7 @@ export function createSourcePicker(opts: {
 
     // Dismissible-only handlers
     if (dismissible) {
-      root!.querySelector<HTMLButtonElement>('button.modal-close')!
+      root!.querySelector<HTMLButtonElement>('[data-action="close"]')!
         .addEventListener('click', close);
       root!.querySelector<HTMLElement>('.modal-backdrop')!
         .addEventListener('click', (e) => {

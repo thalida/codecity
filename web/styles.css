@@ -566,66 +566,91 @@ h1, h2, h3, h4, h5, h6 {
 /* Controls-section variant pushes itself to the right end of its summary row. */
 .controls-section-reset { margin-left: auto; }
 
-/* ── Icon buttons (unified shell) ───────────────────────────────────────────
-   .btn-icon is the canonical icon-button class. The selectors below are
-   aliases sharing this shell; a follow-up commit will rename the DOM class
-   names to .btn-icon. Per-class overrides (size, radius, color, font-size,
-   padding) live with each original rule block further down in the file. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon buttons
+   ═══════════════════════════════════════════════════════════════════════════
+   .btn-icon    — default 24×24 icon button with hover overlay.
+   Modifiers:
+     .btn-icon--sm    — 22×22 (footer chrome).
+     .btn-icon--lg    — auto size via padding, 18px font, 6px radius
+                        (large × glyph like modal close).
+     .btn-icon--text  — auto size via padding, inherits font/color
+                        (text-style buttons like breadcrumb segments).
+     .btn-icon--link  — anchor-tag variant (text-decoration removed).
+     .btn-icon--no-drag — Electron drag-region marker.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.btn-icon,
-.app-header-icon,
-.switch-source-btn,
-.app-header-refresh-btn,
-.app-header-repo-link,
-.app-header-segment,
-.app-footer-button,
-.pane-header-close,
-.pane-header-action,
-.modal-header button.modal-close,
-.recent-row .recent-remove,
-.project-btn {
+.btn-icon {
   appearance: none;
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: none;
-  border: none;
-  cursor: pointer;
-}
-
-/* Shared hover — color brightens, subtle overlay added.
-   .modal-header button.modal-close opts out: it uses a stronger overlay
-   and keeps inherited text color. */
-.btn-icon:hover,
-.app-header-icon:hover,
-.switch-source-btn:hover,
-.app-header-refresh-btn:hover,
-.app-header-repo-link:hover,
-.app-header-segment:hover,
-.app-footer-button:hover,
-.pane-header-close:hover,
-.pane-header-action:not(:disabled):hover,
-.recent-row .recent-remove:hover,
-.project-btn:not(:disabled):hover {
-  color: var(--cc-text-primary);
-  background: var(--cc-overlay-bg);
-}
-
-/* Standalone .btn-icon defaults — apply only when the class is used on its
-   own (no aliased class on the element). Per docs/ui-styleguide-audit.md §7. */
-.btn-icon {
   width: 24px;
   height: 24px;
+  background: none;
+  border: none;
   color: var(--cc-text-faint);
   border-radius: var(--cc-radius-sm);
   font-size: var(--cc-font-xl);
+  cursor: pointer;
+}
+.btn-icon:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
 }
 .btn-icon:disabled { cursor: default; }
 .btn-icon.is-active {
   color: var(--cc-accent);
   background: var(--cc-accent-bg-soft);
 }
+
+/* Modifiers */
+.btn-icon--sm   { width: 22px; height: 22px; font-size: var(--cc-font-lg); }
+.btn-icon--lg   { width: auto; height: auto; padding: var(--cc-space-2) var(--cc-space-4); border-radius: var(--cc-radius-md); font-size: var(--cc-font-2xl); color: inherit; }
+.btn-icon--text { width: auto; height: auto; padding: var(--cc-space-px) var(--cc-space-2); font: inherit; color: var(--cc-text-muted); }
+.btn-icon--link { text-decoration: none; }
+.btn-icon--no-drag { -webkit-app-region: no-drag; }
+
+/* Modal-close uses a stronger hover overlay than other btn-icons. */
+.modal-header .btn-icon:not(:disabled):hover {
+  background: var(--cc-overlay-bg-strong);
+}
+
+/* The header flex container already sets gap: 4px (--cc-space-2), so
+   header buttons don't need their own margins. */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LAYER-2 COMPONENTS — Icon-text chip (.btn-chip)
+   ═══════════════════════════════════════════════════════════════════════════
+   Used by the header project switcher (icon + label + optional badge).
+   Different from .btn-icon — has gap, asymmetric padding, max-width,
+   ellipsis truncation on its label. */
+
+.btn-chip {
+  appearance: none;
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3);
+  height: 24px;
+  padding: 0 var(--cc-space-1) 0 var(--cc-space-4);
+  background: none;
+  border: none;
+  color: var(--cc-text-faint);
+  border-radius: var(--cc-radius-sm);
+  font: inherit;
+  font-size: var(--cc-font-lg);
+  white-space: nowrap;
+  max-width: 280px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.btn-chip:not(:disabled):hover {
+  color: var(--cc-text-primary);
+  background: var(--cc-overlay-bg);
+}
+.btn-chip:disabled { cursor: default; }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
 
@@ -699,18 +724,7 @@ body {
   color: var(--cc-text-muted);
 }
 
-/* .app-header-icon — alias of .btn-icon (shell + hover shared). Overrides:
-   26×24 footprint, 3px radius, -webkit-app-region: no-drag. */
-.app-header-icon {
-  width: 26px;
-  height: 24px;
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-  -webkit-app-region: no-drag;
-}
-.app-header-icon .lucide-icon {
-  font-size: var(--cc-font-xl);
-}
+/* Visual style fully in .btn-icon (with --no-drag modifier where needed). */
 
 canvas {
   display: block;
@@ -812,18 +826,14 @@ canvas {
 /* Shell + hover in .btn-icon. Per-class overrides: smaller padding,
    inherited font, muted color, and the Electron drag-region marker.
    The leaf modifier disables interactivity (last crumb = current). */
-.app-header-segment {
-  padding: var(--cc-space-px) var(--cc-space-2);
-  font: inherit;
-  color: var(--cc-text-muted);
-  border-radius: var(--cc-radius-sm);
-  -webkit-app-region: no-drag;
-}
-.app-header-segment.is-leaf {
+/* Visual style in .btn-icon + .btn-icon--text + .btn-icon--no-drag.
+   Leaf-state behavior moved to .is-leaf modifier (used by breadcrumb
+   leaf segment + file-path-segment leaf). */
+.btn-icon.is-leaf {
   color: var(--cc-text-primary);
   cursor: default;
 }
-.app-header-segment.is-leaf:hover {
+.btn-icon.is-leaf:not(:disabled):hover {
   background: transparent;
 }
 
@@ -864,37 +874,21 @@ canvas {
   padding: 0 var(--cc-space-px);
 }
 
-.app-header-icon.is-copied {
+/* Copy-feedback state — green pulse after click. Applied via JS by the
+   copy-button click handler (appHeader.ts). */
+.btn-icon.is-copied {
   color: var(--cc-success);
   background: var(--cc-success-bg);
 }
 
-/* Project button — far left of the header. Contains: icon + project label
- * + optional @branch pill. Click opens the source picker. Styled to match
- * the rest of the muted header (transparent bg, muted blue-grey, brightens
- * on hover) — NOT a default browser button. */
-/* Shell + hover in .btn-icon. This rule adds the chip-specific layout:
-   24px height, icon-label gap, asymmetric padding (icon breathes on the
-   left; right side hugs the next header element), and the Electron
-   drag-region marker. */
-.project-btn {
-  gap: var(--cc-space-3);
-  height: 24px;
-  padding: 0 var(--cc-space-1) 0 var(--cc-space-4);
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-  font: inherit;
-  font-size: var(--cc-font-lg);
-  white-space: nowrap;
-  max-width: 280px;
-  -webkit-app-region: no-drag;
-}
-.project-btn:disabled { cursor: default; }
-.project-btn .project-btn-label {
+/* The project switcher button is now .btn-chip (defined with the button
+   components near the top of the file). This rule only styles its
+   ellipsis-truncated label child. */
+.btn-chip-label {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.project-btn .lucide-icon {
+.btn-chip .lucide-icon {
   font-size: var(--cc-font-xl);
   flex: 0 0 auto;
 }
@@ -1006,19 +1000,8 @@ canvas {
   pointer-events: none;
 }
 
-/* Small icon button — used by the reset-view trigger that lives in
- * the right section next to the status indicator. */
-/* .app-footer-button — alias of .btn-icon. Overrides: 22×22 footprint,
-   3px radius, 13px icon. */
-.app-footer-button {
-  width: 22px;
-  height: 22px;
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-}
-.app-footer-button .lucide-icon {
-  font-size: var(--cc-font-lg);
-}
+/* Footer button uses .btn-icon + .btn-icon--sm (defined with the icon
+   button component near the top of the file). */
 
 /* ── Combined status indicator (left section) ─────────────────────── */
 /* Layout: [dot] <status text>
@@ -1227,35 +1210,9 @@ canvas {
   display: none;
 }
 
-/* "×" close button rendered inside each pane's header. Flexbox in the
- * header takes care of vertical centering against the title — this rule
- * just provides the button's own visual shell. */
-/* .pane-header-close — alias of .btn-icon. Overrides: auto size via 4px
-   padding, 4px radius, 14px font, line-height 1 for the × glyph. */
-.pane-header-close {
-  color: var(--cc-text-faint);
-  padding: var(--cc-space-2);
-  border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-xl);
-  line-height: 1;
-}
-
-/* Generic header action button — same shell as .pane-header-close, used
- * for non-close affordances like the focus camera button in the file
- * preview pane. */
-/* .pane-header-action — alias of .btn-icon. Overrides: padding-based size,
-   14px font, faint resting color, 35% disabled opacity. */
-.pane-header-action {
-  color: var(--cc-text-faint);
-  padding: var(--cc-space-2);
-  border-radius: var(--cc-radius-sm);
-  font-size: var(--cc-font-xl);
-  line-height: 1;
-}
-.pane-header-action:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
+/* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
+.pane-header .btn-icon--text { line-height: 1; }
+.pane-header .btn-icon--text:disabled { opacity: 0.35; }
 
 /* Activity bar splits into two nested flex columns: a top group that
  * stacks from the top and a bottom group that pins to the bottom. The
@@ -2572,18 +2529,9 @@ canvas {
   font-weight: var(--cc-fw-semibold);
 }
 
-/* .modal-close — alias of .btn-icon (shell shared). Overrides:
-   inherited color, 18px font, 4px 8px padding, 6px radius.
-   Uses its own hover (.08 overlay, no color change) — not the shared hover. */
-.modal-header button.modal-close {
-  color: inherit;
-  font-size: var(--cc-font-2xl);
-  padding: var(--cc-space-2) var(--cc-space-4);
-  border-radius: var(--cc-radius-md);
-}
-.modal-header button.modal-close:hover {
-  background: var(--cc-overlay-bg-strong);
-}
+/* Modal-close × is a .btn-icon + .btn-icon--lg (button selector + data-action).
+   The hover override (stronger overlay, no color change) lives near the
+   icon-button component definition: .modal-header .btn-icon:not(:disabled):hover. */
 
 .modal-body {
   padding: var(--cc-space-7) var(--cc-space-7);
@@ -2679,14 +2627,9 @@ canvas {
   font-size: var(--cc-font-md);
   color: var(--cc-text-muted);
 }
-/* .recent-remove — alias of .btn-icon. Overrides: pushed right via auto
-   margin, 4px 8px padding. Hover transition uses the shared color+bg
-   pattern (was opacity-based — converted per audit Inconsistency 5). */
-.recent-row .recent-remove {
-  margin-left: auto;
-  color: var(--cc-text-faint);
-  padding: var(--cc-space-2) var(--cc-space-4);
-}
+/* The recent-remove × button is a .btn-icon + .btn-icon--text; push it to
+   the right end of its row. */
+.recent-row .btn-icon { margin-left: auto; }
 
 .recent-row--active {
   background: var(--cc-accent-bg-soft);
@@ -2791,28 +2734,8 @@ canvas {
  * read as the same affordance: fixed 22×22 square, muted blue-grey,
  * brightens on hover. Margins differ to anchor each to its end of the
  * flex row. */
-/* .switch-source-btn, .app-header-refresh-btn, .app-header-repo-link —
-   aliases of .btn-icon (shell + hover shared). Overrides: 24×24 footprint,
-   3px radius, text-decoration: none (since repo-link is an <a>),
-   -webkit-app-region: no-drag for the Electron drag region. */
-.switch-source-btn,
-.app-header-refresh-btn,
-.app-header-repo-link {
-  width: 24px;
-  height: 24px;
-  color: var(--cc-text-faint);
-  border-radius: var(--cc-radius-sm);
-  text-decoration: none;
-  -webkit-app-region: no-drag;
-}
-.switch-source-btn { margin-right: var(--cc-space-0); }
-.app-header-refresh-btn { margin-left: var(--cc-space-2); }
-.app-header-repo-link { margin-right: var(--cc-space-2); padding: var(--cc-space-1) var(--cc-space-2); }
-.switch-source-btn .lucide-icon,
-.app-header-refresh-btn .lucide-icon,
-.app-header-repo-link .lucide-icon {
-  font-size: var(--cc-font-xl);
-}
-.switch-source-btn svg,
-.app-header-refresh-btn svg,
-.app-header-repo-link svg { display: block; }
+/* Header buttons (switch-source, refresh, repo-link) now use
+   .btn-icon + .btn-icon--no-drag (refresh/switch) or
+   .btn-icon + .btn-icon--link + .btn-icon--no-drag (repo-link).
+   Inner svg rendering tweak applies to any svg child of a header btn-icon. */
+#app-header .btn-icon svg { display: block; }

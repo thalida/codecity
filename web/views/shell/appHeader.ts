@@ -170,7 +170,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     if (_sourceUrl && _projectBtn?.parentElement) {
       if (!_repoLinkEl) {
         const a = document.createElement('a');
-        a.className = 'app-header-repo-link';
+        a.className = 'btn-icon btn-icon--link btn-icon--no-drag';
         a.target = '_blank';
         a.rel = 'noopener noreferrer';
         a.setAttribute('aria-label', 'Open repository in a new tab');
@@ -215,7 +215,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   function _makeSegment(label: string, path: string, isLeaf: boolean): HTMLButtonElement {
     const seg = document.createElement('button');
     seg.type = 'button';
-    seg.className = 'app-header-segment';
+    seg.className = 'btn-icon btn-icon--text btn-icon--no-drag';
     if (isLeaf) seg.classList.add('is-leaf');
     seg.textContent = label;
     seg.addEventListener('click', () => {
@@ -227,7 +227,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   function _makeCopyButton(path: string): HTMLButtonElement {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'app-header-icon';
+    btn.className = 'btn-icon btn-icon--no-drag';
     btn.title = 'Copy path';
     btn.setAttribute('aria-label', 'Copy path');
     btn.appendChild(makeLucideIcon('copy'));
@@ -242,13 +242,13 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'project-btn';
+    btn.className = 'btn-chip';
     btn.title = 'Switch project';
     btn.setAttribute('aria-label', 'Switch project');
     btn.appendChild(makeLucideIcon('map'));
 
     _projectLabelEl = document.createElement('span');
-    _projectLabelEl.className = 'project-btn-label';
+    _projectLabelEl.className = 'btn-chip-label';
     _projectLabelEl.textContent = _rootLabel;
     btn.appendChild(_projectLabelEl);
 
@@ -280,7 +280,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (onRefresh) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'app-header-refresh-btn';
+    btn.className = 'btn-icon btn-icon--no-drag';
     btn.title = 'Refresh — rebuild the city and reset the view';
     btn.setAttribute('aria-label', 'Refresh');
     btn.appendChild(makeLucideIcon('gem'));

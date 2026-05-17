@@ -46,7 +46,7 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   if (typeof opts.onFocus === 'function') {
     const focusBtn = document.createElement('button');
     focusBtn.type = 'button';
-    focusBtn.className = 'pane-header-action';
+    focusBtn.className = 'btn-icon btn-icon--text';
     const tooltip = opts.focusTitle ?? 'Focus camera';
     focusBtn.title = tooltip;
     focusBtn.setAttribute('aria-label', tooltip);
@@ -64,7 +64,7 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
   if (typeof opts.onClose === 'function') {
     const closeBtn = document.createElement('button');
     closeBtn.type = 'button';
-    closeBtn.className = 'pane-header-close';
+    closeBtn.className = 'btn-icon btn-icon--text';
     const tooltip = opts.closeTitle ?? 'Hide sidebar';
     closeBtn.title = tooltip;
     closeBtn.setAttribute('aria-label', tooltip);
