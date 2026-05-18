@@ -19,6 +19,7 @@
 // See docs/superpowers/specs/2026-05-17-fly-mode-navigation-design.md.
 
 import * as THREE from 'three';
+import { TEXT_INPUT_TAGS } from '@/constants';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
@@ -100,6 +101,9 @@ export function createFlyControls(opts: FlyControlsOpts) {
   }
 
   function _onKeyDown(e: KeyboardEvent) {
+    const targetEl = e.target as (HTMLElement & { isContentEditable?: boolean }) | null;
+    const tag = (targetEl && targetEl.tagName) || '';
+    if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
     const f = _keyToField(e.key);
     if (f) {
       keyState[f] = true;
@@ -111,6 +115,9 @@ export function createFlyControls(opts: FlyControlsOpts) {
   }
 
   function _onKeyUp(e: KeyboardEvent) {
+    const targetEl = e.target as (HTMLElement & { isContentEditable?: boolean }) | null;
+    const tag = (targetEl && targetEl.tagName) || '';
+    if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
     const f = _keyToField(e.key);
     if (f) {
       keyState[f] = false;

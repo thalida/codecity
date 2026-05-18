@@ -172,4 +172,44 @@ describe('flyControls key state', () => {
     fly.disable();
     expect(fly._keyStateForTest().forward).toBe(false);
   });
+
+  it('listeners are detached after disable (keydown after disable does not mutate state)', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    fly.disable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    expect(fly._keyStateForTest().forward).toBe(false);
+  });
+
+  it('ignores keys typed into text input elements', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+
+    const input = document.createElement('input');
+    document.body.appendChild(input);
+    try {
+      input.focus();
+      // KeyboardEvents need to be dispatched FROM the input element so that
+      // e.target === input. Dispatching on document with the input focused
+      // sets target to document, not the input, so we dispatch on the input.
+      const ev = new KeyboardEvent('keydown', { key: 'w', bubbles: true });
+      input.dispatchEvent(ev);
+      expect(fly._keyStateForTest().forward).toBe(false);
+    } finally {
+      document.body.removeChild(input);
+      fly.disable();
+    }
+  });
 });
