@@ -262,12 +262,36 @@ describe('flyControls velocity integration', () => {
     fly.disable();
   });
 
+  it('A strafes left (-X)', () => {
+    const { camera, fly } = setup();
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'a' }));
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.x).toBeLessThan(-1);
+    fly.disable();
+  });
+
   it('E moves up, Q moves down', () => {
     const { camera, fly } = setup();
     fly.enable();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
     for (let i = 0; i < 30; i++) fly.update(16);
     expect(camera.position.y).toBeGreaterThan(10);
+    fly.disable();
+  });
+
+  it('Q moves the camera down (-Y)', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 20, 0); // start high enough that Q can move freely
+    camera.lookAt(0, 20, -1);
+    camera.updateMatrixWorld();
+    const fly = createFlyControls({
+      camera, canvas: makeCanvas(), rig: makeFakeRig(), cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.y).toBeLessThan(20);
     fly.disable();
   });
 

@@ -85,7 +85,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
     else filePreview.api.setFile(null);
   }
 
-  // ── App header (breadcrumb + Up + Reset View) ──────────────────────
+  // ── App header (refresh / project chip / breadcrumb / fly toggle) ──
   const rootNode: DirNode | null = cityScene.getRoot();
   const _initManifest = cityScene.getManifest();
   // Derive the friendly label for the header breadcrumb and document title.

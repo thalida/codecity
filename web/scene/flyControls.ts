@@ -295,6 +295,9 @@ export function createFlyControls(opts: FlyControlsOpts) {
       _right.set(1, 0, 0);
     }
 
+    // Recompute base speed each frame so live-updates that change the
+    // world bbox (e.g. node_modules toggled on) immediately adjust fly speed.
+    _baseSpeed = _computeBaseSpeed();
     const speed = _baseSpeed * (keyState.boost ? cfg.BOOST_MULT : 1);
     _desired.set(0, 0, 0);
     if (keyState.forward) _desired.addScaledVector(_forward, speed);
