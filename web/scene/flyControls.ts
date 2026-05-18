@@ -52,6 +52,72 @@ export function createFlyControls(opts: FlyControlsOpts) {
   let active = false;
   const activeChangeCbs: Array<(active: boolean) => void> = [];
 
+  type KeyState = {
+    forward: boolean;
+    back: boolean;
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    boost: boolean;
+  };
+
+  const keyState: KeyState = {
+    forward: false,
+    back: false,
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    boost: false,
+  };
+
+  function _resetKeyState() {
+    keyState.forward = false;
+    keyState.back = false;
+    keyState.left = false;
+    keyState.right = false;
+    keyState.up = false;
+    keyState.down = false;
+    keyState.boost = false;
+  }
+
+  // Map a KeyboardEvent.key value to a key-state field, or null to ignore.
+  // Movement keys are case-insensitive (treat 'W' the same as 'w') because
+  // CapsLock or held-Shift would otherwise change the value.
+  function _keyToField(k: string): keyof KeyState | null {
+    const lower = k.length === 1 ? k.toLowerCase() : k;
+    switch (lower) {
+      case 'w': return 'forward';
+      case 's': return 'back';
+      case 'a': return 'left';
+      case 'd': return 'right';
+      case 'e': return 'up';
+      case 'q': return 'down';
+      case 'Shift': return 'boost';
+      default: return null;
+    }
+  }
+
+  function _onKeyDown(e: KeyboardEvent) {
+    const f = _keyToField(e.key);
+    if (f) {
+      keyState[f] = true;
+      // Prevent default for keys that would otherwise scroll the page or
+      // affect form focus. Movement keys won't normally have side effects,
+      // but being conservative here is cheap.
+      e.preventDefault();
+    }
+  }
+
+  function _onKeyUp(e: KeyboardEvent) {
+    const f = _keyToField(e.key);
+    if (f) {
+      keyState[f] = false;
+      e.preventDefault();
+    }
+  }
+
   function _setActive(next: boolean): void {
     if (active === next) return;
     active = next;
@@ -67,20 +133,22 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
   function enable(): void {
     if (active) return;
-    // Pointer lock — Task 7 wires this up properly. For now a try/catch
-    // lets the state machine work in tests where requestPointerLock is
-    // stubbed.
     try {
       canvas.requestPointerLock?.();
     } catch (_) {
       console.warn('Fly mode: pointer lock unavailable.');
       return;
     }
+    document.addEventListener('keydown', _onKeyDown);
+    document.addEventListener('keyup', _onKeyUp);
     _setActive(true);
   }
 
   function disable(): void {
     if (!active) return;
+    document.removeEventListener('keydown', _onKeyDown);
+    document.removeEventListener('keyup', _onKeyUp);
+    _resetKeyState();
     try {
       document.exitPointerLock?.();
     } catch (_) {
@@ -127,5 +195,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     resetToDefault,
     onActiveChange,
     dispose,
+    /** Internal — exposed for unit tests; not part of the public API. */
+    _keyStateForTest: () => ({ ...keyState }),
   };
 }

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, it, expect, vi } from 'vitest';
-import { createFlyControls } from '@/scene/flyControls.js';
+import { createFlyControls, type FlyControlsCityScene } from '@/scene/flyControls.js';
 
 function makeFakeRig() {
   return {
@@ -8,7 +8,7 @@ function makeFakeRig() {
   };
 }
 
-function makeFakeCityScene() {
+function makeFakeCityScene(): FlyControlsCityScene {
   return {
     getGemWorldPos: () => null,
     getRootStreet: () => null,
@@ -32,7 +32,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeCityScene() as never,
+      cityScene: makeFakeCityScene(),
     });
     expect(fly.isActive()).toBe(false);
   });
@@ -44,7 +44,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeCityScene() as never,
+      cityScene: makeFakeCityScene(),
     });
     fly.enable();
     expect(fly.isActive()).toBe(true);
@@ -58,7 +58,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeCityScene() as never,
+      cityScene: makeFakeCityScene(),
     });
     fly.enable();
     fly.disable();
@@ -72,7 +72,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeCityScene() as never,
+      cityScene: makeFakeCityScene(),
     });
     const cb = vi.fn();
     fly.onActiveChange(cb);
@@ -81,5 +81,95 @@ describe('flyControls state machine', () => {
     expect(cb).toHaveBeenCalledTimes(2);
     expect(cb).toHaveBeenNthCalledWith(1, true);
     expect(cb).toHaveBeenNthCalledWith(2, false);
+  });
+});
+
+describe('flyControls dispose', () => {
+  it('dispose() tears down active state and silences listeners', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    const cb = vi.fn();
+    fly.onActiveChange(cb);
+    fly.enable();
+    fly.dispose();
+    expect(fly.isActive()).toBe(false);
+    // After dispose, callbacks should have been cleared. Triggering enable
+    // again should not call the disposed listener.
+    cb.mockClear();
+    fly.enable();
+    expect(cb).not.toHaveBeenCalled();
+  });
+});
+
+describe('flyControls key state', () => {
+  it('tracks W/A/S/D + E/Q + Shift while active', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+
+    function fire(type: 'keydown' | 'keyup', key: string) {
+      document.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }));
+    }
+
+    fire('keydown', 'w');
+    expect(fly._keyStateForTest().forward).toBe(true);
+
+    fire('keydown', 'a');
+    fire('keydown', 's');
+    fire('keydown', 'd');
+    fire('keydown', 'e');
+    fire('keydown', 'q');
+    fire('keydown', 'Shift');
+    const ks = fly._keyStateForTest();
+    expect(ks).toEqual({
+      forward: true,
+      back: true,
+      left: true,
+      right: true,
+      up: true,
+      down: true,
+      boost: true,
+    });
+
+    fire('keyup', 'w');
+    expect(fly._keyStateForTest().forward).toBe(false);
+
+    fly.disable();
+  });
+
+  it('ignores keys when inactive', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    expect(fly._keyStateForTest().forward).toBe(false);
+  });
+
+  it('clears key state on disable', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    fly.disable();
+    expect(fly._keyStateForTest().forward).toBe(false);
   });
 });
