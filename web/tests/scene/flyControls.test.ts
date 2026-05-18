@@ -393,3 +393,28 @@ describe('flyControls mouse look', () => {
     expect(camera.quaternion.equals(before)).toBe(true);
   });
 });
+
+describe('flyControls pointer-lock revoke', () => {
+  it('auto-disables when the browser revokes pointer lock', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const canvas = makeCanvas();
+    const fly = createFlyControls({
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    expect(fly.isActive()).toBe(true);
+
+    // Simulate browser revoking the lock: document.pointerLockElement
+    // goes from canvas to null, then pointerlockchange fires.
+    Object.defineProperty(document, 'pointerLockElement', {
+      configurable: true,
+      get: () => null,
+    });
+    document.dispatchEvent(new Event('pointerlockchange'));
+
+    expect(fly.isActive()).toBe(false);
+  });
+});
