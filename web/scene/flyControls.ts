@@ -377,12 +377,27 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
     camera.position.copy(camPos);
     camera.up.set(0, 1, 0);
-    camera.lookAt(target);
-    // Re-seed yaw/pitch so subsequent mouse-look math reads the new orientation.
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
+    // Compute yaw/pitch directly from the target direction, then write
+    // the quaternion via setFromEuler — the SAME path the per-frame
+    // mouse-look uses. Going through camera.lookAt() and reading back
+    // via getWorldDirection() produces a quaternion that isn't bit-
+    // identical to a fresh setFromEuler reconstruction, which left the
+    // first post-R frame in a slightly different state from every
+    // subsequent frame and (on some browsers/canvas sizes) produced a
+    // blank frame until the user moved the mouse and update() rewrote
+    // the quaternion.
+    const dir = target.clone().sub(camPos);
+    const horiz = Math.hypot(dir.x, dir.z);
     yaw = Math.atan2(-dir.x, -dir.z);
-    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    pitch = Math.atan2(dir.y, horiz);
+    const pitchLimit = (cfg.PITCH_CLAMP_DEG * Math.PI) / 180;
+    if (pitch > pitchLimit) pitch = pitchLimit;
+    if (pitch < -pitchLimit) pitch = -pitchLimit;
+    const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+    camera.quaternion.setFromEuler(euler);
+    // Force matrix re-derivation so the next render sees the new pose
+    // even if no other system writes the camera between now and then.
+    camera.updateMatrixWorld(true);
     // Clear any pending mouse deltas so they don't apply on top of the
     // freshly-reset orientation in the next update() frame.
     mouseDeltaX = 0;
