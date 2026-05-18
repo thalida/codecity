@@ -20,6 +20,7 @@
 
 import * as THREE from 'three';
 import { TEXT_INPUT_TAGS } from '@/constants';
+import { FLY_CONTROLS } from '@/config/index.js';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
@@ -45,11 +46,6 @@ export interface FlyControlsOpts {
 export function createFlyControls(opts: FlyControlsOpts) {
   const { camera, canvas, rig, cityScene } = opts;
 
-  // cityScene is unused in this skeleton — Tasks 5 and 8 wire it into
-  // velocity integration and resetToDefault. Reference it here so
-  // editors/linters don't flag the destructure as dead code.
-  void cityScene;
-
   let active = false;
   const activeChangeCbs: Array<(active: boolean) => void> = [];
 
@@ -72,6 +68,31 @@ export function createFlyControls(opts: FlyControlsOpts) {
     down: false,
     boost: false,
   };
+
+  // Scratch vectors for per-frame math — allocated once, reused across frames.
+  const _forward = new THREE.Vector3();
+  const _right = new THREE.Vector3();
+  const _desired = new THREE.Vector3();
+  const _worldUp = new THREE.Vector3(0, 1, 0);
+  const _velocity = new THREE.Vector3();
+
+  // Auto-derived base speed, recomputed on enable() so the value reflects
+  // the world's current size. Stored on the closure rather than the
+  // config so per-instance state stays per-instance.
+  let _baseSpeed = 0;
+
+  function _computeBaseSpeed(): number {
+    const cfg = FLY_CONTROLS.get();
+    const bbox = cityScene.getBbox();
+    if (!bbox || bbox.isEmpty()) {
+      return cfg.BASE_SPEED_MIN;
+    }
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    const radius = Math.max(size.x, size.y, size.z) / 2;
+    const raw = radius * cfg.BASE_SPEED_BBOX_FRAC;
+    return Math.max(cfg.BASE_SPEED_MIN, Math.min(cfg.BASE_SPEED_MAX, raw));
+  }
 
   function _resetKeyState() {
     keyState.forward = false;
@@ -146,6 +167,8 @@ export function createFlyControls(opts: FlyControlsOpts) {
       console.warn('Fly mode: pointer lock unavailable.');
       return;
     }
+    _baseSpeed = _computeBaseSpeed();
+    _velocity.set(0, 0, 0);
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
     _setActive(true);
@@ -156,6 +179,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     document.removeEventListener('keydown', _onKeyDown);
     document.removeEventListener('keyup', _onKeyUp);
     _resetKeyState();
+    _velocity.set(0, 0, 0);
     try {
       document.exitPointerLock?.();
     } catch (_) {
@@ -168,9 +192,44 @@ export function createFlyControls(opts: FlyControlsOpts) {
     return active;
   }
 
-  function update(_dtMs: number): void {
-    // Task 5 fills this in.
+  function update(dtMs: number): void {
     if (!active) return;
+    const cfg = FLY_CONTROLS.get();
+    const dt = Math.max(0, dtMs) / 1000; // seconds
+
+    // Camera-local forward (its -Z in world space). Use the un-projected
+    // forward so looking up + pressing W flies up-and-forward (matches
+    // Minecraft creative / Unreal editor fly mode).
+    camera.getWorldDirection(_forward);
+    _right.crossVectors(_forward, _worldUp).normalize();
+    // _right may have zero length if camera is looking straight up/down;
+    // fall back to world X in that case.
+    if (_right.lengthSq() < 1e-8) {
+      _right.set(1, 0, 0);
+    }
+
+    const speed = _baseSpeed * (keyState.boost ? cfg.BOOST_MULT : 1);
+    _desired.set(0, 0, 0);
+    if (keyState.forward) _desired.addScaledVector(_forward, speed);
+    if (keyState.back) _desired.addScaledVector(_forward, -speed);
+    if (keyState.right) _desired.addScaledVector(_right, speed);
+    if (keyState.left) _desired.addScaledVector(_right, -speed);
+    if (keyState.up) _desired.addScaledVector(_worldUp, speed);
+    if (keyState.down) _desired.addScaledVector(_worldUp, -speed);
+
+    // Smooth ramp: exponential ease toward desired with time-constant
+    // ACCEL_RAMP_MS. alpha = 1 - exp(-dt / tau); converges quickly without
+    // overshoot regardless of frame rate.
+    const tauSec = Math.max(0.001, cfg.ACCEL_RAMP_MS / 1000);
+    const alpha = 1 - Math.exp(-dt / tauSec);
+    _velocity.lerp(_desired, alpha);
+
+    camera.position.addScaledVector(_velocity, dt);
+    if (camera.position.y < cfg.ALTITUDE_FLOOR) {
+      camera.position.y = cfg.ALTITUDE_FLOOR;
+      // Zero vertical velocity to prevent jitter at the clamp.
+      _velocity.y = Math.max(0, _velocity.y);
+    }
   }
 
   function resetToDefault(): void {
@@ -189,10 +248,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
     if (active) disable();
     activeChangeCbs.length = 0;
   }
-
-  // camera is unused in this skeleton — Tasks 4/5 use it for rotation
-  // and movement. Reference here to prevent dead-code warnings.
-  void camera;
 
   return {
     enable,

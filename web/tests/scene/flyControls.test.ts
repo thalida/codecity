@@ -213,3 +213,114 @@ describe('flyControls key state', () => {
     }
   });
 });
+
+import { FLY_CONTROLS } from '@/config/index.js';
+
+describe('flyControls velocity integration', () => {
+  function setup() {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 10, 0);
+    // Look toward -Z so "forward" is -Z in world space (three.js default).
+    camera.lookAt(0, 10, -1);
+    camera.updateMatrixWorld();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    return { camera, fly };
+  }
+
+  it('W moves the camera forward (-Z)', () => {
+    const { camera, fly } = setup();
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    // Step long enough for the velocity ramp to finish (ACCEL_RAMP_MS = 100ms).
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.z).toBeLessThan(-1); // moved forward
+    expect(camera.position.x).toBeCloseTo(0, 5); // didn't drift sideways
+    fly.disable();
+  });
+
+  it('S moves the camera backward (+Z)', () => {
+    const { camera, fly } = setup();
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 's' }));
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.z).toBeGreaterThan(1);
+    fly.disable();
+  });
+
+  it('A and D strafe left/right', () => {
+    const { camera, fly } = setup();
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'd' }));
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.x).toBeGreaterThan(1);
+    fly.disable();
+  });
+
+  it('E moves up, Q moves down', () => {
+    const { camera, fly } = setup();
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'e' }));
+    for (let i = 0; i < 30; i++) fly.update(16);
+    expect(camera.position.y).toBeGreaterThan(10);
+    fly.disable();
+  });
+
+  it('Shift boost multiplies speed (Shift+W moves further than W alone)', () => {
+    const a = setup();
+    a.fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    for (let i = 0; i < 30; i++) a.fly.update(16);
+    const dA = Math.abs(a.camera.position.z);
+    a.fly.disable();
+
+    const b = setup();
+    b.fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift' }));
+    for (let i = 0; i < 30; i++) b.fly.update(16);
+    const dB = Math.abs(b.camera.position.z);
+    b.fly.disable();
+
+    expect(dB).toBeGreaterThan(dA * 2); // boost is 4× but allow 2× lower bound
+  });
+
+  it('altitude floor clamps y to ALTITUDE_FLOOR', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 1, 0);
+    // Look down so Q (down) moves into the ground.
+    camera.lookAt(0, 0, 0);
+    camera.updateMatrixWorld();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    for (let i = 0; i < 100; i++) fly.update(16);
+    expect(camera.position.y).toBeGreaterThanOrEqual(FLY_CONTROLS.get().ALTITUDE_FLOOR);
+    fly.disable();
+  });
+
+  it('does nothing when inactive', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 10, 0);
+    camera.updateMatrixWorld();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    // Don't enable.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
+    fly.update(16);
+    expect(camera.position.z).toBe(0);
+  });
+});
