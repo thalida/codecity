@@ -321,6 +321,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     canvas,
     picker,
     rig,
+    flyControls,
     renderer,
     camera,
     showTooltip,

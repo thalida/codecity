@@ -16,11 +16,13 @@ import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
+import type { createFlyControls } from './flyControls.js';
 
 export function createInputHandlers({
   canvas,
   picker,
   rig,
+  flyControls,
   renderer,
   camera,
   showTooltip,
@@ -32,6 +34,7 @@ export function createInputHandlers({
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
+  flyControls: ReturnType<typeof createFlyControls>;
   renderer: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
   showTooltip: (text: string, x: number, y: number) => void;
@@ -262,6 +265,16 @@ export function createInputHandlers({
     const targetEl = ev.target as (HTMLElement & { isContentEditable?: boolean }) | null;
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
+
+    if (KEY_BINDINGS.TOGGLE_FLY_MODE.keys.includes(ev.key)) {
+      ev.preventDefault();
+      if (flyControls.isActive()) {
+        flyControls.disable();
+      } else {
+        flyControls.enable();
+      }
+      return;
+    }
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
       picker.setSelection(null);
