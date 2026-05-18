@@ -214,24 +214,18 @@ export function createPicker({
   }
 
   // ── Raycasting ────────────────────────────────────────────────────
-  // pickAt(x, y) — raycast at canvas-relative client coords; returns
-  // the first hit or null. Pickables list is cached and refreshed on
-  // cityScene rebuild.
-  function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
-    const rect = canvas.getBoundingClientRect();
-    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(pickables, false);
-    if (hits.length === 0) return null;
 
-    // Tie-break: when an InstancedMesh (building) hit lies within ~0.1% of
-    // the closest hit's distance, prefer it over any placeholder or
-    // sidewalk at the same distance. The placeholder cuboid covers the
-    // entire bbox of its block, so its outer face often coincides with
-    // edge-buildings of neighboring blocks; same-distance ties otherwise
-    // swing arbitrarily by JS sort stability and the user gets a
-    // directory tooltip when their cursor is plainly over a building.
+  // Tie-break: when an InstancedMesh (building) hit lies within ~0.1% of
+  // the closest hit's distance, prefer it over any placeholder or
+  // sidewalk at the same distance. The placeholder cuboid covers the
+  // entire bbox of its block, so its outer face often coincides with
+  // edge-buildings of neighboring blocks; same-distance ties otherwise
+  // swing arbitrarily by JS sort stability and the user gets a
+  // directory tooltip when their cursor is plainly over a building.
+  function _resolveTieBreak(
+    hits: THREE.Intersection<THREE.Object3D>[],
+  ): THREE.Intersection<THREE.Object3D> | null {
+    if (hits.length === 0) return null;
     const closest = hits[0];
     const tieThreshold = closest.distance * 1.001;
     for (const h of hits) {
@@ -244,6 +238,18 @@ export function createPicker({
       }
     }
     return closest;
+  }
+
+  // pickAt(x, y) — raycast at canvas-relative client coords; returns
+  // the first hit or null. Pickables list is cached and refreshed on
+  // cityScene rebuild.
+  function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
+    const rect = canvas.getBoundingClientRect();
+    pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const hits = raycaster.intersectObjects(pickables, false);
+    return _resolveTieBreak(hits);
   }
 
   // interpretHit(hit) — reduce a raw raycast hit to a target object of
@@ -307,20 +313,7 @@ export function createPicker({
     pointer.y = 0;
     raycaster.setFromCamera(pointer, camera);
     const hits = raycaster.intersectObjects(pickables, false);
-    if (hits.length === 0) return null;
-
-    const closest = hits[0];
-    const tieThreshold = closest.distance * 1.001;
-    for (const h of hits) {
-      if (h.distance > tieThreshold) break;
-      if (
-        h.object instanceof THREE.InstancedMesh &&
-        h.object.userData.kind === 'buildings'
-      ) {
-        return h;
-      }
-    }
-    return closest;
+    return _resolveTieBreak(hits);
   }
 
   function dispose() {
