@@ -319,17 +319,20 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   }
 
   // Fly-mode toggle button — appended (not prepended) to the header parent
-  // so it lands at the right edge via flexbox. The active state mirrors
-  // flyControls.isActive() and is updated via setFlyActive() (called from
-  // coordinator on every onActiveChange) so V-key toggles stay in sync.
+  // so it lands at the right edge via flexbox. The icon swaps with the
+  // mode: compass when orbiting (you're navigating around the city),
+  // plane when flying (you're navigating through it). The active state
+  // mirrors flyControls.isActive() and is updated via setFlyActive()
+  // (called from coordinator on every onActiveChange) so V-key toggles
+  // stay in sync with the button.
   let _flyBtn: HTMLButtonElement | null = null;
   if (onToggleFly) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-icon btn-icon--no-drag';
-    btn.title = 'Fly mode (V)';
+    btn.title = 'Enter fly mode (V)';
     btn.setAttribute('aria-label', 'Toggle fly mode');
-    btn.appendChild(makeLucideIcon('plane'));
+    btn.appendChild(makeLucideIcon('compass'));
     btn.addEventListener('click', () => onToggleFly());
     titleEl.parentElement?.appendChild(btn);
     _flyBtn = btn;
@@ -338,7 +341,9 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   function setFlyActive(active: boolean): void {
     if (!_flyBtn) return;
     _flyBtn.classList.toggle('is-active', active);
-    _flyBtn.title = active ? 'Exit fly mode (V)' : 'Fly mode (V)';
+    _flyBtn.title = active ? 'Exit fly mode (V)' : 'Enter fly mode (V)';
+    // Swap the icon: plane while flying, compass while orbiting.
+    _flyBtn.replaceChildren(makeLucideIcon(active ? 'plane' : 'compass'));
   }
 
   // Live config: re-render the cached selection whenever a store that
