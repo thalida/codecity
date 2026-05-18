@@ -457,7 +457,7 @@ describe('flyControls pointer-lock revoke', () => {
 });
 
 describe('flyControls resetToDefault', () => {
-  it('places camera behind gem along the root street axis', () => {
+  it('places camera above gem looking down the root road', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(999, 999, 999); // somewhere far away
 
@@ -485,14 +485,18 @@ describe('flyControls resetToDefault', () => {
     });
     fly.resetToDefault();
 
-    // Camera should sit behind the gem (in -X direction from gem, since
-    // the street extends +X) and above the ground.
-    expect(camera.position.x).toBeLessThan(0);
-    expect(camera.position.y).toBeGreaterThanOrEqual(FLY_CONTROLS.get().ALTITUDE_FLOOR);
-    // Camera should be roughly looking +X (down the street).
+    // Camera sits DIRECTLY above the gem (same x/z as gem) at a sane
+    // altitude above the ground.
+    expect(camera.position.x).toBeCloseTo(0, 5);
+    expect(camera.position.z).toBeCloseTo(0, 5);
+    expect(camera.position.y).toBeGreaterThanOrEqual(10);
+    // Camera looks down the road — forward direction is dominated by
+    // the +X axis (toward the street), with only a slight downward tilt.
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
-    expect(dir.x).toBeGreaterThan(0.5);
+    expect(dir.x).toBeGreaterThan(0.9);   // mostly forward
+    expect(dir.y).toBeLessThan(0);         // slight downward
+    expect(dir.y).toBeGreaterThan(-0.3);  // but not steeply down
   });
 
   it('falls back to bbox center when there is no gem', () => {

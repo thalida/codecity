@@ -30,15 +30,11 @@ export interface FlyControlsCityScene {
   getBuildings: () => THREE.Object3D[];
 }
 
-// Only the `enabled` toggle and the framing-pose getter are needed.
-// Using a structural interface keeps the type accurate while allowing
-// lightweight test fakes without casting to `as never`.
+// Only the `enabled` toggle is needed from OrbitControls. Using a
+// structural interface keeps the type accurate while allowing lightweight
+// test fakes without casting to `as never`.
 export interface FlyControlsRig {
   controls: { enabled: boolean };
-  /** Optional — returns the orbit camera's framing pose (i.e. where R
-   *  would snap the camera in orbit mode). Used to decide whether to
-   *  auto-snap to fly-default on V-enter. */
-  getInitialCamPos?: () => THREE.Vector3 | null;
 }
 
 export interface FlyControlsOpts {
@@ -206,27 +202,14 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
+    // Seed yaw/pitch from the current camera direction so entering fly
+    // mode doesn't yank the view to a fixed orientation.
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    yaw = Math.atan2(-dir.x, -dir.z); // standard yaw with -Z = forward
+    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
     mouseDeltaX = 0;
     mouseDeltaY = 0;
-
-    // Auto-snap to fly-default if the user is near the orbit framing
-    // pose (i.e., they haven't navigated to anything specific). Avoids
-    // landing the user up high looking down at the bbox center; lands
-    // them on the street next to the gem instead.
-    const initialPos = rig.getInitialCamPos?.() ?? null;
-    const framingDist = initialPos ? camera.position.distanceTo(initialPos) : Infinity;
-    if (initialPos && framingDist < initialPos.length() * 0.2) {
-      // resetToDefault re-seeds yaw/pitch for us.
-      resetToDefault();
-    } else {
-      // Seed yaw/pitch from the current camera direction so entering fly
-      // mode doesn't yank the view to a fixed orientation.
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      yaw = Math.atan2(-dir.x, -dir.z); // standard yaw with -Z = forward
-      pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
-    }
-
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
     canvas.addEventListener('mousemove', _onMouseMove);
@@ -350,35 +333,25 @@ export function createFlyControls(opts: FlyControlsOpts) {
       }
       outward.normalize();
 
-      // Street-level eye height. FLY_DEFAULT_ALTITUDE_FRAC × tallest
-      // building, clamped to a sensible range: floor at 4 units so the
-      // camera isn't scraping the asphalt for short-building repos, and
-      // cap at 15 so a skyscraper repo doesn't put the camera above the
-      // skyline looking down. The range targets a person-walking-down-
-      // a-street feel for typical projects.
+      // Camera sits directly ABOVE the gem at an altitude scaled to the
+      // city size, looking horizontally down the root road toward the
+      // far end. The gem is below the camera in the near foreground;
+      // the road and its buildings recede to the horizon.
       const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
       const altitude = Math.max(
-        4,
-        Math.min(15, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
+        10,
+        Math.min(40, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
       );
 
-      // Gem "radius" — use the street width as a stand-in (the gem scales
-      // with street width via GEM_SIZING.RADIUS_AS_STREET_FRAC; using the
-      // street width directly gives a comparable scale without taking a
-      // hard dependency on that config).
-      const gemRadius = root.width * 0.4;
-      const offset = gemRadius * cfg.FLY_DEFAULT_GEM_OFFSET_MULT;
-
-      camPos = gem.clone()
-        .add(outward.clone().multiplyScalar(-offset))
-        .setY(altitude);
-      // Look down the street at a point at roughly the same height as the
-      // camera, slightly raised so the view tilts a degree or two upward —
-      // gives a natural "looking ahead" feel rather than a head-down stare
-      // at the asphalt right under the camera.
-      target = camPos.clone()
-        .add(outward.clone().multiplyScalar(offset + root.length))
-        .setY(altitude + 2);
+      camPos = new THREE.Vector3(gem.x, altitude, gem.z);
+      // Look at the far end of the root road at ground level. For a long
+      // street this is nearly horizontal — a slight downward tilt the
+      // user can correct with mouse-look if they want a pure horizon view.
+      target = new THREE.Vector3(
+        gem.x + outward.x * root.length,
+        0,
+        gem.z + outward.z * root.length
+      );
     } else if (bbox && !bbox.isEmpty()) {
       // No gem — fall back to an elevated view of the bbox center.
       const center = new THREE.Vector3();
