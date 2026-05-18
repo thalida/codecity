@@ -333,7 +333,14 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.title = 'Enter fly mode (V)';
     btn.setAttribute('aria-label', 'Toggle fly mode');
     btn.appendChild(makeLucideIcon('compass'));
-    btn.addEventListener('click', () => onToggleFly());
+    btn.addEventListener('click', () => {
+      // Blur immediately so the button doesn't retain keyboard focus.
+      // A focused button intercepts Space/Enter (activating itself and
+      // toggling fly mode back off) and shows a focus ring that's noisy
+      // during a fly-mode session.
+      btn.blur();
+      onToggleFly();
+    });
     titleEl.parentElement?.appendChild(btn);
     _flyBtn = btn;
   }
