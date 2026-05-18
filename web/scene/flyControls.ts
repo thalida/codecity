@@ -171,6 +171,15 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
   }
 
+  function _onPointerLockError() {
+    // Browser refused the lock request asynchronously (Esc cooldown,
+    // iframe sandbox, etc.). Revert to orbit mode.
+    if (active) {
+      console.warn('Fly mode: pointer lock denied.');
+      disable();
+    }
+  }
+
   function _setActive(next: boolean): void {
     if (active === next) return;
     active = next;
@@ -206,6 +215,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     document.addEventListener('keyup', _onKeyUp);
     canvas.addEventListener('mousemove', _onMouseMove);
     document.addEventListener('pointerlockchange', _onPointerLockChange);
+    document.addEventListener('pointerlockerror', _onPointerLockError);
     _setActive(true);
   }
 
@@ -215,6 +225,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     document.removeEventListener('keyup', _onKeyUp);
     canvas.removeEventListener('mousemove', _onMouseMove);
     document.removeEventListener('pointerlockchange', _onPointerLockChange);
+    document.removeEventListener('pointerlockerror', _onPointerLockError);
     _resetKeyState();
     _velocity.set(0, 0, 0);
     mouseDeltaX = 0;

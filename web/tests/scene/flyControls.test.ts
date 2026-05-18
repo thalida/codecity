@@ -395,6 +395,18 @@ describe('flyControls mouse look', () => {
   });
 });
 
+describe('flyControls pointer-lock error', () => {
+  it('auto-disables when the browser fires pointerlockerror', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const fly = createFlyControls({
+      camera, canvas: makeCanvas(), rig: makeFakeRig(), cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    document.dispatchEvent(new Event('pointerlockerror'));
+    expect(fly.isActive()).toBe(false);
+  });
+});
+
 describe('flyControls pointer-lock revoke', () => {
   it('auto-disables when the browser revokes pointer lock', () => {
     const camera = new THREE.PerspectiveCamera();
