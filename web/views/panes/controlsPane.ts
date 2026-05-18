@@ -137,8 +137,10 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.className = 'pane-body pane-body--padded';
 
   // Sections are organized by render scope, then interaction:
-  //   Keyboard & mouse → Fly mode → Scan & Updates → Scene → Layout →
+  //   Keyboard & mouse → Scan & Updates → Scene → Layout →
   //   Buildings → Streets → Root gem → Effects → File Preview → Debug.
+  // (Fly mode tuning lives inside Keyboard & mouse as a collapsible
+  // subgroup next to the fly-mode shortcuts cheat sheet.)
   //
   // (Camera tween timing / easing — BASE_DURATION_MS, EASING_POWER — is
   // intentionally NOT exposed to users. The defaults are tuned for the
@@ -148,7 +150,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // every time the Controls tab becomes visible all sections start collapsed.
   // See _section() and resetCollapsed() below.
   body.appendChild(_buildShortcutsSection());
-  body.appendChild(_buildFlySection());
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
   body.appendChild(_buildLayoutSection());
@@ -176,65 +177,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   }
 
   return { pane, resetCollapsed };
-}
-
-// ─── Fly mode ──────────────────────────────────────────────────────────────
-// WASD + pointer-lock camera tunables. All values are read fresh per frame /
-// per gesture so edits take effect immediately without Save — but Save is
-// still required to persist them across page reloads (same draft layer as
-// every other section).
-function _buildFlySection(): HTMLElement {
-  const section = _section(
-    'Fly mode',
-    'WASD + pointer-lock camera speed, sensitivity, and default entry pose.'
-  );
-
-  section.appendChild(
-    _subgroup('Speed', [
-      _number('Base speed (bbox fraction)', FLY_CONTROLS, 'BASE_SPEED_BBOX_FRAC', 0.01, 1, 0.01, {
-        tip: 'Base camera speed as a fraction of the world bounding-box radius. Scales automatically with city size.',
-      }),
-      _number('Base speed (min)', FLY_CONTROLS, 'BASE_SPEED_MIN', 0.1, 100, 0.5, {
-        tip: 'Minimum base speed in world units/sec — floor so the camera never crawls to a halt in tiny repos.',
-      }),
-      _number('Base speed (max)', FLY_CONTROLS, 'BASE_SPEED_MAX', 1, 2000, 5, {
-        tip: 'Maximum base speed in world units/sec — cap so the camera does not rocket through large repos.',
-      }),
-      _number('Boost multiplier', FLY_CONTROLS, 'BOOST_MULT', 1, 20, 0.5, {
-        tip: 'Speed multiplier applied while Shift is held. 1 = no boost; 4 = four times faster.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Feel', [
-      _slider('Mouse sensitivity', FLY_CONTROLS, 'MOUSE_SENSITIVITY', 0.0005, 0.01, 0.0001, {
-        tip: 'Radians of view rotation per pixel of pointer-lock movement. Lower = slower, more precise; higher = faster.',
-      }),
-      _slider('Pitch clamp (deg)', FLY_CONTROLS, 'PITCH_CLAMP_DEG', 30, 89, 1, {
-        tip: 'Maximum up/down look angle in degrees. Prevents gimbal-lock at 90°.',
-      }),
-      _number('Accel ramp (ms)', FLY_CONTROLS, 'ACCEL_RAMP_MS', 0, 1000, 10, {
-        tip: 'Time in milliseconds to reach full speed from rest (and to coast to a stop). 0 = instant; higher = floaty.',
-      }),
-      _number('Altitude floor', FLY_CONTROLS, 'ALTITUDE_FLOOR', 0, 50, 0.1, {
-        tip: 'Minimum world-Y position — prevents flying below the ground plane.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Entry pose (on fly-mode enter)', [
-      _number('Gem offset multiplier', FLY_CONTROLS, 'FLY_DEFAULT_GEM_OFFSET_MULT', 0.5, 10, 0.1, {
-        tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
-      }),
-      _slider('Altitude fraction', FLY_CONTROLS, 'FLY_DEFAULT_ALTITUDE_FRAC', 0.05, 2, 0.05, {
-        tip: 'Starting height as a fraction of the tallest building. 0.3 = eye-level with a mid-rise; 1.0 = rooftop height of the tallest building.',
-      }),
-    ])
-  );
-
-  return section;
 }
 
 // ─── Scan & Updates ────────────────────────────────────────────────────────
@@ -311,6 +253,52 @@ function _buildShortcutsSection(): HTMLElement {
       { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Exit fly mode' },
     ]))
   );
+
+  // Fly-mode tuning — collapsible so the always-visible shortcut cheat
+  // sheet above stays compact. All values are read fresh per frame so
+  // edits take effect immediately; Save still required to persist across
+  // page reloads (same draft layer as every other tunable in this pane).
+  section.appendChild(
+    _collapsibleSubgroup('fly-mode-settings', 'Fly mode settings', () => [
+      _subgroup('Speed', [
+        _number('Base speed (bbox fraction)', FLY_CONTROLS, 'BASE_SPEED_BBOX_FRAC', 0.01, 1, 0.01, {
+          tip: 'Base camera speed as a fraction of the world bounding-box radius. Scales automatically with city size.',
+        }),
+        _number('Base speed (min)', FLY_CONTROLS, 'BASE_SPEED_MIN', 0.1, 100, 0.5, {
+          tip: 'Minimum base speed in world units/sec — floor so the camera never crawls to a halt in tiny repos.',
+        }),
+        _number('Base speed (max)', FLY_CONTROLS, 'BASE_SPEED_MAX', 1, 2000, 5, {
+          tip: 'Maximum base speed in world units/sec — cap so the camera does not rocket through large repos.',
+        }),
+        _number('Boost multiplier', FLY_CONTROLS, 'BOOST_MULT', 1, 20, 0.5, {
+          tip: 'Speed multiplier applied while Shift is held. 1 = no boost; 4 = four times faster.',
+        }),
+      ]),
+      _subgroup('Feel', [
+        _slider('Mouse sensitivity', FLY_CONTROLS, 'MOUSE_SENSITIVITY', 0.0005, 0.01, 0.0001, {
+          tip: 'Radians of view rotation per pixel of pointer-lock movement. Lower = slower, more precise; higher = faster.',
+        }),
+        _slider('Pitch clamp (deg)', FLY_CONTROLS, 'PITCH_CLAMP_DEG', 30, 89, 1, {
+          tip: 'Maximum up/down look angle in degrees. Prevents gimbal-lock at 90°.',
+        }),
+        _number('Accel ramp (ms)', FLY_CONTROLS, 'ACCEL_RAMP_MS', 0, 1000, 10, {
+          tip: 'Time in milliseconds to reach full speed from rest (and to coast to a stop). 0 = instant; higher = floaty.',
+        }),
+        _number('Altitude floor', FLY_CONTROLS, 'ALTITUDE_FLOOR', 0, 50, 0.1, {
+          tip: 'Minimum world-Y position — prevents flying below the ground plane.',
+        }),
+      ]),
+      _subgroup('Entry pose (on fly-mode enter)', [
+        _number('Gem offset multiplier', FLY_CONTROLS, 'FLY_DEFAULT_GEM_OFFSET_MULT', 0.5, 10, 0.1, {
+          tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
+        }),
+        _slider('Altitude fraction', FLY_CONTROLS, 'FLY_DEFAULT_ALTITUDE_FRAC', 0.05, 2, 0.05, {
+          tip: 'Starting height as a fraction of the tallest building. 0.3 = eye-level with a mid-rise; 1.0 = rooftop height of the tallest building.',
+        }),
+      ]),
+    ])
+  );
+
   return section;
 }
 
