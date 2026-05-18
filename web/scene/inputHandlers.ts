@@ -128,7 +128,9 @@ export function createInputHandlers({
     if (_cameraMoving) return;  // suppress hover while camera is moving
     const e = _hoverLastEvt;
     if (!e) return;
-    const hit = picker.pickAt(e.clientX, e.clientY);
+    const hit = flyControls.isActive()
+      ? picker.pickAtCenter()
+      : picker.pickAt(e.clientX, e.clientY);
     let newHover = picker.interpretHit(hit);
     // Filter: directory-shaped targets that came from a stray "directory
     // building" (engine.js typically skips these) don't have a sidewalk
@@ -139,11 +141,18 @@ export function createInputHandlers({
     const tooltipText = _tooltipForHover(newHover);
 
     if (tooltipText) {
-      showTooltip(tooltipText, e.clientX, e.clientY);
-      canvas.style.cursor = 'pointer';
+      if (flyControls.isActive()) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2 + 30; // offset below reticle
+        showTooltip(tooltipText, cx, cy);
+      } else {
+        showTooltip(tooltipText, e.clientX, e.clientY);
+      }
+      canvas.style.cursor = flyControls.isActive() ? 'none' : 'pointer';
     } else {
       hideTooltip();
-      canvas.style.cursor = 'grab';
+      canvas.style.cursor = flyControls.isActive() ? 'none' : 'grab';
     }
 
     if (_sameHover(newHover, picker.hover.get())) {
@@ -166,13 +175,19 @@ export function createInputHandlers({
   }
 
   function _handlePick(clientX: number, clientY: number): void {
-    const hit = picker.pickAt(clientX, clientY);
+    const hit = flyControls.isActive()
+      ? picker.pickAtCenter()
+      : picker.pickAt(clientX, clientY);
     if (!hit) {
       picker.setSelection(null);
       return;
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
+      if (flyControls.isActive()) {
+        flyControls.resetToDefault();
+        return;
+      }
       onRefresh();
       return;
     }
@@ -180,10 +195,16 @@ export function createInputHandlers({
   }
 
   function _focusAtPointer(clientX: number, clientY: number): void {
-    const hit = picker.pickAt(clientX, clientY);
+    const hit = flyControls.isActive()
+      ? picker.pickAtCenter()
+      : picker.pickAt(clientX, clientY);
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
+      if (flyControls.isActive()) {
+        flyControls.resetToDefault();
+        return;
+      }
       onRefresh();
       return;
     }
@@ -277,9 +298,17 @@ export function createInputHandlers({
     }
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
+      if (flyControls.isActive()) {
+        flyControls.disable();
+        return;
+      }
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
+      if (flyControls.isActive()) {
+        flyControls.resetToDefault();
+        return;
+      }
       onRefresh();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();
@@ -313,17 +342,27 @@ export function createInputHandlers({
     _hoverPending = null;
     if (picker.hover.get()) picker.setHover(null);
     hideTooltip();
-    canvas.style.cursor = 'grabbing';
+    canvas.style.cursor = flyControls.isActive() ? 'none' : 'grabbing';
   };
   const _cameraEndHandler = () => {
     _cameraMoving = false;
-    canvas.style.cursor = 'grab';
+    canvas.style.cursor = flyControls.isActive() ? 'none' : 'grab';
   };
   rig.controls.addEventListener('start', _cameraStartHandler);
   rig.controls.addEventListener('end', _cameraEndHandler);
   _disposers.push(() => {
     rig.controls.removeEventListener('start', _cameraStartHandler);
     rig.controls.removeEventListener('end', _cameraEndHandler);
+  });
+
+  const _flyActiveUnsub = flyControls.onActiveChange((active: boolean) => {
+    canvas.style.cursor = active ? 'none' : 'grab';
+    if (active) {
+      hideTooltip();
+    }
+  });
+  _disposers.push(() => {
+    _flyActiveUnsub();
   });
 
   function _resize() {
