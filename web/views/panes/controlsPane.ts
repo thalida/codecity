@@ -297,6 +297,11 @@ function _buildShortcutsSection(): HTMLElement {
       null,
       { mouse: 'Click', action: 'Select building / street / gem' },
       { mouse: 'Double-click', action: 'Focus camera on the target' },
+      null,
+      { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },
+      { kbd: ['W', 'A', 'S', 'D'], action: 'Fly: forward / strafe' },
+      { kbd: ['E', 'Q'], action: 'Fly: rise / drop' },
+      { kbd: ['Shift'], action: 'Fly: boost (hold)' },
     ])
   );
   return section;
