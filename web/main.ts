@@ -173,6 +173,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
     rig,
+    flyControls,
     applyTheme,
   });
 

@@ -34,15 +34,17 @@ import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createCityScene } from './scene/cityScene.js';
 import type { createPicker } from './scene/picker.js';
 import type { createCameraRig } from './scene/cameraRig.js';
+import type { createFlyControls } from './scene/flyControls.js';
 
 interface CoordinatorOpts {
   cityScene: ReturnType<typeof createCityScene>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
+  flyControls: ReturnType<typeof createFlyControls>;
   applyTheme: () => void;
 }
 
-export function createCoordinator({ cityScene, picker, rig, applyTheme }: CoordinatorOpts) {
+export function createCoordinator({ cityScene, picker, rig, flyControls, applyTheme }: CoordinatorOpts) {
   // Right sidebar opens on file selection and closes via its × button.
   // The previous header-toggle was removed, so the boot state is simply
   // "closed" — the first file selection will open it.
@@ -130,10 +132,23 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
         rig.focusStreet(sel.street, null);
       }
     },
+    onToggleFly() {
+      if (flyControls.isActive()) {
+        flyControls.disable();
+      } else {
+        flyControls.enable();
+      }
+    },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
+
+  // Sync the header's fly-toggle button visual state when V-key (or pointer-
+  // lock revoke) toggles fly mode.
+  const _flyActiveUnsubHeader = flyControls.onActiveChange((active: boolean) => {
+    appHeader.setFlyActive(active);
+  });
 
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter({});
@@ -375,6 +390,7 @@ export function createCoordinator({ cityScene, picker, rig, applyTheme }: Coordi
     if (typeof _statusUnsub === 'function') _statusUnsub();
     if (typeof _errorUnsub === 'function') _errorUnsub();
     if (typeof _stampUnsub === 'function') _stampUnsub();
+    if (typeof _flyActiveUnsubHeader === 'function') _flyActiveUnsubHeader();
     window.clearInterval(_tickHandle);
   }
 
