@@ -30,11 +30,15 @@ export interface FlyControlsCityScene {
   getBuildings: () => THREE.Object3D[];
 }
 
-// Only the `enabled` toggle is needed from OrbitControls. Using a
-// structural interface keeps the type accurate while allowing lightweight
-// test fakes without casting to `as never`.
+// Only the `enabled` toggle and the framing-pose getter are needed.
+// Using a structural interface keeps the type accurate while allowing
+// lightweight test fakes without casting to `as never`.
 export interface FlyControlsRig {
   controls: { enabled: boolean };
+  /** Optional — returns the orbit camera's framing pose (i.e. where R
+   *  would snap the camera in orbit mode). Used to decide whether to
+   *  auto-snap to fly-default on V-enter. */
+  getInitialCamPos?: () => THREE.Vector3 | null;
 }
 
 export interface FlyControlsOpts {
@@ -91,7 +95,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
   const _desired = new THREE.Vector3();
   const _worldUp = new THREE.Vector3(0, 1, 0);
   const _velocity = new THREE.Vector3();
-  const _zeroVec = new THREE.Vector3();
 
   // Auto-derived base speed, recomputed on enable() so the value reflects
   // the world's current size. Stored on the closure rather than the
@@ -203,14 +206,27 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
-    // Seed yaw/pitch from the current camera direction so entering fly
-    // mode doesn't yank the view to a fixed orientation.
-    const dir = new THREE.Vector3();
-    camera.getWorldDirection(dir);
-    yaw = Math.atan2(-dir.x, -dir.z); // standard yaw with -Z = forward
-    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
     mouseDeltaX = 0;
     mouseDeltaY = 0;
+
+    // Auto-snap to fly-default if the user is near the orbit framing
+    // pose (i.e., they haven't navigated to anything specific). Avoids
+    // landing the user up high looking down at the bbox center; lands
+    // them on the street next to the gem instead.
+    const initialPos = rig.getInitialCamPos?.() ?? null;
+    const framingDist = initialPos ? camera.position.distanceTo(initialPos) : Infinity;
+    if (initialPos && framingDist < initialPos.length() * 0.2) {
+      // resetToDefault re-seeds yaw/pitch for us.
+      resetToDefault();
+    } else {
+      // Seed yaw/pitch from the current camera direction so entering fly
+      // mode doesn't yank the view to a fixed orientation.
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      yaw = Math.atan2(-dir.x, -dir.z); // standard yaw with -Z = forward
+      pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    }
+
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
     canvas.addEventListener('mousemove', _onMouseMove);
@@ -262,10 +278,14 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
     // Compose camera quaternion only when the user is actively controlling
     // the camera (mouse moved this frame, or any movement key held). When
-    // idle, leave the quaternion alone so external camera tweens (e.g.
-    // rig.focusBuilding) can rotate the camera without fly mode fighting
-    // them. The user's next input snaps yaw/pitch back to whatever the
-    // tween left.
+    // idle, leave the quaternion alone — both so external camera tweens
+    // can rotate the camera without fly mode fighting them, and to avoid
+    // per-frame yaw/pitch re-seeding from a stale camera direction that
+    // produced visible jitter / "can't look around" behavior.
+    //
+    // Code that wants to set fly mode's orientation (e.g. resetToDefault,
+    // or a future focus tween) should write yaw/pitch directly via the
+    // module's seeding logic.
     const hasInput =
       mouseDeltaConsumed ||
       keyState.forward || keyState.back || keyState.left || keyState.right ||
@@ -276,17 +296,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
       const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
       camera.quaternion.setFromEuler(euler);
       camera.up.set(0, 1, 0);
-    } else if (_velocity.equals(_zeroVec)) {
-      // Fully idle (no input, no remaining velocity). Sync yaw/pitch from
-      // whatever the camera currently shows so the next user input doesn't
-      // snap back to a stale orientation.
-      const dir = new THREE.Vector3();
-      camera.getWorldDirection(dir);
-      yaw = Math.atan2(-dir.x, -dir.z);
-      pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
     }
-    // If velocity is non-zero but there is no input (coasting), leave the
-    // quaternion untouched so the tween can continue uncontested.
 
     // Movement — reads the newly-rotated camera direction.
     camera.getWorldDirection(_forward);
@@ -341,15 +351,15 @@ export function createFlyControls(opts: FlyControlsOpts) {
       outward.normalize();
 
       // Street-level eye height. FLY_DEFAULT_ALTITUDE_FRAC × tallest
-      // building, but capped at 8 units — for huge repos with skyscrapers,
-      // a 30%-of-tallest altitude puts the camera above the skyline and
-      // looking down at the road, defeating the "walking down a street"
-      // feel. The cap keeps the camera at roughly person-eye height
-      // regardless of project size.
+      // building, clamped to a sensible range: floor at 4 units so the
+      // camera isn't scraping the asphalt for short-building repos, and
+      // cap at 15 so a skyscraper repo doesn't put the camera above the
+      // skyline looking down. The range targets a person-walking-down-
+      // a-street feel for typical projects.
       const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
       const altitude = Math.max(
-        cfg.ALTITUDE_FLOOR,
-        Math.min(8, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
+        4,
+        Math.min(15, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
       );
 
       // Gem "radius" — use the street width as a stand-in (the gem scales
@@ -393,6 +403,10 @@ export function createFlyControls(opts: FlyControlsOpts) {
     camera.getWorldDirection(dir);
     yaw = Math.atan2(-dir.x, -dir.z);
     pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    // Clear any pending mouse deltas so they don't apply on top of the
+    // freshly-reset orientation in the next update() frame.
+    mouseDeltaX = 0;
+    mouseDeltaY = 0;
     _velocity.set(0, 0, 0);
   }
 

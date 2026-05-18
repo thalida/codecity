@@ -291,6 +291,12 @@ export function createCameraRig({
     if (firstFrame) {
       if (_frameToBbox()) firstFrame = false;
     }
+    // When disabled (fly mode), skip the per-frame update entirely.
+    // OrbitControls.update() unconditionally calls camera.lookAt(target)
+    // regardless of the `enabled` flag — in fly mode that fights
+    // flyControls' yaw/pitch by pulling the camera toward the stale
+    // orbit target every frame.
+    if (!controls.enabled) return;
     controls.update();
   }
 
@@ -515,6 +521,14 @@ export function createCameraRig({
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 
+  /** Distance from the framed (R-reset) camera pose to the framed target.
+   *  Used by flyControls to decide whether the user is "near" the orbit
+   *  default and should auto-snap to the fly-default pose on V-enter.
+   *  Returns null before the first-frame framing has happened. */
+  function getInitialCamPos(): THREE.Vector3 | null {
+    return initialCamPos ? initialCamPos.clone() : null;
+  }
+
   return {
     camera,
     controls,
@@ -523,6 +537,7 @@ export function createCameraRig({
     recenterTo,
     focusBuilding,
     focusStreet,
+    getInitialCamPos,
     dispose,
   };
 }
