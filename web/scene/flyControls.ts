@@ -333,20 +333,26 @@ export function createFlyControls(opts: FlyControlsOpts) {
       }
       outward.normalize();
 
-      // Camera sits directly ABOVE the gem at an altitude scaled to the
-      // city size, looking horizontally down the root road toward the
-      // far end. The gem is below the camera in the near foreground;
-      // the road and its buildings recede to the horizon.
+      // Camera sits ABOVE and BEHIND the gem (opposite the outward axis),
+      // looking at the far end of the road. The back-offset is sized so
+      // the gem appears in the lower-foreground of the view (~13° below
+      // the look line) — clearly visible as the user's reference point
+      // without taking up too much of the screen.
       const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
       const altitude = Math.max(
         10,
         Math.min(40, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
       );
+      // back ≈ altitude / tan(13°) ≈ altitude × 4.3, rounded to 4 for a
+      // slightly higher gem placement in the frame.
+      const backOffset = altitude * 4;
 
-      camPos = new THREE.Vector3(gem.x, altitude, gem.z);
-      // Look at the far end of the root road at ground level. For a long
-      // street this is nearly horizontal — a slight downward tilt the
-      // user can correct with mouse-look if they want a pure horizon view.
+      camPos = new THREE.Vector3(
+        gem.x - outward.x * backOffset,
+        altitude,
+        gem.z - outward.z * backOffset
+      );
+      // Look at the far end of the root road at ground level.
       target = new THREE.Vector3(
         gem.x + outward.x * root.length,
         0,

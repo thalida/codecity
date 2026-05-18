@@ -457,7 +457,7 @@ describe('flyControls pointer-lock revoke', () => {
 });
 
 describe('flyControls resetToDefault', () => {
-  it('places camera above gem looking down the root road', () => {
+  it('places camera above and behind gem looking down the root road', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(999, 999, 999); // somewhere far away
 
@@ -485,18 +485,23 @@ describe('flyControls resetToDefault', () => {
     });
     fly.resetToDefault();
 
-    // Camera sits DIRECTLY above the gem (same x/z as gem) at a sane
-    // altitude above the ground.
-    expect(camera.position.x).toBeCloseTo(0, 5);
+    // Camera sits BEHIND the gem (negative X, opposite the +X road
+    // direction) at altitude. Z stays aligned with the gem.
+    expect(camera.position.x).toBeLessThan(0);
     expect(camera.position.z).toBeCloseTo(0, 5);
     expect(camera.position.y).toBeGreaterThanOrEqual(10);
     // Camera looks down the road — forward direction is dominated by
-    // the +X axis (toward the street), with only a slight downward tilt.
+    // the +X axis (toward the road end), with only a slight downward tilt.
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
     expect(dir.x).toBeGreaterThan(0.9);   // mostly forward
     expect(dir.y).toBeLessThan(0);         // slight downward
     expect(dir.y).toBeGreaterThan(-0.3);  // but not steeply down
+
+    // Sanity check: the gem (at origin) lies in front of the camera —
+    // i.e. projecting the camera-to-gem vector onto forward is positive.
+    const camToGem = new THREE.Vector3(0, 0, 0).sub(camera.position);
+    expect(camToGem.dot(dir)).toBeGreaterThan(0);
   });
 
   it('falls back to bbox center when there is no gem', () => {
