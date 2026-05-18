@@ -69,6 +69,21 @@ export function createFlyControls(opts: FlyControlsOpts) {
     boost: false,
   };
 
+  let yaw = 0;    // rotation around world-Y (radians)
+  let pitch = 0;  // rotation around camera-local X (radians)
+  let mouseDeltaX = 0;
+  let mouseDeltaY = 0;
+
+  // Pointer-lock mousemove handler. Pointer lock is acquired on canvas;
+  // canvas.requestPointerLock() makes subsequent mousemove events fire
+  // on canvas with movementX/Y populated. Attaching to canvas (vs document)
+  // keeps the handler scoped to this widget.
+  function _onMouseMove(e: MouseEvent) {
+    // Accumulate deltas; update() consumes and zeroes them.
+    mouseDeltaX += e.movementX || 0;
+    mouseDeltaY += e.movementY || 0;
+  }
+
   // Scratch vectors for per-frame math — allocated once, reused across frames.
   const _forward = new THREE.Vector3();
   const _right = new THREE.Vector3();
@@ -169,8 +184,17 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
+    // Seed yaw/pitch from the current camera direction so entering fly
+    // mode doesn't yank the view to a fixed orientation.
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    yaw = Math.atan2(-dir.x, -dir.z); // standard yaw with -Z = forward
+    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    mouseDeltaX = 0;
+    mouseDeltaY = 0;
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
+    canvas.addEventListener('mousemove', _onMouseMove);
     _setActive(true);
   }
 
@@ -178,8 +202,11 @@ export function createFlyControls(opts: FlyControlsOpts) {
     if (!active) return;
     document.removeEventListener('keydown', _onKeyDown);
     document.removeEventListener('keyup', _onKeyUp);
+    canvas.removeEventListener('mousemove', _onMouseMove);
     _resetKeyState();
     _velocity.set(0, 0, 0);
+    mouseDeltaX = 0;
+    mouseDeltaY = 0;
     try {
       document.exitPointerLock?.();
     } catch (_) {
@@ -195,15 +222,28 @@ export function createFlyControls(opts: FlyControlsOpts) {
   function update(dtMs: number): void {
     if (!active) return;
     const cfg = FLY_CONTROLS.get();
-    const dt = Math.max(0, dtMs) / 1000; // seconds
+    const dt = Math.max(0, dtMs) / 1000;
 
-    // Camera-local forward (its -Z in world space). Use the un-projected
-    // forward so looking up + pressing W flies up-and-forward (matches
-    // Minecraft creative / Unreal editor fly mode).
+    // Mouse look — apply accumulated delta to yaw/pitch.
+    if (mouseDeltaX !== 0 || mouseDeltaY !== 0) {
+      yaw -= mouseDeltaX * cfg.MOUSE_SENSITIVITY;
+      pitch -= mouseDeltaY * cfg.MOUSE_SENSITIVITY;
+      const pitchLimit = (cfg.PITCH_CLAMP_DEG * Math.PI) / 180;
+      if (pitch > pitchLimit) pitch = pitchLimit;
+      if (pitch < -pitchLimit) pitch = -pitchLimit;
+      mouseDeltaX = 0;
+      mouseDeltaY = 0;
+    }
+
+    // Compose camera quaternion from yaw (Y-axis) then pitch (X-axis).
+    // YXZ order keeps roll at zero — no banking.
+    const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+    camera.quaternion.setFromEuler(euler);
+    camera.up.set(0, 1, 0);
+
+    // Movement — reads the newly-rotated camera direction.
     camera.getWorldDirection(_forward);
     _right.crossVectors(_forward, _worldUp).normalize();
-    // _right may have zero length if camera is looking straight up/down;
-    // fall back to world X in that case.
     if (_right.lengthSq() < 1e-8) {
       _right.set(1, 0, 0);
     }
@@ -217,9 +257,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
     if (keyState.up) _desired.addScaledVector(_worldUp, speed);
     if (keyState.down) _desired.addScaledVector(_worldUp, -speed);
 
-    // Smooth ramp: exponential ease toward desired with time-constant
-    // ACCEL_RAMP_MS. alpha = 1 - exp(-dt / tau); converges quickly without
-    // overshoot regardless of frame rate.
     const tauSec = Math.max(0.001, cfg.ACCEL_RAMP_MS / 1000);
     const alpha = 1 - Math.exp(-dt / tauSec);
     _velocity.lerp(_desired, alpha);
@@ -227,7 +264,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
     camera.position.addScaledVector(_velocity, dt);
     if (camera.position.y < cfg.ALTITUDE_FLOOR) {
       camera.position.y = cfg.ALTITUDE_FLOOR;
-      // Zero vertical velocity to prevent jitter at the clamp.
       _velocity.y = Math.max(0, _velocity.y);
     }
   }

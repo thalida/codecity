@@ -324,3 +324,72 @@ describe('flyControls velocity integration', () => {
     expect(camera.position.z).toBe(0);
   });
 });
+
+describe('flyControls mouse look', () => {
+  it('mousemove rotates yaw and pitch on the next update()', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
+    camera.updateMatrixWorld();
+    const canvas = makeCanvas();
+    const fly = createFlyControls({
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    // Yaw right: positive movementX with negative sensitivity sign convention.
+    // Test by observing the camera.getWorldDirection() change.
+    const before = new THREE.Vector3();
+    camera.getWorldDirection(before);
+    canvas.dispatchEvent(new MouseEvent('mousemove', { movementX: 100, movementY: 0 }));
+    fly.update(16);
+    const after = new THREE.Vector3();
+    camera.getWorldDirection(after);
+    // Yaw changed: the X component of forward should differ.
+    expect(after.x).not.toBeCloseTo(before.x, 4);
+    fly.disable();
+  });
+
+  it('pitch clamps to ±PITCH_CLAMP_DEG', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
+    camera.updateMatrixWorld();
+    const canvas = makeCanvas();
+    const fly = createFlyControls({
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    // Pile up a huge upward mouse delta — pitch should clamp before reaching ±90°.
+    for (let i = 0; i < 100; i++) {
+      canvas.dispatchEvent(new MouseEvent('mousemove', { movementX: 0, movementY: -10000 }));
+      fly.update(16);
+    }
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    // At clamp pitch (85°), forward.y = sin(85°) ≈ 0.996. Allow some slack.
+    expect(dir.y).toBeLessThan(0.999);
+    expect(dir.y).toBeGreaterThan(0.99);
+    fly.disable();
+  });
+
+  it('ignores mousemove when inactive', () => {
+    const camera = new THREE.PerspectiveCamera();
+    const before = new THREE.Quaternion().copy(camera.quaternion);
+    const canvas = makeCanvas();
+    createFlyControls({
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    // Not enabled.
+    canvas.dispatchEvent(new MouseEvent('mousemove', { movementX: 500, movementY: 500 }));
+    expect(camera.quaternion.equals(before)).toBe(true);
+  });
+});
