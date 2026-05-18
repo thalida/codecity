@@ -285,7 +285,7 @@ function _buildShortcutsSection(): HTMLElement {
     'Quick reference for cursor actions and keyboard shortcuts.'
   );
   section.appendChild(
-    _buildShortcutsList([
+    _subgroup('Orbit mode', _buildShortcutsList([
       { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Refresh — rebuild the city and reset the view' },
       { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
       { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Close the sidebar / clear selection' },
@@ -297,12 +297,19 @@ function _buildShortcutsSection(): HTMLElement {
       null,
       { mouse: 'Click', action: 'Select building / street / gem' },
       { mouse: 'Double-click', action: 'Focus camera on the target' },
-      null,
+    ]))
+  );
+  section.appendChild(
+    _subgroup('Fly mode', _buildShortcutsList([
       { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },
-      { kbd: ['W', 'A', 'S', 'D'], action: 'Fly: forward / strafe' },
-      { kbd: ['E', 'Q'], action: 'Fly: rise / drop' },
-      { kbd: ['Shift'], action: 'Fly: boost (hold)' },
-    ])
+      { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
+      { kbd: ['E', 'Q'], action: 'Rise / drop' },
+      { kbd: ['Shift'], action: 'Boost (hold)' },
+      { mouse: 'Mouse', action: 'Look around' },
+      { mouse: 'Click', action: 'Select what the crosshair is on' },
+      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset to default fly pose' },
+      { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Exit fly mode' },
+    ]))
   );
   return section;
 }
