@@ -1190,6 +1190,26 @@ canvas {
   box-shadow: var(--cc-shadow-md);
 }
 
+/* ── Fly-mode reticle ──────────────────────────────────────────────────────── */
+
+#fly-reticle {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  border-radius: 50%;
+  background: color-mix(in oklch, var(--cc-white) 85%, transparent);
+  box-shadow: var(--cc-shadow-md);
+  pointer-events: none;
+  display: none;
+  z-index: 150;
+}
+#fly-reticle.is-active {
+  display: block;
+}
+
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {

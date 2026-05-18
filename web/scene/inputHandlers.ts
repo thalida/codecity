@@ -226,6 +226,7 @@ export function createInputHandlers({
 
   // ── Bindings ───────────────────────────────────────────────────────
   let _disposers: Array<() => void> = [];
+  const _reticleEl = document.getElementById('fly-reticle');
   // The native EventTarget.addEventListener overloads are tightly typed
   // by event name; this helper is generic across canvas/document/window
   // and several event kinds, so the parameter types intentionally widen.
@@ -357,9 +358,8 @@ export function createInputHandlers({
 
   const _flyActiveUnsub = flyControls.onActiveChange((active: boolean) => {
     canvas.style.cursor = active ? 'none' : 'grab';
-    if (active) {
-      hideTooltip();
-    }
+    if (active) hideTooltip();
+    if (_reticleEl) _reticleEl.classList.toggle('is-active', active);
   });
   _disposers.push(() => {
     _flyActiveUnsub();
