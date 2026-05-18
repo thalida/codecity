@@ -479,3 +479,29 @@ describe('flyControls resetToDefault', () => {
     expect(camera.position.y).toBeGreaterThanOrEqual(FLY_CONTROLS.get().ALTITUDE_FLOOR);
   });
 });
+
+describe('flyControls idle quaternion passthrough', () => {
+  it('does not overwrite camera quaternion when there is no input', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
+    camera.updateMatrixWorld();
+    const fly = createFlyControls({
+      camera, canvas: makeCanvas(), rig: makeFakeRig(), cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    // Let velocity fully decay to zero by running several idle frames.
+    for (let i = 0; i < 30; i++) fly.update(16);
+    // Externally rotate the camera (simulating a focus tween).
+    camera.lookAt(10, 5, -5);
+    camera.updateMatrixWorld();
+    const externalQuat = camera.quaternion.clone();
+    // One more idle frame — no mouse delta, no keys → fly mode should NOT overwrite quaternion.
+    fly.update(16);
+    expect(camera.quaternion.x).toBeCloseTo(externalQuat.x, 10);
+    expect(camera.quaternion.y).toBeCloseTo(externalQuat.y, 10);
+    expect(camera.quaternion.z).toBeCloseTo(externalQuat.z, 10);
+    expect(camera.quaternion.w).toBeCloseTo(externalQuat.w, 10);
+    fly.disable();
+  });
+});

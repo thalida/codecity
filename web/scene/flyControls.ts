@@ -91,6 +91,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
   const _desired = new THREE.Vector3();
   const _worldUp = new THREE.Vector3(0, 1, 0);
   const _velocity = new THREE.Vector3();
+  const _zeroVec = new THREE.Vector3();
 
   // Auto-derived base speed, recomputed on enable() so the value reflects
   // the world's current size. Stored on the closure rather than the
@@ -236,6 +237,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     const dt = Math.max(0, dtMs) / 1000;
 
     // Mouse look — apply accumulated delta to yaw/pitch.
+    let mouseDeltaConsumed = false;
     if (mouseDeltaX !== 0 || mouseDeltaY !== 0) {
       yaw -= mouseDeltaX * cfg.MOUSE_SENSITIVITY;
       pitch -= mouseDeltaY * cfg.MOUSE_SENSITIVITY;
@@ -244,13 +246,36 @@ export function createFlyControls(opts: FlyControlsOpts) {
       if (pitch < -pitchLimit) pitch = -pitchLimit;
       mouseDeltaX = 0;
       mouseDeltaY = 0;
+      mouseDeltaConsumed = true;
     }
 
-    // Compose camera quaternion from yaw (Y-axis) then pitch (X-axis).
-    // YXZ order keeps roll at zero — no banking.
-    const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
-    camera.quaternion.setFromEuler(euler);
-    camera.up.set(0, 1, 0);
+    // Compose camera quaternion only when the user is actively controlling
+    // the camera (mouse moved this frame, or any movement key held). When
+    // idle, leave the quaternion alone so external camera tweens (e.g.
+    // rig.focusBuilding) can rotate the camera without fly mode fighting
+    // them. The user's next input snaps yaw/pitch back to whatever the
+    // tween left.
+    const hasInput =
+      mouseDeltaConsumed ||
+      keyState.forward || keyState.back || keyState.left || keyState.right ||
+      keyState.up || keyState.down;
+    if (hasInput) {
+      // Compose camera quaternion from yaw (Y-axis) then pitch (X-axis).
+      // YXZ order keeps roll at zero — no banking.
+      const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+      camera.quaternion.setFromEuler(euler);
+      camera.up.set(0, 1, 0);
+    } else if (_velocity.equals(_zeroVec)) {
+      // Fully idle (no input, no remaining velocity). Sync yaw/pitch from
+      // whatever the camera currently shows so the next user input doesn't
+      // snap back to a stale orientation.
+      const dir = new THREE.Vector3();
+      camera.getWorldDirection(dir);
+      yaw = Math.atan2(-dir.x, -dir.z);
+      pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    }
+    // If velocity is non-zero but there is no input (coasting), leave the
+    // quaternion untouched so the tween can continue uncontested.
 
     // Movement — reads the newly-rotated camera direction.
     camera.getWorldDirection(_forward);
@@ -346,6 +371,19 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _velocity.set(0, 0, 0);
   }
 
+  /**
+   * Re-seed yaw/pitch from the camera's current orientation. Call this
+   * after any external code (e.g. rig.focusBuilding's tween) has moved
+   * the camera so subsequent fly-mode frames keep that orientation rather
+   * than reverting to the pre-existing yaw/pitch.
+   */
+  function syncFromCamera(): void {
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    yaw = Math.atan2(-dir.x, -dir.z);
+    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+  }
+
   function onActiveChange(cb: (active: boolean) => void): () => void {
     activeChangeCbs.push(cb);
     return () => {
@@ -365,6 +403,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     isActive,
     update,
     resetToDefault,
+    syncFromCamera,
     onActiveChange,
     dispose,
     /** Internal — exposed for unit tests; not part of the public API. */
