@@ -21,10 +21,11 @@
 import * as THREE from 'three';
 import { TEXT_INPUT_TAGS } from '@/constants';
 import { FLY_CONTROLS } from '@/config/index.js';
+import { StreetAxis } from '@/types';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
-  getRootStreet: () => { x: number; y: number; orientation: 'X' | 'Y'; isRoot?: boolean; width: number; length: number } | null;
+  getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
   getBbox: () => THREE.Box3 | null;
   getBuildings: () => THREE.Object3D[];
 }
@@ -296,7 +297,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
       const outward = streetCenter.clone().sub(gem).setY(0);
       if (outward.lengthSq() < 1e-6) {
         // Degenerate: gem and street center coincide. Pick orientation axis.
-        outward.set(root.orientation === 'X' ? 1 : 0, 0, root.orientation === 'X' ? 0 : 1);
+        outward.set(root.orientation === StreetAxis.X ? 1 : 0, 0, root.orientation === StreetAxis.X ? 0 : 1);
       }
       outward.normalize();
 

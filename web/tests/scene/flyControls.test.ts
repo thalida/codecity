@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, vi } from 'vitest';
 import { createFlyControls, type FlyControlsCityScene } from '@/scene/flyControls.js';
+import { StreetAxis } from '@/types';
 
 function makeFakeRig() {
   return {
@@ -431,7 +432,7 @@ describe('flyControls resetToDefault', () => {
       getRootStreet: () => ({
         x: 50,    // street center
         y: 0,     // street z-position
-        orientation: 'X' as const,
+        orientation: StreetAxis.X,
         isRoot: true,
         width: 20,
         length: 200,

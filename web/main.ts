@@ -37,6 +37,7 @@ import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
 import { refreshAdPanels } from './scene/adPanels.js';
 import type { SceneBlock } from './scene/blocks.js';
 import { createCameraRig } from './scene/cameraRig.js';
+import { createFlyControls } from './scene/flyControls.js';
 import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
 import { createInputHandlers } from './scene/inputHandlers.js';
@@ -105,6 +106,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
   (window as Window & { __rig?: typeof rig }).__rig = rig;
+
+  // Fly mode — first-person WASD camera. Inactive at boot; toggled by V key
+  // and by the header button (wired in Tasks 10-13). Shares the same camera
+  // as the rig; while active, OrbitControls is disabled.
+  const flyControls = createFlyControls({
+    camera,
+    canvas,
+    rig,
+    cityScene,
+  });
 
   // -- 4b. Post-processing -----------------------------------------------------
   // UnrealBloomPass on top of the main render so emissive windows actually
@@ -371,6 +382,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       }
     }
     rig.update(0); // first-call: bbox-frames camera
+    flyControls.update(16); // fly-mode integration; no-op when inactive
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
     // below project mesh positions and need fresh world matrices.
