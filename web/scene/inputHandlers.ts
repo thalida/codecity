@@ -42,8 +42,10 @@ export function createInputHandlers({
   onResize: () => void;
   /** Refresh action triggered by the R key AND clicking the root-gem in
    *  the city. Equivalent to the header gem button: rebuilds the
-   *  manifest and resets the camera. */
-  onRefresh: () => void;
+   *  manifest and resets the camera. When resetCamera is false, only
+   *  refreshes the manifest without snapping the orbit camera — used in
+   *  fly mode so fly's own pose is preserved. */
+  onRefresh: (opts?: { resetCamera?: boolean }) => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
   getRootName: () => string | null;
@@ -185,6 +187,7 @@ export function createInputHandlers({
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
       if (flyControls.isActive()) {
+        onRefresh({ resetCamera: false });
         flyControls.resetToDefault();
         return;
       }
@@ -202,6 +205,7 @@ export function createInputHandlers({
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
       if (flyControls.isActive()) {
+        onRefresh({ resetCamera: false });
         flyControls.resetToDefault();
         return;
       }
@@ -307,6 +311,7 @@ export function createInputHandlers({
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
       if (flyControls.isActive()) {
+        onRefresh({ resetCamera: false });
         flyControls.resetToDefault();
         return;
       }
