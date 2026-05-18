@@ -35,8 +35,8 @@ export const FLY_CONTROLS = map<FlyControlsConfig>({
   ALTITUDE_FLOOR: 0.5,
 
   FLY_DEFAULT_GEM_OFFSET_MULT: 2,
-  // 10% of tallest building, clamped to [4, 15] in resetToDefault so the
-  // camera lands at a person-walking-down-a-street height regardless of
-  // whether the repo has short or skyscraper-tall buildings.
-  FLY_DEFAULT_ALTITUDE_FRAC: 0.1,
+  // Multiplies the city's tallest-building height to determine how far
+  // above the gem the R-reset camera lands. resetToDefault floors this
+  // at 40 units so even tiny repos still get an overview camera.
+  FLY_DEFAULT_ALTITUDE_FRAC: 0.5,
 });
