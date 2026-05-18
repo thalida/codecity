@@ -340,10 +340,17 @@ export function createFlyControls(opts: FlyControlsOpts) {
       }
       outward.normalize();
 
-      // Tallest building approximation — use the bbox max Y as a stand-in
-      // (FLY_DEFAULT_ALTITUDE_FRAC × tallest). Falls back to a sane min.
+      // Street-level eye height. FLY_DEFAULT_ALTITUDE_FRAC × tallest
+      // building, but capped at 8 units — for huge repos with skyscrapers,
+      // a 30%-of-tallest altitude puts the camera above the skyline and
+      // looking down at the road, defeating the "walking down a street"
+      // feel. The cap keeps the camera at roughly person-eye height
+      // regardless of project size.
       const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
-      const altitude = Math.max(maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC, cfg.ALTITUDE_FLOOR);
+      const altitude = Math.max(
+        cfg.ALTITUDE_FLOOR,
+        Math.min(8, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC)
+      );
 
       // Gem "radius" — use the street width as a stand-in (the gem scales
       // with street width via GEM_SIZING.RADIUS_AS_STREET_FRAC; using the
@@ -355,9 +362,13 @@ export function createFlyControls(opts: FlyControlsOpts) {
       camPos = gem.clone()
         .add(outward.clone().multiplyScalar(-offset))
         .setY(altitude);
-      // Look at a point further along the outward direction (past the gem,
-      // down the street).
-      target = camPos.clone().add(outward.clone().multiplyScalar(offset + root.length));
+      // Look down the street at a point at roughly the same height as the
+      // camera, slightly raised so the view tilts a degree or two upward —
+      // gives a natural "looking ahead" feel rather than a head-down stare
+      // at the asphalt right under the camera.
+      target = camPos.clone()
+        .add(outward.clone().multiplyScalar(offset + root.length))
+        .setY(altitude + 2);
     } else if (bbox && !bbox.isEmpty()) {
       // No gem — fall back to an elevated view of the bbox center.
       const center = new THREE.Vector3();

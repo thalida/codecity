@@ -40,12 +40,11 @@ export function createInputHandlers({
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
-  /** Refresh action triggered by the R key AND clicking the root-gem in
-   *  the city. Equivalent to the header gem button: rebuilds the
-   *  manifest and resets the camera. When resetCamera is false, only
-   *  refreshes the manifest without snapping the orbit camera — used in
-   *  fly mode so fly's own pose is preserved. */
-  onRefresh: (opts?: { resetCamera?: boolean }) => void;
+  /** Refresh action triggered by R / gem-click in ORBIT mode only.
+   *  Rebuilds the manifest and resets the orbit camera. Fly mode
+   *  routes those same gestures to flyControls.resetToDefault()
+   *  instead — no manifest refresh, no orbit reset. */
+  onRefresh: () => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
   getRootName: () => string | null;
@@ -128,11 +127,10 @@ export function createInputHandlers({
   function _processHoverRaf() {
     _hoverRafId = 0;
     if (_cameraMoving) return;  // suppress hover while camera is moving
+    if (flyControls.isActive()) return;  // hover disabled in fly mode
     const e = _hoverLastEvt;
     if (!e) return;
-    const hit = flyControls.isActive()
-      ? picker.pickAtCenter()
-      : picker.pickAt(e.clientX, e.clientY);
+    const hit = picker.pickAt(e.clientX, e.clientY);
     let newHover = picker.interpretHit(hit);
     // Filter: directory-shaped targets that came from a stray "directory
     // building" (engine.js typically skips these) don't have a sidewalk
@@ -143,18 +141,11 @@ export function createInputHandlers({
     const tooltipText = _tooltipForHover(newHover);
 
     if (tooltipText) {
-      if (flyControls.isActive()) {
-        const rect = canvas.getBoundingClientRect();
-        const cx = rect.left + rect.width / 2;
-        const cy = rect.top + rect.height / 2 + 30; // offset below reticle
-        showTooltip(tooltipText, cx, cy);
-      } else {
-        showTooltip(tooltipText, e.clientX, e.clientY);
-      }
-      canvas.style.cursor = flyControls.isActive() ? 'none' : 'pointer';
+      showTooltip(tooltipText, e.clientX, e.clientY);
+      canvas.style.cursor = 'pointer';
     } else {
       hideTooltip();
-      canvas.style.cursor = flyControls.isActive() ? 'none' : 'grab';
+      canvas.style.cursor = 'grab';
     }
 
     if (_sameHover(newHover, picker.hover.get())) {
@@ -187,7 +178,10 @@ export function createInputHandlers({
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
       if (flyControls.isActive()) {
-        onRefresh({ resetCamera: false });
+        // In fly mode, gem click ONLY snaps to the fly-default pose.
+        // Triggering onRefresh() here also fires a manifest refetch which
+        // can rebuild the scene mid-flight and disrupt pointer lock — the
+        // user just wants to reset the camera, not reload the project.
         flyControls.resetToDefault();
         return;
       }
@@ -205,7 +199,6 @@ export function createInputHandlers({
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
       if (flyControls.isActive()) {
-        onRefresh({ resetCamera: false });
         flyControls.resetToDefault();
         return;
       }
@@ -262,6 +255,11 @@ export function createInputHandlers({
   });
 
   _on(canvas, 'pointermove', (e: Event) => {
+    // Hover is disabled in fly mode — pointer-lock movement events fire on
+    // every mouse twitch, and running the hover pipeline (raycast +
+    // outline/fader/ghost cascade) every frame caused visible stutter
+    // while mouse-looking. Clicks still work via _handlePick.
+    if (flyControls.isActive()) return;
     _hoverLastEvt = e as PointerEvent;
     if (_hoverRafId) return;
     _hoverRafId = requestAnimationFrame(_processHoverRaf);
@@ -311,7 +309,7 @@ export function createInputHandlers({
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
       if (flyControls.isActive()) {
-        onRefresh({ resetCamera: false });
+        // R in fly mode resets the camera only — no manifest refresh.
         flyControls.resetToDefault();
         return;
       }
@@ -363,7 +361,20 @@ export function createInputHandlers({
 
   const _flyActiveUnsub = flyControls.onActiveChange((active: boolean) => {
     canvas.style.cursor = active ? 'none' : 'grab';
-    if (active) hideTooltip();
+    if (active) {
+      // Tear down any in-flight hover so it doesn't linger into fly mode.
+      hideTooltip();
+      if (_hoverRafId) {
+        cancelAnimationFrame(_hoverRafId);
+        _hoverRafId = 0;
+      }
+      if (_hoverCommitId) {
+        clearTimeout(_hoverCommitId);
+        _hoverCommitId = 0;
+      }
+      _hoverPending = null;
+      if (picker.hover.get()) picker.setHover(null);
+    }
     if (_reticleEl) _reticleEl.classList.toggle('is-active', active);
   });
   _disposers.push(() => {

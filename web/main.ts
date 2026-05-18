@@ -340,11 +340,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     },
     // Same action as the header gem button: rebuild the manifest +
     // reset the camera. Fired by the R key and by clicking the root
-    // gem mesh in the scene. When resetCamera is false (fly mode), only
-    // refreshes the manifest — fly controls manage their own pose reset.
-    onRefresh(opts?: { resetCamera?: boolean }) {
+    // gem mesh in the scene (orbit mode only — fly mode handles its
+    // own reset via flyControls.resetToDefault()).
+    onRefresh() {
       void refreshManifest();
-      if (opts?.resetCamera !== false) rig.reset();
+      rig.reset();
     },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });

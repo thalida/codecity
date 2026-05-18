@@ -35,5 +35,8 @@ export const FLY_CONTROLS = map<FlyControlsConfig>({
   ALTITUDE_FLOOR: 0.5,
 
   FLY_DEFAULT_GEM_OFFSET_MULT: 2,
-  FLY_DEFAULT_ALTITUDE_FRAC: 0.3,
+  // 5% of tallest building, capped at 8 units (in resetToDefault) so
+  // a skyscraper-tall repo doesn't put the camera above the skyline.
+  // Tuned for street-level "walking down the street" feel.
+  FLY_DEFAULT_ALTITUDE_FRAC: 0.05,
 });
