@@ -21,6 +21,7 @@
 // inlined private consts in their consumer module.
 
 export * from './view.js'; // sky color, camera, input, tooltip
+export * from './fly.js'; // fly-mode controls (WASD camera)
 export * from './animation.js'; // shared transition timing (camera + building tweens)
 export * from './street.js'; // asphalt, sidewalks, labels, path line, tiers, packing
 export * from './building.js'; // dimensions, palette, outlines, fade
