@@ -47,10 +47,12 @@ interface InitAppHeaderOpts {
 }
 
 /**
- * Initialise the sitewide header. The header has three zones:
- *   left   — project button (icon + label + @branch pill)
- *   center — #app-title slot (chip + path segments + copy) — empty at root
- *   right  — refresh button
+ * Initialise the sitewide header. Layout (left → right):
+ *   refresh (gem) icon button   — far left
+ *   project button (icon + label + @branch pill)
+ *   repo link icon (if git url)
+ *   #app-title slot (chip + path segments + copy) — empty at root
+ *   fly-mode toggle button   — far right
  *
  * The path-badge subscribes to BUILDING_PALETTE + ASPHALT so changing an
  * extension hue or the asphalt color in Controls live-repaints the badge.
