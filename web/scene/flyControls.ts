@@ -279,7 +279,70 @@ export function createFlyControls(opts: FlyControlsOpts) {
   }
 
   function resetToDefault(): void {
-    // Task 8 fills this in.
+    const cfg = FLY_CONTROLS.get();
+    const gem = cityScene.getGemWorldPos();
+    const root = cityScene.getRootStreet();
+    const bbox = cityScene.getBbox();
+
+    let target: THREE.Vector3;
+    let camPos: THREE.Vector3;
+
+    if (gem && root) {
+      // Outward axis: the direction from the gem toward the bulk of the
+      // street. For a stadium-shaped street with gem at the origin end,
+      // the outward direction is whatever points from the gem toward the
+      // street's center.
+      const streetCenter = new THREE.Vector3(root.x, 0, root.y);
+      const outward = streetCenter.clone().sub(gem).setY(0);
+      if (outward.lengthSq() < 1e-6) {
+        // Degenerate: gem and street center coincide. Pick orientation axis.
+        outward.set(root.orientation === 'X' ? 1 : 0, 0, root.orientation === 'X' ? 0 : 1);
+      }
+      outward.normalize();
+
+      // Tallest building approximation — use the bbox max Y as a stand-in
+      // (FLY_DEFAULT_ALTITUDE_FRAC × tallest). Falls back to a sane min.
+      const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
+      const altitude = Math.max(maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC, cfg.ALTITUDE_FLOOR);
+
+      // Gem "radius" — use the street width as a stand-in (the gem scales
+      // with street width via GEM_SIZING.RADIUS_AS_STREET_FRAC; using the
+      // street width directly gives a comparable scale without taking a
+      // hard dependency on that config).
+      const gemRadius = root.width * 0.4;
+      const offset = gemRadius * cfg.FLY_DEFAULT_GEM_OFFSET_MULT;
+
+      camPos = gem.clone()
+        .add(outward.clone().multiplyScalar(-offset))
+        .setY(altitude);
+      // Look at a point further along the outward direction (past the gem,
+      // down the street).
+      target = camPos.clone().add(outward.clone().multiplyScalar(offset + root.length));
+    } else if (bbox && !bbox.isEmpty()) {
+      // No gem — fall back to an elevated view of the bbox center.
+      const center = new THREE.Vector3();
+      bbox.getCenter(center);
+      const size = new THREE.Vector3();
+      bbox.getSize(size);
+      const radius = Math.max(size.x, size.y, size.z) / 2;
+      const altitude = Math.max(radius * 0.5, cfg.ALTITUDE_FLOOR);
+      camPos = center.clone().add(new THREE.Vector3(-radius, 0, -radius)).setY(altitude);
+      target = center.setY(0);
+    } else {
+      // No world at all — sane sentinel.
+      camPos = new THREE.Vector3(0, Math.max(10, cfg.ALTITUDE_FLOOR), 20);
+      target = new THREE.Vector3(0, 0, 0);
+    }
+
+    camera.position.copy(camPos);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(target);
+    // Re-seed yaw/pitch so subsequent mouse-look math reads the new orientation.
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    yaw = Math.atan2(-dir.x, -dir.z);
+    pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
+    _velocity.set(0, 0, 0);
   }
 
   function onActiveChange(cb: (active: boolean) => void): () => void {

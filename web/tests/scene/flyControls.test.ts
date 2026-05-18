@@ -418,3 +418,63 @@ describe('flyControls pointer-lock revoke', () => {
     expect(fly.isActive()).toBe(false);
   });
 });
+
+describe('flyControls resetToDefault', () => {
+  it('places camera behind gem along the root street axis', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(999, 999, 999); // somewhere far away
+
+    const cityScene = {
+      // Gem at origin.
+      getGemWorldPos: () => new THREE.Vector3(0, 0, 0),
+      // Root street runs along world X with length 200, width 20.
+      getRootStreet: () => ({
+        x: 50,    // street center
+        y: 0,     // street z-position
+        orientation: 'X' as const,
+        isRoot: true,
+        width: 20,
+        length: 200,
+      }),
+      getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(150, 30, 50)),
+      getBuildings: () => [],
+    };
+
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene,
+    });
+    fly.resetToDefault();
+
+    // Camera should sit behind the gem (in -X direction from gem, since
+    // the street extends +X) and above the ground.
+    expect(camera.position.x).toBeLessThan(0);
+    expect(camera.position.y).toBeGreaterThanOrEqual(FLY_CONTROLS.get().ALTITUDE_FLOOR);
+    // Camera should be roughly looking +X (down the street).
+    const dir = new THREE.Vector3();
+    camera.getWorldDirection(dir);
+    expect(dir.x).toBeGreaterThan(0.5);
+  });
+
+  it('falls back to bbox center when there is no gem', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+    const cityScene = {
+      getGemWorldPos: () => null,
+      getRootStreet: () => null,
+      getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 30, 50)),
+      getBuildings: () => [],
+    };
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      cityScene,
+    });
+    // Should not throw, should land at some non-zero altitude.
+    expect(() => fly.resetToDefault()).not.toThrow();
+    expect(camera.position.y).toBeGreaterThanOrEqual(FLY_CONTROLS.get().ALTITUDE_FLOOR);
+  });
+});
