@@ -1,6 +1,6 @@
 // scene/effects/buildingFader.ts — per-instance opacity writes for the
 // building InstancedMesh. Subscribes to picker.selection and picker.hover;
-// on either change, sweeps all blocks and writes the iFade
+// on either change, sweeps all blocks/cells and writes the iFade
 // InstancedBufferAttribute for each instance based on tree-distance from
 // the resolved directory target. Marks needsUpdate = true so the shader
 // picks up the new alpha next frame.
@@ -8,9 +8,14 @@
 // Per-frame cost: zero. All work happens once per selection/hover change.
 //
 // Field ownership:
-//   buildingFader   → block.detailMesh geometry attribute 'iFade'
+//   buildingFader   → block.detailMesh / cell.detailMesh geometry attribute 'iFade'
 //   outlineRenderer → ghost/outline opacities          (Task 12)
 //   ghostRenderer   → ghost mesh opacity               (Task 13)
+//
+// Cell mode: when cityScene.getCells() is non-empty, the fader writes iFade
+// on each CellTile.detailMesh (same attribute name, same vec3 layout). The
+// impostorMesh is still on placeholder geometry (no iFade attribute) so it is
+// skipped until a future task attaches impostor geometry.
 //
 // NOTE: userData.ghostOp and userData.outlineOp are no longer written here.
 // Ownership of those fields transfers to Tasks 12 (outlineRenderer) and
@@ -148,6 +153,45 @@ export function createBuildingFader({
 
     const fadeCfg = BUILDING_FADE.get();
 
+    // -------------------------------------------------------------------------
+    // Cell mode — iterate CellTile.detailMesh instances.
+    // impostorMesh is still on placeholder geometry (no iFade attribute);
+    // skip it until a future task attaches impostor geometry.
+    // -------------------------------------------------------------------------
+    const cells = cityScene.getCells();
+    if (cells.size > 0) {
+      for (const cell of cells.values()) {
+        const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+        if (!iFadeAttr) continue;
+
+        for (let slot = 0; slot < cell.buildings.length; slot++) {
+          const building = cell.buildings[slot];
+          if (!building?.file) continue;
+
+          const tier = _tierFor(building.file, bldgTargetFile, dirTarget, hoverFile, fadeCfg);
+
+          // Translate detail + bodyOpacity → final values written to iFade.
+          // Full       → body visible at bodyOpacity, full facade detail.
+          // Silhouette → body visible at bodyOpacity, shader skips per-cell
+          //              window/door/slab math and renders solid base color.
+          // Hidden     → body opacity 0; only the per-instance outline
+          //              composites at face edges, leaving the road visible
+          //              through the empty body.
+          const opacity        = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
+          const silhouette     = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+          const outlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
+
+          iFadeAttr.setXYZ(slot, opacity, silhouette, outlineOpacity);
+        }
+
+        iFadeAttr.needsUpdate = true;
+      }
+      return;
+    }
+
+    // -------------------------------------------------------------------------
+    // Legacy block mode — iterate SceneBlock.detailMesh instances.
+    // -------------------------------------------------------------------------
     for (const block of cityScene.getBlocks()) {
       // ---- Building instances ----
       if (block.detailMesh) {
