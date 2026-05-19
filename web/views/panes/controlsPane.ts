@@ -913,12 +913,6 @@ function _buildRenderingSection(): HTMLElement {
     }),
   );
 
-  section.appendChild(
-    _toggle('Verbose render logs', DEBUG_LOGS, 'enabled', {
-      tip: 'When on, prints diagnostic [boot] and [cell] logs to the browser console — useful for debugging the cell-rendering pipeline. Off by default to keep the console clean.',
-    }),
-  );
-
   return section;
 }
 
@@ -998,6 +992,12 @@ function _buildDebugSection(
     'Debug',
     'Developer-only diagnostics. Output goes to the browser console.',
     false,
+  );
+
+  section.appendChild(
+    _toggle('Verbose render logs', DEBUG_LOGS, 'enabled', {
+      tip: 'When on, prints diagnostic [boot] and [cell] logs to the browser console — useful for debugging the cell-rendering pipeline. Off by default to keep the console clean.',
+    }),
   );
 
   if (onRunCollisionCheck) {
