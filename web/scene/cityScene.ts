@@ -324,6 +324,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let _cachedLayoutTreeSig: string | null = null;
   let _cachedLayout: CityLayout | null = null;
 
+  // Scenic state cache: tracks the tree_signature that was used the last time
+  // buildCityScene ran successfully (in the cell branch). When the layout is
+  // reused AND this signature matches the current manifest's tree_signature,
+  // the streets/labels/paths/gem meshes are already in the scene and identical
+  // to what a fresh buildCityScene call would produce — so we skip the call.
+  // Cleared by resetCache() when the user switches source (different tree shape).
+  let _lastBuildCitySceneTreeSig: string | null = null;
+
   // Listeners
 
   const beforeChangeCbs: Array<(prev: PrevState) => void> = [];
@@ -835,81 +843,135 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       }
 
       // ---- Atomic swap (cell path) ----
-      // [cell-debug]
-      console.log('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
-      _disposeAllManifestState();
-
-      // Dispose old cell root if present. No atlas textures to dispose on the
-      // cell path (labels use the legacy streetLabels path, not a cell atlas).
-      // [cell-debug]
-      console.log('[cell] 6: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
-      if (_cellRoot) {
-        _cellRoot.traverse(_disposeObject);
-        if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
-      }
-      for (const tex of _atlasTextures) tex.dispose();
-      _atlasTextures = [];
-
-      manifest = newManifestTyped;
-      layout = newLayout;
-      dateRanges = newDateRanges;
-
-      _cellRoot = cellOut.sceneRoot;
-      _cells = cellOut.cells;
-      _buildingIndex = cellOut.index;
-      _grid = cellOut.grid;
-      // [cell-debug]
-      console.log('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
-
-      // Also build the streets/paths/gem sub-scene from buildCityScene so
-      // sidewalks, asphalt, and the root gem still appear. The cell
-      // path replaces buildings; non-building scene elements are still needed.
       //
-      // skipBuildings: true — omits per-building path-connector meshes
-      // (one mesh per layout.paths entry, ~N_buildings total). For a large
-      // repo those meshes dominate cellBuilt.scene.children and cause a
-      // multi-second stall in the scene.add() loop below (log marker 9→10).
-      // Cell mode has no per-building interactivity that needs connectors.
-      // [cell-debug]
-      const _cellBuildSceneT0 = performance.now();
-      console.log('[cell] 8a: buildCityScene starting');
-      const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
-      // [cell-debug]
-      console.log('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
-      bbox = cellBuilt.bbox;
+      // Scenic state reuse: when the layout was reused (same tree_signature,
+      // positions/streets/paths unchanged) AND buildCityScene was already run
+      // for this signature, the streets/labels/paths/gem meshes are already in
+      // the scene and would produce identical output — skip the dispose + rebuild.
+      // Only the cell root is always rebuilt (fast, ~5s) to reflect updated
+      // per-file metadata (colors, heights) from the new manifest.
+      const _scenicValid =
+        _layoutReused &&
+        _lastBuildCitySceneTreeSig !== null &&
+        _lastBuildCitySceneTreeSig === _treeSig &&
+        streetPickables.length > 0; // guard: scenic state actually exists in scene
 
-      streetPickables = cellBuilt.streetPickables || [];
-      streetLabels = cellBuilt.streetLabels || [];
-      pathMeshes = cellBuilt.pathMeshes || [];
-      asphaltMeshes = cellBuilt.asphaltMeshes || [];
-      rootGem = cellBuilt.rootGem || null;
-      rootGemBody = cellBuilt.rootGemBody || null;
-      rootGemEdges = cellBuilt.rootGemEdges || null;
+      if (_scenicValid) {
+        // [cell-debug]
+        console.log('[cell] 8: scenic state reused (skipping buildCityScene)', {
+          treeSig: _treeSig,
+          streets: streetPickables.length,
+          elapsedMs: performance.now() - _cellT0,
+        });
+        // Do NOT call _disposeAllManifestState() — existing streets/labels/
+        // paths/gem stay in the scene unmodified. Do NOT call buildCityScene.
 
-      // [cell-debug]
-      console.log('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
-      // ROOT CAUSE of the 4.9-second gap between markers 9 and 10:
-      // scene.add() calls updateWorldMatrix + Three.js bookkeeping per child.
-      // Before skipBuildings:true this was ~107k children (dominated by one
-      // createPathMesh per building); with skipBuildings:true it drops to
-      // ~N_streets × 2 (sidewalk+asphalt groups) + street-labels + gem ≈ 10k.
-      for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+        // Dispose old cell root before the new one is swapped in.
+        // [cell-debug]
+        console.log('[cell] 6: disposing old cell root (scenic reuse)', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        if (_cellRoot) {
+          _cellRoot.traverse(_disposeObject);
+          if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
+        }
 
-      // Remove legacy per-building meshes that buildCityScene emits — the
-      // cell path replaces them with InstancedMesh cells. Keep streetLabels:
-      // they serve as our labels on the cell path too.
-      // [cell-debug]
-      console.log('[cell] 10: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
-      for (const bm of cellBuilt.buildingMeshes || []) {
-        if (bm.parent) bm.parent.remove(bm);
-        _disposeObject(bm);
+        manifest = newManifestTyped;
+        layout = newLayout;
+        dateRanges = newDateRanges;
+        // bbox stays from the previous buildCityScene call (layout unchanged).
+
+        _cellRoot = cellOut.sceneRoot;
+        _cells = cellOut.cells;
+        _buildingIndex = cellOut.index;
+        _grid = cellOut.grid;
+        // [cell-debug]
+        console.log('[cell] 7: module-level state assigned (cells, index, grid) — scenic reuse', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+
+        // Add the new cell root (instanced building InstancedMeshes).
+        // [cell-debug]
+        console.log('[cell] 11: adding _cellRoot to scene (scenic reuse)', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        scene.add(_cellRoot);
+      } else {
+        // Full rebuild path: dispose existing scenic state, run buildCityScene,
+        // and add the new meshes to the scene.
+        // [cell-debug]
+        console.log('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
+        _disposeAllManifestState();
+
+        // Dispose old cell root if present. No atlas textures to dispose on the
+        // cell path (labels use the legacy streetLabels path, not a cell atlas).
+        // [cell-debug]
+        console.log('[cell] 6: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        if (_cellRoot) {
+          _cellRoot.traverse(_disposeObject);
+          if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
+        }
+        for (const tex of _atlasTextures) tex.dispose();
+        _atlasTextures = [];
+
+        manifest = newManifestTyped;
+        layout = newLayout;
+        dateRanges = newDateRanges;
+
+        _cellRoot = cellOut.sceneRoot;
+        _cells = cellOut.cells;
+        _buildingIndex = cellOut.index;
+        _grid = cellOut.grid;
+        // [cell-debug]
+        console.log('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+
+        // Also build the streets/paths/gem sub-scene from buildCityScene so
+        // sidewalks, asphalt, and the root gem still appear. The cell
+        // path replaces buildings; non-building scene elements are still needed.
+        //
+        // skipBuildings: true — omits per-building path-connector meshes
+        // (one mesh per layout.paths entry, ~N_buildings total). For a large
+        // repo those meshes dominate cellBuilt.scene.children and cause a
+        // multi-second stall in the scene.add() loop below (log marker 9→10).
+        // Cell mode has no per-building interactivity that needs connectors.
+        // [cell-debug]
+        const _cellBuildSceneT0 = performance.now();
+        console.log('[cell] 8a: buildCityScene starting');
+        const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
+        // [cell-debug]
+        console.log('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
+        bbox = cellBuilt.bbox;
+
+        streetPickables = cellBuilt.streetPickables || [];
+        streetLabels = cellBuilt.streetLabels || [];
+        pathMeshes = cellBuilt.pathMeshes || [];
+        asphaltMeshes = cellBuilt.asphaltMeshes || [];
+        rootGem = cellBuilt.rootGem || null;
+        rootGemBody = cellBuilt.rootGemBody || null;
+        rootGemEdges = cellBuilt.rootGemEdges || null;
+
+        // [cell-debug]
+        console.log('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
+        // ROOT CAUSE of the 4.9-second gap between markers 9 and 10:
+        // scene.add() calls updateWorldMatrix + Three.js bookkeeping per child.
+        // Before skipBuildings:true this was ~107k children (dominated by one
+        // createPathMesh per building); with skipBuildings:true it drops to
+        // ~N_streets × 2 (sidewalk+asphalt groups) + street-labels + gem ≈ 10k.
+        for (const child of [...cellBuilt.scene.children]) scene.add(child);
+        scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+        // Remove legacy per-building meshes that buildCityScene emits — the
+        // cell path replaces them with InstancedMesh cells. Keep streetLabels:
+        // they serve as our labels on the cell path too.
+        // [cell-debug]
+        console.log('[cell] 10: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
+        for (const bm of cellBuilt.buildingMeshes || []) {
+          if (bm.parent) bm.parent.remove(bm);
+          _disposeObject(bm);
+        }
+
+        // Add the cell root (instanced building InstancedMeshes, one group per cell).
+        // [cell-debug]
+        console.log('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        scene.add(_cellRoot);
+
+        // Record that scenic state is now valid for this tree_signature.
+        _lastBuildCitySceneTreeSig = _treeSig || null;
       }
-
-      // Add the cell root (instanced building InstancedMeshes, one group per cell).
-      // [cell-debug]
-      console.log('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
-      scene.add(_cellRoot);
 
       // [cell-debug]
       console.log('[cell] 12: calling _buildLookups + _computeRootStreetAndGem', { elapsedMs: performance.now() - _cellT0 });
@@ -1108,6 +1170,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function resetCache(): void {
     _cachedLayoutTreeSig = null;
     _cachedLayout = null;
+    _lastBuildCitySceneTreeSig = null;
   }
 
   return {
