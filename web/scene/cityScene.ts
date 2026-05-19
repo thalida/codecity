@@ -314,6 +314,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let _buildingIndex: BuildingIndex | null = null;
   let _grid: SpatialGrid | null = null;
 
+  // [cell-debug] Layout cache: avoid redundant _layoutClient.compute() when
+  // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
+  // Keyed by manifest.signature (same scan → same signature → same layout).
+  let _cachedLayoutSig: string | null = null;
+  let _cachedLayout: CityLayout | null = null;
+
   // Listeners
 
   const beforeChangeCbs: Array<(prev: PrevState) => void> = [];
@@ -703,21 +709,43 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // layoutClient signals that via a 'superseded' rejection.
     // [cell-debug]
     console.log('[boot] applyManifest: phase 1 layout start');
+    const _amPhase1Start = performance.now();
     const newManifestTyped = newManifest as Manifest;
     let newLayout: CityLayout;
-    // Pass the full manifest envelope (not `manifest.tree`) — the worker
-    // forwards it to layoutCityV4, which internally unwraps `.tree` via
-    // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
-    // produce the same layout, but routing through the envelope keeps
-    // the worker message contract typed against `Manifest` rather than
-    // a structural `DirLike`. A reject with `Error('superseded')` is
-    // expected when a newer applyManifest preempts us — return silently
-    // so the newer run owns the swap.
-    try {
-      newLayout = await _layoutClient.compute(newManifestTyped);
-    } catch (err) {
-      if (err instanceof Error && err.message === 'superseded') return;
-      throw err;
+    const _sig = newManifestTyped.signature;
+    if (_sig && _cachedLayoutSig === _sig && _cachedLayout) {
+      // [cell-debug] Reuse the previously-computed layout. Tree shape
+      // is identical (same signature), so building positions are unchanged.
+      // Only per-file metadata (Phase 2 colors/ages) may differ.
+      newLayout = _cachedLayout;
+      console.log('[boot] applyManifest: phase 1 layout cache HIT', {
+        elapsedMs: performance.now() - _amPhase1Start,
+        signature: _sig.slice(0, 8) + '...',
+      });
+    } else {
+      // Pass the full manifest envelope (not `manifest.tree`) — the worker
+      // forwards it to layoutCityV4, which internally unwraps `.tree` via
+      // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
+      // produce the same layout, but routing through the envelope keeps
+      // the worker message contract typed against `Manifest` rather than
+      // a structural `DirLike`. A reject with `Error('superseded')` is
+      // expected when a newer applyManifest preempts us — return silently
+      // so the newer run owns the swap.
+      try {
+        newLayout = await _layoutClient.compute(newManifestTyped);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
+      }
+      // [cell-debug] Cache the freshly-computed layout for the next call.
+      if (_sig) {
+        _cachedLayoutSig = _sig;
+        _cachedLayout = newLayout;
+        console.log('[boot] applyManifest: phase 1 layout CACHED', {
+          elapsedMs: performance.now() - _amPhase1Start,
+          signature: _sig.slice(0, 8) + '...',
+        });
+      }
     }
     // [cell-debug]
     console.log('[boot] applyManifest: phase 1 layout done', { elapsedMs: performance.now() - amT0, buildings: newLayout?.buildings?.length ?? 0 });
