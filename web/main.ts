@@ -1042,6 +1042,11 @@ if (_canvas) {
         branch: payload.branch,
         stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
       });
+      // Clear the layout cache so the cell fast path doesn't reuse stale cells
+      // from the previous source. The cache is valid within a single source
+      // (skeleton → final live-update), but must be reset when switching sources
+      // since different repos can produce the same tree_signature by coincidence.
+      handle.cityScene.resetCache();
       const dismissibleOnError = _lastDismissible;
       loadingOverlay.show({
         kind: _srcKind(payload.src),

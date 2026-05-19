@@ -811,7 +811,44 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _grid !== null;
       console.log('[cell] 1.5: cache hit?', { isCacheHit: _isCellCacheHit, hasCellRoot: _cellRoot !== null, hasCells: _cells !== null && _cells.size > 0 });
 
+      // Build the path → new Building lookup map now (needed for fast path;
+      // also used here for staleness validation before committing to fast path).
+      let _newBuildingByPath: Map<string, Building> | null = null;
+      let _isCellCacheHitValidated = false;
       if (_isCellCacheHit) {
+        _newBuildingByPath = new Map<string, Building>();
+        for (const b of newBuildings) {
+          if (b.file?.path) _newBuildingByPath.set(b.file.path, b);
+        }
+
+        // Sample-validate: check the first non-null building in each cell
+        // against the new manifest. If any sample misses, the cells are stale
+        // (e.g., different source was loaded) → fall through to the slow path.
+        let _validated = true;
+        for (const cell of _cells!.values()) {
+          for (let i = 0; i < cell.used; i++) {
+            const existing = cell.buildings[i];
+            if (existing && existing.file?.path) {
+              if (!_newBuildingByPath.has(existing.file.path)) {
+                _validated = false;
+              }
+              break; // only check first non-null slot per cell
+            }
+          }
+          if (!_validated) break;
+        }
+
+        if (_validated) {
+          _isCellCacheHitValidated = true;
+        } else {
+          console.log('[cell] fast path bypassed: stale cells detected (existing buildings not in new manifest)', {
+            existingCells: _cells!.size,
+            newBuildings: newBuildings.length,
+          });
+        }
+      }
+
+      if (_isCellCacheHitValidated) {
         // ---- Cache-hit fast path ----
         // The tree shape is identical, so building positions, cell structure,
         // streets, labels, paths, and the gem are all unchanged.
@@ -823,24 +860,23 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         console.log('[cell] 4: generation check (fast path)', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
         if (myGeneration !== _currentGeneration) return;
 
-        // Build a path → new Building lookup once (O(N)) so the inner loop is O(1).
-        const newBuildingByPath = new Map<string, Building>();
-        for (const b of newBuildings) {
-          if (b.file?.path) newBuildingByPath.set(b.file.path, b);
-        }
+        // Reuse the pre-built lookup map (already constructed during validation).
+        const _byPath = _newBuildingByPath!;
 
         // Walk every occupied cell and re-write per-instance color/age attributes.
         let _fastPathUpdated = 0;
-        for (const cell of _cells.values()) {
+        let _skippedCount = 0;
+        for (const cell of _cells!.values()) {
           let _cellDirty = false;
           for (let slot = 0; slot < cell.used; slot++) {
             const existing = cell.buildings[slot];
             if (!existing) continue;
-            const newB = existing.file?.path ? newBuildingByPath.get(existing.file.path) : undefined;
+            const newB = existing.file?.path ? _byPath.get(existing.file.path) : undefined;
             if (!newB) {
-              // Tree shape is identical (cache hit) so this shouldn't happen —
-              // log a warning and skip rather than crashing.
-              console.warn('[cell] fast path: no match for building path', existing.file?.path, '— skipping slot', slot);
+              // This can occur when a file was deleted in a live-update whose
+              // manifest shares the same tree_signature (rare). Count and warn
+              // once after the loop rather than logging per slot.
+              _skippedCount++;
               continue;
             }
             // Copy updated per-file metadata onto the existing Building object.
@@ -862,6 +898,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
               if (attr) attr.needsUpdate = true;
             }
           }
+        }
+        if (_skippedCount > 0) {
+          console.warn('[cell] fast path: skipped slots with no match in new manifest', {
+            skippedCount: _skippedCount,
+            totalBuildings: newBuildings.length,
+          });
         }
 
         // Keep manifest-level state in sync (values are semantically the same,
@@ -1187,6 +1229,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _layoutClient.dispose();
   }
 
+  function resetCache(): void {
+    _cachedLayoutTreeSig = null;
+    _cachedLayout = null;
+  }
+
   return {
     scene,
     applyManifest,
@@ -1194,6 +1241,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     onBeforeChange,
     onChange,
     disposeMesh,
+    resetCache,
 
     getManifest() {
       return manifest;
