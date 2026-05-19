@@ -383,6 +383,127 @@ interface SubtreeResult {
   paths: BuildingPath[];
 }
 
+// DirReaches — estimated final road length (alongReach) and perpendicular
+// extent (perpReach) for a directory's layout, measured in the directory's
+// own local frame. Used to seed the phantom in child recursions with the
+// parent's exact final road length, so deep grandchildren can't be placed
+// on top of an ancestor whose road grew after this dir was placed.
+export interface DirReaches {
+  /** Road length in this dir's along axis: max(side0 far-edge, side1 far-edge) + endPad. */
+  alongReach: number;
+  /** Max distance from this dir's centerline along its perp axis. */
+  perpReach: number;
+}
+
+// estimateDirReaches(dir, lineStats, byteStats, parentStreetWidth, cache)
+//   → bottom-up walk computing each dir's alongReach and perpReach by
+//     simulating alphabetical placement with alternating sides. Memoizes
+//     results in `cache` so each dir is visited once.
+//
+// The estimate is a tight upper bound on the actual placement: placeChild
+// may pick smaller stems when obstacles allow, but it never picks LARGER
+// stems for the smallest-stem variant in an empty occupancy — and the
+// pre-pass runs without occupancy constraints. Used for phantom sizing
+// only, where over-sizing has no observable effect (the phantom strip is
+// already outside the originPad clearance), but under-sizing reintroduces
+// the bug.
+export function estimateDirReaches(
+  dir: DirLike,
+  lineStats: RangeStat,
+  byteStats: RangeStat,
+  parentStreetWidth: number | undefined,
+  cache: Map<DirLike, DirReaches>,
+): DirReaches {
+  const cached = cache.get(dir);
+  if (cached) return cached;
+
+  const streetLayout = STREET_LAYOUT.get();
+  const childGap = streetLayout.CHILD_GAP;
+  const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
+  const rootEndPad = streetLayout.ROOT_END_PAD;
+  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const gemSizing = GEM_SIZING.get();
+  const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
+
+  // Padding chain — mirrors _layoutDirV4 exactly so the estimate matches the
+  // real placement's bounds.
+  const myStreetWidth = _streetWidthForDir(dir);
+  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const joinEndBaseline = parentStreetWidth
+    ? parentStreetWidth / 2 + parentJoinPad
+    : rootEndPad;
+  const endPad = parentStreetWidth
+    ? Math.max(joinEndBaseline, openEndPad)
+    : Math.max(rootEndPad, openEndPad);
+  const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
+  const gemDiameter = gemRadius * 2;
+  const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
+  const originPad = !parentStreetWidth
+    ? Math.max(endPad, myStreetWidth * (0.5 + gemRadiusFrac) + gemClearance)
+    : joinEndBaseline;
+
+  const children = ((dir.children || []) as TreeLike[])
+    .filter((c) => c.type === NodeKind.File || c.type === NodeKind.Directory)
+    .slice()
+    .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+  // Track the far edge of placed children on each side. -Infinity means no
+  // child placed there yet; first child on a side sits at stem=phantomBumpStem
+  // (the stem the grandparent-body phantom forces), subsequent children add
+  // childGap + alongContrib.
+  //
+  // phantomBumpStem accounts for the actual placement's first-child stem
+  // being NOT simply originPad: when the grandparent body's phantom occupies
+  // ±halfP_parent in this dir's along axis, the new rect's along range
+  // [stem - alongContrib/2, stem + alongContrib/2] must clear that strip
+  // with childGap on each side → stem ≥ halfP_parent + alongContrib/2 + childGap.
+  // For the root call (no parent body), parentBodyHalf=0 and this reduces to
+  // alongContrib/2 + childGap, which is always ≤ originPad anyway.
+  const parentBodyHalf = parentStreetWidth ? parentStreetWidth / 2 : 0;
+  const sideFarEdge: [number, number] = [-Infinity, -Infinity];
+  let perpReach = myStreetWidth / 2; // dir's own road body extends ±halfP
+
+  for (const child of children) {
+    let alongContrib: number;
+    let perpContrib: number;
+    if (child.type === NodeKind.File) {
+      const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
+      alongContrib = dim.w;
+      perpContrib = myStreetWidth / 2 + bldgPathLength + dim.d;
+    } else {
+      const sub = estimateDirReaches(
+        child as DirLike, lineStats, byteStats, myStreetWidth, cache,
+      );
+      // A perpendicular subdir occupies 2*subdir.perpReach in the parent's
+      // along axis (both sides of the subdir's road) and subdir.alongReach
+      // in the parent's perp axis (one-sided, from join to end).
+      alongContrib = 2 * sub.perpReach;
+      perpContrib = sub.alongReach;
+    }
+    // Pick the side with smaller far edge (matches placeChild's smallest-stem
+    // tiebreaking with empty occupancy).
+    const side = sideFarEdge[0] <= sideFarEdge[1] ? 0 : 1;
+    if (sideFarEdge[side] === -Infinity) {
+      const phantomBumpStem = parentBodyHalf + alongContrib / 2 + childGap;
+      const stem = Math.max(originPad, phantomBumpStem);
+      sideFarEdge[side] = stem + alongContrib / 2;
+    } else {
+      sideFarEdge[side] = sideFarEdge[side] + childGap + alongContrib;
+    }
+    if (perpContrib > perpReach) perpReach = perpContrib;
+  }
+
+  const farLeft = sideFarEdge[0] === -Infinity ? originPad : sideFarEdge[0];
+  const farRight = sideFarEdge[1] === -Infinity ? originPad : sideFarEdge[1];
+  const maxBoundary = Math.max(farLeft, farRight);
+  const alongReach = Math.max(maxBoundary + endPad, originPad + endPad);
+
+  const result: DirReaches = { alongReach, perpReach };
+  cache.set(dir, result);
+  return result;
+}
+
 // _layoutDirV4(dir, originX, originY, orientation, result, parentStreetWidth,
 //             lineStats, byteStats, occupancy)
 //   → fills `result` with this subtree's content in WORLD frame (relative to
@@ -410,11 +531,14 @@ function _layoutDirV4(
   lineStats: RangeStat,
   byteStats: RangeStat,
   occupancy: WorldOccupancy,
+  reachCache: Map<DirLike, DirReaches>,
   trace?: StemPlacementTrace,
-  /** Parent's road extent (max along-edge of its children placed so far, in
-   *  parent's local frame) at the time this recursive call begins. Used to
-   *  bound the phantom's perp range. Undefined at the top-level call. */
-  parentMaxBoundary?: number,
+  /** Parent's FINAL along-axis road length, pre-computed by
+   *  estimateDirReaches. Used to size the phantom's perp range exactly
+   *  (covering the parent's full road body, not just the extent at this
+   *  recursion's start). Undefined at the top-level call where no parent
+   *  body exists. */
+  parentFinalAlongReach?: number,
 ): void {
   // ----- Tunables (one .get() per call, matching v3 pattern) -----
   const streetLayout = STREET_LAYOUT.get();
@@ -459,29 +583,19 @@ function _layoutDirV4(
   //   - Along this dir's ALONG axis: spans ±parentStreetWidth/2 (parent's
   //     width). This dir's join end sits at along=0; the parent's body
   //     extends to ±parentW/2 on either side of the join.
-  //   - Along this dir's PERP axis: bounded by the parent's road extent.
-  //     The phantom represents the parent's road BODY, which has a finite
-  //     along-length, not an infinite one. Using parentMaxBoundary (the
-  //     extent of parent's road known so far) as the bound stops the
-  //     phantom from over-blocking grandchildren that would actually land
-  //     past parent's road. A small additional buffer guards against the
-  //     parent's road growing further when siblings after this dir get
-  //     placed. Falls back to a large default at the root call where the
-  //     bound is unknown but no parent road exists either.
+  //   - Along this dir's PERP axis: parent's FINAL road length, supplied
+  //     by the caller from a bottom-up pre-pass (estimateDirReaches).
   //
   // Skipped at the root call (parentStreetWidth undefined), where no parent
   // body exists. -----
   if (parentStreetWidth !== undefined && parentStreetWidth > 0) {
     const halfP = parentStreetWidth / 2;
-    // PHANTOM_FAR is the fallback when no parentMaxBoundary is supplied
-    // (legacy callers). Real subdir recursions pass parentMaxBoundary, and
-    // we use that + a generous safety buffer so later siblings extending
-    // the parent road can still grow without our grandchildren overlapping
-    // the (now-extended) parent body.
     const PHANTOM_FAR = 1e9;
+    // +1 unit absorbs floating-point drift between the estimate (computed
+    // in the pre-pass) and the actual placement (computed here).
     const phantomReach =
-      parentMaxBoundary !== undefined
-        ? parentMaxBoundary * 2 + 1000
+      parentFinalAlongReach !== undefined
+        ? parentFinalAlongReach + 1
         : PHANTOM_FAR;
     const phantomMinX = orientation === StreetAxis.X ? -halfP : -phantomReach;
     const phantomMaxX = orientation === StreetAxis.X ? +halfP : +phantomReach;
@@ -680,6 +794,10 @@ function _layoutDirV4(
         paths: [],
       };
       const localOccupancy = new WorldOccupancy();
+      // Pass THIS dir's pre-computed final alongReach as the child's
+      // parentFinalAlongReach — that's the exact perp-axis bound the
+      // child's phantom needs to cover.
+      const myReaches = reachCache.get(dir);
       _layoutDirV4(
         child as DirLike,
         0, 0,
@@ -688,8 +806,9 @@ function _layoutDirV4(
         myStreetWidth,
         lineStats, byteStats,
         localOccupancy,
+        reachCache,
         trace,
-        maxBoundaryAlong,
+        myReaches?.alongReach,
       );
 
       // Build child-local rect list from the subtree result. These are the
@@ -900,11 +1019,15 @@ function _layoutCityV4Internal(
     buildings: result.buildings,
     paths: result.paths,
   };
+  // Bottom-up pre-pass: each dir's alongReach (final road length) is needed
+  // when its children seed their phantoms with the exact parent body extent.
+  const reachCache = new Map<DirLike, DirReaches>();
+  estimateDirReaches(tree, stats.lines, stats.bytes, undefined, reachCache);
   _layoutDirV4(
     tree, 0, 0, StreetAxis.X,
     subResult, undefined,
     stats.lines, stats.bytes,
-    occupancy, trace,
+    occupancy, reachCache, trace,
   );
 
   for (const street of result.streets) {
