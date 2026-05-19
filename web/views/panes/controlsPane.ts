@@ -919,13 +919,13 @@ function _buildRenderingSection(): HTMLElement {
       _toggle('LOD enabled', LOD, 'enabled', {
         tip: 'When off, every cell renders at full detail regardless of distance — useful for visual QA, debugging facade shader changes, or forcing detail at any zoom. Cell mode (the spatial grid) is unaffected.',
       }),
-      _slider('Detail at (frac of viewport)', LOD, 'DETAIL_VIEWPORT_FRAC', 0, 0.5, 0.005, {
+      _number('Detail at (frac of viewport)', LOD, 'DETAIL_VIEWPORT_FRAC', 0, 0.5, 0.005, {
         tip: 'Cell needs to cover at least this fraction of the viewport area to render at full detail. Higher = stricter (fewer cells qualify). Scale-independent: works the same on any repo, any resolution. Default 0.025 = 2.5%. Live-tunable; cells re-evaluate next frame. Ignored when LOD is disabled.',
       }),
-      _slider('Impostor at (frac of viewport)', LOD, 'IMPOSTOR_VIEWPORT_FRAC', 0, 0.5, 0.001, {
+      _number('Impostor at (frac of viewport)', LOD, 'IMPOSTOR_VIEWPORT_FRAC', 0, 0.5, 0.001, {
         tip: 'Below this fraction of viewport, a cell falls back to a flat-shaded impostor box. Between this and the detail threshold is the hysteresis band — cells stay in their current tier to avoid thrash. Default 0.005 = 0.5%. Ignored when LOD is disabled.',
       }),
-      _slider('Cull below (frac of viewport)', LOD, 'CULL_VIEWPORT_FRAC', 0, 0.01, 0.00001, {
+      _number('Cull below (frac of viewport)', LOD, 'CULL_VIEWPORT_FRAC', 0, 0.01, 0.00001, {
         tip: 'Below this fraction of viewport, the cell is hidden entirely. Default 0.00005 = 0.005% (~10×10 pixels at 1080p). Raise to skip more far geometry; lower for visible specks at extreme zoom-out. Ignored when LOD is disabled.',
       }),
     ]),
