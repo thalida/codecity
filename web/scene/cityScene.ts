@@ -52,8 +52,8 @@ import type { CellTile } from './cellTile.js';
 import { writeBuildingToSlot } from './instanced/buildingsCell.js';
 import { BuildingIndex } from './buildingIndex.js';
 import type { SpatialGrid } from './spatialGrid.js';
-import { findLayoutOverlaps } from './layout.js';
-import type { LayoutOverlap } from './layout.js';
+import { findLayoutOverlaps, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
+import type { HeightContext, LayoutOverlap } from './layout.js';
 import { createLayoutClient } from './layoutClient.js';
 import { layoutCityV4WithTrace } from './layoutV4.js';
 import type {
@@ -761,9 +761,23 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
-    // building list. dateRanges and the color loop don't touch the scene yet.
+    // building list. Also recompute building dimensions (h, w, d, floors) from
+    // the new manifest's real per-file metadata. This is necessary because the
+    // layout cache is keyed on tree_signature (structure-only), so the skeleton
+    // → final transition reuses the cached skeleton layout whose dimensions were
+    // computed from placeholder metadata. Recomputing here ensures that the
+    // final pass writes correct heights/footprints to GPU instance matrices via
+    // writeBuildingToSlot, without re-running the full layout algorithm.
+    // dateRanges and the color/dim loops don't touch the scene yet.
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
+    );
+    // Derive project-wide line/byte ranges from the new manifest once.
+    // On cache-hit (skeleton→final), this reflects the FINAL manifest's real
+    // stats; on cache-miss the layout was freshly computed and these stats will
+    // match — so recomputing is a no-op in that case (values will be identical).
+    const _heightCtx: HeightContext = makeHeightContext(
+      newManifestTyped.tree as unknown as Parameters<typeof makeHeightContext>[0],
     );
     const newBuildings = newLayout?.buildings ?? [];
     for (const b of newBuildings) {
@@ -784,6 +798,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
         newDateRanges,
       );
+      // Recompute dimensions from the new manifest's real file metadata.
+      // On cache-hit this updates skeleton placeholder values; on cache-miss
+      // the layout was freshly computed from the same manifest so the values
+      // will be identical (idempotent).
+      const newDims = recomputeBuildingDimensions(
+        b.file as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
+        _heightCtx,
+      );
+      b.h = newDims.h;
+      b.w = newDims.w;
+      b.d = newDims.d;
+      b.floors = newDims.floors;
     }
     // [cell-debug]
     console.log('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
