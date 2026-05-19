@@ -916,14 +916,17 @@ function _buildRenderingSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Level of detail (cell mode)', [
+      _toggle('LOD enabled', LOD, 'enabled', {
+        tip: 'When off, every cell renders at full detail regardless of distance — useful for visual QA, debugging facade shader changes, or forcing detail at any zoom. Cell mode (the spatial grid) is unaffected.',
+      }),
       _number('Detail threshold (px²)', LOD, 'SWAP_TO_DETAIL_PX', 100, 20000, 100, {
-        tip: 'Projected pixel area above which a cell renders at full detail. Higher = stricter (less detail kept). Live-tunable; cells re-evaluate next frame.',
+        tip: 'Projected pixel area above which a cell renders at full detail. Higher = stricter (less detail kept). Live-tunable; cells re-evaluate next frame. Ignored when LOD is disabled.',
       }),
       _number('Impostor threshold (px²)', LOD, 'SWAP_TO_IMPOSTOR_PX', 50, 20000, 50, {
-        tip: 'Below this pixel area, a cell renders as a flat-shaded impostor box. Between the impostor and detail thresholds is the hysteresis band — cells stay in their current tier to avoid thrash.',
+        tip: 'Below this pixel area, a cell renders as a flat-shaded impostor box. Between the impostor and detail thresholds is the hysteresis band — cells stay in their current tier to avoid thrash. Ignored when LOD is disabled.',
       }),
       _number('Cull threshold (px²)', LOD, 'CULL_PX', 1, 1000, 1, {
-        tip: 'Below this pixel area, the cell is fully hidden. Set higher to skip more far-away geometry.',
+        tip: 'Below this pixel area, the cell is fully hidden. Set higher to skip more far-away geometry. Ignored when LOD is disabled.',
       }),
     ]),
   );

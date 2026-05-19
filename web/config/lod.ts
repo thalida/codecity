@@ -16,6 +16,7 @@
 import { map } from 'nanostores';
 
 export interface LodConfig {
+  enabled: boolean;             // master switch — when off, all cells render at detail tier
   SWAP_TO_DETAIL_PX: number;    // expand to detailed instances above this
   SWAP_TO_IMPOSTOR_PX: number;  // collapse to flat box below this
   CULL_PX: number;              // hide entirely below this
@@ -24,6 +25,7 @@ export interface LodConfig {
 }
 
 export const LOD = map<LodConfig>({
+  enabled: true,
   SWAP_TO_DETAIL_PX: 3000,
   SWAP_TO_IMPOSTOR_PX: 2000,
   CULL_PX: 50,

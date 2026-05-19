@@ -81,6 +81,27 @@ export class LodEvaluator {
     force = false,
   ): void {
     const lod = LOD.get();
+
+    // LOD disabled — force every cell to detail tier, regardless of
+    // projected pixel area. Useful for QA / debugging when you want to
+    // see the full facade shader everywhere. Skips the pixel-area math
+    // entirely. The LOD store subscriber in main.ts calls reset() when
+    // `enabled` flips, so the next frame's evaluate() runs this loop
+    // even if the camera hasn't moved.
+    if (!lod.enabled) {
+      for (const cell of cells) {
+        if (cell.tier !== 'detail') {
+          cell.detailMesh.visible = true;
+          cell.impostorMesh.visible = false;
+          if (cell.labelMesh) cell.labelMesh.visible = true;
+          if (cell.streetMesh) cell.streetMesh.visible = true;
+          cell.prevTier = cell.tier;
+          cell.tier = 'detail';
+        }
+      }
+      return;
+    }
+
     const moved =
       this._lastCamPos.distanceTo(camera.position) > lod.CAMERA_MOVE_EPS;
     const resized =
