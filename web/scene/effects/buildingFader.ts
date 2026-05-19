@@ -24,7 +24,6 @@ import { parentDirPath } from '@/scene/path.js';
 import { setAdPanelOpacity } from '@/scene/adPanels.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
-import type { createFlyControls } from '@/scene/flyControls.js';
 
 interface TierResult {
   detail: FadeDetail;
@@ -48,11 +47,9 @@ function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
 export function createBuildingFader({
   cityScene,
   picker,
-  flyControls,
 }: {
   cityScene: ReturnType<typeof createCityScene>;
   picker: ReturnType<typeof createPicker>;
-  flyControls: ReturnType<typeof createFlyControls>;
 }) {
   function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {
     let dirTarget: DirNode | null = null;
@@ -142,11 +139,7 @@ export function createBuildingFader({
 
   function _sweepAll(): void {
     const sel = picker.selection.get();
-    // In fly mode the crosshair-driven hover still drives picker.hover (so
-    // the outline + sidewalk tint react), but we ignore it here so the
-    // cascade-fade of surrounding buildings doesn't run — that visual
-    // change to surroundings was specifically rejected for fly mode.
-    const hov = flyControls.isActive() ? null : picker.hover.get();
+    const hov = picker.hover.get();
 
     const bldgTargetFile =
       sel && sel.kind === NodeKind.File ? sel.file : null;
@@ -205,10 +198,6 @@ export function createBuildingFader({
   // Unsubscribe handles are kept so dispose() can clean them up.
   const _unsubSel = picker.selection.subscribe(() => _sweepAll());
   const _unsubHov = picker.hover.subscribe(() => _sweepAll());
-  // Fly mode toggles cause _sweepAll's hov-source to flip between
-  // picker.hover.get() and null, so re-sweep on every mode change so the
-  // cascade fade clears (entering fly) or restores (exiting fly).
-  const _unsubFly = flyControls.onActiveChange(() => _sweepAll());
 
   // Re-sweep after a manifest rebuild — new blocks have fresh iFade
   // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current selection still applies.
@@ -229,7 +218,6 @@ export function createBuildingFader({
   function dispose(): void {
     _unsubSel();
     _unsubHov();
-    _unsubFly();
     _unsubChange();
     _unsubCfg();
   }

@@ -1192,26 +1192,6 @@ canvas {
 
 /* ── Fly-mode reticle ──────────────────────────────────────────────────────── */
 
-/* Sits inside #center-pane (position: relative) so the reticle aligns with
-   the canvas's NDC origin — what pickAtCenter raycasts from — not the
-   viewport center, which the sidebars push the canvas off of. */
-#fly-reticle {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  margin: -3px 0 0 -3px;
-  border-radius: 50%;
-  background: color-mix(in oklch, var(--cc-white) 85%, transparent);
-  box-shadow: var(--cc-shadow-md);
-  pointer-events: none;
-  display: none;
-  z-index: 150;
-}
-#fly-reticle.is-active {
-  display: block;
-}
 
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 

@@ -1,17 +1,25 @@
-// scene/flyControls.ts — first-person fly camera control.
+// scene/flyControls.ts — fly camera control with a visible cursor.
 //
-// Owns: keyboard + pointer-lock input, velocity integration, yaw/pitch
+// Owns: keyboard + right-click-drag input, velocity integration, yaw/pitch
 // rotation, and the fly-default reset pose. Disables/re-enables the
 // shared OrbitControls (in cameraRig.ts) on enable/disable; both modes
 // share the same THREE.PerspectiveCamera.
 //
+// Input model (matches Unity / Unreal / Godot / MSFS conventions):
+//   - V toggles fly mode (persistent — stays on until toggled off).
+//   - WASD/EQ move the camera; Shift boosts. Always-on while fly mode
+//     is active, regardless of cursor position (text-input guard aside).
+//   - Right-click + drag rotates the camera (mouse-look). Cursor stays
+//     visible so the UI (sidebars, header, etc.) is interactive.
+//   - Left-click and hover behave like orbit (cursor-driven).
+//
 // Public contract:
 //   const fly = createFlyControls({ camera, canvas, rig, cityScene });
-//   fly.enable()                    // pointer-lock + listeners attached
-//   fly.disable()                   // pointer-lock released, listeners detached
+//   fly.enable()                    // listeners attached
+//   fly.disable()                   // listeners detached; orbit target re-aimed
 //   fly.update(dtMs)                // per-frame from animate loop
 //   fly.isActive()                  // boolean
-//   fly.resetToDefault()            // snap to behind-gem-looking-down-street
+//   fly.resetToDefault()            // snap above+behind gem looking down the road
 //   fly.onActiveChange(cb)          // subscribe to active-flag changes
 //   fly.dispose()
 //
@@ -80,15 +88,37 @@ export function createFlyControls(opts: FlyControlsOpts) {
   let pitch = 0;  // rotation around camera-local X (radians)
   let mouseDeltaX = 0;
   let mouseDeltaY = 0;
+  // True while the user is holding the right mouse button — the "looking"
+  // gesture. Matches the Unity / Unreal / Godot / MSFS convention. Cursor
+  // stays visible the whole time; mouse-look only happens during the drag.
+  let _lookActive = false;
 
-  // Pointer-lock mousemove handler. Pointer lock is acquired on canvas;
-  // canvas.requestPointerLock() makes subsequent mousemove events fire
-  // on canvas with movementX/Y populated. Attaching to canvas (vs document)
-  // keeps the handler scoped to this widget.
+  // mousemove fires regardless of which buttons are held. We only
+  // accumulate look delta while _lookActive (RMB held); otherwise the
+  // event is ignored so cursor-driven hover/UI work undisturbed.
+  // movementX/Y reports the delta from the previous mousemove event —
+  // works fine without pointer lock.
   function _onMouseMove(e: MouseEvent) {
-    // Accumulate deltas; update() consumes and zeroes them.
+    if (!_lookActive) return;
     mouseDeltaX += e.movementX || 0;
     mouseDeltaY += e.movementY || 0;
+  }
+
+  function _onMouseDown(e: MouseEvent) {
+    if (e.button !== 2) return; // only right-click engages look
+    _lookActive = true;
+    e.preventDefault();
+  }
+
+  function _onMouseUp(e: MouseEvent) {
+    if (e.button !== 2) return;
+    _lookActive = false;
+  }
+
+  // Suppress the browser context menu while fly mode is active — right-
+  // click is the look-engage gesture, not a menu trigger.
+  function _onContextMenu(e: Event) {
+    e.preventDefault();
   }
 
   // Scratch vectors for per-frame math — allocated once, reused across frames.
@@ -168,23 +198,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
   }
 
-  function _onPointerLockChange() {
-    // If we're active but the document no longer owns the lock, the
-    // browser revoked it (Esc, alt-tab, focus loss). Exit fly mode.
-    if (active && document.pointerLockElement !== canvas) {
-      disable();
-    }
-  }
-
-  function _onPointerLockError() {
-    // Browser refused the lock request asynchronously (Esc cooldown,
-    // iframe sandbox, etc.). Revert to orbit mode.
-    if (active) {
-      console.warn('Fly mode: pointer lock denied.');
-      disable();
-    }
-  }
-
   function _setActive(next: boolean): void {
     if (active === next) return;
     active = next;
@@ -200,12 +213,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
   function enable(): void {
     if (active) return;
-    try {
-      canvas.requestPointerLock?.();
-    } catch (_) {
-      console.warn('Fly mode: pointer lock unavailable.');
-      return;
-    }
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
     // Seed yaw/pitch from the current camera direction so entering fly
@@ -216,11 +223,15 @@ export function createFlyControls(opts: FlyControlsOpts) {
     pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
     mouseDeltaX = 0;
     mouseDeltaY = 0;
+    _lookActive = false;
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
     canvas.addEventListener('mousemove', _onMouseMove);
-    document.addEventListener('pointerlockchange', _onPointerLockChange);
-    document.addEventListener('pointerlockerror', _onPointerLockError);
+    canvas.addEventListener('mousedown', _onMouseDown);
+    // mouseup listens on document so a drag that leaves the canvas still
+    // ends cleanly on release.
+    document.addEventListener('mouseup', _onMouseUp);
+    canvas.addEventListener('contextmenu', _onContextMenu);
     _setActive(true);
   }
 
@@ -229,12 +240,14 @@ export function createFlyControls(opts: FlyControlsOpts) {
     document.removeEventListener('keydown', _onKeyDown);
     document.removeEventListener('keyup', _onKeyUp);
     canvas.removeEventListener('mousemove', _onMouseMove);
-    document.removeEventListener('pointerlockchange', _onPointerLockChange);
-    document.removeEventListener('pointerlockerror', _onPointerLockError);
+    canvas.removeEventListener('mousedown', _onMouseDown);
+    document.removeEventListener('mouseup', _onMouseUp);
+    canvas.removeEventListener('contextmenu', _onContextMenu);
     _resetKeyState();
     _velocity.set(0, 0, 0);
     mouseDeltaX = 0;
     mouseDeltaY = 0;
+    _lookActive = false;
 
     // Hand off to orbit at the SAME camera pose. OrbitControls.update()
     // will call camera.lookAt(rig.controls.target) on its first frame
@@ -259,11 +272,6 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
     rig.controls.target.copy(camera.position).addScaledVector(fwd, dist);
 
-    try {
-      document.exitPointerLock?.();
-    } catch (_) {
-      /* ignore */
-    }
     _setActive(false);
   }
 

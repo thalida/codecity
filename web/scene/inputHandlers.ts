@@ -129,12 +129,7 @@ export function createInputHandlers({
     if (_cameraMoving) return;  // suppress hover while camera is moving
     const e = _hoverLastEvt;
     if (!e) return;
-    const flyActive = flyControls.isActive();
-    // In fly mode the crosshair raycast originates from the camera center,
-    // not the (locked) pointer position. The result still flows through
-    // picker.hover so the outline + sidewalk tint react; buildingFader and
-    // ghostRenderer skip their work in fly mode (see those modules).
-    const hit = flyActive ? picker.pickAtCenter() : picker.pickAt(e.clientX, e.clientY);
+    const hit = picker.pickAt(e.clientX, e.clientY);
     let newHover = picker.interpretHit(hit);
     // Filter: directory-shaped targets that came from a stray "directory
     // building" (engine.js typically skips these) don't have a sidewalk
@@ -143,17 +138,13 @@ export function createInputHandlers({
       newHover = null;
     }
 
-    // Tooltip + cursor only in orbit mode. In fly mode the pointer is
-    // locked and the cursor stays 'none' regardless of hover state.
-    if (!flyActive) {
-      const tooltipText = _tooltipForHover(newHover);
-      if (tooltipText) {
-        showTooltip(tooltipText, e.clientX, e.clientY);
-        canvas.style.cursor = 'pointer';
-      } else {
-        hideTooltip();
-        canvas.style.cursor = 'grab';
-      }
+    const tooltipText = _tooltipForHover(newHover);
+    if (tooltipText) {
+      showTooltip(tooltipText, e.clientX, e.clientY);
+      canvas.style.cursor = 'pointer';
+    } else {
+      hideTooltip();
+      canvas.style.cursor = 'grab';
     }
 
     if (_sameHover(newHover, picker.hover.get())) {
@@ -176,9 +167,7 @@ export function createInputHandlers({
   }
 
   function _handlePick(clientX: number, clientY: number): void {
-    const hit = flyControls.isActive()
-      ? picker.pickAtCenter()
-      : picker.pickAt(clientX, clientY);
+    const hit = picker.pickAt(clientX, clientY);
     if (!hit) {
       picker.setSelection(null);
       return;
@@ -201,9 +190,7 @@ export function createInputHandlers({
   }
 
   function _focusAtPointer(clientX: number, clientY: number): void {
-    const hit = flyControls.isActive()
-      ? picker.pickAtCenter()
-      : picker.pickAt(clientX, clientY);
+    const hit = picker.pickAt(clientX, clientY);
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
@@ -228,7 +215,6 @@ export function createInputHandlers({
 
   // ── Bindings ───────────────────────────────────────────────────────
   let _disposers: Array<() => void> = [];
-  const _reticleEl = document.getElementById('fly-reticle');
   // The native EventTarget.addEventListener overloads are tightly typed
   // by event name; this helper is generic across canvas/document/window
   // and several event kinds, so the parameter types intentionally widen.
@@ -341,39 +327,17 @@ export function createInputHandlers({
     _hoverPending = null;
     if (picker.hover.get()) picker.setHover(null);
     hideTooltip();
-    canvas.style.cursor = flyControls.isActive() ? 'none' : 'grabbing';
+    canvas.style.cursor = 'grabbing';
   };
   const _cameraEndHandler = () => {
     _cameraMoving = false;
-    canvas.style.cursor = flyControls.isActive() ? 'none' : 'grab';
+    canvas.style.cursor = 'grab';
   };
   rig.controls.addEventListener('start', _cameraStartHandler);
   rig.controls.addEventListener('end', _cameraEndHandler);
   _disposers.push(() => {
     rig.controls.removeEventListener('start', _cameraStartHandler);
     rig.controls.removeEventListener('end', _cameraEndHandler);
-  });
-
-  const _flyActiveUnsub = flyControls.onActiveChange((active: boolean) => {
-    canvas.style.cursor = active ? 'none' : 'grab';
-    if (active) {
-      // Tear down any in-flight hover so it doesn't linger into fly mode.
-      hideTooltip();
-      if (_hoverRafId) {
-        cancelAnimationFrame(_hoverRafId);
-        _hoverRafId = 0;
-      }
-      if (_hoverCommitId) {
-        clearTimeout(_hoverCommitId);
-        _hoverCommitId = 0;
-      }
-      _hoverPending = null;
-      if (picker.hover.get()) picker.setHover(null);
-    }
-    if (_reticleEl) _reticleEl.classList.toggle('is-active', active);
-  });
-  _disposers.push(() => {
-    _flyActiveUnsub();
   });
 
   function _resize() {

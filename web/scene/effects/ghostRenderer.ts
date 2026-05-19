@@ -24,7 +24,6 @@ import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/constants';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
-import type { createFlyControls } from '@/scene/flyControls.js';
 import type { FileTarget } from '@/types';
 
 // Opacity for the hover ghost overlay.  Intentionally light so the ghost
@@ -43,12 +42,10 @@ export function createGhostRenderer({
   scene,
   cityScene: _cityScene,
   picker,
-  flyControls,
 }: {
   scene: THREE.Scene;
   cityScene: ReturnType<typeof createCityScene>;
   picker: ReturnType<typeof createPicker>;
-  flyControls: ReturnType<typeof createFlyControls>;
 }) {
   // Shared ghost mesh — a unit cube with a translucent MeshBasicMaterial.
   // Reused across all hover events; only one is ever visible at a time.
@@ -115,14 +112,7 @@ export function createGhostRenderer({
   // Ghost is shown only when there is a file hover AND the hovered
   // building is NOT the currently selected building (same dedup rule
   // as the hover outline in outlineRenderer).
-  //
-  // Skipped entirely in fly mode — the ghost overlay was specifically
-  // rejected as part of the fly-mode hover visual.
   picker.hover.subscribe((h) => {
-    if (flyControls.isActive()) {
-      ghostMesh.visible = false;
-      return;
-    }
     const sel = picker.selection.get();
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
@@ -131,11 +121,6 @@ export function createGhostRenderer({
     } else {
       ghostMesh.visible = false;
     }
-  });
-  // Hide the ghost when fly mode is entered (mid-hover) and let the
-  // hover subscriber rebuild it when fly mode is exited.
-  flyControls.onActiveChange((active) => {
-    if (active) ghostMesh.visible = false;
   });
 
   // Also hide the ghost when selection changes to the currently-hovered

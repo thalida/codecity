@@ -145,14 +145,14 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // outlineRenderer tracks hover/selected outline transforms + rainbow
   // chase → ghostRenderer tracks hover ghost transform → pathLineRenderer
   // ticks the rainbow chase on the selection line.
-  const fader = createBuildingFader({ cityScene, picker, flyControls });
+  const fader = createBuildingFader({ cityScene, picker });
   const outlineRenderer = createOutlineRenderer({
     canvas,
     scene,
     cityScene,
     picker,
   });
-  const ghostRenderer = createGhostRenderer({ scene, cityScene, picker, flyControls });
+  const ghostRenderer = createGhostRenderer({ scene, cityScene, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
     scene,
