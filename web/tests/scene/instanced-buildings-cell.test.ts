@@ -1,13 +1,14 @@
 // tests/scene/instanced-buildings-cell.test.ts — Round-trip write test for
 // the cell-aware building InstancedMesh factory.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { SpatialGrid } from '@/scene/spatialGrid.js';
 import { createEmptyCellTile } from '@/scene/cellTile.js';
-import { attachBuildingMeshToCell, writeBuildingToSlot } from '@/scene/instanced/buildingsCell.js';
+import { attachBuildingMeshToCell, writeBuildingToSlot, setCellIconAtlas } from '@/scene/instanced/buildingsCell.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
+import type { IconAtlas } from '@/scene/iconAtlas.js';
 
 // ---------------------------------------------------------------------------
 // Minimal Building fixture — only the fields read by writeBuildingToSlot.
@@ -47,7 +48,26 @@ function fakeBuilding(overrides: Partial<Building> & { x: number; y: number; h: 
 // Tests
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Fake IconAtlas — minimal implementation of the IconAtlas interface that
+// returns a known UV for any icon name it was seeded with.
+// ---------------------------------------------------------------------------
+
+function fakeAtlas(uvMap: Record<string, [number, number]>): IconAtlas {
+  return {
+    texture: new THREE.CanvasTexture(document.createElement('canvas')),
+    slotSize: 0.0625,
+    uvFor(name: string): [number, number] | null {
+      return uvMap[name] ?? null;
+    },
+  };
+}
+
 describe('buildingsCell factory', () => {
+  // Clear module-level atlas after each test so tests don't bleed into each other.
+  afterEach(() => {
+    setCellIconAtlas(null);
+  });
   it('attachBuildingMeshToCell replaces placeholder geometry and allocates per-instance attributes', () => {
     const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
     const cell = createEmptyCellTile(grid, 0, 64);
@@ -140,6 +160,41 @@ describe('buildingsCell factory', () => {
     const iconAttr = cell.detailMesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
     expect(iconAttr.getX(2)).toBeCloseTo(-1.0); // no icon — shader skips atlas sample
     expect(iconAttr.getY(2)).toBeCloseTo(-1.0);
+  });
+
+  it('writeBuildingToSlot writes resolved atlas UV into iconUV.xy when atlas is set', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 48, minZ: 0, maxZ: 48 });
+    const cell = createEmptyCellTile(grid, 0, 64);
+    attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
+
+    // The fake atlas returns a known UV for the "typescript" icon name that
+    // getFileIconName produces for a .ts file (icon name is looked up at
+    // runtime, so we pre-seed all plausible names the resolver might return).
+    // Using a catch-all via a Proxy isn't possible with plain objects, so we
+    // seed the two most likely names instead.
+    const knownUV: [number, number] = [0.125, 0.25];
+    const atlas = fakeAtlas({
+      'typescript': knownUV,
+      'file_type_typescript': knownUV,
+      'ts': knownUV,
+    });
+    setCellIconAtlas(atlas);
+
+    const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 4 });
+    writeBuildingToSlot(cell, b);
+
+    const iconAttr = cell.detailMesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
+    // iIconUV.xy must NOT be (-1, -1) — the atlas lookup must have succeeded.
+    const u = iconAttr.getX(4);
+    const v = iconAttr.getY(4);
+    expect(u).not.toBeCloseTo(-1.0);
+    expect(v).not.toBeCloseTo(-1.0);
+    // The exact UV must match what the atlas returned.
+    expect(u).toBeCloseTo(knownUV[0]);
+    expect(v).toBeCloseTo(knownUV[1]);
+    // iIconUV.zw (seed + createdAge) must still be intact.
+    expect(iconAttr.getZ(4)).toBeGreaterThanOrEqual(0); // seed in [0, 1)
+    expect(iconAttr.getW(4)).toBeCloseTo(0); // createdAge default
   });
 
   it('writeBuildingToSlot writes orient=0 for South (shader contract)', () => {

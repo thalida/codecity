@@ -20,6 +20,8 @@ import buildingFragSrc from '../shaders/building.frag.glsl?raw';
 import hslGlslSrc from '../shaders/hsl.glsl?raw';
 import type { CellTile } from '../cellTile.js';
 import type { Building } from '@/types/index.js';
+import type { IconAtlas } from '../iconAtlas.js';
+import { getFileIconName } from '@/views/shell/fileIcon.js';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and
@@ -99,6 +101,24 @@ function getOrCreateBuildingMaterial(uniforms: Record<string, THREE.IUniform>): 
   });
   _sharedBuildingMaterialUniforms = uniforms;
   return _sharedBuildingMaterial;
+}
+
+// ---------------------------------------------------------------------------
+// Icon atlas — module-level cache, mirroring the pattern in buildings.ts.
+// main.ts pushes the atlas in after buildIconAtlas() resolves, before the
+// first applyManifest call. If not set, iIconUV.xy stays (-1, -1) and the
+// shader skips the atlas sample (no crash, just no roof icon).
+// ---------------------------------------------------------------------------
+
+let _atlas: IconAtlas | null = null;
+
+/**
+ * Register the icon atlas for this module's cell building factory.
+ * Must be called (alongside buildings.ts's setIconAtlas) from main.ts
+ * after buildIconAtlas() resolves so roof icons appear in cell mode.
+ */
+export function setCellIconAtlas(atlas: IconAtlas | null): void {
+  _atlas = atlas;
 }
 
 // ---------------------------------------------------------------------------
@@ -231,9 +251,22 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   // --- Icon UV (top-left of atlas slot) + per-instance seed + createdAge ---
   // (-1, -1) on .xy means "no icon" — shader checks .x < 0 and skips the
   // atlas sample. Seed on .z; createdAge on .w.
+  // Mirror the lookup pattern from buildings.ts: if the module-level atlas
+  // is available and the file has a known icon, write the resolved UV;
+  // otherwise fall back to the (-1, -1) sentinel.
   const seed = seedFromPath(b.file?.path ?? '');
   const iIconUVAttr = mesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
-  iIconUVAttr.setXYZW(slot, -1.0, -1.0, seed, b.createdAge ?? 0);
+  let iconU = -1.0;
+  let iconV = -1.0;
+  if (_atlas && b.file) {
+    const iconName = getFileIconName(b.file);
+    const uv = _atlas.uvFor(iconName);
+    if (uv) {
+      iconU = uv[0];
+      iconV = uv[1];
+    }
+  }
+  iIconUVAttr.setXYZW(slot, iconU, iconV, seed, b.createdAge ?? 0);
 
   // --- Modified age ---
   const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as THREE.InstancedBufferAttribute;

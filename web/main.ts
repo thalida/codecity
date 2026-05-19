@@ -51,6 +51,7 @@ import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
 import { buildIconAtlas } from './scene/iconAtlas.js';
 import { setIconAtlas } from './scene/instanced/buildings.js';
+import { setCellIconAtlas } from './scene/instanced/buildingsCell.js';
 import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
 import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
 import { streamManifest } from './manifestStream.js';
@@ -963,7 +964,9 @@ if (_canvas) {
             const _atlasT0 = performance.now();
             console.log('[boot] buildIconAtlas starting');
             try {
-              setIconAtlas(await buildIconAtlas(m));
+              const _builtAtlas = await buildIconAtlas(m);
+              setIconAtlas(_builtAtlas);
+              setCellIconAtlas(_builtAtlas);
               console.log('[boot] buildIconAtlas done', { elapsedMs: performance.now() - _atlasT0 });
             } catch (err) {
               console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
@@ -1110,7 +1113,9 @@ if (_canvas) {
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
 
         try {
-          setIconAtlas(await buildIconAtlas(manifest));
+          const _builtAtlas = await buildIconAtlas(manifest);
+          setIconAtlas(_builtAtlas);
+          setCellIconAtlas(_builtAtlas);
         } catch (err) {
           console.warn('[codecity] icon atlas build failed', err);
         }
