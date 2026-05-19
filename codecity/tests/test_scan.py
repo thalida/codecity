@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from codecity.scan import (
     _extension,
     _is_binary,
+    compute_tree_signature,
     scan_tree,
     signature_tree,
 )
@@ -746,6 +747,127 @@ def _line_count_real():
     real implementation while also mocking it."""
     from codecity.scan import _line_count
     return _line_count
+
+
+class TreeSignatureTests(unittest.TestCase):
+    """compute_tree_signature produces a stable, structure-only fingerprint.
+
+    The signature must:
+    1. Be identical for identical tree shapes regardless of file metadata.
+    2. Change when a file or directory is added or renamed.
+    3. Be deterministic across multiple calls for the same tree.
+    4. Be present in BOTH skeleton and final manifest events for the same scan.
+    """
+
+    def _make_tree(self, entries: list[dict]) -> dict:
+        """Build a minimal DirNode-like dict for testing."""
+        return {
+            "type": "directory",
+            "path": ".",
+            "name": "root",
+            "children": entries,
+        }
+
+    def _make_file(self, path: str, size: int = 100, mtime: float = 1_000_000.0) -> dict:
+        """Build a minimal FileNode-like dict for testing."""
+        return {
+            "type": "file",
+            "path": path,
+            "name": path.rsplit("/", 1)[-1],
+            "size": size,
+            "mtime": mtime,
+        }
+
+    def test_same_shape_same_metadata_produces_same_signature(self):
+        tree = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
+        self.assertEqual(compute_tree_signature(tree), compute_tree_signature(tree))
+
+    def test_same_shape_different_metadata_produces_same_signature(self):
+        # Metadata (size, mtime) must NOT affect tree_signature.
+        tree_a = self._make_tree([self._make_file("a.py", size=100, mtime=1.0)])
+        tree_b = self._make_tree([self._make_file("a.py", size=999, mtime=9.9)])
+        self.assertEqual(compute_tree_signature(tree_a), compute_tree_signature(tree_b))
+
+    def test_adding_a_file_changes_signature(self):
+        tree_before = self._make_tree([self._make_file("a.py")])
+        tree_after = self._make_tree([self._make_file("a.py"), self._make_file("b.py")])
+        self.assertNotEqual(
+            compute_tree_signature(tree_before),
+            compute_tree_signature(tree_after),
+        )
+
+    def test_renaming_a_file_changes_signature(self):
+        tree_before = self._make_tree([self._make_file("a.py")])
+        tree_after = self._make_tree([self._make_file("z.py")])
+        self.assertNotEqual(
+            compute_tree_signature(tree_before),
+            compute_tree_signature(tree_after),
+        )
+
+    def test_adding_a_directory_changes_signature(self):
+        tree_before = self._make_tree([self._make_file("a.py")])
+        tree_after = self._make_tree([
+            self._make_file("a.py"),
+            {
+                "type": "directory",
+                "path": "sub",
+                "name": "sub",
+                "children": [self._make_file("sub/b.py")],
+            },
+        ])
+        self.assertNotEqual(
+            compute_tree_signature(tree_before),
+            compute_tree_signature(tree_after),
+        )
+
+    def test_deterministic_across_repeated_calls(self):
+        tree = self._make_tree([
+            self._make_file("a.py"),
+            self._make_file("b.py"),
+            {
+                "type": "directory",
+                "path": "pkg",
+                "name": "pkg",
+                "children": [self._make_file("pkg/c.py")],
+            },
+        ])
+        results = {compute_tree_signature(tree) for _ in range(5)}
+        self.assertEqual(len(results), 1, "compute_tree_signature must be deterministic")
+
+    def test_returns_hex_string_of_expected_length(self):
+        # blake2b digest_size=8 → 8 bytes → 16 hex chars.
+        tree = self._make_tree([self._make_file("a.py")])
+        sig = compute_tree_signature(tree)
+        self.assertIsInstance(sig, str)
+        self.assertEqual(len(sig), 16)
+        int(sig, 16)  # must be valid hex — raises ValueError if not
+
+    def test_skeleton_and_final_manifests_share_same_tree_signature(self):
+        """The same tree_signature must appear in both the skeleton and final
+        manifest events for the same scan — the whole point of this feature."""
+        from codecity.scan import scan_tree_streaming
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "hello.py").write_text("x = 1\n")
+            (Path(td) / "world.py").write_text("y = 2\n")
+            events = list(scan_tree_streaming(td))
+        self.assertEqual(len(events), 2)
+        skeleton_sig = events[0]["manifest"]["tree_signature"]
+        final_sig = events[1]["manifest"]["tree_signature"]
+        self.assertEqual(skeleton_sig, final_sig,
+                         "skeleton and final manifests must carry the same tree_signature")
+
+    def test_tree_signature_stable_when_only_metadata_changes(self):
+        """tree_signature must be unchanged when only file content/lines/binary
+        differs — i.e., between skeleton and final phases."""
+        from codecity.scan import scan_tree_streaming
+        with tempfile.TemporaryDirectory() as td:
+            (Path(td) / "a.py").write_text("x = 1\n" * 100)
+            events = list(scan_tree_streaming(td))
+        skeleton = events[0]["manifest"]
+        final = events[1]["manifest"]
+        # Metadata-sensitive signature changes between skeleton and final.
+        # tree_signature must NOT change.
+        self.assertEqual(skeleton["tree_signature"], final["tree_signature"])
 
 
 class ScanTreeStreamingTests(unittest.TestCase):

@@ -73,7 +73,11 @@ export const CAMERA_CONTROLS = map<CameraControlsConfig>({
   DAMPING_FACTOR: 0.08, // OrbitControls inertia (higher = snappier)
   MAX_POLAR_ANGLE_FRAC: 0.49, // × Math.PI; how close to vertical orbit can go
   MIN_DISTANCE: 30, // closest zoom (world units)
-  MAX_DISTANCE_MULT: 4, // furthest zoom = initial distance × this
+  MAX_DISTANCE_MULT: 1.5, // furthest zoom = initial distance × this. Kept tight
+                          // so a 1° drag rotation still produces perceptible
+                          // screen-space motion even on enormous repos (Linux):
+                          // beyond ~2×, world-radius rotation falls below 1
+                          // screen pixel and controls feel "stuck".
   INITIAL_DISTANCE_MULT: 0.95, // boot framing tightness (1.0 = exact bbox fit)
 });
 

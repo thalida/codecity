@@ -288,6 +288,41 @@ export function getBuildingDimensions(
   };
 }
 
+// HeightContext — project-wide stats needed to reproduce getBuildingDimensions
+// for a single file without re-running the full layout. Derive it once from
+// the new manifest's tree via makeHeightContext(), then pass to
+// recomputeBuildingDimensions() for each building in Phase 2.
+export interface HeightContext {
+  lineStats: RangeStat;
+  byteStats: RangeStat;
+}
+
+// makeHeightContext(tree) → HeightContext
+//
+// Walks the manifest tree once and returns the project-wide line + byte ranges
+// needed by recomputeBuildingDimensions. Thin wrapper over computeFileStats
+// with a named return type so call sites are self-documenting.
+export function makeHeightContext(tree: TreeLike): HeightContext {
+  const stats = computeFileStats(tree);
+  return { lineStats: stats.lines, byteStats: stats.bytes };
+}
+
+// recomputeBuildingDimensions(file, ctx) → { w, d, h, floors }
+//
+// Re-derives a single building's dimensions (height, footprint, floor count)
+// from its FileNode and the project-wide HeightContext. Delegates to
+// getBuildingDimensions with the context stats unpacked.
+//
+// Use this in Phase 2 of applyManifest so that the cached layout (which holds
+// skeleton-era placeholder dimensions) is updated to reflect the final
+// manifest's real per-file sizes and line counts.
+export function recomputeBuildingDimensions(
+  file: FileLike,
+  ctx: HeightContext,
+): { w: number; d: number; h: number; floors: number } {
+  return getBuildingDimensions(file, ctx.lineStats, ctx.byteStats);
+}
+
 // -----------------------------------------------------------------------------
 // layoutCity(manifest) -> { streets, buildings, paths }
 //

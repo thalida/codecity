@@ -373,6 +373,20 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
 }
 
 /**
+ * Return the shared building material's uniforms dict so cell-aware
+ * factories (buildingsCell.ts) can share the same uniform VALUE objects.
+ * Lazily initialises the singleton material if it hasn't been created yet.
+ *
+ * Cell-path usage: each CellTile gets its own ShaderMaterial created by
+ * attachBuildingMeshToCell, but they all reference the same uniform value
+ * objects returned here — so refreshBuildingMaterial() updates all cells
+ * automatically (it mutates the value objects in-place).
+ */
+export function getSharedBuildingUniforms(): Record<string, THREE.IUniform> {
+  return getBuildingMaterial().uniforms;
+}
+
+/**
  * applyTheme() coordinator hook: push fresh BUILDING_OUTLINE.WIDTH into
  * the shared building material's uOutlineWidth uniform so the Hidden-tier
  * wireframe thickness honors live config edits.

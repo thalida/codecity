@@ -187,6 +187,7 @@ describe('layoutCityV4WithTrace', () => {
       root: '/tmp/root',
       scanned_at: '2026-05-11T00:00:00Z',
       signature: 'test',
+      tree_signature: 'test-fp-1234',
       repo: null,
       tree,
     };
@@ -249,6 +250,7 @@ describe('layoutCityV4WithTrace', () => {
       root: '/tmp/root',
       scanned_at: '2026-05-11T00:00:00Z',
       signature: 'test2',
+      tree_signature: 'test-fp-5678',
       repo: null,
       tree,
     };

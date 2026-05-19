@@ -6,6 +6,8 @@ import type { Building } from './building';
 import type { Street } from './street';
 import type { DirNode, FileNode, NodeKind } from './manifest';
 import type { SceneBlock } from '@/scene/blocks.js';
+import type { BuildingIndex } from '@/scene/buildingIndex.js';
+import type { CellTile } from '@/scene/cellTile.js';
 
 /** Hovered/selected file (a building mesh). */
 export interface FileTarget {
@@ -59,4 +61,8 @@ export interface PickerCityScene {
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
   onChange(cb: () => void): () => void;
+  /** Cell-mode: returns the BuildingIndex, or null in legacy block mode. */
+  getBuildingIndex(): BuildingIndex | null;
+  /** Cell-mode: returns the cells map, or an empty Map in legacy block mode. */
+  getCells(): Map<number, CellTile>;
 }

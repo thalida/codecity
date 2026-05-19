@@ -39,7 +39,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
-import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import { createBuildingsInstancedMesh, getSharedBuildingUniforms } from './instanced/buildings.js';
 import { createAdPanel, disposeAdPanel, isMediaFile } from './adPanels.js';
 import {
   buildLabelAtlas,
@@ -47,9 +47,14 @@ import {
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
+import { buildCellsFromLayout } from './cellAssembly.js';
+import type { CellTile } from './cellTile.js';
+import { BuildingIndex } from './buildingIndex.js';
+import type { SpatialGrid } from './spatialGrid.js';
 import { findLayoutOverlaps } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
 import { createLayoutClient } from './layoutClient.js';
+import type { LayoutComputeOpts } from './layoutClient.js';
 import { layoutCityV4WithTrace } from './layoutV4.js';
 import type {
   ChildPlacementTrace,
@@ -59,13 +64,26 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
+import {
+  ASPHALT,
+  CELL_RENDERING,
+  GEM_APPEARANCE,
+  GEM_FACE_PALETTE,
+  GEM_GLOW,
+  GEM_SIZING,
+  LABEL_TYPOGRAPHY,
+  SCENE_COLORS,
+  SIDEWALK_COLORS,
+  debugBoot,
+  debugCell,
+} from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
 import type {
   Building,
   CityLayout,
   CitySceneDiff,
   DateRanges,
+  DirNode,
   EnteringBuilding,
   EnteringStreet,
   ExitingEntry,
@@ -88,6 +106,10 @@ interface PrevState {
   rootGem: THREE.Group | null;
   manifest: Manifest | null;
   layout: CityLayout | null;
+  /** Cell mode: snapshot of cells before they are replaced/disposed. */
+  cells: Map<number, CellTile>;
+  /** Cell mode: snapshot of building index before it is replaced. */
+  buildingIndex: BuildingIndex | null;
 }
 
 // 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
@@ -303,6 +325,65 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building; block: SceneBlock; instanceId: number }> = {};
   let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
+  // Task 8: cell-rendering state. Only populated when CELL_RENDERING.enabled.
+  // Kept separate from the legacy block state so each path stays independent.
+  let _cellRoot: THREE.Group | null = null;
+  let _cells: Map<number, CellTile> = new Map();
+  let _buildingIndex: BuildingIndex | null = null;
+  let _grid: SpatialGrid | null = null;
+  // Tasks 16-17: instanced ad panels (DataArrayTexture-backed). One instance
+  // per applyManifest call in cell mode; disposed on full rebuild or resetCache.
+  let _instancedAdPanels: import('./instanced/adPanelsInstanced.js').InstancedAdPanels | null = null;
+
+  // [cell-debug] Layout cache: avoid redundant _layoutClient.compute() when
+  // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
+  // Keyed by manifest.tree_signature — computed server-side from paths + nesting
+  // only (no mtime/size), so it is stable across skeleton/final events for the
+  // same scan even though per-file metadata differs between the two phases.
+  let _cachedLayoutTreeSig: string | null = null;
+  let _cachedLayout: CityLayout | null = null;
+
+  // Scenic state cache: tracks the tree_signature that was used the last time
+  // buildCityScene ran successfully (in the cell branch). When the layout is
+  // reused AND this signature matches the current manifest's tree_signature,
+  // the streets/labels/paths/gem meshes are already in the scene and identical
+  // to what a fresh buildCityScene call would produce — so we skip the call.
+  // Cleared by resetCache() when the user switches source (different tree shape).
+  let _lastBuildCitySceneTreeSig: string | null = null;
+
+  // Scenic config hash: a JSON snapshot of all config stores whose values are
+  // baked into buildCityScene output (street geometry/color, sidewalk color,
+  // label typography, gem appearance). Stored alongside _lastBuildCitySceneTreeSig
+  // after every successful buildCityScene call. On cache-hit, we also check this
+  // hash — if it differs (e.g. user changed SIDEWALK_COLORS.DEFAULT via Settings),
+  // we force a full scenic rebuild even though the tree_signature hasn't changed.
+  let _lastScenicConfigHash: string | null = null;
+
+  // computeScenicConfigHash collects the current values of every store whose
+  // output is baked into buildCityScene meshes:
+  //   - SCENE_COLORS  : scene background (GROUND); baked into scene.background
+  //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
+  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
+  //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
+  //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
+  //                     baked into gem geometry and position
+  //   - GEM_FACE_PALETTE: vertex colors baked into gem octahedron BufferAttribute
+  //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
+  //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
+  // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildCityScene.
+  function computeScenicConfigHash(): string {
+    return JSON.stringify({
+      sceneColors: SCENE_COLORS.get(),
+      asphalt: ASPHALT.get(),
+      sidewalkColors: SIDEWALK_COLORS.get(),
+      labelTypography: LABEL_TYPOGRAPHY.get(),
+      gemSizing: GEM_SIZING.get(),
+      gemFacePalette: GEM_FACE_PALETTE.get(),
+      gemAppearance: GEM_APPEARANCE.get(),
+      gemGlow: GEM_GLOW.get(),
+    });
+  }
+
   // Listeners
 
   const beforeChangeCbs: Array<(prev: PrevState) => void> = [];
@@ -343,6 +424,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Generic three.js disposer. Walks geometry → materials → any own
   // property of each material whose value is a THREE.Texture. Idempotent
   // via userData.disposed.
+  //
+  // Special case: if the object carries `userData.sharedMaterial = true`
+  // the material is module-owned (shared across many cells) and must NOT
+  // be disposed here — only the geometry is released. This prevents the
+  // cell-path atomic swap (which traverses the old cell root with this
+  // function) from invalidating the shared ShaderMaterial that the new
+  // cell root's meshes already reference.
   function _disposeObject(obj: THREE.Object3D | null): void {
     if (!obj || obj.userData?.disposed) return;
     // Disposable shape: any object that may carry .geometry / .material
@@ -356,16 +444,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     }
     const d = obj as unknown as DisposableObj;
     if (d.geometry?.dispose) d.geometry.dispose();
-    const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
-    for (const m of mats) {
-      if (!m) continue;
-      // Dispose any texture attached to this material.
-      for (const key in m) {
-        if (!Object.hasOwn(m, key)) continue;
-        const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-        if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
+    // Skip material disposal for meshes whose material is module-owned and
+    // shared across cell tiles (buildingsCell.ts / labelsCell.ts factories).
+    if (!obj.userData?.sharedMaterial) {
+      const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
+      for (const m of mats) {
+        if (!m) continue;
+        // Dispose any texture attached to this material.
+        for (const key in m) {
+          if (!Object.hasOwn(m, key)) continue;
+          const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
+          if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
+        }
+        if (typeof m.dispose === 'function') m.dispose();
       }
-      if (typeof m.dispose === 'function') m.dispose();
     }
     if (obj.userData) obj.userData.disposed = true;
   }
@@ -522,10 +614,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     // --- Buildings diff (InstancedMesh semantics) ---
     //
-    // Build a map from file.path → prior transform (scale + position)
-    // from the PREVIOUS blocks. We read the instance matrix directly from
-    // detailMesh to capture whatever the animator left it at (so a
-    // rapid edit doesn't snap to the layout position).
+    // Build a map from file.path → prior transform (scale + position).
+    // In legacy block mode: read the instance matrix from detailMesh to capture
+    // whatever the animator left it at (so a rapid edit doesn't snap to layout).
+    // In cell mode: read from each cell's detailMesh at the building's slotId.
     const prevTransforms = new Map<
       string,
       { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
@@ -534,54 +626,89 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const _pos = new THREE.Vector3();
     const _scale = new THREE.Vector3();
     const _quat = new THREE.Quaternion();
-    for (const pb of prev.blocks) {
-      for (let i = 0; i < pb.buildings.length; i++) {
-        const b = pb.buildings[i];
-        if (!b.file?.path) continue;
-        if (pb.detailMesh) {
-          pb.detailMesh.getMatrixAt(i, _readMatrix);
-          _readMatrix.decompose(_pos, _quat, _scale);
-          prevTransforms.set(b.file.path, {
-            scaleX: _scale.x,
-            scaleY: _scale.y,
-            scaleZ: _scale.z,
-            posX: _pos.x,
-            posY: _pos.y,
-            posZ: _pos.z,
-          });
-        } else {
-          // No mesh (block was empty / not yet built): record layout values
-          // so staying buildings get a sensible from-transform.
-          prevTransforms.set(b.file.path, {
-            scaleX: b.w,
-            scaleY: b.h,
-            scaleZ: b.d,
-            posX: b.x,
-            posY: b.h / 2,
-            posZ: b.y,
-          });
+
+    if (prev.cells.size > 0) {
+      // Cell mode: read prior transforms from the old CellTile meshes.
+      // NOTE: prev.cells is the snapshot captured before _cells was replaced.
+      // The old cell root may already be disposed, but the CellTile.detailMesh
+      // references are still valid until GC collects them — we only read, not draw.
+      for (const cell of prev.cells.values()) {
+        for (let slot = 0; slot < cell.buildings.length; slot++) {
+          const b = cell.buildings[slot];
+          if (!b?.file?.path) continue;
+          if (cell.detailMesh) {
+            cell.detailMesh.getMatrixAt(slot, _readMatrix);
+            _readMatrix.decompose(_pos, _quat, _scale);
+            prevTransforms.set(b.file.path, {
+              scaleX: _scale.x,
+              scaleY: _scale.y,
+              scaleZ: _scale.z,
+              posX: _pos.x,
+              posY: _pos.y,
+              posZ: _pos.z,
+            });
+          } else {
+            prevTransforms.set(b.file.path, {
+              scaleX: b.w,
+              scaleY: b.h,
+              scaleZ: b.d,
+              posX: b.x,
+              posY: b.h / 2,
+              posZ: b.y,
+            });
+          }
+        }
+      }
+    } else {
+      // Legacy block mode: read prior transforms from SceneBlock.detailMesh.
+      for (const pb of prev.blocks) {
+        for (let i = 0; i < pb.buildings.length; i++) {
+          const b = pb.buildings[i];
+          if (!b.file?.path) continue;
+          if (pb.detailMesh) {
+            pb.detailMesh.getMatrixAt(i, _readMatrix);
+            _readMatrix.decompose(_pos, _quat, _scale);
+            prevTransforms.set(b.file.path, {
+              scaleX: _scale.x,
+              scaleY: _scale.y,
+              scaleZ: _scale.z,
+              posX: _pos.x,
+              posY: _pos.y,
+              posZ: _pos.z,
+            });
+          } else {
+            // No mesh (block was empty / not yet built): record layout values
+            // so staying buildings get a sensible from-transform.
+            prevTransforms.set(b.file.path, {
+              scaleX: b.w,
+              scaleY: b.h,
+              scaleZ: b.d,
+              posX: b.x,
+              posY: b.h / 2,
+              posZ: b.y,
+            });
+          }
         }
       }
     }
 
-    // Walk new blocks and classify each instance as entering or staying.
-    for (const nb of blocks) {
-      for (let i = 0; i < nb.buildings.length; i++) {
-        const b = nb.buildings[i];
-        // Media files now render as regular building cuboids (with an
-        // additive ad-panel mesh — see block.adPanels). No special case.
+    if (_cells.size > 0 && _buildingIndex) {
+      // Cell mode: walk the new BuildingIndex to classify entering vs staying.
+      for (const b of _buildingIndex.byPath.values()) {
+        if (!b.file?.path) continue;
         const newScaleX = b.w;
         const newScaleY = b.h;
         const newScaleZ = b.d;
         const newPosX = b.x;
         const newPosY = b.h / 2;
         const newPosZ = b.y;
+        const instanceId = b.slotId ?? 0;
 
-        const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+        const prior = prevTransforms.get(b.file.path);
         if (prior) {
           staying.buildings.push({
-            block: nb,
-            instanceId: i,
+            building: b,
+            instanceId,
             newScaleX,
             newScaleY,
             newScaleZ,
@@ -597,8 +724,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           });
         } else {
           entering.buildings.push({
-            block: nb,
-            instanceId: i,
+            building: b,
+            instanceId,
             newScaleX,
             newScaleY,
             newScaleZ,
@@ -608,15 +735,67 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           });
         }
       }
+    } else {
+      // Legacy block mode: walk new blocks to classify entering vs staying.
+      for (const nb of blocks) {
+        for (let i = 0; i < nb.buildings.length; i++) {
+          const b = nb.buildings[i];
+          // Media files now render as regular building cuboids (with an
+          // additive ad-panel mesh — see block.adPanels). No special case.
+          const newScaleX = b.w;
+          const newScaleY = b.h;
+          const newScaleZ = b.d;
+          const newPosX = b.x;
+          const newPosY = b.h / 2;
+          const newPosZ = b.y;
+
+          const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+          if (prior) {
+            staying.buildings.push({
+              block: nb,
+              instanceId: i,
+              building: b,
+              newScaleX,
+              newScaleY,
+              newScaleZ,
+              newPosX,
+              newPosY,
+              newPosZ,
+              oldScaleX: prior.scaleX,
+              oldScaleY: prior.scaleY,
+              oldScaleZ: prior.scaleZ,
+              oldPosX: prior.posX,
+              oldPosY: prior.posY,
+              oldPosZ: prior.posZ,
+            });
+          } else {
+            entering.buildings.push({
+              block: nb,
+              instanceId: i,
+              building: b,
+              newScaleX,
+              newScaleY,
+              newScaleZ,
+              newPosX,
+              newPosY,
+              newPosZ,
+            });
+          }
+        }
+      }
     }
 
     // Exiting buildings: paths present in prev but absent from new.
     // V1: no exit animation — they just vanish when blocks are rebuilt.
     // We still populate the exiting bucket so subscribers can track counts.
     const newPaths = new Set<string>();
-    for (const nb of blocks) {
-      for (const b of nb.buildings) {
-        if (b.file?.path) newPaths.add(b.file.path);
+    if (_cells.size > 0 && _buildingIndex) {
+      for (const path of _buildingIndex.byPath.keys()) newPaths.add(path);
+    } else {
+      for (const nb of blocks) {
+        for (const b of nb.buildings) {
+          if (b.file?.path) newPaths.add(b.file.path);
+        }
       }
     }
     for (const [path] of prevTransforms) {
@@ -657,6 +836,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   async function applyManifest(
     newManifest: Manifest | { tree: unknown; [k: string]: unknown },
   ): Promise<void> {
+    // [cell-debug]
+    const amT0 = performance.now();
+
     const myGeneration = ++_currentGeneration;
 
     const prev: PrevState = {
@@ -669,6 +851,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       rootGem,
       manifest,
       layout,
+      cells: _cells,
+      buildingIndex: _buildingIndex,
     };
 
     _emit(beforeChangeCbs, prev);
@@ -676,7 +860,19 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // ---- Phase 1: compute the new layout off-thread via layoutClient.
     // A later applyManifest can preempt us by bumping _currentGeneration;
     // layoutClient signals that via a 'superseded' rejection.
+    // [cell-debug]
+    debugBoot('[boot] applyManifest: phase 1 layout start');
+    const _amPhase1Start = performance.now();
     const newManifestTyped = newManifest as Manifest;
+    // Use the server-computed tree_signature as the layout-cache key.
+    // It is structure-only (paths + nesting, NO mtime/size), so it is
+    // stable across skeleton/final events for the same scan.
+    const _treeSig = newManifestTyped.tree_signature ?? '';
+    const _reuseFrom =
+      _treeSig && _cachedLayoutTreeSig === _treeSig ? _cachedLayout : null;
+    const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom
+      ? { reuseLayoutFrom: _reuseFrom }
+      : {};
     let newLayout: CityLayout;
     // Pass the full manifest envelope (not `manifest.tree`) — the worker
     // forwards it to layoutCityV4, which internally unwraps `.tree` via
@@ -687,19 +883,34 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // expected when a newer applyManifest preempts us — return silently
     // so the newer run owns the swap.
     try {
-      newLayout = await _layoutClient.compute(newManifestTyped);
+      newLayout = await _layoutClient.compute(newManifestTyped, _layoutComputeOpts);
     } catch (err) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
+    const _layoutReused = _reuseFrom !== null;
+    // Cache the layout for the next call (keyed by tree_signature).
+    if (_treeSig) {
+      _cachedLayoutTreeSig = _treeSig;
+      _cachedLayout = newLayout;
+    }
+    // [cell-debug]
+    debugBoot('[boot] applyManifest: phase 1 layout done', {
+      reused: _layoutReused,
+      elapsedMs: performance.now() - _amPhase1Start,
+      buildings: newLayout?.buildings?.length ?? 0,
+    });
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
-    // building list. dateRanges and the color loop don't touch the scene yet.
+    // building list. File refs and dimensions are already correct — layoutClient
+    // recomputed them via reuseLayout (cheap path) or the worker produced them
+    // fresh (full compute). dateRanges and the color loops don't touch the scene yet.
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
     );
     const newBuildings = newLayout?.buildings ?? [];
+
     for (const b of newBuildings) {
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see layoutV4.ts).
@@ -719,7 +930,233 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         newDateRanges,
       );
     }
+    // [cell-debug]
+    debugBoot('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
     if (myGeneration !== _currentGeneration) return;
+
+    // ---- Cell rendering path (CELL_RENDERING.enabled) ---------------------
+    // When the flag is on we skip the legacy block assembly entirely and
+    // build a SpatialGrid + CellTile scene instead. The atomic swap disposes
+    // the previous cell root, builds a fresh one, and returns early so none
+    // of the legacy Phase 3/4 code runs.
+    // The layout is already correct (file refs + dimensions recomputed by
+    // layoutClient.reuseLayout on cache-hit, or freshly computed by the
+    // worker on cache-miss), so this single path handles all cases.
+    if (CELL_RENDERING.get().enabled) {
+      // [cell-debug]
+      const _cellT0 = performance.now();
+      debugCell('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
+
+      // Derive WorldBounds from the layout bbox. Fall back to building extents
+      // if bbox is absent (shouldn't happen for a real manifest, but safe).
+      const lb = newLayout.bbox;
+      const bounds = lb
+        ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
+        : (() => {
+            let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+            for (const b of newBuildings) {
+              if (b.x - b.w / 2 < minX) minX = b.x - b.w / 2;
+              if (b.x + b.w / 2 > maxX) maxX = b.x + b.w / 2;
+              if (b.y - b.d / 2 < minZ) minZ = b.y - b.d / 2;
+              if (b.y + b.d / 2 > maxZ) maxZ = b.y + b.d / 2;
+            }
+            return { minX, maxX, minZ, maxZ };
+          })();
+
+      // [cell-debug]
+      debugCell('[cell] 2: bounds computed', { bounds, elapsedMs: performance.now() - _cellT0 });
+
+      // Build the cell scene (buildings only — streets/labels/paths/gem
+      // remain on the legacy path below).
+      // [cell-debug]
+      const _cellBuildT0 = performance.now();
+      debugCell('[cell] 3a: buildCellsFromLayout starting', { buildings: newBuildings.length });
+      const cellOut = buildCellsFromLayout(bounds, newBuildings, getSharedBuildingUniforms());
+      // [cell-debug]
+      debugCell('[cell] 3b: buildCellsFromLayout done', { cells: cellOut.cells.size, elapsedMs: performance.now() - _cellBuildT0 });
+
+      // [cell-debug]
+      debugCell('[cell] 4: generation check', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
+      if (myGeneration !== _currentGeneration) {
+        // Superseded while we were building — clean up and bail.
+        cellOut.sceneRoot.traverse(_disposeObject);
+        return;
+      }
+
+      // ---- Atomic swap (cell path) ----
+      //
+      // Scenic state reuse: when the layout was reused (same tree_signature,
+      // positions/streets/paths unchanged) AND buildCityScene was already run
+      // for this signature, AND none of the config stores that affect scenic
+      // output have changed (same config hash), the streets/labels/paths/gem
+      // meshes are already in the scene and would produce identical output —
+      // skip the dispose + rebuild. Only the cell root is always rebuilt
+      // (fast) to reflect updated per-file metadata (colors, heights).
+      const _currentScenicConfigHash = computeScenicConfigHash();
+      const _scenicValid =
+        _layoutReused &&
+        _lastBuildCitySceneTreeSig !== null &&
+        _lastBuildCitySceneTreeSig === _treeSig &&
+        _lastScenicConfigHash === _currentScenicConfigHash &&
+        streetPickables.length > 0; // guard: scenic state actually exists in scene
+
+      if (_scenicValid) {
+        // [cell-debug]
+        debugCell('[cell] 8: scenic state reused (skipping buildCityScene)', {
+          treeSig: _treeSig,
+          configHashMatch: true,
+          streets: streetPickables.length,
+          elapsedMs: performance.now() - _cellT0,
+        });
+        // Do NOT call _disposeAllManifestState() — existing streets/labels/
+        // paths/gem stay in the scene unmodified. Do NOT call buildCityScene.
+
+        // Dispose old cell root before the new one is swapped in.
+        // [cell-debug]
+        debugCell('[cell] 6: disposing old cell root (scenic reuse)', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        if (_cellRoot) {
+          _cellRoot.traverse(_disposeObject);
+          if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
+        }
+        // Dispose old instanced ad panels (layout reused → new ad panels from cellOut).
+        if (_instancedAdPanels) {
+          _instancedAdPanels.dispose();
+          _instancedAdPanels = null;
+        }
+
+        manifest = newManifestTyped;
+        layout = newLayout;
+        dateRanges = newDateRanges;
+        // bbox stays from the previous buildCityScene call (layout unchanged).
+
+        _cellRoot = cellOut.sceneRoot;
+        _cells = cellOut.cells;
+        _buildingIndex = cellOut.index;
+        _grid = cellOut.grid;
+        _instancedAdPanels = cellOut.adPanels;
+        // [cell-debug]
+        debugCell('[cell] 7: module-level state assigned (cells, index, grid) — scenic reuse', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+
+        // Add the new cell root (instanced building InstancedMeshes + ad panels).
+        // [cell-debug]
+        debugCell('[cell] 11: adding _cellRoot to scene (scenic reuse)', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        scene.add(_cellRoot);
+      } else {
+        // Full rebuild path: dispose existing scenic state, run buildCityScene,
+        // and add the new meshes to the scene.
+
+        // Diagnose why scenic reuse was skipped. When layout was reused but the
+        // config hash changed, it's a theme/color change that bakes into meshes.
+        if (_layoutReused && _lastBuildCitySceneTreeSig === _treeSig) {
+          // [cell-debug]
+          debugCell('[cell] 8: scenic state invalidated by config change', {
+            treeSig: _treeSig,
+            streets: streetPickables.length,
+            elapsedMs: performance.now() - _cellT0,
+          });
+        }
+
+        // [cell-debug]
+        debugCell('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
+        _disposeAllManifestState();
+
+        // Dispose old cell root if present. No atlas textures to dispose on the
+        // cell path (labels use the legacy streetLabels path, not a cell atlas).
+        // [cell-debug]
+        debugCell('[cell] 6: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        if (_cellRoot) {
+          _cellRoot.traverse(_disposeObject);
+          if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
+        }
+        // Dispose old instanced ad panels before swapping in new ones.
+        if (_instancedAdPanels) {
+          _instancedAdPanels.dispose();
+          _instancedAdPanels = null;
+        }
+        for (const tex of _atlasTextures) tex.dispose();
+        _atlasTextures = [];
+
+        manifest = newManifestTyped;
+        layout = newLayout;
+        dateRanges = newDateRanges;
+
+        _cellRoot = cellOut.sceneRoot;
+        _cells = cellOut.cells;
+        _buildingIndex = cellOut.index;
+        _grid = cellOut.grid;
+        _instancedAdPanels = cellOut.adPanels;
+        // [cell-debug]
+        debugCell('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+
+        // Also build the streets/paths/gem sub-scene from buildCityScene so
+        // sidewalks, asphalt, and the root gem still appear. The cell
+        // path replaces buildings; non-building scene elements are still needed.
+        //
+        // skipBuildings: true — omits per-building path-connector meshes
+        // (one mesh per layout.paths entry, ~N_buildings total). For a large
+        // repo those meshes dominate cellBuilt.scene.children and cause a
+        // multi-second stall in the scene.add() loop below (log marker 9→10).
+        // Cell mode has no per-building interactivity that needs connectors.
+        // [cell-debug]
+        const _cellBuildSceneT0 = performance.now();
+        debugCell('[cell] 8a: buildCityScene starting');
+        const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
+        // [cell-debug]
+        debugCell('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
+        bbox = cellBuilt.bbox;
+
+        streetPickables = cellBuilt.streetPickables || [];
+        streetLabels = cellBuilt.streetLabels || [];
+        pathMeshes = cellBuilt.pathMeshes || [];
+        asphaltMeshes = cellBuilt.asphaltMeshes || [];
+        rootGem = cellBuilt.rootGem || null;
+        rootGemBody = cellBuilt.rootGemBody || null;
+        rootGemEdges = cellBuilt.rootGemEdges || null;
+
+        // [cell-debug]
+        debugCell('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
+        // ROOT CAUSE of the 4.9-second gap between markers 9 and 10:
+        // scene.add() calls updateWorldMatrix + Three.js bookkeeping per child.
+        // Before skipBuildings:true this was ~107k children (dominated by one
+        // createPathMesh per building); with skipBuildings:true it drops to
+        // ~N_streets × 2 (sidewalk+asphalt groups) + street-labels + gem ≈ 10k.
+        for (const child of [...cellBuilt.scene.children]) scene.add(child);
+        scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+        // Remove legacy per-building meshes that buildCityScene emits — the
+        // cell path replaces them with InstancedMesh cells. Keep streetLabels:
+        // they serve as our labels on the cell path too.
+        // [cell-debug]
+        debugCell('[cell] 10: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
+        for (const bm of cellBuilt.buildingMeshes || []) {
+          if (bm.parent) bm.parent.remove(bm);
+          _disposeObject(bm);
+        }
+
+        // Add the cell root (instanced building InstancedMeshes, one group per cell).
+        // [cell-debug]
+        debugCell('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        scene.add(_cellRoot);
+
+        // Record that scenic state is now valid for this tree_signature + config.
+        _lastBuildCitySceneTreeSig = _treeSig || null;
+        _lastScenicConfigHash = _currentScenicConfigHash;
+      }
+
+      // [cell-debug]
+      debugCell('[cell] 12: calling _buildLookups + _computeRootStreetAndGem', { elapsedMs: performance.now() - _cellT0 });
+      _buildLookups();
+      _computeRootStreetAndGem();
+
+      // [cell-debug]
+      debugCell('[cell] 13: emitting change event', { elapsedMs: performance.now() - _cellT0 });
+      _emit(changeCbs, _computeDiff(prev));
+
+      // [cell-debug]
+      debugCell('[cell] 14: branch returning — total elapsed', { totalMs: performance.now() - _cellT0 });
+      return;
+    }
+    // ---- End cell fast-path ------------------------------------------------
 
     // ---- Phase 3: build all new meshes detached from the live scene.
     // `built` is a sub-scene from buildCityScene with its own children
@@ -900,6 +1337,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _layoutClient.dispose();
   }
 
+  function resetCache(): void {
+    _cachedLayoutTreeSig = null;
+    _cachedLayout = null;
+    _lastBuildCitySceneTreeSig = null;
+    _lastScenicConfigHash = null;
+    // Dispose instanced ad panels so they are rebuilt from scratch on the
+    // next applyManifest call (the new source may have a different set of
+    // media files and a different layout, so the existing panels are stale).
+    if (_instancedAdPanels) {
+      _instancedAdPanels.dispose();
+      _instancedAdPanels = null;
+    }
+  }
+
   return {
     scene,
     applyManifest,
@@ -907,6 +1358,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     onBeforeChange,
     onChange,
     disposeMesh,
+    resetCache,
 
     getManifest() {
       return manifest;
@@ -1050,6 +1502,40 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
     getPathConnectorsMap() {
       return pathMeshesByDirPath;
+    },
+
+    // Task 9: cell-mode accessors for picker + other consumers.
+    // Returns null when CELL_RENDERING is disabled (legacy block path).
+    getBuildingIndex(): BuildingIndex | null {
+      return _buildingIndex;
+    },
+    getCells(): Map<number, CellTile> {
+      return _cells;
+    },
+
+    // Task 11: unified mesh+slot resolver. Returns the InstancedMesh that
+    // owns this building's instance and the slot index within that mesh.
+    //
+    // Cell mode:   resolves via Building.cellId + Building.slotId.
+    // Legacy mode: searches blocks for the Building object, returns its index.
+    //
+    // Returns null if no live mesh exists for this building (e.g. the building
+    // was in a block that was already disposed, or cellId/slotId are unset).
+    getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
+      // Cell mode — fast O(1) path.
+      if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
+        const cell = _cells.get(b.cellId);
+        if (cell?.detailMesh) return { mesh: cell.detailMesh, slot: b.slotId };
+        return null;
+      }
+      // Legacy block mode — O(buildings-in-block) linear scan.
+      for (const block of blocks) {
+        const idx = block.buildings.indexOf(b);
+        if (idx >= 0 && block.detailMesh) {
+          return { mesh: block.detailMesh, slot: idx };
+        }
+      }
+      return null;
     },
   };
 }

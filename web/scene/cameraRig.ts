@@ -325,7 +325,15 @@ export function createCameraRig({
   }
 
   function reset() {
-    if (!initialCamPos || !initialTarget) return;
+    // If framing wasn't captured yet (or was cleared by a disposal cycle),
+    // try once more before giving up — silent no-op on R is worse than
+    // re-running the cheap framing computation. Returns false only when
+    // the city has no bbox at all (e.g., pre-manifest), in which case
+    // there's nothing to reset to.
+    if (!initialCamPos || !initialTarget) {
+      if (!_captureFraming()) return;
+      if (!initialCamPos || !initialTarget) return;
+    }
     // Cancel any in-flight focus/reset animation so it can't keep
     // walking the camera away from the snap target.
     camAnimToken++;

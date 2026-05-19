@@ -64,19 +64,33 @@ export function createPicker({
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
     pickables = cityScene.getStreetPickables().slice();
-    for (const block of cityScene.getBlocks()) {
-      if (block.detailMesh) pickables.push(block.detailMesh);
-      // Ad panels (image / video files) — each is a single textured
-      // plane mesh mounted on the front face of its building. Pushed
-      // directly into pickables so the non-recursive raycast catches
-      // clicks on the ad face; each carries userData.building so
-      // interpretHit resolves to the file selection.
-      if (block.adPanels) {
-        for (const mesh of block.adPanels) {
-          pickables.push(mesh);
+
+    // Cell mode: add detail and impostor InstancedMeshes from each cell.
+    // When CELL_RENDERING is enabled, buildings live in CellTile meshes
+    // (userData.cellId + userData.meshKind) rather than block detailMeshes.
+    const buildingIndex = cityScene.getBuildingIndex();
+    if (buildingIndex !== null) {
+      for (const cell of cityScene.getCells().values()) {
+        if (cell.detailMesh) pickables.push(cell.detailMesh);
+        if (cell.impostorMesh) pickables.push(cell.impostorMesh);
+      }
+    } else {
+      // Legacy block mode: one InstancedMesh per block.
+      for (const block of cityScene.getBlocks()) {
+        if (block.detailMesh) pickables.push(block.detailMesh);
+        // Ad panels (image / video files) — each is a single textured
+        // plane mesh mounted on the front face of its building. Pushed
+        // directly into pickables so the non-recursive raycast catches
+        // clicks on the ad face; each carries userData.building so
+        // interpretHit resolves to the file selection.
+        if (block.adPanels) {
+          for (const mesh of block.adPanels) {
+            pickables.push(mesh);
+          }
         }
       }
     }
+
     const gem = cityScene.getRootGem();
     if (gem) {
       // Body lives at gem.userData.body — don't index children, since
@@ -230,11 +244,16 @@ export function createPicker({
     const tieThreshold = closest.distance * 1.001;
     for (const h of hits) {
       if (h.distance > tieThreshold) break;
-      if (
-        h.object instanceof THREE.InstancedMesh &&
-        h.object.userData.kind === 'buildings'
-      ) {
-        return h;
+      if (h.object instanceof THREE.InstancedMesh) {
+        const hud = h.object.userData;
+        // Cell mode: prefer detailMesh / impostorMesh hits.
+        if (hud.cellId != null && (hud.meshKind === 'detail' || hud.meshKind === 'impostor')) {
+          return h;
+        }
+        // Legacy block mode: prefer buildings InstancedMesh hits.
+        if (hud.kind === 'buildings') {
+          return h;
+        }
       }
     }
     return closest;
@@ -262,8 +281,29 @@ export function createPicker({
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
-    // New (Task 8+): InstancedMesh hit — one mesh per block, instanceId
-    // identifies the individual building within the block.
+    // Cell mode (Task 9): InstancedMesh hit from a CellTile.
+    // detailMesh and impostorMesh carry userData.cellId and userData.meshKind.
+    // The Building is looked up via BuildingIndex.byCellSlot("cellId:slotId").
+    if (
+      hit.object instanceof THREE.InstancedMesh &&
+      ud.cellId != null &&
+      (ud.meshKind === 'detail' || ud.meshKind === 'impostor')
+    ) {
+      const slot = hit.instanceId;
+      if (slot == null) return null;
+      const idx = cityScene.getBuildingIndex();
+      const building = idx?.byCellSlot(`${ud.cellId}:${slot}`);
+      if (!building?.file) return null;
+      return {
+        kind: NodeKind.File,
+        mesh: hit.object as THREE.Mesh,
+        data: building,
+        file: building.file,
+        instanceId: slot,
+      };
+    }
+    // Legacy block mode (Task 8+): InstancedMesh hit — one mesh per block,
+    // instanceId identifies the individual building within the block.
     if (
       hit.object instanceof THREE.InstancedMesh &&
       ud.kind === 'buildings'

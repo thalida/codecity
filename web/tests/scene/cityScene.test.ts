@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createCityScene } from '@/scene/cityScene.js';
-import { BUILDING_DIMENSIONS, STREET_TIERS } from '@/config/index.js';
+import { BUILDING_DIMENSIONS, STREET_TIERS, CELL_RENDERING } from '@/config/index.js';
 import type { BuildingDimensionsConfig } from '@/config/building.js';
 import type { StreetTier } from '@/config/street.js';
 import { NodeKind } from '@/types';
@@ -37,6 +37,7 @@ function makeManifest(name: string, files: ManifestFileSpec[]): Manifest {
     root: `/tmp/${name}`,
     scanned_at: '2026-05-04T00:00:00Z',
     signature: `${name}:${files.map((f) => f.path).join(',')}`,
+    tree_signature: `test-fp-${name}-${files.map((f) => f.path).join(',')}`,
     repo: null,
     tree: {
       name,
@@ -125,6 +126,7 @@ function _stubCanvasContext() {
 
 let _origDims: BuildingDimensionsConfig | null = null;
 let _origTiers: StreetTier[] | null = null;
+let _origCellRendering = false;
 let canvas: HTMLCanvasElement;
 
 beforeEach(() => {
@@ -135,6 +137,11 @@ beforeEach(() => {
     BUILDING_DIMENSIONS.setKey(k, TEST_DIMS[k]!);
   });
   STREET_TIERS.set(TEST_TIERS); // STREET_TIERS is an atom(), not a map()
+  // This suite exercises the legacy SceneBlock path (blocks, per-block
+  // InstancedMesh, etc.) — force CELL_RENDERING off so cityScene takes
+  // that branch regardless of the production default.
+  _origCellRendering = CELL_RENDERING.get().enabled;
+  CELL_RENDERING.setKey('enabled', false);
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
@@ -147,6 +154,7 @@ afterEach(() => {
     });
   }
   if (_origTiers) STREET_TIERS.set(_origTiers);
+  CELL_RENDERING.setKey('enabled', _origCellRendering);
 });
 
 describe('createCityScene', () => {

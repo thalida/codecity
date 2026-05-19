@@ -550,7 +550,26 @@ function createStreetLabels(street: Street): THREE.Group[] {
   return labels;
 }
 
-export function buildCityScene(layout: CityLayout) {
+/**
+ * Options for buildCityScene.
+ *
+ * skipBuildings — skip per-building scene work that is vestigial in cell mode:
+ *   • per-building path-connector meshes (createPathMesh, one per layout.paths entry)
+ *
+ * Streets, sidewalks, street labels, the root gem, and asphalt are always
+ * built regardless of this flag. Set skipBuildings: true in the cell-rendering
+ * path to avoid creating ~N_buildings path meshes that Three.js would otherwise
+ * frustum-cull every frame for no visual benefit (cell mode has no per-building
+ * interactivity that needs the connectors).
+ *
+ * Legacy callers pass no opts; the flag defaults to false and behavior is
+ * identical to before.
+ */
+export interface BuildCityOpts {
+  skipBuildings?: boolean;
+}
+
+export function buildCityScene(layout: CityLayout, opts: BuildCityOpts = {}) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of src/defaults.js
   // imported at the top of this module. No per-call config plumbing.
@@ -602,13 +621,22 @@ export function buildCityScene(layout: CityLayout) {
     }
   }
 
-  // Paths
+  // Per-building path-connector strips (door → sidewalk).
+  //
+  // Skipped when opts.skipBuildings is true (cell-rendering path): for a large
+  // repo this is one mesh per building (~100k for Linux), which becomes the
+  // dominant child count in the scene. Cell mode has no per-building
+  // interactivity that requires these connectors, so we drop them entirely
+  // to keep scene.add() fast and frustum-culling O(streets) instead of
+  // O(buildings).
   const pathMeshes: FlatMesh[] = [];
-  const paths = layout.paths || [];
-  for (const path of paths) {
-    const pm = createPathMesh(path, 0);
-    scene.add(pm);
-    pathMeshes.push(pm);
+  if (!opts.skipBuildings) {
+    const paths = layout.paths || [];
+    for (const path of paths) {
+      const pm = createPathMesh(path, 0);
+      scene.add(pm);
+      pathMeshes.push(pm);
+    }
   }
 
   // Buildings are no longer built here — cityScene.ts removes any per-building

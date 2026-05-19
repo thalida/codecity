@@ -1,4 +1,9 @@
 // scene/instanced/labels.ts — Per-block label InstancedMesh + atlas builder.
+//
+// The atlas builder has been extracted into labelAtlas.ts for reuse
+// by the cell-aware factory (labelsCell.ts). This file re-exports the
+// public types + buildLabelAtlas from that module for backward
+// compatibility, then adds the per-block mesh assembly logic.
 import * as THREE from 'three';
 import type { LabelTypographyConfig } from '@/config/index.js';
 import { LABEL_TYPOGRAPHY } from '@/config/index.js';
@@ -9,30 +14,11 @@ import type { SceneBlock } from '../blocks.js';
 import labelVertSrc from '../shaders/label.vert.glsl?raw';
 import labelFragSrc from '../shaders/label.frag.glsl?raw';
 
-export interface LabelAtlasRect {
-  page: number;
-  u: number;
-  v: number;
-  w: number;
-  h: number;
-  aspect: number;
-}
-
-export interface LabelAtlasResult {
-  pages: HTMLCanvasElement[];
-  rectByText: Map<string, LabelAtlasRect>;
-}
-
-// WebGL2 guarantees MAX_TEXTURE_SIZE >= 2048; virtually all desktop GPUs
-// support 8192. We pack labels into multiple pages of this size so a single
-// codebase can have arbitrarily many distinct directory names.
-const ATLAS_WIDTH = 8192;
-const ATLAS_HEIGHT_MAX = 8192;
-// Sanity bound. 16 pages of 8192×8192 = 1 GiB of texture memory if every
-// page is full-bleed RGBA; in practice each page renders only the rows it
-// uses, so memory tracks the actual label count. A real monorepo would
-// need >2000 unique directory names to push past page 1 at default font.
-const MAX_PAGES = 16;
+// Re-export shared atlas types + builder from the extracted module.
+export type { LabelAtlasRect, LabelAtlasResult } from './labelAtlas.js';
+export { buildLabelAtlas } from './labelAtlas.js';
+// Local import for use in function parameter types below.
+import type { LabelAtlasResult } from './labelAtlas.js';
 
 /**
  * Truncate a label so it fits on its street.
@@ -78,111 +64,6 @@ export function truncateLabelToFit(
     if (measure(candidate) <= maxCanvasWidthPx) return candidate;
   }
   return ellipsis;
-}
-
-export function buildLabelAtlas(
-  uniqueTexts: string[],
-  typography: LabelTypographyConfig,
-): LabelAtlasResult {
-  if (uniqueTexts.length === 0) {
-    return { pages: [], rectByText: new Map() };
-  }
-
-  // Step 1: measure each text.
-  const measureCtx = document.createElement('canvas').getContext('2d')!;
-  const fontSpec = `${typography.FONT_WEIGHT} ${typography.FONT_SIZE_PX}px ${typography.FONT_FAMILY}`;
-  measureCtx.font = fontSpec;
-  const paddingPx = Math.round(typography.FONT_SIZE_PX * typography.CANVAS_PADDING_FRAC);
-  const strokeWidthPx = Math.round(typography.FONT_SIZE_PX * typography.STROKE_WIDTH_FRAC);
-  const items = uniqueTexts.map((text) => {
-    const w =
-      Math.ceil(measureCtx.measureText(text).width) + paddingPx * 2;
-    const h = typography.FONT_SIZE_PX + paddingPx * 2;
-    return { text, w, h };
-  });
-
-  // Step 2: shelf-fit pack across multiple pages. Sort by height desc; place
-  // left-to-right with row wraps. When a row would overflow page height,
-  // start a new page.
-  items.sort((a, b) => b.h - a.h);
-  type Placement = { text: string; page: number; x: number; y: number; w: number; h: number };
-  const placements: Placement[] = [];
-  let page = 0;
-  let cursorX = 0;
-  let cursorY = 0;
-  let rowH = 0;
-  const pageHeights: number[] = [];
-
-  for (const item of items) {
-    // Wrap to next row when the current row is full.
-    if (cursorX + item.w > ATLAS_WIDTH) {
-      cursorX = 0;
-      cursorY += rowH;
-      rowH = 0;
-    }
-    // If the next row would overflow this page, start a new page.
-    if (cursorY + item.h > ATLAS_HEIGHT_MAX) {
-      pageHeights[page] = cursorY;
-      page += 1;
-      if (page >= MAX_PAGES) {
-        throw new Error(
-          `label atlas overflow: would need >${MAX_PAGES} pages of ` +
-            `${ATLAS_WIDTH}x${ATLAS_HEIGHT_MAX} for ${uniqueTexts.length} unique labels.`,
-        );
-      }
-      cursorX = 0;
-      cursorY = 0;
-      rowH = 0;
-    }
-    placements.push({ text: item.text, page, x: cursorX, y: cursorY, w: item.w, h: item.h });
-    cursorX += item.w;
-    rowH = Math.max(rowH, item.h);
-  }
-  pageHeights[page] = cursorY + rowH;
-
-  // Step 3: paint each page into its own canvas. Trim each canvas to the
-  // height actually used so we don't upload empty pixels to the GPU.
-  const pages: HTMLCanvasElement[] = [];
-  const pageContexts: CanvasRenderingContext2D[] = [];
-  for (let p = 0; p <= page; p++) {
-    const c = document.createElement('canvas');
-    c.width = ATLAS_WIDTH;
-    c.height = Math.max(1, pageHeights[p] ?? 1);
-    const ctx = c.getContext('2d')!;
-    ctx.font = fontSpec;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    pages.push(c);
-    pageContexts.push(ctx);
-  }
-
-  const rectByText: LabelAtlasResult['rectByText'] = new Map();
-  for (const p of placements) {
-    const ctx = pageContexts[p.page];
-    const cx = p.x + p.w / 2;
-    const cy = p.y + p.h / 2;
-    ctx.lineWidth = strokeWidthPx;
-    ctx.strokeStyle = typography.STROKE;
-    ctx.strokeText(p.text, cx, cy);
-    ctx.fillStyle = typography.FILL;
-    ctx.fillText(p.text, cx, cy);
-    const pageH = pages[p.page].height;
-    rectByText.set(p.text, {
-      page: p.page,
-      u: p.x / ATLAS_WIDTH,
-      // CanvasTexture defaults flipY=true, so the GPU sees the canvas
-      // vertically inverted: a rect at canvas top (p.y=0) is at GL
-      // texture v=1, not v=0. With a single-row atlas this didn't matter
-      // (rect spanned v=0..1 either way); with multi-row atlases, rows
-      // sample from the wrong band — every block read its neighbor's
-      // text. Convert canvas-y → GL-v explicitly here.
-      v: 1 - (p.y + p.h) / pageH,
-      w: p.w / ATLAS_WIDTH,
-      h: p.h / pageH,
-      aspect: p.w / p.h,
-    });
-  }
-  return { pages, rectByText };
 }
 
 // ---------------------------------------------------------------------------

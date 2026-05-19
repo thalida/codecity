@@ -82,7 +82,16 @@ export interface Manifest {
    *  local-path sources. Prefer this over `root` when building UI labels. */
   display_root?: string;
   scanned_at: string;
+  /** Metadata-sensitive fingerprint (mtime/size based). Changes between
+   *  skeleton and final events for the same scan. Used by live-update polls
+   *  to detect when any file has changed on disk. */
   signature: string;
+  /** Structure-only fingerprint (paths + nesting, NO mtime/size/metadata).
+   *  Identical for skeleton and final manifests of the same scan.
+   *  Used as the layout-cache key in cityScene so the expensive layout
+   *  computation is skipped on skeleton→final transitions when the tree
+   *  shape hasn't changed. */
+  tree_signature: string;
   tree: DirNode;
   repo: RepoInfo | null;
 }

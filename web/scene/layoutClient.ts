@@ -1,6 +1,6 @@
 // scene/layoutClient.ts — main-thread façade for the layout worker.
 // Owns one lazily-created module Worker; exposes a Promise-based
-// `compute(manifest)` API. Generates monotonic request ids and rejects
+// `compute(manifest, opts)` API. Generates monotonic request ids and rejects
 // older pending requests when a newer one starts, so a rapid succession
 // of applyManifests can never produce stale layouts.
 //
@@ -8,6 +8,12 @@
 // (jsdom test env). In the sync path the returned promise still
 // participates in the supersede protocol so callers see identical
 // semantics regardless of environment.
+//
+// When opts.reuseLayoutFrom is provided and the tree shape matches,
+// compute() skips the worker entirely and returns a fresh CityLayout in
+// the main thread — positions stay, per-file metadata (file refs,
+// dimensions) is recomputed from the new manifest. This is the cheap
+// path for skeleton→final transitions and live updates.
 
 import { layoutCityV4 } from './layoutV4.js';
 import {
@@ -16,7 +22,8 @@ import {
   GEM_SIZING,
   STREET_TIERS,
 } from '@/config/index.js';
-import type { Manifest, CityLayout } from '@/types';
+import { makeHeightContext, recomputeBuildingDimensions } from './layout.js';
+import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {
   resolve: (layout: CityLayout) => void;
@@ -30,6 +37,16 @@ interface ConfigSnapshot {
   streetTiers: ReturnType<typeof STREET_TIERS.get>;
 }
 
+export interface LayoutComputeOpts {
+  /**
+   * If provided, skip the expensive worker round-trip and reuse positions
+   * from this prior layout. Per-file metadata (file refs, dimensions) is
+   * recomputed from the new manifest in the main thread. The caller is
+   * responsible for ensuring the tree shape matches (same tree_signature).
+   */
+  reuseLayoutFrom?: CityLayout;
+}
+
 export interface LayoutClient {
   /**
    * Compute the layout off-thread (or sync if Worker is unavailable).
@@ -37,10 +54,61 @@ export interface LayoutClient {
    * `Error('superseded')` when a newer compute() supersedes it, or
    * `Error('disposed')` if the client is torn down before the call
    * completes, or with the worker's own error message on failure.
+   *
+   * If opts.reuseLayoutFrom is set, returns a cheap in-JS layout that
+   * reuses positions from the prior layout and recomputes per-file metadata.
    */
-  compute(manifest: Manifest): Promise<CityLayout>;
+  compute(manifest: Manifest, opts?: LayoutComputeOpts): Promise<CityLayout>;
   /** Tear down the worker and reject every pending request. */
   dispose(): void;
+}
+
+// buildPathToFile(tree) -> Map<path, FileNode>
+//
+// Single O(N) walk of the manifest tree; returns a map from file path to
+// its FileNode. Used by reuseLayout to look up fresh FileNode refs.
+function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
+  const map = new Map<string, FileNode>();
+  function walk(node: TreeNode): void {
+    if (node.type === 'file') {
+      map.set(node.path, node as FileNode);
+    } else if ('children' in node && Array.isArray(node.children)) {
+      for (const c of node.children as TreeNode[]) walk(c);
+    }
+  }
+  walk(tree);
+  return map;
+}
+
+// reuseLayout(prior, newManifest) -> CityLayout
+//
+// Cheap main-thread path: keeps all positions, streets, paths, gem, and
+// sidewalks from the prior layout; recomputes per-file refs and dimensions
+// (h, w, d, floors) from the new manifest's real metadata. Does NOT call
+// the layout worker — skips collision detection and placement entirely.
+function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
+  const filesByPath = buildPathToFile(newManifest.tree as unknown as TreeNode);
+  const heightCtx = makeHeightContext(newManifest.tree as unknown as Parameters<typeof makeHeightContext>[0]);
+  const newBuildings = prior.buildings.map((b) => {
+    const freshFile = (b.file?.path ? filesByPath.get(b.file.path) : null) ?? b.file;
+    const dims = recomputeBuildingDimensions(
+      freshFile as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
+      heightCtx,
+    );
+    return {
+      ...b,
+      file: freshFile,
+      w: dims.w,
+      d: dims.d,
+      h: dims.h,
+      floors: dims.floors,
+    };
+  });
+  return {
+    ...prior,
+    buildings: newBuildings,
+    // streets, paths, gem, sidewalks, bbox stay the same
+  };
 }
 
 function _snapshot(): ConfigSnapshot {
@@ -134,10 +202,31 @@ export function createLayoutClient(): LayoutClient {
     }
   }
 
-  function compute(manifest: Manifest): Promise<CityLayout> {
+  function compute(manifest: Manifest, opts: LayoutComputeOpts = {}): Promise<CityLayout> {
     if (disposed) {
       return Promise.reject(new Error('layoutClient disposed'));
     }
+
+    // Cheap in-JS reuse path: caller has confirmed tree shape matches.
+    // Supersede any pending requests (same protocol as the full path) then
+    // return a microtask-resolved promise so callers always see async semantics.
+    if (opts.reuseLayoutFrom) {
+      const id = nextId++;
+      _supersedeAll();
+      return new Promise<CityLayout>((resolve, reject) => {
+        pending.set(id, { resolve, reject });
+        queueMicrotask(() => {
+          if (!pending.has(id)) return; // superseded
+          pending.delete(id);
+          try {
+            resolve(reuseLayout(opts.reuseLayoutFrom!, manifest));
+          } catch (err) {
+            reject(err instanceof Error ? err : new Error(String(err)));
+          }
+        });
+      });
+    }
+
     const id = nextId++;
     _supersedeAll();
     return new Promise<CityLayout>((resolve, reject) => {
