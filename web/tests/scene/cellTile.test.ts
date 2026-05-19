@@ -19,7 +19,9 @@ describe('CellTile', () => {
     // Meshes exist and have correct count
     expect(tile.detailMesh.count).toBe(128);
     expect(tile.impostorMesh.count).toBe(128);
-    expect(tile.labelMesh.count).toBe(128);
+    // labelMesh is not allocated by createEmptyCellTile (no-op until
+    // attachLabelMeshToCell is called by the label rendering path).
+    expect(tile.labelMesh).toBeNull();
 
     // Until populated, every instance should be scale-zero (invisible)
     const m = new THREE.Matrix4();

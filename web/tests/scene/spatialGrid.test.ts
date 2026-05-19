@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import {
   SpatialGrid,
   CELL_SIZE,
+  MIN_CELL_SIZE,
 } from '@/scene/spatialGrid.js';
 
 describe('SpatialGrid', () => {
@@ -44,5 +45,36 @@ describe('SpatialGrid', () => {
     expect(grid.gridW).toBe(1);
     expect(grid.gridH).toBe(1);
     expect(grid.worldToCell(0.5, 0.5).cellId).toBe(0);
+  });
+
+  it('constructor accepts explicit cellSize and uses it for grid math', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 100, minZ: 0, maxZ: 60 }, 25);
+    expect(grid.cellSize).toBe(25);
+    expect(grid.gridW).toBe(Math.ceil(100 / 25));
+    expect(grid.gridH).toBe(Math.ceil(60 / 25));
+  });
+});
+
+describe('SpatialGrid.computeOptimalCellSize', () => {
+  it('returns MIN_CELL_SIZE for small bbox', () => {
+    // 100×100 area → sqrt(10000/256) ≈ 6.25 → clamped to MIN_CELL_SIZE (12)
+    const size = SpatialGrid.computeOptimalCellSize({ minX: 0, maxX: 100, minZ: 0, maxZ: 100 });
+    expect(size).toBe(MIN_CELL_SIZE);
+  });
+
+  it('scales with bbox area', () => {
+    const small = SpatialGrid.computeOptimalCellSize({ minX: 0, maxX: 100, minZ: 0, maxZ: 100 });
+    const large = SpatialGrid.computeOptimalCellSize({ minX: 0, maxX: 10000, minZ: 0, maxZ: 10000 });
+    expect(large).toBeGreaterThan(small);
+  });
+
+  it('result yields ~256 cells for typical Linux-scale bbox', () => {
+    // Linux kernel layout: ~86000 × 127000 world units
+    const bounds = { minX: 0, maxX: 86000, minZ: 0, maxZ: 127000 };
+    const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
+    const grid = new SpatialGrid(bounds, cellSize);
+    // Grid cell count should be within a factor of ~2 of the 256 target
+    expect(grid.cellCount).toBeGreaterThanOrEqual(128);
+    expect(grid.cellCount).toBeLessThanOrEqual(512);
   });
 });

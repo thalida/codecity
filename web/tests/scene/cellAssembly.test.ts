@@ -46,8 +46,9 @@ function fakeBuilding(x: number, y: number, overrides: Partial<Building> = {}): 
 
 const EMPTY_UNIFORMS: Record<string, THREE.IUniform> = {};
 
-// CELL_SIZE from spatialGrid.ts is 12 world units.
-// Use this constant to reason about which cell buildings land in.
+// Use MIN_CELL_SIZE-sized bounds so computeOptimalCellSize returns 12
+// and tests can reason about cell assignments with known granularity.
+// Any bounds <= ~192×192 keeps cellSize at MIN_CELL_SIZE (12).
 const CELL_SIZE = 12;
 
 // ---------------------------------------------------------------------------
@@ -66,10 +67,10 @@ describe('buildCellsFromLayout', () => {
   });
 
   it('sparse allocation: only occupied cells are created', () => {
-    // Large bounds with buildings clustered in one corner.
-    // 600×600 / CELL_SIZE(12) = 50×50 = 2500 total cells.
+    // Small bounds (96×96) keep cellSize at MIN_CELL_SIZE(12).
+    // 96×96 / 12 = 8×8 = 64 total cells.
     // All buildings are at (x<12, z<12) → all land in cell 0.
-    const bounds = { minX: 0, maxX: 600, minZ: 0, maxZ: 600 };
+    const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
     const buildings = [
       fakeBuilding(1, 1),
       fakeBuilding(3, 5),
@@ -80,8 +81,8 @@ describe('buildCellsFromLayout', () => {
 
     // All buildings land in the same cell (x<CELL_SIZE and z<CELL_SIZE).
     expect(out.cells.size).toBe(1);
-    // Full grid covers the 600×600 space → many more cells.
-    expect(out.grid.cellCount).toBe(50 * 50); // 2500
+    // Full grid covers the 96×96 space → many more cells.
+    expect(out.grid.cellCount).toBe(8 * 8); // 64
     // Sparse: occupied cells  total cells.
     expect(out.cells.size).toBeLessThan(out.grid.cellCount);
   });
@@ -89,8 +90,9 @@ describe('buildCellsFromLayout', () => {
   it('sparse allocation: buildings in N distinct cells → cells.size === N', () => {
     // Place buildings so each lands in a different CELL_SIZE×CELL_SIZE bucket.
     // Stride by CELL_SIZE to guarantee a distinct cell per building.
+    // Use small enough bounds that cellSize stays at MIN_CELL_SIZE(12).
     const N = 5;
-    const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: N * CELL_SIZE * 2 };
+    const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
     const buildings = Array.from({ length: N }, (_, i) =>
       fakeBuilding(i * CELL_SIZE + 1, 1),
@@ -103,8 +105,9 @@ describe('buildCellsFromLayout', () => {
 
   it('sceneRoot has 2 children per occupied cell (detailMesh + impostorMesh)', () => {
     // 2 buildings in different cells → 2 occupied cells → 4 scene children.
-    // Stride by CELL_SIZE to guarantee distinct cells.
-    const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
+    // Use small bounds so cellSize stays at MIN_CELL_SIZE(12) and positions
+    // CELL_SIZE apart guarantee distinct cells.
+    const bounds = { minX: 0, maxX: 48, minZ: 0, maxZ: 48 };
     const buildings = [
       fakeBuilding(1, 1),              // cell at grid-col 0, row 0
       fakeBuilding(CELL_SIZE + 1, 1),  // cell at grid-col 1, row 0
@@ -125,8 +128,8 @@ describe('buildCellsFromLayout', () => {
     const [cell] = out.cells.values();
     expect(cell.detailMesh.visible).toBe(true);
     expect(cell.impostorMesh.visible).toBe(false);
-    // labelMesh stays off — labels come from legacy streetLabels path.
-    expect(cell.labelMesh.visible).toBe(false);
+    // labelMesh is null until attachLabelMeshToCell is called.
+    expect(cell.labelMesh).toBeNull();
   });
 
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {

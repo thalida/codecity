@@ -4,14 +4,20 @@
 // InstancedMesh, and merged sidewalk geometry. Grid math is pure:
 // worldToCell, cellBoundsSphere, cellCenter.
 //
-// CELL_SIZE is chosen so that, at typical camera zoom, a cell
-// covers a recognizable patch of the city — ~12 world units. Grid
-// dimensions derive from layout bounds, not file count, so mesh
-// count stays bounded as repos scale.
+// MIN_CELL_SIZE / CELL_SIZE: the minimum grid resolution (12 world
+// units). For small repos this is also the actual cell size. For large
+// repos (Linux-scale 86k×127k), computeOptimalCellSize() scales the
+// cell size up so the grid stays at ~256 occupied cells regardless of
+// layout extent.
 
 import * as THREE from 'three';
 
-export const CELL_SIZE = 12;
+/** Minimum cell size in world units. Also exported as CELL_SIZE for
+ *  backward-compatibility with tests that use the constant directly. */
+export const MIN_CELL_SIZE = 12;
+
+/** Alias kept for backward compatibility. */
+export const CELL_SIZE = MIN_CELL_SIZE;
 
 export interface WorldBounds {
   minX: number;
@@ -28,24 +34,38 @@ export interface CellCoord {
 
 export class SpatialGrid {
   readonly bounds: WorldBounds;
+  readonly cellSize: number;
   readonly gridW: number;
   readonly gridH: number;
   readonly cellCount: number;
 
-  constructor(bounds: WorldBounds) {
+  constructor(bounds: WorldBounds, cellSize: number = MIN_CELL_SIZE) {
     const w = Math.max(1, bounds.maxX - bounds.minX);
     const h = Math.max(1, bounds.maxZ - bounds.minZ);
     this.bounds = bounds;
-    this.gridW = Math.max(1, Math.ceil(w / CELL_SIZE));
-    this.gridH = Math.max(1, Math.ceil(h / CELL_SIZE));
+    this.cellSize = cellSize;
+    this.gridW = Math.max(1, Math.ceil(w / cellSize));
+    this.gridH = Math.max(1, Math.ceil(h / cellSize));
     this.cellCount = this.gridW * this.gridH;
+  }
+
+  /**
+   * Compute a cell size that targets ~`targetCells` total grid cells for
+   * the given bounds. Returns at least MIN_CELL_SIZE so small repos keep
+   * fine-grained grids.
+   */
+  static computeOptimalCellSize(bounds: WorldBounds, targetCells = 256): number {
+    const w = Math.max(1, bounds.maxX - bounds.minX);
+    const h = Math.max(1, bounds.maxZ - bounds.minZ);
+    const area = w * h;
+    return Math.max(MIN_CELL_SIZE, Math.sqrt(area / targetCells));
   }
 
   worldToCell(x: number, z: number): CellCoord {
     const lx = x - this.bounds.minX;
     const lz = z - this.bounds.minZ;
-    const cx = Math.min(this.gridW - 1, Math.max(0, Math.floor(lx / CELL_SIZE)));
-    const cz = Math.min(this.gridH - 1, Math.max(0, Math.floor(lz / CELL_SIZE)));
+    const cx = Math.min(this.gridW - 1, Math.max(0, Math.floor(lx / this.cellSize)));
+    const cz = Math.min(this.gridH - 1, Math.max(0, Math.floor(lz / this.cellSize)));
     return { cx, cz, cellId: cz * this.gridW + cx };
   }
 
@@ -53,9 +73,9 @@ export class SpatialGrid {
     const cx = cellId % this.gridW;
     const cz = Math.floor(cellId / this.gridW);
     return new THREE.Vector3(
-      this.bounds.minX + (cx + 0.5) * CELL_SIZE,
+      this.bounds.minX + (cx + 0.5) * this.cellSize,
       0,
-      this.bounds.minZ + (cz + 0.5) * CELL_SIZE,
+      this.bounds.minZ + (cz + 0.5) * this.cellSize,
     );
   }
 
@@ -68,7 +88,7 @@ export class SpatialGrid {
     const center = this.cellCenter(cellId);
     center.y = maxBuildingHeight / 2;
     const halfDiag = Math.sqrt(
-      (CELL_SIZE / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2,
+      (this.cellSize / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2,
     );
     return new THREE.Sphere(center, halfDiag);
   }

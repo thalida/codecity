@@ -27,7 +27,7 @@ export interface CellTile {
 
   detailMesh: THREE.InstancedMesh;
   impostorMesh: THREE.InstancedMesh;
-  labelMesh: THREE.InstancedMesh;
+  labelMesh: THREE.InstancedMesh | null;
   streetMesh: THREE.Mesh | null; // assembled separately in Task 8
 
   buildings: (Building | null)[];
@@ -72,12 +72,6 @@ export function createEmptyCellTile(
   impostorMesh.visible = false;
   zeroAllInstances(impostorMesh);
 
-  const labelMesh = new THREE.InstancedMesh(placeholderGeom, placeholderMat, capacity);
-  labelMesh.frustumCulled = true;
-  labelMesh.userData = { cellId, meshKind: 'label' };
-  labelMesh.visible = false;
-  zeroAllInstances(labelMesh);
-
   return {
     cellId,
     cx,
@@ -88,7 +82,7 @@ export function createEmptyCellTile(
     freeSlots: [],
     detailMesh,
     impostorMesh,
-    labelMesh,
+    labelMesh: null,
     streetMesh: null,
     buildings: new Array(capacity).fill(null),
     tier: 'hidden',
@@ -117,10 +111,12 @@ export function freeSlot(cell: CellTile, slotId: number): void {
   const zero = new THREE.Matrix4().makeScale(0, 0, 0);
   cell.detailMesh.setMatrixAt(slotId, zero);
   cell.impostorMesh.setMatrixAt(slotId, zero);
-  cell.labelMesh.setMatrixAt(slotId, zero);
   cell.detailMesh.instanceMatrix.needsUpdate = true;
   cell.impostorMesh.instanceMatrix.needsUpdate = true;
-  cell.labelMesh.instanceMatrix.needsUpdate = true;
+  if (cell.labelMesh) {
+    cell.labelMesh.setMatrixAt(slotId, zero);
+    cell.labelMesh.instanceMatrix.needsUpdate = true;
+  }
   cell.buildings[slotId] = null;
   cell.freeSlots.push(slotId);
 }

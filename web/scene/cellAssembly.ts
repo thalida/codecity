@@ -45,11 +45,12 @@ export function buildCellsFromLayout(
 ): CellAssemblyOutput {
   // [cell-debug]
   const _t0 = performance.now();
-  const grid = new SpatialGrid(bounds);
+  const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
+  const grid = new SpatialGrid(bounds, cellSize);
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 1 entered', { buildings: buildings.length, gridCellCount: grid.cellCount });
+  console.log('[cell] buildCellsFromLayout: 1 entered', { buildings: buildings.length, cellSize, gridCellCount: grid.cellCount });
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 2 SpatialGrid created', { gridW: grid.gridW, gridH: grid.gridH, cellCount: grid.cellCount });
+  console.log('[cell] buildCellsFromLayout: 2 SpatialGrid created', { gridW: grid.gridW, gridH: grid.gridH, cellCount: grid.cellCount, cellSize });
 
   // ---- Sparse pass: collect occupied cellIds ----
   const occupiedIds = new Set<number>();

@@ -90,9 +90,9 @@ export function attachLabelMeshToCell(
   sharedUniforms: Record<string, THREE.IUniform>,
 ): void {
   // Guard: if no atlas texture is available (empty manifest or skeleton phase),
-  // skip label mesh attachment and leave the placeholder visible=false.
-  if (!sharedUniforms.uMap?.value) {
-    cell.labelMesh.visible = false;
+  // or if no labelMesh has been allocated on this cell, skip attachment.
+  if (!cell.labelMesh || !sharedUniforms.uMap?.value) {
+    if (cell.labelMesh) cell.labelMesh.visible = false;
     return;
   }
 
@@ -146,6 +146,7 @@ export function writeLabelToSlot(
   b: Building,
   atlas: LabelAtlasResult,
 ): void {
+  if (!cell.labelMesh) return;
   const slot = b.slotId!;
   const mesh = cell.labelMesh;
   const label = LABEL_TYPOGRAPHY.get();
