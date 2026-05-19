@@ -114,6 +114,16 @@ export class InstancedAdPanels {
     this.mesh.userData.meshKind = 'adPanel';
     // Ad panels are NOT pickable in cell mode — see file header.
     this.mesh.raycast = () => {};
+    // Disable Three.js frustum culling for this InstancedMesh: the
+    // built-in cull uses the *geometry's* bounding sphere (a tiny
+    // unit-plane sphere at origin) and ignores per-instance transforms.
+    // When the camera rotates so origin is outside the view, Three.js
+    // culls the whole mesh — making ad panels disappear even when
+    // their world-space positions are still on-screen. Per-instance
+    // frustum testing would be the principled fix, but slotCount is
+    // bounded (≤1024 in typical usage) so always-draw is cheap and
+    // correct.
+    this.mesh.frustumCulled = false;
 
     // Pre-allocate per-instance attribute arrays.
     this._iLayerIndex = new Float32Array(slotCount);       // 1 float per slot
