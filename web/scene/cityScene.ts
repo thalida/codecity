@@ -74,6 +74,8 @@ import {
   LABEL_TYPOGRAPHY,
   SCENE_COLORS,
   SIDEWALK_COLORS,
+  debugBoot,
+  debugCell,
 } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
 import type {
@@ -763,7 +765,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // A later applyManifest can preempt us by bumping _currentGeneration;
     // layoutClient signals that via a 'superseded' rejection.
     // [cell-debug]
-    console.log('[boot] applyManifest: phase 1 layout start');
+    debugBoot('[boot] applyManifest: phase 1 layout start');
     const _amPhase1Start = performance.now();
     const newManifestTyped = newManifest as Manifest;
     // Use the server-computed tree_signature as the layout-cache key.
@@ -797,7 +799,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       _cachedLayout = newLayout;
     }
     // [cell-debug]
-    console.log('[boot] applyManifest: phase 1 layout done', {
+    debugBoot('[boot] applyManifest: phase 1 layout done', {
       reused: _layoutReused,
       elapsedMs: performance.now() - _amPhase1Start,
       buildings: newLayout?.buildings?.length ?? 0,
@@ -833,7 +835,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       );
     }
     // [cell-debug]
-    console.log('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
+    debugBoot('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Cell rendering path (CELL_RENDERING.enabled) ---------------------
@@ -847,7 +849,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     if (CELL_RENDERING.get().enabled) {
       // [cell-debug]
       const _cellT0 = performance.now();
-      console.log('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
+      debugCell('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
 
       // Derive WorldBounds from the layout bbox. Fall back to building extents
       // if bbox is absent (shouldn't happen for a real manifest, but safe).
@@ -866,19 +868,19 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           })();
 
       // [cell-debug]
-      console.log('[cell] 2: bounds computed', { bounds, elapsedMs: performance.now() - _cellT0 });
+      debugCell('[cell] 2: bounds computed', { bounds, elapsedMs: performance.now() - _cellT0 });
 
       // Build the cell scene (buildings only — streets/labels/paths/gem
       // remain on the legacy path below).
       // [cell-debug]
       const _cellBuildT0 = performance.now();
-      console.log('[cell] 3a: buildCellsFromLayout starting', { buildings: newBuildings.length });
+      debugCell('[cell] 3a: buildCellsFromLayout starting', { buildings: newBuildings.length });
       const cellOut = buildCellsFromLayout(bounds, newBuildings, getSharedBuildingUniforms());
       // [cell-debug]
-      console.log('[cell] 3b: buildCellsFromLayout done', { cells: cellOut.cells.size, elapsedMs: performance.now() - _cellBuildT0 });
+      debugCell('[cell] 3b: buildCellsFromLayout done', { cells: cellOut.cells.size, elapsedMs: performance.now() - _cellBuildT0 });
 
       // [cell-debug]
-      console.log('[cell] 4: generation check', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
+      debugCell('[cell] 4: generation check', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
       if (myGeneration !== _currentGeneration) {
         // Superseded while we were building — clean up and bail.
         cellOut.sceneRoot.traverse(_disposeObject);
@@ -904,7 +906,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
       if (_scenicValid) {
         // [cell-debug]
-        console.log('[cell] 8: scenic state reused (skipping buildCityScene)', {
+        debugCell('[cell] 8: scenic state reused (skipping buildCityScene)', {
           treeSig: _treeSig,
           configHashMatch: true,
           streets: streetPickables.length,
@@ -915,7 +917,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
         // Dispose old cell root before the new one is swapped in.
         // [cell-debug]
-        console.log('[cell] 6: disposing old cell root (scenic reuse)', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 6: disposing old cell root (scenic reuse)', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
         if (_cellRoot) {
           _cellRoot.traverse(_disposeObject);
           if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
@@ -931,11 +933,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _buildingIndex = cellOut.index;
         _grid = cellOut.grid;
         // [cell-debug]
-        console.log('[cell] 7: module-level state assigned (cells, index, grid) — scenic reuse', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 7: module-level state assigned (cells, index, grid) — scenic reuse', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
 
         // Add the new cell root (instanced building InstancedMeshes).
         // [cell-debug]
-        console.log('[cell] 11: adding _cellRoot to scene (scenic reuse)', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 11: adding _cellRoot to scene (scenic reuse)', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
         scene.add(_cellRoot);
       } else {
         // Full rebuild path: dispose existing scenic state, run buildCityScene,
@@ -945,7 +947,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         // config hash changed, it's a theme/color change that bakes into meshes.
         if (_layoutReused && _lastBuildCitySceneTreeSig === _treeSig) {
           // [cell-debug]
-          console.log('[cell] 8: scenic state invalidated by config change', {
+          debugCell('[cell] 8: scenic state invalidated by config change', {
             treeSig: _treeSig,
             streets: streetPickables.length,
             elapsedMs: performance.now() - _cellT0,
@@ -953,13 +955,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         }
 
         // [cell-debug]
-        console.log('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
         _disposeAllManifestState();
 
         // Dispose old cell root if present. No atlas textures to dispose on the
         // cell path (labels use the legacy streetLabels path, not a cell atlas).
         // [cell-debug]
-        console.log('[cell] 6: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 6: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
         if (_cellRoot) {
           _cellRoot.traverse(_disposeObject);
           if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
@@ -976,7 +978,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _buildingIndex = cellOut.index;
         _grid = cellOut.grid;
         // [cell-debug]
-        console.log('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
 
         // Also build the streets/paths/gem sub-scene from buildCityScene so
         // sidewalks, asphalt, and the root gem still appear. The cell
@@ -989,10 +991,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         // Cell mode has no per-building interactivity that needs connectors.
         // [cell-debug]
         const _cellBuildSceneT0 = performance.now();
-        console.log('[cell] 8a: buildCityScene starting');
+        debugCell('[cell] 8a: buildCityScene starting');
         const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
         // [cell-debug]
-        console.log('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
+        debugCell('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
         bbox = cellBuilt.bbox;
 
         streetPickables = cellBuilt.streetPickables || [];
@@ -1004,7 +1006,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         rootGemEdges = cellBuilt.rootGemEdges || null;
 
         // [cell-debug]
-        console.log('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
         // ROOT CAUSE of the 4.9-second gap between markers 9 and 10:
         // scene.add() calls updateWorldMatrix + Three.js bookkeeping per child.
         // Before skipBuildings:true this was ~107k children (dominated by one
@@ -1017,7 +1019,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         // cell path replaces them with InstancedMesh cells. Keep streetLabels:
         // they serve as our labels on the cell path too.
         // [cell-debug]
-        console.log('[cell] 10: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 10: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
         for (const bm of cellBuilt.buildingMeshes || []) {
           if (bm.parent) bm.parent.remove(bm);
           _disposeObject(bm);
@@ -1025,7 +1027,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
         // Add the cell root (instanced building InstancedMeshes, one group per cell).
         // [cell-debug]
-        console.log('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
+        debugCell('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
         scene.add(_cellRoot);
 
         // Record that scenic state is now valid for this tree_signature + config.
@@ -1034,16 +1036,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       }
 
       // [cell-debug]
-      console.log('[cell] 12: calling _buildLookups + _computeRootStreetAndGem', { elapsedMs: performance.now() - _cellT0 });
+      debugCell('[cell] 12: calling _buildLookups + _computeRootStreetAndGem', { elapsedMs: performance.now() - _cellT0 });
       _buildLookups();
       _computeRootStreetAndGem();
 
       // [cell-debug]
-      console.log('[cell] 13: emitting change event', { elapsedMs: performance.now() - _cellT0 });
+      debugCell('[cell] 13: emitting change event', { elapsedMs: performance.now() - _cellT0 });
       _emit(changeCbs, _computeDiff(prev));
 
       // [cell-debug]
-      console.log('[cell] 14: branch returning — total elapsed', { totalMs: performance.now() - _cellT0 });
+      debugCell('[cell] 14: branch returning — total elapsed', { totalMs: performance.now() - _cellT0 });
       return;
     }
     // ---- End cell fast-path ------------------------------------------------

@@ -43,8 +43,9 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
-  // Rendering
+  // Rendering / debug
   CELL_RENDERING,
+  DEBUG_LOGS,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -909,6 +910,12 @@ function _buildRenderingSection(): HTMLElement {
   section.appendChild(
     _toggle('Use cell-based renderer (experimental)', CELL_RENDERING, 'enabled', {
       tip: 'When on, switches to the new spatial-grid + LOD renderer optimized for large repos. Experimental — picker, fader, outline, and ad panels are not yet migrated. Reload required after toggling.',
+    }),
+  );
+
+  section.appendChild(
+    _toggle('Verbose render logs', DEBUG_LOGS, 'enabled', {
+      tip: 'When on, prints diagnostic [boot] and [cell] logs to the browser console — useful for debugging the cell-rendering pipeline. Off by default to keep the console clean.',
     }),
   );
 

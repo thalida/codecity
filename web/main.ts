@@ -23,6 +23,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
   CELL_RENDERING,
+  debugBoot,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
@@ -90,25 +91,25 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // every other module reads cityScene directly through accessors.
   // [cell-debug]
   const _citySceneT0 = performance.now();
-  console.log('[boot] cityScene creating');
+  debugBoot('[boot] cityScene creating');
   const cityScene = createCityScene(canvas);
-  console.log('[boot] cityScene created', { elapsedMs: performance.now() - _citySceneT0 });
+  debugBoot('[boot] cityScene created', { elapsedMs: performance.now() - _citySceneT0 });
   const scene = cityScene.scene;
   _applyDisplayLabel(manifest);
   // [cell-debug]
   const _applyT0 = performance.now();
   // [boot-diag] call #1: startRenderLoop bootstrap (skeleton or cache-hit final)
-  console.log('[boot] applyManifest starting', {
+  debugBoot('[boot] applyManifest starting', {
     caller: 'startRenderLoop',
     stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
   });
   await cityScene.applyManifest(manifest);
-  console.log('[boot] applyManifest done', { elapsedMs: performance.now() - _applyT0 });
+  debugBoot('[boot] applyManifest done', { elapsedMs: performance.now() - _applyT0 });
 
   // -- 3. Renderer -------------------------------------------------------------
   // [cell-debug]
   const _rendererT0 = performance.now();
-  console.log('[boot] WebGLRenderer creating');
+  debugBoot('[boot] WebGLRenderer creating');
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -116,7 +117,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
-  console.log('[boot] WebGLRenderer created', { elapsedMs: performance.now() - _rendererT0 });
+  debugBoot('[boot] WebGLRenderer created', { elapsedMs: performance.now() - _rendererT0 });
 
   // -- 4. Camera + controls ----------------------------------------------------
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
@@ -124,9 +125,9 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // brevity in event handlers and resize logic below.
   // [cell-debug]
   const _rigT0 = performance.now();
-  console.log('[boot] camera rig creating');
+  debugBoot('[boot] camera rig creating');
   const rig = createCameraRig({ canvas, cityScene });
-  console.log('[boot] camera rig created', { elapsedMs: performance.now() - _rigT0 });
+  debugBoot('[boot] camera rig created', { elapsedMs: performance.now() - _rigT0 });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -490,7 +491,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
   // [cell-debug]
-  console.log('[boot] startRenderLoop returning', { elapsedMs: performance.now() - srlT0 });
+  debugBoot('[boot] startRenderLoop returning', { elapsedMs: performance.now() - srlT0 });
   return { cityScene, applyTheme, coordinator };
 }
 
@@ -678,7 +679,7 @@ function setupLiveUpdates(
           lastSignature = m.signature;
           _applyDisplayLabel(m);
           // [boot-diag] live-updates path
-          console.log('[boot] applyManifest caller=setupLiveUpdates/refreshManifest', {
+          debugBoot('[boot] applyManifest caller=setupLiveUpdates/refreshManifest', {
             signature: m.signature.slice(0, 8),
             stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
           });
@@ -857,7 +858,7 @@ if (_canvas) {
   (async function boot() {
     // [cell-debug]
     const bootT0 = performance.now();
-    console.log('[boot] boot IIFE started');
+    debugBoot('[boot] boot IIFE started');
 
     // Hydrate every config store from localStorage BEFORE the initial
     // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
@@ -938,7 +939,7 @@ if (_canvas) {
       try {
         for await (const event of streamManifest(manifestUrl())) {
           // [cell-debug]
-          console.log('[boot] stream event', { phase: event.phase, elapsedMs: performance.now() - bootT0 });
+          debugBoot('[boot] stream event', { phase: event.phase, elapsedMs: performance.now() - bootT0 });
           if (event.phase === 'error') throw new Error(event.error);
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue. The first manifest-
@@ -962,12 +963,12 @@ if (_canvas) {
             // skeleton → final transition.
             // [cell-debug]
             const _atlasT0 = performance.now();
-            console.log('[boot] buildIconAtlas starting');
+            debugBoot('[boot] buildIconAtlas starting');
             try {
               const _builtAtlas = await buildIconAtlas(m);
               setIconAtlas(_builtAtlas);
               setCellIconAtlas(_builtAtlas);
-              console.log('[boot] buildIconAtlas done', { elapsedMs: performance.now() - _atlasT0 });
+              debugBoot('[boot] buildIconAtlas done', { elapsedMs: performance.now() - _atlasT0 });
             } catch (err) {
               console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
             }
@@ -986,12 +987,12 @@ if (_canvas) {
             // [cell-debug]
             const _applyFinalT0 = performance.now();
             // [boot-diag] call #2: boot stream final event
-            console.log('[boot] applyManifest (final event) starting', {
+            debugBoot('[boot] applyManifest (final event) starting', {
               caller: 'boot-stream/final',
               stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
             });
             await handle.cityScene.applyManifest(m);
-            console.log('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
+            debugBoot('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
           }
           initialManifest = m;
         }
@@ -1043,7 +1044,7 @@ if (_canvas) {
     async function applyNewSource(payload: SourcePayload): Promise<void> {
       // [boot-diag] Track who is calling applyNewSource so we can identify
       // the third applyManifest call observed in production logs.
-      console.log('[boot] applyNewSource called', {
+      debugBoot('[boot] applyNewSource called', {
         src: payload.src,
         branch: payload.branch,
         stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
@@ -1083,7 +1084,7 @@ if (_canvas) {
             // — the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
             // [boot-diag] applyNewSource skeleton event
-            console.log('[boot] applyManifest caller=applyNewSource/skeleton', {
+            debugBoot('[boot] applyManifest caller=applyNewSource/skeleton', {
               src: payload.src,
               stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
             });
@@ -1125,7 +1126,7 @@ if (_canvas) {
 
         _applyDisplayLabel(manifest);
         // [boot-diag] applyNewSource final event
-        console.log('[boot] applyManifest caller=applyNewSource/final', {
+        debugBoot('[boot] applyManifest caller=applyNewSource/final', {
           src: payload.src,
           stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
         });

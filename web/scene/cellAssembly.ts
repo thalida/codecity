@@ -12,6 +12,7 @@ import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js'
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './instanced/buildingsCell.js';
 import { BuildingIndex } from './buildingIndex.js';
 import type { Building } from '@/types/index.js';
+import { debugCell } from '@/config/debugLogs.js';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;
@@ -48,9 +49,9 @@ export function buildCellsFromLayout(
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 1 entered', { buildings: buildings.length, cellSize, gridCellCount: grid.cellCount });
+  debugCell('[cell] buildCellsFromLayout: 1 entered', { buildings: buildings.length, cellSize, gridCellCount: grid.cellCount });
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 2 SpatialGrid created', { gridW: grid.gridW, gridH: grid.gridH, cellCount: grid.cellCount, cellSize });
+  debugCell('[cell] buildCellsFromLayout: 2 SpatialGrid created', { gridW: grid.gridW, gridH: grid.gridH, cellCount: grid.cellCount, cellSize });
 
   // ---- Sparse pass: collect occupied cellIds ----
   const occupiedIds = new Set<number>();
@@ -59,11 +60,11 @@ export function buildCellsFromLayout(
     occupiedIds.add(cellId);
   }
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 3 occupied cells identified', { occupiedCells: occupiedIds.size, totalCells: grid.cellCount });
+  debugCell('[cell] buildCellsFromLayout: 3 occupied cells identified', { occupiedCells: occupiedIds.size, totalCells: grid.cellCount });
 
   const capacity = computeCellCapacity(occupiedIds.size || 1, buildings.length);
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 4 capacity computed', { capacity });
+  debugCell('[cell] buildCellsFromLayout: 4 capacity computed', { capacity });
 
   // ---- Sparse allocation: only occupied cells ----
   // [cell-debug]
@@ -75,7 +76,7 @@ export function buildCellsFromLayout(
     cells.set(id, cell);
   }
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 5 allocated occupied cells', { count: cells.size, elapsedMs: performance.now() - _allocT0 });
+  debugCell('[cell] buildCellsFromLayout: 5 allocated occupied cells', { count: cells.size, elapsedMs: performance.now() - _allocT0 });
 
   // ---- Insert buildings ----
   // [cell-debug]
@@ -104,7 +105,7 @@ export function buildCellsFromLayout(
     index.insert(b);
   }
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 6 buildings assigned to slots', { count: buildings.length, elapsedMs: performance.now() - _buildT0 });
+  debugCell('[cell] buildCellsFromLayout: 6 buildings assigned to slots', { count: buildings.length, elapsedMs: performance.now() - _buildT0 });
 
   // ---- Force detail tier visible (no LOD yet — Task 14 adds the evaluator) ----
   // [cell-debug]
@@ -120,9 +121,9 @@ export function buildCellsFromLayout(
     sceneRoot.add(cell.impostorMesh);
   }
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 7 visibility flags set', { count: cells.size, elapsedMs: performance.now() - _visT0 });
+  debugCell('[cell] buildCellsFromLayout: 7 visibility flags set', { count: cells.size, elapsedMs: performance.now() - _visT0 });
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 8 SceneRoot constructed', { childCount: sceneRoot.children.length });
+  debugCell('[cell] buildCellsFromLayout: 8 SceneRoot constructed', { childCount: sceneRoot.children.length });
 
   // ---- Flush attribute uploads ----
   for (const cell of cells.values()) {
@@ -131,7 +132,7 @@ export function buildCellsFromLayout(
   }
 
   // [cell-debug]
-  console.log('[cell] buildCellsFromLayout: 9 returning', { totalMs: performance.now() - _t0 });
+  debugCell('[cell] buildCellsFromLayout: 9 returning', { totalMs: performance.now() - _t0 });
   return { grid, cells, index, sceneRoot };
 }
 
