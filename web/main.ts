@@ -23,6 +23,7 @@ import {
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
   CELL_RENDERING,
+  LOD,
   debugBoot,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
@@ -395,9 +396,28 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
 
   // LOD evaluator — one per render loop (shared across manifest refreshes).
   // Forced on the very first frame so cells become visible before the user
-  // has moved the camera.
+  // has moved the camera. Also reset whenever cells are rebuilt (manifest
+  // re-apply / source switch) or LOD thresholds are tuned at runtime —
+  // otherwise the skip-eval optimisation would keep new cells in their
+  // initial hidden state until the camera moves.
   const _lodEvaluator = new LodEvaluator();
   let _lodFirstFrame = true;
+
+  // Re-evaluate LOD after every cityScene change (manifest re-apply, source
+  // switch, live update). cityScene fires the change subscriber AFTER cells
+  // have been rebuilt + scene state swapped, so by the time we reset() here
+  // the new cells are in place and the next animate() frame will classify them.
+  cityScene.onChange(() => {
+    _lodEvaluator.reset();
+  });
+
+  // Re-evaluate LOD when the user tunes thresholds from the controls UI.
+  // (Initial subscribe fires synchronously with the current value — that's
+  // fine; reset() is idempotent and we want the next frame to re-classify
+  // anyway.)
+  LOD.subscribe(() => {
+    _lodEvaluator.reset();
+  });
 
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();

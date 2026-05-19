@@ -46,6 +46,7 @@ import {
   // Rendering / debug
   CELL_RENDERING,
   DEBUG_LOGS,
+  LOD,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -911,6 +912,20 @@ function _buildRenderingSection(): HTMLElement {
     _toggle('Use cell-based renderer (experimental)', CELL_RENDERING, 'enabled', {
       tip: 'When on, switches to the new spatial-grid + LOD renderer optimized for large repos. Experimental — picker, fader, outline, and ad panels are not yet migrated. Reload required after toggling.',
     }),
+  );
+
+  section.appendChild(
+    _subgroup('Level of detail (cell mode)', [
+      _number('Detail threshold (px²)', LOD, 'SWAP_TO_DETAIL_PX', 100, 20000, 100, {
+        tip: 'Projected pixel area above which a cell renders at full detail. Higher = stricter (less detail kept). Live-tunable; cells re-evaluate next frame.',
+      }),
+      _number('Impostor threshold (px²)', LOD, 'SWAP_TO_IMPOSTOR_PX', 50, 20000, 50, {
+        tip: 'Below this pixel area, a cell renders as a flat-shaded impostor box. Between the impostor and detail thresholds is the hysteresis band — cells stay in their current tier to avoid thrash.',
+      }),
+      _number('Cull threshold (px²)', LOD, 'CULL_PX', 1, 1000, 1, {
+        tip: 'Below this pixel area, the cell is fully hidden. Set higher to skip more far-away geometry.',
+      }),
+    ]),
   );
 
   return section;

@@ -55,6 +55,18 @@ export class LodEvaluator {
   private _lastViewportH = -1;
 
   /**
+   * Reset the skip-eval state so the next evaluate() call runs the full loop
+   * regardless of camera/viewport stability. Call this whenever the cell set
+   * has been rebuilt or the LOD thresholds have changed — situations where
+   * the cached "nothing changed since last eval" is invalid.
+   */
+  reset(): void {
+    this._lastCamPos.set(NaN, NaN, NaN);
+    this._lastViewportW = -1;
+    this._lastViewportH = -1;
+  }
+
+  /**
    * Evaluate LOD tiers for all cells in the iterable.
    *
    * @param cells     Iterable of CellTile to classify.
