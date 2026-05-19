@@ -1388,5 +1388,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     getPathConnectorsMap() {
       return pathMeshesByDirPath;
     },
+
+    // Task 9: cell-mode accessors for picker + other consumers.
+    // Returns null when CELL_RENDERING is disabled (legacy block path).
+    getBuildingIndex(): BuildingIndex | null {
+      return _buildingIndex;
+    },
+    getCells(): Map<number, CellTile> {
+      return _cells;
+    },
   };
 }

@@ -13,6 +13,8 @@ import type {
   Street,
 } from '@/types';
 import type { SceneBlock } from '@/scene/blocks.js';
+import { BuildingIndex } from '@/scene/buildingIndex.js';
+import type { CellTile } from '@/scene/cellTile.js';
 
 // Stub camera — only used by raycaster.setFromCamera, not exercised here.
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
@@ -125,6 +127,8 @@ function makeFakeCityScene(blocks: SceneBlock[] = []): PickerCityScene {
       listeners.push(cb);
       return () => {};
     },
+    getBuildingIndex: () => null,
+    getCells: () => new Map(),
   };
 }
 
@@ -264,4 +268,245 @@ describe('picker with InstancedMesh', () => {
   // Placeholder-hit tests removed: placeholders disabled (see cityScene
   // applyManifest comment) because they intercepted rays meant for
   // neighboring blocks' buildings and broke hover reliability.
+});
+
+// ── Cell-mode picker tests (Task 9) ───────────────────────────────────────
+
+/**
+ * Build a minimal cell-mode building with cellId + slotId back-pointers.
+ */
+function makeCellBuilding(path: string, cellId: number, slotId: number): Building {
+  return {
+    file: { path, type: NodeKind.File } as unknown as FileNode,
+    x: 0,
+    y: 0,
+    w: 10,
+    h: 15,
+    d: 8,
+    color: '#aabbcc',
+    cellId,
+    slotId,
+  } as unknown as Building;
+}
+
+/**
+ * Build a minimal CellTile-like object: a real InstancedMesh with
+ * userData.cellId and userData.meshKind = 'detail', mirroring what
+ * createEmptyCellTile + the Phase-B factory produce.
+ */
+function makeCellDetailMesh(cellId: number, capacity: number): THREE.InstancedMesh {
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshBasicMaterial();
+  const mesh = new THREE.InstancedMesh(geo, mat, capacity);
+  mesh.userData = { cellId, meshKind: 'detail' };
+  return mesh;
+}
+
+/**
+ * Build a fake PickerCityScene that returns a non-null BuildingIndex
+ * (cell mode active) and exposes the given cells map.
+ */
+function makeCellModeFakeScene(
+  index: BuildingIndex,
+  cells: Map<number, CellTile>,
+): PickerCityScene {
+  const listeners: Array<() => void> = [];
+  return {
+    getBuildings: () => [],
+    getBlocks: () => [],
+    getStreetPickables: () => [],
+    getRootGem: () => null,
+    getBuildingByPath: () => null,
+    getSidewalkByDir: () => null,
+    getStreetByDir: () => null,
+    onChange(cb: () => void) {
+      listeners.push(cb);
+      return () => {};
+    },
+    getBuildingIndex: () => index,
+    getCells: () => cells,
+  };
+}
+
+describe('picker with cell-mode BuildingIndex (Task 9)', () => {
+  it('resolves a detail-mesh hit to the registered Building via BuildingIndex', () => {
+    const CELL_ID = 7;
+    const SLOT_ID = 3;
+
+    const building = makeCellBuilding('src/cell-a.ts', CELL_ID, SLOT_ID);
+    const index = new BuildingIndex();
+    index.insert(building);
+
+    const detailMesh = makeCellDetailMesh(CELL_ID, 8);
+
+    // Minimal CellTile stub — picker only needs detailMesh and impostorMesh.
+    const cell = {
+      cellId: CELL_ID,
+      detailMesh,
+      impostorMesh: new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial(),
+        8,
+      ),
+    } as unknown as CellTile;
+    cell.impostorMesh.userData = { cellId: CELL_ID, meshKind: 'impostor' };
+
+    const cells = new Map([[CELL_ID, cell]]);
+    const fakeScene = makeCellModeFakeScene(index, cells);
+
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+
+    // Synthetic raycaster intersection: hit instanceId 3 on the detailMesh.
+    const hit = {
+      object: detailMesh,
+      instanceId: SLOT_ID,
+      distance: 10,
+      point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+
+    const target = p.interpretHit(hit);
+
+    expect(target).not.toBeNull();
+    expect(target?.kind).toBe(NodeKind.File);
+    if (target?.kind === NodeKind.File) {
+      expect(target.data).toBe(building);
+      expect(target.file.path).toBe('src/cell-a.ts');
+      expect(target.instanceId).toBe(SLOT_ID);
+    }
+
+    p.dispose();
+  });
+
+  it('resolves an impostor-mesh hit to the registered Building via BuildingIndex', () => {
+    const CELL_ID = 2;
+    const SLOT_ID = 0;
+
+    const building = makeCellBuilding('lib/impostor-b.ts', CELL_ID, SLOT_ID);
+    const index = new BuildingIndex();
+    index.insert(building);
+
+    const geo = new THREE.BoxGeometry(1, 1, 1);
+    const mat = new THREE.MeshBasicMaterial();
+    const impostorMesh = new THREE.InstancedMesh(geo, mat, 4);
+    impostorMesh.userData = { cellId: CELL_ID, meshKind: 'impostor' };
+
+    const cell = {
+      cellId: CELL_ID,
+      detailMesh: new THREE.InstancedMesh(geo.clone(), mat, 4),
+      impostorMesh,
+    } as unknown as CellTile;
+    cell.detailMesh.userData = { cellId: CELL_ID, meshKind: 'detail' };
+
+    const cells = new Map([[CELL_ID, cell]]);
+    const fakeScene = makeCellModeFakeScene(index, cells);
+
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+
+    const hit = {
+      object: impostorMesh,
+      instanceId: SLOT_ID,
+      distance: 20,
+      point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+
+    const target = p.interpretHit(hit);
+
+    expect(target).not.toBeNull();
+    expect(target?.kind).toBe(NodeKind.File);
+    if (target?.kind === NodeKind.File) {
+      expect(target.data).toBe(building);
+      expect(target.file.path).toBe('lib/impostor-b.ts');
+      expect(target.instanceId).toBe(SLOT_ID);
+    }
+
+    p.dispose();
+  });
+
+  it('returns null when instanceId is null on a cell-mode hit', () => {
+    const CELL_ID = 5;
+    const building = makeCellBuilding('src/null-slot.ts', CELL_ID, 1);
+    const index = new BuildingIndex();
+    index.insert(building);
+
+    const detailMesh = makeCellDetailMesh(CELL_ID, 4);
+    const cell = {
+      cellId: CELL_ID,
+      detailMesh,
+      impostorMesh: new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial(),
+        4,
+      ),
+    } as unknown as CellTile;
+    cell.impostorMesh.userData = { cellId: CELL_ID, meshKind: 'impostor' };
+
+    const cells = new Map([[CELL_ID, cell]]);
+    const fakeScene = makeCellModeFakeScene(index, cells);
+
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+
+    const hit = {
+      object: detailMesh,
+      instanceId: undefined,
+      distance: 10,
+      point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+
+    expect(p.interpretHit(hit)).toBeNull();
+
+    p.dispose();
+  });
+
+  it('returns null when the slot is not registered in BuildingIndex', () => {
+    const CELL_ID = 9;
+    const index = new BuildingIndex(); // empty — no buildings registered
+
+    const detailMesh = makeCellDetailMesh(CELL_ID, 4);
+    const cell = {
+      cellId: CELL_ID,
+      detailMesh,
+      impostorMesh: new THREE.InstancedMesh(
+        new THREE.BoxGeometry(1, 1, 1),
+        new THREE.MeshBasicMaterial(),
+        4,
+      ),
+    } as unknown as CellTile;
+    cell.impostorMesh.userData = { cellId: CELL_ID, meshKind: 'impostor' };
+
+    const cells = new Map([[CELL_ID, cell]]);
+    const fakeScene = makeCellModeFakeScene(index, cells);
+
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+
+    const hit = {
+      object: detailMesh,
+      instanceId: 2, // slot 2 not in index
+      distance: 10,
+      point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+
+    expect(p.interpretHit(hit)).toBeNull();
+
+    p.dispose();
+  });
+
+  it('legacy block path still works when getBuildingIndex returns null', () => {
+    // Building with no cellId — old block-mode userData.
+    const bLegacy = makeBuilding('legacy/file.ts');
+    const { mesh: legacyMesh } = makeBlock([bLegacy]);
+
+    // getBuildingIndex() returns null → legacy branch runs.
+    const fakeScene = makeFakeCityScene();
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+
+    const hit = fakeInstancedHit(legacyMesh, 0);
+    const target = p.interpretHit(hit);
+
+    expect(target?.kind).toBe(NodeKind.File);
+    if (target?.kind === NodeKind.File) {
+      expect(target.file.path).toBe('legacy/file.ts');
+    }
+
+    p.dispose();
+  });
 });

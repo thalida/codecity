@@ -120,6 +120,12 @@ function makeFakeCityScene(
       listeners.push(cb);
       return function () {};
     },
+    getBuildingIndex() {
+      return null;
+    },
+    getCells() {
+      return new Map();
+    },
   };
   return Object.assign(api, { setSnapshot });
 }
@@ -162,6 +168,8 @@ describe('picker.pickAtCenter', () => {
       getSidewalkByDir: () => null,
       getStreetByDir: () => null,
       onChange: () => () => {},
+      getBuildingIndex: () => null,
+      getCells: () => new Map(),
     };
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
@@ -186,6 +194,8 @@ describe('picker.pickAtCenter', () => {
       getSidewalkByDir: () => null,
       getStreetByDir: () => null,
       onChange: () => () => {},
+      getBuildingIndex: () => null,
+      getCells: () => new Map(),
     };
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
     const p = createPicker({ canvas, camera, cityScene: mockCityScene });
