@@ -1192,8 +1192,11 @@ canvas {
 
 /* ── Fly-mode reticle ──────────────────────────────────────────────────────── */
 
+/* Sits inside #center-pane (position: relative) so the reticle aligns with
+   the canvas's NDC origin — what pickAtCenter raycasts from — not the
+   viewport center, which the sidebars push the canvas off of. */
 #fly-reticle {
-  position: fixed;
+  position: absolute;
   top: 50%;
   left: 50%;
   width: 6px;
