@@ -114,18 +114,27 @@ export class LodEvaluator {
     this._lastViewportW = viewport.width;
     this._lastViewportH = viewport.height;
 
+    // Convert viewport-fraction thresholds to px² once per eval. The
+    // fractions are world-scale-independent — they describe how much
+    // of the user's screen a cell needs to cover to qualify for each
+    // tier, so the same defaults work for tiny repos and Linux alike.
+    const viewportArea = viewport.width * viewport.height;
+    const detailPx = lod.DETAIL_VIEWPORT_FRAC * viewportArea;
+    const impostorPx = lod.IMPOSTOR_VIEWPORT_FRAC * viewportArea;
+    const cullPx = lod.CULL_VIEWPORT_FRAC * viewportArea;
+
     for (const cell of cells) {
       const A = projectedPixelArea(cell.boundsSphere, camera, viewport);
 
       let next: typeof cell.tier;
-      if (A < lod.CULL_PX) {
+      if (A < cullPx) {
         next = 'hidden';
-      } else if (A >= lod.SWAP_TO_DETAIL_PX) {
+      } else if (A >= detailPx) {
         next = 'detail';
-      } else if (A < lod.SWAP_TO_IMPOSTOR_PX) {
+      } else if (A < impostorPx) {
         next = 'impostor';
       } else {
-        // Hysteresis band: SWAP_TO_IMPOSTOR_PX <= A < SWAP_TO_DETAIL_PX.
+        // Hysteresis band: impostorPx <= A < detailPx.
         // Stay in current tier if already detail; otherwise impostor.
         next = cell.tier === 'detail' ? 'detail' : 'impostor';
       }

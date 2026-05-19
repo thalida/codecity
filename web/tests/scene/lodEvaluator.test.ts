@@ -100,8 +100,20 @@ describe('LodEvaluator', () => {
     evaluator = new LodEvaluator();
   });
 
-  it('hides a far-away cell (area < CULL_PX)', () => {
-    // Camera very far away — area will be < 50 px
+  // Helper: convert the viewport-fraction thresholds in LOD config to
+  // absolute pixel-area values for the current test viewport (VP).
+  function thresholdsPx(): { cull: number; impostor: number; detail: number } {
+    const lod = LOD.get();
+    const vpArea = VP.width * VP.height;
+    return {
+      cull: lod.CULL_VIEWPORT_FRAC * vpArea,
+      impostor: lod.IMPOSTOR_VIEWPORT_FRAC * vpArea,
+      detail: lod.DETAIL_VIEWPORT_FRAC * vpArea,
+    };
+  }
+
+  it('hides a far-away cell (area < cull threshold)', () => {
+    // Camera very far away — area will be tiny, below cullPx (24 px at default frac).
     const cam = makeCamera(new THREE.Vector3(0, 0, 100_000));
     const cell = makeCell(new THREE.Vector3(0, 0, 0), 5);
     cell.tier = 'detail'; // start at detail so we can see the transition
@@ -114,29 +126,33 @@ describe('LodEvaluator', () => {
     expect(cell.impostorMesh.visible).toBe(false);
   });
 
-  it('sets impostor tier for mid-range area (between CULL and SWAP_TO_IMPOSTOR)', () => {
-    // We need area between CULL_PX (50) and SWAP_TO_IMPOSTOR_PX (2000).
-    // sphere radius=5, viewport height=600, fov=60°: r_px=(5/dist)*(519.6)
-    // For area ~ 500 px: PI*r_px^2=500 → r_px≈12.6 → 5/dist*519.6=12.6 → dist≈206
+  it('sets impostor tier for mid-range area (between cull and impostor thresholds)', () => {
+    // Defaults at VP=800×600 (vpArea=480,000):
+    //   cullPx     = 0.00005 * 480000 = 24
+    //   impostorPx = 0.005   * 480000 = 2400
+    //   detailPx   = 0.025   * 480000 = 12000
+    // Need 24 <= A < 2400. With sphere radius=5, fov=60°, viewport h=600,
+    // r_px = (5/dist) * (600/(2*tan(30°))) = (5/dist) * 519.6 = 2598/dist.
+    // For A ~ 500: r_px ≈ 12.6 → dist ≈ 206. ✓
     const cam = makeCamera(new THREE.Vector3(0, 0, 206));
     const cell = makeCell(new THREE.Vector3(0, 0, 0), 5);
     cell.tier = 'hidden';
 
     evaluator.evaluate([cell], cam, VP, true);
 
-    const lod = LOD.get();
+    const t = thresholdsPx();
     const area = projectedPixelArea(cell.boundsSphere, cam, VP);
-    // Verify we're in the right band
-    expect(area).toBeGreaterThan(lod.CULL_PX);
-    expect(area).toBeLessThan(lod.SWAP_TO_IMPOSTOR_PX);
+    expect(area).toBeGreaterThan(t.cull);
+    expect(area).toBeLessThan(t.impostor);
 
     expect(cell.tier).toBe('impostor');
     expect(cell.detailMesh.visible).toBe(false);
     expect(cell.impostorMesh.visible).toBe(true);
   });
 
-  it('sets detail tier for large pixel area (>= SWAP_TO_DETAIL_PX)', () => {
-    // sphere radius=50 at distance 10 → r_px=(50/10)*519.6≈2598 → area huge
+  it('sets detail tier for large pixel area (>= detail threshold)', () => {
+    // sphere radius=50 at distance 10 → r_px=(50/10)*519.6 ≈ 2598 → area ≈ 21M px²,
+    // far above detailPx (12000). ✓
     const cam = makeCamera(new THREE.Vector3(0, 0, 10));
     const cell = makeCell(new THREE.Vector3(0, 0, 0), 50);
     cell.tier = 'hidden';
@@ -149,16 +165,16 @@ describe('LodEvaluator', () => {
   });
 
   it('hysteresis: cell at detail stays at detail in the impostor/detail band', () => {
-    // Band: SWAP_TO_IMPOSTOR_PX <= A < SWAP_TO_DETAIL_PX (2000..3000).
-    // sphere radius=5 at distance 100 → r_px=(5/100)*519.6≈26 → area=PI*26^2≈2124 px
-    // (between 2000 and 3000 — hysteresis band)
-    const cam = makeCamera(new THREE.Vector3(0, 0, 100));
+    // Band at VP=800×600 defaults: 2400 <= A < 12000.
+    // Solve for distance: r_px ≈ 2598/dist, A = π*r_px². For A ~ 5000:
+    // r_px ≈ 39.9 → dist ≈ 65.
+    const cam = makeCamera(new THREE.Vector3(0, 0, 65));
     const cell = makeCell(new THREE.Vector3(0, 0, 0), 5);
 
-    const lod = LOD.get();
+    const t = thresholdsPx();
     const area = projectedPixelArea(cell.boundsSphere, cam, VP);
     // Guard: must be in the hysteresis band
-    if (area < lod.SWAP_TO_IMPOSTOR_PX || area >= lod.SWAP_TO_DETAIL_PX) {
+    if (area < t.impostor || area >= t.detail) {
       // Skip — geometry doesn't produce a band hit at this distance; not a failure.
       return;
     }
