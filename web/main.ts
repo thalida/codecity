@@ -59,6 +59,7 @@ import { streamManifest } from './manifestStream.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
 import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
+import { LodEvaluator } from './scene/lodEvaluator.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
 // so that every downstream consumer (root street label, file tree root row,
@@ -392,6 +393,12 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   const startTime = performance.now();
   const labelRight = new THREE.Vector3();
 
+  // LOD evaluator — one per render loop (shared across manifest refreshes).
+  // Forced on the very first frame so cells become visible before the user
+  // has moved the camera.
+  const _lodEvaluator = new LodEvaluator();
+  let _lodFirstFrame = true;
+
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
   function animate() {
@@ -421,6 +428,20 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
+    // LOD evaluation — runs after world matrices are fresh so projections are
+    // correct. Skipped automatically when camera and viewport are stable.
+    {
+      const cells = cityScene.getCells();
+      if (cells.size > 0) {
+        const viewport = {
+          width: renderer.domElement.clientWidth,
+          height: renderer.domElement.clientHeight,
+        };
+        const force = _lodFirstFrame;
+        _lodFirstFrame = false;
+        _lodEvaluator.evaluate(cells.values(), camera, viewport, force);
+      }
+    }
     animator.update(0); // entering / staying tweens (scale, position)
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase

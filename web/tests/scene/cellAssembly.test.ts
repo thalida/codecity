@@ -119,14 +119,18 @@ describe('buildCellsFromLayout', () => {
     expect(out.sceneRoot.children.length).toBe(4);
   });
 
-  it('each occupied cell has detailMesh visible and impostorMesh hidden', () => {
+  it('each occupied cell starts hidden — LOD evaluator sets visibility on first frame', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [fakeBuilding(5, 5)];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
-    expect(cell.detailMesh.visible).toBe(true);
+    // After buildCellsFromLayout, all meshes start hidden (tier='hidden').
+    // The LOD evaluator runs a forced pass on the first animate frame and
+    // sets the correct tier based on camera position.
+    expect(cell.tier).toBe('hidden');
+    expect(cell.detailMesh.visible).toBe(false);
     expect(cell.impostorMesh.visible).toBe(false);
     // labelMesh is null until attachLabelMeshToCell is called.
     expect(cell.labelMesh).toBeNull();

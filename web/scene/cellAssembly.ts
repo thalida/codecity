@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './instanced/buildingsCell.js';
+import { attachImpostorMeshToCell, writeImpostorToSlot } from './instanced/impostorCell.js';
 import { InstancedAdPanels, asyncLoadMediaForBuilding } from './instanced/adPanelsInstanced.js';
 import { isMediaFile } from './adPanels.js';
 import { BuildingIndex } from './buildingIndex.js';
@@ -77,6 +78,7 @@ export function buildCellsFromLayout(
   for (const id of occupiedIds) {
     const cell = createEmptyCellTile(grid, id, capacity);
     attachBuildingMeshToCell(cell, sharedBuildingUniforms);
+    attachImpostorMeshToCell(cell);
     cells.set(id, cell);
   }
   // [cell-debug]
@@ -106,21 +108,23 @@ export function buildCellsFromLayout(
     cell.buildings[slot] = b;
     if (b.dirNode) cell.dirs.add(b.dirNode);
     writeBuildingToSlot(cell, b);
+    writeImpostorToSlot(cell, b);
     index.insert(b);
   }
   // [cell-debug]
   debugCell('[cell] buildCellsFromLayout: 6 buildings assigned to slots', { count: buildings.length, elapsedMs: performance.now() - _buildT0 });
 
-  // ---- Force detail tier visible (no LOD yet — Task 14 adds the evaluator) ----
+  // ---- Add all cell meshes to scene root; LOD evaluator sets visibility ----
+  // Cells start with tier='hidden' and all meshes invisible (set in
+  // createEmptyCellTile). The LOD evaluator runs a forced pass on the first
+  // animate tick and adjusts visibility based on camera position.
   // [cell-debug]
   const _visT0 = performance.now();
   const sceneRoot = new THREE.Group();
   sceneRoot.name = 'CellRoot';
   for (const cell of cells.values()) {
-    cell.tier = 'detail';
-    cell.detailMesh.visible = true;
-    // impostorMesh stays hidden until Task 13 attaches impostor geometry.
-    // labelMesh stays hidden — labels are handled by the legacy streetLabels path.
+    // Mesh visibility starts false (from createEmptyCellTile / impostorMesh
+    // placeholder). LOD evaluator will set the correct tier on the first frame.
     sceneRoot.add(cell.detailMesh);
     sceneRoot.add(cell.impostorMesh);
   }
