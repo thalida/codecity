@@ -49,12 +49,12 @@ import {
 } from './instanced/labels.js';
 import { buildCellsFromLayout } from './cellAssembly.js';
 import type { CellTile } from './cellTile.js';
-import { writeBuildingToSlot } from './instanced/buildingsCell.js';
 import { BuildingIndex } from './buildingIndex.js';
 import type { SpatialGrid } from './spatialGrid.js';
-import { findLayoutOverlaps, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
-import type { HeightContext, LayoutOverlap } from './layout.js';
+import { findLayoutOverlaps } from './layout.js';
+import type { LayoutOverlap } from './layout.js';
 import { createLayoutClient } from './layoutClient.js';
+import type { LayoutComputeOpts } from './layoutClient.js';
 import { layoutCityV4WithTrace } from './layoutV4.js';
 import type {
   ChildPlacementTrace,
@@ -75,12 +75,10 @@ import type {
   EnteringBuilding,
   EnteringStreet,
   ExitingEntry,
-  FileNode,
   Manifest,
   StayingBuilding,
   StayingStreet,
   Street,
-  TreeNode,
 } from '@/types';
 import type { SceneBlock } from './blocks.js';
 
@@ -690,14 +688,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // proper Manifest objects.
   async function applyManifest(
     newManifest: Manifest | { tree: unknown; [k: string]: unknown },
-    opts: { freshLoad?: boolean } = {},
   ): Promise<void> {
-    // freshLoad: treat this manifest as a cold boot — wipe all cached cell
-    // state so the slow path runs unconditionally. Used when the final
-    // manifest follows a skeleton to avoid inheriting stale skeleton state.
-    if (opts.freshLoad) {
-      resetForFreshLoad();
-    }
     // [cell-debug]
     const amT0 = performance.now();
 
@@ -724,106 +715,54 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     console.log('[boot] applyManifest: phase 1 layout start');
     const _amPhase1Start = performance.now();
     const newManifestTyped = newManifest as Manifest;
-    let newLayout: CityLayout;
     // Use the server-computed tree_signature as the layout-cache key.
     // It is structure-only (paths + nesting, NO mtime/size), so it is
     // stable across skeleton/final events for the same scan.
     const _treeSig = newManifestTyped.tree_signature ?? '';
-    let _layoutWasCacheHit = false;
-    if (_treeSig && _cachedLayoutTreeSig === _treeSig && _cachedLayout) {
-      // [cell-debug] Reuse the previously-computed layout. Tree shape
-      // is identical (same signature), so building positions are unchanged.
-      // Only per-file metadata (Phase 2 colors/ages) may differ.
-      newLayout = _cachedLayout;
-      _layoutWasCacheHit = true;
-      console.log('[boot] applyManifest: phase 1 layout cache HIT', {
-        elapsedMs: performance.now() - _amPhase1Start,
-        tree_signature: _treeSig.slice(0, 8),
-      });
-    } else {
-      // Pass the full manifest envelope (not `manifest.tree`) — the worker
-      // forwards it to layoutCityV4, which internally unwraps `.tree` via
-      // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
-      // produce the same layout, but routing through the envelope keeps
-      // the worker message contract typed against `Manifest` rather than
-      // a structural `DirLike`. A reject with `Error('superseded')` is
-      // expected when a newer applyManifest preempts us — return silently
-      // so the newer run owns the swap.
-      try {
-        newLayout = await _layoutClient.compute(newManifestTyped);
-      } catch (err) {
-        if (err instanceof Error && err.message === 'superseded') return;
-        throw err;
-      }
-      // [cell-debug] Cache the freshly-computed layout for the next call.
-      if (_treeSig) {
-        _cachedLayoutTreeSig = _treeSig;
-        _cachedLayout = newLayout;
-        console.log('[boot] applyManifest: phase 1 layout cache MISS — storing', {
-          elapsedMs: performance.now() - _amPhase1Start,
-          tree_signature: _treeSig.slice(0, 8),
-        });
-      }
+    const _reuseFrom =
+      _treeSig && _cachedLayoutTreeSig === _treeSig ? _cachedLayout : null;
+    const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom
+      ? { reuseLayoutFrom: _reuseFrom }
+      : {};
+    let newLayout: CityLayout;
+    // Pass the full manifest envelope (not `manifest.tree`) — the worker
+    // forwards it to layoutCityV4, which internally unwraps `.tree` via
+    // `(manifest as { tree?: DirLike }).tree ?? manifest`. Both shapes
+    // produce the same layout, but routing through the envelope keeps
+    // the worker message contract typed against `Manifest` rather than
+    // a structural `DirLike`. A reject with `Error('superseded')` is
+    // expected when a newer applyManifest preempts us — return silently
+    // so the newer run owns the swap.
+    try {
+      newLayout = await _layoutClient.compute(newManifestTyped, _layoutComputeOpts);
+    } catch (err) {
+      if (err instanceof Error && err.message === 'superseded') return;
+      throw err;
+    }
+    const _layoutReused = _reuseFrom !== null;
+    // Cache the layout for the next call (keyed by tree_signature).
+    if (_treeSig) {
+      _cachedLayoutTreeSig = _treeSig;
+      _cachedLayout = newLayout;
     }
     // [cell-debug]
-    console.log('[boot] applyManifest: phase 1 layout done', { elapsedMs: performance.now() - amT0, buildings: newLayout?.buildings?.length ?? 0 });
+    console.log('[boot] applyManifest: phase 1 layout done', {
+      reused: _layoutReused,
+      elapsedMs: performance.now() - _amPhase1Start,
+      buildings: newLayout?.buildings?.length ?? 0,
+    });
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
-    // building list. Also recompute building dimensions (h, w, d, floors) from
-    // the new manifest's real per-file metadata. On a cache-miss the layout was
-    // just computed from scratch so b.file pointers are already current; the
-    // swap below is a harmless no-op. On a cache-hit (skeleton→final or live-
-    // update), the cached buildings still hold OLD FileNode refs — the swap
-    // corrects them before any metadata-derived computation runs. Recomputing
-    // dimensions ensures GPU instance matrices stay accurate after either path.
-    // dateRanges and the color/dim loops don't touch the scene yet.
+    // building list. File refs and dimensions are already correct — layoutClient
+    // recomputed them via reuseLayout (cheap path) or the worker produced them
+    // fresh (full compute). dateRanges and the color loops don't touch the scene yet.
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
     );
-    // Derive project-wide line/byte ranges from the new manifest once.
-    // Always reflects the current manifest's real stats — correct for both
-    // cache-hit and cache-miss paths.
-    const _heightCtx: HeightContext = makeHeightContext(
-      newManifestTyped.tree as unknown as Parameters<typeof makeHeightContext>[0],
-    );
     const newBuildings = newLayout?.buildings ?? [];
 
-    // Build a path → fresh FileNode lookup from the NEW manifest's tree.
-    // This is needed because when the layout cache hits (skeleton→final
-    // transition), the cached buildings reference the OLD manifest's
-    // FileNodes (with stale placeholder metadata — size=0, lines=0, etc.).
-    // Phase 2 must compute colors/ages/dimensions from the FRESH metadata,
-    // so we swap each building's .file reference before the loops below.
-    // O(N) single tree walk; for Linux at 93 k files this is ~5–20 ms.
-    const _p2WalkStart = performance.now();
-    const _newFilesByPath = new Map<string, FileNode>();
-    function _walkTreeCollectFiles(node: TreeNode): void {
-      if (node.type === 'file') {
-        _newFilesByPath.set(node.path, node);
-      } else if ('children' in node && node.children) {
-        for (const c of node.children) _walkTreeCollectFiles(c);
-      }
-    }
-    _walkTreeCollectFiles(newManifestTyped.tree as unknown as TreeNode);
-    console.log('[boot] applyManifest: phase 2 file-lookup build done', {
-      elapsedMs: performance.now() - _p2WalkStart,
-      fileCount: _newFilesByPath.size,
-    });
-
     for (const b of newBuildings) {
-      // Swap b.file to the fresh FileNode from the new manifest before
-      // computing any metadata-derived values. On cache-hit the cached
-      // building still points to the OLD FileNode (stale metadata); on
-      // cache-miss the pointers already match, so this is a harmless no-op.
-      if (b.file?.path) {
-        const freshFile = _newFilesByPath.get(b.file.path);
-        if (freshFile) {
-          b.file = freshFile;
-        } else {
-          console.warn('[boot] phase 2: no fresh FileNode for building path', b.file.path);
-        }
-      }
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see layoutV4.ts).
       b.color = getBuildingColor(
@@ -841,156 +780,23 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
         newDateRanges,
       );
-      // Recompute dimensions from the new manifest's real file metadata.
-      // b.file is now the fresh FileNode (swapped above), so this uses real
-      // metadata. On cache-hit this corrects skeleton placeholder values; on
-      // cache-miss the layout was freshly computed so values are identical
-      // (idempotent).
-      const newDims = recomputeBuildingDimensions(
-        b.file as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
-        _heightCtx,
-      );
-      b.h = newDims.h;
-      b.w = newDims.w;
-      b.d = newDims.d;
-      b.floors = newDims.floors;
     }
     // [cell-debug]
     console.log('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
     if (myGeneration !== _currentGeneration) return;
 
-    // ---- Cell rendering fast-path (CELL_RENDERING.enabled) ----------------
+    // ---- Cell rendering path (CELL_RENDERING.enabled) ---------------------
     // When the flag is on we skip the legacy block assembly entirely and
     // build a SpatialGrid + CellTile scene instead. The atomic swap disposes
     // the previous cell root, builds a fresh one, and returns early so none
     // of the legacy Phase 3/4 code runs.
+    // The layout is already correct (file refs + dimensions recomputed by
+    // layoutClient.reuseLayout on cache-hit, or freshly computed by the
+    // worker on cache-miss), so this single path handles all cases.
     if (CELL_RENDERING.get().enabled) {
       // [cell-debug]
       const _cellT0 = performance.now();
       console.log('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
-
-      // NEW: fast-path detection — if layout is a cache hit AND all module-level
-      // cell state is already populated, skip the full structural rebuild and just
-      // update per-instance color/age attributes on the existing InstancedMeshes.
-      const _isCellCacheHit =
-        _layoutWasCacheHit &&
-        _cellRoot !== null &&
-        _cells !== null &&
-        _cells.size > 0 &&
-        _buildingIndex !== null &&
-        _grid !== null;
-      console.log('[cell] 1.5: cache hit?', { isCacheHit: _isCellCacheHit, hasCellRoot: _cellRoot !== null, hasCells: _cells !== null && _cells.size > 0 });
-
-      // Build the path → new Building lookup map now (needed for fast path;
-      // also used here for staleness validation before committing to fast path).
-      let _newBuildingByPath: Map<string, Building> | null = null;
-      let _isCellCacheHitValidated = false;
-      if (_isCellCacheHit) {
-        _newBuildingByPath = new Map<string, Building>();
-        for (const b of newBuildings) {
-          if (b.file?.path) _newBuildingByPath.set(b.file.path, b);
-        }
-
-        // Sample-validate: check the first non-null building in each cell
-        // against the new manifest. If any sample misses, the cells are stale
-        // (e.g., different source was loaded) → fall through to the slow path.
-        let _validated = true;
-        for (const cell of _cells!.values()) {
-          for (let i = 0; i < cell.used; i++) {
-            const existing = cell.buildings[i];
-            if (existing && existing.file?.path) {
-              if (!_newBuildingByPath.has(existing.file.path)) {
-                _validated = false;
-              }
-              break; // only check first non-null slot per cell
-            }
-          }
-          if (!_validated) break;
-        }
-
-        if (_validated) {
-          _isCellCacheHitValidated = true;
-        } else {
-          console.log('[cell] fast path bypassed: stale cells detected (existing buildings not in new manifest)', {
-            existingCells: _cells!.size,
-            newBuildings: newBuildings.length,
-          });
-        }
-      }
-
-      if (_isCellCacheHitValidated) {
-        // ---- Cache-hit fast path ----
-        // The tree shape is identical, so building positions, cell structure,
-        // streets, labels, paths, and the gem are all unchanged.
-        // Only per-file metadata (color, createdAge, modifiedAge) may differ —
-        // Phase 2 above already computed them onto newBuildings' objects.
-        // We walk the existing cells and re-write only the color/age attributes.
-
-        // Generation check — a newer applyManifest may have preempted us.
-        console.log('[cell] 4: generation check (fast path)', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
-        if (myGeneration !== _currentGeneration) return;
-
-        // Reuse the pre-built lookup map (already constructed during validation).
-        const _byPath = _newBuildingByPath!;
-
-        // Walk every occupied cell and re-write per-instance color/age attributes.
-        let _fastPathUpdated = 0;
-        let _skippedCount = 0;
-        for (const cell of _cells!.values()) {
-          let _cellDirty = false;
-          for (let slot = 0; slot < cell.used; slot++) {
-            const existing = cell.buildings[slot];
-            if (!existing) continue;
-            const newB = existing.file?.path ? _byPath.get(existing.file.path) : undefined;
-            if (!newB) {
-              // This can occur when a file was deleted in a live-update whose
-              // manifest shares the same tree_signature (rare). Count and warn
-              // once after the loop rather than logging per slot.
-              _skippedCount++;
-              continue;
-            }
-            // Copy updated per-file metadata onto the existing Building object.
-            existing.color = newB.color;
-            existing.createdAge = newB.createdAge;
-            existing.modifiedAge = newB.modifiedAge;
-            // Re-write the per-instance GPU attributes for color/age.
-            writeBuildingToSlot(cell, existing);
-            _fastPathUpdated++;
-            _cellDirty = true;
-          }
-          if (_cellDirty) {
-            // Signal Three.js to re-upload the modified per-instance attributes.
-            cell.detailMesh.instanceMatrix.needsUpdate = true;
-            if (cell.detailMesh.instanceColor) cell.detailMesh.instanceColor.needsUpdate = true;
-            const geom = cell.detailMesh.geometry;
-            for (const attrName of ['iIconUV', 'iModifiedAge']) {
-              const attr = geom.getAttribute(attrName);
-              if (attr) attr.needsUpdate = true;
-            }
-          }
-        }
-        if (_skippedCount > 0) {
-          console.warn('[cell] fast path: skipped slots with no match in new manifest', {
-            skippedCount: _skippedCount,
-            totalBuildings: newBuildings.length,
-          });
-        }
-
-        // Keep manifest-level state in sync (values are semantically the same,
-        // but assigning ensures any downstream reader sees the latest objects).
-        manifest = newManifestTyped;
-        layout = newLayout;
-        dateRanges = newDateRanges;
-
-        // Emit the change event. _computeDiff walks prev.blocks (legacy path),
-        // which is [] on the cell path — so the diff is structurally empty.
-        // Subscribers still get notified; the semantic is correct since nothing
-        // structural changed.
-        _emit(changeCbs, _computeDiff(prev));
-
-        console.log('[cell] cache-hit fast path complete', { elapsedMs: performance.now() - _cellT0, updated: _fastPathUpdated });
-        return;
-      }
 
       // Derive WorldBounds from the layout bbox. Fall back to building extents
       // if bbox is absent (shouldn't happen for a real manifest, but safe).
@@ -1304,29 +1110,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _cachedLayout = null;
   }
 
-  // resetForFreshLoad — wipe all cell-rendering state so the next
-  // applyManifest runs the full slow path, identical to a cold boot.
-  // Called before applying a final manifest that follows a skeleton,
-  // so the skeleton's cached layout and cell structures are not reused.
-  // Disposes GPU resources (cell root meshes) to avoid memory leaks.
-  function resetForFreshLoad(): void {
-    // Clear the layout cache (same as resetCache).
-    _cachedLayoutTreeSig = null;
-    _cachedLayout = null;
-
-    // Dispose and remove the cell root from the scene.
-    if (_cellRoot) {
-      _cellRoot.traverse(_disposeObject);
-      if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
-      _cellRoot = null;
-    }
-
-    // Clear cell-rendering state.
-    _cells = new Map();
-    _buildingIndex = null;
-    _grid = null;
-  }
-
   return {
     scene,
     applyManifest,
@@ -1335,8 +1118,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     onChange,
     disposeMesh,
     resetCache,
-
-    resetForFreshLoad,
 
     getManifest() {
       return manifest;
