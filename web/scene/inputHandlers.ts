@@ -183,7 +183,13 @@ export function createInputHandlers({
       onRefresh();
       return;
     }
-    picker.setSelection(picker.interpretHit(hit));
+    // Toggle: clicking the currently-selected building/street deselects it.
+    const next = picker.interpretHit(hit);
+    if (_sameHover(next, picker.selection.get())) {
+      picker.setSelection(null);
+      return;
+    }
+    picker.setSelection(next);
   }
 
   function _focusAtPointer(clientX: number, clientY: number): void {
