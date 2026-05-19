@@ -39,7 +39,7 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 export type { SceneBlock } from './blocks.js';
 
 import { groupBuildingsByDirectory } from './blocks.js';
-import { createBuildingsInstancedMesh } from './instanced/buildings.js';
+import { createBuildingsInstancedMesh, getSharedBuildingUniforms } from './instanced/buildings.js';
 import { createAdPanel, disposeAdPanel, isMediaFile } from './adPanels.js';
 import {
   buildLabelAtlas,
@@ -47,6 +47,10 @@ import {
   createLabelsInstancedMesh,
   disposeLabelMaterials,
 } from './instanced/labels.js';
+import { buildCellsFromLayout, streetToSidewalkRect } from './cellAssembly.js';
+import type { CellTile } from './cellTile.js';
+import { BuildingIndex } from './buildingIndex.js';
+import type { SpatialGrid } from './spatialGrid.js';
 import { findLayoutOverlaps } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
 import { createLayoutClient } from './layoutClient.js';
@@ -59,7 +63,7 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { LABEL_TYPOGRAPHY, SCENE_COLORS } from '@/config/index.js';
+import { CELL_RENDERING, LABEL_TYPOGRAPHY, SCENE_COLORS, SIDEWALK_COLORS } from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
 import type {
   Building,
@@ -302,6 +306,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let streetsByDirPath: Record<string, Street> = {};
   let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building; block: SceneBlock; instanceId: number }> = {};
   let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
+
+  // Task 8: cell-rendering state. Only populated when CELL_RENDERING.enabled.
+  // Kept separate from the legacy block state so each path stays independent.
+  let _cellRoot: THREE.Group | null = null;
+  let _cells: CellTile[] = [];
+  let _buildingIndex: BuildingIndex | null = null;
+  let _grid: SpatialGrid | null = null;
 
   // Listeners
 
@@ -720,6 +731,123 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       );
     }
     if (myGeneration !== _currentGeneration) return;
+
+    // ---- Cell rendering fast-path (CELL_RENDERING.enabled) ----------------
+    // When the flag is on we skip the legacy block assembly entirely and
+    // build a SpatialGrid + CellTile scene instead. The atomic swap disposes
+    // the previous cell root, builds a fresh one, and returns early so none
+    // of the legacy Phase 3/4 code runs.
+    if (CELL_RENDERING.get().enabled) {
+      // Derive WorldBounds from the layout bbox. Fall back to building extents
+      // if bbox is absent (shouldn't happen for a real manifest, but safe).
+      const lb = newLayout.bbox;
+      const bounds = lb
+        ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
+        : (() => {
+            let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+            for (const b of newBuildings) {
+              if (b.x - b.w / 2 < minX) minX = b.x - b.w / 2;
+              if (b.x + b.w / 2 > maxX) maxX = b.x + b.w / 2;
+              if (b.y - b.d / 2 < minZ) minZ = b.y - b.d / 2;
+              if (b.y + b.d / 2 > maxZ) maxZ = b.y + b.d / 2;
+            }
+            return { minX, maxX, minZ, maxZ };
+          })();
+
+      // Build label atlas from unique filenames (cell labels are per-building
+      // file names, not street labels — different from the block atlas).
+      const cellLabelCfg = LABEL_TYPOGRAPHY.get();
+      const uniqueFileNames = Array.from(
+        new Set(newBuildings.map((b) => b.file?.name).filter((n): n is string => Boolean(n))),
+      );
+      const cellAtlas = buildLabelAtlas(uniqueFileNames, cellLabelCfg);
+      const cellAtlasTextures = cellAtlas.pages.map((c) => new THREE.CanvasTexture(c));
+
+      // Build label uniform bag — uMap references the first atlas page.
+      // The cell label material uses uMap as the sampler2D for atlas lookups.
+      const labelUniforms: Record<string, THREE.IUniform> = {
+        uMap: { value: cellAtlasTextures[0] ?? null },
+      };
+
+      // Merge building uniforms + label uniforms into one bag so
+      // attachBuildingMeshToCell and attachLabelMeshToCell each find what
+      // they need (both factories ignore unknown keys).
+      const cellUniforms: Record<string, THREE.IUniform> = {
+        ...getSharedBuildingUniforms(),
+        ...labelUniforms,
+      };
+
+      // Derive sidewalk rects from streets — approximate each stadium-shaped
+      // street as a simple axis-aligned rectangle (loses rounded end-caps but
+      // covers the bulk of the sidewalk area). Color comes from the config.
+      const sidewalkColor = SIDEWALK_COLORS.get().DEFAULT;
+      const sidewalks = newLayout.streets.map((s) => streetToSidewalkRect(s, sidewalkColor));
+
+      // Build the cell scene (all work is synchronous, off the legacy path).
+      const cellOut = buildCellsFromLayout(bounds, newBuildings, sidewalks, cellUniforms, cellAtlas);
+
+      if (myGeneration !== _currentGeneration) {
+        // Superseded while we were building — clean up and bail.
+        for (const tex of cellAtlasTextures) tex.dispose();
+        cellOut.sceneRoot.traverse(_disposeObject);
+        return;
+      }
+
+      // ---- Atomic swap (cell path) ----
+      _disposeAllManifestState();
+      // Dispose old cell root if present.
+      if (_cellRoot) {
+        _cellRoot.traverse(_disposeObject);
+        if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
+      }
+      for (const tex of _atlasTextures) tex.dispose();
+      _atlasTextures = cellAtlasTextures;
+
+      manifest = newManifestTyped;
+      layout = newLayout;
+      dateRanges = newDateRanges;
+
+      _cellRoot = cellOut.sceneRoot;
+      _cells = cellOut.cells;
+      _buildingIndex = cellOut.index;
+      _grid = cellOut.grid;
+
+      // Also build the streets/paths/gem sub-scene from buildCityScene so
+      // sidewalks, paths, asphalt, and the root gem still appear. The cell
+      // path replaces buildings; non-building scene elements are still needed.
+      const cellBuilt = buildCityScene(newLayout);
+      bbox = cellBuilt.bbox;
+
+      streetPickables = cellBuilt.streetPickables || [];
+      streetLabels = cellBuilt.streetLabels || [];
+      pathMeshes = cellBuilt.pathMeshes || [];
+      asphaltMeshes = cellBuilt.asphaltMeshes || [];
+      rootGem = cellBuilt.rootGem || null;
+      rootGemBody = cellBuilt.rootGemBody || null;
+      rootGemEdges = cellBuilt.rootGemEdges || null;
+
+      for (const child of [...cellBuilt.scene.children]) scene.add(child);
+      scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+      // Remove per-building meshes that buildCityScene still emits internally.
+      for (const bm of cellBuilt.buildingMeshes || []) {
+        if (bm.parent) bm.parent.remove(bm);
+        _disposeObject(bm);
+      }
+      for (const lg of cellBuilt.streetLabels || []) {
+        if (lg.parent) lg.parent.remove(lg);
+        lg.traverse(_disposeObject);
+      }
+
+      // Add the cell root (contains all instanced building + label + street tile meshes).
+      scene.add(_cellRoot);
+
+      _buildLookups();
+      _computeRootStreetAndGem();
+      _emit(changeCbs, _computeDiff(prev));
+      return;
+    }
+    // ---- End cell fast-path ------------------------------------------------
 
     // ---- Phase 3: build all new meshes detached from the live scene.
     // `built` is a sub-scene from buildCityScene with its own children
