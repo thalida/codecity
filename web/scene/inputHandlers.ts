@@ -177,14 +177,9 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      if (flyControls.isActive()) {
-        // In fly mode, gem click ONLY snaps to the fly-default pose.
-        // Triggering onRefresh() here also fires a manifest refetch which
-        // can rebuild the scene mid-flight and disrupt pointer lock — the
-        // user just wants to reset the camera, not reload the project.
-        flyControls.resetToDefault();
-        return;
-      }
+      // Gem click = refresh + reset, same as the R key and the header
+      // refresh button. The mode-aware reset (orbit reset vs fly-mode
+      // resetToDefault) is decided inside onRefresh.
       onRefresh();
       return;
     }
@@ -198,10 +193,6 @@ export function createInputHandlers({
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
-      if (flyControls.isActive()) {
-        flyControls.resetToDefault();
-        return;
-      }
       onRefresh();
       return;
     }
@@ -301,18 +292,13 @@ export function createInputHandlers({
     }
 
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
-      if (flyControls.isActive()) {
-        flyControls.disable();
-        return;
-      }
+      // Same behaviour in both modes: clear selection. In fly mode the
+      // browser also releases pointer lock on Esc, which auto-exits fly
+      // mode via the pointerlockchange handler — no special branch needed.
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
-      if (flyControls.isActive()) {
-        // R in fly mode resets the camera only — no manifest refresh.
-        flyControls.resetToDefault();
-        return;
-      }
+      // Same behaviour in both modes: refresh + reset to current-mode default.
       onRefresh();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();

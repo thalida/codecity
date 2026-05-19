@@ -339,12 +339,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       postFx.render();
     },
     // Same action as the header gem button: rebuild the manifest +
-    // reset the camera. Fired by the R key and by clicking the root
-    // gem mesh in the scene (orbit mode only — fly mode handles its
-    // own reset via flyControls.resetToDefault()).
+    // reset the camera to the current mode's default pose. Fired by R,
+    // by clicking the root gem mesh in the scene, and by the header
+    // refresh button.
     onRefresh() {
       void refreshManifest();
-      rig.reset();
+      if (flyControls.isActive()) {
+        flyControls.resetToDefault();
+      } else {
+        rig.reset();
+      }
     },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });
