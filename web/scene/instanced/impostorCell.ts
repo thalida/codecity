@@ -14,14 +14,21 @@ import impostorFrag from '@/scene/shaders/impostor.frag.glsl?raw';
 
 const SHARED_IMPOSTOR_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 let _sharedImpostorMaterial: THREE.ShaderMaterial | null = null;
+let _sharedImpostorMaterialUniforms: Record<string, THREE.IUniform> | null = null;
 
-function getOrCreateImpostorMaterial(): THREE.ShaderMaterial {
-  if (_sharedImpostorMaterial) return _sharedImpostorMaterial;
+function getOrCreateImpostorMaterial(
+  uniforms: Record<string, THREE.IUniform>,
+): THREE.ShaderMaterial {
+  if (_sharedImpostorMaterial && _sharedImpostorMaterialUniforms === uniforms) {
+    return _sharedImpostorMaterial;
+  }
   _sharedImpostorMaterial = new THREE.ShaderMaterial({
+    uniforms,
     vertexShader: impostorVert,
     fragmentShader: impostorFrag,
     transparent: true,
   });
+  _sharedImpostorMaterialUniforms = uniforms;
   return _sharedImpostorMaterial;
 }
 
@@ -31,9 +38,17 @@ function getOrCreateImpostorMaterial(): THREE.ShaderMaterial {
  * replaces it with a cloned BoxGeometry carrying per-instance iColor and iFade
  * attributes. The shared ShaderMaterial is reused (not cloned).
  *
+ * `uniforms` should be the same shared uniforms passed to the detail mesh so
+ * impostors pick up theme/lighting changes consistently. The fragment shader
+ * reads `uSunDirWorld`, `uAmbient`, and `uSunContrast` from this bag — extra
+ * keys (e.g. building-shader uniforms) are ignored.
+ *
  * Call this once per cell after createEmptyCellTile and attachBuildingMeshToCell.
  */
-export function attachImpostorMeshToCell(cell: CellTile): void {
+export function attachImpostorMeshToCell(
+  cell: CellTile,
+  uniforms: Record<string, THREE.IUniform>,
+): void {
   const geom = SHARED_IMPOSTOR_GEOMETRY.clone();
   geom.setAttribute(
     'iColor',
@@ -43,7 +58,7 @@ export function attachImpostorMeshToCell(cell: CellTile): void {
     'iFade',
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1),
   );
-  const mat = getOrCreateImpostorMaterial();
+  const mat = getOrCreateImpostorMaterial(uniforms);
   cell.impostorMesh.geometry.dispose();
   cell.impostorMesh.geometry = geom;
   cell.impostorMesh.material = mat;

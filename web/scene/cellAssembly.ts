@@ -78,7 +78,7 @@ export function buildCellsFromLayout(
   for (const id of occupiedIds) {
     const cell = createEmptyCellTile(grid, id, capacity);
     attachBuildingMeshToCell(cell, sharedBuildingUniforms);
-    attachImpostorMeshToCell(cell);
+    attachImpostorMeshToCell(cell, sharedBuildingUniforms);
     cells.set(id, cell);
   }
   // [cell-debug]
