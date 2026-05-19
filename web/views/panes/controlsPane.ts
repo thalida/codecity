@@ -43,6 +43,8 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
+  // Rendering
+  CELL_RENDERING,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -157,6 +159,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
   body.appendChild(_buildEffectsSection());
+  body.appendChild(_buildRenderingSection());
   body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
@@ -892,6 +895,21 @@ function _buildEffectsSection(): HTMLElement {
         tip: 'Luma CUTOFF — pixels below this value contribute nothing to bloom. NOT an intensity dial: lower threshold = more pixels qualify = more total bloom; higher = fewer pixels glow. ≥1.0 keeps matte walls (capped at 1.0) clean and only blooms the HDR-pushed window pixels.',
       }),
     ])
+  );
+
+  return section;
+}
+
+// ─── Rendering ─────────────────────────────────────────────────────────────
+// Experimental rendering flags. Changes require a page reload to take effect
+// because applyManifest branches on these flags at boot time.
+function _buildRenderingSection(): HTMLElement {
+  const section = _section('Rendering', 'Experimental rendering flags. Reload required after toggling.');
+
+  section.appendChild(
+    _toggle('Use cell-based renderer (experimental)', CELL_RENDERING, 'enabled', {
+      tip: 'When on, switches to the new spatial-grid + LOD renderer optimized for large repos. Experimental — picker, fader, outline, and ad panels are not yet migrated. Reload required after toggling.',
+    }),
   );
 
   return section;

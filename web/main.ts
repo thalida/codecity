@@ -22,6 +22,7 @@ import {
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
+  CELL_RENDERING,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
@@ -819,6 +820,16 @@ if (_canvas) {
     // session — otherwise the first paint ignores the saved value and
     // only corrects itself on the next poll.
     attachPersistence(Config);
+
+    // Reload the page whenever CELL_RENDERING changes so the new flag
+    // value is picked up at boot time (applyManifest branches on it).
+    // Skip the initial synchronous fire from .subscribe() so we don't
+    // reload on boot before the user has changed anything.
+    let _cellRenderingBooted = false;
+    CELL_RENDERING.subscribe(() => {
+      if (_cellRenderingBooted) location.reload();
+    });
+    _cellRenderingBooted = true;
 
     // Apply the persisted (or default) syntax theme immediately after
     // hydration, then track future changes. The subscribe call fires
