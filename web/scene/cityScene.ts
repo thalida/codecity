@@ -75,10 +75,12 @@ import type {
   EnteringBuilding,
   EnteringStreet,
   ExitingEntry,
+  FileNode,
   Manifest,
   StayingBuilding,
   StayingStreet,
   Street,
+  TreeNode,
 } from '@/types';
 import type { SceneBlock } from './blocks.js';
 
@@ -769,24 +771,59 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
     // building list. Also recompute building dimensions (h, w, d, floors) from
-    // the new manifest's real per-file metadata. On a freshLoad the layout was
-    // just recomputed from scratch so dimensions are already correct; the recompute
-    // is a harmless no-op. On a live-update cache hit the layout was reused from
-    // the prior call and dimensions may differ slightly if file sizes/line counts
-    // changed — the recompute ensures the GPU instance matrices stay accurate.
+    // the new manifest's real per-file metadata. On a cache-miss the layout was
+    // just computed from scratch so b.file pointers are already current; the
+    // swap below is a harmless no-op. On a cache-hit (skeleton→final or live-
+    // update), the cached buildings still hold OLD FileNode refs — the swap
+    // corrects them before any metadata-derived computation runs. Recomputing
+    // dimensions ensures GPU instance matrices stay accurate after either path.
     // dateRanges and the color/dim loops don't touch the scene yet.
     const newDateRanges = getDateRanges(
       newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
     );
     // Derive project-wide line/byte ranges from the new manifest once.
     // Always reflects the current manifest's real stats — correct for both
-    // freshLoad and live-update cache-hit paths.
+    // cache-hit and cache-miss paths.
     const _heightCtx: HeightContext = makeHeightContext(
       newManifestTyped.tree as unknown as Parameters<typeof makeHeightContext>[0],
     );
     const newBuildings = newLayout?.buildings ?? [];
 
+    // Build a path → fresh FileNode lookup from the NEW manifest's tree.
+    // This is needed because when the layout cache hits (skeleton→final
+    // transition), the cached buildings reference the OLD manifest's
+    // FileNodes (with stale placeholder metadata — size=0, lines=0, etc.).
+    // Phase 2 must compute colors/ages/dimensions from the FRESH metadata,
+    // so we swap each building's .file reference before the loops below.
+    // O(N) single tree walk; for Linux at 93 k files this is ~5–20 ms.
+    const _p2WalkStart = performance.now();
+    const _newFilesByPath = new Map<string, FileNode>();
+    function _walkTreeCollectFiles(node: TreeNode): void {
+      if (node.type === 'file') {
+        _newFilesByPath.set(node.path, node);
+      } else if ('children' in node && node.children) {
+        for (const c of node.children) _walkTreeCollectFiles(c);
+      }
+    }
+    _walkTreeCollectFiles(newManifestTyped.tree as unknown as TreeNode);
+    console.log('[boot] applyManifest: phase 2 file-lookup build done', {
+      elapsedMs: performance.now() - _p2WalkStart,
+      fileCount: _newFilesByPath.size,
+    });
+
     for (const b of newBuildings) {
+      // Swap b.file to the fresh FileNode from the new manifest before
+      // computing any metadata-derived values. On cache-hit the cached
+      // building still points to the OLD FileNode (stale metadata); on
+      // cache-miss the pointers already match, so this is a harmless no-op.
+      if (b.file?.path) {
+        const freshFile = _newFilesByPath.get(b.file.path);
+        if (freshFile) {
+          b.file = freshFile;
+        } else {
+          console.warn('[boot] phase 2: no fresh FileNode for building path', b.file.path);
+        }
+      }
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see layoutV4.ts).
       b.color = getBuildingColor(
@@ -805,9 +842,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         newDateRanges,
       );
       // Recompute dimensions from the new manifest's real file metadata.
-      // On a live-update cache-hit this corrects any drift since the cached
-      // layout was computed; on a freshLoad or cache-miss the layout was
-      // just computed from this manifest so values are identical (idempotent).
+      // b.file is now the fresh FileNode (swapped above), so this uses real
+      // metadata. On cache-hit this corrects skeleton placeholder values; on
+      // cache-miss the layout was freshly computed so values are identical
+      // (idempotent).
       const newDims = recomputeBuildingDimensions(
         b.file as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
         _heightCtx,
