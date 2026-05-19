@@ -5,7 +5,10 @@ import { StreetAxis } from '@/types';
 
 function makeFakeRig() {
   return {
-    controls: { enabled: true } as { enabled: boolean },
+    controls: {
+      enabled: true,
+      target: new THREE.Vector3(),
+    },
   };
 }
 
@@ -65,6 +68,30 @@ describe('flyControls state machine', () => {
     fly.disable();
     expect(fly.isActive()).toBe(false);
     expect(rig.controls.enabled).toBe(true);
+  });
+
+  it('disable() re-aims orbit target along the camera forward direction', () => {
+    // Camera at (10, 8, 5) looking at (10, 8, -100): forward = -Z.
+    // After fly disable, the orbit target should sit somewhere along -Z
+    // ahead of the camera — NOT at its stale (0,0,0) starting value.
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(10, 8, 5);
+    camera.lookAt(10, 8, -100);
+    camera.updateMatrixWorld();
+    const rig = makeFakeRig();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig,
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    fly.disable();
+    // Target should be ahead of the camera in -Z (its forward), with
+    // X and Y close to the camera's.
+    expect(rig.controls.target.x).toBeCloseTo(10, 2);
+    expect(rig.controls.target.y).toBeCloseTo(8, 2);
+    expect(rig.controls.target.z).toBeLessThan(camera.position.z);
   });
 
   it('onActiveChange callback fires on enable and disable', () => {

@@ -34,7 +34,13 @@ export interface FlyControlsCityScene {
 // structural interface keeps the type accurate while allowing lightweight
 // test fakes without casting to `as never`.
 export interface FlyControlsRig {
-  controls: { enabled: boolean };
+  controls: {
+    enabled: boolean;
+    /** OrbitControls.target — the pivot point. On fly exit we update
+     *  this to a point in front of the camera so orbit doesn't snap
+     *  the look direction to a stale pre-flight target. */
+    target: THREE.Vector3;
+  };
 }
 
 export interface FlyControlsOpts {
@@ -229,6 +235,30 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _velocity.set(0, 0, 0);
     mouseDeltaX = 0;
     mouseDeltaY = 0;
+
+    // Hand off to orbit at the SAME camera pose. OrbitControls.update()
+    // will call camera.lookAt(rig.controls.target) on its first frame
+    // after re-enable — if target is stale (wherever orbit was looking
+    // pre-flight), the look direction snaps. Re-aim target at a point
+    // along the camera's current forward direction so orbit picks up
+    // facing the same way the user left fly mode facing.
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+    // Distance: project onto ground (y = 0) when looking down; otherwise
+    // pick a sane fixed distance ahead. The exact value isn't critical —
+    // OrbitControls only uses target as a pivot, not as a look-at offset.
+    const ORBIT_TARGET_DISTANCE = 50;
+    let dist = ORBIT_TARGET_DISTANCE;
+    if (fwd.y < -0.05) {
+      // Looking down — intersect ground plane.
+      dist = -camera.position.y / fwd.y;
+      // Clamp to a reasonable range so a near-vertical look doesn't put
+      // the pivot right at the camera.
+      if (dist < 5) dist = 5;
+      if (dist > 500) dist = 500;
+    }
+    rig.controls.target.copy(camera.position).addScaledVector(fwd, dist);
+
     try {
       document.exitPointerLock?.();
     } catch (_) {
