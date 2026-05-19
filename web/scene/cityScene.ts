@@ -75,10 +75,12 @@ import type {
   EnteringBuilding,
   EnteringStreet,
   ExitingEntry,
+  FileNode,
   Manifest,
   StayingBuilding,
   StayingStreet,
   Street,
+  TreeNode,
 } from '@/types';
 import type { SceneBlock } from './blocks.js';
 
@@ -780,7 +782,42 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       newManifestTyped.tree as unknown as Parameters<typeof makeHeightContext>[0],
     );
     const newBuildings = newLayout?.buildings ?? [];
+
+    // Build a path → fresh FileNode lookup from the NEW manifest's tree.
+    // This is needed because when the layout cache hits (skeleton→final
+    // transition), the cached buildings reference the OLD manifest's
+    // FileNodes (with stale placeholder metadata — size=0, lines=0, etc.).
+    // Phase 2 must compute colors/ages/dimensions from the FRESH metadata,
+    // so we swap each building's .file reference before the loops below.
+    // O(N) single tree walk; for Linux at 93 k files this is ~5–20 ms.
+    const _p2WalkStart = performance.now();
+    const _newFilesByPath = new Map<string, FileNode>();
+    function _walkTreeCollectFiles(node: TreeNode): void {
+      if (node.type === 'file') {
+        _newFilesByPath.set(node.path, node);
+      } else if ('children' in node && node.children) {
+        for (const c of node.children) _walkTreeCollectFiles(c);
+      }
+    }
+    _walkTreeCollectFiles(newManifestTyped.tree as unknown as TreeNode);
+    console.log('[boot] applyManifest: phase 2 file-lookup build done', {
+      elapsedMs: performance.now() - _p2WalkStart,
+      fileCount: _newFilesByPath.size,
+    });
+
     for (const b of newBuildings) {
+      // Swap b.file to the fresh FileNode from the new manifest before
+      // computing any metadata-derived values. On cache-hit the cached
+      // building still points to the OLD FileNode (stale metadata); on
+      // cache-miss the pointers already match, so this is a harmless no-op.
+      if (b.file?.path) {
+        const freshFile = _newFilesByPath.get(b.file.path);
+        if (freshFile) {
+          b.file = freshFile;
+        } else {
+          console.warn('[boot] phase 2: no fresh FileNode for building path', b.file.path);
+        }
+      }
       // Building.file is always a FileNode (directories become streets,
       // not buildings — see layoutV4.ts).
       b.color = getBuildingColor(
