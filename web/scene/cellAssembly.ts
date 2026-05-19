@@ -80,10 +80,20 @@ export function buildCellsFromLayout(
   sharedUniforms: Record<string, THREE.IUniform>,
   atlas: LabelAtlasResult | null,
 ): CellAssemblyOutput {
+  // [cell-debug]
+  const _t0 = performance.now();
   const grid = new SpatialGrid(bounds);
   const capacity = computeCellCapacity(grid.cellCount, buildings.length);
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 1 entered', { buildings: buildings.length, sidewalks: sidewalks.length, expectedCellCount: grid.cellCount });
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 2 SpatialGrid created', { gridW: grid.gridW, gridH: grid.gridH, cellCount: grid.cellCount });
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 3 capacity computed', { capacity });
 
   // ---- Preallocate all cells ----
+  // [cell-debug]
+  const _allocT0 = performance.now();
   const cells: CellTile[] = [];
   for (let id = 0; id < grid.cellCount; id++) {
     const cell = createEmptyCellTile(grid, id, capacity);
@@ -91,8 +101,14 @@ export function buildCellsFromLayout(
     attachLabelMeshToCell(cell, sharedUniforms);
     cells.push(cell);
   }
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 4 allocated empty cells', { count: cells.length, elapsedMs: performance.now() - _allocT0 });
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 5 material attachments done', { count: cells.length, elapsedMs: performance.now() - _allocT0 });
 
   // ---- Insert buildings ----
+  // [cell-debug]
+  const _buildT0 = performance.now();
   const index = new BuildingIndex();
   for (const b of buildings) {
     // building.y is layout-Z (world XZ plane — same convention as
@@ -117,13 +133,23 @@ export function buildCellsFromLayout(
     }
     index.insert(b);
   }
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 6 buildings assigned to slots', { count: buildings.length, elapsedMs: performance.now() - _buildT0 });
 
   // ---- Build per-cell street geometry ----
+  // [cell-debug]
+  const _streetT0 = performance.now();
+  let streetMeshCount = 0;
   for (const cell of cells) {
     cell.streetMesh = buildCellStreetMesh(grid, cell.cellId, sidewalks);
+    if (cell.streetMesh) streetMeshCount++;
   }
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 7 street meshes built', { total: cells.length, nonNull: streetMeshCount, elapsedMs: performance.now() - _streetT0 });
 
   // ---- Force detail tier visible (no LOD yet — Task 14 adds the evaluator) ----
+  // [cell-debug]
+  const _visT0 = performance.now();
   const sceneRoot = new THREE.Group();
   sceneRoot.name = 'CellRoot';
   for (const cell of cells) {
@@ -138,6 +164,10 @@ export function buildCellsFromLayout(
     sceneRoot.add(cell.labelMesh);
     if (cell.streetMesh) sceneRoot.add(cell.streetMesh);
   }
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 8 visibility flags set', { count: cells.length, elapsedMs: performance.now() - _visT0 });
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 9 SceneRoot constructed', { childCount: sceneRoot.children.length });
 
   // ---- Flush attribute uploads ----
   for (const cell of cells) {
@@ -146,6 +176,8 @@ export function buildCellsFromLayout(
     cell.labelMesh.instanceMatrix.needsUpdate = true;
   }
 
+  // [cell-debug]
+  console.log('[cell] buildCellsFromLayout: 10 returning', { totalMs: performance.now() - _t0 });
   return { grid, cells, index, sceneRoot };
 }
 

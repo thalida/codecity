@@ -749,6 +749,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // the previous cell root, builds a fresh one, and returns early so none
     // of the legacy Phase 3/4 code runs.
     if (CELL_RENDERING.get().enabled) {
+      // [cell-debug]
+      const _cellT0 = performance.now();
+      console.log('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
+
       // Derive WorldBounds from the layout bbox. Fall back to building extents
       // if bbox is absent (shouldn't happen for a real manifest, but safe).
       const lb = newLayout.bbox;
@@ -765,14 +769,26 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
             return { minX, maxX, minZ, maxZ };
           })();
 
+      // [cell-debug]
+      console.log('[cell] 2: bounds computed', { bounds, elapsedMs: performance.now() - _cellT0 });
+
       // Build label atlas from unique filenames (cell labels are per-building
       // file names, not street labels — different from the block atlas).
       const cellLabelCfg = LABEL_TYPOGRAPHY.get();
       const uniqueFileNames = Array.from(
         new Set(newBuildings.map((b) => b.file?.name).filter((n): n is string => Boolean(n))),
       );
+      // [cell-debug]
+      const _cellAtlasT0 = performance.now();
       const cellAtlas = buildLabelAtlas(uniqueFileNames, cellLabelCfg);
+      // [cell-debug]
+      console.log('[cell] 3: label atlas built', { pages: cellAtlas.pages.length, labels: uniqueFileNames.length, elapsedMs: performance.now() - _cellAtlasT0 });
+
+      // [cell-debug]
+      const _cellTexT0 = performance.now();
       const cellAtlasTextures = cellAtlas.pages.map((c) => new THREE.CanvasTexture(c));
+      // [cell-debug]
+      console.log('[cell] 4: atlas textures created', { count: cellAtlasTextures.length, elapsedMs: performance.now() - _cellTexT0 });
 
       // Build label uniform bag — uMap references the first atlas page.
       // The cell label material uses uMap as the sampler2D for atlas lookups.
@@ -787,16 +803,27 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         ...getSharedBuildingUniforms(),
         ...labelUniforms,
       };
+      // [cell-debug]
+      console.log('[cell] 5: cell uniforms merged', { keys: Object.keys(cellUniforms).length, elapsedMs: performance.now() - _cellT0 });
 
       // Derive sidewalk rects from streets — approximate each stadium-shaped
       // street as a simple axis-aligned rectangle (loses rounded end-caps but
       // covers the bulk of the sidewalk area). Color comes from the config.
       const sidewalkColor = SIDEWALK_COLORS.get().DEFAULT;
       const sidewalks = newLayout.streets.map((s) => streetToSidewalkRect(s, sidewalkColor));
+      // [cell-debug]
+      console.log('[cell] 6: sidewalks derived', { count: sidewalks.length, elapsedMs: performance.now() - _cellT0 });
 
       // Build the cell scene (all work is synchronous, off the legacy path).
+      // [cell-debug]
+      const _cellBuildT0 = performance.now();
+      console.log('[cell] 7a: buildCellsFromLayout starting', { buildings: newBuildings.length, sidewalks: sidewalks.length });
       const cellOut = buildCellsFromLayout(bounds, newBuildings, sidewalks, cellUniforms, cellAtlas);
+      // [cell-debug]
+      console.log('[cell] 7b: buildCellsFromLayout done', { cells: cellOut.cells.length, elapsedMs: performance.now() - _cellBuildT0 });
 
+      // [cell-debug]
+      console.log('[cell] 8: generation check', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
       if (myGeneration !== _currentGeneration) {
         // Superseded while we were building — clean up and bail.
         for (const tex of cellAtlasTextures) tex.dispose();
@@ -805,8 +832,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       }
 
       // ---- Atomic swap (cell path) ----
+      // [cell-debug]
+      console.log('[cell] 9: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
       _disposeAllManifestState();
+
       // Dispose old cell root if present.
+      // [cell-debug]
+      console.log('[cell] 10: disposing old cell root', { hasCellRoot: !!_cellRoot, elapsedMs: performance.now() - _cellT0 });
       if (_cellRoot) {
         _cellRoot.traverse(_disposeObject);
         if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
@@ -822,11 +854,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       _cells = cellOut.cells;
       _buildingIndex = cellOut.index;
       _grid = cellOut.grid;
+      // [cell-debug]
+      console.log('[cell] 11: module-level state assigned (cells, index, grid)', { cells: _cells.length, elapsedMs: performance.now() - _cellT0 });
 
       // Also build the streets/paths/gem sub-scene from buildCityScene so
       // sidewalks, paths, asphalt, and the root gem still appear. The cell
       // path replaces buildings; non-building scene elements are still needed.
+      // [cell-debug]
+      const _cellBuildSceneT0 = performance.now();
+      console.log('[cell] 12a: buildCityScene starting');
       const cellBuilt = buildCityScene(newLayout);
+      // [cell-debug]
+      console.log('[cell] 12b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
       bbox = cellBuilt.bbox;
 
       streetPickables = cellBuilt.streetPickables || [];
@@ -837,10 +876,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       rootGemBody = cellBuilt.rootGemBody || null;
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
+      // [cell-debug]
+      console.log('[cell] 13: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
       // Remove per-building meshes that buildCityScene still emits internally.
+      // [cell-debug]
+      console.log('[cell] 14: removing per-building meshes from cellBuilt', { buildingMeshes: cellBuilt.buildingMeshes?.length ?? 0, elapsedMs: performance.now() - _cellT0 });
       for (const bm of cellBuilt.buildingMeshes || []) {
         if (bm.parent) bm.parent.remove(bm);
         _disposeObject(bm);
@@ -851,11 +894,21 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       }
 
       // Add the cell root (contains all instanced building + label + street tile meshes).
+      // [cell-debug]
+      console.log('[cell] 15: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
       scene.add(_cellRoot);
 
+      // [cell-debug]
+      console.log('[cell] 16: calling _buildLookups + _computeRootStreetAndGem', { elapsedMs: performance.now() - _cellT0 });
       _buildLookups();
       _computeRootStreetAndGem();
+
+      // [cell-debug]
+      console.log('[cell] 17: emitting change event', { elapsedMs: performance.now() - _cellT0 });
       _emit(changeCbs, _computeDiff(prev));
+
+      // [cell-debug]
+      console.log('[cell] 18: branch returning — total elapsed', { totalMs: performance.now() - _cellT0 });
       return;
     }
     // ---- End cell fast-path ------------------------------------------------
