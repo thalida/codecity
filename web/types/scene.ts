@@ -50,8 +50,21 @@ export type { FileStats, RangeStat };
 
 /** Building entering the scene this rebuild. Carries its target transform. */
 export interface EnteringBuilding {
-  block: SceneBlock;
+  /**
+   * Legacy block mode: the SceneBlock this instance lives in.
+   * Undefined in cell mode — use `building` + cityScene.getMeshForBuilding() instead.
+   */
+  block?: SceneBlock;
+  /**
+   * Legacy block mode: per-block instance index.
+   * In cell mode this is the slotId within the CellTile (same as building.slotId).
+   */
   instanceId: number;
+  /**
+   * Cell mode: the Building object, carrying cellId + slotId back-pointers.
+   * Also present in legacy mode for symmetry.
+   */
+  building?: Building;
   /** Full-size scale components (w, h, d). */
   newScaleX: number;
   newScaleY: number;
@@ -84,8 +97,21 @@ export interface ExitingEntry {
  * get a spurious tween from zero).
  */
 export interface StayingBuilding {
-  block: SceneBlock;
+  /**
+   * Legacy block mode: the SceneBlock this instance lives in.
+   * Undefined in cell mode — use `building` + cityScene.getMeshForBuilding() instead.
+   */
+  block?: SceneBlock;
+  /**
+   * Legacy block mode: per-block instance index.
+   * In cell mode this is the slotId within the CellTile (same as building.slotId).
+   */
   instanceId: number;
+  /**
+   * Cell mode: the Building object, carrying cellId + slotId back-pointers.
+   * Also present in legacy mode for symmetry.
+   */
+  building?: Building;
   /** New (post-rebuild) scale components (w, h, d). */
   newScaleX: number;
   newScaleY: number;

@@ -14,6 +14,11 @@
 // (deduplicated across all tweens) so we don't trigger multiple buffer
 // re-uploads on the same mesh.
 //
+// Cell mode (Task 11): the tween stores a Building reference and resolves
+// the target mesh via cityScene.getMeshForBuilding() at each frame. This
+// routes correctly to cell.detailMesh (cell mode) or block.detailMesh
+// (legacy mode) without duplicating the routing logic here.
+//
 // Public:
 //   const animator = createAnimator({ cityScene });
 //   animator.update(dtMs);   // called from animate() each frame
@@ -25,13 +30,27 @@
 
 import * as THREE from 'three';
 import { ANIMATION_TIMING } from '@/config/index.js';
-import type { CitySceneDiff } from '@/types';
+import type { Building, CitySceneDiff } from '@/types';
 import type { SceneBlock } from './blocks.js';
 import type { createCityScene } from './cityScene.js';
 
 interface Tween {
-  block: SceneBlock;
+  /**
+   * Legacy block mode: the SceneBlock this instance lives in.
+   * Undefined in cell mode — building + getMeshForBuilding() is used instead.
+   */
+  block?: SceneBlock;
+  /**
+   * Per-block (legacy) or per-cell-slot (cell mode) instance index.
+   * Used as the setMatrixAt() slot.
+   */
   instanceId: number;
+  /**
+   * The Building object carrying cellId + slotId (cell mode) or used as
+   * the unique tween key alongside block (legacy mode). Always set when the
+   * diff entry includes a building reference; undefined for very old callers.
+   */
+  building?: Building;
   // Current interpolated state (written by update(), read by update()).
   fromScaleX: number;
   fromScaleY: number;
@@ -62,18 +81,26 @@ function easeOutCubic(t: number): number {
 }
 
 export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof createCityScene> }) {
-  // Tween queue. Each tween targets one (block, instanceId) pair and
-  // animates both scale and position together (a single matrix write per
-  // frame). Keyed by (block, instanceId) so a fresh tween supersedes
-  // any in-flight one on the same target without stacking.
+  // Tween queue. Each tween targets one building instance and animates
+  // both scale and position together (a single matrix write per frame).
+  //
+  // Dedup key:
+  //   Cell mode   — keyed by Building object identity (building reference).
+  //   Legacy mode — keyed by (block, instanceId) pair.
+  // A fresh tween supersedes any in-flight one on the same target without stacking.
   const tweens: Tween[] = [];
 
-  function _findTween(block: SceneBlock, instanceId: number): number {
-    return tweens.findIndex((t) => t.block === block && t.instanceId === instanceId);
+  function _findTween(t: Tween): number {
+    if (t.building) {
+      // Cell mode (and new-style legacy): key by Building reference.
+      return tweens.findIndex((tw) => tw.building === t.building);
+    }
+    // Legacy fallback: key by (block, instanceId).
+    return tweens.findIndex((tw) => tw.block === t.block && tw.instanceId === t.instanceId);
   }
 
   function _addOrUpdate(t: Tween): void {
-    const idx = _findTween(t.block, t.instanceId);
+    const idx = _findTween(t);
     if (idx >= 0) {
       // Supersede in-flight tween with new target. Retain startedAt so
       // the animation doesn't restart from scratch on rapid edits.
@@ -106,9 +133,10 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {
-      const { block, instanceId, newScaleX, newScaleY, newScaleZ, newPosX, newPosY, newPosZ } = e;
+      const { block, building, instanceId, newScaleX, newScaleY, newScaleZ, newPosX, newPosY, newPosZ } = e;
       _addOrUpdate({
         block,
+        building,
         instanceId,
         fromScaleX: newScaleX,
         fromScaleY: 0.0001,
@@ -131,6 +159,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     for (const s of diff.staying.buildings) {
       const {
         block,
+        building,
         instanceId,
         newScaleX,
         newScaleY,
@@ -151,6 +180,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
       if (!hasScaleChange && !hasPosChange) continue;
       _addOrUpdate({
         block,
+        building,
         instanceId,
         fromScaleX: oldScaleX ?? newScaleX,
         fromScaleY: oldScaleY ?? newScaleY,
@@ -188,11 +218,29 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     // Iterate backwards so we can splice completed tweens cheaply.
     for (let i = tweens.length - 1; i >= 0; i--) {
       const tw = tweens[i];
-      if (!tw.block.detailMesh) {
-        // Block was disposed between frames — drop the tween.
+
+      // Resolve the target mesh. In cell mode, use getMeshForBuilding()
+      // which routes via building.cellId/slotId. In legacy mode, fall back
+      // to block.detailMesh (block is guaranteed set when building is absent).
+      let targetMesh: THREE.InstancedMesh | null = null;
+      let slot = tw.instanceId;
+
+      if (tw.building) {
+        const resolved = cityScene.getMeshForBuilding(tw.building);
+        if (resolved) {
+          targetMesh = resolved.mesh;
+          slot = resolved.slot;
+        }
+      } else if (tw.block?.detailMesh) {
+        targetMesh = tw.block.detailMesh;
+      }
+
+      if (!targetMesh) {
+        // Mesh was disposed between frames (block gone, or cell evicted) — drop tween.
         tweens.splice(i, 1);
         continue;
       }
+
       let t = (now - tw.startedAt) / tw.durationMs;
       if (t >= 1) t = 1;
       const eased = tw.easing(t);
@@ -206,8 +254,8 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
 
       _tmpMatrix.makeScale(sx, sy, sz);
       _tmpMatrix.setPosition(px, py, pz);
-      tw.block.detailMesh.setMatrixAt(tw.instanceId, _tmpMatrix);
-      dirtyMeshes.add(tw.block.detailMesh);
+      targetMesh.setMatrixAt(slot, _tmpMatrix);
+      dirtyMeshes.add(targetMesh);
 
       if (t >= 1) tweens.splice(i, 1);
     }

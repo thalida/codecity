@@ -95,25 +95,44 @@ export function createOutlineRenderer({
   // _syncOutlineToTarget: read the current animated transform of a FileTarget's
   // building and apply it to the given outline mesh.
   //
-  // For InstancedMesh targets (block + instanceId present), we decompose the
-  // live instance matrix so the outline tracks the animator's tween position.
-  // For legacy / no-mesh targets, we fall back to layout dimensions from
-  // target.data (b.w, b.h, b.d, b.x, b.y).
+  // Priority:
+  //   1. Cell mode: building.cellId + building.slotId → cell.detailMesh.getMatrixAt(slotId)
+  //   2. Legacy block mode: target.block.detailMesh.getMatrixAt(target.instanceId)
+  //   3. Fallback: layout dimensions from target.data (b.w, b.h, b.d, b.x, b.y)
+  //
+  // Reading from the live InstancedMesh matrix (paths 1 + 2) ensures the outline
+  // tracks the animator's tween position rather than snapping to layout coords.
   function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
     const b = target.data;
-    // Every building (including media) has a real instanced slot now,
-    // so the animator's live matrix is always the source of truth when
-    // available. Fallback to layout coordinates only for legacy targets
-    // without a block/instance reference.
+
+    // Cell mode: resolve via Building.cellId + Building.slotId.
+    // In cell-mode picks, target.block is not set; we route via the cityScene cells map.
+    if (b.cellId != null && b.slotId != null) {
+      const cells = _cityScene.getCells();
+      if (cells.size > 0) {
+        const cell = cells.get(b.cellId);
+        if (cell?.detailMesh) {
+          cell.detailMesh.getMatrixAt(b.slotId, _tmpMatrix);
+          _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
+          outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
+          outline.position.copy(_tmpPos);
+          return;
+        }
+      }
+    }
+
+    // Legacy block mode: target.block.detailMesh carries the animator's live matrix.
     if (target.block?.detailMesh && target.instanceId != null) {
       target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
       outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
       outline.position.copy(_tmpPos);
-    } else {
-      outline.scale.set(b.w, b.h, b.d);
-      outline.position.set(b.x, b.h / 2, b.y);
+      return;
     }
+
+    // Fallback: layout-level dimensions (no mesh reference available).
+    outline.scale.set(b.w, b.h, b.d);
+    outline.position.set(b.x, b.h / 2, b.y);
   }
 
   function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {

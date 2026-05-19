@@ -106,6 +106,10 @@ interface PrevState {
   rootGem: THREE.Group | null;
   manifest: Manifest | null;
   layout: CityLayout | null;
+  /** Cell mode: snapshot of cells before they are replaced/disposed. */
+  cells: Map<number, CellTile>;
+  /** Cell mode: snapshot of building index before it is replaced. */
+  buildingIndex: BuildingIndex | null;
 }
 
 // 12 edges of a unit cube as flat [x,y,z, x,y,z, ...] segment endpoints.
@@ -607,10 +611,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     // --- Buildings diff (InstancedMesh semantics) ---
     //
-    // Build a map from file.path → prior transform (scale + position)
-    // from the PREVIOUS blocks. We read the instance matrix directly from
-    // detailMesh to capture whatever the animator left it at (so a
-    // rapid edit doesn't snap to the layout position).
+    // Build a map from file.path → prior transform (scale + position).
+    // In legacy block mode: read the instance matrix from detailMesh to capture
+    // whatever the animator left it at (so a rapid edit doesn't snap to layout).
+    // In cell mode: read from each cell's detailMesh at the building's slotId.
     const prevTransforms = new Map<
       string,
       { scaleX: number; scaleY: number; scaleZ: number; posX: number; posY: number; posZ: number }
@@ -619,54 +623,89 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const _pos = new THREE.Vector3();
     const _scale = new THREE.Vector3();
     const _quat = new THREE.Quaternion();
-    for (const pb of prev.blocks) {
-      for (let i = 0; i < pb.buildings.length; i++) {
-        const b = pb.buildings[i];
-        if (!b.file?.path) continue;
-        if (pb.detailMesh) {
-          pb.detailMesh.getMatrixAt(i, _readMatrix);
-          _readMatrix.decompose(_pos, _quat, _scale);
-          prevTransforms.set(b.file.path, {
-            scaleX: _scale.x,
-            scaleY: _scale.y,
-            scaleZ: _scale.z,
-            posX: _pos.x,
-            posY: _pos.y,
-            posZ: _pos.z,
-          });
-        } else {
-          // No mesh (block was empty / not yet built): record layout values
-          // so staying buildings get a sensible from-transform.
-          prevTransforms.set(b.file.path, {
-            scaleX: b.w,
-            scaleY: b.h,
-            scaleZ: b.d,
-            posX: b.x,
-            posY: b.h / 2,
-            posZ: b.y,
-          });
+
+    if (prev.cells.size > 0) {
+      // Cell mode: read prior transforms from the old CellTile meshes.
+      // NOTE: prev.cells is the snapshot captured before _cells was replaced.
+      // The old cell root may already be disposed, but the CellTile.detailMesh
+      // references are still valid until GC collects them — we only read, not draw.
+      for (const cell of prev.cells.values()) {
+        for (let slot = 0; slot < cell.buildings.length; slot++) {
+          const b = cell.buildings[slot];
+          if (!b?.file?.path) continue;
+          if (cell.detailMesh) {
+            cell.detailMesh.getMatrixAt(slot, _readMatrix);
+            _readMatrix.decompose(_pos, _quat, _scale);
+            prevTransforms.set(b.file.path, {
+              scaleX: _scale.x,
+              scaleY: _scale.y,
+              scaleZ: _scale.z,
+              posX: _pos.x,
+              posY: _pos.y,
+              posZ: _pos.z,
+            });
+          } else {
+            prevTransforms.set(b.file.path, {
+              scaleX: b.w,
+              scaleY: b.h,
+              scaleZ: b.d,
+              posX: b.x,
+              posY: b.h / 2,
+              posZ: b.y,
+            });
+          }
+        }
+      }
+    } else {
+      // Legacy block mode: read prior transforms from SceneBlock.detailMesh.
+      for (const pb of prev.blocks) {
+        for (let i = 0; i < pb.buildings.length; i++) {
+          const b = pb.buildings[i];
+          if (!b.file?.path) continue;
+          if (pb.detailMesh) {
+            pb.detailMesh.getMatrixAt(i, _readMatrix);
+            _readMatrix.decompose(_pos, _quat, _scale);
+            prevTransforms.set(b.file.path, {
+              scaleX: _scale.x,
+              scaleY: _scale.y,
+              scaleZ: _scale.z,
+              posX: _pos.x,
+              posY: _pos.y,
+              posZ: _pos.z,
+            });
+          } else {
+            // No mesh (block was empty / not yet built): record layout values
+            // so staying buildings get a sensible from-transform.
+            prevTransforms.set(b.file.path, {
+              scaleX: b.w,
+              scaleY: b.h,
+              scaleZ: b.d,
+              posX: b.x,
+              posY: b.h / 2,
+              posZ: b.y,
+            });
+          }
         }
       }
     }
 
-    // Walk new blocks and classify each instance as entering or staying.
-    for (const nb of blocks) {
-      for (let i = 0; i < nb.buildings.length; i++) {
-        const b = nb.buildings[i];
-        // Media files now render as regular building cuboids (with an
-        // additive ad-panel mesh — see block.adPanels). No special case.
+    if (_cells.size > 0 && _buildingIndex) {
+      // Cell mode: walk the new BuildingIndex to classify entering vs staying.
+      for (const b of _buildingIndex.byPath.values()) {
+        if (!b.file?.path) continue;
         const newScaleX = b.w;
         const newScaleY = b.h;
         const newScaleZ = b.d;
         const newPosX = b.x;
         const newPosY = b.h / 2;
         const newPosZ = b.y;
+        const instanceId = b.slotId ?? 0;
 
-        const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+        const prior = prevTransforms.get(b.file.path);
         if (prior) {
           staying.buildings.push({
-            block: nb,
-            instanceId: i,
+            building: b,
+            instanceId,
             newScaleX,
             newScaleY,
             newScaleZ,
@@ -682,8 +721,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           });
         } else {
           entering.buildings.push({
-            block: nb,
-            instanceId: i,
+            building: b,
+            instanceId,
             newScaleX,
             newScaleY,
             newScaleZ,
@@ -693,15 +732,67 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           });
         }
       }
+    } else {
+      // Legacy block mode: walk new blocks to classify entering vs staying.
+      for (const nb of blocks) {
+        for (let i = 0; i < nb.buildings.length; i++) {
+          const b = nb.buildings[i];
+          // Media files now render as regular building cuboids (with an
+          // additive ad-panel mesh — see block.adPanels). No special case.
+          const newScaleX = b.w;
+          const newScaleY = b.h;
+          const newScaleZ = b.d;
+          const newPosX = b.x;
+          const newPosY = b.h / 2;
+          const newPosZ = b.y;
+
+          const prior = b.file?.path ? prevTransforms.get(b.file.path) : undefined;
+          if (prior) {
+            staying.buildings.push({
+              block: nb,
+              instanceId: i,
+              building: b,
+              newScaleX,
+              newScaleY,
+              newScaleZ,
+              newPosX,
+              newPosY,
+              newPosZ,
+              oldScaleX: prior.scaleX,
+              oldScaleY: prior.scaleY,
+              oldScaleZ: prior.scaleZ,
+              oldPosX: prior.posX,
+              oldPosY: prior.posY,
+              oldPosZ: prior.posZ,
+            });
+          } else {
+            entering.buildings.push({
+              block: nb,
+              instanceId: i,
+              building: b,
+              newScaleX,
+              newScaleY,
+              newScaleZ,
+              newPosX,
+              newPosY,
+              newPosZ,
+            });
+          }
+        }
+      }
     }
 
     // Exiting buildings: paths present in prev but absent from new.
     // V1: no exit animation — they just vanish when blocks are rebuilt.
     // We still populate the exiting bucket so subscribers can track counts.
     const newPaths = new Set<string>();
-    for (const nb of blocks) {
-      for (const b of nb.buildings) {
-        if (b.file?.path) newPaths.add(b.file.path);
+    if (_cells.size > 0 && _buildingIndex) {
+      for (const path of _buildingIndex.byPath.keys()) newPaths.add(path);
+    } else {
+      for (const nb of blocks) {
+        for (const b of nb.buildings) {
+          if (b.file?.path) newPaths.add(b.file.path);
+        }
       }
     }
     for (const [path] of prevTransforms) {
@@ -757,6 +848,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       rootGem,
       manifest,
       layout,
+      cells: _cells,
+      buildingIndex: _buildingIndex,
     };
 
     _emit(beforeChangeCbs, prev);
@@ -1396,6 +1489,31 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
     getCells(): Map<number, CellTile> {
       return _cells;
+    },
+
+    // Task 11: unified mesh+slot resolver. Returns the InstancedMesh that
+    // owns this building's instance and the slot index within that mesh.
+    //
+    // Cell mode:   resolves via Building.cellId + Building.slotId.
+    // Legacy mode: searches blocks for the Building object, returns its index.
+    //
+    // Returns null if no live mesh exists for this building (e.g. the building
+    // was in a block that was already disposed, or cellId/slotId are unset).
+    getMeshForBuilding(b: Building): { mesh: THREE.InstancedMesh; slot: number } | null {
+      // Cell mode — fast O(1) path.
+      if (_cells.size > 0 && b.cellId != null && b.slotId != null) {
+        const cell = _cells.get(b.cellId);
+        if (cell?.detailMesh) return { mesh: cell.detailMesh, slot: b.slotId };
+        return null;
+      }
+      // Legacy block mode — O(buildings-in-block) linear scan.
+      for (const block of blocks) {
+        const idx = block.buildings.indexOf(b);
+        if (idx >= 0 && block.detailMesh) {
+          return { mesh: block.detailMesh, slot: idx };
+        }
+      }
+      return null;
     },
   };
 }
