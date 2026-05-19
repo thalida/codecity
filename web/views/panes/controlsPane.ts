@@ -250,7 +250,7 @@ function _buildShortcutsSection(): HTMLElement {
       { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
       { kbd: ['E', 'Q'], action: 'Rise / drop' },
       { kbd: ['Shift'], action: 'Boost (hold)' },
-      { mouse: 'Right-click drag', action: 'Look around' },
+      { mouse: 'Left / right drag', action: 'Look around' },
     ]))
   );
 

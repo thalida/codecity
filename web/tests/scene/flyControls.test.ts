@@ -378,6 +378,31 @@ describe('flyControls velocity integration', () => {
 });
 
 describe('flyControls mouse look', () => {
+  it('mousemove rotates yaw/pitch while left-mouse is held (drag-to-look)', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -1);
+    camera.updateMatrixWorld();
+    const canvas = makeCanvas();
+    const fly = createFlyControls({
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    const before = new THREE.Vector3();
+    camera.getWorldDirection(before);
+    canvas.dispatchEvent(new MouseEvent('mousedown', { button: 0 }));
+    canvas.dispatchEvent(new MouseEvent('mousemove', { movementX: 100, movementY: 0 }));
+    fly.update(16);
+    const after = new THREE.Vector3();
+    camera.getWorldDirection(after);
+    expect(after.x).not.toBeCloseTo(before.x, 4);
+    document.dispatchEvent(new MouseEvent('mouseup', { button: 0 }));
+    fly.disable();
+  });
+
   it('mousemove rotates yaw/pitch while right-mouse is held', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(0, 0, 0);

@@ -88,35 +88,51 @@ export function createFlyControls(opts: FlyControlsOpts) {
   let pitch = 0;  // rotation around camera-local X (radians)
   let mouseDeltaX = 0;
   let mouseDeltaY = 0;
-  // True while the user is holding the right mouse button — the "looking"
-  // gesture. Matches the Unity / Unreal / Godot / MSFS convention. Cursor
-  // stays visible the whole time; mouse-look only happens during the drag.
-  let _lookActive = false;
+  // Look-engage flags, one per button. Either button-down engages
+  // mouse-look; both up = idle. Tracking them independently keeps the
+  // state correct when both are held and released in any order.
+  // Convention: left OR right click + drag rotates the camera (the
+  // short-click case is still routed to select by inputHandlers via the
+  // movement threshold in its pointerup handler).
+  let _lookLMB = false;
+  let _lookRMB = false;
+
+  function _isLooking(): boolean {
+    return _lookLMB || _lookRMB;
+  }
 
   // mousemove fires regardless of which buttons are held. We only
-  // accumulate look delta while _lookActive (RMB held); otherwise the
-  // event is ignored so cursor-driven hover/UI work undisturbed.
+  // accumulate look delta while at least one button is engaged.
   // movementX/Y reports the delta from the previous mousemove event —
   // works fine without pointer lock.
   function _onMouseMove(e: MouseEvent) {
-    if (!_lookActive) return;
+    if (!_isLooking()) return;
     mouseDeltaX += e.movementX || 0;
     mouseDeltaY += e.movementY || 0;
   }
 
   function _onMouseDown(e: MouseEvent) {
-    if (e.button !== 2) return; // only right-click engages look
-    _lookActive = true;
-    e.preventDefault();
+    if (e.button === 0) {
+      _lookLMB = true;
+    } else if (e.button === 2) {
+      _lookRMB = true;
+      // Suppress the browser context menu — right-click is the look
+      // gesture in fly mode, not a menu trigger.
+      e.preventDefault();
+    } else {
+      return;
+    }
+    canvas.style.cursor = 'grabbing';
   }
 
   function _onMouseUp(e: MouseEvent) {
-    if (e.button !== 2) return;
-    _lookActive = false;
+    if (e.button === 0) _lookLMB = false;
+    else if (e.button === 2) _lookRMB = false;
+    else return;
+    if (!_isLooking()) canvas.style.cursor = 'grab';
   }
 
-  // Suppress the browser context menu while fly mode is active — right-
-  // click is the look-engage gesture, not a menu trigger.
+  // Suppress the browser context menu while fly mode is active.
   function _onContextMenu(e: Event) {
     e.preventDefault();
   }
@@ -223,7 +239,8 @@ export function createFlyControls(opts: FlyControlsOpts) {
     pitch = Math.asin(Math.max(-1, Math.min(1, dir.y)));
     mouseDeltaX = 0;
     mouseDeltaY = 0;
-    _lookActive = false;
+    _lookLMB = false;
+    _lookRMB = false;
     document.addEventListener('keydown', _onKeyDown);
     document.addEventListener('keyup', _onKeyUp);
     canvas.addEventListener('mousemove', _onMouseMove);
@@ -247,7 +264,8 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _velocity.set(0, 0, 0);
     mouseDeltaX = 0;
     mouseDeltaY = 0;
-    _lookActive = false;
+    _lookLMB = false;
+    _lookRMB = false;
 
     // Hand off to orbit at the SAME camera pose. OrbitControls.update()
     // will call camera.lookAt(rig.controls.target) on its first frame
@@ -473,6 +491,10 @@ export function createFlyControls(opts: FlyControlsOpts) {
     enable,
     disable,
     isActive,
+    /** True while the user is holding left or right mouse to look around.
+     *  Consumers use this to suppress hover/tooltip updates and other
+     *  cursor-driven UI during a look-drag. */
+    isLooking: _isLooking,
     update,
     resetToDefault,
     syncFromCamera,

@@ -126,7 +126,12 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
-    if (_cameraMoving) return;  // suppress hover while camera is moving
+    // Suppress hover while camera is moving — orbit drag (start/end events)
+    // OR fly-mode look-drag (left/right click held in fly mode). The
+    // outline/fader cascade is visually noisy while the camera rotates,
+    // so we just skip the raycast until the drag ends.
+    if (_cameraMoving) return;
+    if (flyControls.isLooking()) return;
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
