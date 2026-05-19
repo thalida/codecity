@@ -140,6 +140,60 @@ function fakeHit(userData: Record<string, unknown>): THREE.Intersection<THREE.Ob
   return { object: { userData } } as unknown as THREE.Intersection<THREE.Object3D>;
 }
 
+describe('picker.pickAtCenter', () => {
+  it('hits an object directly in front of the camera', () => {
+    // A mesh placed at z = -10 should be hit when the camera is at the
+    // origin looking toward -z and the raycaster fires at NDC (0, 0).
+    const cube = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial()
+    );
+    cube.position.set(0, 0, -10);
+    cube.updateMatrixWorld();
+    cube.userData.street = { dir: { path: 'test' }, orientation: 'X' };
+    cube.userData.type = 'directory';
+
+    const mockCityScene: PickerCityScene = {
+      getBuildings: () => [],
+      getStreetPickables: () => [cube],
+      getBlocks: () => [],
+      getRootGem: () => null,
+      getBuildingByPath: () => null,
+      getSidewalkByDir: () => null,
+      getStreetByDir: () => null,
+      onChange: () => () => {},
+    };
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    camera.position.set(0, 0, 0);
+    camera.lookAt(0, 0, -10);
+    camera.updateMatrixWorld();
+
+    const p = createPicker({ canvas, camera, cityScene: mockCityScene });
+    const hit = p.pickAtCenter();
+    expect(hit).not.toBeNull();
+    expect(hit?.object).toBe(cube);
+    p.dispose();
+  });
+
+  it('returns null when nothing is in front of the camera', () => {
+    const mockCityScene: PickerCityScene = {
+      getBuildings: () => [],
+      getStreetPickables: () => [],
+      getBlocks: () => [],
+      getRootGem: () => null,
+      getBuildingByPath: () => null,
+      getSidewalkByDir: () => null,
+      getStreetByDir: () => null,
+      onChange: () => () => {},
+    };
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+    const p = createPicker({ canvas, camera, cityScene: mockCityScene });
+    expect(p.pickAtCenter()).toBeNull();
+    p.dispose();
+  });
+});
+
 describe('createPicker', () => {
   it('exposes hover, selection, selectionKey atoms + setters', () => {
     const fakeScene = makeFakeCityScene([], []);

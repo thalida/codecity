@@ -16,11 +16,13 @@ import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
+import type { createFlyControls } from './flyControls.js';
 
 export function createInputHandlers({
   canvas,
   picker,
   rig,
+  flyControls,
   renderer,
   camera,
   showTooltip,
@@ -32,14 +34,16 @@ export function createInputHandlers({
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
+  flyControls: ReturnType<typeof createFlyControls>;
   renderer: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
-  /** Refresh action triggered by the R key AND clicking the root-gem in
-   *  the city. Equivalent to the header gem button: rebuilds the
-   *  manifest and resets the camera. */
+  /** Refresh action triggered by R / gem-click in ORBIT mode only.
+   *  Rebuilds the manifest and resets the orbit camera. Fly mode
+   *  routes those same gestures to flyControls.resetToDefault()
+   *  instead — no manifest refresh, no orbit reset. */
   onRefresh: () => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
@@ -122,7 +126,12 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
-    if (_cameraMoving) return;  // suppress hover while camera is moving
+    // Suppress hover while camera is moving — orbit drag (start/end events)
+    // OR fly-mode look-drag (left/right click held in fly mode). The
+    // outline/fader cascade is visually noisy while the camera rotates,
+    // so we just skip the raycast until the drag ends.
+    if (_cameraMoving) return;
+    if (flyControls.isLooking()) return;
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
@@ -133,8 +142,8 @@ export function createInputHandlers({
     if (newHover && newHover.kind === NodeKind.Directory && !newHover.sidewalk) {
       newHover = null;
     }
-    const tooltipText = _tooltipForHover(newHover);
 
+    const tooltipText = _tooltipForHover(newHover);
     if (tooltipText) {
       showTooltip(tooltipText, e.clientX, e.clientY);
       canvas.style.cursor = 'pointer';
@@ -170,10 +179,19 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
+      // Gem click = refresh + reset, same as the R key and the header
+      // refresh button. The mode-aware reset (orbit reset vs fly-mode
+      // resetToDefault) is decided inside onRefresh.
       onRefresh();
       return;
     }
-    picker.setSelection(picker.interpretHit(hit));
+    // Toggle: clicking the currently-selected building/street deselects it.
+    const next = picker.interpretHit(hit);
+    if (_sameHover(next, picker.selection.get())) {
+      picker.setSelection(null);
+      return;
+    }
+    picker.setSelection(next);
   }
 
   function _focusAtPointer(clientX: number, clientY: number): void {
@@ -263,10 +281,24 @@ export function createInputHandlers({
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
 
+    if (KEY_BINDINGS.TOGGLE_FLY_MODE.keys.includes(ev.key)) {
+      ev.preventDefault();
+      if (flyControls.isActive()) {
+        flyControls.disable();
+      } else {
+        flyControls.enable();
+      }
+      return;
+    }
+
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
+      // Same behaviour in both modes: clear selection. In fly mode the
+      // browser also releases pointer lock on Esc, which auto-exits fly
+      // mode via the pointerlockchange handler — no special branch needed.
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
+      // Same behaviour in both modes: refresh + reset to current-mode default.
       onRefresh();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();

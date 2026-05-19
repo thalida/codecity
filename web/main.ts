@@ -37,6 +37,7 @@ import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
 import { refreshAdPanels } from './scene/adPanels.js';
 import type { SceneBlock } from './scene/blocks.js';
 import { createCameraRig } from './scene/cameraRig.js';
+import { createFlyControls } from './scene/flyControls.js';
 import { createAnimator } from './scene/animator.js';
 import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
 import { createInputHandlers } from './scene/inputHandlers.js';
@@ -106,6 +107,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // global ref); only used by tests/visual/setup.ts.
   (window as Window & { __rig?: typeof rig }).__rig = rig;
 
+  // Fly mode — first-person WASD camera. Inactive at boot; toggled by V key
+  // and by the header button (wired in Tasks 10-13). Shares the same camera
+  // as the rig; while active, OrbitControls is disabled.
+  const flyControls = createFlyControls({
+    camera,
+    canvas,
+    rig,
+    cityScene,
+  });
+
   // -- 4b. Post-processing -----------------------------------------------------
   // UnrealBloomPass on top of the main render so emissive windows actually
   // glow into the surrounding pixels (cyberpunk neon look). Cost is screen-
@@ -162,6 +173,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     cityScene,
     picker,
     rig,
+    flyControls,
     applyTheme,
   });
 
@@ -310,6 +322,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     canvas,
     picker,
     rig,
+    flyControls,
     renderer,
     camera,
     showTooltip,
@@ -326,11 +339,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       postFx.render();
     },
     // Same action as the header gem button: rebuild the manifest +
-    // reset the camera. Fired by the R key and by clicking the root
-    // gem mesh in the scene.
+    // reset the camera to the current mode's default pose. Fired by R,
+    // by clicking the root gem mesh in the scene, and by the header
+    // refresh button.
     onRefresh() {
       void refreshManifest();
-      rig.reset();
+      if (flyControls.isActive()) {
+        flyControls.resetToDefault();
+      } else {
+        rig.reset();
+      }
     },
     getRootName: () => cityScene.getRoot()?.name ?? null,
   });
@@ -371,6 +389,7 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       }
     }
     rig.update(0); // first-call: bbox-frames camera
+    flyControls.update(16); // fly-mode integration; no-op when inactive
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
     // below project mesh positions and need fresh world matrices.

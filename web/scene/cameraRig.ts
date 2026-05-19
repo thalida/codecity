@@ -291,6 +291,12 @@ export function createCameraRig({
     if (firstFrame) {
       if (_frameToBbox()) firstFrame = false;
     }
+    // When disabled (fly mode), skip the per-frame update entirely.
+    // OrbitControls.update() unconditionally calls camera.lookAt(target)
+    // regardless of the `enabled` flag — in fly mode that fights
+    // flyControls' yaw/pitch by pulling the camera toward the stale
+    // orbit target every frame.
+    if (!controls.enabled) return;
     controls.update();
   }
 

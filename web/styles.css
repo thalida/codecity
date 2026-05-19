@@ -1190,6 +1190,9 @@ canvas {
   box-shadow: var(--cc-shadow-md);
 }
 
+/* ── Fly-mode reticle ──────────────────────────────────────────────────────── */
+
+
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {
