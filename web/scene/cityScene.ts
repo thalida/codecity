@@ -49,6 +49,7 @@ import {
 } from './instanced/labels.js';
 import { buildCellsFromLayout } from './cellAssembly.js';
 import type { CellTile } from './cellTile.js';
+import { writeBuildingToSlot } from './instanced/buildingsCell.js';
 import { BuildingIndex } from './buildingIndex.js';
 import type { SpatialGrid } from './spatialGrid.js';
 import { findLayoutOverlaps } from './layout.js';
@@ -719,11 +720,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // It is structure-only (paths + nesting, NO mtime/size), so it is
     // stable across skeleton/final events for the same scan.
     const _treeSig = newManifestTyped.tree_signature ?? '';
+    let _layoutWasCacheHit = false;
     if (_treeSig && _cachedLayoutTreeSig === _treeSig && _cachedLayout) {
       // [cell-debug] Reuse the previously-computed layout. Tree shape
       // is identical (same signature), so building positions are unchanged.
       // Only per-file metadata (Phase 2 colors/ages) may differ.
       newLayout = _cachedLayout;
+      _layoutWasCacheHit = true;
       console.log('[boot] applyManifest: phase 1 layout cache HIT', {
         elapsedMs: performance.now() - _amPhase1Start,
         tree_signature: _treeSig.slice(0, 8),
@@ -795,6 +798,87 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // [cell-debug]
       const _cellT0 = performance.now();
       console.log('[cell] 1: branch entered', { buildings: newBuildings.length, streets: newLayout.streets?.length ?? 0 });
+
+      // NEW: fast-path detection — if layout is a cache hit AND all module-level
+      // cell state is already populated, skip the full structural rebuild and just
+      // update per-instance color/age attributes on the existing InstancedMeshes.
+      const _isCellCacheHit =
+        _layoutWasCacheHit &&
+        _cellRoot !== null &&
+        _cells !== null &&
+        _cells.size > 0 &&
+        _buildingIndex !== null &&
+        _grid !== null;
+      console.log('[cell] 1.5: cache hit?', { isCacheHit: _isCellCacheHit, hasCellRoot: _cellRoot !== null, hasCells: _cells !== null && _cells.size > 0 });
+
+      if (_isCellCacheHit) {
+        // ---- Cache-hit fast path ----
+        // The tree shape is identical, so building positions, cell structure,
+        // streets, labels, paths, and the gem are all unchanged.
+        // Only per-file metadata (color, createdAge, modifiedAge) may differ —
+        // Phase 2 above already computed them onto newBuildings' objects.
+        // We walk the existing cells and re-write only the color/age attributes.
+
+        // Generation check — a newer applyManifest may have preempted us.
+        console.log('[cell] 4: generation check (fast path)', { myGeneration, _currentGeneration, willBail: myGeneration !== _currentGeneration });
+        if (myGeneration !== _currentGeneration) return;
+
+        // Build a path → new Building lookup once (O(N)) so the inner loop is O(1).
+        const newBuildingByPath = new Map<string, Building>();
+        for (const b of newBuildings) {
+          if (b.file?.path) newBuildingByPath.set(b.file.path, b);
+        }
+
+        // Walk every occupied cell and re-write per-instance color/age attributes.
+        let _fastPathUpdated = 0;
+        for (const cell of _cells.values()) {
+          let _cellDirty = false;
+          for (let slot = 0; slot < cell.used; slot++) {
+            const existing = cell.buildings[slot];
+            if (!existing) continue;
+            const newB = existing.file?.path ? newBuildingByPath.get(existing.file.path) : undefined;
+            if (!newB) {
+              // Tree shape is identical (cache hit) so this shouldn't happen —
+              // log a warning and skip rather than crashing.
+              console.warn('[cell] fast path: no match for building path', existing.file?.path, '— skipping slot', slot);
+              continue;
+            }
+            // Copy updated per-file metadata onto the existing Building object.
+            existing.color = newB.color;
+            existing.createdAge = newB.createdAge;
+            existing.modifiedAge = newB.modifiedAge;
+            // Re-write the per-instance GPU attributes for color/age.
+            writeBuildingToSlot(cell, existing);
+            _fastPathUpdated++;
+            _cellDirty = true;
+          }
+          if (_cellDirty) {
+            // Signal Three.js to re-upload the modified per-instance attributes.
+            cell.detailMesh.instanceMatrix.needsUpdate = true;
+            if (cell.detailMesh.instanceColor) cell.detailMesh.instanceColor.needsUpdate = true;
+            const geom = cell.detailMesh.geometry;
+            for (const attrName of ['iIconUV', 'iModifiedAge']) {
+              const attr = geom.getAttribute(attrName);
+              if (attr) attr.needsUpdate = true;
+            }
+          }
+        }
+
+        // Keep manifest-level state in sync (values are semantically the same,
+        // but assigning ensures any downstream reader sees the latest objects).
+        manifest = newManifestTyped;
+        layout = newLayout;
+        dateRanges = newDateRanges;
+
+        // Emit the change event. _computeDiff walks prev.blocks (legacy path),
+        // which is [] on the cell path — so the diff is structurally empty.
+        // Subscribers still get notified; the semantic is correct since nothing
+        // structural changed.
+        _emit(changeCbs, _computeDiff(prev));
+
+        console.log('[cell] cache-hit fast path complete', { elapsedMs: performance.now() - _cellT0, updated: _fastPathUpdated });
+        return;
+      }
 
       // Derive WorldBounds from the layout bbox. Fall back to building extents
       // if bbox is absent (shouldn't happen for a real manifest, but safe).
