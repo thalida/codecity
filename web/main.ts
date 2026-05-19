@@ -756,24 +756,33 @@ function setupLiveUpdates(
   // trigger the same fetch+apply chain without re-implementing it.
   setRefreshManifest(refreshFromToggle);
 
+  // nanostores .subscribe() fires the callback synchronously with the
+  // current value the instant it is called.  We arm both subscriptions
+  // AFTER registering them — same pattern as attachHotReload — so those
+  // initial synthetic fires are suppressed.  Runtime changes (user toggles
+  // LIVE_UPDATES.ENABLED, or a file save mutates SCAN_FILTERS) happen
+  // after `armed = true` and behave normally.
+  let _liveUpdatesArmed = false;
   LIVE_UPDATES.subscribe((val) => {
+    if (!_liveUpdatesArmed) return;
     if (val.ENABLED) start();
     else stop();
   });
+  _liveUpdatesArmed = true;
+  // Kick off the initial poll state now that the subscription is armed.
+  // The subscribe's initial fire was suppressed above, so we explicitly
+  // honour the current ENABLED value here.
+  if (LIVE_UPDATES.get().ENABLED) start();
 
   // Toggling SHOW_ALL_FILES ALWAYS triggers a refresh, regardless of
   // whether live polling is enabled — the user explicitly asked for a
   // different scan and should see it immediately.
-  let _scanFiltersBootstrapped = false;
+  let _scanFiltersArmed = false;
   SCAN_FILTERS.subscribe(() => {
-    // Skip the first synchronous fire from .subscribe() so we don't
-    // double-fetch on initial hydration.
-    if (!_scanFiltersBootstrapped) {
-      _scanFiltersBootstrapped = true;
-      return;
-    }
+    if (!_scanFiltersArmed) return;
     refreshFromToggle();
   });
+  _scanFiltersArmed = true;
 
   return {
     setSignature(sig: string) {
