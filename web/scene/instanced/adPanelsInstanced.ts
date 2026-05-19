@@ -103,7 +103,15 @@ export class InstancedAdPanels {
       fragmentShader: adPanelFragSrc,
       transparent: true,
       depthWrite: false,
-      side: THREE.FrontSide,
+      // DoubleSide so panels stay visible through the edge-on transition
+      // when the camera rotates: with FrontSide, floating-point precision
+      // in the winding-order check can flip a panel from front-facing to
+      // back-facing slightly before it's actually edge-on in screen space,
+      // making it pop out of view at angles where it should still be a
+      // (very thin) visible sliver. At true edge-on the panel has zero
+      // pixel area regardless of side, so DoubleSide costs essentially
+      // nothing while eliminating the pop.
+      side: THREE.DoubleSide,
       polygonOffset: true,
       polygonOffsetFactor: -4,
       polygonOffsetUnits: -4,
