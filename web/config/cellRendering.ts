@@ -1,8 +1,9 @@
 // config/cellRendering.ts — Feature flag for the spatial-grid +
-// LOD rendering rewrite. When OFF, the legacy SceneBlock path
-// runs. When ON, CellTile + LOD evaluator + instanced ad panels +
-// progressive build replace it. Flag exists for the duration of
-// the migration; removed in the final cleanup task.
+// LOD rendering rewrite. When ON (default), CellTile + LOD evaluator
+// + instanced ad panels replace the legacy SceneBlock path. When OFF,
+// the legacy per-directory rendering runs. Flag exists for the
+// duration of the migration; removed in the final cleanup task once
+// legacy is fully retired.
 
 import { map } from 'nanostores';
 
@@ -11,5 +12,5 @@ export interface CellRenderingConfig {
 }
 
 export const CELL_RENDERING = map<CellRenderingConfig>({
-  enabled: false,
+  enabled: true,
 });

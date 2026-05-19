@@ -5,7 +5,7 @@
 //   - LodEvaluator.evaluate: visibility toggling per tier
 //   - Hysteresis: cell in the impostor/detail band doesn't oscillate
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { projectedPixelArea, LodEvaluator, type Viewport } from '@/scene/lodEvaluator.js';
 import { SpatialGrid } from '@/scene/spatialGrid.js';
@@ -95,9 +95,19 @@ describe('projectedPixelArea', () => {
 // ---------------------------------------------------------------------------
 describe('LodEvaluator', () => {
   let evaluator: LodEvaluator;
+  let _origLodEnabled: boolean;
 
   beforeEach(() => {
     evaluator = new LodEvaluator();
+    // Force LOD on for these tests — the production default is now off
+    // (every cell forced to detail tier), but this suite tests the
+    // pixel-area-based classification path specifically.
+    _origLodEnabled = LOD.get().enabled;
+    LOD.setKey('enabled', true);
+  });
+
+  afterEach(() => {
+    LOD.setKey('enabled', _origLodEnabled);
   });
 
   // Helper: convert the viewport-fraction thresholds in LOD config to

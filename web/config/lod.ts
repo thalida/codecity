@@ -31,7 +31,7 @@ export interface LodConfig {
 }
 
 export const LOD = map<LodConfig>({
-  enabled: true,
+  enabled: false,
   // 2.5% of viewport — at 1920×1080 ≈ 52k px², roughly equivalent to the
   // previous absolute default of 3000 px² for small repos but scales up
   // automatically on Linux-sized worlds.
