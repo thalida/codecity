@@ -64,7 +64,17 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
-import { CELL_RENDERING, LABEL_TYPOGRAPHY, SCENE_COLORS, SIDEWALK_COLORS } from '@/config/index.js';
+import {
+  ASPHALT,
+  CELL_RENDERING,
+  GEM_APPEARANCE,
+  GEM_FACE_PALETTE,
+  GEM_GLOW,
+  GEM_SIZING,
+  LABEL_TYPOGRAPHY,
+  SCENE_COLORS,
+  SIDEWALK_COLORS,
+} from '@/config/index.js';
 // TODO(Task 11/12): re-import RENDER_ORDERS when per-block outlines/ghosts are built.
 import type {
   Building,
@@ -331,6 +341,39 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // to what a fresh buildCityScene call would produce — so we skip the call.
   // Cleared by resetCache() when the user switches source (different tree shape).
   let _lastBuildCitySceneTreeSig: string | null = null;
+
+  // Scenic config hash: a JSON snapshot of all config stores whose values are
+  // baked into buildCityScene output (street geometry/color, sidewalk color,
+  // label typography, gem appearance). Stored alongside _lastBuildCitySceneTreeSig
+  // after every successful buildCityScene call. On cache-hit, we also check this
+  // hash — if it differs (e.g. user changed SIDEWALK_COLORS.DEFAULT via Settings),
+  // we force a full scenic rebuild even though the tree_signature hasn't changed.
+  let _lastScenicConfigHash: string | null = null;
+
+  // computeScenicConfigHash collects the current values of every store whose
+  // output is baked into buildCityScene meshes:
+  //   - SCENE_COLORS  : scene background (GROUND); baked into scene.background
+  //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
+  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
+  //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
+  //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
+  //                     baked into gem geometry and position
+  //   - GEM_FACE_PALETTE: vertex colors baked into gem octahedron BufferAttribute
+  //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
+  //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
+  // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildCityScene.
+  function computeScenicConfigHash(): string {
+    return JSON.stringify({
+      sceneColors: SCENE_COLORS.get(),
+      asphalt: ASPHALT.get(),
+      sidewalkColors: SIDEWALK_COLORS.get(),
+      labelTypography: LABEL_TYPOGRAPHY.get(),
+      gemSizing: GEM_SIZING.get(),
+      gemFacePalette: GEM_FACE_PALETTE.get(),
+      gemAppearance: GEM_APPEARANCE.get(),
+      gemGlow: GEM_GLOW.get(),
+    });
+  }
 
   // Listeners
 
@@ -846,20 +889,24 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       //
       // Scenic state reuse: when the layout was reused (same tree_signature,
       // positions/streets/paths unchanged) AND buildCityScene was already run
-      // for this signature, the streets/labels/paths/gem meshes are already in
-      // the scene and would produce identical output — skip the dispose + rebuild.
-      // Only the cell root is always rebuilt (fast, ~5s) to reflect updated
-      // per-file metadata (colors, heights) from the new manifest.
+      // for this signature, AND none of the config stores that affect scenic
+      // output have changed (same config hash), the streets/labels/paths/gem
+      // meshes are already in the scene and would produce identical output —
+      // skip the dispose + rebuild. Only the cell root is always rebuilt
+      // (fast) to reflect updated per-file metadata (colors, heights).
+      const _currentScenicConfigHash = computeScenicConfigHash();
       const _scenicValid =
         _layoutReused &&
         _lastBuildCitySceneTreeSig !== null &&
         _lastBuildCitySceneTreeSig === _treeSig &&
+        _lastScenicConfigHash === _currentScenicConfigHash &&
         streetPickables.length > 0; // guard: scenic state actually exists in scene
 
       if (_scenicValid) {
         // [cell-debug]
         console.log('[cell] 8: scenic state reused (skipping buildCityScene)', {
           treeSig: _treeSig,
+          configHashMatch: true,
           streets: streetPickables.length,
           elapsedMs: performance.now() - _cellT0,
         });
@@ -893,6 +940,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       } else {
         // Full rebuild path: dispose existing scenic state, run buildCityScene,
         // and add the new meshes to the scene.
+
+        // Diagnose why scenic reuse was skipped. When layout was reused but the
+        // config hash changed, it's a theme/color change that bakes into meshes.
+        if (_layoutReused && _lastBuildCitySceneTreeSig === _treeSig) {
+          // [cell-debug]
+          console.log('[cell] 8: scenic state invalidated by config change', {
+            treeSig: _treeSig,
+            streets: streetPickables.length,
+            elapsedMs: performance.now() - _cellT0,
+          });
+        }
+
         // [cell-debug]
         console.log('[cell] 5: disposing old manifest state', { elapsedMs: performance.now() - _cellT0 });
         _disposeAllManifestState();
@@ -969,8 +1028,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         console.log('[cell] 11: adding _cellRoot to scene', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
         scene.add(_cellRoot);
 
-        // Record that scenic state is now valid for this tree_signature.
+        // Record that scenic state is now valid for this tree_signature + config.
         _lastBuildCitySceneTreeSig = _treeSig || null;
+        _lastScenicConfigHash = _currentScenicConfigHash;
       }
 
       // [cell-debug]
@@ -1171,6 +1231,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _cachedLayoutTreeSig = null;
     _cachedLayout = null;
     _lastBuildCitySceneTreeSig = null;
+    _lastScenicConfigHash = null;
   }
 
   return {
