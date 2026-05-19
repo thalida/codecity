@@ -804,6 +804,7 @@ const EMPTY_MANIFEST: Manifest = {
   root: '',
   scanned_at: new Date().toISOString(),
   signature: '',
+  tree_signature: '',
   tree: {
     name: '',
     type: NodeKind.Directory,

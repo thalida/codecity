@@ -824,8 +824,37 @@ def _build_tree(
 # ── Public entry ─────────────────────────────────────────────────────────────
 
 
+def compute_tree_signature(tree_root: dict) -> str:
+    """Stable fingerprint of the manifest tree's structure.
+
+    Ignores per-file metadata; depends ONLY on the set of paths and
+    their nesting. Returns the same value for skeleton and final
+    manifests of the same scan, and for live-update polls until the
+    tree shape actually changes.
+
+    Uses blake2b with digest_size=8 (16-char hex string). Children are
+    sorted by path before walking — scan.py already sorts entries
+    alphabetically during _build_tree, so this sort is a no-op in
+    practice, but we apply it defensively to guarantee determinism if
+    the tree-builder ever changes its iteration order.
+    """
+    h = hashlib.blake2b(digest_size=8)
+
+    def _walk(node: dict) -> None:
+        path = node.get("path", "") or ""
+        h.update(path.encode("utf-8"))
+        h.update(b"\x00")
+        children = node.get("children") or []
+        # Sort by path for determinism (no-op when _build_tree already sorts).
+        for c in sorted(children, key=lambda n: n.get("path", "") or ""):
+            _walk(c)
+
+    _walk(tree_root)
+    return h.hexdigest()
+
+
 def _wrap_skeleton(
-    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+    root_abs: str, tree: DirNode, sig: Any, tree_signature: str, repo_info: RepoInfo | None,
 ) -> Manifest:
     """Build a Manifest envelope for the skeleton-phase emit. Caller is
     responsible for having already deep-copied the tree and applied
@@ -835,13 +864,14 @@ def _wrap_skeleton(
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "signature": sig.hexdigest(),
+        "tree_signature": tree_signature,
         "tree": tree,
         "repo": repo_info,
     }
 
 
 def _wrap_final(
-    root_abs: str, tree: DirNode, sig: Any, repo_info: RepoInfo | None,
+    root_abs: str, tree: DirNode, sig: Any, tree_signature: str, repo_info: RepoInfo | None,
 ) -> Manifest:
     """Build a Manifest envelope for the final-phase emit. Called after
     _populate_file_metadata has filled in real lines/binary values."""
@@ -849,6 +879,7 @@ def _wrap_final(
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "signature": sig.hexdigest(),
+        "tree_signature": tree_signature,
         "tree": tree,
         "repo": repo_info,
     }
@@ -918,6 +949,11 @@ def scan_tree_streaming(
     )
     _log(f"walked {_files_seen} files; emitting skeleton")
 
+    # Compute tree_signature once after the tree is built. This is
+    # structure-only (paths + nesting, NO mtime/size/metadata), so it is
+    # identical for skeleton and final manifests of the same scan.
+    tree_sig = compute_tree_signature(tree)
+
     _check_cancel(cancel_event)  # after tree walk, before skeleton emit
 
     # We deep-copy here so the skeleton's placeholder-mutation doesn't
@@ -927,7 +963,7 @@ def scan_tree_streaming(
     _force_skeleton_placeholders(skeleton_tree)
     yield {
         "phase": "skeleton",
-        "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, repo_info),
+        "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, tree_sig, repo_info),
     }
 
     _log("resolving file metadata")
@@ -945,7 +981,7 @@ def scan_tree_streaming(
 
     yield {
         "phase": "final",
-        "manifest": _wrap_final(root_abs, tree, sig, repo_info),
+        "manifest": _wrap_final(root_abs, tree, sig, tree_sig, repo_info),
     }
 
 

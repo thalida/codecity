@@ -97,6 +97,7 @@ class Manifest(TypedDict):
     root: str
     scanned_at: str
     signature: str
+    tree_signature: str
     tree: DirNode
     repo: RepoInfo | None
     display_root: NotRequired[str]

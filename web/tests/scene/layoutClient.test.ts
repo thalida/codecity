@@ -8,6 +8,7 @@ function makeMinimalManifest(): Manifest {
     root: '/tmp/x',
     scanned_at: '2026-05-13T00:00:00Z',
     signature: 'sig',
+    tree_signature: 'test-fp-1234',
     repo: null,
     tree: {
       name: 'x',

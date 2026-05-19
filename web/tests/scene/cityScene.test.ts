@@ -37,6 +37,7 @@ function makeManifest(name: string, files: ManifestFileSpec[]): Manifest {
     root: `/tmp/${name}`,
     scanned_at: '2026-05-04T00:00:00Z',
     signature: `${name}:${files.map((f) => f.path).join(',')}`,
+    tree_signature: `test-fp-${name}-${files.map((f) => f.path).join(',')}`,
     repo: null,
     tree: {
       name,
