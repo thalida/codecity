@@ -817,12 +817,18 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       console.log('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
 
       // Also build the streets/paths/gem sub-scene from buildCityScene so
-      // sidewalks, paths, asphalt, and the root gem still appear. The cell
+      // sidewalks, asphalt, and the root gem still appear. The cell
       // path replaces buildings; non-building scene elements are still needed.
+      //
+      // skipBuildings: true — omits per-building path-connector meshes
+      // (one mesh per layout.paths entry, ~N_buildings total). For a large
+      // repo those meshes dominate cellBuilt.scene.children and cause a
+      // multi-second stall in the scene.add() loop below (log marker 9→10).
+      // Cell mode has no per-building interactivity that needs connectors.
       // [cell-debug]
       const _cellBuildSceneT0 = performance.now();
       console.log('[cell] 8a: buildCityScene starting');
-      const cellBuilt = buildCityScene(newLayout);
+      const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
       // [cell-debug]
       console.log('[cell] 8b: buildCityScene done', { elapsedMs: performance.now() - _cellBuildSceneT0 });
       bbox = cellBuilt.bbox;
@@ -837,6 +843,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
       // [cell-debug]
       console.log('[cell] 9: adding children from cellBuilt to scene', { childCount: cellBuilt.scene.children.length, elapsedMs: performance.now() - _cellT0 });
+      // ROOT CAUSE of the 4.9-second gap between markers 9 and 10:
+      // scene.add() calls updateWorldMatrix + Three.js bookkeeping per child.
+      // Before skipBuildings:true this was ~107k children (dominated by one
+      // createPathMesh per building); with skipBuildings:true it drops to
+      // ~N_streets × 2 (sidewalk+asphalt groups) + street-labels + gem ≈ 10k.
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
