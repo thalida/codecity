@@ -10,6 +10,8 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './instanced/buildingsCell.js';
+import { InstancedAdPanels, asyncLoadMediaForBuilding } from './instanced/adPanelsInstanced.js';
+import { isMediaFile } from './adPanels.js';
 import { BuildingIndex } from './buildingIndex.js';
 import type { Building } from '@/types/index.js';
 import { debugCell } from '@/config/debugLogs.js';
@@ -19,6 +21,8 @@ export interface CellAssemblyOutput {
   cells: Map<number, CellTile>;
   index: BuildingIndex;
   sceneRoot: THREE.Group;
+  /** Instanced ad panels for media files. Null when there are no media buildings. */
+  adPanels: InstancedAdPanels | null;
 }
 
 /**
@@ -131,9 +135,30 @@ export function buildCellsFromLayout(
     cell.impostorMesh.instanceMatrix.needsUpdate = true;
   }
 
+  // ---- Instanced ad panels for media buildings ----
+  // Build one InstancedMesh backed by a DataArrayTexture for all media files.
+  // TODO(Tasks 12-15): tie panel visibility to LOD tier once the LOD evaluator
+  // exists; for now panels are always visible when cell rendering is active.
+  const mediaBuildings = buildings.filter((b) => isMediaFile(b.file));
+  let adPanels: InstancedAdPanels | null = null;
+  if (mediaBuildings.length > 0) {
+    const adCapacity = Math.max(64, Math.ceil(mediaBuildings.length * 1.5));
+    adPanels = new InstancedAdPanels(adCapacity);
+    for (const b of mediaBuildings) {
+      const reg = adPanels.registerMediaBuilding(b);
+      if (reg) {
+        // Async: fetch + upload texture, then set iTextureFade → 1.
+        asyncLoadMediaForBuilding(adPanels, b, reg.layer, reg.panelSlots);
+      }
+    }
+    sceneRoot.add(adPanels.mesh);
+  }
+  // [cell-debug]
+  debugCell('[cell] buildCellsFromLayout: 8b ad panels assembled', { mediaBuildings: mediaBuildings.length, hasAdPanels: !!adPanels });
+
   // [cell-debug]
   debugCell('[cell] buildCellsFromLayout: 9 returning', { totalMs: performance.now() - _t0 });
-  return { grid, cells, index, sceneRoot };
+  return { grid, cells, index, sceneRoot, adPanels };
 }
 
 function computeCellCapacity(occupiedCellCount: number, expectedFiles: number): number {

@@ -331,6 +331,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
   let _grid: SpatialGrid | null = null;
+  // Tasks 16-17: instanced ad panels (DataArrayTexture-backed). One instance
+  // per applyManifest call in cell mode; disposed on full rebuild or resetCache.
+  let _instancedAdPanels: import('./instanced/adPanelsInstanced.js').InstancedAdPanels | null = null;
 
   // [cell-debug] Layout cache: avoid redundant _layoutClient.compute() when
   // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
@@ -1015,6 +1018,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           _cellRoot.traverse(_disposeObject);
           if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
         }
+        // Dispose old instanced ad panels (layout reused → new ad panels from cellOut).
+        if (_instancedAdPanels) {
+          _instancedAdPanels.dispose();
+          _instancedAdPanels = null;
+        }
 
         manifest = newManifestTyped;
         layout = newLayout;
@@ -1025,10 +1033,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _cells = cellOut.cells;
         _buildingIndex = cellOut.index;
         _grid = cellOut.grid;
+        _instancedAdPanels = cellOut.adPanels;
         // [cell-debug]
         debugCell('[cell] 7: module-level state assigned (cells, index, grid) — scenic reuse', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
 
-        // Add the new cell root (instanced building InstancedMeshes).
+        // Add the new cell root (instanced building InstancedMeshes + ad panels).
         // [cell-debug]
         debugCell('[cell] 11: adding _cellRoot to scene (scenic reuse)', { cellRootChildren: _cellRoot.children.length, elapsedMs: performance.now() - _cellT0 });
         scene.add(_cellRoot);
@@ -1059,6 +1068,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
           _cellRoot.traverse(_disposeObject);
           if (_cellRoot.parent) _cellRoot.parent.remove(_cellRoot);
         }
+        // Dispose old instanced ad panels before swapping in new ones.
+        if (_instancedAdPanels) {
+          _instancedAdPanels.dispose();
+          _instancedAdPanels = null;
+        }
         for (const tex of _atlasTextures) tex.dispose();
         _atlasTextures = [];
 
@@ -1070,6 +1084,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         _cells = cellOut.cells;
         _buildingIndex = cellOut.index;
         _grid = cellOut.grid;
+        _instancedAdPanels = cellOut.adPanels;
         // [cell-debug]
         debugCell('[cell] 7: module-level state assigned (cells, index, grid)', { cells: _cells.size, elapsedMs: performance.now() - _cellT0 });
 
@@ -1327,6 +1342,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _cachedLayout = null;
     _lastBuildCitySceneTreeSig = null;
     _lastScenicConfigHash = null;
+    // Dispose instanced ad panels so they are rebuilt from scratch on the
+    // next applyManifest call (the new source may have a different set of
+    // media files and a different layout, so the existing panels are stale).
+    if (_instancedAdPanels) {
+      _instancedAdPanels.dispose();
+      _instancedAdPanels = null;
+    }
   }
 
   return {
