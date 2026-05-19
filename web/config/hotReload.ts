@@ -87,7 +87,13 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
         // getManifest() returns null only during scene teardown — not a
         // path reachable via store mutation under normal use. The 'idle'
         // transition below is safe even in that no-op branch.
-        if (manifest) await cityScene.applyManifest(manifest);
+        if (manifest) {
+          // [boot-diag] hotReload rebuild path
+          console.log('[boot] applyManifest caller=hotReload/scheduleRebuild', {
+            stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+          });
+          await cityScene.applyManifest(manifest);
+        }
         // LAST_UPDATED_AT is set by the coordinator's cityScene.onChange
         // listener after applyManifest's _emit(changeCbs, ...) fires —
         // not set here. refreshMaterials below uses its own hot-path

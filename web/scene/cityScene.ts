@@ -70,6 +70,7 @@ import type {
   CityLayout,
   CitySceneDiff,
   DateRanges,
+  DirNode,
   EnteringBuilding,
   EnteringStreet,
   ExitingEntry,
@@ -228,10 +229,37 @@ function _xBounds(o: WorldRect): [string, string] {
   return [o.minX.toFixed(2), o.maxX.toFixed(2)];
 }
 
+/**
+ * Compute a deterministic fingerprint of the manifest tree's structure
+ * (paths and nesting only — ignores per-file metadata like mtime/size).
+ * Same tree shape → same fingerprint, regardless of metadata changes
+ * between skeleton/final/live-update manifest events.
+ *
+ * Uses djb2 hash for speed. ~50-100ms for 93k nodes on a Mac.
+ */
+function treeShapeFingerprint(root: DirNode | undefined | null): string {
+  if (!root) return '';
+  let h = 5381 >>> 0;
+  function walk(n: { path?: string; children?: unknown[] }): void {
+    const path = n.path ?? '';
+    for (let i = 0; i < path.length; i++) {
+      h = ((h * 33) ^ path.charCodeAt(i)) >>> 0;
+    }
+    // Sentinel between siblings/depth for determinism
+    h = ((h * 33) ^ 124) >>> 0; // '|'
+    if (Array.isArray(n.children)) {
+      for (const c of n.children) walk(c as { path?: string; children?: unknown[] });
+    }
+  }
+  walk(root);
+  return h.toString(16);
+}
+
 // Internal helpers exposed for tests only. Not part of the public API.
 export const __test = {
   _formatCollisionReport,
   _formatStemDiagnostic,
+  treeShapeFingerprint,
 };
 
 // canvas is unused directly by cityScene after Task 8 removed
@@ -316,8 +344,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
   // [cell-debug] Layout cache: avoid redundant _layoutClient.compute() when
   // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
-  // Keyed by manifest.signature (same scan → same signature → same layout).
-  let _cachedLayoutSig: string | null = null;
+  // Keyed by treeShapeFingerprint(tree) — stable across skeleton/final events
+  // that share the same paths/nesting but differ in per-file metadata.
+  let _cachedLayoutTreeFp: string | null = null;
   let _cachedLayout: CityLayout | null = null;
 
   // Listeners
@@ -712,15 +741,23 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const _amPhase1Start = performance.now();
     const newManifestTyped = newManifest as Manifest;
     let newLayout: CityLayout;
-    const _sig = newManifestTyped.signature;
-    if (_sig && _cachedLayoutSig === _sig && _cachedLayout) {
+    // Compute a tree-shape fingerprint (paths + nesting only, ignores
+    // per-file metadata) so the cache hits across skeleton/final events
+    // that share the same tree structure but differ in mtime/size/color.
+    const _fpT0 = performance.now();
+    const _treeFp = treeShapeFingerprint(newManifestTyped.tree);
+    console.log('[boot] applyManifest: tree fingerprint computed', {
+      elapsedMs: performance.now() - _fpT0,
+      fingerprint: _treeFp.slice(0, 8),
+    });
+    if (_treeFp && _cachedLayoutTreeFp === _treeFp && _cachedLayout) {
       // [cell-debug] Reuse the previously-computed layout. Tree shape
-      // is identical (same signature), so building positions are unchanged.
+      // is identical (same fingerprint), so building positions are unchanged.
       // Only per-file metadata (Phase 2 colors/ages) may differ.
       newLayout = _cachedLayout;
       console.log('[boot] applyManifest: phase 1 layout cache HIT', {
         elapsedMs: performance.now() - _amPhase1Start,
-        signature: _sig.slice(0, 8) + '...',
+        fingerprint: _treeFp.slice(0, 8),
       });
     } else {
       // Pass the full manifest envelope (not `manifest.tree`) — the worker
@@ -738,12 +775,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         throw err;
       }
       // [cell-debug] Cache the freshly-computed layout for the next call.
-      if (_sig) {
-        _cachedLayoutSig = _sig;
+      if (_treeFp) {
+        _cachedLayoutTreeFp = _treeFp;
         _cachedLayout = newLayout;
-        console.log('[boot] applyManifest: phase 1 layout CACHED', {
+        console.log('[boot] applyManifest: phase 1 layout cache MISS — storing', {
           elapsedMs: performance.now() - _amPhase1Start,
-          signature: _sig.slice(0, 8) + '...',
+          fingerprint: _treeFp.slice(0, 8),
         });
       }
     }

@@ -96,7 +96,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   _applyDisplayLabel(manifest);
   // [cell-debug]
   const _applyT0 = performance.now();
-  console.log('[boot] applyManifest starting');
+  // [boot-diag] call #1: startRenderLoop bootstrap (skeleton or cache-hit final)
+  console.log('[boot] applyManifest starting', {
+    caller: 'startRenderLoop',
+    stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+  });
   await cityScene.applyManifest(manifest);
   console.log('[boot] applyManifest done', { elapsedMs: performance.now() - _applyT0 });
 
@@ -672,6 +676,11 @@ function setupLiveUpdates(
         if (m?.signature) {
           lastSignature = m.signature;
           _applyDisplayLabel(m);
+          // [boot-diag] live-updates path
+          console.log('[boot] applyManifest caller=setupLiveUpdates/refreshManifest', {
+            signature: m.signature.slice(0, 8),
+            stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+          });
           await handle.cityScene.applyManifest(m);
         }
       }
@@ -960,7 +969,11 @@ if (_canvas) {
             // re-call applyManifest on the existing scene.
             // [cell-debug]
             const _applyFinalT0 = performance.now();
-            console.log('[boot] applyManifest (final event) starting');
+            // [boot-diag] call #2: boot stream final event
+            console.log('[boot] applyManifest (final event) starting', {
+              caller: 'boot-stream/final',
+              stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+            });
             await handle.cityScene.applyManifest(m);
             console.log('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
           }
@@ -1012,6 +1025,13 @@ if (_canvas) {
     let _lastDismissible = false;
 
     async function applyNewSource(payload: SourcePayload): Promise<void> {
+      // [boot-diag] Track who is calling applyNewSource so we can identify
+      // the third applyManifest call observed in production logs.
+      console.log('[boot] applyNewSource called', {
+        src: payload.src,
+        branch: payload.branch,
+        stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+      });
       const dismissibleOnError = _lastDismissible;
       loadingOverlay.show({
         kind: _srcKind(payload.src),
@@ -1041,6 +1061,11 @@ if (_canvas) {
             // Apply the skeleton so the new city paints behind the overlay
             // — the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
+            // [boot-diag] applyNewSource skeleton event
+            console.log('[boot] applyManifest caller=applyNewSource/skeleton', {
+              src: payload.src,
+              stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+            });
             await handle.cityScene.applyManifest(event.manifest);
             // Update the header (project label, branch pill) right after the
             // skeleton lands so it reflects the new project immediately,
@@ -1076,6 +1101,11 @@ if (_canvas) {
         }
 
         _applyDisplayLabel(manifest);
+        // [boot-diag] applyNewSource final event
+        console.log('[boot] applyManifest caller=applyNewSource/final', {
+          src: payload.src,
+          stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
+        });
         await handle.cityScene.applyManifest(manifest);
 
         // Update the header (project label, branch pill) + footer (repo link)
