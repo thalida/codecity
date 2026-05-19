@@ -127,10 +127,14 @@ export function createInputHandlers({
   function _processHoverRaf() {
     _hoverRafId = 0;
     if (_cameraMoving) return;  // suppress hover while camera is moving
-    if (flyControls.isActive()) return;  // hover disabled in fly mode
     const e = _hoverLastEvt;
     if (!e) return;
-    const hit = picker.pickAt(e.clientX, e.clientY);
+    const flyActive = flyControls.isActive();
+    // In fly mode the crosshair raycast originates from the camera center,
+    // not the (locked) pointer position. The result still flows through
+    // picker.hover so the outline + sidewalk tint react; buildingFader and
+    // ghostRenderer skip their work in fly mode (see those modules).
+    const hit = flyActive ? picker.pickAtCenter() : picker.pickAt(e.clientX, e.clientY);
     let newHover = picker.interpretHit(hit);
     // Filter: directory-shaped targets that came from a stray "directory
     // building" (engine.js typically skips these) don't have a sidewalk
@@ -138,14 +142,18 @@ export function createInputHandlers({
     if (newHover && newHover.kind === NodeKind.Directory && !newHover.sidewalk) {
       newHover = null;
     }
-    const tooltipText = _tooltipForHover(newHover);
 
-    if (tooltipText) {
-      showTooltip(tooltipText, e.clientX, e.clientY);
-      canvas.style.cursor = 'pointer';
-    } else {
-      hideTooltip();
-      canvas.style.cursor = 'grab';
+    // Tooltip + cursor only in orbit mode. In fly mode the pointer is
+    // locked and the cursor stays 'none' regardless of hover state.
+    if (!flyActive) {
+      const tooltipText = _tooltipForHover(newHover);
+      if (tooltipText) {
+        showTooltip(tooltipText, e.clientX, e.clientY);
+        canvas.style.cursor = 'pointer';
+      } else {
+        hideTooltip();
+        canvas.style.cursor = 'grab';
+      }
     }
 
     if (_sameHover(newHover, picker.hover.get())) {
@@ -252,11 +260,6 @@ export function createInputHandlers({
   });
 
   _on(canvas, 'pointermove', (e: Event) => {
-    // Hover is disabled in fly mode — pointer-lock movement events fire on
-    // every mouse twitch, and running the hover pipeline (raycast +
-    // outline/fader/ghost cascade) every frame caused visible stutter
-    // while mouse-looking. Clicks still work via _handlePick.
-    if (flyControls.isActive()) return;
     _hoverLastEvt = e as PointerEvent;
     if (_hoverRafId) return;
     _hoverRafId = requestAnimationFrame(_processHoverRaf);
