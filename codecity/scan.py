@@ -184,59 +184,141 @@ def _is_git_repo(root: Path) -> bool:
     return _run_git(root, "rev-parse", "--git-dir").strip() != ""
 
 
-def _collect_git_dates(root: Path, *log_args: str) -> dict[str, str]:
-    """Walk one `git log` invocation, return {path: ISO-date}.
+def _git_history_window(override: str | None = None) -> str:
+    """Resolve the git-log --since window.
 
-    The two callers in _collect_git_metadata both use the COMMIT:<date>
-    + --name-only protocol; this helper centralizes the parser so they
-    can run concurrently in a thread pool without duplicating logic.
+    Precedence: explicit ``override`` argument (typically from a per-
+    request UI/API parameter) > ``CODECITY_GIT_WINDOW`` env var > the
+    built-in default of "3.years.ago". Any value `git log --since=…`
+    accepts is valid: "3.years.ago", "2022-01-01", "6.months", etc.
+    """
+    if override:
+        return override
+    return os.environ.get("CODECITY_GIT_WINDOW", "3.years.ago")
 
-    First occurrence wins — caller controls direction via `--reverse`."""
-    out = _run_git(
-        root, "log",
-        "--format=COMMIT:%aI", "--name-only",
-        *log_args,
-    )
-    result: dict[str, str] = {}
+
+def _collect_git_dates_windowed(
+    root: Path, *, git_window: str | None = None,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """One newest→oldest `git log --name-status` walk that populates
+    both created_map and modified_map in a single pass.
+
+    Replaces two parallel walks (`--diff-filter=A --reverse` for creates
+    + bare walk for modifies). Two wins:
+
+      1. Halves the subprocess count — we now read the same history
+         from one process, parsing both A-events and other-status
+         events as we go.
+      2. Bounds the walk to ``CODECITY_GIT_WINDOW`` (default 3 years).
+         Files not touched within the window get no entry; the renderer
+         falls back to filesystem dates or the oldest-age color. Cuts
+         walks on torvalds/linux-scale repos from ~1.4M commits to
+         ~250K. Acceptable because the age-signal renders colors
+         relative to the visible date range — a file modified 10 years
+         ago and one modified 4 years ago both clamp to the
+         oldest-color bucket anyway.
+
+    --no-renames means a rename is recorded as delete+add, so the
+    `created` date reflects when the *current path* first appeared.
+    For an age signal this is the right semantic (the user sees a
+    building for the path, not for a file-identity).
+
+    Walk direction is newest→oldest with first-sighting-wins, so:
+      - modified[path] = date of the most recent commit touching path
+      - created[path]  = date of the most recent `A`-status event for
+        path within the window. For files added once and never
+        re-added, this is the true creation date.
+    """
+    window = _git_history_window(git_window)
+    _log(f"  starting git log walk (--since={window})…")
+    try:
+        proc = subprocess.Popen(
+            ["git", "-C", str(root), "log",
+             "--format=COMMIT:%aI",
+             "--name-status",
+             "--no-renames",
+             f"--since={window}"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            text=True,
+            bufsize=1,
+        )
+    except FileNotFoundError:
+        return {}, {}
+
+    created: dict[str, str] = {}
+    modified: dict[str, str] = {}
     current_date = ""
-    for line in out.splitlines():
+    commits = 0
+    heartbeat_every = 25_000
+    assert proc.stdout is not None
+    for line in proc.stdout:
+        line = line.rstrip("\n")
+        if not line:
+            continue
         if line.startswith("COMMIT:"):
             current_date = line[len("COMMIT:"):]
-        elif line and line not in result:
-            result[line] = current_date
-    return result
+            commits += 1
+            if commits % heartbeat_every == 0:
+                _log(
+                    f"  walked {commits:,} commits, "
+                    f"{len(modified):,} files seen so far…"
+                )
+            continue
+        # `<status>\t<path>` row from --name-status. Status is one of
+        # A/M/D/T/U. With --no-renames, R/C don't appear (renames are
+        # D + A instead).
+        tab_idx = line.find("\t")
+        if tab_idx == -1:
+            continue
+        status = line[:tab_idx]
+        path = line[tab_idx + 1:]
+        if path not in modified:
+            modified[path] = current_date
+        if status.startswith("A") and path not in created:
+            created[path] = current_date
+    proc.wait()
+    _log(
+        f"  done — {commits:,} commits in window, "
+        f"{len(modified):,} files touched, "
+        f"{len(created):,} with creation event"
+    )
+    return created, modified
 
 
 def _collect_git_metadata(
-    root: Path, *, use_cache: bool = True,
+    root: Path, *, use_cache: bool = True, git_window: str | None = None,
 ) -> tuple[dict[str, str], dict[str, str], set[str]]:
     """Return (created_map, modified_map, tracked_set).
 
-    - created_map[path]  = earliest add-commit ISO date
-    - modified_map[path] = most recent commit-that-touched-it ISO date
-    - tracked_set        = all tracked paths + their parent dirs (for gitignore filter)
+    - created_map[path]  = ISO date of most recent ``A``-event for path
+                           within ``CODECITY_GIT_WINDOW`` (default 3y).
+                           Files added before the window are absent.
+    - modified_map[path] = ISO date of most recent commit touching the
+                           path within the window. Files untouched
+                           since the window started are absent.
+    - tracked_set        = all tracked paths + parent dirs (for the
+                           gitignore filter — independent of history).
 
-    The two `git log` walks are independent and run in parallel via a
-    ThreadPoolExecutor. With ``use_cache=True`` (default), the HEAD-keyed
-    git-history cache short-circuits both walks when HEAD hasn't moved.
+    Single `git log --name-status --no-renames --since=$WINDOW` walk
+    populates both maps in one pass. With ``use_cache=True`` (default),
+    the HEAD-keyed git-history cache short-circuits the walk when HEAD
+    hasn't moved.
     """
+    # Cache is keyed on (root, head_sha, window) — changing the window
+    # invalidates because the maps' contents depend on it.
+    window = _git_history_window(git_window)
     head_sha = _run_git(root, "rev-parse", "HEAD").strip()
     if use_cache and head_sha:
-        cached = cache_load_git_history(root, head_sha)
+        cached = cache_load_git_history(root, head_sha, window)
         if cached is not None:
             created, modified = cached
             tracked = _collect_tracked_set(root)
             return created, modified, tracked
 
-    _log("  collecting creation + modified dates (parallel git log walks)…")
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        created_future = pool.submit(
-            _collect_git_dates, root, "--reverse", "--diff-filter=A",
-        )
-        modified_future = pool.submit(_collect_git_dates, root)
-        created = created_future.result()
-        modified = modified_future.result()
-    _log(f"    {len(created)} created, {len(modified)} modified")
+    _log("  collecting creation + modified dates…")
+    created, modified = _collect_git_dates_windowed(root, git_window=window)
+    _log(f"    {len(created)} created, {len(modified)} modified within window")
 
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
@@ -244,7 +326,7 @@ def _collect_git_metadata(
 
     if use_cache and head_sha:
         try:
-            cache_save_git_history(root, head_sha, created, modified)
+            cache_save_git_history(root, head_sha, window, created, modified)
         except OSError:
             # Cache failures (disk full, permission denied, read-only fs)
             # must never block a scan. The next run will retry the write.
@@ -566,7 +648,17 @@ def _populate_file_metadata(
         miss_indices.append(i)
         miss_paths.append(Path(node["fullPath"]))
 
+    total = len(nodes)
+    hits = total - len(miss_paths)
+    _log(f"  populating metadata: {total} files ({hits} cache hits, {len(miss_paths)} to read)")
+
     if miss_paths:
+        # Progress heartbeat: on a fresh clone this loop reads every file
+        # to sniff binary/line-count/media-dims and can take 10s+ silent
+        # seconds on a large repo. Log every N completions so the terminal
+        # tracks the cache-miss work in real time.
+        heartbeat_step = max(200, len(miss_paths) // 20)
+        done = 0
         with ThreadPoolExecutor(max_workers=_FILE_IO_POOL_SIZE) as pool:
             future_to_idx = {
                 pool.submit(_read_file_metadata, p): i
@@ -585,9 +677,13 @@ def _populate_file_metadata(
                     if mw is not None and mh is not None:
                         nodes[idx]["media_width"] = mw
                         nodes[idx]["media_height"] = mh
+                    done += 1
+                    if done % heartbeat_step == 0:
+                        _log(f"    read {done}/{len(miss_paths)} files…")
             except ScanCancelledError:
                 pool.shutdown(wait=False)
                 raise
+        _log(f"    read {len(miss_paths)}/{len(miss_paths)} files")
 
     if use_cache:
         # Union-merge: start from the loaded cache (preserves entries
@@ -775,6 +871,7 @@ def scan_tree_streaming(
     include_all: bool = False,
     use_cache: bool = True,
     cancel_event: "threading.Event | None" = None,
+    git_window: str | None = None,
 ) -> Iterator["ScanStreamEvent"]:
     """Generator form of scan_tree: yields a skeleton event after the
     tree walk, then a final event after metadata population. The
@@ -795,7 +892,7 @@ def scan_tree_streaming(
     if is_git_repo:
         _log("git repo detected — collecting metadata…")
         git_created, git_modified, tracked_files = _collect_git_metadata(
-            Path(root_abs), use_cache=use_cache,
+            Path(root_abs), use_cache=use_cache, git_window=git_window,
         )
         repo_info = _collect_repo_info(Path(root_abs))
     else:
@@ -857,6 +954,7 @@ def scan_tree(
     *,
     include_all: bool = False,
     use_cache: bool = True,
+    git_window: str | None = None,
 ) -> Manifest:
     """Scan a directory and return the full manifest.
 
@@ -880,7 +978,7 @@ def scan_tree(
     """
     final: Manifest | None = None
     for event in scan_tree_streaming(
-        root, include_all=include_all, use_cache=use_cache,
+        root, include_all=include_all, use_cache=use_cache, git_window=git_window,
     ):
         if event["phase"] == "final":
             final = event["manifest"]

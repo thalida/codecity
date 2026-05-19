@@ -20,6 +20,9 @@ export function buildApiUrl(
   if (qp.has('src')) {
     u.searchParams.set('src', qp.get('src')!);
     if (qp.has('branch')) u.searchParams.set('branch', qp.get('branch')!);
+    // git_window only travels through with a source; without ?src= the
+    // endpoint is a no-op anyway, so don't bother forwarding it.
+    if (qp.has('git_window')) u.searchParams.set('git_window', qp.get('git_window')!);
   }
   const filters = SCAN_FILTERS.get();
   if (filters.SHOW_ALL_FILES) {

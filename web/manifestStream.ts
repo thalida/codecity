@@ -1,12 +1,26 @@
 // NDJSON streaming reader for /api/manifest responses. Each line is a
-// single JSON event: either {phase:'skeleton'|'final', manifest} or
-// {phase:'error', error}. The browser handles Content-Encoding: gzip
+// single JSON event. The browser handles Content-Encoding: gzip
 // transparently, so we read decoded UTF-8 text directly.
+//
+// Event variants (server emits in roughly this order):
+//   cloning  — marker, no payload. Sent for git sources before the clone
+//              subprocess runs so the UI can light up its "Cloning" step
+//              from real state instead of a wall-clock timer.
+//   scanning — marker, no payload. Sent once the clone (if any) is done
+//              and the on-disk scan is about to start.
+//   skeleton — first paint manifest with placeholder building heights.
+//   final    — populated manifest ready for the final tween.
+//   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from './types/manifest';
 
+// One variant per discriminant value so TS narrows cleanly through
+// `if (event.phase === 'cloning' || event.phase === 'scanning')` etc.
 export type ScanStreamEvent =
-  | { phase: 'skeleton' | 'final'; manifest: Manifest }
+  | { phase: 'cloning' }
+  | { phase: 'scanning' }
+  | { phase: 'skeleton'; manifest: Manifest }
+  | { phase: 'final'; manifest: Manifest }
   | { phase: 'error'; error: string };
 
 export async function* streamManifest(

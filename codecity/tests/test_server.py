@@ -920,9 +920,12 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, 200)
-        self.assertEqual(len(events), 2)
-        self.assertEqual(events[0]["phase"], "skeleton")
-        self.assertEqual(events[1]["phase"], "final")
+        # Local sources stream: scanning → skeleton → final. The
+        # scanning marker is a phase-only event with no manifest.
+        manifest_events = [e for e in events if "manifest" in e]
+        self.assertEqual(len(manifest_events), 2)
+        self.assertEqual(manifest_events[0]["phase"], "skeleton")
+        self.assertEqual(manifest_events[1]["phase"], "final")
 
     def test_warm_cache_emits_one_final(self) -> None:
         with TemporaryDirectory() as td:
@@ -934,8 +937,9 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, 200)
-        self.assertEqual(len(events), 1)
-        self.assertEqual(events[0]["phase"], "final")
+        manifest_events = [e for e in events if "manifest" in e]
+        self.assertEqual(len(manifest_events), 1)
+        self.assertEqual(manifest_events[0]["phase"], "final")
 
     def test_no_cache_skips_lookup_and_save(self) -> None:
         with TemporaryDirectory() as td:
@@ -946,7 +950,10 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             _, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}&no_cache=true",
             )
-            self.assertEqual(len(events), 2, "no_cache should force a fresh scan")
+            manifest_events = [e for e in events if "manifest" in e]
+            self.assertEqual(
+                len(manifest_events), 2, "no_cache should force a fresh scan",
+            )
             # Delete the cache file and verify no_cache also skipped
             # the save — the cache should remain absent after this
             # request.
@@ -993,8 +1000,9 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             _, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}&include_all=true",
             )
+            manifest_events = [e for e in events if "manifest" in e]
             self.assertEqual(
-                len(events), 2,
+                len(manifest_events), 2,
                 "include_all=true must not be served from include_all=false cache",
             )
 
@@ -1004,8 +1012,9 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             status, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
-        skeleton_tree = events[0]["manifest"]["tree"]
-        final_tree = events[1]["manifest"]["tree"]
+        manifest_events = [e for e in events if "manifest" in e]
+        skeleton_tree = manifest_events[0]["manifest"]["tree"]
+        final_tree = manifest_events[1]["manifest"]["tree"]
 
         def files(node):
             for child in node["children"]:

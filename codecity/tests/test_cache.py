@@ -108,48 +108,71 @@ class FileCacheTests(CacheTestBase):
 
 
 class GitHistoryCacheTests(CacheTestBase):
+    WINDOW = "3.years.ago"
+
     def test_hit_on_matching_head(self) -> None:
         root = Path("/some/repo")
         created = {"src/a.py": "2024-01-01T00:00:00Z"}
         modified = {"src/a.py": "2024-06-01T00:00:00Z"}
-        cache_mod.cache_save_git_history(root, "abc123", created, modified)
-        result = cache_mod.cache_load_git_history(root, "abc123")
+        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, created, modified)
+        result = cache_mod.cache_load_git_history(root, "abc123", self.WINDOW)
         self.assertEqual(result, (created, modified))
 
     def test_miss_on_different_head(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc123", {}, {})
-        self.assertIsNone(cache_mod.cache_load_git_history(root, "def456"))
+        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, {}, {})
+        self.assertIsNone(
+            cache_mod.cache_load_git_history(root, "def456", self.WINDOW)
+        )
+
+    def test_miss_on_different_window(self) -> None:
+        # Cached with one window, looked up with another → cache miss.
+        # The maps' contents depend on the window so we can't safely
+        # serve the cached version when the caller asked for a
+        # different time range.
+        root = Path("/some/repo")
+        cache_mod.cache_save_git_history(root, "abc123", "3.years.ago", {}, {})
+        self.assertIsNone(
+            cache_mod.cache_load_git_history(root, "abc123", "10.years.ago")
+        )
 
     def test_load_missing_returns_none(self) -> None:
         self.assertIsNone(
-            cache_mod.cache_load_git_history(Path("/never/scanned"), "abc123")
+            cache_mod.cache_load_git_history(
+                Path("/never/scanned"), "abc123", self.WINDOW,
+            )
         )
 
     def test_load_corrupted_returns_none(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         path.write_text("{garbage")
-        self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
+        self.assertIsNone(
+            cache_mod.cache_load_git_history(root, "abc", self.WINDOW)
+        )
 
     def test_load_version_mismatch_returns_none(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         bad = {"version": 999, "root": str(root), "head_sha": "abc",
-               "created": {}, "modified": {}}
+               "git_window": self.WINDOW, "created": {}, "modified": {}}
         path.write_text(json.dumps(bad))
-        self.assertIsNone(cache_mod.cache_load_git_history(root, "abc"))
+        self.assertIsNone(
+            cache_mod.cache_load_git_history(root, "abc", self.WINDOW)
+        )
 
     def test_load_drops_non_string_entries(self) -> None:
         # Mixed string + non-string values in created/modified maps;
         # only string-keyed string-valued entries survive.
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         payload = {
-            "version": 1, "root": str(root), "head_sha": "abc",
+            "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+            "root": str(root), "head_sha": "abc",
+            "git_window": self.WINDOW,
             "created": {
                 "good.py": "2024-01-01T00:00:00Z",
                 "bad.py": 12345,   # not a string
@@ -159,7 +182,7 @@ class GitHistoryCacheTests(CacheTestBase):
             },
         }
         path.write_text(json.dumps(payload))
-        result = cache_mod.cache_load_git_history(root, "abc")
+        result = cache_mod.cache_load_git_history(root, "abc", self.WINDOW)
         self.assertIsNotNone(result)
         created, modified = result
         self.assertEqual(created, {"good.py": "2024-01-01T00:00:00Z"})

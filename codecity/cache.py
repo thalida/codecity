@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 CACHE_ROOT = Path.home() / ".cache" / "codecity"
 
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 1
+_GIT_HISTORY_CACHE_VERSION = 2
 
 
 class FileEntry(TypedDict):
@@ -174,10 +174,14 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 
 def cache_load_git_history(
-    abs_root: Path, head_sha: str,
+    abs_root: Path, head_sha: str, git_window: str,
 ) -> tuple[dict[str, str], dict[str, str]] | None:
-    """Load git-history maps if cached for this root AND HEAD. Returns
-    None on miss, HEAD mismatch, or any error.
+    """Load git-history maps if cached for this root, HEAD, AND window.
+
+    Returns None on miss or any error. The ``git_window`` is part of the
+    cache key because the maps' contents depend on it — switching from
+    "3.years.ago" to "10.years.ago" should fetch new data, not serve
+    the narrower window's results.
 
     Per-entry validation: only string keys mapped to string values
     survive; everything else is dropped silently."""
@@ -191,6 +195,8 @@ def cache_load_git_history(
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
     if raw.get("head_sha") != head_sha:
+        return None
+    if raw.get("git_window") != git_window:
         return None
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
@@ -210,14 +216,16 @@ def cache_load_git_history(
 def cache_save_git_history(
     abs_root: Path,
     head_sha: str,
+    git_window: str,
     created: dict[str, str],
     modified: dict[str, str],
 ) -> None:
-    """Atomically write the git-history cache for this root + HEAD."""
+    """Atomically write the git-history cache for this root + HEAD + window."""
     payload = {
         "version": _GIT_HISTORY_CACHE_VERSION,
         "root": str(abs_root),
         "head_sha": head_sha,
+        "git_window": git_window,
         "created": created,
         "modified": modified,
     }

@@ -308,6 +308,21 @@ def _parse_no_cache(query: str) -> bool:
     return raw in ("true", "1")
 
 
+def _parse_git_window(query: str) -> str | None:
+    """Parse ?git_window=… as a `git log --since=…` expression.
+
+    Returns ``None`` (meaning "use server default / env var") when the
+    param is absent or empty. The string is forwarded verbatim to git;
+    git itself rejects malformed expressions, in which case the scan
+    surfaces a clean error via the existing manifest-stream error path.
+    Length-capped at 64 chars to keep an invalid input from blowing up
+    the subprocess argv."""
+    raw = parse_qs(query).get("git_window", [""])[0].strip()
+    if not raw:
+        return None
+    return raw[:64]
+
+
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
 ) -> tuple[Path, str, str | None, Literal["local", "git"]] | None:
@@ -366,98 +381,164 @@ def _resolve_scan_target(
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     """Stream the scan manifest for the requested source as NDJSON.
 
-    Two events on a cold scan (skeleton, final); one on a warm cache
-    hit (just final). On client disconnect, the watchdog sets the
-    cancel event within ~500ms; the scan exits via ScanCancelledError
-    and no cache write happens."""
-    resolved = _resolve_scan_target(handler, query)
-    if resolved is None:
+    Event sequence for git sources:
+      cloning → scanning → skeleton → final     (cold cache, cold clone)
+      cloning → scanning → final                (warm manifest cache)
+    Local sources:
+      scanning → skeleton → final               (cold cache)
+      scanning → final                          (warm manifest cache)
+
+    The ``cloning`` / ``scanning`` events are lightweight phase markers
+    (no manifest payload) so the loading-overlay can advance its step
+    indicator from real server state instead of a wall-clock timer.
+
+    On client disconnect, the watchdog sets the cancel event within
+    ~500ms; the scan exits via ScanCancelledError and no cache write
+    happens.
+
+    Pre-stream validation (missing/invalid src, missing local path)
+    still returns 4xx because no response has started yet. Errors that
+    arise after the first event is emitted (clone failure, scan failure)
+    are surfaced as ``{phase: "error"}`` NDJSON events — the HTTP status
+    is already 200 by then."""
+    # Pre-stream validation: param parsing + classify + local-path stat.
+    # Anything caught here still gets a clean 4xx response.
+    params = parse_qs(query)
+    raw_src = params.get("src", [""])[0]
+    raw_branch = params.get("branch", [""])[0] or None
+
+    if not raw_src:
+        _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'src' query param"})
         return
-    scan_target, raw_src, raw_branch, kind = resolved
+
+    kind = _classify_source(raw_src)
+    if kind == "invalid":
+        _send_json(
+            handler,
+            HTTPStatus.BAD_REQUEST,
+            {"error": "unrecognized source — pass a local path or a git URL"},
+        )
+        return
+
+    local_target: Path | None = None
+    if kind == "local":
+        try:
+            local_target = Path(raw_src).resolve(strict=True)
+        except (OSError, RuntimeError):
+            _send_json(handler, HTTPStatus.NOT_FOUND, {"error": "path not found"})
+            return
+        if not local_target.is_dir():
+            _send_json(
+                handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
+            )
+            return
+
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
-
-    # Cheap signature probe — same call the live-poll endpoint uses.
-    try:
-        sig_response = signature_tree(
-            str(scan_target), include_all=include_all, use_cache=use_cache,
-        )
-    except Exception as e:  # pylint: disable=broad-except
-        _send_json(
-            handler, HTTPStatus.INTERNAL_SERVER_ERROR,
-            {"error": f"scan failed: {e}"},
-        )
-        return
-    sig = sig_response["signature"]
-
-    # Cache lookup.
-    cached: Manifest | None = None
-    if use_cache:
-        cached = cache_load_manifest(scan_target.resolve(), sig)
-        if cached is not None and kind == "git":
-            cached["display_root"] = (
-                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
-            )
+    git_window = _parse_git_window(query)
 
     cancel_event = threading.Event()
     watchdog = _start_disconnect_watchdog(handler, cancel_event)
 
-    # Register the trust root BEFORE any event is emitted. The user
-    # might click a file in the tree during skeleton paint and fire
-    # /api/file — that has to be served. scan_target was already
-    # validated by _resolve_scan_target, so registering it here is
-    # safe regardless of whether the scan itself completes.
-    _State.allowed_roots.add(scan_target.resolve())
-
-    try:
-        if cached is not None:
-            _stream_events(
-                handler,
-                [{"phase": "final", "manifest": cached}],
-                cancel_event,
+    def _stamp_display_root(m: "Manifest") -> "Manifest":
+        if kind == "git":
+            m["display_root"] = (
+                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
             )
+        return m
+
+    # Captured by the closure below so we can decide whether to write
+    # the manifest cache after _stream_events returns.
+    state: dict[str, Any] = {"final_manifest": None, "scan_target": None, "sig": None}
+
+    def _events() -> Iterable[dict[str, Any]]:
+        # Git sources: emit cloning, run ensure_clone, then continue.
+        # Errors during the clone become NDJSON error events because the
+        # response has already begun streaming by the time this runs.
+        if kind == "git":
+            yield {"phase": "cloning"}
+            try:
+                with _State.clone_lock:
+                    scan_target = ensure_clone(raw_src, raw_branch)
+            except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
+                yield {"phase": "error", "error": str(e)}
+                return
+            except CloneError as e:
+                yield {"phase": "error", "error": str(e)}
+                return
+        else:
+            assert local_target is not None
+            scan_target = local_target
+
+        state["scan_target"] = scan_target
+        # Register trust root before any file-bearing event reaches the
+        # client. From this point on /api/file can serve content under
+        # scan_target.
+        _State.allowed_roots.add(scan_target.resolve())
+
+        yield {"phase": "scanning"}
+
+        # Cheap signature probe — same call the live-poll endpoint uses.
+        try:
+            sig_response = signature_tree(
+                str(scan_target), include_all=include_all, use_cache=use_cache,
+            )
+        except Exception as e:  # pylint: disable=broad-except
+            yield {"phase": "error", "error": f"scan failed: {e}"}
+            return
+        sig = sig_response["signature"]
+        state["sig"] = sig
+
+        # Cache lookup.
+        cached: Manifest | None = None
+        if use_cache:
+            cached = cache_load_manifest(scan_target.resolve(), sig)
+            if cached is not None:
+                cached = _stamp_display_root(cached)
+
+        if cached is not None:
+            yield {"phase": "final", "manifest": cached}
             return
 
-        # Cache miss — stream live.
-        final_manifest: Manifest | None = None
+        # Cache miss — stream live scan.
+        try:
+            for event in scan_tree_streaming(
+                str(scan_target),
+                include_all=include_all,
+                use_cache=use_cache,
+                cancel_event=cancel_event,
+                git_window=git_window,
+            ):
+                m = _stamp_display_root(event["manifest"])
+                if event["phase"] == "final":
+                    state["final_manifest"] = m
+                yield event  # type: ignore[misc]
+        except ScanCancelledError:
+            # Cancellation isn't an error to surface to the client —
+            # they disconnected, so there's nobody to read a message.
+            # Re-raise so the outer try skips the cache write and logs
+            # the disconnect.
+            raise
+        except Exception as e:  # pylint: disable=broad-except
+            # Unexpected mid-stream failure (e.g., disk read error
+            # during _populate_file_metadata). Emit one final error
+            # event so the client sees a clear message instead of a
+            # truncated stream / parse error.
+            yield {"phase": "error", "error": f"scan failed: {e}"}
 
-        def _stamp_display_root(m: "Manifest") -> "Manifest":
-            if kind == "git":
-                m["display_root"] = (
-                    f"{raw_src}@{raw_branch}" if raw_branch else raw_src
-                )
-            return m
-
-        def _events() -> Iterable[dict[str, Any]]:
-            nonlocal final_manifest
-            try:
-                for event in scan_tree_streaming(
-                    str(scan_target),
-                    include_all=include_all,
-                    use_cache=use_cache,
-                    cancel_event=cancel_event,
-                ):
-                    m = _stamp_display_root(event["manifest"])
-                    if event["phase"] == "final":
-                        final_manifest = m
-                    yield event  # type: ignore[misc]
-            except ScanCancelledError:
-                # Cancellation isn't an error to surface to the client —
-                # they disconnected, so there's nobody to read a message.
-                # Re-raise so the outer try in _serve_manifest skips the
-                # cache write and logs the disconnect.
-                raise
-            except Exception as e:  # pylint: disable=broad-except
-                # Unexpected mid-stream failure (e.g., disk read error
-                # during _populate_file_metadata). Emit one final error
-                # event so the client sees a clear message instead of a
-                # truncated stream / parse error.
-                yield {"phase": "error", "error": f"scan failed: {e}"}
-
+    try:
         _stream_events(handler, _events(), cancel_event)
 
         # Only cache on successful completion AND only when use_cache.
-        if use_cache and final_manifest is not None:
+        final_manifest = state["final_manifest"]
+        scan_target = state["scan_target"]
+        sig = state["sig"]
+        if (
+            use_cache
+            and final_manifest is not None
+            and scan_target is not None
+            and sig is not None
+        ):
             cache_save_manifest(scan_target.resolve(), sig, final_manifest)
 
     except ScanCancelledError:

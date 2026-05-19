@@ -22,6 +22,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 
@@ -84,13 +85,16 @@ def _maybe_raise_clean_clone_error(
             raise HostUnreachableError("could not resolve host")
 
 
-def _run_git(*args: str, cwd: Path | None = None) -> str:
-    env = {
+def _git_env() -> dict[str, str]:
+    return {
         **os.environ,
         "GIT_TERMINAL_PROMPT": "0",
         "GIT_ASKPASS": "/usr/bin/true",
         "SSH_ASKPASS": "/usr/bin/true",
     }
+
+
+def _run_git(*args: str, cwd: Path | None = None) -> str:
     try:
         proc = subprocess.run(
             ["git", *args],
@@ -98,7 +102,7 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
             capture_output=True,
             text=True,
             check=False,
-            env=env,
+            env=_git_env(),
         )
     except FileNotFoundError as e:
         raise CloneError("git executable not found on PATH") from e
@@ -108,6 +112,75 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
             f"{proc.stderr.strip() or proc.stdout.strip()}"
         )
     return proc.stdout
+
+
+def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
+    """Run git and forward stderr to ``_log`` line-by-line as it arrives.
+
+    Use for long-running network ops (clone, fetch) so the user sees
+    git's own ``--progress`` output ("Receiving objects: 42% …") in
+    real time instead of a silent multi-minute wait. Captures stderr
+    in parallel so error-pattern translation still works on non-zero
+    exit. Splits on either ``\\n`` or ``\\r`` because git overwrites
+    the progress line in place with carriage returns."""
+    try:
+        proc = subprocess.Popen(
+            ["git", *args],
+            cwd=str(cwd) if cwd else None,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            env=_git_env(),
+            bufsize=0,
+        )
+    except FileNotFoundError as e:
+        raise CloneError("git executable not found on PATH") from e
+
+    captured_stderr: list[str] = []
+    stdout_holder: list[str] = []
+
+    def _drain_stderr() -> None:
+        assert proc.stderr is not None
+        buf: list[str] = []
+        while True:
+            ch = proc.stderr.read(1)
+            if not ch:
+                break
+            if ch in ("\r", "\n"):
+                if buf:
+                    line = "".join(buf).strip()
+                    if line:
+                        captured_stderr.append(line)
+                        _log(line)
+                    buf.clear()
+            else:
+                buf.append(ch)
+        if buf:
+            line = "".join(buf).strip()
+            if line:
+                captured_stderr.append(line)
+                _log(line)
+
+    def _drain_stdout() -> None:
+        assert proc.stdout is not None
+        stdout_holder.append(proc.stdout.read())
+
+    t_err = threading.Thread(target=_drain_stderr, daemon=True)
+    t_out = threading.Thread(target=_drain_stdout, daemon=True)
+    t_err.start()
+    t_out.start()
+    proc.wait()
+    t_err.join()
+    t_out.join()
+
+    stdout = stdout_holder[0] if stdout_holder else ""
+    if proc.returncode != 0:
+        stderr_text = "\n".join(captured_stderr).strip()
+        raise CloneError(
+            f"git {' '.join(args)} failed (exit {proc.returncode}): "
+            f"{stderr_text or stdout.strip()}"
+        )
+    return stdout
 
 
 def clone_dir_for(url: str, branch: str | None) -> Path:
@@ -135,9 +208,12 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
     target = clone_dir_for(url, branch)
     if target.exists():
         try:
-            _run_git("fetch", "--prune", "origin", cwd=target)
+            _log(f"fetching updates for {url}")
+            _run_git_streaming("fetch", "--prune", "--progress", "origin", cwd=target)
             ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
+            _log(f"resetting to {ref}")
             _run_git("reset", "--hard", ref, cwd=target)
+            _log("update complete")
         except CloneError as e:
             # On update-path failure: try clean-error translation, then re-raise.
             # The existing clone is NOT removed — it may still be valid.
@@ -147,12 +223,23 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
 
     _log(f"cloning {url} → {target}")
     target.parent.mkdir(parents=True, exist_ok=True)
-    args = ["clone"]
+    # --filter=blob:none: blobless partial clone. Working tree at HEAD is
+    # fully checked out (line counts, image dimensions, file sizes all work
+    # against on-disk files), and full commit + tree history is preserved
+    # so `git log --name-only` keeps producing per-file created/modified
+    # dates for the building-age signal. Only *historical* file contents
+    # are skipped — which scan.py never reads. Future `git fetch` calls on
+    # this clone automatically respect the same filter via promisor config.
+    #
+    # --progress forces git to emit "Receiving objects: …" lines even
+    # though stderr isn't a TTY (we pipe it via _run_git_streaming).
+    args = ["clone", "--filter=blob:none", "--progress"]
     if branch:
         args += ["--branch", branch]
     args += ["--", url, str(target)]
     try:
-        _run_git(*args)
+        _run_git_streaming(*args)
+        _log("clone complete")
     except CloneError as e:
         # First-clone failure: nuke the partial directory before re-raising,
         # so the next attempt isn't confused by a half-clone.

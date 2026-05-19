@@ -221,9 +221,10 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             with self.assertRaises(RepoNotFoundError):
                 # /nonexistent.git: git emits "Repository ... does not exist"
                 # On macOS/Linux this manifests as "fatal: ...: '...' does not appear to be a git repository"
-                # We mock _run_git to emit the canonical Repository not found.
+                # We mock the streaming runner (used by first-clone) to emit
+                # the canonical "Repository not found" stderr.
                 with mock.patch.object(
-                    clone_mod, "_run_git",
+                    clone_mod, "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): ERROR: Repository not found."
                     ),
@@ -236,7 +237,7 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             self._patch_cache(tmp)
             with self.assertRaises(HostUnreachableError):
                 with mock.patch.object(
-                    clone_mod, "_run_git",
+                    clone_mod, "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): "
                         "fatal: unable to access 'https://nope.example/': "
@@ -251,7 +252,7 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
             self._patch_cache(tmp)
             with self.assertRaises(CloneError) as ctx:
                 with mock.patch.object(
-                    clone_mod, "_run_git",
+                    clone_mod, "_run_git_streaming",
                     side_effect=CloneError(
                         "git clone failed (exit 128): "
                         "fatal: Authentication failed for 'https://example.com/x.git/'"

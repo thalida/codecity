@@ -3,11 +3,17 @@
 // loads and modal submits so the user sees the same UI regardless of entry
 // point.
 //
+// Step transitions are driven entirely by setStep() calls from the
+// manifest-stream consumer in main.ts — every visible advancement maps
+// to a real NDJSON phase event from the server (cloning, scanning,
+// skeleton, final). No wall-clock timers.
+//
 // API:
-//   show({ kind, label, branch? }) — display overlay; starts heuristic timer
-//   setStep(step)                  — explicit step override (caller calls
-//                                    setStep('building') when fetch returns)
-//   hide()                         — dismiss overlay; clears timers
+//   show({ kind, label, branch? }) — display overlay at the initial step
+//                                    (resolving for git, scanning for local)
+//   setStep(step)                  — advance to a step in response to a
+//                                    server-emitted phase event
+//   hide()                         — dismiss overlay
 
 export type LoadingStep = 'resolving' | 'cloning' | 'scanning' | 'skeleton' | 'building';
 
@@ -37,16 +43,6 @@ const STEP_LABELS: Record<LoadingStep, string> = {
   building: 'Building city',
 };
 
-// Heuristic timer thresholds (ms) for git mode auto-advance.
-// 0s  → resolving active
-// 2s  → cloning active
-// 10s → scanning active
-// (building is only triggered by an explicit setStep call from the caller)
-const GIT_THRESHOLDS: Array<{ ms: number; step: LoadingStep }> = [
-  { ms: 2_000, step: 'cloning' },
-  { ms: 10_000, step: 'scanning' },
-];
-
 export function createLoadingOverlay(): LoadingOverlay {
   const root = document.getElementById('loading-overlay-root');
   if (!root) {
@@ -56,10 +52,6 @@ export function createLoadingOverlay(): LoadingOverlay {
       hide: () => {},
     };
   }
-
-  let _kind: 'git' | 'local' = 'local';
-  let _timerIds: number[] = [];
-  let _currentStep: LoadingStep = 'scanning';
 
   // DOM refs — populated on first show().
   let _titleEl: HTMLElement | null = null;
@@ -97,7 +89,6 @@ export function createLoadingOverlay(): LoadingOverlay {
   // Apply current step to DOM: everything before → done, target → active,
   // everything after → pending.
   function _applyStep(step: LoadingStep): void {
-    _currentStep = step;
     let found = false;
     for (const s of ALL_STEPS) {
       if (s === step) {
@@ -111,31 +102,8 @@ export function createLoadingOverlay(): LoadingOverlay {
     }
   }
 
-  function _clearTimers(): void {
-    for (const id of _timerIds) window.clearTimeout(id);
-    _timerIds = [];
-  }
-
-  function _scheduleGitHeuristics(): void {
-    for (const { ms, step } of GIT_THRESHOLDS) {
-      const id = window.setTimeout(() => {
-        // Only auto-advance if we're still on an earlier step (don't
-        // override an explicit setStep('building') call).
-        const currentIdx = ALL_STEPS.indexOf(_currentStep);
-        const targetIdx  = ALL_STEPS.indexOf(step);
-        if (targetIdx > currentIdx) {
-          _applyStep(step);
-        }
-      }, ms);
-      _timerIds.push(id);
-    }
-  }
-
   return {
     show({ kind, label, branch }: LoadingOverlayShowOpts) {
-      _clearTimers();
-      _kind = kind;
-
       _buildDOM();
 
       // Set title.
@@ -153,8 +121,10 @@ export function createLoadingOverlay(): LoadingOverlay {
         if (cloningEl)   cloningEl.style.display   = 'none';
         _applyStep('scanning');
       } else {
+        // Git sources: start at 'resolving'. The server emits 'cloning'
+        // immediately after receiving the request, so the next setStep
+        // call from main.ts moves us forward within milliseconds.
         _applyStep('resolving');
-        _scheduleGitHeuristics();
       }
 
       root.style.display = 'block';
@@ -165,7 +135,6 @@ export function createLoadingOverlay(): LoadingOverlay {
     },
 
     hide() {
-      _clearTimers();
       root.style.display = 'none';
     },
   };

@@ -449,7 +449,8 @@ h1, h2, h3, h4, h5, h6 {
    background-color (not the `background` shorthand) so .form-input--select
    can layer its chevron in via background-image. */
 .form-input,
-.modal-field input {
+.modal-field input,
+.modal-field select {
   background-color: var(--cc-bg-chrome);
   border: 1px solid var(--cc-border-input);
   border-radius: var(--cc-radius-sm);
@@ -464,7 +465,8 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--cc-text-faint);
 }
 .form-input:focus,
-.modal-field input:focus {
+.modal-field input:focus,
+.modal-field select:focus {
   border-color: var(--cc-accent-border);
 }
 

@@ -882,19 +882,26 @@ if (_canvas) {
       try {
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // Lifecycle markers (cloning/scanning) carry no manifest —
+          // advance the overlay step and continue. The first manifest-
+          // bearing event (skeleton or final) does the bootstrap below.
+          if (event.phase === 'cloning' || event.phase === 'scanning') {
+            loadingOverlay.setStep(event.phase);
+            continue;
+          }
           const m = event.manifest;
           // Advance the overlay step BEFORE the (synchronous-looking) work
           // begins so the user sees the phase update before the city paints
           // behind the semi-transparent backdrop.
           loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
           if (handle === null) {
-            // First event — skeleton on cold cache, or final on cache hit.
-            // Either way: bootstrap the renderer NOW so the city becomes
-            // visible behind the overlay. The skeleton manifest has the full
-            // tree shape, so the icon atlas built from it is correct for the
-            // final manifest too — no rebuild needed when final arrives.
-            // cityScene.applyManifest diff-and-tweens the skeleton → final
-            // transition.
+            // First manifest event — skeleton on cold cache, or final on
+            // cache hit. Either way: bootstrap the renderer NOW so the city
+            // becomes visible behind the overlay. The skeleton manifest has
+            // the full tree shape, so the icon atlas built from it is
+            // correct for the final manifest too — no rebuild needed when
+            // final arrives. cityScene.applyManifest diff-and-tweens the
+            // skeleton → final transition.
             try {
               setIconAtlas(await buildIconAtlas(m));
             } catch (err) {
@@ -969,10 +976,17 @@ if (_canvas) {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
+        if (payload.gitWindow) url.searchParams.set('git_window', payload.gitWindow);
 
         let manifest: Manifest | null = null;
         for await (const event of streamManifest(url.toString())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // Lifecycle markers (cloning/scanning) carry no manifest —
+          // advance the overlay step and continue.
+          if (event.phase === 'cloning' || event.phase === 'scanning') {
+            loadingOverlay.setStep(event.phase);
+            continue;
+          }
           // Skeleton step covers the placeholder paint while the server
           // resolves per-file metadata; building step covers the final
           // tween. Overlay stays up through both — hidden only in finally.
@@ -1003,6 +1017,8 @@ if (_canvas) {
         pageUrl.searchParams.set('src', payload.src);
         if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
         else pageUrl.searchParams.delete('branch');
+        if (payload.gitWindow) pageUrl.searchParams.set('git_window', payload.gitWindow);
+        else pageUrl.searchParams.delete('git_window');
         history.replaceState(null, '', pageUrl.toString());
 
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
@@ -1025,7 +1041,12 @@ if (_canvas) {
         );
 
         _liveUpdates?.setSignature(manifest.signature);
-        pushRecent({ src: payload.src, branch: payload.branch, label: _deriveLabel(payload.src) });
+        pushRecent({
+          src: payload.src,
+          branch: payload.branch,
+          gitWindow: payload.gitWindow,
+          label: _deriveLabel(payload.src),
+        });
 
         if (!liveUpdatesStarted) {
           _liveUpdates = setupLiveUpdates(handle, manifest.signature);
@@ -1056,7 +1077,11 @@ if (_canvas) {
       _lastDismissible = false;
       picker.open({
         dismissible: false,
-        prefill: { src: qp.get('src')!, branch: qp.get('branch') ?? undefined },
+        prefill: {
+          src: qp.get('src')!,
+          branch: qp.get('branch') ?? undefined,
+          gitWindow: qp.get('git_window') ?? undefined,
+        },
         error: initialError,
       });
     } else if (!hasSrc) {
@@ -1075,7 +1100,11 @@ if (_canvas) {
       picker.open({
         dismissible: true,
         prefill: cur.has('src')
-          ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
+          ? {
+              src: cur.get('src')!,
+              branch: cur.get('branch') ?? undefined,
+              gitWindow: cur.get('git_window') ?? undefined,
+            }
           : undefined,
       });
     };

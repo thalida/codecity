@@ -20,6 +20,12 @@ from codecity.scan import (
 # Silence progress logs during tests.
 os.environ["CODECITY_QUIET"] = "1"
 
+# Tests use a wide history window so the fixture's hardcoded commit
+# dates (oldest is 2024-01-10) never fall outside the rolling cutoff
+# as wall-clock time advances. The default in production is
+# "3.years.ago"; for tests we want everything in scope.
+os.environ.setdefault("CODECITY_GIT_WINDOW", "30.years.ago")
+
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 FIXTURE = FIXTURES_DIR / "sample-repo"
 
@@ -518,29 +524,42 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     def setUpClass(cls):
         _ensure_fixture()
 
-    def test_parallel_invocation_count_matches_serial(self):
-        # The parallelized version must invoke `git log` exactly twice
-        # (one --reverse --diff-filter=A, one without). No extra calls.
+    def test_single_walk_invocation(self):
+        # The combined --name-status walk replaces the previous two
+        # parallel walks — _collect_git_metadata should now fire `git
+        # log` exactly once. _collect_git_dates_windowed streams output
+        # via Popen; the short auxiliary commands (rev-parse, ls-files)
+        # go through subprocess.run. Wrap both so we catch git log
+        # regardless of which API the implementation chose.
         from unittest.mock import patch
         from codecity.scan import _collect_git_metadata
 
         original_run = subprocess.run
+        original_popen = subprocess.Popen
         log_calls: list[list[str]] = []
 
-        def counting_run(args, **kwargs):
+        def _record_if_git_log(args) -> None:
             if (
                 isinstance(args, list)
                 and args[:2] == ["git", "-C"]
                 and "log" in args
             ):
                 log_calls.append(list(args))
+
+        def counting_run(args, **kwargs):
+            _record_if_git_log(args)
             return original_run(args, **kwargs)
 
-        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+        def counting_popen(args, **kwargs):
+            _record_if_git_log(args)
+            return original_popen(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
+             patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
 
-        self.assertEqual(len(log_calls), 2,
-                         f"expected exactly 2 git log calls, got: {log_calls}")
+        self.assertEqual(len(log_calls), 1,
+                         f"expected exactly 1 git log call, got: {log_calls}")
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
@@ -578,16 +597,25 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
         _collect_git_metadata(FIXTURE, use_cache=True)  # populate
 
         original_run = subprocess.run
+        original_popen = subprocess.Popen
         log_calls: list[list[str]] = []
 
-        def counting_run(args, **kwargs):
+        def _record_if_log(args) -> None:
             if isinstance(args, list) and "log" in args:
                 log_calls.append(list(args))
+
+        def counting_run(args, **kwargs):
+            _record_if_log(args)
             return original_run(args, **kwargs)
 
-        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+        def counting_popen(args, **kwargs):
+            _record_if_log(args)
+            return original_popen(args, **kwargs)
+
+        with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
+             patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
-        self.assertEqual(len(log_calls), 2, "use_cache=False must run both log walks")
+        self.assertEqual(len(log_calls), 1, "use_cache=False must run the combined log walk")
 
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
@@ -608,16 +636,25 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             )
 
             original_run = subprocess.run
+            original_popen = subprocess.Popen
             log_calls: list[list[str]] = []
 
-            def counting_run(args, **kwargs):
+            def _record_if_log(args) -> None:
                 if isinstance(args, list) and "log" in args:
                     log_calls.append(list(args))
+
+            def counting_run(args, **kwargs):
+                _record_if_log(args)
                 return original_run(args, **kwargs)
 
-            with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+            def counting_popen(args, **kwargs):
+                _record_if_log(args)
+                return original_popen(args, **kwargs)
+
+            with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
+                 patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
                 _collect_git_metadata(FIXTURE, use_cache=True)
-            self.assertEqual(len(log_calls), 2,
+            self.assertEqual(len(log_calls), 1,
                              "HEAD moved -> must re-walk")
         finally:
             # Reset fixture: undo the commit and remove the file.
