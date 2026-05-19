@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createLayoutClient } from '@/scene/layoutClient.js';
 import { NodeKind } from '@/types';
-import type { Manifest } from '@/types';
+import type { Manifest, FileNode } from '@/types';
 
 function makeMinimalManifest(): Manifest {
   return {
@@ -136,8 +136,8 @@ describe('layoutClient', () => {
       tree: {
         ...m1.tree,
         children: [
-          { ...(m1.tree.children[0] as (typeof m1.tree.children)[0]), size: 10000, lines: 1000 },
-          { ...(m1.tree.children[1] as (typeof m1.tree.children)[0]), size: 10, lines: 1 },
+          { ...(m1.tree.children[0] as FileNode), size: 10000, lines: 1000 } as FileNode,
+          { ...(m1.tree.children[1] as FileNode), size: 10, lines: 1 } as FileNode,
         ],
       },
     };
