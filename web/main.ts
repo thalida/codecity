@@ -977,9 +977,11 @@ if (_canvas) {
               applyTheme: handle.applyTheme,
             });
           } else {
-            // Second event (final after skeleton) — tween the city into its
-            // final state. startRenderLoop already applied the skeleton, so
-            // re-call applyManifest on the existing scene.
+            // Second event (final after skeleton) — treat as a fresh load so
+            // all skeleton-derived cell state is wiped and the slow path runs
+            // from scratch with real per-file metadata. This avoids stale
+            // FileNode refs, uniform building heights, and other artefacts
+            // from the skeleton → final cache-hit shortcut.
             // [cell-debug]
             const _applyFinalT0 = performance.now();
             // [boot-diag] call #2: boot stream final event
@@ -987,7 +989,7 @@ if (_canvas) {
               caller: 'boot-stream/final',
               stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
             });
-            await handle.cityScene.applyManifest(m);
+            await handle.cityScene.applyManifest(m, { freshLoad: true });
             console.log('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
           }
           initialManifest = m;
@@ -1126,7 +1128,9 @@ if (_canvas) {
           src: payload.src,
           stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
         });
-        await handle.cityScene.applyManifest(manifest);
+        // freshLoad: true — wipe skeleton-derived cell state so the final
+        // manifest is treated as a cold boot rather than a cache-hit patch.
+        await handle.cityScene.applyManifest(manifest, { freshLoad: true });
 
         // Update the header (project label, branch pill) + footer (repo link)
         // AFTER applyManifest so cityScene.getManifest() inside the coordinator
