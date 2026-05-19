@@ -354,6 +354,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Generic three.js disposer. Walks geometry → materials → any own
   // property of each material whose value is a THREE.Texture. Idempotent
   // via userData.disposed.
+  //
+  // Special case: if the object carries `userData.sharedMaterial = true`
+  // the material is module-owned (shared across many cells) and must NOT
+  // be disposed here — only the geometry is released. This prevents the
+  // cell-path atomic swap (which traverses the old cell root with this
+  // function) from invalidating the shared ShaderMaterial that the new
+  // cell root's meshes already reference.
   function _disposeObject(obj: THREE.Object3D | null): void {
     if (!obj || obj.userData?.disposed) return;
     // Disposable shape: any object that may carry .geometry / .material
@@ -367,16 +374,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     }
     const d = obj as unknown as DisposableObj;
     if (d.geometry?.dispose) d.geometry.dispose();
-    const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
-    for (const m of mats) {
-      if (!m) continue;
-      // Dispose any texture attached to this material.
-      for (const key in m) {
-        if (!Object.hasOwn(m, key)) continue;
-        const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
-        if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
+    // Skip material disposal for meshes whose material is module-owned and
+    // shared across cell tiles (buildingsCell.ts / labelsCell.ts factories).
+    if (!obj.userData?.sharedMaterial) {
+      const mats = Array.isArray(d.material) ? d.material : d.material ? [d.material] : [];
+      for (const m of mats) {
+        if (!m) continue;
+        // Dispose any texture attached to this material.
+        for (const key in m) {
+          if (!Object.hasOwn(m, key)) continue;
+          const v = m[key] as { isTexture?: boolean; dispose?: () => void } | undefined;
+          if (v?.isTexture && typeof v.dispose === 'function') v.dispose();
+        }
+        if (typeof m.dispose === 'function') m.dispose();
       }
-      if (typeof m.dispose === 'function') m.dispose();
     }
     if (obj.userData) obj.userData.disposed = true;
   }

@@ -178,3 +178,82 @@ describe('buildingsCell factory', () => {
     expect(m9.elements[10]).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stress test: shared material across 300 cells (simulates a ~17×17 grid
+// as seen for large repos like firecrawl). Verifies that:
+//   1. Every cell's detailMesh uses the SAME material instance (no 300× alloc).
+//   2. 300 InstancedMesh objects are created (per-cell, as required for
+//      per-cell visibility toggling).
+//   3. The full loop completes in under 1 second.
+// ---------------------------------------------------------------------------
+
+describe('buildingsCell shared-material stress test (300 cells)', () => {
+  // Reset module-level shared material cache between test runs so a
+  // fresh uniforms object triggers a new material on the first call.
+  // We do this by passing the SAME uniforms reference across all 300
+  // calls — the cache should return the same material after the first.
+  it('all 300 cells share exactly one ShaderMaterial instance', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
+    const CELL_COUNT = 300;
+    const capacity = 64;
+
+    // Single shared uniforms object — same reference passed to every cell.
+    const sharedUniforms: Record<string, THREE.IUniform> = {};
+
+    const cells = [];
+    for (let id = 0; id < CELL_COUNT; id++) {
+      const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
+      attachBuildingMeshToCell(cell, sharedUniforms);
+      cells.push(cell);
+    }
+
+    // All 300 meshes must reference the same ShaderMaterial instance.
+    const firstMat = cells[0].detailMesh.material as THREE.ShaderMaterial;
+    expect(firstMat).toBeInstanceOf(THREE.ShaderMaterial);
+    for (let i = 1; i < CELL_COUNT; i++) {
+      expect(cells[i].detailMesh.material).toBe(firstMat);
+    }
+
+    // 300 distinct InstancedMesh objects must exist (one per cell).
+    const meshSet = new Set(cells.map((c) => c.detailMesh));
+    expect(meshSet.size).toBe(CELL_COUNT);
+  });
+
+  it('300-cell allocation completes in under 1 second', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
+    const CELL_COUNT = 300;
+    const capacity = 64;
+    const sharedUniforms: Record<string, THREE.IUniform> = {};
+
+    const start = performance.now();
+    for (let id = 0; id < CELL_COUNT; id++) {
+      const cell = createEmptyCellTile(grid, id % grid.cellCount, capacity);
+      attachBuildingMeshToCell(cell, sharedUniforms);
+    }
+    const elapsed = performance.now() - start;
+
+    expect(elapsed).toBeLessThan(1000);
+  });
+
+  it('new uniforms reference triggers exactly one new material creation', () => {
+    const grid = new SpatialGrid({ minX: 0, maxX: 1600, minZ: 0, maxZ: 1600 });
+    const capacity = 64;
+
+    const uniformsA: Record<string, THREE.IUniform> = {};
+    const uniformsB: Record<string, THREE.IUniform> = {};
+
+    const cellA1 = createEmptyCellTile(grid, 0, capacity);
+    attachBuildingMeshToCell(cellA1, uniformsA);
+    const cellA2 = createEmptyCellTile(grid, 0, capacity);
+    attachBuildingMeshToCell(cellA2, uniformsA);
+
+    const cellB1 = createEmptyCellTile(grid, 0, capacity);
+    attachBuildingMeshToCell(cellB1, uniformsB);
+
+    // A1 and A2 share the same material (same uniforms ref).
+    expect(cellA1.detailMesh.material).toBe(cellA2.detailMesh.material);
+    // B gets a different material (different uniforms ref).
+    expect(cellB1.detailMesh.material).not.toBe(cellA1.detailMesh.material);
+  });
+});

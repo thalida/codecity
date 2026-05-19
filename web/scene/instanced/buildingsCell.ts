@@ -72,21 +72,33 @@ function orientToIndex(orient: BuildingOrient): number {
 }
 
 // ---------------------------------------------------------------------------
-// Material factory — called once per cell (each cell gets its own
-// ShaderMaterial referencing the caller-owned uniform objects).
+// Material cache — one ShaderMaterial shared across all cells that use the
+// same uniforms object identity. Memoized on the REFERENCE of the uniforms
+// bag (callers pass the same object every time — see cityScene.ts). This
+// eliminates the per-cell ShaderMaterial + WebGL program compilation cost
+// that was causing the tab to hang on large repos (289 cells × 2 materials
+// = 578 ShaderMaterial allocations on enable toggle).
 // ---------------------------------------------------------------------------
 
-function buildBuildingMaterial(uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+let _sharedBuildingMaterial: THREE.ShaderMaterial | null = null;
+let _sharedBuildingMaterialUniforms: Record<string, THREE.IUniform> | null = null;
+
+function getOrCreateBuildingMaterial(uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+  if (_sharedBuildingMaterial && _sharedBuildingMaterialUniforms === uniforms) {
+    return _sharedBuildingMaterial;
+  }
   // Inline the hsl helpers into the fragment source at the placeholder
   // comment the shader author left for exactly this purpose.
   const fragSrc = buildingFragSrc.replace('#include <hsl_glsl_inline>', hslGlslSrc);
-  return new THREE.ShaderMaterial({
+  _sharedBuildingMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
     // transparent: true so iFade.x can fade buildings.
     transparent: true,
   });
+  _sharedBuildingMaterialUniforms = uniforms;
+  return _sharedBuildingMaterial;
 }
 
 // ---------------------------------------------------------------------------
@@ -101,6 +113,12 @@ function buildBuildingMaterial(uniforms: Record<string, THREE.IUniform>): THREE.
  * The shared unit-box geometry is cloned (shallow clone — vertex/index
  * buffers are not duplicated) so per-cell InstancedBufferAttributes don't
  * bleed across cells.
+ *
+ * The ShaderMaterial is shared across all cells that pass the same uniforms
+ * object reference (identity-memoized). Do NOT call material.dispose() on
+ * the returned mesh's material — it is owned by this module, not by the cell.
+ * The mesh's `userData.sharedMaterial = true` flag signals the cityScene
+ * disposer to skip material disposal when tearing down the old cell root.
  *
  * Call this once per cell after `createEmptyCellTile`.
  */
@@ -127,12 +145,16 @@ export function attachBuildingMeshToCell(
   // iModifiedAge: float — one float per instance.
   geom.setAttribute('iModifiedAge', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1));
 
-  const mat = buildBuildingMaterial(uniforms);
+  const mat = getOrCreateBuildingMaterial(uniforms);
 
   // Replace the placeholder mesh in-place.
   cell.detailMesh.geometry.dispose();
   cell.detailMesh.geometry = geom;
   cell.detailMesh.material = mat;
+  // Signal to cityScene's _disposeObject traversal that this material is
+  // module-owned (shared) and must not be disposed when the cell root is
+  // torn down between applyManifest calls.
+  cell.detailMesh.userData.sharedMaterial = true;
 
   // instanceColor: three floats per instance (linear RGB).
   cell.detailMesh.instanceColor = new THREE.InstancedBufferAttribute(

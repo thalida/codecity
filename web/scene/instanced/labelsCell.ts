@@ -34,12 +34,21 @@ import labelFragSrc from '../shaders/label.frag.glsl?raw';
 const SHARED_LABEL_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 
 // ---------------------------------------------------------------------------
-// Material factory — one ShaderMaterial per cell, each referencing the
-// caller-provided atlas page texture via sharedUniforms.
+// Material cache — one ShaderMaterial shared across all cells that use the
+// same uniforms object identity. Memoized on the REFERENCE of the uniforms
+// bag (callers pass the same object every time — see cityScene.ts). This
+// eliminates the per-cell ShaderMaterial + WebGL program compilation cost
+// that was causing the tab to hang on large repos.
 // ---------------------------------------------------------------------------
 
-function buildLabelMaterial(uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
-  return new THREE.ShaderMaterial({
+let _sharedLabelMaterial: THREE.ShaderMaterial | null = null;
+let _sharedLabelMaterialUniforms: Record<string, THREE.IUniform> | null = null;
+
+function getOrCreateLabelMaterial(uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+  if (_sharedLabelMaterial && _sharedLabelMaterialUniforms === uniforms) {
+    return _sharedLabelMaterial;
+  }
+  _sharedLabelMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: labelVertSrc,
     fragmentShader: labelFragSrc,
@@ -47,6 +56,8 @@ function buildLabelMaterial(uniforms: Record<string, THREE.IUniform>): THREE.Sha
     depthWrite: false,
     side: THREE.DoubleSide,
   });
+  _sharedLabelMaterialUniforms = uniforms;
+  return _sharedLabelMaterial;
 }
 
 // ---------------------------------------------------------------------------
@@ -60,7 +71,17 @@ function buildLabelMaterial(uniforms: Record<string, THREE.IUniform>): THREE.Sha
  * `sharedUniforms` must contain at least `{ uMap: { value: CanvasTexture } }`
  * referencing the atlas page texture for this cell's labels (callers choose
  * which page; the simplest strategy is page 0 for all cells and rely on the
- * atlas fitting in one page for typical repos).
+ * atlas fitting in one page for typical repos). If `sharedUniforms.uMap.value`
+ * is null or undefined (e.g., during the skeleton-manifest phase where no
+ * atlas pages have been built yet), this function is a no-op and leaves the
+ * placeholder mesh with `visible = false` so the cell renders correctly
+ * without crashing.
+ *
+ * The ShaderMaterial is shared across all cells that pass the same uniforms
+ * object reference (identity-memoized). Do NOT call material.dispose() on
+ * the returned mesh's material — it is owned by this module, not by the cell.
+ * The mesh's `userData.sharedMaterial = true` flag signals the cityScene
+ * disposer to skip material disposal when tearing down the old cell root.
  *
  * Call once per cell after `createEmptyCellTile`.
  */
@@ -68,6 +89,13 @@ export function attachLabelMeshToCell(
   cell: CellTile,
   sharedUniforms: Record<string, THREE.IUniform>,
 ): void {
+  // Guard: if no atlas texture is available (empty manifest or skeleton phase),
+  // skip label mesh attachment and leave the placeholder visible=false.
+  if (!sharedUniforms.uMap?.value) {
+    cell.labelMesh.visible = false;
+    return;
+  }
+
   const geom = SHARED_LABEL_GEOMETRY.clone();
 
   // Per-instance attributes — matching label.vert.glsl attribute declarations.
@@ -82,12 +110,16 @@ export function attachLabelMeshToCell(
     new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1),
   );
 
-  const mat = buildLabelMaterial(sharedUniforms);
+  const mat = getOrCreateLabelMaterial(sharedUniforms);
 
   // Replace the placeholder mesh in-place.
   cell.labelMesh.geometry.dispose();
   cell.labelMesh.geometry = geom;
   cell.labelMesh.material = mat;
+  // Signal to cityScene's _disposeObject traversal that this material is
+  // module-owned (shared) and must not be disposed when the cell root is
+  // torn down between applyManifest calls.
+  cell.labelMesh.userData.sharedMaterial = true;
   cell.labelMesh.renderOrder = RENDER_ORDERS.STREET_LABEL;
 }
 
