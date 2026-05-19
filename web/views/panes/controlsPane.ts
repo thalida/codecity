@@ -248,7 +248,7 @@ function _buildShortcutsSection(): HTMLElement {
   section.appendChild(
     _subgroup('Fly mode', _buildShortcutsList([
       { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
-      { kbd: ['E', 'Q'], action: 'Rise / drop' },
+      { kbd: ['Q', 'E'], action: 'Drop / rise' },
       { kbd: ['Shift'], action: 'Boost (hold)' },
       { mouse: 'Left / right drag', action: 'Look around' },
     ]))
