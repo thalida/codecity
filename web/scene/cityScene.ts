@@ -679,6 +679,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   async function applyManifest(
     newManifest: Manifest | { tree: unknown; [k: string]: unknown },
   ): Promise<void> {
+    // [cell-debug]
+    const amT0 = performance.now();
+
     const myGeneration = ++_currentGeneration;
 
     const prev: PrevState = {
@@ -698,6 +701,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // ---- Phase 1: compute the new layout off-thread via layoutClient.
     // A later applyManifest can preempt us by bumping _currentGeneration;
     // layoutClient signals that via a 'superseded' rejection.
+    // [cell-debug]
+    console.log('[boot] applyManifest: phase 1 layout start');
     const newManifestTyped = newManifest as Manifest;
     let newLayout: CityLayout;
     // Pass the full manifest envelope (not `manifest.tree`) — the worker
@@ -714,6 +719,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       if (err instanceof Error && err.message === 'superseded') return;
       throw err;
     }
+    // [cell-debug]
+    console.log('[boot] applyManifest: phase 1 layout done', { elapsedMs: performance.now() - amT0, buildings: newLayout?.buildings?.length ?? 0 });
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Phase 2: derive date ranges + color buildings on the NEW layout's
@@ -741,6 +748,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         newDateRanges,
       );
     }
+    // [cell-debug]
+    console.log('[boot] applyManifest: phase 2 colors done', { elapsedMs: performance.now() - amT0, buildingCount: newBuildings.length });
     if (myGeneration !== _currentGeneration) return;
 
     // ---- Cell rendering fast-path (CELL_RENDERING.enabled) ----------------

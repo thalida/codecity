@@ -80,16 +80,30 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
 
+  // [cell-debug]
+  const srlT0 = performance.now();
+
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
   // in scene/cityScene.js. main.js no longer caches mesh refs locally —
   // every other module reads cityScene directly through accessors.
+  // [cell-debug]
+  const _citySceneT0 = performance.now();
+  console.log('[boot] cityScene creating');
   const cityScene = createCityScene(canvas);
+  console.log('[boot] cityScene created', { elapsedMs: performance.now() - _citySceneT0 });
   const scene = cityScene.scene;
   _applyDisplayLabel(manifest);
+  // [cell-debug]
+  const _applyT0 = performance.now();
+  console.log('[boot] applyManifest starting');
   await cityScene.applyManifest(manifest);
+  console.log('[boot] applyManifest done', { elapsedMs: performance.now() - _applyT0 });
 
   // -- 3. Renderer -------------------------------------------------------------
+  // [cell-debug]
+  const _rendererT0 = performance.now();
+  console.log('[boot] WebGLRenderer creating');
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -97,12 +111,17 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
+  console.log('[boot] WebGLRenderer created', { elapsedMs: performance.now() - _rendererT0 });
 
   // -- 4. Camera + controls ----------------------------------------------------
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
+  // [cell-debug]
+  const _rigT0 = performance.now();
+  console.log('[boot] camera rig creating');
   const rig = createCameraRig({ canvas, cityScene });
+  console.log('[boot] camera rig created', { elapsedMs: performance.now() - _rigT0 });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -465,6 +484,8 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // setupLiveUpdates can swap in fresh manifests, attachHotReload can
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
+  // [cell-debug]
+  console.log('[boot] startRenderLoop returning', { elapsedMs: performance.now() - srlT0 });
   return { cityScene, applyTheme, coordinator };
 }
 
@@ -814,6 +835,10 @@ function _applyHljsTheme(theme: string): void {
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
+    // [cell-debug]
+    const bootT0 = performance.now();
+    console.log('[boot] boot IIFE started');
+
     // Hydrate every config store from localStorage BEFORE the initial
     // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
     // manifestUrl) reflects the user's persisted toggle from a prior
@@ -892,6 +917,8 @@ if (_canvas) {
       });
       try {
         for await (const event of streamManifest(manifestUrl())) {
+          // [cell-debug]
+          console.log('[boot] stream event', { phase: event.phase, elapsedMs: performance.now() - bootT0 });
           if (event.phase === 'error') throw new Error(event.error);
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue. The first manifest-
@@ -913,8 +940,12 @@ if (_canvas) {
             // correct for the final manifest too — no rebuild needed when
             // final arrives. cityScene.applyManifest diff-and-tweens the
             // skeleton → final transition.
+            // [cell-debug]
+            const _atlasT0 = performance.now();
+            console.log('[boot] buildIconAtlas starting');
             try {
               setIconAtlas(await buildIconAtlas(m));
+              console.log('[boot] buildIconAtlas done', { elapsedMs: performance.now() - _atlasT0 });
             } catch (err) {
               console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
             }
@@ -927,7 +958,11 @@ if (_canvas) {
             // Second event (final after skeleton) — tween the city into its
             // final state. startRenderLoop already applied the skeleton, so
             // re-call applyManifest on the existing scene.
+            // [cell-debug]
+            const _applyFinalT0 = performance.now();
+            console.log('[boot] applyManifest (final event) starting');
             await handle.cityScene.applyManifest(m);
+            console.log('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
           }
           initialManifest = m;
         }
