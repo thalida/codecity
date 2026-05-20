@@ -46,11 +46,11 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
   // returns GROUND_COLOR directly — a solid fill that produces a
   // clean horizon line and removes the need for a separate floor mesh.
   TOP: '#000000',          // pure black at the zenith
-  UPPER_MID: '#000002',    // pure black with a single-bit blue hint
-  MID: '#01010a',          // barely above black
-  LOWER_MID: '#020213',    // very dim indigo
-  HORIZON: '#05041e',      // faintest whisper of purple at the horizon
-  GROUND_COLOR: '#000000', // below-horizon fill (matches TOP exactly)
+  UPPER_MID: '#000000',    // pure black
+  MID: '#000001',          // single-bit blue hint at mid elevation
+  LOWER_MID: '#000003',    // barely-perceptible indigo
+  HORIZON: '#000008',      // faintest hint of indigo right at the horizon
+  GROUND_COLOR: '#000000', // below-horizon fill (matches TOP)
   STOP_TOP: 0.0,
   STOP_UPPER_MID: 0.35,
   STOP_MID: 0.55,
