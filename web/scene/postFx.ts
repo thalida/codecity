@@ -82,8 +82,16 @@ export function createPostFx(
     setSize: (w, h) => {
       _lastLogicalWidth = w;
       _lastLogicalHeight = h;
+      // composer.setSize propagates to every pass including the bloom
+      // pass, applying pixelRatio internally so bloom's multi-res
+      // targets get sized correctly (w*dpr, h*dpr). DO NOT also call
+      // bloom.setSize(w, h) explicitly — that overwrites bloom's
+      // targets with raw CSS-pixel dimensions, leaving them at HALF
+      // size on Retina displays. The result is the bloom output
+      // compositing at the wrong scale, visible as partial-screen
+      // black artifacts especially after R-resets and zoom (any
+      // event that triggers setSize).
       composer.setSize(w, h);
-      bloom.setSize(w, h);
     },
     /**
      * Read the LOGICAL (CSS-pixel) size the composer was last asked to
