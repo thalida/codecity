@@ -61,6 +61,7 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
 export interface SkyStarsConfig {
   ENABLED: boolean;
   DENSITY: number;
+  SIZE: number;
   BRIGHTNESS: number;
   TWINKLE_ENABLED: boolean;
   TWINKLE_SPEED: number;
@@ -70,10 +71,15 @@ export interface SkyStarsConfig {
 
 export const SKY_STARS = map<SkyStarsConfig>({
   ENABLED: true,
-  // Bumped from 0.0008 to 0.01 — at 0.0008 only ~70 stars rendered
-  // across the entire upper hemisphere and most were off-frame; at
-  // 0.01 the dome has ~900 stars scattered uniformly.
-  DENSITY: 0.01,
+  // 0.003 → ~270 stars across the upper hemisphere. Tweaked down from
+  // 0.01 (~900 stars), which read as a noise field. Stars are rendered
+  // as small circular sub-cell dots (see SIZE) so the per-cell scale
+  // can stay coarse without making each star huge.
+  DENSITY: 0.003,
+  // Star spot radius as a fraction of the cell. 0.15 = each star
+  // occupies a circle ~15% of the cell's width, with a smoothstep
+  // antialiased edge. Larger values = chunkier stars.
+  SIZE: 0.15,
   BRIGHTNESS: 1.2,
   TWINKLE_ENABLED: true,
   TWINKLE_SPEED: 0.4,

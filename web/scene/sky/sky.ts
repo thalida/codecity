@@ -103,6 +103,7 @@ export function createSky(): Sky {
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
       uStarDensity: { value: stars.DENSITY },
+      uStarSize: { value: stars.SIZE },
       uStarBrightness: { value: stars.BRIGHTNESS },
       uTwinkleEnabled: { value: stars.TWINKLE_ENABLED ? 1.0 : 0.0 },
       uTwinkleSpeed: { value: stars.TWINKLE_SPEED },
@@ -152,6 +153,7 @@ export function createSky(): Sky {
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;
+    material.uniforms.uStarSize.value = s.SIZE;
     material.uniforms.uStarBrightness.value = s.BRIGHTNESS;
     material.uniforms.uTwinkleEnabled.value = s.TWINKLE_ENABLED ? 1.0 : 0.0;
     material.uniforms.uTwinkleSpeed.value = s.TWINKLE_SPEED;

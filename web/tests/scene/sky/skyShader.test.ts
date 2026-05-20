@@ -50,13 +50,21 @@ describe('sky.frag.glsl', () => {
 
   it('declares the star uniforms + the time uniform driving twinkle', () => {
     for (const u of [
-      'uStarsEnabled', 'uStarDensity', 'uStarBrightness',
+      'uStarsEnabled', 'uStarDensity', 'uStarSize', 'uStarBrightness',
       'uTwinkleEnabled', 'uTwinkleSpeed', 'uTwinkleAmplitude',
       'uStarMinElevation',
       'uTime',
     ]) {
       expect(src).toContain(u);
     }
+  });
+
+  it('renders stars as circular sub-cell dots (smoothstep on distance)', () => {
+    // Confirms the shader computes a per-cell radial falloff rather than
+    // painting the whole cell — distance from a star center compared
+    // against uStarSize via smoothstep.
+    expect(src).toContain('float r = max(uStarSize');
+    expect(src).toMatch(/smoothstep\s*\([^)]*distToCenter/);
   });
 
   it('declares the uGroundColor uniform for the below-horizon fill', () => {

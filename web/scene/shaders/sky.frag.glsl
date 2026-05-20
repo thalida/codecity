@@ -47,6 +47,8 @@ uniform float uStopHorizon;
 // --- Stars ---
 uniform float uStarsEnabled;
 uniform float uStarDensity;       // hash threshold for star presence
+uniform float uStarSize;          // star spot radius as fraction of cell (0..0.5);
+                                  // sub-cell circular rendering with smoothstep edge
 uniform float uStarBrightness;
 uniform float uTwinkleEnabled;
 uniform float uTwinkleSpeed;
@@ -132,32 +134,47 @@ void main() {
   // Only above MIN_ELEVATION_DEG (precomputed as sin(deg) on JS side).
   if (uStarsEnabled > 0.5 && dir.y > uStarMinElevation) {
     // Cell scale in radians^-1: ~100 cells per radian gives roughly
-    // 0.57° cells, fine enough to read as point stars at default
-    // density and coarse enough to keep neighbouring cells visually
-    // distinct.
+    // 0.57° cells, coarse enough to keep neighbouring cells visually
+    // distinct. Stars render as a small circular dot anchored at a
+    // random point within the cell — the cell itself is just the
+    // candidate domain, not the visible star.
     vec2 sv = starUV(dir) * 100.0;
     vec2 cell = floor(sv);
+    vec2 inCell = fract(sv); // [0, 1] position within the cell
     float h = hash21(cell);
     // hash > 1 - DENSITY ⇒ this cell holds a star. Spec phrases
     // DENSITY as "threshold for star presence" — higher density ⇒
     // more stars.
-    float present = step(1.0 - uStarDensity, h);
-    if (present > 0.5) {
-      // Per-star phase: a second hash on the cell shifts when this
-      // star peaks. Combined with uTime each star twinkles
-      // independently.
-      float phase = hash21(cell + vec2(31.4, 17.7));
-      float starAmt = uStarBrightness;
-      if (uTwinkleEnabled > 0.5 && uTwinkleAmplitude > 0.0) {
-        float t = sin(uTime * uTwinkleSpeed * (0.5 + phase) + phase * 6.2831);
-        // Remap sin from [-1, 1] to [1 - A, 1 + A], then floor at 0
-        // so a fully-twinkled star can flicker off momentarily.
-        float mod_ = 1.0 + t * uTwinkleAmplitude;
-        starAmt *= max(mod_, 0.0);
+    if (h > 1.0 - uStarDensity) {
+      // Random center within the cell so stars don't snap to a grid.
+      // Two extra hashes per cell stay cheap (same hash21 function).
+      vec2 starCenter = vec2(
+        hash21(cell + vec2(7.0, 0.0)),
+        hash21(cell + vec2(0.0, 13.0))
+      );
+      float distToCenter = length(inCell - starCenter);
+      // Circular falloff: solid inside the inner half of uStarSize,
+      // smooth fade out to the full uStarSize radius. clamp on the
+      // inner edge so SIZE=0 doesn't divide-by-zero.
+      float r = max(uStarSize, 1e-4);
+      float circle = 1.0 - smoothstep(r * 0.5, r, distToCenter);
+      if (circle > 0.0) {
+        // Per-star phase: a second hash on the cell shifts when this
+        // star peaks. Combined with uTime each star twinkles
+        // independently.
+        float phase = hash21(cell + vec2(31.4, 17.7));
+        float starAmt = uStarBrightness * circle;
+        if (uTwinkleEnabled > 0.5 && uTwinkleAmplitude > 0.0) {
+          float t = sin(uTime * uTwinkleSpeed * (0.5 + phase) + phase * 6.2831);
+          // Remap sin from [-1, 1] to [1 - A, 1 + A], then floor at 0
+          // so a fully-twinkled star can flicker off momentarily.
+          float mod_ = 1.0 + t * uTwinkleAmplitude;
+          starAmt *= max(mod_, 0.0);
+        }
+        // Stars are white-warm; add to the gradient color rather than
+        // mixing so a bright star reads against any background tint.
+        color += vec3(starAmt);
       }
-      // Stars are white-warm; add to the gradient color rather than
-      // mixing so a bright star reads against any background tint.
-      color += vec3(starAmt);
     }
   }
 
