@@ -5,7 +5,6 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { DirNode, FileNode, NodeKind } from './manifest';
-import type { SceneBlock } from '@/scene/blocks.js';
 import type { BuildingIndex } from '@/scene/buildingIndex.js';
 import type { CellTile } from '@/scene/cellTile.js';
 
@@ -15,10 +14,8 @@ export interface FileTarget {
   mesh: THREE.Mesh;
   data: Building;
   file: FileNode;
-  /** Per-block instance index. Set when the hit came from an InstancedMesh. */
+  /** Slot index within the cell's InstancedMesh. */
   instanceId?: number;
-  /** The SceneBlock this instance lives in. Set when the hit came from an InstancedMesh. */
-  block?: SceneBlock;
 }
 
 /** Hovered/selected directory (a sidewalk mesh + its street group). */
@@ -54,15 +51,14 @@ export interface PickerSelectionKey {
  */
 export interface PickerCityScene {
   getBuildings(): THREE.Object3D[];
-  getBlocks(): SceneBlock[];
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
-  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; block?: SceneBlock; instanceId?: number } | null;
+  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
   onChange(cb: () => void): () => void;
-  /** Cell-mode: returns the BuildingIndex, or null in legacy block mode. */
+  /** Returns the BuildingIndex. */
   getBuildingIndex(): BuildingIndex | null;
-  /** Cell-mode: returns the cells map, or an empty Map in legacy block mode. */
+  /** Returns the cells map. */
   getCells(): Map<number, CellTile>;
 }

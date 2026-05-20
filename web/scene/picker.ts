@@ -38,7 +38,6 @@ import { atom } from 'nanostores';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerCityScene, PickerSelectionKey } from '@/types';
-import type { SceneBlock } from './blocks.js';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -65,30 +64,11 @@ export function createPicker({
   function _refreshPickables() {
     pickables = cityScene.getStreetPickables().slice();
 
-    // Cell mode: add detail and impostor InstancedMeshes from each cell.
-    // When CELL_RENDERING is enabled, buildings live in CellTile meshes
-    // (userData.cellId + userData.meshKind) rather than block detailMeshes.
-    const buildingIndex = cityScene.getBuildingIndex();
-    if (buildingIndex !== null) {
-      for (const cell of cityScene.getCells().values()) {
-        if (cell.detailMesh) pickables.push(cell.detailMesh);
-        if (cell.impostorMesh) pickables.push(cell.impostorMesh);
-      }
-    } else {
-      // Legacy block mode: one InstancedMesh per block.
-      for (const block of cityScene.getBlocks()) {
-        if (block.detailMesh) pickables.push(block.detailMesh);
-        // Ad panels (image / video files) — each is a single textured
-        // plane mesh mounted on the front face of its building. Pushed
-        // directly into pickables so the non-recursive raycast catches
-        // clicks on the ad face; each carries userData.building so
-        // interpretHit resolves to the file selection.
-        if (block.adPanels) {
-          for (const mesh of block.adPanels) {
-            pickables.push(mesh);
-          }
-        }
-      }
+    // Add detail and impostor InstancedMeshes from each cell — buildings
+    // live in CellTile meshes (userData.cellId + userData.meshKind).
+    for (const cell of cityScene.getCells().values()) {
+      if (cell.detailMesh) pickables.push(cell.detailMesh);
+      if (cell.impostorMesh) pickables.push(cell.impostorMesh);
     }
 
     const gem = cityScene.getRootGem();
@@ -147,7 +127,6 @@ export function createPicker({
           data: b.building,
           file: b.building.file,
           instanceId: b.instanceId,
-          block: b.block,
         });
       } else {
         selection.set(null);
@@ -211,7 +190,6 @@ export function createPicker({
         data: b.building,
         file: b.building.file,
         instanceId: b.instanceId,
-        block: b.block,
       });
       return;
     }
@@ -229,13 +207,11 @@ export function createPicker({
 
   // ── Raycasting ────────────────────────────────────────────────────
 
-  // Tie-break: when an InstancedMesh (building) hit lies within ~0.1% of
-  // the closest hit's distance, prefer it over any placeholder or
-  // sidewalk at the same distance. The placeholder cuboid covers the
-  // entire bbox of its block, so its outer face often coincides with
-  // edge-buildings of neighboring blocks; same-distance ties otherwise
-  // swing arbitrarily by JS sort stability and the user gets a
-  // directory tooltip when their cursor is plainly over a building.
+  // Tie-break: when an InstancedMesh (cell detail/impostor) hit lies within
+  // ~0.1% of the closest hit's distance, prefer it over any sidewalk at the
+  // same distance — same-distance ties otherwise swing arbitrarily by JS
+  // sort stability and the user gets a directory tooltip when their cursor
+  // is plainly over a building.
   function _resolveTieBreak(
     hits: THREE.Intersection<THREE.Object3D>[],
   ): THREE.Intersection<THREE.Object3D> | null {
@@ -246,12 +222,7 @@ export function createPicker({
       if (h.distance > tieThreshold) break;
       if (h.object instanceof THREE.InstancedMesh) {
         const hud = h.object.userData;
-        // Cell mode: prefer detailMesh / impostorMesh hits.
         if (hud.cellId != null && (hud.meshKind === 'detail' || hud.meshKind === 'impostor')) {
-          return h;
-        }
-        // Legacy block mode: prefer buildings InstancedMesh hits.
-        if (hud.kind === 'buildings') {
           return h;
         }
       }
@@ -281,9 +252,9 @@ export function createPicker({
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
-    // Cell mode (Task 9): InstancedMesh hit from a CellTile.
-    // detailMesh and impostorMesh carry userData.cellId and userData.meshKind.
-    // The Building is looked up via BuildingIndex.byCellSlot("cellId:slotId").
+    // InstancedMesh hit from a CellTile. detailMesh and impostorMesh carry
+    // userData.cellId and userData.meshKind. The Building is looked up via
+    // BuildingIndex.byCellSlot("cellId:slotId").
     if (
       hit.object instanceof THREE.InstancedMesh &&
       ud.cellId != null &&
@@ -300,36 +271,6 @@ export function createPicker({
         data: building,
         file: building.file,
         instanceId: slot,
-      };
-    }
-    // Legacy block mode (Task 8+): InstancedMesh hit — one mesh per block,
-    // instanceId identifies the individual building within the block.
-    if (
-      hit.object instanceof THREE.InstancedMesh &&
-      ud.kind === 'buildings'
-    ) {
-      const i = hit.instanceId;
-      if (i == null) return null;
-      const block = ud.block as SceneBlock | undefined;
-      if (!block) return null;
-      const building = block.buildings[i];
-      if (!building?.file) return null;
-      return {
-        kind: NodeKind.File,
-        mesh: hit.object as THREE.Mesh,
-        data: building,
-        file: building.file,
-        instanceId: i,
-        block,
-      };
-    }
-    // Legacy: per-building mesh with userData.building (pre-Task 8 scenes).
-    if (ud.building && ud.building.file) {
-      return {
-        kind: NodeKind.File,
-        mesh: hit.object as THREE.Mesh,
-        data: ud.building,
-        file: ud.building.file,
       };
     }
     if (ud.street && ud.street.dir) {

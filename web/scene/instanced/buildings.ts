@@ -1,7 +1,10 @@
-// scene/instanced/buildings.ts — per-block building instance buffer builder.
+// scene/instanced/buildings.ts — Shared building material + icon atlas.
 //
-// Pure function; no Three.js scene mutation, no DOM, no async.
-// Mesh creation (attaching these buffers to a THREE.InstancedMesh) lands in Task 8.
+// Owns the singleton ShaderMaterial used by every cell's detail mesh
+// (scene/instanced/buildingsCell.ts attaches per-cell instance buffers to a
+// new InstancedMesh that references this material). Also owns the icon
+// atlas reference and the refresh hook that re-applies live-tunable
+// uniforms on config-store changes.
 
 import * as THREE from 'three';
 import {
@@ -16,44 +19,7 @@ import {
   SCENE_COLORS,
   WINDOW_LIGHTING,
 } from '@/config/index.js';
-import { BuildingOrient } from '@/types/index.js';
-import { getFileIconName } from '@/views/shell/fileIcon.js';
 import type { IconAtlas } from '../iconAtlas.js';
-import type { SceneBlock } from '../blocks.js';
-
-export interface BuildingInstanceBuffer {
-  matrix: Float32Array; // N × 16 (Matrix4 per instance)
-  color: Float32Array; // N × 3 (RGB per instance)
-  cols: Float32Array; // N × 2 (cols_ew, cols_ns)
-  floors: Float32Array; // N
-  orient: Float32Array; // N (0=S, 1=N, 2=E, 3=W — matches shader's iOrient contract)
-  doorWidth: Float32Array; // N
-  /**
-   * N × 3 — packed fader state per instance (1 attribute slot vs 3):
-   *   .x = opacity        ([0..1] alpha for body fade)
-   *   .y = silhouette     (0 = full facade, 1 = solid silhouette — no windows/door/slab)
-   *   .z = outlineOpacity ([0..1] composite outline at face edges, Hidden tier wireframe)
-   * Packed together so all three add up to one attribute slot — frees room
-   * under the GL_MAX_VERTEX_ATTRIBS=16 cap. The fader at scene/effects/buildingFader.ts
-   * is the sole runtime mutator; writes go through setXYZ on the InstancedBufferAttribute.
-   */
-  fade: Float32Array;
-  /**
-   * N × 3 — packed attribute to stay under the GL_MAX_VERTEX_ATTRIBS=16 cap:
-   *   .xy = top-left UV of the file-icon slot in the atlas, or (-1, -1) for "no icon"
-   *   .z  = per-file random in [0, 1], drives the shader's window gap / lit
-   *         pattern so same-color buildings (e.g. all .css files of similar
-   *         age) don't share a facade. Stable across rebuilds via an
-   *         FNV-1a hash of file.path.
-   */
-  iconUV: Float32Array;
-  /**
-   * N × 1 — modifiedAge per instance (0 = most recently modified, 1 = most stale).
-   * Mirror of the createdAge slot in `iconUV.w` but on the modified-date axis.
-   * Drives lit-window count + HDR emission curve in the building fragment shader.
-   */
-  modifiedAge: Float32Array;
-}
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are
@@ -64,179 +30,15 @@ export interface BuildingInstanceBuffer {
 // hotReload.ts.
 // ---------------------------------------------------------------------------
 
-/**
- * Build per-instance attribute buffers for a block's buildings.
- * Pure function; no Three.js scene mutation.
- *
- * The resulting arrays are ready for THREE.InstancedBufferAttribute:
- *   matrix    → set as instanceMatrix (InstancedMesh built-in)
- *   color     → set as instanceColor (InstancedMesh built-in)
- *   cols      → iCols attribute
- *   floors    → iFloors attribute
- *   orient    → iOrient attribute (0=S, 1=N, 2=E, 3=W)
- *   doorWidth → iDoorWidth attribute
- *   fade      → iFade attribute (.x=opacity, .y=silhouette, .z=outlineOpacity)
- */
-export function buildBuildingInstanceBuffer(block: SceneBlock): BuildingInstanceBuffer {
-  const n = block.buildings.length;
-  const buf: BuildingInstanceBuffer = {
-    matrix: new Float32Array(n * 16),
-    color: new Float32Array(n * 3),
-    cols: new Float32Array(n * 2),
-    floors: new Float32Array(n),
-    orient: new Float32Array(n),
-    doorWidth: new Float32Array(n),
-    fade: new Float32Array(n * 3),
-    iconUV: new Float32Array(n * 4),
-    modifiedAge: new Float32Array(n),
-  };
-
-  const m = new THREE.Matrix4();
-  const colorTmp = new THREE.Color();
-  // PATH_WIDTH_FRAC is user-tunable via the BUILDING_DIMENSIONS nanostore.
-  // Read once per buffer build so all buildings in the block use the same
-  // config snapshot (consistent with how engine.ts reads it per-building).
-  const pathWidthFrac = BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC;
-  // Facade-geometry knobs that bake into per-instance attributes. Same
-  // snapshot pattern as PATH_WIDTH_FRAC — one read per block so every
-  // building in the block sees consistent values.
-  const facade = FACADE_GEOMETRY.get();
-  const windowColsMax = facade.WINDOW_COLS_MAX;
-  const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
-  const doorWidthFracOfPath = facade.DOOR_WIDTH_FRAC_OF_PATH;
-
-  for (let i = 0; i < n; i++) {
-    const b = block.buildings[i];
-
-    // The path-derived seed is set on EVERY building so we don't leave
-    // an uninitialized z component dangling in the iconUV buffer.
-    const seed = _seedFromPath(b.file?.path ?? '');
-
-    // --- Transform matrix ---
-    // Layout (x, y) → scene (x, z); building.h is scene-Y.
-    // Position y = h/2 so the base sits on z=0, matching createBuildingMesh:
-    //   mesh.position.set(building.x, renderH / 2, building.y)
-    m.makeScale(b.w, b.h, b.d);
-    m.setPosition(b.x, b.h / 2, b.y);
-    buf.matrix.set(m.toArray(), i * 16);
-
-    // --- Color (linear RGB) ---
-    colorTmp.set(b.color);
-    buf.color[i * 3 + 0] = colorTmp.r;
-    buf.color[i * 3 + 1] = colorTmp.g;
-    buf.color[i * 3 + 2] = colorTmp.b;
-
-    // --- Window column counts ---
-    // Mirror createBuildingMesh in engine.ts:
-    //   ±X faces (east/west walls) span depth d → cols_ew from d
-    //   ±Z faces (north/south walls) span width w → cols_ns from w
-    const colsEW = Math.max(
-      1,
-      Math.min(windowColsMax, Math.floor(b.d / widthPerWindowCol)),
-    );
-    const colsNS = Math.max(
-      1,
-      Math.min(windowColsMax, Math.floor(b.w / widthPerWindowCol)),
-    );
-    buf.cols[i * 2 + 0] = colsEW;
-    buf.cols[i * 2 + 1] = colsNS;
-
-    // --- Floor count ---
-    buf.floors[i] = Math.max(1, b.floors ?? 1);
-
-    // --- Orient encoding (shader: 0=S, 1=N, 2=E, 3=W) ---
-    buf.orient[i] = orientToIndex(b.orient);
-
-    // --- Door width ---
-    // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_FRAC_OF_PATH
-    // Mirrors createBuildingMesh:
-    //   const doorWorldWidth = w * BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC * DOOR_WIDTH_FRAC_OF_PATH;
-    buf.doorWidth[i] = b.w * pathWidthFrac * doorWidthFracOfPath;
-
-    // --- Fade (opacity defaults to 1.0; fader updates in-place at runtime) ---
-    buf.fade[i * 3 + 0] = 1.0; // opacity defaults to full visibility
-    // .y (silhouette) and .z (outlineOpacity) default to 0 via Float32Array zero-init
-
-    // --- Icon UV (top-left of slot in atlas) + per-instance seed + createdAge ---
-    // (-1, -1) on .xy means "no icon" — the shader checks .x < 0 and
-    // skips the atlas sample. The seed lands on .z; createdAge on .w
-    // (0 = newest file, 1 = oldest, normalized against repo's
-    // createdMin/Max). All four packed into one attribute to stay
-    // under the GL_MAX_VERTEX_ATTRIBS=16 cap.
-    buf.iconUV[i * 4 + 0] = -1.0;
-    buf.iconUV[i * 4 + 1] = -1.0;
-    buf.iconUV[i * 4 + 2] = seed;
-    buf.iconUV[i * 4 + 3] = b.createdAge ?? 0;
-    buf.modifiedAge[i] = b.modifiedAge ?? 0;
-    if (_atlas) {
-      const file = b.file;
-      if (file) {
-        const iconName = getFileIconName(file);
-        const uv = _atlas.uvFor(iconName);
-        if (uv) {
-          buf.iconUV[i * 4 + 0] = uv[0];
-          buf.iconUV[i * 4 + 1] = uv[1];
-        }
-      }
-    }
-  }
-
-  return buf;
-}
-
-/**
- * Stable 32-bit FNV-1a hash of a string, normalized to [0, 1). Used to
- * derive a per-instance random `seed` that the shader keys facade
- * variations off of — deterministic across rebuilds so a building's
- * window pattern doesn't shuffle on every live-update poll.
- */
-function _seedFromPath(path: string): number {
-  let h = 2166136261; // FNV offset basis
-  for (let i = 0; i < path.length; i++) {
-    h ^= path.charCodeAt(i);
-    h = Math.imul(h, 16777619); // FNV prime, 32-bit safe via imul
-  }
-  return (h >>> 0) / 4294967296;
-}
-
-/**
- * Map BuildingOrient string enum → 0/1/2/3 per the shader's iOrient contract.
- * Shader contract (building.frag.glsl isDoorFace()):
- *   0 = South (+Z = face 4)
- *   1 = North (-Z = face 5)
- *   2 = East  (+X = face 0)
- *   3 = West  (-X = face 1)
- */
-function orientToIndex(orient: BuildingOrient): number {
-  switch (orient) {
-    case BuildingOrient.South:
-      return 0;
-    case BuildingOrient.North:
-      return 1;
-    case BuildingOrient.East:
-      return 2;
-    case BuildingOrient.West:
-      return 3;
-    default:
-      return 0; // fallback: South
-  }
-}
-
 // ---------------------------------------------------------------------------
-// Task 8: InstancedMesh creation
+// Shared material singleton
 // ---------------------------------------------------------------------------
 
 import buildingVertSrc from '../shaders/building.vert.glsl?raw';
 import buildingFragSrc from '../shaders/building.frag.glsl?raw';
 import hslGlslSrc from '../shaders/hsl.glsl?raw';
 
-// Shared unit box geometry — all blocks reference the same geometry for
-// the box vertices. Per-block attributes are attached to a CLONE of this
-// geometry (see mesh.geometry = mesh.geometry.clone() below) so they
-// don't bleed across blocks.
-const _SHARED_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
-
-// Lazy singleton material — created once and reused across all blocks.
+// Lazy singleton material — created once and reused across all cells.
 // applyManifest can be called multiple times (hot-reload); the singleton
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
@@ -449,73 +251,4 @@ export function refreshBuildingMaterial(): void {
     THREE.LinearSRGBColorSpace,
   );
   _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
-}
-
-/**
- * Create a THREE.InstancedMesh for all buildings in a block.
- *
- * One mesh per directory block; shared geometry + shader material.
- * Per-instance transforms (matrix), colors, and custom attributes
- * (iCols, iFloors, iOrient, iDoorWidth, iFade) are sourced from
- * buildBuildingInstanceBuffer.
- *
- * mesh.userData.kind = 'buildings' — used by the picker (Task 10).
- * mesh.userData.block = block       — back-pointer for the picker.
- */
-export function createBuildingsInstancedMesh(block: SceneBlock): THREE.InstancedMesh {
-  const n = block.buildings.length;
-  const buf = buildBuildingInstanceBuffer(block);
-  const mesh = new THREE.InstancedMesh(_SHARED_GEOMETRY, getBuildingMaterial(), n);
-
-  // Apply the matrix buffer.
-  const tmpM = new THREE.Matrix4();
-  for (let i = 0; i < n; i++) {
-    tmpM.fromArray(buf.matrix, i * 16);
-    mesh.setMatrixAt(i, tmpM);
-  }
-  mesh.instanceMatrix.needsUpdate = true;
-
-  // Per-instance color via Three's built-in path (sets USE_INSTANCING_COLOR
-  // on the shader automatically).
-  mesh.instanceColor = new THREE.InstancedBufferAttribute(buf.color, 3);
-  mesh.instanceColor.needsUpdate = true;
-
-  // Clone geometry so per-block custom attributes don't bleed across blocks.
-  // The shared _SHARED_GEOMETRY box vertices are still shared; only attribute
-  // slots are per-block after the clone.
-  mesh.geometry = mesh.geometry.clone();
-  mesh.geometry.setAttribute('iCols', new THREE.InstancedBufferAttribute(buf.cols, 2));
-  mesh.geometry.setAttribute('iFloors', new THREE.InstancedBufferAttribute(buf.floors, 1));
-  mesh.geometry.setAttribute('iOrient', new THREE.InstancedBufferAttribute(buf.orient, 1));
-  mesh.geometry.setAttribute('iDoorWidth', new THREE.InstancedBufferAttribute(buf.doorWidth, 1));
-  mesh.geometry.setAttribute('iFade', new THREE.InstancedBufferAttribute(buf.fade, 3));
-  mesh.geometry.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(buf.iconUV, 4));
-  mesh.geometry.setAttribute(
-    'iModifiedAge',
-    new THREE.InstancedBufferAttribute(buf.modifiedAge, 1),
-  );
-
-  // Compute bounding sphere from instance positions, then expand the
-  // radius to cover the worst-case lateral displacement the tilt
-  // shader can produce. Without this, a tilted building can render
-  // OUTSIDE its un-tilted bbox; Three's frustum culling then drops
-  // the whole InstancedMesh as soon as the un-tilted box just clears
-  // the frustum, even though tilted geometry is still on screen —
-  // which manifests as flickering / black flashes when the camera
-  // rotates or zooms past a tilted block.
-  mesh.computeBoundingSphere();
-  if (mesh.geometry.boundingSphere) {
-    const dims = BUILDING_DIMENSIONS.get();
-    const aging = BUILDING_AGING.get();
-    const maxH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
-    const maxTiltRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
-    // Worst case: tilt magnitude × tallest building height (lateral
-    // shift at the top of the building). Pad generously.
-    mesh.geometry.boundingSphere.radius += maxH * maxTiltRad;
-  }
-
-  // Tag for picker (Task 10) and block back-reference.
-  mesh.userData.kind = 'buildings';
-  mesh.userData.block = block;
-  return mesh;
 }

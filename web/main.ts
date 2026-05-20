@@ -22,9 +22,7 @@ import {
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
-  CELL_RENDERING,
   LOD,
-  debugBoot,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
@@ -37,8 +35,6 @@ import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
 import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
-import { refreshAdPanels } from './scene/adPanels.js';
-import type { SceneBlock } from './scene/blocks.js';
 import { createCameraRig } from './scene/cameraRig.js';
 import { createFlyControls } from './scene/flyControls.js';
 import { createAnimator } from './scene/animator.js';
@@ -84,34 +80,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // re-synced via applyTheme() — exposed to the Settings UI through
   // showLeftSidebar().
 
-  // [cell-debug]
-  const srlT0 = performance.now();
-
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
   // in scene/cityScene.js. main.js no longer caches mesh refs locally —
   // every other module reads cityScene directly through accessors.
-  // [cell-debug]
-  const _citySceneT0 = performance.now();
-  debugBoot('[boot] cityScene creating');
   const cityScene = createCityScene(canvas);
-  debugBoot('[boot] cityScene created', { elapsedMs: performance.now() - _citySceneT0 });
   const scene = cityScene.scene;
   _applyDisplayLabel(manifest);
-  // [cell-debug]
-  const _applyT0 = performance.now();
-  // [boot-diag] call #1: startRenderLoop bootstrap (skeleton or cache-hit final)
-  debugBoot('[boot] applyManifest starting', {
-    caller: 'startRenderLoop',
-    stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-  });
   await cityScene.applyManifest(manifest);
-  debugBoot('[boot] applyManifest done', { elapsedMs: performance.now() - _applyT0 });
 
   // -- 3. Renderer -------------------------------------------------------------
-  // [cell-debug]
-  const _rendererT0 = performance.now();
-  debugBoot('[boot] WebGLRenderer creating');
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -119,17 +97,12 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
-  debugBoot('[boot] WebGLRenderer created', { elapsedMs: performance.now() - _rendererT0 });
 
   // -- 4. Camera + controls ----------------------------------------------------
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  // [cell-debug]
-  const _rigT0 = performance.now();
-  debugBoot('[boot] camera rig creating');
   const rig = createCameraRig({ canvas, cityScene });
-  debugBoot('[boot] camera rig created', { elapsedMs: performance.now() - _rigT0 });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -277,14 +250,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
-
-    // Push fresh BLOOM.AD_EMISSION into every ad-panel mesh so the
-    // bloom slider affects media-building ads live.
-    const adMeshes: THREE.Mesh[] = [];
-    for (const block of cityScene.getBlocks()) {
-      if (block.adPanels) for (const m of block.adPanels) adMeshes.push(m);
-    }
-    refreshAdPanels(adMeshes);
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
@@ -470,7 +435,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // Street labels are world-space text on the asphalt — orient toward
     // camera each frame so they remain readable from any rotation.
     _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
-    _orientBlockLabelsForCamera(cityScene.getBlocks(), camera, labelRight);
     const rootGem = cityScene.getRootGem();
     if (rootGem) {
       const gemAnim = GEM_ANIMATION.get();
@@ -531,8 +495,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // setupLiveUpdates can swap in fresh manifests, attachHotReload can
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
-  // [cell-debug]
-  debugBoot('[boot] startRenderLoop returning', { elapsedMs: performance.now() - srlT0 });
   return { cityScene, applyTheme, coordinator };
 }
 
@@ -596,43 +558,6 @@ function _orientLabelsForCamera(
     }
     lbl.userData.flipped = flipped;
     lbl.rotation.y = base + (flipped ? Math.PI : 0);
-  }
-}
-
-// Per-block instanced-label sibling of _orientLabelsForCamera. Each block's
-// labelsMesh stores per-instance iFlip; we toggle 0/1 based on the camera's
-// world-right vector against the block's primary-street axis. Hysteresis state
-// piggybacks on labelsMesh.userData.flipped (same idea as the legacy Group path).
-function _orientBlockLabelsForCamera(
-  blocks: SceneBlock[],
-  camera: THREE.PerspectiveCamera,
-  labelRight: THREE.Vector3,
-): void {
-  labelRight.setFromMatrixColumn(camera.matrixWorld, 0);
-  const rightX = labelRight.x;
-  const rightZ = labelRight.z;
-  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
-
-  for (const block of blocks) {
-    const mesh = block.labelsMesh;
-    if (!mesh) continue;
-    const street = block.primaryStreet;
-    if (!street) continue;
-    const axis = street.orientation === StreetAxis.X ? rightX : rightZ;
-    let flipped: boolean = mesh.userData.flipped || false;
-    if (flipped) {
-      if (axis > THRESH) flipped = false;
-    } else {
-      if (axis < -THRESH) flipped = true;
-    }
-    if (flipped === mesh.userData.flipped) continue;
-    mesh.userData.flipped = flipped;
-    const flipAttr = mesh.geometry.getAttribute('iFlip') as THREE.InstancedBufferAttribute | undefined;
-    if (!flipAttr) continue;
-    const v = flipped ? 1 : 0;
-    const arr = flipAttr.array as Float32Array;
-    for (let i = 0; i < arr.length; i++) arr[i] = v;
-    flipAttr.needsUpdate = true;
   }
 }
 
@@ -719,11 +644,6 @@ function setupLiveUpdates(
         if (m?.signature) {
           lastSignature = m.signature;
           _applyDisplayLabel(m);
-          // [boot-diag] live-updates path
-          debugBoot('[boot] applyManifest caller=setupLiveUpdates/refreshManifest', {
-            signature: m.signature.slice(0, 8),
-            stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-          });
           await handle.cityScene.applyManifest(m);
         }
       }
@@ -897,26 +817,12 @@ function _applyHljsTheme(theme: string): void {
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
-    // [cell-debug]
-    const bootT0 = performance.now();
-    debugBoot('[boot] boot IIFE started');
-
     // Hydrate every config store from localStorage BEFORE the initial
     // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
     // manifestUrl) reflects the user's persisted toggle from a prior
     // session — otherwise the first paint ignores the saved value and
     // only corrects itself on the next poll.
     attachPersistence(Config);
-
-    // Reload the page whenever CELL_RENDERING changes so the new flag
-    // value is picked up at boot time (applyManifest branches on it).
-    // Skip the initial synchronous fire from .subscribe() so we don't
-    // reload on boot before the user has changed anything.
-    let _cellRenderingBooted = false;
-    CELL_RENDERING.subscribe(() => {
-      if (_cellRenderingBooted) location.reload();
-    });
-    _cellRenderingBooted = true;
 
     // Apply the persisted (or default) syntax theme immediately after
     // hydration, then track future changes. The subscribe call fires
@@ -979,8 +885,6 @@ if (_canvas) {
       });
       try {
         for await (const event of streamManifest(manifestUrl())) {
-          // [cell-debug]
-          debugBoot('[boot] stream event', { phase: event.phase, elapsedMs: performance.now() - bootT0 });
           if (event.phase === 'error') throw new Error(event.error);
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue. The first manifest-
@@ -1002,14 +906,10 @@ if (_canvas) {
             // correct for the final manifest too — no rebuild needed when
             // final arrives. cityScene.applyManifest diff-and-tweens the
             // skeleton → final transition.
-            // [cell-debug]
-            const _atlasT0 = performance.now();
-            debugBoot('[boot] buildIconAtlas starting');
             try {
               const _builtAtlas = await buildIconAtlas(m);
               setIconAtlas(_builtAtlas);
               setCellIconAtlas(_builtAtlas);
-              debugBoot('[boot] buildIconAtlas done', { elapsedMs: performance.now() - _atlasT0 });
             } catch (err) {
               console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
             }
@@ -1025,15 +925,7 @@ if (_canvas) {
             // b.file to the fresh FileNode from the new manifest so colors,
             // ages, and dimensions compute from real metadata on the cache-hit
             // fast path.
-            // [cell-debug]
-            const _applyFinalT0 = performance.now();
-            // [boot-diag] call #2: boot stream final event
-            debugBoot('[boot] applyManifest (final event) starting', {
-              caller: 'boot-stream/final',
-              stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-            });
             await handle.cityScene.applyManifest(m);
-            debugBoot('[boot] applyManifest (final event) done', { elapsedMs: performance.now() - _applyFinalT0 });
           }
           initialManifest = m;
         }
@@ -1083,13 +975,6 @@ if (_canvas) {
     let _lastDismissible = false;
 
     async function applyNewSource(payload: SourcePayload): Promise<void> {
-      // [boot-diag] Track who is calling applyNewSource so we can identify
-      // the third applyManifest call observed in production logs.
-      debugBoot('[boot] applyNewSource called', {
-        src: payload.src,
-        branch: payload.branch,
-        stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-      });
       // Clear the layout cache so the cell fast path doesn't reuse stale cells
       // from the previous source. The cache is valid within a single source
       // (skeleton → final live-update), but must be reset when switching sources
@@ -1124,11 +1009,6 @@ if (_canvas) {
             // Apply the skeleton so the new city paints behind the overlay
             // — the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
-            // [boot-diag] applyNewSource skeleton event
-            debugBoot('[boot] applyManifest caller=applyNewSource/skeleton', {
-              src: payload.src,
-              stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-            });
             await handle.cityScene.applyManifest(event.manifest);
             // Update the header (project label, branch pill) right after the
             // skeleton lands so it reflects the new project immediately,
@@ -1166,11 +1046,6 @@ if (_canvas) {
         }
 
         _applyDisplayLabel(manifest);
-        // [boot-diag] applyNewSource final event
-        debugBoot('[boot] applyManifest caller=applyNewSource/final', {
-          src: payload.src,
-          stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
-        });
         await handle.cityScene.applyManifest(manifest);
 
         // Update the header (project label, branch pill) + footer (repo link)

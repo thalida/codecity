@@ -44,8 +44,6 @@ import {
   LIVE_UPDATES,
   SCAN_FILTERS,
   // Rendering / debug
-  CELL_RENDERING,
-  DEBUG_LOGS,
   LOD,
   // File preview
   SYNTAX_THEME,
@@ -903,19 +901,12 @@ function _buildEffectsSection(): HTMLElement {
 }
 
 // ─── Rendering ─────────────────────────────────────────────────────────────
-// Experimental rendering flags. Changes require a page reload to take effect
-// because applyManifest branches on these flags at boot time.
+// Per-cell level-of-detail thresholds.
 function _buildRenderingSection(): HTMLElement {
-  const section = _section('Rendering', 'Experimental rendering flags. Reload required after toggling.');
+  const section = _section('Rendering', 'Per-cell level-of-detail thresholds.');
 
   section.appendChild(
-    _toggle('Use cell-based renderer (experimental)', CELL_RENDERING, 'enabled', {
-      tip: 'When on, switches to the new spatial-grid + LOD renderer optimized for large repos. Experimental — picker, fader, outline, and ad panels are not yet migrated. Reload required after toggling.',
-    }),
-  );
-
-  section.appendChild(
-    _subgroup('Level of detail (cell mode)', [
+    _subgroup('Level of detail', [
       _toggle('LOD enabled', LOD, 'enabled', {
         tip: 'When off, every cell renders at full detail regardless of distance — useful for visual QA, debugging facade shader changes, or forcing detail at any zoom. Cell mode (the spatial grid) is unaffected.',
       }),
@@ -1010,12 +1001,6 @@ function _buildDebugSection(
     'Debug',
     'Developer-only diagnostics. Output goes to the browser console.',
     false,
-  );
-
-  section.appendChild(
-    _toggle('Verbose render logs', DEBUG_LOGS, 'enabled', {
-      tip: 'When on, prints diagnostic [boot] and [cell] logs to the browser console — useful for debugging the cell-rendering pipeline. Off by default to keep the console clean.',
-    }),
   );
 
   if (onRunCollisionCheck) {

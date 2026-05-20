@@ -5,7 +5,6 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { FileStats, RangeStat } from './manifest';
-import type { SceneBlock } from '../scene/blocks';
 
 /** Per-building connector strip from the door to the adjacent sidewalk. */
 export interface BuildingPath {
@@ -50,20 +49,9 @@ export type { FileStats, RangeStat };
 
 /** Building entering the scene this rebuild. Carries its target transform. */
 export interface EnteringBuilding {
-  /**
-   * Legacy block mode: the SceneBlock this instance lives in.
-   * Undefined in cell mode — use `building` + cityScene.getMeshForBuilding() instead.
-   */
-  block?: SceneBlock;
-  /**
-   * Legacy block mode: per-block instance index.
-   * In cell mode this is the slotId within the CellTile (same as building.slotId).
-   */
+  /** Slot index within the CellTile (same as building.slotId). */
   instanceId: number;
-  /**
-   * Cell mode: the Building object, carrying cellId + slotId back-pointers.
-   * Also present in legacy mode for symmetry.
-   */
+  /** The Building object, carrying cellId + slotId back-pointers. */
   building?: Building;
   /** Full-size scale components (w, h, d). */
   newScaleX: number;
@@ -97,20 +85,9 @@ export interface ExitingEntry {
  * get a spurious tween from zero).
  */
 export interface StayingBuilding {
-  /**
-   * Legacy block mode: the SceneBlock this instance lives in.
-   * Undefined in cell mode — use `building` + cityScene.getMeshForBuilding() instead.
-   */
-  block?: SceneBlock;
-  /**
-   * Legacy block mode: per-block instance index.
-   * In cell mode this is the slotId within the CellTile (same as building.slotId).
-   */
+  /** Slot index within the CellTile (same as building.slotId). */
   instanceId: number;
-  /**
-   * Cell mode: the Building object, carrying cellId + slotId back-pointers.
-   * Also present in legacy mode for symmetry.
-   */
+  /** The Building object, carrying cellId + slotId back-pointers. */
   building?: Building;
   /** New (post-rebuild) scale components (w, h, d). */
   newScaleX: number;

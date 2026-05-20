@@ -121,15 +121,6 @@ export function createOutlineRenderer({
       }
     }
 
-    // Legacy block mode: target.block.detailMesh carries the animator's live matrix.
-    if (target.block?.detailMesh && target.instanceId != null) {
-      target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
-      _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
-      outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
-      outline.position.copy(_tmpPos);
-      return;
-    }
-
     // Fallback: layout-level dimensions (no mesh reference available).
     outline.scale.set(b.w, b.h, b.d);
     outline.position.set(b.x, b.h / 2, b.y);

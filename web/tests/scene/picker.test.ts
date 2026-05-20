@@ -98,9 +98,6 @@ function makeFakeCityScene(
     getBuildings() {
       return Object.keys(buildingMap).map((p) => buildingMap[p].mesh);
     },
-    getBlocks() {
-      return [];
-    },
     getStreetPickables() {
       return Object.keys(sidewalkMap).map((p) => sidewalkMap[p]);
     },
@@ -162,7 +159,6 @@ describe('picker.pickAtCenter', () => {
     const mockCityScene: PickerCityScene = {
       getBuildings: () => [],
       getStreetPickables: () => [cube],
-      getBlocks: () => [],
       getRootGem: () => null,
       getBuildingByPath: () => null,
       getSidewalkByDir: () => null,
@@ -188,7 +184,6 @@ describe('picker.pickAtCenter', () => {
     const mockCityScene: PickerCityScene = {
       getBuildings: () => [],
       getStreetPickables: () => [],
-      getBlocks: () => [],
       getRootGem: () => null,
       getBuildingByPath: () => null,
       getSidewalkByDir: () => null,

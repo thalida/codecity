@@ -40,7 +40,7 @@ const GHOST_SCALE_INSET = 1.005;
 
 export function createGhostRenderer({
   scene,
-  cityScene: _cityScene,
+  cityScene,
   picker,
 }: {
   scene: THREE.Scene;
@@ -67,17 +67,18 @@ export function createGhostRenderer({
   const _tmpQuat = new THREE.Quaternion();
 
   // _syncGhostToTarget: read the current animated transform of a FileTarget's
-  // building and apply it to the ghost mesh.  Also reads instanceColor for
+  // building and apply it to the ghost mesh. Also reads instanceColor for
   // the correct building tint.
   //
-  // For InstancedMesh targets (block + instanceId present), we decompose the
-  // live instance matrix so the ghost tracks the animator's tween position.
-  // For legacy / no-mesh targets, we fall back to layout dimensions from
-  // target.data (b.w, b.h, b.d, b.x, b.y).
+  // Resolves the building's live InstancedMesh + slot via
+  // cityScene.getMeshForBuilding(). Decomposes the live instance matrix so
+  // the ghost tracks the animator's tween position. Falls back to layout
+  // dimensions from target.data when no live mesh is available.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
-    if (target.block?.detailMesh && target.instanceId != null) {
-      target.block.detailMesh.getMatrixAt(target.instanceId, _tmpMatrix);
+    const resolved = cityScene.getMeshForBuilding(b);
+    if (resolved) {
+      resolved.mesh.getMatrixAt(resolved.slot, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
       ghostMesh.scale.set(
         _tmpScale.x * GHOST_SCALE_INSET,
@@ -88,11 +89,11 @@ export function createGhostRenderer({
 
       // Mirror the building's instance color so the ghost reads as the
       // same building rather than a generic overlay.
-      const instanceColor = target.block.detailMesh.instanceColor;
+      const instanceColor = resolved.mesh.instanceColor;
       if (instanceColor) {
-        const r = instanceColor.getX(target.instanceId);
-        const g = instanceColor.getY(target.instanceId);
-        const bv = instanceColor.getZ(target.instanceId);
+        const r = instanceColor.getX(resolved.slot);
+        const g = instanceColor.getY(resolved.slot);
+        const bv = instanceColor.getZ(resolved.slot);
         _ghostMat.color.setRGB(r, g, bv);
       }
     } else {
