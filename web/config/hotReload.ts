@@ -45,6 +45,8 @@ import {
   SKY_GRADIENT,
   SKY_STARS,
   SKY_MOON,
+  // Cyberpunk Valley — floor (color + position + enabled, no rebuild):
+  FLOOR,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -195,6 +197,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     SKY_GRADIENT,
     SKY_STARS,
     SKY_MOON,
+    // FLOOR — material color + transform, no rebuild. Master ENABLED
+    // toggle flips mesh.visible (also handled by floor.refresh()).
+    FLOOR,
   ];
 
   const unsubs: Array<() => void> = [];

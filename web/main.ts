@@ -255,6 +255,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // flips mesh.visible on the master ENABLED toggle. Hot-reloaded
     // via the hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();
+    // Cyberpunk Valley floor — pulls fresh FLOOR color + Y_OFFSET +
+    // ENABLED. SIZE_MULT is baked at build time and ignored on
+    // refresh; changing it takes effect on the next page load.
+    cityScene.getFloor().refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();

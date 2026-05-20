@@ -54,6 +54,7 @@ import {
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { SKY_GRADIENT, SKY_STARS, SKY_MOON } from '@/config/sky.js';
+import { FLOOR } from '@/config/floor.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -156,6 +157,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
   body.appendChild(_buildSkySection());
+  body.appendChild(_buildFloorSection());
   body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
@@ -498,6 +500,36 @@ function _buildSkySection(): HTMLElement {
       }),
       _slider('Emission boost', SKY_MOON, 'EMISSION_BOOST', 0, 5, 0.05, {
         tip: 'Multiplier on the disk color. Above 1.0 the disk pushes past 1.0 in the HDR target and blooms via the post-FX pipeline.',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Floor (Cyberpunk Valley) ─────────────────────────────────────────────
+// Flat dark plane below the city. Grounds the scene visually and gives
+// the sky sphere a clean edge. Every dial is hot-reloadable (no rebuild);
+// FLOOR.ENABLED is the master toggle.
+function _buildFloorSection(): HTMLElement {
+  const section = _section(
+    'Floor',
+    'Flat ground plane below the city. Grounds the scene and gives the sky a clean edge.',
+  );
+
+  section.appendChild(
+    _subgroup('Floor', [
+      _toggle('Enabled', FLOOR, 'ENABLED', {
+        tip: 'Master toggle. When off the floor mesh is hidden and the scene.background GROUND color shows through.',
+      }),
+      _color('Color', FLOOR, 'COLOR', {
+        tip: 'Flat fill color. Near-black with a faint purple hint by default so it reads as adjacent-but-distinct from the dark sky horizon.',
+      }),
+      _slider('Y offset', FLOOR, 'Y_OFFSET', -10, 10, 0.1, {
+        tip: 'Vertical position (world units). Slightly negative by default so the floor sits just under the city ground plane and any coplanar z-fighting goes to the floor.',
+      }),
+      _slider('Size × FAR', FLOOR, 'SIZE_MULT', 0.1, 1.0, 0.05, {
+        tip: 'Edge length as a multiplier of camera FAR. Baked at construction — slider only takes effect on the next page load. Keep < 0.95 so the floor stays inside the sky sphere.',
       }),
     ]),
   );

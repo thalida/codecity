@@ -35,3 +35,4 @@ export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
 export * from './lod.js'; // per-block LOD swap thresholds
 export * from './syntaxTheme.js'; // syntax highlight theme picker
 export * from './sky.js'; // Cyberpunk Valley: procedural sky gradient + stars + moon
+export * from './floor.js'; // Cyberpunk Valley: flat ground plane below the city
