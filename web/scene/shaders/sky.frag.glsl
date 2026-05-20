@@ -99,14 +99,14 @@ vec3 sampleGradient(float t) {
   return uGradientHorizon;
 }
 
-// Project a unit world direction onto a 2D plane indexed by sky cells.
-// Avoids the pole-singularity of (atan(z,x), asin(y)) by using the
-// equirectangular-ish (x/(1+|y|), z/(1+|y|)) compression: directions
-// near the zenith get pulled toward the origin, so the per-cell hash
-// scatter stays roughly uniform across the upper hemisphere.
+// Equirectangular (longitude, latitude) projection. Longitude wraps over
+// [-π, π], latitude over [-π/2, π/2]. Outside the polar zone (which we
+// gate off with uStarMinElevation anyway) this gives a roughly uniform
+// star distribution — far more even than the (x/(1+|y|), z/(1+|y|))
+// polar compression, which created visible diagonal star streaks
+// emanating from the zenith.
 vec2 starUV(vec3 dir) {
-  float k = 1.0 / (1.0 + abs(dir.y));
-  return vec2(dir.x * k, dir.z * k);
+  return vec2(atan(dir.z, dir.x), asin(clamp(dir.y, -1.0, 1.0)));
 }
 
 void main() {
@@ -120,17 +120,24 @@ void main() {
   // hiding the mesh, but the shader keeps the gradient even when
   // uGradientEnabled=0 so the disabled state still renders a meaningful
   // color before the mesh.visible flip propagates). -----
-  float elev01 = clamp((dir.y + 1.0) * 0.5, 0.0, 1.0);
+  // Mirror around the horizon: HORIZON color lands AT the horizon
+  // line (the bright atmosphere glow band of a real sunset), and TOP
+  // lands at the zenith (deep night sky) AND below the horizon
+  // (visible only where the floor plane doesn't cover; later layers
+  // will).
+  //   dir.y = 0 (horizon) → abs = 0 → elev01 = 1 → HORIZON
+  //   dir.y = ±1 (poles)  → abs = 1 → elev01 = 0 → TOP
+  float elev01 = 1.0 - clamp(abs(dir.y), 0.0, 1.0);
   vec3 color = sampleGradient(elev01);
 
   // ----- Stars -----
   // Only above MIN_ELEVATION_DEG (precomputed as sin(deg) on JS side).
   if (uStarsEnabled > 0.5 && dir.y > uStarMinElevation) {
-    // Discretise the projected sky into cells. 512 cells across the
-    // unit square gives a visually pleasing star density at the
-    // default DENSITY threshold; the shader can pump this up to
-    // thousands without measurable cost.
-    vec2 sv = starUV(dir) * 512.0;
+    // Cell scale in radians^-1: ~100 cells per radian gives roughly
+    // 0.57° cells, fine enough to read as point stars at default
+    // density and coarse enough to keep neighbouring cells visually
+    // distinct.
+    vec2 sv = starUV(dir) * 100.0;
     vec2 cell = floor(sv);
     float h = hash21(cell);
     // hash < DENSITY ⇒ this cell holds a star. Spec phrases DENSITY
