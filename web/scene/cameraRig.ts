@@ -192,7 +192,7 @@ export function createCameraRig({
       // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
       // so width × 10 reliably fits the gem + the road's first stretch
       // regardless of project size.
-      framingRadius = rootStreet.width * 10;
+      framingRadius = rootStreet.width * 15;
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
@@ -201,7 +201,23 @@ export function createCameraRig({
     const framingDist =
       (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
-    const dir = new THREE.Vector3(-1, 1, 1).normalize();
+    // Default framing: place the camera BEHIND the gem along the root
+    // street's long axis (the street extends in +X for X-oriented or +Z
+    // for Y-oriented; the gem sits at the low end — see
+    // engine.ts:createRootGem) at a low cinematic elevation. This gives
+    // a "looking down the main road into the city" view instead of the
+    // previous top-down (-1, 1, 1) oblique. y=0.25 → ~14° elevation;
+    // wide enough to see the whole skyline, low enough that the
+    // horizon-glow band is visible above the buildings. Fallback
+    // (no gem) keeps the old high-oblique direction for completeness.
+    let dir: THREE.Vector3;
+    if (rootStreet) {
+      dir = rootStreet.orientation === StreetAxis.X
+        ? new THREE.Vector3(-1, 0.25, 0).normalize()
+        : new THREE.Vector3(0, 0.25, -1).normalize();
+    } else {
+      dir = new THREE.Vector3(-1, 1, 1).normalize();
+    }
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
 
