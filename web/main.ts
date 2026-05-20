@@ -251,14 +251,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     refreshBuildingMaterial();
     postFx.refresh();
     // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (gradient
-    // colors, star density, moon position/size, twinkle params) and
-    // flips mesh.visible on the master ENABLED toggle. Hot-reloaded
-    // via the hotStores route in web/config/hotReload.ts.
+    // colors, ground color, star density, twinkle params) and flips
+    // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
+    // hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();
-    // Cyberpunk Valley floor — pulls fresh FLOOR color + Y_OFFSET +
-    // ENABLED. SIZE_MULT is baked at build time and ignored on
-    // refresh; changing it takes effect on the next page load.
-    cityScene.getFloor().refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();

@@ -5,15 +5,13 @@
 //                   this fragment (set by sky.vert.glsl). y in [-1, 1].
 //
 // Layers, composited in order:
-//   1. Vertical color gradient driven by vViewDirWorld.y mapped into
-//      [0, 1] (1=zenith, 0=horizon) and ramped through five color stops.
-//   2. Star field: a hash on a discretised UV picks star presence;
-//      stars above min elevation only; brightness modulated by
-//      sin(uTime * speed * phase + offset) when twinkle is enabled.
-//   3. Moon disk + halo at a world direction supplied as a unit vec3.
-//      Disk center is boosted by uMoonEmissionBoost so the HalfFloatType
-//      EffectComposer target preserves the >1.0 value and the bloom
-//      pass picks it up (see web/scene/postFx.ts).
+//   1. Below dir.y=0: solid uGroundColor fill (lower hemisphere). No
+//      gradient, no stars. Produces a clean horizon line.
+//   2. Above dir.y=0: vertical color gradient mirrored around the
+//      horizon — HORIZON color at the horizon band, TOP color at the
+//      zenith, mid colors interpolating between.
+//   3. Above MIN_ELEVATION_DEG: hashed point-star field with
+//      per-star sine twinkle driven by uTime.
 //
 // All sky output is written directly to gl_FragColor in sRGB-encoded
 // display space — the postFx pipeline's OutputPass + ACES tonemapping
@@ -56,14 +54,12 @@ uniform float uTwinkleAmplitude;  // 0=no twinkle, 1=full on/off
 uniform float uStarMinElevation;  // sin(MIN_ELEVATION_DEG), precomputed JS-side
 uniform float uTime;              // seconds; advanced once per frame
 
-// --- Moon ---
-uniform float uMoonEnabled;
-uniform vec3 uMoonDir;            // unit world direction TOWARD moon center
-uniform float uMoonCosSize;       // cos(SIZE_DEG * 0.5), precomputed JS-side
-uniform vec3 uMoonColor;
-uniform vec3 uMoonHaloColor;
-uniform float uMoonHaloMult;      // halo size multiplier × disk size
-uniform float uMoonEmissionBoost; // >1 pushes moon into HDR for bloom
+// --- Ground (below-horizon solid fill) ---
+uniform vec3 uGroundColor;        // solid fill for dir.y < 0 (the lower
+                                  // hemisphere). Painted directly with no
+                                  // gradient / stars / moon — produces a
+                                  // clean horizon line and removes the
+                                  // need for a separate floor mesh.
 
 // Standard sin-fract pseudo-random — same as building.frag.glsl's hash21.
 // Deterministic per (cell.x, cell.y) so a given sky direction always
@@ -111,22 +107,24 @@ vec2 starUV(vec3 dir) {
 
 void main() {
   // vViewDirWorld is normalized (sky.vert.glsl). y in [-1, 1] where
-  // 1=zenith, -1=nadir. The icosphere covers the full sphere; the
-  // lower hemisphere is also visible while the camera is below the
-  // city's centerline, so we don't clip on y<0.
+  // 1=zenith, -1=nadir. The icosphere covers the full sphere.
   vec3 dir = normalize(vViewDirWorld);
 
-  // ----- Gradient (always present; ENABLED=0 is handled JS-side by
-  // hiding the mesh, but the shader keeps the gradient even when
-  // uGradientEnabled=0 so the disabled state still renders a meaningful
-  // color before the mesh.visible flip propagates). -----
-  // Mirror around the horizon: HORIZON color lands AT the horizon
-  // line (the bright atmosphere glow band of a real sunset), and TOP
-  // lands at the zenith (deep night sky) AND below the horizon
-  // (visible only where the floor plane doesn't cover; later layers
-  // will).
-  //   dir.y = 0 (horizon) → abs = 0 → elev01 = 1 → HORIZON
-  //   dir.y = ±1 (poles)  → abs = 1 → elev01 = 0 → TOP
+  // ----- Lower hemisphere: solid ground fill -----
+  // Below the horizon line we paint uGroundColor directly. No
+  // gradient, no stars, no moon. This is the visual ground — no
+  // separate floor mesh is needed. The hard threshold at dir.y=0
+  // creates a clean horizon line where this solid color meets the
+  // upper-hemisphere gradient's HORIZON stop.
+  if (dir.y < 0.0) {
+    gl_FragColor = vec4(uGroundColor, 1.0);
+    return;
+  }
+
+  // ----- Upper hemisphere -----
+  // Gradient: mirror around the horizon. HORIZON color lands AT the
+  // horizon line (dir.y → 0 → elev01 → 1 → returns HORIZON), TOP lands
+  // at the zenith (dir.y → 1 → abs → 1 → elev01 → 0 → returns TOP).
   float elev01 = 1.0 - clamp(abs(dir.y), 0.0, 1.0);
   vec3 color = sampleGradient(elev01);
 
@@ -140,8 +138,9 @@ void main() {
     vec2 sv = starUV(dir) * 100.0;
     vec2 cell = floor(sv);
     float h = hash21(cell);
-    // hash < DENSITY ⇒ this cell holds a star. Spec phrases DENSITY
-    // as "threshold for star presence" — higher density ⇒ more stars.
+    // hash > 1 - DENSITY ⇒ this cell holds a star. Spec phrases
+    // DENSITY as "threshold for star presence" — higher density ⇒
+    // more stars.
     float present = step(1.0 - uStarDensity, h);
     if (present > 0.5) {
       // Per-star phase: a second hash on the cell shifts when this
@@ -159,29 +158,6 @@ void main() {
       // Stars are white-warm; add to the gradient color rather than
       // mixing so a bright star reads against any background tint.
       color += vec3(starAmt);
-    }
-  }
-
-  // ----- Moon -----
-  if (uMoonEnabled > 0.5) {
-    float dotMoon = dot(dir, uMoonDir);
-    if (dotMoon > 0.0) {
-      // Disk: hard-edged inside the cosine of the half-angular size.
-      float diskMask = smoothstep(uMoonCosSize - 0.0005, uMoonCosSize + 0.0005, dotMoon);
-      // Halo: soft falloff between disk edge and HALO_SIZE_MULT × disk.
-      // Convert "size multiplier" to a cosine threshold by taking the
-      // disk's half-angle (acos(uMoonCosSize)), multiplying by the
-      // halo mult, and re-cosing. cos is monotone-decreasing on [0,π]
-      // so this works for any HALO_SIZE_MULT >= 1.
-      float diskHalfAngle = acos(clamp(uMoonCosSize, -1.0, 1.0));
-      float haloHalfAngle = min(diskHalfAngle * max(uMoonHaloMult, 1.0), 3.14159);
-      float haloCos = cos(haloHalfAngle);
-      float haloMask = smoothstep(haloCos, uMoonCosSize, dotMoon) * (1.0 - diskMask);
-      // Halo color blended over the gradient.
-      color = mix(color, uMoonHaloColor, haloMask * 0.6);
-      // Disk: replace gradient and push past 1.0 for HDR bloom.
-      vec3 diskColor = uMoonColor * uMoonEmissionBoost;
-      color = mix(color, diskColor, diskMask);
     }
   }
 

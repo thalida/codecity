@@ -50,8 +50,6 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { createSky } from './sky/sky.js';
 import type { Sky } from './sky/sky.js';
-import { createFloor } from './floor/floor.js';
-import type { Floor } from './floor/floor.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -253,12 +251,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // through as the fallback.
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
-
-  // Cyberpunk Valley floor — flat dark plane below the city. Persistent
-  // like the sky; not rebuilt per applyManifest. Hidden when FLOOR.ENABLED
-  // is false (sky.background GROUND fallback shows through).
-  const _floor: Floor = createFloor();
-  scene.add(_floor.mesh);
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -935,7 +927,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
-    _floor.dispose();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -971,14 +962,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
      */
     getSky(): Sky {
       return _sky;
-    },
-
-    /**
-     * Cyberpunk Valley floor reference. Exposed so main.ts's applyTheme()
-     * can call floor.refresh() on hot-reload.
-     */
-    getFloor(): Floor {
-      return _floor;
     },
 
     getManifest() {

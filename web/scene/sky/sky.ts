@@ -1,12 +1,13 @@
 // scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
-// scene. The fragment shader writes a vertical color gradient,
-// hashed-star field with sine twinkle, and an HDR-emissive moon
-// disk + halo. Every dial lives in three nanostore configs
-// (SKY_GRADIENT, SKY_STARS, SKY_MOON) and is hot-reloadable via
-// the existing applyTheme() path — sky.refresh() pulls fresh
-// values into uniforms with no rebuild.
+// scene. The fragment shader writes a vertical color gradient on
+// the upper hemisphere with a hashed-star field + sine twinkle,
+// and a solid uGroundColor fill on the lower hemisphere (no
+// separate floor mesh). Every dial lives in two nanostore configs
+// (SKY_GRADIENT, SKY_STARS) and is hot-reloadable via the existing
+// applyTheme() path — sky.refresh() pulls fresh values into
+// uniforms with no rebuild.
 //
 // Lifecycle (matches the other createX factories under web/scene/):
 //
@@ -22,7 +23,7 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { SKY_GRADIENT, SKY_STARS, SKY_MOON } from '@/config/sky.js';
+import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { RENDER_ORDERS } from '@/constants';
 
@@ -52,19 +53,6 @@ export interface Sky {
 }
 
 /**
- * Convert (azimuth, elevation) in degrees into a unit world-space
- * direction. Same convention as LIGHTING / scene/instanced/buildings.ts:
- *   - azimuth 0 = +Z (south); increases clockwise (azimuth 90 = +X / east).
- *   - elevation 0 = horizon; elevation 90 = +Y / overhead.
- */
-function sphericalToDir(out: THREE.Vector3, azDeg: number, elDeg: number): void {
-  const az = (azDeg * Math.PI) / 180;
-  const el = (elDeg * Math.PI) / 180;
-  const cosEl = Math.cos(el);
-  out.set(Math.sin(az) * cosEl, Math.sin(el), Math.cos(az) * cosEl).normalize();
-}
-
-/**
  * setStyle(..., LinearSRGBColorSpace) skips Three's automatic
  * sRGB→linear conversion. The fragment shader runs in display sRGB
  * (same as building.frag.glsl — ShaderMaterial gets no automatic
@@ -86,10 +74,6 @@ export function createSky(): Sky {
 
   const gradient = SKY_GRADIENT.get();
   const stars = SKY_STARS.get();
-  const moon = SKY_MOON.get();
-
-  const uMoonDir = new THREE.Vector3();
-  sphericalToDir(uMoonDir, moon.AZIMUTH_DEG, moon.ELEVATION_DEG);
 
   const material = new THREE.ShaderMaterial({
     vertexShader: skyVertSrc,
@@ -115,6 +99,8 @@ export function createSky(): Sky {
       uStopLowerMid: { value: gradient.STOP_LOWER_MID },
       uStopHorizon: { value: gradient.STOP_HORIZON },
 
+      uGroundColor: { value: new THREE.Color() },
+
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
       uStarDensity: { value: stars.DENSITY },
       uStarBrightness: { value: stars.BRIGHTNESS },
@@ -124,16 +110,6 @@ export function createSky(): Sky {
       uStarMinElevation: {
         value: Math.sin((stars.MIN_ELEVATION_DEG * Math.PI) / 180),
       },
-
-      uMoonEnabled: { value: moon.ENABLED ? 1.0 : 0.0 },
-      uMoonDir: { value: uMoonDir },
-      uMoonCosSize: {
-        value: Math.cos((moon.SIZE_DEG * 0.5 * Math.PI) / 180),
-      },
-      uMoonColor: { value: new THREE.Color() },
-      uMoonHaloColor: { value: new THREE.Color() },
-      uMoonHaloMult: { value: moon.HALO_SIZE_MULT },
-      uMoonEmissionBoost: { value: moon.EMISSION_BOOST },
     },
   });
   setColorFromHex(material.uniforms.uGradientTop.value as THREE.Color, gradient.TOP);
@@ -141,8 +117,7 @@ export function createSky(): Sky {
   setColorFromHex(material.uniforms.uGradientMid.value as THREE.Color, gradient.MID);
   setColorFromHex(material.uniforms.uGradientLowerMid.value as THREE.Color, gradient.LOWER_MID);
   setColorFromHex(material.uniforms.uGradientHorizon.value as THREE.Color, gradient.HORIZON);
-  setColorFromHex(material.uniforms.uMoonColor.value as THREE.Color, moon.COLOR);
-  setColorFromHex(material.uniforms.uMoonHaloColor.value as THREE.Color, moon.HALO_COLOR);
+  setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, gradient.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
   // Renders before everything else — see web/constants/render.ts.
@@ -161,7 +136,6 @@ export function createSky(): Sky {
   function refresh(): void {
     const g = SKY_GRADIENT.get();
     const s = SKY_STARS.get();
-    const m = SKY_MOON.get();
 
     material.uniforms.uGradientEnabled.value = g.ENABLED ? 1.0 : 0.0;
     setColorFromHex(material.uniforms.uGradientTop.value as THREE.Color, g.TOP);
@@ -169,6 +143,7 @@ export function createSky(): Sky {
     setColorFromHex(material.uniforms.uGradientMid.value as THREE.Color, g.MID);
     setColorFromHex(material.uniforms.uGradientLowerMid.value as THREE.Color, g.LOWER_MID);
     setColorFromHex(material.uniforms.uGradientHorizon.value as THREE.Color, g.HORIZON);
+    setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, g.GROUND_COLOR);
     material.uniforms.uStopTop.value = g.STOP_TOP;
     material.uniforms.uStopUpperMid.value = g.STOP_UPPER_MID;
     material.uniforms.uStopMid.value = g.STOP_MID;
@@ -184,14 +159,6 @@ export function createSky(): Sky {
     material.uniforms.uStarMinElevation.value = Math.sin(
       (s.MIN_ELEVATION_DEG * Math.PI) / 180,
     );
-
-    material.uniforms.uMoonEnabled.value = m.ENABLED ? 1.0 : 0.0;
-    sphericalToDir(material.uniforms.uMoonDir.value as THREE.Vector3, m.AZIMUTH_DEG, m.ELEVATION_DEG);
-    material.uniforms.uMoonCosSize.value = Math.cos((m.SIZE_DEG * 0.5 * Math.PI) / 180);
-    setColorFromHex(material.uniforms.uMoonColor.value as THREE.Color, m.COLOR);
-    setColorFromHex(material.uniforms.uMoonHaloColor.value as THREE.Color, m.HALO_COLOR);
-    material.uniforms.uMoonHaloMult.value = m.HALO_SIZE_MULT;
-    material.uniforms.uMoonEmissionBoost.value = m.EMISSION_BOOST;
 
     mesh.visible = g.ENABLED;
   }

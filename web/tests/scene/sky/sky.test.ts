@@ -7,7 +7,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createSky } from '@/scene/sky/sky.js';
-import { SKY_GRADIENT, SKY_STARS, SKY_MOON } from '@/config/sky.js';
+import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
 import { RENDER_ORDERS } from '@/constants';
 
 // Reset stores to defaults between tests so leakage between tests
@@ -15,20 +15,16 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStores() {
   SKY_GRADIENT.set({
     ENABLED: true,
-    TOP: '#020208', UPPER_MID: '#0a0518', MID: '#150830',
-    LOWER_MID: '#26104a', HORIZON: '#3a1860',
+    TOP: '#01010a', UPPER_MID: '#040315', MID: '#080525',
+    LOWER_MID: '#100835', HORIZON: '#1f1050',
+    GROUND_COLOR: '#02020a',
     STOP_TOP: 0.0, STOP_UPPER_MID: 0.35, STOP_MID: 0.55,
     STOP_LOWER_MID: 0.75, STOP_HORIZON: 0.95,
   });
   SKY_STARS.set({
-    ENABLED: true, DENSITY: 0.0008, BRIGHTNESS: 1.2,
+    ENABLED: true, DENSITY: 0.01, BRIGHTNESS: 1.2,
     TWINKLE_ENABLED: true, TWINKLE_SPEED: 0.4,
     TWINKLE_AMPLITUDE: 0.5, MIN_ELEVATION_DEG: 8,
-  });
-  SKY_MOON.set({
-    ENABLED: false, AZIMUTH_DEG: 260, ELEVATION_DEG: 22, SIZE_DEG: 4.5,
-    COLOR: '#ffe6c4', HALO_COLOR: '#ffb86b', HALO_SIZE_MULT: 4.0,
-    EMISSION_BOOST: 1.8,
   });
 }
 
@@ -62,14 +58,23 @@ describe('createSky()', () => {
   it('seeds gradient uniforms from SKY_GRADIENT defaults', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const top = mat.uniforms.uGradientTop.value as THREE.Color;
-    // '#020208' parsed via THREE.Color with LinearSRGBColorSpace
-    // preserves the sRGB byte values: 0x02/255, 0x02/255, 0x08/255.
-    expect(top.r).toBeCloseTo(0x02 / 255);
-    expect(top.g).toBeCloseTo(0x02 / 255);
-    expect(top.b).toBeCloseTo(0x08 / 255);
+    // '#01010a' parsed via THREE.Color with LinearSRGBColorSpace
+    // preserves the sRGB byte values: 0x01/255, 0x01/255, 0x0a/255.
+    expect(top.r).toBeCloseTo(0x01 / 255);
+    expect(top.g).toBeCloseTo(0x01 / 255);
+    expect(top.b).toBeCloseTo(0x0a / 255);
     expect(mat.uniforms.uStopTop.value).toBeCloseTo(0.0);
     expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.95);
     expect(mat.uniforms.uGradientEnabled.value).toBe(1.0);
+  });
+
+  it('seeds uGroundColor from SKY_GRADIENT.GROUND_COLOR', () => {
+    const mat = sky.mesh.material as THREE.ShaderMaterial;
+    const ground = mat.uniforms.uGroundColor.value as THREE.Color;
+    // '#02020a' → 0x02/255, 0x02/255, 0x0a/255
+    expect(ground.r).toBeCloseTo(0x02 / 255);
+    expect(ground.g).toBeCloseTo(0x02 / 255);
+    expect(ground.b).toBeCloseTo(0x0a / 255);
   });
 
   it('precomputes sin(MIN_ELEVATION_DEG) into uStarMinElevation', () => {
@@ -77,35 +82,17 @@ describe('createSky()', () => {
     expect(mat.uniforms.uStarMinElevation.value).toBeCloseTo(Math.sin((8 * Math.PI) / 180));
   });
 
-  it('precomputes cos(SIZE_DEG / 2) into uMoonCosSize', () => {
-    const mat = sky.mesh.material as THREE.ShaderMaterial;
-    expect(mat.uniforms.uMoonCosSize.value).toBeCloseTo(
-      Math.cos((4.5 * 0.5 * Math.PI) / 180),
-    );
-  });
-
-  it('points uMoonDir along the configured (azimuth, elevation)', () => {
-    const mat = sky.mesh.material as THREE.ShaderMaterial;
-    const dir = mat.uniforms.uMoonDir.value as THREE.Vector3;
-    // Same spherical convention as LIGHTING (azimuth 0 = +Z, increases
-    // clockwise; elevation 0 = horizon, 90 = overhead).
-    const az = (260 * Math.PI) / 180;
-    const el = (22 * Math.PI) / 180;
-    expect(dir.x).toBeCloseTo(Math.sin(az) * Math.cos(el));
-    expect(dir.y).toBeCloseTo(Math.sin(el));
-    expect(dir.z).toBeCloseTo(Math.cos(az) * Math.cos(el));
-    // Unit length.
-    expect(dir.length()).toBeCloseTo(1);
-  });
-
   it('refresh() pushes fresh config values into uniforms', () => {
     SKY_STARS.setKey('BRIGHTNESS', 2.7);
-    SKY_MOON.setKey('EMISSION_BOOST', 3.3);
+    SKY_GRADIENT.setKey('GROUND_COLOR', '#abcdef');
     SKY_GRADIENT.setKey('TOP', '#ffffff');
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uStarBrightness.value).toBeCloseTo(2.7);
-    expect(mat.uniforms.uMoonEmissionBoost.value).toBeCloseTo(3.3);
+    const ground = mat.uniforms.uGroundColor.value as THREE.Color;
+    expect(ground.r).toBeCloseTo(0xab / 255);
+    expect(ground.g).toBeCloseTo(0xcd / 255);
+    expect(ground.b).toBeCloseTo(0xef / 255);
     const top = mat.uniforms.uGradientTop.value as THREE.Color;
     expect(top.r).toBeCloseTo(1);
     expect(top.g).toBeCloseTo(1);

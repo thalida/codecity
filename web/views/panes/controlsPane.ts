@@ -53,8 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
-import { SKY_GRADIENT, SKY_STARS, SKY_MOON } from '@/config/sky.js';
-import { FLOOR } from '@/config/floor.js';
+import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -157,7 +156,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
   body.appendChild(_buildSkySection());
-  body.appendChild(_buildFloorSection());
   body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
@@ -400,15 +398,15 @@ function _buildSceneSection(): HTMLElement {
 }
 
 // ─── Sky (Cyberpunk Valley) ────────────────────────────────────────────────
-// Procedural sky: vertical gradient, hashed star field with sine twinkle,
-// and an HDR-emissive moon disk + halo. Every dial is hot-reloadable (no
-// rebuild); SKY_GRADIENT.ENABLED is the master toggle — when off the
-// inverted icosphere is hidden and the existing scene.background
-// (SCENE_COLORS.GROUND) fallback paints the void.
+// Procedural sky: vertical gradient (upper hemisphere) + solid ground
+// fill (lower hemisphere) + hashed star field with sine twinkle. Every
+// dial is hot-reloadable (no rebuild); SKY_GRADIENT.ENABLED is the
+// master toggle — when off the inverted icosphere is hidden and the
+// existing scene.background (SCENE_COLORS.GROUND) fallback paints the void.
 function _buildSkySection(): HTMLElement {
   const section = _section(
     'Sky',
-    'Procedural cyberpunk sky: gradient, stars, twinkle, and moon. Star twinkle is the only animation.',
+    'Procedural cyberpunk sky: gradient, stars, and twinkle. Star twinkle is the only animation.',
   );
 
   section.appendChild(
@@ -430,6 +428,9 @@ function _buildSkySection(): HTMLElement {
       }),
       _color('Horizon', SKY_GRADIENT, 'HORIZON', {
         tip: 'Color at the horizon stop (warm peach by default).',
+      }),
+      _color('Ground (below horizon)', SKY_GRADIENT, 'GROUND_COLOR', {
+        tip: 'Solid color painted across the entire lower hemisphere (below dir.y=0). Replaces the old floor mesh; produces a clean horizon line at the seam.',
       }),
       _slider('Stop: top', SKY_GRADIENT, 'STOP_TOP', 0, 1, 0.01, {
         tip: 'Elevation fraction (0=horizon, 1=zenith) where the Top color sits.',
@@ -471,65 +472,6 @@ function _buildSkySection(): HTMLElement {
       }),
       _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
         tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
-    _subgroup('Moon', [
-      _toggle('Enabled', SKY_MOON, 'ENABLED', {
-        tip: 'When off, no moon disk or halo is drawn.',
-      }),
-      _slider('Azimuth (°)', SKY_MOON, 'AZIMUTH_DEG', 0, 360, 1, {
-        tip: 'Compass bearing of the moon. 0° = +Z (south), increases clockwise.',
-      }),
-      _slider('Elevation (°)', SKY_MOON, 'ELEVATION_DEG', 0, 90, 1, {
-        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
-      }),
-      _slider('Disk size (°)', SKY_MOON, 'SIZE_DEG', 0.5, 30, 0.1, {
-        tip: 'Angular diameter of the moon disk in degrees. Beyond ~10° the disk dominates the upper sky.',
-      }),
-      _color('Color', SKY_MOON, 'COLOR', {
-        tip: 'Color of the moon disk (warm cream by default).',
-      }),
-      _color('Halo color', SKY_MOON, 'HALO_COLOR', {
-        tip: 'Color of the soft glow halo around the disk.',
-      }),
-      _slider('Halo size ×', SKY_MOON, 'HALO_SIZE_MULT', 1, 10, 0.1, {
-        tip: 'Halo angular size as a multiple of the disk size.',
-      }),
-      _slider('Emission boost', SKY_MOON, 'EMISSION_BOOST', 0, 5, 0.05, {
-        tip: 'Multiplier on the disk color. Above 1.0 the disk pushes past 1.0 in the HDR target and blooms via the post-FX pipeline.',
-      }),
-    ]),
-  );
-
-  return section;
-}
-
-// ─── Floor (Cyberpunk Valley) ─────────────────────────────────────────────
-// Flat dark plane below the city. Grounds the scene visually and gives
-// the sky sphere a clean edge. Every dial is hot-reloadable (no rebuild);
-// FLOOR.ENABLED is the master toggle.
-function _buildFloorSection(): HTMLElement {
-  const section = _section(
-    'Floor',
-    'Flat ground plane below the city. Grounds the scene and gives the sky a clean edge.',
-  );
-
-  section.appendChild(
-    _subgroup('Floor', [
-      _toggle('Enabled', FLOOR, 'ENABLED', {
-        tip: 'Master toggle. When off the floor mesh is hidden and the scene.background GROUND color shows through.',
-      }),
-      _color('Color', FLOOR, 'COLOR', {
-        tip: 'Flat fill color. Near-black with a faint purple hint by default so it reads as adjacent-but-distinct from the dark sky horizon.',
-      }),
-      _slider('Y offset', FLOOR, 'Y_OFFSET', -10, 10, 0.1, {
-        tip: 'Vertical position (world units). Slightly negative by default so the floor sits just under the city ground plane and any coplanar z-fighting goes to the floor.',
-      }),
-      _slider('Size × FAR', FLOOR, 'SIZE_MULT', 0.1, 1.0, 0.05, {
-        tip: 'Edge length as a multiplier of camera FAR. Baked at construction — slider only takes effect on the next page load. Keep < 0.95 so the floor stays inside the sky sphere.',
       }),
     ]),
   );

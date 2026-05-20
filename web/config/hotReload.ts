@@ -41,12 +41,9 @@ import {
   // Mixed (subscribed to BOTH lists — see below):
   FACADE_GEOMETRY,
 
-  // Cyberpunk Valley — sky (all three are uniform-only, no rebuild):
+  // Cyberpunk Valley — sky (uniform-only, no rebuild):
   SKY_GRADIENT,
   SKY_STARS,
-  SKY_MOON,
-  // Cyberpunk Valley — floor (color + position + enabled, no rebuild):
-  FLOOR,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -193,13 +190,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // SKY_* — pure uniform refreshes via sky.refresh() inside applyTheme().
     // No rebuild path; the sky is a single mesh whose shader uniforms are
     // mutated in place. Master ENABLED toggle on SKY_GRADIENT flips
-    // mesh.visible (also handled by sky.refresh()).
+    // mesh.visible (also handled by sky.refresh()). Includes the new
+    // GROUND_COLOR uniform for the below-horizon solid fill.
     SKY_GRADIENT,
     SKY_STARS,
-    SKY_MOON,
-    // FLOOR — material color + transform, no rebuild. Master ENABLED
-    // toggle flips mesh.visible (also handled by floor.refresh()).
-    FLOOR,
   ];
 
   const unsubs: Array<() => void> = [];

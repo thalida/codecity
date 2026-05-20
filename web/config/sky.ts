@@ -1,20 +1,22 @@
-// config/sky.ts — Cyberpunk Valley sky configuration. Three nanostore
+// config/sky.ts — Cyberpunk Valley sky configuration. Two nanostore
 // map()s drive the procedural sky shader's uniforms via the
 // hot-reloadable `applyTheme()` path. Every key is live-editable
-// from the Controls panel; no rebuild is ever required for sky tweaks.
+// from the Controls panel; no rebuild is ever required.
 //
-//   SKY_GRADIENT — five-stop vertical color ramp + master ENABLED toggle.
+//   SKY_GRADIENT — five-stop vertical color ramp + master ENABLED toggle
+//                  + the solid GROUND_COLOR painted across the entire
+//                  lower hemisphere (below the horizon line). The
+//                  shader mirrors the gradient around the horizon for
+//                  the upper hemisphere only; below dir.y=0 the shader
+//                  returns GROUND_COLOR directly, producing a clean
+//                  seamless horizon line with no separate floor mesh.
 //                  When ENABLED is false the sphere is hidden and the
 //                  existing scene.background = SCENE_COLORS.GROUND
 //                  fallback paints the void.
 //   SKY_STARS    — hashed point-star field above MIN_ELEVATION_DEG.
-//                  DENSITY is the per-cell hash threshold (higher density
-//                  ⇒ MORE stars). TWINKLE_* drives the only animation
-//                  in the whole Cyberpunk Valley feature.
-//   SKY_MOON     — single warm moon disk + glow halo at a fixed world
-//                  direction. EMISSION_BOOST > 1 makes the disk center
-//                  push past 1.0 in the HDR target so it blooms via
-//                  postFx.ts.
+//                  DENSITY is the per-cell hash threshold (higher
+//                  density ⇒ MORE stars). TWINKLE_* drives the only
+//                  animation in the whole Cyberpunk Valley feature.
 
 import { map } from 'nanostores';
 
@@ -25,6 +27,7 @@ export interface SkyGradientConfig {
   MID: string;
   LOWER_MID: string;
   HORIZON: string;
+  GROUND_COLOR: string;
   STOP_TOP: number;
   STOP_UPPER_MID: number;
   STOP_MID: number;
@@ -34,18 +37,20 @@ export interface SkyGradientConfig {
 
 export const SKY_GRADIENT = map<SkyGradientConfig>({
   ENABLED: true,
-  // Cyberpunk night palette: near-black at the zenith, deepening
-  // through midnight purples to a subtle magenta city-glow at the
-  // horizon line. The shader mirrors this gradient around the
-  // horizon (elev01 = 1 - abs(dir.y)), so TOP renders at the zenith
-  // AND below the horizon (where the floor plane covers it), and
-  // HORIZON renders in the bright atmosphere-glow band right at the
-  // horizon line.
-  TOP: '#020208',        // near-black zenith
-  UPPER_MID: '#0a0518',  // deep purple-black
-  MID: '#150830',        // dark midnight purple
-  LOWER_MID: '#26104a',  // medium midnight purple
-  HORIZON: '#3a1860',    // subtle cyberpunk magenta glow at the horizon
+  // Cyberpunk deep-night palette: near-pure-black across most of the
+  // dome, only the tiniest hint of midnight purple anywhere — so the
+  // city's own neon windows stay the only bright thing in the scene.
+  // The shader maps this with elev01 = 1 - abs(dir.y), so TOP renders
+  // at the zenith and HORIZON at the horizon band. Below the horizon
+  // (dir.y < 0), the shader returns GROUND_COLOR directly — a solid
+  // fill that produces a clean horizon line and removes the need for
+  // a separate floor mesh.
+  TOP: '#01010a',         // near-black at zenith
+  UPPER_MID: '#040315',   // deep midnight black
+  MID: '#080525',         // very dark indigo
+  LOWER_MID: '#100835',   // dark cyberpunk-purple
+  HORIZON: '#1f1050',     // subtle horizon-line glow
+  GROUND_COLOR: '#02020a', // below-horizon solid fill (seamless with TOP)
   STOP_TOP: 0.0,
   STOP_UPPER_MID: 0.35,
   STOP_MID: 0.55,
@@ -65,32 +70,13 @@ export interface SkyStarsConfig {
 
 export const SKY_STARS = map<SkyStarsConfig>({
   ENABLED: true,
-  DENSITY: 0.0008,
+  // Bumped from 0.0008 to 0.01 — at 0.0008 only ~70 stars rendered
+  // across the entire upper hemisphere and most were off-frame; at
+  // 0.01 the dome has ~900 stars scattered uniformly.
+  DENSITY: 0.01,
   BRIGHTNESS: 1.2,
   TWINKLE_ENABLED: true,
   TWINKLE_SPEED: 0.4,
   TWINKLE_AMPLITUDE: 0.5,
   MIN_ELEVATION_DEG: 8,
-});
-
-export interface SkyMoonConfig {
-  ENABLED: boolean;
-  AZIMUTH_DEG: number;
-  ELEVATION_DEG: number;
-  SIZE_DEG: number;
-  COLOR: string;
-  HALO_COLOR: string;
-  HALO_SIZE_MULT: number;
-  EMISSION_BOOST: number;
-}
-
-export const SKY_MOON = map<SkyMoonConfig>({
-  ENABLED: false, // off by default — user can toggle on from Controls panel
-  AZIMUTH_DEG: 260,
-  ELEVATION_DEG: 22,
-  SIZE_DEG: 4.5,
-  COLOR: '#ffe6c4',
-  HALO_COLOR: '#ffb86b',
-  HALO_SIZE_MULT: 4.0,
-  EMISSION_BOOST: 1.8,
 });
