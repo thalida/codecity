@@ -42,7 +42,7 @@ import {
   FACADE_GEOMETRY,
 
   // Cyberpunk Valley — sky (uniform-only, no rebuild):
-  SKY_GRADIENT,
+  SKY,
   SKY_STARS,
 } from './index.js';
 
@@ -189,10 +189,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     WINDOW_LIGHTING,
     // SKY_* — pure uniform refreshes via sky.refresh() inside applyTheme().
     // No rebuild path; the sky is a single mesh whose shader uniforms are
-    // mutated in place. Master ENABLED toggle on SKY_GRADIENT flips
-    // mesh.visible (also handled by sky.refresh()). Includes the new
-    // GROUND_COLOR uniform for the below-horizon solid fill.
-    SKY_GRADIENT,
+    // mutated in place. Master ENABLED toggle on SKY flips mesh.visible
+    // (also handled by sky.refresh()).
+    SKY,
     SKY_STARS,
   ];
 

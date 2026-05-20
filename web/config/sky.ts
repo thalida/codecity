@@ -1,61 +1,30 @@
 // config/sky.ts — Cyberpunk Valley sky configuration. Two nanostore
 // map()s drive the procedural sky shader's uniforms via the
-// hot-reloadable `applyTheme()` path. Every key is live-editable
-// from the Controls panel; no rebuild is ever required.
+// hot-reloadable `applyTheme()` path.
 //
-//   SKY_GRADIENT — five-stop vertical color ramp + master ENABLED toggle
-//                  + the solid GROUND_COLOR painted across the entire
-//                  lower hemisphere (below the horizon line). The
-//                  shader mirrors the gradient around the horizon for
-//                  the upper hemisphere only; below dir.y=0 the shader
-//                  returns GROUND_COLOR directly, producing a clean
-//                  seamless horizon line with no separate floor mesh.
-//                  When ENABLED is false the sphere is hidden and the
-//                  existing scene.background = SCENE_COLORS.GROUND
-//                  fallback paints the void.
-//   SKY_STARS    — hashed point-star field above MIN_ELEVATION_DEG.
-//                  DENSITY is the per-cell hash threshold (higher
-//                  density ⇒ MORE stars). TWINKLE_* drives the only
-//                  animation in the whole Cyberpunk Valley feature.
+//   SKY       — flat two-color backdrop. COLOR fills the entire upper
+//                hemisphere (dir.y >= 0); GROUND_COLOR fills the lower
+//                hemisphere. The seam at dir.y=0 is a clean horizon line.
+//                When ENABLED is false the icosphere is hidden entirely
+//                and the existing scene.background = SCENE_COLORS.GROUND
+//                fallback paints the void.
+//   SKY_STARS — hashed point-star field above MIN_ELEVATION_DEG, only
+//                drawn against the upper-hemisphere SKY.COLOR. The
+//                shader gates stars by dir.y > uStarMinElevation, so
+//                they never appear in the ground hemisphere.
 
 import { map } from 'nanostores';
 
-export interface SkyGradientConfig {
+export interface SkyConfig {
   ENABLED: boolean;
-  TOP: string;
-  UPPER_MID: string;
-  MID: string;
-  LOWER_MID: string;
-  HORIZON: string;
+  COLOR: string;
   GROUND_COLOR: string;
-  STOP_TOP: number;
-  STOP_UPPER_MID: number;
-  STOP_MID: number;
-  STOP_LOWER_MID: number;
-  STOP_HORIZON: number;
 }
 
-export const SKY_GRADIENT = map<SkyGradientConfig>({
+export const SKY = map<SkyConfig>({
   ENABLED: true,
-  // Cyberpunk moody-night palette — truly dark across the dome. Only
-  // the city's own neon windows should glow noticeably; the sky is a
-  // near-pure-black backdrop with the faintest purple breath of
-  // atmosphere right at the horizon line. The shader maps this with
-  // elev01 = 1 - abs(dir.y), so TOP renders at the zenith and HORIZON
-  // at the horizon band. Below the horizon (dir.y < 0), the shader
-  // returns GROUND_COLOR directly — a solid fill that produces a
-  // clean horizon line and removes the need for a separate floor mesh.
-  TOP: '#000000',          // pure black at the zenith
-  UPPER_MID: '#000000',    // pure black
-  MID: '#000001',          // single-bit blue hint at mid elevation
-  LOWER_MID: '#000003',    // barely-perceptible indigo
-  HORIZON: '#000008',      // faintest hint of indigo right at the horizon
-  GROUND_COLOR: '#000000', // below-horizon fill (matches TOP)
-  STOP_TOP: 0.0,
-  STOP_UPPER_MID: 0.35,
-  STOP_MID: 0.55,
-  STOP_LOWER_MID: 0.75,
-  STOP_HORIZON: 0.95,
+  COLOR: '#000000',         // upper hemisphere (above dir.y=0)
+  GROUND_COLOR: '#000000',  // lower hemisphere (below dir.y=0)
 });
 
 export interface SkyStarsConfig {

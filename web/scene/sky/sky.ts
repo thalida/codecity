@@ -1,11 +1,10 @@
 // scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
-// scene. The fragment shader writes a vertical color gradient on
-// the upper hemisphere with a hashed-star field + sine twinkle,
-// and a solid uGroundColor fill on the lower hemisphere (no
-// separate floor mesh). Every dial lives in two nanostore configs
-// (SKY_GRADIENT, SKY_STARS) and is hot-reloadable via the existing
+// scene. The fragment shader writes a flat two-color sky (uSkyColor
+// above the horizon, uGroundColor below) plus a hashed star field
+// with sine twinkle. Every dial lives in two nanostore configs
+// (SKY, SKY_STARS) and is hot-reloadable via the existing
 // applyTheme() path — sky.refresh() pulls fresh values into
 // uniforms with no rebuild.
 //
@@ -23,7 +22,7 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
+import { SKY, SKY_STARS } from '@/config/sky.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { RENDER_ORDERS } from '@/constants';
 
@@ -72,7 +71,7 @@ export function createSky(): Sky {
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
-  const gradient = SKY_GRADIENT.get();
+  const sky = SKY.get();
   const stars = SKY_STARS.get();
 
   const material = new THREE.ShaderMaterial({
@@ -80,25 +79,10 @@ export function createSky(): Sky {
     fragmentShader: skyFragSrc,
     side: THREE.BackSide,
     depthWrite: false,
-    // depthTest stays on (default true) so the sphere doesn't paint
-    // over closer geometry on the rare frame where renderOrder
-    // sorting hiccups; with depthWrite:false and a renderOrder of
-    // -1000 the sphere is reliably the first thing drawn.
     uniforms: {
       uTime: { value: 0 },
 
-      uGradientEnabled: { value: gradient.ENABLED ? 1.0 : 0.0 },
-      uGradientTop: { value: new THREE.Color() },
-      uGradientUpperMid: { value: new THREE.Color() },
-      uGradientMid: { value: new THREE.Color() },
-      uGradientLowerMid: { value: new THREE.Color() },
-      uGradientHorizon: { value: new THREE.Color() },
-      uStopTop: { value: gradient.STOP_TOP },
-      uStopUpperMid: { value: gradient.STOP_UPPER_MID },
-      uStopMid: { value: gradient.STOP_MID },
-      uStopLowerMid: { value: gradient.STOP_LOWER_MID },
-      uStopHorizon: { value: gradient.STOP_HORIZON },
-
+      uSkyColor: { value: new THREE.Color() },
       uGroundColor: { value: new THREE.Color() },
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
@@ -113,43 +97,21 @@ export function createSky(): Sky {
       },
     },
   });
-  setColorFromHex(material.uniforms.uGradientTop.value as THREE.Color, gradient.TOP);
-  setColorFromHex(material.uniforms.uGradientUpperMid.value as THREE.Color, gradient.UPPER_MID);
-  setColorFromHex(material.uniforms.uGradientMid.value as THREE.Color, gradient.MID);
-  setColorFromHex(material.uniforms.uGradientLowerMid.value as THREE.Color, gradient.LOWER_MID);
-  setColorFromHex(material.uniforms.uGradientHorizon.value as THREE.Color, gradient.HORIZON);
-  setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, gradient.GROUND_COLOR);
+  setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
+  setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, sky.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
-  // Renders before everything else — see web/constants/render.ts.
   mesh.renderOrder = RENDER_ORDERS.SKY;
-  // Sky frustum-culling would only ever yield true (the sphere covers
-  // the whole view from inside), so the per-frame bounding-sphere
-  // check is wasted work.
   mesh.frustumCulled = false;
-  // The sphere is not moveable / interactable. Marked so picker / hit
-  // tests can skip it without a structural check.
   mesh.userData.cyberpunkValley = 'sky';
-  // Initial visibility tracks the master toggle. refresh() keeps
-  // this in sync.
-  mesh.visible = gradient.ENABLED;
+  mesh.visible = sky.ENABLED;
 
   function refresh(): void {
-    const g = SKY_GRADIENT.get();
+    const k = SKY.get();
     const s = SKY_STARS.get();
 
-    material.uniforms.uGradientEnabled.value = g.ENABLED ? 1.0 : 0.0;
-    setColorFromHex(material.uniforms.uGradientTop.value as THREE.Color, g.TOP);
-    setColorFromHex(material.uniforms.uGradientUpperMid.value as THREE.Color, g.UPPER_MID);
-    setColorFromHex(material.uniforms.uGradientMid.value as THREE.Color, g.MID);
-    setColorFromHex(material.uniforms.uGradientLowerMid.value as THREE.Color, g.LOWER_MID);
-    setColorFromHex(material.uniforms.uGradientHorizon.value as THREE.Color, g.HORIZON);
-    setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, g.GROUND_COLOR);
-    material.uniforms.uStopTop.value = g.STOP_TOP;
-    material.uniforms.uStopUpperMid.value = g.STOP_UPPER_MID;
-    material.uniforms.uStopMid.value = g.STOP_MID;
-    material.uniforms.uStopLowerMid.value = g.STOP_LOWER_MID;
-    material.uniforms.uStopHorizon.value = g.STOP_HORIZON;
+    setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
+    setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, k.GROUND_COLOR);
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;
@@ -162,7 +124,7 @@ export function createSky(): Sky {
       (s.MIN_ELEVATION_DEG * Math.PI) / 180,
     );
 
-    mesh.visible = g.ENABLED;
+    mesh.visible = k.ENABLED;
   }
 
   function tick(dtSeconds: number): void {

@@ -1,26 +1,17 @@
-// skyConfig.test.ts — verifies the SKY_GRADIENT / SKY_STARS nanostores
-// expose the keys + default values documented in the spec. These
-// defaults are the contract between the shader uniforms (sky.ts) and
-// the Controls panel UI; a typo here breaks both sides silently.
+// skyConfig.test.ts — verifies the SKY / SKY_STARS nanostores expose
+// the keys + default values documented in the spec. These defaults are
+// the contract between the shader uniforms (sky.ts) and the Controls
+// panel UI; a typo here breaks both sides silently.
 
 import { describe, it, expect } from 'vitest';
-import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
+import { SKY, SKY_STARS } from '@/config/sky.js';
 
-describe('SKY_GRADIENT', () => {
+describe('SKY', () => {
   it('has the expected keys + defaults', () => {
-    const v = SKY_GRADIENT.get();
+    const v = SKY.get();
     expect(v.ENABLED).toBe(true);
-    expect(v.TOP).toBe('#000000');
-    expect(v.UPPER_MID).toBe('#000000');
-    expect(v.MID).toBe('#000001');
-    expect(v.LOWER_MID).toBe('#000003');
-    expect(v.HORIZON).toBe('#000008');
+    expect(v.COLOR).toBe('#000000');
     expect(v.GROUND_COLOR).toBe('#000000');
-    expect(v.STOP_TOP).toBe(0.0);
-    expect(v.STOP_UPPER_MID).toBe(0.35);
-    expect(v.STOP_MID).toBe(0.55);
-    expect(v.STOP_LOWER_MID).toBe(0.75);
-    expect(v.STOP_HORIZON).toBe(0.95);
   });
 });
 

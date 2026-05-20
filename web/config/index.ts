@@ -34,4 +34,4 @@ export * from './live.js'; // live-update polling toggle + interval
 export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
 export * from './lod.js'; // per-block LOD swap thresholds
 export * from './syntaxTheme.js'; // syntax highlight theme picker
-export * from './sky.js'; // Cyberpunk Valley: procedural sky gradient + stars
+export * from './sky.js'; // Cyberpunk Valley: flat two-color sky + stars

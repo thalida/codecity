@@ -250,8 +250,8 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
-    // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (gradient
-    // colors, ground color, star density, twinkle params) and flips
+    // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
+    // ground color, star density, twinkle params) and flips
     // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
     // hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();

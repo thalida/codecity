@@ -16,9 +16,6 @@ describe('sky.vert.glsl', () => {
 
   it('passes world-space view direction to the fragment via vViewDirWorld', () => {
     expect(src).toMatch(/varying\s+vec3\s+vViewDirWorld/);
-    // The vertex's local position on a unit icosphere IS the outward
-    // normal direction; assigning it (or its normalized form) to the
-    // varying gives the fragment the world-space view vector for free.
     expect(src).toMatch(/vViewDirWorld\s*=\s*normalize\(\s*position\s*\)/);
   });
 
@@ -36,16 +33,9 @@ describe('sky.frag.glsl', () => {
     expect(src).toMatch(/varying\s+vec3\s+vViewDirWorld/);
   });
 
-  it('declares the gradient uniforms (5 colors + 5 stops + enabled)', () => {
-    for (const u of [
-      'uGradientEnabled',
-      'uGradientTop', 'uGradientUpperMid', 'uGradientMid',
-      'uGradientLowerMid', 'uGradientHorizon',
-      'uStopTop', 'uStopUpperMid', 'uStopMid',
-      'uStopLowerMid', 'uStopHorizon',
-    ]) {
-      expect(src).toContain(u);
-    }
+  it('declares uSkyColor and uGroundColor for the two-hemisphere fill', () => {
+    expect(src).toContain('uSkyColor');
+    expect(src).toContain('uGroundColor');
   });
 
   it('declares the star uniforms + the time uniform driving twinkle', () => {
@@ -59,26 +49,11 @@ describe('sky.frag.glsl', () => {
     }
   });
 
-  it('renders stars as circular sub-cell dots (smoothstep on distance)', () => {
-    // Confirms the shader computes a per-cell radial falloff rather than
-    // painting the whole cell — distance from a star center compared
-    // against uStarSize via smoothstep.
-    expect(src).toContain('float r = max(uStarSize');
-    expect(src).toMatch(/smoothstep\s*\([^)]*distToCenter/);
-  });
-
-  it('declares the uGroundColor uniform for the below-horizon fill', () => {
-    expect(src).toContain('uGroundColor');
-  });
-
   it('renders dir.y < 0 as the solid ground fill (early return)', () => {
-    // Must gate the lower hemisphere to skip gradient + stars and just
-    // write the ground color.
     expect(src).toMatch(/if\s*\(\s*dir\.y\s*<\s*0/);
   });
 
-  it('uses a hash to scatter stars (so they are deterministic per direction)', () => {
-    // Same standard sin-fract pseudo-random as building.frag.glsl.
+  it('uses a hash to scatter stars (deterministic per direction)', () => {
     expect(src).toMatch(/sin\(\s*dot\([^)]*,\s*vec2\s*\(\s*12\.9898/);
   });
 
@@ -86,8 +61,11 @@ describe('sky.frag.glsl', () => {
     expect(src).toMatch(/sin\(\s*uTime\s*\*/);
   });
 
-  it('gates stars below the configured horizon angle', () => {
-    expect(src).toContain('uStarMinElevation');
+  it('renders stars as circular sub-cell dots (smoothstep on distance)', () => {
+    // Star radius is captured as `r = max(uStarSize, 1e-4)` and then
+    // fed to smoothstep against distToCenter.
+    expect(src).toContain('float r = max(uStarSize');
+    expect(src).toMatch(/smoothstep\s*\([^)]*distToCenter/);
   });
 
   it('writes a single gl_FragColor', () => {

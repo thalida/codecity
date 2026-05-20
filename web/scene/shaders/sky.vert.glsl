@@ -8,7 +8,7 @@
 //
 // We pass it to the fragment as a world-space varying — the sky mesh
 // is never rotated, so its local axes equal world axes; no normalMatrix
-// transform is necessary. This keeps the gradient + star + ground
+// transform is necessary. This keeps the sky + star + ground
 // math in the fragment trivial and independent of the camera (the camera
 // moves inside the sphere; the fragment direction stays anchored to
 // the world).

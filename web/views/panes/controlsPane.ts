@@ -53,7 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
-import { SKY_GRADIENT, SKY_STARS } from '@/config/sky.js';
+import { SKY, SKY_STARS } from '@/config/sky.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -398,54 +398,27 @@ function _buildSceneSection(): HTMLElement {
 }
 
 // ─── Sky (Cyberpunk Valley) ────────────────────────────────────────────────
-// Procedural sky: vertical gradient (upper hemisphere) + solid ground
-// fill (lower hemisphere) + hashed star field with sine twinkle. Every
-// dial is hot-reloadable (no rebuild); SKY_GRADIENT.ENABLED is the
-// master toggle — when off the inverted icosphere is hidden and the
-// existing scene.background (SCENE_COLORS.GROUND) fallback paints the void.
+// Flat two-color sky (upper-hemisphere sky color, lower-hemisphere ground
+// color) + hashed star field with sine twinkle. Every dial is
+// hot-reloadable (no rebuild); SKY.ENABLED is the master toggle — when off
+// the inverted icosphere is hidden and the existing scene.background
+// (SCENE_COLORS.GROUND) fallback paints the void.
 function _buildSkySection(): HTMLElement {
   const section = _section(
     'Sky',
-    'Procedural cyberpunk sky: gradient, stars, and twinkle. Star twinkle is the only animation.',
+    'Procedural cyberpunk sky: flat two-color sky, stars, and twinkle. Star twinkle is the only animation.',
   );
 
   section.appendChild(
-    _subgroup('Gradient', [
-      _toggle('Enabled', SKY_GRADIENT, 'ENABLED', {
+    _subgroup('Sky', [
+      _toggle('Enabled', SKY, 'ENABLED', {
         tip: 'Master toggle. When off the sky sphere is hidden and the flat scene.background GROUND color paints the void.',
       }),
-      _color('Top (zenith)', SKY_GRADIENT, 'TOP', {
-        tip: 'Color at the very top of the sky dome.',
+      _color('Sky color', SKY, 'COLOR', {
+        tip: 'Solid color painted across the upper hemisphere (above the horizon line). Stars are added on top.',
       }),
-      _color('Upper-mid', SKY_GRADIENT, 'UPPER_MID', {
-        tip: 'Color at the upper-middle stop.',
-      }),
-      _color('Mid', SKY_GRADIENT, 'MID', {
-        tip: 'Color at the middle stop.',
-      }),
-      _color('Lower-mid', SKY_GRADIENT, 'LOWER_MID', {
-        tip: 'Color at the lower-middle stop.',
-      }),
-      _color('Horizon', SKY_GRADIENT, 'HORIZON', {
-        tip: 'Color at the horizon stop (warm peach by default).',
-      }),
-      _color('Ground (below horizon)', SKY_GRADIENT, 'GROUND_COLOR', {
-        tip: 'Solid color painted across the entire lower hemisphere (below dir.y=0). Replaces the old floor mesh; produces a clean horizon line at the seam.',
-      }),
-      _slider('Stop: top', SKY_GRADIENT, 'STOP_TOP', 0, 1, 0.01, {
-        tip: 'Elevation fraction (0=horizon, 1=zenith) where the Top color sits.',
-      }),
-      _slider('Stop: upper-mid', SKY_GRADIENT, 'STOP_UPPER_MID', 0, 1, 0.01, {
-        tip: 'Elevation fraction where the Upper-mid color sits.',
-      }),
-      _slider('Stop: mid', SKY_GRADIENT, 'STOP_MID', 0, 1, 0.01, {
-        tip: 'Elevation fraction where the Mid color sits.',
-      }),
-      _slider('Stop: lower-mid', SKY_GRADIENT, 'STOP_LOWER_MID', 0, 1, 0.01, {
-        tip: 'Elevation fraction where the Lower-mid color sits.',
-      }),
-      _slider('Stop: horizon', SKY_GRADIENT, 'STOP_HORIZON', 0, 1, 0.01, {
-        tip: 'Elevation fraction where the Horizon color sits.',
+      _color('Ground color', SKY, 'GROUND_COLOR', {
+        tip: 'Solid color painted across the lower hemisphere (below the horizon line). No stars. Produces a clean horizon seam with the sky color.',
       }),
     ]),
   );
@@ -462,7 +435,7 @@ function _buildSkySection(): HTMLElement {
         tip: 'Star spot radius as a fraction of the cell. 0.15 default. Larger = chunkier stars; smaller = sharper pinpoints (may sub-pixel at distance).',
       }),
       _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
-        tip: 'Per-star intensity added on top of the gradient color. Above ~2.0 stars push into HDR and bloom.',
+        tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
       }),
       _slider('Min elevation (°)', SKY_STARS, 'MIN_ELEVATION_DEG', 0, 90, 1, {
         tip: 'Stars are only rendered above this angle from the horizon. 8° keeps them out of the warm horizon band.',

@@ -246,7 +246,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the cityScene. Not rebuilt per applyManifest
   // (the sky is wallpaper, independent of the manifest tree). When
-  // SKY_GRADIENT.ENABLED is false the mesh.visible flag is cleared
+  // SKY.ENABLED is false the mesh.visible flag is cleared
   // by sky.refresh() and scene.background's GROUND color shows
   // through as the fallback.
   const _sky: Sky = createSky();
