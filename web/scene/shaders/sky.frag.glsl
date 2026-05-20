@@ -7,8 +7,11 @@
 // Layers, composited in order:
 //   1. Below dir.y=0: solid uGroundColor fill (lower hemisphere). No
 //      stars. Produces a clean horizon line where it meets the
-//      upper-hemisphere uSkyColor.
-//   2. Above dir.y=0: solid uSkyColor fill (upper hemisphere).
+//      upper-hemisphere fill.
+//   2. Above dir.y=0:
+//        - Within dir.y < uHorizonHeight: smooth fade from uHorizonColor
+//          (at the horizon line) up to uSkyColor (at the top of the band).
+//        - Above the band: solid uSkyColor.
 //   3. Above MIN_ELEVATION_DEG: hashed point-star field with
 //      per-star sine twinkle driven by uTime. Rendered as small
 //      circular sub-cell dots with anti-aliased edges.
@@ -28,9 +31,16 @@
 varying vec3 vViewDirWorld;
 
 // --- Sky (upper hemisphere fill) ---
-uniform vec3 uSkyColor;           // solid fill for dir.y >= 0 (upper
-                                  // hemisphere). Stars are drawn on top
-                                  // when present.
+uniform vec3 uSkyColor;           // solid fill for the upper hemisphere
+                                  // above uHorizonHeight. Stars are
+                                  // drawn on top when present.
+uniform vec3 uHorizonColor;       // soft atmosphere glow at the horizon
+                                  // line. Fades to uSkyColor over the
+                                  // band 0 <= dir.y <= uHorizonHeight
+                                  // via smoothstep.
+uniform float uHorizonHeight;     // fraction of the upper hemisphere
+                                  // occupied by the horizon glow band
+                                  // (0..1). 0 disables the band.
 
 // --- Ground (lower hemisphere fill) ---
 uniform vec3 uGroundColor;        // solid fill for dir.y < 0 (lower
@@ -74,8 +84,15 @@ void main() {
     return;
   }
 
-  // ----- Upper hemisphere: flat sky color -----
+  // ----- Upper hemisphere: sky color + horizon glow band -----
   vec3 color = uSkyColor;
+  if (uHorizonHeight > 0.0 && dir.y < uHorizonHeight) {
+    // Smooth fade from uHorizonColor at dir.y=0 to uSkyColor at
+    // dir.y=uHorizonHeight. smoothstep gives an eased falloff so the
+    // glow blends in without a hard inner edge.
+    float t = smoothstep(0.0, 1.0, dir.y / max(uHorizonHeight, 1e-4));
+    color = mix(uHorizonColor, uSkyColor, t);
+  }
 
   // ----- Stars (only above MIN_ELEVATION_DEG) -----
   if (uStarsEnabled > 0.5 && dir.y > uStarMinElevation) {

@@ -415,7 +415,13 @@ function _buildSkySection(): HTMLElement {
         tip: 'Master toggle. When off the sky sphere is hidden and the flat scene.background GROUND color paints the void.',
       }),
       _color('Sky color', SKY, 'COLOR', {
-        tip: 'Solid color painted across the upper hemisphere (above the horizon line). Stars are added on top.',
+        tip: 'Solid color painted across the upper hemisphere above the horizon band. Stars are added on top.',
+      }),
+      _color('Horizon color', SKY, 'HORIZON_COLOR', {
+        tip: 'Soft atmosphere glow at the horizon line. Fades into the sky color over the bottom HORIZON_HEIGHT of the upper hemisphere.',
+      }),
+      _slider('Horizon height', SKY, 'HORIZON_HEIGHT', 0, 1, 0.01, {
+        tip: 'Fraction of the upper hemisphere occupied by the horizon glow band. 0 disables the band; 0.15 ≈ bottom 8.6° above the horizon.',
       }),
       _color('Ground color', SKY, 'GROUND_COLOR', {
         tip: 'Solid color painted across the lower hemisphere (below the horizon line). No stars. Produces a clean horizon seam with the sky color.',

@@ -33,9 +33,17 @@ describe('sky.frag.glsl', () => {
     expect(src).toMatch(/varying\s+vec3\s+vViewDirWorld/);
   });
 
-  it('declares uSkyColor and uGroundColor for the two-hemisphere fill', () => {
+  it('declares uSkyColor / uHorizonColor / uHorizonHeight / uGroundColor for the sky fill', () => {
     expect(src).toContain('uSkyColor');
+    expect(src).toContain('uHorizonColor');
+    expect(src).toContain('uHorizonHeight');
     expect(src).toContain('uGroundColor');
+  });
+
+  it('mixes uHorizonColor into uSkyColor over the horizon band', () => {
+    // A mix() call between the horizon and sky colors over the
+    // smoothstep'd band confirms the horizon glow is wired in.
+    expect(src).toMatch(/mix\(\s*uHorizonColor\s*,\s*uSkyColor/);
   });
 
   it('declares the star uniforms + the time uniform driving twinkle', () => {

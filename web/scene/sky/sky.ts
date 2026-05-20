@@ -83,6 +83,8 @@ export function createSky(): Sky {
       uTime: { value: 0 },
 
       uSkyColor: { value: new THREE.Color() },
+      uHorizonColor: { value: new THREE.Color() },
+      uHorizonHeight: { value: sky.HORIZON_HEIGHT },
       uGroundColor: { value: new THREE.Color() },
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
@@ -98,6 +100,7 @@ export function createSky(): Sky {
     },
   });
   setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
+  setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, sky.HORIZON_COLOR);
   setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, sky.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
@@ -111,6 +114,8 @@ export function createSky(): Sky {
     const s = SKY_STARS.get();
 
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
+    setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, k.HORIZON_COLOR);
+    material.uniforms.uHorizonHeight.value = k.HORIZON_HEIGHT;
     setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, k.GROUND_COLOR);
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;

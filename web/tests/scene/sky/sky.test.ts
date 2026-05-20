@@ -14,6 +14,8 @@ function resetStores() {
   SKY.set({
     ENABLED: true,
     COLOR: '#000000',
+    HORIZON_COLOR: '#04030c',
+    HORIZON_HEIGHT: 0.15,
     GROUND_COLOR: '#000000',
   });
   SKY_STARS.set({
@@ -50,17 +52,23 @@ describe('createSky()', () => {
     expect(sky.mesh.renderOrder).toBe(-1000);
   });
 
-  it('seeds uSkyColor and uGroundColor from SKY defaults', () => {
+  it('seeds uSkyColor / uHorizonColor / uHorizonHeight / uGroundColor from SKY defaults', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const sky_ = mat.uniforms.uSkyColor.value as THREE.Color;
+    const horizon = mat.uniforms.uHorizonColor.value as THREE.Color;
     const ground = mat.uniforms.uGroundColor.value as THREE.Color;
-    // Both default to '#000000' → pure black on every channel.
+    // COLOR and GROUND_COLOR default to '#000000' → pure black.
     expect(sky_.r).toBeCloseTo(0);
     expect(sky_.g).toBeCloseTo(0);
     expect(sky_.b).toBeCloseTo(0);
     expect(ground.r).toBeCloseTo(0);
     expect(ground.g).toBeCloseTo(0);
     expect(ground.b).toBeCloseTo(0);
+    // HORIZON_COLOR default '#04030c' → 0x04/255, 0x03/255, 0x0c/255.
+    expect(horizon.r).toBeCloseTo(0x04 / 255);
+    expect(horizon.g).toBeCloseTo(0x03 / 255);
+    expect(horizon.b).toBeCloseTo(0x0c / 255);
+    expect(mat.uniforms.uHorizonHeight.value).toBeCloseTo(0.15);
   });
 
   it('precomputes sin(MIN_ELEVATION_DEG) into uStarMinElevation', () => {
@@ -71,6 +79,8 @@ describe('createSky()', () => {
   it('refresh() pushes fresh config values into uniforms', () => {
     SKY_STARS.setKey('BRIGHTNESS', 2.7);
     SKY.setKey('COLOR', '#ffffff');
+    SKY.setKey('HORIZON_COLOR', '#112233');
+    SKY.setKey('HORIZON_HEIGHT', 0.42);
     SKY.setKey('GROUND_COLOR', '#abcdef');
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
@@ -79,6 +89,11 @@ describe('createSky()', () => {
     expect(sky_.r).toBeCloseTo(1);
     expect(sky_.g).toBeCloseTo(1);
     expect(sky_.b).toBeCloseTo(1);
+    const horizon = mat.uniforms.uHorizonColor.value as THREE.Color;
+    expect(horizon.r).toBeCloseTo(0x11 / 255);
+    expect(horizon.g).toBeCloseTo(0x22 / 255);
+    expect(horizon.b).toBeCloseTo(0x33 / 255);
+    expect(mat.uniforms.uHorizonHeight.value).toBeCloseTo(0.42);
     const ground = mat.uniforms.uGroundColor.value as THREE.Color;
     expect(ground.r).toBeCloseTo(0xab / 255);
     expect(ground.g).toBeCloseTo(0xcd / 255);
