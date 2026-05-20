@@ -3,6 +3,12 @@
 // transparent meshes — treat as an implementation detail.
 
 export const RENDER_ORDERS = {
+  // Cyberpunk Valley layers — drawn before everything else so the
+  // existing ground / building / outline stack composites over them.
+  // SKY is the wallpaper at the back of the inverted icosphere; further
+  // Cyberpunk Valley layers (mesas, parks) will use values between
+  // SKY (-1000) and SIDEWALK (1).
+  SKY: -1000, // procedural sky icosphere (draws first)
   SIDEWALK: 1, // baseline ground layer
   PATH_CONNECTOR: 2, // building→street walkways
   ASPHALT: 3, // street stripe (drawn over sidewalks)
