@@ -250,6 +250,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
+    // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (gradient
+    // colors, star density, moon position/size, twinkle params) and
+    // flips mesh.visible on the master ENABLED toggle. Hot-reloaded
+    // via the hotStores route in web/config/hotReload.ts.
+    cityScene.getSky().refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
@@ -357,6 +362,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
 
   // -- 8. Render loop --------------------------------------------------------
   const startTime = performance.now();
+  // Wall-clock time of the previous sky tick (seconds since startTime).
+  // null on the first frame; the first sky.tick() advances by 0 so
+  // uTime stays at its initial value of 0 until the second frame.
+  let _lastSkyTime: number | null = null;
   const labelRight = new THREE.Vector3();
 
   // LOD evaluator — one per render loop (shared across manifest refreshes).
@@ -428,6 +437,20 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       }
     }
     animator.update(0); // entering / staying tweens (scale, position)
+    // Sky star twinkle — the only animation in Cyberpunk Valley.
+    // Compute dt in seconds from the same startTime the gem
+    // animation uses (no fresh timer; one wall-clock source per frame
+    // keeps everything in lockstep).
+    {
+      const nowS = (performance.now() - startTime) / 1000;
+      const sky = cityScene.getSky();
+      // First call records the baseline; subsequent calls advance
+      // uTime by the elapsed wall-clock delta. _lastSkyTime is
+      // declared above the animate() closure (Step 8.3).
+      const dt = _lastSkyTime === null ? 0 : Math.max(0, nowS - _lastSkyTime);
+      _lastSkyTime = nowS;
+      sky.tick(dt);
+    }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
