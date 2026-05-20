@@ -47,21 +47,3 @@ Suspect O(N²) loops in street collision detection or building rasterization (la
 
 Start by adding a single perf log inside layoutV4.ts that breaks down time per phase (tree walk / street placement / collision check / building dimension assignment / etc.) so we know what's actually slow before changing anything. Then bring me the perf breakdown and a proposed approach before refactoring.
 ```
-
-### Remove the legacy SceneBlock path (Task 22 from the original plan)
-
-```text
-The cell-rendering branch left the legacy SceneBlock path alive behind the CELL_RENDERING.enabled feature flag (default off → legacy still runs). Now that cell mode is feature-equivalent (picker/fader/outline/animator/ad-panels/LOD all ported), time to retire legacy.
-
-Plan:
-
-1. Make CELL_RENDERING.enabled default to true.
-2. Verify the toggle in the controls pane still works (so users hitting a regression can flip back temporarily).
-3. Run the full test suite + manual smoke on small/mid/large repos (codecity, lodash, linux) with the flag ON to confirm no regressions vs the user's current experience.
-4. Once confident: delete the legacy code paths — web/scene/blocks.ts, the per-block branches in web/scene/cityScene.ts (the non-cell applyManifest path), the groupBuildingsByDirectory function, the per-block createAdPanel/disposeAdPanel legacy ad-panel code in web/scene/adPanels.ts, the lodCurrent/placeholderMesh stubs on SceneBlock, and any orphaned lodController references in comments.
-5. Delete the CELL_RENDERING feature flag itself (web/config/cellRendering.ts) and remove all `if (CELL_RENDERING.get().enabled)` branches — there's only one path now.
-6. Strip the diagnostic [boot] / [cell] log helpers (web/config/debugLogs.ts + the helper functions) and their call sites OR keep the helpers as a permanent dev-debug surface (your call — but if kept, the toggle stays in the controls Debug section).
-7. The picker/fader/outline/animator branches that check "are we in cell mode?" can collapse to single-path code.
-
-Before doing the deletion in step 4+, confirm with me which repos you've smoke-tested and what you saw. Don't delete anything until I've signed off on the verification.
-```
