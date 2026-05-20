@@ -15,11 +15,11 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStores() {
   SKY_GRADIENT.set({
     ENABLED: true,
-    TOP: '#000000', UPPER_MID: '#000001', MID: '#010103',
-    LOWER_MID: '#020207', HORIZON: '#04030c',
+    TOP: '#000000', UPPER_MID: '#000000', MID: '#000001',
+    LOWER_MID: '#000003', HORIZON: '#000008',
     GROUND_COLOR: '#000000',
-    STOP_TOP: 0.0, STOP_UPPER_MID: 0.70, STOP_MID: 0.85,
-    STOP_LOWER_MID: 0.93, STOP_HORIZON: 0.98,
+    STOP_TOP: 0.0, STOP_UPPER_MID: 0.35, STOP_MID: 0.55,
+    STOP_LOWER_MID: 0.75, STOP_HORIZON: 0.95,
   });
   SKY_STARS.set({
     ENABLED: true, DENSITY: 0.0075, SIZE: 0.15, BRIGHTNESS: 1.2,
@@ -64,7 +64,7 @@ describe('createSky()', () => {
     expect(top.g).toBeCloseTo(0);
     expect(top.b).toBeCloseTo(0);
     expect(mat.uniforms.uStopTop.value).toBeCloseTo(0.0);
-    expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.98);
+    expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.95);
     expect(mat.uniforms.uGradientEnabled.value).toBe(1.0);
   });
 

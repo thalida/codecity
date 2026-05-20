@@ -46,21 +46,16 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
   // returns GROUND_COLOR directly — a solid fill that produces a
   // clean horizon line and removes the need for a separate floor mesh.
   TOP: '#000000',          // pure black at the zenith
-  UPPER_MID: '#000001',    // barest neutral whisper
-  MID: '#010103',          // very dark with a tiny purple lean
-  LOWER_MID: '#020207',    // dim dark purple-grey
-  HORIZON: '#04030c',      // subtle purple-grey atmosphere glow at the horizon
+  UPPER_MID: '#000000',    // pure black
+  MID: '#000001',          // single-bit blue hint at mid elevation
+  LOWER_MID: '#000003',    // barely-perceptible indigo
+  HORIZON: '#000008',      // faintest hint of indigo right at the horizon
   GROUND_COLOR: '#000000', // below-horizon fill (matches TOP)
-  // Stops are compressed toward 1.0 so most of the dome stays at TOP
-  // (pure black) and the indigo gradient only shows in a narrow band
-  // close to the horizon line. Math: elev01 = 1 - abs(dir.y), so
-  // elev01=0.7 corresponds to ~17.5° above the horizon — meaning the
-  // upper ~72° of the dome reads as pure black.
   STOP_TOP: 0.0,
-  STOP_UPPER_MID: 0.70,
-  STOP_MID: 0.85,
-  STOP_LOWER_MID: 0.93,
-  STOP_HORIZON: 0.98,
+  STOP_UPPER_MID: 0.35,
+  STOP_MID: 0.55,
+  STOP_LOWER_MID: 0.75,
+  STOP_HORIZON: 0.95,
 });
 
 export interface SkyStarsConfig {
