@@ -48,6 +48,8 @@ import type {
 } from './layoutV4.js';
 import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
+import { createSky } from './sky/sky.js';
+import type { Sky } from './sky/sky.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -240,6 +242,15 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+  // Cyberpunk Valley sky — built ONCE here, lives at scene root for
+  // the lifetime of the cityScene. Not rebuilt per applyManifest
+  // (the sky is wallpaper, independent of the manifest tree). When
+  // SKY_GRADIENT.ENABLED is false the mesh.visible flag is cleared
+  // by sky.refresh() and scene.background's GROUND color shows
+  // through as the fallback.
+  const _sky: Sky = createSky();
+  scene.add(_sky.mesh);
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -915,6 +926,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
   function dispose() {
     _disposeAllManifestState();
+    _sky.dispose();
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -942,6 +954,15 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     onChange,
     disposeMesh,
     resetCache,
+
+    /**
+     * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
+     * can call sky.refresh() on hot-reload and the render loop can call
+     * sky.tick(dtSeconds) each frame.
+     */
+    getSky(): Sky {
+      return _sky;
+    },
 
     getManifest() {
       return manifest;
