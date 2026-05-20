@@ -52,6 +52,7 @@
     // Use Node built-ins (fs/path/url) to read GLSL source files at test
     // time — checked by tsconfig.node.json which adds @types/node.
     "tests/scene/hsl-glsl-parity.test.ts",
-    "tests/scene/building-shader.test.ts"
+    "tests/scene/building-shader.test.ts",
+    "tests/scene/sky/skyShader.test.ts"
   ]
 }
