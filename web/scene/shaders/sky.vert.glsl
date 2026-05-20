@@ -12,10 +12,24 @@
 // math in the fragment trivial and independent of the camera (the camera
 // moves inside the sphere; the fragment direction stays anchored to
 // the world).
+//
+// Depth: the skybox depth trick (gl_Position.z = gl_Position.w) forces
+// the sky sphere to always render at NDC z=1.0 (the far plane), regardless
+// of its world-space distance from the camera. This makes far-plane clipping
+// impossible even for sphere fragments at the frustum diagonals of small-repo
+// viewports.
 
 varying vec3 vViewDirWorld;
 
 void main() {
   vViewDirWorld = normalize(position);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  vec4 projected = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  // Skybox depth trick: force z = w so z/w = 1.0 in NDC — the sphere
+  // always renders AT the far plane regardless of its actual world-space
+  // distance from the camera. Without this, sphere fragments at the
+  // frustum diagonals can poke past camera.far for small repos and the
+  // rasterizer clips them, leaking scene.background through the corners.
+  // Pairs with depthWrite:false (sky.ts) so nothing else is occluded by
+  // the now-always-at-far depth value.
+  gl_Position = projected.xyww;
 }
