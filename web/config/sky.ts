@@ -45,12 +45,12 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
   // at the horizon band. Below the horizon (dir.y < 0), the shader
   // returns GROUND_COLOR directly — a solid fill that produces a
   // clean horizon line and removes the need for a separate floor mesh.
-  TOP: '#000003',          // essentially pure black at the zenith
-  UPPER_MID: '#010108',    // barely above black
-  MID: '#020314',          // very deep indigo
-  LOWER_MID: '#050420',    // dim cyberpunk-purple
-  HORIZON: '#0a0832',      // faintest purple atmosphere glow
-  GROUND_COLOR: '#000003', // below-horizon fill (matches TOP exactly)
+  TOP: '#000000',          // pure black at the zenith
+  UPPER_MID: '#000002',    // pure black with a single-bit blue hint
+  MID: '#01010a',          // barely above black
+  LOWER_MID: '#020213',    // very dim indigo
+  HORIZON: '#05041e',      // faintest whisper of purple at the horizon
+  GROUND_COLOR: '#000000', // below-horizon fill (matches TOP exactly)
   STOP_TOP: 0.0,
   STOP_UPPER_MID: 0.35,
   STOP_MID: 0.55,
