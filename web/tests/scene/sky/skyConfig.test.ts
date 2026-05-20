@@ -10,12 +10,12 @@ describe('SKY_GRADIENT', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY_GRADIENT.get();
     expect(v.ENABLED).toBe(true);
-    expect(v.TOP).toBe('#01010a');
-    expect(v.UPPER_MID).toBe('#040315');
-    expect(v.MID).toBe('#080525');
-    expect(v.LOWER_MID).toBe('#100835');
-    expect(v.HORIZON).toBe('#1f1050');
-    expect(v.GROUND_COLOR).toBe('#02020a');
+    expect(v.TOP).toBe('#000003');
+    expect(v.UPPER_MID).toBe('#010108');
+    expect(v.MID).toBe('#020314');
+    expect(v.LOWER_MID).toBe('#050420');
+    expect(v.HORIZON).toBe('#0a0832');
+    expect(v.GROUND_COLOR).toBe('#000003');
     expect(v.STOP_TOP).toBe(0.0);
     expect(v.STOP_UPPER_MID).toBe(0.35);
     expect(v.STOP_MID).toBe(0.55);

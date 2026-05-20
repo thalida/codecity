@@ -37,20 +37,20 @@ export interface SkyGradientConfig {
 
 export const SKY_GRADIENT = map<SkyGradientConfig>({
   ENABLED: true,
-  // Cyberpunk deep-night palette: near-pure-black across most of the
-  // dome, only the tiniest hint of midnight purple anywhere — so the
-  // city's own neon windows stay the only bright thing in the scene.
-  // The shader maps this with elev01 = 1 - abs(dir.y), so TOP renders
-  // at the zenith and HORIZON at the horizon band. Below the horizon
-  // (dir.y < 0), the shader returns GROUND_COLOR directly — a solid
-  // fill that produces a clean horizon line and removes the need for
-  // a separate floor mesh.
-  TOP: '#01010a',         // near-black at zenith
-  UPPER_MID: '#040315',   // deep midnight black
-  MID: '#080525',         // very dark indigo
-  LOWER_MID: '#100835',   // dark cyberpunk-purple
-  HORIZON: '#1f1050',     // subtle horizon-line glow
-  GROUND_COLOR: '#02020a', // below-horizon solid fill (seamless with TOP)
+  // Cyberpunk moody-night palette — truly dark across the dome. Only
+  // the city's own neon windows should glow noticeably; the sky is a
+  // near-pure-black backdrop with the faintest purple breath of
+  // atmosphere right at the horizon line. The shader maps this with
+  // elev01 = 1 - abs(dir.y), so TOP renders at the zenith and HORIZON
+  // at the horizon band. Below the horizon (dir.y < 0), the shader
+  // returns GROUND_COLOR directly — a solid fill that produces a
+  // clean horizon line and removes the need for a separate floor mesh.
+  TOP: '#000003',          // essentially pure black at the zenith
+  UPPER_MID: '#010108',    // barely above black
+  MID: '#020314',          // very deep indigo
+  LOWER_MID: '#050420',    // dim cyberpunk-purple
+  HORIZON: '#0a0832',      // faintest purple atmosphere glow
+  GROUND_COLOR: '#000003', // below-horizon fill (matches TOP exactly)
   STOP_TOP: 0.0,
   STOP_UPPER_MID: 0.35,
   STOP_MID: 0.55,

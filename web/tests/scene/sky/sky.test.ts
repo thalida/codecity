@@ -15,9 +15,9 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStores() {
   SKY_GRADIENT.set({
     ENABLED: true,
-    TOP: '#01010a', UPPER_MID: '#040315', MID: '#080525',
-    LOWER_MID: '#100835', HORIZON: '#1f1050',
-    GROUND_COLOR: '#02020a',
+    TOP: '#000003', UPPER_MID: '#010108', MID: '#020314',
+    LOWER_MID: '#050420', HORIZON: '#0a0832',
+    GROUND_COLOR: '#000003',
     STOP_TOP: 0.0, STOP_UPPER_MID: 0.35, STOP_MID: 0.55,
     STOP_LOWER_MID: 0.75, STOP_HORIZON: 0.95,
   });
@@ -58,11 +58,11 @@ describe('createSky()', () => {
   it('seeds gradient uniforms from SKY_GRADIENT defaults', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const top = mat.uniforms.uGradientTop.value as THREE.Color;
-    // '#01010a' parsed via THREE.Color with LinearSRGBColorSpace
-    // preserves the sRGB byte values: 0x01/255, 0x01/255, 0x0a/255.
-    expect(top.r).toBeCloseTo(0x01 / 255);
-    expect(top.g).toBeCloseTo(0x01 / 255);
-    expect(top.b).toBeCloseTo(0x0a / 255);
+    // '#000003' parsed via THREE.Color with LinearSRGBColorSpace
+    // preserves the sRGB byte values: 0/255, 0/255, 0x03/255.
+    expect(top.r).toBeCloseTo(0x00 / 255);
+    expect(top.g).toBeCloseTo(0x00 / 255);
+    expect(top.b).toBeCloseTo(0x03 / 255);
     expect(mat.uniforms.uStopTop.value).toBeCloseTo(0.0);
     expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.95);
     expect(mat.uniforms.uGradientEnabled.value).toBe(1.0);
@@ -71,10 +71,10 @@ describe('createSky()', () => {
   it('seeds uGroundColor from SKY_GRADIENT.GROUND_COLOR', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const ground = mat.uniforms.uGroundColor.value as THREE.Color;
-    // '#02020a' → 0x02/255, 0x02/255, 0x0a/255
-    expect(ground.r).toBeCloseTo(0x02 / 255);
-    expect(ground.g).toBeCloseTo(0x02 / 255);
-    expect(ground.b).toBeCloseTo(0x0a / 255);
+    // '#000003' → 0/255, 0/255, 0x03/255 (matches TOP exactly)
+    expect(ground.r).toBeCloseTo(0x00 / 255);
+    expect(ground.g).toBeCloseTo(0x00 / 255);
+    expect(ground.b).toBeCloseTo(0x03 / 255);
   });
 
   it('precomputes sin(MIN_ELEVATION_DEG) into uStarMinElevation', () => {
