@@ -10,11 +10,11 @@ describe('SKY_GRADIENT', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY_GRADIENT.get();
     expect(v.ENABLED).toBe(true);
-    expect(v.TOP).toBe('#0a0418');
-    expect(v.UPPER_MID).toBe('#3a1860');
-    expect(v.MID).toBe('#8a1e6e');
-    expect(v.LOWER_MID).toBe('#e8418a');
-    expect(v.HORIZON).toBe('#ffc28a');
+    expect(v.TOP).toBe('#020208');
+    expect(v.UPPER_MID).toBe('#0a0518');
+    expect(v.MID).toBe('#150830');
+    expect(v.LOWER_MID).toBe('#26104a');
+    expect(v.HORIZON).toBe('#3a1860');
     expect(v.STOP_TOP).toBe(0.0);
     expect(v.STOP_UPPER_MID).toBe(0.35);
     expect(v.STOP_MID).toBe(0.55);
@@ -39,7 +39,7 @@ describe('SKY_STARS', () => {
 describe('SKY_MOON', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY_MOON.get();
-    expect(v.ENABLED).toBe(true);
+    expect(v.ENABLED).toBe(false);
     expect(v.AZIMUTH_DEG).toBe(260);
     expect(v.ELEVATION_DEG).toBe(22);
     expect(v.SIZE_DEG).toBe(4.5);

@@ -15,8 +15,8 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStores() {
   SKY_GRADIENT.set({
     ENABLED: true,
-    TOP: '#0a0418', UPPER_MID: '#3a1860', MID: '#8a1e6e',
-    LOWER_MID: '#e8418a', HORIZON: '#ffc28a',
+    TOP: '#020208', UPPER_MID: '#0a0518', MID: '#150830',
+    LOWER_MID: '#26104a', HORIZON: '#3a1860',
     STOP_TOP: 0.0, STOP_UPPER_MID: 0.35, STOP_MID: 0.55,
     STOP_LOWER_MID: 0.75, STOP_HORIZON: 0.95,
   });
@@ -26,7 +26,7 @@ function resetStores() {
     TWINKLE_AMPLITUDE: 0.5, MIN_ELEVATION_DEG: 8,
   });
   SKY_MOON.set({
-    ENABLED: true, AZIMUTH_DEG: 260, ELEVATION_DEG: 22, SIZE_DEG: 4.5,
+    ENABLED: false, AZIMUTH_DEG: 260, ELEVATION_DEG: 22, SIZE_DEG: 4.5,
     COLOR: '#ffe6c4', HALO_COLOR: '#ffb86b', HALO_SIZE_MULT: 4.0,
     EMISSION_BOOST: 1.8,
   });
@@ -62,11 +62,11 @@ describe('createSky()', () => {
   it('seeds gradient uniforms from SKY_GRADIENT defaults', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const top = mat.uniforms.uGradientTop.value as THREE.Color;
-    // '#0a0418' parsed via THREE.Color with LinearSRGBColorSpace
-    // preserves the sRGB byte values: 0x0a/255, 0x04/255, 0x18/255.
-    expect(top.r).toBeCloseTo(0x0a / 255);
-    expect(top.g).toBeCloseTo(0x04 / 255);
-    expect(top.b).toBeCloseTo(0x18 / 255);
+    // '#020208' parsed via THREE.Color with LinearSRGBColorSpace
+    // preserves the sRGB byte values: 0x02/255, 0x02/255, 0x08/255.
+    expect(top.r).toBeCloseTo(0x02 / 255);
+    expect(top.g).toBeCloseTo(0x02 / 255);
+    expect(top.b).toBeCloseTo(0x08 / 255);
     expect(mat.uniforms.uStopTop.value).toBeCloseTo(0.0);
     expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.95);
     expect(mat.uniforms.uGradientEnabled.value).toBe(1.0);

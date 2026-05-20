@@ -34,11 +34,18 @@ export interface SkyGradientConfig {
 
 export const SKY_GRADIENT = map<SkyGradientConfig>({
   ENABLED: true,
-  TOP: '#0a0418',
-  UPPER_MID: '#3a1860',
-  MID: '#8a1e6e',
-  LOWER_MID: '#e8418a',
-  HORIZON: '#ffc28a',
+  // Cyberpunk night palette: near-black at the zenith, deepening
+  // through midnight purples to a subtle magenta city-glow at the
+  // horizon line. The shader mirrors this gradient around the
+  // horizon (elev01 = 1 - abs(dir.y)), so TOP renders at the zenith
+  // AND below the horizon (where the floor plane covers it), and
+  // HORIZON renders in the bright atmosphere-glow band right at the
+  // horizon line.
+  TOP: '#020208',        // near-black zenith
+  UPPER_MID: '#0a0518',  // deep purple-black
+  MID: '#150830',        // dark midnight purple
+  LOWER_MID: '#26104a',  // medium midnight purple
+  HORIZON: '#3a1860',    // subtle cyberpunk magenta glow at the horizon
   STOP_TOP: 0.0,
   STOP_UPPER_MID: 0.35,
   STOP_MID: 0.55,
@@ -78,7 +85,7 @@ export interface SkyMoonConfig {
 }
 
 export const SKY_MOON = map<SkyMoonConfig>({
-  ENABLED: true,
+  ENABLED: false, // off by default — user can toggle on from Controls panel
   AZIMUTH_DEG: 260,
   ELEVATION_DEG: 22,
   SIZE_DEG: 4.5,
