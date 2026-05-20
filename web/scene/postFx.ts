@@ -70,22 +70,37 @@ export function createPostFx(
   // so the final canvas pixels are correctly encoded.
   composer.addPass(new OutputPass());
 
+  // Track the LOGICAL (CSS-pixel) size last passed to setSize(). The
+  // composer's actual render target is sized in DEVICE pixels (× DPR),
+  // so we can't use that for the per-frame size guard comparison.
+  // Initialized to 1x1 (composer's default at construction).
+  let _lastLogicalWidth = 1;
+  let _lastLogicalHeight = 1;
+
   return {
     render: () => composer.render(),
     setSize: (w, h) => {
+      _lastLogicalWidth = w;
+      _lastLogicalHeight = h;
       composer.setSize(w, h);
       bloom.setSize(w, h);
     },
     /**
-     * Read the composer's internal HDR render target size. Used by the
-     * per-frame size guard in main.ts to detect drift between the composer
-     * targets and the canvas — the renderer alone passing the size check
-     * isn't enough since the composer's targets can resize independently
-     * via its own internal logic.
+     * Read the LOGICAL (CSS-pixel) size the composer was last asked to
+     * render at. Used by the per-frame size guard in main.ts to detect
+     * drift between the composer's requested size and the canvas.
+     *
+     * Important: this returns the CSS-pixel dimensions (what was passed
+     * into setSize), NOT the device-pixel dimensions of the actual GL
+     * render targets. EffectComposer.setSize(w, h) multiplies w/h by
+     * pixelRatio internally, so `composer.renderTarget1.width` is in
+     * device pixels — comparing that against `canvas.clientWidth`
+     * (CSS pixels) would make the guard fire every frame on any
+     * DPR != 1 display, triggering a continuous resize storm with
+     * visible black-frame flickering.
      */
     getInternalSize(): { width: number; height: number } {
-      const rt = composer.renderTarget1;
-      return { width: rt.width, height: rt.height };
+      return { width: _lastLogicalWidth, height: _lastLogicalHeight };
     },
     // Pull fresh BLOOM config values into the bloom pass. Called from
     // applyTheme() on hot-reload so the in-UI knobs take effect
