@@ -71,18 +71,19 @@ export interface SkyStarsConfig {
 
 export const SKY_STARS = map<SkyStarsConfig>({
   ENABLED: true,
-  // 0.003 → ~270 stars across the upper hemisphere. Tweaked down from
-  // 0.01 (~900 stars), which read as a noise field. Stars are rendered
-  // as small circular sub-cell dots (see SIZE) so the per-cell scale
+  // 0.0075 — user-tuned default that lands ~680 stars across the
+  // upper hemisphere. Dense enough to read as a starry night, sparse
+  // enough to keep individual stars distinct. Stars are rendered as
+  // small circular sub-cell dots (see SIZE) so the per-cell scale
   // can stay coarse without making each star huge.
-  DENSITY: 0.003,
+  DENSITY: 0.0075,
   // Star spot radius as a fraction of the cell. 0.15 = each star
   // occupies a circle ~15% of the cell's width, with a smoothstep
   // antialiased edge. Larger values = chunkier stars.
   SIZE: 0.15,
   BRIGHTNESS: 1.2,
   TWINKLE_ENABLED: true,
-  TWINKLE_SPEED: 0.4,
-  TWINKLE_AMPLITUDE: 0.5,
+  TWINKLE_SPEED: 0.5,
+  TWINKLE_AMPLITUDE: 1.0,
   MIN_ELEVATION_DEG: 8,
 });
