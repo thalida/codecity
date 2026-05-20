@@ -17,10 +17,10 @@ describe('SKY_GRADIENT', () => {
     expect(v.HORIZON).toBe('#040328');
     expect(v.GROUND_COLOR).toBe('#000000');
     expect(v.STOP_TOP).toBe(0.0);
-    expect(v.STOP_UPPER_MID).toBe(0.35);
-    expect(v.STOP_MID).toBe(0.55);
-    expect(v.STOP_LOWER_MID).toBe(0.75);
-    expect(v.STOP_HORIZON).toBe(0.95);
+    expect(v.STOP_UPPER_MID).toBe(0.70);
+    expect(v.STOP_MID).toBe(0.85);
+    expect(v.STOP_LOWER_MID).toBe(0.93);
+    expect(v.STOP_HORIZON).toBe(0.98);
   });
 });
 

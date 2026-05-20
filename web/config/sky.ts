@@ -51,11 +51,16 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
   LOWER_MID: '#02021a',    // dim indigo
   HORIZON: '#040328',      // subtle but visible purple atmosphere glow
   GROUND_COLOR: '#000000', // below-horizon fill (matches TOP)
+  // Stops are compressed toward 1.0 so most of the dome stays at TOP
+  // (pure black) and the indigo gradient only shows in a narrow band
+  // close to the horizon line. Math: elev01 = 1 - abs(dir.y), so
+  // elev01=0.7 corresponds to ~17.5° above the horizon — meaning the
+  // upper ~72° of the dome reads as pure black.
   STOP_TOP: 0.0,
-  STOP_UPPER_MID: 0.35,
-  STOP_MID: 0.55,
-  STOP_LOWER_MID: 0.75,
-  STOP_HORIZON: 0.95,
+  STOP_UPPER_MID: 0.70,
+  STOP_MID: 0.85,
+  STOP_LOWER_MID: 0.93,
+  STOP_HORIZON: 0.98,
 });
 
 export interface SkyStarsConfig {

@@ -18,8 +18,8 @@ function resetStores() {
     TOP: '#000000', UPPER_MID: '#000005', MID: '#01010d',
     LOWER_MID: '#02021a', HORIZON: '#040328',
     GROUND_COLOR: '#000000',
-    STOP_TOP: 0.0, STOP_UPPER_MID: 0.35, STOP_MID: 0.55,
-    STOP_LOWER_MID: 0.75, STOP_HORIZON: 0.95,
+    STOP_TOP: 0.0, STOP_UPPER_MID: 0.70, STOP_MID: 0.85,
+    STOP_LOWER_MID: 0.93, STOP_HORIZON: 0.98,
   });
   SKY_STARS.set({
     ENABLED: true, DENSITY: 0.0075, SIZE: 0.15, BRIGHTNESS: 1.2,
@@ -64,7 +64,7 @@ describe('createSky()', () => {
     expect(top.g).toBeCloseTo(0);
     expect(top.b).toBeCloseTo(0);
     expect(mat.uniforms.uStopTop.value).toBeCloseTo(0.0);
-    expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.95);
+    expect(mat.uniforms.uStopHorizon.value).toBeCloseTo(0.98);
     expect(mat.uniforms.uGradientEnabled.value).toBe(1.0);
   });
 
