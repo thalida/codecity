@@ -53,6 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
+import { SKY_GRADIENT, SKY_STARS, SKY_MOON } from '@/config/sky.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -154,6 +155,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
   body.appendChild(_buildSceneSection());
+  body.appendChild(_buildSkySection());
   body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
@@ -390,6 +392,114 @@ function _buildSceneSection(): HTMLElement {
         tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
       }),
     ])
+  );
+
+  return section;
+}
+
+// ─── Sky (Cyberpunk Valley) ────────────────────────────────────────────────
+// Procedural sky: vertical gradient, hashed star field with sine twinkle,
+// and an HDR-emissive moon disk + halo. Every dial is hot-reloadable (no
+// rebuild); SKY_GRADIENT.ENABLED is the master toggle — when off the
+// inverted icosphere is hidden and the existing scene.background
+// (SCENE_COLORS.GROUND) fallback paints the void.
+function _buildSkySection(): HTMLElement {
+  const section = _section(
+    'Sky',
+    'Procedural cyberpunk sky: gradient, stars, twinkle, and moon. Star twinkle is the only animation.',
+  );
+
+  section.appendChild(
+    _subgroup('Gradient', [
+      _toggle('Enabled', SKY_GRADIENT, 'ENABLED', {
+        tip: 'Master toggle. When off the sky sphere is hidden and the flat scene.background GROUND color paints the void.',
+      }),
+      _color('Top (zenith)', SKY_GRADIENT, 'TOP', {
+        tip: 'Color at the very top of the sky dome.',
+      }),
+      _color('Upper-mid', SKY_GRADIENT, 'UPPER_MID', {
+        tip: 'Color at the upper-middle stop.',
+      }),
+      _color('Mid', SKY_GRADIENT, 'MID', {
+        tip: 'Color at the middle stop.',
+      }),
+      _color('Lower-mid', SKY_GRADIENT, 'LOWER_MID', {
+        tip: 'Color at the lower-middle stop.',
+      }),
+      _color('Horizon', SKY_GRADIENT, 'HORIZON', {
+        tip: 'Color at the horizon stop (warm peach by default).',
+      }),
+      _slider('Stop: top', SKY_GRADIENT, 'STOP_TOP', 0, 1, 0.01, {
+        tip: 'Elevation fraction (0=horizon, 1=zenith) where the Top color sits.',
+      }),
+      _slider('Stop: upper-mid', SKY_GRADIENT, 'STOP_UPPER_MID', 0, 1, 0.01, {
+        tip: 'Elevation fraction where the Upper-mid color sits.',
+      }),
+      _slider('Stop: mid', SKY_GRADIENT, 'STOP_MID', 0, 1, 0.01, {
+        tip: 'Elevation fraction where the Mid color sits.',
+      }),
+      _slider('Stop: lower-mid', SKY_GRADIENT, 'STOP_LOWER_MID', 0, 1, 0.01, {
+        tip: 'Elevation fraction where the Lower-mid color sits.',
+      }),
+      _slider('Stop: horizon', SKY_GRADIENT, 'STOP_HORIZON', 0, 1, 0.01, {
+        tip: 'Elevation fraction where the Horizon color sits.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Stars', [
+      _toggle('Enabled', SKY_STARS, 'ENABLED', {
+        tip: 'When off, no stars are sampled (also disables twinkle).',
+      }),
+      _slider('Density', SKY_STARS, 'DENSITY', 0, 0.01, 0.0001, {
+        tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
+      }),
+      _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
+        tip: 'Per-star intensity added on top of the gradient color. Above ~2.0 stars push into HDR and bloom.',
+      }),
+      _slider('Min elevation (°)', SKY_STARS, 'MIN_ELEVATION_DEG', 0, 90, 1, {
+        tip: 'Stars are only rendered above this angle from the horizon. 8° keeps them out of the warm horizon band.',
+      }),
+      _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
+        tip: 'When off, stars render at fixed brightness (no animation).',
+      }),
+      _slider('Twinkle speed', SKY_STARS, 'TWINKLE_SPEED', 0, 3, 0.05, {
+        tip: 'Multiplier on uTime in the per-star sine. Higher = faster twinkle.',
+      }),
+      _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
+        tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Moon', [
+      _toggle('Enabled', SKY_MOON, 'ENABLED', {
+        tip: 'When off, no moon disk or halo is drawn.',
+      }),
+      _slider('Azimuth (°)', SKY_MOON, 'AZIMUTH_DEG', 0, 360, 1, {
+        tip: 'Compass bearing of the moon. 0° = +Z (south), increases clockwise.',
+      }),
+      _slider('Elevation (°)', SKY_MOON, 'ELEVATION_DEG', 0, 90, 1, {
+        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
+      }),
+      _slider('Disk size (°)', SKY_MOON, 'SIZE_DEG', 0.5, 30, 0.1, {
+        tip: 'Angular diameter of the moon disk in degrees. Beyond ~10° the disk dominates the upper sky.',
+      }),
+      _color('Color', SKY_MOON, 'COLOR', {
+        tip: 'Color of the moon disk (warm cream by default).',
+      }),
+      _color('Halo color', SKY_MOON, 'HALO_COLOR', {
+        tip: 'Color of the soft glow halo around the disk.',
+      }),
+      _slider('Halo size ×', SKY_MOON, 'HALO_SIZE_MULT', 1, 10, 0.1, {
+        tip: 'Halo angular size as a multiple of the disk size.',
+      }),
+      _slider('Emission boost', SKY_MOON, 'EMISSION_BOOST', 0, 5, 0.05, {
+        tip: 'Multiplier on the disk color. Above 1.0 the disk pushes past 1.0 in the HDR target and blooms via the post-FX pipeline.',
+      }),
+    ]),
   );
 
   return section;
