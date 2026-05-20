@@ -79,6 +79,16 @@ export function createSky(): Sky {
     fragmentShader: skyFragSrc,
     side: THREE.BackSide,
     depthWrite: false,
+    // depthTest is OFF because the sky uses the skybox depth trick in
+    // sky.vert.glsl (gl_Position.z = w → NDC z = 1.0 at the far plane
+    // edge). With default LessEqualDepth, floating-point precision
+    // during projection-matrix updates (zoom in orbit controls) can
+    // push the comparison just over 1.0 and the sphere fails the
+    // test for one frame, flashing scene.background through. Since
+    // renderOrder = -1000 guarantees the sky draws BEFORE anything
+    // writes the depth buffer, the depth test isn't doing useful
+    // work for the sky anyway — turn it off.
+    depthTest: false,
     uniforms: {
       uTime: { value: 0 },
 
