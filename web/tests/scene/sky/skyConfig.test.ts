@@ -11,10 +11,10 @@ describe('SKY_GRADIENT', () => {
     const v = SKY_GRADIENT.get();
     expect(v.ENABLED).toBe(true);
     expect(v.TOP).toBe('#000000');
-    expect(v.UPPER_MID).toBe('#000002');
-    expect(v.MID).toBe('#000008');
-    expect(v.LOWER_MID).toBe('#01010d');
-    expect(v.HORIZON).toBe('#020116');
+    expect(v.UPPER_MID).toBe('#000001');
+    expect(v.MID).toBe('#010103');
+    expect(v.LOWER_MID).toBe('#020207');
+    expect(v.HORIZON).toBe('#04030c');
     expect(v.GROUND_COLOR).toBe('#000000');
     expect(v.STOP_TOP).toBe(0.0);
     expect(v.STOP_UPPER_MID).toBe(0.70);

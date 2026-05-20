@@ -46,10 +46,10 @@ export const SKY_GRADIENT = map<SkyGradientConfig>({
   // returns GROUND_COLOR directly — a solid fill that produces a
   // clean horizon line and removes the need for a separate floor mesh.
   TOP: '#000000',          // pure black at the zenith
-  UPPER_MID: '#000002',    // barest indigo whisper above mid
-  MID: '#000008',          // very dark indigo
-  LOWER_MID: '#01010d',    // dim indigo
-  HORIZON: '#020116',      // subtle purple atmosphere glow at the horizon line
+  UPPER_MID: '#000001',    // barest neutral whisper
+  MID: '#010103',          // very dark with a tiny purple lean
+  LOWER_MID: '#020207',    // dim dark purple-grey
+  HORIZON: '#04030c',      // subtle purple-grey atmosphere glow at the horizon
   GROUND_COLOR: '#000000', // below-horizon fill (matches TOP)
   // Stops are compressed toward 1.0 so most of the dome stays at TOP
   // (pure black) and the indigo gradient only shows in a narrow band

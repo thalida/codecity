@@ -15,8 +15,8 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStores() {
   SKY_GRADIENT.set({
     ENABLED: true,
-    TOP: '#000000', UPPER_MID: '#000002', MID: '#000008',
-    LOWER_MID: '#01010d', HORIZON: '#020116',
+    TOP: '#000000', UPPER_MID: '#000001', MID: '#010103',
+    LOWER_MID: '#020207', HORIZON: '#04030c',
     GROUND_COLOR: '#000000',
     STOP_TOP: 0.0, STOP_UPPER_MID: 0.70, STOP_MID: 0.85,
     STOP_LOWER_MID: 0.93, STOP_HORIZON: 0.98,
