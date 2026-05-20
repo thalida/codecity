@@ -441,9 +441,22 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // Compute dt in seconds from the same startTime the gem
     // animation uses (no fresh timer; one wall-clock source per frame
     // keeps everything in lockstep).
+    //
+    // Also sync the sky sphere's world position to the camera every
+    // frame so the camera is always at the sphere's center — required
+    // because the sphere has a fixed radius (CAMERA_PERSPECTIVE.FAR
+    // × 0.95). For huge worlds (Linux kernel: city > 30k units) the
+    // camera framing ends up OUTSIDE a world-fixed sphere; from
+    // outside, the BackSide sphere renders as a small dark disk
+    // instead of wrapping the view. Following the camera makes the
+    // sphere effectively "the sky from wherever the camera is",
+    // which combined with the gl_Position.z=w depth trick in
+    // sky.vert.glsl makes the sphere's actual world position
+    // visually irrelevant.
     {
       const nowS = (performance.now() - startTime) / 1000;
       const sky = cityScene.getSky();
+      sky.mesh.position.copy(camera.position);
       // First call records the baseline; subsequent calls advance
       // uTime by the elapsed wall-clock delta. _lastSkyTime is
       // declared above the animate() closure (Step 8.3).
