@@ -171,12 +171,17 @@ export function createCameraRig({
     // own radius). Set unconditionally so it shrinks for small worlds
     // (depth-buffer precision matters at z-fight sensitivity, e.g. the
     // hover-ghost inset) AND grows for huge worlds (SHOW_ALL_FILES on a
-    // codebase with node_modules can push >100k units). The Cyberpunk
-    // Valley sky sphere uses the skybox depth trick (sky.vert.glsl
-    // forces gl_Position.z = gl_Position.w) so it always renders at
-    // the far plane regardless of its world position — no floor on
-    // camera.far is needed to keep it from clipping.
-    camera.far = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT * 2 + worldRadius * 2;
+    // codebase with node_modules can push >100k units). Floored at the
+    // Cyberpunk Valley sky-sphere's outer extent (CAMERA_PERSPECTIVE.FAR
+    // × 0.95; see web/scene/sky/sky.ts RADIUS_FAR_FRAC) so the sphere
+    // never gets clipped at the corners of small-repo viewports and
+    // leaks the scene.background color through. (The sky once used a
+    // skybox depth trick to dodge this, but that produced NaN at the
+    // sphere's equator vertices — see sky.vert.glsl. The geometry
+    // sizing + this floor is the cleaner contract.)
+    const dynamicFar = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT * 2 + worldRadius * 2;
+    const skySphereExtent = CAMERA_PERSPECTIVE.get().FAR * 0.95;
+    camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
     // Framing target: the root gem, with a distance sized to the root

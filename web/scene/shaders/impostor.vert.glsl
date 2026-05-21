@@ -22,7 +22,10 @@ void main() {
   vWorldY = worldPos.y;
   // World-space normal: instanceMatrix * vec4(normal, 0) (w=0 to skip
   // translation). Buildings aren't rotated so each face has a constant
-  // world normal across its surface.
-  vWorldNormal = normalize((instanceMatrix * vec4(normal, 0.0)).xyz);
+  // world normal across its surface. Defensive guard against a zero-scale
+  // building producing a zero-vector normal that normalize() would turn
+  // into NaN — see building.vert.glsl for the same pattern.
+  vec3 worldN = (instanceMatrix * vec4(normal, 0.0)).xyz;
+  vWorldNormal = length(worldN) > 1e-6 ? normalize(worldN) : vec3(0.0, 1.0, 0.0);
   gl_Position = projectionMatrix * viewMatrix * worldPos;
 }

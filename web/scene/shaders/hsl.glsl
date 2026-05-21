@@ -108,19 +108,28 @@ vec3 shadeByRatio(vec3 rgb, float ratio, float deltaHueDeg, float floorPct) {
 // ---------------------------------------------------------------------------
 
 // linearToSrgb — IEC 61966-2-1 transfer function (linear → gamma-encoded).
+//
+// The max(..., 1e-6) inside pow() is a NaN guard. pow(0, y) is undefined
+// in GLSL (drivers may return NaN since pow ≡ exp(y*log(x)) and log(0) =
+// -Inf), and `mix(a, NaN, 0)` is still NaN because NaN*0 = NaN — so even
+// when the step() selector chooses the linear branch, a NaN in the gamma
+// branch contaminates the result. Clamping the pow input to a tiny
+// positive value keeps the gamma branch finite while the step() still
+// switches to the linear branch for those near-zero inputs.
 vec3 linearToSrgb(vec3 c) {
   return mix(
     12.92 * c,
-    1.055 * pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.4)) - 0.055,
+    1.055 * pow(max(clamp(c, 0.0, 1.0), 1e-6), vec3(1.0 / 2.4)) - 0.055,
     step(0.0031308, c)
   );
 }
 
 // srgbToLinear — IEC 61966-2-1 inverse (gamma-encoded → linear).
+// See linearToSrgb for why the max(..., 1e-6) guard is required.
 vec3 srgbToLinear(vec3 c) {
   return mix(
     c / 12.92,
-    pow(clamp((c + 0.055) / 1.055, 0.0, 1.0), vec3(2.4)),
+    pow(max(clamp((c + 0.055) / 1.055, 0.0, 1.0), 1e-6), vec3(2.4)),
     step(0.04045, c)
   );
 }

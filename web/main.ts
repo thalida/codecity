@@ -396,12 +396,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
   function animate() {
-    // Idempotent per-frame size guard. The ResizeObserver wires onResize
-    // for sidebar / window changes, but transient races can leave the
-    // EffectComposer's HDR render targets at a stale size — manifests as
-    // the city getting rendered into a small region of an otherwise-black
-    // canvas. Re-syncing here is cheap (no-op when sizes match) and
-    // catches anything the observer-driven path misses.
+    // Idempotent per-frame size guard. Resyncs renderer + composer + post
+    // passes to canvas.clientWidth/Height whenever they diverge; cheap
+    // no-op when they don't. Safety net for any canvas-size divergence the
+    // ResizeObserver missed (e.g. transient layout race during sidebar
+    // toggle); not needed during normal operation.
     {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;

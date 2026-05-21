@@ -13,23 +13,26 @@
 // moves inside the sphere; the fragment direction stays anchored to
 // the world).
 //
-// Depth: the skybox depth trick (gl_Position.z = gl_Position.w) forces
-// the sky sphere to always render at NDC z=1.0 (the far plane), regardless
-// of its world-space distance from the camera. This makes far-plane clipping
-// impossible even for sphere fragments at the frustum diagonals of small-repo
-// viewports.
+// Depth: no skybox depth trick. The sky sphere is sized at
+// CAMERA_PERSPECTIVE.FAR * 0.95 (see sky.ts), and cameraRig.ts floors
+// camera.far at that same value, so every vertex sits inside the far
+// plane and the rasterizer never clips them. depthTest is also off
+// (sky.ts) and renderOrder = SKY (-1000) draws the sky before anything
+// writes depth, so an honest projection is the safest choice.
+//
+// We previously used the depth trick `gl_Position = projected.xyww` to
+// force NDC z = 1.0, but that produces 0/0 NaN at any vertex with
+// projected.w = 0. With the sphere centered on the camera (see
+// sky-position sync in main.ts), every vertex on the great circle
+// perpendicular to the view direction has view-space z = 0, so
+// projected.w = 0 and the trick wrote NaN into clip coords. The NaN
+// then interpolated across triangles and filled the HDR target with
+// NaN pixels, which ACES tonemapped to black — observed as the city
+// rendering into a narrow strip with the rest of the canvas black.
 
 varying vec3 vViewDirWorld;
 
 void main() {
   vViewDirWorld = normalize(position);
-  vec4 projected = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  // Skybox depth trick: force z = w so z/w = 1.0 in NDC — the sphere
-  // always renders AT the far plane regardless of its actual world-space
-  // distance from the camera. Without this, sphere fragments at the
-  // frustum diagonals can poke past camera.far for small repos and the
-  // rasterizer clips them, leaking scene.background through the corners.
-  // Pairs with depthWrite:false (sky.ts) so nothing else is occluded by
-  // the now-always-at-far depth value.
-  gl_Position = projected.xyww;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
