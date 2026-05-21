@@ -233,11 +233,10 @@ export const __test = {
   _formatStemDiagnostic,
 };
 
-// canvas is unused directly by cityScene after Task 8 removed
-// _buildOutlinesAndGhosts (which used it for LineMaterial.resolution).
-// Kept in the signature so call sites (main.ts, tests) need no change.
-// TODO(Task 12): outlineRenderer's own createOutlineRenderer({ canvas })
-// takes it directly; cityScene no longer needs to forward it.
+// `canvas` is unused; kept in the signature so call sites (main.ts, tests)
+// don't have to change. outlineRenderer takes the canvas directly via its
+// own factory now, so cityScene no longer needs to forward it — the param
+// can be dropped if a downstream pass cleans up the call sites.
 export function createCityScene(_canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
@@ -278,9 +277,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // callsite's `.material.color` access working.
   type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
 
-  // buildingMeshes stub — kept for the diff machinery and as a stub return
-  // value for the deprecated getBuildings() accessor; intentionally empty
-  // (cell-mode buildings live in CellTile InstancedMeshes).
+  // buildingMeshes stub — buildings live inside CellTile InstancedMeshes,
+  // not as individual scene-graph meshes. Empty array kept so the diff
+  // machinery and the still-extant getBuildings() accessor have something
+  // to return; getBuildings() callers (cameraRig sightline + altitude
+  // calc) effectively no-op against this empty list, which is a known
+  // regression awaiting a cell-aware reimplementation.
   const buildingMeshes: THREE.Object3D[] = [];
 
   let streetPickables: FlatMesh[] = [];
@@ -1017,9 +1019,10 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       return dateRanges;
     },
 
-    // Stub: cell mode tracks buildings via _cells / _buildingIndex, not as
-    // a flat mesh list. Returned empty so any legacy caller still iterating
-    // this list no-ops gracefully.
+    // Returns the empty buildingMeshes stub — see comment at declaration.
+    // Buildings live inside CellTile InstancedMeshes; callers that need
+    // building data should consume _cells / _buildingIndex via the
+    // dedicated accessors.
     getBuildings(): THREE.Object3D[] {
       return buildingMeshes;
     },

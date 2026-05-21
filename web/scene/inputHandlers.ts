@@ -202,10 +202,10 @@ export function createInputHandlers({
       onRefresh();
       return;
     }
-    // Use the picker's interpretHit so InstancedMesh hits (post-Task 8)
-    // resolve to a building/file the same way clicks do; without this,
-    // dblclick fell through to the recenter fallback because ud.building
-    // is only set on legacy per-building meshes.
+    // Route through picker.interpretHit so InstancedMesh hits resolve to a
+    // building/file the same way clicks do — ud.building isn't set on
+    // InstancedMesh hits, so without this dblclick would fall through to
+    // the recenter fallback.
     const target = picker.interpretHit(hit);
     if (target?.kind === NodeKind.File) {
       rig.focusBuilding(target.mesh, target.data);

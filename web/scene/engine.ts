@@ -1,13 +1,10 @@
-// engine.ts — Three.js scene builder. Turns layout output into a Scene of meshes.
+// engine.ts — Three.js scene builder. Turns layout output into a Scene of
+// streets/sidewalks/labels/gem. Buildings are rendered separately as per-cell
+// InstancedMeshes by web/scene/instanced/buildingsCell.ts; this module no
+// longer produces per-building meshes.
 //
 // World axes: X east-west, Y north-south, Z up. Streets are flat planes.
 // The root of the tree gets a spinning gold octahedron on a plaza.
-//
-// NOTE(Task 8): createBuildingMesh, _buildFacadeTexture, and _buildRoofTexture
-// have been removed. Buildings are now rendered as per-block InstancedMeshes
-// via web/scene/instanced/buildings.ts. buildCityScene still builds per-building
-// meshes internally (so layout positions are available) but cityScene.ts removes
-// them immediately and replaces them with InstancedMeshes.
 
 import * as THREE from 'three';
 import {
@@ -639,9 +636,9 @@ export function buildCityScene(layout: CityLayout, opts: BuildCityOpts = {}) {
     }
   }
 
-  // Buildings are no longer built here — cityScene.ts removes any per-building
-  // meshes immediately and replaces them with per-block InstancedMeshes
-  // (Task 8). Return an empty array so cityScene.ts's disposal loop no-ops.
+  // Buildings are built separately as per-cell InstancedMeshes (see
+  // scene/instanced/buildingsCell.ts). Return an empty array so cityScene.ts's
+  // disposal loop no-ops on this list.
   const buildingMeshes: THREE.Mesh[] = [];
 
   // Bounding box of the whole city (in scene coords). Used by the caller to

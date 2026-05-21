@@ -186,10 +186,11 @@ export function attachBuildingMeshToCell(
 /**
  * Write a building's per-instance attributes into the cell's InstancedMesh
  * at the slot identified by `b.slotId`. Both `b.cellId` and `b.slotId` must
- * already be set (by the caller, typically the cell-insert path in Task 8).
+ * already be set by the caller (typically the cell-insert path in
+ * cellAssembly.ts).
  *
- * Per-instance attribute writes are ported faithfully from
- * buildBuildingInstanceBuffer() in buildings.ts — semantics are unchanged.
+ * Per-instance attribute writes mirror buildBuildingInstanceBuffer() in
+ * buildings.ts (the non-cell instanced path) — semantics are identical.
  * Callers must set `mesh.instanceMatrix.needsUpdate = true` (and
  * `mesh.instanceColor.needsUpdate = true`, attribute `.needsUpdate = true`)
  * after a batch of writes.

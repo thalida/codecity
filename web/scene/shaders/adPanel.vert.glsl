@@ -32,9 +32,7 @@ void main() {
   // appears upside-down). Three.js's Texture.flipY (which normally
   // handles this for HTMLImage/HTMLCanvas uploads) has no effect on
   // DataTexture / DataArrayTexture — typed-array uploads bypass
-  // UNPACK_FLIP_Y_WEBGL — so the flip has to happen here. The legacy
-  // (non-instanced) ad-panel path doesn't need this because it uses
-  // a regular THREE.Texture from the HTMLImage where flipY does apply.
+  // UNPACK_FLIP_Y_WEBGL — so the flip has to happen here.
   vUv = vec2(uv.x, 1.0 - uv.y);
   vLayerIndex = iLayerIndex;
   vColor = iColor;

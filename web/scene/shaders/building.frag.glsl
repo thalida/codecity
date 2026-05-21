@@ -3,13 +3,9 @@
 // face's UV coordinates. All anti-aliasing is via fwidth() / smoothstep()
 // — no mipmaps available because there's no texture.
 //
-// Visual parity goal: byte-identical (within ~1% pixel tolerance) to
-// the canvas-baked facade textures the previous renderer produced.
-// See web/scene/engine.ts (pre-refactor) for the original logic.
-//
 // Color constants are sourced from the SHADING and FACADE objects in
-// web/scene/engine.ts — if those values change, this shader must be
-// updated to match. The mapping is documented in the constant comments.
+// web/config — if those values change, this shader must be updated to
+// match. The mapping is documented in the per-constant comments below.
 
 #include <hsl_glsl_inline>
 

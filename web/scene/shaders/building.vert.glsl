@@ -15,7 +15,7 @@
 //   - `instanceMatrix` (mat4) is injected under `#ifdef USE_INSTANCING`.
 //   - `instanceColor` (vec3) is injected under `#ifdef USE_INSTANCING_COLOR`.
 //   - `position`, `normal`, `uv` are always injected by Three.js.
-//   - The material built in Task 8 must enable USE_INSTANCING and
+//   - The material building this shader must enable USE_INSTANCING and
 //     USE_INSTANCING_COLOR so those attributes are declared before this body.
 
 attribute vec2 iCols;           // (cols_ew, cols_ns) — window column counts

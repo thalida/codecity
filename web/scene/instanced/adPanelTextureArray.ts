@@ -4,9 +4,8 @@
 // attribute to sample the correct layer in the fragment shader.
 //
 // WebGL2 requirement: THREE.DataArrayTexture requires WebGL2 context
-// (sampler2DArray is a GLSL ES 3.00 / WebGL2 feature). The instanced-ad-panel
-// path is therefore WebGL2-only — the legacy createAdPanel() fallback
-// continues to work in WebGL1 contexts.
+// (sampler2DArray is a GLSL ES 3.00 / WebGL2 feature). The ad-panel
+// path is therefore WebGL2-only.
 //
 // Capacity: fixed at construction time. Overflow allocations return -1 and
 // are silently ignored (the building shows no ad panel in cell mode rather
