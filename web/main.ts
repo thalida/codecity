@@ -331,12 +331,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       postFx.setSize(cw, ch);
       outlineRenderer.onResize();
       pathLineRenderer.onResize();
-      // No synchronous postFx.render() here — that fires outside the
-      // animate() loop, so per-frame state (sky-sphere follow, animator
-      // tweens, controls.update) hasn't been applied for this frame.
-      // Rendering at that point can produce a partial / mis-projected
-      // frame. Wait for the next animate() tick, which handles size
-      // catch-up via the per-frame guard above before rendering.
+      // Synchronous paint to avoid a single-frame blank/cleared canvas
+      // between the resize and the next animate() tick. The render path
+      // must match animate() so bloom shows immediately on the new size.
+      postFx.render();
     },
     // Same action as the header gem button: rebuild the manifest +
     // reset the camera to the current mode's default pose. Fired by R,
@@ -398,34 +396,23 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
   function animate() {
-    // Idempotent per-frame size guard. Catches transient races between
-    // the canvas's CSS size and the various GL render-target sizes,
-    // which otherwise manifest as the city getting rendered into a
-    // small region of an otherwise-black canvas (also observed during
-    // orbit-controls zoom — not just window resizes).
-    //
-    // We check the canvas against BOTH the renderer's GL drawing buffer
-    // AND the composer's internal HDR render target. The composer's
-    // targets can drift independently of the renderer (e.g. an
-    // intermediate frame where the renderer was resized but the
-    // composer's setSize() rebuild hasn't propagated to its multi-res
-    // bloom mips yet). When either is out of sync, resync everything.
+    // Idempotent per-frame size guard. The ResizeObserver wires onResize
+    // for sidebar / window changes, but transient races can leave the
+    // EffectComposer's HDR render targets at a stale size — manifests as
+    // the city getting rendered into a small region of an otherwise-black
+    // canvas. Re-syncing here is cheap (no-op when sizes match) and
+    // catches anything the observer-driven path misses.
     {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
-      if (cw > 0 && ch > 0) {
-        renderer.getSize(_renderSize);
-        const composerSize = postFx.getInternalSize();
-        const rendererDrift = _renderSize.x !== cw || _renderSize.y !== ch;
-        const composerDrift = composerSize.width !== cw || composerSize.height !== ch;
-        if (rendererDrift || composerDrift) {
-          renderer.setSize(cw, ch, false);
-          camera.aspect = cw / Math.max(1, ch);
-          camera.updateProjectionMatrix();
-          postFx.setSize(cw, ch);
-          outlineRenderer.onResize();
-          pathLineRenderer.onResize();
-        }
+      renderer.getSize(_renderSize);
+      if (cw > 0 && ch > 0 && (_renderSize.x !== cw || _renderSize.y !== ch)) {
+        renderer.setSize(cw, ch, false);
+        camera.aspect = cw / Math.max(1, ch);
+        camera.updateProjectionMatrix();
+        postFx.setSize(cw, ch);
+        outlineRenderer.onResize();
+        pathLineRenderer.onResize();
       }
     }
     rig.update(0); // first-call: bbox-frames camera

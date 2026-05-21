@@ -28,8 +28,6 @@ import { BLOOM } from '@/config/index.js';
 export interface PostFx {
   render(): void;
   setSize(width: number, height: number): void;
-  /** Read the composer's internal HDR target size for drift detection. */
-  getInternalSize(): { width: number; height: number };
   refresh(): void;
   dispose(): void;
 }
@@ -75,17 +73,6 @@ export function createPostFx(
     setSize: (w, h) => {
       composer.setSize(w, h);
       bloom.setSize(w, h);
-    },
-    /**
-     * Read the composer's internal HDR render target size. Used by the
-     * per-frame size guard in main.ts to detect drift between the composer
-     * targets and the canvas — the renderer alone passing the size check
-     * isn't enough since the composer's targets can resize independently
-     * via its own internal logic.
-     */
-    getInternalSize(): { width: number; height: number } {
-      const rt = composer.renderTarget1;
-      return { width: rt.width, height: rt.height };
     },
     // Pull fresh BLOOM config values into the bloom pass. Called from
     // applyTheme() on hot-reload so the in-UI knobs take effect
