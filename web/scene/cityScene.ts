@@ -79,7 +79,6 @@ import type {
 // Snapshot of the prior manifest state captured at the top of
 // applyManifest, used by the diff and the change-listener payload.
 interface PrevState {
-  buildings: THREE.Object3D[];
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
   pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
@@ -276,14 +275,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // (rather than the default `Material | Material[]`) keeps that
   // callsite's `.material.color` access working.
   type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-
-  // buildingMeshes stub — buildings live inside CellTile InstancedMeshes,
-  // not as individual scene-graph meshes. Empty array kept so the diff
-  // machinery and the still-extant getBuildings() accessor have something
-  // to return; getBuildings() callers (cameraRig sightline + altitude
-  // calc) effectively no-op against this empty list, which is a known
-  // regression awaiting a cell-aware reimplementation.
-  const buildingMeshes: THREE.Object3D[] = [];
 
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
@@ -697,7 +688,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const myGeneration = ++_currentGeneration;
 
     const prev: PrevState = {
-      buildings: buildingMeshes,
       streetPickables,
       streetLabels,
       pathMeshes,
@@ -1019,12 +1009,36 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       return dateRanges;
     },
 
-    // Returns the empty buildingMeshes stub — see comment at declaration.
-    // Buildings live inside CellTile InstancedMeshes; callers that need
-    // building data should consume _cells / _buildingIndex via the
-    // dedicated accessors.
-    getBuildings(): THREE.Object3D[] {
-      return buildingMeshes;
+    /**
+     * Tallest building height (b.h) across every cell, in world units.
+     * 0 if there are no buildings. Used by camera framing code that needs
+     * to clear the city silhouette (e.g. cameraRig.focusStreet altitude).
+     */
+    getMaxBuildingHeight(): number {
+      let maxH = 0;
+      for (const cell of _cells.values()) {
+        for (const b of cell.buildings) {
+          if (b && b.h > maxH) maxH = b.h;
+        }
+      }
+      return maxH;
+    },
+    /**
+     * Per-cell InstancedMeshes (detail + impostor) suitable for raycasting
+     * against. Three.js raycasts InstancedMesh natively, returning hits
+     * with `.instanceId` set; hidden cells (LOD-gated) are skipped by the
+     * default visibility check. Used by cameraRig sightline tests.
+     *
+     * Both detail and impostor meshes are included so a far-away cell on
+     * the impostor tier still occludes the sightline when it's actually
+     * visible on screen.
+     */
+    getBuildingPickables(): THREE.Object3D[] {
+      const out: THREE.Object3D[] = [];
+      for (const cell of _cells.values()) {
+        out.push(cell.detailMesh, cell.impostorMesh);
+      }
+      return out;
     },
     getStreetPickables() {
       return streetPickables;

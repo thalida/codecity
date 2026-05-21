@@ -35,7 +35,6 @@ export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
   getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
   getBbox: () => THREE.Box3 | null;
-  getBuildings: () => THREE.Object3D[];
 }
 
 // Only the `enabled` toggle is needed from OrbitControls. Using a

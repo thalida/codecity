@@ -17,7 +17,6 @@ function makeFakeCityScene(): FlyControlsCityScene {
     getGemWorldPos: () => null,
     getRootStreet: () => null,
     getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50)),
-    getBuildings: () => [],
   };
 }
 
@@ -507,7 +506,6 @@ describe('flyControls resetToDefault', () => {
         length: 200,
       }),
       getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(150, 30, 50)),
-      getBuildings: () => [],
     };
 
     const fly = createFlyControls({
@@ -544,7 +542,6 @@ describe('flyControls resetToDefault', () => {
       getGemWorldPos: () => null,
       getRootStreet: () => null,
       getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 30, 50)),
-      getBuildings: () => [],
     };
     const fly = createFlyControls({
       camera,

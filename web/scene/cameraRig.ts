@@ -411,14 +411,27 @@ export function createCameraRig({
   function _isSightClear(
     camPos: THREE.Vector3,
     target: THREE.Vector3,
-    focusedMesh: THREE.Object3D
+    focused: Building
   ): boolean {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    const hits = _xrayRay.intersectObjects(cityScene.getBuildings(), false);
+    // Raycast against every cell's detail + impostor InstancedMeshes.
+    // Three.js handles InstancedMesh natively: hits carry `.instanceId`
+    // (the slot) and we identify the cell via `object.userData.cellId`.
+    const hits = _xrayRay.intersectObjects(cityScene.getBuildingPickables(), false);
     for (let i = 0; i < hits.length; i++) {
-      if (hits[i].object !== focusedMesh) return false;
+      const hit = hits[i];
+      // Skip the focused building itself — its own faces always block its
+      // own sightline. Match on (cellId, slotId) since detail + impostor
+      // share both, and a different InstancedMesh might hold the focused
+      // building's other-tier representation.
+      const hitCellId = hit.object.userData.cellId;
+      if (
+        hitCellId === focused.cellId &&
+        hit.instanceId === focused.slotId
+      ) continue;
+      return false;
     }
     return true;
   }
@@ -472,7 +485,7 @@ export function createCameraRig({
         vert,
         b.y + doorDZ * (halfDepth + horiz)
       );
-      if (_isSightClear(candidate, newTarget, mesh)) {
+      if (_isSightClear(candidate, newTarget, b)) {
         newCamPos = candidate;
         break;
       }
@@ -509,16 +522,15 @@ export function createCameraRig({
     }
     camera.up.set(0, 1, 0);
 
-    // Camera altitude clears every building. Factor in any current
-    // scale.y from in-progress entry/exit tweens.
-    let maxBldgH = 0;
-    const buildingMeshes = cityScene.getBuildings();
-    for (let i = 0; i < buildingMeshes.length; i++) {
-      const mb = buildingMeshes[i].userData.building;
-      const sy = buildingMeshes[i].scale.y || 1;
-      const bh = (mb && mb.h ? mb.h : 0) * sy;
-      if (bh > maxBldgH) maxBldgH = bh;
-    }
+    // Camera altitude clears every building. (The previous version also
+    // multiplied each building's height by its mesh.scale.y to factor in
+    // entry/exit tweens — that doesn't apply in cell mode because the
+    // scale.y tween rides on the per-instance matrix inside the cell's
+    // InstancedMesh, not on a per-building scene-graph mesh. A tween-
+    // expanded building can briefly poke above this baseline; in practice
+    // the tweens settle within ~200ms, well before the street-focus
+    // camera animation completes.)
+    const maxBldgH = cityScene.getMaxBuildingHeight();
 
     const camAnim = CAMERA_ANIMATION.get();
     const halfV = (camera.fov * Math.PI) / 180 / 2;
