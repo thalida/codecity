@@ -55,6 +55,7 @@ import {
 import { LIGHTING } from '@/config/lighting.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
 import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
+import { FOOTPRINT } from '@/config/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -159,7 +160,8 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // (sky color, stars, ground haze, sun lighting) lives in collapsible
   // subgroups inside one Scene section.
   body.appendChild(_buildSceneSection());
-  body.appendChild(_buildLayoutSection());
+  // The old Layout section was folded away: street width tiers + street
+  // spacing live under Streets, building size lives under Buildings.
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
@@ -520,8 +522,12 @@ function _buildParksSection(): HTMLElement {
 // per-file building size mapping. These were split across Streets +
 // Buildings before; consolidating them here makes "how the city is
 // packed" easy to find in one place.
-function _buildLayoutSection(): HTMLElement {
-  const section = _section('Layout', 'How streets and buildings are packed.');
+// ─── Streets ───────────────────────────────────────────────────────────────
+function _buildStreetsSection(): HTMLElement {
+  const section = _section(
+    'Streets',
+    'Road network sizing + packing, plus the asphalt, sidewalks, labels, footprint, and route-highlight visuals that paint on top.'
+  );
 
   // Width tiers — step-function mapping a directory's descendant count to
   // its street width. One slider per tier so the user can fatten or thin
@@ -544,42 +550,31 @@ function _buildLayoutSection(): HTMLElement {
     ])
   );
 
-  section.appendChild(
-    _subgroup('Building size', [
-      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
-        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
-      }),
-      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
-      }),
-      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
-        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
-      }),
-      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
-      }),
-      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
-      }),
-    ])
-  );
-
-  return section;
-}
-
-// ─── Streets ───────────────────────────────────────────────────────────────
-function _buildStreetsSection(): HTMLElement {
-  const section = _section(
-    'Streets',
-    'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.'
-  );
-
   // Asphalt — color only. Width is a designer-level geometry knob; length
   // is derived to keep the cap circles concentric.
   section.appendChild(
     _subgroup('Asphalt', [
       _color('Color', ASPHALT, 'COLOR', {
         tip: 'Color of the inner road stripe. Live.',
+      }),
+    ])
+  );
+
+  // City footprint — the asphalt slab ringing the city silhouette, built
+  // from every layout rect (buildings + streets + paths) inflated outward
+  // by HALO_WIDTH. Defaults to the same color as Asphalt above so streets
+  // bleed seamlessly into the slab. HALO_WIDTH change triggers a rebuild
+  // (matrix data); COLOR + ENABLED are hot.
+  section.appendChild(
+    _subgroup('City footprint', [
+      _toggle('Enabled', FOOTPRINT, 'ENABLED', {
+        tip: 'When off, the slab is hidden (still built; group.visible = false) and parks placement no longer rejects trees inside the halo.',
+      }),
+      _color('Color', FOOTPRINT, 'COLOR', {
+        tip: 'Slab color. Defaults to ASPHALT.COLOR so internal streets bleed continuously into the surrounding slab.',
+      }),
+      _number('Halo width', FOOTPRINT, 'HALO_WIDTH', 0, 256, 4, {
+        tip: 'World units of asphalt added outward around every layout rect. ~48 (one narrow-street width) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
       }),
     ])
   );
@@ -678,7 +673,25 @@ function _buildBuildingsSection(): HTMLElement {
     'Per-file boxes — height from line count, width from byte size, color from extension + age.'
   );
 
-  // (Building size — floors / width / path — lives in the Layout section now.)
+  section.appendChild(
+    _subgroup('Building size', [
+      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
+        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
+      }),
+      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
+        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
+      }),
+      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
+        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
+      }),
+      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
+      }),
+      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
+        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
+      }),
+    ])
+  );
 
   section.appendChild(
     _collapsibleSubgroup('buildings-transitions', 'Transitions', () => [
