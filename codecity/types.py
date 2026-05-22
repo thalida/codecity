@@ -90,6 +90,17 @@ class RepoInfo(TypedDict):
     dirty: bool
 
 
+class CommitEntry(TypedDict):
+    """One commit within the git lookback window. Emitted in
+    oldest-first order so consumers can map commits[i] → i-th tree
+    placement (closest-to-gem). Date is day-precision for compact
+    payload + future age signal. files = count of A/M/D/T/U rows in
+    the commit's --name-status block."""
+
+    date: str   # "YYYY-MM-DD"
+    files: int
+
+
 class Manifest(TypedDict):
     """Top-level manifest emitted by scan_tree(). What /api/manifest
     returns and what the web app's CityScene.applyManifest consumes."""
@@ -100,6 +111,7 @@ class Manifest(TypedDict):
     tree_signature: str
     tree: DirNode
     repo: RepoInfo | None
+    commits: list[CommitEntry] | None
     display_root: NotRequired[str]
 
 
