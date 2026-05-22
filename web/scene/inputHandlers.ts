@@ -185,12 +185,13 @@ export function createInputHandlers({
       onRefresh();
       return;
     }
-    // Toggle: clicking the currently-selected building/street deselects it.
+    // Clicking the currently-selected building/street is a no-op — matches
+    // Blender / Maya / Unity / Unreal / Maps / Finder. Deselect via Esc, the
+    // clear-selection key binding, or by clicking empty ground. Without this
+    // no-op, double-click-to-focus would race with the per-click toggle and
+    // leave the target deselected on the dblclick frame.
     const next = picker.interpretHit(hit);
-    if (_sameHover(next, picker.selection.get())) {
-      picker.setSelection(null);
-      return;
-    }
+    if (_sameHover(next, picker.selection.get())) return;
     picker.setSelection(next);
   }
 
