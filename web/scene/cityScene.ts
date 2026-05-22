@@ -52,6 +52,9 @@ import { createSky } from './sky/sky.js';
 import type { Sky } from './sky/sky.js';
 import { createParks } from './parks/parks.js';
 import type { Parks } from './parks/parks.js';
+import { createParksPlacementClient } from './parks/parksPlacementClient.js';
+import type { ParksPlacementClient } from './parks/parksPlacementClient.js';
+import type { ParkPlacement } from './parks/parksPlacement.js';
 import { createValleyFloor } from './parks/valleyFloor.js';
 import type { ValleyFloor } from './parks/valleyFloor.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
@@ -275,6 +278,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // through getParks() and the rebuild branches can dispose the prior
   // instance before swapping in the new one.
   let _parks: Parks | null = null;
+
+  // Parks placement client — owns the off-thread worker (or its sync
+  // fallback in test envs). One instance per cityScene; disposed when
+  // the cityScene is disposed. Mirrors the _layoutClient pattern.
+  const _parksPlacementClient: ParksPlacementClient = createParksPlacementClient();
 
   // Cyberpunk Valley city footprint — REBUILT per applyManifest.
   // One InstancedMesh of inflated layout rects that composes into a
@@ -997,7 +1005,20 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       await new Promise<void>((r) => setTimeout(r, 0));
       if (generationAtDefer !== _currentGeneration) return;
 
-      _parks = createParks(layoutAtDefer, parksBbox);
+      // Off-thread placement via the worker. The supersede protocol
+      // rejects this promise with "superseded" if another applyManifest
+      // fires while placement is in-flight — silently abort that branch
+      // so we don't add a stale parks group to the scene.
+      let placements: ParkPlacement[];
+      try {
+        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox);
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
+      }
+      if (generationAtDefer !== _currentGeneration) return;
+
+      _parks = createParks(placements);
       scene.add(_parks.group);
     }
   }
@@ -1017,6 +1038,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
+    _parksPlacementClient.dispose();
   }
 
   function resetCache(): void {
