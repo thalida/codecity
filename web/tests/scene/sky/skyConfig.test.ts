@@ -13,7 +13,7 @@ describe('SKY', () => {
     expect(v.COLOR).toBe('#000000');
     expect(v.HORIZON_COLOR).toBe('#04030c');
     expect(v.HORIZON_HEIGHT).toBeCloseTo(0.15);
-    expect(v.GROUND_COLOR).toBe('#000000');
+    expect(v.GROUND_COLOR).toBe('#030706');
   });
 });
 

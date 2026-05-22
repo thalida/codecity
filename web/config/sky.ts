@@ -36,7 +36,11 @@ export const SKY = map<SkyConfig>({
   // = bottom ~8.6° has the glow; the upper ~85% of the dome is flat
   // COLOR. 0 disables the band entirely.
   HORIZON_HEIGHT: 0.15,
-  GROUND_COLOR: '#000000',  // lower hemisphere (below dir.y=0)
+  // Match PARKS_PALETTE.GROUND_COLOR — the valley-floor mesh covers
+  // the visible ground, but the sky's lower hemisphere paints beyond
+  // the floor's edges (and shows through if the floor is disabled).
+  // Same color = invisible seam at the horizon.
+  GROUND_COLOR: '#030706',
 });
 
 export interface SkyStarsConfig {
