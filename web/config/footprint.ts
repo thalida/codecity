@@ -21,6 +21,12 @@ export interface FootprintConfig {
   /** World units of asphalt added outward around each layout rect.
    *  The contour emerges from the union of overlapping inflated rects. */
   HALO_WIDTH: number;
+  /** Corner radius (world units) applied per-instance in the fragment
+   *  shader's rounded-rect SDF. Where rects overlap heavily the
+   *  rounding is hidden by neighbors; where a rect ends at the
+   *  silhouette the radius shows. Clamped per-instance to half the
+   *  smallest side so tiny rects degrade to pills, not artifacts. */
+  CORNER_RADIUS: number;
   /** Slab color. A near-black tone that reads as a dark paved apron
    *  framing the city against the night-scene floor. */
   COLOR: string;
@@ -29,5 +35,6 @@ export interface FootprintConfig {
 export const FOOTPRINT = map<FootprintConfig>({
   ENABLED: true,
   HALO_WIDTH: 64,
+  CORNER_RADIUS: 24,
   COLOR: '#0a0b0f',
 });

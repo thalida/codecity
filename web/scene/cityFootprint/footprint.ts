@@ -7,15 +7,24 @@
 // into one continuous asphalt slab — no CSG, no triangulation, no
 // explicit contour computation.
 //
+// Each instance carries its inflated half-extents (in world units)
+// as a vec2 per-instance attribute, and the fragment shader runs a
+// rounded-rectangle SDF in world-distance-from-edge space so that
+// FOOTPRINT.CORNER_RADIUS (a uniform in world units) stays a true
+// world-space radius regardless of the non-uniform per-instance
+// scale. Where two rects overlap heavily the rounded corner of one
+// is masked by its neighbor — outer silhouette corners read as
+// rounded; internal "step" corners still composite continuously.
+//
 // Lifecycle matches createValleyFloor / createParks:
 //
 //   const fp = createCityFootprint(layout);
 //   scene.add(fp.group);
-//   fp.refresh();   // on applyTheme() — color + visibility
+//   fp.refresh();   // on applyTheme() — color + radius + visibility
 //   fp.dispose();   // on rebuild / scene teardown
 //
 // Structural changes (HALO_WIDTH) trigger a rebuild via hotReload.ts;
-// refresh() handles COLOR + ENABLED only.
+// refresh() handles COLOR, CORNER_RADIUS, and ENABLED only.
 
 import * as THREE from 'three';
 import { FOOTPRINT } from '@/config/footprint.js';
@@ -52,6 +61,41 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
+const FOOTPRINT_VERT = /* glsl */ `
+attribute vec2 aHalfExtent;
+varying vec2 vP;
+varying vec2 vHalfExtent;
+void main() {
+  // The unit quad's vertex sits in [-0.5, 0.5] on x and z (PlaneGeometry
+  // rotated -π/2 about X). Doubling and multiplying by the per-instance
+  // half-extent gives the world-space offset from the instance center
+  // in world units, which the fragment shader uses for the SDF.
+  vP = position.xz * 2.0 * aHalfExtent;
+  vHalfExtent = aHalfExtent;
+  // instanceMatrix is auto-bound by InstancedMesh.
+  gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
+}
+`;
+
+const FOOTPRINT_FRAG = /* glsl */ `
+precision mediump float;
+uniform vec3 uColor;
+uniform float uCornerRadius;
+varying vec2 vP;
+varying vec2 vHalfExtent;
+void main() {
+  // Per-instance clamp: a radius larger than the smallest half-extent
+  // would turn the rect into a pill/ellipse. Small rects (e.g. a
+  // narrow building inflated by HALO_WIDTH) degrade gracefully.
+  float r = min(uCornerRadius, min(vHalfExtent.x, vHalfExtent.y));
+  // Inigo Quilez rounded-box SDF in world units.
+  vec2 q = abs(vP) - vHalfExtent + r;
+  float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - r;
+  if (d > 0.0) discard;
+  gl_FragColor = vec4(uColor, 1.0);
+}
+`;
+
 export function createCityFootprint(layout: CityLayout): CityFootprint {
   const cfg = FOOTPRINT.get();
   const halo = Math.max(0, cfg.HALO_WIDTH);
@@ -64,12 +108,31 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
   const geometry = new THREE.PlaneGeometry(1, 1);
   geometry.rotateX(-Math.PI / 2);
 
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    toneMapped: false,
+  // Per-instance half-extents in world units, so the fragment shader
+  // can SDF a rounded rectangle in world-space instead of unit-space
+  // (which would distort the corner radius under non-uniform scaling).
+  const halfExtents = new Float32Array(rects.length * 2);
+  for (let i = 0; i < rects.length; i++) {
+    halfExtents[i * 2 + 0] = (rects[i].w + halo * 2) * 0.5;
+    halfExtents[i * 2 + 1] = (rects[i].d + halo * 2) * 0.5;
+  }
+  geometry.setAttribute(
+    'aHalfExtent',
+    new THREE.InstancedBufferAttribute(halfExtents, 2),
+  );
+
+  const colorUniform = new THREE.Color();
+  setColorFromHex(colorUniform, cfg.COLOR);
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader: FOOTPRINT_VERT,
+    fragmentShader: FOOTPRINT_FRAG,
     depthWrite: false,
+    uniforms: {
+      uColor: { value: colorUniform },
+      uCornerRadius: { value: Math.max(0, cfg.CORNER_RADIUS) },
+    },
   });
-  setColorFromHex(material.color, cfg.COLOR);
 
   const mesh = new THREE.InstancedMesh(geometry, material, rects.length);
   mesh.name = 'city-footprint';
@@ -98,7 +161,8 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
 
   function refresh(): void {
     const c = FOOTPRINT.get();
-    setColorFromHex(material.color, c.COLOR);
+    setColorFromHex(material.uniforms.uColor.value as THREE.Color, c.COLOR);
+    material.uniforms.uCornerRadius.value = Math.max(0, c.CORNER_RADIUS);
     group.visible = c.ENABLED;
   }
 

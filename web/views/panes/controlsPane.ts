@@ -576,6 +576,9 @@ function _buildStreetsSection(): HTMLElement {
       _number('Halo width', FOOTPRINT, 'HALO_WIDTH', 0, 256, 4, {
         tip: 'World units of asphalt added outward around every layout rect. ~64 (roughly two narrow-street widths) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
       }),
+      _number('Halo radius', FOOTPRINT, 'CORNER_RADIUS', 0, 128, 1, {
+        tip: 'Corner radius (world units) applied per-instance in the shader. Where rects overlap heavily the rounding is hidden by neighbors; the radius only shows where a rect ends at the silhouette. Per-instance clamp keeps small rects from over-rounding into pills.',
+      }),
     ])
   );
 
