@@ -19,16 +19,15 @@ export interface FootprintConfig {
    *  treats HALO_WIDTH as 0 (no rejection). */
   ENABLED: boolean;
   /** World units of asphalt added outward around each layout rect.
-   *  ~48 (one narrow-street width) is the design default; the contour
-   *  emerges from the union of overlapping inflated rects. */
+   *  The contour emerges from the union of overlapping inflated rects. */
   HALO_WIDTH: number;
-  /** Slab color. Defaults to ASPHALT.COLOR so streets bleed into the
-   *  slab visually. */
+  /** Slab color. A near-black tone that reads as a dark paved apron
+   *  framing the city against the night-scene floor. */
   COLOR: string;
 }
 
 export const FOOTPRINT = map<FootprintConfig>({
   ENABLED: true,
-  HALO_WIDTH: 48,
-  COLOR: '#313544',
+  HALO_WIDTH: 64,
+  COLOR: '#0a0b0f',
 });

@@ -571,10 +571,10 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'When off, the slab is hidden (still built; group.visible = false) and parks placement no longer rejects trees inside the halo.',
       }),
       _color('Color', FOOTPRINT, 'COLOR', {
-        tip: 'Slab color. Defaults to ASPHALT.COLOR so internal streets bleed continuously into the surrounding slab.',
+        tip: 'Slab color. Near-black by default so the apron reads as a darker frame around the city against the night-scene floor.',
       }),
       _number('Halo width', FOOTPRINT, 'HALO_WIDTH', 0, 256, 4, {
-        tip: 'World units of asphalt added outward around every layout rect. ~48 (one narrow-street width) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
+        tip: 'World units of asphalt added outward around every layout rect. ~64 (roughly two narrow-street widths) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
       }),
     ])
   );

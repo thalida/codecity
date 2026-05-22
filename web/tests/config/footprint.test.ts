@@ -6,7 +6,7 @@ describe('FOOTPRINT', () => {
   it('has the expected keys + defaults', () => {
     const v = FOOTPRINT.get();
     expect(v.ENABLED).toBe(true);
-    expect(v.HALO_WIDTH).toBe(48);
-    expect(v.COLOR).toBe('#313544');
+    expect(v.HALO_WIDTH).toBe(64);
+    expect(v.COLOR).toBe('#0a0b0f');
   });
 });
