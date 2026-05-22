@@ -54,6 +54,7 @@ import {
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
+import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -154,14 +155,20 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // See _section() and resetCollapsed() below.
   body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
+  // Scene now subsumes the old Sky section — every backdrop-y knob
+  // (sky color, stars, ground haze, sun lighting) lives in collapsible
+  // subgroups inside one Scene section.
   body.appendChild(_buildSceneSection());
-  body.appendChild(_buildSkySection());
   body.appendChild(_buildLayoutSection());
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
+  // Parks sits after Gem (the world's anchor) so the panel reads
+  // structural → decorative top-to-bottom.
+  body.appendChild(_buildParksSection());
+  // Effects now also owns the LOD / Rendering knobs as a collapsible
+  // subgroup — they're all "shared post-FX & render-tier" dials.
   body.appendChild(_buildEffectsSection());
-  body.appendChild(_buildRenderingSection());
   body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
@@ -346,73 +353,25 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 }
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
-// Sky / ground void color, atmospheric haze, and the directional sun
-// lighting that drives the building shader (azimuth, elevation, ambient,
-// sun contrast).
+// Everything that paints behind / around the city:
+//   Sky        — the procedural icosphere (cyberpunk gradient + stars)
+//   Stars      — hashed star field + twinkle (lives inside the sky shader)
+//   Ground haze — atmospheric fog mix on the building shader
+//   Sun lighting — directional sun (azimuth, elevation, ambient, contrast)
+// Each is a collapsible subgroup so the section stays scannable. The
+// old SCENE_COLORS.GROUND row is folded into Sky as the disabled-fallback
+// color (it only shows when SKY.ENABLED is off — SKY's own colors paint
+// the sphere otherwise).
 function _buildSceneSection(): HTMLElement {
-  const section = _section('Scene', 'Sky, atmosphere, and sun lighting.');
-
-  section.appendChild(
-    _subgroup('Sky & ground', [
-      _color('Sky / ground color', SCENE_COLORS, 'GROUND', {
-        tip: 'Color shown behind buildings + streets. Live.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Ground haze', [
-      _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
-        tip: 'Off → no haze (the shader\'s fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.',
-      }),
-      _color('Color', SCENE_COLORS, 'FOG_COLOR', {
-        tip: 'Tint that building bases mix toward. Match the sky/ground for a seamless horizon.',
-      }),
-      _slider('Intensity', SCENE_COLORS, 'FOG_INTENSITY', 0, 1, 0.05, {
-        tip: 'Peak fog amount at world Y=0 (street level). 0 = off; 1 = ground plane fully tinted to fog color.',
-      }),
-      _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
-        tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Sun lighting', [
-      _slider('Sun azimuth (°)', LIGHTING, 'SUN_AZIMUTH_DEG', 0, 360, 1, {
-        tip: 'Compass bearing of the sun. 0° = south, increases clockwise (east).',
-      }),
-      _slider('Sun elevation (°)', LIGHTING, 'SUN_ELEVATION_DEG', 0, 90, 1, {
-        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
-      }),
-      _slider('Ambient light', LIGHTING, 'AMBIENT', 0, 1, 0.01, {
-        tip: 'Base illumination on faces facing away from the sun.',
-      }),
-      _slider('Sun contrast', LIGHTING, 'SUN_CONTRAST', 0, 1, 0.01, {
-        tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
-      }),
-    ])
-  );
-
-  return section;
-}
-
-// ─── Sky (Cyberpunk Valley) ────────────────────────────────────────────────
-// Flat two-color sky (upper-hemisphere sky color, lower-hemisphere ground
-// color) + hashed star field with sine twinkle. Every dial is
-// hot-reloadable (no rebuild); SKY.ENABLED is the master toggle — when off
-// the inverted icosphere is hidden and the existing scene.background
-// (SCENE_COLORS.GROUND) fallback paints the void.
-function _buildSkySection(): HTMLElement {
   const section = _section(
-    'Sky',
-    'Procedural cyberpunk sky: flat two-color sky, stars, and twinkle. Star twinkle is the only animation.',
+    'Scene',
+    'Sky, stars, atmosphere, and sun lighting — everything that frames the city.',
   );
 
   section.appendChild(
-    _subgroup('Sky', [
+    _collapsibleSubgroup('scene-sky', 'Sky', () => [
       _toggle('Enabled', SKY, 'ENABLED', {
-        tip: 'Master toggle. When off the sky sphere is hidden and the flat scene.background GROUND color paints the void.',
+        tip: 'Master toggle. When off the sky sphere is hidden and the Fallback color below paints the void.',
       }),
       _color('Sky color', SKY, 'COLOR', {
         tip: 'Solid color painted across the upper hemisphere above the horizon band. Stars are added on top.',
@@ -426,11 +385,14 @@ function _buildSkySection(): HTMLElement {
       _color('Ground color', SKY, 'GROUND_COLOR', {
         tip: 'Solid color painted across the lower hemisphere (below the horizon line). No stars. Produces a clean horizon seam with the sky color.',
       }),
+      _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
+        tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
+      }),
     ]),
   );
 
   section.appendChild(
-    _subgroup('Stars', [
+    _collapsibleSubgroup('scene-stars', 'Stars', () => [
       _toggle('Enabled', SKY_STARS, 'ENABLED', {
         tip: 'When off, no stars are sampled (also disables twinkle).',
       }),
@@ -454,6 +416,98 @@ function _buildSkySection(): HTMLElement {
       }),
       _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
         tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-haze', 'Ground haze', () => [
+      _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
+        tip: "Off → no haze (the shader's fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.",
+      }),
+      _color('Color', SCENE_COLORS, 'FOG_COLOR', {
+        tip: 'Tint that building bases mix toward. Match the sky/ground for a seamless horizon.',
+      }),
+      _slider('Intensity', SCENE_COLORS, 'FOG_INTENSITY', 0, 1, 0.05, {
+        tip: 'Peak fog amount at world Y=0 (street level). 0 = off; 1 = ground plane fully tinted to fog color.',
+      }),
+      _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
+        tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-sun', 'Sun lighting', () => [
+      _slider('Sun azimuth (°)', LIGHTING, 'SUN_AZIMUTH_DEG', 0, 360, 1, {
+        tip: 'Compass bearing of the sun. 0° = south, increases clockwise (east).',
+      }),
+      _slider('Sun elevation (°)', LIGHTING, 'SUN_ELEVATION_DEG', 0, 90, 1, {
+        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
+      }),
+      _slider('Ambient light', LIGHTING, 'AMBIENT', 0, 1, 0.01, {
+        tip: 'Base illumination on faces facing away from the sun.',
+      }),
+      _slider('Sun contrast', LIGHTING, 'SUN_CONTRAST', 0, 1, 0.01, {
+        tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Parks (Cyberpunk Valley) ──────────────────────────────────────────────
+// Foliage plots placed in two zones: INNER pockets fill empty pockets
+// inside the city bbox; the BELT rings the city outside a buffer GAP.
+// Each plot is composed of an instanced ground quad + 1-3 trees + 0-2
+// emissive bushes + tiny flower specks. The master ENABLED toggle
+// disposes everything; per-zone and per-mesh toggles cost only a
+// mesh.visible flip via parks.refresh().
+function _buildParksSection(): HTMLElement {
+  const section = _section(
+    'Parks',
+    'Foliage plots: inner pockets fill gaps between buildings; a belt rings the city outside a gap buffer. Trees are matte; bushes + flowers bloom via HDR.',
+  );
+
+  section.appendChild(
+    _subgroup('Parks', [
+      _toggle('Enabled', PARKS, 'ENABLED', {
+        tip: 'Master toggle. When off the parks group is disposed entirely (no hidden geometry in GPU memory). Re-enabling rebuilds from the current layout.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Visibility', [
+      _toggle('Floor', PARKS_PALETTE, 'GROUND_ENABLED', {
+        tip: 'Camera-following forest-tinted ground plane that paints the entire visible world floor. Disable to see the sky\'s lower-hemisphere fill behind everything (handy for debugging).',
+      }),
+      _color('Floor color', PARKS_PALETTE, 'GROUND_COLOR', {
+        tip: 'Color of the valley-floor mesh. Should match Scene → Sky → Ground color so the horizon is seamless.',
+      }),
+      _toggle('Trees', PARKS_PALETTE, 'TREES_ENABLED', {
+        tip: 'Matte tetrahedral canopies + tiny trunks. Disable for a treeless park silhouette.',
+      }),
+      _toggle('Bushes', PARKS_PALETTE, 'BUSHES_ENABLED', {
+        tip: 'Emissive icosahedron bushes — the main parks bloom source. Disable to drop bloom.',
+      }),
+      _toggle('Flowers', PARKS_PALETTE, 'FLOWERS_ENABLED', {
+        tip: 'Tiny additive flower specks. Cheap individually, but the biggest instance count — disable first for perf.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Density', [
+      _slider('Overall (% of plane)', PARKS, 'DENSITY_PERCENT', 0, 100, 1, {
+        tip: 'Overall foliage density across the entire visible ground plane. 100 = fully populated; 50 = half density; 0 = no trees. This is the master density dial — the other two knobs only redistribute these trees.',
+      }),
+      _slider('City interior (% of edge)', PARKS, 'CITY_DENSITY_PERCENT', 0, 100, 1, {
+        tip: 'Density INSIDE the city as a percentage of the forest-edge density. 100 = uniform; 30 = city plazas have 30% of the outer density (visible but doesn\'t crowd the city); 0 = no trees inside the city at all.',
+      }),
+      _slider('Gradient reach (% of plane)', PARKS, 'GRADIENT_REACH_PERCENT', 0, 100, 1, {
+        tip: 'How far the city → forest density transition spans, as a percentage of the visible plane. 0 = hard switch at the city edge; 40 = smooth fade over the first 40% of the plane (default); 100 = density rises gradually all the way to the plane edge.',
       }),
     ]),
   );
@@ -925,7 +979,10 @@ function _buildGemSection(): HTMLElement {
 
 // ─── Effects ───────────────────────────────────────────────────────────────
 function _buildEffectsSection(): HTMLElement {
-  const section = _section('Effects', 'Shared visual effects.');
+  const section = _section(
+    'Effects',
+    'Shared visual effects + per-cell level-of-detail thresholds.',
+  );
 
   section.appendChild(
     _subgroup('Rainbow (selected outline + path line)', [
@@ -963,14 +1020,10 @@ function _buildEffectsSection(): HTMLElement {
     ])
   );
 
-  return section;
-}
-
-// ─── Rendering ─────────────────────────────────────────────────────────────
-// Per-cell level-of-detail thresholds.
-function _buildRenderingSection(): HTMLElement {
-  const section = _section('Rendering', 'Per-cell level-of-detail thresholds.');
-
+  // Level-of-detail thresholds used to live in their own "Rendering"
+  // section. They're per-cell GPU throttle dials — same conceptual
+  // family as the post-FX above, just at the rasterizer tier instead
+  // of the post pass — so they fold cleanly into Effects.
   section.appendChild(
     _subgroup('Level of detail', [
       _toggle('LOD enabled', LOD, 'enabled', {

@@ -48,7 +48,7 @@ export interface FooterStatus {
   /** True when live-poll is active; renders as `live`. False renders as `paused`. */
   liveEnabled: boolean;
   /** Must remain in sync with `RebuildStatus` in `liveStatus.ts` (intentional decoupling). */
-  rebuildStatus: 'idle' | 'rebuilding' | 'error';
+  rebuildStatus: 'idle' | 'rebuilding' | 'decorating' | 'error';
   /** Epoch millis of the most recent successful rebuild; 0 ⇒ unknown. */
   lastUpdatedAt: number;
   /** Surfaced as the indicator's `title` (hover tooltip) when rebuildStatus === 'error'. */
@@ -103,6 +103,9 @@ export function initAppFooter(opts: InitAppFooterOpts = {}) {
     if (status.rebuildStatus === 'rebuilding') {
       buildModifier = 'is-rebuilding';
       detailText = 'rebuilding…';
+    } else if (status.rebuildStatus === 'decorating') {
+      buildModifier = 'is-rebuilding';
+      detailText = 'decorating…';
     } else if (status.rebuildStatus === 'error') {
       buildModifier = 'is-error';
       detailText = status.errorMessage ? `error: ${status.errorMessage}` : 'error';
