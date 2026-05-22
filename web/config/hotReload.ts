@@ -11,6 +11,8 @@
 // Adding a new config row is a one-line entry in the appropriate set
 // below — the reactions below pick it up automatically.
 
+import { listenKeys } from 'nanostores';
+
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '../liveStatus.js';
 
 import {
@@ -178,10 +180,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // InstancedMeshes, both of which only happen inside applyManifest's
     // parks rebuild hook.
     PARKS,
-    // FOOTPRINT.HALO_WIDTH bakes into per-instance Matrix4 data at
-    // createCityFootprint() time, so changing the halo width requires
-    // a full applyManifest rebuild to regenerate the InstancedMesh.
-    FOOTPRINT,
+    // FOOTPRINT is intentionally NOT here as a whole-store subscription:
+    // only HALO_WIDTH is structural, and we gate it via listenKeys below.
+    // COLOR + ENABLED live in hotStores and refresh via footprint.refresh().
   ];
 
   const hotStores = [
@@ -218,7 +219,8 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     PARKS_PALETTE,
     // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed live via
     // footprint.refresh() inside applyTheme() — no rebuild required.
-    // FOOTPRINT.HALO_WIDTH is in rebuildStores above (matrix data).
+    // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
+    // dragging the color slider doesn't trigger a spurious applyManifest.
     FOOTPRINT,
   ];
 
@@ -229,6 +231,12 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   for (const store of hotStores) {
     unsubs.push(store.subscribe(refreshMaterials));
   }
+  // HALO_WIDTH bakes into per-instance Matrix4 data at createCityFootprint
+  // time, so changing it requires a full applyManifest rebuild. The other
+  // FOOTPRINT keys (COLOR, ENABLED) are handled by the hotStores subscription
+  // above; gating the rebuild on HALO_WIDTH alone avoids a wasted rebuild on
+  // every color drag.
+  unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
   armed = true;
 
   return function dispose() {

@@ -14,8 +14,9 @@
 import { map } from 'nanostores';
 
 export interface FootprintConfig {
-  /** Master toggle. When false, no mesh is added to the scene and
-   *  parks placement treats HALO_WIDTH as 0 (no rejection). */
+  /** Master toggle. When false, the InstancedMesh is still built but
+   *  its group is hidden (group.visible = false), and parks placement
+   *  treats HALO_WIDTH as 0 (no rejection). */
   ENABLED: boolean;
   /** World units of asphalt added outward around each layout rect.
    *  ~48 (one narrow-street width) is the design default; the contour
