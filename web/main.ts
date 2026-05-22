@@ -256,6 +256,23 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();
 
+    // Cyberpunk Valley valley floor — pulls fresh GROUND_COLOR /
+    // GROUND_ENABLED from PARKS_PALETTE so colour pickers + toggles
+    // hot-update without a manifest rebuild.
+    cityScene.getValleyFloor().refresh();
+
+    // Cyberpunk Valley parks — pushes fresh PARKS_PALETTE colors into
+    // the per-instance color buffers and the bush/flower
+    // ShaderMaterial emission uniforms. Null until the first manifest
+    // applies (boot order: applyTheme can fire on first armed
+    // subscribe before any manifest), so guard with optional chain.
+    cityScene.getParks()?.refresh();
+
+    // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
+    // onto the slab material / group visibility. Null until the first
+    // manifest applies; guard with optional chain.
+    cityScene.getCityFootprint()?.refresh();
+
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
     const rootGemBody = cityScene.getRootGemBody();
@@ -522,6 +539,16 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const sky = cityScene.getSky();
       sky.mesh.position.copy(camera.position);
       sky.mesh.updateMatrixWorld(true);
+    }
+    // Same trick for the valley floor — it's a flat XZ plane that
+    // has to slide under the camera every frame so the visible
+    // ground from FAR-clip-distance away is always on the mesh.
+    // Y stays at -0.5 (slightly below city ground geometry).
+    {
+      const floor = cityScene.getValleyFloor();
+      floor.mesh.position.x = camera.position.x;
+      floor.mesh.position.z = camera.position.z;
+      floor.mesh.updateMatrixWorld(true);
     }
     postFx.render();
     requestAnimationFrame(animate);
@@ -908,6 +935,15 @@ if (_canvas) {
     const hasSrc = qp.has('src');
 
     const loadingOverlay = createLoadingOverlay();
+
+    // Forward REBUILD_STATUS → loadingOverlay so the loading card
+    // advances to "Adding decorations" while applyManifest is in its
+    // deferred parks-build phase. Lives for the page lifetime so
+    // source-switches (which re-show the overlay) also get the step.
+    // setStep on a hidden overlay is a harmless DOM update.
+    REBUILD_STATUS.subscribe((s) => {
+      if (s === 'decorating') loadingOverlay.setStep('decorating');
+    });
 
     let initialManifest: Manifest = EMPTY_MANIFEST;
     let initialError: string | null = null;

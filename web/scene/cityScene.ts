@@ -50,6 +50,12 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { createSky } from './sky/sky.js';
 import type { Sky } from './sky/sky.js';
+import { createParks } from './parks/parks.js';
+import type { Parks } from './parks/parks.js';
+import { createValleyFloor } from './parks/valleyFloor.js';
+import type { ValleyFloor } from './parks/valleyFloor.js';
+import { createCityFootprint } from './cityFootprint/footprint.js';
+import type { CityFootprint } from './cityFootprint/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -59,11 +65,14 @@ import {
   GEM_GLOW,
   GEM_SIZING,
   LABEL_TYPOGRAPHY,
+  PARKS,
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
+import { REBUILD_STATUS } from '../liveStatus.js';
 import type {
   Building,
+  CityBbox,
   CityLayout,
   CitySceneDiff,
   DateRanges,
@@ -249,6 +258,30 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // through as the fallback.
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
+
+  // Cyberpunk Valley valley floor — a large flat plane that follows
+  // the camera and paints the entire visible ground with a forest
+  // tint. Built ONCE at scene init (it's not layout-dependent — the
+  // plane is bigger than any city). Sits at renderOrder -500, so it
+  // draws AFTER the sky (-1000) but BEFORE the city's own ground
+  // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
+  const _valleyFloor: ValleyFloor = createValleyFloor();
+  scene.add(_valleyFloor.mesh);
+
+  // Cyberpunk Valley parks — REBUILT per applyManifest from the new
+  // layout's buildings/streets/paths (the placement algorithm fills
+  // the gaps between them and rings the city's outer boundary).
+  // Held at cityScene scope so applyTheme() can call .refresh()
+  // through getParks() and the rebuild branches can dispose the prior
+  // instance before swapping in the new one.
+  let _parks: Parks | null = null;
+
+  // Cyberpunk Valley city footprint — REBUILT per applyManifest.
+  // One InstancedMesh of inflated layout rects that composes into a
+  // contoured asphalt slab. Cheap to build (no rejection sampling),
+  // so it is created synchronously inside applyManifest. Held here
+  // so applyTheme() can call .refresh() through getCityFootprint().
+  let _cityFootprint: CityFootprint | null = null;
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -913,12 +946,74 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
+    // City is now in the scene. Decoration pass (parks, future mesa
+    // bounds, etc.) is deferred to the next animation frame so the
+    // city paints + becomes interactive BEFORE the placement scan +
+    // GPU upload blocks the main thread. For large repos this gap is
+    // the difference between a snappy rebuild and a multi-hundred-ms
+    // freeze.
+    const parksEnabled = PARKS.get().ENABLED;
+    if (_parks) {
+      _parks.dispose();
+      _parks = null;
+    }
+    if (_cityFootprint) {
+      _cityFootprint.dispose();
+      _cityFootprint = null;
+    }
+
     _emit(changeCbs, _computeDiff(prev));
+
+    if (bbox) {
+      // Footprint is cheap (one InstancedMesh, no rejection sampling),
+      // so we don't need the rAF+setTimeout defer the parks path uses.
+      _cityFootprint = createCityFootprint(newLayout);
+      scene.add(_cityFootprint.group);
+    }
+
+    if (parksEnabled && bbox) {
+      // Snapshot what the deferred pass needs so a later applyManifest
+      // bumping _currentGeneration doesn't race with this build.
+      const generationAtDefer = myGeneration;
+      const layoutAtDefer = newLayout;
+      const parksBbox: CityBbox = {
+        minX: bbox.min.x,
+        maxX: bbox.max.x,
+        minY: bbox.min.z, // three.js Z is the second world axis
+        maxY: bbox.max.z,
+        cx: (bbox.min.x + bbox.max.x) / 2,
+        cy: (bbox.min.z + bbox.max.z) / 2,
+        width: bbox.max.x - bbox.min.x,
+        depth: bbox.max.z - bbox.min.z,
+      };
+
+      REBUILD_STATUS.set('decorating');
+      // rAF lets the browser START the next frame; setTimeout(0)
+      // then yields the task so the browser can COMPLETE the paint
+      // before parks work begins. The combination is the most
+      // reliable way to ensure the city is on-screen before we touch
+      // the main thread again.
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      if (generationAtDefer !== _currentGeneration) return;
+
+      _parks = createParks(layoutAtDefer, parksBbox);
+      scene.add(_parks.group);
+    }
   }
 
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
+    _valleyFloor.dispose();
+    if (_parks) {
+      _parks.dispose();
+      _parks = null;
+    }
+    if (_cityFootprint) {
+      _cityFootprint.dispose();
+      _cityFootprint = null;
+    }
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
@@ -954,6 +1049,35 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
      */
     getSky(): Sky {
       return _sky;
+    },
+
+    /**
+     * Cyberpunk Valley valley-floor reference. Exposed so main.ts's
+     * render loop can sync the mesh to the camera each frame (the
+     * mesh has to follow the camera so it always covers the visible
+     * ground), and so applyTheme() can call .refresh() on hot-reload.
+     */
+    getValleyFloor(): ValleyFloor {
+      return _valleyFloor;
+    },
+
+    /**
+     * Cyberpunk Valley parks reference. Rebuilt per applyManifest, so
+     * this returns null until the first manifest has been applied.
+     * main.ts's applyTheme() guards with `?.refresh()` to handle the
+     * pre-manifest case.
+     */
+    getParks(): Parks | null {
+      return _parks;
+    },
+
+    /**
+     * Cyberpunk Valley city footprint reference. Rebuilt per
+     * applyManifest; null until the first manifest has been applied.
+     * main.ts's applyTheme() guards with `?.refresh()`.
+     */
+    getCityFootprint(): CityFootprint | null {
+      return _cityFootprint;
     },
 
     getManifest() {

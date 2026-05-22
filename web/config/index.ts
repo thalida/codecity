@@ -35,3 +35,5 @@ export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
 export * from './lod.js'; // per-block LOD swap thresholds
 export * from './syntaxTheme.js'; // syntax highlight theme picker
 export * from './sky.js'; // Cyberpunk Valley: flat two-color sky + stars
+export * from './parks.js'; // Cyberpunk Valley: foliage plots (inner pockets + belt)
+export * from './footprint.js'; // Cyberpunk Valley: contoured asphalt slab ringing the city

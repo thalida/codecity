@@ -44,6 +44,15 @@ import {
   // Cyberpunk Valley — sky (uniform-only, no rebuild):
   SKY,
   SKY_STARS,
+
+  // Cyberpunk Valley — parks (structural in PARKS → rebuild; palette
+  // in PARKS_PALETTE → hot path via parks.refresh()):
+  PARKS,
+  PARKS_PALETTE,
+
+  // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
+  // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
+  FOOTPRINT,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -163,6 +172,16 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // we can switch to listenKeys to gate scheduleRebuild on just the
     // three JS keys.
     FACADE_GEOMETRY,
+    // PARKS holds every structural dial (plot sizes, max counts,
+    // belt spacing, foliage counts per plot) — flipping any of them
+    // requires re-running placement + rebuilding the four foliage
+    // InstancedMeshes, both of which only happen inside applyManifest's
+    // parks rebuild hook.
+    PARKS,
+    // FOOTPRINT.HALO_WIDTH bakes into per-instance Matrix4 data at
+    // createCityFootprint() time, so changing the halo width requires
+    // a full applyManifest rebuild to regenerate the InstancedMesh.
+    FOOTPRINT,
   ];
 
   const hotStores = [
@@ -193,6 +212,14 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // (also handled by sky.refresh()).
     SKY,
     SKY_STARS,
+    // PARKS_PALETTE: color arrays + emission boosts. Renderer pushes
+    // these into per-instance color buffers + ShaderMaterial uniforms
+    // via parks.refresh() — no rebuild, no re-placement.
+    PARKS_PALETTE,
+    // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed live via
+    // footprint.refresh() inside applyTheme() — no rebuild required.
+    // FOOTPRINT.HALO_WIDTH is in rebuildStores above (matrix data).
+    FOOTPRINT,
   ];
 
   const unsubs: Array<() => void> = [];

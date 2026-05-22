@@ -1,0 +1,33 @@
+// config/footprint.ts — Cyberpunk Valley city footprint configuration.
+//
+// One InstancedMesh per layout rect (buildings + streets + paths),
+// each scaled up by HALO_WIDTH world units in both axes, painted with
+// COLOR, drawn at y=0 between the valley floor (-500) and the city's
+// sidewalk/asphalt layers (1+). The overlapping inflated quads
+// compose visually into one continuous asphalt slab that follows the
+// city silhouette.
+//
+// Parks placement reads HALO_WIDTH so candidate trees inside the slab
+// are rejected by the existing rbush overlap check — no extra
+// gradient logic required.
+
+import { map } from 'nanostores';
+
+export interface FootprintConfig {
+  /** Master toggle. When false, no mesh is added to the scene and
+   *  parks placement treats HALO_WIDTH as 0 (no rejection). */
+  ENABLED: boolean;
+  /** World units of asphalt added outward around each layout rect.
+   *  ~48 (one narrow-street width) is the design default; the contour
+   *  emerges from the union of overlapping inflated rects. */
+  HALO_WIDTH: number;
+  /** Slab color. Defaults to ASPHALT.COLOR so streets bleed into the
+   *  slab visually. */
+  COLOR: string;
+}
+
+export const FOOTPRINT = map<FootprintConfig>({
+  ENABLED: true,
+  HALO_WIDTH: 48,
+  COLOR: '#313544',
+});
