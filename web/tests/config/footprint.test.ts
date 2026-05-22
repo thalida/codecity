@@ -7,7 +7,7 @@ describe('FOOTPRINT', () => {
     const v = FOOTPRINT.get();
     expect(v.ENABLED).toBe(true);
     expect(v.HALO_WIDTH).toBe(64);
-    expect(v.CORNER_RADIUS).toBe(24);
+    expect(v.CORNER_RADIUS).toBe(0.375);
     expect(v.COLOR).toBe('#0a0b0f');
   });
 });

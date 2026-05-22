@@ -130,7 +130,10 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
     depthWrite: false,
     uniforms: {
       uColor: { value: colorUniform },
-      uCornerRadius: { value: Math.max(0, cfg.CORNER_RADIUS) },
+      // CORNER_RADIUS is a fraction of HALO_WIDTH (0 → sharp, 1 → one
+      // halo width, 2 → two). Compute world-units radius here so the
+      // shader's SDF can keep using a single uniform.
+      uCornerRadius: { value: Math.max(0, cfg.CORNER_RADIUS) * halo },
     },
   });
 
@@ -162,7 +165,8 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
   function refresh(): void {
     const c = FOOTPRINT.get();
     setColorFromHex(material.uniforms.uColor.value as THREE.Color, c.COLOR);
-    material.uniforms.uCornerRadius.value = Math.max(0, c.CORNER_RADIUS);
+    material.uniforms.uCornerRadius.value =
+      Math.max(0, c.CORNER_RADIUS) * Math.max(0, c.HALO_WIDTH);
     group.visible = c.ENABLED;
   }
 
