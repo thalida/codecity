@@ -278,7 +278,7 @@ describe('placeParks (unified, plane-fill)', () => {
       expect(dInf).toBeGreaterThan(110);
     }
 
-    FOOTPRINT.setKey('HALO_WIDTH', 48);
+    FOOTPRINT.setKey('HALO_WIDTH', 32);
   });
 });
 

@@ -574,7 +574,7 @@ function _buildStreetsSection(): HTMLElement {
         tip: 'Slab color. Near-black by default so the apron reads as a darker frame around the city against the night-scene floor.',
       }),
       _number('Halo width', FOOTPRINT, 'HALO_WIDTH', 0, 256, 4, {
-        tip: 'World units of asphalt added outward around every layout rect. ~64 (roughly two narrow-street widths) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
+        tip: 'World units of asphalt added outward around every layout rect. ~32 (one narrow-street width) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
       }),
       _slider('Halo radius × halo width', FOOTPRINT, 'CORNER_RADIUS', 0, 2, 0.05, {
         tip: 'Corner radius as a fraction of Halo width above (0 = sharp, 1 = one halo width, 2 = two). World-units radius pushed to the shader = this × Halo width. Where rects overlap heavily the rounding is hidden by neighbors; the radius only shows where a rect ends at the silhouette.',

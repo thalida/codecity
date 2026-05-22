@@ -7,7 +7,7 @@ import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 
 function resetFootprint() {
-  FOOTPRINT.set({ ENABLED: true, HALO_WIDTH: 64, CORNER_RADIUS: 0.375, COLOR: '#0a0b0f' });
+  FOOTPRINT.set({ ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' });
 }
 
 function singleBuildingLayout(): CityLayout {
@@ -91,7 +91,7 @@ describe('createCityFootprint', () => {
   it('refresh() picks up COLOR + CORNER_RADIUS + ENABLED changes without rebuild', () => {
     const fp = createCityFootprint(singleBuildingLayout());
     FOOTPRINT.setKey('COLOR', '#112233');
-    FOOTPRINT.setKey('CORNER_RADIUS', 0.25); // 0.25 × 64 = 16 wu
+    FOOTPRINT.setKey('CORNER_RADIUS', 0.25); // 0.25 × 32 = 8 wu
     FOOTPRINT.setKey('ENABLED', false);
     fp.refresh();
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
@@ -101,7 +101,7 @@ describe('createCityFootprint', () => {
     expect(color.r).toBeCloseTo(expected.r);
     expect(color.g).toBeCloseTo(expected.g);
     expect(color.b).toBeCloseTo(expected.b);
-    expect(mat.uniforms.uCornerRadius.value).toBeCloseTo(16);
+    expect(mat.uniforms.uCornerRadius.value).toBeCloseTo(8);
     expect(fp.group.visible).toBe(false);
   });
 });
