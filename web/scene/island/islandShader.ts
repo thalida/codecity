@@ -7,7 +7,6 @@
 import * as THREE from 'three';
 import { ISLAND_MATERIALS, ISLAND_UNDERGLOW, ISLAND_ATMOSPHERE } from '@/config/island.js';
 import { sunDirFromLighting } from '@/scene/lighting/sunDir.js';
-import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/lighting/fogChunk.js';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -41,8 +40,8 @@ uniform float uAmbient;
 uniform vec3 uUnderglowColor;
 uniform float uUnderglowStrength;
 
-${FOG_UNIFORMS_GLSL}
-${FOG_APPLY_GLSL}
+#include <fog_uniforms_glsl_inline>
+#include <fog_apply_glsl_inline>
 
 void main() {
   vec3 n = normalize(vNormalWorld);

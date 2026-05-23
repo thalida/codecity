@@ -31,6 +31,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
+import { registerShaderChunks } from './shaders/registerShaderChunks.js';
 import { getSharedBuildingUniforms } from './instanced/buildings.js';
 import { disposeLabelMaterials } from './instanced/labels.js';
 import { buildCellsFromLayout } from './cellAssembly.js';
@@ -253,6 +254,11 @@ export const __test = {
 // own factory now, so cityScene no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
 export function createCityScene(_canvas: HTMLCanvasElement) {
+  // Register project GLSL chunks with THREE.ShaderChunk so #include <name>
+  // directives in our shaders resolve natively — must run before any
+  // ShaderMaterial is constructed.
+  registerShaderChunks();
+
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);

@@ -17,8 +17,6 @@ import {
 import { BuildingOrient } from '@/types/index.js';
 import buildingVertSrc from '../shaders/building.vert.glsl?raw';
 import buildingFragSrc from '../shaders/building.frag.glsl?raw';
-import hslGlslSrc from '../shaders/hsl.glsl?raw';
-import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '../lighting/fogChunk.js';
 import type { CellTile } from '../cellTile.js';
 import type { Building } from '@/types/index.js';
 import type { IconAtlas } from '../iconAtlas.js';
@@ -76,12 +74,9 @@ function getOrCreateBuildingMaterial(uniforms: Record<string, THREE.IUniform>): 
   if (_sharedBuildingMaterial && _sharedBuildingMaterialUniforms === uniforms) {
     return _sharedBuildingMaterial;
   }
-  // Inline the hsl helpers and fog chunk into the fragment source at the
-  // placeholder comments the shader author left for exactly this purpose.
-  const fragSrc = buildingFragSrc
-    .replace('#include <hsl_glsl_inline>', hslGlslSrc)
-    .replace('#include <fog_uniforms_glsl_inline>', FOG_UNIFORMS_GLSL)
-    .replace('#include <fog_apply_glsl_inline>', FOG_APPLY_GLSL);
+  // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
+  // Three.js's native preprocessor resolves #include <name> at compile time.
+  const fragSrc = buildingFragSrc;
   _sharedBuildingMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: buildingVertSrc,

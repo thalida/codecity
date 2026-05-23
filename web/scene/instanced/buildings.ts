@@ -38,8 +38,6 @@ import { writeSunDir } from '@/scene/lighting/sunDir.js';
 
 import buildingVertSrc from '../shaders/building.vert.glsl?raw';
 import buildingFragSrc from '../shaders/building.frag.glsl?raw';
-import hslGlslSrc from '../shaders/hsl.glsl?raw';
-import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '../lighting/fogChunk.js';
 
 // Lazy singleton material — created once and reused across all cells.
 // applyManifest can be called multiple times (hot-reload); the singleton
@@ -74,12 +72,9 @@ function _computeFogHeight(): number {
 
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
-  // Inline the hsl helpers and fog chunk into the fragment source at the
-  // placeholder comments the shader author left for exactly this purpose.
-  const fragSrc = buildingFragSrc
-    .replace('#include <hsl_glsl_inline>', hslGlslSrc)
-    .replace('#include <fog_uniforms_glsl_inline>', FOG_UNIFORMS_GLSL)
-    .replace('#include <fog_apply_glsl_inline>', FOG_APPLY_GLSL);
+  // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
+  // Three.js's native preprocessor resolves #include <name> at compile time.
+  const fragSrc = buildingFragSrc;
   _sharedMaterial = new THREE.ShaderMaterial({
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
