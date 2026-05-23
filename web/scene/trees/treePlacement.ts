@@ -196,10 +196,17 @@ export function placeTrees(
   const gemBufferRadius = Math.max(0, GEM_SIZING.get().TREE_BUFFER_RADIUS);
   const gemBufferR2 = gemBufferRadius * gemBufferRadius;
 
+  // Expand sampling region to cover the island polygon's full bounding
+  // box, not just the inscribed worldBounds rect. The polygon
+  // circumscribes the rect (vertices at radius hypot(halfWidth, halfDepth)),
+  // so its bbox is that radius on both axes. Without this expansion, the
+  // polygon's "ears" past the rect corners get zero candidates and read
+  // as empty zones on the island.
+  const polygonRadius = Math.hypot(bounds.halfWidth, bounds.halfDepth);
   const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
-  const inset = Math.min(bounds.halfWidth, bounds.halfDepth) * insetFrac;
-  const sampleHalfW = Math.max(0, bounds.halfWidth - inset);
-  const sampleHalfD = Math.max(0, bounds.halfDepth - inset);
+  const inset = polygonRadius * insetFrac;
+  const sampleHalfW = Math.max(0, polygonRadius - inset);
+  const sampleHalfD = Math.max(0, polygonRadius - inset);
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible
