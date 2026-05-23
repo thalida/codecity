@@ -60,7 +60,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
 
 // Per-tier shrink + depth-fraction tables. Indexed by tier (0 = topmost
 // tier ring, just below the cliff side band). Length must be ≥ max TIERS.
-export const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
+const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
 const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
 
 /**
