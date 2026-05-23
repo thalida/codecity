@@ -16,7 +16,6 @@ import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { RENDER_ORDERS } from '@/constants';
-import { pickTreeGreen } from './treePalette.js';
 import type { TreePlacement } from './treePlacement.js';
 
 export interface Trees {
