@@ -68,7 +68,7 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
   ISLAND_UNDERGLOW,
-  // Distance-fog uniforms — refreshed via refreshBuildingMaterial() +
+  // Shadow-disc config — refreshed via shadowDisc.refresh() inside
   // island.refresh() inside applyTheme(); no rebuild needed.
   ISLAND_ATMOSPHERE,
 } from './island.js';
@@ -257,9 +257,8 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     ISLAND_GEOMETRY,
     ISLAND_MATERIALS,
     ISLAND_UNDERGLOW,
-    // ISLAND_ATMOSPHERE — distance-fog uniforms; pushed into building
-    // material via refreshBuildingMaterial() and into the island shader
-    // via island.refresh(), both called from applyTheme(). No rebuild.
+    // ISLAND_ATMOSPHERE — shadow-disc config; pushed via shadowDisc.refresh()
+    // inside island.refresh(), called from applyTheme(). No rebuild.
     ISLAND_ATMOSPHERE,
   ];
 

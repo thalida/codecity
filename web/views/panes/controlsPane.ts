@@ -53,7 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS, ISLAND_ATMOSPHERE } from '@/config/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
@@ -498,23 +498,6 @@ function _buildIslandSection(): HTMLElement {
       }),
       _color('Hemi ground color', ISLAND_MATERIALS, 'HEMI_GROUND_COLOR', {
         tip: 'Cool "from below" tone blended onto downward-facing surfaces by the hemispheric lighting model.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('island-atmosphere', 'Atmosphere', () => [
-      _toggle('Distance fog', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_ENABLED', {
-        tip: 'Fades the island and distant buildings into the fog color based on view distance. Off by default; toggle on to evaluate whether the depth haze is worth keeping.',
-      }),
-      _color('Fog color', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_COLOR', {
-        tip: 'Tint distant edges fade toward. Match the sky color for a seamless horizon, or pick a contrasting color for a stylized look.',
-      }),
-      _slider('Fog near', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_NEAR', 100, 3000, 50, {
-        tip: 'View-distance (world units) at which distance fog begins to take hold. Smaller = fog starts closer to the camera.',
-      }),
-      _slider('Fog far', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_FAR', 500, 8000, 100, {
-        tip: 'View-distance at which distance fog reaches full opacity. Should be larger than Fog near.',
       }),
     ]),
   );

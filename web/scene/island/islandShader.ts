@@ -7,7 +7,7 @@
 // tint capped at 0.5 so it can't dominate.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS, ISLAND_UNDERGLOW, ISLAND_ATMOSPHERE } from '@/config/island.js';
+import { ISLAND_MATERIALS, ISLAND_UNDERGLOW } from '@/config/island.js';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -59,8 +59,7 @@ void main() {
   // can't dominate.
   lit += max(-n.y, 0.0) * uUnderglowStrength * uUnderglowColor * 0.5;
 
-  float viewDist = length(vWorldPos - cameraPosition);
-  vec3 foggy = applyFog(lit, vWorldPos, viewDist);
+  vec3 foggy = applyFog(lit, vWorldPos);
   gl_FragColor = vec4(foggy, 1.0);
 }
 `;
@@ -68,7 +67,6 @@ void main() {
 export function createIslandMaterial(): THREE.ShaderMaterial {
   const mats = ISLAND_MATERIALS.get();
   const ug = ISLAND_UNDERGLOW.get();
-  const atm = ISLAND_ATMOSPHERE.get();
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,
@@ -83,11 +81,6 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
       uFogColor: { value: new THREE.Color('#000000') },
       uFogIntensity: { value: 0 },
       uFogHeight: { value: 1 },
-      // Distance-fog uniforms — actively driven by ISLAND_ATMOSPHERE.
-      uDistanceFogEnabled: { value: atm.DISTANCE_FOG_ENABLED },
-      uDistanceFogColor: { value: new THREE.Color(atm.DISTANCE_FOG_COLOR) },
-      uDistanceFogNear: { value: atm.DISTANCE_FOG_NEAR },
-      uDistanceFogFar: { value: atm.DISTANCE_FOG_FAR },
     },
     side: THREE.FrontSide,
     toneMapped: true,

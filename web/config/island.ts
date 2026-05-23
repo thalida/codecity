@@ -35,10 +35,6 @@ export interface IslandUnderglowConfig {
 }
 
 export interface IslandAtmosphereConfig {
-  DISTANCE_FOG_ENABLED: boolean;
-  DISTANCE_FOG_COLOR: string;
-  DISTANCE_FOG_NEAR: number;
-  DISTANCE_FOG_FAR: number;
   SHADOW_DISC_ENABLED: boolean;
   SHADOW_DISC_OPACITY: number;     // 0–1
   SHADOW_DROP_DISTANCE: number;    // in island radii
@@ -74,11 +70,7 @@ export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({
 });
 
 export const ISLAND_ATMOSPHERE = map<IslandAtmosphereConfig>({
-  DISTANCE_FOG_ENABLED: false,    // wired up in PR 3
-  DISTANCE_FOG_COLOR: '#0a0612',
-  DISTANCE_FOG_NEAR: 800,
-  DISTANCE_FOG_FAR: 3200,
-  SHADOW_DISC_ENABLED: false,     // wired up in PR 3
+  SHADOW_DISC_ENABLED: false,
   SHADOW_DISC_OPACITY: 0.4,
   SHADOW_DROP_DISTANCE: 1.5,
 });

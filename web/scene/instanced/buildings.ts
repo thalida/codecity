@@ -19,7 +19,6 @@ import {
   SCENE_COLORS,
   WINDOW_LIGHTING,
 } from '@/config/index.js';
-import { ISLAND_ATMOSPHERE } from '@/config/island.js';
 import type { IconAtlas } from '../iconAtlas.js';
 import { writeSunDir } from '@/scene/lighting/sunDir.js';
 
@@ -101,13 +100,6 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uFogColor: { value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace) },
       uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
-      // Distance-fog uniforms — fades by view distance. Driven by
-      // ISLAND_ATMOSPHERE.DISTANCE_FOG_*; refreshed via refreshBuildingMaterial().
-      // Defaults to disabled (DISTANCE_FOG_ENABLED: false) — users opt in via Controls.
-      uDistanceFogEnabled: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_ENABLED },
-      uDistanceFogColor: { value: new THREE.Color(ISLAND_ATMOSPHERE.get().DISTANCE_FOG_COLOR) },
-      uDistanceFogNear: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_NEAR },
-      uDistanceFogFar: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_FAR },
       // Extra HDR emission applied to the freshest building's lit
       // windows on top of a baseline 1.0. 0 = no bloom contribution
       // from windows; higher = brighter glow on new buildings.
@@ -190,7 +182,6 @@ export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
   const sceneCfg = SCENE_COLORS.get();
   const bloomCfg = BLOOM.get();
-  const atm = ISLAND_ATMOSPHERE.get();
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
   // Height fog: uFogEnabled drives the GLSL branch; uFogIntensity is also
   // zeroed when disabled so the mix() is a no-op even if the bool branch
@@ -247,10 +238,4 @@ export function refreshBuildingMaterial(): void {
     THREE.LinearSRGBColorSpace,
   );
   _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
-  // Distance-fog uniforms (ISLAND_ATMOSPHERE store) — pushed alongside
-  // height-fog updates so live config changes apply without a rebuild.
-  _sharedMaterial.uniforms.uDistanceFogEnabled.value = atm.DISTANCE_FOG_ENABLED;
-  (_sharedMaterial.uniforms.uDistanceFogColor.value as THREE.Color).set(atm.DISTANCE_FOG_COLOR);
-  _sharedMaterial.uniforms.uDistanceFogNear.value = atm.DISTANCE_FOG_NEAR;
-  _sharedMaterial.uniforms.uDistanceFogFar.value = atm.DISTANCE_FOG_FAR;
 }

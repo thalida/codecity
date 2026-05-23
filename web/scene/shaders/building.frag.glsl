@@ -53,11 +53,10 @@ uniform float uIconSlotSize;
 uniform float uGrimeIntensity;
 uniform float uGrimeCoverage;
 
-// Ground haze (height-based volumetric fog) + distance fog.
+// Ground haze (height-based volumetric fog).
 // Uniforms declared by the fog_uniforms chunk above:
 //   uFogEnabled, uFogColor, uFogIntensity, uFogHeight (height fog)
-//   uDistanceFogEnabled, uDistanceFogColor, uDistanceFogNear, uDistanceFogFar (distance fog)
-// Both are consumed via applyFog() injected by the fog_apply chunk below.
+// Consumed via applyFog() injected by the fog_apply chunk below.
 
 // Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
 // Sun direction is in world space and points TOWARD the sun (positive
@@ -90,7 +89,7 @@ uniform vec3 uDimGlowColor;
 uniform float uLitFreshnessExponent;
 
 varying float vWorldY;
-varying vec3 vWorldPos; // world-space position for distance fog
+varying vec3 vWorldPos; // world-space position for height fog
 
 // ---------------------------------------------------------------------------
 // Facade geometry — driven by FACADE_GEOMETRY store via uniforms
@@ -545,11 +544,9 @@ void main() {
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
 
-  // Atmospheric fog: height fog (dense at y=0, thins with altitude) and
-  // optional distance fog (fades by view distance). Both modes are handled
-  // by applyFog() from the shared fog_apply chunk. cameraPosition is a
-  // Three.js built-in uniform — no explicit declaration needed.
-  outColor.rgb = applyFog(outColor.rgb, vWorldPos, length(vWorldPos - cameraPosition));
+  // Height fog: dense at y=0, thins with altitude. Handled by applyFog()
+  // from the shared fog_apply chunk.
+  outColor.rgb = applyFog(outColor.rgb, vWorldPos);
 
   gl_FragColor = outColor;
 }

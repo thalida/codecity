@@ -37,12 +37,8 @@ describe('ISLAND config defaults', () => {
     expect(u.CORE_INTENSITY).toBeGreaterThan(0);
   });
 
-  it('ATMOSPHERE has distance-fog and shadow-disc fields', () => {
+  it('ATMOSPHERE has shadow-disc fields', () => {
     const a = ISLAND_ATMOSPHERE.get();
-    expect(typeof a.DISTANCE_FOG_ENABLED).toBe('boolean');
-    expect(a.DISTANCE_FOG_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(a.DISTANCE_FOG_NEAR).toBeGreaterThan(0);
-    expect(a.DISTANCE_FOG_FAR).toBeGreaterThan(a.DISTANCE_FOG_NEAR);
     expect(typeof a.SHADOW_DISC_ENABLED).toBe('boolean');
     expect(a.SHADOW_DISC_OPACITY).toBeGreaterThanOrEqual(0);
     expect(a.SHADOW_DISC_OPACITY).toBeLessThanOrEqual(1);
