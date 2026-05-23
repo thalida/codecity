@@ -180,11 +180,11 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // we can switch to listenKeys to gate scheduleRebuild on just the
     // three JS keys.
     FACADE_GEOMETRY,
-    // TREES holds every structural dial (sizing, edge inset, colors)
-    // — flipping any of them requires re-running placement + rebuilding
-    // the tree InstancedMeshes, both of which only happen inside
-    // applyManifest's tree rebuild hook.
-    TREES,
+    // TREES is intentionally NOT here as a whole-store subscription:
+    // color + visibility + trunk-color keys live in hotStores and
+    // refresh via trees.refresh(); structural keys (height range,
+    // shape toggles, shading strength, inset, footprint) get narrow
+    // listenKeys subscriptions below.
     // BUSHES is intentionally NOT here as a whole-store subscription:
     // only BUSHES_ENABLED is structural, and we gate it via listenKeys
     // below. Color + emission keys live in hotStores and refresh via
@@ -228,6 +228,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // GROUND_BUFFER_PERCENT gets a narrow listenKeys subscription below so
     // dragging the color slider doesn't trigger a spurious applyManifest.
     WORLD,
+    // TREES color + visibility + trunk color. trees.refresh() rewrites
+    // per-instance colors and material color; the structural keys are
+    // gated to scheduleRebuild via listenKeys below.
+    TREES,
     // BUSHES: color arrays + emission boost. bushRenderer.refresh() pushes
     // these into per-instance color buffers + ShaderMaterial uniforms —
     // no rebuild, no re-placement.
@@ -257,6 +261,25 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // bushes.refresh(). TREES_ENABLED only flips mesh.visible (trees are
   // always placed; rendering is toggled independently).
   unsubs.push(listenKeys(BUSHES, ['BUSHES_ENABLED'], scheduleRebuild));
+  // TREES structural keys: every one of these either changes geometry
+  // (height range, shading strength) or per-shape allocation (shape
+  // toggles) or the placement pass (inset, footprint). All require a
+  // full applyManifest rebuild. Color + trunk color live on the
+  // refresh path via the TREES hotStores subscription above.
+  // TREES_ENABLED is intentionally excluded — it only flips mesh.visible
+  // via trees.refresh() (trees are placed regardless of visibility).
+  unsubs.push(listenKeys(TREES, [
+    'TREE_MIN_HEIGHT_FLOORS',
+    'TREE_MAX_HEIGHT_FLOORS',
+    'TREE_RADIUS_FRAC_OF_HEIGHT',
+    'TREE_SHADING_STRENGTH',
+    'SHAPE_POINTY_ENABLED',
+    'SHAPE_ROUNDED_ENABLED',
+    'SHAPE_FIR_ENABLED',
+    'SHAPE_NARROW_ENABLED',
+    'EDGE_INSET_PERCENT',
+    'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
+  ], scheduleRebuild));
   // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
   // the foliage sampling region), so it requires a full rebuild.
   // GROUND_COLOR / GROUND_ENABLED stay on the hot path via worldFloor.refresh().
