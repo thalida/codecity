@@ -17,8 +17,8 @@ export interface LiveUpdatesConfig {
 }
 
 export const LIVE_UPDATES = map<LiveUpdatesConfig>({
-  ENABLED: true,
-  POLL_SECONDS: 3,
+  ENABLED: false,
+  POLL_SECONDS: 10,
 });
 
 // Hidden bounds (not exposed in the controls UI, just clamped on read).
