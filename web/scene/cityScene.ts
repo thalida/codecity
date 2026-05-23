@@ -1013,7 +1013,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // so we don't add a stale parks group to the scene.
       let placements: ParkPlacement[];
       try {
-        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox);
+        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, 0);
       } catch (err) {
         if (err instanceof Error && err.message === 'superseded') return;
         throw err;

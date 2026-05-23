@@ -7,7 +7,7 @@
 // browsers / SSR / test environments).
 
 import { placeParks, type ParkPlacement } from './parksPlacement.js';
-import { PARKS } from '@/config/parks.js';
+import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
@@ -20,19 +20,25 @@ interface PendingRequest {
 
 interface ConfigSnapshot {
   parks: ReturnType<typeof PARKS.get>;
+  parksPalette: ReturnType<typeof PARKS_PALETTE.get>;
   buildingDims: ReturnType<typeof BUILDING_DIMENSIONS.get>;
   cameraPerspective: ReturnType<typeof CAMERA_PERSPECTIVE.get>;
   footprint: ReturnType<typeof FOOTPRINT.get>;
 }
 
 export interface ParksPlacementClient {
-  compute(layout: CityLayout, bbox: CityBbox | undefined): Promise<ParkPlacement[]>;
+  compute(
+    layout: CityLayout,
+    bbox: CityBbox | undefined,
+    commitCount: number,
+  ): Promise<ParkPlacement[]>;
   dispose(): void;
 }
 
 function _snapshot(): ConfigSnapshot {
   return {
     parks: PARKS.get(),
+    parksPalette: PARKS_PALETTE.get(),
     buildingDims: BUILDING_DIMENSIONS.get(),
     cameraPerspective: CAMERA_PERSPECTIVE.get(),
     footprint: FOOTPRINT.get(),
@@ -95,11 +101,12 @@ export function createParksPlacementClient(): ParksPlacementClient {
     id: number,
     layout: CityLayout,
     bbox: CityBbox | undefined,
+    commitCount: number,
     resolve: PendingRequest['resolve'],
     reject: PendingRequest['reject'],
   ): void {
     try {
-      const placements = placeParks(layout, bbox);
+      const placements = placeParks(layout, bbox, { commitCount });
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -117,6 +124,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
   function compute(
     layout: CityLayout,
     bbox: CityBbox | undefined,
+    commitCount: number,
   ): Promise<ParkPlacement[]> {
     if (disposed) {
       return Promise.reject(new Error('parksPlacementClient disposed'));
@@ -127,7 +135,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
       pending.set(id, { resolve, reject });
       const w = _ensureWorker();
       if (!w) {
-        _computeSync(id, layout, bbox, resolve, reject);
+        _computeSync(id, layout, bbox, commitCount, resolve, reject);
         return;
       }
       w.postMessage({
@@ -135,6 +143,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
         id,
         layout,
         bbox,
+        commitCount,
         configSnapshot: _snapshot(),
       });
     });

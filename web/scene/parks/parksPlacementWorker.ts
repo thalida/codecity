@@ -5,13 +5,14 @@
 // three.js references.
 
 import { placeParks, type ParkPlacement } from './parksPlacement.js';
-import { PARKS } from '@/config/parks.js';
+import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 type ParksValue = ReturnType<typeof PARKS.get>;
+type ParksPaletteValue = ReturnType<typeof PARKS_PALETTE.get>;
 type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
 type CameraPerspectiveValue = ReturnType<typeof CAMERA_PERSPECTIVE.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
@@ -21,8 +22,10 @@ interface PlaceRequest {
   id: number;
   layout: CityLayout;
   bbox: CityBbox | undefined;
+  commitCount: number;
   configSnapshot: {
     parks: ParksValue;
+    parksPalette: ParksPaletteValue;
     buildingDims: BuildingDimsValue;
     cameraPerspective: CameraPerspectiveValue;
     footprint: FootprintValue;
@@ -36,6 +39,9 @@ type PlaceResponse =
 function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
   for (const k of Object.keys(snap.parks) as Array<keyof ParksValue>) {
     PARKS.setKey(k, snap.parks[k]);
+  }
+  for (const k of Object.keys(snap.parksPalette) as Array<keyof ParksPaletteValue>) {
+    PARKS_PALETTE.setKey(k, snap.parksPalette[k]);
   }
   for (const k of Object.keys(snap.buildingDims) as Array<keyof BuildingDimsValue>) {
     BUILDING_DIMENSIONS.setKey(k, snap.buildingDims[k]);
@@ -53,7 +59,9 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
   if (!data || data.type !== 'place') return;
   try {
     _applySnapshot(data.configSnapshot);
-    const placements = placeParks(data.layout, data.bbox);
+    const placements = placeParks(data.layout, data.bbox, {
+      commitCount: data.commitCount,
+    });
     const reply: PlaceResponse = {
       type: 'place-result',
       id: data.id,
