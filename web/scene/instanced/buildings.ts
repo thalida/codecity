@@ -20,6 +20,7 @@ import {
   WINDOW_LIGHTING,
 } from '@/config/index.js';
 import type { IconAtlas } from '../iconAtlas.js';
+import { writeSunDir } from '@/scene/lighting/sunDir.js';
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are
@@ -67,24 +68,6 @@ function _computeFogHeight(): number {
   const dims = BUILDING_DIMENSIONS.get();
   const maxHeight = Math.max(1, dims.MAX_FLOORS * dims.FLOOR_HEIGHT);
   return SCENE_COLORS.get().FOG_HEIGHT_FRAC * maxHeight;
-}
-
-/**
- * Convert LIGHTING's spherical (azimuth, elevation) into a unit world-space
- * direction TOWARD the sun and write it onto `out`.
- *
- * Convention: azimuth=0 points along +Z (south), increasing clockwise (so
- * azimuth=90 points along +X / east); elevation=0 is on the horizon,
- * elevation=90 is directly overhead (+Y). This reproduces the prior
- * hard-coded `normalize(vec3(0.5, 1.0, 0.4))` at the default
- * (az=51°, el=58°) to within rounding.
- */
-function _writeSunDir(out: THREE.Vector3): void {
-  const lighting = LIGHTING.get();
-  const az = (lighting.SUN_AZIMUTH_DEG * Math.PI) / 180;
-  const el = (lighting.SUN_ELEVATION_DEG * Math.PI) / 180;
-  const cosEl = Math.cos(el);
-  out.set(Math.sin(az) * cosEl, Math.sin(el), Math.cos(az) * cosEl).normalize();
 }
 
 function getBuildingMaterial(): THREE.ShaderMaterial {
@@ -170,7 +153,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       uLitFreshnessExponent: { value: WINDOW_LIGHTING.get().LIT_FRESHNESS_EXPONENT },
     },
   });
-  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
+  writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
   return _sharedMaterial;
 }
 
@@ -218,7 +201,7 @@ export function refreshBuildingMaterial(): void {
     : 0;
   // Scene directional lighting (LIGHTING store).
   const lighting = LIGHTING.get();
-  _writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
+  writeSunDir(_sharedMaterial.uniforms.uSunDirWorld.value as THREE.Vector3);
   _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
   _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
   // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
