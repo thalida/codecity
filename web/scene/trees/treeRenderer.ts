@@ -123,7 +123,9 @@ export function createTreeRenderer(
   // Trunk geometry: unit-height (Y ∈ [0,1]), unit XZ radius cylinder.
   // Per-instance Y scale = canopy height × TRUNK_HEIGHT_FRAC; XZ scale
   // = canopy radius × TRUNK_RADIUS_FRAC_OF_CANOPY.
-  const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 4);
+  // 12-segment cylinder reads as round at any reasonable trunk
+  // thickness without inflating draw cost (one instanced mesh).
+  const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
   trunkGeometry.translate(0, 0.5, 0);
 
   const trunkMaterial = new THREE.MeshBasicMaterial({
