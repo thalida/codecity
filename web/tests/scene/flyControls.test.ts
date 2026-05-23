@@ -9,10 +9,6 @@ function makeFakeRig() {
       enabled: true,
       target: new THREE.Vector3(),
     },
-    freezeCalls: 0,
-    freezeViewUntilInput() {
-      this.freezeCalls += 1;
-    },
   };
 }
 
@@ -74,15 +70,14 @@ describe('flyControls state machine', () => {
     expect(rig.controls.enabled).toBe(true);
   });
 
-  it('disable() puts the pivot directly below the camera on the floor', () => {
-    // Whatever direction the user was looking in fly mode, the orbit
-    // pivot drops straight down to (camera.x, 0, camera.z). Fly mode
-    // keeps the camera over the plane, so this is always on visible
-    // ground. The view will rotate to look down (OrbitControls calls
-    // lookAt(target)), giving a top-down orbit handoff.
+  it('disable() puts the pivot on the camera forward ray (no view snap)', () => {
+    // Looking horizontally → forward ray never hits y=0 ahead, so the
+    // pivot floats at the fallback distance along the forward ray.
+    // Crucially, pivot is ON the forward ray, so OrbitControls'
+    // lookAt(target) is a no-op and the camera doesn't snap.
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(10, 8, 5);
-    camera.lookAt(10, 8, -100); // looks horizontal
+    camera.lookAt(10, 8, -100); // forward = -Z, horizontal
     camera.updateMatrixWorld();
     const rig = makeFakeRig();
     const fly = createFlyControls({
@@ -93,15 +88,18 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
-    expect(rig.controls.target.x).toBe(10);
-    expect(rig.controls.target.y).toBe(0);
-    expect(rig.controls.target.z).toBe(5);
+    expect(rig.controls.target.x).toBeCloseTo(10, 2);
+    expect(rig.controls.target.y).toBeCloseTo(8, 2); // along ray, Y unchanged
+    expect(rig.controls.target.z).toBeLessThan(camera.position.z); // ahead of camera
   });
 
-  it('disable() pivot is camera XZ regardless of look direction', () => {
+  it('disable() lands pivot on the floor when forward ray hits y=0', () => {
+    // Looking down-forward at (10, 0, -10) from (10, 20, 0). Forward
+    // ray crosses y=0 at z = -10 → pivot lands on the floor at the
+    // exact spot the user was looking at, on the forward ray.
     const camera = new THREE.PerspectiveCamera();
-    camera.position.set(-25, 50, 33);
-    camera.lookAt(100, -200, 100); // arbitrary downward-forward gaze
+    camera.position.set(10, 20, 0);
+    camera.lookAt(10, 0, -10);
     camera.updateMatrixWorld();
     const rig = makeFakeRig();
     const fly = createFlyControls({
@@ -112,9 +110,9 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
-    expect(rig.controls.target.x).toBe(-25);
-    expect(rig.controls.target.y).toBe(0);
-    expect(rig.controls.target.z).toBe(33);
+    expect(rig.controls.target.y).toBeCloseTo(0, 2);
+    expect(rig.controls.target.x).toBeCloseTo(10, 2);
+    expect(rig.controls.target.z).toBeLessThan(camera.position.z);
   });
 
   it('onActiveChange callback fires on enable and disable', () => {

@@ -134,18 +134,6 @@ export function createCameraRig({
   // this; in-flight rAF steps abort if their token doesn't match.
   let camAnimToken = 0;
 
-  // When true, restore the camera's pre-update quaternion after every
-  // controls.update() call so OrbitControls' unconditional lookAt(target)
-  // doesn't yank the view. Used by flyControls.disable() to hand off to
-  // orbit without snapping the view direction to the new pivot. Auto-
-  // clears on the first 'start' event (the user actually grabbing the
-  // controls to rotate, dolly, or pan).
-  let _freezeViewUntilInput = false;
-  const _frozenQuat = new THREE.Quaternion();
-  controls.addEventListener('start', () => {
-    _freezeViewUntilInput = false;
-  });
-
   // Reusable scratch for sight-line raycasting.
   const _xrayRay = new THREE.Raycaster();
   const _xrayDir = new THREE.Vector3();
@@ -346,30 +334,7 @@ export function createCameraRig({
     // flyControls' yaw/pitch by pulling the camera toward the stale
     // orbit target every frame.
     if (!controls.enabled) return;
-    if (_freezeViewUntilInput) {
-      // Preserve the user's view direction across OrbitControls' update.
-      // OrbitControls always calls lookAt(target) at the end of update(),
-      // which would rotate the camera toward the (possibly just-relocated)
-      // target. Stash the rotation, let update run (it still derives
-      // spherical from current pose, computes position, etc.), then
-      // restore the rotation so the view stays put. The 'start' listener
-      // clears the flag the moment the user actively rotates/dolls/pans.
-      _frozenQuat.copy(camera.quaternion);
-      controls.update();
-      camera.quaternion.copy(_frozenQuat);
-    } else {
-      controls.update();
-    }
-  }
-
-  /**
-   * Suppress OrbitControls' per-frame lookAt(target) until the user
-   * actually grabs the camera (first 'start' event). Call this right
-   * after relocating controls.target if you want the view to stay put
-   * while the new pivot takes effect — e.g. fly → orbit handoff.
-   */
-  function freezeViewUntilInput(): void {
-    _freezeViewUntilInput = true;
+    controls.update();
   }
 
   function _animateCamera(
@@ -617,7 +582,6 @@ export function createCameraRig({
     camera,
     controls,
     update,
-    freezeViewUntilInput,
     reset,
     recenterTo,
     focusBuilding,

@@ -52,12 +52,6 @@ export interface FlyControlsRig {
     /** OrbitControls.target — the orbit pivot point. */
     target: THREE.Vector3;
   };
-  /** Tell the rig to preserve the camera's current rotation across
-   *  the next OrbitControls.update() calls until the user actually
-   *  grabs the controls. Used to relocate the orbit pivot without
-   *  yanking the view direction (lookAt(target)) on the fly→orbit
-   *  handoff. */
-  freezeViewUntilInput(): void;
 }
 
 export interface FlyControlsOpts {
@@ -303,16 +297,32 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookLMB = false;
     _lookRMB = false;
 
-    // Hand off to orbit. Fly mode keeps the camera over the visible
-    // plane (XZ is clamped to world bounds), so the natural orbit
-    // pivot is the point on the floor directly below the camera.
-    // Preserve the user's view direction across the handoff: ask the
-    // rig to freeze the camera quaternion until the user actually
-    // grabs the controls. Without this freeze, OrbitControls'
-    // per-frame lookAt(target) would rotate the camera straight down
-    // toward the new pivot.
-    rig.controls.target.set(camera.position.x, 0, camera.position.z);
-    rig.freezeViewUntilInput();
+    // Hand off to orbit. To preserve the user's view direction across
+    // the mode switch, put the orbit pivot ON the camera's current
+    // forward ray — OrbitControls' per-frame lookAt(target) is then
+    // a no-op (the camera already faces target).
+    //
+    // Distance picking:
+    //   • Forward ray hits y = 0 in a sensible distance → pivot on
+    //     the floor where you're looking.
+    //   • Otherwise (looking horizontally or up) → pivot at a fixed
+    //     distance ahead in the air. Mid-air pivots are fine; orbit
+    //     just rotates around that point.
+    const fwd = new THREE.Vector3();
+    camera.getWorldDirection(fwd);
+
+    const FALLBACK_DIST = 200;
+    const MAX_GROUND_DIST = 2000;
+    let dist = FALLBACK_DIST;
+    if (fwd.y < -0.05 && camera.position.y > 0) {
+      const t = -camera.position.y / fwd.y;
+      if (t > 0 && t < MAX_GROUND_DIST) dist = t;
+    }
+    rig.controls.target.set(
+      camera.position.x + fwd.x * dist,
+      camera.position.y + fwd.y * dist,
+      camera.position.z + fwd.z * dist,
+    );
 
     _setActive(false);
   }
