@@ -299,54 +299,14 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookLMB = false;
     _lookRMB = false;
 
-    // Hand off to orbit. OrbitControls' update() calls
-    // camera.lookAt(target) every frame, which would yank the camera
-    // around to face the pivot. To preserve the user's view direction
-    // (only the rotation pivot should change, not where the camera
-    // is looking), put the pivot ON the camera's current forward ray
-    // — lookAt(target) is then a no-op because the camera already
-    // faces target.
-    //
-    // Distance picking:
-    //   1. If the forward ray crosses y = 0 ahead of the camera at a
-    //      reasonable distance, use that ground-intersection — the
-    //      pivot lands on the visible plane (best case).
-    //   2. Otherwise (looking up, horizontal, or behind the plane):
-    //      pick a fixed distance ahead so the pivot floats just in
-    //      front of the user. Mid-air pivots are fine — rotation
-    //      still works; the user can re-center after a drag.
-    //   3. XZ clamp to the world bounds so a faraway floor hit
-    //      doesn't put the pivot outside the visible plane.
-    const fwd = new THREE.Vector3();
-    camera.getWorldDirection(fwd);
-
-    const ORBIT_FALLBACK_DIST = 100;
-    const ORBIT_GROUND_MAX_DIST = 2000;
-    let dist = ORBIT_FALLBACK_DIST;
-    if (fwd.y < -0.05 && camera.position.y > 0) {
-      const tGround = -camera.position.y / fwd.y;
-      if (tGround > 0 && tGround < ORBIT_GROUND_MAX_DIST) dist = tGround;
-    }
-
-    let pivotX = camera.position.x + fwd.x * dist;
-    let pivotY = camera.position.y + fwd.y * dist;
-    let pivotZ = camera.position.z + fwd.z * dist;
-
-    // Clamp X/Z to world bounds. Y is left untouched — clamping Y
-    // would move the pivot OFF the forward ray and force the camera
-    // to rotate (which is exactly what we're trying to avoid).
-    const wb = cityScene.getWorldBounds();
-    if (wb) {
-      const minX = wb.cx - wb.halfWidth;
-      const maxX = wb.cx + wb.halfWidth;
-      const minZ = wb.cz - wb.halfDepth;
-      const maxZ = wb.cz + wb.halfDepth;
-      if (pivotX < minX) pivotX = minX;
-      else if (pivotX > maxX) pivotX = maxX;
-      if (pivotZ < minZ) pivotZ = minZ;
-      else if (pivotZ > maxZ) pivotZ = maxZ;
-    }
-    rig.controls.target.set(pivotX, pivotY, pivotZ);
+    // Hand off to orbit. Fly mode keeps the camera over the visible
+    // plane (XZ is clamped to world bounds in update()), so the
+    // natural orbit pivot is the point on the floor DIRECTLY BELOW
+    // the camera — independent of which direction the user was
+    // looking. OrbitControls' lookAt(target) will then rotate the
+    // view straight down to face that point, giving a clean
+    // "switched to top-down orbit over my current spot" feel.
+    rig.controls.target.set(camera.position.x, 0, camera.position.z);
 
     _setActive(false);
   }
