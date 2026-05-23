@@ -186,10 +186,11 @@ describe('placeTrees (commit-driven)', () => {
 
   it('buffer = 0 places trees right up to the gem (no halo)', () => {
     GEM_SIZING.setKey('TREE_BUFFER_RADIUS', 0);
+    // Larger commitCount → denser grid → near-origin candidates exist.
+    // 1000 trees over the ~2600u sampling region gives ~40u cells, so
+    // the cell straddling the gem can place candidates well inside 60u.
     const layout = emptyLayout(bbox(-500, -500, 500, 500));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });
-    // With buffer disabled and uniform sampling, at least one placement
-    // should fall within the buffer radius of the gem center.
+    const placements = placeTrees(layout, layout.bbox, { commitCount: 1000 });
     const insideOldBuffer = placements.some((p) => Math.sqrt(p.x * p.x + p.y * p.y) < 60);
     expect(insideOldBuffer).toBe(true);
   });

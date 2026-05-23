@@ -1,11 +1,24 @@
 // scene/trees/treePlacement.ts — commit-driven tree placement.
 //
-// One tree per commit. Trees are scattered uniformly across the world
-// floor rectangle (anchored at the bbox center + buffer via
-// getWorldBounds), candidates that overlap a building/street/path
-// are rejected, accepted candidates are sorted by distance to the gem
-// (ascending), and the i-th placement gets commitIndex = i
-// (oldest commit closest to gem).
+// One tree per commit. Trees are scattered across the world floor
+// rectangle via a STRATIFIED GRID: the sampling region is divided
+// into a uniform grid sized to hold roughly `treeTarget` candidates
+// (capped at TREE_MAX_CELLS for massive-repo memory safety). Each
+// cell contributes a single jittered candidate, which is then run
+// through the same three rejection passes:
+//   1. layout-rect collisions (rbush against inflated buildings + streets + paths)
+//   2. gem no-tree buffer
+//   3. density-falloff probabilistic rejection
+// Accepted candidates are sorted by distance to the gem (ascending)
+// and truncated to `treeTarget`; the i-th placement gets
+// commitIndex = i (oldest commit closest to gem).
+//
+// Why stratified instead of pure rejection sampling: a random sampler
+// has to keep retrying to fill `treeTarget` (the old code grinded up
+// to 2 million iterations for big repos with high rejection rates).
+// A grid traverses every candidate position exactly once and avoids
+// re-sampling the same regions, so total work is bounded by cell
+// count — independent of how big commits.length gets.
 //
 // Determinism is anchored to the bbox dims so the same laid-out
 // city always produces the same placement across reloads.
@@ -45,9 +58,19 @@ export interface PlaceTreesOptions {
   cityHeight?: number;
 }
 
-/** Hard ceiling on candidate-sample iterations. The loop exits as
- *  soon as `commitCount` non-overlapping positions are accepted. */
-const TREE_MAX_ATTEMPTS = 2_000_000;
+/** Hard ceiling on grid resolution. Caps total iterations + accepted
+ *  placements + downstream instance buffers, so a multi-million-commit
+ *  repo (e.g. the Linux kernel) doesn't OOM the renderer or stall the
+ *  worker. 100k ≈ a 316×316 grid; well within sub-second placement
+ *  even with full rejection passes. */
+const TREE_MAX_CELLS = 100_000;
+
+/** Per-target multiplier on the grid cell count. Oversampling absorbs
+ *  rejection passes (layout collisions / gem buffer / density falloff)
+ *  so the final accepted count still hits `treeTarget` when there's
+ *  physical room. 4× is enough headroom for ~75% combined rejection.
+ *  Independent of TREE_MAX_CELLS — the cap wins for huge repos. */
+const TREE_CELL_OVERSAMPLE = 4;
 
 /**
  * Mulberry32 — small PRNG with proper avalanche.
@@ -189,62 +212,111 @@ export function placeTrees(
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxY * 1000));
 
-  // Sample across the world rectangle, applying density falloff and
-  // rect-collision rejection, until we have `treeTarget` non-overlapping
-  // positions. Then sort by distance to gem and assign commitIndex by
-  // order (oldest = closest).
+  // Stratified grid: aim for ~TREE_CELL_OVERSAMPLE × treeTarget cells
+  // (the extra cells absorb the three rejection passes below), capped
+  // at TREE_MAX_CELLS so a Linux-sized repo can't blow up the worker.
+  // Aspect ratio follows the sampling region.
+  const samplingW = sampleHalfW * 2;
+  const samplingD = sampleHalfD * 2;
+  const desiredCells = Math.min(
+    TREE_MAX_CELLS,
+    Math.max(1, treeTarget) * TREE_CELL_OVERSAMPLE,
+  );
+  const aspect = samplingW / Math.max(1e-6, samplingD);
+  let cellsX = Math.max(1, Math.round(Math.sqrt(desiredCells * aspect)));
+  let cellsZ = Math.max(1, Math.round(Math.sqrt(desiredCells / aspect)));
+  // Trim back so the rounded grid never exceeds the cap.
+  while (cellsX * cellsZ > TREE_MAX_CELLS) {
+    if (cellsX >= cellsZ) cellsX--; else cellsZ--;
+  }
+  const cellW = samplingW / cellsX;
+  const cellD = samplingD / cellsZ;
+  const originX = bounds.cx - sampleHalfW;
+  const originZ = bounds.cz - sampleHalfD;
+
+  // Visit each grid cell exactly once. Each contributes a single
+  // jittered candidate; the three rejection passes (layout, gem
+  // buffer, density falloff) match the previous behavior.
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
-  for (let i = 0; i < TREE_MAX_ATTEMPTS && accepted.length < treeTarget; i++) {
-    const baseSeed = (masterSeed ^ (i + 1)) | 0;
-    const xUnit = u32ToUnit(mulberry32(baseSeed ^ 0x12345678));
-    const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
-    const x = bounds.cx + (xUnit * 2 - 1) * sampleHalfW;
-    const y = bounds.cz + (yUnit * 2 - 1) * sampleHalfD;
+  for (let cz = 0; cz < cellsZ; cz++) {
+    for (let cx = 0; cx < cellsX; cx++) {
+      const baseSeed = (masterSeed ^ ((cz * cellsX + cx + 1) | 0)) | 0;
+      const jx = u32ToUnit(mulberry32(baseSeed ^ 0x12345678));
+      const jz = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
+      const x = originX + (cx + jx) * cellW;
+      const y = originZ + (cz + jz) * cellD;
 
-    if (hasRects) {
-      const hits = rtree.search({
-        minX: x - halfFoot, minY: y - halfFoot,
-        maxX: x + halfFoot, maxY: y + halfFoot,
-      });
-      const overlaps = hits.some((h) =>
-        h.minX < x + halfFoot && h.maxX > x - halfFoot &&
-        h.minY < y + halfFoot && h.maxY > y - halfFoot,
-      );
-      if (overlaps) continue;
+      if (hasRects) {
+        const hits = rtree.search({
+          minX: x - halfFoot, minY: y - halfFoot,
+          maxX: x + halfFoot, maxY: y + halfFoot,
+        });
+        const overlaps = hits.some((h) =>
+          h.minX < x + halfFoot && h.maxX > x - halfFoot &&
+          h.minY < y + halfFoot && h.maxY > y - halfFoot,
+        );
+        if (overlaps) continue;
+      }
+
+      // Gem buffer: hard-reject candidates inside the no-tree halo
+      // around the gem. Skipped when the buffer is 0.
+      if (gemBufferR2 > 0) {
+        const gdx = x - center.x;
+        const gdy = y - center.y;
+        if (gdx * gdx + gdy * gdy < gemBufferR2) continue;
+      }
+
+      // Density falloff: reject probabilistically based on distance
+      // from the city bbox. Inside the bbox dist=0 → always accept;
+      // far away the acceptance probability drops as
+      // (1 - dist/maxDist)^power.
+      if (falloffActive) {
+        const distX = Math.max(bbox.minX - x, 0, x - bbox.maxX);
+        const distY = Math.max(bbox.minY - y, 0, y - bbox.maxY);
+        const dist = Math.sqrt(distX * distX + distY * distY);
+        const tnorm = Math.min(1, dist / maxFalloffDist);
+        const acceptProb = Math.pow(1 - tnorm, falloffPower);
+        const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
+        if (r > acceptProb) continue;
+      }
+
+      const dx = x - center.x;
+      const dy = y - center.y;
+      accepted.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
     }
-
-    // Gem buffer: hard-reject candidates inside the no-tree halo
-    // around the gem. Skipped when the buffer is 0.
-    if (gemBufferR2 > 0) {
-      const gdx = x - center.x;
-      const gdy = y - center.y;
-      if (gdx * gdx + gdy * gdy < gemBufferR2) continue;
-    }
-
-    // Density falloff: reject probabilistically based on distance from
-    // the city bbox. Inside the bbox dist=0 → always accept; far away
-    // the acceptance probability drops as (1 - dist/maxDist)^power.
-    if (falloffActive) {
-      const distX = Math.max(bbox.minX - x, 0, x - bbox.maxX);
-      const distY = Math.max(bbox.minY - y, 0, y - bbox.maxY);
-      const dist = Math.sqrt(distX * distX + distY * distY);
-      const tnorm = Math.min(1, dist / maxFalloffDist);
-      const acceptProb = Math.pow(1 - tnorm, falloffPower);
-      const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
-      if (r > acceptProb) continue;
-    }
-
-    const dx = x - center.x;
-    const dy = y - center.y;
-    accepted.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
   }
 
   accepted.sort((a, b) => a.d2 - b.d2);
 
+  // Reconcile physical positions (accepted cells) with the commit
+  // count. Two paths:
+  //   * accepted.length > treeTarget — we have more grid candidates
+  //     than commits (the common 4× oversample case). Pick treeTarget
+  //     positions evenly spaced across the sorted-by-distance list,
+  //     so the forest spans the whole sampling region rather than
+  //     collapsing into a disk near the gem. Each picked position
+  //     gets commitIndex = i (oldest closest, newest farthest).
+  //   * accepted.length < treeTarget — TREE_MAX_CELLS clamped us
+  //     below commits.length (e.g. multi-million-commit repos). Every
+  //     accepted position is used, but commitIndex stride-samples the
+  //     commits array so the visible trees represent the full
+  //     timeline instead of only the oldest few.
+  const treesToPlace = Math.min(accepted.length, treeTarget);
   const placements: TreePlacement[] = [];
-  for (let i = 0; i < accepted.length; i++) {
-    const c = accepted[i];
-    placements.push({ x: c.x, y: c.y, seed: c.seed, commitIndex: i });
+  if (treesToPlace === 0) return placements;
+  const acceptedStride = (accepted.length - 1) / Math.max(1, treesToPlace - 1);
+  const commitStride = (treeTarget - 1) / Math.max(1, treesToPlace - 1);
+  for (let i = 0; i < treesToPlace; i++) {
+    const acceptedIdx = Math.min(
+      accepted.length - 1,
+      Math.round(i * acceptedStride),
+    );
+    const commitIdx = Math.min(
+      treeTarget - 1,
+      Math.round(i * commitStride),
+    );
+    const c = accepted[acceptedIdx];
+    placements.push({ x: c.x, y: c.y, seed: c.seed, commitIndex: commitIdx });
   }
   return placements;
 }
