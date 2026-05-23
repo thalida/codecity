@@ -12,7 +12,6 @@
 import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { RENDER_ORDERS } from '@/constants';
 import { pickBushNeon } from './bushPalette.js';
 import type { BushPlacement } from './bushPlacement.js';
@@ -65,14 +64,11 @@ function setInstanceMatrix(
 export function createBushRenderer(placements: BushPlacement[]): Bushes {
   const treesCfg = TREES.get();
   const bushesCfg = BUSHES.get();
-  const dims = BUILDING_DIMENSIONS.get();
 
   // Bushes scale to the "typical" tree canopy radius: midpoint of the
-  // files-driven canopy diameter range (anchored to BUILDING widths),
+  // files-driven canopy diameter range (now in absolute world units),
   // converted to a radius.
-  const treeMinRadius = (treesCfg.TREE_MIN_WIDTH_FRAC * dims.MIN_WIDTH) / 2;
-  const treeMaxRadius = (treesCfg.TREE_MAX_WIDTH_FRAC * dims.MAX_WIDTH) / 2;
-  const treeRadius = (treeMinRadius + treeMaxRadius) / 2;
+  const treeRadius = ((treesCfg.TREE_MIN_WIDTH + treesCfg.TREE_MAX_WIDTH) / 2) / 2;
   const bushRadius = bushesCfg.BUSH_RADIUS_FRAC_OF_TREE * treeRadius;
 
   const totalBushes = placements.length;

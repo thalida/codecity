@@ -17,7 +17,6 @@
 
 import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { TreePlacement } from './treePlacement.js';
 import type { CommitEntry } from '@/types';
@@ -65,15 +64,14 @@ export function createTreeRenderer(
   commits: CommitEntry[] | null,
 ): Trees {
   const cfg = TREES.get();
-  const dims = BUILDING_DIMENSIONS.get();
 
-  const minHeight = cfg.TREE_MIN_HEIGHT_FLOORS * dims.FLOOR_HEIGHT;
-  const maxHeight = cfg.TREE_MAX_HEIGHT_FLOORS * dims.FLOOR_HEIGHT;
-  // Canopy width range is anchored to the BUILDING width range, not
-  // floors: min canopy DIAMETER = MIN_WIDTH_FRAC × MIN_WIDTH; max
-  // canopy DIAMETER = MAX_WIDTH_FRAC × MAX_WIDTH. Convert to radii.
-  const minRadius = (cfg.TREE_MIN_WIDTH_FRAC * dims.MIN_WIDTH) / 2;
-  const maxRadius = (cfg.TREE_MAX_WIDTH_FRAC * dims.MAX_WIDTH) / 2;
+  // Height and width are configured in absolute world units —
+  // independent of building dimensions so they're easy to tune.
+  // Config exposes DIAMETER for width; convert to radius for the cone.
+  const minHeight = cfg.TREE_MIN_HEIGHT;
+  const maxHeight = cfg.TREE_MAX_HEIGHT;
+  const minRadius = cfg.TREE_MIN_WIDTH / 2;
+  const maxRadius = cfg.TREE_MAX_WIDTH / 2;
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
   const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC_OF_CANOPY;
 

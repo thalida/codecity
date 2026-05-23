@@ -6,13 +6,13 @@
 //
 // Visual signals per tree:
 //   - HEIGHT (canopy + trunk): driven by commit AGE — older commits
-//     grow taller. Range:
-//       TREE_MIN_HEIGHT_FLOORS × FLOOR_HEIGHT  →  smallest tree
-//       TREE_MAX_HEIGHT_FLOORS × FLOOR_HEIGHT  →  tallest tree
+//     grow taller. Range in world units (independent of buildings):
+//       TREE_MIN_HEIGHT  →  newest commit
+//       TREE_MAX_HEIGHT  →  oldest commit
 //   - WIDTH (canopy diameter): driven by commit FILES — bigger commits
-//     are wider, scaled to the BUILDING width range:
-//       TREE_MIN_WIDTH_FRAC × BUILDING_DIMENSIONS.MIN_WIDTH  →  narrowest
-//       TREE_MAX_WIDTH_FRAC × BUILDING_DIMENSIONS.MAX_WIDTH  →  widest
+//     are wider. Range in world units (independent of buildings):
+//       TREE_MIN_WIDTH  →  fewest files
+//       TREE_MAX_WIDTH  →  most files
 //   - COLOR (canopy): two-color interpolation by AGE — newer commits
 //     interpolate toward TREE_COLOR_NEW, older toward TREE_COLOR_OLD
 //     (deep dark green).
@@ -35,19 +35,17 @@ export interface TreesConfig {
    *  `(1 - dist/maxDist)^TREE_DENSITY_FALLOFF`. */
   TREE_DENSITY_FALLOFF: number;
 
-  /** Smallest canopy height (newest commit) in "building floors". */
-  TREE_MIN_HEIGHT_FLOORS: number;
+  /** Smallest canopy height (newest commit) in world units. */
+  TREE_MIN_HEIGHT: number;
 
-  /** Largest canopy height (oldest commit) in "building floors". */
-  TREE_MAX_HEIGHT_FLOORS: number;
+  /** Largest canopy height (oldest commit) in world units. */
+  TREE_MAX_HEIGHT: number;
 
-  /** Smallest canopy diameter (commit with fewest files) as a
-   *  fraction of BUILDING_DIMENSIONS.MIN_WIDTH. */
-  TREE_MIN_WIDTH_FRAC: number;
+  /** Smallest canopy diameter (commit with fewest files) in world units. */
+  TREE_MIN_WIDTH: number;
 
-  /** Largest canopy diameter (commit with most files) as a fraction
-   *  of BUILDING_DIMENSIONS.MAX_WIDTH. */
-  TREE_MAX_WIDTH_FRAC: number;
+  /** Largest canopy diameter (commit with most files) in world units. */
+  TREE_MAX_WIDTH: number;
 
   /** Trunk height as a fraction of canopy height. */
   TRUNK_HEIGHT_FRAC: number;
@@ -78,11 +76,11 @@ export const TREES = map<TreesConfig>({
   EDGE_INSET_PERCENT: 5,
   TREE_DENSITY_FALLOFF: 1.5,
 
-  TREE_MIN_HEIGHT_FLOORS: 3,
-  TREE_MAX_HEIGHT_FLOORS: 9,
+  TREE_MIN_HEIGHT: 48,
+  TREE_MAX_HEIGHT: 144,
 
-  TREE_MIN_WIDTH_FRAC: 0.5,
-  TREE_MAX_WIDTH_FRAC: 0.5,
+  TREE_MIN_WIDTH: 32,
+  TREE_MAX_WIDTH: 128,
 
   TRUNK_HEIGHT_FRAC: 0.25,
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,

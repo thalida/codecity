@@ -489,8 +489,8 @@ function _buildTreesSection(): HTMLElement {
       _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
         tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
       }),
-      _slider('Density falloff', TREES, 'TREE_DENSITY_FALLOFF', 0, 5, 0.1, {
-        tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Rebuild on change.',
+      _slider('Density falloff', TREES, 'TREE_DENSITY_FALLOFF', 0, 50, 0.1, {
+        tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Very high values (>20) push almost every tree into a dense ring right at the city edge. Rebuild on change.',
       }),
     ]),
   );
@@ -514,11 +514,11 @@ function _buildTreesSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Height by age', [
-      _slider('Min height (floors)', TREES, 'TREE_MIN_HEIGHT_FLOORS', 1, 10, 1, {
-        tip: 'Height (in building floors) of the newest commit. Older commits grow taller toward Max. Rebuild on change.',
+      _slider('Min height', TREES, 'TREE_MIN_HEIGHT', 4, 400, 4, {
+        tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',
       }),
-      _slider('Max height (floors)', TREES, 'TREE_MAX_HEIGHT_FLOORS', 3, 20, 1, {
-        tip: 'Height (in building floors) of the oldest commit. Rebuild on change.',
+      _slider('Max height', TREES, 'TREE_MAX_HEIGHT', 16, 800, 4, {
+        tip: 'Height (world units) of the oldest commit. Independent of building dimensions. Rebuild on change.',
       }),
       _slider('Trunk height (% of canopy)', TREES, 'TRUNK_HEIGHT_FRAC', 0.05, 1, 0.05, {
         tip: 'Trunk height as a fraction of canopy height. Larger = more visible trunk relative to canopy. Rebuild on change.',
@@ -528,11 +528,11 @@ function _buildTreesSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Width by files', [
-      _slider('Min canopy width (% of smallest building)', TREES, 'TREE_MIN_WIDTH_FRAC', 0.1, 2, 0.05, {
-        tip: 'Canopy diameter of commits with the fewest files changed, as a fraction of BUILDING_DIMENSIONS.MIN_WIDTH. Rebuild on change.',
+      _slider('Min canopy width', TREES, 'TREE_MIN_WIDTH', 2, 400, 2, {
+        tip: 'Canopy diameter (world units) of commits with the fewest files changed. Independent of building dimensions. Rebuild on change.',
       }),
-      _slider('Max canopy width (% of largest building)', TREES, 'TREE_MAX_WIDTH_FRAC', 0.1, 2, 0.05, {
-        tip: 'Canopy diameter of commits with the most files changed, as a fraction of BUILDING_DIMENSIONS.MAX_WIDTH. Rebuild on change.',
+      _slider('Max canopy width', TREES, 'TREE_MAX_WIDTH', 4, 600, 2, {
+        tip: 'Canopy diameter (world units) of commits with the most files changed. Independent of building dimensions. Rebuild on change.',
       }),
       _slider('Trunk thickness (% of canopy)', TREES, 'TRUNK_RADIUS_FRAC_OF_CANOPY', 0.05, 0.5, 0.01, {
         tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',

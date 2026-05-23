@@ -18,10 +18,10 @@ function resetStores() {
     TREES_ENABLED: true,
     EDGE_INSET_PERCENT: 8,
     TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT_FLOORS: 3,
-    TREE_MAX_HEIGHT_FLOORS: 9,
-    TREE_MIN_WIDTH_FRAC: 0.5,
-    TREE_MAX_WIDTH_FRAC: 0.5,
+    TREE_MIN_HEIGHT: 48,
+    TREE_MAX_HEIGHT: 144,
+    TREE_MIN_WIDTH: 32,
+    TREE_MAX_WIDTH: 128,
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
     SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
@@ -34,10 +34,8 @@ function resetStores() {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
     FLOOR_HEIGHT: 16,
-    // Use MIN_WIDTH ≠ MAX_WIDTH so tree canopy width interpolation
-    // (which scales with the building width range) is testable.
     MIN_WIDTH: 8,
-    MAX_WIDTH: 48,
+    MAX_WIDTH: 8,
     PATH_LENGTH: 8,
     PATH_WIDTH_FRAC: 0.5,
   });
@@ -160,8 +158,8 @@ describe('createTreeRenderer()', () => {
     trees = createTreeRenderer(placements, commits);
 
     const canopy = meshByName(trees.group, 'tree-canopy');
-    const minHeight = 3 * 16;
-    const maxHeight = 9 * 16;
+    const minHeight = 48;
+    const maxHeight = 144;
     const midHeight = (minHeight + maxHeight) / 2;
 
     // commitIndex 0 = oldest → max; 1 = mid; 2 = newest → min.
@@ -184,10 +182,9 @@ describe('createTreeRenderer()', () => {
     trees = createTreeRenderer(placements, commits);
 
     const canopy = meshByName(trees.group, 'tree-canopy');
-    // Radii: (FRAC × BUILDING_WIDTH) / 2. With FRAC=0.5, MIN_WIDTH=8,
-    // MAX_WIDTH=48 → min=2, max=12, mid=7.
-    const minRadius = (0.5 * 8) / 2;
-    const maxRadius = (0.5 * 48) / 2;
+    // Radii are DIAMETER / 2. TREE_MIN_WIDTH=32 → r=16; TREE_MAX_WIDTH=128 → r=64.
+    const minRadius = 32 / 2;
+    const maxRadius = 128 / 2;
     const midRadius = (minRadius + maxRadius) / 2;
 
     const scales = [instanceScale(canopy, 0), instanceScale(canopy, 1), instanceScale(canopy, 2)];
@@ -276,8 +273,8 @@ describe('createTreeRenderer()', () => {
     trees = createTreeRenderer(placements, null);
 
     const canopy = meshByName(trees.group, 'tree-canopy');
-    const midHeight = ((3 + 9) / 2) * 16;
-    const midRadius = (((0.5 * 8) / 2) + ((0.5 * 48) / 2)) / 2;
+    const midHeight = (48 + 144) / 2;
+    const midRadius = ((32 / 2) + (128 / 2)) / 2;
     for (let i = 0; i < placements.length; i++) {
       const s = instanceScale(canopy, i);
       expect(s.y).toBeCloseTo(midHeight, 3);
