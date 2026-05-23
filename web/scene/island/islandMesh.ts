@@ -28,7 +28,7 @@ import { createShadowDisc, type ShadowDisc } from './shadowDisc.js';
 import { writeSunDir } from '@/scene/lighting/sunDir.js';
 import { RENDER_ORDERS } from '@/constants';
 
-const ISLAND_TOP_Y = -0.5; // matches the legacy worldFloor y-position
+const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
 
 export interface Island {
   group: THREE.Group;

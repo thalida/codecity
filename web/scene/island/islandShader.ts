@@ -87,5 +87,8 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
     },
     side: THREE.FrontSide,
     toneMapped: true,
+    polygonOffset: true,
+    polygonOffsetFactor: 1,
+    polygonOffsetUnits: 1,
   });
 }
