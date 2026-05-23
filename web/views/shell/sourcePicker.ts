@@ -57,12 +57,23 @@ interface GitWindowOption {
 }
 const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
   { label: '1 year ago',  value: '1.years.ago'  },
-  { label: '3 years ago (default)', value: '3.years.ago' },
+  { label: '3 years ago', value: '3.years.ago' },
   { label: '5 years ago',  value: '5.years.ago'  },
   { label: '10 years ago', value: '10.years.ago' },
-  { label: 'All history',  value: '100.years.ago' },
+  { label: 'All history (default)',  value: '100.years.ago' },
 ];
-const DEFAULT_GIT_WINDOW = '3.years.ago';
+const DEFAULT_GIT_WINDOW = '100.years.ago';
+
+/** Map a raw `git_window` value back to its human-readable label, or
+ *  return the raw value when nothing matches (the field accepts any
+ *  free-form `git log --since=…` expression). */
+function gitWindowLabel(value: string | undefined | null): string {
+  if (!value) return '';
+  const preset = GIT_WINDOW_OPTIONS.find((o) => o.value === value);
+  if (!preset) return value;
+  // Strip the "(default)" suffix so it doesn't leak into recent rows.
+  return preset.label.replace(/\s*\(default\)\s*$/i, '');
+}
 
 export interface OpenOpts {
   prefill?: SourcePayload;
@@ -196,6 +207,10 @@ export function createSourcePicker(opts: {
             <div class="recent-label">${escapeHtml(r.label)}</div>
             <div class="recent-sub">${escapeHtml(r.src)}${
               r.branch ? ' · ' + escapeHtml(r.branch) : ''
+            }${
+              isGitLike(r.src)
+                ? ' · ' + escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))
+                : ''
             }</div>
           </div>
           ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}
