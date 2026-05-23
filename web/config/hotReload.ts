@@ -237,6 +237,12 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // above; gating the rebuild on HALO_WIDTH alone avoids a wasted rebuild on
   // every color drag.
   unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
+  // Toggling bushes / flowers ON or OFF changes whether the bush+
+  // flower placement pass runs (placement reads PARKS_PALETTE flags),
+  // so it needs a rebuild — not just a visibility flip via
+  // parks.refresh. TREES_ENABLED and GROUND_ENABLED stay on the hot
+  // path because they only flip mesh.visible.
+  unsubs.push(listenKeys(PARKS_PALETTE, ['BUSHES_ENABLED', 'FLOWERS_ENABLED'], scheduleRebuild));
   armed = true;
 
   return function dispose() {

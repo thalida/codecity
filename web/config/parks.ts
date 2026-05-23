@@ -108,8 +108,8 @@ export interface ParksPaletteConfig {
 export const PARKS_PALETTE = map<ParksPaletteConfig>({
   GROUND_ENABLED: true,
   TREES_ENABLED: true,
-  BUSHES_ENABLED: true,
-  FLOWERS_ENABLED: true,
+  BUSHES_ENABLED: false,
+  FLOWERS_ENABLED: false,
 
   // Dark forest tone — what the camera sees as "the floor of the
   // world" anywhere there isn't city geometry or a discrete tree.
