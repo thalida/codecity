@@ -19,6 +19,7 @@ import {
   SCENE_COLORS,
   WINDOW_LIGHTING,
 } from '@/config/index.js';
+import { ISLAND_ATMOSPHERE } from '@/config/island.js';
 import type { IconAtlas } from '../iconAtlas.js';
 import { writeSunDir } from '@/scene/lighting/sunDir.js';
 
@@ -38,6 +39,7 @@ import { writeSunDir } from '@/scene/lighting/sunDir.js';
 import buildingVertSrc from '../shaders/building.vert.glsl?raw';
 import buildingFragSrc from '../shaders/building.frag.glsl?raw';
 import hslGlslSrc from '../shaders/hsl.glsl?raw';
+import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '../lighting/fogChunk.js';
 
 // Lazy singleton material — created once and reused across all cells.
 // applyManifest can be called multiple times (hot-reload); the singleton
@@ -72,9 +74,12 @@ function _computeFogHeight(): number {
 
 function getBuildingMaterial(): THREE.ShaderMaterial {
   if (_sharedMaterial) return _sharedMaterial;
-  // Inline the hsl helpers into the fragment source at the placeholder
-  // comment the shader author left for exactly this purpose.
-  const fragSrc = buildingFragSrc.replace('#include <hsl_glsl_inline>', hslGlslSrc);
+  // Inline the hsl helpers and fog chunk into the fragment source at the
+  // placeholder comments the shader author left for exactly this purpose.
+  const fragSrc = buildingFragSrc
+    .replace('#include <hsl_glsl_inline>', hslGlslSrc)
+    .replace('#include <fog_uniforms_glsl_inline>', FOG_UNIFORMS_GLSL)
+    .replace('#include <fog_apply_glsl_inline>', FOG_APPLY_GLSL);
   _sharedMaterial = new THREE.ShaderMaterial({
     vertexShader: buildingVertSrc,
     fragmentShader: fragSrc,
@@ -95,9 +100,19 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // the CSS hex through unchanged via LinearSRGBColorSpace so Three's
       // automatic sRGB->linear conversion doesn't darken it. Same
       // convention as uDimGlowColor.
+      // uFogEnabled drives the boolean branch in the shared fog chunk;
+      // uFogIntensity is still set to 0 when disabled (belt-and-suspenders).
+      uFogEnabled: { value: SCENE_COLORS.get().FOG_ENABLED },
       uFogColor: { value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace) },
       uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
+      // Distance-fog uniforms — fades by view distance. Driven by
+      // ISLAND_ATMOSPHERE.DISTANCE_FOG_*; refreshed via refreshBuildingMaterial().
+      // Defaults to disabled (DISTANCE_FOG_ENABLED: false) — users opt in via Controls.
+      uDistanceFogEnabled: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_ENABLED },
+      uDistanceFogColor: { value: new THREE.Color(ISLAND_ATMOSPHERE.get().DISTANCE_FOG_COLOR) },
+      uDistanceFogNear: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_NEAR },
+      uDistanceFogFar: { value: ISLAND_ATMOSPHERE.get().DISTANCE_FOG_FAR },
       // Extra HDR emission applied to the freshest building's lit
       // windows on top of a baseline 1.0. 0 = no bloom contribution
       // from windows; higher = brighter glow on new buildings.
@@ -180,13 +195,16 @@ export function refreshBuildingMaterial(): void {
   if (!_sharedMaterial) return;
   const sceneCfg = SCENE_COLORS.get();
   const bloomCfg = BLOOM.get();
+  const atm = ISLAND_ATMOSPHERE.get();
   _sharedMaterial.uniforms.uOutlineWidth.value = BUILDING_OUTLINE.get().WIDTH;
+  // Height fog: uFogEnabled drives the GLSL branch; uFogIntensity is also
+  // zeroed when disabled so the mix() is a no-op even if the bool branch
+  // ever short-circuits differently on a given driver.
+  _sharedMaterial.uniforms.uFogEnabled.value = sceneCfg.FOG_ENABLED;
   (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
     sceneCfg.FOG_COLOR,
     THREE.LinearSRGBColorSpace,
   );
-  // FOG_ENABLED gates intensity at the uniform level; the shader logic
-  // is unchanged (fogAmount → 0 when intensity is 0, mix() is a no-op).
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
   _sharedMaterial.uniforms.uFogHeight.value = _computeFogHeight();
   // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
@@ -234,4 +252,10 @@ export function refreshBuildingMaterial(): void {
     THREE.LinearSRGBColorSpace,
   );
   _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
+  // Distance-fog uniforms (ISLAND_ATMOSPHERE store) — pushed alongside
+  // height-fog updates so live config changes apply without a rebuild.
+  _sharedMaterial.uniforms.uDistanceFogEnabled.value = atm.DISTANCE_FOG_ENABLED;
+  (_sharedMaterial.uniforms.uDistanceFogColor.value as THREE.Color).set(atm.DISTANCE_FOG_COLOR);
+  _sharedMaterial.uniforms.uDistanceFogNear.value = atm.DISTANCE_FOG_NEAR;
+  _sharedMaterial.uniforms.uDistanceFogFar.value = atm.DISTANCE_FOG_FAR;
 }

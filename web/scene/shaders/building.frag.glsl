@@ -8,6 +8,7 @@
 // match. The mapping is documented in the per-constant comments below.
 
 #include <hsl_glsl_inline>
+#include <fog_uniforms_glsl_inline>
 
 flat varying int vFace;
 varying vec2 vUv;
@@ -52,14 +53,11 @@ uniform float uIconSlotSize;
 uniform float uGrimeIntensity;
 uniform float uGrimeCoverage;
 
-// Ground haze (height-based volumetric fog). Dense at world Y=0,
-// falls off exponentially with height — building bases sit in mist,
-// tops poke into clean air. Camera distance doesn't affect this, so
-// zooming out doesn't make the city disappear. Mirrors SCENE_COLORS
-// config; refreshed on hot-reload by refreshBuildingMaterial().
-uniform vec3 uFogColor;
-uniform float uFogIntensity;
-uniform float uFogHeight;
+// Ground haze (height-based volumetric fog) + distance fog.
+// Uniforms declared by #include <fog_uniforms_glsl_inline> above:
+//   uFogEnabled, uFogColor, uFogIntensity, uFogHeight (height fog)
+//   uDistanceFogEnabled, uDistanceFogColor, uDistanceFogNear, uDistanceFogFar (distance fog)
+// Both are consumed via applyFog() injected by #include <fog_apply_glsl_inline>.
 
 // Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
 // Sun direction is in world space and points TOWARD the sun (positive
@@ -92,6 +90,7 @@ uniform vec3 uDimGlowColor;
 uniform float uLitFreshnessExponent;
 
 varying float vWorldY;
+varying vec3 vWorldPos; // world-space position for distance fog
 
 // ---------------------------------------------------------------------------
 // Facade geometry — driven by FACADE_GEOMETRY store via uniforms
@@ -181,6 +180,8 @@ uniform float uWindowEmissionBoost;
 // renderWallFace for the formula.)
 // Door + roof-border lightness deltas are driven by uDoorLightnessDelta
 // and uRoofBorderLightnessDelta (FACADE_DETAIL store).
+
+#include <fog_apply_glsl_inline>
 
 // ---------------------------------------------------------------------------
 // Face helpers
@@ -544,13 +545,11 @@ void main() {
   else                        body = renderWallFace();
   vec4 outColor = compositeOutline(body);
 
-  // Ground haze: fogAmount peaks at uFogIntensity at world Y=0 and
-  // falls off as exp(-y / uFogHeight) — independent of camera
-  // distance, so the city's silhouette stays sharp at any zoom.
-  // Building bases sit in mist, tops emerge into clean air.
-  float h = max(vWorldY, 0.0);
-  float fogAmount = exp(-h / max(uFogHeight, 0.0001)) * uFogIntensity;
-  outColor.rgb = mix(outColor.rgb, uFogColor, fogAmount);
+  // Atmospheric fog: height fog (dense at y=0, thins with altitude) and
+  // optional distance fog (fades by view distance). Both modes are handled
+  // by applyFog() from the shared fog_apply_glsl_inline chunk. cameraPosition
+  // is a Three.js built-in uniform — no explicit declaration needed.
+  outColor.rgb = applyFog(outColor.rgb, vWorldPos, length(vWorldPos - cameraPosition));
 
   gl_FragColor = outColor;
 }
