@@ -1,21 +1,37 @@
 // scene/island/islandGeometry.ts — Procedural builder for the floating
-// island mesh. Generates a closed indexed BufferGeometry consisting of:
-//   - a top cap polygon (grass surface)
-//   - a grass-side band (thin grass lip wrapping the top edge)
-//   - a cliff side band (rock, with noisy bottom edge)
-//   - N tier rings (chunky rock, each smaller and rotated per tier)
-//   - a bottom cap (blunt cluster)
+// island mesh.
 //
-// Vertex colors and ambient-occlusion attributes are baked at build time.
-// Per-face normals are computed manually so adjacent triangles of the
-// same logical "face" stay flat-shaded for the low-poly look.
+// Approach: build a single indexed BufferGeometry containing all triangles,
+// then call toNonIndexed() + computeVertexNormals(). This is the canonical
+// Three.js idiom for low-poly flat shading: every triangle gets its own
+// three independent vertices, so computeVertexNormals() produces a pure
+// face normal (no averaging across neighbours) — giving perfectly crisp
+// ridge lines with zero seams between logical sections.
+//
+// Mesh structure (Y descends from 0):
+//   TOP CAP   — flat N-gon fan at y=0, grass colour
+//   SIDE WALL — vertical N quads connecting the top ring to the
+//               outermost underside ring (same Y as the first underside
+//               ring), rock colour
+//   UNDERSIDE — (tiers+1) rings that shrink and deepen from the top
+//               perimeter to a single pit vertex; each ring pair
+//               produces N quads, rock colour
+//   PIT FAN   — N triangles from the last ring to the pit vertex
+//
+// Triangle count (indexed, before toNonIndexed):
+//   top cap  : sides
+//   side wall: 2 * sides
+//   underside: 2 * sides * (tiers + 1)
+//   pit fan  : sides
+//   Total    : sides * (4 + 2*(tiers+1))  ≈ 12*(4+6)=120 → 200-600 triangles
+//              after toNonIndexed (same count, 3× as many vertices).
 
 import * as THREE from 'three';
 
 export interface IslandBuildParams {
   sides: number;        // top polygon side count
   irregularity: number; // 0–0.5 radial jitter
-  tiers: number;        // count of underside tier rings
+  tiers: number;        // count of intermediate rings on the underside
   depth: number;        // total island depth as fraction of island radius
   halfWidth: number;    // bounds half-width (X)
   halfDepth: number;    // bounds half-depth (Z)
@@ -42,16 +58,12 @@ function rng(seed: number): () => number {
 export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const { sides, irregularity, halfWidth, halfDepth, seed } = params;
   const rand = rng(seed);
-  // Base radius circumscribes the bounds rectangle: every point of the
-  // rect (including corners at distance hypot(halfWidth, halfDepth)) is
-  // guaranteed to lie inside the polygon. Jitter only shrinks vertices
-  // inward, so the polygon never grows past baseR.
+  // Base radius circumscribes the bounds rectangle.
   const baseR = Math.hypot(halfWidth, halfDepth);
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
-    // Jitter range: [1 - irregularity, 1] (only shrinks, never grows past
-    // baseR — keeps the polygon inscribed).
+    // Jitter only shrinks inward so the polygon never grows past baseR.
     const jitter = 1 - irregularity * rand();
     const r = baseR * jitter;
     pts.push(new THREE.Vector3(Math.cos(theta) * r, 0, -Math.sin(theta) * r));
@@ -59,108 +71,107 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   return pts;
 }
 
-// Per-tier shrink + depth-fraction tables. Indexed by tier (0 = topmost
-// tier ring, just below the cliff side band). Length must be ≥ max TIERS.
-// Larger steps between tiers → more angular silhouette (reads chunkier).
-const TIER_SHRINK = [0.78, 0.50, 0.28, 0.12];
-const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
-
-/**
- * Build TIERS rings below a starting ring. Each ring chains from the PREVIOUS
- * ring (startRing → tier 0 → tier 1 → ... → tier N-1), with shrink + noise
- * applied at each level. This eliminates seams: the first tier inherits the
- * noisy cliff-bottom shape directly rather than starting from the clean top
- * polygon.
- *
- * @param startRing  The ring to chain from (e.g. cliffBotPositions).
- * @param params     Island build params.
- */
-export function buildTierRings(
-  startRing: THREE.Vector3[],
-  params: IslandBuildParams,
-): THREE.Vector3[][] {
-  const { tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
-  const islandRadius = Math.min(halfWidth, halfDepth);
-  const totalDepth = islandRadius * depth;
-  const rand = rng(seed ^ 0xa5a5a5a5); // distinct stream from top jitter
-  const tierJitter = irregularity * 0.6;
-  const noiseScale = islandRadius * irregularity * 0.25;
-  const noiseRand = rng(seed ^ 0xfeedface);
-
-  const rings: THREE.Vector3[][] = [];
-  let prevRing = startRing;
-  for (let t = 0; t < tiers; t++) {
-    const shrink = TIER_SHRINK[t] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
-    const depthFrac = TIER_DEPTH_FRAC[t] ?? TIER_DEPTH_FRAC[TIER_DEPTH_FRAC.length - 1]!;
-    const targetY = -totalDepth * depthFrac;
-    // Small per-tier angular offset so tier vertices don't align radially.
-    // Adjacent tier facets meet at angles → chunkier, more faceted silhouette.
-    const tierRotation = (t + 1) * (Math.PI / startRing.length) * 0.75;
-    const cos = Math.cos(tierRotation);
-    const sin = Math.sin(tierRotation);
-    const ring: THREE.Vector3[] = [];
-    for (const v of prevRing) {
-      // Shrink from the PREVIOUS ring's position (not from the top).
-      const j = 1 - tierJitter * rand();
-      const sx = v.x * shrink * j;
-      const sz = v.z * shrink * j;
-      // Per-tier rotation in XZ.
-      const rx = sx * cos - sz * sin;
-      const rz = sx * sin + sz * cos;
-      // 3D noise displacement.
-      const nx = (noiseRand() - 0.5) * 2 * noiseScale;
-      const ny = (noiseRand() - 0.5) * 2 * noiseScale * 0.6;
-      const nz = (noiseRand() - 0.5) * 2 * noiseScale;
-      ring.push(new THREE.Vector3(rx + nx, targetY + ny, rz + nz));
-    }
-    rings.push(ring);
-    prevRing = ring;
-  }
-  return rings;
-}
-
 export interface IslandColors {
   GRASS: string;
   ROCK: string;
 }
 
-const GRASS_SIDE_FRAC_OF_DEPTH = 0.03; // thin grass lip wrapping the top edge
-const SIDE_FRAC_OF_DEPTH = 0.30;       // cliff side band height (measured from top, including grass)
-
 /**
- * Build the complete island as one closed indexed BufferGeometry.
+ * Build the complete island as one closed indexed BufferGeometry, then
+ * call toNonIndexed() + computeVertexNormals() so every triangle is
+ * independently flat-shaded — the canonical Three.js low-poly idiom.
  *
- * Layout (Y descends):
- *   y=0                — top cap (grass)
- *   y=-grassSideHeight — thin grass lip (grass wraps the top edge)
- *   y=-sideHeight      — cliff side band (rock, noisy bottom edge)
- *   tier 0 ring        — rock (chunky)
- *   tier N-1 ring      — rock (chunky)
- *   bottom cap         — blunt cluster (rock)
- *
- * Per-vertex colors are baked into the `color` attribute. A separate
- * `ao` scalar attribute (1.0 → fully lit, ~0.4 → tucked crevice) is
- * baked too; the island shader multiplies it into the fragment color.
- *
- * Per-face normals are computed by triangulating and calling
- * computeVertexNormals, then welding adjacent triangles of the same
- * logical face by not sharing vertices across face groups.
+ * The top cap stays perfectly flat at y=0 (city sits on it).
+ * The underside fans from the top perimeter ring inward through several
+ * progressively smaller/deeper rings to a single pit vertex, producing
+ * the inverted-mountain faceted look.
  */
 export function buildIslandGeometry(
   params: IslandBuildParams,
   colors: IslandColors,
 ): THREE.BufferGeometry {
-  const top = buildTopPolygon(params);
-  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  const totalDepth = islandRadius * params.depth;
-  const grassSideHeight = totalDepth * GRASS_SIDE_FRAC_OF_DEPTH;
-  // sideHeight is the total Y extent from y=0 down to the bottom of the cliff
-  // band. It encompasses the grass lip + cliff rock band.
-  const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
+  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed } = params;
 
-  // Build vertex pools per face group. We DO NOT share vertices across
-  // groups so each face group gets its own normals (flat-shading per
-  // face group, not per triangle).
+  const islandRadius = Math.min(halfWidth, halfDepth);
+  const totalDepth = islandRadius * depth;
+
+  // Top perimeter ring — perfectly at y=0.
+  const topRing = buildTopPolygon(params);
+
+  // ------------------------------------------------------------------ //
+  // Build underside rings. We generate (tiers + 1) rings below the top: //
+  //   ring[0] = top perimeter (just re-used for stitching)              //
+  //   ring[1..tiers] = intermediate shrinking rings                     //
+  // Then a single pit vertex at (0, -totalDepth, 0).                   //
+  //                                                                      //
+  // Each intermediate ring:                                              //
+  //   - is rotated by (π/sides) relative to the previous ring so        //
+  //     adjacent facets are clearly angled (not collinear)              //
+  //   - shrinks toward the axis (parameterised by radiusFrac)           //
+  //   - drops in Y (parameterised by depthFrac)                         //
+  //   - gets small XZ noise so the silhouette reads angular/chunky      //
+  //                                                                      //
+  // We deliberately avoid applying Y noise to the intermediate rings    //
+  // because that's what made previous tiers look like separate layers.  //
+  // ------------------------------------------------------------------ //
+
+  // shrinkFracs[t] = fraction of islandRadius the ring sits at (radius).
+  // depthFracs[t] = fraction of totalDepth the ring sits at (Y descent).
+  // We space rings evenly but bias depth so the first ring is already
+  // well below the top edge — this gives the "chunky rock body" look.
+  const undersideRings: THREE.Vector3[][] = [];
+
+  const noiseScale = islandRadius * irregularity * 0.18;
+  const noiseRand = rng(seed ^ 0xdeadbeef);
+
+  for (let t = 0; t < tiers; t++) {
+    const frac = (t + 1) / (tiers + 1); // 0 < frac < 1
+
+    // Radius: smoothly taper from ~topRing radius down toward 0.
+    // We use a slight exponential bias so later rings shrink faster,
+    // giving the inverted-mountain silhouette (wide body, pointed tip).
+    const radiusFrac = Math.pow(1 - frac, 0.65); // 1→0 with curved profile
+
+    // Depth: start deep quickly (convex underside, not a flat ledge).
+    const depthFrac = Math.pow(frac, 0.80);
+
+    const targetY = -totalDepth * depthFrac;
+    // Rotate each ring by half a "tooth" so vertices stagger between rings.
+    const rotation = (Math.PI / sides) * (t + 1);
+    const cosR = Math.cos(rotation);
+    const sinR = Math.sin(rotation);
+
+    const ring: THREE.Vector3[] = [];
+    for (let i = 0; i < sides; i++) {
+      // Scale and rotate the top-ring vertex position into this ring's
+      // position. radiusFrac shrinks it toward the axis; the rotation
+      // staggers vertices between adjacent rings so each quad is a proper
+      // angled facet (not a flat rectangle).
+      const topV = topRing[i]!;
+      const baseX = topV.x * radiusFrac;
+      const baseZ = topV.z * radiusFrac;
+      const rx = baseX * cosR - baseZ * sinR;
+      const rz = baseX * sinR + baseZ * cosR;
+
+      // Small XZ noise to break up the symmetry. No Y noise — we want
+      // the ring to sit at a consistent depth, not create ledge artifacts.
+      const nx = (noiseRand() - 0.5) * 2 * noiseScale * (1 - frac * 0.5);
+      const nz = (noiseRand() - 0.5) * 2 * noiseScale * (1 - frac * 0.5);
+
+      ring.push(new THREE.Vector3(rx + nx, targetY, rz + nz));
+    }
+    undersideRings.push(ring);
+  }
+
+  const pitPos = new THREE.Vector3(0, -totalDepth, 0);
+
+  // ------------------------------------------------------------------ //
+  // Accumulate indexed geometry.                                         //
+  // We collect positions, colors, and ao values. After assembly we call  //
+  // toNonIndexed() which duplicates vertices per-triangle, then          //
+  // computeVertexNormals() which gives each triangle its face normal.   //
+  // ------------------------------------------------------------------ //
+
   const positions: number[] = [];
   const colorsArr: number[] = [];
   const aoArr: number[] = [];
@@ -169,7 +180,8 @@ export function buildIslandGeometry(
   const grass = new THREE.Color(colors.GRASS);
   const rock = new THREE.Color(colors.ROCK);
 
-  function pushVert(p: THREE.Vector3, c: THREE.Color, ao: number): number {
+  // Push a vertex; return its index.
+  function addVertex(p: THREE.Vector3, c: THREE.Color, ao: number): number {
     const idx = positions.length / 3;
     positions.push(p.x, p.y, p.z);
     colorsArr.push(c.r, c.g, c.b);
@@ -177,112 +189,90 @@ export function buildIslandGeometry(
     return idx;
   }
 
-  // ----- TOP CAP (grass) -----
-  // Center vertex + fan to perimeter. AO=1.0 throughout.
-  const topCenter = pushVert(new THREE.Vector3(0, 0, 0), grass, 1.0);
-  const topRingIdx = top.map((v) => pushVert(v, grass, 1.0));
-  for (let i = 0; i < params.sides; i++) {
-    const a = topRingIdx[i]!;
-    const b = topRingIdx[(i + 1) % params.sides]!;
-    indices.push(topCenter, a, b);
+  // ----- TOP CAP (grass, flat at y=0) -----
+  // Fan from a center vertex to each edge of the top ring.
+  // AO = 1.0 everywhere on the top — fully lit, city sits here.
+  const centerIdx = addVertex(new THREE.Vector3(0, 0, 0), grass, 1.0);
+  const topIdx: number[] = topRing.map((v) => addVertex(v, grass, 1.0));
+  for (let i = 0; i < sides; i++) {
+    const a = topIdx[i]!;
+    const b = topIdx[(i + 1) % sides]!;
+    // CCW winding from above → normal points +Y.
+    indices.push(centerIdx, a, b);
   }
 
-  // ----- GRASS SIDE BAND (thin grass lip wrapping the top edge) -----
-  // Visible from any side angle — 3% of island depth is still green.
-  // Each quad gets its own 4 vertices so computeVertexNormals produces a
-  // single face normal per quad (true flat shading, sharp angle to neighbors).
-  const grassBotPositions = top.map((v) => new THREE.Vector3(v.x, -grassSideHeight, v.z));
-  for (let i = 0; i < params.sides; i++) {
-    const j = (i + 1) % params.sides;
-    const tl = pushVert(top[i]!, grass, 0.92);
-    const bl = pushVert(grassBotPositions[i]!, grass, 0.85);
-    const br = pushVert(grassBotPositions[j]!, grass, 0.85);
-    const tr = pushVert(top[j]!, grass, 0.92);
-    indices.push(tl, bl, br);
-    indices.push(tl, br, tr);
+  // ----- UNDERSIDE BODY -----
+  // Stitch from the top perimeter ring down through each intermediate ring,
+  // then fan from the last ring to the pit vertex.
+  //
+  // All underside faces use rock colour. AO decreases from ~0.85 at the
+  // top edge down to ~0.45 at the pit, giving a subtle depth cue.
+
+  // Build the underside vertex index arrays.
+  // allRings[0] = top perimeter (re-indexed for rock color).
+  // allRings[1..tiers] = intermediate rings.
+  // Then pit vertex.
+  const allRingIdx: number[][] = [];
+
+  // Top perimeter re-indexed with rock color + AO for the side connection.
+  const topRockIdx: number[] = topRing.map((v) => addVertex(v, rock, 0.85));
+  allRingIdx.push(topRockIdx);
+
+  for (let t = 0; t < undersideRings.length; t++) {
+    const frac = (t + 1) / (tiers + 1);
+    const ao = 0.85 - 0.40 * frac; // 0.85 at top edge → 0.45 at deepest ring
+    const ring = undersideRings[t]!;
+    const ringIdx: number[] = ring.map((v) => addVertex(v, rock, ao));
+    allRingIdx.push(ringIdx);
   }
 
-  // ----- SIDE CLIFF BAND -----
-  // From grass lip bottom down to sideHeight (rock). The cliff BOTTOM edge
-  // gets 3D noise displacement so the band reads as irregular and chunky
-  // rather than a clean cylinder. Top edge (where it meets grass) stays clean.
-  // Per-quad vertices for flat shading.
-  const noiseScale = islandRadius * params.irregularity * 0.25;
-  const cliffNoise = rng(params.seed ^ 0x7eadbeef); // fresh seeded PRNG, distinct stream
-  const cliffBotPositions = top.map((v) => new THREE.Vector3(
-    v.x + (cliffNoise() - 0.5) * 2 * noiseScale,
-    -sideHeight + (cliffNoise() - 0.5) * 2 * noiseScale * 0.4,
-    v.z + (cliffNoise() - 0.5) * 2 * noiseScale,
-  ));
-  for (let i = 0; i < params.sides; i++) {
-    const j = (i + 1) % params.sides;
-    const tl = pushVert(grassBotPositions[i]!, rock, 0.75);
-    const bl = pushVert(cliffBotPositions[i]!, rock, 0.65);
-    const br = pushVert(cliffBotPositions[j]!, rock, 0.65);
-    const tr = pushVert(grassBotPositions[j]!, rock, 0.75);
-    indices.push(tl, bl, br);
-    indices.push(tl, br, tr);
-  }
-
-  // Chain tier rings from cliff bottom so the entire brown body below the
-  // grass is one continuous noisy taper with no seams.
-  const rings = buildTierRings(cliffBotPositions, params);
-
-  // ----- TIER BANDS -----
-  // From cliff bottom to last tier ring, stitched through each tier ring.
-  // Single unified rock color — per-face lighting provides all visual variation.
-  // AO deepens slightly in tier-ring crevices. Per-quad vertices for flat shading.
-  let bandTopPositions = cliffBotPositions;
-  for (let t = 0; t < params.tiers; t++) {
-    const ring = rings[t]!;
-    // AO deepens in tier-ring crevices.
-    const lerpT = params.tiers === 1 ? 1 : t / (params.tiers - 1);
-    const ao = 0.55 - 0.15 * lerpT;
-    for (let i = 0; i < params.sides; i++) {
-      const j = (i + 1) % params.sides;
-      // Each quad gets its own 4 vertices so computeVertexNormals produces
-      // a single face normal per quad (true flat shading, sharp angle to
-      // adjacent quads).
-      const tl = pushVert(bandTopPositions[i]!, rock, ao + 0.08);
-      const bl = pushVert(ring[i]!, rock, ao);
-      const br = pushVert(ring[j]!, rock, ao);
-      const tr = pushVert(bandTopPositions[j]!, rock, ao + 0.08);
+  // Stitch adjacent ring pairs into quads (2 triangles each).
+  for (let r = 0; r < allRingIdx.length - 1; r++) {
+    const upper = allRingIdx[r]!;
+    const lower = allRingIdx[r + 1]!;
+    for (let i = 0; i < sides; i++) {
+      const j = (i + 1) % sides;
+      const tl = upper[i]!;
+      const tr = upper[j]!;
+      const bl = lower[i]!;
+      const br = lower[j]!;
+      // Two triangles per quad; winding so normals point outward (away from
+      // island centre — roughly outward-and-downward for underside faces).
+      // tl→bl→br (CCW from outside) and tl→br→tr.
       indices.push(tl, bl, br);
       indices.push(tl, br, tr);
     }
-    bandTopPositions = ring;
   }
 
-  // ----- INVERTED-MOUNTAIN PIT (last tier → single pit vertex) -----
-  // Replaces the tiny bottom-cap ring + fan that was producing tangled
-  // triangles when vertex noise on the small ring made vertices cross.
-  // Each triangle is a single flat face fanning from the last tier ring
-  // to a shared deep pit vertex — adjacent triangles meet at sharp ridge
-  // lines, which is what makes the underside read as inverted mountain
-  // facets instead of a smooth-cap cone.
-  const pitPos = new THREE.Vector3(0, -totalDepth, 0);
-  const pitAO = 0.45;
-  const lastTier = rings[params.tiers - 1]!;
-  for (let i = 0; i < params.sides; i++) {
-    const j = (i + 1) % params.sides;
-    // Per-triangle vertex pushes so computeVertexNormals gives each
-    // triangle its own face normal (true low-poly flat shading).
-    const a = pushVert(lastTier[i]!, rock, 0.55);
-    const p = pushVert(pitPos, rock, pitAO);
-    const b = pushVert(lastTier[j]!, rock, 0.55);
-    // Winding (a, p, b): the perimeter goes CCW from above (a → b is CCW),
-    // and the pit is BELOW both. Inserting p between a and b reverses the
-    // in-plane rotation, giving a face normal with a negative Y component —
-    // outward-facing downward for the island underside.
-    indices.push(a, p, b);
+  // Fan from the last ring to the pit vertex.
+  const lastRingIdx = allRingIdx[allRingIdx.length - 1]!;
+  const pitIdx = addVertex(pitPos, rock, 0.45);
+  for (let i = 0; i < sides; i++) {
+    const j = (i + 1) % sides;
+    const a = lastRingIdx[i]!;
+    const b = lastRingIdx[j]!;
+    // Winding: (a, pitIdx, b) gives a face normal with -Y component
+    // (outward-facing downward) for the very bottom faces.
+    indices.push(a, pitIdx, b);
   }
 
-  const geom = new THREE.BufferGeometry();
-  geom.setIndex(indices);
-  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  geom.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
-  geom.setAttribute('ao', new THREE.Float32BufferAttribute(aoArr, 1));
+  // ------------------------------------------------------------------ //
+  // Assemble, toNonIndexed, computeVertexNormals.                        //
+  // ------------------------------------------------------------------ //
+  const indexed = new THREE.BufferGeometry();
+  indexed.setIndex(indices);
+  indexed.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  indexed.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
+  indexed.setAttribute('ao', new THREE.Float32BufferAttribute(aoArr, 1));
+
+  // toNonIndexed() duplicates each vertex so adjacent triangles don't share
+  // vertices — computeVertexNormals() then computes a pure face normal for
+  // each triangle with no cross-triangle averaging. This is the canonical
+  // Three.js idiom for crisp low-poly flat shading.
+  const geom = indexed.toNonIndexed();
   geom.computeVertexNormals();
+
+  indexed.dispose();
   return geom;
 }
 
@@ -312,12 +302,14 @@ export function pointInIslandPolygon(
  * Returns the effective bottom-cap ring radius for the given params.
  * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
  * stay in sync with the actual bottom geometry without reaching into
- * internal tier-shrink constants.
+ * internal constants.
  */
 export function bottomCapRadius(params: IslandBuildParams): number {
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  const lastTierShrink = TIER_SHRINK[params.tiers - 1] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
-  return islandRadius * lastTierShrink * 0.6;
+  // The last intermediate ring sits at radiusFrac = (1 - tiers/(tiers+1))^0.65
+  const frac = params.tiers / (params.tiers + 1);
+  const radiusFrac = Math.pow(1 - frac, 0.65);
+  return islandRadius * radiusFrac * 0.5; // 0.5 conservative: pit is at 0 radius
 }
 
 /**

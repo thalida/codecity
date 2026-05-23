@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import {
   buildTopPolygon,
-  buildTierRings,
   buildIslandGeometry,
   pointInIslandPolygon,
   type IslandBuildParams,
@@ -74,48 +73,6 @@ describe('buildTopPolygon', () => {
   });
 });
 
-describe('buildTierRings', () => {
-  const baseParams: IslandBuildParams = {
-    sides: 12,
-    irregularity: 0,
-    tiers: 2,
-    depth: 0.6,
-    halfWidth: 100,
-    halfDepth: 100,
-    seed: 1234,
-  };
-
-  it('returns TIERS rings of SIDES vertices each', () => {
-    const startRing = buildTopPolygon(baseParams);
-    const rings = buildTierRings(startRing, baseParams);
-    expect(rings.length).toBe(2);
-    rings.forEach((ring) => expect(ring.length).toBe(12));
-  });
-
-  it('each tier shrinks inward (radius decreases per tier)', () => {
-    const startRing = buildTopPolygon(baseParams);
-    const rings = buildTierRings(startRing, baseParams);
-    const startR = Math.hypot(startRing[0]!.x, startRing[0]!.z);
-    const r1 = Math.hypot(rings[0]![0]!.x, rings[0]![0]!.z);
-    const r2 = Math.hypot(rings[1]![0]!.x, rings[1]![0]!.z);
-    expect(r1).toBeLessThan(startR);
-    expect(r2).toBeLessThan(r1);
-  });
-
-  it('each tier drops in Y (y decreases per tier)', () => {
-    const startRing = buildTopPolygon(baseParams);
-    const rings = buildTierRings(startRing, baseParams);
-    expect(rings[0]![0]!.y).toBeLessThan(0);
-    expect(rings[1]![0]!.y).toBeLessThan(rings[0]![0]!.y);
-  });
-
-  it('respects TIERS=3', () => {
-    const startRing = buildTopPolygon(baseParams);
-    const rings = buildTierRings(startRing, { ...baseParams, tiers: 3 });
-    expect(rings.length).toBe(3);
-  });
-});
-
 describe('buildIslandGeometry', () => {
   const baseParams: IslandBuildParams = {
     sides: 12, irregularity: 0.18, tiers: 2, depth: 0.6,
@@ -126,14 +83,15 @@ describe('buildIslandGeometry', () => {
     ROCK: '#0a0a10',
   };
 
-  it('returns a closed BufferGeometry with position, normal, color, and ao attributes', () => {
+  it('returns a non-indexed BufferGeometry with position, normal, color, and ao attributes', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     expect(geom).toBeInstanceOf(THREE.BufferGeometry);
     expect(geom.getAttribute('position')).toBeDefined();
     expect(geom.getAttribute('normal')).toBeDefined();
     expect(geom.getAttribute('color')).toBeDefined();
     expect(geom.getAttribute('ao')).toBeDefined();
-    expect(geom.getIndex()).not.toBeNull();
+    // toNonIndexed() produces a non-indexed geometry (no index buffer).
+    expect(geom.getIndex()).toBeNull();
     geom.dispose();
   });
 
@@ -155,7 +113,7 @@ describe('buildIslandGeometry', () => {
     geom.dispose();
   });
 
-  it('AO is highest on the top cap and lowest in tier-ring crevices', () => {
+  it('AO is highest on the top cap and lowest near the pit', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const ao = geom.getAttribute('ao') as THREE.BufferAttribute;
@@ -178,70 +136,55 @@ describe('buildIslandGeometry', () => {
   it('top-cap triangles have +Y normals (front-face up)', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
-    const idx = geom.getIndex()!;
-    // Find a triangle on the top cap (all three vertices at y≈0).
-    let foundTopTri = false;
-    for (let t = 0; t < idx.count; t += 3) {
-      const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
-      const ya = pos.getY(ia), yb = pos.getY(ib), yc = pos.getY(ic);
-      if (ya === 0 && yb === 0 && yc === 0) {
-        // Compute face normal via cross product.
-        const ax = pos.getX(ia), az = pos.getZ(ia);
-        const bx = pos.getX(ib), bz = pos.getZ(ib);
-        const cx = pos.getX(ic), cz = pos.getZ(ic);
-        const v1x = bx - ax, v1z = bz - az;
-        const v2x = cx - ax, v2z = cz - az;
-        const normalY = v1z * v2x - v1x * v2z;
-        // Skip the degenerate origin-fan triangles where v1 or v2 is zero
-        if (Math.abs(normalY) > 1e-6) {
-          expect(normalY).toBeGreaterThan(0);  // front-face up
-          foundTopTri = true;
-          break;
-        }
+    const nor = geom.getAttribute('normal') as THREE.BufferAttribute;
+    // After toNonIndexed + computeVertexNormals, every vertex in a top-cap
+    // triangle has the same face normal. Find any vertex at y=0 and check
+    // its normal points upward.
+    let foundTopVertex = false;
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(pos.getY(i)) < 1e-6) {
+        const ny = nor.getY(i);
+        expect(ny).toBeGreaterThan(0);
+        foundTopVertex = true;
+        break;
       }
     }
-    expect(foundTopTri).toBe(true);
+    expect(foundTopVertex).toBe(true);
     geom.dispose();
   });
 
-  it('pit-fan triangles have -Y normals (front-face down)', () => {
+  it('pit-vertex triangles have -Y normals (front-face down)', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
-    const idx = geom.getIndex()!;
-    // The new inverted-mountain topology fans from the last tier ring to a
-    // single pit vertex at (0, -totalDepth, 0). Each fan triangle has two
-    // perimeter vertices (at the last tier Y level) and one pit vertex at
-    // the minimum Y. We identify these triangles by the presence of the
-    // deepest vertex (minY) in the triangle, then verify the face normal
-    // has a negative Y component (outward-facing downward for the underside).
+    const nor = geom.getAttribute('normal') as THREE.BufferAttribute;
+    // Find the minimum Y (pit vertex, replicated across its triangles).
     let minY = Infinity;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       if (y < minY) minY = y;
     }
-    // Collect all vertex indices that sit at (or very near) the pit Y.
-    const pitIndices = new Set<number>();
+    // Check that vertices at the deepest Y have normals with a -Y component.
+    let foundPitVertex = false;
     for (let i = 0; i < pos.count; i++) {
-      if (Math.abs(pos.getY(i) - minY) < 1e-4) pitIndices.add(i);
-    }
-    let foundBottomTri = false;
-    for (let t = 0; t < idx.count; t += 3) {
-      const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
-      // A pit-fan triangle must contain at least one pit vertex.
-      if (!pitIndices.has(ia) && !pitIndices.has(ib) && !pitIndices.has(ic)) continue;
-      const ax = pos.getX(ia), az = pos.getZ(ia);
-      const bx = pos.getX(ib), bz = pos.getZ(ib);
-      const cx = pos.getX(ic), cz = pos.getZ(ic);
-      const v1x = bx - ax, v1z = bz - az;
-      const v2x = cx - ax, v2z = cz - az;
-      const normalY = v1z * v2x - v1x * v2z;
-      if (Math.abs(normalY) > 1e-6) {
-        expect(normalY).toBeLessThan(0);
-        foundBottomTri = true;
+      if (Math.abs(pos.getY(i) - minY) < 1e-4) {
+        const ny = nor.getY(i);
+        expect(ny).toBeLessThan(0);
+        foundPitVertex = true;
         break;
       }
     }
-    expect(foundBottomTri).toBe(true);
+    expect(foundPitVertex).toBe(true);
+    geom.dispose();
+  });
+
+  it('vertex count is in the expected low-poly range', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+    // Non-indexed: vertexCount = triangleCount * 3.
+    // Expected triangles: sides*(4 + 2*(tiers+1)) = 12*(4+6) = 120.
+    // Some variation due to the actual ring count — accept a generous range.
+    expect(pos.count).toBeGreaterThan(100);
+    expect(pos.count).toBeLessThan(3000);
     geom.dispose();
   });
 });
