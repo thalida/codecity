@@ -35,6 +35,7 @@ import {
   type AgeRange,
   type SizeRange,
 } from './treeEncoding.js';
+import { interpolateOklch } from './colorInterp.js';
 
 export interface Trees {
   group: THREE.Group;
@@ -233,13 +234,15 @@ export function createTreeRenderer(
   }
 
   // COLOR follows AGE: newer commits interpolate toward TREE_COLOR_NEW.
+  // Interpolation is done in OKLCH (shortest hue arc) so the midpoint
+  // between distant hues stays saturated — picking purple + teal gives
+  // a vivid blue through the middle instead of a muddy gray.
   function perTreeColor(i: number, target: THREE.Color): void {
+    let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      const t = ageT(commits[placements[i].commitIndex], ageRange);
-      target.lerpColors(oldColor, newColor, t);
-      return;
+      t = ageT(commits[placements[i].commitIndex], ageRange);
     }
-    target.lerpColors(oldColor, newColor, 0.5);
+    interpolateOklch(oldColor, newColor, t, target);
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);

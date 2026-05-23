@@ -14,6 +14,7 @@ import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
+import { interpolateOklch } from '@/scene/trees/colorInterp.js';
 
 function resetStores() {
   TREES.set({
@@ -309,7 +310,10 @@ describe('createTreeRenderer()', () => {
     const newColor = new THREE.Color();
     oldColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
     newColor.setStyle('#a8d68a', THREE.LinearSRGBColorSpace);
-    const midColor = new THREE.Color().lerpColors(oldColor, newColor, 0.5);
+    // Expected midpoint computed via the same OKLCH helper the
+    // renderer uses, so the test mirrors the production blend.
+    const expectedMid = { r: 0, g: 0, b: 0 };
+    interpolateOklch(oldColor, newColor, 0.5, expectedMid);
 
     const got = new THREE.Color();
     const a = findCanopyInstance(trees.group, 0)!; // oldest → OLD
@@ -319,8 +323,8 @@ describe('createTreeRenderer()', () => {
     expect(got.r).toBeCloseTo(oldColor.r, 3);
     expect(got.g).toBeCloseTo(oldColor.g, 3);
     b.mesh.getColorAt(b.instanceIdx, got);
-    expect(got.r).toBeCloseTo(midColor.r, 3);
-    expect(got.g).toBeCloseTo(midColor.g, 3);
+    expect(got.r).toBeCloseTo(expectedMid.r, 3);
+    expect(got.g).toBeCloseTo(expectedMid.g, 3);
     c.mesh.getColorAt(c.instanceIdx, got);
     expect(got.r).toBeCloseTo(newColor.r, 3);
     expect(got.g).toBeCloseTo(newColor.g, 3);
