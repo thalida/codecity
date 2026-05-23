@@ -158,8 +158,6 @@ export function buildIslandGeometry(
   // band. It encompasses the grass lip + cliff rock band.
   const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
 
-  const bottomY = -totalDepth;
-
   // Build vertex pools per face group. We DO NOT share vertices across
   // groups so each face group gets its own normals (flat-shading per
   // face group, not per triangle).
@@ -230,19 +228,8 @@ export function buildIslandGeometry(
   // grass is one continuous noisy taper with no seams.
   const rings = buildTierRings(cliffBotPositions, params);
 
-  // Bottom cap chains from the last tier ring (shrunk + noised) — same
-  // chaining principle so there's no seam at the bottom either.
-  const bottomCapShrink = 0.55;
-  const bottomNoise = rng(params.seed ^ 0x5a5a5a5a);
-  const lastTierRing = rings[params.tiers - 1]!;
-  const bottomRing: THREE.Vector3[] = lastTierRing.map((v) => new THREE.Vector3(
-    v.x * bottomCapShrink + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25),
-    bottomY + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25 * 0.3),
-    v.z * bottomCapShrink + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25),
-  ));
-
   // ----- TIER BANDS -----
-  // From cliff bottom to bottom-cap edge, stitched through each tier ring.
+  // From cliff bottom to last tier ring, stitched through each tier ring.
   // Single unified rock color — per-face lighting provides all visual variation.
   // AO deepens slightly in tier-ring crevices. Per-quad vertices for flat shading.
   let bandTopPositions = cliffBotPositions;
@@ -266,29 +253,28 @@ export function buildIslandGeometry(
     bandTopPositions = ring;
   }
 
-  // ----- BOTTOM CAP -----
-  // Stitch from last tier ring to bottomRing (per-quad vertices for flat shading).
-  // Bottom-cap fan stays as-is — adjacent triangles in the fan are coplanar.
-  const bottomEdgeAO = 0.35;
+  // ----- INVERTED-MOUNTAIN PIT (last tier → single pit vertex) -----
+  // Replaces the tiny bottom-cap ring + fan that was producing tangled
+  // triangles when vertex noise on the small ring made vertices cross.
+  // Each triangle is a single flat face fanning from the last tier ring
+  // to a shared deep pit vertex — adjacent triangles meet at sharp ridge
+  // lines, which is what makes the underside read as inverted mountain
+  // facets instead of a smooth-cap cone.
+  const pitPos = new THREE.Vector3(0, -totalDepth, 0);
+  const pitAO = 0.45;
   const lastTier = rings[params.tiers - 1]!;
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    const tl = pushVert(lastTier[i]!, rock, bottomEdgeAO + 0.05);
-    const bl = pushVert(bottomRing[i]!, rock, bottomEdgeAO);
-    const br = pushVert(bottomRing[j]!, rock, bottomEdgeAO);
-    const tr = pushVert(lastTier[j]!, rock, bottomEdgeAO + 0.05);
-    indices.push(tl, bl, br);
-    indices.push(tl, br, tr);
-  }
-  // Bottom-cap fan (closes the mesh). Adjacent fan triangles are coplanar so
-  // computeVertexNormals gives the correct flat -Y normal without vertex duplication.
-  const bottomRingIdx = bottomRing.map((v) => pushVert(v, rock, bottomEdgeAO));
-  const bottomCenter = pushVert(new THREE.Vector3(0, bottomY, 0), rock, bottomEdgeAO);
-  for (let i = 0; i < params.sides; i++) {
-    const a = bottomRingIdx[i]!;
-    const b = bottomRingIdx[(i + 1) % params.sides]!;
-    // Reversed winding so bottom-cap normal points -Y.
-    indices.push(bottomCenter, b, a);
+    // Per-triangle vertex pushes so computeVertexNormals gives each
+    // triangle its own face normal (true low-poly flat shading).
+    const a = pushVert(lastTier[i]!, rock, 0.55);
+    const p = pushVert(pitPos, rock, pitAO);
+    const b = pushVert(lastTier[j]!, rock, 0.55);
+    // Winding (a, p, b): the perimeter goes CCW from above (a → b is CCW),
+    // and the pit is BELOW both. Inserting p between a and b reverses the
+    // in-plane rotation, giving a face normal with a negative Y component —
+    // outward-facing downward for the island underside.
+    indices.push(a, p, b);
   }
 
   const geom = new THREE.BufferGeometry();

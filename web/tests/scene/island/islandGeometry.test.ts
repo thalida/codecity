@@ -204,38 +204,41 @@ describe('buildIslandGeometry', () => {
     geom.dispose();
   });
 
-  it('bottom-cap triangles have -Y normals (front-face down)', () => {
+  it('pit-fan triangles have -Y normals (front-face down)', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const idx = geom.getIndex()!;
-    // Find the overall Y range and look for triangles in the bottom 10% of
-    // depth. With 3D noise displacement applied to the bottom cap ring,
-    // vertices no longer sit at exactly the same Y, so we use a loose
-    // threshold rather than requiring all three to equal minY.
-    let minY = Infinity, maxY = -Infinity;
+    // The new inverted-mountain topology fans from the last tier ring to a
+    // single pit vertex at (0, -totalDepth, 0). Each fan triangle has two
+    // perimeter vertices (at the last tier Y level) and one pit vertex at
+    // the minimum Y. We identify these triangles by the presence of the
+    // deepest vertex (minY) in the triangle, then verify the face normal
+    // has a negative Y component (outward-facing downward for the underside).
+    let minY = Infinity;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
     }
-    const totalDepthRange = maxY - minY;
-    const bottomThreshold = minY + totalDepthRange * 0.1; // bottom 10%
+    // Collect all vertex indices that sit at (or very near) the pit Y.
+    const pitIndices = new Set<number>();
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(pos.getY(i) - minY) < 1e-4) pitIndices.add(i);
+    }
     let foundBottomTri = false;
     for (let t = 0; t < idx.count; t += 3) {
       const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
-      const ya = pos.getY(ia), yb = pos.getY(ib), yc = pos.getY(ic);
-      if (ya < bottomThreshold && yb < bottomThreshold && yc < bottomThreshold) {
-        const ax = pos.getX(ia), az = pos.getZ(ia);
-        const bx = pos.getX(ib), bz = pos.getZ(ib);
-        const cx = pos.getX(ic), cz = pos.getZ(ic);
-        const v1x = bx - ax, v1z = bz - az;
-        const v2x = cx - ax, v2z = cz - az;
-        const normalY = v1z * v2x - v1x * v2z;
-        if (Math.abs(normalY) > 1e-6) {
-          expect(normalY).toBeLessThan(0);
-          foundBottomTri = true;
-          break;
-        }
+      // A pit-fan triangle must contain at least one pit vertex.
+      if (!pitIndices.has(ia) && !pitIndices.has(ib) && !pitIndices.has(ic)) continue;
+      const ax = pos.getX(ia), az = pos.getZ(ia);
+      const bx = pos.getX(ib), bz = pos.getZ(ib);
+      const cx = pos.getX(ic), cz = pos.getZ(ic);
+      const v1x = bx - ax, v1z = bz - az;
+      const v2x = cx - ax, v2z = cz - az;
+      const normalY = v1z * v2x - v1x * v2z;
+      if (Math.abs(normalY) > 1e-6) {
+        expect(normalY).toBeLessThan(0);
+        foundBottomTri = true;
+        break;
       }
     }
     expect(foundBottomTri).toBe(true);
