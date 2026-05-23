@@ -60,18 +60,12 @@ export interface PlaceParksOptions {
   commitCount: number;
 }
 
-/** Oversampling multiplier when generating candidate tree positions.
- *  Higher = denser inner-ring fill before truncating. 8 is plenty
- *  for visually uniform fills. */
-const TREE_OVERSAMPLE_FACTOR = 8;
-
-/** Floor on the number of candidate samples — even a 1-commit repo
- *  gets a varied position pool. */
-const TREE_MIN_ATTEMPTS = 10_000;
-
-/** Hard ceiling — on a million-commit repo, we still cap the worker.
- *  When commitCount × OVERSAMPLE exceeds this, fewer trees fit than
- *  commits exist; the newest commits drop off (oldest stay rooted). */
+/** Hard ceiling on candidate-sample iterations. The loop exits as
+ *  soon as `commitCount` non-overlapping positions are accepted —
+ *  this cap only matters when rejection rate is extreme (city
+ *  covers most of the plane) or commitCount is enormous. At 2M
+ *  iterations the worker still completes in a fraction of a
+ *  second. */
 const TREE_MAX_ATTEMPTS = 2_000_000;
 
 /**
@@ -89,43 +83,6 @@ function mulberry32(s: number): number {
 
 function u32ToUnit(u: number): number {
   return u / 0x100000000;
-}
-
-/**
- * In-place Hoare-style quickselect: partitions `arr` so that the
- * `k` elements with the smallest `key(item)` end up at indices
- * `0..k-1` (in arbitrary internal order). Elements at indices
- * `k..arr.length-1` are larger-or-equal. O(N) average, O(N²)
- * worst case (Lomuto partition with random pivot mitigates).
- *
- * Used by the tree pass to extract "the N closest candidates to
- * the gem" from up to 2M oversampled points without paying for a
- * full sort. After selection the caller still sorts the kept
- * slice (cheap — at most commitCount items).
- */
-function _quickselect<T>(arr: T[], k: number, key: (t: T) => number): void {
-  if (k <= 0 || arr.length <= k) return;
-  let lo = 0;
-  let hi = arr.length - 1;
-  while (lo < hi) {
-    // Pick a random pivot to dodge adversarial inputs.
-    const pivotIdx = lo + ((Math.random() * (hi - lo + 1)) | 0);
-    const pivotVal = key(arr[pivotIdx]);
-    // Swap pivot to the end.
-    [arr[pivotIdx], arr[hi]] = [arr[hi], arr[pivotIdx]];
-    let store = lo;
-    for (let i = lo; i < hi; i++) {
-      if (key(arr[i]) < pivotVal) {
-        [arr[i], arr[store]] = [arr[store], arr[i]];
-        store++;
-      }
-    }
-    // Swap pivot into its final position.
-    [arr[store], arr[hi]] = [arr[hi], arr[store]];
-    if (store === k) return;
-    if (store < k) lo = store + 1;
-    else hi = store - 1;
-  }
 }
 
 function bboxOfBuilding(b: Building): Rect {
@@ -271,19 +228,28 @@ export function placeParks(
 
   const placements: ParkPlacement[] = [];
 
-  // ── Tree pass: oversample → reject overlaps → sort by distance to
-  //    gem → truncate to commitCount. ──────────────────────────────
+  // ── Tree pass: sample uniformly across the world rectangle until
+  //    we have `commitCount` non-overlapping positions, THEN sort
+  //    those positions by distance to the gem and assign
+  //    commitIndex by order.
+  //
+  //    Why this order: uniform sampling stops at exactly N accepted
+  //    candidates, so the N positions are evenly distributed across
+  //    the entire plane (trees fill the world, not just a circle
+  //    around the gem). Sorting after-the-fact then maps oldest
+  //    commit (commitIndex 0) to the position closest to the gem,
+  //    newest commit to the position farthest from the gem. Both
+  //    properties are preserved: plane-fill AND chronological-
+  //    outward growth.
+  //
+  //    Earlier versions oversampled then took the CLOSEST N — that
+  //    correctly preserved chronology but clustered tightly around
+  //    the gem on huge planes (e.g. React's 80k × 3k rectangle with
+  //    ~17k commits packed into a ~5k-unit radius). ─────────────
   const treeTarget = Math.max(0, options.commitCount | 0);
   if (treeTarget > 0) {
-    let attempts = treeTarget * TREE_OVERSAMPLE_FACTOR;
-    if (attempts < TREE_MIN_ATTEMPTS) attempts = TREE_MIN_ATTEMPTS;
-    if (attempts > TREE_MAX_ATTEMPTS) attempts = TREE_MAX_ATTEMPTS;
-
-    const candidates: {
-      x: number; y: number; d2: number; seed: number;
-    }[] = [];
-
-    for (let i = 0; i < attempts; i++) {
+    const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
+    for (let i = 0; i < TREE_MAX_ATTEMPTS && accepted.length < treeTarget; i++) {
       const baseSeed = (masterSeed ^ (i + 1)) | 0;
       const xUnit = u32ToUnit(mulberry32(baseSeed ^ 0x12345678));
       const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
@@ -304,18 +270,10 @@ export function placeParks(
 
       const dx = x - center.x;
       const dy = y - center.y;
-      candidates.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
+      accepted.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
     }
 
-    // Quickselect the closest `treeTarget` candidates by d², then
-    // sort just that slice so commitIndex maps to age rank
-    // (innermost = oldest).
-    _quickselect(candidates, treeTarget, (c) => c.d2);
-    const accepted = candidates.length > treeTarget
-      ? candidates.slice(0, treeTarget)
-      : candidates;
     accepted.sort((a, b) => a.d2 - b.d2);
-
     for (let i = 0; i < accepted.length; i++) {
       const c = accepted[i];
       placements.push({
