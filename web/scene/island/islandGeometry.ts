@@ -54,7 +54,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
     // baseR — keeps the polygon inscribed).
     const jitter = 1 - irregularity * rand();
     const r = baseR * jitter;
-    pts.push(new THREE.Vector3(Math.cos(theta) * r, 0, Math.sin(theta) * r));
+    pts.push(new THREE.Vector3(Math.cos(theta) * r, 0, -Math.sin(theta) * r));
   }
   return pts;
 }

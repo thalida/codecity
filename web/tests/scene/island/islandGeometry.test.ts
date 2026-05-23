@@ -19,7 +19,7 @@ describe('buildTopPolygon', () => {
     seed: 1234,
   };
 
-  it('returns SIDES vertices in CCW order on the XZ plane', () => {
+  it('returns SIDES vertices in CCW order on the XZ plane (as viewed from above)', () => {
     const pts = buildTopPolygon(baseParams);
     expect(pts.length).toBe(12);
     pts.forEach((p) => {
@@ -175,5 +175,63 @@ describe('buildIslandGeometry', () => {
   it('disposes cleanly with no exception', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     expect(() => geom.dispose()).not.toThrow();
+  });
+
+  it('top-cap triangles have +Y normals (front-face up)', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+    const idx = geom.getIndex()!;
+    // Find a triangle on the top cap (all three vertices at y≈0).
+    let foundTopTri = false;
+    for (let t = 0; t < idx.count; t += 3) {
+      const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
+      const ya = pos.getY(ia), yb = pos.getY(ib), yc = pos.getY(ic);
+      if (ya === 0 && yb === 0 && yc === 0) {
+        // Compute face normal via cross product.
+        const ax = pos.getX(ia), az = pos.getZ(ia);
+        const bx = pos.getX(ib), bz = pos.getZ(ib);
+        const cx = pos.getX(ic), cz = pos.getZ(ic);
+        const v1x = bx - ax, v1z = bz - az;
+        const v2x = cx - ax, v2z = cz - az;
+        const normalY = v1z * v2x - v1x * v2z;
+        // Skip the degenerate origin-fan triangles where v1 or v2 is zero
+        if (Math.abs(normalY) > 1e-6) {
+          expect(normalY).toBeGreaterThan(0);  // front-face up
+          foundTopTri = true;
+          break;
+        }
+      }
+    }
+    expect(foundTopTri).toBe(true);
+    geom.dispose();
+  });
+
+  it('bottom-cap triangles have -Y normals (front-face down)', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+    const idx = geom.getIndex()!;
+    // Find the lowest-y triangle (bottom cap is at y = -islandRadius * depth).
+    let minY = Infinity;
+    for (let i = 0; i < pos.count; i++) minY = Math.min(minY, pos.getY(i));
+    let foundBottomTri = false;
+    for (let t = 0; t < idx.count; t += 3) {
+      const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
+      const ya = pos.getY(ia), yb = pos.getY(ib), yc = pos.getY(ic);
+      if (Math.abs(ya - minY) < 0.001 && Math.abs(yb - minY) < 0.001 && Math.abs(yc - minY) < 0.001) {
+        const ax = pos.getX(ia), az = pos.getZ(ia);
+        const bx = pos.getX(ib), bz = pos.getZ(ib);
+        const cx = pos.getX(ic), cz = pos.getZ(ic);
+        const v1x = bx - ax, v1z = bz - az;
+        const v2x = cx - ax, v2z = cz - az;
+        const normalY = v1z * v2x - v1x * v2z;
+        if (Math.abs(normalY) > 1e-6) {
+          expect(normalY).toBeLessThan(0);
+          foundBottomTri = true;
+          break;
+        }
+      }
+    }
+    expect(foundBottomTri).toBe(true);
+    geom.dispose();
   });
 });
