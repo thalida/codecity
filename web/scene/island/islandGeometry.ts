@@ -57,3 +57,38 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   }
   return pts;
 }
+
+// Per-tier shrink + depth-fraction tables. Indexed by tier (0 = topmost
+// tier ring, just below the cliff side band). Length must be ≥ max TIERS.
+const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
+const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
+
+/**
+ * Build TIERS rings below the top polygon. Each ring has the same vertex
+ * count as the top, shrunk inward by per-tier factor and dropped in Y.
+ * Includes a small per-vertex jitter (driven by IRREGULARITY × 0.4) to
+ * keep the tiers chunky rather than mathematically clean.
+ */
+export function buildTierRings(
+  top: THREE.Vector3[],
+  params: IslandBuildParams,
+): THREE.Vector3[][] {
+  const { tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
+  const islandRadius = Math.min(halfWidth, halfDepth);
+  const totalDepth = islandRadius * depth;
+  const rand = rng(seed ^ 0xa5a5a5a5); // distinct stream from top jitter
+  const tierJitter = irregularity * 0.4;
+
+  const rings: THREE.Vector3[][] = [];
+  for (let t = 0; t < tiers; t++) {
+    const shrink = TIER_SHRINK[t] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
+    const depthFrac = TIER_DEPTH_FRAC[t] ?? TIER_DEPTH_FRAC[TIER_DEPTH_FRAC.length - 1]!;
+    const ring: THREE.Vector3[] = [];
+    for (const v of top) {
+      const j = 1 - tierJitter * rand();
+      ring.push(new THREE.Vector3(v.x * shrink * j, -totalDepth * depthFrac, v.z * shrink * j));
+    }
+    rings.push(ring);
+  }
+  return rings;
+}
