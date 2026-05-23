@@ -28,7 +28,7 @@ export const GEM_SIZING = map<GemSizingConfig>({
   // expressed as a multiple of the gem's diameter so the plaza always
   // scales with the gem rather than living in absolute world units.
   CLEARANCE_AS_GEM_WIDTH_FRAC: 1.0,
-  TREE_BUFFER_RADIUS: 60,
+  TREE_BUFFER_RADIUS: 200,
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────
