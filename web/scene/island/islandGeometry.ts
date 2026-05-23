@@ -66,47 +66,55 @@ const TIER_SHRINK = [0.78, 0.50, 0.28, 0.12];
 const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
 
 /**
- * Build TIERS rings below the top polygon. Each ring has the same vertex
- * count as the top, shrunk inward by per-tier factor and dropped in Y.
- * Includes a small per-vertex jitter (driven by IRREGULARITY × 0.4) to
- * keep the tiers chunky rather than mathematically clean.
+ * Build TIERS rings below a starting ring. Each ring chains from the PREVIOUS
+ * ring (startRing → tier 0 → tier 1 → ... → tier N-1), with shrink + noise
+ * applied at each level. This eliminates seams: the first tier inherits the
+ * noisy cliff-bottom shape directly rather than starting from the clean top
+ * polygon.
+ *
+ * @param startRing  The ring to chain from (e.g. cliffBotPositions).
+ * @param params     Island build params.
  */
 export function buildTierRings(
-  top: THREE.Vector3[],
+  startRing: THREE.Vector3[],
   params: IslandBuildParams,
 ): THREE.Vector3[][] {
-  const { sides, tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
+  const { tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
   const islandRadius = Math.min(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
   const rand = rng(seed ^ 0xa5a5a5a5); // distinct stream from top jitter
   const tierJitter = irregularity * 0.6;
+  const noiseScale = islandRadius * irregularity * 0.25;
+  const noiseRand = rng(seed ^ 0xfeedface);
 
   const rings: THREE.Vector3[][] = [];
+  let prevRing = startRing;
   for (let t = 0; t < tiers; t++) {
     const shrink = TIER_SHRINK[t] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
     const depthFrac = TIER_DEPTH_FRAC[t] ?? TIER_DEPTH_FRAC[TIER_DEPTH_FRAC.length - 1]!;
+    const targetY = -totalDepth * depthFrac;
     // Small per-tier angular offset so tier vertices don't align radially.
     // Adjacent tier facets meet at angles → chunkier, more faceted silhouette.
-    const tierRotation = (t + 1) * (Math.PI / sides) * 0.75;
-    const cosR = Math.cos(tierRotation);
-    const sinR = Math.sin(tierRotation);
+    const tierRotation = (t + 1) * (Math.PI / startRing.length) * 0.75;
+    const cos = Math.cos(tierRotation);
+    const sin = Math.sin(tierRotation);
     const ring: THREE.Vector3[] = [];
-    for (const v of top) {
+    for (const v of prevRing) {
+      // Shrink from the PREVIOUS ring's position (not from the top).
       const j = 1 - tierJitter * rand();
-      // Apply shrink + jitter, then rotate in XZ by tierRotation.
       const sx = v.x * shrink * j;
       const sz = v.z * shrink * j;
-      const rx = sx * cosR - sz * sinR;
-      const rz = sx * sinR + sz * cosR;
-      // Apply 3D noise displacement so each vertex moves independently in XYZ.
-      // Scaled by irregularity so it correlates with the existing jitter knob.
-      const noiseScale = islandRadius * irregularity * 0.25;
-      const nx = (rand() - 0.5) * 2 * noiseScale;
-      const ny = (rand() - 0.5) * 2 * noiseScale * 0.6; // less vertical to keep tiers' Y separation
-      const nz = (rand() - 0.5) * 2 * noiseScale;
-      ring.push(new THREE.Vector3(rx + nx, -totalDepth * depthFrac + ny, rz + nz));
+      // Per-tier rotation in XZ.
+      const rx = sx * cos - sz * sin;
+      const rz = sx * sin + sz * cos;
+      // 3D noise displacement.
+      const nx = (noiseRand() - 0.5) * 2 * noiseScale;
+      const ny = (noiseRand() - 0.5) * 2 * noiseScale * 0.6;
+      const nz = (noiseRand() - 0.5) * 2 * noiseScale;
+      ring.push(new THREE.Vector3(rx + nx, targetY + ny, rz + nz));
     }
     rings.push(ring);
+    prevRing = ring;
   }
   return rings;
 }
@@ -143,7 +151,6 @@ export function buildIslandGeometry(
   colors: IslandColors,
 ): THREE.BufferGeometry {
   const top = buildTopPolygon(params);
-  const rings = buildTierRings(top, params);
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
   const totalDepth = islandRadius * params.depth;
   const grassSideHeight = totalDepth * GRASS_SIDE_FRAC_OF_DEPTH;
@@ -151,20 +158,7 @@ export function buildIslandGeometry(
   // band. It encompasses the grass lip + cliff rock band.
   const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
 
-  // Bottom cap: small offset polygon (NOT a single point).
-  // Apply per-vertex 3D noise (separate PRNG stream keyed on seed) so the
-  // bottom edge reads jagged rather than a clean ring.
-  const bottomShrink = (TIER_SHRINK[params.tiers - 1] ?? 0.3) * 0.6;
   const bottomY = -totalDepth;
-  const bottomRand = rng(params.seed ^ 0x5a5a5a5a);
-  const bottomRing: THREE.Vector3[] = top.map((v) => {
-    const noiseScale = islandRadius * params.irregularity * 0.25;
-    return new THREE.Vector3(
-      v.x * bottomShrink + (bottomRand() - 0.5) * 2 * noiseScale,
-      bottomY + (bottomRand() - 0.5) * 2 * noiseScale * 0.3,
-      v.z * bottomShrink + (bottomRand() - 0.5) * 2 * noiseScale,
-    );
-  });
 
   // Build vertex pools per face group. We DO NOT share vertices across
   // groups so each face group gets its own normals (flat-shading per
@@ -231,6 +225,21 @@ export function buildIslandGeometry(
     indices.push(tl, bl, br);
     indices.push(tl, br, tr);
   }
+
+  // Chain tier rings from cliff bottom so the entire brown body below the
+  // grass is one continuous noisy taper with no seams.
+  const rings = buildTierRings(cliffBotPositions, params);
+
+  // Bottom cap chains from the last tier ring (shrunk + noised) — same
+  // chaining principle so there's no seam at the bottom either.
+  const bottomCapShrink = 0.55;
+  const bottomNoise = rng(params.seed ^ 0x5a5a5a5a);
+  const lastTierRing = rings[params.tiers - 1]!;
+  const bottomRing: THREE.Vector3[] = lastTierRing.map((v) => new THREE.Vector3(
+    v.x * bottomCapShrink + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25),
+    bottomY + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25 * 0.3),
+    v.z * bottomCapShrink + (bottomNoise() - 0.5) * 2 * (islandRadius * params.irregularity * 0.25),
+  ));
 
   // ----- TIER BANDS -----
   // From cliff bottom to bottom-cap edge, stitched through each tier ring.

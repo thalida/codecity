@@ -86,32 +86,32 @@ describe('buildTierRings', () => {
   };
 
   it('returns TIERS rings of SIDES vertices each', () => {
-    const top = buildTopPolygon(baseParams);
-    const rings = buildTierRings(top, baseParams);
+    const startRing = buildTopPolygon(baseParams);
+    const rings = buildTierRings(startRing, baseParams);
     expect(rings.length).toBe(2);
     rings.forEach((ring) => expect(ring.length).toBe(12));
   });
 
   it('each tier shrinks inward (radius decreases per tier)', () => {
-    const top = buildTopPolygon(baseParams);
-    const rings = buildTierRings(top, baseParams);
-    const topR = Math.hypot(top[0]!.x, top[0]!.z);
+    const startRing = buildTopPolygon(baseParams);
+    const rings = buildTierRings(startRing, baseParams);
+    const startR = Math.hypot(startRing[0]!.x, startRing[0]!.z);
     const r1 = Math.hypot(rings[0]![0]!.x, rings[0]![0]!.z);
     const r2 = Math.hypot(rings[1]![0]!.x, rings[1]![0]!.z);
-    expect(r1).toBeLessThan(topR);
+    expect(r1).toBeLessThan(startR);
     expect(r2).toBeLessThan(r1);
   });
 
   it('each tier drops in Y (y decreases per tier)', () => {
-    const top = buildTopPolygon(baseParams);
-    const rings = buildTierRings(top, baseParams);
+    const startRing = buildTopPolygon(baseParams);
+    const rings = buildTierRings(startRing, baseParams);
     expect(rings[0]![0]!.y).toBeLessThan(0);
     expect(rings[1]![0]!.y).toBeLessThan(rings[0]![0]!.y);
   });
 
   it('respects TIERS=3', () => {
-    const top = buildTopPolygon(baseParams);
-    const rings = buildTierRings(top, { ...baseParams, tiers: 3 });
+    const startRing = buildTopPolygon(baseParams);
+    const rings = buildTierRings(startRing, { ...baseParams, tiers: 3 });
     expect(rings.length).toBe(3);
   });
 });
