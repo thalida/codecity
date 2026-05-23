@@ -53,7 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS, ISLAND_UNDERGLOW } from '@/config/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS, ISLAND_UNDERGLOW, ISLAND_ATMOSPHERE } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
@@ -446,12 +446,12 @@ function _buildSceneSection(): HTMLElement {
 }
 
 // ─── Island (Cyberpunk Valley) ─────────────────────────────────────────────
-// The floating-island world-plane beneath the city. Three collapsible
+// The floating-island world-plane beneath the city. Four collapsible
 // subgroups cover:
-//   Geometry   — polygon shape, depth, tiers (cheap vertex rebuild on refresh)
-//   Materials  — vertex-baked colors + shader uniforms (sun contrast, ambient)
-//   Underglow  — downward-face tint + emissive core mesh (HDR bloom target)
-// Atmosphere (distance fog, shadow disc) is wired up in PR 3.
+//   Geometry    — polygon shape, depth, tiers (cheap vertex rebuild on refresh)
+//   Materials   — vertex-baked colors + shader uniforms (sun contrast, ambient)
+//   Underglow   — downward-face tint + emissive core mesh (HDR bloom target)
+//   Atmosphere  — distance fog + fake shadow disc (off by default, opt in)
 function _buildIslandSection(): HTMLElement {
   const section = _section(
     'Island',
@@ -520,6 +520,32 @@ function _buildIslandSection(): HTMLElement {
       }),
       _slider('Core intensity', ISLAND_UNDERGLOW, 'CORE_INTENSITY', 0.5, 5, 0.1, {
         tip: 'HDR multiplier on the core mesh. Higher = brighter glow halo.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-atmosphere', 'Atmosphere', () => [
+      _toggle('Distance fog', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_ENABLED', {
+        tip: 'Fades the island (and distant buildings) into the fog color based on view distance. Pairs with the existing ground haze; both can be on at once.',
+      }),
+      _color('Distance fog color', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_COLOR', {
+        tip: 'Tint distant edges fade toward. Match the sky for a seamless horizon; pick a contrasting color for a stylized look.',
+      }),
+      _slider('Fog near', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_NEAR', 100, 3000, 50, {
+        tip: 'View-distance (world units) at which distance fog begins to take hold. Smaller = fog starts closer.',
+      }),
+      _slider('Fog far', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_FAR', 500, 8000, 100, {
+        tip: 'View-distance at which distance fog reaches full opacity. Should be larger than Fog near.',
+      }),
+      _toggle('Shadow disc', ISLAND_ATMOSPHERE, 'SHADOW_DISC_ENABLED', {
+        tip: 'Soft radial-gradient disc rendered below the island. Grounds the float visually so the island reads as suspended rather than pasted on the sky.',
+      }),
+      _slider('Shadow opacity', ISLAND_ATMOSPHERE, 'SHADOW_DISC_OPACITY', 0, 1, 0.05, {
+        tip: 'Alpha multiplier on the shadow disc. 0 = invisible, 1 = fully opaque at the disc center.',
+      }),
+      _slider('Shadow drop (× radius)', ISLAND_ATMOSPHERE, 'SHADOW_DROP_DISTANCE', 0.5, 4, 0.1, {
+        tip: "How far below the island's bottom the shadow disc sits, in multiples of the island radius. Larger = the float feels higher.",
       }),
     ]),
   );
