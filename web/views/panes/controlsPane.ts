@@ -472,7 +472,7 @@ function _buildIslandSection(): HTMLElement {
       _slider('Tier rings', ISLAND_GEOMETRY, 'TIERS', 1, 4, 1, {
         tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 2–3 = chunky tapered look.',
       }),
-      _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 1.5, 0.05, {
+      _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 2.0, 0.05, {
         tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
       }),
     ]),

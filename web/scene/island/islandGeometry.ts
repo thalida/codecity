@@ -80,7 +80,7 @@ export function buildTierRings(
   const islandRadius = Math.min(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
   const rand = rng(seed ^ 0xa5a5a5a5); // distinct stream from top jitter
-  const tierJitter = irregularity * 0.4;
+  const tierJitter = irregularity * 0.6;
 
   const rings: THREE.Vector3[][] = [];
   for (let t = 0; t < tiers; t++) {
@@ -88,7 +88,7 @@ export function buildTierRings(
     const depthFrac = TIER_DEPTH_FRAC[t] ?? TIER_DEPTH_FRAC[TIER_DEPTH_FRAC.length - 1]!;
     // Small per-tier angular offset so tier vertices don't align radially.
     // Adjacent tier facets meet at angles → chunkier, more faceted silhouette.
-    const tierRotation = (t + 1) * (Math.PI / sides) * 0.4;
+    const tierRotation = (t + 1) * (Math.PI / sides) * 0.75;
     const cosR = Math.cos(tierRotation);
     const sinR = Math.sin(tierRotation);
     const ring: THREE.Vector3[] = [];

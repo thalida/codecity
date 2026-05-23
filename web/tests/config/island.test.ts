@@ -11,9 +11,9 @@ describe('ISLAND config defaults', () => {
     const g = ISLAND_GEOMETRY.get();
     expect(g.ENABLED).toBe(true);
     expect(g.SIDES).toBe(12);
-    expect(g.IRREGULARITY).toBeCloseTo(0.18, 2);
-    expect(g.TIERS).toBe(3);
-    expect(g.DEPTH).toBeCloseTo(0.6, 2);
+    expect(g.IRREGULARITY).toBeCloseTo(0.32, 2);
+    expect(g.TIERS).toBe(4);
+    expect(g.DEPTH).toBeCloseTo(1.2, 2);
   });
 
   it('MATERIALS provides grass + soil + 3-tier rock colors', () => {

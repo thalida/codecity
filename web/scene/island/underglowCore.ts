@@ -34,9 +34,9 @@ void main() {
 
 export function createUnderglowCore(params: UnderglowCoreParams): UnderglowCore {
   const ug = ISLAND_UNDERGLOW.get();
-  // Slightly larger radius so the bloom halo radiates further through the
-  // tier seams. The mesh itself is hidden inside the bottom tier cluster.
-  const radius = params.bottomRadius * 0.55;
+  // Smaller radius so the bloom halo is a localized warm point, not a flood.
+  // The mesh itself is hidden inside the bottom tier cluster.
+  const radius = params.bottomRadius * 0.30;
   const geom = new THREE.IcosahedronGeometry(radius, 0); // low-poly
   const mat = new THREE.ShaderMaterial({
     vertexShader: vertSrc,
