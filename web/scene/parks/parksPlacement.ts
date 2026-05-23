@@ -22,6 +22,7 @@
 
 import RBush from 'rbush';
 import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
+import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { getWorldFloorHalfSize } from './worldBounds.js';
@@ -295,7 +296,7 @@ export function placeParks(
     if (density > 0) {
       const cityDensity = Math.max(0, Math.min(1, cfg.CITY_DENSITY_PERCENT / 100));
       const gradientReach = Math.max(
-        1, (cfg.GRADIENT_REACH_PERCENT / 100) * half,
+        1, (cfg.GRADIENT_REACH_PERCENT / 100) * CAMERA_PERSPECTIVE.get().FAR,
       );
 
       // Renormalize mix to whatever is enabled.
