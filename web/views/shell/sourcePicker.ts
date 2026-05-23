@@ -156,18 +156,21 @@ export function createSourcePicker(opts: {
                   placeholder="default"
                   value="${escapeAttr(prefillBranch)}">
               </div>
-              <div class="modal-field">
-                <label>History window</label>
-                <select data-field="git_window">
-                  ${GIT_WINDOW_OPTIONS.map((o) => `
-                    <option value="${escapeAttr(o.value)}"${
-                      o.value === prefillWindow ? ' selected' : ''
-                    }>${escapeHtml(o.label)}</option>
-                  `).join('')}
-                </select>
-                <div class="modal-field-help">
-                  Bounds the per-file age scan. Shorter = faster initial load.
-                </div>
+            </div>
+
+            <!-- Shared across tabs: applies to ANY git repo, including
+                 local paths pointing at a clone on disk. -->
+            <div class="modal-field">
+              <label>History window</label>
+              <select data-field="git_window">
+                ${GIT_WINDOW_OPTIONS.map((o) => `
+                  <option value="${escapeAttr(o.value)}"${
+                    o.value === prefillWindow ? ' selected' : ''
+                  }>${escapeHtml(o.label)}</option>
+                `).join('')}
+              </select>
+              <div class="modal-field-help">
+                Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
               </div>
             </div>
 
@@ -207,11 +210,7 @@ export function createSourcePicker(opts: {
             <div class="recent-label">${escapeHtml(r.label)}</div>
             <div class="recent-sub">${escapeHtml(r.src)}${
               r.branch ? ' · ' + escapeHtml(r.branch) : ''
-            }${
-              isGitLike(r.src)
-                ? ' · ' + escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))
-                : ''
-            }</div>
+            } · ${escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))}</div>
           </div>
           ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}
         </button>
@@ -310,13 +309,13 @@ export function createSourcePicker(opts: {
     const branch = activeTab === 'git'
       ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() || undefined
       : undefined;
-    // Git window only meaningful for git sources. Skip if user picked the
-    // server default so the URL stays clean ("no opinion → no param").
+    // History window applies to any git source — git URL OR a local
+    // path pointing at a git directory. Non-git local paths just
+    // ignore the param server-side. We still suppress the URL param
+    // when the user kept the default so the URL stays clean.
     let gitWindow: string | undefined;
-    if (activeTab === 'git') {
-      const v = (root!.querySelector('[data-field="git_window"]') as HTMLSelectElement | null)?.value;
-      if (v && v !== DEFAULT_GIT_WINDOW) gitWindow = v;
-    }
+    const v = (root!.querySelector('[data-field="git_window"]') as HTMLSelectElement | null)?.value;
+    if (v && v !== DEFAULT_GIT_WINDOW) gitWindow = v;
     opts.onSubmit({ src, branch, gitWindow });
   }
 
