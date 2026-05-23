@@ -55,7 +55,9 @@ function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildPa
 }
 
 // Stable seed from bounds so the same repo always gets the same silhouette.
-function seedFromBounds(b: WorldBounds): number {
+// Exported so tree placement (running in a worker) can rebuild the identical
+// polygon without reaching into islandMesh's private state.
+export function islandSeedFromBounds(b: WorldBounds): number {
   const x = Math.round(b.cx * 1000) | 0;
   const z = Math.round(b.cz * 1000) | 0;
   const w = Math.round(b.halfWidth * 1000) | 0;
@@ -75,7 +77,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   group.visible = ISLAND_GEOMETRY.get().ENABLED;
 
   // Island mesh.
-  let params = buildParams(currentBounds, seedFromBounds(currentBounds));
+  let params = buildParams(currentBounds, islandSeedFromBounds(currentBounds));
   const mats = ISLAND_MATERIALS.get();
   let geometry = buildIslandGeometry(params, {
     GRASS: mats.GRASS_COLOR,
@@ -108,7 +110,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   function setBounds(newBounds: WorldBounds): void {
     currentBounds = newBounds;
     geometry.dispose();
-    params = buildParams(currentBounds, seedFromBounds(currentBounds));
+    params = buildParams(currentBounds, islandSeedFromBounds(currentBounds));
     const m = ISLAND_MATERIALS.get();
     geometry = buildIslandGeometry(params, {
       GRASS: m.GRASS_COLOR,

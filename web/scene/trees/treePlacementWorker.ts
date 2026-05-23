@@ -9,6 +9,7 @@ import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { GEM_SIZING } from '@/config/gem.js';
+import type { IslandGeometryConfig } from '@/config/island.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = ReturnType<typeof TREES.get>;
@@ -28,6 +29,9 @@ interface PlaceRequest {
     buildingDims: BuildingDimsValue;
     footprint: FootprintValue;
     gemSizing: GemSizingValue;
+    /** Island geometry config snapshot — used to rebuild the island polygon
+     *  inside the worker without touching main-thread stores. */
+    islandGeo: IslandGeometryConfig;
   };
 }
 
@@ -58,6 +62,7 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
     const placements = placeTrees(data.layout, data.bbox, {
       commitCount: data.commitCount,
       cityHeight: data.cityHeight,
+      islandGeoOverride: data.configSnapshot.islandGeo,
     });
     const reply: PlaceResponse = {
       type: 'place-result',

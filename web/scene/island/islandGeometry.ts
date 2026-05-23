@@ -250,6 +250,28 @@ export function buildIslandGeometry(
 }
 
 /**
+ * Standard ray-casting point-in-polygon test. Polygon vertices are
+ * given as a CCW (or CW — algorithm is winding-agnostic) loop on the
+ * XZ plane. Returns true if (px, pz) is inside or on the polygon edge.
+ */
+export function pointInIslandPolygon(
+  px: number,
+  pz: number,
+  polygon: THREE.Vector3[],
+): boolean {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i]!.x, zi = polygon[i]!.z;
+    const xj = polygon[j]!.x, zj = polygon[j]!.z;
+    const intersects =
+      (zi > pz) !== (zj > pz) &&
+      px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi;
+    if (intersects) inside = !inside;
+  }
+  return inside;
+}
+
+/**
  * Returns the effective bottom-cap ring radius for the given params.
  * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
  * stay in sync with the actual bottom geometry without reaching into

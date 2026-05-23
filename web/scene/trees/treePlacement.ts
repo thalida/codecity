@@ -24,13 +24,21 @@
 // city always produces the same placement across reloads.
 
 import RBush from 'rbush';
+import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { GEM_SIZING } from '@/config/gem.js';
+import { ISLAND_GEOMETRY } from '@/config/island.js';
 import { getWorldBounds } from '../worldBounds.js';
+import {
+  buildTopPolygon,
+  pointInIslandPolygon,
+} from '../island/islandGeometry.js';
+import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
+import type { IslandGeometryConfig } from '@/config/island.js';
 
 interface Rect {
   minX: number;
@@ -56,6 +64,11 @@ export interface PlaceTreesOptions {
    *  threaded through to worldBounds so small-but-tall cities get a
    *  buffer proportional to building height. Optional — defaults to 0. */
   cityHeight?: number;
+  /** Optional override for island geometry config (used by the worker
+   *  which can't read the main-thread store directly). When omitted,
+   *  the live ISLAND_GEOMETRY store is read. Pass null to disable the
+   *  polygon rejection pass (e.g. in non-island tests). */
+  islandGeoOverride?: IslandGeometryConfig | null;
 }
 
 /** Hard ceiling on grid resolution. Caps total iterations + accepted
@@ -206,6 +219,28 @@ export function placeTrees(
   );
   const falloffActive = falloffPower > 0 && maxFalloffDist > 0;
 
+  // Island polygon containment: build the same polygon that islandMesh
+  // renders so we can reject candidates outside the visible silhouette.
+  // options.islandGeoOverride === null disables the pass (non-island tests);
+  // undefined means read the live store (main-thread / sync path).
+  // The worker passes a snapshot via islandGeoOverride so it never touches
+  // the main-thread store directly.
+  let islandPolygon: THREE.Vector3[] | null = null;
+  if (options.islandGeoOverride !== null) {
+    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.get();
+    if (islandGeo.ENABLED) {
+      islandPolygon = buildTopPolygon({
+        sides: islandGeo.SIDES,
+        irregularity: islandGeo.IRREGULARITY,
+        tiers: islandGeo.TIERS,
+        depth: islandGeo.DEPTH,
+        halfWidth: bounds.halfWidth,
+        halfDepth: bounds.halfDepth,
+        seed: islandSeedFromBounds(bounds),
+      });
+    }
+  }
+
   // Master seed from bbox dims for determinism.
   let masterSeed = mulberry32(Math.round(bbox.minX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.minY * 1000));
@@ -279,6 +314,13 @@ export function placeTrees(
         const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
         if (r > acceptProb) continue;
       }
+
+      // Island polygon containment: reject candidates outside the visible
+      // island silhouette. The polygon is the same one islandMesh builds for
+      // the top cap, so accepted trees always sit on grass.
+      // NOTE: treePlacement uses (x, y) for the XZ plane; the polygon uses
+      // (x, z). We pass (x, y) as (px, pz) since both represent world XZ.
+      if (islandPolygon && !pointInIslandPolygon(x, y, islandPolygon)) continue;
 
       const dx = x - center.x;
       const dy = y - center.y;

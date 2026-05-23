@@ -4,6 +4,7 @@ import {
   buildTopPolygon,
   buildTierRings,
   buildIslandGeometry,
+  pointInIslandPolygon,
   type IslandBuildParams,
   type IslandColors,
 } from '@/scene/island/islandGeometry.js';
@@ -233,5 +234,69 @@ describe('buildIslandGeometry', () => {
     }
     expect(foundBottomTri).toBe(true);
     geom.dispose();
+  });
+});
+
+describe('pointInIslandPolygon', () => {
+  // Use irregularity=0 for a clean regular 12-gon, same halfWidth/halfDepth
+  // as the geometry tests so baseR = hypot(100,100) ≈ 141.4.
+  const polygon = buildTopPolygon({
+    sides: 12,
+    irregularity: 0,
+    tiers: 2,
+    depth: 0.6,
+    halfWidth: 100,
+    halfDepth: 100,
+    seed: 42,
+  });
+
+  it('origin is inside', () => {
+    expect(pointInIslandPolygon(0, 0, polygon)).toBe(true);
+  });
+
+  it('point clearly inside the inscribed circle is inside', () => {
+    // distance from origin ≈ 70.7, well inside the inscribed circle
+    // (baseR × cos(π/12) ≈ 136.6)
+    expect(pointInIslandPolygon(50, 50, polygon)).toBe(true);
+  });
+
+  it('point far outside (200, 200) is outside', () => {
+    expect(pointInIslandPolygon(200, 200, polygon)).toBe(false);
+  });
+
+  it('point inside inscribed circle at mid-edge angle is inside polygon', () => {
+    // At angle π/12 (midway between vertex 0 and vertex 1), the polygon
+    // edge distance from origin = baseR × cos(π/12) (inscribed circle).
+    // A point slightly inside that radius should be inside.
+    const baseR = Math.hypot(100, 100);
+    const inscR = baseR * Math.cos(Math.PI / 12);
+    const angle = Math.PI / 12; // midway between vertex 0 (theta=0) and vertex 1 (theta=2π/12)
+    const x = Math.cos(angle) * inscR * 0.99;
+    const z = -Math.sin(angle) * inscR * 0.99; // matches the negated-z polygon parameterization
+    expect(pointInIslandPolygon(x, z, polygon)).toBe(true);
+  });
+
+  it('point outside polygon at mid-edge angle is outside polygon', () => {
+    // Slightly past the polygon edge at the mid-edge angle.
+    const baseR = Math.hypot(100, 100);
+    const inscR = baseR * Math.cos(Math.PI / 12);
+    const angle = Math.PI / 12;
+    const x = Math.cos(angle) * inscR * 1.01;
+    const z = -Math.sin(angle) * inscR * 1.01;
+    expect(pointInIslandPolygon(x, z, polygon)).toBe(false);
+  });
+
+  it('a simple square polygon correctly classifies points', () => {
+    // Cross-check with a known square where we can reason directly.
+    const square = [
+      new THREE.Vector3(-1, 0, -1),
+      new THREE.Vector3(1, 0, -1),
+      new THREE.Vector3(1, 0, 1),
+      new THREE.Vector3(-1, 0, 1),
+    ];
+    expect(pointInIslandPolygon(0, 0, square)).toBe(true);   // center
+    expect(pointInIslandPolygon(0.9, 0.9, square)).toBe(true);  // inside corner
+    expect(pointInIslandPolygon(1.1, 1.1, square)).toBe(false); // outside corner
+    expect(pointInIslandPolygon(0, 1.1, square)).toBe(false);   // past top edge
   });
 });
