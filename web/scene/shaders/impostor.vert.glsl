@@ -12,6 +12,7 @@ varying vec3 vColor;
 varying float vFade;
 varying vec3 vWorldNormal;
 varying float vWorldY;
+varying vec3 vWorldPos;
 
 void main() {
   vColor = iColor;
@@ -20,6 +21,7 @@ void main() {
   // instanceMatrix carries the per-instance world transform.
   vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
   vWorldY = worldPos.y;
+  vWorldPos = worldPos.xyz;
   // World-space normal: instanceMatrix * vec4(normal, 0) (w=0 to skip
   // translation). Buildings aren't rotated so each face has a constant
   // world normal across its surface. Defensive guard against a zero-scale
