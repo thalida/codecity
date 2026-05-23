@@ -1,29 +1,63 @@
 // scene/parks/worldBounds.ts — single source of truth for the
 // rendered world's spatial extent.
 //
-// The world is a square plane of side WORLD_SIZE_FAR_MULT × FAR,
-// centered on the gem. Both the valley floor mesh and the tree
-// scatter region read these helpers so they stay in lockstep — if
-// you change the multiplier, both update.
+// The world is a rectangle sized to fit the city bbox plus a buffer.
+// Both the valley floor mesh and the tree scatter region read these
+// helpers so they stay in lockstep — if you change the buffer logic,
+// both update.
 //
-// Trees and the floor are world-anchored at the gem; the camera can
-// fly to the edge of this region and beyond. Past the edge the
-// camera sees the sky-sphere's lower hemisphere meet the floor edge
-// (the "edge of the world"). This is intentional: a finite,
-// commit-driven forest implies a finite world.
+// The plane is centered on the bbox center (not the gem) so it
+// covers the city symmetrically. Trees still sort by distance to the
+// gem (the chronological-outward semantic), but they're sampled
+// within these bounds — so even a city with the gem at one edge of
+// the bbox has uniform tree coverage across the whole floor.
+//
+// For null/missing bbox (pre-layout / non-git smoke tests) we fall
+// back to a small default rectangle at the origin so the floor still
+// renders.
 
-import { CAMERA_PERSPECTIVE } from '@/config/view.js';
+import type { CityBbox } from '@/types';
 
-/** Multiplier on CAMERA_PERSPECTIVE.FAR for the world's side length.
- *  4× = each edge sits 2× FAR from the gem, so at typical camera
- *  orbits (camera within FAR of the gem) the visible ground is
- *  entirely inside the world. */
-const WORLD_SIZE_FAR_MULT = 4.0;
+/** Fraction of the larger bbox dimension to add as buffer on each
+ *  side. 0.15 = 15% past the city edge in both X and Z. The same
+ *  absolute buffer is applied to both axes for visual consistency. */
+const BUFFER_FRAC_OF_MAX_DIM = 0.15;
 
-export function getWorldFloorSize(): number {
-  return CAMERA_PERSPECTIVE.get().FAR * WORLD_SIZE_FAR_MULT;
+/** Minimum buffer in world units — so tiny cities still get a
+ *  visible margin past the buildings, and degenerate (zero-extent)
+ *  bboxes still produce a visible plane. */
+const MIN_BUFFER = 200;
+
+/** Fallback half-extent when no bbox is available (pre-layout,
+ *  non-git smoke tests). Keeps the floor visible at the origin. */
+const FALLBACK_HALF_DIM = 500;
+
+export interface WorldBounds {
+  /** World X coordinate of the plane's center. */
+  cx: number;
+  /** World Z coordinate of the plane's center. */
+  cz: number;
+  /** Half the plane's width (extent along world X). */
+  halfWidth: number;
+  /** Half the plane's depth (extent along world Z). */
+  halfDepth: number;
 }
 
-export function getWorldFloorHalfSize(): number {
-  return getWorldFloorSize() / 2;
+export function getWorldBounds(bbox: CityBbox | null | undefined): WorldBounds {
+  if (!bbox) {
+    return {
+      cx: 0,
+      cz: 0,
+      halfWidth: FALLBACK_HALF_DIM,
+      halfDepth: FALLBACK_HALF_DIM,
+    };
+  }
+  const maxDim = Math.max(bbox.width, bbox.depth);
+  const buffer = Math.max(MIN_BUFFER, maxDim * BUFFER_FRAC_OF_MAX_DIM);
+  return {
+    cx: bbox.cx,
+    cz: bbox.cy,             // bbox.cy is the Z-axis center in this codebase
+    halfWidth: bbox.width / 2 + buffer,
+    halfDepth: bbox.depth / 2 + buffer,
+  };
 }

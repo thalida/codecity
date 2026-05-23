@@ -1,34 +1,37 @@
 // scene/parks/valleyFloor.ts — The "world floor" mesh.
 //
 // A large flat PlaneGeometry at y=−0.5, tinted to a forest tone,
-// anchored at the gem (the root-of-repo landmark). Size comes from
-// worldBounds.getWorldFloorSize() so the floor stays in lockstep
-// with the tree scatter region. Once trees became commit-driven the
-// world has a finite extent; the floor stops "following the camera"
-// and is part of that finite world.
+// sized to fit the city bbox plus a buffer (computed by
+// worldBounds.getWorldBounds). Centered on the bbox center so the
+// plane covers the whole city symmetrically.
 //
-// Beyond the floor edge, the sky-sphere's lower hemisphere paints
-// the horizon. Camera orbits within typical viewing distances stay
-// well inside the floor; flying far enough reveals the world edge.
+// The plane rebuilds its geometry every time the bbox changes (via
+// setBounds). PlaneGeometry is two triangles — recreating it is
+// cheap and avoids the bookkeeping of scaling a fixed mesh.
+//
+// Beyond the plane edge, the sky paints the lower hemisphere with
+// the sky color (Task 11+: no fake-ground gradient). At extreme
+// camera positions the world edge is visible — that's intentional;
+// the world has a finite, city-relative extent.
 //
 // Lifecycle:
 //
-//   const floor = createValleyFloor(gemWorldPos);
+//   const floor = createValleyFloor(null);
 //   scene.add(floor.mesh);
-//   floor.setAnchor(gemWorldPos);  // when the layout (re)computes the gem
+//   floor.setBounds(getWorldBounds(bbox)); // when layout (re)computes
 //   floor.refresh();   // on every applyTheme()
 //   floor.dispose();   // on scene teardown
 
 import * as THREE from 'three';
 import { PARKS_PALETTE } from '@/config/parks.js';
-import { getWorldFloorSize } from './worldBounds.js';
+import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { RENDER_ORDERS } from '@/constants';
 
 export interface ValleyFloor {
   mesh: THREE.Mesh;
-  /** Move the floor to a new world anchor — call when the gem
-   *  position changes (layout rebuild). null reverts to origin. */
-  setAnchor(gemWorldPos: THREE.Vector3 | null): void;
+  /** Resize + reposition the floor to fit the given bounds. Disposes
+   *  the old geometry and creates a new PlaneGeometry. */
+  setBounds(bounds: WorldBounds): void;
   refresh(): void;
   dispose(): void;
 }
@@ -37,12 +40,18 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
-export function createValleyFloor(gemWorldPos: THREE.Vector3 | null): ValleyFloor {
-  const size = getWorldFloorSize();
-  const geometry = new THREE.PlaneGeometry(size, size);
+function makeGeometry(bounds: WorldBounds): THREE.PlaneGeometry {
+  const geom = new THREE.PlaneGeometry(bounds.halfWidth * 2, bounds.halfDepth * 2);
   // PlaneGeometry default normal is +Z; rotate -90° about X so the
   // plane lies flat on the XZ plane with normal +Y (facing up).
-  geometry.rotateX(-Math.PI / 2);
+  geom.rotateX(-Math.PI / 2);
+  return geom;
+}
+
+export function createValleyFloor(initialBounds: WorldBounds | null): ValleyFloor {
+  const bounds = initialBounds ?? getWorldBounds(null);
+
+  let geometry = makeGeometry(bounds);
 
   const palette = PARKS_PALETTE.get();
   const material = new THREE.MeshBasicMaterial({
@@ -50,26 +59,26 @@ export function createValleyFloor(gemWorldPos: THREE.Vector3 | null): ValleyFloo
     toneMapped: false,
     side: THREE.DoubleSide,
     // depthWrite is OFF so the floor paints color without leaving a
-    // depth value in the buffer. Everything else (street labels at
-    // y=0, sidewalks at y=0, buildings above, etc.) is drawn AFTER
-    // the floor (renderOrder = -500) and writes its own depth
-    // freely. Without this, the floor at y=-0.5 and the labels at
-    // y=0 z-fight catastrophically at far camera distances where
-    // the depth buffer can't resolve a 0.5-unit gap.
+    // depth value. Everything else (sidewalks, asphalt, buildings)
+    // draws after the floor (renderOrder = -500) and writes its own
+    // depth freely. Without this, the floor at y=-0.5 and labels at
+    // y=0 z-fight at far camera distances.
     depthWrite: false,
   });
   setColorFromHex(material.color, palette.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
-  mesh.position.set(gemWorldPos?.x ?? 0, -0.5, gemWorldPos?.z ?? 0);
+  mesh.position.set(bounds.cx, -0.5, bounds.cz);
   mesh.renderOrder = RENDER_ORDERS.VALLEY_FLOOR;
   mesh.frustumCulled = false;
   mesh.visible = palette.GROUND_ENABLED;
   mesh.userData.cyberpunkValley = 'valleyFloor';
 
-  function setAnchor(g: THREE.Vector3 | null): void {
-    mesh.position.x = g?.x ?? 0;
-    mesh.position.z = g?.z ?? 0;
+  function setBounds(newBounds: WorldBounds): void {
+    geometry.dispose();
+    geometry = makeGeometry(newBounds);
+    mesh.geometry = geometry;
+    mesh.position.set(newBounds.cx, -0.5, newBounds.cz);
   }
 
   function refresh(): void {
@@ -84,5 +93,5 @@ export function createValleyFloor(gemWorldPos: THREE.Vector3 | null): ValleyFloo
     material.dispose();
   }
 
-  return { mesh, setAnchor, refresh, dispose };
+  return { mesh, setBounds, refresh, dispose };
 }

@@ -57,6 +57,7 @@ import type { ParksPlacementClient } from './parks/parksPlacementClient.js';
 import type { ParkPlacement } from './parks/parksPlacement.js';
 import { createValleyFloor } from './parks/valleyFloor.js';
 import type { ValleyFloor } from './parks/valleyFloor.js';
+import { getWorldBounds } from './parks/worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
@@ -556,7 +557,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     rootStreet = (layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
     if (!rootStreet) {
       gemWorldPos = null;
-      _valleyFloor.setAnchor(null);
+      _valleyFloor.setBounds(getWorldBounds(layout?.bbox ?? null));
       return;
     }
     gemWorldPos = new THREE.Vector3();
@@ -566,7 +567,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     } else {
       gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
     }
-    _valleyFloor.setAnchor(gemWorldPos);
+    _valleyFloor.setBounds(getWorldBounds(layout?.bbox ?? null));
   }
 
   // _computeDiff compares prev cells vs new cells at the per-instance

@@ -25,7 +25,7 @@ import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { getWorldFloorHalfSize } from './worldBounds.js';
+import { getWorldBounds } from './worldBounds.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
 
@@ -256,9 +256,10 @@ export function placeParks(
   const dims = BUILDING_DIMENSIONS.get();
   const halfFoot = (cfg.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
 
-  // World-anchored square. The world floor and the tree square share
-  // the same bounds, so trees never sit outside the visible ground.
-  const half = getWorldFloorHalfSize();
+  // World-anchored rectangle. The world floor and the tree scatter region
+  // share the same bounds (bbox-centered + buffer), so trees never sit
+  // outside the visible ground.
+  const bounds = getWorldBounds(bbox);
   const center = gemCenterFromLayout(layout, bbox);
 
   // Master seed from the bbox dims so the same layout always
@@ -286,8 +287,8 @@ export function placeParks(
       const baseSeed = (masterSeed ^ (i + 1)) | 0;
       const xUnit = u32ToUnit(mulberry32(baseSeed ^ 0x12345678));
       const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
-      const x = center.x + (xUnit * 2 - 1) * half;
-      const y = center.y + (yUnit * 2 - 1) * half;
+      const x = bounds.cx + (xUnit * 2 - 1) * bounds.halfWidth;
+      const y = bounds.cz + (yUnit * 2 - 1) * bounds.halfDepth;
 
       if (hasRects) {
         const hits = rtree.search({
@@ -358,8 +359,8 @@ export function placeParks(
           const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
           const kUnit = u32ToUnit(mulberry32(baseSeed ^ 0xfedcba98));
           const accUnit = u32ToUnit(mulberry32(baseSeed ^ 0xa5a5a5a5));
-          const x = center.x + (xUnit * 2 - 1) * half;
-          const y = center.y + (yUnit * 2 - 1) * half;
+          const x = bounds.cx + (xUnit * 2 - 1) * bounds.halfWidth;
+          const y = bounds.cz + (yUnit * 2 - 1) * bounds.halfDepth;
 
           if (hasRects) {
             const hits = rtree.search({
