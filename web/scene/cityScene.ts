@@ -990,10 +990,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       width: bbox.max.x - bbox.min.x,
       depth: bbox.max.z - bbox.min.z,
     } : null;
+    // City's vertical extent — feeds into worldBounds so small-but-tall
+    // repos still get an airy floor buffer relative to building height.
+    const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
-    _valleyFloor.setBounds(getWorldBounds(sceneBbox));
+    _valleyFloor.setBounds(getWorldBounds(sceneBbox, cityHeight));
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
@@ -1008,6 +1011,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       const generationAtDefer = myGeneration;
       const layoutAtDefer = newLayout;
       const commitCountAtDefer = manifest.commits?.length ?? 0;
+      const cityHeightAtDefer = cityHeight;
       const parksBbox: CityBbox = sceneBbox;
 
       REBUILD_STATUS.set('decorating');
@@ -1026,7 +1030,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // so we don't add a stale parks group to the scene.
       let placements: ParkPlacement[];
       try {
-        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, commitCountAtDefer);
+        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, commitCountAtDefer, cityHeightAtDefer);
       } catch (err) {
         if (err instanceof Error && err.message === 'superseded') return;
         throw err;

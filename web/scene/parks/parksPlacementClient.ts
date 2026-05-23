@@ -31,6 +31,7 @@ export interface ParksPlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
+    cityHeight: number,
   ): Promise<ParkPlacement[]>;
   dispose(): void;
 }
@@ -102,11 +103,12 @@ export function createParksPlacementClient(): ParksPlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
+    cityHeight: number,
     resolve: PendingRequest['resolve'],
     reject: PendingRequest['reject'],
   ): void {
     try {
-      const placements = placeParks(layout, bbox, { commitCount });
+      const placements = placeParks(layout, bbox, { commitCount, cityHeight });
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -125,6 +127,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
+    cityHeight: number,
   ): Promise<ParkPlacement[]> {
     if (disposed) {
       return Promise.reject(new Error('parksPlacementClient disposed'));
@@ -135,7 +138,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
       pending.set(id, { resolve, reject });
       const w = _ensureWorker();
       if (!w) {
-        _computeSync(id, layout, bbox, commitCount, resolve, reject);
+        _computeSync(id, layout, bbox, commitCount, cityHeight, resolve, reject);
         return;
       }
       w.postMessage({
@@ -144,6 +147,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
         layout,
         bbox,
         commitCount,
+        cityHeight,
         configSnapshot: _snapshot(),
       });
     });

@@ -58,6 +58,12 @@ export interface PlaceParksOptions {
    *  closest tree (= i-th oldest commit, matching the chronological-
    *  outward planting order). */
   commitCount: number;
+  /** Vertical extent of the rendered scene (bbox.max.y − bbox.min.y),
+   *  threaded through to worldBounds so small-but-tall cities get a
+   *  buffer proportional to building height. Optional — defaults to
+   *  0 (no contribution), in which case buffer scales only with the
+   *  city's XZ extent. */
+  cityHeight?: number;
 }
 
 /** Hard ceiling on candidate-sample iterations. The loop exits as
@@ -216,7 +222,7 @@ export function placeParks(
   // World-anchored rectangle. The world floor and the tree scatter region
   // share the same bounds (bbox-centered + buffer), so trees never sit
   // outside the visible ground.
-  const bounds = getWorldBounds(bbox);
+  const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
   // Inset the sampling extent so foliage stops short of the plane

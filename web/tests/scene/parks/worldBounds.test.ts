@@ -1,5 +1,6 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { getWorldBounds } from '@/scene/parks/worldBounds.js';
+import { PARKS_PALETTE } from '@/config/parks.js';
 import type { CityBbox } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
@@ -10,7 +11,14 @@ function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox 
   };
 }
 
+// All formulas below assume the default GROUND_BUFFER_PERCENT of 30 and
+// MIN_BUFFER floor of 800. We pin both via beforeEach so the test stays
+// stable when the defaults shift again.
 describe('worldBounds', () => {
+  beforeEach(() => {
+    PARKS_PALETTE.setKey('GROUND_BUFFER_PERCENT', 30);
+  });
+
   it('returns fallback rectangle when bbox is null', () => {
     const b = getWorldBounds(null);
     expect(b.cx).toBe(0);
@@ -33,27 +41,43 @@ describe('worldBounds', () => {
   });
 
   it('half-width is half the bbox width plus buffer', () => {
-    // bbox is 1000 wide. Buffer = max(200, 1000 * 0.15) = 200.
-    // halfWidth = 1000/2 + 200 = 700.
-    const b = getWorldBounds(bbox(0, 0, 1000, 1000));
-    expect(b.halfWidth).toBe(700);
-    expect(b.halfDepth).toBe(700);
+    // bbox 10000-wide, no height: characteristic = 10000, buffer = max(800, 10000*0.30) = 3000.
+    // halfWidth = 10000/2 + 3000 = 8000.
+    const b = getWorldBounds(bbox(0, 0, 10000, 10000));
+    expect(b.halfWidth).toBe(8000);
+    expect(b.halfDepth).toBe(8000);
   });
 
-  it('buffer scales with the larger bbox dimension', () => {
-    // 10000-wide bbox. Buffer = max(200, 10000 * 0.15) = 1500.
-    // halfWidth = 10000/2 + 1500 = 6500.
-    // halfDepth = 100/2 + 1500 = 1550.
+  it('buffer applies the SAME absolute amount to both axes', () => {
+    // 10000-wide × 100-deep. characteristic = 10000, buffer = 3000.
+    // halfWidth = 10000/2 + 3000 = 8000. halfDepth = 100/2 + 3000 = 3050.
     const b = getWorldBounds(bbox(0, 0, 10000, 100));
-    expect(b.halfWidth).toBe(6500);
+    expect(b.halfWidth).toBe(8000);
+    expect(b.halfDepth).toBe(3050);
+  });
+
+  it('applies the absolute floor for tiny cities', () => {
+    // 10-wide bbox. characteristic = 10, 10*0.30 = 3, floor = 800.
+    // halfWidth = 10/2 + 800 = 805.
+    const b = getWorldBounds(bbox(0, 0, 10, 10));
+    expect(b.halfWidth).toBe(805);
+    expect(b.halfDepth).toBe(805);
+  });
+
+  it('cityHeight feeds the characteristic-size calc for tiny-tall cities', () => {
+    // 100-wide footprint but a 5000-unit tall building.
+    // characteristic = max(100, 100, 5000) = 5000, buffer = 5000*0.30 = 1500.
+    // halfWidth = 100/2 + 1500 = 1550.
+    const b = getWorldBounds(bbox(0, 0, 100, 100), 5000);
+    expect(b.halfWidth).toBe(1550);
     expect(b.halfDepth).toBe(1550);
   });
 
-  it('applies minimum buffer for tiny cities', () => {
-    // 10-wide bbox. Buffer = max(200, 10 * 0.15) = 200.
-    // halfWidth = 10/2 + 200 = 205.
-    const b = getWorldBounds(bbox(0, 0, 10, 10));
-    expect(b.halfWidth).toBe(205);
-    expect(b.halfDepth).toBe(205);
+  it('GROUND_BUFFER_PERCENT slider scales the buffer linearly', () => {
+    PARKS_PALETTE.setKey('GROUND_BUFFER_PERCENT', 60);
+    // 10000-wide. characteristic = 10000, buffer = 10000*0.60 = 6000.
+    // halfWidth = 10000/2 + 6000 = 11000.
+    const b = getWorldBounds(bbox(0, 0, 10000, 10000));
+    expect(b.halfWidth).toBe(11000);
   });
 });

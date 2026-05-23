@@ -4,24 +4,17 @@
 //   vViewDirWorld — unit world-space direction from the camera through
 //                   this fragment (set by sky.vert.glsl). y in [-1, 1].
 //
-// Layers, composited in order:
-//   1. Below dir.y=0: solid uSkyColor — the world floor mesh handles
-//      real ground. No stars (gated by uStarMinElevation).
-//   2. Above dir.y=0:
-//        - Within dir.y < uHorizonHeight: smooth fade from uHorizonColor
-//          (at the horizon line) up to uSkyColor (at the top of the band).
-//        - Above the band: solid uSkyColor.
-//   3. Above MIN_ELEVATION_DEG: hashed point-star field with
-//      per-star sine twinkle driven by uTime. Rendered as small
-//      circular sub-cell dots with anti-aliased edges.
+// Composition:
+//   1. Solid uSkyColor everywhere. The world floor mesh handles the
+//      real ground; past its edge the camera sees the sky directly
+//      and the plane reads as floating in space.
+//   2. Hashed point-star field with per-star sine twinkle driven by
+//      uTime, painted across the FULL sphere — stars surround the
+//      camera in every direction, including below the horizon line.
 //
 // All sky output is written directly to gl_FragColor in sRGB-encoded
 // display space — the postFx pipeline's OutputPass + ACES tonemapping
-// converts the >1.0 HDR pixels back to display range. Following the
-// same convention as building.frag.glsl: ShaderMaterial gets no
-// automatic linear→sRGB conversion, so colors handed in via uniforms
-// are also already in sRGB (the JS side passes them with
-// THREE.LinearSRGBColorSpace; see sky.ts).
+// converts the >1.0 HDR pixels back to display range.
 //
 // depthWrite is false on the material (set in sky.ts) so the sphere
 // never occludes other geometry; combined with renderOrder=SKY=-1000
@@ -29,17 +22,8 @@
 
 varying vec3 vViewDirWorld;
 
-// --- Sky (upper hemisphere fill) ---
-uniform vec3 uSkyColor;           // solid fill for the upper hemisphere
-                                  // above uHorizonHeight. Stars are
-                                  // drawn on top when present.
-uniform vec3 uHorizonColor;       // soft atmosphere glow at the horizon
-                                  // line. Fades to uSkyColor over the
-                                  // band 0 <= dir.y <= uHorizonHeight
-                                  // via smoothstep.
-uniform float uHorizonHeight;     // fraction of the upper hemisphere
-                                  // occupied by the horizon glow band
-                                  // (0..1). 0 disables the band.
+// --- Sky ---
+uniform vec3 uSkyColor;           // solid fill for the entire sphere.
 
 // --- Stars ---
 uniform float uStarsEnabled;
@@ -50,7 +34,6 @@ uniform float uStarBrightness;
 uniform float uTwinkleEnabled;
 uniform float uTwinkleSpeed;
 uniform float uTwinkleAmplitude;  // 0=no twinkle, 1=full on/off
-uniform float uStarMinElevation;  // sin(MIN_ELEVATION_DEG), precomputed JS-side
 uniform float uTime;              // seconds; advanced once per frame
 
 // Standard sin-fract pseudo-random — same as building.frag.glsl's hash21.
@@ -61,9 +44,9 @@ float hash21(vec2 p) {
 }
 
 // Equirectangular (longitude, latitude) projection. Longitude wraps over
-// [-π, π], latitude over [-π/2, π/2]. Outside the polar zone (which we
-// gate off with uStarMinElevation anyway) this gives a roughly uniform
-// star distribution.
+// [-π, π], latitude over [-π/2, π/2]. Near the poles the projection
+// distorts star density slightly — acceptable for a starfield where
+// the eye doesn't measure spacing.
 vec2 starUV(vec3 dir) {
   return vec2(atan(dir.z, dir.x), asin(clamp(dir.y, -1.0, 1.0)));
 }
@@ -71,21 +54,11 @@ vec2 starUV(vec3 dir) {
 void main() {
   vec3 dir = normalize(vViewDirWorld);
 
-  // ----- Sky color + horizon glow band -----
-  // Below the horizon (dir.y < 0) clamp to 0 so the sky color shows
-  // solid — the world floor mesh handles real ground painting.
-  float dy = max(dir.y, 0.0);
+  // ----- Sky base color -----
   vec3 color = uSkyColor;
-  if (uHorizonHeight > 0.0 && dy < uHorizonHeight) {
-    // Smooth fade from uHorizonColor at dir.y=0 to uSkyColor at
-    // dir.y=uHorizonHeight. smoothstep gives an eased falloff so the
-    // glow blends in without a hard inner edge.
-    float t = smoothstep(0.0, 1.0, dy / max(uHorizonHeight, 1e-4));
-    color = mix(uHorizonColor, uSkyColor, t);
-  }
 
-  // ----- Stars (only above MIN_ELEVATION_DEG) -----
-  if (uStarsEnabled > 0.5 && dir.y > uStarMinElevation) {
+  // ----- Stars (full sphere) -----
+  if (uStarsEnabled > 0.5) {
     // Cell scale in radians^-1: ~100 cells per radian gives roughly
     // 0.57° cells, coarse enough to keep neighbouring cells visually
     // distinct. Stars render as a small circular dot anchored at a

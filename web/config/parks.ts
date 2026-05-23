@@ -129,9 +129,11 @@ export const PARKS_PALETTE = map<ParksPaletteConfig>({
   // world" anywhere there isn't city geometry or a discrete tree.
   GROUND_COLOR: '#030706',
 
-  // 15% of the city's longest dimension — a clean halo of bare ground
-  // past the building edge, consistent in both X and Z.
-  GROUND_BUFFER_PERCENT: 15,
+  // 30% of the city's longest dimension (including vertical extent for
+  // small-but-tall cities) — a generous halo of bare ground past the
+  // city, capped at an absolute floor in worldBounds so tiny cities
+  // still feel airy.
+  GROUND_BUFFER_PERCENT: 30,
 
   TREE_GREENS: ['#2a6a4a', '#3a7a3a', '#4a8a4a', '#1f5a2f'],
   TREE_TRUNK_COLOR: '#4a3220',

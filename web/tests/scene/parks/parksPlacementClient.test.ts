@@ -38,15 +38,15 @@ describe('parksPlacementClient (sync fallback path)', () => {
 
   it('returns ParkPlacement[] via the sync fallback when Worker is unavailable', async () => {
     const client = createParksPlacementClient();
-    const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0);
+    const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     expect(Array.isArray(result)).toBe(true);
     client.dispose();
   });
 
   it('rejects the prior request with "superseded" when a new compute() arrives', async () => {
     const client = createParksPlacementClient();
-    const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0);
-    const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0);
+    const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
+    const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0, 0);
     await expect(a).rejects.toThrow(/superseded/);
     await expect(b).resolves.toBeTruthy();
     client.dispose();
@@ -54,7 +54,7 @@ describe('parksPlacementClient (sync fallback path)', () => {
 
   it('rejects all pending requests after dispose()', async () => {
     const client = createParksPlacementClient();
-    const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0);
+    const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     client.dispose();
     await expect(p).rejects.toThrow(/disposed/);
   });
@@ -66,7 +66,7 @@ describe('parksPlacementClient (sync fallback path)', () => {
       lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
       bbox: { minX: -100, minY: -100, maxX: 100, maxY: 100, cx: 0, cy: 0, width: 200, depth: 200 },
     };
-    const placements = await client.compute(layout, layout.bbox, 25);
+    const placements = await client.compute(layout, layout.bbox, 25, 0);
     const trees = placements.filter((p) => p.treeCount > 0);
     expect(trees.length).toBe(25);
     client.dispose();

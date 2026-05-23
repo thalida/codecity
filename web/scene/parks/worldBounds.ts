@@ -19,10 +19,14 @@
 import type { CityBbox } from '@/types';
 import { PARKS_PALETTE } from '@/config/parks.js';
 
-/** Minimum buffer in world units — so tiny cities still get a
- *  visible margin past the buildings, and degenerate (zero-extent)
- *  bboxes still produce a visible plane. */
-const MIN_BUFFER = 200;
+/** Absolute floor for the buffer in world units — protects tiny
+ *  cities (small footprint, short buildings) from getting a
+ *  micro-margin that the camera reads as "plane glued to the
+ *  buildings." Set generously: ~800u ≈ 100 default-width buildings
+ *  laid end-to-end, which always reads as visibly bare ground past
+ *  the city in any framing. Degenerate (zero-extent) bboxes also
+ *  fall through to this floor. */
+const MIN_BUFFER = 800;
 
 /** Fallback half-extent when no bbox is available (pre-layout,
  *  non-git smoke tests). Keeps the floor visible at the origin. */
@@ -39,7 +43,24 @@ export interface WorldBounds {
   halfDepth: number;
 }
 
-export function getWorldBounds(bbox: CityBbox | null | undefined): WorldBounds {
+/**
+ * Compute the world-floor rectangle from the city bbox.
+ *
+ * `cityHeight` (optional) is the vertical extent of the rendered
+ * scene — passed in so tiny-footprint repos with TALL buildings
+ * still get an airy buffer past the building bases. Without it the
+ * buffer scales only with XZ extent and a small-but-tall city ends
+ * up cramped on screen. Defaults to 0 (no contribution) when
+ * unavailable.
+ *
+ * Buffer = max(MIN_BUFFER, characteristicSize × percent) where
+ * characteristicSize = max(width, depth, cityHeight). The absolute
+ * floor MIN_BUFFER guarantees tiny cities still feel airy.
+ */
+export function getWorldBounds(
+  bbox: CityBbox | null | undefined,
+  cityHeight: number = 0,
+): WorldBounds {
   if (!bbox) {
     return {
       cx: 0,
@@ -49,8 +70,8 @@ export function getWorldBounds(bbox: CityBbox | null | undefined): WorldBounds {
     };
   }
   const bufferFrac = PARKS_PALETTE.get().GROUND_BUFFER_PERCENT / 100;
-  const maxDim = Math.max(bbox.width, bbox.depth);
-  const buffer = Math.max(MIN_BUFFER, maxDim * bufferFrac);
+  const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
+  const buffer = Math.max(MIN_BUFFER, characteristicSize * bufferFrac);
   return {
     cx: bbox.cx,
     cz: bbox.cy,             // bbox.cy is the Z-axis center in this codebase

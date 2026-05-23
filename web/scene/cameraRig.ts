@@ -48,6 +48,13 @@ const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
 
+/** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
+ *  cities (small footprint, one big building) end up with a tiny
+ *  worldRadius if Y is the only large axis — and on cities with little
+ *  geometry at all, worldRadius is near zero. This guarantees the user
+ *  can always pull back to a comfortable cinematic viewing distance. */
+const MIN_MAX_DISTANCE = 8000;
+
 // Per-action duration ratios relative to ANIMATION_TIMING.BASE_DURATION_MS.
 // These tune the per-gesture feel — a Recenter should feel snappier than a
 // building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
@@ -164,22 +171,27 @@ export function createCameraRig({
     const halfFov = (camera.fov * Math.PI) / 180 / 2;
     const worldDist =
       (worldRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-    controls.maxDistance = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT;
+
+    // Max zoom-out: a generous multiple of the world's geometric
+    // radius (which includes building heights via farY), floored at
+    // an absolute minimum so tiny-but-tall cities still let the user
+    // pull back. Decoupled from worldDist / FOV so the behavior is
+    // predictable regardless of city shape. Comment-on-history: the
+    // previous formula was worldDist × MAX_DISTANCE_MULT which kept
+    // small cities cramped because worldDist was itself small.
+    controls.maxDistance = Math.max(
+      worldRadius * cameraControlsCfg.MAX_DISTANCE_MULT,
+      MIN_MAX_DISTANCE,
+    );
 
     // Far clip: covers the farthest point a fully-zoomed-out camera can
-    // see (worldDist × MAX_DISTANCE_MULT past target, plus the world's
-    // own radius). Set unconditionally so it shrinks for small worlds
-    // (depth-buffer precision matters at z-fight sensitivity, e.g. the
-    // hover-ghost inset) AND grows for huge worlds (SHOW_ALL_FILES on a
-    // codebase with node_modules can push >100k units). Floored at the
-    // Cyberpunk Valley sky-sphere's outer extent (CAMERA_PERSPECTIVE.FAR
-    // × 0.95; see web/scene/sky/sky.ts RADIUS_FAR_FRAC) so the sphere
-    // never gets clipped at the corners of small-repo viewports and
-    // leaks the scene.background color through. (The sky once used a
-    // skybox depth trick to dodge this, but that produced NaN at the
-    // sphere's equator vertices — see sky.vert.glsl. The geometry
-    // sizing + this floor is the cleaner contract.)
-    const dynamicFar = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT * 2 + worldRadius * 2;
+    // see (maxDistance past target, plus the world's own radius). Set
+    // unconditionally so it shrinks for small worlds (depth-buffer
+    // precision matters for the hover-ghost inset) AND grows for huge
+    // worlds. Floored at the Cyberpunk Valley sky-sphere's outer extent
+    // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
+    // at the corners of small-repo viewports.
+    const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
     const skySphereExtent = CAMERA_PERSPECTIVE.get().FAR * 0.95;
     camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();

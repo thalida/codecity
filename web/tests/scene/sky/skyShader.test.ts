@@ -33,33 +33,27 @@ describe('sky.frag.glsl', () => {
     expect(src).toMatch(/varying\s+vec3\s+vViewDirWorld/);
   });
 
-  it('declares uSkyColor / uHorizonColor / uHorizonHeight for the sky fill', () => {
+  it('declares uSkyColor for the full-sphere fill', () => {
     expect(src).toContain('uSkyColor');
-    expect(src).toContain('uHorizonColor');
-    expect(src).toContain('uHorizonHeight');
   });
 
-  it('mixes uHorizonColor into uSkyColor over the horizon band', () => {
-    // A mix() call between the horizon and sky colors over the
-    // smoothstep'd band confirms the horizon glow is wired in.
-    expect(src).toMatch(/mix\(\s*uHorizonColor\s*,\s*uSkyColor/);
+  it('does NOT reference the removed horizon uniforms or star min-elevation', () => {
+    // The horizon band and the star min-elevation cutoff were removed.
+    // Catching them as a regression guards against an accidental
+    // reintroduction (or a stale shader file).
+    expect(src).not.toContain('uHorizonColor');
+    expect(src).not.toContain('uHorizonHeight');
+    expect(src).not.toContain('uStarMinElevation');
   });
 
   it('declares the star uniforms + the time uniform driving twinkle', () => {
     for (const u of [
       'uStarsEnabled', 'uStarDensity', 'uStarSize', 'uStarBrightness',
       'uTwinkleEnabled', 'uTwinkleSpeed', 'uTwinkleAmplitude',
-      'uStarMinElevation',
       'uTime',
     ]) {
       expect(src).toContain(u);
     }
-  });
-
-  it('clamps dir.y to 0 below the horizon so sky color shows (no early return)', () => {
-    // The lower hemisphere now uses max(dir.y, 0.0) — no early-return
-    // branch — so the sky color shows solid below the horizon.
-    expect(src).toMatch(/max\s*\(\s*dir\.y\s*,\s*0\.0\s*\)/);
   });
 
   it('uses a hash to scatter stars (deterministic per direction)', () => {

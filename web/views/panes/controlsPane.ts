@@ -377,13 +377,7 @@ function _buildSceneSection(): HTMLElement {
         tip: 'Master toggle. When off the sky sphere is hidden and the Fallback color below paints the void.',
       }),
       _color('Sky color', SKY, 'COLOR', {
-        tip: 'Solid color painted across the upper hemisphere above the horizon band. Stars are added on top.',
-      }),
-      _color('Horizon color', SKY, 'HORIZON_COLOR', {
-        tip: 'Soft atmosphere glow at the horizon line. Fades into the sky color over the bottom HORIZON_HEIGHT of the upper hemisphere.',
-      }),
-      _slider('Horizon height', SKY, 'HORIZON_HEIGHT', 0, 1, 0.01, {
-        tip: 'Fraction of the upper hemisphere occupied by the horizon glow band. 0 disables the band; 0.15 ≈ bottom 8.6° above the horizon.',
+        tip: 'Solid color painted across the entire sphere. Past the world floor edge the camera sees this color directly, so the plane reads as floating in space.',
       }),
       _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
         tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
@@ -418,9 +412,6 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
         tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
-      }),
-      _slider('Min elevation (°)', SKY_STARS, 'MIN_ELEVATION_DEG', 0, 90, 1, {
-        tip: 'Stars are only rendered above this angle from the horizon. 8° keeps them out of the warm horizon band.',
       }),
       _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
         tip: 'When off, stars render at fixed brightness (no animation).',

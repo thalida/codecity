@@ -23,6 +23,7 @@ interface PlaceRequest {
   layout: CityLayout;
   bbox: CityBbox | undefined;
   commitCount: number;
+  cityHeight: number;
   configSnapshot: {
     parks: ParksValue;
     parksPalette: ParksPaletteValue;
@@ -61,6 +62,7 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
     _applySnapshot(data.configSnapshot);
     const placements = placeParks(data.layout, data.bbox, {
       commitCount: data.commitCount,
+      cityHeight: data.cityHeight,
     });
     const reply: PlaceResponse = {
       type: 'place-result',

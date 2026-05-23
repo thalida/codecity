@@ -10,9 +10,7 @@ describe('SKY', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY.get();
     expect(v.ENABLED).toBe(true);
-    expect(v.COLOR).toBe('#000000');
-    expect(v.HORIZON_COLOR).toBe('#04030c');
-    expect(v.HORIZON_HEIGHT).toBeCloseTo(0.15);
+    expect(v.COLOR).toBe('#010005');
   });
 });
 
@@ -26,6 +24,5 @@ describe('SKY_STARS', () => {
     expect(v.TWINKLE_ENABLED).toBe(true);
     expect(v.TWINKLE_SPEED).toBe(0.5);
     expect(v.TWINKLE_AMPLITUDE).toBe(1.0);
-    expect(v.MIN_ELEVATION_DEG).toBe(8);
   });
 });

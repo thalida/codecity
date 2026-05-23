@@ -1,9 +1,9 @@
 // scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
-// scene. The fragment shader writes a flat sky (uSkyColor above and
-// below the horizon — uSkyColor below; the world floor mesh handles
-// real ground) plus a hashed star field with sine twinkle. Every
+// scene. The fragment shader writes a flat uSkyColor across the
+// entire sphere (the world floor mesh handles real ground), plus a
+// hashed star field across the full sphere with sine twinkle. Every
 // dial lives in two nanostore configs (SKY, SKY_STARS) and is
 // hot-reloadable via the existing applyTheme() path — sky.refresh()
 // pulls fresh values into uniforms with no rebuild.
@@ -91,8 +91,6 @@ export function createSky(): Sky {
       uTime: { value: 0 },
 
       uSkyColor: { value: new THREE.Color() },
-      uHorizonColor: { value: new THREE.Color() },
-      uHorizonHeight: { value: sky.HORIZON_HEIGHT },
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
       uStarDensity: { value: stars.DENSITY },
@@ -101,13 +99,9 @@ export function createSky(): Sky {
       uTwinkleEnabled: { value: stars.TWINKLE_ENABLED ? 1.0 : 0.0 },
       uTwinkleSpeed: { value: stars.TWINKLE_SPEED },
       uTwinkleAmplitude: { value: stars.TWINKLE_AMPLITUDE },
-      uStarMinElevation: {
-        value: Math.sin((stars.MIN_ELEVATION_DEG * Math.PI) / 180),
-      },
     },
   });
   setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
-  setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, sky.HORIZON_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = RENDER_ORDERS.SKY;
@@ -120,8 +114,6 @@ export function createSky(): Sky {
     const s = SKY_STARS.get();
 
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
-    setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, k.HORIZON_COLOR);
-    material.uniforms.uHorizonHeight.value = k.HORIZON_HEIGHT;
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;
@@ -130,9 +122,6 @@ export function createSky(): Sky {
     material.uniforms.uTwinkleEnabled.value = s.TWINKLE_ENABLED ? 1.0 : 0.0;
     material.uniforms.uTwinkleSpeed.value = s.TWINKLE_SPEED;
     material.uniforms.uTwinkleAmplitude.value = s.TWINKLE_AMPLITUDE;
-    material.uniforms.uStarMinElevation.value = Math.sin(
-      (s.MIN_ELEVATION_DEG * Math.PI) / 180,
-    );
 
     mesh.visible = k.ENABLED;
   }
