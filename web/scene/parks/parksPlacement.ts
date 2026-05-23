@@ -91,6 +91,43 @@ function u32ToUnit(u: number): number {
   return u / 0x100000000;
 }
 
+/**
+ * In-place Hoare-style quickselect: partitions `arr` so that the
+ * `k` elements with the smallest `key(item)` end up at indices
+ * `0..k-1` (in arbitrary internal order). Elements at indices
+ * `k..arr.length-1` are larger-or-equal. O(N) average, O(N²)
+ * worst case (Lomuto partition with random pivot mitigates).
+ *
+ * Used by the tree pass to extract "the N closest candidates to
+ * the gem" from up to 2M oversampled points without paying for a
+ * full sort. After selection the caller still sorts the kept
+ * slice (cheap — at most commitCount items).
+ */
+function _quickselect<T>(arr: T[], k: number, key: (t: T) => number): void {
+  if (k <= 0 || arr.length <= k) return;
+  let lo = 0;
+  let hi = arr.length - 1;
+  while (lo < hi) {
+    // Pick a random pivot to dodge adversarial inputs.
+    const pivotIdx = lo + ((Math.random() * (hi - lo + 1)) | 0);
+    const pivotVal = key(arr[pivotIdx]);
+    // Swap pivot to the end.
+    [arr[pivotIdx], arr[hi]] = [arr[hi], arr[pivotIdx]];
+    let store = lo;
+    for (let i = lo; i < hi; i++) {
+      if (key(arr[i]) < pivotVal) {
+        [arr[i], arr[store]] = [arr[store], arr[i]];
+        store++;
+      }
+    }
+    // Swap pivot into its final position.
+    [arr[store], arr[hi]] = [arr[hi], arr[store]];
+    if (store === k) return;
+    if (store < k) lo = store + 1;
+    else hi = store - 1;
+  }
+}
+
 function bboxOfBuilding(b: Building): Rect {
   return {
     minX: b.x - b.w / 2,
@@ -269,10 +306,14 @@ export function placeParks(
       candidates.push({ x, y, d2: dx * dx + dy * dy, seed: baseSeed });
     }
 
-    candidates.sort((a, b) => a.d2 - b.d2);
+    // Quickselect the closest `treeTarget` candidates by d², then
+    // sort just that slice so commitIndex maps to age rank
+    // (innermost = oldest).
+    _quickselect(candidates, treeTarget, (c) => c.d2);
     const accepted = candidates.length > treeTarget
       ? candidates.slice(0, treeTarget)
       : candidates;
+    accepted.sort((a, b) => a.d2 - b.d2);
 
     for (let i = 0; i < accepted.length; i++) {
       const c = accepted[i];
