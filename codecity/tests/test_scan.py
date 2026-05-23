@@ -562,6 +562,22 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(len(log_calls), 1,
                          f"expected exactly 1 git log call, got: {log_calls}")
 
+    def test_collect_git_metadata_returns_commits_list(self):
+        from codecity.scan import _collect_git_metadata
+        _created, _modified, _tracked, commits = _collect_git_metadata(
+            FIXTURE, use_cache=False, git_window="30.years.ago",
+        )
+        self.assertIsInstance(commits, list)
+        self.assertGreater(len(commits), 0)
+        # Manifest contract: oldest-first.
+        dates = [c["date"] for c in commits]
+        self.assertEqual(dates, sorted(dates),
+                         f"commits should be oldest-first, got {dates}")
+        for c in commits:
+            self.assertEqual(set(c.keys()), {"date", "files"})
+            self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
+            self.assertGreaterEqual(c["files"], 1)
+
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """When HEAD hasn't moved, _collect_git_metadata should hit the

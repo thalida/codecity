@@ -39,6 +39,7 @@ from .cache import (
 )
 from .media_dims import probe_media_dims
 from .types import (
+    CommitEntry,
     DirNode,
     FileNode,
     GitMeta,
@@ -199,9 +200,10 @@ def _git_history_window(override: str | None = None) -> str:
 
 def _collect_git_dates_windowed(
     root: Path, *, git_window: str | None = None,
-) -> tuple[dict[str, str], dict[str, str]]:
+) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """One newest→oldest `git log --name-status` walk that populates
-    both created_map and modified_map in a single pass.
+    both created_map and modified_map in a single pass, and also
+    accumulates a per-commit (date, files) summary list.
 
     Replaces two parallel walks (`--diff-filter=A --reverse` for creates
     + bare walk for modifies). Two wins:
@@ -244,11 +246,13 @@ def _collect_git_dates_windowed(
             bufsize=1,
         )
     except FileNotFoundError:
-        return {}, {}
+        return {}, {}, []
 
     created: dict[str, str] = {}
     modified: dict[str, str] = {}
-    current_date = ""
+    commits_newest_first: list[CommitEntry] = []
+    current_date_iso = ""
+    current_files = 0
     commits = 0
     heartbeat_every = 25_000
     assert proc.stdout is not None
@@ -257,7 +261,14 @@ def _collect_git_dates_windowed(
         if not line:
             continue
         if line.startswith("COMMIT:"):
-            current_date = line[len("COMMIT:"):]
+            # Flush the previous commit (if any) before starting the next.
+            if current_date_iso:
+                commits_newest_first.append({
+                    "date": current_date_iso[:10],
+                    "files": current_files,
+                })
+            current_date_iso = line[len("COMMIT:"):]
+            current_files = 0
             commits += 1
             if commits % heartbeat_every == 0:
                 _log(
@@ -273,23 +284,32 @@ def _collect_git_dates_windowed(
             continue
         status = line[:tab_idx]
         path = line[tab_idx + 1:]
+        current_files += 1
         if path not in modified:
-            modified[path] = current_date
+            modified[path] = current_date_iso
         if status.startswith("A") and path not in created:
-            created[path] = current_date
+            created[path] = current_date_iso
+    # Flush the final commit (the loop exits after the last block, not after a COMMIT line).
+    if current_date_iso:
+        commits_newest_first.append({
+            "date": current_date_iso[:10],
+            "files": current_files,
+        })
     proc.wait()
     _log(
         f"  done — {commits:,} commits in window, "
         f"{len(modified):,} files touched, "
         f"{len(created):,} with creation event"
     )
-    return created, modified
+    # Reverse to oldest-first so manifest consumers can use index = age rank.
+    commits_oldest_first: list[CommitEntry] = list(reversed(commits_newest_first))
+    return created, modified, commits_oldest_first
 
 
 def _collect_git_metadata(
     root: Path, *, use_cache: bool = True, git_window: str | None = None,
-) -> tuple[dict[str, str], dict[str, str], set[str]]:
-    """Return (created_map, modified_map, tracked_set).
+) -> tuple[dict[str, str], dict[str, str], set[str], list[CommitEntry]]:
+    """Return (created_map, modified_map, tracked_set, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
                            within ``CODECITY_GIT_WINDOW`` (default 3y).
@@ -299,6 +319,8 @@ def _collect_git_metadata(
                            since the window started are absent.
     - tracked_set        = all tracked paths + parent dirs (for the
                            gitignore filter — independent of history).
+    - commits            = oldest-first list of CommitEntry (date, files)
+                           for each commit within the history window.
 
     Single `git log --name-status --no-renames --since=$WINDOW` walk
     populates both maps in one pass. With ``use_cache=True`` (default),
@@ -311,28 +333,32 @@ def _collect_git_metadata(
     head_sha = _run_git(root, "rev-parse", "HEAD").strip()
     if use_cache and head_sha:
         cached = cache_load_git_history(root, head_sha, window)
-        if cached is not None:
-            created, modified = cached
+        # Pre-Task-3 caches don't carry commits; treat as a miss unless
+        # the cache returns a 3-tuple (created, modified, commits).
+        if cached is not None and len(cached) == 3:
+            created, modified, commits = cached
             tracked = _collect_tracked_set(root)
-            return created, modified, tracked
+            return created, modified, tracked, commits
 
     _log("  collecting creation + modified dates…")
-    created, modified = _collect_git_dates_windowed(root, git_window=window)
-    _log(f"    {len(created)} created, {len(modified)} modified within window")
+    created, modified, commits = _collect_git_dates_windowed(root, git_window=window)
+    _log(f"    {len(created)} created, {len(modified)} modified, {len(commits)} commits within window")
 
     _log("  listing tracked files…")
     tracked = _collect_tracked_set(root)
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
     if use_cache and head_sha:
+        # cache_save_git_history will be updated in Task 3 to accept commits.
+        # For now, save without it so Task 2 stays self-contained.
         try:
             cache_save_git_history(root, head_sha, window, created, modified)
-        except OSError:
-            # Cache failures (disk full, permission denied, read-only fs)
-            # must never block a scan. The next run will retry the write.
+        except (OSError, TypeError):
+            # Cache failures (disk full, permission denied, read-only fs, wrong
+            # arity) must never block a scan. The next run will retry the write.
             pass
 
-    return created, modified, tracked
+    return created, modified, tracked, commits
 
 
 def _normalize_remote_to_web_url(remote: str) -> str:
@@ -917,12 +943,13 @@ def scan_tree_streaming(
     git_created: dict[str, str] = {}
     git_modified: dict[str, str] = {}
     tracked_files: set[str] = set()
+    commits_list: list[CommitEntry] = []
     is_git_repo = _is_git_repo(Path(root_abs))
     repo_info: RepoInfo | None = None
 
     if is_git_repo:
         _log("git repo detected — collecting metadata…")
-        git_created, git_modified, tracked_files = _collect_git_metadata(
+        git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
             Path(root_abs), use_cache=use_cache, git_window=git_window,
         )
         repo_info = _collect_repo_info(Path(root_abs))
