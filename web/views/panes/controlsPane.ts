@@ -461,14 +461,14 @@ function _buildIslandSection(): HTMLElement {
       _toggle('Show island', ISLAND_GEOMETRY, 'ENABLED', {
         tip: 'Master toggle for the floating-island mesh. When off, the city sits over empty sky.',
       }),
-      _slider('Polygon sides', ISLAND_GEOMETRY, 'SIDES', 6, 24, 1, {
-        tip: 'How many sides the island top has. 6 = hexagon, 12 = dodecagon (default), 24 = nearly circular.',
+      _slider('Polygon sides', ISLAND_GEOMETRY, 'SIDES', 6, 48, 1, {
+        tip: 'How many sides the island top has. Also drives triangle density horizontally — each side contributes 2 triangles per tier band. 6 = hexagon (chunky big facets); 12 = dodecagon (default); 48 = lots of small facets.',
       }),
       _slider('Irregularity', ISLAND_GEOMETRY, 'IRREGULARITY', 0, 0.5, 0.01, {
         tip: '0 = perfectly regular polygon. Higher values jitter vertices inward for a natural island silhouette.',
       }),
-      _slider('Tier rings', ISLAND_GEOMETRY, 'TIERS', 1, 4, 1, {
-        tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 2–3 = chunky tapered look.',
+      _slider('Tier rings', ISLAND_GEOMETRY, 'TIERS', 1, 10, 1, {
+        tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 4–6 = chunky tapered look; 10 = lots of facet detail.',
       }),
       _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 2.0, 0.05, {
         tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
@@ -486,6 +486,9 @@ function _buildIslandSection(): HTMLElement {
     _collapsibleSubgroup('island-materials', 'Materials', () => [
       _color('Grass color', ISLAND_MATERIALS, 'GRASS_COLOR', {
         tip: 'Top surface where the city sits.',
+      }),
+      _color('Grass side color', ISLAND_MATERIALS, 'GRASS_SIDE_COLOR', {
+        tip: 'Vertical band wrapping the top edge. Side faces point outward, so hemispheric lighting hits them very differently than the top — tune this brighter than Grass color if the side band reads too dim.',
       }),
       _color('Rock color', ISLAND_MATERIALS, 'ROCK_COLOR', {
         tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',

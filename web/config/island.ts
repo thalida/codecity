@@ -20,6 +20,7 @@ export interface IslandGeometryConfig {
 
 export interface IslandMaterialsConfig {
   GRASS_COLOR: string;
+  GRASS_SIDE_COLOR: string;  // vertical band wrapping the top edge — tuned independently because hemispheric lighting hits side faces very differently than the top
   ROCK_COLOR: string;
   HEMI_SKY_COLOR: string;    // warm "from above" tone
   HEMI_GROUND_COLOR: string; // cool "from below" tone
@@ -55,9 +56,10 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   GRASS_COLOR: '#18341f',         // deep forest green
+  GRASS_SIDE_COLOR: '#18341f',    // same as top by default — tune up to compensate for sideways-facing hemi lighting
   ROCK_COLOR: '#71778e',          // cool slate/granite
   HEMI_SKY_COLOR: '#e8f6fc',      // cool pale sky-blue from-above tone
-  HEMI_GROUND_COLOR: '#0c0844',   // deep night-blue from-below tone
+  HEMI_GROUND_COLOR: '#031117',   // very deep teal-black from-below tone
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({

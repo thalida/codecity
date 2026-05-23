@@ -75,6 +75,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
 
 export interface IslandColors {
   GRASS: string;
+  GRASS_SIDE: string;
   ROCK: string;
 }
 
@@ -188,6 +189,7 @@ export function buildIslandGeometry(
   const indices: number[] = [];
 
   const grass = new THREE.Color(colors.GRASS);
+  const grassSide = new THREE.Color(colors.GRASS_SIDE);
   const rock = new THREE.Color(colors.ROCK);
 
   // Push a vertex; return its index.
@@ -219,9 +221,11 @@ export function buildIslandGeometry(
   let grassBotRing: THREE.Vector3[];
   if (grassBand > 0) {
     grassBotRing = topRing.map((v) => new THREE.Vector3(v.x, -grassBand, v.z));
-    // grassTopIdx re-uses the same XZ as topRing at y=0 but with grass colour.
-    const grassTopIdx: number[] = topRing.map((v) => addVertex(v, grass, 1.0));
-    const grassBotIdx: number[] = grassBotRing.map((v) => addVertex(v, grass, 0.9));
+    // Side band uses GRASS_SIDE so the user can tune it independently of
+    // the top cap (top points up, side points outward — they get very
+    // different hemispheric lighting).
+    const grassTopIdx: number[] = topRing.map((v) => addVertex(v, grassSide, 1.0));
+    const grassBotIdx: number[] = grassBotRing.map((v) => addVertex(v, grassSide, 0.9));
     for (let i = 0; i < sides; i++) {
       const j = (i + 1) % sides;
       const tl = grassTopIdx[i]!;

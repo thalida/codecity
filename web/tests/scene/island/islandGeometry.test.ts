@@ -83,6 +83,7 @@ describe('buildIslandGeometry', () => {
   };
   const colors: IslandColors = {
     GRASS: '#1a2620',
+    GRASS_SIDE: '#1a2620',
     ROCK: '#0a0a10',
   };
 
