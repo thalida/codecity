@@ -333,10 +333,15 @@ def _collect_git_metadata(
     head_sha = _run_git(root, "rev-parse", "HEAD").strip()
     if use_cache and head_sha:
         cached = cache_load_git_history(root, head_sha, window)
-        # Pre-Task-3 caches don't carry commits; treat as a miss unless
-        # the cache returns a 3-tuple (created, modified, commits).
-        if cached is not None and len(cached) == 3:
-            created, modified, commits = cached
+        if cached is not None:
+            # Pre-Task-3 cache schema returns a 2-tuple; commits aren't
+            # persisted yet so we synthesize []. Task 3 bumps the cache
+            # version and the schema to carry commits.
+            if len(cached) == 3:
+                created, modified, commits = cached
+            else:
+                created, modified = cached  # type: ignore[misc]
+                commits = []
             tracked = _collect_tracked_set(root)
             return created, modified, tracked, commits
 
@@ -353,9 +358,9 @@ def _collect_git_metadata(
         # For now, save without it so Task 2 stays self-contained.
         try:
             cache_save_git_history(root, head_sha, window, created, modified)
-        except (OSError, TypeError):
-            # Cache failures (disk full, permission denied, read-only fs, wrong
-            # arity) must never block a scan. The next run will retry the write.
+        except OSError:
+            # Cache failures (disk full, permission denied, read-only fs)
+            # must never block a scan. The next run will retry the write.
             pass
 
     return created, modified, tracked, commits
@@ -943,7 +948,7 @@ def scan_tree_streaming(
     git_created: dict[str, str] = {}
     git_modified: dict[str, str] = {}
     tracked_files: set[str] = set()
-    commits_list: list[CommitEntry] = []
+    commits_list: list[CommitEntry] = []  # Task 4 changes non-git to None.
     is_git_repo = _is_git_repo(Path(root_abs))
     repo_info: RepoInfo | None = None
 
@@ -952,6 +957,7 @@ def scan_tree_streaming(
         git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
             Path(root_abs), use_cache=use_cache, git_window=git_window,
         )
+        # commits_list is plumbed through to the manifest in Task 4.
         repo_info = _collect_repo_info(Path(root_abs))
     else:
         _log("not a git repo — filesystem dates only")
