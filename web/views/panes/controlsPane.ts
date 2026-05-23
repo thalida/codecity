@@ -485,14 +485,6 @@ function _buildParksSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Parks', [
-      _toggle('Enabled', PARKS, 'ENABLED', {
-        tip: 'Master toggle. When off the parks group is disposed entirely (no hidden geometry in GPU memory). Re-enabling rebuilds from the current layout.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
     _subgroup('Visibility', [
       _toggle('Trees', PARKS_PALETTE, 'TREES_ENABLED', {
         tip: 'Matte tetrahedral canopies + tiny trunks. Disable for a treeless park silhouette.',
@@ -507,16 +499,7 @@ function _buildParksSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Density', [
-      _slider('Overall (% of plane)', PARKS, 'DENSITY_PERCENT', 0, 100, 1, {
-        tip: 'Overall foliage density across the entire visible ground plane. 100 = fully populated; 50 = half density; 0 = no trees. This is the master density dial — the other two knobs only redistribute these trees.',
-      }),
-      _slider('City interior (% of edge)', PARKS, 'CITY_DENSITY_PERCENT', 0, 100, 1, {
-        tip: 'Density INSIDE the city as a percentage of the forest-edge density. 100 = uniform; 30 = city plazas have 30% of the outer density (visible but doesn\'t crowd the city); 0 = no trees inside the city at all.',
-      }),
-      _slider('Gradient reach (% of plane)', PARKS, 'GRADIENT_REACH_PERCENT', 0, 100, 1, {
-        tip: 'How far the city → forest density transition spans, as a percentage of the visible plane. 0 = hard switch at the city edge; 40 = smooth fade over the first 40% of the plane (default); 100 = density rises gradually all the way to the plane edge.',
-      }),
+    _subgroup('Placement', [
       _slider('Edge inset (% of plane)', PARKS, 'EDGE_INSET_PERCENT', 0, 50, 1, {
         tip: 'Foliage stops short of the plane edge by this fraction of the SHORTER axis. 0% = trees right up to the edge; 25% = wide bare-ground margin all around.',
       }),

@@ -68,14 +68,13 @@ export interface ParksConfig {
 export const PARKS = map<ParksConfig>({
   ENABLED: true,
 
-  // Full plane coverage by default.
+  // Density knobs are kept at 100% (uniform full coverage) by default.
+  // The UI controls have been removed — trees are commit-driven, and
+  // bushes/flowers (off by default) pack uniformly at full density
+  // when re-enabled. Adjust here if you want non-uniform scatter.
   DENSITY_PERCENT: 100,
-  // City plazas are 30% as dense as the forest outside — visible
-  // but doesn't dominate the city silhouette.
-  CITY_DENSITY_PERCENT: 30,
-  // Gradient transitions over the first 40% of the plane around
-  // the city, then full density after that.
-  GRADIENT_REACH_PERCENT: 40,
+  CITY_DENSITY_PERCENT: 100,
+  GRADIENT_REACH_PERCENT: 100,
 
   // 65% trees, 25% bushes, 10% flower clusters.
   MIX_TREE_FRAC: 0.65,
@@ -90,9 +89,9 @@ export const PARKS = map<ParksConfig>({
   FLOWERS_PER_BUSH: 4,
   FLOWERS_PER_CLUSTER: 8,
 
-  // 8% of the shorter plane half-extent — a clean, even grass border
+  // 5% of the shorter plane half-extent — a clean, even grass border
   // that reads the same on square and wide-rectangular planes.
-  EDGE_INSET_PERCENT: 8,
+  EDGE_INSET_PERCENT: 5,
 });
 
 export interface ParksPaletteConfig {
