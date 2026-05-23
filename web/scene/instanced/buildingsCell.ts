@@ -22,6 +22,7 @@ import type { CellTile } from '../cellTile.js';
 import type { Building } from '@/types/index.js';
 import type { IconAtlas } from '../iconAtlas.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
+import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt.js';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and
@@ -34,21 +35,6 @@ const SHARED_BUILDING_GEOMETRY: THREE.BufferGeometry = new THREE.BoxGeometry(1, 
 // ---------------------------------------------------------------------------
 // Helpers — ported faithfully from buildings.ts (private there).
 // ---------------------------------------------------------------------------
-
-/**
- * Stable 32-bit FNV-1a hash of a string, normalized to [0, 1). Used to
- * derive a per-instance random `seed` that the shader keys facade
- * variations off of — deterministic across rebuilds so a building's
- * window pattern doesn't shuffle on every live-update poll.
- */
-function seedFromPath(path: string): number {
-  let h = 2166136261; // FNV offset basis
-  for (let i = 0; i < path.length; i++) {
-    h ^= path.charCodeAt(i);
-    h = Math.imul(h, 16777619); // FNV prime, 32-bit safe via imul
-  }
-  return (h >>> 0) / 4294967296;
-}
 
 /**
  * Map BuildingOrient string enum → 0/1/2/3 per the shader's iOrient contract.
@@ -181,6 +167,11 @@ export function attachBuildingMeshToCell(
     new Float32Array(cell.capacity * 3),
     3,
   );
+
+  // Replace the default InstancedMesh raycast with one that honors the
+  // vertex shader's Y-shear so click targets hit the leaned silhouette.
+  // See scene/instanced/buildingTilt.ts.
+  attachLeanAwareRaycast(cell.detailMesh);
 }
 
 /**
