@@ -293,11 +293,16 @@ describe('createTreeRenderer()', () => {
       .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
   });
 
-  it('per-instance color interpolates between OLD and NEW endpoints by commit age', () => {
+  it('per-instance color interpolates between OLD and NEW endpoints by commit GAP', () => {
+    // 3 commits: 0, 1 day later (shortest gap), then 30 days later
+    // (longest gap). After log-norm + inversion:
+    //   - commit 0: no previous → t=0.5 (mid color)
+    //   - commit 1 (gap=1, shortest): t=1 → newColor
+    //   - commit 2 (gap=30, longest): t=0 → oldColor
     const commits: CommitEntry[] = [
       { date: '2026-01-01', files: 5 },
-      { date: '2026-01-11', files: 5 },
-      { date: '2026-01-21', files: 5 },
+      { date: '2026-01-02', files: 5 },
+      { date: '2026-02-01', files: 5 },
     ];
     const placements = [
       placement(0, 0, 1, 0),
@@ -310,24 +315,22 @@ describe('createTreeRenderer()', () => {
     const newColor = new THREE.Color();
     oldColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
     newColor.setStyle('#a8d68a', THREE.LinearSRGBColorSpace);
-    // Expected midpoint computed via the same OKLCH helper the
-    // renderer uses, so the test mirrors the production blend.
     const expectedMid = { r: 0, g: 0, b: 0 };
     interpolateOklch(oldColor, newColor, 0.5, expectedMid);
 
     const got = new THREE.Color();
-    const a = findCanopyInstance(trees.group, 0)!; // oldest → OLD
-    const b = findCanopyInstance(trees.group, 1)!; // mid
-    const c = findCanopyInstance(trees.group, 2)!; // newest → NEW
+    const a = findCanopyInstance(trees.group, 0)!; // no previous → mid
+    const b = findCanopyInstance(trees.group, 1)!; // gap=1 → NEW
+    const c = findCanopyInstance(trees.group, 2)!; // gap=30 → OLD
     a.mesh.getColorAt(a.instanceIdx, got);
-    expect(got.r).toBeCloseTo(oldColor.r, 3);
-    expect(got.g).toBeCloseTo(oldColor.g, 3);
-    b.mesh.getColorAt(b.instanceIdx, got);
     expect(got.r).toBeCloseTo(expectedMid.r, 3);
     expect(got.g).toBeCloseTo(expectedMid.g, 3);
-    c.mesh.getColorAt(c.instanceIdx, got);
+    b.mesh.getColorAt(b.instanceIdx, got);
     expect(got.r).toBeCloseTo(newColor.r, 3);
     expect(got.g).toBeCloseTo(newColor.g, 3);
+    c.mesh.getColorAt(c.instanceIdx, got);
+    expect(got.r).toBeCloseTo(oldColor.r, 3);
+    expect(got.g).toBeCloseTo(oldColor.g, 3);
   });
 
   it('all trees render at midpoint values when commits is null', () => {

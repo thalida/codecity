@@ -30,10 +30,13 @@ import type { CommitEntry } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
+  computeCommitGaps,
   ageT,
   sizeT,
+  gapTByIndex,
   type AgeRange,
   type SizeRange,
+  type CommitGaps,
 } from './treeEncoding.js';
 import { interpolateOklch } from './colorInterp.js';
 
@@ -201,6 +204,7 @@ export function createTreeRenderer(
 
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
+  const commitGaps: CommitGaps = computeCommitGaps(commits);
 
   // HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
   // → max height; ageT=1 (newest) → min height. Degenerate cases
@@ -233,14 +237,19 @@ export function createTreeRenderer(
     return DETAIL_LEVELS[idx];
   }
 
-  // COLOR follows AGE: newer commits interpolate toward TREE_COLOR_NEW.
+  // COLOR follows COMMIT-GAP (days since previous commit): short gaps
+  // (rapid-fire bursts of activity) interpolate toward TREE_COLOR_NEW;
+  // long gaps (isolated commits, quiet periods) interpolate toward
+  // TREE_COLOR_OLD. Log-normalized so typical 1–30 day cadences stay
+  // readable when one outlier hits 365 days.
+  //
   // Interpolation is done in OKLCH (shortest hue arc) so the midpoint
   // between distant hues stays saturated — picking purple + teal gives
   // a vivid blue through the middle instead of a muddy gray.
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = ageT(commits[placements[i].commitIndex], ageRange);
+      t = gapTByIndex(commitGaps, placements[i].commitIndex);
     }
     interpolateOklch(oldColor, newColor, t, target);
   }

@@ -13,9 +13,10 @@
 //     are wider. Range in world units (independent of buildings):
 //       TREE_MIN_WIDTH  →  fewest files
 //       TREE_MAX_WIDTH  →  most files
-//   - COLOR (canopy): two-color interpolation by AGE — newer commits
-//     interpolate toward TREE_COLOR_NEW, older toward TREE_COLOR_OLD
-//     (deep dark green).
+//   - COLOR (canopy): two-color interpolation by COMMIT GAP (days
+//     since the previous commit). Short gaps (rapid bursts) lean
+//     toward TREE_COLOR_NEW; long gaps (isolated commits / quiet
+//     periods) lean toward TREE_COLOR_OLD. Log-normalized.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
@@ -87,7 +88,7 @@ export const TREES = map<TreesConfig>({
   TREE_MAX_HEIGHT: 64,
 
   TREE_MIN_WIDTH: 32,
-  TREE_MAX_WIDTH: 128,
+  TREE_MAX_WIDTH: 48,
 
   TRUNK_HEIGHT_FRAC: 0.35,
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
