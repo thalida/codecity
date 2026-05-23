@@ -856,6 +856,7 @@ const EMPTY_MANIFEST: Manifest = {
     descendants_size: 0,
   },
   repo: null,
+  commits: null,
 };
 
 // _applyHljsTheme — swap the <link id="hljs-theme"> element's href so
