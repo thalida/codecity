@@ -126,9 +126,10 @@ export function computeCommitGaps(commits: CommitEntry[] | null): CommitGaps {
   return { gaps, range: { min, max, span: max - min } };
 }
 
-/** Normalize a per-commit gap to [0, 1]. **Short gaps (rapid-fire
- *  commits) map toward t=1**; long gaps (isolated commits) map toward
- *  t=0. Logarithmic so the typical 1–30 day band stays readable when
+/** Normalize a per-commit gap to [0, 1]. **Long gaps (commits that
+ *  come after a quiet period — the "I'm back" moment) map toward
+ *  t=1**; short gaps (routine daily cadence) map toward t=0.
+ *  Logarithmic so the typical 1–30 day band stays readable when
  *  outliers stretch into the hundreds. */
 export function gapT(gap: number, range: GapRange): number {
   if (range.span <= 0) return 0.5;
@@ -136,8 +137,7 @@ export function gapT(gap: number, range: GapRange): number {
   const logMax = Math.log1p(range.max);
   const logSpan = logMax - logMin;
   if (logSpan <= 0) return 0.5;
-  const t = clamp01((Math.log1p(gap) - logMin) / logSpan);
-  return 1 - t;
+  return clamp01((Math.log1p(gap) - logMin) / logSpan);
 }
 
 /** Convenience: gap-T by commit index. Commit 0 has no previous so

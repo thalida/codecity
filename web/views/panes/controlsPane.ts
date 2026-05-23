@@ -455,7 +455,7 @@ function _buildSceneSection(): HTMLElement {
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks commit GAP — short gaps (rapid bursts) = "new" color; long gaps (quiet periods) = "old" color.',
+    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks commit GAP — long gaps ("comeback" commits) = "new" color; short gaps (routine cadence) = "old" color.',
   );
 
   section.appendChild(
@@ -479,11 +479,11 @@ function _buildTreesSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Color by commit gap', [
-      _color('Long-gap color', TREES, 'TREE_COLOR_OLD', {
-        tip: 'Color for commits that follow a long gap from the previous commit (quiet/isolated periods). Live.',
+      _color('Short-gap color', TREES, 'TREE_COLOR_OLD', {
+        tip: 'Color for commits with a short gap from the previous commit — routine daily cadence. Live.',
       }),
-      _color('Short-gap color', TREES, 'TREE_COLOR_NEW', {
-        tip: 'Color for commits with a short gap from the previous commit (rapid bursts of activity). Live.',
+      _color('Long-gap color', TREES, 'TREE_COLOR_NEW', {
+        tip: 'Color for commits that follow a long gap — the "I\'m back" comeback moments. Live.',
       }),
       _color('Trunk color', TREES, 'TREE_TRUNK_COLOR', {
         tip: 'Color of every tree trunk. Live.',

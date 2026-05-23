@@ -295,10 +295,10 @@ describe('createTreeRenderer()', () => {
 
   it('per-instance color interpolates between OLD and NEW endpoints by commit GAP', () => {
     // 3 commits: 0, 1 day later (shortest gap), then 30 days later
-    // (longest gap). After log-norm + inversion:
+    // (longest gap). After log-norm:
     //   - commit 0: no previous → t=0.5 (mid color)
-    //   - commit 1 (gap=1, shortest): t=1 → newColor
-    //   - commit 2 (gap=30, longest): t=0 → oldColor
+    //   - commit 1 (gap=1, shortest): t=0 → OLD color (routine)
+    //   - commit 2 (gap=30, longest): t=1 → NEW color (comeback)
     const commits: CommitEntry[] = [
       { date: '2026-01-01', files: 5 },
       { date: '2026-01-02', files: 5 },
@@ -320,17 +320,17 @@ describe('createTreeRenderer()', () => {
 
     const got = new THREE.Color();
     const a = findCanopyInstance(trees.group, 0)!; // no previous → mid
-    const b = findCanopyInstance(trees.group, 1)!; // gap=1 → NEW
-    const c = findCanopyInstance(trees.group, 2)!; // gap=30 → OLD
+    const b = findCanopyInstance(trees.group, 1)!; // gap=1 → OLD
+    const c = findCanopyInstance(trees.group, 2)!; // gap=30 → NEW
     a.mesh.getColorAt(a.instanceIdx, got);
     expect(got.r).toBeCloseTo(expectedMid.r, 3);
     expect(got.g).toBeCloseTo(expectedMid.g, 3);
     b.mesh.getColorAt(b.instanceIdx, got);
-    expect(got.r).toBeCloseTo(newColor.r, 3);
-    expect(got.g).toBeCloseTo(newColor.g, 3);
-    c.mesh.getColorAt(c.instanceIdx, got);
     expect(got.r).toBeCloseTo(oldColor.r, 3);
     expect(got.g).toBeCloseTo(oldColor.g, 3);
+    c.mesh.getColorAt(c.instanceIdx, got);
+    expect(got.r).toBeCloseTo(newColor.r, 3);
+    expect(got.g).toBeCloseTo(newColor.g, 3);
   });
 
   it('all trees render at midpoint values when commits is null', () => {

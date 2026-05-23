@@ -14,9 +14,10 @@
 //       TREE_MIN_WIDTH  →  fewest files
 //       TREE_MAX_WIDTH  →  most files
 //   - COLOR (canopy): two-color interpolation by COMMIT GAP (days
-//     since the previous commit). Short gaps (rapid bursts) lean
-//     toward TREE_COLOR_NEW; long gaps (isolated commits / quiet
-//     periods) lean toward TREE_COLOR_OLD. Log-normalized.
+//     since the previous commit). Long gaps ("comeback" commits
+//     after a quiet period) lean toward TREE_COLOR_NEW; short gaps
+//     (routine daily cadence) lean toward TREE_COLOR_OLD.
+//     Log-normalized.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 

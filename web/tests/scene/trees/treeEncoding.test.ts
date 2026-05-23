@@ -146,16 +146,15 @@ describe('computeCommitGaps()', () => {
 });
 
 describe('gapT()', () => {
-  it('short gaps return high t (closer to 1)', () => {
+  it('long gaps return high t (closer to 1)', () => {
     const range: GapRange = { min: 1, max: 100, span: 99 };
-    expect(gapT(1, range)).toBeCloseTo(1, 5);
-    expect(gapT(100, range)).toBeCloseTo(0, 5);
+    expect(gapT(1, range)).toBeCloseTo(0, 5);
+    expect(gapT(100, range)).toBeCloseTo(1, 5);
   });
 
   it('log-normalizes so middle gaps land in the middle of [0,1]', () => {
-    // min=1, max=100 → log1p(1)=0.693, log1p(100)=4.615, midpoint log
-    // value ≈ 2.654 → exp(2.654)-1 ≈ 13.2. So gap≈13 should land at t≈0.5
-    // (after inversion).
+    // min=1, max=100 → log1p(1)=0.693, log1p(100)=4.615. Midpoint log
+    // value ≈ 2.654 → exp(2.654)-1 ≈ 13.2. So gap≈13 lands at t≈0.5.
     const range: GapRange = { min: 1, max: 100, span: 99 };
     expect(gapT(13, range)).toBeCloseTo(0.5, 1);
   });
@@ -176,9 +175,9 @@ describe('gapTByIndex()', () => {
     expect(gapTByIndex(cg, 0)).toBe(0.5);
   });
 
-  it('maps shortest gap to ~1 and longest to ~0', () => {
-    expect(gapTByIndex(cg, 1)).toBeCloseTo(1, 5);
-    expect(gapTByIndex(cg, 2)).toBeCloseTo(0, 5);
+  it('maps shortest gap to ~0 and longest to ~1', () => {
+    expect(gapTByIndex(cg, 1)).toBeCloseTo(0, 5);
+    expect(gapTByIndex(cg, 2)).toBeCloseTo(1, 5);
   });
 
   it('out-of-range index returns 0.5', () => {

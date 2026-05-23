@@ -237,11 +237,11 @@ export function createTreeRenderer(
     return DETAIL_LEVELS[idx];
   }
 
-  // COLOR follows COMMIT-GAP (days since previous commit): short gaps
-  // (rapid-fire bursts of activity) interpolate toward TREE_COLOR_NEW;
-  // long gaps (isolated commits, quiet periods) interpolate toward
-  // TREE_COLOR_OLD. Log-normalized so typical 1–30 day cadences stay
-  // readable when one outlier hits 365 days.
+  // COLOR follows COMMIT-GAP (days since previous commit): long gaps
+  // (the "I came back to this project" comeback commits) interpolate
+  // toward TREE_COLOR_NEW; short gaps (routine cadence) interpolate
+  // toward TREE_COLOR_OLD. Log-normalized so typical 1–30 day
+  // cadences stay readable when one outlier hits 365 days.
   //
   // Interpolation is done in OKLCH (shortest hue arc) so the midpoint
   // between distant hues stays saturated — picking purple + teal gives
