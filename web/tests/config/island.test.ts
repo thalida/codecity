@@ -10,9 +10,9 @@ describe('ISLAND config defaults', () => {
   it('GEOMETRY has expected default fields', () => {
     const g = ISLAND_GEOMETRY.get();
     expect(g.ENABLED).toBe(true);
-    expect(g.SIDES).toBe(12);
-    expect(g.IRREGULARITY).toBeCloseTo(0.32, 2);
-    expect(g.TIERS).toBe(4);
+    expect(g.SIDES).toBe(32);
+    expect(g.IRREGULARITY).toBeCloseTo(0.12, 2);
+    expect(g.TIERS).toBe(5);
     expect(g.DEPTH).toBeCloseTo(1.2, 2);
     expect(g.ROUNDNESS).toBeCloseTo(0.7, 2);
     expect(g.GRASS_THICKNESS).toBeCloseTo(0.025, 3);

@@ -46,9 +46,9 @@ export interface IslandAtmosphereConfig {
 
 export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   ENABLED: true,
-  SIDES: 12,
-  IRREGULARITY: 0.32,
-  TIERS: 4,
+  SIDES: 32,
+  IRREGULARITY: 0.12,
+  TIERS: 5,
   DEPTH: 1.2,
   ROUNDNESS: 0.7,      // exp = 2.0 - 0.7*1.93 ≈ 0.649 ≈ the previous hardcoded 0.65
   GRASS_THICKNESS: 0.025, // 2.5% of island radius — visible but subtle band
