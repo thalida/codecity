@@ -82,8 +82,8 @@ export interface TreesConfig {
 export const TREES = map<TreesConfig>({
   TREES_ENABLED: true,
 
-  EDGE_INSET_PERCENT: 2,
-  TREE_DENSITY_FALLOFF: 0,
+  EDGE_INSET_PERCENT: 5,
+  TREE_DENSITY_FALLOFF: 1.5,
 
   TREE_MIN_HEIGHT: 16,
   TREE_MAX_HEIGHT: 64,

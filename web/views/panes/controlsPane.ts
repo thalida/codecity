@@ -486,14 +486,8 @@ function _buildIslandSection(): HTMLElement {
       _color('Soil color', ISLAND_MATERIALS, 'SOIL_COLOR', {
         tip: 'Narrow lip band between the grass top and the cliff face.',
       }),
-      _color('Rock (top)', ISLAND_MATERIALS, 'ROCK_LIGHT', {
-        tip: 'Cliff side band just below the soil lip.',
-      }),
-      _color('Rock (middle)', ISLAND_MATERIALS, 'ROCK_MID', {
-        tip: 'Color of the topmost tier ring; darkens toward Rock (bottom) for deeper tiers.',
-      }),
-      _color('Rock (bottom)', ISLAND_MATERIALS, 'ROCK_DARK', {
-        tip: 'Bottom cap color. Deepest tier rings lerp toward this from Rock (middle).',
+      _color('Rock color', ISLAND_MATERIALS, 'ROCK_COLOR', {
+        tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',
       }),
       _slider('Sun contrast', ISLAND_MATERIALS, 'SUN_CONTRAST', 0, 1.5, 0.05, {
         tip: 'Strength of the shader-baked directional sun term. Higher = more dramatic lit/shadow split between faces.',

@@ -16,20 +16,18 @@ describe('ISLAND config defaults', () => {
     expect(g.DEPTH).toBeCloseTo(1.2, 2);
   });
 
-  it('MATERIALS provides grass + soil + 3-tier rock colors', () => {
+  it('MATERIALS provides grass + soil + single rock color', () => {
     const m = ISLAND_MATERIALS.get();
     expect(m.GRASS_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.SOIL_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(m.ROCK_LIGHT).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(m.ROCK_MID).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(m.ROCK_DARK).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(m.ROCK_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.SUN_CONTRAST).toBeGreaterThan(0);
     expect(m.AMBIENT).toBeGreaterThan(0);
   });
 
   it('UNDERGLOW has master toggle, color, strength, and core controls', () => {
     const u = ISLAND_UNDERGLOW.get();
-    expect(u.ENABLED).toBe(true);
+    expect(u.ENABLED).toBe(false);
     expect(u.COLOR).toBe('#ff5530');
     expect(u.STRENGTH).toBeGreaterThanOrEqual(0);
     expect(u.STRENGTH).toBeLessThanOrEqual(2);

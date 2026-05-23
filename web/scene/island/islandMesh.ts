@@ -82,9 +82,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   let geometry = buildIslandGeometry(params, {
     GRASS: mats.GRASS_COLOR,
     SOIL: mats.SOIL_COLOR,
-    ROCK_LIGHT: mats.ROCK_LIGHT,
-    ROCK_MID: mats.ROCK_MID,
-    ROCK_DARK: mats.ROCK_DARK,
+    ROCK: mats.ROCK_COLOR,
   });
   const material = createIslandMaterial();
   const islandMesh = new THREE.Mesh(geometry, material);
@@ -115,9 +113,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     geometry = buildIslandGeometry(params, {
       GRASS: m.GRASS_COLOR,
       SOIL: m.SOIL_COLOR,
-      ROCK_LIGHT: m.ROCK_LIGHT,
-      ROCK_MID: m.ROCK_MID,
-      ROCK_DARK: m.ROCK_DARK,
+      ROCK: m.ROCK_COLOR,
     });
     islandMesh.geometry = geometry;
     group.position.set(currentBounds.cx, ISLAND_TOP_Y, currentBounds.cz);

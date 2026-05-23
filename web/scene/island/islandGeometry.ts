@@ -109,9 +109,7 @@ export function buildTierRings(
 export interface IslandColors {
   GRASS: string;
   SOIL: string;
-  ROCK_LIGHT: string;
-  ROCK_MID: string;
-  ROCK_DARK: string;
+  ROCK: string;
 }
 
 const GRASS_SIDE_FRAC_OF_DEPTH = 0.10; // grass wraps down the top edge (visible from sides)
@@ -169,9 +167,7 @@ export function buildIslandGeometry(
 
   const grass = new THREE.Color(colors.GRASS);
   const soil = new THREE.Color(colors.SOIL);
-  const rockLight = new THREE.Color(colors.ROCK_LIGHT);
-  const rockMid = new THREE.Color(colors.ROCK_MID);
-  const rockDark = new THREE.Color(colors.ROCK_DARK);
+  const rock = new THREE.Color(colors.ROCK);
 
   function pushVert(p: THREE.Vector3, c: THREE.Color, ao: number): number {
     const idx = positions.length / 3;
@@ -193,81 +189,94 @@ export function buildIslandGeometry(
 
   // ----- GRASS SIDE BAND (grass wraps down the upper edge) -----
   // Visible from any side angle — top 10% of island depth is still green.
-  // Re-push top-ring vertices in their own group so the flat-shading of the
-  // top cap doesn't bleed into the side faces.
-  const grassTopBandIdx = top.map((v) => pushVert(v, grass, 0.92));
+  // Each quad gets its own 4 vertices so computeVertexNormals produces a
+  // single face normal per quad (true flat shading, sharp angle to neighbors).
   const grassBotPositions = top.map((v) => new THREE.Vector3(v.x, -grassSideHeight, v.z));
-  const grassBotIdx = grassBotPositions.map((v) => pushVert(v, grass, 0.85));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    indices.push(grassTopBandIdx[i]!, grassBotIdx[i]!, grassBotIdx[j]!);
-    indices.push(grassTopBandIdx[i]!, grassBotIdx[j]!, grassTopBandIdx[j]!);
+    const tl = pushVert(top[i]!, grass, 0.92);
+    const bl = pushVert(grassBotPositions[i]!, grass, 0.85);
+    const br = pushVert(grassBotPositions[j]!, grass, 0.85);
+    const tr = pushVert(top[j]!, grass, 0.92);
+    indices.push(tl, bl, br);
+    indices.push(tl, br, tr);
   }
 
   // ----- SOIL LIP BAND -----
   // Thin dark band between the grass side and the rock cliff — reads as a
   // soil/dirt transition line. Sits at y=[-grassSideHeight, -(grassSideHeight+soilHeight)].
-  const soilTopIdx = grassBotPositions.map((v) => pushVert(v, soil, 0.9));
+  // Per-quad vertices for flat shading.
   const soilBotPositions = top.map(
     (v) => new THREE.Vector3(v.x, -(grassSideHeight + soilHeight), v.z),
   );
-  const soilBotIdx = soilBotPositions.map((v) => pushVert(v, soil, 0.85));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    indices.push(soilTopIdx[i]!, soilBotIdx[i]!, soilBotIdx[j]!);
-    indices.push(soilTopIdx[i]!, soilBotIdx[j]!, soilTopIdx[j]!);
+    const tl = pushVert(grassBotPositions[i]!, soil, 0.9);
+    const bl = pushVert(soilBotPositions[i]!, soil, 0.85);
+    const br = pushVert(soilBotPositions[j]!, soil, 0.85);
+    const tr = pushVert(grassBotPositions[j]!, soil, 0.9);
+    indices.push(tl, bl, br);
+    indices.push(tl, br, tr);
   }
 
   // ----- SIDE CLIFF BAND -----
-  // From soil-lip bottom down to sideHeight (rock_light). sideHeight already
+  // From soil-lip bottom down to sideHeight (rock). sideHeight already
   // accounts for the full top section, so the cliff top aligns with the soil
-  // lip bottom.
-  const cliffTopIdx = soilBotPositions.map((v) => pushVert(v, rockLight, 0.75));
+  // lip bottom. Per-quad vertices for flat shading.
   const cliffBotPositions = top.map((v) => new THREE.Vector3(v.x, -sideHeight, v.z));
-  const cliffBotIdx = cliffBotPositions.map((v) => pushVert(v, rockLight, 0.65));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    indices.push(cliffTopIdx[i]!, cliffBotIdx[i]!, cliffBotIdx[j]!);
-    indices.push(cliffTopIdx[i]!, cliffBotIdx[j]!, cliffTopIdx[j]!);
+    const tl = pushVert(soilBotPositions[i]!, rock, 0.75);
+    const bl = pushVert(cliffBotPositions[i]!, rock, 0.65);
+    const br = pushVert(cliffBotPositions[j]!, rock, 0.65);
+    const tr = pushVert(soilBotPositions[j]!, rock, 0.75);
+    indices.push(tl, bl, br);
+    indices.push(tl, br, tr);
   }
 
   // ----- TIER BANDS -----
   // From cliff bottom to bottom-cap edge, stitched through each tier ring.
-  // Color darkens per tier from ROCK_LIGHT → ROCK_MID → ROCK_DARK.
+  // Single unified rock color — per-face lighting provides all visual variation.
+  // AO deepens slightly in tier-ring crevices. Per-quad vertices for flat shading.
   let bandTopPositions = cliffBotPositions;
   for (let t = 0; t < params.tiers; t++) {
     const ring = rings[t]!;
-    // Color lerp: tier 0 → ROCK_MID, last tier → ROCK_DARK.
-    const lerpT = params.tiers === 1 ? 1 : t / (params.tiers - 1);
-    const tierColor = new THREE.Color().copy(rockMid).lerp(rockDark, lerpT);
     // AO deepens in tier-ring crevices.
+    const lerpT = params.tiers === 1 ? 1 : t / (params.tiers - 1);
     const ao = 0.55 - 0.15 * lerpT;
-    const ringIdx = ring.map((v) => pushVert(v, tierColor, ao));
-    // Re-push top-row vertices in this band's group so flat-shading
-    // doesn't bleed across the tier seam.
-    const bandTopReIdx = bandTopPositions.map((v) => pushVert(v, tierColor, ao + 0.08));
     for (let i = 0; i < params.sides; i++) {
       const j = (i + 1) % params.sides;
-      indices.push(bandTopReIdx[i]!, ringIdx[i]!, ringIdx[j]!);
-      indices.push(bandTopReIdx[i]!, ringIdx[j]!, bandTopReIdx[j]!);
+      // Each quad gets its own 4 vertices so computeVertexNormals produces
+      // a single face normal per quad (true flat shading, sharp angle to
+      // adjacent quads).
+      const tl = pushVert(bandTopPositions[i]!, rock, ao + 0.08);
+      const bl = pushVert(ring[i]!, rock, ao);
+      const br = pushVert(ring[j]!, rock, ao);
+      const tr = pushVert(bandTopPositions[j]!, rock, ao + 0.08);
+      indices.push(tl, bl, br);
+      indices.push(tl, br, tr);
     }
     bandTopPositions = ring;
   }
 
   // ----- BOTTOM CAP -----
-  // Stitch from last tier ring to bottomRing.
-  const bottomEdgeColor = rockDark;
+  // Stitch from last tier ring to bottomRing (per-quad vertices for flat shading).
+  // Bottom-cap fan stays as-is — adjacent triangles in the fan are coplanar.
   const bottomEdgeAO = 0.35;
   const lastTier = rings[params.tiers - 1]!;
-  const lastTierReIdx = lastTier.map((v) => pushVert(v, bottomEdgeColor, bottomEdgeAO + 0.05));
-  const bottomRingIdx = bottomRing.map((v) => pushVert(v, bottomEdgeColor, bottomEdgeAO));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    indices.push(lastTierReIdx[i]!, bottomRingIdx[i]!, bottomRingIdx[j]!);
-    indices.push(lastTierReIdx[i]!, bottomRingIdx[j]!, lastTierReIdx[j]!);
+    const tl = pushVert(lastTier[i]!, rock, bottomEdgeAO + 0.05);
+    const bl = pushVert(bottomRing[i]!, rock, bottomEdgeAO);
+    const br = pushVert(bottomRing[j]!, rock, bottomEdgeAO);
+    const tr = pushVert(lastTier[j]!, rock, bottomEdgeAO + 0.05);
+    indices.push(tl, bl, br);
+    indices.push(tl, br, tr);
   }
-  // Bottom-cap fan (closes the mesh).
-  const bottomCenter = pushVert(new THREE.Vector3(0, bottomY, 0), bottomEdgeColor, bottomEdgeAO);
+  // Bottom-cap fan (closes the mesh). Adjacent fan triangles are coplanar so
+  // computeVertexNormals gives the correct flat -Y normal without vertex duplication.
+  const bottomRingIdx = bottomRing.map((v) => pushVert(v, rock, bottomEdgeAO));
+  const bottomCenter = pushVert(new THREE.Vector3(0, bottomY, 0), rock, bottomEdgeAO);
   for (let i = 0; i < params.sides; i++) {
     const a = bottomRingIdx[i]!;
     const b = bottomRingIdx[(i + 1) % params.sides]!;

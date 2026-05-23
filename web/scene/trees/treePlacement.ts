@@ -323,11 +323,14 @@ export function placeTrees(
       }
 
       // Island polygon containment: reject candidates outside the visible
-      // island silhouette. The polygon is the same one islandMesh builds for
-      // the top cap, so accepted trees always sit on grass.
-      // NOTE: treePlacement uses (x, y) for the XZ plane; the polygon uses
-      // (x, z). We pass (x, y) as (px, pz) since both represent world XZ.
-      if (islandPolygon && !pointInIslandPolygon(x, y, islandPolygon)) continue;
+      // island silhouette. The polygon is built in LOCAL coords (centered
+      // on origin) but (x, y) are WORLD coords (offset by bounds.cx/cz).
+      // Shift the candidate back into the polygon's frame before testing.
+      // treePlacement uses (x, y) for the XZ plane; the polygon uses (x, z).
+      if (
+        islandPolygon &&
+        !pointInIslandPolygon(x - bounds.cx, y - bounds.cz, islandPolygon)
+      ) continue;
 
       const dx = x - center.x;
       const dy = y - center.y;

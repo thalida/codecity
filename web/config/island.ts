@@ -19,9 +19,7 @@ export interface IslandGeometryConfig {
 export interface IslandMaterialsConfig {
   GRASS_COLOR: string;
   SOIL_COLOR: string;
-  ROCK_LIGHT: string;
-  ROCK_MID: string;
-  ROCK_DARK: string;
+  ROCK_COLOR: string;
   SUN_CONTRAST: number;
   AMBIENT: number;
 }
@@ -55,18 +53,19 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   GRASS_COLOR: '#2a4a3a',
   SOIL_COLOR: '#3a201a',
-  ROCK_LIGHT: '#6b5258',
-  ROCK_MID: '#4e3640',
-  ROCK_DARK: '#241820',
+  ROCK_COLOR: '#6b4e54',  // single earth/rock color — shading provides the visual variation
   SUN_CONTRAST: 0.95,
   AMBIENT: 0.28,
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({
-  ENABLED: true,
+  // Off by default — the HDR core's bloom floods the underside no matter
+  // how low STRENGTH/CORE_INTENSITY get, washing the rock color to red.
+  // Users opt in via Controls if they want the glow.
+  ENABLED: false,
   COLOR: '#ff5530',
   STRENGTH: 0.06,
-  CORE_ENABLED: true,
+  CORE_ENABLED: false,
   CORE_INTENSITY: 0.7,
 });
 

@@ -124,9 +124,7 @@ describe('buildIslandGeometry', () => {
   const colors: IslandColors = {
     GRASS: '#1a2620',
     SOIL: '#2a1f24',
-    ROCK_LIGHT: '#1a1a22',
-    ROCK_MID: '#12121a',
-    ROCK_DARK: '#0a0a10',
+    ROCK: '#0a0a10',
   };
 
   it('returns a closed BufferGeometry with position, normal, color, and ao attributes', () => {
@@ -140,7 +138,7 @@ describe('buildIslandGeometry', () => {
     geom.dispose();
   });
 
-  it('top-cap vertices use GRASS color, bottom vertices use ROCK_DARK', () => {
+  it('top-cap vertices use GRASS color, bottom vertices use ROCK color', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const col = geom.getAttribute('color') as THREE.BufferAttribute;
@@ -152,9 +150,9 @@ describe('buildIslandGeometry', () => {
       if (y < bottomY) { bottomY = y; bottomIdx = i; }
     }
     const grass = new THREE.Color('#1a2620');
-    const dark = new THREE.Color('#0a0a10');
+    const rockColor = new THREE.Color('#0a0a10');
     expect(col.getX(topIdx)).toBeCloseTo(grass.r, 3);
-    expect(col.getX(bottomIdx)).toBeCloseTo(dark.r, 3);
+    expect(col.getX(bottomIdx)).toBeCloseTo(rockColor.r, 3);
     geom.dispose();
   });
 
