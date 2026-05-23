@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import {
   buildTopPolygon,
   buildTierRings,
+  buildIslandGeometry,
   type IslandBuildParams,
+  type IslandColors,
 } from '@/scene/island/islandGeometry.js';
 
 describe('buildTopPolygon', () => {
@@ -107,5 +110,68 @@ describe('buildTierRings', () => {
     const top = buildTopPolygon(baseParams);
     const rings = buildTierRings(top, { ...baseParams, tiers: 3 });
     expect(rings.length).toBe(3);
+  });
+});
+
+describe('buildIslandGeometry', () => {
+  const baseParams: IslandBuildParams = {
+    sides: 12, irregularity: 0.18, tiers: 2, depth: 0.6,
+    halfWidth: 100, halfDepth: 100, seed: 1234,
+  };
+  const colors: IslandColors = {
+    GRASS: '#1a2620',
+    SOIL: '#2a1f24',
+    ROCK_LIGHT: '#1a1a22',
+    ROCK_MID: '#12121a',
+    ROCK_DARK: '#0a0a10',
+  };
+
+  it('returns a closed BufferGeometry with position, normal, color, and ao attributes', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    expect(geom).toBeInstanceOf(THREE.BufferGeometry);
+    expect(geom.getAttribute('position')).toBeDefined();
+    expect(geom.getAttribute('normal')).toBeDefined();
+    expect(geom.getAttribute('color')).toBeDefined();
+    expect(geom.getAttribute('ao')).toBeDefined();
+    expect(geom.getIndex()).not.toBeNull();
+    geom.dispose();
+  });
+
+  it('top-cap vertices use GRASS color, bottom vertices use ROCK_DARK', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+    const col = geom.getAttribute('color') as THREE.BufferAttribute;
+    // Find the highest-y vertex (top cap interior).
+    let topIdx = 0, topY = -Infinity, bottomIdx = 0, bottomY = Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y > topY) { topY = y; topIdx = i; }
+      if (y < bottomY) { bottomY = y; bottomIdx = i; }
+    }
+    const grass = new THREE.Color('#1a2620');
+    const dark = new THREE.Color('#0a0a10');
+    expect(col.getX(topIdx)).toBeCloseTo(grass.r, 3);
+    expect(col.getX(bottomIdx)).toBeCloseTo(dark.r, 3);
+    geom.dispose();
+  });
+
+  it('AO is highest on the top cap and lowest in tier-ring crevices', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    const pos = geom.getAttribute('position') as THREE.BufferAttribute;
+    const ao = geom.getAttribute('ao') as THREE.BufferAttribute;
+    let topAO = 0, bottomAO = 1;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      const aoVal = ao.getX(i);
+      if (y > -0.01) topAO = Math.max(topAO, aoVal);
+      if (y < -50) bottomAO = Math.min(bottomAO, aoVal);
+    }
+    expect(topAO).toBeGreaterThan(bottomAO);
+    geom.dispose();
+  });
+
+  it('disposes cleanly with no exception', () => {
+    const geom = buildIslandGeometry(baseParams, colors);
+    expect(() => geom.dispose()).not.toThrow();
   });
 });

@@ -60,7 +60,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
 
 // Per-tier shrink + depth-fraction tables. Indexed by tier (0 = topmost
 // tier ring, just below the cliff side band). Length must be ≥ max TIERS.
-const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
+export const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
 const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
 
 /**
@@ -91,4 +91,180 @@ export function buildTierRings(
     rings.push(ring);
   }
   return rings;
+}
+
+export interface IslandColors {
+  GRASS: string;
+  SOIL: string;
+  ROCK_LIGHT: string;
+  ROCK_MID: string;
+  ROCK_DARK: string;
+}
+
+const SOIL_FRAC_OF_DEPTH = 0.03; // soil lip band height as fraction of total island depth
+const SIDE_FRAC_OF_DEPTH = 0.30; // cliff side band height
+
+/**
+ * Build the complete island as one closed indexed BufferGeometry.
+ *
+ * Layout (Y descends):
+ *   y=0                 — top cap (grass)
+ *   y=-soilHeight        — soil-lip ring
+ *   y=-sideHeight        — start of cliff side band (rock_light)
+ *   tier 0 ring          — rock_mid (chunky)
+ *   tier N-1 ring        — rock_dark (chunky)
+ *   bottom cap           — blunt cluster (rock_dark)
+ *
+ * Per-vertex colors are baked into the `color` attribute. A separate
+ * `ao` scalar attribute (1.0 → fully lit, ~0.4 → tucked crevice) is
+ * baked too; the island shader multiplies it into the fragment color.
+ *
+ * Per-face normals are computed by triangulating and calling
+ * computeVertexNormals, then welding adjacent triangles of the same
+ * logical face by not sharing vertices across face groups.
+ */
+export function buildIslandGeometry(
+  params: IslandBuildParams,
+  colors: IslandColors,
+): THREE.BufferGeometry {
+  const top = buildTopPolygon(params);
+  const rings = buildTierRings(top, params);
+  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
+  const totalDepth = islandRadius * params.depth;
+  const soilHeight = totalDepth * SOIL_FRAC_OF_DEPTH;
+  const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
+
+  // Bottom cap: small offset polygon (NOT a single point).
+  const bottomShrink = (TIER_SHRINK[params.tiers - 1] ?? 0.3) * 0.6;
+  const bottomY = -totalDepth;
+  const bottomRing: THREE.Vector3[] = top.map(
+    (v) => new THREE.Vector3(v.x * bottomShrink, bottomY, v.z * bottomShrink),
+  );
+
+  // Build vertex pools per face group. We DO NOT share vertices across
+  // groups so each face group gets its own normals (flat-shading per
+  // face group, not per triangle).
+  const positions: number[] = [];
+  const colorsArr: number[] = [];
+  const aoArr: number[] = [];
+  const indices: number[] = [];
+
+  const grass = new THREE.Color(colors.GRASS);
+  const soil = new THREE.Color(colors.SOIL);
+  const rockLight = new THREE.Color(colors.ROCK_LIGHT);
+  const rockMid = new THREE.Color(colors.ROCK_MID);
+  const rockDark = new THREE.Color(colors.ROCK_DARK);
+
+  function pushVert(p: THREE.Vector3, c: THREE.Color, ao: number): number {
+    const idx = positions.length / 3;
+    positions.push(p.x, p.y, p.z);
+    colorsArr.push(c.r, c.g, c.b);
+    aoArr.push(ao);
+    return idx;
+  }
+
+  // ----- TOP CAP (grass) -----
+  // Center vertex + fan to perimeter. AO=1.0 throughout.
+  const topCenter = pushVert(new THREE.Vector3(0, 0, 0), grass, 1.0);
+  const topRingIdx = top.map((v) => pushVert(v, grass, 1.0));
+  for (let i = 0; i < params.sides; i++) {
+    const a = topRingIdx[i]!;
+    const b = topRingIdx[(i + 1) % params.sides]!;
+    indices.push(topCenter, a, b);
+  }
+
+  // ----- SOIL LIP BAND -----
+  // Narrow band between top cap and side cliff.
+  const soilTopIdx = top.map((v) => pushVert(v, soil, 0.9));
+  const soilBotPositions = top.map((v) => new THREE.Vector3(v.x, -soilHeight, v.z));
+  const soilBotIdx = soilBotPositions.map((v) => pushVert(v, soil, 0.85));
+  for (let i = 0; i < params.sides; i++) {
+    const j = (i + 1) % params.sides;
+    indices.push(soilTopIdx[i]!, soilBotIdx[i]!, soilBotIdx[j]!);
+    indices.push(soilTopIdx[i]!, soilBotIdx[j]!, soilTopIdx[j]!);
+  }
+
+  // ----- SIDE CLIFF BAND -----
+  // From soil-lip bottom down to first tier ring. Uses ROCK_LIGHT.
+  const cliffTopIdx = soilBotPositions.map((v) => pushVert(v, rockLight, 0.75));
+  const cliffBotPositions = top.map((v) => new THREE.Vector3(v.x, -sideHeight, v.z));
+  const cliffBotIdx = cliffBotPositions.map((v) => pushVert(v, rockLight, 0.65));
+  for (let i = 0; i < params.sides; i++) {
+    const j = (i + 1) % params.sides;
+    indices.push(cliffTopIdx[i]!, cliffBotIdx[i]!, cliffBotIdx[j]!);
+    indices.push(cliffTopIdx[i]!, cliffBotIdx[j]!, cliffTopIdx[j]!);
+  }
+
+  // ----- TIER BANDS -----
+  // From cliff bottom to bottom-cap edge, stitched through each tier ring.
+  // Color darkens per tier from ROCK_LIGHT → ROCK_MID → ROCK_DARK.
+  let bandTopPositions = cliffBotPositions;
+  for (let t = 0; t < params.tiers; t++) {
+    const ring = rings[t]!;
+    // Color lerp: tier 0 → ROCK_MID, last tier → ROCK_DARK.
+    const lerpT = params.tiers === 1 ? 1 : t / (params.tiers - 1);
+    const tierColor = new THREE.Color().copy(rockMid).lerp(rockDark, lerpT);
+    // AO deepens in tier-ring crevices.
+    const ao = 0.55 - 0.15 * lerpT;
+    const ringIdx = ring.map((v) => pushVert(v, tierColor, ao));
+    // Re-push top-row vertices in this band's group so flat-shading
+    // doesn't bleed across the tier seam.
+    const bandTopReIdx = bandTopPositions.map((v) => pushVert(v, tierColor, ao + 0.08));
+    for (let i = 0; i < params.sides; i++) {
+      const j = (i + 1) % params.sides;
+      indices.push(bandTopReIdx[i]!, ringIdx[i]!, ringIdx[j]!);
+      indices.push(bandTopReIdx[i]!, ringIdx[j]!, bandTopReIdx[j]!);
+    }
+    bandTopPositions = ring;
+  }
+
+  // ----- BOTTOM CAP -----
+  // Stitch from last tier ring to bottomRing.
+  const bottomEdgeColor = rockDark;
+  const bottomEdgeAO = 0.35;
+  const lastTier = rings[params.tiers - 1]!;
+  const lastTierReIdx = lastTier.map((v) => pushVert(v, bottomEdgeColor, bottomEdgeAO + 0.05));
+  const bottomRingIdx = bottomRing.map((v) => pushVert(v, bottomEdgeColor, bottomEdgeAO));
+  for (let i = 0; i < params.sides; i++) {
+    const j = (i + 1) % params.sides;
+    indices.push(lastTierReIdx[i]!, bottomRingIdx[i]!, bottomRingIdx[j]!);
+    indices.push(lastTierReIdx[i]!, bottomRingIdx[j]!, lastTierReIdx[j]!);
+  }
+  // Bottom-cap fan (closes the mesh).
+  const bottomCenter = pushVert(new THREE.Vector3(0, bottomY, 0), bottomEdgeColor, bottomEdgeAO);
+  for (let i = 0; i < params.sides; i++) {
+    const a = bottomRingIdx[i]!;
+    const b = bottomRingIdx[(i + 1) % params.sides]!;
+    // Reversed winding so bottom-cap normal points -Y.
+    indices.push(bottomCenter, b, a);
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setIndex(indices);
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colorsArr, 3));
+  geom.setAttribute('ao', new THREE.Float32BufferAttribute(aoArr, 1));
+  geom.computeVertexNormals();
+  return geom;
+}
+
+/**
+ * Returns the effective bottom-cap ring radius for the given params.
+ * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
+ * stay in sync with the actual bottom geometry without reaching into
+ * internal tier-shrink constants.
+ */
+export function bottomCapRadius(params: IslandBuildParams): number {
+  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
+  const lastTierShrink = TIER_SHRINK[params.tiers - 1] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
+  return islandRadius * lastTierShrink * 0.6;
+}
+
+/**
+ * Returns the world-space Y depth of the bottom cap for given params.
+ * (Positive value; subtract from island-top Y to get world Y.)
+ */
+export function bottomCapDepth(params: IslandBuildParams): number {
+  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
+  return islandRadius * params.depth;
 }
