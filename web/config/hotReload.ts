@@ -271,13 +271,13 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   unsubs.push(listenKeys(TREES, [
     'TREE_MIN_HEIGHT_FLOORS',
     'TREE_MAX_HEIGHT_FLOORS',
-    'TREE_RADIUS_FRAC_OF_HEIGHT',
+    'TREE_MIN_RADIUS_FLOORS',
+    'TREE_MAX_RADIUS_FLOORS',
+    'TRUNK_HEIGHT_FRAC',
+    'TRUNK_RADIUS_FRAC_OF_CANOPY',
     'TREE_SHADING_STRENGTH',
-    'SHAPE_POINTY_ENABLED',
-    'SHAPE_ROUNDED_ENABLED',
-    'SHAPE_FIR_ENABLED',
-    'SHAPE_NARROW_ENABLED',
     'EDGE_INSET_PERCENT',
+    'TREE_DENSITY_FALLOFF',
     'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
   ], scheduleRebuild));
   // GROUND_BUFFER_PERCENT changes the world plane size (and therefore

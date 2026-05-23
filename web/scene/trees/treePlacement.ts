@@ -159,15 +159,34 @@ export function placeTrees(
   const sampleHalfW = Math.max(0, bounds.halfWidth - inset);
   const sampleHalfD = Math.max(0, bounds.halfDepth - inset);
 
+  // Density falloff: trees cluster near the city, fade out toward the
+  // sampling region's edge. `maxFalloffDist` is the largest possible
+  // distance from the city bbox within the sampling region — used to
+  // normalize the per-candidate distance into [0,1].
+  const falloffPower = Math.max(0, cfg.TREE_DENSITY_FALLOFF);
+  const worldMinX = bounds.cx - sampleHalfW;
+  const worldMaxX = bounds.cx + sampleHalfW;
+  const worldMinZ = bounds.cz - sampleHalfD;
+  const worldMaxZ = bounds.cz + sampleHalfD;
+  const dxLeft = Math.max(0, bbox.minX - worldMinX);
+  const dxRight = Math.max(0, worldMaxX - bbox.maxX);
+  const dyTop = Math.max(0, bbox.minY - worldMinZ);
+  const dyBot = Math.max(0, worldMaxZ - bbox.maxY);
+  const maxFalloffDist = Math.sqrt(
+    Math.max(dxLeft, dxRight) ** 2 + Math.max(dyTop, dyBot) ** 2,
+  );
+  const falloffActive = falloffPower > 0 && maxFalloffDist > 0;
+
   // Master seed from bbox dims for determinism.
   let masterSeed = mulberry32(Math.round(bbox.minX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.minY * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxY * 1000));
 
-  // Sample uniformly across the world rectangle until we have
-  // `treeTarget` non-overlapping positions, then sort by distance to
-  // gem and assign commitIndex by order (oldest = closest).
+  // Sample across the world rectangle, applying density falloff and
+  // rect-collision rejection, until we have `treeTarget` non-overlapping
+  // positions. Then sort by distance to gem and assign commitIndex by
+  // order (oldest = closest).
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
   for (let i = 0; i < TREE_MAX_ATTEMPTS && accepted.length < treeTarget; i++) {
     const baseSeed = (masterSeed ^ (i + 1)) | 0;
@@ -186,6 +205,19 @@ export function placeTrees(
         h.minY < y + halfFoot && h.maxY > y - halfFoot,
       );
       if (overlaps) continue;
+    }
+
+    // Density falloff: reject probabilistically based on distance from
+    // the city bbox. Inside the bbox dist=0 → always accept; far away
+    // the acceptance probability drops as (1 - dist/maxDist)^power.
+    if (falloffActive) {
+      const distX = Math.max(bbox.minX - x, 0, x - bbox.maxX);
+      const distY = Math.max(bbox.minY - y, 0, y - bbox.maxY);
+      const dist = Math.sqrt(distX * distX + distY * distY);
+      const tnorm = Math.min(1, dist / maxFalloffDist);
+      const acceptProb = Math.pow(1 - tnorm, falloffPower);
+      const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
+      if (r > acceptProb) continue;
     }
 
     const dx = x - center.x;

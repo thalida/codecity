@@ -467,12 +467,13 @@ function _buildSceneSection(): HTMLElement {
 
 // ─── Trees (Cyberpunk Valley) ──────────────────────────────────────────────
 // Commit-driven trees: one per commit. Oldest commit closest to the gem;
-// newest farthest. Color encodes commit age, height encodes commit size,
-// shape is picked deterministically per tree from the enabled SHAPE_* set.
+// newest farthest. Height encodes commit AGE (older = taller), width
+// encodes commit FILES (more files = wider canopy), color interpolates
+// between TREE_COLOR_OLD and TREE_COLOR_NEW by age.
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one per commit. Oldest closest to the gem, newest farthest out. Color tracks commit age; height tracks commit size; shape is picked deterministically per tree.',
+    'Commit-driven trees — one pyramid per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks age (oldest = deep dark green, newest = light green).',
   );
 
   section.appendChild(
@@ -488,16 +489,19 @@ function _buildTreesSection(): HTMLElement {
       _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
         tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
       }),
+      _slider('Density falloff', TREES, 'TREE_DENSITY_FALLOFF', 0, 5, 0.1, {
+        tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Rebuild on change.',
+      }),
     ]),
   );
 
   section.appendChild(
     _subgroup('Color by age', [
       _color('Old commit color', TREES, 'TREE_COLOR_OLD', {
-        tip: 'Color used for the oldest commit. Newer commits interpolate toward "New commit color". Live.',
+        tip: 'Color of the oldest commit (deep dark green). Newer commits interpolate toward "New commit color". Live.',
       }),
       _color('New commit color', TREES, 'TREE_COLOR_NEW', {
-        tip: 'Color used for the newest commit. Older commits interpolate toward "Old commit color". Live.',
+        tip: 'Color of the newest commit (light green). Older commits interpolate toward "Old commit color". Live.',
       }),
       _color('Trunk color', TREES, 'TREE_TRUNK_COLOR', {
         tip: 'Color of every tree trunk. Live.',
@@ -509,32 +513,29 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Height by files', [
+    _subgroup('Height by age', [
       _slider('Min height (floors)', TREES, 'TREE_MIN_HEIGHT_FLOORS', 1, 10, 1, {
-        tip: 'Height (in building floors) of the smallest commit (fewest files changed). Rebuild on change.',
+        tip: 'Height (in building floors) of the newest commit. Older commits grow taller toward Max. Rebuild on change.',
       }),
       _slider('Max height (floors)', TREES, 'TREE_MAX_HEIGHT_FLOORS', 3, 20, 1, {
-        tip: 'Height (in building floors) of the largest commit (most files changed). Rebuild on change.',
+        tip: 'Height (in building floors) of the oldest commit. Rebuild on change.',
       }),
-      _slider('Canopy radius / height', TREES, 'TREE_RADIUS_FRAC_OF_HEIGHT', 0.1, 1.0, 0.05, {
-        tip: 'Canopy XZ radius as a fraction of canopy height. Multiplied by per-shape radius coefficients. Rebuild on change.',
+      _slider('Trunk height (% of canopy)', TREES, 'TRUNK_HEIGHT_FRAC', 0.05, 1, 0.05, {
+        tip: 'Trunk height as a fraction of canopy height. Larger = more visible trunk relative to canopy. Rebuild on change.',
       }),
     ]),
   );
 
   section.appendChild(
-    _subgroup('Shapes', [
-      _toggle('Pointy', TREES, 'SHAPE_POINTY_ENABLED', {
-        tip: '4-sided cone. Rebuild on change.',
+    _subgroup('Width by files', [
+      _slider('Min canopy width (floors)', TREES, 'TREE_MIN_RADIUS_FLOORS', 0.5, 5, 0.5, {
+        tip: 'Canopy XZ radius (in building floors) of commits with the fewest files changed. Rebuild on change.',
       }),
-      _toggle('Rounded', TREES, 'SHAPE_ROUNDED_ENABLED', {
-        tip: 'Low-poly icosahedron — reads as a blob/lollipop tree. Rebuild on change.',
+      _slider('Max canopy width (floors)', TREES, 'TREE_MAX_RADIUS_FLOORS', 1, 10, 0.5, {
+        tip: 'Canopy XZ radius (in building floors) of commits with the most files changed. Rebuild on change.',
       }),
-      _toggle('Stacked fir', TREES, 'SHAPE_FIR_ENABLED', {
-        tip: 'Two cones stacked — reads as a fir/pine. Rebuild on change.',
-      }),
-      _toggle('Narrow', TREES, 'SHAPE_NARROW_ENABLED', {
-        tip: 'Tall narrow cone — reads as a cypress/poplar. Rebuild on change.',
+      _slider('Trunk thickness (% of canopy)', TREES, 'TRUNK_RADIUS_FRAC_OF_CANOPY', 0.05, 0.5, 0.01, {
+        tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
       }),
     ]),
   );
