@@ -212,6 +212,39 @@ class GitHistoryCacheTests(CacheTestBase):
         loaded_created, loaded_modified, loaded_commits = loaded
         self.assertEqual(loaded_commits, commits)
 
+    def test_git_history_cache_drops_malformed_commits(self):
+        """Per-commit validator silently drops malformed entries
+        (matches _coerce_file_entry's policy for the file cache)."""
+        root = Path("/some/repo")
+        path = _git_history_cache_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+            "root": str(root),
+            "head_sha": "abc",
+            "git_window": "3.years.ago",
+            "created": {},
+            "modified": {},
+            "commits": [
+                {"date": "2024-01-01", "files": 3},           # valid
+                "not a dict",                                  # dropped: not a dict
+                {"date": 12345, "files": 5},                   # dropped: date not str
+                {"date": "2024-02-01"},                        # dropped: missing files
+                {"date": "2024-03-01", "files": True},         # dropped: files is bool
+                {"files": 4},                                  # dropped: missing date
+                {"date": "2024-04-01", "files": 7},            # valid
+            ],
+        }), encoding="utf-8")
+        loaded = cache_mod.cache_load_git_history(root, "abc", "3.years.ago")
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        _created, _modified, commits = loaded
+        # Only the two well-formed entries survive.
+        self.assertEqual(commits, [
+            {"date": "2024-01-01", "files": 3},
+            {"date": "2024-04-01", "files": 7},
+        ])
+
     def test_git_history_cache_v2_returns_none(self):
         """A v2 cache file (no commits field) must be treated as a miss
         so the new commits collection runs."""
