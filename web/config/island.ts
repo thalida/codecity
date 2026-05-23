@@ -56,7 +56,7 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   GRASS_COLOR: '#18341f',         // deep forest green
   ROCK_COLOR: '#71778e',          // cool slate/granite
-  HEMI_SKY_COLOR: '#e8d4b8',      // slightly less peachy, more cream — earthier
+  HEMI_SKY_COLOR: '#e8f6fc',      // cool pale sky-blue from-above tone
   HEMI_GROUND_COLOR: '#0c0844',   // deep night-blue from-below tone
 });
 
