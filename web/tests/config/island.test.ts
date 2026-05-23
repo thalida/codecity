@@ -14,8 +14,8 @@ describe('ISLAND config defaults', () => {
     expect(g.IRREGULARITY).toBeCloseTo(0.32, 2);
     expect(g.TIERS).toBe(4);
     expect(g.DEPTH).toBeCloseTo(1.2, 2);
-    expect(g.BLUNTNESS).toBeGreaterThanOrEqual(0);
-    expect(g.BLUNTNESS).toBeLessThanOrEqual(1);
+    expect(g.ROUNDNESS).toBeCloseTo(0.7, 2);
+    expect(g.GRASS_THICKNESS).toBeCloseTo(0.025, 3);
   });
 
   it('MATERIALS provides grass + rock + hemispheric lighting colors', () => {

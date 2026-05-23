@@ -14,7 +14,8 @@ export interface IslandGeometryConfig {
   IRREGULARITY: number; // 0.0–0.5
   TIERS: number;        // 1–4
   DEPTH: number;        // fraction of island radius
-  BLUNTNESS: number;    // 0–1: 0 = pointed teardrop tip, 1 = wide egg-like rounded base
+  ROUNDNESS: number;    // 0–1; controls underside taper exponent
+  GRASS_THICKNESS: number; // 0–0.1; vertical grass band as fraction of island radius
 }
 
 export interface IslandMaterialsConfig {
@@ -48,7 +49,8 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   IRREGULARITY: 0.32,
   TIERS: 4,
   DEPTH: 1.2,
-  BLUNTNESS: 0.4,
+  ROUNDNESS: 0.7,      // exp = 2.0 - 0.7*1.93 ≈ 0.649 ≈ the previous hardcoded 0.65
+  GRASS_THICKNESS: 0.025, // 2.5% of island radius — visible but subtle band
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({

@@ -17,7 +17,8 @@ describe('buildTopPolygon', () => {
     halfWidth: 100,
     halfDepth: 100,
     seed: 1234,
-    bluntness: 0.4,
+    roundness: 0.7,
+    grassThickness: 0.025,
   };
 
   it('returns SIDES vertices in CCW order on the XZ plane (as viewed from above)', () => {
@@ -78,7 +79,7 @@ describe('buildIslandGeometry', () => {
   const baseParams: IslandBuildParams = {
     sides: 12, irregularity: 0.18, tiers: 2, depth: 0.6,
     halfWidth: 100, halfDepth: 100, seed: 1234,
-    bluntness: 0.4,
+    roundness: 0.7, grassThickness: 0.025,
   };
   const colors: IslandColors = {
     GRASS: '#1a2620',
@@ -206,7 +207,8 @@ describe('pointInIslandPolygon', () => {
     halfWidth: 100,
     halfDepth: 100,
     seed: 42,
-    bluntness: 0.4,
+    roundness: 0.7,
+    grassThickness: 0.025,
   });
 
   it('origin is inside', () => {

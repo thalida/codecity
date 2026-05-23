@@ -473,8 +473,11 @@ function _buildIslandSection(): HTMLElement {
       _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 2.0, 0.05, {
         tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
       }),
-      _slider('Bluntness', ISLAND_GEOMETRY, 'BLUNTNESS', 0, 1, 0.05, {
-        tip: 'Shape of the bottom. 0 = pointed teardrop; 1 = wide rounded base. 0.5 = smooth rounded ending.',
+      _slider('Roundness', ISLAND_GEOMETRY, 'ROUNDNESS', 0, 1, 0.05, {
+        tip: 'Body shape. 0 = pointed taper to a tip; 1 = very rounded bowl. 0.7 = the current default smooth-rounded shape.',
+      }),
+      _slider('Grass thickness', ISLAND_GEOMETRY, 'GRASS_THICKNESS', 0, 0.1, 0.005, {
+        tip: 'Vertical thickness of the green grass layer as a fraction of island radius. 0 = no grass band, just the flat top.',
       }),
     ]),
   );

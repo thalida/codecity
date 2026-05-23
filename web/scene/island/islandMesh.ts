@@ -50,7 +50,8 @@ function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildPa
     halfWidth: bounds.halfWidth,
     halfDepth: bounds.halfDepth,
     seed: seedFromBounds,
-    bluntness: g.BLUNTNESS,
+    roundness: g.ROUNDNESS,
+    grassThickness: g.GRASS_THICKNESS,
   };
 }
 
