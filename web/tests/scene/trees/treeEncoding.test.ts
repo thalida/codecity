@@ -1,0 +1,187 @@
+// treeEncoding.test.ts — pure normalization helpers shared by the
+// tree renderer: age (commit date → [0,1]), size (file count → [0,1]),
+// and commit gap (days since previous commit, log-normalized → [0,1]).
+
+import { describe, it, expect } from 'vitest';
+import {
+  computeAgeRange,
+  computeSizeRange,
+  computeCommitGaps,
+  ageT,
+  sizeT,
+  gapT,
+  gapTByIndex,
+  type AgeRange,
+  type SizeRange,
+  type GapRange,
+} from '@/scene/trees/treeEncoding.js';
+import type { CommitEntry } from '@/types';
+
+const commits: CommitEntry[] = [
+  { date: '2026-01-01', files: 1 },
+  { date: '2026-01-11', files: 5 },
+  { date: '2026-01-21', files: 9 },
+];
+
+describe('computeAgeRange()', () => {
+  it('returns oldest and newest epoch days', () => {
+    const r = computeAgeRange(commits);
+    expect(r.span).toBeGreaterThan(0);
+    expect(r.oldest).toBeLessThan(r.newest);
+  });
+
+  it('span = 0 when commits is null', () => {
+    expect(computeAgeRange(null).span).toBe(0);
+  });
+
+  it('span = 0 when commits is empty', () => {
+    expect(computeAgeRange([]).span).toBe(0);
+  });
+
+  it('span = 0 when all commits share a date', () => {
+    const same: CommitEntry[] = [
+      { date: '2026-01-01', files: 1 },
+      { date: '2026-01-01', files: 5 },
+    ];
+    expect(computeAgeRange(same).span).toBe(0);
+  });
+});
+
+describe('computeSizeRange()', () => {
+  it('returns min and max file counts', () => {
+    const r = computeSizeRange(commits);
+    expect(r.min).toBe(1);
+    expect(r.max).toBe(9);
+    expect(r.span).toBe(8);
+  });
+
+  it('span = 0 when commits is null', () => {
+    expect(computeSizeRange(null).span).toBe(0);
+  });
+
+  it('span = 0 when commits is empty', () => {
+    expect(computeSizeRange([]).span).toBe(0);
+  });
+
+  it('span = 0 when all commits have equal file counts', () => {
+    const same: CommitEntry[] = [
+      { date: '2026-01-01', files: 4 },
+      { date: '2026-01-02', files: 4 },
+    ];
+    expect(computeSizeRange(same).span).toBe(0);
+  });
+});
+
+describe('ageT()', () => {
+  it('returns 0 for the oldest commit', () => {
+    const range = computeAgeRange(commits);
+    expect(ageT(commits[0], range)).toBe(0);
+  });
+
+  it('returns 1 for the newest commit', () => {
+    const range = computeAgeRange(commits);
+    expect(ageT(commits[2], range)).toBe(1);
+  });
+
+  it('returns 0.5 for the middle commit (commits are 10 days apart)', () => {
+    const range = computeAgeRange(commits);
+    expect(ageT(commits[1], range)).toBeCloseTo(0.5, 5);
+  });
+
+  it('returns 0.5 when the range has zero span', () => {
+    const zero: AgeRange = { oldest: 0, newest: 0, span: 0 };
+    expect(ageT({ date: '2026-01-01', files: 1 }, zero)).toBe(0.5);
+  });
+
+  it('clamps out-of-range dates to [0,1]', () => {
+    const range = computeAgeRange(commits);
+    expect(ageT({ date: '2025-01-01', files: 1 }, range)).toBe(0);
+    expect(ageT({ date: '2027-01-01', files: 1 }, range)).toBe(1);
+  });
+});
+
+describe('sizeT()', () => {
+  it('returns 0 for the smallest commit', () => {
+    const range = computeSizeRange(commits);
+    expect(sizeT(commits[0], range)).toBe(0);
+  });
+
+  it('returns 1 for the largest commit', () => {
+    const range = computeSizeRange(commits);
+    expect(sizeT(commits[2], range)).toBe(1);
+  });
+
+  it('returns 0.5 when the range has zero span', () => {
+    const zero: SizeRange = { min: 0, max: 0, span: 0 };
+    expect(sizeT({ date: '2026-01-01', files: 1 }, zero)).toBe(0.5);
+  });
+});
+
+describe('computeCommitGaps()', () => {
+  it('returns gaps[0] = 0 and per-commit deltas in days', () => {
+    const cg = computeCommitGaps([
+      { date: '2026-01-01', files: 1 },
+      { date: '2026-01-04', files: 1 }, // gap = 3
+      { date: '2026-01-05', files: 1 }, // gap = 1
+    ]);
+    expect(cg.gaps).toEqual([0, 3, 1]);
+    expect(cg.range.min).toBe(1);
+    expect(cg.range.max).toBe(3);
+    expect(cg.range.span).toBe(2);
+  });
+
+  it('empty / single commit collapses the range', () => {
+    expect(computeCommitGaps(null).range.span).toBe(0);
+    expect(computeCommitGaps([]).range.span).toBe(0);
+    expect(computeCommitGaps([{ date: '2026-01-01', files: 1 }]).range.span).toBe(0);
+  });
+
+  it('clamps backwards-dated commits to a non-negative gap', () => {
+    const cg = computeCommitGaps([
+      { date: '2026-01-10', files: 1 },
+      { date: '2026-01-05', files: 1 }, // earlier → safe gap = 0
+    ]);
+    expect(cg.gaps[1]).toBe(0);
+  });
+});
+
+describe('gapT()', () => {
+  it('long gaps return high t (closer to 1)', () => {
+    const range: GapRange = { min: 1, max: 100, span: 99 };
+    expect(gapT(1, range)).toBeCloseTo(0, 5);
+    expect(gapT(100, range)).toBeCloseTo(1, 5);
+  });
+
+  it('log-normalizes so middle gaps land in the middle of [0,1]', () => {
+    // min=1, max=100 → log1p(1)=0.693, log1p(100)=4.615. Midpoint log
+    // value ≈ 2.654 → exp(2.654)-1 ≈ 13.2. So gap≈13 lands at t≈0.5.
+    const range: GapRange = { min: 1, max: 100, span: 99 };
+    expect(gapT(13, range)).toBeCloseTo(0.5, 1);
+  });
+
+  it('returns 0.5 when the range has zero span', () => {
+    expect(gapT(5, { min: 5, max: 5, span: 0 })).toBe(0.5);
+  });
+});
+
+describe('gapTByIndex()', () => {
+  const cg = computeCommitGaps([
+    { date: '2026-01-01', files: 1 },
+    { date: '2026-01-02', files: 1 }, // gap = 1 (shortest)
+    { date: '2026-02-01', files: 1 }, // gap = 30 (longest)
+  ]);
+
+  it('returns 0.5 for commit 0 (no previous commit, no gap signal)', () => {
+    expect(gapTByIndex(cg, 0)).toBe(0.5);
+  });
+
+  it('maps shortest gap to ~0 and longest to ~1', () => {
+    expect(gapTByIndex(cg, 1)).toBeCloseTo(0, 5);
+    expect(gapTByIndex(cg, 2)).toBeCloseTo(1, 5);
+  });
+
+  it('out-of-range index returns 0.5', () => {
+    expect(gapTByIndex(cg, -1)).toBe(0.5);
+    expect(gapTByIndex(cg, 99)).toBe(0.5);
+  });
+});

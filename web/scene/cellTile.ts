@@ -28,7 +28,7 @@ export interface CellTile {
   detailMesh: THREE.InstancedMesh;
   impostorMesh: THREE.InstancedMesh;
   labelMesh: THREE.InstancedMesh | null;
-  streetMesh: THREE.Mesh | null; // assembled separately in Task 8
+  streetMesh: THREE.Mesh | null; // assembled separately by cellAssembly
 
   buildings: (Building | null)[];
   tier: LodTier;

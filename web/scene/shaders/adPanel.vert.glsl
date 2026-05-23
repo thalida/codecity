@@ -24,7 +24,16 @@ out vec3 vColor;
 out float vTextureFade;
 
 void main() {
-  vUv = uv;
+  // Flip V to compensate for the data orientation in adPanelTextureArray.
+  // uploadImage/uploadCanvas populate the DataArrayTexture via
+  // ctx.getImageData(), which returns canvas rows top-down (row 0 = top
+  // of the image). WebGL's UV origin is at the bottom, so without a flip
+  // the image's top row would render at the bottom of the quad (image
+  // appears upside-down). Three.js's Texture.flipY (which normally
+  // handles this for HTMLImage/HTMLCanvas uploads) has no effect on
+  // DataTexture / DataArrayTexture — typed-array uploads bypass
+  // UNPACK_FLIP_Y_WEBGL — so the flip has to happen here.
+  vUv = vec2(uv.x, 1.0 - uv.y);
   vLayerIndex = iLayerIndex;
   vColor = iColor;
   vTextureFade = iTextureFade;

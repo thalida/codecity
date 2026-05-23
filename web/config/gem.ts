@@ -14,6 +14,10 @@ export interface GemSizingConfig {
   MIN_RADIUS: number;
   HOVER_LIFT_FRAC: number;
   CLEARANCE_AS_GEM_WIDTH_FRAC: number;
+  /** No-tree halo around the gem. Trees scattered within this radius
+   *  (world units) of the gem center are rejected during placement.
+   *  0 disables the buffer. */
+  TREE_BUFFER_RADIUS: number;
 }
 
 export const GEM_SIZING = map<GemSizingConfig>({
@@ -24,6 +28,7 @@ export const GEM_SIZING = map<GemSizingConfig>({
   // expressed as a multiple of the gem's diameter so the plaza always
   // scales with the gem rather than living in absolute world units.
   CLEARANCE_AS_GEM_WIDTH_FRAC: 1.0,
+  TREE_BUFFER_RADIUS: 200,
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────

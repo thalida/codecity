@@ -52,7 +52,11 @@ import {
   // Fly mode
   FLY_CONTROLS,
 } from '@/config/index.js';
-import { LIGHTING } from '@/config/lighting.js';
+import { SKY, SKY_STARS } from '@/config/sky.js';
+import { WORLD } from '@/config/world.js';
+import { TREES } from '@/config/trees.js';
+import { BUSHES } from '@/config/bushes.js';
+import { FOOTPRINT } from '@/config/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
 import { ANIMATION_TIMING } from '@/config/animation.js';
@@ -153,13 +157,22 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // See _section() and resetCollapsed() below.
   body.appendChild(_buildShortcutsSection());
   body.appendChild(_buildUpdatesSection());
+  // Scene now subsumes the old Sky section — every backdrop-y knob
+  // (sky color, stars, ground haze, sun lighting) lives in collapsible
+  // subgroups inside one Scene section.
   body.appendChild(_buildSceneSection());
-  body.appendChild(_buildLayoutSection());
+  // The old Layout section was folded away: street width tiers + street
+  // spacing live under Streets, building size lives under Buildings.
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
+  // Trees + Bushes sit after Gem (the world's anchor) so the panel
+  // reads structural → decorative top-to-bottom.
+  body.appendChild(_buildTreesSection());
+  body.appendChild(_buildBushesSection());
+  // Effects now also owns the LOD / Rendering knobs as a collapsible
+  // subgroup — they're all "shared post-FX & render-tier" dials.
   body.appendChild(_buildEffectsSection());
-  body.appendChild(_buildRenderingSection());
   body.appendChild(_buildFilePreviewSection());
   if (
     typeof opts.onRunCollisionCheck === 'function' ||
@@ -344,24 +357,80 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 }
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
-// Sky / ground void color, atmospheric haze, and the directional sun
-// lighting that drives the building shader (azimuth, elevation, ambient,
-// sun contrast).
+// Everything that paints behind / around the city:
+//   Sky          — the procedural icosphere (cyberpunk gradient + stars)
+//   Ground       — the world floor mesh anchored at the gem
+//   Stars        — hashed star field + twinkle (lives inside the sky shader)
+//   Ground haze  — atmospheric fog mix on the building shader
+//   Sun lighting — directional sun (azimuth, elevation, ambient, contrast)
+// Each is a collapsible subgroup so the section stays scannable. The
+// old SCENE_COLORS.GROUND row is folded into Sky as the disabled-fallback
+// color (it only shows when SKY.ENABLED is off — SKY's own colors paint
+// the sphere otherwise).
 function _buildSceneSection(): HTMLElement {
-  const section = _section('Scene', 'Sky, atmosphere, and sun lighting.');
-
-  section.appendChild(
-    _subgroup('Sky & ground', [
-      _color('Sky / ground color', SCENE_COLORS, 'GROUND', {
-        tip: 'Color shown behind buildings + streets. Live.',
-      }),
-    ])
+  const section = _section(
+    'Scene',
+    'Sky, stars, ground, and atmosphere — everything that frames the city. (Sun lighting is fixed in code.)',
   );
 
   section.appendChild(
-    _subgroup('Ground haze', [
+    _collapsibleSubgroup('scene-sky', 'Sky', () => [
+      _toggle('Enabled', SKY, 'ENABLED', {
+        tip: 'Master toggle. When off the sky sphere is hidden and the Fallback color below paints the void.',
+      }),
+      _color('Sky color', SKY, 'COLOR', {
+        tip: 'Solid color painted across the entire sphere. Past the world floor edge the camera sees this color directly, so the plane reads as floating in space.',
+      }),
+      _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
+        tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-stars', 'Stars', () => [
+      _toggle('Enabled', SKY_STARS, 'ENABLED', {
+        tip: 'When off, no stars are sampled (also disables twinkle).',
+      }),
+      _slider('Density', SKY_STARS, 'DENSITY', 0, 0.02, 0.0005, {
+        tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
+      }),
+      _slider('Size', SKY_STARS, 'SIZE', 0.02, 0.5, 0.01, {
+        tip: 'Star spot radius as a fraction of the cell. 0.15 default. Larger = chunkier stars; smaller = sharper pinpoints (may sub-pixel at distance).',
+      }),
+      _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
+        tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
+      }),
+      _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
+        tip: 'When off, stars render at fixed brightness (no animation).',
+      }),
+      _slider('Twinkle speed', SKY_STARS, 'TWINKLE_SPEED', 0, 3, 0.05, {
+        tip: 'Multiplier on uTime in the per-star sine. Higher = faster twinkle.',
+      }),
+      _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
+        tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-ground', 'Ground', () => [
+      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
+        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
+      }),
+      _color('Color', WORLD, 'GROUND_COLOR', {
+        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
+      }),
+      _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
+        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-haze', 'Ground haze', () => [
       _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
-        tip: 'Off → no haze (the shader\'s fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.',
+        tip: "Off → no haze (the shader's fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.",
       }),
       _color('Color', SCENE_COLORS, 'FOG_COLOR', {
         tip: 'Tint that building bases mix toward. Match the sky/ground for a seamless horizon.',
@@ -372,24 +441,115 @@ function _buildSceneSection(): HTMLElement {
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
       }),
-    ])
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Trees (Cyberpunk Valley) ──────────────────────────────────────────────
+// Commit-driven trees: one per commit. Oldest commit closest to the gem;
+// newest farthest. Height encodes commit AGE (older = taller), width
+// encodes commit FILES (more files = wider canopy), color interpolates
+// between TREE_COLOR_OLD and TREE_COLOR_NEW by age.
+function _buildTreesSection(): HTMLElement {
+  const section = _section(
+    'Trees',
+    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks commit GAP — long gaps ("comeback" commits) = "new" color; short gaps (routine cadence) = "old" color.',
   );
 
   section.appendChild(
-    _subgroup('Sun lighting', [
-      _slider('Sun azimuth (°)', LIGHTING, 'SUN_AZIMUTH_DEG', 0, 360, 1, {
-        tip: 'Compass bearing of the sun. 0° = south, increases clockwise (east).',
+    _subgroup('Visibility', [
+      _toggle('Trees enabled', TREES, 'TREES_ENABLED', {
+        tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
       }),
-      _slider('Sun elevation (°)', LIGHTING, 'SUN_ELEVATION_DEG', 0, 90, 1, {
-        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Placement', [
+      _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
+        tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
       }),
-      _slider('Ambient light', LIGHTING, 'AMBIENT', 0, 1, 0.01, {
-        tip: 'Base illumination on faces facing away from the sun.',
+      _slider('Density falloff', TREES, 'TREE_DENSITY_FALLOFF', 0, 50, 0.1, {
+        tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Very high values (>20) push almost every tree into a dense ring right at the city edge. Rebuild on change.',
       }),
-      _slider('Sun contrast', LIGHTING, 'SUN_CONTRAST', 0, 1, 0.01, {
-        tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Color by commit gap', [
+      _color('Short-gap color', TREES, 'TREE_COLOR_OLD', {
+        tip: 'Color for commits with a short gap from the previous commit — routine daily cadence. Live.',
       }),
-    ])
+      _color('Long-gap color', TREES, 'TREE_COLOR_NEW', {
+        tip: 'Color for commits that follow a long gap — the "I\'m back" comeback moments. Live.',
+      }),
+      _color('Trunk color', TREES, 'TREE_TRUNK_COLOR', {
+        tip: 'Color of every tree trunk. Live.',
+      }),
+      _slider('Shading strength', TREES, 'TREE_SHADING_STRENGTH', 0, 1, 0.05, {
+        tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Height by age', [
+      _slider('Min height', TREES, 'TREE_MIN_HEIGHT', 4, 400, 4, {
+        tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',
+      }),
+      _slider('Max height', TREES, 'TREE_MAX_HEIGHT', 16, 800, 4, {
+        tip: 'Height (world units) of the oldest commit. Independent of building dimensions. Rebuild on change.',
+      }),
+      _slider('Trunk height (% of canopy)', TREES, 'TRUNK_HEIGHT_FRAC', 0.05, 1, 0.05, {
+        tip: 'Trunk height as a fraction of canopy height. Larger = more visible trunk relative to canopy. Rebuild on change.',
+      }),
+      _slider('Canopy-trunk overlap (% of trunk)', TREES, 'CANOPY_TRUNK_OVERLAP_FRAC', 0, 1, 0.05, {
+        tip: 'How much of the trunk top is hidden inside the canopy. 0 = canopy bottom point touches trunk top. 1 = canopy bottom reaches the ground, hiding the entire trunk. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Width by files', [
+      _slider('Min canopy width', TREES, 'TREE_MIN_WIDTH', 2, 400, 2, {
+        tip: 'Canopy diameter (world units) of commits with the fewest files changed. Independent of building dimensions. Rebuild on change.',
+      }),
+      _slider('Max canopy width', TREES, 'TREE_MAX_WIDTH', 4, 600, 2, {
+        tip: 'Canopy diameter (world units) of commits with the most files changed. Independent of building dimensions. Rebuild on change.',
+      }),
+      _slider('Trunk thickness (% of canopy)', TREES, 'TRUNK_RADIUS_FRAC_OF_CANOPY', 0.05, 0.5, 0.01, {
+        tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Bushes (Cyberpunk Valley) ─────────────────────────────────────────────
+// Decorative scatter — emissive icosahedra that push into HDR bloom.
+function _buildBushesSection(): HTMLElement {
+  const section = _section(
+    'Bushes',
+    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.',
+  );
+
+  section.appendChild(
+    _subgroup('Visibility', [
+      _toggle('Bushes enabled', BUSHES, 'BUSHES_ENABLED', {
+        tip: 'Master toggle. Enabling triggers a placement rebuild; disabling hides the mesh without a rebuild.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Colors', [
+      _slider('Emission boost', BUSHES, 'BUSH_EMISSION_BOOST', 0.5, 5, 0.1, {
+        tip: 'Multiplier applied to bush colors before the HDR bloom pass. Values above 1.0 push into bloom; below 1.0 dims them toward matte.',
+      }),
+    ]),
   );
 
   return section;
@@ -400,8 +560,12 @@ function _buildSceneSection(): HTMLElement {
 // per-file building size mapping. These were split across Streets +
 // Buildings before; consolidating them here makes "how the city is
 // packed" easy to find in one place.
-function _buildLayoutSection(): HTMLElement {
-  const section = _section('Layout', 'How streets and buildings are packed.');
+// ─── Streets ───────────────────────────────────────────────────────────────
+function _buildStreetsSection(): HTMLElement {
+  const section = _section(
+    'Streets',
+    'Road network sizing + packing, plus the asphalt, sidewalks, labels, footprint, and route-highlight visuals that paint on top.'
+  );
 
   // Width tiers — step-function mapping a directory's descendant count to
   // its street width. One slider per tier so the user can fatten or thin
@@ -424,42 +588,34 @@ function _buildLayoutSection(): HTMLElement {
     ])
   );
 
-  section.appendChild(
-    _subgroup('Building size', [
-      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
-        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
-      }),
-      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
-        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
-      }),
-      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
-        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
-      }),
-      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
-      }),
-      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
-      }),
-    ])
-  );
-
-  return section;
-}
-
-// ─── Streets ───────────────────────────────────────────────────────────────
-function _buildStreetsSection(): HTMLElement {
-  const section = _section(
-    'Streets',
-    'Asphalt, sidewalks, street labels, and the neon path that highlights the route from the root gem to the selected file.'
-  );
-
   // Asphalt — color only. Width is a designer-level geometry knob; length
   // is derived to keep the cap circles concentric.
   section.appendChild(
     _subgroup('Asphalt', [
       _color('Color', ASPHALT, 'COLOR', {
         tip: 'Color of the inner road stripe. Live.',
+      }),
+    ])
+  );
+
+  // City footprint — the asphalt slab ringing the city silhouette, built
+  // from every layout rect (buildings + streets + paths) inflated outward
+  // by HALO_WIDTH. Defaults to the same color as Asphalt above so streets
+  // bleed seamlessly into the slab. HALO_WIDTH change triggers a rebuild
+  // (matrix data); COLOR + ENABLED are hot.
+  section.appendChild(
+    _subgroup('City footprint', [
+      _toggle('Enabled', FOOTPRINT, 'ENABLED', {
+        tip: 'When off, the slab is hidden (still built; group.visible = false) and tree/bush placement no longer rejects candidates inside the halo.',
+      }),
+      _color('Color', FOOTPRINT, 'COLOR', {
+        tip: 'Slab color. Near-black by default so the apron reads as a darker frame around the city against the night-scene floor.',
+      }),
+      _number('Halo width', FOOTPRINT, 'HALO_WIDTH', 0, 256, 4, {
+        tip: 'World units of asphalt added outward around every layout rect. ~32 (one narrow-street width) is the design default; above 256 the halo dwarfs the city and reads as a paved plaza.',
+      }),
+      _slider('Halo radius × halo width', FOOTPRINT, 'CORNER_RADIUS', 0, 2, 0.05, {
+        tip: 'Corner radius as a fraction of Halo width above (0 = sharp, 1 = one halo width, 2 = two). World-units radius pushed to the shader = this × Halo width. Where rects overlap heavily the rounding is hidden by neighbors; the radius only shows where a rect ends at the silhouette.',
       }),
     ])
   );
@@ -558,7 +714,25 @@ function _buildBuildingsSection(): HTMLElement {
     'Per-file boxes — height from line count, width from byte size, color from extension + age.'
   );
 
-  // (Building size — floors / width / path — lives in the Layout section now.)
+  section.appendChild(
+    _subgroup('Building size', [
+      _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
+        tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
+      }),
+      _number('Floor height', BUILDING_DIMENSIONS, 'FLOOR_HEIGHT', 1, 50, 1, {
+        tip: 'Vertical world units per floor (multiplier on the floor count above). Default is 10; above 50 the floor-to-width aspect breaks readability.',
+      }),
+      _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
+        tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
+      }),
+      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
+      }),
+      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
+        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
+      }),
+    ])
+  );
 
   section.appendChild(
     _collapsibleSubgroup('buildings-transitions', 'Transitions', () => [
@@ -794,6 +968,9 @@ function _buildGemSection(): HTMLElement {
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
         tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
       }),
+      _slider('Tree buffer (world units)', GEM_SIZING, 'TREE_BUFFER_RADIUS', 0, 400, 4, {
+        tip: 'No-tree halo around the gem. Trees scattered within this radius of the gem center are rejected during placement. 0 disables the buffer. Rebuild on change.',
+      }),
     ])
   );
 
@@ -859,7 +1036,10 @@ function _buildGemSection(): HTMLElement {
 
 // ─── Effects ───────────────────────────────────────────────────────────────
 function _buildEffectsSection(): HTMLElement {
-  const section = _section('Effects', 'Shared visual effects.');
+  const section = _section(
+    'Effects',
+    'Shared visual effects + per-cell level-of-detail thresholds.',
+  );
 
   section.appendChild(
     _subgroup('Rainbow (selected outline + path line)', [
@@ -897,14 +1077,10 @@ function _buildEffectsSection(): HTMLElement {
     ])
   );
 
-  return section;
-}
-
-// ─── Rendering ─────────────────────────────────────────────────────────────
-// Per-cell level-of-detail thresholds.
-function _buildRenderingSection(): HTMLElement {
-  const section = _section('Rendering', 'Per-cell level-of-detail thresholds.');
-
+  // Level-of-detail thresholds used to live in their own "Rendering"
+  // section. They're per-cell GPU throttle dials — same conceptual
+  // family as the post-FX above, just at the rasterizer tier instead
+  // of the post pass — so they fold cleanly into Effects.
   section.appendChild(
     _subgroup('Level of detail', [
       _toggle('LOD enabled', LOD, 'enabled', {

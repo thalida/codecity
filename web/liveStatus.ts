@@ -15,8 +15,16 @@
 
 import { atom } from 'nanostores';
 
-/** State of the most recent (or current) world rebuild. */
-export type RebuildStatus = 'idle' | 'rebuilding' | 'error';
+/**
+ * State of the most recent (or current) world rebuild.
+ *   'rebuilding' — applyManifest is constructing the city (streets,
+ *                  buildings, gem).
+ *   'decorating' — the city is already in the scene; the deferred
+ *                  decoration pass (trees, bushes, future mesa bounds, etc.)
+ *                  is still in flight. Only emitted when at least one
+ *                  decoration layer is enabled.
+ */
+export type RebuildStatus = 'idle' | 'rebuilding' | 'decorating' | 'error';
 
 export const REBUILD_STATUS = atom<RebuildStatus>('idle');
 

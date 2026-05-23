@@ -385,6 +385,21 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         finally:
             ignore_file.unlink(missing_ok=True)
 
+    def test_scan_tree_emits_commits_list(self):
+        m = scan_tree(str(FIXTURE), use_cache=False, git_window="30.years.ago")
+        self.assertIn("commits", m)
+        self.assertIsInstance(m["commits"], list)
+        self.assertGreater(len(m["commits"]), 0)
+        dates = [c["date"] for c in m["commits"]]
+        self.assertEqual(dates, sorted(dates))
+
+    def test_scan_tree_non_git_emits_null_commits(self):
+        """Non-git root: commits is null, not an empty list."""
+        with tempfile.TemporaryDirectory() as td:
+            Path(td, "a.txt").write_text("hello")
+            m = scan_tree(td, use_cache=False)
+        self.assertIsNone(m["commits"])
+
 
 class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
     """signature_tree() must produce the same digest as scan_tree() does
@@ -561,6 +576,22 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
 
         self.assertEqual(len(log_calls), 1,
                          f"expected exactly 1 git log call, got: {log_calls}")
+
+    def test_collect_git_metadata_returns_commits_list(self):
+        from codecity.scan import _collect_git_metadata
+        _created, _modified, _tracked, commits = _collect_git_metadata(
+            FIXTURE, use_cache=False, git_window="30.years.ago",
+        )
+        self.assertIsInstance(commits, list)
+        self.assertGreater(len(commits), 0)
+        # Manifest contract: oldest-first.
+        dates = [c["date"] for c in commits]
+        self.assertEqual(dates, sorted(dates),
+                         f"commits should be oldest-first, got {dates}")
+        for c in commits:
+            self.assertEqual(set(c.keys()), {"date", "files"})
+            self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
+            self.assertGreaterEqual(c["files"], 1)
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):

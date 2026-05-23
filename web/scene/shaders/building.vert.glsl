@@ -15,7 +15,7 @@
 //   - `instanceMatrix` (mat4) is injected under `#ifdef USE_INSTANCING`.
 //   - `instanceColor` (vec3) is injected under `#ifdef USE_INSTANCING_COLOR`.
 //   - `position`, `normal`, `uv` are always injected by Three.js.
-//   - The material built in Task 8 must enable USE_INSTANCING and
+//   - The material building this shader must enable USE_INSTANCING and
 //     USE_INSTANCING_COLOR so those attributes are declared before this body.
 
 attribute vec2 iCols;           // (cols_ew, cols_ns) — window column counts
@@ -96,7 +96,14 @@ void main() {
   );
 
   // World-space normal for any future per-face lighting (currently unused).
-  vWorldNormal = normalize(mat3(modelMatrix * instanceMatrix) * normal);
+  // Defensive guard: if a building somehow ends up with zero scale on the
+  // axis this face's normal points along, the matrix-multiplied normal is
+  // a zero vector and normalize() would return NaN. Fall back to world-up
+  // so the lambert dot in the fragment shader stays finite (the resulting
+  // lighting is wrong for that face, but a degenerate building is a worse
+  // problem than slight mis-shading on it).
+  vec3 worldN = mat3(modelMatrix * instanceMatrix) * normal;
+  vWorldNormal = length(worldN) > 1e-6 ? normalize(worldN) : vec3(0.0, 1.0, 0.0);
 
   vec4 worldPos = modelMatrix * instanceMatrix * vec4(position, 1.0);
 

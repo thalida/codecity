@@ -11,6 +11,8 @@
 // Adding a new config row is a one-line entry in the appropriate set
 // below — the reactions below pick it up automatically.
 
+import { listenKeys } from 'nanostores';
+
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '../liveStatus.js';
 
 import {
@@ -40,6 +42,25 @@ import {
 
   // Mixed (subscribed to BOTH lists — see below):
   FACADE_GEOMETRY,
+
+  // Cyberpunk Valley — sky (uniform-only, no rebuild):
+  SKY,
+  SKY_STARS,
+
+  // Cyberpunk Valley — world floor (GROUND_BUFFER_PERCENT → rebuild;
+  // GROUND_COLOR/GROUND_ENABLED → hot path via worldFloor.refresh()):
+  WORLD,
+
+  // Cyberpunk Valley — trees (structural in TREES → rebuild):
+  TREES,
+
+  // Cyberpunk Valley — bushes (structural in BUSHES → rebuild;
+  // BUSH_* colors → hot path via bushes.refresh()):
+  BUSHES,
+
+  // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
+  // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
+  FOOTPRINT,
 } from './index.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -159,6 +180,19 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // we can switch to listenKeys to gate scheduleRebuild on just the
     // three JS keys.
     FACADE_GEOMETRY,
+    // TREES is intentionally NOT here as a whole-store subscription:
+    // color + visibility + trunk-color keys live in hotStores and
+    // refresh via trees.refresh(); structural keys (height range,
+    // shape toggles, shading strength, inset, footprint) get narrow
+    // listenKeys subscriptions below.
+    // BUSHES is intentionally NOT here as a whole-store subscription:
+    // only BUSHES_ENABLED is structural, and we gate it via listenKeys
+    // below. Color + emission keys live in hotStores and refresh via
+    // bushes.refresh().
+    //
+    // FOOTPRINT is intentionally NOT here as a whole-store subscription:
+    // only HALO_WIDTH is structural, and we gate it via listenKeys below.
+    // COLOR + ENABLED live in hotStores and refresh via footprint.refresh().
   ];
 
   const hotStores = [
@@ -183,6 +217,30 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // refreshBuildingMaterial() pushes them on every slider tick.
     FACADE_DETAIL,
     WINDOW_LIGHTING,
+    // SKY_* — pure uniform refreshes via sky.refresh() inside applyTheme().
+    // No rebuild path; the sky is a single mesh whose shader uniforms are
+    // mutated in place. Master ENABLED toggle on SKY flips mesh.visible
+    // (also handled by sky.refresh()).
+    SKY,
+    SKY_STARS,
+    // WORLD: GROUND_COLOR + GROUND_ENABLED are pushed live via
+    // worldFloor.refresh() inside applyTheme() — no rebuild required.
+    // GROUND_BUFFER_PERCENT gets a narrow listenKeys subscription below so
+    // dragging the color slider doesn't trigger a spurious applyManifest.
+    WORLD,
+    // TREES color + visibility + trunk color. trees.refresh() rewrites
+    // per-instance colors and material color; the structural keys are
+    // gated to scheduleRebuild via listenKeys below.
+    TREES,
+    // BUSHES: color arrays + emission boost. bushRenderer.refresh() pushes
+    // these into per-instance color buffers + ShaderMaterial uniforms —
+    // no rebuild, no re-placement.
+    BUSHES,
+    // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed live via
+    // footprint.refresh() inside applyTheme() — no rebuild required.
+    // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
+    // dragging the color slider doesn't trigger a spurious applyManifest.
+    FOOTPRINT,
   ];
 
   const unsubs: Array<() => void> = [];
@@ -192,6 +250,41 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   for (const store of hotStores) {
     unsubs.push(store.subscribe(refreshMaterials));
   }
+  // HALO_WIDTH bakes into per-instance Matrix4 data at createCityFootprint
+  // time, so changing it requires a full applyManifest rebuild. The other
+  // FOOTPRINT keys (COLOR, ENABLED) are handled by the hotStores subscription
+  // above; gating the rebuild on HALO_WIDTH alone avoids a wasted rebuild on
+  // every color drag.
+  unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
+  // Toggling BUSHES_ENABLED changes whether the bush placement pass
+  // runs, so it needs a rebuild — not just a visibility flip via
+  // bushes.refresh(). TREES_ENABLED only flips mesh.visible (trees are
+  // always placed; rendering is toggled independently).
+  unsubs.push(listenKeys(BUSHES, ['BUSHES_ENABLED'], scheduleRebuild));
+  // TREES structural keys: every one of these either changes geometry
+  // (height range, shading strength) or per-shape allocation (shape
+  // toggles) or the placement pass (inset, footprint). All require a
+  // full applyManifest rebuild. Color + trunk color live on the
+  // refresh path via the TREES hotStores subscription above.
+  // TREES_ENABLED is intentionally excluded — it only flips mesh.visible
+  // via trees.refresh() (trees are placed regardless of visibility).
+  unsubs.push(listenKeys(TREES, [
+    'TREE_MIN_HEIGHT',
+    'TREE_MAX_HEIGHT',
+    'TREE_MIN_WIDTH',
+    'TREE_MAX_WIDTH',
+    'TRUNK_HEIGHT_FRAC',
+    'TRUNK_RADIUS_FRAC_OF_CANOPY',
+    'CANOPY_TRUNK_OVERLAP_FRAC',
+    'TREE_SHADING_STRENGTH',
+    'EDGE_INSET_PERCENT',
+    'TREE_DENSITY_FALLOFF',
+    'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
+  ], scheduleRebuild));
+  // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
+  // the foliage sampling region), so it requires a full rebuild.
+  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via worldFloor.refresh().
+  unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
   armed = true;
 
   return function dispose() {

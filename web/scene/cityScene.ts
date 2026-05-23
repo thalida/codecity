@@ -48,6 +48,20 @@ import type {
 } from './layoutV4.js';
 import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
+import { createSky } from './sky/sky.js';
+import type { Sky } from './sky/sky.js';
+import { createTrees } from './trees/trees.js';
+import type { Trees } from './trees/trees.js';
+import { createTreePlacementClient } from './trees/treePlacementClient.js';
+import type { TreePlacementClient } from './trees/treePlacementClient.js';
+import { createBushes } from './bushes/bushes.js';
+import type { Bushes } from './bushes/bushes.js';
+import { placeBushes } from './bushes/bushPlacement.js';
+import { createWorldFloor } from './worldFloor.js';
+import type { WorldFloor } from './worldFloor.js';
+import { getWorldBounds, type WorldBounds } from './worldBounds.js';
+import { createCityFootprint } from './cityFootprint/footprint.js';
+import type { CityFootprint } from './cityFootprint/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -57,11 +71,15 @@ import {
   GEM_GLOW,
   GEM_SIZING,
   LABEL_TYPOGRAPHY,
+  TREES,
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
+import { BUSHES } from '@/config/bushes.js';
+import { REBUILD_STATUS } from '../liveStatus.js';
 import type {
   Building,
+  CityBbox,
   CityLayout,
   CitySceneDiff,
   DateRanges,
@@ -77,7 +95,6 @@ import type {
 // Snapshot of the prior manifest state captured at the top of
 // applyManifest, used by the diff and the change-listener payload.
 interface PrevState {
-  buildings: THREE.Object3D[];
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
   pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
@@ -231,15 +248,53 @@ export const __test = {
   _formatStemDiagnostic,
 };
 
-// canvas is unused directly by cityScene after Task 8 removed
-// _buildOutlinesAndGhosts (which used it for LineMaterial.resolution).
-// Kept in the signature so call sites (main.ts, tests) need no change.
-// TODO(Task 12): outlineRenderer's own createOutlineRenderer({ canvas })
-// takes it directly; cityScene no longer needs to forward it.
+// `canvas` is unused; kept in the signature so call sites (main.ts, tests)
+// don't have to change. outlineRenderer takes the canvas directly via its
+// own factory now, so cityScene no longer needs to forward it — the param
+// can be dropped if a downstream pass cleans up the call sites.
 export function createCityScene(_canvas: HTMLCanvasElement) {
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+  // Cyberpunk Valley sky — built ONCE here, lives at scene root for
+  // the lifetime of the cityScene. Not rebuilt per applyManifest
+  // (the sky is wallpaper, independent of the manifest tree). When
+  // SKY.ENABLED is false the mesh.visible flag is cleared
+  // by sky.refresh() and scene.background's GROUND color shows
+  // through as the fallback.
+  const _sky: Sky = createSky();
+  scene.add(_sky.mesh);
+
+  // Cyberpunk Valley world floor — a large flat plane world-anchored
+  // at the gem, painting the entire visible ground with a forest
+  // tint. Built ONCE at scene init (it's not layout-dependent — the
+  // plane is bigger than any city). Sits at renderOrder -500, so it
+  // draws AFTER the sky (-1000) but BEFORE the city's own ground
+  // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
+  const _worldFloor: WorldFloor = createWorldFloor(null);
+  scene.add(_worldFloor.mesh);
+
+  // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
+  // commit, placed commit-driven across the world floor.
+  let _trees: Trees | null = null;
+
+  // Tree placement client — owns the off-thread worker (or its sync
+  // fallback in test envs). One instance per cityScene; disposed when
+  // the cityScene is disposed.
+  const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
+
+  // Cyberpunk Valley bushes — REBUILT per applyManifest (only when
+  // BUSHES.BUSHES_ENABLED is true). Decorative scatter independent of
+  // commits.
+  let _bushes: Bushes | null = null;
+
+  // Cyberpunk Valley city footprint — REBUILT per applyManifest.
+  // One InstancedMesh of inflated layout rects that composes into a
+  // contoured asphalt slab. Cheap to build (no rejection sampling),
+  // so it is created synchronously inside applyManifest. Held here
+  // so applyTheme() can call .refresh() through getCityFootprint().
+  let _cityFootprint: CityFootprint | null = null;
 
   // Generation counter: each applyManifest invocation increments this and
   // captures its own value. If _currentGeneration has advanced beyond a
@@ -259,6 +314,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let bbox: THREE.Box3 | null = null;
   let rootStreet: Street | null = null;
   let gemWorldPos: THREE.Vector3 | null = null;
+  let latestWorldBounds: WorldBounds | null = null;
 
   // The flat ground meshes (sidewalks, paths, asphalt) all use single
   // MeshBasicMaterial; main.ts's color-update path reads
@@ -266,11 +322,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // (rather than the default `Material | Material[]`) keeps that
   // callsite's `.material.color` access working.
   type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
-
-  // buildingMeshes stub — kept for the diff machinery and as a stub return
-  // value for the deprecated getBuildings() accessor; intentionally empty
-  // (cell-mode buildings live in CellTile InstancedMeshes).
-  const buildingMeshes: THREE.Object3D[] = [];
 
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
@@ -684,7 +735,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const myGeneration = ++_currentGeneration;
 
     const prev: PrevState = {
-      buildings: buildingMeshes,
       streetPickables,
       streetLabels,
       pathMeshes,
@@ -910,14 +960,127 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
+    // City is now in the scene. Decoration pass (trees, bushes, future
+    // mesa bounds, etc.) is deferred to the next animation frame so the
+    // city paints + becomes interactive BEFORE the placement scan +
+    // GPU upload blocks the main thread. For large repos this gap is
+    // the difference between a snappy rebuild and a multi-hundred-ms
+    // freeze.
+    const treesEnabled = TREES.get().TREES_ENABLED;
+    const bushesEnabled = BUSHES.get().BUSHES_ENABLED;
+    if (_trees) {
+      _trees.dispose();
+      _trees = null;
+    }
+    if (_bushes) {
+      _bushes.dispose();
+      _bushes = null;
+    }
+    if (_cityFootprint) {
+      _cityFootprint.dispose();
+      _cityFootprint = null;
+    }
+
     _emit(changeCbs, _computeDiff(prev));
+
+    // Convert the THREE.Box3 of the rendered scene to a placement-style
+    // CityBbox. This captures the actual on-screen extent (all buildings +
+    // streets + paths) — which is what the valley floor and tree scatter
+    // need to size against. The layout module's `layout.bbox` is a 2D
+    // pre-render placement bbox that can lag behind the final rendered
+    // geometry on big repos, so we use this one as the single source of
+    // truth for "how big is the city."
+    const sceneBbox: CityBbox | null = bbox ? {
+      minX: bbox.min.x,
+      maxX: bbox.max.x,
+      minY: bbox.min.z, // three.js Z is the second world axis
+      maxY: bbox.max.z,
+      cx: (bbox.min.x + bbox.max.x) / 2,
+      cy: (bbox.min.z + bbox.max.z) / 2,
+      width: bbox.max.x - bbox.min.x,
+      depth: bbox.max.z - bbox.min.z,
+    } : null;
+    // City's vertical extent — feeds into worldBounds so small-but-tall
+    // repos still get an airy floor buffer relative to building height.
+    const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
+
+    // Floor is sized from the scene's bbox + buffer. Falls back to a
+    // small default at the origin when there's no city (empty manifest).
+    latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
+    _worldFloor.setBounds(latestWorldBounds);
+
+    if (bbox) {
+      // Footprint is cheap (one InstancedMesh, no rejection sampling),
+      // so we don't need the rAF+setTimeout defer the tree path uses.
+      _cityFootprint = createCityFootprint(newLayout);
+      scene.add(_cityFootprint.group);
+    }
+
+    if ((treesEnabled || bushesEnabled) && bbox && sceneBbox) {
+      // Snapshot what the deferred pass needs so a later applyManifest
+      // bumping _currentGeneration doesn't race with this build.
+      const generationAtDefer = myGeneration;
+      const layoutAtDefer = newLayout;
+      const commitCountAtDefer = manifest.commits?.length ?? 0;
+      const cityHeightAtDefer = cityHeight;
+      const foliageBbox: CityBbox = sceneBbox;
+
+      REBUILD_STATUS.set('decorating');
+      // rAF lets the browser START the next frame; setTimeout(0)
+      // then yields the task so the browser can COMPLETE the paint
+      // before foliage work begins.
+      await new Promise<void>((r) => requestAnimationFrame(() => r()));
+      await new Promise<void>((r) => setTimeout(r, 0));
+      if (generationAtDefer !== _currentGeneration) return;
+
+      if (treesEnabled) {
+        // Off-thread tree placement via the worker. The supersede protocol
+        // rejects this promise with "superseded" if another applyManifest
+        // fires while placement is in-flight.
+        let treePlacements: import('./trees/treePlacement.js').TreePlacement[];
+        try {
+          treePlacements = await _treePlacementClient.compute(layoutAtDefer, foliageBbox, commitCountAtDefer, cityHeightAtDefer);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'superseded') return;
+          throw err;
+        }
+        if (generationAtDefer !== _currentGeneration) return;
+
+        _trees = createTrees(treePlacements, manifest.commits ?? null);
+        scene.add(_trees.group);
+      }
+
+      if (bushesEnabled) {
+        // Bush placement is synchronous (fast, no worker needed).
+        if (generationAtDefer !== _currentGeneration) return;
+        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, { cityHeight: cityHeightAtDefer });
+        if (generationAtDefer !== _currentGeneration) return;
+        _bushes = createBushes(bushPlacements);
+        scene.add(_bushes.group);
+      }
+    }
   }
 
   function dispose() {
     _disposeAllManifestState();
+    _sky.dispose();
+    _worldFloor.dispose();
+    if (_trees) {
+      _trees.dispose();
+      _trees = null;
+    }
+    if (_bushes) {
+      _bushes.dispose();
+      _bushes = null;
+    }
+    if (_cityFootprint) {
+      _cityFootprint.dispose();
+      _cityFootprint = null;
+    }
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
+    _treePlacementClient.dispose();
   }
 
   function resetCache(): void {
@@ -942,6 +1105,52 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     onChange,
     disposeMesh,
     resetCache,
+
+    /**
+     * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
+     * can call sky.refresh() on hot-reload and the render loop can call
+     * sky.tick(dtSeconds) each frame.
+     */
+    getSky(): Sky {
+      return _sky;
+    },
+
+    /**
+     * Cyberpunk Valley world-floor reference. The floor is
+     * world-anchored at the gem; this is exposed for applyTheme()
+     * (hot-reload refresh) and any future external access.
+     */
+    getWorldFloor(): WorldFloor {
+      return _worldFloor;
+    },
+
+    /**
+     * Cyberpunk Valley trees reference. Rebuilt per applyManifest, so
+     * this returns null until the first manifest has been applied.
+     * main.ts's applyTheme() guards with `?.refresh()` to handle the
+     * pre-manifest case.
+     */
+    getTrees(): Trees | null {
+      return _trees;
+    },
+
+    /**
+     * Cyberpunk Valley bushes reference. Rebuilt per applyManifest
+     * (only when BUSHES.BUSHES_ENABLED is true). Returns null when
+     * bushes are disabled or not yet placed.
+     */
+    getBushes(): Bushes | null {
+      return _bushes;
+    },
+
+    /**
+     * Cyberpunk Valley city footprint reference. Rebuilt per
+     * applyManifest; null until the first manifest has been applied.
+     * main.ts's applyTheme() guards with `?.refresh()`.
+     */
+    getCityFootprint(): CityFootprint | null {
+      return _cityFootprint;
+    },
 
     getManifest() {
       return manifest;
@@ -989,6 +1198,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     getBbox() {
       return bbox;
     },
+    /** Current world floor bounds (rectangle the plane covers). Null
+     *  until the first manifest has been applied. */
+    getWorldBounds(): WorldBounds | null {
+      return latestWorldBounds;
+    },
     getRoot() {
       return manifest && manifest.tree;
     },
@@ -996,11 +1210,36 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       return dateRanges;
     },
 
-    // Stub: cell mode tracks buildings via _cells / _buildingIndex, not as
-    // a flat mesh list. Returned empty so any legacy caller still iterating
-    // this list no-ops gracefully.
-    getBuildings(): THREE.Object3D[] {
-      return buildingMeshes;
+    /**
+     * Tallest building height (b.h) across every cell, in world units.
+     * 0 if there are no buildings. Used by camera framing code that needs
+     * to clear the city silhouette (e.g. cameraRig.focusStreet altitude).
+     */
+    getMaxBuildingHeight(): number {
+      let maxH = 0;
+      for (const cell of _cells.values()) {
+        for (const b of cell.buildings) {
+          if (b && b.h > maxH) maxH = b.h;
+        }
+      }
+      return maxH;
+    },
+    /**
+     * Per-cell InstancedMeshes (detail + impostor) suitable for raycasting
+     * against. Three.js raycasts InstancedMesh natively, returning hits
+     * with `.instanceId` set; hidden cells (LOD-gated) are skipped by the
+     * default visibility check. Used by cameraRig sightline tests.
+     *
+     * Both detail and impostor meshes are included so a far-away cell on
+     * the impostor tier still occludes the sightline when it's actually
+     * visible on screen.
+     */
+    getBuildingPickables(): THREE.Object3D[] {
+      const out: THREE.Object3D[] = [];
+      for (const cell of _cells.values()) {
+        out.push(cell.detailMesh, cell.impostorMesh);
+      }
+      return out;
     },
     getStreetPickables() {
       return streetPickables;

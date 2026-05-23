@@ -75,6 +75,19 @@ export interface RepoInfo {
   dirty: boolean;
 }
 
+/**
+ * One commit within the git lookback window. Emitted by the scanner
+ * in oldest-first order so `commits[i]` maps to the i-th-closest tree
+ * placement (the chronological-outward planting order). `date` is
+ * day-precision (`YYYY-MM-DD`) — sufficient for the age signal, keeps
+ * payload small. `files` = count of changed paths in the commit
+ * (`A/M/D/T/U` rows from `git log --name-status`).
+ */
+export interface CommitEntry {
+  date: string;   // "YYYY-MM-DD"
+  files: number;
+}
+
 export interface Manifest {
   root: string;
   /** Friendly label for the source root, set by the server for git URL
@@ -94,6 +107,9 @@ export interface Manifest {
   tree_signature: string;
   tree: DirNode;
   repo: RepoInfo | null;
+  /** Per-commit metadata, oldest-first. null for non-git roots; []
+   *  for git roots with zero commits in the window. */
+  commits: CommitEntry[] | null;
 }
 
 /**

@@ -17,7 +17,7 @@ function makeFakeCityScene(): FlyControlsCityScene {
     getGemWorldPos: () => null,
     getRootStreet: () => null,
     getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50)),
-    getBuildings: () => [],
+    getWorldBounds: () => null,
   };
 }
 
@@ -70,13 +70,14 @@ describe('flyControls state machine', () => {
     expect(rig.controls.enabled).toBe(true);
   });
 
-  it('disable() re-aims orbit target along the camera forward direction', () => {
-    // Camera at (10, 8, 5) looking at (10, 8, -100): forward = -Z.
-    // After fly disable, the orbit target should sit somewhere along -Z
-    // ahead of the camera — NOT at its stale (0,0,0) starting value.
+  it('disable() puts the pivot on the camera forward ray (no view snap)', () => {
+    // Looking horizontally → forward ray never hits y=0 ahead, so the
+    // pivot floats at the fallback distance along the forward ray.
+    // Crucially, pivot is ON the forward ray, so OrbitControls'
+    // lookAt(target) is a no-op and the camera doesn't snap.
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(10, 8, 5);
-    camera.lookAt(10, 8, -100);
+    camera.lookAt(10, 8, -100); // forward = -Z, horizontal
     camera.updateMatrixWorld();
     const rig = makeFakeRig();
     const fly = createFlyControls({
@@ -87,10 +88,30 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
-    // Target should be ahead of the camera in -Z (its forward), with
-    // X and Y close to the camera's.
     expect(rig.controls.target.x).toBeCloseTo(10, 2);
-    expect(rig.controls.target.y).toBeCloseTo(8, 2);
+    expect(rig.controls.target.y).toBeCloseTo(8, 2); // along ray, Y unchanged
+    expect(rig.controls.target.z).toBeLessThan(camera.position.z); // ahead of camera
+  });
+
+  it('disable() lands pivot on the floor when forward ray hits y=0', () => {
+    // Looking down-forward at (10, 0, -10) from (10, 20, 0). Forward
+    // ray crosses y=0 at z = -10 → pivot lands on the floor at the
+    // exact spot the user was looking at, on the forward ray.
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(10, 20, 0);
+    camera.lookAt(10, 0, -10);
+    camera.updateMatrixWorld();
+    const rig = makeFakeRig();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig,
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    fly.disable();
+    expect(rig.controls.target.y).toBeCloseTo(0, 2);
+    expect(rig.controls.target.x).toBeCloseTo(10, 2);
     expect(rig.controls.target.z).toBeLessThan(camera.position.z);
   });
 
@@ -507,7 +528,7 @@ describe('flyControls resetToDefault', () => {
         length: 200,
       }),
       getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(150, 30, 50)),
-      getBuildings: () => [],
+      getWorldBounds: () => null,
     };
 
     const fly = createFlyControls({
@@ -544,7 +565,7 @@ describe('flyControls resetToDefault', () => {
       getGemWorldPos: () => null,
       getRootStreet: () => null,
       getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 30, 50)),
-      getBuildings: () => [],
+      getWorldBounds: () => null,
     };
     const fly = createFlyControls({
       camera,

@@ -1,21 +1,17 @@
-// scene/instanced/adPanelsInstanced.ts — Instanced ad panels for the cell
-// rendering path. Replaces the per-mesh createAdPanel() approach with a
-// single InstancedMesh backed by a DataArrayTexture (one layer per media
-// file). Each media building gets 4 panel slots (one per face: S/N/E/W).
+// scene/instanced/adPanelsInstanced.ts — Instanced ad panels for media
+// buildings. A single InstancedMesh backed by a DataArrayTexture (one
+// layer per media file). Each media building gets 4 panel slots, one
+// per face (S/N/E/W).
 //
-// Picking: ad panels are NOT pickable in cell mode. Per-instance userData
-// is not supported by Three.js raycasting without a custom implementation;
-// adding it is a future gap (TODO: add per-instance userData/raycaster
-// support for ad panels in cell mode to restore click-to-select on media
-// buildings).
+// Picking: ad panels are NOT pickable. Per-instance userData isn't
+// supported by Three.js raycasting without a custom implementation;
+// adding it would restore click-to-select on media buildings.
 //
-// LOD gating: panels are always visible when cell mode is active.
-// TODO(Tasks 12-15): tie panel visibility to LOD tier once the LOD evaluator
-// exists; for now always-on is the correct default.
+// LOD gating: panels are always visible. Tying visibility to LOD tier is
+// possible now that the LOD evaluator exists; currently always-on.
 //
 // WebGL2 requirement: the underlying DataArrayTexture + GLSL3 shader
-// require WebGL2. The legacy createAdPanel() path continues working on
-// WebGL1 contexts.
+// require WebGL2.
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
@@ -208,7 +204,7 @@ export class InstancedAdPanels {
     const cfg = AD_PANEL.get();
     const dims = BUILDING_DIMENSIONS.get();
 
-    // Aspect ratio (same clamping as createAdPanel).
+    // Aspect ratio: clamp degenerate or missing metadata to a square.
     const mw = b.file.media_width;
     const mh = b.file.media_height;
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
@@ -314,17 +310,15 @@ export class InstancedAdPanels {
 }
 
 // ---------------------------------------------------------------------------
-// Async media loading — mirrors adPanels.ts's private _loadAdTexture path.
-// Accepts a Building and fires loadTextureForBuilding / loadCanvasForBuilding
-// once the image or video first-frame is ready.
+// Async media loading. Accepts a Building, fires
+// loadTextureForBuilding / loadCanvasForBuilding once the image or video
+// first-frame is ready.
 // ---------------------------------------------------------------------------
 
 /**
  * Trigger async load of a media building's image/video and upload to the
- * given InstancedAdPanels instance once ready.
- *
- * This mirrors the inline async load in createAdPanel() (adPanels.ts:153).
- * The URL scheme is identical: `/api/file?path=<urlEncoded fullPath>`.
+ * given InstancedAdPanels instance once ready. URL scheme:
+ * `/api/file?path=<urlEncoded fullPath>`.
  */
 export function asyncLoadMediaForBuilding(
   ads: InstancedAdPanels,

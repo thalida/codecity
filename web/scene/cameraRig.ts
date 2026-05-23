@@ -48,6 +48,13 @@ const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
 
+/** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
+ *  cities (small footprint, one big building) end up with a tiny
+ *  worldRadius if Y is the only large axis — and on cities with little
+ *  geometry at all, worldRadius is near zero. This guarantees the user
+ *  can always pull back to a comfortable cinematic viewing distance. */
+const MIN_MAX_DISTANCE = 8000;
+
 // Per-action duration ratios relative to ANIMATION_TIMING.BASE_DURATION_MS.
 // These tune the per-gesture feel — a Recenter should feel snappier than a
 // building-focus tween, etc. Multiplied by BASE_DURATION_MS at action time
@@ -164,15 +171,29 @@ export function createCameraRig({
     const halfFov = (camera.fov * Math.PI) / 180 / 2;
     const worldDist =
       (worldRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-    controls.maxDistance = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT;
+
+    // Max zoom-out: a generous multiple of the world's geometric
+    // radius (which includes building heights via farY), floored at
+    // an absolute minimum so tiny-but-tall cities still let the user
+    // pull back. Decoupled from worldDist / FOV so the behavior is
+    // predictable regardless of city shape. Comment-on-history: the
+    // previous formula was worldDist × MAX_DISTANCE_MULT which kept
+    // small cities cramped because worldDist was itself small.
+    controls.maxDistance = Math.max(
+      worldRadius * cameraControlsCfg.MAX_DISTANCE_MULT,
+      MIN_MAX_DISTANCE,
+    );
 
     // Far clip: covers the farthest point a fully-zoomed-out camera can
-    // see (worldDist × MAX_DISTANCE_MULT past target, plus the world's
-    // own radius). Set unconditionally so it shrinks for small worlds
-    // (depth-buffer precision matters at z-fight sensitivity, e.g. the
-    // hover-ghost inset) AND grows for huge worlds (SHOW_ALL_FILES on a
-    // codebase with node_modules can push >100k units).
-    camera.far = worldDist * cameraControlsCfg.MAX_DISTANCE_MULT * 2 + worldRadius * 2;
+    // see (maxDistance past target, plus the world's own radius). Set
+    // unconditionally so it shrinks for small worlds (depth-buffer
+    // precision matters for the hover-ghost inset) AND grows for huge
+    // worlds. Floored at the Cyberpunk Valley sky-sphere's outer extent
+    // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
+    // at the corners of small-repo viewports.
+    const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
+    const skySphereExtent = CAMERA_PERSPECTIVE.get().FAR * 0.95;
+    camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
     // Framing target: the root gem, with a distance sized to the root
@@ -192,7 +213,7 @@ export function createCameraRig({
       // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
       // so width × 10 reliably fits the gem + the road's first stretch
       // regardless of project size.
-      framingRadius = rootStreet.width * 10;
+      framingRadius = rootStreet.width * 15;
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
@@ -201,7 +222,23 @@ export function createCameraRig({
     const framingDist =
       (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
-    const dir = new THREE.Vector3(-1, 1, 1).normalize();
+    // Default framing: place the camera BEHIND the gem along the root
+    // street's long axis (the street extends in +X for X-oriented or +Z
+    // for Y-oriented; the gem sits at the low end — see
+    // engine.ts:createRootGem) at a low cinematic elevation. This gives
+    // a "looking down the main road into the city" view instead of the
+    // previous top-down (-1, 1, 1) oblique. y=0.25 → ~14° elevation;
+    // wide enough to see the whole skyline, low enough that the
+    // horizon-glow band is visible above the buildings. Fallback
+    // (no gem) keeps the old high-oblique direction for completeness.
+    let dir: THREE.Vector3;
+    if (rootStreet) {
+      dir = rootStreet.orientation === StreetAxis.X
+        ? new THREE.Vector3(-1, 0.25, 0).normalize()
+        : new THREE.Vector3(0, 0.25, -1).normalize();
+    } else {
+      dir = new THREE.Vector3(-1, 1, 1).normalize();
+    }
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
 
@@ -386,14 +423,27 @@ export function createCameraRig({
   function _isSightClear(
     camPos: THREE.Vector3,
     target: THREE.Vector3,
-    focusedMesh: THREE.Object3D
+    focused: Building
   ): boolean {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    const hits = _xrayRay.intersectObjects(cityScene.getBuildings(), false);
+    // Raycast against every cell's detail + impostor InstancedMeshes.
+    // Three.js handles InstancedMesh natively: hits carry `.instanceId`
+    // (the slot) and we identify the cell via `object.userData.cellId`.
+    const hits = _xrayRay.intersectObjects(cityScene.getBuildingPickables(), false);
     for (let i = 0; i < hits.length; i++) {
-      if (hits[i].object !== focusedMesh) return false;
+      const hit = hits[i];
+      // Skip the focused building itself — its own faces always block its
+      // own sightline. Match on (cellId, slotId) since detail + impostor
+      // share both, and a different InstancedMesh might hold the focused
+      // building's other-tier representation.
+      const hitCellId = hit.object.userData.cellId;
+      if (
+        hitCellId === focused.cellId &&
+        hit.instanceId === focused.slotId
+      ) continue;
+      return false;
     }
     return true;
   }
@@ -447,7 +497,7 @@ export function createCameraRig({
         vert,
         b.y + doorDZ * (halfDepth + horiz)
       );
-      if (_isSightClear(candidate, newTarget, mesh)) {
+      if (_isSightClear(candidate, newTarget, b)) {
         newCamPos = candidate;
         break;
       }
@@ -484,16 +534,15 @@ export function createCameraRig({
     }
     camera.up.set(0, 1, 0);
 
-    // Camera altitude clears every building. Factor in any current
-    // scale.y from in-progress entry/exit tweens.
-    let maxBldgH = 0;
-    const buildingMeshes = cityScene.getBuildings();
-    for (let i = 0; i < buildingMeshes.length; i++) {
-      const mb = buildingMeshes[i].userData.building;
-      const sy = buildingMeshes[i].scale.y || 1;
-      const bh = (mb && mb.h ? mb.h : 0) * sy;
-      if (bh > maxBldgH) maxBldgH = bh;
-    }
+    // Camera altitude clears every building. (The previous version also
+    // multiplied each building's height by its mesh.scale.y to factor in
+    // entry/exit tweens — that doesn't apply in cell mode because the
+    // scale.y tween rides on the per-instance matrix inside the cell's
+    // InstancedMesh, not on a per-building scene-graph mesh. A tween-
+    // expanded building can briefly poke above this baseline; in practice
+    // the tweens settle within ~200ms, well before the street-focus
+    // camera animation completes.)
+    const maxBldgH = cityScene.getMaxBuildingHeight();
 
     const camAnim = CAMERA_ANIMATION.get();
     const halfV = (camera.fov * Math.PI) / 180 / 2;

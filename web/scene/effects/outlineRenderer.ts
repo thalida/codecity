@@ -25,6 +25,7 @@ import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
 import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
+import { getBuildingTilt } from '@/scene/instanced/buildingTilt.js';
 import type { createCityScene } from '@/scene/cityScene.js';
 import type { createPicker } from '@/scene/picker.js';
 import type { FileTarget } from '@/types';
@@ -57,6 +58,7 @@ export function createOutlineRenderer({
   const hoverOutline = new LineSegments2(_unitEdgesGeo, hoverLineMat);
   hoverOutline.visible = false;
   hoverOutline.renderOrder = RENDER_ORDERS.HOVER_OUTLINE;
+  hoverOutline.matrixAutoUpdate = false; // _syncOutlineToTarget writes mesh.matrix directly
   scene.add(hoverOutline);
 
   // ── Selected outline (per-vertex rainbow chasing) ───────────────────
@@ -84,6 +86,7 @@ export function createOutlineRenderer({
   const selectedOutline = new LineSegments2(_selectedEdgesGeo, selectedLineMat);
   selectedOutline.visible = false;
   selectedOutline.renderOrder = RENDER_ORDERS.SELECTED_OUTLINE;
+  selectedOutline.matrixAutoUpdate = false; // _syncOutlineToTarget writes mesh.matrix directly
   scene.add(selectedOutline);
 
   // Scratch objects reused per frame to avoid GC pressure.
@@ -93,20 +96,24 @@ export function createOutlineRenderer({
   const _tmpQuat = new THREE.Quaternion();
 
   // _syncOutlineToTarget: read the current animated transform of a FileTarget's
-  // building and apply it to the given outline mesh.
+  // building, bake in the shader-side Y-shear "lean", and apply the result to
+  // the outline mesh.
   //
   // Priority:
   //   1. Cell mode: building.cellId + building.slotId → cell.detailMesh.getMatrixAt(slotId)
-  //   2. Legacy block mode: target.block.detailMesh.getMatrixAt(target.instanceId)
-  //   3. Fallback: layout dimensions from target.data (b.w, b.h, b.d, b.x, b.y)
+  //   2. Fallback: layout dimensions from target.data (b.w, b.h, b.d, b.x, b.y)
   //
-  // Reading from the live InstancedMesh matrix (paths 1 + 2) ensures the outline
-  // tracks the animator's tween position rather than snapping to layout coords.
+  // Reading from the live InstancedMesh matrix ensures the outline tracks the
+  // animator's tween position rather than snapping to layout coords. The
+  // shear is then composed on top so the outline's top corners visibly drift
+  // with the building's lean (see scene/instanced/buildingTilt.ts).
   function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
     const b = target.data;
 
+    let sx = b.w, sy = b.h, sz = b.d;
+    let px = b.x, py = b.h / 2, pz = b.y;
+
     // Cell mode: resolve via Building.cellId + Building.slotId.
-    // In cell-mode picks, target.block is not set; we route via the cityScene cells map.
     if (b.cellId != null && b.slotId != null) {
       const cells = _cityScene.getCells();
       if (cells.size > 0) {
@@ -114,16 +121,28 @@ export function createOutlineRenderer({
         if (cell?.detailMesh) {
           cell.detailMesh.getMatrixAt(b.slotId, _tmpMatrix);
           _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
-          outline.scale.set(_tmpScale.x, _tmpScale.y, _tmpScale.z);
-          outline.position.copy(_tmpPos);
-          return;
+          sx = _tmpScale.x; sy = _tmpScale.y; sz = _tmpScale.z;
+          px = _tmpPos.x;   py = _tmpPos.y;   pz = _tmpPos.z;
         }
       }
     }
 
-    // Fallback: layout-level dimensions (no mesh reference available).
-    outline.scale.set(b.w, b.h, b.d);
-    outline.position.set(b.x, b.h / 2, b.y);
+    // Bake the shader's Y-shear into the outline matrix so the box leans
+    // with the building. World-pos of a local vertex (lx, ly, lz):
+    //   X = lx·sx + px + (ly·sy + py)·tiltX
+    //   Y = ly·sy + py
+    //   Z = lz·sz + pz + (ly·sy + py)·tiltZ
+    // Matrix4 is column-major; .set() takes row-major args.
+    const { tiltX, tiltZ } = getBuildingTilt(b);
+    _tmpMatrix.set(
+      sx,   sy * tiltX, 0,    px + py * tiltX,
+      0,    sy,         0,    py,
+      0,    sy * tiltZ, sz,   pz + py * tiltZ,
+      0,    0,          0,    1,
+    );
+    outline.matrix.copy(_tmpMatrix);
+    outline.matrixAutoUpdate = false;
+    outline.matrixWorldNeedsUpdate = true;
   }
 
   function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {

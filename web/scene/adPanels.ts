@@ -1,10 +1,7 @@
 // scene/adPanels.ts — Media-file classification helpers shared by the
-// instanced ad-panel renderer and the layout module.
-//
-// The per-mesh createAdPanel() path has been retired. Ad panels are now
-// rendered as a single InstancedMesh by scene/instanced/adPanelsInstanced.ts;
-// this file exists only to host the media-kind helpers that the instanced
-// path and the layout module share.
+// instanced ad-panel renderer (scene/instanced/adPanelsInstanced.ts) and
+// the layout module. Recognizes which file extensions get a media-poster
+// face rendered on their building.
 
 // Mirrors the media-recognizing extension sets in the Python scanner.
 // Kept in sync by hand.

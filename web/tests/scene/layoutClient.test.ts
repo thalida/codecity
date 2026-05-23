@@ -10,6 +10,7 @@ function makeMinimalManifest(): Manifest {
     signature: 'sig',
     tree_signature: 'test-fp-1234',
     repo: null,
+    commits: null,
     tree: {
       name: 'x',
       type: NodeKind.Directory,
@@ -83,6 +84,7 @@ describe('layoutClient', () => {
       signature: 'sig',
       tree_signature: 'test-fp-reuse',
       repo: null,
+      commits: null,
       tree: {
         name: 'x',
         type: NodeKind.Directory,

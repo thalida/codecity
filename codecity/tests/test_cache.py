@@ -8,6 +8,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from codecity import cache as cache_mod
+from codecity.cache import _git_history_cache_path
+from codecity.types import CommitEntry
 
 
 class CacheTestBase(unittest.TestCase):
@@ -114,13 +116,13 @@ class GitHistoryCacheTests(CacheTestBase):
         root = Path("/some/repo")
         created = {"src/a.py": "2024-01-01T00:00:00Z"}
         modified = {"src/a.py": "2024-06-01T00:00:00Z"}
-        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, created, modified)
+        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, created, modified, [])
         result = cache_mod.cache_load_git_history(root, "abc123", self.WINDOW)
-        self.assertEqual(result, (created, modified))
+        self.assertEqual(result, (created, modified, []))
 
     def test_miss_on_different_head(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, {}, {})
+        cache_mod.cache_save_git_history(root, "abc123", self.WINDOW, {}, {}, [])
         self.assertIsNone(
             cache_mod.cache_load_git_history(root, "def456", self.WINDOW)
         )
@@ -131,7 +133,7 @@ class GitHistoryCacheTests(CacheTestBase):
         # serve the cached version when the caller asked for a
         # different time range.
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc123", "3.years.ago", {}, {})
+        cache_mod.cache_save_git_history(root, "abc123", "3.years.ago", {}, {}, [])
         self.assertIsNone(
             cache_mod.cache_load_git_history(root, "abc123", "10.years.ago")
         )
@@ -145,7 +147,7 @@ class GitHistoryCacheTests(CacheTestBase):
 
     def test_load_corrupted_returns_none(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {}, [])
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         path.write_text("{garbage")
         self.assertIsNone(
@@ -154,7 +156,7 @@ class GitHistoryCacheTests(CacheTestBase):
 
     def test_load_version_mismatch_returns_none(self) -> None:
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {}, [])
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         bad = {"version": 999, "root": str(root), "head_sha": "abc",
                "git_window": self.WINDOW, "created": {}, "modified": {}}
@@ -167,7 +169,7 @@ class GitHistoryCacheTests(CacheTestBase):
         # Mixed string + non-string values in created/modified maps;
         # only string-keyed string-valued entries survive.
         root = Path("/some/repo")
-        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {})
+        cache_mod.cache_save_git_history(root, "abc", self.WINDOW, {}, {}, [])
         path = cache_mod.CACHE_ROOT / "git-history" / f"{cache_mod.repo_key(root)}.json"
         payload = {
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
@@ -180,13 +182,86 @@ class GitHistoryCacheTests(CacheTestBase):
             "modified": {
                 "good.py": "2024-06-01T00:00:00Z",
             },
+            "commits": [],
         }
         path.write_text(json.dumps(payload))
         result = cache_mod.cache_load_git_history(root, "abc", self.WINDOW)
         self.assertIsNotNone(result)
-        created, modified = result
+        assert result is not None  # narrow for type checker
+        created, modified, commits = result
         self.assertEqual(created, {"good.py": "2024-01-01T00:00:00Z"})
         self.assertEqual(modified, {"good.py": "2024-06-01T00:00:00Z"})
+
+
+    def test_git_history_cache_round_trips_commits(self):
+        """Round-trip a small commits list through the cache."""
+        root = Path("/some/repo")
+        commits: list[CommitEntry] = [
+            {"date": "2024-01-01", "files": 3},
+            {"date": "2024-02-15", "files": 7},
+        ]
+        cache_mod.cache_save_git_history(
+            root, head_sha="abc", git_window="3.years.ago",
+            created={"a.py": "2024-01-01"},
+            modified={"a.py": "2024-02-15"},
+            commits=commits,
+        )
+        loaded = cache_mod.cache_load_git_history(root, "abc", "3.years.ago")
+        self.assertIsNotNone(loaded)
+        assert loaded is not None  # narrow for type checker
+        loaded_created, loaded_modified, loaded_commits = loaded
+        self.assertEqual(loaded_commits, commits)
+
+    def test_git_history_cache_drops_malformed_commits(self):
+        """Per-commit validator silently drops malformed entries
+        (matches _coerce_file_entry's policy for the file cache)."""
+        root = Path("/some/repo")
+        path = _git_history_cache_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
+            "root": str(root),
+            "head_sha": "abc",
+            "git_window": "3.years.ago",
+            "created": {},
+            "modified": {},
+            "commits": [
+                {"date": "2024-01-01", "files": 3},           # valid
+                "not a dict",                                  # dropped: not a dict
+                {"date": 12345, "files": 5},                   # dropped: date not str
+                {"date": "2024-02-01"},                        # dropped: missing files
+                {"date": "2024-03-01", "files": True},         # dropped: files is bool
+                {"files": 4},                                  # dropped: missing date
+                {"date": "2024-04-01", "files": 7},            # valid
+            ],
+        }), encoding="utf-8")
+        loaded = cache_mod.cache_load_git_history(root, "abc", "3.years.ago")
+        self.assertIsNotNone(loaded)
+        assert loaded is not None
+        _created, _modified, commits = loaded
+        # Only the two well-formed entries survive.
+        self.assertEqual(commits, [
+            {"date": "2024-01-01", "files": 3},
+            {"date": "2024-04-01", "files": 7},
+        ])
+
+    def test_git_history_cache_v2_returns_none(self):
+        """A v2 cache file (no commits field) must be treated as a miss
+        so the new commits collection runs."""
+        root = Path("/some/repo")
+        path = _git_history_cache_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({
+            "version": 2,
+            "root": str(root),
+            "head_sha": "abc",
+            "git_window": "3.years.ago",
+            "created": {},
+            "modified": {},
+        }), encoding="utf-8")
+        self.assertIsNone(
+            cache_mod.cache_load_git_history(root, "abc", "3.years.ago"),
+        )
 
 
 class ManifestCacheTests(CacheTestBase):

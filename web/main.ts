@@ -250,6 +250,30 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
+    // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
+    // ground color, star density, twinkle params) and flips
+    // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
+    // hotStores route in web/config/hotReload.ts.
+    cityScene.getSky().refresh();
+
+    // Cyberpunk Valley world floor — pulls fresh GROUND_COLOR /
+    // GROUND_ENABLED from WORLD config so colour pickers + toggles
+    // hot-update without a manifest rebuild.
+    cityScene.getWorldFloor().refresh();
+
+    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
+    // into per-instance color buffers. Null until the first manifest applies.
+    cityScene.getTrees()?.refresh();
+
+    // Cyberpunk Valley bushes — pushes fresh BUSH_NEON_COLORS + emission
+    // boost into per-instance color buffers + ShaderMaterial uniforms.
+    // Null until the first manifest applies (or when BUSHES_ENABLED is off).
+    cityScene.getBushes()?.refresh();
+
+    // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
+    // onto the slab material / group visibility. Null until the first
+    // manifest applies; guard with optional chain.
+    cityScene.getCityFootprint()?.refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = cityScene.getRootGemEdges();
@@ -357,6 +381,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
 
   // -- 8. Render loop --------------------------------------------------------
   const startTime = performance.now();
+  // Wall-clock time of the previous sky tick (seconds since startTime).
+  // null on the first frame; the first sky.tick() advances by 0 so
+  // uTime stays at its initial value of 0 until the second frame.
+  let _lastSkyTime: number | null = null;
   const labelRight = new THREE.Vector3();
 
   // LOD evaluator — one per render loop (shared across manifest refreshes).
@@ -387,12 +415,11 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
   function animate() {
-    // Idempotent per-frame size guard. The ResizeObserver wires onResize
-    // for sidebar / window changes, but transient races can leave the
-    // EffectComposer's HDR render targets at a stale size — manifests as
-    // the city getting rendered into a small region of an otherwise-black
-    // canvas. Re-syncing here is cheap (no-op when sizes match) and
-    // catches anything the observer-driven path misses.
+    // Idempotent per-frame size guard. Resyncs renderer + composer + post
+    // passes to canvas.clientWidth/Height whenever they diverge; cheap
+    // no-op when they don't. Safety net for any canvas-size divergence the
+    // ResizeObserver missed (e.g. transient layout race during sidebar
+    // toggle); not needed during normal operation.
     {
       const cw = canvas.clientWidth;
       const ch = canvas.clientHeight;
@@ -428,6 +455,23 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       }
     }
     animator.update(0); // entering / staying tweens (scale, position)
+    // Sky star twinkle — the only animation in Cyberpunk Valley.
+    // Compute dt in seconds from the same startTime the gem
+    // animation uses (no fresh timer; one wall-clock source per frame
+    // keeps everything in lockstep). The sphere-follow-camera
+    // position sync was moved to immediately before postFx.render()
+    // (see comment there); doing it mid-frame raced with scene
+    // matrix updates and during fast orbit movements caused the
+    // sphere to render at the previous frame's position, projecting
+    // an off-center sphere disc and showing scene.background as
+    // black flicker around the edges.
+    {
+      const nowS = (performance.now() - startTime) / 1000;
+      const sky = cityScene.getSky();
+      const dt = _lastSkyTime === null ? 0 : Math.max(0, nowS - _lastSkyTime);
+      _lastSkyTime = nowS;
+      sky.tick(dt);
+    }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
@@ -485,6 +529,18 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
           if (outer) (outer.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);
         }
       }
+    }
+    // Sync the Cyberpunk Valley sky sphere to the camera RIGHT BEFORE
+    // the render call so its world matrix is guaranteed fresh. Doing
+    // this earlier in animate() (where scene.updateMatrixWorld() also
+    // ran) caused the sphere's world matrix to be stale during fast
+    // orbit movements — visible as black flicker around the edges of
+    // an off-center sphere disc, because the camera was momentarily
+    // outside its own sky sphere.
+    {
+      const sky = cityScene.getSky();
+      sky.mesh.position.copy(camera.position);
+      sky.mesh.updateMatrixWorld(true);
     }
     postFx.render();
     requestAnimationFrame(animate);
@@ -792,6 +848,7 @@ const EMPTY_MANIFEST: Manifest = {
     descendants_size: 0,
   },
   repo: null,
+  commits: null,
 };
 
 // _applyHljsTheme — swap the <link id="hljs-theme"> element's href so
@@ -871,6 +928,15 @@ if (_canvas) {
     const hasSrc = qp.has('src');
 
     const loadingOverlay = createLoadingOverlay();
+
+    // Forward REBUILD_STATUS → loadingOverlay so the loading card
+    // advances to "Adding decorations" while applyManifest is in its
+    // deferred foliage-build phase. Lives for the page lifetime so
+    // source-switches (which re-show the overlay) also get the step.
+    // setStep on a hidden overlay is a harmless DOM update.
+    REBUILD_STATUS.subscribe((s) => {
+      if (s === 'decorating') loadingOverlay.setStep('decorating');
+    });
 
     let initialManifest: Manifest = EMPTY_MANIFEST;
     let initialError: string | null = null;

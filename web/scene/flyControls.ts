@@ -30,12 +30,17 @@ import * as THREE from 'three';
 import { TEXT_INPUT_TAGS } from '@/constants';
 import { FLY_CONTROLS } from '@/config/index.js';
 import { StreetAxis } from '@/types';
+import type { WorldBounds } from './worldBounds.js';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
   getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
   getBbox: () => THREE.Box3 | null;
-  getBuildings: () => THREE.Object3D[];
+  /** Current world floor bounds (rectangle the plane covers). Used to
+   *  clamp fly-mode movement to the visible plane. Returns null when
+   *  no city has been loaded yet — in that case fly mode runs
+   *  unclamped. */
+  getWorldBounds: () => WorldBounds | null;
 }
 
 // Only the `enabled` toggle is needed from OrbitControls. Using a
@@ -44,9 +49,7 @@ export interface FlyControlsCityScene {
 export interface FlyControlsRig {
   controls: {
     enabled: boolean;
-    /** OrbitControls.target — the pivot point. On fly exit we update
-     *  this to a point in front of the camera so orbit doesn't snap
-     *  the look direction to a stale pre-flight target. */
+    /** OrbitControls.target — the orbit pivot point. */
     target: THREE.Vector3;
   };
 }
@@ -227,10 +230,37 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
   }
 
+  /** Clamp camera.position XZ to the world floor bounds. Returns true
+   *  if the camera was repositioned (out of bounds before this call).
+   *  No-op when world bounds aren't available (pre-layout / empty
+   *  manifest). Y is untouched — only the plane footprint constrains
+   *  movement; the user can still fly above the buildings. */
+  function _clampToWorldBounds(): boolean {
+    const wb = cityScene.getWorldBounds();
+    if (!wb) return false;
+    const minX = wb.cx - wb.halfWidth;
+    const maxX = wb.cx + wb.halfWidth;
+    const minZ = wb.cz - wb.halfDepth;
+    const maxZ = wb.cz + wb.halfDepth;
+    let moved = false;
+    if (camera.position.x < minX) { camera.position.x = minX; moved = true; }
+    else if (camera.position.x > maxX) { camera.position.x = maxX; moved = true; }
+    if (camera.position.z < minZ) { camera.position.z = minZ; moved = true; }
+    else if (camera.position.z > maxZ) { camera.position.z = maxZ; moved = true; }
+    return moved;
+  }
+
   function enable(): void {
     if (active) return;
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
+    // Snap the camera to the nearest in-bounds point if the user
+    // switched into fly mode from an orbit pose outside the plane —
+    // otherwise they'd start out flying through empty void with no
+    // floor reference. Y stays put; only XZ snap.
+    if (_clampToWorldBounds()) {
+      camera.updateMatrixWorld(true);
+    }
     // Seed yaw/pitch from the current camera direction so entering fly
     // mode doesn't yank the view to a fixed orientation.
     const dir = new THREE.Vector3();
@@ -267,28 +297,32 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookLMB = false;
     _lookRMB = false;
 
-    // Hand off to orbit at the SAME camera pose. OrbitControls.update()
-    // will call camera.lookAt(rig.controls.target) on its first frame
-    // after re-enable — if target is stale (wherever orbit was looking
-    // pre-flight), the look direction snaps. Re-aim target at a point
-    // along the camera's current forward direction so orbit picks up
-    // facing the same way the user left fly mode facing.
+    // Hand off to orbit. To preserve the user's view direction across
+    // the mode switch, put the orbit pivot ON the camera's current
+    // forward ray — OrbitControls' per-frame lookAt(target) is then
+    // a no-op (the camera already faces target).
+    //
+    // Distance picking:
+    //   • Forward ray hits y = 0 in a sensible distance → pivot on
+    //     the floor where you're looking.
+    //   • Otherwise (looking horizontally or up) → pivot at a fixed
+    //     distance ahead in the air. Mid-air pivots are fine; orbit
+    //     just rotates around that point.
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
-    // Distance: project onto ground (y = 0) when looking down; otherwise
-    // pick a sane fixed distance ahead. The exact value isn't critical —
-    // OrbitControls only uses target as a pivot, not as a look-at offset.
-    const ORBIT_TARGET_DISTANCE = 50;
-    let dist = ORBIT_TARGET_DISTANCE;
-    if (fwd.y < -0.05) {
-      // Looking down — intersect ground plane.
-      dist = -camera.position.y / fwd.y;
-      // Clamp to a reasonable range so a near-vertical look doesn't put
-      // the pivot right at the camera.
-      if (dist < 5) dist = 5;
-      if (dist > 500) dist = 500;
+
+    const FALLBACK_DIST = 200;
+    const MAX_GROUND_DIST = 2000;
+    let dist = FALLBACK_DIST;
+    if (fwd.y < -0.05 && camera.position.y > 0) {
+      const t = -camera.position.y / fwd.y;
+      if (t > 0 && t < MAX_GROUND_DIST) dist = t;
     }
-    rig.controls.target.copy(camera.position).addScaledVector(fwd, dist);
+    rig.controls.target.set(
+      camera.position.x + fwd.x * dist,
+      camera.position.y + fwd.y * dist,
+      camera.position.z + fwd.z * dist,
+    );
 
     _setActive(false);
   }
@@ -364,6 +398,31 @@ export function createFlyControls(opts: FlyControlsOpts) {
     if (camera.position.y < cfg.ALTITUDE_FLOOR) {
       camera.position.y = cfg.ALTITUDE_FLOOR;
       _velocity.y = Math.max(0, _velocity.y);
+    }
+
+    // Constrain X/Z to the world floor's footprint. Zero the velocity
+    // component that was pushing the camera past the edge so the user
+    // doesn't keep "leaning" into the wall after release.
+    const wb = cityScene.getWorldBounds();
+    if (wb) {
+      const minX = wb.cx - wb.halfWidth;
+      const maxX = wb.cx + wb.halfWidth;
+      const minZ = wb.cz - wb.halfDepth;
+      const maxZ = wb.cz + wb.halfDepth;
+      if (camera.position.x < minX) {
+        camera.position.x = minX;
+        if (_velocity.x < 0) _velocity.x = 0;
+      } else if (camera.position.x > maxX) {
+        camera.position.x = maxX;
+        if (_velocity.x > 0) _velocity.x = 0;
+      }
+      if (camera.position.z < minZ) {
+        camera.position.z = minZ;
+        if (_velocity.z < 0) _velocity.z = 0;
+      } else if (camera.position.z > maxZ) {
+        camera.position.z = maxZ;
+        if (_velocity.z > 0) _velocity.z = 0;
+      }
     }
   }
 

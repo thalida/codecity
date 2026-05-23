@@ -95,9 +95,6 @@ function makeFakeCityScene(
   setSnapshot(initialBuildings, initialStreets);
 
   const api: PickerCityScene = {
-    getBuildings() {
-      return Object.keys(buildingMap).map((p) => buildingMap[p].mesh);
-    },
     getStreetPickables() {
       return Object.keys(sidewalkMap).map((p) => sidewalkMap[p]);
     },
@@ -157,7 +154,6 @@ describe('picker.pickAtCenter', () => {
     cube.userData.type = 'directory';
 
     const mockCityScene: PickerCityScene = {
-      getBuildings: () => [],
       getStreetPickables: () => [cube],
       getRootGem: () => null,
       getBuildingByPath: () => null,
@@ -182,7 +178,6 @@ describe('picker.pickAtCenter', () => {
 
   it('returns null when nothing is in front of the camera', () => {
     const mockCityScene: PickerCityScene = {
-      getBuildings: () => [],
       getStreetPickables: () => [],
       getRootGem: () => null,
       getBuildingByPath: () => null,

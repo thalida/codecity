@@ -3,13 +3,9 @@
 // face's UV coordinates. All anti-aliasing is via fwidth() / smoothstep()
 // — no mipmaps available because there's no texture.
 //
-// Visual parity goal: byte-identical (within ~1% pixel tolerance) to
-// the canvas-baked facade textures the previous renderer produced.
-// See web/scene/engine.ts (pre-refactor) for the original logic.
-//
 // Color constants are sourced from the SHADING and FACADE objects in
-// web/scene/engine.ts — if those values change, this shader must be
-// updated to match. The mapping is documented in the constant comments.
+// web/config — if those values change, this shader must be updated to
+// match. The mapping is documented in the per-constant comments below.
 
 #include <hsl_glsl_inline>
 
@@ -341,7 +337,16 @@ vec4 renderWallFace() {
   // before this change; >1.0 makes mid-age buildings dim out faster
   // (their lit-window count AND each lit window's brightness both drop).
   // recency=1.0 at most recently modified, 0.0 at most stale.
-  float recencyCurve = pow(1.0 - vModifiedAge, uLitFreshnessExponent);
+  //
+  // The max(..., 1e-6) on the base is a NaN guard: pow(0, x) is undefined
+  // in GLSL (spec says "result is undefined if x == 0 and y <= 0"; some
+  // drivers extend that to "undefined for x == 0 with any y" because they
+  // implement pow as exp(y*log(x)) and log(0) is -Inf). When
+  // vModifiedAge = 1 (the oldest file), `1.0 - vModifiedAge` is exactly 0
+  // and the unguarded form produced NaN on Apple-silicon Chrome — the NaN
+  // then flowed through `emission` and into `gl_FragColor`, contaminating
+  // the HDR target.
+  float recencyCurve = pow(max(1.0 - vModifiedAge, 1e-6), uLitFreshnessExponent);
 
   float litThreshold = 1.0 - recencyCurve;
   float litFactor = step(litThreshold, litHash);
@@ -397,7 +402,8 @@ vec4 renderWallFace() {
     // pass; the oldest building lets the most bands through.
     float gThreshold = 1.0 - grimeAmount * uGrimeCoverage;
     float gActive = step(gThreshold, gHash);
-    float gVert = pow(uv.y, 1.6);
+    // max(uv.y, 1e-6): same pow(0, x) NaN guard as recencyCurve above.
+    float gVert = pow(max(uv.y, 1e-6), 1.6);
     float gFactor = gActive * gVert * grimeAmount * (0.6 + 0.4 * gHash);
     vec3 gColor = baseColor * 0.25;
     wallOut = mix(wallOut, gColor, gFactor * uGrimeIntensity);
@@ -410,7 +416,10 @@ vec4 renderWallFace() {
     // Door world-width / face world-width = door UV width.
     // vScale = (w, h, d) recovered from instance matrix columns.
     // ±X faces span depth d (vScale.z); ±Z faces span width w (vScale.x).
-    float faceWorldWidth = (vFace == 0 || vFace == 1) ? vScale.z : vScale.x;
+    // max(..., 1e-6) guards against a degenerate zero-scale building (which
+    // would also produce a NaN normal in the vertex shader — see the guard
+    // there); without it, this division would be Inf and propagate through.
+    float faceWorldWidth = max((vFace == 0 || vFace == 1) ? vScale.z : vScale.x, 1e-6);
     float doorUvWidth  = vDoorWidth / faceWorldWidth;
     float doorLeft     = 0.5 - doorUvWidth * 0.5;
     float doorRight    = 0.5 + doorUvWidth * 0.5;

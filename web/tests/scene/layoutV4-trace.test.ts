@@ -189,6 +189,7 @@ describe('layoutCityV4WithTrace', () => {
       signature: 'test',
       tree_signature: 'test-fp-1234',
       repo: null,
+      commits: null,
       tree,
     };
 
@@ -252,6 +253,7 @@ describe('layoutCityV4WithTrace', () => {
       signature: 'test2',
       tree_signature: 'test-fp-5678',
       repo: null,
+      commits: null,
       tree,
     };
 

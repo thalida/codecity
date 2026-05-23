@@ -15,7 +15,17 @@
 //                                    server-emitted phase event
 //   hide()                         — dismiss overlay
 
-export type LoadingStep = 'resolving' | 'cloning' | 'scanning' | 'skeleton' | 'building';
+export type LoadingStep =
+  | 'resolving'
+  | 'cloning'
+  | 'scanning'
+  | 'skeleton'
+  | 'building'
+  // Client-side phase after the city is in the scene but before the
+  // decoration pass (trees, bushes, future mesa bounds) finishes. Triggered
+  // by REBUILD_STATUS → 'decorating' in main.ts. Only inserted when
+  // at least one decoration layer is enabled.
+  | 'decorating';
 
 export interface LoadingOverlayShowOpts {
   kind: 'git' | 'local';
@@ -32,7 +42,14 @@ export interface LoadingOverlay {
 // Steps in display order. 'skeleton' is the placeholder-painting phase
 // while the server resolves per-file metadata; 'building' is the final
 // tween-in of real building heights from the populated manifest.
-const ALL_STEPS: LoadingStep[] = ['resolving', 'cloning', 'scanning', 'skeleton', 'building'];
+const ALL_STEPS: LoadingStep[] = [
+  'resolving',
+  'cloning',
+  'scanning',
+  'skeleton',
+  'building',
+  'decorating',
+];
 
 // Human-readable label for each step.
 const STEP_LABELS: Record<LoadingStep, string> = {
@@ -41,6 +58,7 @@ const STEP_LABELS: Record<LoadingStep, string> = {
   scanning: 'Scanning files',
   skeleton: 'Sketching layout',
   building: 'Building city',
+  decorating: 'Adding decorations',
 };
 
 export function createLoadingOverlay(): LoadingOverlay {
@@ -69,6 +87,7 @@ export function createLoadingOverlay(): LoadingOverlay {
             <li data-step="scanning"  data-state="pending">${STEP_LABELS.scanning}</li>
             <li data-step="skeleton"  data-state="pending">${STEP_LABELS.skeleton}</li>
             <li data-step="building"  data-state="pending">${STEP_LABELS.building}</li>
+            <li data-step="decorating" data-state="pending">${STEP_LABELS.decorating}</li>
           </ol>
         </div>
       </div>
