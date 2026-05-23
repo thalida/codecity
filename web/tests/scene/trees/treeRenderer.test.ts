@@ -1,8 +1,10 @@
-// treeRenderer.test.ts — verifies createTreeRenderer() produces a
-// tree-canopy + tree-trunk InstancedMesh pair, with per-instance
-// heights driven by commit age (older = taller), widths driven by
-// commit file count (more files = wider), and canopy colors that
-// interpolate between TREE_COLOR_OLD and TREE_COLOR_NEW by age.
+// treeRenderer.test.ts — verifies createTreeRenderer() produces one
+// InstancedMesh per non-empty canopy detail level plus a shared trunk
+// mesh, with per-instance heights driven by commit age (older = taller),
+// canopy widths driven by commit file count (more files = wider) and
+// canopy facet counts also driven by file count (more files = higher
+// subdivision), and canopy colors that interpolate between
+// TREE_COLOR_OLD and TREE_COLOR_NEW by commit age.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -27,8 +29,8 @@ function resetStores() {
     SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
     TREE_COLOR_OLD: '#0a2613',
     TREE_COLOR_NEW: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.35,
-    TREE_TRUNK_COLOR: '#4a3220',
+    TREE_SHADING_STRENGTH: 0.55,
+    TREE_TRUNK_COLOR: '#120c08',
   });
   BUILDING_DIMENSIONS.set({
     MIN_FLOORS: 2,
@@ -54,10 +56,31 @@ function makeCommits(n: number, filesAt: (i: number) => number = (i) => i + 1): 
   return out;
 }
 
-function meshByName(group: THREE.Group, name: string): THREE.InstancedMesh {
-  const m = group.children.find((c) => c.name === name);
-  if (!m) throw new Error(`expected child '${name}' on trees group`);
+function trunkMesh(group: THREE.Group): THREE.InstancedMesh {
+  const m = group.children.find((c) => c.name === 'tree-trunk');
+  if (!m) throw new Error("expected 'tree-trunk' on trees group");
   return m as THREE.InstancedMesh;
+}
+
+function canopyMeshes(group: THREE.Group): THREE.InstancedMesh[] {
+  return group.children
+    .filter((c) => c.name.startsWith('tree-canopy-'))
+    .map((c) => c as THREE.InstancedMesh);
+}
+
+/** Locate the canopy mesh + instance index that renders a given
+ *  placement. Returns null if not found (e.g. all shapes disabled). */
+function findCanopyInstance(
+  group: THREE.Group,
+  placementIdx: number,
+): { mesh: THREE.InstancedMesh; instanceIdx: number } | null {
+  for (const m of canopyMeshes(group)) {
+    const order = m.userData.placementOrder as number[] | undefined;
+    if (!order) continue;
+    const k = order.indexOf(placementIdx);
+    if (k !== -1) return { mesh: m, instanceIdx: k };
+  }
+  return null;
 }
 
 function instanceScale(mesh: THREE.InstancedMesh, i: number): THREE.Vector3 {
@@ -91,60 +114,72 @@ describe('createTreeRenderer()', () => {
     trees?.dispose();
   });
 
-  it('builds a tree-canopy and tree-trunk InstancedMesh', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    const names = trees.group.children.map((c) => c.name).sort();
-    expect(names).toEqual(['tree-canopy', 'tree-trunk']);
-    for (const child of trees.group.children) {
-      expect((child as THREE.InstancedMesh).isInstancedMesh).toBe(true);
-    }
-  });
-
-  it('instance counts match placement array length', () => {
+  it('builds at most one canopy mesh per detail level (d0/d1/d2) plus trunk', () => {
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
       placement(0, 20, 3, 2),
     ];
     trees = createTreeRenderer(placements, makeCommits(3));
-    expect(meshByName(trees.group, 'tree-canopy').count).toBe(3);
-    expect(meshByName(trees.group, 'tree-trunk').count).toBe(3);
+    const names = trees.group.children.map((c) => c.name).sort();
+    expect(names).toContain('tree-trunk');
+    const canopyNames = names.filter((n) => n.startsWith('tree-canopy-'));
+    expect(canopyNames.length).toBeGreaterThan(0);
+    expect(canopyNames.length).toBeLessThanOrEqual(3);
+    for (const n of canopyNames) {
+      expect(['tree-canopy-d0', 'tree-canopy-d1', 'tree-canopy-d2']).toContain(n);
+    }
+  });
+
+  it('canopy instance counts sum to placements.length', () => {
+    const placements = [
+      placement(0, 0, 1, 0),
+      placement(20, 0, 2, 1),
+      placement(0, 20, 3, 2),
+      placement(20, 20, 4, 0),
+    ];
+    trees = createTreeRenderer(placements, makeCommits(3));
+    const totalCanopy = canopyMeshes(trees.group).reduce((acc, m) => acc + m.count, 0);
+    expect(totalCanopy).toBe(placements.length);
+    expect(trunkMesh(trees.group).count).toBe(placements.length);
   });
 
   it('handles an empty placement list', () => {
     trees = createTreeRenderer([], makeCommits(0));
-    for (const child of trees.group.children) {
-      expect((child as THREE.InstancedMesh).count).toBe(0);
-    }
+    expect(canopyMeshes(trees.group).length).toBe(0);
+    expect(trunkMesh(trees.group).count).toBe(0);
   });
 
   it('puts foliage meshes at PARK_FOLIAGE render order', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    for (const name of ['tree-canopy', 'tree-trunk']) {
-      expect(meshByName(trees.group, name).renderOrder).toBe(RENDER_ORDERS.PARK_FOLIAGE);
+    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
+      expect(m.renderOrder).toBe(RENDER_ORDERS.PARK_FOLIAGE);
     }
   });
 
   it('honors TREES_ENABLED visibility toggle on build', () => {
     TREES.setKey('TREES_ENABLED', false);
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    expect(meshByName(trees.group, 'tree-canopy').visible).toBe(false);
-    expect(meshByName(trees.group, 'tree-trunk').visible).toBe(false);
+    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
+      expect(m.visible).toBe(false);
+    }
   });
 
   it('refresh() flips visibility on TREES_ENABLED change', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
     TREES.setKey('TREES_ENABLED', false);
     trees.refresh();
-    expect(meshByName(trees.group, 'tree-canopy').visible).toBe(false);
-    expect(meshByName(trees.group, 'tree-trunk').visible).toBe(false);
+    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
+      expect(m.visible).toBe(false);
+    }
     TREES.setKey('TREES_ENABLED', true);
     trees.refresh();
-    expect(meshByName(trees.group, 'tree-canopy').visible).toBe(true);
-    expect(meshByName(trees.group, 'tree-trunk').visible).toBe(true);
+    for (const m of [...canopyMeshes(trees.group), trunkMesh(trees.group)]) {
+      expect(m.visible).toBe(true);
+    }
   });
 
-  it('canopy height interpolates between MIN and MAX driven by commit age (older = taller)', () => {
+  it('trunk height interpolates between MIN and MAX driven by commit age (older = taller)', () => {
     const commits: CommitEntry[] = [
       { date: '2026-01-01', files: 5 }, // oldest → max height
       { date: '2026-01-11', files: 5 }, // mid → mid height
@@ -157,22 +192,21 @@ describe('createTreeRenderer()', () => {
     ];
     trees = createTreeRenderer(placements, commits);
 
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const minHeight = 48;
-    const maxHeight = 144;
-    const midHeight = (minHeight + maxHeight) / 2;
+    const trunk = trunkMesh(trees.group);
+    const minH = 48;
+    const maxH = 144;
+    const midH = (minH + maxH) / 2;
 
-    // commitIndex 0 = oldest → max; 1 = mid; 2 = newest → min.
-    expect(instanceScale(canopy, 0).y).toBeCloseTo(maxHeight, 3);
-    expect(instanceScale(canopy, 1).y).toBeCloseTo(midHeight, 3);
-    expect(instanceScale(canopy, 2).y).toBeCloseTo(minHeight, 3);
+    expect(instanceScale(trunk, 0).y).toBeCloseTo(maxH * 0.25, 3);
+    expect(instanceScale(trunk, 1).y).toBeCloseTo(midH * 0.25, 3);
+    expect(instanceScale(trunk, 2).y).toBeCloseTo(minH * 0.25, 3);
   });
 
-  it('canopy XZ radius interpolates between MIN and MAX driven by commit files', () => {
+  it('trunk XZ scale tracks per-tree canopy radius via TRUNK_RADIUS_FRAC_OF_CANOPY', () => {
     const commits: CommitEntry[] = [
-      { date: '2026-01-01', files: 1 }, // min files → min radius
-      { date: '2026-01-11', files: 5 }, // mid → mid
-      { date: '2026-01-21', files: 9 }, // max files → max radius
+      { date: '2026-01-01', files: 1 }, // min files → min canopy radius
+      { date: '2026-01-11', files: 5 }, // mid
+      { date: '2026-01-21', files: 9 }, // max files → max canopy radius
     ];
     const placements = [
       placement(0, 0, 1, 0),
@@ -181,55 +215,71 @@ describe('createTreeRenderer()', () => {
     ];
     trees = createTreeRenderer(placements, commits);
 
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    // Radii are DIAMETER / 2. TREE_MIN_WIDTH=32 → r=16; TREE_MAX_WIDTH=128 → r=64.
-    const minRadius = 32 / 2;
-    const maxRadius = 128 / 2;
-    const midRadius = (minRadius + maxRadius) / 2;
+    const trunk = trunkMesh(trees.group);
+    const minR = 32 / 2;
+    const maxR = 128 / 2;
+    const midR = (minR + maxR) / 2;
+    const trunkFrac = 0.15;
 
-    const scales = [instanceScale(canopy, 0), instanceScale(canopy, 1), instanceScale(canopy, 2)];
-    expect(scales[0].x).toBeCloseTo(minRadius, 3);
-    expect(scales[1].x).toBeCloseTo(midRadius, 3);
-    expect(scales[2].x).toBeCloseTo(maxRadius, 3);
-    // XZ symmetric: z scale equals x scale.
-    for (const s of scales) {
-      expect(s.z).toBeCloseTo(s.x, 5);
-    }
+    expect(instanceScale(trunk, 0).x).toBeCloseTo(minR * trunkFrac, 3);
+    expect(instanceScale(trunk, 1).x).toBeCloseTo(midR * trunkFrac, 3);
+    expect(instanceScale(trunk, 2).x).toBeCloseTo(maxR * trunkFrac, 3);
   });
 
-  it('trunk thickness scales with canopy radius via TRUNK_RADIUS_FRAC_OF_CANOPY', () => {
+  it('canopy XZ scale matches per-tree radius (looked up via placementOrder)', () => {
     const commits: CommitEntry[] = [
-      { date: '2026-01-01', files: 9 }, // max files → max canopy radius
+      { date: '2026-01-01', files: 1 },
+      { date: '2026-01-21', files: 9 },
     ];
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], commits);
-
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const trunk = meshByName(trees.group, 'tree-trunk');
-    const canopyR = instanceScale(canopy, 0).x;
-    const trunkR = instanceScale(trunk, 0).x;
-    expect(trunkR).toBeCloseTo(canopyR * 0.15, 4);
-  });
-
-  it('trunk height scales with canopy height via TRUNK_HEIGHT_FRAC', () => {
-    const commits: CommitEntry[] = [
-      { date: '2026-01-01', files: 5 }, // oldest → max canopy height
+    const placements = [
+      placement(0, 0, 1, 0),
+      placement(20, 0, 2, 1),
     ];
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], commits);
+    trees = createTreeRenderer(placements, commits);
+    const minR = 32 / 2;
+    const maxR = 128 / 2;
 
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const trunk = meshByName(trees.group, 'tree-trunk');
-    const canopyH = instanceScale(canopy, 0).y;
-    const trunkH = instanceScale(trunk, 0).y;
-    expect(trunkH).toBeCloseTo(canopyH * 0.25, 4);
+    const a = findCanopyInstance(trees.group, 0);
+    const b = findCanopyInstance(trees.group, 1);
+    expect(a).not.toBeNull();
+    expect(b).not.toBeNull();
+    expect(instanceScale(a!.mesh, a!.instanceIdx).x).toBeCloseTo(minR, 3);
+    expect(instanceScale(b!.mesh, b!.instanceIdx).x).toBeCloseTo(maxR, 3);
   });
 
   it('canopy sits on top of trunk (canopy base Y = trunk height)', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const trunk = meshByName(trees.group, 'tree-trunk');
+    const canopy = canopyMeshes(trees.group)[0];
+    const trunk = trunkMesh(trees.group);
     const canopyBaseY = instancePosition(canopy, 0).y;
     const trunkHeight = instanceScale(trunk, 0).y;
     expect(canopyBaseY).toBeCloseTo(trunkHeight, 4);
+  });
+
+  it('facet detail increases with commit file count', () => {
+    const commits: CommitEntry[] = [
+      { date: '2026-01-01', files: 1 }, // sizeT=0   → detail 0
+      { date: '2026-01-11', files: 5 }, // sizeT=0.5 → detail 1
+      { date: '2026-01-21', files: 9 }, // sizeT=1   → detail 2
+    ];
+    const placements = [
+      placement(0, 0, 1, 0),
+      placement(20, 0, 2, 1),
+      placement(0, 20, 3, 2),
+    ];
+    trees = createTreeRenderer(placements, commits);
+
+    const a = findCanopyInstance(trees.group, 0);
+    const b = findCanopyInstance(trees.group, 1);
+    const c = findCanopyInstance(trees.group, 2);
+    expect(a!.mesh.name).toBe('tree-canopy-d0');
+    expect(b!.mesh.name).toBe('tree-canopy-d1');
+    expect(c!.mesh.name).toBe('tree-canopy-d2');
+    // More facets = strictly more triangles (after toNonIndexed).
+    expect(b!.mesh.geometry.getAttribute('position').count)
+      .toBeGreaterThan(a!.mesh.geometry.getAttribute('position').count);
+    expect(c!.mesh.geometry.getAttribute('position').count)
+      .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
   });
 
   it('per-instance color interpolates between OLD and NEW endpoints by commit age', () => {
@@ -245,8 +295,6 @@ describe('createTreeRenderer()', () => {
     ];
     trees = createTreeRenderer(placements, commits);
 
-    const canopy = meshByName(trees.group, 'tree-canopy');
-
     const oldColor = new THREE.Color();
     const newColor = new THREE.Color();
     oldColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
@@ -254,13 +302,16 @@ describe('createTreeRenderer()', () => {
     const midColor = new THREE.Color().lerpColors(oldColor, newColor, 0.5);
 
     const got = new THREE.Color();
-    canopy.getColorAt(0, got);
+    const a = findCanopyInstance(trees.group, 0)!; // oldest → OLD
+    const b = findCanopyInstance(trees.group, 1)!; // mid
+    const c = findCanopyInstance(trees.group, 2)!; // newest → NEW
+    a.mesh.getColorAt(a.instanceIdx, got);
     expect(got.r).toBeCloseTo(oldColor.r, 3);
     expect(got.g).toBeCloseTo(oldColor.g, 3);
-    canopy.getColorAt(1, got);
+    b.mesh.getColorAt(b.instanceIdx, got);
     expect(got.r).toBeCloseTo(midColor.r, 3);
     expect(got.g).toBeCloseTo(midColor.g, 3);
-    canopy.getColorAt(2, got);
+    c.mesh.getColorAt(c.instanceIdx, got);
     expect(got.r).toBeCloseTo(newColor.r, 3);
     expect(got.g).toBeCloseTo(newColor.g, 3);
   });
@@ -272,52 +323,55 @@ describe('createTreeRenderer()', () => {
     ];
     trees = createTreeRenderer(placements, null);
 
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const midHeight = (48 + 144) / 2;
-    const midRadius = ((32 / 2) + (128 / 2)) / 2;
+    const trunk = trunkMesh(trees.group);
+    const midH = (48 + 144) / 2;
     for (let i = 0; i < placements.length; i++) {
-      const s = instanceScale(canopy, i);
-      expect(s.y).toBeCloseTo(midHeight, 3);
-      expect(s.x).toBeCloseTo(midRadius, 3);
+      expect(instanceScale(trunk, i).y).toBeCloseTo(midH * 0.25, 3);
+    }
+    // Null commits → degenerate sizeT=0.5 → detail 1 for every tree.
+    const canopies = canopyMeshes(trees.group);
+    expect(canopies.length).toBe(1);
+    expect(canopies[0].name).toBe('tree-canopy-d1');
+  });
+
+  it('canopy geometry carries a baked color attribute (vertex shading)', () => {
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    for (const m of canopyMeshes(trees.group)) {
+      const colorAttr = m.geometry.getAttribute('color');
+      expect(colorAttr).toBeDefined();
+      expect(colorAttr.itemSize).toBe(3);
+      expect(colorAttr.count).toBeGreaterThan(0);
     }
   });
 
-  it('canopy geometry carries a baked color attribute (vertex-color gradient)', () => {
-    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    const canopy = meshByName(trees.group, 'tree-canopy');
-    const colorAttr = canopy.geometry.getAttribute('color');
-    expect(colorAttr).toBeDefined();
-    expect(colorAttr.itemSize).toBe(3);
-    expect(colorAttr.count).toBeGreaterThan(0);
-  });
-
-  it('vertex-color gradient strength=0 yields uniform white vertex colors', () => {
+  it('vertex shading strength=0 yields uniform white vertex colors', () => {
     TREES.setKey('TREE_SHADING_STRENGTH', 0);
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    const colorAttr = meshByName(trees.group, 'tree-canopy').geometry.getAttribute('color');
-    for (let i = 0; i < colorAttr.count; i++) {
-      expect(colorAttr.getX(i)).toBeCloseTo(1, 5);
-      expect(colorAttr.getY(i)).toBeCloseTo(1, 5);
-      expect(colorAttr.getZ(i)).toBeCloseTo(1, 5);
+    for (const m of canopyMeshes(trees.group)) {
+      const colorAttr = m.geometry.getAttribute('color');
+      for (let i = 0; i < colorAttr.count; i++) {
+        expect(colorAttr.getX(i)).toBeCloseTo(1, 5);
+        expect(colorAttr.getY(i)).toBeCloseTo(1, 5);
+        expect(colorAttr.getZ(i)).toBeCloseTo(1, 5);
+      }
     }
   });
 
   it('refresh() updates color endpoints without rebuilding meshes', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
-    const canopyBefore = meshByName(trees.group, 'tree-canopy');
-    const trunkBefore = meshByName(trees.group, 'tree-trunk');
-    const canopyGeom = canopyBefore.geometry;
-    const trunkGeom = trunkBefore.geometry;
+    const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
+    const geomsBefore = meshesBefore.map((m) => m.geometry);
 
     TREES.setKey('TREE_COLOR_OLD', '#000000');
     TREES.setKey('TREE_COLOR_NEW', '#ffffff');
     TREES.setKey('TREE_TRUNK_COLOR', '#ff0000');
     trees.refresh();
 
-    expect(meshByName(trees.group, 'tree-canopy')).toBe(canopyBefore);
-    expect(meshByName(trees.group, 'tree-trunk')).toBe(trunkBefore);
-    expect(canopyBefore.geometry).toBe(canopyGeom);
-    expect(trunkBefore.geometry).toBe(trunkGeom);
+    const meshesAfter = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
+    for (let i = 0; i < meshesAfter.length; i++) {
+      expect(meshesAfter[i]).toBe(meshesBefore[i]);
+      expect(meshesAfter[i].geometry).toBe(geomsBefore[i]);
+    }
   });
 
   it('dispose() releases geometry and materials', () => {
