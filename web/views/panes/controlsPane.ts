@@ -356,9 +356,10 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 
 // ─── Scene ─────────────────────────────────────────────────────────────────
 // Everything that paints behind / around the city:
-//   Sky        — the procedural icosphere (cyberpunk gradient + stars)
-//   Stars      — hashed star field + twinkle (lives inside the sky shader)
-//   Ground haze — atmospheric fog mix on the building shader
+//   Sky          — the procedural icosphere (cyberpunk gradient + stars)
+//   Ground       — the world floor mesh anchored at the gem
+//   Stars        — hashed star field + twinkle (lives inside the sky shader)
+//   Ground haze  — atmospheric fog mix on the building shader
 //   Sun lighting — directional sun (azimuth, elevation, ambient, contrast)
 // Each is a collapsible subgroup so the section stays scannable. The
 // old SCENE_COLORS.GROUND row is folded into Sky as the disabled-fallback
@@ -367,7 +368,7 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 function _buildSceneSection(): HTMLElement {
   const section = _section(
     'Scene',
-    'Sky, stars, atmosphere, and sun lighting — everything that frames the city.',
+    'Sky, ground, stars, atmosphere, and sun lighting — everything that frames the city.',
   );
 
   section.appendChild(
@@ -386,6 +387,17 @@ function _buildSceneSection(): HTMLElement {
       }),
       _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
         tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-ground', 'Ground', () => [
+      _toggle('Enabled', PARKS_PALETTE, 'GROUND_ENABLED', {
+        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
+      }),
+      _color('Color', PARKS_PALETTE, 'GROUND_COLOR', {
+        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
       }),
     ]),
   );
@@ -479,12 +491,6 @@ function _buildParksSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Visibility', [
-      _toggle('Ground', PARKS_PALETTE, 'GROUND_ENABLED', {
-        tip: 'Camera-following forest-tinted ground plane that paints the entire visible world floor. Disable to see the sky\'s lower-hemisphere fill behind everything (handy for debugging).',
-      }),
-      _color('Ground color', PARKS_PALETTE, 'GROUND_COLOR', {
-        tip: 'Color of the valley-floor mesh. Match the sky color at the horizon for a seamless blend.',
-      }),
       _toggle('Trees', PARKS_PALETTE, 'TREES_ENABLED', {
         tip: 'Matte tetrahedral canopies + tiny trunks. Disable for a treeless park silhouette.',
       }),
