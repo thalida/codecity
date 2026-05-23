@@ -557,7 +557,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     rootStreet = (layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
     if (!rootStreet) {
       gemWorldPos = null;
-      _valleyFloor.setBounds(getWorldBounds(layout?.bbox ?? null));
       return;
     }
     gemWorldPos = new THREE.Vector3();
@@ -567,7 +566,6 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     } else {
       gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
     }
-    _valleyFloor.setBounds(getWorldBounds(layout?.bbox ?? null));
   }
 
   // _computeDiff compares prev cells vs new cells at the per-instance
@@ -975,6 +973,28 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     _emit(changeCbs, _computeDiff(prev));
 
+    // Convert the THREE.Box3 of the rendered scene to a placement-style
+    // CityBbox. This captures the actual on-screen extent (all buildings +
+    // streets + paths) — which is what the valley floor and tree scatter
+    // need to size against. The layout module's `layout.bbox` is a 2D
+    // pre-render placement bbox that can lag behind the final rendered
+    // geometry on big repos, so we use this one as the single source of
+    // truth for "how big is the city."
+    const sceneBbox: CityBbox | null = bbox ? {
+      minX: bbox.min.x,
+      maxX: bbox.max.x,
+      minY: bbox.min.z, // three.js Z is the second world axis
+      maxY: bbox.max.z,
+      cx: (bbox.min.x + bbox.max.x) / 2,
+      cy: (bbox.min.z + bbox.max.z) / 2,
+      width: bbox.max.x - bbox.min.x,
+      depth: bbox.max.z - bbox.min.z,
+    } : null;
+
+    // Floor is sized from the scene's bbox + buffer. Falls back to a
+    // small default at the origin when there's no city (empty manifest).
+    _valleyFloor.setBounds(getWorldBounds(sceneBbox));
+
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
       // so we don't need the rAF+setTimeout defer the parks path uses.
@@ -982,22 +1002,13 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       scene.add(_cityFootprint.group);
     }
 
-    if (parksEnabled && bbox) {
+    if (parksEnabled && bbox && sceneBbox) {
       // Snapshot what the deferred pass needs so a later applyManifest
       // bumping _currentGeneration doesn't race with this build.
       const generationAtDefer = myGeneration;
       const layoutAtDefer = newLayout;
       const commitCountAtDefer = manifest.commits?.length ?? 0;
-      const parksBbox: CityBbox = {
-        minX: bbox.min.x,
-        maxX: bbox.max.x,
-        minY: bbox.min.z, // three.js Z is the second world axis
-        maxY: bbox.max.z,
-        cx: (bbox.min.x + bbox.max.x) / 2,
-        cy: (bbox.min.z + bbox.max.z) / 2,
-        width: bbox.max.x - bbox.min.x,
-        depth: bbox.max.z - bbox.min.z,
-      };
+      const parksBbox: CityBbox = sceneBbox;
 
       REBUILD_STATUS.set('decorating');
       // rAF lets the browser START the next frame; setTimeout(0)
