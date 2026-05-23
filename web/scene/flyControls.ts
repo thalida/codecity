@@ -299,50 +299,42 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookLMB = false;
     _lookRMB = false;
 
-    // Hand off to orbit. OrbitControls treats `target` as the orbit
-    // pivot — when the user starts rotating, the camera revolves
-    // around it. The pivot must sit on the visible world floor
-    // (y = 0) and inside the world bounds, otherwise rotation feels
-    // unanchored (mid-air point) or wildly off-axis (point in empty
-    // void beyond the plane).
+    // Hand off to orbit. OrbitControls' update() calls
+    // camera.lookAt(target) every frame, which would yank the camera
+    // around to face the pivot. To preserve the user's view direction
+    // (only the rotation pivot should change, not where the camera
+    // is looking), put the pivot ON the camera's current forward ray
+    // — lookAt(target) is then a no-op because the camera already
+    // faces target.
     //
-    // Strategy:
-    //   1. Cast the camera's forward ray onto y = 0. If it hits the
-    //      floor in front of the camera at a reasonable range, use
-    //      that — it preserves the "I was looking at this spot"
-    //      feeling from the moment the user left fly mode.
-    //   2. Otherwise (looking up, near-horizontal, or pointing
-    //      backwards relative to the floor): drop straight down to
-    //      the camera's XZ projection on y = 0.
-    //   3. Either candidate is clamped to the world's floor rectangle
-    //      so the pivot is always inside the visible plane.
-    //   4. Final fallback when no world bounds are available: world
-    //      origin.
+    // Distance picking:
+    //   1. If the forward ray crosses y = 0 ahead of the camera at a
+    //      reasonable distance, use that ground-intersection — the
+    //      pivot lands on the visible plane (best case).
+    //   2. Otherwise (looking up, horizontal, or behind the plane):
+    //      pick a fixed distance ahead so the pivot floats just in
+    //      front of the user. Mid-air pivots are fine — rotation
+    //      still works; the user can re-center after a drag.
+    //   3. XZ clamp to the world bounds so a faraway floor hit
+    //      doesn't put the pivot outside the visible plane.
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
 
-    let pivotX: number;
-    let pivotZ: number;
+    const ORBIT_FALLBACK_DIST = 100;
+    const ORBIT_GROUND_MAX_DIST = 2000;
+    let dist = ORBIT_FALLBACK_DIST;
     if (fwd.y < -0.05 && camera.position.y > 0) {
-      // Forward ray crosses the y=0 plane somewhere in front of the
-      // camera. Compute that XZ hit.
-      const t = -camera.position.y / fwd.y;
-      const ORBIT_FORWARD_HIT_MAX = 2000;
-      const usableT = t > 0 && t < ORBIT_FORWARD_HIT_MAX ? t : null;
-      if (usableT != null) {
-        pivotX = camera.position.x + fwd.x * usableT;
-        pivotZ = camera.position.z + fwd.z * usableT;
-      } else {
-        pivotX = camera.position.x;
-        pivotZ = camera.position.z;
-      }
-    } else {
-      pivotX = camera.position.x;
-      pivotZ = camera.position.z;
+      const tGround = -camera.position.y / fwd.y;
+      if (tGround > 0 && tGround < ORBIT_GROUND_MAX_DIST) dist = tGround;
     }
 
-    // Clamp to the world plane so orbit always pivots over visible
-    // ground. Fall through to (0, 0, 0) if no bounds yet.
+    let pivotX = camera.position.x + fwd.x * dist;
+    let pivotY = camera.position.y + fwd.y * dist;
+    let pivotZ = camera.position.z + fwd.z * dist;
+
+    // Clamp X/Z to world bounds. Y is left untouched — clamping Y
+    // would move the pivot OFF the forward ray and force the camera
+    // to rotate (which is exactly what we're trying to avoid).
     const wb = cityScene.getWorldBounds();
     if (wb) {
       const minX = wb.cx - wb.halfWidth;
@@ -354,7 +346,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
       if (pivotZ < minZ) pivotZ = minZ;
       else if (pivotZ > maxZ) pivotZ = maxZ;
     }
-    rig.controls.target.set(pivotX, 0, pivotZ);
+    rig.controls.target.set(pivotX, pivotY, pivotZ);
 
     _setActive(false);
   }

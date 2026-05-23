@@ -70,11 +70,11 @@ describe('flyControls state machine', () => {
     expect(rig.controls.enabled).toBe(true);
   });
 
-  it('disable() drops the orbit target onto the world floor (y = 0)', () => {
-    // Camera at (10, 8, 5) looking horizontally along -Z. The new
-    // contract is: pivot must sit on the visible world plane, NOT in
-    // mid-air ahead of the camera. Near-horizontal forward → pivot
-    // falls straight down to the camera's XZ projection.
+  it('disable() puts the pivot on the camera forward ray (no view rotation)', () => {
+    // Camera at (10, 8, 5) looking horizontally along -Z. The forward
+    // ray never hits y=0, so the pivot floats at the fallback
+    // distance ahead — but crucially stays ON the forward ray so
+    // OrbitControls' lookAt(target) won't rotate the camera.
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(10, 8, 5);
     camera.lookAt(10, 8, -100);
@@ -88,16 +88,17 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
-    // Pivot drops straight down onto y = 0 (no world bounds → no clamp).
+    // Pivot is on the forward ray, ahead of the camera. Y is still
+    // camera altitude (8) because forward is horizontal.
     expect(rig.controls.target.x).toBeCloseTo(10, 2);
-    expect(rig.controls.target.y).toBeCloseTo(0, 2);
-    expect(rig.controls.target.z).toBeCloseTo(5, 2);
+    expect(rig.controls.target.y).toBeCloseTo(8, 2);
+    expect(rig.controls.target.z).toBeLessThan(camera.position.z);
   });
 
-  it('disable() projects the forward ray onto y=0 when looking down', () => {
+  it('disable() lands the pivot on the floor when the forward ray hits y=0', () => {
     // Camera at (10, 20, 0) looking down-forward at (10, 0, -10):
-    // forward ≈ (0, -y, -z) with y < 0. The ground intersection lies
-    // ahead of the camera in -Z.
+    // forward crosses y=0 at z ≈ -10. Pivot is on the floor AND on
+    // the forward ray (so the camera doesn't rotate).
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(10, 20, 0);
     camera.lookAt(10, 0, -10);
@@ -113,16 +114,18 @@ describe('flyControls state machine', () => {
     fly.disable();
     expect(rig.controls.target.y).toBeCloseTo(0, 2);
     expect(rig.controls.target.x).toBeCloseTo(10, 2);
-    // Forward-Z hit lands ahead of the camera.
     expect(rig.controls.target.z).toBeLessThan(camera.position.z);
   });
 
-  it('disable() clamps the pivot to world bounds when provided', () => {
-    // Camera way outside the world rect; pivot must snap onto the
-    // floor edge instead of staying in the void.
+  it('disable() clamps pivot XZ to world bounds (Y stays on forward ray)', () => {
+    // Camera near the +X edge of the plane, looking outward in +X.
+    // Forward-extended pivot would land outside the plane, so the
+    // XZ clamp pulls it back onto the edge. Y is intentionally NOT
+    // clamped — pulling Y off the forward ray would force the camera
+    // to rotate, which is what we're trying to avoid.
     const camera = new THREE.PerspectiveCamera();
-    camera.position.set(10000, 50, 10000);
-    camera.lookAt(10000, 50, 9000);
+    camera.position.set(450, 50, 0);
+    camera.lookAt(550, 50, 0); // looks +X (horizontal)
     camera.updateMatrixWorld();
     const rig = makeFakeRig();
     const fly = createFlyControls({
@@ -136,9 +139,10 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
+    // Forward * 100 → pivot at (550, 50, 0); X clamps to halfWidth=500.
     expect(rig.controls.target.x).toBe(500);
-    expect(rig.controls.target.z).toBe(300);
-    expect(rig.controls.target.y).toBeCloseTo(0, 2);
+    expect(rig.controls.target.z).toBeCloseTo(0, 2);
+    expect(rig.controls.target.y).toBeCloseTo(50, 2);
   });
 
   it('onActiveChange callback fires on enable and disable', () => {
