@@ -202,11 +202,13 @@ export function placeTrees(
   // so its bbox is that radius on both axes. Without this expansion, the
   // polygon's "ears" past the rect corners get zero candidates and read
   // as empty zones on the island.
+  //
+  // Edge inset is now handled by shrinking the polygon used in the rejection
+  // test (see shrunkPolygon below), NOT by shrinking the sampling rect.
+  // The rect samples the full polygon bbox so we don't miss any island area.
   const polygonRadius = Math.hypot(bounds.halfWidth, bounds.halfDepth);
-  const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
-  const inset = polygonRadius * insetFrac;
-  const sampleHalfW = Math.max(0, polygonRadius - inset);
-  const sampleHalfD = Math.max(0, polygonRadius - inset);
+  const sampleHalfW = polygonRadius;
+  const sampleHalfD = polygonRadius;
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible
@@ -232,11 +234,16 @@ export function placeTrees(
   // undefined means read the live store (main-thread / sync path).
   // The worker passes a snapshot via islandGeoOverride so it never touches
   // the main-thread store directly.
+  //
+  // Edge inset: each polygon vertex is pulled radially inward by insetFrac
+  // so the rejection test naturally excludes trees within that margin of
+  // the actual polygon edge. This gives visually-uniform clearance regardless
+  // of IRREGULARITY (which makes edges sit at varying distances from origin).
   let islandPolygon: THREE.Vector3[] | null = null;
   if (options.islandGeoOverride !== null) {
     const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.get();
     if (islandGeo.ENABLED) {
-      islandPolygon = buildTopPolygon({
+      const rawPolygon = buildTopPolygon({
         sides: islandGeo.SIDES,
         irregularity: islandGeo.IRREGULARITY,
         tiers: islandGeo.TIERS,
@@ -246,6 +253,16 @@ export function placeTrees(
         seed: islandSeedFromBounds(bounds),
         pitWidth: islandGeo.PIT_WIDTH,
         taperCurve: islandGeo.TAPER_CURVE,
+      });
+      // Shrink every vertex radially inward by insetFrac so the rejection
+      // polygon is uniformly inset from the actual island edge.
+      const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+      islandPolygon = rawPolygon.map((v) => {
+        const r = Math.hypot(v.x, v.z);
+        if (r < 1e-6) return v.clone();
+        const newR = r * (1 - insetFrac);
+        const scale = newR / r;
+        return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
       });
     }
   }

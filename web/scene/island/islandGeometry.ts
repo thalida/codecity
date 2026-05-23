@@ -252,8 +252,21 @@ export function buildIslandGeometry(
   }
 
   // Bottom cap: small N-gon polygon (not a single point) at the deepest Y.
-  // pitWidth controls how blunt vs pointed — 0 = sharp point, 0.4 = wide blunt.
-  const pitRadius = islandRadius * pitWidth;
+  // pitWidth controls the MINIMUM bottom-cap ring fraction, but we guarantee
+  // the cap is never narrower than the last intermediate ring — otherwise the
+  // stitch goes inward and creates a visible dagger spike.
+  //
+  // lastRingRadiusFrac mirrors the radiusFrac formula in the intermediate-ring
+  // loop above, evaluated at frac = tiers/(tiers+1) (the last ring).
+  const lastRingRadiusFrac = tiers > 0
+    ? Math.pow(1 - tiers / (tiers + 1), taperCurve)
+    : 1;
+  const lastRingRadius = islandRadius * lastRingRadiusFrac;
+  const minPitRadius = islandRadius * pitWidth;
+  // Clamp: the cap may be smaller than the last ring, but never so small it
+  // inverts the taper. 0.85 gives a visible "bottom closure" step.
+  const pitRadius = Math.max(minPitRadius, lastRingRadius * 0.85);
+
   const bottomY = -totalDepth;
   const bottomNoise = rng(seed ^ 0xa1b2c3d4);
   const bottomRing: THREE.Vector3[] = [];
@@ -264,8 +277,10 @@ export function buildIslandGeometry(
     const stagger = (Math.PI / sides);
     const rx = Math.cos(theta + stagger) * pitRadius;
     const rz = -Math.sin(theta + stagger) * pitRadius;
-    // Small per-vertex noise so the cap isn't perfectly regular.
-    const jitter = pitRadius * 0.25;
+    // Tiny per-vertex noise — just enough so the cap isn't perfectly circular.
+    // The old value (pitRadius * 0.25) was large enough to cross adjacent
+    // vertices and produce a tangled cap; 0.08 gives a barely-perturbed ring.
+    const jitter = pitRadius * 0.08;
     bottomRing.push(new THREE.Vector3(
       rx + (bottomNoise() - 0.5) * 2 * jitter,
       bottomY + (bottomNoise() - 0.5) * 2 * jitter * 0.4,
@@ -336,11 +351,19 @@ export function pointInIslandPolygon(
  * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
  * stay in sync with the actual bottom geometry without reaching into
  * internal constants.
+ *
+ * Mirrors the clamping logic in buildIslandGeometry: the cap radius is
+ * MAX(pitWidth × islandRadius, lastRingRadius × 0.85) so callers that
+ * position effects relative to the cap get the real value.
  */
 export function bottomCapRadius(params: IslandBuildParams): number {
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  // Exactly the bottom cap ring radius used in buildIslandGeometry.
-  return islandRadius * params.pitWidth;
+  const lastRingRadiusFrac = params.tiers > 0
+    ? Math.pow(1 - params.tiers / (params.tiers + 1), params.taperCurve)
+    : 1;
+  const lastRingRadius = islandRadius * lastRingRadiusFrac;
+  const minPitRadius = islandRadius * params.pitWidth;
+  return Math.max(minPitRadius, lastRingRadius * 0.85);
 }
 
 /**
