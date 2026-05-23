@@ -243,6 +243,10 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // parks.refresh. TREES_ENABLED and GROUND_ENABLED stay on the hot
   // path because they only flip mesh.visible.
   unsubs.push(listenKeys(PARKS_PALETTE, ['BUSHES_ENABLED', 'FLOWERS_ENABLED'], scheduleRebuild));
+  // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
+  // the foliage sampling region), so it requires a full rebuild.
+  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via parks.refresh().
+  unsubs.push(listenKeys(PARKS_PALETTE, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
   armed = true;
 
   return function dispose() {

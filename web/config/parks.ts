@@ -56,6 +56,13 @@ export interface ParksConfig {
   FLOWER_SIZE_FRAC_OF_TREE: number;
   FLOWERS_PER_BUSH: number;
   FLOWERS_PER_CLUSTER: number;
+
+  /** Foliage stops short of the plane edge by this percentage of the
+   *  SHORTER plane half-extent. Using the shorter axis guarantees the
+   *  absolute bare-ground margin is equal on all four sides of a
+   *  rectangular plane. 0 = trees right up to the edge; 25 = wide
+   *  bare-ground margin all around. */
+  EDGE_INSET_PERCENT: number;
 }
 
 export const PARKS = map<ParksConfig>({
@@ -82,6 +89,10 @@ export const PARKS = map<ParksConfig>({
   FLOWER_SIZE_FRAC_OF_TREE: 0.08,
   FLOWERS_PER_BUSH: 4,
   FLOWERS_PER_CLUSTER: 8,
+
+  // 8% of the shorter plane half-extent — a clean, even grass border
+  // that reads the same on square and wide-rectangular planes.
+  EDGE_INSET_PERCENT: 8,
 });
 
 export interface ParksPaletteConfig {
@@ -95,6 +106,11 @@ export interface ParksPaletteConfig {
    *  within the world bounds. A large flat plane world-anchored at y=0
    *  beneath the gem, tinted to give the ground a forest color. */
   GROUND_COLOR: string;
+
+  /** Padding past the city's bounding box as a percentage of the city's
+   *  longest dimension. 0 = plane exactly fits the city; 15 = default
+   *  generous halo of bare ground; 50 = very wide margin. */
+  GROUND_BUFFER_PERCENT: number;
 
   TREE_GREENS: string[];
   TREE_TRUNK_COLOR: string;
@@ -113,6 +129,10 @@ export const PARKS_PALETTE = map<ParksPaletteConfig>({
   // Dark forest tone — what the camera sees as "the floor of the
   // world" anywhere there isn't city geometry or a discrete tree.
   GROUND_COLOR: '#030706',
+
+  // 15% of the city's longest dimension — a clean halo of bare ground
+  // past the building edge, consistent in both X and Z.
+  GROUND_BUFFER_PERCENT: 15,
 
   TREE_GREENS: ['#2a6a4a', '#3a7a3a', '#4a8a4a', '#1f5a2f'],
   TREE_TRUNK_COLOR: '#4a3220',

@@ -23,6 +23,7 @@ function resetParks() {
     FLOWER_SIZE_FRAC_OF_TREE: 0.08,
     FLOWERS_PER_BUSH: 4,
     FLOWERS_PER_CLUSTER: 8,
+    EDGE_INSET_PERCENT: 8,
   });
 }
 

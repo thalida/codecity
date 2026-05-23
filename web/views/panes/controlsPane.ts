@@ -399,6 +399,9 @@ function _buildSceneSection(): HTMLElement {
       _color('Color', PARKS_PALETTE, 'GROUND_COLOR', {
         tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
       }),
+      _slider('Ground buffer (% of city)', PARKS_PALETTE, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
+        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+      }),
     ]),
   );
 
@@ -513,6 +516,9 @@ function _buildParksSection(): HTMLElement {
       }),
       _slider('Gradient reach (% of plane)', PARKS, 'GRADIENT_REACH_PERCENT', 0, 100, 1, {
         tip: 'How far the city → forest density transition spans, as a percentage of the visible plane. 0 = hard switch at the city edge; 40 = smooth fade over the first 40% of the plane (default); 100 = density rises gradually all the way to the plane edge.',
+      }),
+      _slider('Edge inset (% of plane)', PARKS, 'EDGE_INSET_PERCENT', 0, 50, 1, {
+        tip: 'Foliage stops short of the plane edge by this fraction of the SHORTER axis. 0% = trees right up to the edge; 25% = wide bare-ground margin all around.',
       }),
     ]),
   );

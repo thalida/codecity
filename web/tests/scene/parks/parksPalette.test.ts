@@ -16,6 +16,7 @@ function resetPalette() {
   PARKS_PALETTE.set({
     GROUND_ENABLED: true,
     GROUND_COLOR: '#0c1814',
+    GROUND_BUFFER_PERCENT: 15,
     TREES_ENABLED: true,
     BUSHES_ENABLED: true,
     FLOWERS_ENABLED: true,

@@ -68,13 +68,6 @@ export interface PlaceParksOptions {
  *  second. */
 const TREE_MAX_ATTEMPTS = 2_000_000;
 
-/** Fraction of the plane's half-extent to leave free of foliage at
- *  each edge. 0.08 = trees and bushes sample within 92% of the
- *  plane in each axis, leaving an 8% bare-ground ring around the
- *  perimeter. Reads as a clean grass margin between the forest and
- *  the world edge. */
-const PLANE_EDGE_INSET_FRAC = 0.08;
-
 /**
  * Mulberry32 — small PRNG with proper avalanche. Single call returns
  * a u32 from a u32 input; outputs of `mulberry32(s ^ saltA)` and
@@ -228,8 +221,14 @@ export function placeParks(
 
   // Inset the sampling extent so foliage stops short of the plane
   // edge — leaves a visible bare-ground margin around the world.
-  const sampleHalfW = bounds.halfWidth * (1 - PLANE_EDGE_INSET_FRAC);
-  const sampleHalfD = bounds.halfDepth * (1 - PLANE_EDGE_INSET_FRAC);
+  // A single absolute inset (min half-extent × fraction) guarantees
+  // the bare-ground margin is the SAME width on all four sides of a
+  // rectangular plane (e.g. an 80000 × 3000 plane still gets a
+  // symmetric margin, not 3200u left/right and 120u top/bottom).
+  const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+  const inset = Math.min(bounds.halfWidth, bounds.halfDepth) * insetFrac;
+  const sampleHalfW = Math.max(0, bounds.halfWidth - inset);
+  const sampleHalfD = Math.max(0, bounds.halfDepth - inset);
 
   // Master seed from the bbox dims so the same layout always
   // produces the same parks across reloads.

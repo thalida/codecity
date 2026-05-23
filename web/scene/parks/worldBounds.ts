@@ -17,11 +17,7 @@
 // renders.
 
 import type { CityBbox } from '@/types';
-
-/** Fraction of the larger bbox dimension to add as buffer on each
- *  side. 0.15 = 15% past the city edge in both X and Z. The same
- *  absolute buffer is applied to both axes for visual consistency. */
-const BUFFER_FRAC_OF_MAX_DIM = 0.15;
+import { PARKS_PALETTE } from '@/config/parks.js';
 
 /** Minimum buffer in world units — so tiny cities still get a
  *  visible margin past the buildings, and degenerate (zero-extent)
@@ -52,8 +48,9 @@ export function getWorldBounds(bbox: CityBbox | null | undefined): WorldBounds {
       halfDepth: FALLBACK_HALF_DIM,
     };
   }
+  const bufferFrac = PARKS_PALETTE.get().GROUND_BUFFER_PERCENT / 100;
   const maxDim = Math.max(bbox.width, bbox.depth);
-  const buffer = Math.max(MIN_BUFFER, maxDim * BUFFER_FRAC_OF_MAX_DIM);
+  const buffer = Math.max(MIN_BUFFER, maxDim * bufferFrac);
   return {
     cx: bbox.cx,
     cz: bbox.cy,             // bbox.cy is the Z-axis center in this codebase
