@@ -69,6 +69,13 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     };
   }
 
+  // Idempotency guard: if initAppHeader has run before, clear our
+  // previously-injected buttons so we don't accumulate stacked copies
+  // on error-path re-init (boot() catch path → startRenderLoop again).
+  titleEl.parentElement
+    ?.querySelectorAll('[data-app-header-injected]')
+    .forEach((el) => el.remove());
+
   // Last selection cached so config-store subscriptions can re-render
   // with the same selection when the palette / asphalt color changes.
   let lastSelection: HeaderSelection | null = null;
@@ -200,6 +207,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         a.rel = 'noopener noreferrer';
         a.setAttribute('aria-label', 'Open repository in a new tab');
         a.appendChild(makeLucideIcon('external-link'));
+        a.dataset.appHeaderInjected = '1';
         _repoLinkEl = a;
         _projectBtn.parentElement.insertBefore(_repoLinkEl, _projectBtn.nextSibling);
       }
@@ -294,6 +302,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     }
 
     _projectBtn = btn;
+    btn.dataset.appHeaderInjected = '1';
     titleEl.parentElement?.prepend(btn);
 
     // Render the open-repo link IMMEDIATELY AFTER the project button if a
@@ -314,6 +323,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.title = 'Refresh — rebuild the city and reset the view (R)';
     btn.setAttribute('aria-label', 'Refresh');
     btn.appendChild(makeLucideIcon('gem'));
+    btn.dataset.appHeaderInjected = '1';
     btn.addEventListener('click', () => onRefresh());
     titleEl.parentElement?.prepend(btn);
   }
@@ -333,6 +343,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.title = 'Enter fly mode (V)';
     btn.setAttribute('aria-label', 'Toggle fly mode');
     btn.appendChild(makeLucideIcon('compass'));
+    btn.dataset.appHeaderInjected = '1';
     btn.addEventListener('click', () => {
       // Blur immediately so the button doesn't retain keyboard focus.
       // A focused button intercepts Space/Enter (activating itself and
