@@ -70,10 +70,11 @@ describe('flyControls state machine', () => {
     expect(rig.controls.enabled).toBe(true);
   });
 
-  it('disable() re-aims orbit target along the camera forward direction', () => {
-    // Camera at (10, 8, 5) looking at (10, 8, -100): forward = -Z.
-    // After fly disable, the orbit target should sit somewhere along -Z
-    // ahead of the camera — NOT at its stale (0,0,0) starting value.
+  it('disable() drops the orbit target onto the world floor (y = 0)', () => {
+    // Camera at (10, 8, 5) looking horizontally along -Z. The new
+    // contract is: pivot must sit on the visible world plane, NOT in
+    // mid-air ahead of the camera. Near-horizontal forward → pivot
+    // falls straight down to the camera's XZ projection.
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(10, 8, 5);
     camera.lookAt(10, 8, -100);
@@ -87,11 +88,57 @@ describe('flyControls state machine', () => {
     });
     fly.enable();
     fly.disable();
-    // Target should be ahead of the camera in -Z (its forward), with
-    // X and Y close to the camera's.
+    // Pivot drops straight down onto y = 0 (no world bounds → no clamp).
     expect(rig.controls.target.x).toBeCloseTo(10, 2);
-    expect(rig.controls.target.y).toBeCloseTo(8, 2);
+    expect(rig.controls.target.y).toBeCloseTo(0, 2);
+    expect(rig.controls.target.z).toBeCloseTo(5, 2);
+  });
+
+  it('disable() projects the forward ray onto y=0 when looking down', () => {
+    // Camera at (10, 20, 0) looking down-forward at (10, 0, -10):
+    // forward ≈ (0, -y, -z) with y < 0. The ground intersection lies
+    // ahead of the camera in -Z.
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(10, 20, 0);
+    camera.lookAt(10, 0, -10);
+    camera.updateMatrixWorld();
+    const rig = makeFakeRig();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig,
+      cityScene: makeFakeCityScene(),
+    });
+    fly.enable();
+    fly.disable();
+    expect(rig.controls.target.y).toBeCloseTo(0, 2);
+    expect(rig.controls.target.x).toBeCloseTo(10, 2);
+    // Forward-Z hit lands ahead of the camera.
     expect(rig.controls.target.z).toBeLessThan(camera.position.z);
+  });
+
+  it('disable() clamps the pivot to world bounds when provided', () => {
+    // Camera way outside the world rect; pivot must snap onto the
+    // floor edge instead of staying in the void.
+    const camera = new THREE.PerspectiveCamera();
+    camera.position.set(10000, 50, 10000);
+    camera.lookAt(10000, 50, 9000);
+    camera.updateMatrixWorld();
+    const rig = makeFakeRig();
+    const fly = createFlyControls({
+      camera,
+      canvas: makeCanvas(),
+      rig,
+      cityScene: {
+        ...makeFakeCityScene(),
+        getWorldBounds: () => ({ cx: 0, cz: 0, halfWidth: 500, halfDepth: 300 }),
+      },
+    });
+    fly.enable();
+    fly.disable();
+    expect(rig.controls.target.x).toBe(500);
+    expect(rig.controls.target.z).toBe(300);
+    expect(rig.controls.target.y).toBeCloseTo(0, 2);
   });
 
   it('onActiveChange callback fires on enable and disable', () => {

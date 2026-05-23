@@ -299,28 +299,62 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookLMB = false;
     _lookRMB = false;
 
-    // Hand off to orbit at the SAME camera pose. OrbitControls.update()
-    // will call camera.lookAt(rig.controls.target) on its first frame
-    // after re-enable — if target is stale (wherever orbit was looking
-    // pre-flight), the look direction snaps. Re-aim target at a point
-    // along the camera's current forward direction so orbit picks up
-    // facing the same way the user left fly mode facing.
+    // Hand off to orbit. OrbitControls treats `target` as the orbit
+    // pivot — when the user starts rotating, the camera revolves
+    // around it. The pivot must sit on the visible world floor
+    // (y = 0) and inside the world bounds, otherwise rotation feels
+    // unanchored (mid-air point) or wildly off-axis (point in empty
+    // void beyond the plane).
+    //
+    // Strategy:
+    //   1. Cast the camera's forward ray onto y = 0. If it hits the
+    //      floor in front of the camera at a reasonable range, use
+    //      that — it preserves the "I was looking at this spot"
+    //      feeling from the moment the user left fly mode.
+    //   2. Otherwise (looking up, near-horizontal, or pointing
+    //      backwards relative to the floor): drop straight down to
+    //      the camera's XZ projection on y = 0.
+    //   3. Either candidate is clamped to the world's floor rectangle
+    //      so the pivot is always inside the visible plane.
+    //   4. Final fallback when no world bounds are available: world
+    //      origin.
     const fwd = new THREE.Vector3();
     camera.getWorldDirection(fwd);
-    // Distance: project onto ground (y = 0) when looking down; otherwise
-    // pick a sane fixed distance ahead. The exact value isn't critical —
-    // OrbitControls only uses target as a pivot, not as a look-at offset.
-    const ORBIT_TARGET_DISTANCE = 50;
-    let dist = ORBIT_TARGET_DISTANCE;
-    if (fwd.y < -0.05) {
-      // Looking down — intersect ground plane.
-      dist = -camera.position.y / fwd.y;
-      // Clamp to a reasonable range so a near-vertical look doesn't put
-      // the pivot right at the camera.
-      if (dist < 5) dist = 5;
-      if (dist > 500) dist = 500;
+
+    let pivotX: number;
+    let pivotZ: number;
+    if (fwd.y < -0.05 && camera.position.y > 0) {
+      // Forward ray crosses the y=0 plane somewhere in front of the
+      // camera. Compute that XZ hit.
+      const t = -camera.position.y / fwd.y;
+      const ORBIT_FORWARD_HIT_MAX = 2000;
+      const usableT = t > 0 && t < ORBIT_FORWARD_HIT_MAX ? t : null;
+      if (usableT != null) {
+        pivotX = camera.position.x + fwd.x * usableT;
+        pivotZ = camera.position.z + fwd.z * usableT;
+      } else {
+        pivotX = camera.position.x;
+        pivotZ = camera.position.z;
+      }
+    } else {
+      pivotX = camera.position.x;
+      pivotZ = camera.position.z;
     }
-    rig.controls.target.copy(camera.position).addScaledVector(fwd, dist);
+
+    // Clamp to the world plane so orbit always pivots over visible
+    // ground. Fall through to (0, 0, 0) if no bounds yet.
+    const wb = cityScene.getWorldBounds();
+    if (wb) {
+      const minX = wb.cx - wb.halfWidth;
+      const maxX = wb.cx + wb.halfWidth;
+      const minZ = wb.cz - wb.halfDepth;
+      const maxZ = wb.cz + wb.halfDepth;
+      if (pivotX < minX) pivotX = minX;
+      else if (pivotX > maxX) pivotX = maxX;
+      if (pivotZ < minZ) pivotZ = minZ;
+      else if (pivotZ > maxZ) pivotZ = maxZ;
+    }
+    rig.controls.target.set(pivotX, 0, pivotZ);
 
     _setActive(false);
   }
