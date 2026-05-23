@@ -34,7 +34,9 @@ void main() {
 
 export function createUnderglowCore(params: UnderglowCoreParams): UnderglowCore {
   const ug = ISLAND_UNDERGLOW.get();
-  const radius = params.bottomRadius * 0.4;
+  // Slightly larger radius so the bloom halo radiates further through the
+  // tier seams. The mesh itself is hidden inside the bottom tier cluster.
+  const radius = params.bottomRadius * 0.55;
   const geom = new THREE.IcosahedronGeometry(radius, 0); // low-poly
   const mat = new THREE.ShaderMaterial({
     vertexShader: vertSrc,
@@ -47,11 +49,10 @@ export function createUnderglowCore(params: UnderglowCoreParams): UnderglowCore 
     depthWrite: true,
   });
   const mesh = new THREE.Mesh(geom, mat);
-  // Position the core fully below the bottom cap. Its top edge sits at
-  // bottomY - 0.5*radius, so the entire mesh is below the island geometry.
-  // Bloom halo still leaks upward into the cluster seams without the
-  // discrete mesh itself clipping through the top surface.
-  mesh.position.set(0, params.bottomY - radius * 1.5, 0);
+  // Position the core ABOVE the bottom cap, nested inside the lowest tier
+  // ring cluster. Bloom halo leaks out through rock seams without the core
+  // itself being directly visible from any side angle.
+  mesh.position.set(0, params.bottomY + radius * 0.5, 0);
   mesh.visible = ug.CORE_ENABLED && ug.ENABLED;
   mesh.userData.island = 'underglowCore';
 

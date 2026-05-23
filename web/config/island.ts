@@ -48,26 +48,26 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   ENABLED: true,
   SIDES: 12,
   IRREGULARITY: 0.18,
-  TIERS: 2,
+  TIERS: 3,
   DEPTH: 0.6,
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   GRASS_COLOR: '#2a4a3a',
-  SOIL_COLOR: '#4a2e34',
-  ROCK_LIGHT: '#3a3a4a',
-  ROCK_MID: '#26262e',
-  ROCK_DARK: '#16161e',
-  SUN_CONTRAST: 0.85,
-  AMBIENT: 0.32,
+  SOIL_COLOR: '#3a201a',
+  ROCK_LIGHT: '#5a4248',
+  ROCK_MID: '#3a262e',
+  ROCK_DARK: '#1a1218',
+  SUN_CONTRAST: 0.95,
+  AMBIENT: 0.28,
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({
   ENABLED: true,
-  COLOR: '#ff3a5c',
-  STRENGTH: 0.9,
+  COLOR: '#ff5530',
+  STRENGTH: 0.25,
   CORE_ENABLED: true,
-  CORE_INTENSITY: 2.4,
+  CORE_INTENSITY: 1.2,
 });
 
 export const ISLAND_ATMOSPHERE = map<IslandAtmosphereConfig>({

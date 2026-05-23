@@ -1,9 +1,10 @@
 // scene/island/islandGeometry.ts — Procedural builder for the floating
 // island mesh. Generates a closed indexed BufferGeometry consisting of:
 //   - a top cap polygon (grass surface)
-//   - a soil-lip ring just below the top
-//   - a side band (cliff rock)
-//   - N tier rings (chunky rock, each smaller than the one above)
+//   - a grass-side band (grass wraps the top edge, visible from all sides)
+//   - a soil-lip ring (thin dark transition line)
+//   - a cliff side band (rock_light)
+//   - N tier rings (chunky rock, each smaller and rotated per tier)
 //   - a bottom cap (blunt cluster)
 //
 // Vertex colors and ambient-occlusion attributes are baked at build time.
@@ -61,7 +62,8 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
 
 // Per-tier shrink + depth-fraction tables. Indexed by tier (0 = topmost
 // tier ring, just below the cliff side band). Length must be ≥ max TIERS.
-const TIER_SHRINK = [0.82, 0.55, 0.32, 0.18];
+// Larger steps between tiers → more angular silhouette (reads chunkier).
+const TIER_SHRINK = [0.78, 0.50, 0.28, 0.12];
 const TIER_DEPTH_FRAC = [0.35, 0.65, 0.85, 1.0]; // cumulative fraction of total DEPTH
 
 /**
@@ -74,7 +76,7 @@ export function buildTierRings(
   top: THREE.Vector3[],
   params: IslandBuildParams,
 ): THREE.Vector3[][] {
-  const { tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
+  const { sides, tiers, depth, halfWidth, halfDepth, irregularity, seed } = params;
   const islandRadius = Math.min(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
   const rand = rng(seed ^ 0xa5a5a5a5); // distinct stream from top jitter
@@ -84,10 +86,20 @@ export function buildTierRings(
   for (let t = 0; t < tiers; t++) {
     const shrink = TIER_SHRINK[t] ?? TIER_SHRINK[TIER_SHRINK.length - 1]!;
     const depthFrac = TIER_DEPTH_FRAC[t] ?? TIER_DEPTH_FRAC[TIER_DEPTH_FRAC.length - 1]!;
+    // Small per-tier angular offset so tier vertices don't align radially.
+    // Adjacent tier facets meet at angles → chunkier, more faceted silhouette.
+    const tierRotation = (t + 1) * (Math.PI / sides) * 0.4;
+    const cosR = Math.cos(tierRotation);
+    const sinR = Math.sin(tierRotation);
     const ring: THREE.Vector3[] = [];
     for (const v of top) {
       const j = 1 - tierJitter * rand();
-      ring.push(new THREE.Vector3(v.x * shrink * j, -totalDepth * depthFrac, v.z * shrink * j));
+      // Apply shrink + jitter, then rotate in XZ by tierRotation.
+      const sx = v.x * shrink * j;
+      const sz = v.z * shrink * j;
+      const rx = sx * cosR - sz * sinR;
+      const rz = sx * sinR + sz * cosR;
+      ring.push(new THREE.Vector3(rx, -totalDepth * depthFrac, rz));
     }
     rings.push(ring);
   }
@@ -102,19 +114,21 @@ export interface IslandColors {
   ROCK_DARK: string;
 }
 
-const SOIL_FRAC_OF_DEPTH = 0.03; // soil lip band height as fraction of total island depth
-const SIDE_FRAC_OF_DEPTH = 0.30; // cliff side band height
+const GRASS_SIDE_FRAC_OF_DEPTH = 0.10; // grass wraps down the top edge (visible from sides)
+const SOIL_FRAC_OF_DEPTH = 0.03;       // soil lip band height as fraction of total island depth
+const SIDE_FRAC_OF_DEPTH = 0.30;       // cliff side band height (measured from top, including grass + soil)
 
 /**
  * Build the complete island as one closed indexed BufferGeometry.
  *
  * Layout (Y descends):
- *   y=0                 — top cap (grass)
- *   y=-soilHeight        — soil-lip ring
- *   y=-sideHeight        — start of cliff side band (rock_light)
- *   tier 0 ring          — rock_mid (chunky)
- *   tier N-1 ring        — rock_dark (chunky)
- *   bottom cap           — blunt cluster (rock_dark)
+ *   y=0                              — top cap (grass)
+ *   y=-grassSideHeight               — grass-side band (grass wraps the top edge)
+ *   y=-(grassSideHeight+soilHeight)  — soil-lip ring (thin dark transition)
+ *   y=-sideHeight                    — cliff side band (rock_light)
+ *   tier 0 ring                      — rock_mid (chunky)
+ *   tier N-1 ring                    — rock_dark (chunky)
+ *   bottom cap                       — blunt cluster (rock_dark)
  *
  * Per-vertex colors are baked into the `color` attribute. A separate
  * `ao` scalar attribute (1.0 → fully lit, ~0.4 → tucked crevice) is
@@ -132,7 +146,10 @@ export function buildIslandGeometry(
   const rings = buildTierRings(top, params);
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
   const totalDepth = islandRadius * params.depth;
+  const grassSideHeight = totalDepth * GRASS_SIDE_FRAC_OF_DEPTH;
   const soilHeight = totalDepth * SOIL_FRAC_OF_DEPTH;
+  // sideHeight is the total Y extent from y=0 down to the bottom of the cliff
+  // band. It encompasses the grass band + soil lip + cliff rock band.
   const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
 
   // Bottom cap: small offset polygon (NOT a single point).
@@ -174,10 +191,26 @@ export function buildIslandGeometry(
     indices.push(topCenter, a, b);
   }
 
+  // ----- GRASS SIDE BAND (grass wraps down the upper edge) -----
+  // Visible from any side angle — top 10% of island depth is still green.
+  // Re-push top-ring vertices in their own group so the flat-shading of the
+  // top cap doesn't bleed into the side faces.
+  const grassTopBandIdx = top.map((v) => pushVert(v, grass, 0.92));
+  const grassBotPositions = top.map((v) => new THREE.Vector3(v.x, -grassSideHeight, v.z));
+  const grassBotIdx = grassBotPositions.map((v) => pushVert(v, grass, 0.85));
+  for (let i = 0; i < params.sides; i++) {
+    const j = (i + 1) % params.sides;
+    indices.push(grassTopBandIdx[i]!, grassBotIdx[i]!, grassBotIdx[j]!);
+    indices.push(grassTopBandIdx[i]!, grassBotIdx[j]!, grassTopBandIdx[j]!);
+  }
+
   // ----- SOIL LIP BAND -----
-  // Narrow band between top cap and side cliff.
-  const soilTopIdx = top.map((v) => pushVert(v, soil, 0.9));
-  const soilBotPositions = top.map((v) => new THREE.Vector3(v.x, -soilHeight, v.z));
+  // Thin dark band between the grass side and the rock cliff — reads as a
+  // soil/dirt transition line. Sits at y=[-grassSideHeight, -(grassSideHeight+soilHeight)].
+  const soilTopIdx = grassBotPositions.map((v) => pushVert(v, soil, 0.9));
+  const soilBotPositions = top.map(
+    (v) => new THREE.Vector3(v.x, -(grassSideHeight + soilHeight), v.z),
+  );
   const soilBotIdx = soilBotPositions.map((v) => pushVert(v, soil, 0.85));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
@@ -186,7 +219,9 @@ export function buildIslandGeometry(
   }
 
   // ----- SIDE CLIFF BAND -----
-  // From soil-lip bottom down to first tier ring. Uses ROCK_LIGHT.
+  // From soil-lip bottom down to sideHeight (rock_light). sideHeight already
+  // accounts for the full top section, so the cliff top aligns with the soil
+  // lip bottom.
   const cliffTopIdx = soilBotPositions.map((v) => pushVert(v, rockLight, 0.75));
   const cliffBotPositions = top.map((v) => new THREE.Vector3(v.x, -sideHeight, v.z));
   const cliffBotIdx = cliffBotPositions.map((v) => pushVert(v, rockLight, 0.65));

@@ -11,9 +11,11 @@ describe('createUnderglowCore', () => {
     core.dispose();
   });
 
-  it('positions core just below the bottom cluster', () => {
+  it('positions core inside the bottom cluster (above bottomY, hidden by tier geometry)', () => {
     const core = createUnderglowCore({ bottomY: -60, bottomRadius: 30 });
-    expect(core.mesh.position.y).toBeLessThan(-60);
+    // Core is nested ABOVE the bottom cap so bloom leaks through rock seams
+    // without the discrete mesh being visible from any side angle.
+    expect(core.mesh.position.y).toBeGreaterThan(-60);
     core.dispose();
   });
 

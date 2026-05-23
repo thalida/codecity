@@ -12,7 +12,7 @@ describe('ISLAND config defaults', () => {
     expect(g.ENABLED).toBe(true);
     expect(g.SIDES).toBe(12);
     expect(g.IRREGULARITY).toBeCloseTo(0.18, 2);
-    expect(g.TIERS).toBe(2);
+    expect(g.TIERS).toBe(3);
     expect(g.DEPTH).toBeCloseTo(0.6, 2);
   });
 
@@ -30,7 +30,7 @@ describe('ISLAND config defaults', () => {
   it('UNDERGLOW has master toggle, color, strength, and core controls', () => {
     const u = ISLAND_UNDERGLOW.get();
     expect(u.ENABLED).toBe(true);
-    expect(u.COLOR).toBe('#ff3a5c');
+    expect(u.COLOR).toBe('#ff5530');
     expect(u.STRENGTH).toBeGreaterThanOrEqual(0);
     expect(u.STRENGTH).toBeLessThanOrEqual(2);
     expect(typeof u.CORE_ENABLED).toBe('boolean');
