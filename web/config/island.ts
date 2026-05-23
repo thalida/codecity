@@ -20,8 +20,8 @@ export interface IslandMaterialsConfig {
   GRASS_COLOR: string;
   SOIL_COLOR: string;
   ROCK_COLOR: string;
-  SUN_CONTRAST: number;
-  AMBIENT: number;
+  HEMI_SKY_COLOR: string;    // warm "from above" tone
+  HEMI_GROUND_COLOR: string; // cool "from below" tone
 }
 
 export interface IslandUnderglowConfig {
@@ -51,11 +51,11 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
-  GRASS_COLOR: '#2a4a3a',
-  SOIL_COLOR: '#3a201a',
-  ROCK_COLOR: '#6b4e54',  // single earth/rock color — shading provides the visual variation
-  SUN_CONTRAST: 0.95,
-  AMBIENT: 0.28,
+  GRASS_COLOR: '#3a7a4a',         // brighter, more saturated green
+  SOIL_COLOR: '#2a1a14',          // warm dark brown — distinct from rock
+  ROCK_COLOR: '#a05262',          // warm pink rock (matches the reference)
+  HEMI_SKY_COLOR: '#ffcdb8',      // warm cream/peach — picks up on top facets
+  HEMI_GROUND_COLOR: '#3a2a48',   // cool deep purple — picks up on bottom facets
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({

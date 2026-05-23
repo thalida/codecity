@@ -25,7 +25,6 @@ import {
 import { createIslandMaterial } from './islandShader.js';
 import { createUnderglowCore, type UnderglowCore } from './underglowCore.js';
 import { createShadowDisc, type ShadowDisc } from './shadowDisc.js';
-import { writeSunDir } from '@/scene/lighting/sunDir.js';
 import { RENDER_ORDERS } from '@/constants';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
@@ -36,7 +35,7 @@ export interface Island {
   setBounds(bounds: WorldBounds): void;
   /** Pull fresh values from config stores; called on hot-reload. */
   refresh(): void;
-  /** Per-frame tick: updates uSunDirWorld in case LIGHTING changed mid-frame. */
+  /** Per-frame tick: no-op for the island (hemispheric lighting is static). */
   tick(): void;
   dispose(): void;
 }
@@ -138,8 +137,8 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     setBounds(currentBounds);
     group.visible = ISLAND_GEOMETRY.get().ENABLED;
     const mats = ISLAND_MATERIALS.get();
-    material.uniforms.uSunContrast!.value = mats.SUN_CONTRAST;
-    material.uniforms.uAmbient!.value = mats.AMBIENT;
+    (material.uniforms.uHemiSkyColor!.value as THREE.Color).set(mats.HEMI_SKY_COLOR);
+    (material.uniforms.uHemiGroundColor!.value as THREE.Color).set(mats.HEMI_GROUND_COLOR);
     const ug = ISLAND_UNDERGLOW.get();
     (material.uniforms.uUnderglowColor!.value as THREE.Color).set(
       ug.ENABLED ? ug.COLOR : '#000000',
@@ -155,7 +154,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   }
 
   function tick(): void {
-    writeSunDir(material.uniforms.uSunDirWorld!.value as THREE.Vector3);
+    // Island uses hemispheric lighting — no sun direction to update.
   }
 
   function dispose(): void {

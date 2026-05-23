@@ -209,14 +209,23 @@ describe('buildIslandGeometry', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const idx = geom.getIndex()!;
-    // Find the lowest-y triangle (bottom cap is at y = -islandRadius * depth).
-    let minY = Infinity;
-    for (let i = 0; i < pos.count; i++) minY = Math.min(minY, pos.getY(i));
+    // Find the overall Y range and look for triangles in the bottom 10% of
+    // depth. With 3D noise displacement applied to the bottom cap ring,
+    // vertices no longer sit at exactly the same Y, so we use a loose
+    // threshold rather than requiring all three to equal minY.
+    let minY = Infinity, maxY = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i);
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+    const totalDepthRange = maxY - minY;
+    const bottomThreshold = minY + totalDepthRange * 0.1; // bottom 10%
     let foundBottomTri = false;
     for (let t = 0; t < idx.count; t += 3) {
       const ia = idx.getX(t), ib = idx.getX(t + 1), ic = idx.getX(t + 2);
       const ya = pos.getY(ia), yb = pos.getY(ib), yc = pos.getY(ic);
-      if (Math.abs(ya - minY) < 0.001 && Math.abs(yb - minY) < 0.001 && Math.abs(yc - minY) < 0.001) {
+      if (ya < bottomThreshold && yb < bottomThreshold && yc < bottomThreshold) {
         const ax = pos.getX(ia), az = pos.getZ(ia);
         const bx = pos.getX(ib), bz = pos.getZ(ib);
         const cx = pos.getX(ic), cz = pos.getZ(ic);

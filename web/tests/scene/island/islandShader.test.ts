@@ -7,18 +7,17 @@ describe('createIslandMaterial', () => {
     const mat = createIslandMaterial();
     expect(mat).toBeInstanceOf(THREE.ShaderMaterial);
     const u = mat.uniforms;
-    expect(u.uSunDirWorld).toBeDefined();
-    expect(u.uSunContrast).toBeDefined();
-    expect(u.uAmbient).toBeDefined();
+    expect(u.uHemiSkyColor).toBeDefined();
+    expect(u.uHemiGroundColor).toBeDefined();
     expect(u.uUnderglowColor).toBeDefined();
     expect(u.uUnderglowStrength).toBeDefined();
     mat.dispose();
   });
 
-  it('uSunDirWorld is initialized to a unit vector', () => {
+  it('uHemiSkyColor and uHemiGroundColor are THREE.Color instances', () => {
     const mat = createIslandMaterial();
-    const v = mat.uniforms.uSunDirWorld!.value as THREE.Vector3;
-    expect(v.length()).toBeCloseTo(1, 4);
+    expect(mat.uniforms.uHemiSkyColor!.value).toBeInstanceOf(THREE.Color);
+    expect(mat.uniforms.uHemiGroundColor!.value).toBeInstanceOf(THREE.Color);
     mat.dispose();
   });
 
@@ -38,6 +37,17 @@ describe('createIslandMaterial', () => {
     expect(mat.vertexShader).toMatch(/vWorldPos/);
     expect(mat.fragmentShader).toMatch(/vWorldPos/);
     expect(mat.fragmentShader).toMatch(/applyFog/);
+    mat.dispose();
+  });
+
+  it('fragment shader uses hemispheric blend (uHemiSkyColor, uHemiGroundColor)', () => {
+    const mat = createIslandMaterial();
+    expect(mat.fragmentShader).toMatch(/uHemiSkyColor/);
+    expect(mat.fragmentShader).toMatch(/uHemiGroundColor/);
+    // Old sun-direction model must not be present.
+    expect(mat.fragmentShader).not.toMatch(/uSunDirWorld/);
+    expect(mat.fragmentShader).not.toMatch(/uSunContrast/);
+    expect(mat.fragmentShader).not.toMatch(/uAmbient/);
     mat.dispose();
   });
 });

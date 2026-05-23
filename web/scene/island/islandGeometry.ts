@@ -99,7 +99,13 @@ export function buildTierRings(
       const sz = v.z * shrink * j;
       const rx = sx * cosR - sz * sinR;
       const rz = sx * sinR + sz * cosR;
-      ring.push(new THREE.Vector3(rx, -totalDepth * depthFrac, rz));
+      // Apply 3D noise displacement so each vertex moves independently in XYZ.
+      // Scaled by irregularity so it correlates with the existing jitter knob.
+      const noiseScale = islandRadius * irregularity * 0.25;
+      const nx = (rand() - 0.5) * 2 * noiseScale;
+      const ny = (rand() - 0.5) * 2 * noiseScale * 0.6; // less vertical to keep tiers' Y separation
+      const nz = (rand() - 0.5) * 2 * noiseScale;
+      ring.push(new THREE.Vector3(rx + nx, -totalDepth * depthFrac + ny, rz + nz));
     }
     rings.push(ring);
   }
@@ -151,11 +157,19 @@ export function buildIslandGeometry(
   const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
 
   // Bottom cap: small offset polygon (NOT a single point).
+  // Apply per-vertex 3D noise (separate PRNG stream keyed on seed) so the
+  // bottom edge reads jagged rather than a clean ring.
   const bottomShrink = (TIER_SHRINK[params.tiers - 1] ?? 0.3) * 0.6;
   const bottomY = -totalDepth;
-  const bottomRing: THREE.Vector3[] = top.map(
-    (v) => new THREE.Vector3(v.x * bottomShrink, bottomY, v.z * bottomShrink),
-  );
+  const bottomRand = rng(params.seed ^ 0x5a5a5a5a);
+  const bottomRing: THREE.Vector3[] = top.map((v) => {
+    const noiseScale = islandRadius * params.irregularity * 0.25;
+    return new THREE.Vector3(
+      v.x * bottomShrink + (bottomRand() - 0.5) * 2 * noiseScale,
+      bottomY + (bottomRand() - 0.5) * 2 * noiseScale * 0.3,
+      v.z * bottomShrink + (bottomRand() - 0.5) * 2 * noiseScale,
+    );
+  });
 
   // Build vertex pools per face group. We DO NOT share vertices across
   // groups so each face group gets its own normals (flat-shading per
