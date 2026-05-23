@@ -9,6 +9,10 @@ function makeFakeRig() {
       enabled: true,
       target: new THREE.Vector3(),
     },
+    freezeCalls: 0,
+    freezeViewUntilInput() {
+      this.freezeCalls += 1;
+    },
   };
 }
 

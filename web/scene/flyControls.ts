@@ -49,11 +49,15 @@ export interface FlyControlsCityScene {
 export interface FlyControlsRig {
   controls: {
     enabled: boolean;
-    /** OrbitControls.target — the pivot point. On fly exit we update
-     *  this to a point in front of the camera so orbit doesn't snap
-     *  the look direction to a stale pre-flight target. */
+    /** OrbitControls.target — the orbit pivot point. */
     target: THREE.Vector3;
   };
+  /** Tell the rig to preserve the camera's current rotation across
+   *  the next OrbitControls.update() calls until the user actually
+   *  grabs the controls. Used to relocate the orbit pivot without
+   *  yanking the view direction (lookAt(target)) on the fly→orbit
+   *  handoff. */
+  freezeViewUntilInput(): void;
 }
 
 export interface FlyControlsOpts {
@@ -300,13 +304,15 @@ export function createFlyControls(opts: FlyControlsOpts) {
     _lookRMB = false;
 
     // Hand off to orbit. Fly mode keeps the camera over the visible
-    // plane (XZ is clamped to world bounds in update()), so the
-    // natural orbit pivot is the point on the floor DIRECTLY BELOW
-    // the camera — independent of which direction the user was
-    // looking. OrbitControls' lookAt(target) will then rotate the
-    // view straight down to face that point, giving a clean
-    // "switched to top-down orbit over my current spot" feel.
+    // plane (XZ is clamped to world bounds), so the natural orbit
+    // pivot is the point on the floor directly below the camera.
+    // Preserve the user's view direction across the handoff: ask the
+    // rig to freeze the camera quaternion until the user actually
+    // grabs the controls. Without this freeze, OrbitControls'
+    // per-frame lookAt(target) would rotate the camera straight down
+    // toward the new pivot.
     rig.controls.target.set(camera.position.x, 0, camera.position.z);
+    rig.freezeViewUntilInput();
 
     _setActive(false);
   }
