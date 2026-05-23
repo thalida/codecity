@@ -251,8 +251,7 @@ export function placeTrees(
         halfWidth: bounds.halfWidth,
         halfDepth: bounds.halfDepth,
         seed: islandSeedFromBounds(bounds),
-        pitWidth: islandGeo.PIT_WIDTH,
-        taperCurve: islandGeo.TAPER_CURVE,
+        bluntness: islandGeo.BLUNTNESS,
       });
       // Shrink every vertex radially inward by insetFrac so the rejection
       // polygon is uniformly inset from the actual island edge.

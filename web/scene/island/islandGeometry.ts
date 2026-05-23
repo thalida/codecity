@@ -14,21 +14,23 @@
 //                  outermost underside ring (same Y as the first underside
 //                  ring), rock colour
 //   UNDERSIDE    — (tiers+1) rings that shrink and deepen from the top
-//                  perimeter down to the bottom-cap ring; each ring pair
-//                  produces N quads, rock colour
-//   BOTTOM CAP   — N quads stitching the last underside ring to a small
-//                  bottom-cap N-gon ring at the deepest Y, plus an N-
-//                  triangle fan from that ring to a center vertex; the fan
-//                  cap's reversed winding gives -Y normals (face down).
+//                  perimeter down to a small closing ring; each ring pair
+//                  produces N quads, rock colour. The profile is a
+//                  superellipse: r(t) = (1 - t^p)^(1/p) where p is
+//                  derived from BLUNTNESS. This produces a smooth
+//                  rounded-bottom teardrop with no visible seams.
+//   BOTTOM FAN   — N triangles from the closing ring to a center vertex.
+//                  The closing ring is small enough (5–50 % of baseR
+//                  depending on BLUNTNESS) that the fan reads as an
+//                  integrated rounded tip, not a glued-on cap.
 //
 // Triangle count (indexed, before toNonIndexed):
 //   top cap      : sides
 //   side wall    : 2 * sides
 //   underside    : 2 * sides * (tiers + 1)
-//   bottom quads : 2 * sides
 //   bottom fan   : sides
-//   Total        : sides * (5 + 2*(tiers+1))  ≈ 12*(5+6)=132 → 200-600 triangles
-//                  after toNonIndexed (same count, 3× as many vertices).
+//   Total        : sides * (4 + 2*(tiers+1))  ≈ 12*(4+6) = 120
+//                  (same count after toNonIndexed, 3× as many vertices)
 
 import * as THREE from 'three';
 
@@ -40,8 +42,7 @@ export interface IslandBuildParams {
   halfWidth: number;    // bounds half-width (X)
   halfDepth: number;    // bounds half-depth (Z)
   seed: number;         // deterministic shape per bounds
-  pitWidth: number;     // 0–0.4, fraction of islandRadius — bottom-cap ring radius
-  taperCurve: number;   // 0.5–3.0, exponent on the radius shrink — < 1 = bowl, > 1 = concave/pointed
+  bluntness: number;    // 0–1: 0 = pointed teardrop tip, 1 = wide egg-like rounded base
 }
 
 // Mulberry32 — small deterministic PRNG. Stable across platforms.
@@ -54,6 +55,29 @@ function rng(seed: number): () => number {
     t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
+}
+
+/**
+ * Superellipse profile: r(t) = (1 - t^p)^(1/p), t ∈ [0, 1].
+ *
+ * At t=0 → r=1 (top perimeter).
+ * At t=1 → r=0 (would be a perfect point; we clamp to tipFrac instead).
+ *
+ * The exponent p controls shape:
+ *   p >> 1  : stays wide near the top, collapses fast near t=1 → pointy teardrop
+ *   p = 1   : linear taper
+ *   p < 1   : rounds off early → blunt egg bottom
+ *
+ * We map BLUNTNESS (0–1) to p via:
+ *   p = 3.5 - 3.0 * bluntness
+ *   bluntness=0 → p=3.5 (pointy)
+ *   bluntness=0.5 → p=2.0 (smooth rounded teardrop)
+ *   bluntness=1 → p=0.5 (wide egg, blunt bottom)
+ */
+function superellipseR(t: number, p: number): number {
+  // Numerical safety: avoid negative base for fractional exponent.
+  const base = Math.max(0, 1 - Math.pow(t, p));
+  return Math.pow(base, 1 / p);
 }
 
 /**
@@ -88,84 +112,85 @@ export interface IslandColors {
  * independently flat-shaded — the canonical Three.js low-poly idiom.
  *
  * The top cap stays perfectly flat at y=0 (city sits on it).
- * The underside fans from the top perimeter ring inward through several
- * progressively smaller/deeper rings to a single pit vertex, producing
- * the inverted-mountain faceted look.
+ * The underside is a single parameterized body: rings are generated with
+ * radii following a superellipse profile r(t) = (1 - t^p)^(1/p), where
+ * t is the depth fraction and p is derived from BLUNTNESS. The final ring
+ * closes to a tiny center vertex via a fan. There is no separately-stitched
+ * "bottom-cap ring" — the body just curves continuously to its close.
  */
 export function buildIslandGeometry(
   params: IslandBuildParams,
   colors: IslandColors,
 ): THREE.BufferGeometry {
-  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed, taperCurve, pitWidth } = params;
+  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed, bluntness } = params;
 
   const islandRadius = Math.min(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
+
+  // Superellipse exponent from bluntness.
+  // bluntness=0 → p=3.5 (pointy tip), bluntness=1 → p=0.5 (wide egg).
+  const p = 3.5 - 3.0 * Math.max(0, Math.min(1, bluntness));
+
+  // Closing ring radius as fraction of islandRadius.
+  // Grows with bluntness: bluntness=0 → 5%, bluntness=1 → 50%.
+  // This ensures the bottom fan reads as an integrated rounded end rather
+  // than a visible cap stuck onto a tapered body.
+  const tipFrac = 0.05 + 0.45 * Math.max(0, Math.min(1, bluntness));
 
   // Top perimeter ring — perfectly at y=0.
   const topRing = buildTopPolygon(params);
 
   // ------------------------------------------------------------------ //
-  // Build underside rings. We generate (tiers + 1) rings below the top: //
-  //   ring[0] = top perimeter (just re-used for stitching)              //
-  //   ring[1..tiers] = intermediate shrinking rings                     //
-  // Then a single pit vertex at (0, -totalDepth, 0).                   //
+  // Build underside rings using the superellipse profile.               //
+  // We generate (tiers + 1) rings:                                      //
+  //   ring[0..tiers-1] = intermediate shrinking rings                   //
+  //   ring[tiers]      = closing ring (radius = tipFrac * islandRadius) //
   //                                                                      //
-  // Each intermediate ring:                                              //
-  //   - is rotated by (π/sides) relative to the previous ring so        //
-  //     adjacent facets are clearly angled (not collinear)              //
-  //   - shrinks toward the axis (parameterised by radiusFrac)           //
-  //   - drops in Y (parameterised by depthFrac)                         //
-  //   - gets small XZ noise so the silhouette reads angular/chunky      //
-  //                                                                      //
-  // We deliberately avoid applying Y noise to the intermediate rings    //
-  // because that's what made previous tiers look like separate layers.  //
+  // Each ring:                                                           //
+  //   - rotated by (π/sides) per step so facets stagger between rings   //
+  //   - radius: superellipseR(depthFrac, p) × islandRadius              //
+  //   - with small XZ noise so the silhouette reads angular/chunky      //
   // ------------------------------------------------------------------ //
-
-  // shrinkFracs[t] = fraction of islandRadius the ring sits at (radius).
-  // depthFracs[t] = fraction of totalDepth the ring sits at (Y descent).
-  // We space rings evenly but bias depth so the first ring is already
-  // well below the top edge — this gives the "chunky rock body" look.
-  const undersideRings: THREE.Vector3[][] = [];
 
   const noiseScale = islandRadius * irregularity * 0.18;
   const noiseRand = rng(seed ^ 0xdeadbeef);
 
-  for (let t = 0; t < tiers; t++) {
-    const frac = (t + 1) / (tiers + 1); // 0 < frac < 1
+  // Total rings to generate = tiers (intermediate) + 1 (closing).
+  const totalRings = tiers + 1;
+  const undersideRings: THREE.Vector3[][] = [];
 
-    // Radius: shrink AGGRESSIVELY as we go deeper so the silhouette
-    // tapers to a pointed bottom (concave/conical profile, not a
-    // bowl). Exponent > 1 makes the outer rings stay wide and the
-    // inner rings (near the pit) shrink fast.
-    const radiusFrac = Math.pow(1 - frac, taperCurve); // 1→0, concave taper
-
-    // Depth: more linear so each ring drops by a steady amount —
-    // gives the taper room to be visible per-ring rather than the
-    // depth crushing everything to the bottom.
-    const depthFrac = Math.pow(frac, 1.0);
-
+  for (let t = 0; t < totalRings; t++) {
+    // depthFrac: 0→1, linearly spaced across all rings.
+    const depthFrac = (t + 1) / totalRings;
     const targetY = -totalDepth * depthFrac;
-    // Rotate each ring by half a "tooth" so vertices stagger between rings.
+
+    // Radius fraction from the superellipse profile, clamped to tipFrac
+    // for the closing ring so it never reaches zero.
+    const isLastRing = t === totalRings - 1;
+    const radiusFrac = isLastRing
+      ? tipFrac
+      : Math.max(tipFrac + 0.01, superellipseR(depthFrac, p));
+    const ringRadius = islandRadius * radiusFrac;
+
+    // Rotate each ring by half a "tooth" per step so vertices stagger.
     const rotation = (Math.PI / sides) * (t + 1);
     const cosR = Math.cos(rotation);
     const sinR = Math.sin(rotation);
 
     const ring: THREE.Vector3[] = [];
     for (let i = 0; i < sides; i++) {
-      // Scale and rotate the top-ring vertex position into this ring's
-      // position. radiusFrac shrinks it toward the axis; the rotation
-      // staggers vertices between adjacent rings so each quad is a proper
-      // angled facet (not a flat rectangle).
-      const topV = topRing[i]!;
-      const baseX = topV.x * radiusFrac;
-      const baseZ = topV.z * radiusFrac;
-      const rx = baseX * cosR - baseZ * sinR;
-      const rz = baseX * sinR + baseZ * cosR;
+      const theta = (i / sides) * Math.PI * 2;
+      // Build this ring's vertex at the superellipse radius, then rotate.
+      const bx = Math.cos(theta) * ringRadius;
+      const bz = -Math.sin(theta) * ringRadius;
+      const rx = bx * cosR - bz * sinR;
+      const rz = bx * sinR + bz * cosR;
 
-      // Small XZ noise to break up the symmetry. No Y noise — we want
-      // the ring to sit at a consistent depth, not create ledge artifacts.
-      const nx = (noiseRand() - 0.5) * 2 * noiseScale * (1 - frac * 0.5);
-      const nz = (noiseRand() - 0.5) * 2 * noiseScale * (1 - frac * 0.5);
+      // Small XZ noise — scales down toward the closing ring so the tip
+      // region is clean and doesn't cross adjacent vertices.
+      const noiseFade = 1 - depthFrac * 0.6;
+      const nx = (noiseRand() - 0.5) * 2 * noiseScale * noiseFade;
+      const nz = (noiseRand() - 0.5) * 2 * noiseScale * noiseFade;
 
       ring.push(new THREE.Vector3(rx + nx, targetY, rz + nz));
     }
@@ -174,9 +199,6 @@ export function buildIslandGeometry(
 
   // ------------------------------------------------------------------ //
   // Accumulate indexed geometry.                                         //
-  // We collect positions, colors, and ao values. After assembly we call  //
-  // toNonIndexed() which duplicates vertices per-triangle, then          //
-  // computeVertexNormals() which gives each triangle its face normal.   //
   // ------------------------------------------------------------------ //
 
   const positions: number[] = [];
@@ -198,7 +220,6 @@ export function buildIslandGeometry(
 
   // ----- TOP CAP (grass, flat at y=0) -----
   // Fan from a center vertex to each edge of the top ring.
-  // AO = 1.0 everywhere on the top — fully lit, city sits here.
   const centerIdx = addVertex(new THREE.Vector3(0, 0, 0), grass, 1.0);
   const topIdx: number[] = topRing.map((v) => addVertex(v, grass, 1.0));
   for (let i = 0; i < sides; i++) {
@@ -209,25 +230,20 @@ export function buildIslandGeometry(
   }
 
   // ----- UNDERSIDE BODY -----
-  // Stitch from the top perimeter ring down through each intermediate ring,
-  // then fan from the last ring to the pit vertex.
-  //
+  // Stitch from the top perimeter ring down through each underside ring.
   // All underside faces use rock colour. AO decreases from ~0.85 at the
-  // top edge down to ~0.45 at the pit, giving a subtle depth cue.
+  // top edge down to ~0.42 at the closing ring.
 
-  // Build the underside vertex index arrays.
-  // allRings[0] = top perimeter (re-indexed for rock color).
-  // allRings[1..tiers] = intermediate rings.
-  // Then pit vertex.
+  // allRings[0] = top perimeter re-indexed for rock color.
+  // allRings[1..totalRings] = underside rings.
   const allRingIdx: number[][] = [];
 
-  // Top perimeter re-indexed with rock color + AO for the side connection.
   const topRockIdx: number[] = topRing.map((v) => addVertex(v, rock, 0.85));
   allRingIdx.push(topRockIdx);
 
   for (let t = 0; t < undersideRings.length; t++) {
-    const frac = (t + 1) / (tiers + 1);
-    const ao = 0.85 - 0.40 * frac; // 0.85 at top edge → 0.45 at deepest ring
+    const depthFrac = (t + 1) / totalRings;
+    const ao = 0.85 - 0.43 * depthFrac; // 0.85 at top → 0.42 at last ring
     const ring = undersideRings[t]!;
     const ringIdx: number[] = ring.map((v) => addVertex(v, rock, ao));
     allRingIdx.push(ringIdx);
@@ -243,65 +259,23 @@ export function buildIslandGeometry(
       const tr = upper[j]!;
       const bl = lower[i]!;
       const br = lower[j]!;
-      // Two triangles per quad; winding so normals point outward (away from
-      // island centre — roughly outward-and-downward for underside faces).
-      // tl→bl→br (CCW from outside) and tl→br→tr.
       indices.push(tl, bl, br);
       indices.push(tl, br, tr);
     }
   }
 
-  // Bottom cap: small N-gon polygon (not a single point) at the deepest Y.
-  // pitWidth controls the MINIMUM bottom-cap ring fraction, but we guarantee
-  // the cap is never narrower than the last intermediate ring — otherwise the
-  // stitch goes inward and creates a visible dagger spike.
-  //
-  // lastRingRadiusFrac mirrors the radiusFrac formula in the intermediate-ring
-  // loop above, evaluated at frac = tiers/(tiers+1) (the last ring).
-  const lastRingRadiusFrac = tiers > 0
-    ? Math.pow(1 - tiers / (tiers + 1), taperCurve)
-    : 1;
-  const lastRingRadius = islandRadius * lastRingRadiusFrac;
-  const minPitRadius = islandRadius * pitWidth;
-  // Clamp: the cap may be smaller than the last ring, but never so small it
-  // inverts the taper. 0.85 gives a visible "bottom closure" step.
-  const pitRadius = Math.max(minPitRadius, lastRingRadius * 0.85);
-
-  const bottomY = -totalDepth;
-  const bottomNoise = rng(seed ^ 0xa1b2c3d4);
-  const bottomRing: THREE.Vector3[] = [];
-  for (let i = 0; i < sides; i++) {
-    const theta = (i / sides) * Math.PI * 2;
-    // Stagger rotation by half a "tooth" relative to the last ring so adjacent
-    // facets meet at an angle, not as aligned columns.
-    const stagger = (Math.PI / sides);
-    const rx = Math.cos(theta + stagger) * pitRadius;
-    const rz = -Math.sin(theta + stagger) * pitRadius;
-    // Tiny per-vertex noise — just enough so the cap isn't perfectly circular.
-    // The old value (pitRadius * 0.25) was large enough to cross adjacent
-    // vertices and produce a tangled cap; 0.08 gives a barely-perturbed ring.
-    const jitter = pitRadius * 0.08;
-    bottomRing.push(new THREE.Vector3(
-      rx + (bottomNoise() - 0.5) * 2 * jitter,
-      bottomY + (bottomNoise() - 0.5) * 2 * jitter * 0.4,
-      rz + (bottomNoise() - 0.5) * 2 * jitter,
-    ));
-  }
-
-  // Stitch last intermediate ring to bottom ring (quads).
-  const lastRingIdx = allRingIdx[allRingIdx.length - 1]!;
-  const bottomRingVerts = bottomRing.map((v) => addVertex(v, rock, 0.45));
+  // ----- BOTTOM FAN -----
+  // Close the closing ring to a single center vertex. Reversed winding so
+  // the fan's normal points DOWN (−Y), giving it the correct face direction
+  // when viewed from below. The closing ring radius is small (tipFrac ×
+  // islandRadius) so this fan reads as the natural rounded tip of the body.
+  const closingY = -totalDepth;
+  const bottomCenter = addVertex(new THREE.Vector3(0, closingY, 0), rock, 0.42);
+  const closingRingIdx = allRingIdx[allRingIdx.length - 1]!;
   for (let i = 0; i < sides; i++) {
     const j = (i + 1) % sides;
-    indices.push(lastRingIdx[i]!, bottomRingVerts[i]!, bottomRingVerts[j]!);
-    indices.push(lastRingIdx[i]!, bottomRingVerts[j]!, lastRingIdx[j]!);
-  }
-
-  // Bottom cap fan to center. Reversed winding so the cap's normal points DOWN.
-  const bottomCenter = addVertex(new THREE.Vector3(0, bottomY, 0), rock, 0.42);
-  for (let i = 0; i < sides; i++) {
-    const j = (i + 1) % sides;
-    indices.push(bottomCenter, bottomRingVerts[j]!, bottomRingVerts[i]!);
+    // Reversed winding: bottomCenter, next, current → normal points −Y.
+    indices.push(bottomCenter, closingRingIdx[j]!, closingRingIdx[i]!);
   }
 
   // ------------------------------------------------------------------ //
@@ -347,23 +321,18 @@ export function pointInIslandPolygon(
 }
 
 /**
- * Returns the effective bottom-cap ring radius for the given params.
+ * Returns the effective bottom tip radius for the given params.
  * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
  * stay in sync with the actual bottom geometry without reaching into
  * internal constants.
  *
- * Mirrors the clamping logic in buildIslandGeometry: the cap radius is
- * MAX(pitWidth × islandRadius, lastRingRadius × 0.85) so callers that
- * position effects relative to the cap get the real value.
+ * The closing ring radius = tipFrac × islandRadius, where
+ * tipFrac = 0.05 + 0.45 × bluntness.
  */
 export function bottomCapRadius(params: IslandBuildParams): number {
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  const lastRingRadiusFrac = params.tiers > 0
-    ? Math.pow(1 - params.tiers / (params.tiers + 1), params.taperCurve)
-    : 1;
-  const lastRingRadius = islandRadius * lastRingRadiusFrac;
-  const minPitRadius = islandRadius * params.pitWidth;
-  return Math.max(minPitRadius, lastRingRadius * 0.85);
+  const tipFrac = 0.05 + 0.45 * Math.max(0, Math.min(1, params.bluntness));
+  return islandRadius * tipFrac;
 }
 
 /**

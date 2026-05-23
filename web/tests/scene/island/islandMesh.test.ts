@@ -13,8 +13,7 @@ describe('createIsland', () => {
       IRREGULARITY: 0.18,
       TIERS: 2,
       DEPTH: 0.6,
-      PIT_WIDTH: 0.18,
-      TAPER_CURVE: 1.3,
+      BLUNTNESS: 0.4,
     });
   });
 
