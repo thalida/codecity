@@ -57,8 +57,8 @@ import type { TreePlacementClient } from './trees/treePlacementClient.js';
 import { createBushes } from './bushes/bushes.js';
 import type { Bushes } from './bushes/bushes.js';
 import { placeBushes } from './bushes/bushPlacement.js';
-import { createWorldFloor } from './worldFloor.js';
-import type { WorldFloor } from './worldFloor.js';
+import { createIsland } from './island/islandMesh.js';
+import type { Island } from './island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
@@ -266,14 +266,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
-  // Cyberpunk Valley world floor — a large flat plane world-anchored
-  // at the gem, painting the entire visible ground with a forest
-  // tint. Built ONCE at scene init (it's not layout-dependent — the
-  // plane is bigger than any city). Sits at renderOrder -500, so it
+  // Cyberpunk Valley floating island — a shaped polygonal slab that
+  // replaces the old flat world-floor plane. Built ONCE at scene init
+  // (it's not layout-dependent — the island is sized to the world
+  // bounds, not the city mesh). Sits at renderOrder -500, so it
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
-  const _worldFloor: WorldFloor = createWorldFloor(null);
-  scene.add(_worldFloor.mesh);
+  const _island: Island = createIsland(null);
+  scene.add(_island.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -1007,7 +1007,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
     latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
-    _worldFloor.setBounds(latestWorldBounds);
+    _island.setBounds(latestWorldBounds);
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
@@ -1064,7 +1064,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
-    _worldFloor.dispose();
+    _island.dispose();
     if (_trees) {
       _trees.dispose();
       _trees = null;
@@ -1116,12 +1116,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Cyberpunk Valley world-floor reference. The floor is
+     * Cyberpunk Valley floating island reference. The island is
      * world-anchored at the gem; this is exposed for applyTheme()
      * (hot-reload refresh) and any future external access.
      */
-    getWorldFloor(): WorldFloor {
-      return _worldFloor;
+    getIsland(): Island {
+      return _island;
     },
 
     /**

@@ -47,8 +47,8 @@ import {
   SKY,
   SKY_STARS,
 
-  // Cyberpunk Valley — world floor (GROUND_BUFFER_PERCENT → rebuild;
-  // GROUND_COLOR/GROUND_ENABLED → hot path via worldFloor.refresh()):
+  // Cyberpunk Valley — world sizing (GROUND_BUFFER_PERCENT → rebuild;
+  // visual island config lives in ISLAND.* → hot path via island.refresh()):
   WORLD,
 
   // Cyberpunk Valley — trees (structural in TREES → rebuild):
@@ -223,10 +223,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // (also handled by sky.refresh()).
     SKY,
     SKY_STARS,
-    // WORLD: GROUND_COLOR + GROUND_ENABLED are pushed live via
-    // worldFloor.refresh() inside applyTheme() — no rebuild required.
-    // GROUND_BUFFER_PERCENT gets a narrow listenKeys subscription below so
-    // dragging the color slider doesn't trigger a spurious applyManifest.
+    // WORLD: only GROUND_BUFFER_PERCENT remains; it gets a narrow
+    // listenKeys subscription below so dragging the slider doesn't
+    // trigger a spurious applyManifest for non-structural changes.
     WORLD,
     // TREES color + visibility + trunk color. trees.refresh() rewrites
     // per-instance colors and material color; the structural keys are
@@ -281,9 +280,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     'TREE_DENSITY_FALLOFF',
     'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
   ], scheduleRebuild));
-  // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
+  // GROUND_BUFFER_PERCENT changes the island size (and therefore
   // the foliage sampling region), so it requires a full rebuild.
-  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via worldFloor.refresh().
+  // Visual island config lives in ISLAND.* and is hot-patched via island.refresh().
   unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
   armed = true;
 

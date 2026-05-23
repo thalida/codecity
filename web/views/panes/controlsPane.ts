@@ -414,15 +414,9 @@ function _buildSceneSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('scene-ground', 'Ground', () => [
-      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
-        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
-      }),
-      _color('Color', WORLD, 'GROUND_COLOR', {
-        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
-      }),
+    _collapsibleSubgroup('scene-ground', 'Ground sizing', () => [
       _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
-        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = island exactly fits the city; 50% = generous halo of bare ground past the buildings.',
       }),
     ]),
   );
