@@ -5,8 +5,9 @@
 // tints downward-facing surfaces warm. No real Three.js lights involved.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS, ISLAND_UNDERGLOW } from '@/config/island.js';
+import { ISLAND_MATERIALS, ISLAND_UNDERGLOW, ISLAND_ATMOSPHERE } from '@/config/island.js';
 import { sunDirFromLighting } from '@/scene/lighting/sunDir.js';
+import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/lighting/fogChunk.js';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -14,16 +15,14 @@ attribute float ao;
 
 varying vec3 vColor;
 varying vec3 vNormalWorld;
+varying vec3 vWorldPos;
 varying float vAO;
 
 void main() {
   vColor = color;
   vAO = ao;
-  // Transform normal to world space. The island mesh sits in world
-  // coordinates with no rotation, so modelMatrix is essentially a
-  // translation; normalMatrix gives us the correct world normal even
-  // if that changes later.
   vNormalWorld = normalize(mat3(modelMatrix) * normal);
+  vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
@@ -33,6 +32,7 @@ precision highp float;
 
 varying vec3 vColor;
 varying vec3 vNormalWorld;
+varying vec3 vWorldPos;
 varying float vAO;
 
 uniform vec3 uSunDirWorld;
@@ -41,27 +41,29 @@ uniform float uAmbient;
 uniform vec3 uUnderglowColor;
 uniform float uUnderglowStrength;
 
+${FOG_UNIFORMS_GLSL}
+${FOG_APPLY_GLSL}
+
 void main() {
   vec3 n = normalize(vNormalWorld);
-
-  // Directional + ambient lighting, baked-style (no Three.js lights).
   float sunLambert = max(dot(n, uSunDirWorld), 0.0);
   float lighting = sunLambert * uSunContrast + uAmbient;
 
   vec3 lit = vColor * lighting * vAO;
-
-  // Underglow: faces pointing down get a warm additive tint.
   vec3 upDir = vec3(0.0, 1.0, 0.0);
   float downward = max(dot(n, -upDir), 0.0);
   lit += downward * uUnderglowStrength * uUnderglowColor;
 
-  gl_FragColor = vec4(lit, 1.0);
+  float viewDist = length(vWorldPos - cameraPosition);
+  vec3 foggy = applyFog(lit, vWorldPos, viewDist);
+  gl_FragColor = vec4(foggy, 1.0);
 }
 `;
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
   const mats = ISLAND_MATERIALS.get();
   const ug = ISLAND_UNDERGLOW.get();
+  const atm = ISLAND_ATMOSPHERE.get();
   const sun = sunDirFromLighting();
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
@@ -72,6 +74,17 @@ export function createIslandMaterial(): THREE.ShaderMaterial {
       uAmbient: { value: mats.AMBIENT },
       uUnderglowColor: { value: new THREE.Color(ug.ENABLED ? ug.COLOR : '#000000') },
       uUnderglowStrength: { value: ug.ENABLED ? ug.STRENGTH : 0 },
+      // Height-fog uniforms — island doesn't use them; declared so the
+      // shared chunk compiles and uFogEnabled stays false.
+      uFogEnabled: { value: false },
+      uFogColor: { value: new THREE.Color('#000000') },
+      uFogIntensity: { value: 0 },
+      uFogHeight: { value: 1 },
+      // Distance-fog uniforms — actively driven by ISLAND_ATMOSPHERE.
+      uDistanceFogEnabled: { value: atm.DISTANCE_FOG_ENABLED },
+      uDistanceFogColor: { value: new THREE.Color(atm.DISTANCE_FOG_COLOR) },
+      uDistanceFogNear: { value: atm.DISTANCE_FOG_NEAR },
+      uDistanceFogFar: { value: atm.DISTANCE_FOG_FAR },
     },
     side: THREE.FrontSide,
     toneMapped: true,

@@ -13,6 +13,7 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
   ISLAND_UNDERGLOW,
+  ISLAND_ATMOSPHERE,
 } from '@/config/island.js';
 import { getWorldBounds, type WorldBounds } from '@/scene/worldBounds.js';
 import {
@@ -133,6 +134,11 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
       ug.ENABLED ? ug.COLOR : '#000000',
     );
     material.uniforms.uUnderglowStrength!.value = ug.ENABLED ? ug.STRENGTH : 0;
+    const atm = ISLAND_ATMOSPHERE.get();
+    material.uniforms.uDistanceFogEnabled!.value = atm.DISTANCE_FOG_ENABLED;
+    (material.uniforms.uDistanceFogColor!.value as THREE.Color).set(atm.DISTANCE_FOG_COLOR);
+    material.uniforms.uDistanceFogNear!.value = atm.DISTANCE_FOG_NEAR;
+    material.uniforms.uDistanceFogFar!.value = atm.DISTANCE_FOG_FAR;
     underglow.refresh();
   }
 

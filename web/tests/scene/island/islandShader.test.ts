@@ -32,4 +32,12 @@ describe('createIslandMaterial', () => {
     expect(mat.fragmentShader).toMatch(/vAO/);
     mat.dispose();
   });
+
+  it('vertex + fragment shader sources reference vWorldPos for distance fog', () => {
+    const mat = createIslandMaterial();
+    expect(mat.vertexShader).toMatch(/vWorldPos/);
+    expect(mat.fragmentShader).toMatch(/vWorldPos/);
+    expect(mat.fragmentShader).toMatch(/applyFog/);
+    mat.dispose();
+  });
 });
