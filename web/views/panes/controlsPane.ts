@@ -479,11 +479,11 @@ function _buildParksSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Visibility', [
-      _toggle('Floor', PARKS_PALETTE, 'GROUND_ENABLED', {
+      _toggle('Ground', PARKS_PALETTE, 'GROUND_ENABLED', {
         tip: 'Camera-following forest-tinted ground plane that paints the entire visible world floor. Disable to see the sky\'s lower-hemisphere fill behind everything (handy for debugging).',
       }),
-      _color('Floor color', PARKS_PALETTE, 'GROUND_COLOR', {
-        tip: 'Color of the valley-floor mesh. Should match Scene → Sky → Ground color so the horizon is seamless.',
+      _color('Ground color', PARKS_PALETTE, 'GROUND_COLOR', {
+        tip: 'Color of the valley-floor mesh. Match the sky color at the horizon for a seamless blend.',
       }),
       _toggle('Trees', PARKS_PALETTE, 'TREES_ENABLED', {
         tip: 'Matte tetrahedral canopies + tiny trunks. Disable for a treeless park silhouette.',
