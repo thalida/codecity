@@ -53,6 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS, ISLAND_UNDERGLOW } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
@@ -161,6 +162,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // (sky color, stars, ground haze, sun lighting) lives in collapsible
   // subgroups inside one Scene section.
   body.appendChild(_buildSceneSection());
+  // Island sits immediately after Scene — it's the world-plane object that
+  // the city floats on, so it reads as part of the backdrop group.
+  body.appendChild(_buildIslandSection());
   // The old Layout section was folded away: street width tiers + street
   // spacing live under Streets, building size lives under Buildings.
   body.appendChild(_buildBuildingsSection());
@@ -434,6 +438,88 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Island (Cyberpunk Valley) ─────────────────────────────────────────────
+// The floating-island world-plane beneath the city. Three collapsible
+// subgroups cover:
+//   Geometry   — polygon shape, depth, tiers (cheap vertex rebuild on refresh)
+//   Materials  — vertex-baked colors + shader uniforms (sun contrast, ambient)
+//   Underglow  — downward-face tint + emissive core mesh (HDR bloom target)
+// Atmosphere (distance fog, shadow disc) is wired up in PR 3.
+function _buildIslandSection(): HTMLElement {
+  const section = _section(
+    'Island',
+    'Floating-island world-plane beneath the city. Geometry controls the polygon silhouette and depth; Materials set the baked colors and lighting; Underglow adds the neon halo under the rock.',
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-geometry', 'Geometry', () => [
+      _toggle('Show island', ISLAND_GEOMETRY, 'ENABLED', {
+        tip: 'Master toggle for the floating-island mesh. When off, the city sits over empty sky.',
+      }),
+      _slider('Polygon sides', ISLAND_GEOMETRY, 'SIDES', 6, 24, 1, {
+        tip: 'How many sides the island top has. 6 = hexagon, 12 = dodecagon (default), 24 = nearly circular.',
+      }),
+      _slider('Irregularity', ISLAND_GEOMETRY, 'IRREGULARITY', 0, 0.5, 0.01, {
+        tip: '0 = perfectly regular polygon. Higher values jitter vertices inward for a natural island silhouette.',
+      }),
+      _slider('Tier rings', ISLAND_GEOMETRY, 'TIERS', 1, 4, 1, {
+        tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 2–3 = chunky tapered look.',
+      }),
+      _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 1.5, 0.05, {
+        tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-materials', 'Materials', () => [
+      _color('Grass color', ISLAND_MATERIALS, 'GRASS_COLOR', {
+        tip: 'Top surface where the city sits.',
+      }),
+      _color('Soil color', ISLAND_MATERIALS, 'SOIL_COLOR', {
+        tip: 'Narrow lip band between the grass top and the cliff face.',
+      }),
+      _color('Rock (top)', ISLAND_MATERIALS, 'ROCK_LIGHT', {
+        tip: 'Cliff side band just below the soil lip.',
+      }),
+      _color('Rock (middle)', ISLAND_MATERIALS, 'ROCK_MID', {
+        tip: 'Color of the topmost tier ring; darkens toward Rock (bottom) for deeper tiers.',
+      }),
+      _color('Rock (bottom)', ISLAND_MATERIALS, 'ROCK_DARK', {
+        tip: 'Bottom cap color. Deepest tier rings lerp toward this from Rock (middle).',
+      }),
+      _slider('Sun contrast', ISLAND_MATERIALS, 'SUN_CONTRAST', 0, 1.5, 0.05, {
+        tip: 'Strength of the shader-baked directional sun term. Higher = more dramatic lit/shadow split between faces.',
+      }),
+      _slider('Ambient', ISLAND_MATERIALS, 'AMBIENT', 0, 1, 0.05, {
+        tip: 'Base illumination on faces facing away from the sun. Keeps the dark side readable.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-underglow', 'Underglow', () => [
+      _toggle('Enabled', ISLAND_UNDERGLOW, 'ENABLED', {
+        tip: 'Master toggle. When off, both the shader tint and the emissive core mesh are disabled.',
+      }),
+      _color('Color', ISLAND_UNDERGLOW, 'COLOR', {
+        tip: 'Warm tint applied to downward-facing surfaces and the emissive core mesh.',
+      }),
+      _slider('Strength', ISLAND_UNDERGLOW, 'STRENGTH', 0, 2, 0.05, {
+        tip: 'How strongly the shader tints faces pointing down. 0 = no tint; 2 = strong underglow.',
+      }),
+      _toggle('Core glow mesh', ISLAND_UNDERGLOW, 'CORE_ENABLED', {
+        tip: 'HDR-emissive icosphere nested under the bottom cluster. Bloom catches it and blooms it into a soft halo through the rock seams.',
+      }),
+      _slider('Core intensity', ISLAND_UNDERGLOW, 'CORE_INTENSITY', 0.5, 5, 0.1, {
+        tip: 'HDR multiplier on the core mesh. Higher = brighter glow halo.',
       }),
     ]),
   );
