@@ -1,52 +1,47 @@
-// scene/parks/parksPlacementClient.ts — main-thread companion to
-// parksPlacementWorker.ts. Lazily spins up the worker on first
+// scene/trees/treePlacementClient.ts — main-thread companion to
+// treePlacementWorker.ts. Lazily spins up the worker on first
 // compute(), sends a config snapshot + layout, returns a promise that
-// resolves to ParkPlacement[]. Supersedes any pending request when a
+// resolves to TreePlacement[]. Supersedes any pending request when a
 // new compute() arrives (same protocol as layoutClient). Falls back
 // to a synchronous in-thread call when Worker is unavailable (older
 // browsers / SSR / test environments).
 
-import { placeParks, type ParkPlacement } from './parksPlacement.js';
-import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
+import { placeTrees, type TreePlacement } from './treePlacement.js';
+import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
-  resolve(placements: ParkPlacement[]): void;
+  resolve(placements: TreePlacement[]): void;
   reject(err: Error): void;
 }
 
 interface ConfigSnapshot {
-  parks: ReturnType<typeof PARKS.get>;
-  parksPalette: ReturnType<typeof PARKS_PALETTE.get>;
+  trees: ReturnType<typeof TREES.get>;
   buildingDims: ReturnType<typeof BUILDING_DIMENSIONS.get>;
-  cameraPerspective: ReturnType<typeof CAMERA_PERSPECTIVE.get>;
   footprint: ReturnType<typeof FOOTPRINT.get>;
 }
 
-export interface ParksPlacementClient {
+export interface TreePlacementClient {
   compute(
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
     cityHeight: number,
-  ): Promise<ParkPlacement[]>;
+  ): Promise<TreePlacement[]>;
   dispose(): void;
 }
 
 function _snapshot(): ConfigSnapshot {
   return {
-    parks: PARKS.get(),
-    parksPalette: PARKS_PALETTE.get(),
+    trees: TREES.get(),
     buildingDims: BUILDING_DIMENSIONS.get(),
-    cameraPerspective: CAMERA_PERSPECTIVE.get(),
     footprint: FOOTPRINT.get(),
   };
 }
 
-export function createParksPlacementClient(): ParksPlacementClient {
+export function createTreePlacementClient(): TreePlacementClient {
   const pending = new Map<number, PendingRequest>();
   let nextId = 1;
   let disposed = false;
@@ -65,20 +60,19 @@ export function createParksPlacementClient(): ParksPlacementClient {
     if (typeof Worker === 'undefined') return null;
     try {
       worker = new Worker(
-        new URL('./parksPlacementWorker.ts', import.meta.url),
+        new URL('./treePlacementWorker.ts', import.meta.url),
         { type: 'module' },
       );
     } catch (_) {
-      // Older browsers without module-worker support — fall back to sync.
       worker = null;
       return null;
     }
     worker.addEventListener('message', (event: MessageEvent) => {
       const data = event.data as
-        | { type: 'place-result'; id: number; placements: ParkPlacement[] }
+        | { type: 'place-result'; id: number; placements: TreePlacement[] }
         | { type: 'place-error'; id: number; message: string };
       const entry = pending.get(data.id);
-      if (!entry) return; // superseded
+      if (!entry) return;
       pending.delete(data.id);
       if (data.type === 'place-result') {
         entry.resolve(data.placements);
@@ -88,7 +82,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
     });
     worker.addEventListener('error', (event: ErrorEvent) => {
       for (const entry of pending.values()) {
-        entry.reject(new Error(event.message || 'parks placement worker error'));
+        entry.reject(new Error(event.message || 'tree placement worker error'));
       }
       pending.clear();
       const dying = worker;
@@ -108,7 +102,7 @@ export function createParksPlacementClient(): ParksPlacementClient {
     reject: PendingRequest['reject'],
   ): void {
     try {
-      const placements = placeParks(layout, bbox, { commitCount, cityHeight });
+      const placements = placeTrees(layout, bbox, { commitCount, cityHeight });
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);
@@ -128,13 +122,13 @@ export function createParksPlacementClient(): ParksPlacementClient {
     bbox: CityBbox | undefined,
     commitCount: number,
     cityHeight: number,
-  ): Promise<ParkPlacement[]> {
+  ): Promise<TreePlacement[]> {
     if (disposed) {
-      return Promise.reject(new Error('parksPlacementClient disposed'));
+      return Promise.reject(new Error('treePlacementClient disposed'));
     }
     const id = nextId++;
     _supersedeAll();
-    return new Promise<ParkPlacement[]>((resolve, reject) => {
+    return new Promise<TreePlacement[]>((resolve, reject) => {
       pending.set(id, { resolve, reject });
       const w = _ensureWorker();
       if (!w) {

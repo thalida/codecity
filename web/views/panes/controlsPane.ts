@@ -54,7 +54,9 @@ import {
 } from '@/config/index.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
-import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
+import { WORLD } from '@/config/world.js';
+import { TREES } from '@/config/trees.js';
+import { BUSHES } from '@/config/bushes.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
 import { AD_PANEL } from '@/config/adPanel.js';
@@ -165,9 +167,10 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
-  // Parks sits after Gem (the world's anchor) so the panel reads
-  // structural → decorative top-to-bottom.
-  body.appendChild(_buildParksSection());
+  // Trees + Bushes sit after Gem (the world's anchor) so the panel
+  // reads structural → decorative top-to-bottom.
+  body.appendChild(_buildTreesSection());
+  body.appendChild(_buildBushesSection());
   // Effects now also owns the LOD / Rendering knobs as a collapsible
   // subgroup — they're all "shared post-FX & render-tier" dials.
   body.appendChild(_buildEffectsSection());
@@ -387,13 +390,13 @@ function _buildSceneSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('scene-ground', 'Ground', () => [
-      _toggle('Enabled', PARKS_PALETTE, 'GROUND_ENABLED', {
+      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
         tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
       }),
-      _color('Color', PARKS_PALETTE, 'GROUND_COLOR', {
+      _color('Color', WORLD, 'GROUND_COLOR', {
         tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
       }),
-      _slider('Ground buffer (% of city)', PARKS_PALETTE, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
+      _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
         tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
       }),
     ]),
@@ -462,37 +465,54 @@ function _buildSceneSection(): HTMLElement {
   return section;
 }
 
-// ─── Parks (Cyberpunk Valley) ──────────────────────────────────────────────
-// Foliage plots placed in two zones: INNER pockets fill empty pockets
-// inside the city bbox; the BELT rings the city outside a buffer GAP.
-// Each plot is composed of an instanced ground quad + 1-3 trees + 0-2
-// emissive bushes + tiny flower specks. The master ENABLED toggle
-// disposes everything; per-zone and per-mesh toggles cost only a
-// mesh.visible flip via parks.refresh().
-function _buildParksSection(): HTMLElement {
+// ─── Trees (Cyberpunk Valley) ──────────────────────────────────────────────
+// Commit-driven trees: one matte cone canopy + trunk per commit.
+// Oldest commit is placed closest to the gem; newest is farthest.
+function _buildTreesSection(): HTMLElement {
   const section = _section(
-    'Parks',
-    'Foliage plots: inner pockets fill gaps between buildings; a belt rings the city outside a gap buffer. Trees are matte; bushes + flowers bloom via HDR.',
+    'Trees',
+    'Commit-driven trees — one matte canopy + trunk per commit. Oldest commit closest to the gem, newest farthest out.',
   );
 
   section.appendChild(
     _subgroup('Visibility', [
-      _toggle('Trees', PARKS_PALETTE, 'TREES_ENABLED', {
-        tip: 'Matte tetrahedral canopies + tiny trunks. Disable for a treeless park silhouette.',
-      }),
-      _toggle('Bushes', PARKS_PALETTE, 'BUSHES_ENABLED', {
-        tip: 'Emissive icosahedron bushes — the main parks bloom source. Disable to drop bloom.',
-      }),
-      _toggle('Flowers', PARKS_PALETTE, 'FLOWERS_ENABLED', {
-        tip: 'Tiny additive flower specks. Cheap individually, but the biggest instance count — disable first for perf.',
+      _toggle('Trees enabled', TREES, 'TREES_ENABLED', {
+        tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
       }),
     ]),
   );
 
   section.appendChild(
     _subgroup('Placement', [
-      _slider('Edge inset (% of plane)', PARKS, 'EDGE_INSET_PERCENT', 0, 50, 1, {
-        tip: 'Foliage stops short of the plane edge by this fraction of the SHORTER axis. 0% = trees right up to the edge; 25% = wide bare-ground margin all around.',
+      _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
+        tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. 0% = trees right up to the edge; 25% = wide bare-ground margin all around.',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Bushes (Cyberpunk Valley) ─────────────────────────────────────────────
+// Decorative scatter — emissive icosahedra that push into HDR bloom.
+function _buildBushesSection(): HTMLElement {
+  const section = _section(
+    'Bushes',
+    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.',
+  );
+
+  section.appendChild(
+    _subgroup('Visibility', [
+      _toggle('Bushes enabled', BUSHES, 'BUSHES_ENABLED', {
+        tip: 'Master toggle. Enabling triggers a placement rebuild; disabling hides the mesh without a rebuild.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Colors', [
+      _slider('Emission boost', BUSHES, 'BUSH_EMISSION_BOOST', 0.5, 5, 0.1, {
+        tip: 'Multiplier applied to bush colors before the HDR bloom pass. Values above 1.0 push into bloom; below 1.0 dims them toward matte.',
       }),
     ]),
   );
@@ -551,7 +571,7 @@ function _buildStreetsSection(): HTMLElement {
   section.appendChild(
     _subgroup('City footprint', [
       _toggle('Enabled', FOOTPRINT, 'ENABLED', {
-        tip: 'When off, the slab is hidden (still built; group.visible = false) and parks placement no longer rejects trees inside the halo.',
+        tip: 'When off, the slab is hidden (still built; group.visible = false) and tree/bush placement no longer rejects candidates inside the halo.',
       }),
       _color('Color', FOOTPRINT, 'COLOR', {
         tip: 'Slab color. Near-black by default so the apron reads as a darker frame around the city against the night-scene floor.',

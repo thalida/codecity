@@ -47,10 +47,16 @@ import {
   SKY,
   SKY_STARS,
 
-  // Cyberpunk Valley — parks (structural in PARKS → rebuild; palette
-  // in PARKS_PALETTE → hot path via parks.refresh()):
-  PARKS,
-  PARKS_PALETTE,
+  // Cyberpunk Valley — world floor (GROUND_BUFFER_PERCENT → rebuild;
+  // GROUND_COLOR/GROUND_ENABLED → hot path via worldFloor.refresh()):
+  WORLD,
+
+  // Cyberpunk Valley — trees (structural in TREES → rebuild):
+  TREES,
+
+  // Cyberpunk Valley — bushes (structural in BUSHES → rebuild;
+  // BUSH_* colors → hot path via bushes.refresh()):
+  BUSHES,
 
   // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
   // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
@@ -174,12 +180,16 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // we can switch to listenKeys to gate scheduleRebuild on just the
     // three JS keys.
     FACADE_GEOMETRY,
-    // PARKS holds every structural dial (plot sizes, max counts,
-    // belt spacing, foliage counts per plot) — flipping any of them
-    // requires re-running placement + rebuilding the four foliage
-    // InstancedMeshes, both of which only happen inside applyManifest's
-    // parks rebuild hook.
-    PARKS,
+    // TREES holds every structural dial (sizing, edge inset, colors)
+    // — flipping any of them requires re-running placement + rebuilding
+    // the tree InstancedMeshes, both of which only happen inside
+    // applyManifest's tree rebuild hook.
+    TREES,
+    // BUSHES is intentionally NOT here as a whole-store subscription:
+    // only BUSHES_ENABLED is structural, and we gate it via listenKeys
+    // below. Color + emission keys live in hotStores and refresh via
+    // bushes.refresh().
+    //
     // FOOTPRINT is intentionally NOT here as a whole-store subscription:
     // only HALO_WIDTH is structural, and we gate it via listenKeys below.
     // COLOR + ENABLED live in hotStores and refresh via footprint.refresh().
@@ -213,10 +223,15 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // (also handled by sky.refresh()).
     SKY,
     SKY_STARS,
-    // PARKS_PALETTE: color arrays + emission boosts. Renderer pushes
-    // these into per-instance color buffers + ShaderMaterial uniforms
-    // via parks.refresh() — no rebuild, no re-placement.
-    PARKS_PALETTE,
+    // WORLD: GROUND_COLOR + GROUND_ENABLED are pushed live via
+    // worldFloor.refresh() inside applyTheme() — no rebuild required.
+    // GROUND_BUFFER_PERCENT gets a narrow listenKeys subscription below so
+    // dragging the color slider doesn't trigger a spurious applyManifest.
+    WORLD,
+    // BUSHES: color arrays + emission boost. bushRenderer.refresh() pushes
+    // these into per-instance color buffers + ShaderMaterial uniforms —
+    // no rebuild, no re-placement.
+    BUSHES,
     // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed live via
     // footprint.refresh() inside applyTheme() — no rebuild required.
     // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
@@ -237,16 +252,15 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // above; gating the rebuild on HALO_WIDTH alone avoids a wasted rebuild on
   // every color drag.
   unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
-  // Toggling bushes / flowers ON or OFF changes whether the bush+
-  // flower placement pass runs (placement reads PARKS_PALETTE flags),
-  // so it needs a rebuild — not just a visibility flip via
-  // parks.refresh. TREES_ENABLED and GROUND_ENABLED stay on the hot
-  // path because they only flip mesh.visible.
-  unsubs.push(listenKeys(PARKS_PALETTE, ['BUSHES_ENABLED', 'FLOWERS_ENABLED'], scheduleRebuild));
+  // Toggling BUSHES_ENABLED changes whether the bush placement pass
+  // runs, so it needs a rebuild — not just a visibility flip via
+  // bushes.refresh(). TREES_ENABLED only flips mesh.visible (trees are
+  // always placed; rendering is toggled independently).
+  unsubs.push(listenKeys(BUSHES, ['BUSHES_ENABLED'], scheduleRebuild));
   // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
   // the foliage sampling region), so it requires a full rebuild.
-  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via parks.refresh().
-  unsubs.push(listenKeys(PARKS_PALETTE, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
+  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via worldFloor.refresh().
+  unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
   armed = true;
 
   return function dispose() {

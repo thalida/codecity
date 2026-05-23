@@ -30,7 +30,7 @@ import * as THREE from 'three';
 import { TEXT_INPUT_TAGS } from '@/constants';
 import { FLY_CONTROLS } from '@/config/index.js';
 import { StreetAxis } from '@/types';
-import type { WorldBounds } from './parks/worldBounds.js';
+import type { WorldBounds } from './worldBounds.js';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;

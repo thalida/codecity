@@ -1,20 +1,17 @@
-// scene/parks/parksPlacementWorker.ts — Web Worker entry. Receives a
-// CityLayout + bbox + a snapshot of the four config stores
-// placeParks() reads, populates the worker's local stores, runs the
-// scan, posts back the ParkPlacement[]. Pure compute, no DOM, no
-// three.js references.
+// scene/trees/treePlacementWorker.ts — Web Worker entry for tree
+// placement. Receives a CityLayout + bbox + a snapshot of the config
+// stores placeTrees() reads, populates the worker's local stores,
+// runs the scan, posts back the TreePlacement[]. Pure compute, no
+// DOM, no three.js references.
 
-import { placeParks, type ParkPlacement } from './parksPlacement.js';
-import { PARKS, PARKS_PALETTE } from '@/config/parks.js';
+import { placeTrees, type TreePlacement } from './treePlacement.js';
+import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import type { CityBbox, CityLayout } from '@/types';
 
-type ParksValue = ReturnType<typeof PARKS.get>;
-type ParksPaletteValue = ReturnType<typeof PARKS_PALETTE.get>;
+type TreesValue = ReturnType<typeof TREES.get>;
 type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
-type CameraPerspectiveValue = ReturnType<typeof CAMERA_PERSPECTIVE.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
 
 interface PlaceRequest {
@@ -25,30 +22,22 @@ interface PlaceRequest {
   commitCount: number;
   cityHeight: number;
   configSnapshot: {
-    parks: ParksValue;
-    parksPalette: ParksPaletteValue;
+    trees: TreesValue;
     buildingDims: BuildingDimsValue;
-    cameraPerspective: CameraPerspectiveValue;
     footprint: FootprintValue;
   };
 }
 
 type PlaceResponse =
-  | { type: 'place-result'; id: number; placements: ParkPlacement[] }
+  | { type: 'place-result'; id: number; placements: TreePlacement[] }
   | { type: 'place-error'; id: number; message: string };
 
 function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
-  for (const k of Object.keys(snap.parks) as Array<keyof ParksValue>) {
-    PARKS.setKey(k, snap.parks[k]);
-  }
-  for (const k of Object.keys(snap.parksPalette) as Array<keyof ParksPaletteValue>) {
-    PARKS_PALETTE.setKey(k, snap.parksPalette[k]);
+  for (const k of Object.keys(snap.trees) as Array<keyof TreesValue>) {
+    TREES.setKey(k, snap.trees[k]);
   }
   for (const k of Object.keys(snap.buildingDims) as Array<keyof BuildingDimsValue>) {
     BUILDING_DIMENSIONS.setKey(k, snap.buildingDims[k]);
-  }
-  for (const k of Object.keys(snap.cameraPerspective) as Array<keyof CameraPerspectiveValue>) {
-    CAMERA_PERSPECTIVE.setKey(k, snap.cameraPerspective[k]);
   }
   for (const k of Object.keys(snap.footprint) as Array<keyof FootprintValue>) {
     FOOTPRINT.setKey(k, snap.footprint[k]);
@@ -60,7 +49,7 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
   if (!data || data.type !== 'place') return;
   try {
     _applySnapshot(data.configSnapshot);
-    const placements = placeParks(data.layout, data.bbox, {
+    const placements = placeTrees(data.layout, data.bbox, {
       commitCount: data.commitCount,
       cityHeight: data.cityHeight,
     });

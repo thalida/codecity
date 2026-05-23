@@ -1,8 +1,8 @@
-// scene/parks/worldBounds.ts — single source of truth for the
+// scene/worldBounds.ts — single source of truth for the
 // rendered world's spatial extent.
 //
 // The world is a rectangle sized to fit the city bbox plus a buffer.
-// Both the valley floor mesh and the tree scatter region read these
+// Both the world floor mesh and the tree scatter region read these
 // helpers so they stay in lockstep — if you change the buffer logic,
 // both update.
 //
@@ -17,7 +17,7 @@
 // renders.
 
 import type { CityBbox } from '@/types';
-import { PARKS_PALETTE } from '@/config/parks.js';
+import { WORLD } from '@/config/world.js';
 
 /** Absolute floor for the buffer in world units — protects tiny
  *  cities (small footprint, short buildings) from getting a
@@ -69,7 +69,7 @@ export function getWorldBounds(
       halfDepth: FALLBACK_HALF_DIM,
     };
   }
-  const bufferFrac = PARKS_PALETTE.get().GROUND_BUFFER_PERCENT / 100;
+  const bufferFrac = WORLD.get().GROUND_BUFFER_PERCENT / 100;
   const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
   const buffer = Math.max(MIN_BUFFER, characteristicSize * bufferFrac);
   return {

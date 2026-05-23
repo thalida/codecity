@@ -16,7 +16,7 @@
 // is masked by its neighbor — outer silhouette corners read as
 // rounded; internal "step" corners still composite continuously.
 //
-// Lifecycle matches createValleyFloor / createParks:
+// Lifecycle matches createWorldFloor / createTrees / createBushes:
 //
 //   const fp = createCityFootprint(layout);
 //   scene.add(fp.group);

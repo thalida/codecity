@@ -50,14 +50,16 @@ import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { createSky } from './sky/sky.js';
 import type { Sky } from './sky/sky.js';
-import { createParks } from './parks/parks.js';
-import type { Parks } from './parks/parks.js';
-import { createParksPlacementClient } from './parks/parksPlacementClient.js';
-import type { ParksPlacementClient } from './parks/parksPlacementClient.js';
-import type { ParkPlacement } from './parks/parksPlacement.js';
-import { createValleyFloor } from './parks/valleyFloor.js';
-import type { ValleyFloor } from './parks/valleyFloor.js';
-import { getWorldBounds, type WorldBounds } from './parks/worldBounds.js';
+import { createTrees } from './trees/trees.js';
+import type { Trees } from './trees/trees.js';
+import { createTreePlacementClient } from './trees/treePlacementClient.js';
+import type { TreePlacementClient } from './trees/treePlacementClient.js';
+import { createBushes } from './bushes/bushes.js';
+import type { Bushes } from './bushes/bushes.js';
+import { placeBushes } from './bushes/bushPlacement.js';
+import { createWorldFloor } from './worldFloor.js';
+import type { WorldFloor } from './worldFloor.js';
+import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
@@ -69,10 +71,11 @@ import {
   GEM_GLOW,
   GEM_SIZING,
   LABEL_TYPOGRAPHY,
-  PARKS,
+  TREES,
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
+import { BUSHES } from '@/config/bushes.js';
 import { REBUILD_STATUS } from '../liveStatus.js';
 import type {
   Building,
@@ -263,27 +266,28 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
-  // Cyberpunk Valley valley floor — a large flat plane world-anchored
+  // Cyberpunk Valley world floor — a large flat plane world-anchored
   // at the gem, painting the entire visible ground with a forest
   // tint. Built ONCE at scene init (it's not layout-dependent — the
   // plane is bigger than any city). Sits at renderOrder -500, so it
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
-  const _valleyFloor: ValleyFloor = createValleyFloor(null);
-  scene.add(_valleyFloor.mesh);
+  const _worldFloor: WorldFloor = createWorldFloor(null);
+  scene.add(_worldFloor.mesh);
 
-  // Cyberpunk Valley parks — REBUILT per applyManifest from the new
-  // layout's buildings/streets/paths (the placement algorithm fills
-  // the gaps between them and rings the city's outer boundary).
-  // Held at cityScene scope so applyTheme() can call .refresh()
-  // through getParks() and the rebuild branches can dispose the prior
-  // instance before swapping in the new one.
-  let _parks: Parks | null = null;
+  // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
+  // commit, placed commit-driven across the world floor.
+  let _trees: Trees | null = null;
 
-  // Parks placement client — owns the off-thread worker (or its sync
+  // Tree placement client — owns the off-thread worker (or its sync
   // fallback in test envs). One instance per cityScene; disposed when
-  // the cityScene is disposed. Mirrors the _layoutClient pattern.
-  const _parksPlacementClient: ParksPlacementClient = createParksPlacementClient();
+  // the cityScene is disposed.
+  const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
+
+  // Cyberpunk Valley bushes — REBUILT per applyManifest (only when
+  // BUSHES.BUSHES_ENABLED is true). Decorative scatter independent of
+  // commits.
+  let _bushes: Bushes | null = null;
 
   // Cyberpunk Valley city footprint — REBUILT per applyManifest.
   // One InstancedMesh of inflated layout rects that composes into a
@@ -956,16 +960,21 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
-    // City is now in the scene. Decoration pass (parks, future mesa
-    // bounds, etc.) is deferred to the next animation frame so the
+    // City is now in the scene. Decoration pass (trees, bushes, future
+    // mesa bounds, etc.) is deferred to the next animation frame so the
     // city paints + becomes interactive BEFORE the placement scan +
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
-    const parksEnabled = PARKS.get().ENABLED;
-    if (_parks) {
-      _parks.dispose();
-      _parks = null;
+    const treesEnabled = TREES.get().TREES_ENABLED;
+    const bushesEnabled = BUSHES.get().BUSHES_ENABLED;
+    if (_trees) {
+      _trees.dispose();
+      _trees = null;
+    }
+    if (_bushes) {
+      _bushes.dispose();
+      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -998,59 +1007,71 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
     latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
-    _valleyFloor.setBounds(latestWorldBounds);
+    _worldFloor.setBounds(latestWorldBounds);
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
-      // so we don't need the rAF+setTimeout defer the parks path uses.
+      // so we don't need the rAF+setTimeout defer the tree path uses.
       _cityFootprint = createCityFootprint(newLayout);
       scene.add(_cityFootprint.group);
     }
 
-    if (parksEnabled && bbox && sceneBbox) {
+    if ((treesEnabled || bushesEnabled) && bbox && sceneBbox) {
       // Snapshot what the deferred pass needs so a later applyManifest
       // bumping _currentGeneration doesn't race with this build.
       const generationAtDefer = myGeneration;
       const layoutAtDefer = newLayout;
       const commitCountAtDefer = manifest.commits?.length ?? 0;
       const cityHeightAtDefer = cityHeight;
-      const parksBbox: CityBbox = sceneBbox;
+      const foliageBbox: CityBbox = sceneBbox;
 
       REBUILD_STATUS.set('decorating');
       // rAF lets the browser START the next frame; setTimeout(0)
       // then yields the task so the browser can COMPLETE the paint
-      // before parks work begins. The combination is the most
-      // reliable way to ensure the city is on-screen before we touch
-      // the main thread again.
+      // before foliage work begins.
       await new Promise<void>((r) => requestAnimationFrame(() => r()));
       await new Promise<void>((r) => setTimeout(r, 0));
       if (generationAtDefer !== _currentGeneration) return;
 
-      // Off-thread placement via the worker. The supersede protocol
-      // rejects this promise with "superseded" if another applyManifest
-      // fires while placement is in-flight — silently abort that branch
-      // so we don't add a stale parks group to the scene.
-      let placements: ParkPlacement[];
-      try {
-        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, commitCountAtDefer, cityHeightAtDefer);
-      } catch (err) {
-        if (err instanceof Error && err.message === 'superseded') return;
-        throw err;
-      }
-      if (generationAtDefer !== _currentGeneration) return;
+      if (treesEnabled) {
+        // Off-thread tree placement via the worker. The supersede protocol
+        // rejects this promise with "superseded" if another applyManifest
+        // fires while placement is in-flight.
+        let treePlacements: import('./trees/treePlacement.js').TreePlacement[];
+        try {
+          treePlacements = await _treePlacementClient.compute(layoutAtDefer, foliageBbox, commitCountAtDefer, cityHeightAtDefer);
+        } catch (err) {
+          if (err instanceof Error && err.message === 'superseded') return;
+          throw err;
+        }
+        if (generationAtDefer !== _currentGeneration) return;
 
-      _parks = createParks(placements);
-      scene.add(_parks.group);
+        _trees = createTrees(treePlacements);
+        scene.add(_trees.group);
+      }
+
+      if (bushesEnabled) {
+        // Bush placement is synchronous (fast, no worker needed).
+        if (generationAtDefer !== _currentGeneration) return;
+        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, { cityHeight: cityHeightAtDefer });
+        if (generationAtDefer !== _currentGeneration) return;
+        _bushes = createBushes(bushPlacements);
+        scene.add(_bushes.group);
+      }
     }
   }
 
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
-    _valleyFloor.dispose();
-    if (_parks) {
-      _parks.dispose();
-      _parks = null;
+    _worldFloor.dispose();
+    if (_trees) {
+      _trees.dispose();
+      _trees = null;
+    }
+    if (_bushes) {
+      _bushes.dispose();
+      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1059,7 +1080,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     beforeChangeCbs.length = 0;
     changeCbs.length = 0;
     _layoutClient.dispose();
-    _parksPlacementClient.dispose();
+    _treePlacementClient.dispose();
   }
 
   function resetCache(): void {
@@ -1095,22 +1116,31 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Cyberpunk Valley valley-floor reference. The floor is
+     * Cyberpunk Valley world-floor reference. The floor is
      * world-anchored at the gem; this is exposed for applyTheme()
      * (hot-reload refresh) and any future external access.
      */
-    getValleyFloor(): ValleyFloor {
-      return _valleyFloor;
+    getWorldFloor(): WorldFloor {
+      return _worldFloor;
     },
 
     /**
-     * Cyberpunk Valley parks reference. Rebuilt per applyManifest, so
+     * Cyberpunk Valley trees reference. Rebuilt per applyManifest, so
      * this returns null until the first manifest has been applied.
      * main.ts's applyTheme() guards with `?.refresh()` to handle the
      * pre-manifest case.
      */
-    getParks(): Parks | null {
-      return _parks;
+    getTrees(): Trees | null {
+      return _trees;
+    },
+
+    /**
+     * Cyberpunk Valley bushes reference. Rebuilt per applyManifest
+     * (only when BUSHES.BUSHES_ENABLED is true). Returns null when
+     * bushes are disabled or not yet placed.
+     */
+    getBushes(): Bushes | null {
+      return _bushes;
     },
 
     /**

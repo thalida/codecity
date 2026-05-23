@@ -1,8 +1,8 @@
-// parksPlacementClient.test.ts — verifies the sync fallback when
+// treePlacementClient.test.ts — verifies the sync fallback when
 // Worker is unavailable, the supersede protocol, and dispose behavior.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createParksPlacementClient } from '@/scene/parks/parksPlacementClient.js';
+import { createTreePlacementClient } from '@/scene/trees/treePlacementClient.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
@@ -22,11 +22,10 @@ function emptyLayout(bb: CityBbox): CityLayout {
   };
 }
 
-describe('parksPlacementClient (sync fallback path)', () => {
+describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;
 
   beforeEach(() => {
-    // Force the sync fallback by removing Worker.
     delete (globalThis as { Worker?: unknown }).Worker;
   });
 
@@ -36,15 +35,15 @@ describe('parksPlacementClient (sync fallback path)', () => {
     }
   });
 
-  it('returns ParkPlacement[] via the sync fallback when Worker is unavailable', async () => {
-    const client = createParksPlacementClient();
+  it('returns TreePlacement[] via the sync fallback when Worker is unavailable', async () => {
+    const client = createTreePlacementClient();
     const result = await client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     expect(Array.isArray(result)).toBe(true);
     client.dispose();
   });
 
   it('rejects the prior request with "superseded" when a new compute() arrives', async () => {
-    const client = createParksPlacementClient();
+    const client = createTreePlacementClient();
     const a = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     const b = client.compute(emptyLayout(bbox(-200, -200, 200, 200)), undefined, 0, 0);
     await expect(a).rejects.toThrow(/superseded/);
@@ -53,22 +52,21 @@ describe('parksPlacementClient (sync fallback path)', () => {
   });
 
   it('rejects all pending requests after dispose()', async () => {
-    const client = createParksPlacementClient();
+    const client = createTreePlacementClient();
     const p = client.compute(emptyLayout(bbox(-100, -100, 100, 100)), undefined, 0, 0);
     client.dispose();
     await expect(p).rejects.toThrow(/disposed/);
   });
 
-  it('forwards commitCount to placeParks', async () => {
-    const client = createParksPlacementClient();
+  it('forwards commitCount to placeTrees', async () => {
+    const client = createTreePlacementClient();
     const layout: CityLayout = {
       buildings: [], streets: [], paths: [],
       lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
       bbox: { minX: -100, minY: -100, maxX: 100, maxY: 100, cx: 0, cy: 0, width: 200, depth: 200 },
     };
     const placements = await client.compute(layout, layout.bbox, 25, 0);
-    const trees = placements.filter((p) => p.treeCount > 0);
-    expect(trees.length).toBe(25);
+    expect(placements.length).toBe(25);
     client.dispose();
   });
 });

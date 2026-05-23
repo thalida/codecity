@@ -7,7 +7,7 @@ export const RENDER_ORDERS = {
   // existing ground / building / outline stack composites over them.
   // SKY is the wallpaper at the back of the inverted icosphere; its
   // shader paints below-horizon as a solid uGroundColor fill, so no
-  // separate floor mesh is needed. Mesas (-500) and parks (~0) will
+  // separate floor mesh is needed. Mesas (-500) and foliage (~0) will
   // slot in between SKY and SIDEWALK.
   SKY: -1000, // procedural sky icosphere (draws first; lower hemisphere
               // also acts as the visual ground via uGroundColor)
@@ -29,8 +29,8 @@ export const RENDER_ORDERS = {
   BUILDING_OUTLINE: 5, // per-building default wireframe
   STREET_LABEL: 6, // baked road-name plane
   SELECTED_OUTLINE: 7, // chasing-rainbow selected wireframe
-  // Foliage (matte tree canopies + trunks + emissive bushes + flower
-  // sprites) draws after the city. Depth-tested normally so buildings
-  // occlude foliage that's behind them.
+  // Foliage (matte tree canopies + trunks + emissive bushes) draws
+  // after the city. Depth-tested normally so buildings occlude foliage
+  // that's behind them.
   PARK_FOLIAGE: 8,
 } as const;

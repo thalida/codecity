@@ -7,7 +7,7 @@
 // compose visually into one continuous asphalt slab that follows the
 // city silhouette.
 //
-// Parks placement reads HALO_WIDTH so candidate trees inside the slab
+// Tree placement reads HALO_WIDTH so candidate trees inside the slab
 // are rejected by the existing rbush overlap check — no extra
 // gradient logic required.
 
@@ -15,8 +15,8 @@ import { map } from 'nanostores';
 
 export interface FootprintConfig {
   /** Master toggle. When false, the InstancedMesh is still built but
-   *  its group is hidden (group.visible = false), and parks placement
-   *  treats HALO_WIDTH as 0 (no rejection). */
+   *  its group is hidden (group.visible = false), and tree/bush
+   *  placement treats HALO_WIDTH as 0 (no rejection). */
   ENABLED: boolean;
   /** World units of asphalt added outward around each layout rect.
    *  The contour emerges from the union of overlapping inflated rects. */

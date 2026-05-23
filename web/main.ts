@@ -256,17 +256,19 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();
 
-    // Cyberpunk Valley valley floor — pulls fresh GROUND_COLOR /
-    // GROUND_ENABLED from PARKS_PALETTE so colour pickers + toggles
+    // Cyberpunk Valley world floor — pulls fresh GROUND_COLOR /
+    // GROUND_ENABLED from WORLD config so colour pickers + toggles
     // hot-update without a manifest rebuild.
-    cityScene.getValleyFloor().refresh();
+    cityScene.getWorldFloor().refresh();
 
-    // Cyberpunk Valley parks — pushes fresh PARKS_PALETTE colors into
-    // the per-instance color buffers and the bush/flower
-    // ShaderMaterial emission uniforms. Null until the first manifest
-    // applies (boot order: applyTheme can fire on first armed
-    // subscribe before any manifest), so guard with optional chain.
-    cityScene.getParks()?.refresh();
+    // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
+    // into per-instance color buffers. Null until the first manifest applies.
+    cityScene.getTrees()?.refresh();
+
+    // Cyberpunk Valley bushes — pushes fresh BUSH_NEON_COLORS + emission
+    // boost into per-instance color buffers + ShaderMaterial uniforms.
+    // Null until the first manifest applies (or when BUSHES_ENABLED is off).
+    cityScene.getBushes()?.refresh();
 
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
     // onto the slab material / group visibility. Null until the first
@@ -929,7 +931,7 @@ if (_canvas) {
 
     // Forward REBUILD_STATUS → loadingOverlay so the loading card
     // advances to "Adding decorations" while applyManifest is in its
-    // deferred parks-build phase. Lives for the page lifetime so
+    // deferred foliage-build phase. Lives for the page lifetime so
     // source-switches (which re-show the overlay) also get the step.
     // setStep on a hidden overlay is a harmless DOM update.
     REBUILD_STATUS.subscribe((s) => {

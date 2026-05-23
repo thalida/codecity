@@ -22,7 +22,7 @@ export type LoadingStep =
   | 'skeleton'
   | 'building'
   // Client-side phase after the city is in the scene but before the
-  // decoration pass (parks, future mesa bounds) finishes. Triggered
+  // decoration pass (trees, bushes, future mesa bounds) finishes. Triggered
   // by REBUILD_STATUS → 'decorating' in main.ts. Only inserted when
   // at least one decoration layer is enabled.
   | 'decorating';

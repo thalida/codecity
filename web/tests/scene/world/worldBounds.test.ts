@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getWorldBounds } from '@/scene/parks/worldBounds.js';
-import { PARKS_PALETTE } from '@/config/parks.js';
+import { getWorldBounds } from '@/scene/worldBounds.js';
+import { WORLD } from '@/config/world.js';
 import type { CityBbox } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
@@ -16,7 +16,7 @@ function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox 
 // stable when the defaults shift again.
 describe('worldBounds', () => {
   beforeEach(() => {
-    PARKS_PALETTE.setKey('GROUND_BUFFER_PERCENT', 30);
+    WORLD.setKey('GROUND_BUFFER_PERCENT', 30);
   });
 
   it('returns fallback rectangle when bbox is null', () => {
@@ -74,7 +74,7 @@ describe('worldBounds', () => {
   });
 
   it('GROUND_BUFFER_PERCENT slider scales the buffer linearly', () => {
-    PARKS_PALETTE.setKey('GROUND_BUFFER_PERCENT', 60);
+    WORLD.setKey('GROUND_BUFFER_PERCENT', 60);
     // 10000-wide. characteristic = 10000, buffer = 10000*0.60 = 6000.
     // halfWidth = 10000/2 + 6000 = 11000.
     const b = getWorldBounds(bbox(0, 0, 10000, 10000));

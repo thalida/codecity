@@ -1,4 +1,4 @@
-// scene/parks/valleyFloor.ts — The "world floor" mesh.
+// scene/worldFloor.ts — The "world floor" mesh.
 //
 // A large flat PlaneGeometry at y=−0.5, tinted to a forest tone,
 // sized to fit the city bbox plus a buffer (computed by
@@ -10,24 +10,24 @@
 // cheap and avoids the bookkeeping of scaling a fixed mesh.
 //
 // Beyond the plane edge, the sky paints the lower hemisphere with
-// the sky color (Task 11+: no fake-ground gradient). At extreme
-// camera positions the world edge is visible — that's intentional;
-// the world has a finite, city-relative extent.
+// the sky color. At extreme camera positions the world edge is
+// visible — that's intentional; the world has a finite, city-relative
+// extent.
 //
 // Lifecycle:
 //
-//   const floor = createValleyFloor(null);
+//   const floor = createWorldFloor(null);
 //   scene.add(floor.mesh);
 //   floor.setBounds(getWorldBounds(bbox)); // when layout (re)computes
 //   floor.refresh();   // on every applyTheme()
 //   floor.dispose();   // on scene teardown
 
 import * as THREE from 'three';
-import { PARKS_PALETTE } from '@/config/parks.js';
+import { WORLD } from '@/config/world.js';
 import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { RENDER_ORDERS } from '@/constants';
 
-export interface ValleyFloor {
+export interface WorldFloor {
   mesh: THREE.Mesh;
   /** Resize + reposition the floor to fit the given bounds. Disposes
    *  the old geometry and creates a new PlaneGeometry. */
@@ -48,12 +48,12 @@ function makeGeometry(bounds: WorldBounds): THREE.PlaneGeometry {
   return geom;
 }
 
-export function createValleyFloor(initialBounds: WorldBounds | null): ValleyFloor {
+export function createWorldFloor(initialBounds: WorldBounds | null): WorldFloor {
   const bounds = initialBounds ?? getWorldBounds(null);
 
   let geometry = makeGeometry(bounds);
 
-  const palette = PARKS_PALETTE.get();
+  const world = WORLD.get();
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     toneMapped: false,
@@ -65,14 +65,14 @@ export function createValleyFloor(initialBounds: WorldBounds | null): ValleyFloo
     // y=0 z-fight at far camera distances.
     depthWrite: false,
   });
-  setColorFromHex(material.color, palette.GROUND_COLOR);
+  setColorFromHex(material.color, world.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.position.set(bounds.cx, -0.5, bounds.cz);
   mesh.renderOrder = RENDER_ORDERS.VALLEY_FLOOR;
   mesh.frustumCulled = false;
-  mesh.visible = palette.GROUND_ENABLED;
-  mesh.userData.cyberpunkValley = 'valleyFloor';
+  mesh.visible = world.GROUND_ENABLED;
+  mesh.userData.cyberpunkValley = 'worldFloor';
 
   function setBounds(newBounds: WorldBounds): void {
     geometry.dispose();
@@ -82,9 +82,9 @@ export function createValleyFloor(initialBounds: WorldBounds | null): ValleyFloo
   }
 
   function refresh(): void {
-    const pal = PARKS_PALETTE.get();
-    setColorFromHex(material.color, pal.GROUND_COLOR);
-    mesh.visible = pal.GROUND_ENABLED;
+    const w = WORLD.get();
+    setColorFromHex(material.color, w.GROUND_COLOR);
+    mesh.visible = w.GROUND_ENABLED;
   }
 
   function dispose(): void {
