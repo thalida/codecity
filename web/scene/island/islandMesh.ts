@@ -24,6 +24,7 @@ import {
 } from './islandGeometry.js';
 import { createIslandMaterial } from './islandShader.js';
 import { createUnderglowCore, type UnderglowCore } from './underglowCore.js';
+import { createShadowDisc, type ShadowDisc } from './shadowDisc.js';
 import { writeSunDir } from '@/scene/lighting/sunDir.js';
 import { RENDER_ORDERS } from '@/constants';
 
@@ -98,6 +99,12 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   let underglow: UnderglowCore = createUnderglowCore({ bottomY, bottomRadius });
   group.add(underglow.mesh);
 
+  // Shadow disc — fake shadow below the island to ground it visually.
+  // islandRadius matches the inscribed-polygon baseR used by islandGeometry.
+  let islandRadius = Math.min(currentBounds.halfWidth, currentBounds.halfDepth);
+  let shadowDisc: ShadowDisc = createShadowDisc({ islandRadius, bottomY });
+  group.add(shadowDisc.mesh);
+
   function setBounds(newBounds: WorldBounds): void {
     currentBounds = newBounds;
     geometry.dispose();
@@ -119,6 +126,12 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     bottomRadius = bottomCapRadius(params);
     underglow = createUnderglowCore({ bottomY, bottomRadius });
     group.add(underglow.mesh);
+
+    // Rebuild shadow disc to match new bounds.
+    shadowDisc.dispose();
+    islandRadius = Math.min(currentBounds.halfWidth, currentBounds.halfDepth);
+    shadowDisc = createShadowDisc({ islandRadius, bottomY });
+    group.add(shadowDisc.mesh);
   }
 
   function refresh(): void {
@@ -140,6 +153,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     material.uniforms.uDistanceFogNear!.value = atm.DISTANCE_FOG_NEAR;
     material.uniforms.uDistanceFogFar!.value = atm.DISTANCE_FOG_FAR;
     underglow.refresh();
+    shadowDisc.refresh();
   }
 
   function tick(): void {
@@ -151,6 +165,7 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     geometry.dispose();
     material.dispose();
     underglow.dispose();
+    shadowDisc.dispose();
   }
 
   return { group, setBounds, refresh, tick, dispose };
