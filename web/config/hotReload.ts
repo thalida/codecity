@@ -275,6 +275,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     'TREE_MAX_WIDTH',
     'TRUNK_HEIGHT_FRAC',
     'TRUNK_RADIUS_FRAC_OF_CANOPY',
+    'CANOPY_TRUNK_OVERLAP_FRAC',
     'TREE_SHADING_STRENGTH',
     'EDGE_INSET_PERCENT',
     'TREE_DENSITY_FALLOFF',

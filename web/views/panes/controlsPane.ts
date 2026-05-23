@@ -505,6 +505,9 @@ function _buildTreesSection(): HTMLElement {
       _slider('Trunk height (% of canopy)', TREES, 'TRUNK_HEIGHT_FRAC', 0.05, 1, 0.05, {
         tip: 'Trunk height as a fraction of canopy height. Larger = more visible trunk relative to canopy. Rebuild on change.',
       }),
+      _slider('Canopy-trunk overlap (% of trunk)', TREES, 'CANOPY_TRUNK_OVERLAP_FRAC', 0, 1, 0.05, {
+        tip: 'How much of the trunk top is hidden inside the canopy. 0 = canopy bottom point touches trunk top. 1 = canopy bottom reaches the ground, hiding the entire trunk. Rebuild on change.',
+      }),
     ]),
   );
 

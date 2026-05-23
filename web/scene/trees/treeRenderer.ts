@@ -53,17 +53,45 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
-/** Build a unit-height (Y ∈ [0,1]), unit-radius icosahedron canopy
- *  geometry at the given subdivision detail. Non-indexed + flat
- *  normals so the baked per-vertex shading reads as discrete facets
- *  (each face shaded uniformly). */
+/** Radial segment count per detail level. More segments = smoother
+ *  silhouette + more facets. */
+const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
+  0: 5,
+  1: 8,
+  2: 12,
+};
+
+/** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
+ *  geometry at the given subdivision detail.
+ *
+ *  Profile (lathed around the Y axis) keeps the canopy BLUNT at the
+ *  bottom — `(0.7, 0)` ring of width — instead of pinching to a point
+ *  like an icosahedron does. The trunk visibly enters this wide
+ *  bottom, matching low-poly tree art (rounded body, optional tapered
+ *  top to an apex).
+ *
+ *  Profile max X = 1.0, so when the renderer applies XZ scale = r,
+ *  the canopy world radius at its widest = r exactly. */
 function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
-  // IcosahedronGeometry(0.5, detail) is centered at origin. Translate
-  // up so its lowest vertex sits at y=0 and the volume occupies y∈[0,1].
-  const geom = new THREE.IcosahedronGeometry(0.5, detail);
-  geom.translate(0, 0.5, 0);
-  // toNonIndexed duplicates shared vertices per face; computeVertexNormals
-  // on the non-indexed geometry produces per-face normals (flat shading).
+  // Pear/teardrop silhouette: blunt and wide near the bottom (lower
+  // body bulges), narrowing through the upper body to a slightly
+  // rounded apex. Modeled to match the low-poly tree references —
+  // wide rim at the base so the trunk enters cleanly, max diameter
+  // in the lower third (y≈0.28), gradual taper through the middle,
+  // and a soft shoulder before the top point.
+  const profile: THREE.Vector2[] = [
+    new THREE.Vector2(0, 0),
+    new THREE.Vector2(0.78, 0),      // blunt bottom rim
+    new THREE.Vector2(1.00, 0.28),   // widest (lower-third)
+    new THREE.Vector2(0.95, 0.55),
+    new THREE.Vector2(0.70, 0.80),
+    new THREE.Vector2(0.30, 0.93),   // shoulder before apex
+    new THREE.Vector2(0, 1.0),       // apex
+  ];
+  const segments = DETAIL_SEGMENTS[detail];
+  const geom = new THREE.LatheGeometry(profile, segments);
+  // Non-indexed + flat normals so the baked per-vertex shading reads
+  // as discrete facets (each face shaded uniformly).
   const flat = geom.toNonIndexed();
   geom.dispose();
   flat.computeVertexNormals();
@@ -95,9 +123,13 @@ function bakeVertexShading(
   const LIGHT_Y = 0.30;
   const LIGHT_Z = 0.78;
   // Shadow side dims to (1 - DIRECTIONAL_RANGE × strength); lit side
-  // stays at 1. 0.55 gives a ~30% spread between dimmest and brightest
-  // facet at strength=0.55 (default), enough to read crisply.
-  const DIRECTIONAL_RANGE = 0.55;
+  // stays at 1. 0.75 gives a ~50% spread between dimmest and brightest
+  // facet at strength=0.65 (default), matching the strong lit/shadow
+  // contrast in low-poly tree art.
+  const DIRECTIONAL_RANGE = 0.75;
+  // Vertical gradient is the secondary effect — keep it subtle so
+  // directional facet contrast dominates the silhouette.
+  const VERTICAL_RANGE = 0.35;
 
   const pos = geom.getAttribute('position');
   const nrm = geom.getAttribute('normal');
@@ -107,7 +139,7 @@ function bakeVertexShading(
   for (let i = 0; i < count; i++) {
     const y = pos.getY(i);
     const yClamped = y < 0 ? 0 : y > 1 ? 1 : y;
-    const heightShade = 1 - strength * (1 - yClamped);
+    const heightShade = 1 - strength * VERTICAL_RANGE * (1 - yClamped);
 
     let faceShade = 1;
     if (nrm) {
@@ -149,6 +181,10 @@ export function createTreeRenderer(
   const maxRadius = cfg.TREE_MAX_WIDTH / 2;
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
   const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC_OF_CANOPY;
+  // Fraction of trunk height hidden inside the canopy bottom. The
+  // canopy is positioned this far below trunk-top so the trunk visibly
+  // enters the canopy instead of just touching its bottom vertex.
+  const canopyOverlapFrac = Math.max(0, Math.min(1, cfg.CANOPY_TRUNK_OVERLAP_FRAC));
 
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
@@ -250,9 +286,13 @@ export function createTreeRenderer(
       const r = perTreeRadius(placementIdx);
       const trunkH = h * trunkHeightFrac;
 
-      // Canopy: base of the icosahedron sits at the top of the trunk.
-      // Y-scale = h, XZ-scale = r → oval stretched along Y when h > r.
-      tmpV3.set(p.x, trunkH, p.y);
+      // Canopy: base of the icosahedron sits BELOW the top of the
+      // trunk by `canopyOverlapFrac × trunkH`, so the trunk visibly
+      // enters the canopy from below instead of touching it at a
+      // single point. Y-scale = h, XZ-scale = r → oval stretched
+      // along Y when h > r.
+      const canopyBaseY = trunkH * (1 - canopyOverlapFrac);
+      tmpV3.set(p.x, canopyBaseY, p.y);
       tmpScale.set(r, h, r);
       tmpMatrix.compose(tmpV3, tmpQ, tmpScale);
       mesh.setMatrixAt(k, tmpMatrix);

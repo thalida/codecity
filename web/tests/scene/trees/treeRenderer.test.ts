@@ -26,10 +26,11 @@ function resetStores() {
     TREE_MAX_WIDTH: 128,
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
+    CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
     SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
     TREE_COLOR_OLD: '#0a2613',
     TREE_COLOR_NEW: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.55,
+    TREE_SHADING_STRENGTH: 0.65,
     TREE_TRUNK_COLOR: '#120c08',
   });
   BUILDING_DIMENSIONS.set({
@@ -247,13 +248,22 @@ describe('createTreeRenderer()', () => {
     expect(instanceScale(b!.mesh, b!.instanceIdx).x).toBeCloseTo(maxR, 3);
   });
 
-  it('canopy sits on top of trunk (canopy base Y = trunk height)', () => {
+  it('canopy overlaps the top of the trunk by CANOPY_TRUNK_OVERLAP_FRAC', () => {
     trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
     const canopy = canopyMeshes(trees.group)[0];
     const trunk = trunkMesh(trees.group);
     const canopyBaseY = instancePosition(canopy, 0).y;
     const trunkHeight = instanceScale(trunk, 0).y;
-    expect(canopyBaseY).toBeCloseTo(trunkHeight, 4);
+    // Default overlap=0.7 → canopy base sits at trunkH * (1 - 0.7) = 0.3 * trunkH.
+    expect(canopyBaseY).toBeCloseTo(trunkHeight * 0.3, 4);
+  });
+
+  it('CANOPY_TRUNK_OVERLAP_FRAC=0 puts canopy base exactly on trunk top', () => {
+    TREES.setKey('CANOPY_TRUNK_OVERLAP_FRAC', 0);
+    trees = createTreeRenderer([placement(0, 0, 1, 0)], makeCommits(1));
+    const canopy = canopyMeshes(trees.group)[0];
+    const trunk = trunkMesh(trees.group);
+    expect(instancePosition(canopy, 0).y).toBeCloseTo(instanceScale(trunk, 0).y, 4);
   });
 
   it('facet detail increases with commit file count', () => {

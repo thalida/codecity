@@ -53,6 +53,13 @@ export interface TreesConfig {
   /** Trunk XZ radius as a fraction of canopy XZ radius. */
   TRUNK_RADIUS_FRAC_OF_CANOPY: number;
 
+  /** How much of the trunk's top is hidden inside the canopy, as a
+   *  fraction of trunk height. 0 = canopy sits exactly on top of the
+   *  trunk (canopy bottom point touches trunk top). 1 = canopy bottom
+   *  reaches the ground, hiding the entire trunk. Stretches the
+   *  canopy down without changing its overall height. */
+  CANOPY_TRUNK_OVERLAP_FRAC: number;
+
   /** Color for the oldest commit (interpolation endpoint, t=0). */
   TREE_COLOR_OLD: string;
 
@@ -84,10 +91,11 @@ export const TREES = map<TreesConfig>({
 
   TRUNK_HEIGHT_FRAC: 0.25,
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
+  CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
 
   TREE_COLOR_OLD: '#0a2613',
   TREE_COLOR_NEW: '#a8d68a',
-  TREE_SHADING_STRENGTH: 0.55,
+  TREE_SHADING_STRENGTH: 0.65,
   TREE_TRUNK_COLOR: '#120c08',
 
   SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
