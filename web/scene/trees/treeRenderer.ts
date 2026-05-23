@@ -73,19 +73,31 @@ const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
  *  Profile max X = 1.0, so when the renderer applies XZ scale = r,
  *  the canopy world radius at its widest = r exactly. */
 function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
-  // Tree silhouette: WIDEST at the base, tapering upward with a soft
-  // curve to a rounded apex. Reads as a tree (christmas-tree / round-
-  // crown hybrid) instead of an abstract teardrop. The base rim sits
-  // at the canopy's full radius so the trunk enters under a wide
-  // skirt, with the canopy mass receding inward as Y climbs.
+  // Tree silhouette: widest band sits in the base region, tapering
+  // upward with a soft curve to a rounded-looking apex. Reads as a
+  // tree (christmas-tree / round-crown hybrid).
+  //
+  // Two features worth noting:
+  //   - Rounded base: the bottom rim curves over two profile points
+  //     (0.85 at y=0 → 1.00 at y=0.10) instead of a 90° corner, so
+  //     the canopy looks chamfered rather than chopped.
+  //   - Rounded apex: the upper portion uses extra profile points so
+  //     the taper toward the top is spread across many small triangles.
+  //     A lathe profile must converge to a point on the axis, but
+  //     dense vertical samples near the apex make the silhouette read
+  //     as a smooth dome rather than a sharp spike.
   const profile: THREE.Vector2[] = [
-    new THREE.Vector2(0, 0),         // axis at the bottom — caps the base
-    new THREE.Vector2(1.00, 0),      // widest point — the base
-    new THREE.Vector2(0.92, 0.18),
-    new THREE.Vector2(0.78, 0.38),
-    new THREE.Vector2(0.60, 0.58),
-    new THREE.Vector2(0.40, 0.76),
-    new THREE.Vector2(0.18, 0.92),   // shoulder before apex
+    new THREE.Vector2(0, 0),         // axis — caps the base
+    new THREE.Vector2(0.85, 0),      // bottom rim (slightly inset)
+    new THREE.Vector2(1.00, 0.10),   // widest, just above the base
+    new THREE.Vector2(0.95, 0.25),
+    new THREE.Vector2(0.82, 0.42),
+    new THREE.Vector2(0.66, 0.58),
+    new THREE.Vector2(0.50, 0.72),
+    new THREE.Vector2(0.36, 0.82),
+    new THREE.Vector2(0.24, 0.89),   // upper shoulder
+    new THREE.Vector2(0.14, 0.94),   // dense samples
+    new THREE.Vector2(0.06, 0.98),   // near-apex
     new THREE.Vector2(0, 1.0),       // apex
   ];
   const segments = DETAIL_SEGMENTS[detail];
