@@ -466,12 +466,13 @@ function _buildSceneSection(): HTMLElement {
 }
 
 // ─── Trees (Cyberpunk Valley) ──────────────────────────────────────────────
-// Commit-driven trees: one matte cone canopy + trunk per commit.
-// Oldest commit is placed closest to the gem; newest is farthest.
+// Commit-driven trees: one per commit. Oldest commit closest to the gem;
+// newest farthest. Color encodes commit age, height encodes commit size,
+// shape is picked deterministically per tree from the enabled SHAPE_* set.
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one matte canopy + trunk per commit. Oldest commit closest to the gem, newest farthest out.',
+    'Commit-driven trees — one per commit. Oldest closest to the gem, newest farthest out. Color tracks commit age; height tracks commit size; shape is picked deterministically per tree.',
   );
 
   section.appendChild(
@@ -485,7 +486,55 @@ function _buildTreesSection(): HTMLElement {
   section.appendChild(
     _subgroup('Placement', [
       _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
-        tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. 0% = trees right up to the edge; 25% = wide bare-ground margin all around.',
+        tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Color by age', [
+      _color('Old commit color', TREES, 'TREE_COLOR_OLD', {
+        tip: 'Color used for the oldest commit. Newer commits interpolate toward "New commit color". Live.',
+      }),
+      _color('New commit color', TREES, 'TREE_COLOR_NEW', {
+        tip: 'Color used for the newest commit. Older commits interpolate toward "Old commit color". Live.',
+      }),
+      _color('Trunk color', TREES, 'TREE_TRUNK_COLOR', {
+        tip: 'Color of every tree trunk. Live.',
+      }),
+      _slider('Shading strength', TREES, 'TREE_SHADING_STRENGTH', 0, 1, 0.05, {
+        tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Height by files', [
+      _slider('Min height (floors)', TREES, 'TREE_MIN_HEIGHT_FLOORS', 1, 10, 1, {
+        tip: 'Height (in building floors) of the smallest commit (fewest files changed). Rebuild on change.',
+      }),
+      _slider('Max height (floors)', TREES, 'TREE_MAX_HEIGHT_FLOORS', 3, 20, 1, {
+        tip: 'Height (in building floors) of the largest commit (most files changed). Rebuild on change.',
+      }),
+      _slider('Canopy radius / height', TREES, 'TREE_RADIUS_FRAC_OF_HEIGHT', 0.1, 1.0, 0.05, {
+        tip: 'Canopy XZ radius as a fraction of canopy height. Multiplied by per-shape radius coefficients. Rebuild on change.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _subgroup('Shapes', [
+      _toggle('Pointy', TREES, 'SHAPE_POINTY_ENABLED', {
+        tip: '4-sided cone. Rebuild on change.',
+      }),
+      _toggle('Rounded', TREES, 'SHAPE_ROUNDED_ENABLED', {
+        tip: 'Low-poly icosahedron — reads as a blob/lollipop tree. Rebuild on change.',
+      }),
+      _toggle('Stacked fir', TREES, 'SHAPE_FIR_ENABLED', {
+        tip: 'Two cones stacked — reads as a fir/pine. Rebuild on change.',
+      }),
+      _toggle('Narrow', TREES, 'SHAPE_NARROW_ENABLED', {
+        tip: 'Tall narrow cone — reads as a cypress/poplar. Rebuild on change.',
       }),
     ]),
   );
