@@ -240,7 +240,7 @@ def cache_save_git_history(
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 
 
-_MANIFEST_CACHE_VERSION = 1
+_MANIFEST_CACHE_VERSION = 2
 
 
 def _manifest_cache_path(abs_root: Path, signature: str) -> Path:
