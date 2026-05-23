@@ -1046,7 +1046,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         }
         if (generationAtDefer !== _currentGeneration) return;
 
-        _trees = createTrees(treePlacements);
+        _trees = createTrees(treePlacements, manifest.commits ?? null);
         scene.add(_trees.group);
       }
 

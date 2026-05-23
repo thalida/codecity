@@ -17,6 +17,7 @@ import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { TreePlacement } from './treePlacement.js';
+import type { CommitEntry } from '@/types';
 
 export interface Trees {
   group: THREE.Group;
@@ -56,7 +57,10 @@ function setInstanceMatrix(
 // the unused warning by referencing it in a no-op.
 void rand01;
 
-export function createTreeRenderer(placements: TreePlacement[]): Trees {
+export function createTreeRenderer(
+  placements: TreePlacement[],
+  commits: CommitEntry[] | null,
+): Trees {
   const cfg = TREES.get();
   const dims = BUILDING_DIMENSIONS.get();
 
