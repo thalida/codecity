@@ -68,6 +68,13 @@ export interface PlaceParksOptions {
  *  second. */
 const TREE_MAX_ATTEMPTS = 2_000_000;
 
+/** Fraction of the plane's half-extent to leave free of foliage at
+ *  each edge. 0.08 = trees and bushes sample within 92% of the
+ *  plane in each axis, leaving an 8% bare-ground ring around the
+ *  perimeter. Reads as a clean grass margin between the forest and
+ *  the world edge. */
+const PLANE_EDGE_INSET_FRAC = 0.08;
+
 /**
  * Mulberry32 — small PRNG with proper avalanche. Single call returns
  * a u32 from a u32 input; outputs of `mulberry32(s ^ saltA)` and
@@ -219,6 +226,11 @@ export function placeParks(
   const bounds = getWorldBounds(bbox);
   const center = gemCenterFromLayout(layout, bbox);
 
+  // Inset the sampling extent so foliage stops short of the plane
+  // edge — leaves a visible bare-ground margin around the world.
+  const sampleHalfW = bounds.halfWidth * (1 - PLANE_EDGE_INSET_FRAC);
+  const sampleHalfD = bounds.halfDepth * (1 - PLANE_EDGE_INSET_FRAC);
+
   // Master seed from the bbox dims so the same layout always
   // produces the same parks across reloads.
   let masterSeed = mulberry32(Math.round(bbox.minX * 1000));
@@ -253,8 +265,8 @@ export function placeParks(
       const baseSeed = (masterSeed ^ (i + 1)) | 0;
       const xUnit = u32ToUnit(mulberry32(baseSeed ^ 0x12345678));
       const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
-      const x = bounds.cx + (xUnit * 2 - 1) * bounds.halfWidth;
-      const y = bounds.cz + (yUnit * 2 - 1) * bounds.halfDepth;
+      const x = bounds.cx + (xUnit * 2 - 1) * sampleHalfW;
+      const y = bounds.cz + (yUnit * 2 - 1) * sampleHalfD;
 
       if (hasRects) {
         const hits = rtree.search({
@@ -317,8 +329,8 @@ export function placeParks(
           const yUnit = u32ToUnit(mulberry32(baseSeed ^ 0x9abcdef0));
           const kUnit = u32ToUnit(mulberry32(baseSeed ^ 0xfedcba98));
           const accUnit = u32ToUnit(mulberry32(baseSeed ^ 0xa5a5a5a5));
-          const x = bounds.cx + (xUnit * 2 - 1) * bounds.halfWidth;
-          const y = bounds.cz + (yUnit * 2 - 1) * bounds.halfDepth;
+          const x = bounds.cx + (xUnit * 2 - 1) * sampleHalfW;
+          const y = bounds.cz + (yUnit * 2 - 1) * sampleHalfD;
 
           if (hasRects) {
             const hits = rtree.search({
