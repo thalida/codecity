@@ -11,10 +11,10 @@ export const RENDER_ORDERS = {
   // slot in between SKY and SIDEWALK.
   SKY: -1000, // procedural sky icosphere (draws first; lower hemisphere
               // also acts as the visual ground via uGroundColor)
-  // Valley floor — a large flat plane at y=0 that follows the camera
-  // and paints the visible ground with a forest-tinted color. Sits
-  // BETWEEN sky and the city's own ground tiles (sidewalks/asphalt),
-  // so the city geometry layers cleanly on top.
+  // Valley floor — a large flat plane world-anchored at y=0 beneath
+  // the gem, painted with a forest-tinted color. Sits BETWEEN sky and
+  // the city's own ground tiles (sidewalks/asphalt), so the city
+  // geometry layers cleanly on top.
   VALLEY_FLOOR: -500,
   // City footprint — an asphalt slab built from inflated layout rects
   // that paints a contoured ring around the city silhouette. Sits
