@@ -73,19 +73,19 @@ const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
  *  Profile max X = 1.0, so when the renderer applies XZ scale = r,
  *  the canopy world radius at its widest = r exactly. */
 function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
-  // Pear/teardrop silhouette: blunt and wide near the bottom (lower
-  // body bulges), narrowing through the upper body to a slightly
-  // rounded apex. Modeled to match the low-poly tree references —
-  // wide rim at the base so the trunk enters cleanly, max diameter
-  // in the lower third (y≈0.28), gradual taper through the middle,
-  // and a soft shoulder before the top point.
+  // Tree silhouette: WIDEST at the base, tapering upward with a soft
+  // curve to a rounded apex. Reads as a tree (christmas-tree / round-
+  // crown hybrid) instead of an abstract teardrop. The base rim sits
+  // at the canopy's full radius so the trunk enters under a wide
+  // skirt, with the canopy mass receding inward as Y climbs.
   const profile: THREE.Vector2[] = [
-    new THREE.Vector2(0, 0),
-    new THREE.Vector2(0.78, 0),      // blunt bottom rim
-    new THREE.Vector2(1.00, 0.28),   // widest (lower-third)
-    new THREE.Vector2(0.95, 0.55),
-    new THREE.Vector2(0.70, 0.80),
-    new THREE.Vector2(0.30, 0.93),   // shoulder before apex
+    new THREE.Vector2(0, 0),         // axis at the bottom — caps the base
+    new THREE.Vector2(1.00, 0),      // widest point — the base
+    new THREE.Vector2(0.92, 0.18),
+    new THREE.Vector2(0.78, 0.38),
+    new THREE.Vector2(0.60, 0.58),
+    new THREE.Vector2(0.40, 0.76),
+    new THREE.Vector2(0.18, 0.92),   // shoulder before apex
     new THREE.Vector2(0, 1.0),       // apex
   ];
   const segments = DETAIL_SEGMENTS[detail];
