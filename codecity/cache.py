@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
 
 if TYPE_CHECKING:
-    from codecity.types import Manifest
+    from codecity.types import CommitEntry, Manifest
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 CACHE_ROOT = Path.home() / ".cache" / "codecity"
 
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 2
+_GIT_HISTORY_CACHE_VERSION = 3
 
 
 class FileEntry(TypedDict):
@@ -175,16 +175,10 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 def cache_load_git_history(
     abs_root: Path, head_sha: str, git_window: str,
-) -> tuple[dict[str, str], dict[str, str]] | None:
-    """Load git-history maps if cached for this root, HEAD, AND window.
+) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
+    """Load git-history maps + commits if cached for this root, HEAD, AND window.
 
-    Returns None on miss or any error. The ``git_window`` is part of the
-    cache key because the maps' contents depend on it — switching from
-    "3.years.ago" to "10.years.ago" should fetch new data, not serve
-    the narrower window's results.
-
-    Per-entry validation: only string keys mapped to string values
-    survive; everything else is dropped silently."""
+    Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
@@ -200,7 +194,10 @@ def cache_load_git_history(
         return None
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
-    if not isinstance(created_raw, dict) or not isinstance(modified_raw, dict):
+    commits_raw = raw.get("commits")
+    if (not isinstance(created_raw, dict)
+            or not isinstance(modified_raw, dict)
+            or not isinstance(commits_raw, list)):
         return None
     created = {
         k: v for k, v in created_raw.items()
@@ -210,7 +207,16 @@ def cache_load_git_history(
         k: v for k, v in modified_raw.items()
         if isinstance(k, str) and isinstance(v, str)
     }
-    return created, modified
+    commits: list["CommitEntry"] = []
+    for c in commits_raw:
+        if not isinstance(c, dict):
+            continue
+        date = c.get("date")
+        files = c.get("files")
+        if (isinstance(date, str) and isinstance(files, int)
+                and not isinstance(files, bool)):
+            commits.append({"date": date, "files": files})
+    return created, modified, commits
 
 
 def cache_save_git_history(
@@ -219,6 +225,7 @@ def cache_save_git_history(
     git_window: str,
     created: dict[str, str],
     modified: dict[str, str],
+    commits: list["CommitEntry"],
 ) -> None:
     """Atomically write the git-history cache for this root + HEAD + window."""
     payload = {
@@ -228,6 +235,7 @@ def cache_save_git_history(
         "git_window": git_window,
         "created": created,
         "modified": modified,
+        "commits": commits,
     }
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
 

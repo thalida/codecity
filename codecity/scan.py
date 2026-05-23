@@ -334,14 +334,7 @@ def _collect_git_metadata(
     if use_cache and head_sha:
         cached = cache_load_git_history(root, head_sha, window)
         if cached is not None:
-            # Pre-Task-3 cache schema returns a 2-tuple; commits aren't
-            # persisted yet so we synthesize []. Task 3 bumps the cache
-            # version and the schema to carry commits.
-            if len(cached) == 3:
-                created, modified, commits = cached
-            else:
-                created, modified = cached  # type: ignore[misc]
-                commits = []
+            created, modified, commits = cached
             tracked = _collect_tracked_set(root)
             return created, modified, tracked, commits
 
@@ -354,10 +347,8 @@ def _collect_git_metadata(
     _log(f"    {len(tracked)} tracked entries (files + dirs)")
 
     if use_cache and head_sha:
-        # cache_save_git_history will be updated in Task 3 to accept commits.
-        # For now, save without it so Task 2 stays self-contained.
         try:
-            cache_save_git_history(root, head_sha, window, created, modified)
+            cache_save_git_history(root, head_sha, window, created, modified, commits)
         except OSError:
             # Cache failures (disk full, permission denied, read-only fs)
             # must never block a scan. The next run will retry the write.
