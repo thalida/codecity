@@ -23,7 +23,6 @@ import {
 } from './islandGeometry.js';
 import { createIslandMaterial } from './islandShader.js';
 import { createUnderglowCore, type UnderglowCore } from './underglowCore.js';
-import { createShadowDisc, type ShadowDisc } from './shadowDisc.js';
 import { RENDER_ORDERS } from '@/constants';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)
@@ -99,12 +98,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   let underglow: UnderglowCore = createUnderglowCore({ bottomY, bottomRadius });
   group.add(underglow.mesh);
 
-  // Shadow disc — fake shadow below the island to ground it visually.
-  // islandRadius matches the inscribed-polygon baseR used by islandGeometry.
-  let islandRadius = Math.min(currentBounds.halfWidth, currentBounds.halfDepth);
-  let shadowDisc: ShadowDisc = createShadowDisc({ islandRadius, bottomY });
-  group.add(shadowDisc.mesh);
-
   function setBounds(newBounds: WorldBounds): void {
     currentBounds = newBounds;
     geometry.dispose();
@@ -125,11 +118,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     underglow = createUnderglowCore({ bottomY, bottomRadius });
     group.add(underglow.mesh);
 
-    // Rebuild shadow disc to match new bounds.
-    shadowDisc.dispose();
-    islandRadius = Math.min(currentBounds.halfWidth, currentBounds.halfDepth);
-    shadowDisc = createShadowDisc({ islandRadius, bottomY });
-    group.add(shadowDisc.mesh);
   }
 
   function refresh(): void {
@@ -146,7 +134,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     );
     material.uniforms.uUnderglowStrength!.value = ug.ENABLED ? ug.STRENGTH : 0;
     underglow.refresh();
-    shadowDisc.refresh();
   }
 
   function tick(): void {
@@ -158,7 +145,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     geometry.dispose();
     material.dispose();
     underglow.dispose();
-    shadowDisc.dispose();
   }
 
   return { group, setBounds, refresh, tick, dispose };

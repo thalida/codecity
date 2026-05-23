@@ -68,9 +68,6 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
   ISLAND_UNDERGLOW,
-  // Shadow-disc config — refreshed via shadowDisc.refresh() inside
-  // island.refresh() inside applyTheme(); no rebuild needed.
-  ISLAND_ATMOSPHERE,
 } from './island.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -257,9 +254,6 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     ISLAND_GEOMETRY,
     ISLAND_MATERIALS,
     ISLAND_UNDERGLOW,
-    // ISLAND_ATMOSPHERE — shadow-disc config; pushed via shadowDisc.refresh()
-    // inside island.refresh(), called from applyTheme(). No rebuild.
-    ISLAND_ATMOSPHERE,
   ];
 
   const unsubs: Array<() => void> = [];

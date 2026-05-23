@@ -3,7 +3,6 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
   ISLAND_UNDERGLOW,
-  ISLAND_ATMOSPHERE,
 } from '@/config/island.js';
 
 describe('ISLAND config defaults', () => {
@@ -37,11 +36,4 @@ describe('ISLAND config defaults', () => {
     expect(u.CORE_INTENSITY).toBeGreaterThan(0);
   });
 
-  it('ATMOSPHERE has shadow-disc fields', () => {
-    const a = ISLAND_ATMOSPHERE.get();
-    expect(typeof a.SHADOW_DISC_ENABLED).toBe('boolean');
-    expect(a.SHADOW_DISC_OPACITY).toBeGreaterThanOrEqual(0);
-    expect(a.SHADOW_DISC_OPACITY).toBeLessThanOrEqual(1);
-    expect(a.SHADOW_DROP_DISTANCE).toBeGreaterThan(0);
-  });
 });

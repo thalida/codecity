@@ -34,12 +34,6 @@ export interface IslandUnderglowConfig {
   CORE_INTENSITY: number;  // HDR multiplier
 }
 
-export interface IslandAtmosphereConfig {
-  SHADOW_DISC_ENABLED: boolean;
-  SHADOW_DISC_OPACITY: number;     // 0–1
-  SHADOW_DROP_DISTANCE: number;    // in island radii
-}
-
 export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   ENABLED: true,
   SIDES: 32,
@@ -69,8 +63,3 @@ export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({
   CORE_INTENSITY: 0.7,
 });
 
-export const ISLAND_ATMOSPHERE = map<IslandAtmosphereConfig>({
-  SHADOW_DISC_ENABLED: false,
-  SHADOW_DISC_OPACITY: 0.4,
-  SHADOW_DROP_DISTANCE: 1.5,
-});
