@@ -876,7 +876,8 @@ def compute_tree_signature(tree_root: dict) -> str:
 
 
 def _wrap_skeleton(
-    root_abs: str, tree: DirNode, sig: Any, tree_signature: str, repo_info: RepoInfo | None,
+    root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
+    repo_info: RepoInfo | None, commits: list[CommitEntry] | None,
 ) -> Manifest:
     """Build a Manifest envelope for the skeleton-phase emit. Caller is
     responsible for having already deep-copied the tree and applied
@@ -889,11 +890,13 @@ def _wrap_skeleton(
         "tree_signature": tree_signature,
         "tree": tree,
         "repo": repo_info,
+        "commits": commits,
     }
 
 
 def _wrap_final(
-    root_abs: str, tree: DirNode, sig: Any, tree_signature: str, repo_info: RepoInfo | None,
+    root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
+    repo_info: RepoInfo | None, commits: list[CommitEntry] | None,
 ) -> Manifest:
     """Build a Manifest envelope for the final-phase emit. Called after
     _populate_file_metadata has filled in real lines/binary values."""
@@ -904,6 +907,7 @@ def _wrap_final(
         "tree_signature": tree_signature,
         "tree": tree,
         "repo": repo_info,
+        "commits": commits,
     }
 
 
@@ -939,7 +943,7 @@ def scan_tree_streaming(
     git_created: dict[str, str] = {}
     git_modified: dict[str, str] = {}
     tracked_files: set[str] = set()
-    commits_list: list[CommitEntry] = []  # Task 4 changes non-git to None.
+    commits_list: list[CommitEntry] | None = None
     is_git_repo = _is_git_repo(Path(root_abs))
     repo_info: RepoInfo | None = None
 
@@ -948,10 +952,11 @@ def scan_tree_streaming(
         git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
             Path(root_abs), use_cache=use_cache, git_window=git_window,
         )
-        # commits_list is plumbed through to the manifest in Task 4.
+        # commits_list flows into Manifest.commits below.
         repo_info = _collect_repo_info(Path(root_abs))
     else:
         _log("not a git repo — filesystem dates only")
+        commits_list = None  # non-git → null in the manifest
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -987,7 +992,9 @@ def scan_tree_streaming(
     _force_skeleton_placeholders(skeleton_tree)
     yield {
         "phase": "skeleton",
-        "manifest": _wrap_skeleton(root_abs, skeleton_tree, sig, tree_sig, repo_info),
+        "manifest": _wrap_skeleton(
+            root_abs, skeleton_tree, sig, tree_sig, repo_info, commits_list,
+        ),
     }
 
     _log("resolving file metadata")
@@ -1005,7 +1012,9 @@ def scan_tree_streaming(
 
     yield {
         "phase": "final",
-        "manifest": _wrap_final(root_abs, tree, sig, tree_sig, repo_info),
+        "manifest": _wrap_final(
+            root_abs, tree, sig, tree_sig, repo_info, commits_list,
+        ),
     }
 
 
