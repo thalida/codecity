@@ -2,11 +2,9 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createValleyFloor } from '@/scene/parks/valleyFloor.js';
 import { PARKS_PALETTE } from '@/config/parks.js';
-import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 
 describe('createValleyFloor', () => {
   beforeEach(() => {
-    CAMERA_PERSPECTIVE.setKey('FAR', 5000);
     PARKS_PALETTE.setKey('GROUND_COLOR', '#030706');
     PARKS_PALETTE.setKey('GROUND_ENABLED', true);
   });

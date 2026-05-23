@@ -262,8 +262,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
-  // Cyberpunk Valley valley floor — a large flat plane that follows
-  // the camera and paints the entire visible ground with a forest
+  // Cyberpunk Valley valley floor — a large flat plane world-anchored
+  // at the gem, painting the entire visible ground with a forest
   // tint. Built ONCE at scene init (it's not layout-dependent — the
   // plane is bigger than any city). Sits at renderOrder -500, so it
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
@@ -1076,10 +1076,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Cyberpunk Valley valley-floor reference. Exposed so main.ts's
-     * render loop can sync the mesh to the camera each frame (the
-     * mesh has to follow the camera so it always covers the visible
-     * ground), and so applyTheme() can call .refresh() on hot-reload.
+     * Cyberpunk Valley valley-floor reference. The floor is
+     * world-anchored at the gem; this is exposed for applyTheme()
+     * (hot-reload refresh) and any future external access.
      */
     getValleyFloor(): ValleyFloor {
       return _valleyFloor;
