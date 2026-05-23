@@ -54,10 +54,10 @@ uniform float uGrimeIntensity;
 uniform float uGrimeCoverage;
 
 // Ground haze (height-based volumetric fog) + distance fog.
-// Uniforms declared by #include <fog_uniforms_glsl_inline> above:
+// Uniforms declared by the fog_uniforms chunk above:
 //   uFogEnabled, uFogColor, uFogIntensity, uFogHeight (height fog)
 //   uDistanceFogEnabled, uDistanceFogColor, uDistanceFogNear, uDistanceFogFar (distance fog)
-// Both are consumed via applyFog() injected by #include <fog_apply_glsl_inline>.
+// Both are consumed via applyFog() injected by the fog_apply chunk below.
 
 // Scene directional lighting — replaces SUN_DIR_WORLD / AMBIENT / DIFFUSE_GAIN.
 // Sun direction is in world space and points TOWARD the sun (positive
@@ -547,8 +547,8 @@ void main() {
 
   // Atmospheric fog: height fog (dense at y=0, thins with altitude) and
   // optional distance fog (fades by view distance). Both modes are handled
-  // by applyFog() from the shared fog_apply_glsl_inline chunk. cameraPosition
-  // is a Three.js built-in uniform — no explicit declaration needed.
+  // by applyFog() from the shared fog_apply chunk. cameraPosition is a
+  // Three.js built-in uniform — no explicit declaration needed.
   outColor.rgb = applyFog(outColor.rgb, vWorldPos, length(vWorldPos - cameraPosition));
 
   gl_FragColor = outColor;
