@@ -17,6 +17,8 @@ describe('buildTopPolygon', () => {
     halfWidth: 100,
     halfDepth: 100,
     seed: 1234,
+    pitWidth: 0.18,
+    taperCurve: 1.3,
   };
 
   it('returns SIDES vertices in CCW order on the XZ plane (as viewed from above)', () => {
@@ -77,6 +79,7 @@ describe('buildIslandGeometry', () => {
   const baseParams: IslandBuildParams = {
     sides: 12, irregularity: 0.18, tiers: 2, depth: 0.6,
     halfWidth: 100, halfDepth: 100, seed: 1234,
+    pitWidth: 0.18, taperCurve: 1.3,
   };
   const colors: IslandColors = {
     GRASS: '#1a2620',
@@ -153,27 +156,31 @@ describe('buildIslandGeometry', () => {
     geom.dispose();
   });
 
-  it('pit-vertex triangles have -Y normals (front-face down)', () => {
+  it('bottom-cap fan triangles have -Y normals (front-face down)', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const nor = geom.getAttribute('normal') as THREE.BufferAttribute;
-    // Find the minimum Y (pit vertex, replicated across its triangles).
-    let minY = Infinity;
+    // The bottom-cap center is at (0, -totalDepth, 0) — the cap fan uses
+    // reversed winding so computeVertexNormals() gives it a -Y face normal.
+    // Look for a vertex very close to the XZ origin at the deepest Y band;
+    // that vertex will be the replicated cap center inside a fan triangle.
+    const islandRadius = Math.min(100, 100);
+    const totalDepth = islandRadius * 0.6;
+    const expectedBottomY = -totalDepth;
+    let foundCapCenter = false;
     for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i);
       const y = pos.getY(i);
-      if (y < minY) minY = y;
-    }
-    // Check that vertices at the deepest Y have normals with a -Y component.
-    let foundPitVertex = false;
-    for (let i = 0; i < pos.count; i++) {
-      if (Math.abs(pos.getY(i) - minY) < 1e-4) {
+      const z = pos.getZ(i);
+      // Cap center is at (0, expectedBottomY, 0) with no jitter.
+      if (Math.abs(x) < 1e-6 && Math.abs(z) < 1e-6 && Math.abs(y - expectedBottomY) < 1e-6) {
         const ny = nor.getY(i);
         expect(ny).toBeLessThan(0);
-        foundPitVertex = true;
+        foundCapCenter = true;
         break;
       }
     }
-    expect(foundPitVertex).toBe(true);
+    expect(foundCapCenter).toBe(true);
     geom.dispose();
   });
 
@@ -200,6 +207,8 @@ describe('pointInIslandPolygon', () => {
     halfWidth: 100,
     halfDepth: 100,
     seed: 42,
+    pitWidth: 0.18,
+    taperCurve: 1.3,
   });
 
   it('origin is inside', () => {

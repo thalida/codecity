@@ -14,6 +14,8 @@ export interface IslandGeometryConfig {
   IRREGULARITY: number; // 0.0–0.5
   TIERS: number;        // 1–4
   DEPTH: number;        // fraction of island radius
+  PIT_WIDTH: number;    // 0–0.4, fraction of islandRadius — bottom-cap width
+  TAPER_CURVE: number;  // 0.5–3.0, exponent on the radius shrink — < 1 = bowl, > 1 = concave/pointed
 }
 
 export interface IslandMaterialsConfig {
@@ -47,6 +49,8 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   IRREGULARITY: 0.32,
   TIERS: 4,
   DEPTH: 1.2,
+  PIT_WIDTH: 0.18,
+  TAPER_CURVE: 1.3,
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({

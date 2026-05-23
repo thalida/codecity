@@ -473,6 +473,12 @@ function _buildIslandSection(): HTMLElement {
       _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 2.0, 0.05, {
         tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
       }),
+      _slider('Taper curve', ISLAND_GEOMETRY, 'TAPER_CURVE', 0.5, 3, 0.05, {
+        tip: 'Shape of the underside taper. < 1 = convex bowl (rounded bottom). > 1 = concave cone (pointed bottom). 1.0 = linear.',
+      }),
+      _slider('Pit width', ISLAND_GEOMETRY, 'PIT_WIDTH', 0, 0.4, 0.01, {
+        tip: 'Size of the bottom cap as a fraction of island radius. 0 = sharp point, 0.4 = wide blunt base.',
+      }),
     ]),
   );
 

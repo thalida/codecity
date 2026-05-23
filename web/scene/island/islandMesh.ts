@@ -50,6 +50,8 @@ function buildParams(bounds: WorldBounds, seedFromBounds: number): IslandBuildPa
     halfWidth: bounds.halfWidth,
     halfDepth: bounds.halfDepth,
     seed: seedFromBounds,
+    pitWidth: g.PIT_WIDTH,
+    taperCurve: g.TAPER_CURVE,
   };
 }
 

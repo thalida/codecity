@@ -9,22 +9,26 @@
 // ridge lines with zero seams between logical sections.
 //
 // Mesh structure (Y descends from 0):
-//   TOP CAP   — flat N-gon fan at y=0, grass colour
-//   SIDE WALL — vertical N quads connecting the top ring to the
-//               outermost underside ring (same Y as the first underside
-//               ring), rock colour
-//   UNDERSIDE — (tiers+1) rings that shrink and deepen from the top
-//               perimeter to a single pit vertex; each ring pair
-//               produces N quads, rock colour
-//   PIT FAN   — N triangles from the last ring to the pit vertex
+//   TOP CAP      — flat N-gon fan at y=0, grass colour
+//   SIDE WALL    — vertical N quads connecting the top ring to the
+//                  outermost underside ring (same Y as the first underside
+//                  ring), rock colour
+//   UNDERSIDE    — (tiers+1) rings that shrink and deepen from the top
+//                  perimeter down to the bottom-cap ring; each ring pair
+//                  produces N quads, rock colour
+//   BOTTOM CAP   — N quads stitching the last underside ring to a small
+//                  bottom-cap N-gon ring at the deepest Y, plus an N-
+//                  triangle fan from that ring to a center vertex; the fan
+//                  cap's reversed winding gives -Y normals (face down).
 //
 // Triangle count (indexed, before toNonIndexed):
-//   top cap  : sides
-//   side wall: 2 * sides
-//   underside: 2 * sides * (tiers + 1)
-//   pit fan  : sides
-//   Total    : sides * (4 + 2*(tiers+1))  ≈ 12*(4+6)=120 → 200-600 triangles
-//              after toNonIndexed (same count, 3× as many vertices).
+//   top cap      : sides
+//   side wall    : 2 * sides
+//   underside    : 2 * sides * (tiers + 1)
+//   bottom quads : 2 * sides
+//   bottom fan   : sides
+//   Total        : sides * (5 + 2*(tiers+1))  ≈ 12*(5+6)=132 → 200-600 triangles
+//                  after toNonIndexed (same count, 3× as many vertices).
 
 import * as THREE from 'three';
 
@@ -36,6 +40,8 @@ export interface IslandBuildParams {
   halfWidth: number;    // bounds half-width (X)
   halfDepth: number;    // bounds half-depth (Z)
   seed: number;         // deterministic shape per bounds
+  pitWidth: number;     // 0–0.4, fraction of islandRadius — bottom-cap ring radius
+  taperCurve: number;   // 0.5–3.0, exponent on the radius shrink — < 1 = bowl, > 1 = concave/pointed
 }
 
 // Mulberry32 — small deterministic PRNG. Stable across platforms.
@@ -90,7 +96,7 @@ export function buildIslandGeometry(
   params: IslandBuildParams,
   colors: IslandColors,
 ): THREE.BufferGeometry {
-  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed } = params;
+  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed, taperCurve, pitWidth } = params;
 
   const islandRadius = Math.min(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
@@ -131,7 +137,7 @@ export function buildIslandGeometry(
     // tapers to a pointed bottom (concave/conical profile, not a
     // bowl). Exponent > 1 makes the outer rings stay wide and the
     // inner rings (near the pit) shrink fast.
-    const radiusFrac = Math.pow(1 - frac, 1.6); // 1→0, concave taper
+    const radiusFrac = Math.pow(1 - frac, taperCurve); // 1→0, concave taper
 
     // Depth: more linear so each ring drops by a steady amount —
     // gives the taper room to be visible per-ring rather than the
@@ -165,8 +171,6 @@ export function buildIslandGeometry(
     }
     undersideRings.push(ring);
   }
-
-  const pitPos = new THREE.Vector3(0, -totalDepth, 0);
 
   // ------------------------------------------------------------------ //
   // Accumulate indexed geometry.                                         //
@@ -247,16 +251,42 @@ export function buildIslandGeometry(
     }
   }
 
-  // Fan from the last ring to the pit vertex.
+  // Bottom cap: small N-gon polygon (not a single point) at the deepest Y.
+  // pitWidth controls how blunt vs pointed — 0 = sharp point, 0.4 = wide blunt.
+  const pitRadius = islandRadius * pitWidth;
+  const bottomY = -totalDepth;
+  const bottomNoise = rng(seed ^ 0xa1b2c3d4);
+  const bottomRing: THREE.Vector3[] = [];
+  for (let i = 0; i < sides; i++) {
+    const theta = (i / sides) * Math.PI * 2;
+    // Stagger rotation by half a "tooth" relative to the last ring so adjacent
+    // facets meet at an angle, not as aligned columns.
+    const stagger = (Math.PI / sides);
+    const rx = Math.cos(theta + stagger) * pitRadius;
+    const rz = -Math.sin(theta + stagger) * pitRadius;
+    // Small per-vertex noise so the cap isn't perfectly regular.
+    const jitter = pitRadius * 0.25;
+    bottomRing.push(new THREE.Vector3(
+      rx + (bottomNoise() - 0.5) * 2 * jitter,
+      bottomY + (bottomNoise() - 0.5) * 2 * jitter * 0.4,
+      rz + (bottomNoise() - 0.5) * 2 * jitter,
+    ));
+  }
+
+  // Stitch last intermediate ring to bottom ring (quads).
   const lastRingIdx = allRingIdx[allRingIdx.length - 1]!;
-  const pitIdx = addVertex(pitPos, rock, 0.45);
+  const bottomRingVerts = bottomRing.map((v) => addVertex(v, rock, 0.45));
   for (let i = 0; i < sides; i++) {
     const j = (i + 1) % sides;
-    const a = lastRingIdx[i]!;
-    const b = lastRingIdx[j]!;
-    // Winding: (a, pitIdx, b) gives a face normal with -Y component
-    // (outward-facing downward) for the very bottom faces.
-    indices.push(a, pitIdx, b);
+    indices.push(lastRingIdx[i]!, bottomRingVerts[i]!, bottomRingVerts[j]!);
+    indices.push(lastRingIdx[i]!, bottomRingVerts[j]!, lastRingIdx[j]!);
+  }
+
+  // Bottom cap fan to center. Reversed winding so the cap's normal points DOWN.
+  const bottomCenter = addVertex(new THREE.Vector3(0, bottomY, 0), rock, 0.42);
+  for (let i = 0; i < sides; i++) {
+    const j = (i + 1) % sides;
+    indices.push(bottomCenter, bottomRingVerts[j]!, bottomRingVerts[i]!);
   }
 
   // ------------------------------------------------------------------ //
@@ -309,10 +339,8 @@ export function pointInIslandPolygon(
  */
 export function bottomCapRadius(params: IslandBuildParams): number {
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  // Mirrors the curve in buildIslandGeometry — keep exponents in sync.
-  const frac = params.tiers / (params.tiers + 1);
-  const radiusFrac = Math.pow(1 - frac, 1.6);
-  return islandRadius * radiusFrac * 0.5; // 0.5 conservative: pit is at 0 radius
+  // Exactly the bottom cap ring radius used in buildIslandGeometry.
+  return islandRadius * params.pitWidth;
 }
 
 /**

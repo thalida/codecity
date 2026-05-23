@@ -244,6 +244,8 @@ export function placeTrees(
         halfWidth: bounds.halfWidth,
         halfDepth: bounds.halfDepth,
         seed: islandSeedFromBounds(bounds),
+        pitWidth: islandGeo.PIT_WIDTH,
+        taperCurve: islandGeo.TAPER_CURVE,
       });
     }
   }
