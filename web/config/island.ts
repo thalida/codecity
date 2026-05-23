@@ -54,10 +54,10 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
-  GRASS_COLOR: '#3a7a4a',         // brighter, more saturated green
-  ROCK_COLOR: '#a87a52',          // warm tan/brown (matches the lowpoly tree-island reference)
+  GRASS_COLOR: '#18341f',         // deep forest green
+  ROCK_COLOR: '#71778e',          // cool slate/granite
   HEMI_SKY_COLOR: '#e8d4b8',      // slightly less peachy, more cream — earthier
-  HEMI_GROUND_COLOR: '#5a4a3a',   // warm dark earthy tone
+  HEMI_GROUND_COLOR: '#0c0844',   // deep night-blue from-below tone
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({

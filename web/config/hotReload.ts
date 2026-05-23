@@ -305,6 +305,19 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   // the foliage sampling region), so it requires a full rebuild.
   // Visual island config lives in ISLAND.* and is hot-patched via island.refresh().
   unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
+  // ISLAND_GEOMETRY shape keys change the polygon silhouette the tree
+  // placement uses for its point-in-polygon rejection. island.refresh()
+  // rebuilds the island mesh, but trees were placed against the OLD
+  // polygon — they need a re-place via applyManifest. ENABLED is
+  // excluded since it just flips group.visible (no shape change).
+  unsubs.push(listenKeys(ISLAND_GEOMETRY, [
+    'SIDES',
+    'IRREGULARITY',
+    'TIERS',
+    'DEPTH',
+    'ROUNDNESS',
+    'GRASS_THICKNESS',
+  ], scheduleRebuild));
   armed = true;
 
   return function dispose() {
