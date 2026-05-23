@@ -5,9 +5,8 @@
 //                   this fragment (set by sky.vert.glsl). y in [-1, 1].
 //
 // Layers, composited in order:
-//   1. Below dir.y=0: solid uGroundColor fill (lower hemisphere). No
-//      stars. Produces a clean horizon line where it meets the
-//      upper-hemisphere fill.
+//   1. Below dir.y=0: solid uSkyColor — the world floor mesh handles
+//      real ground. No stars (gated by uStarMinElevation).
 //   2. Above dir.y=0:
 //        - Within dir.y < uHorizonHeight: smooth fade from uHorizonColor
 //          (at the horizon line) up to uSkyColor (at the top of the band).
@@ -42,12 +41,6 @@ uniform float uHorizonHeight;     // fraction of the upper hemisphere
                                   // occupied by the horizon glow band
                                   // (0..1). 0 disables the band.
 
-// --- Ground (lower hemisphere fill) ---
-uniform vec3 uGroundColor;        // solid fill for dir.y < 0 (lower
-                                  // hemisphere). Painted directly with
-                                  // no stars — produces a clean horizon
-                                  // line at the seam with uSkyColor.
-
 // --- Stars ---
 uniform float uStarsEnabled;
 uniform float uStarDensity;       // hash threshold for star presence
@@ -78,19 +71,16 @@ vec2 starUV(vec3 dir) {
 void main() {
   vec3 dir = normalize(vViewDirWorld);
 
-  // ----- Lower hemisphere: solid ground fill -----
-  if (dir.y < 0.0) {
-    gl_FragColor = vec4(uGroundColor, 1.0);
-    return;
-  }
-
-  // ----- Upper hemisphere: sky color + horizon glow band -----
+  // ----- Sky color + horizon glow band -----
+  // Below the horizon (dir.y < 0) clamp to 0 so the sky color shows
+  // solid — the world floor mesh handles real ground painting.
+  float dy = max(dir.y, 0.0);
   vec3 color = uSkyColor;
-  if (uHorizonHeight > 0.0 && dir.y < uHorizonHeight) {
+  if (uHorizonHeight > 0.0 && dy < uHorizonHeight) {
     // Smooth fade from uHorizonColor at dir.y=0 to uSkyColor at
     // dir.y=uHorizonHeight. smoothstep gives an eased falloff so the
     // glow blends in without a hard inner edge.
-    float t = smoothstep(0.0, 1.0, dir.y / max(uHorizonHeight, 1e-4));
+    float t = smoothstep(0.0, 1.0, dy / max(uHorizonHeight, 1e-4));
     color = mix(uHorizonColor, uSkyColor, t);
   }
 

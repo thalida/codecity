@@ -91,10 +91,9 @@ export interface ParksPaletteConfig {
   BUSHES_ENABLED: boolean;
   FLOWERS_ENABLED: boolean;
 
-  /** Color of the valley-floor mesh — a large flat plane world-anchored
-   *  at y=0 beneath the gem, tinted to give the ground a forest color.
-   *  SKY.GROUND_COLOR should match this so the seam where the floor
-   *  mesh ends is invisible. */
+  /** Color of the world floor mesh — the actual ground the camera sees
+   *  within the world bounds. A large flat plane world-anchored at y=0
+   *  beneath the gem, tinted to give the ground a forest color. */
   GROUND_COLOR: string;
 
   TREE_GREENS: string[];

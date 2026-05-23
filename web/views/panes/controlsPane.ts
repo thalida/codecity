@@ -384,9 +384,6 @@ function _buildSceneSection(): HTMLElement {
       _slider('Horizon height', SKY, 'HORIZON_HEIGHT', 0, 1, 0.01, {
         tip: 'Fraction of the upper hemisphere occupied by the horizon glow band. 0 disables the band; 0.15 ≈ bottom 8.6° above the horizon.',
       }),
-      _color('Ground color', SKY, 'GROUND_COLOR', {
-        tip: 'Solid color painted across the lower hemisphere (below the horizon line). No stars. Produces a clean horizon seam with the sky color.',
-      }),
       _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
         tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
       }),

@@ -33,11 +33,10 @@ describe('sky.frag.glsl', () => {
     expect(src).toMatch(/varying\s+vec3\s+vViewDirWorld/);
   });
 
-  it('declares uSkyColor / uHorizonColor / uHorizonHeight / uGroundColor for the sky fill', () => {
+  it('declares uSkyColor / uHorizonColor / uHorizonHeight for the sky fill', () => {
     expect(src).toContain('uSkyColor');
     expect(src).toContain('uHorizonColor');
     expect(src).toContain('uHorizonHeight');
-    expect(src).toContain('uGroundColor');
   });
 
   it('mixes uHorizonColor into uSkyColor over the horizon band', () => {
@@ -57,8 +56,10 @@ describe('sky.frag.glsl', () => {
     }
   });
 
-  it('renders dir.y < 0 as the solid ground fill (early return)', () => {
-    expect(src).toMatch(/if\s*\(\s*dir\.y\s*<\s*0/);
+  it('clamps dir.y to 0 below the horizon so sky color shows (no early return)', () => {
+    // The lower hemisphere now uses max(dir.y, 0.0) — no early-return
+    // branch — so the sky color shows solid below the horizon.
+    expect(src).toMatch(/max\s*\(\s*dir\.y\s*,\s*0\.0\s*\)/);
   });
 
   it('uses a hash to scatter stars (deterministic per direction)', () => {

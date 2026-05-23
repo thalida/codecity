@@ -2,18 +2,19 @@
 // map()s drive the procedural sky shader's uniforms via the
 // hot-reloadable `applyTheme()` path.
 //
-//   SKY       — three-color backdrop. COLOR fills the upper hemisphere
-//                above HORIZON_HEIGHT; HORIZON_COLOR creates a soft
-//                glow band that fades from the horizon line up through
-//                HORIZON_HEIGHT; GROUND_COLOR fills the lower
-//                hemisphere. The seam at dir.y=0 is the horizon line.
-//                When ENABLED is false the icosphere is hidden entirely
-//                and the existing scene.background = SCENE_COLORS.GROUND
-//                fallback paints the void.
+//   SKY       — two-color backdrop. COLOR fills the full sphere
+//                (above and below the horizon); HORIZON_COLOR creates
+//                a soft glow band that fades from the horizon line up
+//                through HORIZON_HEIGHT. Below the horizon, the world
+//                floor mesh paints real ground — the sky just shows
+//                solid COLOR there. When ENABLED is false the
+//                icosphere is hidden entirely and the existing
+//                scene.background = SCENE_COLORS.GROUND fallback
+//                paints the void.
 //   SKY_STARS — hashed point-star field above MIN_ELEVATION_DEG, only
 //                drawn against the upper-hemisphere SKY.COLOR. The
 //                shader gates stars by dir.y > uStarMinElevation, so
-//                they never appear in the ground hemisphere.
+//                they never appear near or below the horizon.
 
 import { map } from 'nanostores';
 
@@ -22,12 +23,11 @@ export interface SkyConfig {
   COLOR: string;
   HORIZON_COLOR: string;
   HORIZON_HEIGHT: number;
-  GROUND_COLOR: string;
 }
 
 export const SKY = map<SkyConfig>({
   ENABLED: true,
-  COLOR: '#000000',         // upper hemisphere flat fill (above the horizon band)
+  COLOR: '#000000',         // full-sphere flat fill (above + below horizon)
   // Subtle dark-indigo atmosphere glow that fades from the horizon line
   // (dir.y → 0+) up to dir.y = HORIZON_HEIGHT, where it blends fully
   // into COLOR. The shader uses smoothstep, so the falloff is smooth.
@@ -36,11 +36,6 @@ export const SKY = map<SkyConfig>({
   // = bottom ~8.6° has the glow; the upper ~85% of the dome is flat
   // COLOR. 0 disables the band entirely.
   HORIZON_HEIGHT: 0.15,
-  // Match PARKS_PALETTE.GROUND_COLOR — the valley-floor mesh covers
-  // the visible ground, but the sky's lower hemisphere paints beyond
-  // the floor's edges (and shows through if the floor is disabled).
-  // Same color = invisible seam at the horizon.
-  GROUND_COLOR: '#030706',
 });
 
 export interface SkyStarsConfig {

@@ -1,12 +1,12 @@
 // scene/sky/sky.ts — Cyberpunk Valley procedural sky factory.
 //
 // Builds one global inverted-icosphere mesh that wraps the entire
-// scene. The fragment shader writes a flat two-color sky (uSkyColor
-// above the horizon, uGroundColor below) plus a hashed star field
-// with sine twinkle. Every dial lives in two nanostore configs
-// (SKY, SKY_STARS) and is hot-reloadable via the existing
-// applyTheme() path — sky.refresh() pulls fresh values into
-// uniforms with no rebuild.
+// scene. The fragment shader writes a flat sky (uSkyColor above and
+// below the horizon — uSkyColor below; the world floor mesh handles
+// real ground) plus a hashed star field with sine twinkle. Every
+// dial lives in two nanostore configs (SKY, SKY_STARS) and is
+// hot-reloadable via the existing applyTheme() path — sky.refresh()
+// pulls fresh values into uniforms with no rebuild.
 //
 // Lifecycle (matches the other createX factories under web/scene/):
 //
@@ -93,7 +93,6 @@ export function createSky(): Sky {
       uSkyColor: { value: new THREE.Color() },
       uHorizonColor: { value: new THREE.Color() },
       uHorizonHeight: { value: sky.HORIZON_HEIGHT },
-      uGroundColor: { value: new THREE.Color() },
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
       uStarDensity: { value: stars.DENSITY },
@@ -109,7 +108,6 @@ export function createSky(): Sky {
   });
   setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
   setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, sky.HORIZON_COLOR);
-  setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, sky.GROUND_COLOR);
 
   const mesh = new THREE.Mesh(geometry, material);
   mesh.renderOrder = RENDER_ORDERS.SKY;
@@ -124,7 +122,6 @@ export function createSky(): Sky {
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
     setColorFromHex(material.uniforms.uHorizonColor.value as THREE.Color, k.HORIZON_COLOR);
     material.uniforms.uHorizonHeight.value = k.HORIZON_HEIGHT;
-    setColorFromHex(material.uniforms.uGroundColor.value as THREE.Color, k.GROUND_COLOR);
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;

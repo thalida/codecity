@@ -16,7 +16,6 @@ function resetStores() {
     COLOR: '#000000',
     HORIZON_COLOR: '#04030c',
     HORIZON_HEIGHT: 0.15,
-    GROUND_COLOR: '#000000',
   });
   SKY_STARS.set({
     ENABLED: true, DENSITY: 0.0075, SIZE: 0.15, BRIGHTNESS: 1.2,
@@ -52,18 +51,14 @@ describe('createSky()', () => {
     expect(sky.mesh.renderOrder).toBe(-1000);
   });
 
-  it('seeds uSkyColor / uHorizonColor / uHorizonHeight / uGroundColor from SKY defaults', () => {
+  it('seeds uSkyColor / uHorizonColor / uHorizonHeight from SKY defaults', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     const sky_ = mat.uniforms.uSkyColor.value as THREE.Color;
     const horizon = mat.uniforms.uHorizonColor.value as THREE.Color;
-    const ground = mat.uniforms.uGroundColor.value as THREE.Color;
-    // COLOR and GROUND_COLOR default to '#000000' → pure black.
+    // COLOR defaults to '#000000' → pure black.
     expect(sky_.r).toBeCloseTo(0);
     expect(sky_.g).toBeCloseTo(0);
     expect(sky_.b).toBeCloseTo(0);
-    expect(ground.r).toBeCloseTo(0);
-    expect(ground.g).toBeCloseTo(0);
-    expect(ground.b).toBeCloseTo(0);
     // HORIZON_COLOR default '#04030c' → 0x04/255, 0x03/255, 0x0c/255.
     expect(horizon.r).toBeCloseTo(0x04 / 255);
     expect(horizon.g).toBeCloseTo(0x03 / 255);
@@ -81,7 +76,6 @@ describe('createSky()', () => {
     SKY.setKey('COLOR', '#ffffff');
     SKY.setKey('HORIZON_COLOR', '#112233');
     SKY.setKey('HORIZON_HEIGHT', 0.42);
-    SKY.setKey('GROUND_COLOR', '#abcdef');
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uStarBrightness.value).toBeCloseTo(2.7);
@@ -94,10 +88,6 @@ describe('createSky()', () => {
     expect(horizon.g).toBeCloseTo(0x22 / 255);
     expect(horizon.b).toBeCloseTo(0x33 / 255);
     expect(mat.uniforms.uHorizonHeight.value).toBeCloseTo(0.42);
-    const ground = mat.uniforms.uGroundColor.value as THREE.Color;
-    expect(ground.r).toBeCloseTo(0xab / 255);
-    expect(ground.g).toBeCloseTo(0xcd / 255);
-    expect(ground.b).toBeCloseTo(0xef / 255);
   });
 
   it('refresh() hides the mesh when SKY.ENABLED is false', () => {
