@@ -3,11 +3,10 @@
 // Hemispheric lighting model: warm HEMI_SKY_COLOR from +Y, cool
 // HEMI_GROUND_COLOR from -Y, blended by normal.y. No sun direction
 // involved — the island is self-lit and independent of the city's
-// day/night cycle. Optional underglow accent remains as a small additive
-// tint capped at 0.5 so it can't dominate.
+// day/night cycle.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS, ISLAND_UNDERGLOW } from '@/config/island.js';
+import { ISLAND_MATERIALS } from '@/config/island.js';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;
@@ -37,8 +36,6 @@ varying float vAO;
 
 uniform vec3 uHemiSkyColor;
 uniform vec3 uHemiGroundColor;
-uniform vec3 uUnderglowColor;
-uniform float uUnderglowStrength;
 
 #include <fog_uniforms_glsl_inline>
 #include <fog_apply_glsl_inline>
@@ -54,11 +51,6 @@ void main() {
   vec3 hemiTint = mix(uHemiGroundColor, uHemiSkyColor, hemi);
   vec3 lit = vColor * hemiTint * vAO;
 
-  // Optional underglow accent: only applied when ENABLED, as a small
-  // additive tint on faces pointing strongly down. Capped at 0.5 so it
-  // can't dominate.
-  lit += max(-n.y, 0.0) * uUnderglowStrength * uUnderglowColor * 0.5;
-
   vec3 foggy = applyFog(lit, vWorldPos);
   gl_FragColor = vec4(foggy, 1.0);
 }
@@ -66,15 +58,12 @@ void main() {
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
   const mats = ISLAND_MATERIALS.get();
-  const ug = ISLAND_UNDERGLOW.get();
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,
     uniforms: {
       uHemiSkyColor: { value: new THREE.Color(mats.HEMI_SKY_COLOR) },
       uHemiGroundColor: { value: new THREE.Color(mats.HEMI_GROUND_COLOR) },
-      uUnderglowColor: { value: new THREE.Color(ug.ENABLED ? ug.COLOR : '#000000') },
-      uUnderglowStrength: { value: ug.ENABLED ? ug.STRENGTH : 0 },
       // Height-fog uniforms — island doesn't use them; declared so the
       // shared chunk compiles and uFogEnabled stays false.
       uFogEnabled: { value: false },

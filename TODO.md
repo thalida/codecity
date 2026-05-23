@@ -47,6 +47,3 @@ Suspect O(N²) loops in street collision detection or building rasterization (la
 
 Start by adding a single perf log inside layoutV4.ts that breaks down time per phase (tree walk / street placement / collision check / building dimension assignment / etc.) so we know what's actually slow before changing anything. Then bring me the perf breakdown and a proposed approach before refactoring.
 ```
-
-
-(Future-only thought: if you ever want labels.ts or adPanel.ts to fade with distance fog, the chunk is now trivially reusable — they'd just add #include <fog_uniforms_glsl_inline> and call applyFog(...). That's an opportunity, not a debt.)

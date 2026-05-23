@@ -63,11 +63,10 @@ import {
   FOOTPRINT,
 } from './index.js';
 import {
-  // Cyberpunk Valley — island geometry, materials, and underglow
+  // Cyberpunk Valley — island geometry and materials
   // (all hot-reloadable via island.refresh() inside applyTheme()):
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-  ISLAND_UNDERGLOW,
 } from './island.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
@@ -250,10 +249,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // ISLAND_* — all keys are hot-reloadable via island.refresh() inside
     // applyTheme(). Geometry changes (SIDES, IRREGULARITY, TIERS, DEPTH)
     // trigger a cheap vertex-count rebuild inside refresh() → setBounds();
-    // material + underglow keys push uniforms directly. No full rebuild needed.
+    // material keys push uniforms directly. No full rebuild needed.
     ISLAND_GEOMETRY,
     ISLAND_MATERIALS,
-    ISLAND_UNDERGLOW,
   ];
 
   const unsubs: Array<() => void> = [];

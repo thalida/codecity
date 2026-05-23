@@ -26,14 +26,6 @@ export interface IslandMaterialsConfig {
   HEMI_GROUND_COLOR: string; // cool "from below" tone
 }
 
-export interface IslandUnderglowConfig {
-  ENABLED: boolean;
-  COLOR: string;
-  STRENGTH: number;        // 0–2
-  CORE_ENABLED: boolean;
-  CORE_INTENSITY: number;  // HDR multiplier
-}
-
 export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
   ENABLED: true,
   SIDES: 32,
@@ -52,14 +44,4 @@ export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   HEMI_GROUND_COLOR: '#031117',   // very deep teal-black from-below tone
 });
 
-export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({
-  // Off by default — the HDR core's bloom floods the underside no matter
-  // how low STRENGTH/CORE_INTENSITY get, washing the rock color to red.
-  // Users opt in via Controls if they want the glow.
-  ENABLED: false,
-  COLOR: '#ff5530',
-  STRENGTH: 0.06,
-  CORE_ENABLED: false,
-  CORE_INTENSITY: 0.7,
-});
 

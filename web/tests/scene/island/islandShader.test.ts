@@ -9,8 +9,6 @@ describe('createIslandMaterial', () => {
     const u = mat.uniforms;
     expect(u.uHemiSkyColor).toBeDefined();
     expect(u.uHemiGroundColor).toBeDefined();
-    expect(u.uUnderglowColor).toBeDefined();
-    expect(u.uUnderglowStrength).toBeDefined();
     mat.dispose();
   });
 

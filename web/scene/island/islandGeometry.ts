@@ -339,27 +339,3 @@ export function pointInIslandPolygon(
   }
   return inside;
 }
-
-/**
- * Returns the effective bottom-cap ring radius for the given params.
- * Used by callers (e.g. islandMesh, underglow core, shadow disc) so they
- * stay in sync with the actual bottom geometry without reaching into
- * internal constants.
- */
-export function bottomCapRadius(params: IslandBuildParams): number {
-  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  // The last intermediate ring sits at radiusFrac = (1 - tiers/(tiers+1))^taperExponent.
-  const taperExponent = 2.0 - params.roundness * 1.93;
-  const frac = params.tiers / (params.tiers + 1);
-  const radiusFrac = Math.pow(1 - frac, taperExponent);
-  return islandRadius * radiusFrac * 0.5; // 0.5 conservative: pit is at 0 radius
-}
-
-/**
- * Returns the world-space Y depth of the bottom cap for given params.
- * (Positive value; subtract from island-top Y to get world Y.)
- */
-export function bottomCapDepth(params: IslandBuildParams): number {
-  const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  return islandRadius * params.depth;
-}

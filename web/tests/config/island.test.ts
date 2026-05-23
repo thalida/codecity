@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-  ISLAND_UNDERGLOW,
 } from '@/config/island.js';
 
 describe('ISLAND config defaults', () => {
@@ -26,14 +25,5 @@ describe('ISLAND config defaults', () => {
     expect(m.HEMI_GROUND_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
   });
 
-  it('UNDERGLOW has master toggle, color, strength, and core controls', () => {
-    const u = ISLAND_UNDERGLOW.get();
-    expect(u.ENABLED).toBe(false);
-    expect(u.COLOR).toBe('#ff5530');
-    expect(u.STRENGTH).toBeGreaterThanOrEqual(0);
-    expect(u.STRENGTH).toBeLessThanOrEqual(2);
-    expect(typeof u.CORE_ENABLED).toBe('boolean');
-    expect(u.CORE_INTENSITY).toBeGreaterThan(0);
-  });
 
 });

@@ -18,10 +18,10 @@ describe('createIsland', () => {
     });
   });
 
-  it('returns a Group with island mesh + underglow core', () => {
+  it('returns a Group with island mesh', () => {
     const island = createIsland(null);
     expect(island.group).toBeInstanceOf(THREE.Group);
-    expect(island.group.children.length).toBeGreaterThanOrEqual(2);
+    expect(island.group.children.length).toBeGreaterThanOrEqual(1);
     island.dispose();
   });
 
