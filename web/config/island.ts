@@ -18,7 +18,6 @@ export interface IslandGeometryConfig {
 
 export interface IslandMaterialsConfig {
   GRASS_COLOR: string;
-  SOIL_COLOR: string;
   ROCK_COLOR: string;
   HEMI_SKY_COLOR: string;    // warm "from above" tone
   HEMI_GROUND_COLOR: string; // cool "from below" tone
@@ -52,10 +51,9 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
   GRASS_COLOR: '#3a7a4a',         // brighter, more saturated green
-  SOIL_COLOR: '#2a1a14',          // warm dark brown — distinct from rock
-  ROCK_COLOR: '#a05262',          // warm pink rock (matches the reference)
-  HEMI_SKY_COLOR: '#ffcdb8',      // warm cream/peach — picks up on top facets
-  HEMI_GROUND_COLOR: '#3a2a48',   // cool deep purple — picks up on bottom facets
+  ROCK_COLOR: '#a87a52',          // warm tan/brown (matches the lowpoly tree-island reference)
+  HEMI_SKY_COLOR: '#e8d4b8',      // slightly less peachy, more cream — earthier
+  HEMI_GROUND_COLOR: '#5a4a3a',   // warm dark earthy tone
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({

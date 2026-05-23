@@ -80,7 +80,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
   const mats = ISLAND_MATERIALS.get();
   let geometry = buildIslandGeometry(params, {
     GRASS: mats.GRASS_COLOR,
-    SOIL: mats.SOIL_COLOR,
     ROCK: mats.ROCK_COLOR,
   });
   const material = createIslandMaterial();
@@ -111,7 +110,6 @@ export function createIsland(initialBounds: WorldBounds | null): Island {
     const m = ISLAND_MATERIALS.get();
     geometry = buildIslandGeometry(params, {
       GRASS: m.GRASS_COLOR,
-      SOIL: m.SOIL_COLOR,
       ROCK: m.ROCK_COLOR,
     });
     islandMesh.geometry = geometry;

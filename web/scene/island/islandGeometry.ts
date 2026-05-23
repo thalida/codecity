@@ -1,9 +1,8 @@
 // scene/island/islandGeometry.ts — Procedural builder for the floating
 // island mesh. Generates a closed indexed BufferGeometry consisting of:
 //   - a top cap polygon (grass surface)
-//   - a grass-side band (grass wraps the top edge, visible from all sides)
-//   - a soil-lip ring (thin dark transition line)
-//   - a cliff side band (rock_light)
+//   - a grass-side band (thin grass lip wrapping the top edge)
+//   - a cliff side band (rock, with noisy bottom edge)
 //   - N tier rings (chunky rock, each smaller and rotated per tier)
 //   - a bottom cap (blunt cluster)
 //
@@ -114,25 +113,22 @@ export function buildTierRings(
 
 export interface IslandColors {
   GRASS: string;
-  SOIL: string;
   ROCK: string;
 }
 
-const GRASS_SIDE_FRAC_OF_DEPTH = 0.10; // grass wraps down the top edge (visible from sides)
-const SOIL_FRAC_OF_DEPTH = 0.03;       // soil lip band height as fraction of total island depth
-const SIDE_FRAC_OF_DEPTH = 0.30;       // cliff side band height (measured from top, including grass + soil)
+const GRASS_SIDE_FRAC_OF_DEPTH = 0.03; // thin grass lip wrapping the top edge
+const SIDE_FRAC_OF_DEPTH = 0.30;       // cliff side band height (measured from top, including grass)
 
 /**
  * Build the complete island as one closed indexed BufferGeometry.
  *
  * Layout (Y descends):
- *   y=0                              — top cap (grass)
- *   y=-grassSideHeight               — grass-side band (grass wraps the top edge)
- *   y=-(grassSideHeight+soilHeight)  — soil-lip ring (thin dark transition)
- *   y=-sideHeight                    — cliff side band (rock_light)
- *   tier 0 ring                      — rock_mid (chunky)
- *   tier N-1 ring                    — rock_dark (chunky)
- *   bottom cap                       — blunt cluster (rock_dark)
+ *   y=0                — top cap (grass)
+ *   y=-grassSideHeight — thin grass lip (grass wraps the top edge)
+ *   y=-sideHeight      — cliff side band (rock, noisy bottom edge)
+ *   tier 0 ring        — rock (chunky)
+ *   tier N-1 ring      — rock (chunky)
+ *   bottom cap         — blunt cluster (rock)
  *
  * Per-vertex colors are baked into the `color` attribute. A separate
  * `ao` scalar attribute (1.0 → fully lit, ~0.4 → tucked crevice) is
@@ -151,9 +147,8 @@ export function buildIslandGeometry(
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
   const totalDepth = islandRadius * params.depth;
   const grassSideHeight = totalDepth * GRASS_SIDE_FRAC_OF_DEPTH;
-  const soilHeight = totalDepth * SOIL_FRAC_OF_DEPTH;
   // sideHeight is the total Y extent from y=0 down to the bottom of the cliff
-  // band. It encompasses the grass band + soil lip + cliff rock band.
+  // band. It encompasses the grass lip + cliff rock band.
   const sideHeight = totalDepth * SIDE_FRAC_OF_DEPTH;
 
   // Bottom cap: small offset polygon (NOT a single point).
@@ -180,7 +175,6 @@ export function buildIslandGeometry(
   const indices: number[] = [];
 
   const grass = new THREE.Color(colors.GRASS);
-  const soil = new THREE.Color(colors.SOIL);
   const rock = new THREE.Color(colors.ROCK);
 
   function pushVert(p: THREE.Vector3, c: THREE.Color, ao: number): number {
@@ -201,8 +195,8 @@ export function buildIslandGeometry(
     indices.push(topCenter, a, b);
   }
 
-  // ----- GRASS SIDE BAND (grass wraps down the upper edge) -----
-  // Visible from any side angle — top 10% of island depth is still green.
+  // ----- GRASS SIDE BAND (thin grass lip wrapping the top edge) -----
+  // Visible from any side angle — 3% of island depth is still green.
   // Each quad gets its own 4 vertices so computeVertexNormals produces a
   // single face normal per quad (true flat shading, sharp angle to neighbors).
   const grassBotPositions = top.map((v) => new THREE.Vector3(v.x, -grassSideHeight, v.z));
@@ -216,34 +210,24 @@ export function buildIslandGeometry(
     indices.push(tl, br, tr);
   }
 
-  // ----- SOIL LIP BAND -----
-  // Thin dark band between the grass side and the rock cliff — reads as a
-  // soil/dirt transition line. Sits at y=[-grassSideHeight, -(grassSideHeight+soilHeight)].
-  // Per-quad vertices for flat shading.
-  const soilBotPositions = top.map(
-    (v) => new THREE.Vector3(v.x, -(grassSideHeight + soilHeight), v.z),
-  );
-  for (let i = 0; i < params.sides; i++) {
-    const j = (i + 1) % params.sides;
-    const tl = pushVert(grassBotPositions[i]!, soil, 0.9);
-    const bl = pushVert(soilBotPositions[i]!, soil, 0.85);
-    const br = pushVert(soilBotPositions[j]!, soil, 0.85);
-    const tr = pushVert(grassBotPositions[j]!, soil, 0.9);
-    indices.push(tl, bl, br);
-    indices.push(tl, br, tr);
-  }
-
   // ----- SIDE CLIFF BAND -----
-  // From soil-lip bottom down to sideHeight (rock). sideHeight already
-  // accounts for the full top section, so the cliff top aligns with the soil
-  // lip bottom. Per-quad vertices for flat shading.
-  const cliffBotPositions = top.map((v) => new THREE.Vector3(v.x, -sideHeight, v.z));
+  // From grass lip bottom down to sideHeight (rock). The cliff BOTTOM edge
+  // gets 3D noise displacement so the band reads as irregular and chunky
+  // rather than a clean cylinder. Top edge (where it meets grass) stays clean.
+  // Per-quad vertices for flat shading.
+  const noiseScale = islandRadius * params.irregularity * 0.25;
+  const cliffNoise = rng(params.seed ^ 0x7eadbeef); // fresh seeded PRNG, distinct stream
+  const cliffBotPositions = top.map((v) => new THREE.Vector3(
+    v.x + (cliffNoise() - 0.5) * 2 * noiseScale,
+    -sideHeight + (cliffNoise() - 0.5) * 2 * noiseScale * 0.4,
+    v.z + (cliffNoise() - 0.5) * 2 * noiseScale,
+  ));
   for (let i = 0; i < params.sides; i++) {
     const j = (i + 1) % params.sides;
-    const tl = pushVert(soilBotPositions[i]!, rock, 0.75);
+    const tl = pushVert(grassBotPositions[i]!, rock, 0.75);
     const bl = pushVert(cliffBotPositions[i]!, rock, 0.65);
     const br = pushVert(cliffBotPositions[j]!, rock, 0.65);
-    const tr = pushVert(soilBotPositions[j]!, rock, 0.75);
+    const tr = pushVert(grassBotPositions[j]!, rock, 0.75);
     indices.push(tl, bl, br);
     indices.push(tl, br, tr);
   }

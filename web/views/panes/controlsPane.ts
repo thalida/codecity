@@ -483,9 +483,6 @@ function _buildIslandSection(): HTMLElement {
       _color('Grass color', ISLAND_MATERIALS, 'GRASS_COLOR', {
         tip: 'Top surface where the city sits.',
       }),
-      _color('Soil color', ISLAND_MATERIALS, 'SOIL_COLOR', {
-        tip: 'Narrow lip band between the grass top and the cliff face.',
-      }),
       _color('Rock color', ISLAND_MATERIALS, 'ROCK_COLOR', {
         tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',
       }),

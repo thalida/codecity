@@ -16,10 +16,9 @@ describe('ISLAND config defaults', () => {
     expect(g.DEPTH).toBeCloseTo(1.2, 2);
   });
 
-  it('MATERIALS provides grass + soil + rock + hemispheric lighting colors', () => {
+  it('MATERIALS provides grass + rock + hemispheric lighting colors', () => {
     const m = ISLAND_MATERIALS.get();
     expect(m.GRASS_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(m.SOIL_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.ROCK_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.HEMI_SKY_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.HEMI_GROUND_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
