@@ -67,10 +67,12 @@ export function createBushRenderer(placements: BushPlacement[]): Bushes {
   const bushesCfg = BUSHES.get();
   const dims = BUILDING_DIMENSIONS.get();
 
-  // Bushes scale to the "typical" tree radius: midpoint of the new
-  // files-driven canopy radius range. Per-tree radius varies by commit
-  // file count; the midpoint is the city-wide average reference.
-  const treeRadius = ((treesCfg.TREE_MIN_RADIUS_FLOORS + treesCfg.TREE_MAX_RADIUS_FLOORS) / 2) * dims.FLOOR_HEIGHT;
+  // Bushes scale to the "typical" tree canopy radius: midpoint of the
+  // files-driven canopy diameter range (anchored to BUILDING widths),
+  // converted to a radius.
+  const treeMinRadius = (treesCfg.TREE_MIN_WIDTH_FRAC * dims.MIN_WIDTH) / 2;
+  const treeMaxRadius = (treesCfg.TREE_MAX_WIDTH_FRAC * dims.MAX_WIDTH) / 2;
+  const treeRadius = (treeMinRadius + treeMaxRadius) / 2;
   const bushRadius = bushesCfg.BUSH_RADIUS_FRAC_OF_TREE * treeRadius;
 
   const totalBushes = placements.length;

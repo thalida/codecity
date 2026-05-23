@@ -6,9 +6,13 @@
 //
 // Visual signals per tree:
 //   - HEIGHT (canopy + trunk): driven by commit AGE — older commits
-//     grow taller. Range: TREE_MIN_HEIGHT_FLOORS to TREE_MAX_HEIGHT_FLOORS.
-//   - WIDTH (canopy XZ radius): driven by commit FILES — bigger commits
-//     are wider. Range: TREE_MIN_RADIUS_FLOORS to TREE_MAX_RADIUS_FLOORS.
+//     grow taller. Range:
+//       TREE_MIN_HEIGHT_FLOORS × FLOOR_HEIGHT  →  smallest tree
+//       TREE_MAX_HEIGHT_FLOORS × FLOOR_HEIGHT  →  tallest tree
+//   - WIDTH (canopy diameter): driven by commit FILES — bigger commits
+//     are wider, scaled to the BUILDING width range:
+//       TREE_MIN_WIDTH_FRAC × BUILDING_DIMENSIONS.MIN_WIDTH  →  narrowest
+//       TREE_MAX_WIDTH_FRAC × BUILDING_DIMENSIONS.MAX_WIDTH  →  widest
 //   - COLOR (canopy): two-color interpolation by AGE — newer commits
 //     interpolate toward TREE_COLOR_NEW, older toward TREE_COLOR_OLD
 //     (deep dark green).
@@ -37,11 +41,13 @@ export interface TreesConfig {
   /** Largest canopy height (oldest commit) in "building floors". */
   TREE_MAX_HEIGHT_FLOORS: number;
 
-  /** Smallest canopy XZ radius (commit with fewest files) in floors. */
-  TREE_MIN_RADIUS_FLOORS: number;
+  /** Smallest canopy diameter (commit with fewest files) as a
+   *  fraction of BUILDING_DIMENSIONS.MIN_WIDTH. */
+  TREE_MIN_WIDTH_FRAC: number;
 
-  /** Largest canopy XZ radius (commit with most files) in floors. */
-  TREE_MAX_RADIUS_FLOORS: number;
+  /** Largest canopy diameter (commit with most files) as a fraction
+   *  of BUILDING_DIMENSIONS.MAX_WIDTH. */
+  TREE_MAX_WIDTH_FRAC: number;
 
   /** Trunk height as a fraction of canopy height. */
   TRUNK_HEIGHT_FRAC: number;
@@ -75,8 +81,8 @@ export const TREES = map<TreesConfig>({
   TREE_MIN_HEIGHT_FLOORS: 3,
   TREE_MAX_HEIGHT_FLOORS: 9,
 
-  TREE_MIN_RADIUS_FLOORS: 1,
-  TREE_MAX_RADIUS_FLOORS: 3,
+  TREE_MIN_WIDTH_FRAC: 0.5,
+  TREE_MAX_WIDTH_FRAC: 0.5,
 
   TRUNK_HEIGHT_FRAC: 0.25,
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,

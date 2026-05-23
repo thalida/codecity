@@ -528,11 +528,11 @@ function _buildTreesSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Width by files', [
-      _slider('Min canopy width (floors)', TREES, 'TREE_MIN_RADIUS_FLOORS', 0.5, 5, 0.5, {
-        tip: 'Canopy XZ radius (in building floors) of commits with the fewest files changed. Rebuild on change.',
+      _slider('Min canopy width (% of smallest building)', TREES, 'TREE_MIN_WIDTH_FRAC', 0.1, 2, 0.05, {
+        tip: 'Canopy diameter of commits with the fewest files changed, as a fraction of BUILDING_DIMENSIONS.MIN_WIDTH. Rebuild on change.',
       }),
-      _slider('Max canopy width (floors)', TREES, 'TREE_MAX_RADIUS_FLOORS', 1, 10, 0.5, {
-        tip: 'Canopy XZ radius (in building floors) of commits with the most files changed. Rebuild on change.',
+      _slider('Max canopy width (% of largest building)', TREES, 'TREE_MAX_WIDTH_FRAC', 0.1, 2, 0.05, {
+        tip: 'Canopy diameter of commits with the most files changed, as a fraction of BUILDING_DIMENSIONS.MAX_WIDTH. Rebuild on change.',
       }),
       _slider('Trunk thickness (% of canopy)', TREES, 'TRUNK_RADIUS_FRAC_OF_CANOPY', 0.05, 0.5, 0.01, {
         tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',

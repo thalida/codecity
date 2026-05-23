@@ -271,8 +271,8 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
   unsubs.push(listenKeys(TREES, [
     'TREE_MIN_HEIGHT_FLOORS',
     'TREE_MAX_HEIGHT_FLOORS',
-    'TREE_MIN_RADIUS_FLOORS',
-    'TREE_MAX_RADIUS_FLOORS',
+    'TREE_MIN_WIDTH_FRAC',
+    'TREE_MAX_WIDTH_FRAC',
     'TRUNK_HEIGHT_FRAC',
     'TRUNK_RADIUS_FRAC_OF_CANOPY',
     'TREE_SHADING_STRENGTH',

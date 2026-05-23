@@ -69,8 +69,11 @@ export function createTreeRenderer(
 
   const minHeight = cfg.TREE_MIN_HEIGHT_FLOORS * dims.FLOOR_HEIGHT;
   const maxHeight = cfg.TREE_MAX_HEIGHT_FLOORS * dims.FLOOR_HEIGHT;
-  const minRadius = cfg.TREE_MIN_RADIUS_FLOORS * dims.FLOOR_HEIGHT;
-  const maxRadius = cfg.TREE_MAX_RADIUS_FLOORS * dims.FLOOR_HEIGHT;
+  // Canopy width range is anchored to the BUILDING width range, not
+  // floors: min canopy DIAMETER = MIN_WIDTH_FRAC × MIN_WIDTH; max
+  // canopy DIAMETER = MAX_WIDTH_FRAC × MAX_WIDTH. Convert to radii.
+  const minRadius = (cfg.TREE_MIN_WIDTH_FRAC * dims.MIN_WIDTH) / 2;
+  const maxRadius = (cfg.TREE_MAX_WIDTH_FRAC * dims.MAX_WIDTH) / 2;
   const trunkHeightFrac = cfg.TRUNK_HEIGHT_FRAC;
   const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC_OF_CANOPY;
 
