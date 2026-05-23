@@ -986,6 +986,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // bumping _currentGeneration doesn't race with this build.
       const generationAtDefer = myGeneration;
       const layoutAtDefer = newLayout;
+      const commitCountAtDefer = manifest.commits?.length ?? 0;
       const parksBbox: CityBbox = {
         minX: bbox.min.x,
         maxX: bbox.max.x,
@@ -1013,7 +1014,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // so we don't add a stale parks group to the scene.
       let placements: ParkPlacement[];
       try {
-        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, 0);
+        placements = await _parksPlacementClient.compute(layoutAtDefer, parksBbox, commitCountAtDefer);
       } catch (err) {
         if (err instanceof Error && err.message === 'superseded') return;
         throw err;
