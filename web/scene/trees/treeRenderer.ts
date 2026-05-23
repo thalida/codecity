@@ -39,6 +39,7 @@ import {
   type CommitGaps,
 } from './treeEncoding.js';
 import { interpolateOklch } from './colorInterp.js';
+import { sunDirFromLighting } from '@/scene/lighting/sunDir.js';
 
 export interface Trees {
   group: THREE.Group;
@@ -132,12 +133,14 @@ function bakeVertexShading(
   geom: THREE.BufferGeometry,
   strength: number,
 ): void {
-  // 3D pseudo-light direction. Roughly normalized; tilted up + off-axis
-  // so top facets read brighter than bottom and adjacent side facets
-  // land at distinct brightnesses.
-  const LIGHT_X = 0.55;
-  const LIGHT_Y = 0.30;
-  const LIGHT_Z = 0.78;
+  // Sun direction sourced from LIGHTING config (shared with buildings
+  // and the island mesh) so the scene agrees on where the sun is.
+  // Note: trees bake shading at geometry-build time, so re-bake is
+  // required (already happens on config change) to pick up new values.
+  const sun = sunDirFromLighting();
+  const LIGHT_X = sun.x;
+  const LIGHT_Y = sun.y;
+  const LIGHT_Z = sun.z;
   // Shadow side dims to (1 - DIRECTIONAL_RANGE × strength); lit side
   // stays at 1. 0.75 gives a ~50% spread between dimmest and brightest
   // facet at strength=0.65 (default), matching the strong lit/shadow

@@ -12,6 +12,7 @@ import { createTreeRenderer, type Trees } from '@/scene/trees/treeRenderer.js';
 import type { TreePlacement } from '@/scene/trees/treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
+import { LIGHTING } from '@/config/lighting.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
 import { interpolateOklch } from '@/scene/trees/colorInterp.js';
@@ -403,5 +404,65 @@ describe('createTreeRenderer()', () => {
     }
     trees.dispose();
     for (const t of tracked) expect(t.disposed).toBe(true);
+  });
+
+  describe('tree shading sun direction', () => {
+    it('bakes vertex colors that respond to LIGHTING.SUN_AZIMUTH_DEG changes', () => {
+      // Bake at the first sun direction, capture canopy shading.
+      resetStores();
+      LIGHTING.set({
+        SUN_AZIMUTH_DEG: 51,
+        SUN_ELEVATION_DEG: 58,
+        AMBIENT: 0.72,
+        SUN_CONTRAST: 0.5,
+      });
+      const placements = [
+        placement(0, 0, 1, 0),
+      ];
+      const commits: CommitEntry[] = [
+        { date: '2026-01-01', files: 1 },
+      ];
+      trees = createTreeRenderer(placements, commits);
+      const canopyInst = findCanopyInstance(trees.group, 0);
+      expect(canopyInst).not.toBeNull();
+      const colorAttr1 = canopyInst!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      // Collect all colors to compare distribution
+      const colors1: number[] = [];
+      for (let i = 0; i < colorAttr1.count; i++) {
+        colors1.push(colorAttr1.getX(i));
+      }
+      trees.dispose();
+
+      // Move the sun 90° azimuth. Vertices should have different shading.
+      LIGHTING.set({
+        SUN_AZIMUTH_DEG: 141, // 51 + 90
+        SUN_ELEVATION_DEG: 58,
+        AMBIENT: 0.72,
+        SUN_CONTRAST: 0.5,
+      });
+      trees = createTreeRenderer(placements, commits);
+      const canopyInst2 = findCanopyInstance(trees.group, 0);
+      expect(canopyInst2).not.toBeNull();
+      const colorAttr2 = canopyInst2!.mesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+      const colors2: number[] = [];
+      for (let i = 0; i < colorAttr2.count; i++) {
+        colors2.push(colorAttr2.getX(i));
+      }
+      trees.dispose();
+
+      // Verify at least one vertex has different shading between the two sun directions
+      expect(colors1.length).toBeGreaterThan(0);
+      expect(colors2.length).toBe(colors1.length);
+      let foundDifference = false;
+      for (let i = 0; i < colors1.length; i++) {
+        if (!Number.isNaN(colors1[i]) && !Number.isNaN(colors2[i])) {
+          if (Math.abs(colors1[i] - colors2[i]) > 0.001) {
+            foundDifference = true;
+            break;
+          }
+        }
+      }
+      expect(foundDifference).toBe(true);
+    });
   });
 });
