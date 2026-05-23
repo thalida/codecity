@@ -19,15 +19,6 @@
 import type { CityBbox } from '@/types';
 import { WORLD } from '@/config/world.js';
 
-/** Absolute floor for the buffer in world units — protects tiny
- *  cities (small footprint, short buildings) from getting a
- *  micro-margin that the camera reads as "plane glued to the
- *  buildings." Set generously: ~800u ≈ 100 default-width buildings
- *  laid end-to-end, which always reads as visibly bare ground past
- *  the city in any framing. Degenerate (zero-extent) bboxes also
- *  fall through to this floor. */
-const MIN_BUFFER = 800;
-
 /** Fallback half-extent when no bbox is available (pre-layout,
  *  non-git smoke tests). Keeps the floor visible at the origin. */
 const FALLBACK_HALF_DIM = 500;
@@ -53,9 +44,11 @@ export interface WorldBounds {
  * up cramped on screen. Defaults to 0 (no contribution) when
  * unavailable.
  *
- * Buffer = max(MIN_BUFFER, characteristicSize × percent) where
- * characteristicSize = max(width, depth, cityHeight). The absolute
- * floor MIN_BUFFER guarantees tiny cities still feel airy.
+ * Buffer = characteristicSize × percent where characteristicSize =
+ * max(width, depth, cityHeight). Pure proportional — the slider always
+ * has a visible effect. Tiny cities will look tightly framed at low
+ * percentages; users can crank the slider higher if they want airier
+ * margins.
  */
 export function getWorldBounds(
   bbox: CityBbox | null | undefined,
@@ -71,7 +64,7 @@ export function getWorldBounds(
   }
   const bufferFrac = WORLD.get().GROUND_BUFFER_PERCENT / 100;
   const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
-  const buffer = Math.max(MIN_BUFFER, characteristicSize * bufferFrac);
+  const buffer = characteristicSize * bufferFrac;
   return {
     cx: bbox.cx,
     cz: bbox.cy,             // bbox.cy is the Z-axis center in this codebase

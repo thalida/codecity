@@ -9,6 +9,7 @@ import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { GEM_SIZING } from '@/config/gem.js';
+import { WORLD } from '@/config/world.js';
 import type { IslandGeometryConfig } from '@/config/island.js';
 import type { CityBbox, CityLayout } from '@/types';
 
@@ -16,6 +17,7 @@ type TreesValue = ReturnType<typeof TREES.get>;
 type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
 type GemSizingValue = ReturnType<typeof GEM_SIZING.get>;
+type WorldValue = ReturnType<typeof WORLD.get>;
 
 interface PlaceRequest {
   type: 'place';
@@ -32,6 +34,11 @@ interface PlaceRequest {
     /** Island geometry config snapshot — used to rebuild the island polygon
      *  inside the worker without touching main-thread stores. */
     islandGeo: IslandGeometryConfig;
+    /** World sizing snapshot — getWorldBounds() inside placeTrees reads
+     *  WORLD.GROUND_BUFFER_PERCENT, which would otherwise stay at the
+     *  worker's default value (workers have their own nanostore state
+     *  that doesn't sync with the main thread). */
+    world: WorldValue;
   };
 }
 
@@ -51,6 +58,9 @@ function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
   }
   for (const k of Object.keys(snap.gemSizing) as Array<keyof GemSizingValue>) {
     GEM_SIZING.setKey(k, snap.gemSizing[k]);
+  }
+  for (const k of Object.keys(snap.world) as Array<keyof WorldValue>) {
+    WORLD.setKey(k, snap.world[k]);
   }
 }
 

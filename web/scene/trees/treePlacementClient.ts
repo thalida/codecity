@@ -12,6 +12,7 @@ import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { GEM_SIZING } from '@/config/gem.js';
 import { ISLAND_GEOMETRY } from '@/config/island.js';
+import { WORLD } from '@/config/world.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -25,6 +26,7 @@ interface ConfigSnapshot {
   footprint: ReturnType<typeof FOOTPRINT.get>;
   gemSizing: ReturnType<typeof GEM_SIZING.get>;
   islandGeo: ReturnType<typeof ISLAND_GEOMETRY.get>;
+  world: ReturnType<typeof WORLD.get>;
 }
 
 export interface TreePlacementClient {
@@ -44,6 +46,7 @@ function _snapshot(): ConfigSnapshot {
     footprint: FOOTPRINT.get(),
     gemSizing: GEM_SIZING.get(),
     islandGeo: ISLAND_GEOMETRY.get(),
+    world: WORLD.get(),
   };
 }
 

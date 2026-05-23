@@ -56,12 +56,13 @@ describe('worldBounds', () => {
     expect(b.halfDepth).toBe(3050);
   });
 
-  it('applies the absolute floor for tiny cities', () => {
-    // 10-wide bbox. characteristic = 10, 10*0.30 = 3, floor = 800.
-    // halfWidth = 10/2 + 800 = 805.
+  it('tiny cities get tiny bounds (no floor; slider always meaningful)', () => {
+    // 10-wide bbox. characteristic = 10, 10*0.30 = 3.
+    // halfWidth = 10/2 + 3 = 8. Previously a MIN_BUFFER=800 floor kicked in
+    // here and broke the slider for small repos; now removed.
     const b = getWorldBounds(bbox(0, 0, 10, 10));
-    expect(b.halfWidth).toBe(805);
-    expect(b.halfDepth).toBe(805);
+    expect(b.halfWidth).toBe(8);
+    expect(b.halfDepth).toBe(8);
   });
 
   it('cityHeight feeds the characteristic-size calc for tiny-tall cities', () => {
