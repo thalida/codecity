@@ -268,7 +268,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // plane is bigger than any city). Sits at renderOrder -500, so it
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
-  const _valleyFloor: ValleyFloor = createValleyFloor();
+  const _valleyFloor: ValleyFloor = createValleyFloor(null);
   scene.add(_valleyFloor.mesh);
 
   // Cyberpunk Valley parks — REBUILT per applyManifest from the new
@@ -556,6 +556,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     rootStreet = (layout?.streets ?? []).filter((s) => s.isRoot)[0] || null;
     if (!rootStreet) {
       gemWorldPos = null;
+      _valleyFloor.setAnchor(null);
       return;
     }
     gemWorldPos = new THREE.Vector3();
@@ -565,6 +566,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     } else {
       gemWorldPos.set(rootStreet.x, 0, rootStreet.y - rootStreet.length / 2 + rootStreet.width / 2);
     }
+    _valleyFloor.setAnchor(gemWorldPos);
   }
 
   // _computeDiff compares prev cells vs new cells at the per-instance

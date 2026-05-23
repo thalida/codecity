@@ -540,16 +540,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       sky.mesh.position.copy(camera.position);
       sky.mesh.updateMatrixWorld(true);
     }
-    // Same trick for the valley floor — it's a flat XZ plane that
-    // has to slide under the camera every frame so the visible
-    // ground from FAR-clip-distance away is always on the mesh.
-    // Y stays at -0.5 (slightly below city ground geometry).
-    {
-      const floor = cityScene.getValleyFloor();
-      floor.mesh.position.x = camera.position.x;
-      floor.mesh.position.z = camera.position.z;
-      floor.mesh.updateMatrixWorld(true);
-    }
     postFx.render();
     requestAnimationFrame(animate);
   }
