@@ -29,7 +29,7 @@ export const WORLD = map<WorldConfig>({
 
   // Dark forest tone — what the camera sees as "the floor of the
   // world" anywhere there isn't city geometry or a discrete tree.
-  GROUND_COLOR: '#030706',
+  GROUND_COLOR: '#020403',
 
   GROUND_ENABLED: true,
 

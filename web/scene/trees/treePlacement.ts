@@ -14,6 +14,7 @@ import RBush from 'rbush';
 import { TREES } from '@/config/trees.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
+import { GEM_SIZING } from '@/config/gem.js';
 import { getWorldBounds } from '../worldBounds.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
@@ -154,6 +155,11 @@ export function placeTrees(
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
+  // Gem buffer: hard rejection of any candidate within this radius of
+  // the gem center. Squared once for cheap comparison in the loop.
+  const gemBufferRadius = Math.max(0, GEM_SIZING.get().TREE_BUFFER_RADIUS);
+  const gemBufferR2 = gemBufferRadius * gemBufferRadius;
+
   const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
   const inset = Math.min(bounds.halfWidth, bounds.halfDepth) * insetFrac;
   const sampleHalfW = Math.max(0, bounds.halfWidth - inset);
@@ -205,6 +211,14 @@ export function placeTrees(
         h.minY < y + halfFoot && h.maxY > y - halfFoot,
       );
       if (overlaps) continue;
+    }
+
+    // Gem buffer: hard-reject candidates inside the no-tree halo
+    // around the gem. Skipped when the buffer is 0.
+    if (gemBufferR2 > 0) {
+      const gdx = x - center.x;
+      const gdy = y - center.y;
+      if (gdx * gdx + gdy * gdy < gemBufferR2) continue;
     }
 
     // Density falloff: reject probabilistically based on distance from

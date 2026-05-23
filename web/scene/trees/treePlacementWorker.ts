@@ -8,11 +8,13 @@ import { placeTrees, type TreePlacement } from './treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { FOOTPRINT } from '@/config/footprint.js';
+import { GEM_SIZING } from '@/config/gem.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = ReturnType<typeof TREES.get>;
 type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
+type GemSizingValue = ReturnType<typeof GEM_SIZING.get>;
 
 interface PlaceRequest {
   type: 'place';
@@ -25,6 +27,7 @@ interface PlaceRequest {
     trees: TreesValue;
     buildingDims: BuildingDimsValue;
     footprint: FootprintValue;
+    gemSizing: GemSizingValue;
   };
 }
 
@@ -41,6 +44,9 @@ function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
   }
   for (const k of Object.keys(snap.footprint) as Array<keyof FootprintValue>) {
     FOOTPRINT.setKey(k, snap.footprint[k]);
+  }
+  for (const k of Object.keys(snap.gemSizing) as Array<keyof GemSizingValue>) {
+    GEM_SIZING.setKey(k, snap.gemSizing[k]);
   }
 }
 

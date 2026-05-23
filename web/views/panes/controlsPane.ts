@@ -52,7 +52,6 @@ import {
   // Fly mode
   FLY_CONTROLS,
 } from '@/config/index.js';
-import { LIGHTING } from '@/config/lighting.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
@@ -371,7 +370,7 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 function _buildSceneSection(): HTMLElement {
   const section = _section(
     'Scene',
-    'Sky, ground, stars, atmosphere, and sun lighting — everything that frames the city.',
+    'Sky, stars, ground, and atmosphere — everything that frames the city. (Sun lighting is fixed in code.)',
   );
 
   section.appendChild(
@@ -384,20 +383,6 @@ function _buildSceneSection(): HTMLElement {
       }),
       _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
         tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('scene-ground', 'Ground', () => [
-      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
-        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
-      }),
-      _color('Color', WORLD, 'GROUND_COLOR', {
-        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
-      }),
-      _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
-        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
       }),
     ]),
   );
@@ -429,6 +414,20 @@ function _buildSceneSection(): HTMLElement {
   );
 
   section.appendChild(
+    _collapsibleSubgroup('scene-ground', 'Ground', () => [
+      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
+        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
+      }),
+      _color('Color', WORLD, 'GROUND_COLOR', {
+        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
+      }),
+      _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
+        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
     _collapsibleSubgroup('scene-haze', 'Ground haze', () => [
       _toggle('Enabled', SCENE_COLORS, 'FOG_ENABLED', {
         tip: "Off → no haze (the shader's fog mix is a no-op). Other knobs stay in config so flipping back restores the mood.",
@@ -441,23 +440,6 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('scene-sun', 'Sun lighting', () => [
-      _slider('Sun azimuth (°)', LIGHTING, 'SUN_AZIMUTH_DEG', 0, 360, 1, {
-        tip: 'Compass bearing of the sun. 0° = south, increases clockwise (east).',
-      }),
-      _slider('Sun elevation (°)', LIGHTING, 'SUN_ELEVATION_DEG', 0, 90, 1, {
-        tip: 'Angle above the horizon. 0° = horizon, 90° = overhead.',
-      }),
-      _slider('Ambient light', LIGHTING, 'AMBIENT', 0, 1, 0.01, {
-        tip: 'Base illumination on faces facing away from the sun.',
-      }),
-      _slider('Sun contrast', LIGHTING, 'SUN_CONTRAST', 0, 1, 0.01, {
-        tip: 'Brightening on sun-facing walls (Lambert diffuse gain).',
       }),
     ]),
   );
@@ -982,6 +964,9 @@ function _buildGemSection(): HTMLElement {
       }),
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
         tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
+      }),
+      _slider('Tree buffer (world units)', GEM_SIZING, 'TREE_BUFFER_RADIUS', 0, 400, 4, {
+        tip: 'No-tree halo around the gem. Trees scattered within this radius of the gem center are rejected during placement. 0 disables the buffer. Rebuild on change.',
       }),
     ])
   );

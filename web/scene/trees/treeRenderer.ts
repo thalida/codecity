@@ -39,19 +39,54 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
-/** Bake per-vertex color attribute on a unit-height canopy geometry:
- *  darker at y=0, lighter at y=1. `strength` ∈ [0,1]. */
+/** Bake per-vertex color attribute on a unit-height canopy geometry.
+ *  Two effects combined, both scaled by `strength` ∈ [0,1]:
+ *
+ *  1. Vertical gradient — dark at y=0 (base), full bright at y=1 (top).
+ *     Reads as "the bottom of the canopy sits in its own shadow."
+ *  2. Directional face shading — dot the vertex normal against a fixed
+ *     pseudo-light in object XZ. On a low-poly cone each face has its
+ *     own outward normal, so this gives every face a distinct base
+ *     brightness — adjacent faces no longer blend into a single
+ *     uniform silhouette.
+ *
+ *  `vertexColors: true` on the canopy material multiplies these per-
+ *  vertex colors with the per-instance color (age lerp), so the same
+ *  tree gets both an age-driven hue AND clear face definition. */
 function bakeVertexShading(
   geom: THREE.BufferGeometry,
   strength: number,
 ): void {
+  // Pseudo-light direction in object XZ. Picked off-axis so all four
+  // faces of the pyramid land at distinct dot-product values rather
+  // than two pairs of equally-lit faces.
+  const lightX = 0.55;
+  const lightZ = 0.84;
+  // Shadow side dims to (1 - DIRECTIONAL_RANGE × strength); lit side stays at 1.
+  // 0.55 gives a ~30% spread between dimmest and brightest face at
+  // strength=0.55 (default), enough to read crisply at city scale.
+  const DIRECTIONAL_RANGE = 0.55;
+
   const pos = geom.getAttribute('position');
+  const nrm = geom.getAttribute('normal');
   const count = pos.count;
   const colors = new Float32Array(count * 3);
+
   for (let i = 0; i < count; i++) {
     const y = pos.getY(i);
     const yClamped = y < 0 ? 0 : y > 1 ? 1 : y;
-    const c = 1 - strength * (1 - yClamped);
+    const heightShade = 1 - strength * (1 - yClamped);
+
+    // Use vertex normal to pick a face brightness. Geometries without
+    // a normal attribute fall back to uniform 1 (no face shading).
+    let faceShade = 1;
+    if (nrm) {
+      const dot = nrm.getX(i) * lightX + nrm.getZ(i) * lightZ; // [-1,1]
+      const faceFactor = (dot + 1) * 0.5;                       // [0,1]
+      faceShade = 1 - strength * DIRECTIONAL_RANGE * (1 - faceFactor);
+    }
+
+    const c = heightShade * faceShade;
     colors[i * 3 + 0] = c;
     colors[i * 3 + 1] = c;
     colors[i * 3 + 2] = c;
