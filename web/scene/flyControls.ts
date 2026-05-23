@@ -30,11 +30,17 @@ import * as THREE from 'three';
 import { TEXT_INPUT_TAGS } from '@/constants';
 import { FLY_CONTROLS } from '@/config/index.js';
 import { StreetAxis } from '@/types';
+import type { WorldBounds } from './parks/worldBounds.js';
 
 export interface FlyControlsCityScene {
   getGemWorldPos: () => THREE.Vector3 | null;
   getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
   getBbox: () => THREE.Box3 | null;
+  /** Current world floor bounds (rectangle the plane covers). Used to
+   *  clamp fly-mode movement to the visible plane. Returns null when
+   *  no city has been loaded yet — in that case fly mode runs
+   *  unclamped. */
+  getWorldBounds: () => WorldBounds | null;
 }
 
 // Only the `enabled` toggle is needed from OrbitControls. Using a
@@ -226,10 +232,37 @@ export function createFlyControls(opts: FlyControlsOpts) {
     }
   }
 
+  /** Clamp camera.position XZ to the world floor bounds. Returns true
+   *  if the camera was repositioned (out of bounds before this call).
+   *  No-op when world bounds aren't available (pre-layout / empty
+   *  manifest). Y is untouched — only the plane footprint constrains
+   *  movement; the user can still fly above the buildings. */
+  function _clampToWorldBounds(): boolean {
+    const wb = cityScene.getWorldBounds();
+    if (!wb) return false;
+    const minX = wb.cx - wb.halfWidth;
+    const maxX = wb.cx + wb.halfWidth;
+    const minZ = wb.cz - wb.halfDepth;
+    const maxZ = wb.cz + wb.halfDepth;
+    let moved = false;
+    if (camera.position.x < minX) { camera.position.x = minX; moved = true; }
+    else if (camera.position.x > maxX) { camera.position.x = maxX; moved = true; }
+    if (camera.position.z < minZ) { camera.position.z = minZ; moved = true; }
+    else if (camera.position.z > maxZ) { camera.position.z = maxZ; moved = true; }
+    return moved;
+  }
+
   function enable(): void {
     if (active) return;
     _baseSpeed = _computeBaseSpeed();
     _velocity.set(0, 0, 0);
+    // Snap the camera to the nearest in-bounds point if the user
+    // switched into fly mode from an orbit pose outside the plane —
+    // otherwise they'd start out flying through empty void with no
+    // floor reference. Y stays put; only XZ snap.
+    if (_clampToWorldBounds()) {
+      camera.updateMatrixWorld(true);
+    }
     // Seed yaw/pitch from the current camera direction so entering fly
     // mode doesn't yank the view to a fixed orientation.
     const dir = new THREE.Vector3();
@@ -363,6 +396,31 @@ export function createFlyControls(opts: FlyControlsOpts) {
     if (camera.position.y < cfg.ALTITUDE_FLOOR) {
       camera.position.y = cfg.ALTITUDE_FLOOR;
       _velocity.y = Math.max(0, _velocity.y);
+    }
+
+    // Constrain X/Z to the world floor's footprint. Zero the velocity
+    // component that was pushing the camera past the edge so the user
+    // doesn't keep "leaning" into the wall after release.
+    const wb = cityScene.getWorldBounds();
+    if (wb) {
+      const minX = wb.cx - wb.halfWidth;
+      const maxX = wb.cx + wb.halfWidth;
+      const minZ = wb.cz - wb.halfDepth;
+      const maxZ = wb.cz + wb.halfDepth;
+      if (camera.position.x < minX) {
+        camera.position.x = minX;
+        if (_velocity.x < 0) _velocity.x = 0;
+      } else if (camera.position.x > maxX) {
+        camera.position.x = maxX;
+        if (_velocity.x > 0) _velocity.x = 0;
+      }
+      if (camera.position.z < minZ) {
+        camera.position.z = minZ;
+        if (_velocity.z < 0) _velocity.z = 0;
+      } else if (camera.position.z > maxZ) {
+        camera.position.z = maxZ;
+        if (_velocity.z > 0) _velocity.z = 0;
+      }
     }
   }
 

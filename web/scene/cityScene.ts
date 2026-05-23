@@ -57,7 +57,7 @@ import type { ParksPlacementClient } from './parks/parksPlacementClient.js';
 import type { ParkPlacement } from './parks/parksPlacement.js';
 import { createValleyFloor } from './parks/valleyFloor.js';
 import type { ValleyFloor } from './parks/valleyFloor.js';
-import { getWorldBounds } from './parks/worldBounds.js';
+import { getWorldBounds, type WorldBounds } from './parks/worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
@@ -310,6 +310,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let bbox: THREE.Box3 | null = null;
   let rootStreet: Street | null = null;
   let gemWorldPos: THREE.Vector3 | null = null;
+  let latestWorldBounds: WorldBounds | null = null;
 
   // The flat ground meshes (sidewalks, paths, asphalt) all use single
   // MeshBasicMaterial; main.ts's color-update path reads
@@ -996,7 +997,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
-    _valleyFloor.setBounds(getWorldBounds(sceneBbox, cityHeight));
+    latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
+    _valleyFloor.setBounds(latestWorldBounds);
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
@@ -1165,6 +1167,11 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
     getBbox() {
       return bbox;
+    },
+    /** Current world floor bounds (rectangle the plane covers). Null
+     *  until the first manifest has been applied. */
+    getWorldBounds(): WorldBounds | null {
+      return latestWorldBounds;
     },
     getRoot() {
       return manifest && manifest.tree;
