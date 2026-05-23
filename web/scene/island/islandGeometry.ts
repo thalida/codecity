@@ -127,13 +127,16 @@ export function buildIslandGeometry(
   for (let t = 0; t < tiers; t++) {
     const frac = (t + 1) / (tiers + 1); // 0 < frac < 1
 
-    // Radius: smoothly taper from ~topRing radius down toward 0.
-    // We use a slight exponential bias so later rings shrink faster,
-    // giving the inverted-mountain silhouette (wide body, pointed tip).
-    const radiusFrac = Math.pow(1 - frac, 0.65); // 1→0 with curved profile
+    // Radius: shrink AGGRESSIVELY as we go deeper so the silhouette
+    // tapers to a pointed bottom (concave/conical profile, not a
+    // bowl). Exponent > 1 makes the outer rings stay wide and the
+    // inner rings (near the pit) shrink fast.
+    const radiusFrac = Math.pow(1 - frac, 1.6); // 1→0, concave taper
 
-    // Depth: start deep quickly (convex underside, not a flat ledge).
-    const depthFrac = Math.pow(frac, 0.80);
+    // Depth: more linear so each ring drops by a steady amount —
+    // gives the taper room to be visible per-ring rather than the
+    // depth crushing everything to the bottom.
+    const depthFrac = Math.pow(frac, 1.0);
 
     const targetY = -totalDepth * depthFrac;
     // Rotate each ring by half a "tooth" so vertices stagger between rings.
@@ -306,9 +309,9 @@ export function pointInIslandPolygon(
  */
 export function bottomCapRadius(params: IslandBuildParams): number {
   const islandRadius = Math.min(params.halfWidth, params.halfDepth);
-  // The last intermediate ring sits at radiusFrac = (1 - tiers/(tiers+1))^0.65
+  // Mirrors the curve in buildIslandGeometry — keep exponents in sync.
   const frac = params.tiers / (params.tiers + 1);
-  const radiusFrac = Math.pow(1 - frac, 0.65);
+  const radiusFrac = Math.pow(1 - frac, 1.6);
   return islandRadius * radiusFrac * 0.5; // 0.5 conservative: pit is at 0 radius
 }
 

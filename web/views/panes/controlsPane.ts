@@ -53,7 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS, ISLAND_ATMOSPHERE } from '@/config/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
@@ -446,11 +446,10 @@ function _buildSceneSection(): HTMLElement {
 }
 
 // ─── Island (Cyberpunk Valley) ─────────────────────────────────────────────
-// The floating-island world-plane beneath the city. Three collapsible
+// The floating-island world-plane beneath the city. Two collapsible
 // subgroups cover:
 //   Geometry    — polygon shape, depth, tiers (cheap vertex rebuild on refresh)
-//   Materials   — vertex-baked colors + shader uniforms (sun contrast, ambient)
-//   Atmosphere  — distance fog (wires into buildings too; still potentially useful)
+//   Materials   — vertex-baked colors + hemispheric lighting uniforms
 function _buildIslandSection(): HTMLElement {
   const section = _section(
     'Island',
@@ -485,28 +484,11 @@ function _buildIslandSection(): HTMLElement {
       _color('Rock color', ISLAND_MATERIALS, 'ROCK_COLOR', {
         tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',
       }),
-      _slider('Sun contrast', ISLAND_MATERIALS, 'SUN_CONTRAST', 0, 1.5, 0.05, {
-        tip: 'Strength of the shader-baked directional sun term. Higher = more dramatic lit/shadow split between faces.',
+      _color('Hemi sky color', ISLAND_MATERIALS, 'HEMI_SKY_COLOR', {
+        tip: 'Warm "from above" tone blended onto upward-facing surfaces by the hemispheric lighting model.',
       }),
-      _slider('Ambient', ISLAND_MATERIALS, 'AMBIENT', 0, 1, 0.05, {
-        tip: 'Base illumination on faces facing away from the sun. Keeps the dark side readable.',
-      }),
-    ]),
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('island-atmosphere', 'Atmosphere', () => [
-      _toggle('Distance fog', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_ENABLED', {
-        tip: 'Fades the island (and distant buildings) into the fog color based on view distance. Pairs with the existing ground haze; both can be on at once.',
-      }),
-      _color('Distance fog color', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_COLOR', {
-        tip: 'Tint distant edges fade toward. Match the sky for a seamless horizon; pick a contrasting color for a stylized look.',
-      }),
-      _slider('Fog near', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_NEAR', 100, 3000, 50, {
-        tip: 'View-distance (world units) at which distance fog begins to take hold. Smaller = fog starts closer.',
-      }),
-      _slider('Fog far', ISLAND_ATMOSPHERE, 'DISTANCE_FOG_FAR', 500, 8000, 100, {
-        tip: 'View-distance at which distance fog reaches full opacity. Should be larger than Fog near.',
+      _color('Hemi ground color', ISLAND_MATERIALS, 'HEMI_GROUND_COLOR', {
+        tip: 'Cool "from below" tone blended onto downward-facing surfaces by the hemispheric lighting model.',
       }),
     ]),
   );
