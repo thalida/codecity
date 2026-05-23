@@ -47,8 +47,11 @@ export function createUnderglowCore(params: UnderglowCoreParams): UnderglowCore 
     depthWrite: true,
   });
   const mesh = new THREE.Mesh(geom, mat);
-  // Position slightly below the bottom cluster so it peeks through gaps.
-  mesh.position.set(0, params.bottomY - radius * 0.5, 0);
+  // Position the core fully below the bottom cap. Its top edge sits at
+  // bottomY - 0.5*radius, so the entire mesh is below the island geometry.
+  // Bloom halo still leaks upward into the cluster seams without the
+  // discrete mesh itself clipping through the top surface.
+  mesh.position.set(0, params.bottomY - radius * 1.5, 0);
   mesh.visible = ug.CORE_ENABLED && ug.ENABLED;
   mesh.userData.island = 'underglowCore';
 

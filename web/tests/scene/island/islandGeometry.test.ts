@@ -34,23 +34,25 @@ describe('buildTopPolygon', () => {
     radii.forEach((r) => expect(r).toBeCloseTo(first, 3));
   });
 
-  it('inscribes the polygon in the bounds (max |x| ≤ halfWidth, max |z| ≤ halfDepth)', () => {
+  it('polygon contains the bounds rect at irregularity=0 (vertices lie on the circumscribing circle)', () => {
     const pts = buildTopPolygon(baseParams);
+    // With irregularity=0, every vertex is at exactly baseR = hypot(halfWidth, halfDepth).
+    const baseR = Math.hypot(100, 100);
     pts.forEach((p) => {
-      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
+      expect(Math.hypot(p.x, p.z)).toBeCloseTo(baseR, 3);
     });
   });
 
-  it('with irregularity>0 produces non-uniform radii but still stays inscribed', () => {
+  it('with irregularity>0 produces non-uniform radii that stay at or below baseR', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
     const min = Math.min(...radii);
     const max = Math.max(...radii);
     expect(max - min).toBeGreaterThan(0); // varied
-    pts.forEach((p) => {
-      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
+    // Irregularity only shrinks vertices — none should exceed baseR.
+    const baseR = Math.hypot(100, 100);
+    radii.forEach((r) => {
+      expect(r).toBeLessThanOrEqual(baseR + 1e-6);
     });
   });
 

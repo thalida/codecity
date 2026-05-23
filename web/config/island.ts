@@ -53,13 +53,13 @@ export const ISLAND_GEOMETRY = map<IslandGeometryConfig>({
 });
 
 export const ISLAND_MATERIALS = map<IslandMaterialsConfig>({
-  GRASS_COLOR: '#1a2620',
-  SOIL_COLOR: '#2a1f24',
-  ROCK_LIGHT: '#1a1a22',
-  ROCK_MID: '#12121a',
-  ROCK_DARK: '#0a0a10',
-  SUN_CONTRAST: 0.7,
-  AMBIENT: 0.45,
+  GRASS_COLOR: '#2a4a3a',
+  SOIL_COLOR: '#4a2e34',
+  ROCK_LIGHT: '#3a3a4a',
+  ROCK_MID: '#26262e',
+  ROCK_DARK: '#16161e',
+  SUN_CONTRAST: 0.85,
+  AMBIENT: 0.32,
 });
 
 export const ISLAND_UNDERGLOW = map<IslandUnderglowConfig>({

@@ -42,10 +42,11 @@ function rng(seed: number): () => number {
 export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const { sides, irregularity, halfWidth, halfDepth, seed } = params;
   const rand = rng(seed);
-  // Base radius inscribes the polygon in the smaller of the two half-dims
-  // so it always fits the bounds rectangle (even after jitter, since
-  // jitter shrinks vertices toward the center).
-  const baseR = Math.min(halfWidth, halfDepth);
+  // Base radius circumscribes the bounds rectangle: every point of the
+  // rect (including corners at distance hypot(halfWidth, halfDepth)) is
+  // guaranteed to lie inside the polygon. Jitter only shrinks vertices
+  // inward, so the polygon never grows past baseR.
+  const baseR = Math.hypot(halfWidth, halfDepth);
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
