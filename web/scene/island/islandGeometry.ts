@@ -60,15 +60,22 @@ function rng(seed: number): () => number {
 export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const { sides, irregularity, halfWidth, halfDepth, seed } = params;
   const rand = rng(seed);
-  // Base radius circumscribes the bounds rectangle.
-  const baseR = Math.hypot(halfWidth, halfDepth);
+  // Polygon is INSCRIBED in the bounds rectangle, with separate X and Z
+  // radii. This gives an ellipse-shaped silhouette matching the city's
+  // aspect ratio — for a square city this is a circle; for an elongated
+  // city it's an oval. Previously the polygon used a single circumscribing
+  // radius (hypot(hw, hd)) which made the island ~41% bigger than the city
+  // and always read as a circle regardless of city shape.
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
-    // Jitter only shrinks inward so the polygon never grows past baseR.
+    // Jitter only shrinks inward so the polygon never grows past the rect.
     const jitter = 1 - irregularity * rand();
-    const r = baseR * jitter;
-    pts.push(new THREE.Vector3(Math.cos(theta) * r, 0, -Math.sin(theta) * r));
+    pts.push(new THREE.Vector3(
+      Math.cos(theta) * halfWidth * jitter,
+      0,
+      -Math.sin(theta) * halfDepth * jitter,
+    ));
   }
   return pts;
 }

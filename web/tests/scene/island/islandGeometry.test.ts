@@ -36,26 +36,35 @@ describe('buildTopPolygon', () => {
     radii.forEach((r) => expect(r).toBeCloseTo(first, 3));
   });
 
-  it('polygon contains the bounds rect at irregularity=0 (vertices lie on the circumscribing circle)', () => {
+  it('polygon is inscribed in the bounds rect (vertices use halfWidth/halfDepth as ellipse axes)', () => {
     const pts = buildTopPolygon(baseParams);
-    // With irregularity=0, every vertex is at exactly baseR = hypot(halfWidth, halfDepth).
-    const baseR = Math.hypot(100, 100);
+    // halfWidth = halfDepth = 100 → ellipse degenerates to a circle of radius 100.
     pts.forEach((p) => {
-      expect(Math.hypot(p.x, p.z)).toBeCloseTo(baseR, 3);
+      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
+      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
+      expect(Math.hypot(p.x, p.z)).toBeCloseTo(100, 3);
     });
   });
 
-  it('with irregularity>0 produces non-uniform radii that stay at or below baseR', () => {
+  it('with irregularity>0 produces non-uniform radii but stays inside the bounds rect', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
     const min = Math.min(...radii);
     const max = Math.max(...radii);
     expect(max - min).toBeGreaterThan(0); // varied
-    // Irregularity only shrinks vertices — none should exceed baseR.
-    const baseR = Math.hypot(100, 100);
-    radii.forEach((r) => {
-      expect(r).toBeLessThanOrEqual(baseR + 1e-6);
+    // Irregularity only shrinks vertices inward; none should escape the rect.
+    pts.forEach((p) => {
+      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
+      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
     });
+  });
+
+  it('non-square bounds produce an ellipse (radii vary by angle)', () => {
+    const pts = buildTopPolygon({ ...baseParams, halfWidth: 200, halfDepth: 50 });
+    const radii = pts.map((p) => Math.hypot(p.x, p.z));
+    // For an ellipse, radii vary between min(hw,hd)=50 and max(hw,hd)=200.
+    expect(Math.min(...radii)).toBeLessThan(60);
+    expect(Math.max(...radii)).toBeGreaterThan(190);
   });
 
   it('is deterministic for the same seed', () => {
@@ -227,11 +236,10 @@ describe('pointInIslandPolygon', () => {
   });
 
   it('point inside inscribed circle at mid-edge angle is inside polygon', () => {
-    // At angle π/12 (midway between vertex 0 and vertex 1), the polygon
-    // edge distance from origin = baseR × cos(π/12) (inscribed circle).
-    // A point slightly inside that radius should be inside.
-    const baseR = Math.hypot(100, 100);
-    const inscR = baseR * Math.cos(Math.PI / 12);
+    // For a square bounds (hw=hd=100), the polygon is a regular 12-gon
+    // circumscribed by radius 100. Its inscribed circle radius is
+    // 100 × cos(π/12) ≈ 96.6. A point well inside that is inside the polygon.
+    const inscR = 100 * Math.cos(Math.PI / 12);
     const angle = Math.PI / 12; // midway between vertex 0 (theta=0) and vertex 1 (theta=2π/12)
     const x = Math.cos(angle) * inscR * 0.99;
     const z = -Math.sin(angle) * inscR * 0.99; // matches the negated-z polygon parameterization
@@ -239,9 +247,9 @@ describe('pointInIslandPolygon', () => {
   });
 
   it('point outside polygon at mid-edge angle is outside polygon', () => {
-    // Slightly past the polygon edge at the mid-edge angle.
-    const baseR = Math.hypot(100, 100);
-    const inscR = baseR * Math.cos(Math.PI / 12);
+    // Slightly past the polygon edge at the mid-edge angle. Inscribed
+    // radius = 100 × cos(π/12); point at 1.01× that is just outside.
+    const inscR = 100 * Math.cos(Math.PI / 12);
     const angle = Math.PI / 12;
     const x = Math.cos(angle) * inscR * 1.01;
     const z = -Math.sin(angle) * inscR * 1.01;

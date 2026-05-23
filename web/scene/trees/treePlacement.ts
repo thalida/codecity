@@ -205,10 +205,10 @@ export function placeTrees(
   //
   // Edge inset is now handled by shrinking the polygon used in the rejection
   // test (see shrunkPolygon below), NOT by shrinking the sampling rect.
-  // The rect samples the full polygon bbox so we don't miss any island area.
-  const polygonRadius = Math.hypot(bounds.halfWidth, bounds.halfDepth);
-  const sampleHalfW = polygonRadius;
-  const sampleHalfD = polygonRadius;
+  // The polygon is now inscribed in the bounds rect (ellipse-shaped), so the
+  // rect's half-dims are exactly the polygon's axis-aligned bounding box.
+  const sampleHalfW = bounds.halfWidth;
+  const sampleHalfD = bounds.halfDepth;
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible
