@@ -1,6 +1,8 @@
 // treeEncoding.test.ts — pure normalization helpers shared by the
 // tree renderer: age (commit date → [0,1]), size (file count → [0,1]),
-// and commit gap (days since previous commit, log-normalized → [0,1]).
+// commit gap (days since previous commit, log-normalized → [0,1]),
+// and commits-per-day (commits sharing the same calendar date,
+// log-normalized → [0,1]).
 
 import { describe, it, expect } from 'vitest';
 import {
