@@ -38,24 +38,16 @@ describe('buildTopPolygon', () => {
 
   it('polygon FULLY CONTAINS the bounds rect (sqrt(2) corner correction × edge correction)', () => {
     const pts = buildTopPolygon(baseParams);
-    // halfWidth = halfDepth = 100, sides=12.
-    // baseScale = sqrt(2) × 1/cos(π/12) = 1.414 × 1.0353 ≈ 1.464.
-    // At irregularity=0, all vertices sit on the baseline circle ≈ 146.4.
+    // baseScale = sqrt(2) × 1/cos(π/12) ≈ 1.464.
     const expectedR = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
     pts.forEach((p) => {
       expect(Math.hypot(p.x, p.z)).toBeCloseTo(expectedR, 1);
     });
-    // Bounds rect corner is at hypot(100, 100) ≈ 141.4. Polygon vertices
-    // sit past this, so the rect corner is comfortably inside the polygon.
     expect(expectedR).toBeGreaterThan(Math.hypot(100, 100));
   });
 
   it('irregularity is purely additive — vertices never sit inside the rect-containing baseline', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
-    const radii = pts.map((p) => Math.hypot(p.x, p.z));
-    const min = Math.min(...radii);
-    const max = Math.max(...radii);
-    expect(max - min).toBeGreaterThan(0); // varied
     const baseline = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
     pts.forEach((p) => {
       expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(baseline - 1e-6);
@@ -67,7 +59,6 @@ describe('buildTopPolygon', () => {
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
     // baseScale = sqrt(2)/cos(π/12) ≈ 1.464.
     // Ellipse axes: 200×1.464 ≈ 293 (X), 50×1.464 ≈ 73 (Z).
-    // At irregularity=0 (baseParams), radii vary between ~73 and ~293.
     expect(Math.min(...radii)).toBeLessThan(80);
     expect(Math.max(...radii)).toBeGreaterThan(280);
   });
@@ -253,9 +244,8 @@ describe('pointInIslandPolygon', () => {
 
   it('point outside polygon at mid-edge angle is outside polygon', () => {
     // Polygon baseline radius = 100 × sqrt(2)/cos(π/12) ≈ 146.4. Its
-    // inscribed circle (chord midpoint between adjacent vertices) sits
-    // at baseline × cos(π/12) = 100 × sqrt(2) ≈ 141.4. Point just past
-    // that is outside the polygon.
+    // inscribed circle sits at baseline × cos(π/12) = 100×sqrt(2) ≈ 141.4.
+    // Point just past that is outside.
     const inscR = 100 * Math.SQRT2;
     const angle = Math.PI / 12;
     const x = Math.cos(angle) * inscR * 1.01;

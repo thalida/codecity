@@ -64,25 +64,19 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   // the city's aspect ratio — square city → circle, elongated city → oval).
   //
   // Three corrections ensure the polygon ALWAYS fully contains the
-  // bounds rect — including the rect's CORNERS, where a long stripe
-  // of city can extend toward (halfWidth, halfDepth).
+  // bounds rect — including the rect's CORNERS:
   //
   // 1. Scale the ellipse axes by sqrt(2) so the rect corner at
   //    (halfWidth, halfDepth) sits exactly on the ellipse boundary.
-  //    This is the mathematical minimum for an ellipse with this
-  //    aspect ratio to contain the rect. Without it, the ellipse's
-  //    cardinal-direction edges reach the rect edges but the corners
-  //    poke out — visible as buildings hanging into the void on cities
-  //    whose long axis extends to a corner.
+  //    Mathematical minimum for an ellipse with this aspect ratio to
+  //    contain the rect. Without it, content extending to bbox corners
+  //    pokes out.
   //
   // 2. Scale further by 1/cos(π/N) so the polygon's CHORD edges (which
   //    bow inward between vertices) still reach the ellipse boundary.
-  //    Without this, a 12-gon's edges sit ~3.5% inside the ellipse —
-  //    visible when the city is right at the corner.
   //
-  // 3. Jitter EXPANDS outward only (never shrinks inward). Irregularity
-  //    is purely additive on top of the rect-containing baseline, so
-  //    irregular vertices always sit at-or-past the baseline.
+  // 3. Jitter EXPANDS outward only. Irregularity is purely additive on
+  //    top of the rect-containing baseline.
   const cornerCorrection = Math.SQRT2;
   const edgeCorrection = 1 / Math.cos(Math.PI / sides);
   const baseScale = cornerCorrection * edgeCorrection;
