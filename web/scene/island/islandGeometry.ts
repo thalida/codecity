@@ -60,21 +60,42 @@ function rng(seed: number): () => number {
 export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const { sides, irregularity, halfWidth, halfDepth, seed } = params;
   const rand = rng(seed);
-  // Polygon is INSCRIBED in the bounds rectangle, with separate X and Z
-  // radii. This gives an ellipse-shaped silhouette matching the city's
-  // aspect ratio — for a square city this is a circle; for an elongated
-  // city it's an oval. Previously the polygon used a single circumscribing
-  // radius (hypot(hw, hd)) which made the island ~41% bigger than the city
-  // and always read as a circle regardless of city shape.
+  // Polygon parameterisation: ellipse with separate X and Z axes (matches
+  // the city's aspect ratio — square city → circle, elongated city → oval).
+  //
+  // Three corrections ensure the polygon ALWAYS fully contains the
+  // bounds rect — including the rect's CORNERS, where a long stripe
+  // of city can extend toward (halfWidth, halfDepth).
+  //
+  // 1. Scale the ellipse axes by sqrt(2) so the rect corner at
+  //    (halfWidth, halfDepth) sits exactly on the ellipse boundary.
+  //    This is the mathematical minimum for an ellipse with this
+  //    aspect ratio to contain the rect. Without it, the ellipse's
+  //    cardinal-direction edges reach the rect edges but the corners
+  //    poke out — visible as buildings hanging into the void on cities
+  //    whose long axis extends to a corner.
+  //
+  // 2. Scale further by 1/cos(π/N) so the polygon's CHORD edges (which
+  //    bow inward between vertices) still reach the ellipse boundary.
+  //    Without this, a 12-gon's edges sit ~3.5% inside the ellipse —
+  //    visible when the city is right at the corner.
+  //
+  // 3. Jitter EXPANDS outward only (never shrinks inward). Irregularity
+  //    is purely additive on top of the rect-containing baseline, so
+  //    irregular vertices always sit at-or-past the baseline.
+  const cornerCorrection = Math.SQRT2;
+  const edgeCorrection = 1 / Math.cos(Math.PI / sides);
+  const baseScale = cornerCorrection * edgeCorrection;
+  const aX = halfWidth * baseScale;
+  const aZ = halfDepth * baseScale;
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
-    // Jitter only shrinks inward so the polygon never grows past the rect.
-    const jitter = 1 - irregularity * rand();
+    const jitter = 1 + irregularity * rand();
     pts.push(new THREE.Vector3(
-      Math.cos(theta) * halfWidth * jitter,
+      Math.cos(theta) * aX * jitter,
       0,
-      -Math.sin(theta) * halfDepth * jitter,
+      -Math.sin(theta) * aZ * jitter,
     ));
   }
   return pts;

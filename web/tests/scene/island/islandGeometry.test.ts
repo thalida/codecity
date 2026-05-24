@@ -36,35 +36,40 @@ describe('buildTopPolygon', () => {
     radii.forEach((r) => expect(r).toBeCloseTo(first, 3));
   });
 
-  it('polygon is inscribed in the bounds rect (vertices use halfWidth/halfDepth as ellipse axes)', () => {
+  it('polygon FULLY CONTAINS the bounds rect (sqrt(2) corner correction × edge correction)', () => {
     const pts = buildTopPolygon(baseParams);
-    // halfWidth = halfDepth = 100 → ellipse degenerates to a circle of radius 100.
+    // halfWidth = halfDepth = 100, sides=12.
+    // baseScale = sqrt(2) × 1/cos(π/12) = 1.414 × 1.0353 ≈ 1.464.
+    // At irregularity=0, all vertices sit on the baseline circle ≈ 146.4.
+    const expectedR = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
     pts.forEach((p) => {
-      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
-      expect(Math.hypot(p.x, p.z)).toBeCloseTo(100, 3);
+      expect(Math.hypot(p.x, p.z)).toBeCloseTo(expectedR, 1);
     });
+    // Bounds rect corner is at hypot(100, 100) ≈ 141.4. Polygon vertices
+    // sit past this, so the rect corner is comfortably inside the polygon.
+    expect(expectedR).toBeGreaterThan(Math.hypot(100, 100));
   });
 
-  it('with irregularity>0 produces non-uniform radii but stays inside the bounds rect', () => {
+  it('irregularity is purely additive — vertices never sit inside the rect-containing baseline', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
     const min = Math.min(...radii);
     const max = Math.max(...radii);
     expect(max - min).toBeGreaterThan(0); // varied
-    // Irregularity only shrinks vertices inward; none should escape the rect.
+    const baseline = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
     pts.forEach((p) => {
-      expect(Math.abs(p.x)).toBeLessThanOrEqual(100 + 1e-6);
-      expect(Math.abs(p.z)).toBeLessThanOrEqual(100 + 1e-6);
+      expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(baseline - 1e-6);
     });
   });
 
-  it('non-square bounds produce an ellipse (radii vary by angle)', () => {
+  it('non-square bounds produce an ellipse (radii vary by angle, aspect ratio preserved)', () => {
     const pts = buildTopPolygon({ ...baseParams, halfWidth: 200, halfDepth: 50 });
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
-    // For an ellipse, radii vary between min(hw,hd)=50 and max(hw,hd)=200.
-    expect(Math.min(...radii)).toBeLessThan(60);
-    expect(Math.max(...radii)).toBeGreaterThan(190);
+    // baseScale = sqrt(2)/cos(π/12) ≈ 1.464.
+    // Ellipse axes: 200×1.464 ≈ 293 (X), 50×1.464 ≈ 73 (Z).
+    // At irregularity=0 (baseParams), radii vary between ~73 and ~293.
+    expect(Math.min(...radii)).toBeLessThan(80);
+    expect(Math.max(...radii)).toBeGreaterThan(280);
   });
 
   it('is deterministic for the same seed', () => {
@@ -247,9 +252,11 @@ describe('pointInIslandPolygon', () => {
   });
 
   it('point outside polygon at mid-edge angle is outside polygon', () => {
-    // Slightly past the polygon edge at the mid-edge angle. Inscribed
-    // radius = 100 × cos(π/12); point at 1.01× that is just outside.
-    const inscR = 100 * Math.cos(Math.PI / 12);
+    // Polygon baseline radius = 100 × sqrt(2)/cos(π/12) ≈ 146.4. Its
+    // inscribed circle (chord midpoint between adjacent vertices) sits
+    // at baseline × cos(π/12) = 100 × sqrt(2) ≈ 141.4. Point just past
+    // that is outside the polygon.
+    const inscR = 100 * Math.SQRT2;
     const angle = Math.PI / 12;
     const x = Math.cos(angle) * inscR * 1.01;
     const z = -Math.sin(angle) * inscR * 1.01;

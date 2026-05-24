@@ -203,12 +203,21 @@ export function placeTrees(
   // polygon's "ears" past the rect corners get zero candidates and read
   // as empty zones on the island.
   //
-  // Edge inset is now handled by shrinking the polygon used in the rejection
+  // Edge inset is handled by shrinking the polygon used in the rejection
   // test (see shrunkPolygon below), NOT by shrinking the sampling rect.
-  // The polygon is now inscribed in the bounds rect (ellipse-shaped), so the
-  // rect's half-dims are exactly the polygon's axis-aligned bounding box.
-  const sampleHalfW = bounds.halfWidth;
-  const sampleHalfD = bounds.halfDepth;
+  //
+  // The island polygon is bigger than the bounds rect: scaled by
+  // sqrt(2)/cos(π/N) so it fully contains the rect's corners. The
+  // sampling rect needs to match the polygon's axis-aligned bounding box
+  // (i.e. the polygon's max X/Z extent) — otherwise tree candidates fill
+  // only the smaller bounds rect, leaving the polygon's expanded edges
+  // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
+  // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
+  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.get().SIDES;
+  const irregularity = options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
+  const polygonScale = (Math.SQRT2 / Math.cos(Math.PI / sides)) * (1 + irregularity);
+  const sampleHalfW = bounds.halfWidth * polygonScale;
+  const sampleHalfD = bounds.halfDepth * polygonScale;
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible
