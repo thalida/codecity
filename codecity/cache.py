@@ -29,7 +29,9 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, cast
+
+from codecity.types import FileEntry
 
 if TYPE_CHECKING:
     from codecity.types import CommitEntry, Manifest
@@ -46,20 +48,6 @@ CACHE_ROOT = Path(
 _FILE_CACHE_VERSION = 1
 _GIT_HISTORY_CACHE_VERSION = 3
 _MANIFEST_CACHE_VERSION = 2
-
-
-class FileEntry(TypedDict):
-    # Required (always present in a valid entry):
-    size: int
-    mtime: float
-    lines: int
-    binary: bool
-    ext: str
-    # Optional — populated only for recognized media files. Either both
-    # or neither is present; layout treats absence as "no signal" and
-    # falls back to a square aspect.
-    media_width: NotRequired[int]
-    media_height: NotRequired[int]
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:

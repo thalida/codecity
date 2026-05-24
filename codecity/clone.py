@@ -7,7 +7,7 @@ the same URL+branch reuses the working copy on disk.
 
 Cache layout::
 
-    ~/.cache/codecity/clones/<sha1(url\\0branch)[:16]>/
+    ~/.cache/codecity/clones/<sha256(url\\0branch)[:16]>/
 
 Why the hash: shorter than the URL, contains no filesystem-illegal
 characters, and stays stable across runs so the "don't reclone if it
@@ -25,6 +25,22 @@ import sys
 import threading
 from pathlib import Path
 
+from codecity.types import (
+    BranchNotFoundError,
+    CloneError,
+    HostUnreachableError,
+    RepoNotFoundError,
+)
+
+__all__ = [
+    "BranchNotFoundError",
+    "CloneError",
+    "HostUnreachableError",
+    "RepoNotFoundError",
+    "clone_dir_for",
+    "ensure_clone",
+]
+
 
 def _log(msg: str) -> None:
     if os.environ.get("CODECITY_QUIET") != "1":
@@ -32,22 +48,6 @@ def _log(msg: str) -> None:
 
 
 CACHE_ROOT = Path.home() / ".cache" / "codecity" / "clones"
-
-
-class CloneError(RuntimeError):
-    """Raised when a git operation fails. Carries the captured stderr."""
-
-
-class BranchNotFoundError(CloneError):
-    """Raised when the requested branch doesn't exist on the remote."""
-
-
-class RepoNotFoundError(CloneError):
-    """Raised when the remote repo URL doesn't exist or isn't accessible."""
-
-
-class HostUnreachableError(CloneError):
-    """Raised when DNS / network can't reach the remote host."""
 
 
 _BRANCH_NOT_FOUND_PATTERNS = (
@@ -122,14 +122,20 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
     real time instead of a silent multi-minute wait. Captures stderr
     in parallel so error-pattern translation still works on non-zero
     exit. Splits on either ``\\n`` or ``\\r`` because git overwrites
-    the progress line in place with carriage returns."""
+    the progress line in place with carriage returns.
+
+    Binary mode + chunked reads: an earlier byte-per-iteration loop was
+    a syscall hot spot on large clones (linux kernel: ~5M stderr bytes
+    → ~5M read() calls). 4 KB chunks reduce that to ~1.2K syscalls
+    without changing semantics — we still split on the same CR/LF
+    boundaries."""
     try:
         proc = subprocess.Popen(
             ["git", *args],
             cwd=str(cwd) if cwd else None,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True,
+            text=False,  # raw bytes — we decode after splitting
             env=_git_env(),
             bufsize=0,
         )
@@ -141,29 +147,34 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None
-        buf: list[str] = []
+        buf = bytearray()
         while True:
-            ch = proc.stderr.read(1)
-            if not ch:
+            chunk = proc.stderr.read(4096)
+            if not chunk:
                 break
-            if ch in ("\r", "\n"):
-                if buf:
-                    line = "".join(buf).strip()
+            buf.extend(chunk)
+            # Emit every complete line (terminated by either \n or \r,
+            # whichever comes first). Anything past the last separator
+            # stays in buf for the next chunk.
+            start = 0
+            for i, b in enumerate(buf):
+                if b == 0x0A or b == 0x0D:  # LF or CR
+                    line = bytes(buf[start:i]).decode("utf-8", errors="replace").strip()
                     if line:
                         captured_stderr.append(line)
                         _log(line)
-                    buf.clear()
-            else:
-                buf.append(ch)
+                    start = i + 1
+            if start:
+                del buf[:start]
         if buf:
-            line = "".join(buf).strip()
+            line = bytes(buf).decode("utf-8", errors="replace").strip()
             if line:
                 captured_stderr.append(line)
                 _log(line)
 
     def _drain_stdout() -> None:
         assert proc.stdout is not None
-        stdout_holder.append(proc.stdout.read())
+        stdout_holder.append(proc.stdout.read().decode("utf-8", errors="replace"))
 
     t_err = threading.Thread(target=_drain_stderr, daemon=True)
     t_out = threading.Thread(target=_drain_stdout, daemon=True)
@@ -184,7 +195,11 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
 
 
 def clone_dir_for(url: str, branch: str | None) -> Path:
-    digest = hashlib.sha1(f"{url}\0{branch or ''}".encode("utf-8")).hexdigest()[:16]
+    # SHA-256 (not SHA-1) — same length when truncated to 16 hex chars,
+    # but avoids the FIPS-environment DeprecationWarning on SHA-1.
+    # This is a directory-naming hash, not a security primitive; truncation
+    # to 16 chars (64 bits) is acceptable collision-wise here.
+    digest = hashlib.sha256(f"{url}\0{branch or ''}".encode("utf-8")).hexdigest()[:16]
     return CACHE_ROOT / digest
 
 

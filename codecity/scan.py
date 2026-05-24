@@ -24,32 +24,28 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .cache import (
-    FileEntry,
     cache_load_files,
     cache_load_git_history,
     cache_save_files,
     cache_save_git_history,
 )
-from .media_dims import probe_media_dims
+from .media import probe_media_dims
 from .types import (
     CommitEntry,
     DirNode,
+    FileEntry,
     FileNode,
     GitMeta,
     Manifest,
     NodeKind,
     RepoInfo,
+    ScanCancelledError,
     ScanStreamEvent,
     SignatureResponse,
 )
 
 
-class ScanCancelledError(Exception):
-    """Raised when a scan_tree cancel_event is set mid-scan.
-
-    Caller (the server's _serve_manifest) is expected to swallow this
-    — it means 'the client disconnected, we asked the scan to stop,
-    it stopped.' Not a bug, not an error to report to anyone."""
+__all__ = ["ScanCancelledError", "scan_tree", "signature_tree", "compute_tree_signature"]
 
 
 def _check_cancel(event: "threading.Event | None") -> None:
@@ -751,20 +747,56 @@ def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
             yield from _iter_file_nodes(child)  # type: ignore[arg-type]
 
 
-# Global tracker for heartbeat logging during recursion.
-_files_seen = 0
+class _Heartbeat:
+    """Per-scan file-count tracker. Was a module-level global; that race-
+    bombed under ThreadingHTTPServer because two concurrent /api/manifest
+    requests would share + mutate the same counter, garbling progress
+    output and corrupting the running tally."""
+
+    __slots__ = ("seen",)
+
+    def __init__(self) -> None:
+        self.seen = 0
+
+    def tick(self) -> None:
+        self.seen += 1
+        if self.seen % 100 == 0:
+            _log(f"  walked {self.seen} files so far…")
 
 
-def _reset_heartbeat() -> None:
-    global _files_seen
-    _files_seen = 0
+class _DirFrame:
+    """One pending directory in the iterative tree walk.
 
+    Iterative because recursion blows past sys.setrecursionlimit (1000
+    by default) on deeply nested trees — Java package hierarchies,
+    generated protobuf trees, monorepos. Stack-based DFS is bounded by
+    available heap, not the C stack."""
 
-def _tick_heartbeat() -> None:
-    global _files_seen
-    _files_seen += 1
-    if _files_seen % 100 == 0:
-        _log(f"  walked {_files_seen} files so far…")
+    __slots__ = (
+        "abs_dir", "rel_dir", "name",
+        "pending_entries", "files", "subdirs",
+        "descendants_count", "descendants_file_count",
+        "descendants_dir_count", "descendants_size",
+    )
+
+    def __init__(self, abs_dir: str, rel_dir: str) -> None:
+        self.abs_dir = abs_dir
+        self.rel_dir = rel_dir
+        self.name = os.path.basename(abs_dir)
+        # Sort entries alphabetically for deterministic output AND for
+        # signature-hash stability (the order entries land in `sig`
+        # must match scan-to-scan, so two scans of the same tree
+        # produce the same fingerprint).
+        try:
+            self.pending_entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
+        except OSError:
+            self.pending_entries = []
+        self.files: list[FileNode] = []
+        self.subdirs: list[DirNode] = []
+        self.descendants_count = 0
+        self.descendants_file_count = 0
+        self.descendants_dir_count = 0
+        self.descendants_size = 0
 
 
 def _build_tree(
@@ -781,79 +813,75 @@ def _build_tree(
     unignore_names: frozenset[str],
     unignore_paths: frozenset[str],
     sig: Any,
+    heartbeat: _Heartbeat,
 ) -> DirNode:
-    name = os.path.basename(abs_dir)
+    stack: list[_DirFrame] = [_DirFrame(abs_dir, rel_dir)]
 
-    files: list[FileNode] = []
-    dirs: list[DirNode] = []
-    descendants_count = 0
-    descendants_file_count = 0
-    descendants_dir_count = 0
-    descendants_size = 0
-
-    # Sort entries alphabetically for deterministic output.
-    try:
-        entries = sorted(os.scandir(abs_dir), key=lambda e: e.name)
-    except OSError:
-        entries = []
-
-    for entry in entries:
-        entry_rel = entry.name if rel_dir == "." else f"{rel_dir}/{entry.name}"
-
-        if _should_skip(
-            entry.name, entry_rel,
-            ignore_names=ignore_names, ignore_paths=ignore_paths,
-            unignore_names=unignore_names, unignore_paths=unignore_paths,
-        ):
-            continue
-
-        # In a git repo, skip anything not tracked (covers .gitignore + uncommitted
-        # additions) — unless include_all is on, the user's "show me everything"
-        # escape hatch. Outside a repo, the tracked set is empty so the
-        # default-OFF branch is a no-op.
-        if is_git_repo and not include_all and entry_rel not in tracked_files:
-            continue
-
-        if entry.is_file(follow_symlinks=False):
-            node = _file_node(
-                entry, entry_rel, is_git_repo, git_created, git_modified, sig
+    while True:
+        top = stack[-1]
+        if top.pending_entries:
+            # Process the next entry in sorted order. Entries are popped
+            # from the front (not back) so the iteration order matches
+            # the original recursive code's — required for hash stability.
+            entry = top.pending_entries.pop(0)
+            entry_rel = (
+                entry.name if top.rel_dir == "." else f"{top.rel_dir}/{entry.name}"
             )
-            files.append(node)
-            descendants_count += 1
-            descendants_file_count += 1
-            descendants_size += node["size"]
-            _tick_heartbeat()
-        elif entry.is_dir(follow_symlinks=False):
-            subtree = _build_tree(
-                entry.path, entry_rel,
-                is_git_repo=is_git_repo,
-                git_created=git_created, git_modified=git_modified,
-                tracked_files=tracked_files, include_all=include_all,
+
+            if _should_skip(
+                entry.name, entry_rel,
                 ignore_names=ignore_names, ignore_paths=ignore_paths,
                 unignore_names=unignore_names, unignore_paths=unignore_paths,
-                sig=sig,
-            )
-            dirs.append(subtree)
-            descendants_count += 1 + subtree["descendants_count"]
-            descendants_file_count += subtree["descendants_file_count"]
-            descendants_dir_count += 1 + subtree["descendants_dir_count"]
-            descendants_size += subtree["descendants_size"]
+            ):
+                continue
 
-    children: list[FileNode | DirNode] = [*files, *dirs]
-    return {
-        "name": name,
-        "type": NodeKind.DIRECTORY,
-        "path": rel_dir,
-        "fullPath": abs_dir,
-        "children_count": len(children),
-        "children_file_count": len(files),
-        "children_dir_count": len(dirs),
-        "descendants_count": descendants_count,
-        "descendants_file_count": descendants_file_count,
-        "descendants_dir_count": descendants_dir_count,
-        "descendants_size": descendants_size,
-        "children": children,
-    }
+            # In a git repo, skip anything not tracked (covers .gitignore +
+            # uncommitted additions) unless include_all is on. Outside a
+            # repo, the tracked set is empty so the branch is a no-op.
+            if is_git_repo and not include_all and entry_rel not in tracked_files:
+                continue
+
+            if entry.is_file(follow_symlinks=False):
+                node = _file_node(
+                    entry, entry_rel, is_git_repo, git_created, git_modified, sig
+                )
+                top.files.append(node)
+                top.descendants_count += 1
+                top.descendants_file_count += 1
+                top.descendants_size += node["size"]
+                heartbeat.tick()
+            elif entry.is_dir(follow_symlinks=False):
+                # Descend by pushing a new frame; rollup happens when it
+                # pops below.
+                stack.append(_DirFrame(entry.path, entry_rel))
+            continue
+
+        # All entries processed — finalize this frame and either return it
+        # (root) or attach to the parent.
+        finished = stack.pop()
+        children: list[FileNode | DirNode] = [*finished.files, *finished.subdirs]
+        node_out: DirNode = {
+            "name": finished.name,
+            "type": NodeKind.DIRECTORY,
+            "path": finished.rel_dir,
+            "fullPath": finished.abs_dir,
+            "children_count": len(children),
+            "children_file_count": len(finished.files),
+            "children_dir_count": len(finished.subdirs),
+            "descendants_count": finished.descendants_count,
+            "descendants_file_count": finished.descendants_file_count,
+            "descendants_dir_count": finished.descendants_dir_count,
+            "descendants_size": finished.descendants_size,
+            "children": children,
+        }
+        if not stack:
+            return node_out
+        parent = stack[-1]
+        parent.subdirs.append(node_out)
+        parent.descendants_count += 1 + node_out["descendants_count"]
+        parent.descendants_file_count += node_out["descendants_file_count"]
+        parent.descendants_dir_count += 1 + node_out["descendants_dir_count"]
+        parent.descendants_size += node_out["descendants_size"]
 
 
 # ── Public entry ─────────────────────────────────────────────────────────────
@@ -888,31 +916,16 @@ def compute_tree_signature(tree_root: dict) -> str:
     return h.hexdigest()
 
 
-def _wrap_skeleton(
+def _wrap_manifest(
     root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
     repo_info: RepoInfo | None, commits: list[CommitEntry] | None,
 ) -> Manifest:
-    """Build a Manifest envelope for the skeleton-phase emit. Caller is
-    responsible for having already deep-copied the tree and applied
-    placeholder values via _force_skeleton_placeholders — this helper
-    is a pure envelope builder."""
-    return {
-        "root": root_abs,
-        "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "signature": sig.hexdigest(),
-        "tree_signature": tree_signature,
-        "tree": tree,
-        "repo": repo_info,
-        "commits": commits,
-    }
+    """Build a Manifest envelope around an already-built tree.
 
-
-def _wrap_final(
-    root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
-    repo_info: RepoInfo | None, commits: list[CommitEntry] | None,
-) -> Manifest:
-    """Build a Manifest envelope for the final-phase emit. Called after
-    _populate_file_metadata has filled in real lines/binary values."""
+    Skeleton vs final differ only in the `tree` they pass in (skeleton
+    has placeholder lines/binary set by _force_skeleton_placeholders;
+    final has the real per-file metadata). The envelope shape is the
+    same either way."""
     return {
         "root": root_abs,
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -991,7 +1004,7 @@ def scan_tree(
         _load_codecityignore(Path(root_abs))
     )
 
-    _reset_heartbeat()
+    heartbeat = _Heartbeat()
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
     _hash_git_window(sig, git_window)
@@ -1003,8 +1016,9 @@ def scan_tree(
         ignore_names=ignore_names, ignore_paths=ignore_paths,
         unignore_names=unignore_names, unignore_paths=unignore_paths,
         sig=sig,
+        heartbeat=heartbeat,
     )
-    _log(f"walked {_files_seen} files; emitting skeleton")
+    _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
     # Compute tree_signature once after the tree is built. This is
     # structure-only (paths + nesting, NO mtime/size/metadata), so it is
@@ -1020,7 +1034,7 @@ def scan_tree(
     _force_skeleton_placeholders(skeleton_tree)
     yield {
         "phase": "skeleton",
-        "manifest": _wrap_skeleton(
+        "manifest": _wrap_manifest(
             root_abs, skeleton_tree, sig, tree_sig, repo_info, commits_list,
         ),
     }
@@ -1040,7 +1054,7 @@ def scan_tree(
 
     yield {
         "phase": "final",
-        "manifest": _wrap_final(
+        "manifest": _wrap_manifest(
             root_abs, tree, sig, tree_sig, repo_info, commits_list,
         ),
     }

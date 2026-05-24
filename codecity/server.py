@@ -47,6 +47,7 @@ from codecity.cache import (
     cache_load_manifest,
     cache_save_manifest,
 )
+from codecity.media import is_media
 from codecity.scan import (
     ScanCancelledError,
     scan_tree,
@@ -64,20 +65,6 @@ from codecity.types import (
 # Cap individual /api/file responses so a stray symlink to a giant blob
 # doesn't try to load 10 GB into the browser.
 MAX_FILE_BYTES = 100 * 1024 * 1024
-
-# Content-Types we keep verbatim — the browser uses real <img>/<video>/etc.
-# tags for these. Everything else gets coerced to text/plain so the
-# frontend's preview pane renders the bytes as code, IDE-style.
-_MEDIA_PREFIXES = ("image/", "video/", "audio/")
-_MEDIA_EXACT = {"application/pdf"}
-
-
-def _is_media(ctype: str | None) -> bool:
-    if not ctype:
-        return False
-    if ctype in _MEDIA_EXACT:
-        return True
-    return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
 
 
 _LOCAL_PATH_PREFIX = re.compile(r"^(/|~|\./|\.\./|[A-Za-z]:[\\/])")
@@ -710,12 +697,12 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
     # extensions (.gitignore, .env), executables (.sh → application/x-sh),
     # and binaries the user wants to peek at — gets coerced to text/plain
     # so the preview pane renders the bytes as code, IDE-style.
-    ctype = guessed if _is_media(guessed) and guessed else "text/plain; charset=utf-8"
+    ctype = guessed if is_media(guessed) and guessed else "text/plain; charset=utf-8"
 
     body = target.read_bytes()
     # Skip gzip on already-compressed media (image/video/audio/PDF).
-    # Same _is_media test that decided ctype above.
-    if _is_media(guessed):
+    # Same is_media test that decided ctype above.
+    if is_media(guessed):
         encoding: str | None = None
     else:
         body, encoding = _maybe_gzip(handler, body)

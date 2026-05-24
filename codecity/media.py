@@ -1,9 +1,18 @@
-"""Probe natural pixel dimensions of media files.
+"""Media file detection + dimension probing.
 
-probe_media_dims(path) returns (width, height) — both None when the
-file can't be probed (unsupported extension, missing metadata, corrupt
-container, etc.). Layout uses these to size the building's silhouette;
-None pairs trigger the square-fallback aspect of 1.0.
+Two related concerns under one roof:
+
+  - is_media(content_type) — does this MIME look like something the
+    browser should render in an <img>/<video>/<audio>/<iframe> tag,
+    rather than text in a code preview pane?
+  - probe_media_dims(path) — read intrinsic pixel dimensions from
+    image / SVG / video containers without decoding frames. Used by
+    layout to size building silhouettes; unknown → (None, None) and
+    the building falls back to a square aspect.
+
+Failures are silent throughout — corrupt files, missing optional deps
+(Pillow, hachoir), unsupported codecs all map to "no signal" so a
+flaky media file never breaks a scan or a file fetch.
 """
 
 from __future__ import annotations
@@ -11,6 +20,25 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
+
+# ── MIME classification ─────────────────────────────────────────────────
+
+# Content-Types we keep verbatim — the browser uses real <img>/<video>/etc.
+# tags for these. Everything else gets coerced to text/plain so the
+# frontend's preview pane renders the bytes as code, IDE-style.
+_MEDIA_PREFIXES = ("image/", "video/", "audio/")
+_MEDIA_EXACT = {"application/pdf"}
+
+
+def is_media(ctype: str | None) -> bool:
+    if not ctype:
+        return False
+    if ctype in _MEDIA_EXACT:
+        return True
+    return any(ctype.startswith(p) for p in _MEDIA_PREFIXES)
+
+
+# ── Dimension probing ───────────────────────────────────────────────────
 
 _PIL_IMAGE_EXTS = frozenset({
     ".png", ".jpg", ".jpeg", ".gif", ".webp",
