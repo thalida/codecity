@@ -24,11 +24,17 @@ precision highp float;
 attribute float iLayerIndex;
 attribute vec3 iColor;
 attribute float iTextureFade;
+// Per-building selection-cascade fade multiplier (1.0 = full, 0.0 =
+// hidden). Written by buildingFader.applyBuildingFades and multiplied
+// into final alpha by the fragment shader so a panel matches its
+// building body's opacity tier.
+attribute float iBuildingFade;
 
 out vec2 vUv;
 out highp float vLayerIndex;
 out vec3 vColor;
 out float vTextureFade;
+out float vBuildingFade;
 
 void main() {
   // Flip V to compensate for the data orientation in adPanelTextureArray.
@@ -44,5 +50,6 @@ void main() {
   vLayerIndex = iLayerIndex;
   vColor = iColor;
   vTextureFade = iTextureFade;
+  vBuildingFade = iBuildingFade;
   gl_Position = projectionMatrix * modelViewMatrix * instanceMatrix * vec4(position, 1.0);
 }

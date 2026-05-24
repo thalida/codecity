@@ -155,6 +155,13 @@ export function createBuildingFader({
 
     const fadeCfg = BUILDING_FADE.get();
 
+    // Collected by the cell sweep, drained into the ad-panel sweep below
+    // so a media building's ad panel dims by exactly the same factor as
+    // its building body when the selection cascade demotes it to a
+    // lower tier. Built once per sweep rather than recomputed inside
+    // applyBuildingFades' per-slot callback to avoid an O(N²) tree-walk.
+    const bodyOpacityByPath = new Map<string, number>();
+
     // Iterate CellTile.detailMesh instances and write per-slot iFade values.
     const cells = world.getCells();
     for (const cell of cells.values()) {
@@ -179,9 +186,19 @@ export function createBuildingFader({
         const outlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
         iFadeAttr.setXYZ(slot, opacity, silhouette, outlineOpacity);
+        bodyOpacityByPath.set(building.file.path, opacity);
       }
 
       iFadeAttr.needsUpdate = true;
+    }
+
+    // Mirror the body opacity onto the ad panel mesh: each media
+    // building's 4 panel instances pick up the same opacity tier as the
+    // building body itself. Skipped silently when no media files exist
+    // in this manifest.
+    const adPanels = world.getAdPanels();
+    if (adPanels) {
+      adPanels.applyBuildingFades((path) => bodyOpacityByPath.get(path) ?? null);
     }
   }
 

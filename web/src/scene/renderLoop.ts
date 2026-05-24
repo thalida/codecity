@@ -68,9 +68,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   const world = createWorld(canvas);
   const scene = world.scene;
   _applyDisplayLabel(manifest);
-  await world.applyManifest(manifest);
 
-  // -- 3. Renderer -------------------------------------------------------------
+  // -- 2. Renderer (created BEFORE applyManifest) ------------------------------
+  // applyManifest's cell pass creates InstancedAdPanels and immediately
+  // kicks off async image loads for every media building. Those uploads
+  // need the WebGLRenderer to run renderer.copyTextureToTexture. Creating
+  // the renderer here (rather than after applyManifest) means
+  // AdPanelTextureArray always has a registered renderer by the time any
+  // <img>.onload fires — which can happen surprisingly early for cached
+  // responses. With the previous order, the first few cached images
+  // could race the renderer registration, skip the upload, but still
+  // ramp iTextureFade to 1.0 → the panel sampled an unwritten layer
+  // and rendered fully transparent ("ad missing").
   const renderer = new THREE.WebGLRenderer({
     canvas,
     antialias: true,
@@ -78,12 +87,9 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
-  // Make the renderer available to AdPanelTextureArray for per-layer GPU
-  // uploads (it can't be passed through the world.applyManifest chain
-  // because that runs before this WebGLRenderer exists). Image .onload
-  // callbacks always fire asynchronously, so the registration here lands
-  // before any actual upload attempt.
   registerAdPanelRenderer(renderer);
+
+  await world.applyManifest(manifest);
 
   // -- 4. Camera + controls ----------------------------------------------------
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset

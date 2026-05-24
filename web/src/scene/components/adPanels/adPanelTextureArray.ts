@@ -50,13 +50,36 @@ export const MAX_PAGES = 8;
 
 // Renderer reference for per-layer GPU uploads. Set once by renderLoop.ts
 // after the WebGLRenderer is constructed (registerRenderer below). Uploads
-// triggered before this point — including any in test environments where
-// the renderer never exists — silently no-op so the placeholder color
-// stays visible instead of crashing.
+// that fire BEFORE this point (e.g., a cached <img>.onload that races
+// renderer construction) park on `_rendererWaiters` and resume the moment
+// registerRenderer lands. In test environments where the renderer never
+// arrives, uploads time out and the upload promise resolves to `false`
+// so the caller can leave the placeholder visible instead of advancing
+// the fade attribute onto an empty texture layer.
 let _renderer: THREE.WebGLRenderer | null = null;
+const _rendererWaiters: Array<(r: THREE.WebGLRenderer | null) => void> = [];
+const _RENDERER_WAIT_TIMEOUT_MS = 5000;
 
 export function registerRenderer(renderer: THREE.WebGLRenderer): void {
   _renderer = renderer;
+  if (_rendererWaiters.length > 0) {
+    const waiters = _rendererWaiters.splice(0);
+    for (const w of waiters) w(renderer);
+  }
+}
+
+function _whenRendererReady(): Promise<THREE.WebGLRenderer | null> {
+  if (_renderer) return Promise.resolve(_renderer);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (r: THREE.WebGLRenderer | null): void => {
+      if (settled) return;
+      settled = true;
+      resolve(r);
+    };
+    _rendererWaiters.push(finish);
+    setTimeout(() => finish(null), _RENDERER_WAIT_TIMEOUT_MS);
+  });
 }
 
 // WebGL2 caps texture-array depth at MAX_ARRAY_TEXTURE_LAYERS. We probe
@@ -101,6 +124,14 @@ export class AdPanelTextureArray {
   readonly pageSize: number;
   private readonly _capacity: number;
   private _next = 0;
+  // Set by dispose() so any in-flight uploads parked in
+  // _whenRendererReady — or already past it but still doing
+  // copyTextureToTexture — bail out instead of writing to deleted
+  // textures. The skeleton→final manifest sequence (live updates too)
+  // disposes the old AdPanelTextureArray before the new one's loads
+  // have all drained; without this guard the old loads can still hit
+  // the GPU and silently mutate state we no longer own.
+  private _disposed = false;
 
   constructor(capacity = 256) {
     const pageSize = _detectMaxArrayLayers();
@@ -168,25 +199,31 @@ export class AdPanelTextureArray {
     return this._next++;
   }
 
-  /** Blit `img` into the layer at `flatLayer`, scaled to PANEL_TEX_SIZE². */
-  async uploadImage(flatLayer: number, img: HTMLImageElement): Promise<void> {
-    this._uploadFromCanvas(flatLayer, _scaleToScratch(img));
+  /** Blit `img` into the layer at `flatLayer`, scaled to PANEL_TEX_SIZE².
+   *  Resolves to `true` when the GPU upload succeeded, `false` if the
+   *  renderer never became available (timeout) or this texture array
+   *  was disposed before the upload could run. Callers should NOT
+   *  advance their iTextureFade attribute on a `false` return — the
+   *  destination layer is still unwritten and sampling it produces
+   *  black/transparent pixels. */
+  async uploadImage(flatLayer: number, img: HTMLImageElement): Promise<boolean> {
+    return this._uploadFromCanvas(flatLayer, _scaleToScratch(img));
   }
 
   /** Blit a canvas (e.g. a video first-frame poster) into the layer at
-   *  `flatLayer`. Same semantics as uploadImage but takes a canvas
-   *  directly so the video loading path doesn't need a round-trip
-   *  through an Image object. */
-  async uploadCanvas(flatLayer: number, src: HTMLCanvasElement): Promise<void> {
-    this._uploadFromCanvas(flatLayer, _scaleToScratch(src));
+   *  `flatLayer`. Same semantics + return contract as uploadImage. */
+  async uploadCanvas(flatLayer: number, src: HTMLCanvasElement): Promise<boolean> {
+    return this._uploadFromCanvas(flatLayer, _scaleToScratch(src));
   }
 
-  private _uploadFromCanvas(flatLayer: number, canvas: HTMLCanvasElement): void {
-    if (!_renderer) return;
+  private async _uploadFromCanvas(flatLayer: number, canvas: HTMLCanvasElement): Promise<boolean> {
+    if (this._disposed) return false;
+    const renderer = await _whenRendererReady();
+    if (!renderer || this._disposed) return false;
     const page = Math.floor(flatLayer / this.pageSize);
     const localLayer = flatLayer - page * this.pageSize;
     const dstTex = this.textures[page];
-    if (!dstTex) return;
+    if (!dstTex) return false;
 
     const tempTex = new THREE.CanvasTexture(canvas);
     tempTex.format = THREE.RGBAFormat;
@@ -197,7 +234,7 @@ export class AdPanelTextureArray {
     // (width = max.x - min.x), so the full PANEL_TEX_SIZE slice runs from
     // 0 to PANEL_TEX_SIZE on each axis. dstPosition.z selects the
     // destination layer WITHIN this page.
-    _renderer.copyTextureToTexture(
+    renderer.copyTextureToTexture(
       tempTex,
       dstTex,
       new THREE.Box3(
@@ -207,6 +244,7 @@ export class AdPanelTextureArray {
       new THREE.Vector3(0, 0, localLayer),
     );
     tempTex.dispose();
+    return true;
   }
 
   /** Number of layers allocated so far (across all pages). */
@@ -215,6 +253,7 @@ export class AdPanelTextureArray {
   }
 
   dispose(): void {
+    this._disposed = true;
     for (const tex of this.textures) tex.dispose();
   }
 }

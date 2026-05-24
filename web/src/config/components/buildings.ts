@@ -300,12 +300,12 @@ export const BUILDING_FADE = map<BuildingFadeConfig>({
   // Level 1 — one hop from selection along the directory spine.
   NEAR_DETAIL: FadeDetail.Silhouette,
   NEAR_OUTLINE: true,
-  NEAR_BODY_OPACITY: 0.5,
-  NEAR_OUTLINE_OPACITY: 0.5,
+  NEAR_BODY_OPACITY: 0.75,
+  NEAR_OUTLINE_OPACITY: 0.75,
 
   // Level 2+ — anything farther.
   FAR_DETAIL: FadeDetail.Silhouette,
   FAR_OUTLINE: true,
-  FAR_BODY_OPACITY: 0.05,
+  FAR_BODY_OPACITY: 0.10,
   FAR_OUTLINE_OPACITY: 0.5,
 });

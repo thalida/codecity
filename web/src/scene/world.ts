@@ -37,7 +37,6 @@ import { disposeLabelMaterials } from './components/labels/labels.js';
 import { buildCellsFromLayout } from './layout/cellAssembly.js';
 import type { CellTile } from './layout/cellTile.js';
 import { BuildingIndex } from './components/buildings/buildingIndex.js';
-import type { SpatialGrid } from './layout/spatialGrid.js';
 import { findLayoutOverlaps } from './layout/layout.js';
 import type { LayoutOverlap } from './layout/layout.js';
 import { createLayoutClient } from './layout/layoutClient.js';
@@ -477,7 +476,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let _cellRoot: THREE.Group | null = null;
   let _cells: Map<number, CellTile> = new Map();
   let _buildingIndex: BuildingIndex | null = null;
-  let _grid: SpatialGrid | null = null;
   // Instanced ad panels (DataArrayTexture-backed). One instance per
   // applyManifest call; disposed on full rebuild or resetCache.
   let _instancedAdPanels: import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels | null = null;
@@ -1012,7 +1010,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _cellRoot = cellOut.sceneRoot;
       _cells = cellOut.cells;
       _buildingIndex = cellOut.index;
-      _grid = cellOut.grid;
       _instancedAdPanels = cellOut.adPanels;
 
       // Add the new cell root (instanced building InstancedMeshes + ad panels).
@@ -1040,7 +1037,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _cellRoot = cellOut.sceneRoot;
       _cells = cellOut.cells;
       _buildingIndex = cellOut.index;
-      _grid = cellOut.grid;
       _instancedAdPanels = cellOut.adPanels;
 
       // Also build the streets/paths/gem sub-scene from buildWorld so
@@ -1460,6 +1456,14 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     getCells(): Map<number, CellTile> {
       return _cells;
+    },
+
+    // Read-only accessor for the cell-mode ad-panel mesh manager. Used
+    // by buildingFader to mirror selection-cascade body opacity onto
+    // the ad-panel instances. Returns null when the current manifest
+    // has no media files (no panels were created).
+    getAdPanels(): import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels | null {
+      return _instancedAdPanels;
     },
 
     // Unified mesh+slot resolver. Returns the InstancedMesh that owns this

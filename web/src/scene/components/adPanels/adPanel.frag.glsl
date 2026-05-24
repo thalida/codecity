@@ -37,6 +37,7 @@ in vec2 vUv;
 in highp float vLayerIndex;
 in vec3 vColor;
 in float vTextureFade;
+in float vBuildingFade;
 
 out vec4 fragColor;
 
@@ -62,5 +63,8 @@ void main() {
   // Use texture alpha blended toward 1.0 as fade advances, so a fully
   // transparent texture corner doesn't punch a hole before the image loads.
   float finalAlpha = mix(1.0, texSample.a, vTextureFade);
+  // Selection-cascade body fade — multiplied in last so it dims the
+  // panel by the same factor as its building body (see buildingFader).
+  finalAlpha *= vBuildingFade;
   fragColor = vec4(finalColor, finalAlpha);
 }

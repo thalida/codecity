@@ -64,14 +64,27 @@ export class InstancedAdPanels {
   private readonly _texArray: AdPanelTextureArray;
   private readonly _capacity: number;
   private _nextSlot = 0;
+  // Tracks dispose() — async load tasks that started before dispose
+  // but completed after (very likely during a skeleton→final or live-
+  // update rebuild) check this before touching iTextureFade so they
+  // don't clobber the new InstancedAdPanels' slot state.
+  private _disposed = false;
 
   // Per-instance attribute arrays (raw typed arrays for direct write).
   private readonly _iLayerIndex: Float32Array;
   private readonly _iColor: Float32Array;
   private readonly _iTextureFade: Float32Array;
+  // Per-instance opacity multiplier, driven by buildingFader so an ad
+  // panel fades down in lockstep with its underlying building body when
+  // the selection cascade demotes that building to NEAR / FAR tier.
+  private readonly _iBuildingFade: Float32Array;
   // Resolved error tint (AD_ERROR_COLOR × adEmission), cached so
   // markBuildingErrored doesn't have to redo the color math per call.
   private readonly _errorColor!: THREE.Color;
+  // file.path → 4 panel slot indices for that building. Populated by
+  // registerMediaBuilding and consumed by applyBuildingFades so the
+  // fader doesn't need to know the slot layout.
+  private readonly _buildingSlotsByPath = new Map<string, number[]>();
 
   constructor(mediaFileCapacity: number) {
     this._capacity = mediaFileCapacity;
@@ -165,13 +178,16 @@ export class InstancedAdPanels {
     this._iLayerIndex = new Float32Array(slotCount);       // 1 float per slot
     this._iColor      = new Float32Array(slotCount * 3);   // vec3 per slot
     this._iTextureFade = new Float32Array(slotCount);      // 1 float per slot
+    this._iBuildingFade = new Float32Array(slotCount);     // 1 float per slot
 
-    // Initialize iColor to placeholder and iTextureFade to 0 (no texture yet).
+    // Initialize iColor to placeholder, iTextureFade to 0 (no texture yet),
+    // and iBuildingFade to 1.0 (no fade until buildingFader writes a tier).
     for (let i = 0; i < slotCount; i++) {
       this._iColor[i * 3 + 0] = placeholderColor.r;
       this._iColor[i * 3 + 1] = placeholderColor.g;
       this._iColor[i * 3 + 2] = placeholderColor.b;
       this._iTextureFade[i] = 0.0;
+      this._iBuildingFade[i] = 1.0;
     }
 
     // Attach as InstancedBufferAttributes so they feed the vertex shader.
@@ -186,6 +202,10 @@ export class InstancedAdPanels {
     geo.setAttribute(
       'iTextureFade',
       new THREE.InstancedBufferAttribute(this._iTextureFade, 1),
+    );
+    geo.setAttribute(
+      'iBuildingFade',
+      new THREE.InstancedBufferAttribute(this._iBuildingFade, 1),
     );
 
     // Hide all instances initially via scale-zero matrices.
@@ -276,6 +296,13 @@ export class InstancedAdPanels {
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iLayerIndex') as THREE.InstancedBufferAttribute).needsUpdate = true;
 
+    // Remember which 4 slots back this building, keyed on file.path so
+    // buildingFader can look the slots up by FileNode.path during its
+    // selection-cascade sweep without having to thread the mapping
+    // through cellAssembly.
+    const key = b.file?.path;
+    if (key != null) this._buildingSlotsByPath.set(key, panelSlots.slice());
+
     return { layer, panelSlots };
   }
 
@@ -292,8 +319,19 @@ export class InstancedAdPanels {
     panelSlots: number[],
     img: HTMLImageElement,
   ): Promise<void> {
-    await this._texArray.uploadImage(layer, img);
-    // Snap fade to 1.0 on all 4 faces.
+    const ok = await this._texArray.uploadImage(layer, img);
+    // _disposed: whole mesh is being torn down (skeleton→final or live
+    // update rebuild) — bail without touching any per-instance state.
+    if (this._disposed) return;
+    // !ok: upload genuinely failed (renderer never registered within
+    // the wait timeout, etc.). Tint the slots with the sticky error
+    // color rather than ramping the fade — sampling an unwritten
+    // texture layer with iTextureFade=1 would produce fully
+    // transparent fragments ("ad missing").
+    if (!ok) {
+      this.markBuildingErrored(panelSlots);
+      return;
+    }
     for (const slot of panelSlots) {
       this._iTextureFade[slot] = 1.0;
     }
@@ -311,12 +349,46 @@ export class InstancedAdPanels {
     panelSlots: number[],
     canvas: HTMLCanvasElement,
   ): Promise<void> {
-    await this._texArray.uploadCanvas(layer, canvas);
+    const ok = await this._texArray.uploadCanvas(layer, canvas);
+    if (this._disposed) return;
+    if (!ok) {
+      this.markBuildingErrored(panelSlots);
+      return;
+    }
     for (const slot of panelSlots) {
       this._iTextureFade[slot] = 1.0;
     }
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iTextureFade') as THREE.InstancedBufferAttribute).needsUpdate = true;
+  }
+
+  /**
+   * Push a per-building opacity multiplier onto every ad panel for which
+   * `getFade` returns a value. Used by buildingFader so an ad panel fades
+   * to the same opacity as its underlying building body during a selection
+   * cascade — a NEAR-tier building's panel drops to NEAR_BODY_OPACITY in
+   * lockstep, not full brightness.
+   *
+   * `getFade(path)` returning `null` (or undefined) leaves that building's
+   * slots untouched, so the fader can skip non-tier'd files without
+   * clobbering the constructor's 1.0 default.
+   */
+  applyBuildingFades(getFade: (filePath: string) => number | null | undefined): void {
+    let dirty = false;
+    for (const [path, slots] of this._buildingSlotsByPath) {
+      const fade = getFade(path);
+      if (fade == null) continue;
+      for (const slot of slots) {
+        if (this._iBuildingFade[slot] !== fade) {
+          this._iBuildingFade[slot] = fade;
+          dirty = true;
+        }
+      }
+    }
+    if (dirty) {
+      const geo = this.mesh.geometry as THREE.BufferGeometry;
+      (geo.getAttribute('iBuildingFade') as THREE.InstancedBufferAttribute).needsUpdate = true;
+    }
   }
 
   /**
@@ -339,6 +411,7 @@ export class InstancedAdPanels {
   }
 
   dispose(): void {
+    this._disposed = true;
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.Material).dispose();
     this._texArray.dispose();
