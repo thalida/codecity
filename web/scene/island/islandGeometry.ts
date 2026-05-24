@@ -284,7 +284,14 @@ export function buildIslandGeometry(
   const allRingIdx: number[][] = [];
 
   // Grass-bottom perimeter re-indexed with rock color + AO for the underside.
-  const topRockIdx: number[] = grassBotRing.map((v) => addVertex(v, rock, 0.85));
+  // Shift down by a tiny epsilon so the underside's top edge doesn't sit at
+  // EXACTLY the same Y as the grass band's bottom edge — without this,
+  // both surfaces rasterise to identical depth values at the seam and
+  // z-fight (visible as a flickering pattern at the grass/rock junction).
+  const seamEpsilon = islandRadius * 0.001;
+  const topRockIdx: number[] = grassBotRing.map((v) =>
+    addVertex(new THREE.Vector3(v.x, v.y - seamEpsilon, v.z), rock, 0.85),
+  );
   allRingIdx.push(topRockIdx);
 
   for (let t = 0; t < undersideRings.length; t++) {

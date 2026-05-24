@@ -11,9 +11,9 @@ export interface WorldConfig {
 }
 
 export const WORLD = map<WorldConfig>({
-  // 30% of the city's longest dimension (including vertical extent for
-  // small-but-tall cities) — a generous halo of bare ground past the
-  // city, capped at an absolute floor in worldBounds so tiny cities
-  // still feel airy.
-  GROUND_BUFFER_PERCENT: 30,
+  // 0% by default — the island polygon already has a built-in sqrt(2) ×
+  // 1/cos(π/N) expansion past the city bbox so the city is comfortably
+  // contained without extra padding. Users dial this up if they want
+  // more visible "bare ground" past the city silhouette.
+  GROUND_BUFFER_PERCENT: 0,
 });
