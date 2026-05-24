@@ -15,7 +15,7 @@
 //
 // Subscribes to picker.hover and picker.selection (to correctly dedup
 // hover-while-selected so the ghost doesn't show on an already-selected
-// building). Does NOT subscribe to cityScene.onChange — the hover atom
+// building). Does NOT subscribe to world.onChange — the hover atom
 // is cleared by the picker on every rebuild, which triggers a hide
 // automatically.
 
@@ -40,11 +40,11 @@ const GHOST_SCALE_INSET = 1.005;
 
 export function createGhostRenderer({
   scene,
-  cityScene,
+  world,
   picker,
 }: {
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   // Shared ghost mesh — a unit cube with a translucent MeshBasicMaterial.
@@ -71,12 +71,12 @@ export function createGhostRenderer({
   // the correct building tint.
   //
   // Resolves the building's live InstancedMesh + slot via
-  // cityScene.getMeshForBuilding(). Decomposes the live instance matrix so
+  // world.getMeshForBuilding(). Decomposes the live instance matrix so
   // the ghost tracks the animator's tween position. Falls back to layout
   // dimensions from target.data when no live mesh is available.
   function _syncGhostToTarget(target: FileTarget): void {
     const b = target.data;
-    const resolved = cityScene.getMeshForBuilding(b);
+    const resolved = world.getMeshForBuilding(b);
     if (resolved) {
       resolved.mesh.getMatrixAt(resolved.slot, _tmpMatrix);
       _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);

@@ -12,7 +12,7 @@
 // required to apply). Every input mutates a single in-memory draft layer
 // (config/drafts.ts); the Save button flushes drafts to the real stores,
 // which triggers the existing config/hotReload.js subscriptions (applyTheme
-// or cityScene.applyManifest). Discard clears drafts without touching stores;
+// or world.applyManifest). Discard clears drafts without touching stores;
 // page reload is an implicit discard.
 
 import {

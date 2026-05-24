@@ -36,7 +36,7 @@ export interface GemTarget {
 export type PickTarget = FileTarget | DirTarget | GemTarget;
 
 /**
- * Stable identity used to re-resolve a selection across cityScene
+ * Stable identity used to re-resolve a selection across world
  * rebuilds. Persisted via attachPersistence.
  */
 export interface PickerSelectionKey {
@@ -45,8 +45,8 @@ export interface PickerSelectionKey {
 }
 
 /**
- * Subset of the cityScene API that the picker depends on. Real
- * cityScene structurally satisfies this; tests can mock just these
+ * Subset of the world API that the picker depends on. Real
+ * world structurally satisfies this; tests can mock just these
  * methods.
  */
 export interface PickerWorld {

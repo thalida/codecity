@@ -12,7 +12,7 @@ import * as THREE from 'three';
 export type { LabelAtlasRect, LabelAtlasResult } from './labelAtlas.js';
 export { buildLabelAtlas } from './labelAtlas.js';
 
-// One ShaderMaterial per atlas texture (= per atlas page). cityScene owns
+// One ShaderMaterial per atlas texture (= per atlas page). world owns
 // the textures' lifetime; when it disposes them it calls
 // disposeLabelMaterials() to evict.
 const _labelMaterials = new Map<THREE.CanvasTexture, THREE.ShaderMaterial>();

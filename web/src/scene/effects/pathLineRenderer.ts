@@ -23,12 +23,12 @@ import type { createPicker } from '@/scene/system/picker.js';
 export function createPathLineRenderer({
   canvas,
   scene,
-  cityScene,
+  world,
   picker,
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────
@@ -87,7 +87,7 @@ export function createPathLineRenderer({
 
   function _updatePathLine(): void {
     const sel = picker.selection.get();
-    const gemPos = cityScene.getGemWorldPos();
+    const gemPos = world.getGemWorldPos();
     if (!gemPos || !sel) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
@@ -97,7 +97,7 @@ export function createPathLineRenderer({
     const pts = computePathPoints(
       sel,
       { x: gemPos.x, z: gemPos.z },
-      cityScene.getStreetsByDirMap()
+      world.getStreetsByDirMap()
     );
     if (pts.length < 2) {
       pathLine.visible = false;
@@ -130,7 +130,7 @@ export function createPathLineRenderer({
 
   function _updateHoverPathLine(): void {
     const hov = picker.hover.get();
-    const gemPos = cityScene.getGemWorldPos();
+    const gemPos = world.getGemWorldPos();
     const cfg = HOVER_PATH_LINE.get();
     function hide() {
       hoverPathLine.visible = false;
@@ -142,7 +142,7 @@ export function createPathLineRenderer({
     const pts = computePathPoints(
       hov,
       { x: gemPos.x, z: gemPos.z },
-      cityScene.getStreetsByDirMap()
+      world.getStreetsByDirMap()
     );
     if (pts.length < 2) return hide();
     const elev = cfg.ELEVATION;
@@ -160,7 +160,7 @@ export function createPathLineRenderer({
     hoverPathLine.visible = true;
   }
 
-  // Reactive: rebuild geometry on selection / hover / cityScene change.
+  // Reactive: rebuild geometry on selection / hover / world change.
   picker.selection.subscribe(() => {
     _updatePathLine();
     _updateHoverPathLine();
@@ -168,7 +168,7 @@ export function createPathLineRenderer({
   picker.hover.subscribe(() => {
     _updateHoverPathLine();
   });
-  cityScene.onChange(() => {
+  world.onChange(() => {
     _updatePathLine();
     _updateHoverPathLine();
   });

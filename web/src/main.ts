@@ -152,7 +152,7 @@ if (_canvas) {
             // becomes visible behind the overlay. The skeleton manifest has
             // the full tree shape, so the icon atlas built from it is
             // correct for the final manifest too — no rebuild needed when
-            // final arrives. cityScene.applyManifest diff-and-tweens the
+            // final arrives. world.applyManifest diff-and-tweens the
             // skeleton → final transition.
             try {
               const _builtAtlas = await buildIconAtlas(m);
@@ -163,7 +163,7 @@ if (_canvas) {
             }
             handle = await startRenderLoop(_canvas, m);
             attachHotReload({
-              cityScene: handle.cityScene,
+              world: handle.world,
               applyTheme: handle.applyTheme,
             });
           } else {
@@ -173,7 +173,7 @@ if (_canvas) {
             // b.file to the fresh FileNode from the new manifest so colors,
             // ages, and dimensions compute from real metadata on the cache-hit
             // fast path.
-            await handle.cityScene.applyManifest(m);
+            await handle.world.applyManifest(m);
           }
           initialManifest = m;
         }
@@ -189,7 +189,7 @@ if (_canvas) {
         if (handle === null) {
           handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
           attachHotReload({
-            cityScene: handle.cityScene,
+            world: handle.world,
             applyTheme: handle.applyTheme,
           });
         }
@@ -203,7 +203,7 @@ if (_canvas) {
     } else {
       handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
       attachHotReload({
-        cityScene: handle.cityScene,
+        world: handle.world,
         applyTheme: handle.applyTheme,
       });
     }
@@ -227,7 +227,7 @@ if (_canvas) {
       // from the previous source. The cache is valid within a single source
       // (skeleton → final live-update), but must be reset when switching sources
       // since different repos can produce the same tree_signature by coincidence.
-      handle.cityScene.resetCache();
+      handle.world.resetCache();
       const dismissibleOnError = _lastDismissible;
       loadingOverlay.show({
         kind: _srcKind(payload.src),
@@ -257,7 +257,7 @@ if (_canvas) {
             // Apply the skeleton so the new city paints behind the overlay
             // — the final event will tween into final heights.
             _applyDisplayLabel(event.manifest);
-            await handle.cityScene.applyManifest(event.manifest);
+            await handle.world.applyManifest(event.manifest);
             // Update the header (project label, branch pill) right after the
             // skeleton lands so it reflects the new project immediately,
             // not minutes later when the final manifest arrives. The
@@ -294,10 +294,10 @@ if (_canvas) {
         }
 
         _applyDisplayLabel(manifest);
-        await handle.cityScene.applyManifest(manifest);
+        await handle.world.applyManifest(manifest);
 
         // Update the header (project label, branch pill) + footer (repo link)
-        // AFTER applyManifest so cityScene.getManifest() inside the coordinator
+        // AFTER applyManifest so world.getManifest() inside the coordinator
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
           payload.branch,

@@ -6,7 +6,7 @@
 //
 // Public contract:
 //
-//   const picker = createPicker({ canvas, camera, cityScene });
+//   const picker = createPicker({ canvas, camera, world });
 //
 //   picker.hover                  // atom: null | hover target
 //   picker.selection              // atom: null | selection target
@@ -29,7 +29,7 @@
 // `{ kind: NodeKind.File | NodeKind.Directory, path: string } | null`. It's hooked
 // into the existing attachPersistence system as `cc.PICKER_SELECTION_KEY`.
 // One-way derivation: selection is the source of truth; whenever it
-// changes, picker writes the matching key. On cityScene.onChange, the
+// changes, picker writes the matching key. On world.onChange, the
 // key is re-resolved to a live selection (or cleared if the path is
 // gone), so a rebuild that loses a node clears it from selection too.
 
@@ -46,11 +46,11 @@ export const PICKER_SELECTION_KEY = atom<PickerSelectionKey | null>(null);
 export function createPicker({
   canvas,
   camera,
-  cityScene,
+  world,
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
-  cityScene: PickerWorld;
+  world: PickerWorld;
 }) {
   const hover = atom<PickTarget | null>(null);
   const selection = atom<PickTarget | null>(null);
@@ -58,19 +58,19 @@ export function createPicker({
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  // Cached pickables list, refreshed on cityScene.onChange so per-frame
+  // Cached pickables list, refreshed on world.onChange so per-frame
   // raycasts don't allocate a new array.
   let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
-    pickables = cityScene.getStreetPickables().slice();
+    pickables = world.getStreetPickables().slice();
 
     // Add the detail InstancedMesh from each cell — buildings live in
     // CellTile meshes (userData.cellId + userData.meshKind).
-    for (const cell of cityScene.getCells().values()) {
+    for (const cell of world.getCells().values()) {
       if (cell.detailMesh) pickables.push(cell.detailMesh);
     }
 
-    const gem = cityScene.getRootGem();
+    const gem = world.getRootGem();
     if (gem) {
       // Body lives at gem.userData.body — don't index children, since
       // the glow sprites are also children and the order shifts.
@@ -100,7 +100,7 @@ export function createPicker({
     }
   });
 
-  // ── Key → selection re-resolution on cityScene rebuild ────────────
+  // ── Key → selection re-resolution on world rebuild ────────────
   // After a manifest swap, any prior live selection (mesh, street ref)
   // is stale. Re-resolve from the persistable key so the user's
   // selected node survives across rebuilds when its path still exists,
@@ -117,7 +117,7 @@ export function createPicker({
       return;
     }
     if (key.kind === NodeKind.File) {
-      const b = cityScene.getBuildingByPath(key.path);
+      const b = world.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
       if (b) {
         selection.set({
@@ -135,8 +135,8 @@ export function createPicker({
       return;
     }
     if (key.kind === NodeKind.Directory) {
-      const sw = cityScene.getSidewalkByDir(key.path);
-      const st = cityScene.getStreetByDir(key.path);
+      const sw = world.getSidewalkByDir(key.path);
+      const st = world.getStreetByDir(key.path);
       _suspendKeyDerive = true;
       if (sw && st && st.dir) {
         selection.set({
@@ -159,7 +159,7 @@ export function createPicker({
     hover.set(null);
   }
 
-  const _unsubResolve = cityScene.onChange(() => {
+  const _unsubResolve = world.onChange(() => {
     _clearHoverOnRebuild();
     _resolveKeyToSelection();
   });
@@ -181,7 +181,7 @@ export function createPicker({
   // clicks. No-op if the path doesn't match anything.
   function selectByPath(path: string): void {
     if (!path) return;
-    const b = cityScene.getBuildingByPath(path);
+    const b = world.getBuildingByPath(path);
     if (b) {
       setSelection({
         kind: NodeKind.File,
@@ -192,8 +192,8 @@ export function createPicker({
       });
       return;
     }
-    const sw = cityScene.getSidewalkByDir(path);
-    const st = cityScene.getStreetByDir(path);
+    const sw = world.getSidewalkByDir(path);
+    const st = world.getStreetByDir(path);
     if (sw && st && st.dir) {
       setSelection({
         kind: NodeKind.Directory,
@@ -231,7 +231,7 @@ export function createPicker({
 
   // pickAt(x, y) — raycast at canvas-relative client coords; returns
   // the first hit or null. Pickables list is cached and refreshed on
-  // cityScene rebuild.
+  // world rebuild.
   function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
@@ -261,7 +261,7 @@ export function createPicker({
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;
-      const idx = cityScene.getBuildingIndex();
+      const idx = world.getBuildingIndex();
       const building = idx?.byCellSlot(`${ud.cellId}:${slot}`);
       if (!building?.file) return null;
       return {

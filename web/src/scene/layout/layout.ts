@@ -1459,7 +1459,7 @@ export function sortForRendering<T extends { x: number; y: number }>(buildings: 
 //
 // Runtime overlap diagnostic. Walks every (street, building, path) pair,
 // reports any rect-rect intersection, and classifies it. Intended to be
-// called from cityScene after layoutCity for live debugging — the test
+// called from world after layoutCity for live debugging — the test
 // suite (assertNoOverlap) covers synthetic trees but visual bugs surface
 // only against real manifests, where this helper helps locate them.
 //

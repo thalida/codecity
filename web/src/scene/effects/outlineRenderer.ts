@@ -33,12 +33,12 @@ import type { FileTarget } from '@/types';
 export function createOutlineRenderer({
   canvas,
   scene,
-  cityScene: _cityScene,
+  world: _world,
   picker,
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   const _bo = BUILDING_OUTLINE.get();
@@ -115,7 +115,7 @@ export function createOutlineRenderer({
 
     // Cell mode: resolve via Building.cellId + Building.slotId.
     if (b.cellId != null && b.slotId != null) {
-      const cells = _cityScene.getCells();
+      const cells = _world.getCells();
       if (cells.size > 0) {
         const cell = cells.get(b.cellId);
         if (cell?.detailMesh) {

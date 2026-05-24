@@ -1,4 +1,4 @@
-// cityScene-collision.test.ts — _formatCollisionReport() partitions overlaps
+// world-collision.test.ts — _formatCollisionReport() partitions overlaps
 // into unexpected vs. t-junction, produces an info-level summary when clean,
 // and a warn-level summary + per-overlap detail block when dirty.
 

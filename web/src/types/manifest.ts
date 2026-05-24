@@ -101,7 +101,7 @@ export interface Manifest {
   signature: string;
   /** Structure-only fingerprint (paths + nesting, NO mtime/size/metadata).
    *  Identical for skeleton and final manifests of the same scan.
-   *  Used as the layout-cache key in cityScene so the expensive layout
+   *  Used as the layout-cache key in world so the expensive layout
    *  computation is skipped on skeleton→final transitions when the tree
    *  shape hasn't changed. */
   tree_signature: string;

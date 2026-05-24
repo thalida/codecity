@@ -11,7 +11,7 @@
 //
 // Public:
 //   const coord = createCoordinator({
-//     cityScene, picker, rig,
+//     world, picker, rig,
 //     applyTheme,
 //   });
 //   coord.dispose();
@@ -37,14 +37,14 @@ import type { createCameraRig } from './scene/system/cameraRig.js';
 import type { createFlyControls } from './scene/system/flyControls.js';
 
 interface CoordinatorOpts {
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   flyControls: ReturnType<typeof createFlyControls>;
   applyTheme: () => void;
 }
 
-export function createCoordinator({ cityScene, picker, rig, flyControls, applyTheme }: CoordinatorOpts) {
+export function createCoordinator({ world, picker, rig, flyControls, applyTheme }: CoordinatorOpts) {
   // Right sidebar opens on file selection and closes via its × button.
   // The previous header-toggle was removed, so the boot state is simply
   // "closed" — the first file selection will open it.
@@ -66,7 +66,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
     // The pane passes the file it's currently rendering, so we look up the
     // matching building mesh and hand it to the camera rig.
     onFocus(file) {
-      const b = cityScene.getBuildingByPath(file.path);
+      const b = world.getBuildingByPath(file.path);
       if (b) rig.focusBuilding(b.mesh, b.building);
     },
   });
@@ -86,8 +86,8 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
   }
 
   // ── App header (refresh / project chip / breadcrumb / fly toggle) ──
-  const rootNode: DirNode | null = cityScene.getRoot();
-  const _initManifest = cityScene.getManifest();
+  const rootNode: DirNode | null = world.getRoot();
+  const _initManifest = world.getManifest();
   // Derive the friendly label for the header breadcrumb and document title.
   // manifest.tree.name is already set to the friendly value by main.ts
   // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
@@ -152,7 +152,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
 
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter({});
-  const initialManifest = cityScene.getManifest();
+  const initialManifest = world.getManifest();
   // Empty by default — selection metadata only appears once the user
   // hovers or picks something. The previous fallback that showed root
   // directory totals was confusing because it looked like a real "current"
@@ -160,7 +160,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
   appFooter.setSelection(null);
 
   // Seed the "last updated" stamp from the initial manifest apply that
-  // already happened in startRenderLoop — cityScene.onChange won't fire
+  // already happened in startRenderLoop — world.onChange won't fire
   // for that, so without this the footer would render "—" until the
   // first poll lands a fresh manifest.
   if (initialManifest) LAST_UPDATED_AT.set(Date.now());
@@ -196,10 +196,10 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
   function _onTreeFocus(node: TreeNode): void {
     if (!node || !node.path) return;
     if (node.type === NodeKind.File) {
-      const b = cityScene.getBuildingByPath(node.path);
+      const b = world.getBuildingByPath(node.path);
       if (b) rig.focusBuilding(b.mesh, b.building);
     } else if (node.type === NodeKind.Directory) {
-      const st = cityScene.getStreetByDir(node.path);
+      const st = world.getStreetByDir(node.path);
       if (st) rig.focusStreet(st, null);
     }
   }
@@ -207,7 +207,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
   function _onTreeHover(node: TreeNode): void {
     if (!node || !node.path) return;
     if (node.type === NodeKind.File) {
-      const b = cityScene.getBuildingByPath(node.path);
+      const b = world.getBuildingByPath(node.path);
       if (!b) return;
       picker.setHover({
         kind: NodeKind.File,
@@ -216,8 +216,8 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
         file: b.building.file,
       });
     } else if (node.type === NodeKind.Directory) {
-      const sw = cityScene.getSidewalkByDir(node.path);
-      const st = cityScene.getStreetByDir(node.path);
+      const sw = world.getSidewalkByDir(node.path);
+      const st = world.getStreetByDir(node.path);
       if (!sw || !st || !st.dir) return;
       picker.setHover({
         kind: NodeKind.Directory,
@@ -232,7 +232,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
     picker.setHover(null);
   }
 
-  const manifest = cityScene.getManifest();
+  const manifest = world.getManifest();
   const leftSidebarApi = showLeftSidebar(manifest!, {
     onResetView() {
       rig.reset();
@@ -246,11 +246,11 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
       picker.selectByPath(path);
     },
     onSearchFocus(path: string) {
-      const b = cityScene.getBuildingByPath(path);
+      const b = world.getBuildingByPath(path);
       if (b) rig.focusBuilding(b.mesh, b.building);
     },
-    onRunCollisionCheck: () => cityScene.runCollisionCheck(),
-    onRunStemDiagnostic: () => cityScene.runStemPlacementDiagnostic(),
+    onRunCollisionCheck: () => world.runCollisionCheck(),
+    onRunStemDiagnostic: () => world.runStemPlacementDiagnostic(),
   });
 
   function _pathOf(target: PickTarget | null): string | null {
@@ -361,8 +361,8 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
   // fires applyManifest, which fires onChange). The header branch pill /
   // repo link now follows the live URL (set by applyNewSource) rather
   // than the manifest, so we only need to keep document.title in sync here.
-  const _changeUnsub = cityScene.onChange(() => {
-    const m = cityScene.getManifest();
+  const _changeUnsub = world.onChange(() => {
+    const m = world.getManifest();
     // manifest.tree.name is already the friendly label — main.ts calls
     // _applyDisplayLabel before every applyManifest, so no mutation needed here.
     // Keep document.title in sync with the now-correct name.
@@ -398,7 +398,7 @@ export function createCoordinator({ cityScene, picker, rig, flyControls, applyTh
     // Derive the friendly label from the new source's manifest so the
     // project-btn updates after a switch. manifest.tree.name is already
     // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
-    const m = cityScene.getManifest();
+    const m = world.getManifest();
     const label = labelFromDisplayRoot(m?.display_root, m?.tree?.name ?? '');
     appHeader.setSourceInfo(label, branch, sourceUrl);
   }

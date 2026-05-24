@@ -1,4 +1,4 @@
-// cityScene-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
+// world-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';

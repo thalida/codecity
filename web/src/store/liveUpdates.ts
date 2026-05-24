@@ -1,9 +1,9 @@
 // liveUpdates.ts — Live-update poll loop. When LIVE_UPDATES.ENABLED flips
 // on we start re-fetching the manifest at the user-configured interval;
 // when its signature changes vs. the last render, we hand the new manifest
-// to cityScene.applyManifest, which rebuilds the city in place. Camera +
+// to world.applyManifest, which rebuilds the city in place. Camera +
 // selection survive because picker.selectionKey is persisted and
-// re-resolved on every cityScene rebuild, and cameraRig keeps its pose
+// re-resolved on every world rebuild, and cameraRig keeps its pose
 // across applyManifest calls (no re-frame).
 //
 // Two-stage poll: each tick first hits /api/manifest/signature (cheap —
@@ -34,7 +34,7 @@ function _clampPollSeconds(s: number | unknown): number {
 }
 
 interface LiveUpdateHandle {
-  cityScene: Awaited<ReturnType<typeof startRenderLoop>>['cityScene'];
+  world: Awaited<ReturnType<typeof startRenderLoop>>['world'];
   applyTheme: () => void;
 }
 
@@ -73,7 +73,7 @@ export function setupLiveUpdates(
         if (m?.signature) {
           lastSignature = m.signature;
           _applyDisplayLabel(m);
-          await handle.cityScene.applyManifest(m);
+          await handle.world.applyManifest(m);
         }
       }
       REBUILD_STATUS.set('idle');

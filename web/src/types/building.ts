@@ -37,7 +37,7 @@ export interface Building {
    * originally created long ago.
    *
    * Optional because layout produces buildings without it; the
-   * cityScene post-layout step fills it in after the manifest's
+   * world post-layout step fills it in after the manifest's
    * date ranges are known. Buffer-builder defaults to 0 when absent.
    */
   createdAge?: number;
@@ -49,7 +49,7 @@ export interface Building {
    * Mirror of `createdAge` but on the modified-date axis.
    *
    * Optional because layout produces buildings without it; the
-   * cityScene post-layout step fills it in after the manifest's
+   * world post-layout step fills it in after the manifest's
    * date ranges are known. Buffer-builder defaults to 0 when absent.
    */
   modifiedAge?: number;

@@ -14,7 +14,7 @@
 //   - Left-click and hover behave like orbit (cursor-driven).
 //
 // Public contract:
-//   const fly = createFlyControls({ camera, canvas, rig, cityScene });
+//   const fly = createFlyControls({ camera, canvas, rig, world });
 //   fly.enable()                    // listeners attached
 //   fly.disable()                   // listeners detached; orbit target re-aimed
 //   fly.update(dtMs)                // per-frame from animate loop
@@ -58,11 +58,11 @@ export interface FlyControlsOpts {
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
   rig: FlyControlsRig;
-  cityScene: FlyControlsWorld;
+  world: FlyControlsWorld;
 }
 
 export function createFlyControls(opts: FlyControlsOpts) {
-  const { camera, canvas, rig, cityScene } = opts;
+  const { camera, canvas, rig, world } = opts;
 
   let active = false;
   const activeChangeCbs: Array<(active: boolean) => void> = [];
@@ -154,7 +154,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
   function _computeBaseSpeed(): number {
     const cfg = FLY_CONTROLS.get();
-    const bbox = cityScene.getBbox();
+    const bbox = world.getBbox();
     if (!bbox || bbox.isEmpty()) {
       return cfg.BASE_SPEED_MIN;
     }
@@ -236,7 +236,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
    *  manifest). Y is untouched — only the plane footprint constrains
    *  movement; the user can still fly above the buildings. */
   function _clampToWorldBounds(): boolean {
-    const wb = cityScene.getWorldBounds();
+    const wb = world.getWorldBounds();
     if (!wb) return false;
     const minX = wb.cx - wb.halfWidth;
     const maxX = wb.cx + wb.halfWidth;
@@ -403,7 +403,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     // Constrain X/Z to the world floor's footprint. Zero the velocity
     // component that was pushing the camera past the edge so the user
     // doesn't keep "leaning" into the wall after release.
-    const wb = cityScene.getWorldBounds();
+    const wb = world.getWorldBounds();
     if (wb) {
       const minX = wb.cx - wb.halfWidth;
       const maxX = wb.cx + wb.halfWidth;
@@ -428,9 +428,9 @@ export function createFlyControls(opts: FlyControlsOpts) {
 
   function resetToDefault(): void {
     const cfg = FLY_CONTROLS.get();
-    const gem = cityScene.getGemWorldPos();
-    const root = cityScene.getRootStreet();
-    const bbox = cityScene.getBbox();
+    const gem = world.getGemWorldPos();
+    const root = world.getRootStreet();
+    const bbox = world.getBbox();
 
     let target: THREE.Vector3;
     let camPos: THREE.Vector3;

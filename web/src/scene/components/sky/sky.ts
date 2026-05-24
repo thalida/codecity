@@ -11,10 +11,10 @@
 // Lifecycle (matches the other createX factories under web/scene/):
 //
 //   const sky = createSky();
-//   scene.add(sky.mesh);          // once, at cityScene boot
+//   scene.add(sky.mesh);          // once, at world boot
 //   sky.tick(elapsedSeconds);     // each frame, before render
 //   sky.refresh();                // on every applyTheme() hot-reload
-//   sky.dispose();                // on cityScene teardown
+//   sky.dispose();                // on world teardown
 //
 // Render order: RENDER_ORDERS.SKY (-1000), depthWrite:false,
 // side:BackSide. The sphere never occludes other geometry and always

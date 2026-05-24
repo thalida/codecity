@@ -4,7 +4,7 @@
 //
 // Public contract:
 //
-//   const rig = createCameraRig({ canvas, cityScene });
+//   const rig = createCameraRig({ canvas, world });
 //
 //   rig.camera                            // PerspectiveCamera (read-only ref)
 //   rig.controls                          // OrbitControls    (read-only ref)
@@ -17,7 +17,7 @@
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
 // the public API. update() runs the framing internally when an internal
-// firstFrame flag is true and cityScene.getBbox() returns non-empty,
+// firstFrame flag is true and world.getBbox() returns non-empty,
 // then clears the flag. There's no surface for an accidental re-frame.
 //
 // Camera-pose persistence: every controls 'change' event debounces a
@@ -69,10 +69,10 @@ const STREET_FOCUS_RATIO = 1.2;
 
 export function createCameraRig({
   canvas,
-  cityScene,
+  world,
 }: {
   canvas: HTMLCanvasElement;
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
 }) {
   const perspective = CAMERA_PERSPECTIVE.get();
   const W = canvas.clientWidth;
@@ -138,7 +138,7 @@ export function createCameraRig({
   const _xrayRay = new THREE.Raycaster();
   const _xrayDir = new THREE.Vector3();
 
-  // Compute the canonical "framed" pose for the current cityScene bbox and
+  // Compute the canonical "framed" pose for the current world bbox and
   // refresh initialCamPos/initialTarget + controls.maxDistance + the
   // OrbitControls saveState snapshot. Does NOT move the user's camera.
   // Called on first frame and after every manifest swap so reset() always
@@ -146,7 +146,7 @@ export function createCameraRig({
   // SHOW_ALL_FILES off after zooming way out left R targeting the OLD
   // (large-city) framing while the camera was far outside the new bbox.
   function _captureFraming(): boolean {
-    const bbox = cityScene.getBbox();
+    const bbox = world.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
 
     // World-bbox metrics — drive controls.maxDistance + camera.far so the
@@ -201,8 +201,8 @@ export function createCameraRig({
     // looking at the gem with the root street + its immediate
     // neighborhood readable on screen — not zoomed all the way out where
     // the gem becomes an invisible dot in a sprawling metropolis.
-    const gemPos = cityScene.getGemWorldPos();
-    const rootStreet = cityScene.getRootStreet();
+    const gemPos = world.getGemWorldPos();
+    const rootStreet = world.getRootStreet();
     let framingCenter: THREE.Vector3;
     let framingRadius: number;
     if (gemPos && rootStreet) {
@@ -257,7 +257,7 @@ export function createCameraRig({
     return true;
   }
 
-  // Reusable scratch — _captureFraming runs on every cityScene rebuild.
+  // Reusable scratch — _captureFraming runs on every world rebuild.
   const _scratchUserPos = new THREE.Vector3();
   const _scratchUserTarget = new THREE.Vector3();
 
@@ -298,7 +298,7 @@ export function createCameraRig({
     }
     // Re-frame on every manifest swap so R always fits the current city.
     if (!_rebuildSubscribed) {
-      cityScene.onChange(() => {
+      world.onChange(() => {
         _captureFraming();
       });
       // Re-hydrate pose when the user switches source mid-session.
@@ -431,7 +431,7 @@ export function createCameraRig({
     // Raycast against every cell's detail InstancedMesh. Three.js
     // handles InstancedMesh natively: hits carry `.instanceId` (the
     // slot) and we identify the cell via `object.userData.cellId`.
-    const hits = _xrayRay.intersectObjects(cityScene.getBuildingPickables(), false);
+    const hits = _xrayRay.intersectObjects(world.getBuildingPickables(), false);
     for (let i = 0; i < hits.length; i++) {
       const hit = hits[i];
       // Skip the focused building itself — its own faces always block its
@@ -540,7 +540,7 @@ export function createCameraRig({
     // expanded building can briefly poke above this baseline; in practice
     // the tweens settle within ~200ms, well before the street-focus
     // camera animation completes.)
-    const maxBldgH = cityScene.getMaxBuildingHeight();
+    const maxBldgH = world.getMaxBuildingHeight();
 
     const camAnim = CAMERA_ANIMATION.get();
     const halfV = (camera.fov * Math.PI) / 180 / 2;

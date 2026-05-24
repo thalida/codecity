@@ -114,7 +114,7 @@ export interface StayingStreet {
 }
 
 /**
- * Payload published by cityScene.onChange after each applyManifest. Each
+ * Payload published by world.onChange after each applyManifest. Each
  * bucket holds the meshes that entered, exited, or stayed across the
  * rebuild — the animator uses entering/staying buildings to drive
  * grow-in / position tweens.

@@ -42,10 +42,10 @@ function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
 }
 
 export function createBuildingFader({
-  cityScene,
+  world,
   picker,
 }: {
-  cityScene: ReturnType<typeof createWorld>;
+  world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {
@@ -56,7 +56,7 @@ export function createBuildingFader({
       } else if (sel.kind === NodeKind.File) {
         const pp = parentDirPath(sel.file.path);
         if (pp != null) {
-          const ps = cityScene.getStreetByDir(pp);
+          const ps = world.getStreetByDir(pp);
           if (ps) dirTarget = ps.dir;
         }
       }
@@ -67,7 +67,7 @@ export function createBuildingFader({
       } else if (hov.kind === NodeKind.File && hov.file) {
         const hp = parentDirPath(hov.file.path);
         if (hp != null) {
-          const hs = cityScene.getStreetByDir(hp);
+          const hs = world.getStreetByDir(hp);
           if (hs) dirTarget = hs.dir;
         }
       }
@@ -146,7 +146,7 @@ export function createBuildingFader({
     const fadeCfg = BUILDING_FADE.get();
 
     // Iterate CellTile.detailMesh instances and write per-slot iFade values.
-    const cells = cityScene.getCells();
+    const cells = world.getCells();
     for (const cell of cells.values()) {
       const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
       if (!iFadeAttr) continue;
@@ -182,7 +182,7 @@ export function createBuildingFader({
 
   // Re-sweep after a manifest rebuild — new blocks have fresh iFade
   // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current selection still applies.
-  const _unsubChange = cityScene.onChange(() => _sweepAll());
+  const _unsubChange = world.onChange(() => _sweepAll());
 
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
   // controls every value _sweepAll reads. Resweep on any change so

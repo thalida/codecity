@@ -62,12 +62,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 
   // -- 1. City scene + meshes --------------------------------------------------
   // Manifest-bound state — meshes, lookup maps, outlines, ghosts — lives
-  // in scene/cityScene.js. main.js no longer caches mesh refs locally —
-  // every other module reads cityScene directly through accessors.
-  const cityScene = createWorld(canvas);
-  const scene = cityScene.scene;
+  // in scene/world.js. main.js no longer caches mesh refs locally —
+  // every other module reads world directly through accessors.
+  const world = createWorld(canvas);
+  const scene = world.scene;
   _applyDisplayLabel(manifest);
-  await cityScene.applyManifest(manifest);
+  await world.applyManifest(manifest);
 
   // -- 3. Renderer -------------------------------------------------------------
   const renderer = new THREE.WebGLRenderer({
@@ -82,7 +82,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset
   // animations all live in scene/cameraRig.js. Local aliases are kept for
   // brevity in event handlers and resize logic below.
-  const rig = createCameraRig({ canvas, cityScene });
+  const rig = createCameraRig({ canvas, world });
   const camera = rig.camera;
   // Expose for visual regression tests. Harmless in production (just a
   // global ref); only used by tests/visual/setup.ts.
@@ -95,7 +95,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     camera,
     canvas,
     rig,
-    cityScene,
+    world,
   });
 
   // -- 4b. Post-processing -----------------------------------------------------
@@ -117,41 +117,41 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // Selection persistence is wired in the boot block before startRenderLoop
   // runs — the saved {kind, path} key is hydrated into PICKER_SELECTION_KEY
   // before this picker resolves it against the freshly-built city.
-  const picker = createPicker({ canvas, camera, cityScene });
+  const picker = createPicker({ canvas, camera, world });
 
   // -- 6. Per-frame visual modules ---------------------------------------------
-  // Four siblings, all subscribed to picker / cityScene so they react
+  // Four siblings, all subscribed to picker / world so they react
   // to selection / hover / manifest changes on their own. Animate loop
   // drives them in field-ownership order: fader writes body opacity →
   // outlineRenderer tracks hover/selected outline transforms + rainbow
   // chase → ghostRenderer tracks hover ghost transform → pathLineRenderer
   // ticks the rainbow chase on the selection line.
-  const fader = createBuildingFader({ cityScene, picker });
+  const fader = createBuildingFader({ world, picker });
   const outlineRenderer = createOutlineRenderer({
     canvas,
     scene,
-    cityScene,
+    world,
     picker,
   });
-  const ghostRenderer = createGhostRenderer({ scene, cityScene, picker });
+  const ghostRenderer = createGhostRenderer({ scene, world, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
     scene,
-    cityScene,
+    world,
     picker,
   });
 
-  // Tween queue for entering / staying transitions on cityScene.onChange.
+  // Tween queue for entering / staying transitions on world.onChange.
   // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
   // material.opacity), so they cannot conflict by construction.
-  const animator = createAnimator({ cityScene });
+  const animator = createAnimator({ world });
 
   // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
   // Owns the lifecycle of the three component panes and wires picker
   // changes into their displays. Tree-row clicks/hovers/focus dispatches
   // route back through picker + rig the same as canvas-driven actions.
   const coordinator = createCoordinator({
-    cityScene,
+    world,
     picker,
     rig,
     flyControls,
@@ -173,7 +173,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   function _refreshSidewalkTints(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
-    const streetPickables = cityScene.getStreetPickables();
+    const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       if (sw.userData.origColor == null) {
         sw.userData.origColor = sw.material.color.getHex();
@@ -187,7 +187,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const swColor = expected ?? sw.userData.origColor;
       sw.material.color.setHex(swColor);
       const swDir = sw.userData.street?.dir;
-      const connectors = swDir ? cityScene.getPathConnectorsByDir(swDir.path) : null;
+      const connectors = swDir ? world.getPathConnectorsByDir(swDir.path) : null;
       if (connectors) {
         for (const pm of connectors) {
           if (pm.userData.origColor == null) {
@@ -212,14 +212,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
     SIDEWALK_DEFAULT_COLOR = new THREE.Color(sidewalk.DEFAULT).getHex();
-    const streetPickables = cityScene.getStreetPickables();
+    const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       sw.userData.origColor = SIDEWALK_DEFAULT_COLOR;
     }
     _refreshSidewalkTints();
 
     const asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
-    const asphaltMeshes = cityScene.getAsphaltMeshes();
+    const asphaltMeshes = world.getAsphaltMeshes();
     for (const mesh of asphaltMeshes) {
       mesh.material.color.setHex(asphaltHex);
     }
@@ -234,31 +234,31 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // ground color, star density, twinkle params) and flips
     // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
     // hotStores route in web/config/hotReload.ts.
-    cityScene.getSky().refresh();
+    world.getSky().refresh();
 
     // Cyberpunk Valley floating island — pulls fresh ISLAND_MATERIALS /
     // ISLAND_GEOMETRY / ISLAND_UNDERGLOW config so colour pickers + toggles
     // hot-update without a manifest rebuild.
-    cityScene.getIsland().refresh();
+    world.getIsland().refresh();
 
     // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
-    cityScene.getTrees()?.refresh();
+    world.getTrees()?.refresh();
 
     // Cyberpunk Valley bushes — pushes fresh BUSH_NEON_COLORS + emission
     // boost into per-instance color buffers + ShaderMaterial uniforms.
     // Null until the first manifest applies (or when BUSHES_ENABLED is off).
-    cityScene.getBushes()?.refresh();
+    world.getBushes()?.refresh();
 
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
     // onto the slab material / group visibility. Null until the first
     // manifest applies; guard with optional chain.
-    cityScene.getCityFootprint()?.refresh();
+    world.getCityFootprint()?.refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
-    const rootGemEdges = cityScene.getRootGemEdges();
-    const rootGemBody = cityScene.getRootGemBody();
-    const rootGem = cityScene.getRootGem();
+    const rootGemEdges = world.getRootGemEdges();
+    const rootGemBody = world.getRootGemBody();
+    const rootGem = world.getRootGem();
     if (rootGemEdges?.material?.color) {
       rootGemEdges.material.color.set(gemAppearance.EDGE_COLOR);
     }
@@ -300,7 +300,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     }
 
     const labelCfg = LABEL_TYPOGRAPHY.get();
-    const streetLabels = cityScene.getStreetLabels();
+    const streetLabels = world.getStreetLabels();
     for (const lg of streetLabels) {
       const origFrac = lg.userData.origHeightFrac;
       if (origFrac && lg.children[0]) {
@@ -347,7 +347,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         rig.reset();
       }
     },
-    getRootName: () => cityScene.getRoot()?.name ?? null,
+    getRootName: () => world.getRoot()?.name ?? null,
   });
 
   // Sidewalk tints are scene-state that follow selection / hover. Subscribe
@@ -408,14 +408,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // black flicker around the edges.
     {
       const nowS = (performance.now() - startTime) / 1000;
-      const sky = cityScene.getSky();
+      const sky = world.getSky();
       const dt = _lastSkyTime === null ? 0 : Math.max(0, nowS - _lastSkyTime);
       _lastSkyTime = nowS;
       sky.tick(dt);
       // Island tick: updates uSunDirWorld uniform from the sun direction
       // shared by the sky. Must run after sky.tick() so the sun direction
       // is current before the island shader samples it.
-      cityScene.getIsland().tick();
+      world.getIsland().tick();
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
@@ -423,8 +423,8 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     pathLineRenderer.update(0); // selection path line rainbow chase
     // Street labels are world-space text on the asphalt — orient toward
     // camera each frame so they remain readable from any rotation.
-    _orientLabelsForCamera(cityScene.getStreetLabels(), camera, labelRight);
-    const rootGem = cityScene.getRootGem();
+    _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
+    const rootGem = world.getRootGem();
     if (rootGem) {
       const gemAnim = GEM_ANIMATION.get();
       const t = (performance.now() - startTime) / 1000;
@@ -483,7 +483,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // an off-center sphere disc, because the camera was momentarily
     // outside its own sky sphere.
     {
-      const sky = cityScene.getSky();
+      const sky = world.getSky();
       sky.mesh.position.copy(camera.position);
       sky.mesh.updateMatrixWorld(true);
     }
@@ -492,11 +492,11 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   }
   animate();
 
-  // Expose cityScene, applyTheme, and coordinator to the boot block so
+  // Expose world, applyTheme, and coordinator to the boot block so
   // setupLiveUpdates can swap in fresh manifests, attachHotReload can
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
-  return { cityScene, applyTheme, coordinator };
+  return { world, applyTheme, coordinator };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,

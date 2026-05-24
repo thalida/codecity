@@ -1,11 +1,11 @@
 // scene/animator.ts — tween queue for entering / staying transitions
-// when cityScene.applyManifest swaps in a new manifest.
+// when world.applyManifest swaps in a new manifest.
 //
-// Subscribes to cityScene.onChange. For every entering building, starts
+// Subscribes to world.onChange. For every entering building, starts
 // a "grow in" tween (scaleY from ~0 → final height). For staying
 // buildings whose layout shifted, tweens position and/or scale from old
 // → new. Exit animations aren't supported in this V1 — disposed
-// buildings just vanish — because cityScene drops the old instances
+// buildings just vanish — because world drops the old instances
 // before firing the diff.
 //
 // With InstancedMesh, the animator writes the instance matrix directly
@@ -15,11 +15,11 @@
 // re-uploads on the same mesh.
 //
 // The tween stores a Building reference and resolves the target mesh via
-// cityScene.getMeshForBuilding() at each frame. This routes correctly to
+// world.getMeshForBuilding() at each frame. This routes correctly to
 // cell.detailMesh without duplicating the routing logic here.
 //
 // Public:
-//   const animator = createAnimator({ cityScene });
+//   const animator = createAnimator({ world });
 //   animator.update(dtMs);   // called from animate() each frame
 //   animator.dispose();
 //
@@ -66,7 +66,7 @@ function easeOutCubic(t: number): number {
   return 1 - u * u * u;
 }
 
-export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof createWorld> }) {
+export function createAnimator({ world }: { world: ReturnType<typeof createWorld> }) {
   // Tween queue. Each tween targets one building instance and animates
   // both scale and position together (a single matrix write per frame).
   //
@@ -179,7 +179,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     }
   }
 
-  const _unsub = cityScene.onChange(_onChange);
+  const _unsub = world.onChange(_onChange);
 
   // Reusable scratch matrix — allocated once, reused every frame to
   // avoid per-tween GC pressure.
@@ -199,7 +199,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
 
       // Resolve the target mesh via getMeshForBuilding(), which routes via
       // building.cellId/slotId.
-      const resolved = cityScene.getMeshForBuilding(tw.building);
+      const resolved = world.getMeshForBuilding(tw.building);
       if (!resolved) {
         // Mesh was disposed between frames (cell evicted) — drop tween.
         tweens.splice(i, 1);

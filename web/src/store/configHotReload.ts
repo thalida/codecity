@@ -2,7 +2,7 @@
 // "rebuild-required" or "hot-reloadable", and wired to the matching
 // reaction:
 //
-//   rebuild-required → debounced cityScene.applyManifest(getManifest())
+//   rebuild-required → debounced world.applyManifest(getManifest())
 //                       so a slider drag coalesces into one rebuild
 //   hot-reloadable   → applyTheme() (renderer modules' refreshMaterials
 //                       coordinator), or no-op for stores that are read
@@ -81,14 +81,14 @@ const REBUILD_DEBOUNCE_MS = 50;
 const HOT_REBUILD_MIN_DWELL_MS = 220;
 
 interface HotReloadOpts {
-  cityScene: {
+  world: {
     getManifest(): unknown;
     applyManifest(m: unknown): Promise<void>;
   };
   applyTheme: () => void;
 }
 
-export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () => void {
+export function attachHotReload({ world, applyTheme }: HotReloadOpts): () => void {
   // nanostores `.subscribe()` fires synchronously with the current
   // value when called. We wait until all subscriptions are wired
   // before allowing reactions to run, so the initial fire doesn't
@@ -110,7 +110,7 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     rebuildTimer = setTimeout(async () => {
       rebuildTimer = 0;
       try {
-        const manifest = cityScene.getManifest();
+        const manifest = world.getManifest();
         // getManifest() returns null only during scene teardown — not a
         // path reachable via store mutation under normal use. The 'idle'
         // transition below is safe even in that no-op branch.
@@ -119,9 +119,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
           console.log('[boot] applyManifest caller=hotReload/scheduleRebuild', {
             stack: new Error().stack?.split('\n').slice(0, 6).join(' | '),
           });
-          await cityScene.applyManifest(manifest);
+          await world.applyManifest(manifest);
         }
-        // LAST_UPDATED_AT is set by the coordinator's cityScene.onChange
+        // LAST_UPDATED_AT is set by the coordinator's world.onChange
         // listener after applyManifest's _emit(changeCbs, ...) fires —
         // not set here. refreshMaterials below uses its own hot-path
         // timestamp set because applyTheme doesn't fire onChange.

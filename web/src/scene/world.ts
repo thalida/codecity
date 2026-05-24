@@ -1,19 +1,19 @@
-// scene/cityScene.ts — owns the persistent THREE.Scene plus every
+// scene/world.ts — owns the persistent THREE.Scene plus every
 // manifest-bound mesh (buildings, streets, labels, paths, asphalt, root
 // gem) and the lookup maps consumers use to reach them by path.
 //
 // Public contract:
 //
-//   const cityScene = createWorld(canvas);
-//   cityScene.applyManifest(manifest);    // builds OR rebuilds in-place
+//   const world = createWorld(canvas);
+//   world.applyManifest(manifest);    // builds OR rebuilds in-place
 //
-//   cityScene.scene                       // THREE.Scene reference
-//   cityScene.getStreetPickables(), …
-//   cityScene.getBuildingByPath(p), .getSidewalkByDir(p), …
+//   world.scene                       // THREE.Scene reference
+//   world.getStreetPickables(), …
+//   world.getBuildingByPath(p), .getSidewalkByDir(p), …
 //
-//   cityScene.onBeforeChange(cb)          // before disposal
-//   cityScene.onChange(cb)                // after rebuild, with diff
-//   cityScene.disposeMesh(mesh)           // animator's onComplete calls this
+//   world.onBeforeChange(cb)          // before disposal
+//   world.onChange(cb)                // after rebuild, with diff
+//   world.disposeMesh(mesh)           // animator's onComplete calls this
 //
 // applyManifest computes the entering / exiting / staying buckets vs the
 // previous manifest (matched by file.path / dir.path) and fires onChange
@@ -351,7 +351,7 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
 
   // buildingMeshes is empty — per-building meshes live in cell
   // InstancedMeshes, not on this scene. Returned for shape compatibility
-  // with cityScene's disposal loop.
+  // with world's disposal loop.
   const buildingMeshes: THREE.Mesh[] = [];
 
   return {
@@ -370,7 +370,7 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
 
 // `canvas` is unused; kept in the signature so call sites (main.ts, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
-// own factory now, so cityScene no longer needs to forward it — the param
+// own factory now, so world no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
 export function createWorld(_canvas: HTMLCanvasElement) {
   // Register project GLSL chunks with THREE.ShaderChunk so #include <name>
@@ -383,7 +383,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
-  // the lifetime of the cityScene. Not rebuilt per applyManifest
+  // the lifetime of the world. Not rebuilt per applyManifest
   // (the sky is wallpaper, independent of the manifest tree). When
   // SKY.ENABLED is false the mesh.visible flag is cleared
   // by sky.refresh() and scene.background's GROUND color shows
@@ -405,8 +405,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let _trees: Trees | null = null;
 
   // Tree placement client — owns the off-thread worker (or its sync
-  // fallback in test envs). One instance per cityScene; disposed when
-  // the cityScene is disposed.
+  // fallback in test envs). One instance per world; disposed when
+  // the world is disposed.
   const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
 
   // Cyberpunk Valley bushes — REBUILT per applyManifest (only when
@@ -427,8 +427,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // was superseded and must bail out (cleaning up any meshes it built).
   let _currentGeneration = 0;
 
-  // One layoutClient instance per cityScene. Owns the off-thread worker
-  // (or its sync fallback in test envs). Disposed when the cityScene is
+  // One layoutClient instance per world. Owns the off-thread worker
+  // (or its sync fallback in test envs). Disposed when the world is
   // disposed.
   const _layoutClient = createLayoutClient();
 
@@ -547,7 +547,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       try {
         cb(payload);
       } catch (e) {
-        console.error('[cityScene] listener error', e);
+        console.error('[world] listener error', e);
       }
     }
   }
@@ -850,7 +850,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     return { entering, exiting, staying };
   }
 
-  // Manifest is typed loosely because cityScene.test.ts builds mock
+  // Manifest is typed loosely because world.test.ts builds mock
   // manifests with string `type` fields rather than the literal
   // 'directory'/'file'. Real callers (the scanner/IPC path) hand us
   // proper Manifest objects.

@@ -35,7 +35,7 @@ function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
 // opts.onClose      — fn() when the user clicks the × in the header.
 //
 // api.setManifest(manifest) — caller pushes the latest manifest in (e.g.
-//   on cityScene.onChange after a live-update rebuild). The pane re-runs
+//   on world.onChange after a live-update rebuild). The pane re-runs
 //   the README lookup; if the root README's path or fullPath changes, it
 //   re-fetches and re-renders. If only the contents changed (same path),
 //   we still re-fetch — the manifest signature already proved something

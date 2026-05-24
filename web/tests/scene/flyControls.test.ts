@@ -36,7 +36,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     expect(fly.isActive()).toBe(false);
   });
@@ -48,7 +48,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     expect(fly.isActive()).toBe(true);
@@ -62,7 +62,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     fly.disable();
@@ -84,7 +84,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     fly.disable();
@@ -106,7 +106,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig,
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     fly.disable();
@@ -121,7 +121,7 @@ describe('flyControls state machine', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     const cb = vi.fn();
     fly.onActiveChange(cb);
@@ -140,7 +140,7 @@ describe('flyControls dispose', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     const cb = vi.fn();
     fly.onActiveChange(cb);
@@ -162,7 +162,7 @@ describe('flyControls key state', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
 
@@ -202,7 +202,7 @@ describe('flyControls key state', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
     expect(fly._keyStateForTest().forward).toBe(false);
@@ -214,7 +214,7 @@ describe('flyControls key state', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
@@ -228,7 +228,7 @@ describe('flyControls key state', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     fly.disable();
@@ -242,7 +242,7 @@ describe('flyControls key state', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
 
@@ -276,7 +276,7 @@ describe('flyControls velocity integration', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     return { camera, fly };
   }
@@ -334,7 +334,7 @@ describe('flyControls velocity integration', () => {
     camera.lookAt(0, 20, -1);
     camera.updateMatrixWorld();
     const fly = createFlyControls({
-      camera, canvas: makeCanvas(), rig: makeFakeRig(), cityScene: makeFakeWorld(),
+      camera, canvas: makeCanvas(), rig: makeFakeRig(), world: makeFakeWorld(),
     });
     fly.enable();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
@@ -372,7 +372,7 @@ describe('flyControls velocity integration', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
@@ -389,7 +389,7 @@ describe('flyControls velocity integration', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     // Don't enable.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'w' }));
@@ -409,7 +409,7 @@ describe('flyControls mouse look', () => {
       camera,
       canvas,
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     const before = new THREE.Vector3();
@@ -434,7 +434,7 @@ describe('flyControls mouse look', () => {
       camera,
       canvas,
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     const before = new THREE.Vector3();
@@ -456,7 +456,7 @@ describe('flyControls mouse look', () => {
     camera.updateMatrixWorld();
     const canvas = makeCanvas();
     const fly = createFlyControls({
-      camera, canvas, rig: makeFakeRig(), cityScene: makeFakeWorld(),
+      camera, canvas, rig: makeFakeRig(), world: makeFakeWorld(),
     });
     fly.enable();
     const before = new THREE.Quaternion().copy(camera.quaternion);
@@ -477,7 +477,7 @@ describe('flyControls mouse look', () => {
       camera,
       canvas,
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 2 }));
@@ -501,7 +501,7 @@ describe('flyControls mouse look', () => {
       camera,
       canvas,
       rig: makeFakeRig(),
-      cityScene: makeFakeWorld(),
+      world: makeFakeWorld(),
     });
     // Not enabled — listeners not attached, so even RMB+move does nothing.
     canvas.dispatchEvent(new MouseEvent('mousedown', { button: 2 }));
@@ -515,7 +515,7 @@ describe('flyControls resetToDefault', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(999, 999, 999); // somewhere far away
 
-    const cityScene = {
+    const world = {
       // Gem at origin.
       getGemWorldPos: () => new THREE.Vector3(0, 0, 0),
       // Root street runs along world X with length 200, width 20.
@@ -535,7 +535,7 @@ describe('flyControls resetToDefault', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene,
+      world,
     });
     fly.resetToDefault();
 
@@ -561,7 +561,7 @@ describe('flyControls resetToDefault', () => {
   it('falls back to bbox center when there is no gem', () => {
     const camera = new THREE.PerspectiveCamera();
     camera.position.set(0, 0, 0);
-    const cityScene = {
+    const world = {
       getGemWorldPos: () => null,
       getRootStreet: () => null,
       getBbox: () => new THREE.Box3(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 30, 50)),
@@ -571,7 +571,7 @@ describe('flyControls resetToDefault', () => {
       camera,
       canvas: makeCanvas(),
       rig: makeFakeRig(),
-      cityScene,
+      world,
     });
     // Should not throw, should land at some non-zero altitude.
     expect(() => fly.resetToDefault()).not.toThrow();
@@ -586,7 +586,7 @@ describe('flyControls idle quaternion passthrough', () => {
     camera.lookAt(0, 0, -1);
     camera.updateMatrixWorld();
     const fly = createFlyControls({
-      camera, canvas: makeCanvas(), rig: makeFakeRig(), cityScene: makeFakeWorld(),
+      camera, canvas: makeCanvas(), rig: makeFakeRig(), world: makeFakeWorld(),
     });
     fly.enable();
     // Let velocity fully decay to zero by running several idle frames.

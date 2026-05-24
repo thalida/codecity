@@ -36,7 +36,7 @@ const SHARED_LABEL_GEOMETRY = new THREE.PlaneGeometry(1, 1);
 // ---------------------------------------------------------------------------
 // Material cache — one ShaderMaterial shared across all cells that use the
 // same uniforms object identity. Memoized on the REFERENCE of the uniforms
-// bag (callers pass the same object every time — see cityScene.ts). This
+// bag (callers pass the same object every time — see world.ts). This
 // eliminates the per-cell ShaderMaterial + WebGL program compilation cost
 // that was causing the tab to hang on large repos.
 // ---------------------------------------------------------------------------
@@ -80,7 +80,7 @@ function getOrCreateLabelMaterial(uniforms: Record<string, THREE.IUniform>): THR
  * The ShaderMaterial is shared across all cells that pass the same uniforms
  * object reference (identity-memoized). Do NOT call material.dispose() on
  * the returned mesh's material — it is owned by this module, not by the cell.
- * The mesh's `userData.sharedMaterial = true` flag signals the cityScene
+ * The mesh's `userData.sharedMaterial = true` flag signals the world
  * disposer to skip material disposal when tearing down the old cell root.
  *
  * Call once per cell after `createEmptyCellTile`.
@@ -116,7 +116,7 @@ export function attachLabelMeshToCell(
   cell.labelMesh.geometry.dispose();
   cell.labelMesh.geometry = geom;
   cell.labelMesh.material = mat;
-  // Signal to cityScene's _disposeObject traversal that this material is
+  // Signal to world's _disposeObject traversal that this material is
   // module-owned (shared) and must not be disposed when the cell root is
   // torn down between applyManifest calls.
   cell.labelMesh.userData.sharedMaterial = true;

@@ -1,6 +1,6 @@
 // picker.test.js — exercises the hover/selection state machine and the
 // one-way derivation from selection → selectionKey, plus the
-// re-resolution from key → selection on cityScene rebuild.
+// re-resolution from key → selection on world rebuild.
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -54,7 +54,7 @@ function makeDirTarget(opts: { path?: string; sidewalk?: object; street?: object
   };
 }
 
-// Minimal cityScene stub with the accessors picker actually reads. Internal
+// Minimal world stub with the accessors picker actually reads. Internal
 // fixtures cast to the real types so the helper satisfies PickerWorld.
 function makeFakeWorld(
   initialBuildings: FakeBuildingFixture[],
@@ -169,7 +169,7 @@ describe('picker.pickAtCenter', () => {
     camera.lookAt(0, 0, -10);
     camera.updateMatrixWorld();
 
-    const p = createPicker({ canvas, camera, cityScene: mockWorld });
+    const p = createPicker({ canvas, camera, world: mockWorld });
     const hit = p.pickAtCenter();
     expect(hit).not.toBeNull();
     expect(hit?.object).toBe(cube);
@@ -188,7 +188,7 @@ describe('picker.pickAtCenter', () => {
       getCells: () => new Map(),
     };
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
-    const p = createPicker({ canvas, camera, cityScene: mockWorld });
+    const p = createPicker({ canvas, camera, world: mockWorld });
     expect(p.pickAtCenter()).toBeNull();
     p.dispose();
   });
@@ -197,7 +197,7 @@ describe('picker.pickAtCenter', () => {
 describe('createPicker', () => {
   it('exposes hover, selection, selectionKey atoms + setters', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     expect(typeof p.hover.get).toBe('function');
     expect(typeof p.selection.get).toBe('function');
     expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
@@ -211,7 +211,7 @@ describe('createPicker', () => {
 
   it('setSelection derives selectionKey for a file target', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeFileTarget({ path: 'src/index.js' }));
     expect(p.selectionKey.get()).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
     p.dispose();
@@ -219,7 +219,7 @@ describe('createPicker', () => {
 
   it('setSelection derives selectionKey for a directory target', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeDirTarget({ path: 'src/lib' }));
     expect(p.selectionKey.get()).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
     p.dispose();
@@ -227,7 +227,7 @@ describe('createPicker', () => {
 
   it('setSelection(null) clears selectionKey', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeFileTarget({ path: 'a.js' }));
     p.setSelection(null);
     expect(p.selectionKey.get()).toBeNull();
@@ -237,7 +237,7 @@ describe('createPicker', () => {
   it('selectByPath looks up a building by path and selects it', () => {
     const meshA = { name: 'meshA' };
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: meshA }], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
     const sel = p.selection.get();
     expect(sel?.kind).toBe(NodeKind.File);
@@ -250,7 +250,7 @@ describe('createPicker', () => {
 
   it('selectByPath(missing) leaves selection alone', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
     p.selectByPath('does-not-exist.js');
     const sel = p.selection.get();
@@ -260,10 +260,10 @@ describe('createPicker', () => {
     }
   });
 
-  it('cityScene rebuild re-resolves selectionKey to a fresh selection', () => {
+  it('world rebuild re-resolves selectionKey to a fresh selection', () => {
     const oldMesh = { id: 'old' };
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: oldMesh }], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
     const before = p.selection.get();
     if (before?.kind === NodeKind.File) expect(before.mesh).toBe(oldMesh);
@@ -277,9 +277,9 @@ describe('createPicker', () => {
     p.dispose();
   });
 
-  it('cityScene rebuild that removes the selected path clears selection + key', () => {
+  it('world rebuild that removes the selected path clears selection + key', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
     expect(p.selection.get()).not.toBeNull();
 
@@ -290,9 +290,9 @@ describe('createPicker', () => {
     p.dispose();
   });
 
-  it('cityScene rebuild always clears hover (transient, can dangle on disposed mesh otherwise)', () => {
+  it('world rebuild always clears hover (transient, can dangle on disposed mesh otherwise)', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
     expect(p.hover.get()).not.toBeNull();
 
@@ -303,7 +303,7 @@ describe('createPicker', () => {
 
   it('interpretHit returns NodeKind.Gem for a gem hit', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     const target = p.interpretHit(fakeHit({ type: NodeKind.Gem }));
     expect(target?.kind).toBe(NodeKind.Gem);
     p.dispose();
@@ -311,7 +311,7 @@ describe('createPicker', () => {
 
   it('interpretHit returns null for an uninterpretable hit', () => {
     const fakeScene = makeFakeWorld([], []);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, cityScene: fakeScene });
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     expect(p.interpretHit(fakeHit({}))).toBeNull();
     expect(p.interpretHit(null)).toBeNull();
     p.dispose();

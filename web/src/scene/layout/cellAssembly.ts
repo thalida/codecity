@@ -1,6 +1,6 @@
 // scene/cellAssembly.ts — Wires SpatialGrid + CellTile + per-cell
 // building factory into a complete scene-ready set of cells given a
-// layout. Called from cityScene.ts.
+// layout. Called from world.ts.
 //
 // Only BUILDINGS are consolidated into spatial-grid cells. Streets,
 // labels, paths, and the root gem stay on the engine-built path because
