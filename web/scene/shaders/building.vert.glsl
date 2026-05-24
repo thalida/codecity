@@ -61,6 +61,7 @@ flat varying vec3 vScale;       // (w, h, d) recovered from instance matrix
 flat varying vec4 vIconUV;      // pass-through of iIconUV; .xy = atlas UV, .z = seed, .w = createdAge
 flat varying float vModifiedAge; // pass-through of iModifiedAge
 varying float vWorldY;          // world-space height, for height-based ground haze in frag
+varying vec3 vWorldPos;         // world-space position, for distance fog in frag
 
 void main() {
   // Geometry's normal in object space tells us which face this vertex
@@ -120,5 +121,6 @@ void main() {
   worldPos.xz += worldPos.y * tiltAngle * tiltDir;
 
   vWorldY = worldPos.y;
+  vWorldPos = worldPos.xyz;
   gl_Position = projectionMatrix * viewMatrix * worldPos;
 }

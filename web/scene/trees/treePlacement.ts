@@ -5,10 +5,9 @@
 // into a uniform grid sized to hold roughly `treeTarget` candidates
 // (capped at TREE_MAX_CELLS for massive-repo memory safety). Each
 // cell contributes a single jittered candidate, which is then run
-// through the same three rejection passes:
+// through the same two rejection passes:
 //   1. layout-rect collisions (rbush against inflated buildings + streets + paths)
-//   2. gem no-tree buffer
-//   3. density-falloff probabilistic rejection
+//   2. density-falloff probabilistic rejection
 // Accepted candidates are sorted by distance to the gem (ascending)
 // and truncated to `treeTarget`; the i-th placement gets
 // commitIndex = i (oldest commit closest to gem).
@@ -24,13 +23,20 @@
 // city always produces the same placement across reloads.
 
 import RBush from 'rbush';
+import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { GEM_SIZING } from '@/config/gem.js';
+import { ISLAND_GEOMETRY } from '@/config/island.js';
 import { getWorldBounds } from '../worldBounds.js';
+import {
+  buildTopPolygon,
+  pointInIslandPolygon,
+} from '../island/islandGeometry.js';
+import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
+import type { IslandGeometryConfig } from '@/config/island.js';
 
 interface Rect {
   minX: number;
@@ -56,6 +62,11 @@ export interface PlaceTreesOptions {
    *  threaded through to worldBounds so small-but-tall cities get a
    *  buffer proportional to building height. Optional — defaults to 0. */
   cityHeight?: number;
+  /** Optional override for island geometry config (used by the worker
+   *  which can't read the main-thread store directly). When omitted,
+   *  the live ISLAND_GEOMETRY store is read. Pass null to disable the
+   *  polygon rejection pass (e.g. in non-island tests). */
+  islandGeoOverride?: IslandGeometryConfig | null;
 }
 
 /** Hard ceiling on grid resolution. Caps total iterations + accepted
@@ -178,15 +189,32 @@ export function placeTrees(
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
-  // Gem buffer: hard rejection of any candidate within this radius of
-  // the gem center. Squared once for cheap comparison in the loop.
-  const gemBufferRadius = Math.max(0, GEM_SIZING.get().TREE_BUFFER_RADIUS);
-  const gemBufferR2 = gemBufferRadius * gemBufferRadius;
-
-  const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
-  const inset = Math.min(bounds.halfWidth, bounds.halfDepth) * insetFrac;
-  const sampleHalfW = Math.max(0, bounds.halfWidth - inset);
-  const sampleHalfD = Math.max(0, bounds.halfDepth - inset);
+  // Expand sampling region to cover the island polygon's full bounding
+  // box, not just the inscribed worldBounds rect. The polygon
+  // circumscribes the rect (vertices at radius hypot(halfWidth, halfDepth)),
+  // so its bbox is that radius on both axes. Without this expansion, the
+  // polygon's "ears" past the rect corners get zero candidates and read
+  // as empty zones on the island.
+  //
+  // Edge inset is handled by shrinking the polygon used in the rejection
+  // test (see shrunkPolygon below), NOT by shrinking the sampling rect.
+  //
+  // The island polygon is bigger than the bounds rect: scaled by
+  // sqrt(2)/cos(π/N) so it fully contains the rect's corners. The
+  // sampling rect needs to match the polygon's axis-aligned bounding box
+  // (i.e. the polygon's max X/Z extent) — otherwise tree candidates fill
+  // only the smaller bounds rect, leaving the polygon's expanded edges
+  // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
+  // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
+  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.get().SIDES;
+  const irregularity = options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
+  // Irregularity is now reductive (vertices shrink inward), so the polygon's
+  // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
+  // expansion factor needed.
+  void irregularity; // referenced for future-proofing if jitter direction flips again
+  const polygonScale = Math.SQRT2 / Math.cos(Math.PI / sides);
+  const sampleHalfW = bounds.halfWidth * polygonScale;
+  const sampleHalfD = bounds.halfDepth * polygonScale;
 
   // Density falloff: trees cluster near the city, fade out toward the
   // sampling region's edge. `maxFalloffDist` is the largest possible
@@ -205,6 +233,45 @@ export function placeTrees(
     Math.max(dxLeft, dxRight) ** 2 + Math.max(dyTop, dyBot) ** 2,
   );
   const falloffActive = falloffPower > 0 && maxFalloffDist > 0;
+
+  // Island polygon containment: build the same polygon that islandMesh
+  // renders so we can reject candidates outside the visible silhouette.
+  // options.islandGeoOverride === null disables the pass (non-island tests);
+  // undefined means read the live store (main-thread / sync path).
+  // The worker passes a snapshot via islandGeoOverride so it never touches
+  // the main-thread store directly.
+  //
+  // Edge inset: each polygon vertex is pulled radially inward by insetFrac
+  // so the rejection test naturally excludes trees within that margin of
+  // the actual polygon edge. This gives visually-uniform clearance regardless
+  // of IRREGULARITY (which makes edges sit at varying distances from origin).
+  let islandPolygon: THREE.Vector3[] | null = null;
+  if (options.islandGeoOverride !== null) {
+    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.get();
+    if (islandGeo.ENABLED) {
+      const rawPolygon = buildTopPolygon({
+        sides: islandGeo.SIDES,
+        irregularity: islandGeo.IRREGULARITY,
+        tiers: islandGeo.TIERS,
+        depth: islandGeo.DEPTH,
+        halfWidth: bounds.halfWidth,
+        halfDepth: bounds.halfDepth,
+        seed: islandSeedFromBounds(bounds),
+        roundness: islandGeo.ROUNDNESS,
+        grassThickness: islandGeo.GRASS_THICKNESS,
+      });
+      // Shrink every vertex radially inward by insetFrac so the rejection
+      // polygon is uniformly inset from the actual island edge.
+      const insetFrac = cfg.EDGE_INSET_PERCENT / 100;
+      islandPolygon = rawPolygon.map((v) => {
+        const r = Math.hypot(v.x, v.z);
+        if (r < 1e-6) return v.clone();
+        const newR = r * (1 - insetFrac);
+        const scale = newR / r;
+        return new THREE.Vector3(v.x * scale, v.y, v.z * scale);
+      });
+    }
+  }
 
   // Master seed from bbox dims for determinism.
   let masterSeed = mulberry32(Math.round(bbox.minX * 1000));
@@ -235,8 +302,8 @@ export function placeTrees(
   const originZ = bounds.cz - sampleHalfD;
 
   // Visit each grid cell exactly once. Each contributes a single
-  // jittered candidate; the three rejection passes (layout, gem
-  // buffer, density falloff) match the previous behavior.
+  // jittered candidate; the two rejection passes (layout, density
+  // falloff) match the previous behavior.
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
   for (let cz = 0; cz < cellsZ; cz++) {
     for (let cx = 0; cx < cellsX; cx++) {
@@ -258,14 +325,6 @@ export function placeTrees(
         if (overlaps) continue;
       }
 
-      // Gem buffer: hard-reject candidates inside the no-tree halo
-      // around the gem. Skipped when the buffer is 0.
-      if (gemBufferR2 > 0) {
-        const gdx = x - center.x;
-        const gdy = y - center.y;
-        if (gdx * gdx + gdy * gdy < gemBufferR2) continue;
-      }
-
       // Density falloff: reject probabilistically based on distance
       // from the city bbox. Inside the bbox dist=0 → always accept;
       // far away the acceptance probability drops as
@@ -279,6 +338,16 @@ export function placeTrees(
         const r = u32ToUnit(mulberry32(baseSeed ^ 0xfa110ff5));
         if (r > acceptProb) continue;
       }
+
+      // Island polygon containment: reject candidates outside the visible
+      // island silhouette. The polygon is built in LOCAL coords (centered
+      // on origin) but (x, y) are WORLD coords (offset by bounds.cx/cz).
+      // Shift the candidate back into the polygon's frame before testing.
+      // treePlacement uses (x, y) for the XZ plane; the polygon uses (x, z).
+      if (
+        islandPolygon &&
+        !pointInIslandPolygon(x - bounds.cx, y - bounds.cz, islandPolygon)
+      ) continue;
 
       const dx = x - center.x;
       const dy = y - center.y;

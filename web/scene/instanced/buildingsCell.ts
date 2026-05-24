@@ -17,7 +17,6 @@ import {
 import { BuildingOrient } from '@/types/index.js';
 import buildingVertSrc from '../shaders/building.vert.glsl?raw';
 import buildingFragSrc from '../shaders/building.frag.glsl?raw';
-import hslGlslSrc from '../shaders/hsl.glsl?raw';
 import type { CellTile } from '../cellTile.js';
 import type { Building } from '@/types/index.js';
 import type { IconAtlas } from '../iconAtlas.js';
@@ -75,9 +74,9 @@ function getOrCreateBuildingMaterial(uniforms: Record<string, THREE.IUniform>): 
   if (_sharedBuildingMaterial && _sharedBuildingMaterialUniforms === uniforms) {
     return _sharedBuildingMaterial;
   }
-  // Inline the hsl helpers into the fragment source at the placeholder
-  // comment the shader author left for exactly this purpose.
-  const fragSrc = buildingFragSrc.replace('#include <hsl_glsl_inline>', hslGlslSrc);
+  // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
+  // Three.js's native preprocessor resolves #include <name> at compile time.
+  const fragSrc = buildingFragSrc;
   _sharedBuildingMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: buildingVertSrc,

@@ -256,10 +256,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // hotStores route in web/config/hotReload.ts.
     cityScene.getSky().refresh();
 
-    // Cyberpunk Valley world floor — pulls fresh GROUND_COLOR /
-    // GROUND_ENABLED from WORLD config so colour pickers + toggles
+    // Cyberpunk Valley floating island — pulls fresh ISLAND_MATERIALS /
+    // ISLAND_GEOMETRY / ISLAND_UNDERGLOW config so colour pickers + toggles
     // hot-update without a manifest rebuild.
-    cityScene.getWorldFloor().refresh();
+    cityScene.getIsland().refresh();
 
     // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
@@ -471,6 +471,10 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
       const dt = _lastSkyTime === null ? 0 : Math.max(0, nowS - _lastSkyTime);
       _lastSkyTime = nowS;
       sky.tick(dt);
+      // Island tick: updates uSunDirWorld uniform from the sun direction
+      // shared by the sky. Must run after sky.tick() so the sun direction
+      // is current before the island shader samples it.
+      cityScene.getIsland().tick();
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase

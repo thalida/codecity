@@ -349,6 +349,11 @@ function createRootGem(street: Street): THREE.Group {
         opacity: glowCfg.INNER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        // Halo is a soft additive glow — render it without depth test so
+        // it doesn't get sliced off when an opaque surface (island top,
+        // city footprint) silhouettes in front of the gem at low camera
+        // angles. The cutoff was visible as a sharp diagonal in screenshots.
+        depthTest: false,
       })
     );
     innerGlowSprite.scale.set(
@@ -369,6 +374,11 @@ function createRootGem(street: Street): THREE.Group {
         opacity: glowCfg.OUTER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
+        // Halo is a soft additive glow — render it without depth test so
+        // it doesn't get sliced off when an opaque surface (island top,
+        // city footprint) silhouettes in front of the gem at low camera
+        // angles. The cutoff was visible as a sharp diagonal in screenshots.
+        depthTest: false,
       })
     );
     outerGlowSprite.scale.set(

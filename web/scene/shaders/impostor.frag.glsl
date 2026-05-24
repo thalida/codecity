@@ -7,13 +7,13 @@
 //      detail tier.
 //   2. Apply the same directional sun + ambient lighting the detail
 //      shader uses, so face shading is consistent across tier swaps.
-//   3. Apply the same height-based ground haze the detail shader does,
-//      so building bases fade into the mist (otherwise impostors look
-//      uniformly bright and "floating" compared to the grounded detail
-//      tier). Mirrors the fog code at the bottom of building.frag.glsl.
+//   3. Apply the same height fog the detail shader does via the shared
+//      fog chunk, so impostors fade consistently and don't pop when
+//      the LOD swaps.
 // No per-cell window/door/grime math — impostors stay cheap.
 
 #include <hsl_glsl_inline>
+#include <fog_uniforms_glsl_inline>
 
 precision mediump float;
 
@@ -21,13 +21,17 @@ varying vec3 vColor;
 varying float vFade;
 varying vec3 vWorldNormal;
 varying float vWorldY;
+varying vec3 vWorldPos;
 
 uniform vec3 uSunDirWorld;
 uniform float uAmbient;
 uniform float uSunContrast;
-uniform vec3 uFogColor;
-uniform float uFogIntensity;
-uniform float uFogHeight;
+
+// Ground haze (height-based).
+// Uniforms declared by #include <fog_uniforms_glsl_inline> above.
+// Consumed via applyFog() below.
+
+#include <fog_apply_glsl_inline>
 
 void main() {
   vec3 baseColor = linearToSrgb(vColor);
@@ -35,11 +39,11 @@ void main() {
   float lightFactor = uAmbient + uSunContrast * lambert;
   vec3 color = baseColor * lightFactor;
 
-  // Ground haze — exponential height-based fog. Building bases sit in
-  // mist; tops poke into clean air. Camera distance doesn't affect this.
-  float h = max(vWorldY, 0.0);
-  float fogAmount = exp(-h / max(uFogHeight, 0.0001)) * uFogIntensity;
-  color = mix(color, uFogColor, fogAmount);
+  vec4 outColor = vec4(color, vFade);
 
-  gl_FragColor = vec4(color, vFade);
+  // Height fog: dense at y=0, thins with altitude. Matches the detail
+  // building shader so there's no pop at the LOD boundary.
+  outColor.rgb = applyFog(outColor.rgb, vWorldPos);
+
+  gl_FragColor = outColor;
 }

@@ -47,8 +47,8 @@ import {
   SKY,
   SKY_STARS,
 
-  // Cyberpunk Valley — world floor (GROUND_BUFFER_PERCENT → rebuild;
-  // GROUND_COLOR/GROUND_ENABLED → hot path via worldFloor.refresh()):
+  // Cyberpunk Valley — world sizing (GROUND_BUFFER_PERCENT → rebuild;
+  // visual island config lives in ISLAND.* → hot path via island.refresh()):
   WORLD,
 
   // Cyberpunk Valley — trees (structural in TREES → rebuild):
@@ -62,6 +62,12 @@ import {
   // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
   FOOTPRINT,
 } from './index.js';
+import {
+  // Cyberpunk Valley — island geometry and materials
+  // (all hot-reloadable via island.refresh() inside applyTheme()):
+  ISLAND_GEOMETRY,
+  ISLAND_MATERIALS,
+} from './island.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
 // BUILDING_DIMENSIONS.MAX_FLOORS through 30 → 200) coalesces into one
@@ -223,10 +229,9 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // (also handled by sky.refresh()).
     SKY,
     SKY_STARS,
-    // WORLD: GROUND_COLOR + GROUND_ENABLED are pushed live via
-    // worldFloor.refresh() inside applyTheme() — no rebuild required.
-    // GROUND_BUFFER_PERCENT gets a narrow listenKeys subscription below so
-    // dragging the color slider doesn't trigger a spurious applyManifest.
+    // WORLD: only GROUND_BUFFER_PERCENT remains; it gets a narrow
+    // listenKeys subscription below so dragging the slider doesn't
+    // trigger a spurious applyManifest for non-structural changes.
     WORLD,
     // TREES color + visibility + trunk color. trees.refresh() rewrites
     // per-instance colors and material color; the structural keys are
@@ -241,6 +246,12 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
     // dragging the color slider doesn't trigger a spurious applyManifest.
     FOOTPRINT,
+    // ISLAND_* — all keys are hot-reloadable via island.refresh() inside
+    // applyTheme(). Geometry changes (SIDES, IRREGULARITY, TIERS, DEPTH)
+    // trigger a cheap vertex-count rebuild inside refresh() → setBounds();
+    // material keys push uniforms directly. No full rebuild needed.
+    ISLAND_GEOMETRY,
+    ISLAND_MATERIALS,
   ];
 
   const unsubs: Array<() => void> = [];
@@ -281,10 +292,23 @@ export function attachHotReload({ cityScene, applyTheme }: HotReloadOpts): () =>
     'TREE_DENSITY_FALLOFF',
     'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
   ], scheduleRebuild));
-  // GROUND_BUFFER_PERCENT changes the world plane size (and therefore
+  // GROUND_BUFFER_PERCENT changes the island size (and therefore
   // the foliage sampling region), so it requires a full rebuild.
-  // GROUND_COLOR / GROUND_ENABLED stay on the hot path via worldFloor.refresh().
+  // Visual island config lives in ISLAND.* and is hot-patched via island.refresh().
   unsubs.push(listenKeys(WORLD, ['GROUND_BUFFER_PERCENT'], scheduleRebuild));
+  // ISLAND_GEOMETRY shape keys change the polygon silhouette the tree
+  // placement uses for its point-in-polygon rejection. island.refresh()
+  // rebuilds the island mesh, but trees were placed against the OLD
+  // polygon — they need a re-place via applyManifest. ENABLED is
+  // excluded since it just flips group.visible (no shape change).
+  unsubs.push(listenKeys(ISLAND_GEOMETRY, [
+    'SIDES',
+    'IRREGULARITY',
+    'TIERS',
+    'DEPTH',
+    'ROUNDNESS',
+    'GRASS_THICKNESS',
+  ], scheduleRebuild));
   armed = true;
 
   return function dispose() {

@@ -36,10 +36,10 @@ export interface FootprintConfig {
 
 export const FOOTPRINT = map<FootprintConfig>({
   ENABLED: true,
-  HALO_WIDTH: 32,
-  // 1.25 × 32 = 40 wu radius. Above 1.0 means the rounding extends
+  HALO_WIDTH: 24,
+  // 2.0 × 24 = 48 wu radius. Above 1.0 means the rounding extends
   // past one halo width — corners read distinctly pill-like at the
   // city silhouette, which is the intended look.
-  CORNER_RADIUS: 1.25,
+  CORNER_RADIUS: 2.0,
   COLOR: '#0a0b0f',
 });

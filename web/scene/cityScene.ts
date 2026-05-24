@@ -31,6 +31,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
+import { registerShaderChunks } from './shaders/registerShaderChunks.js';
 import { getSharedBuildingUniforms } from './instanced/buildings.js';
 import { disposeLabelMaterials } from './instanced/labels.js';
 import { buildCellsFromLayout } from './cellAssembly.js';
@@ -57,11 +58,12 @@ import type { TreePlacementClient } from './trees/treePlacementClient.js';
 import { createBushes } from './bushes/bushes.js';
 import type { Bushes } from './bushes/bushes.js';
 import { placeBushes } from './bushes/bushPlacement.js';
-import { createWorldFloor } from './worldFloor.js';
-import type { WorldFloor } from './worldFloor.js';
+import { createIsland } from './island/islandMesh.js';
+import type { Island } from './island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
+import { FOOTPRINT } from '@/config/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -253,6 +255,11 @@ export const __test = {
 // own factory now, so cityScene no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
 export function createCityScene(_canvas: HTMLCanvasElement) {
+  // Register project GLSL chunks with THREE.ShaderChunk so #include <name>
+  // directives in our shaders resolve natively — must run before any
+  // ShaderMaterial is constructed.
+  registerShaderChunks();
+
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
@@ -266,14 +273,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
-  // Cyberpunk Valley world floor — a large flat plane world-anchored
-  // at the gem, painting the entire visible ground with a forest
-  // tint. Built ONCE at scene init (it's not layout-dependent — the
-  // plane is bigger than any city). Sits at renderOrder -500, so it
+  // Cyberpunk Valley floating island — a shaped polygonal slab that
+  // replaces the old flat world-floor plane. Built ONCE at scene init
+  // (it's not layout-dependent — the island is sized to the world
+  // bounds, not the city mesh). Sits at renderOrder -500, so it
   // draws AFTER the sky (-1000) but BEFORE the city's own ground
   // tiles (sidewalks at 1, asphalt at 3) — those paint on top.
-  const _worldFloor: WorldFloor = createWorldFloor(null);
-  scene.add(_worldFloor.mesh);
+  const _island: Island = createIsland(null);
+  scene.add(_island.group);
 
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
@@ -929,6 +936,29 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // Cell mode has no per-building interactivity that needs connectors.
       const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
       bbox = cellBuilt.bbox;
+      // buildCityScene was called with skipBuildings: true, so the returned
+      // bbox covers streets/paths/gem only — NOT buildings (rendered
+      // separately via the cell-based instanced renderer). Expand the bbox
+      // to include each building's XZ footprint + Y height so downstream
+      // consumers (sceneBbox sizing, camera framing in cameraRig, fly-mode
+      // bounds in flyControls) get the FULL visible city.
+      for (const b of newLayout.buildings) {
+        bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
+        bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
+      }
+      // Expand by the city-footprint halo width so the bbox includes the
+      // asphalt slab that wraps around the city silhouette (every layout
+      // rect is inflated by HALO_WIDTH for the footprint pass). Only
+      // expand XZ — Y stays bounded by the actual building heights so
+      // cityHeight calc isn't inflated.
+      const footprintCfg = FOOTPRINT.get();
+      if (footprintCfg.ENABLED && footprintCfg.HALO_WIDTH > 0) {
+        const halo = footprintCfg.HALO_WIDTH;
+        bbox.min.x -= halo;
+        bbox.min.z -= halo;
+        bbox.max.x += halo;
+        bbox.max.z += halo;
+      }
 
       streetPickables = cellBuilt.streetPickables || [];
       streetLabels = cellBuilt.streetLabels || [];
@@ -983,13 +1013,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     _emit(changeCbs, _computeDiff(prev));
 
-    // Convert the THREE.Box3 of the rendered scene to a placement-style
-    // CityBbox. This captures the actual on-screen extent (all buildings +
-    // streets + paths) — which is what the valley floor and tree scatter
-    // need to size against. The layout module's `layout.bbox` is a 2D
-    // pre-render placement bbox that can lag behind the final rendered
-    // geometry on big repos, so we use this one as the single source of
-    // truth for "how big is the city."
+    // Convert the THREE.Box3 (now includes building footprints — expanded
+    // above right after cellBuilt.bbox assignment) to a placement-style
+    // CityBbox.
     const sceneBbox: CityBbox | null = bbox ? {
       minX: bbox.min.x,
       maxX: bbox.max.x,
@@ -1007,7 +1033,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
     latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
-    _worldFloor.setBounds(latestWorldBounds);
+    _island.setBounds(latestWorldBounds);
 
     if (bbox) {
       // Footprint is cheap (one InstancedMesh, no rejection sampling),
@@ -1064,7 +1090,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
-    _worldFloor.dispose();
+    _island.dispose();
     if (_trees) {
       _trees.dispose();
       _trees = null;
@@ -1116,12 +1142,12 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     },
 
     /**
-     * Cyberpunk Valley world-floor reference. The floor is
+     * Cyberpunk Valley floating island reference. The island is
      * world-anchored at the gem; this is exposed for applyTheme()
      * (hot-reload refresh) and any future external access.
      */
-    getWorldFloor(): WorldFloor {
-      return _worldFloor;
+    getIsland(): Island {
+      return _island;
     },
 
     /**

@@ -53,6 +53,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/sky.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import { TREES } from '@/config/trees.js';
 import { BUSHES } from '@/config/bushes.js';
@@ -161,6 +162,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // (sky color, stars, ground haze, sun lighting) lives in collapsible
   // subgroups inside one Scene section.
   body.appendChild(_buildSceneSection());
+  // Island sits immediately after Scene — it's the world-plane object that
+  // the city floats on, so it reads as part of the backdrop group.
+  body.appendChild(_buildIslandSection());
   // The old Layout section was folded away: street width tiers + street
   // spacing live under Streets, building size lives under Buildings.
   body.appendChild(_buildBuildingsSection());
@@ -414,15 +418,9 @@ function _buildSceneSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('scene-ground', 'Ground', () => [
-      _toggle('Enabled', WORLD, 'GROUND_ENABLED', {
-        tip: 'Master toggle for the world floor mesh — the large flat plane anchored at the gem that paints the visible ground. Disable to see the sky behind everything (useful for debugging the world bounds).',
-      }),
-      _color('Color', WORLD, 'GROUND_COLOR', {
-        tip: 'Color of the world floor mesh. Past the floor edge the camera sees the sky directly, so picking a color close to the sky color blends the horizon smoothly.',
-      }),
+    _collapsibleSubgroup('scene-ground', 'Ground sizing', () => [
       _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
-        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = plane exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = island exactly fits the city; 50% = generous halo of bare ground past the buildings.',
       }),
     ]),
   );
@@ -440,6 +438,66 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+      }),
+    ]),
+  );
+
+  return section;
+}
+
+// ─── Island (Cyberpunk Valley) ─────────────────────────────────────────────
+// The floating-island world-plane beneath the city. Two collapsible
+// subgroups cover:
+//   Geometry    — polygon shape, depth, tiers (cheap vertex rebuild on refresh)
+//   Materials   — vertex-baked colors + hemispheric lighting uniforms
+function _buildIslandSection(): HTMLElement {
+  const section = _section(
+    'Island',
+    'Floating-island world-plane beneath the city. Geometry controls the polygon silhouette and depth; Materials set the baked colors and lighting.',
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-geometry', 'Geometry', () => [
+      _toggle('Show island', ISLAND_GEOMETRY, 'ENABLED', {
+        tip: 'Master toggle for the floating-island mesh. When off, the city sits over empty sky.',
+      }),
+      _slider('Polygon sides', ISLAND_GEOMETRY, 'SIDES', 6, 48, 1, {
+        tip: 'How many sides the island top has. Also drives triangle density horizontally — each side contributes 2 triangles per tier band. 6 = hexagon (chunky big facets); 12 = dodecagon (default); 48 = lots of small facets.',
+      }),
+      _slider('Irregularity', ISLAND_GEOMETRY, 'IRREGULARITY', 0, 0.5, 0.01, {
+        tip: '0 = perfectly regular polygon. Higher values jitter vertices inward for a natural island silhouette.',
+      }),
+      _slider('Tier rings', ISLAND_GEOMETRY, 'TIERS', 1, 10, 1, {
+        tip: 'How many chunky tier rings make up the underside. 1 = sharp cone; 4–6 = chunky tapered look; 10 = lots of facet detail.',
+      }),
+      _slider('Depth (× radius)', ISLAND_GEOMETRY, 'DEPTH', 0.2, 2.0, 0.05, {
+        tip: 'Total island depth as a fraction of island radius. Larger = deeper, more "iceberg" silhouette.',
+      }),
+      _slider('Roundness', ISLAND_GEOMETRY, 'ROUNDNESS', 0, 1, 0.05, {
+        tip: 'Body shape. 0 = pointed taper to a tip; 1 = very rounded bowl. 0.7 = the current default smooth-rounded shape.',
+      }),
+      _slider('Grass thickness', ISLAND_GEOMETRY, 'GRASS_THICKNESS', 0, 0.1, 0.005, {
+        tip: 'Vertical thickness of the green grass layer as a fraction of island radius. 0 = no grass band, just the flat top.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('island-materials', 'Materials', () => [
+      _color('Grass color', ISLAND_MATERIALS, 'GRASS_COLOR', {
+        tip: 'Top surface where the city sits.',
+      }),
+      _color('Grass side color', ISLAND_MATERIALS, 'GRASS_SIDE_COLOR', {
+        tip: 'Vertical band wrapping the top edge. Side faces point outward, so hemispheric lighting hits them very differently than the top — tune this brighter than Grass color if the side band reads too dim.',
+      }),
+      _color('Rock color', ISLAND_MATERIALS, 'ROCK_COLOR', {
+        tip: 'Uniform rock/earth color for the cliff band, tier rings, and bottom cap. Per-face lighting provides all the visual variation.',
+      }),
+      _color('Hemi sky color', ISLAND_MATERIALS, 'HEMI_SKY_COLOR', {
+        tip: 'Warm "from above" tone blended onto upward-facing surfaces by the hemispheric lighting model.',
+      }),
+      _color('Hemi ground color', ISLAND_MATERIALS, 'HEMI_GROUND_COLOR', {
+        tip: 'Cool "from below" tone blended onto downward-facing surfaces by the hemispheric lighting model.',
       }),
     ]),
   );
@@ -967,9 +1025,6 @@ function _buildGemSection(): HTMLElement {
       }),
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
         tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
-      }),
-      _slider('Tree buffer (world units)', GEM_SIZING, 'TREE_BUFFER_RADIUS', 0, 400, 4, {
-        tip: 'No-tree halo around the gem. Trees scattered within this radius of the gem center are rejected during placement. 0 disables the buffer. Rebuild on change.',
       }),
     ])
   );

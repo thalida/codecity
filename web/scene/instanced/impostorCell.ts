@@ -11,7 +11,6 @@ import type { CellTile } from '@/scene/cellTile.js';
 import type { Building } from '@/types/index.js';
 import impostorVert from '@/scene/shaders/impostor.vert.glsl?raw';
 import impostorFrag from '@/scene/shaders/impostor.frag.glsl?raw';
-import hslGlslSrc from '@/scene/shaders/hsl.glsl?raw';
 
 const SHARED_IMPOSTOR_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);
 let _sharedImpostorMaterial: THREE.ShaderMaterial | null = null;
@@ -23,11 +22,9 @@ function getOrCreateImpostorMaterial(
   if (_sharedImpostorMaterial && _sharedImpostorMaterialUniforms === uniforms) {
     return _sharedImpostorMaterial;
   }
-  // Inline the hsl helpers (linearToSrgb etc.) into the fragment source —
-  // matches the convention used by the detail shader in buildingsCell.ts.
-  // Three.js's #include resolution would otherwise fail with
-  // "Can not resolve #include <hsl_glsl_inline>".
-  const fragSrc = impostorFrag.replace('#include <hsl_glsl_inline>', hslGlslSrc);
+  // Chunks are registered via THREE.ShaderChunk in registerShaderChunks.ts;
+  // Three.js's native preprocessor resolves #include <name> at compile time.
+  const fragSrc = impostorFrag;
   _sharedImpostorMaterial = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: impostorVert,

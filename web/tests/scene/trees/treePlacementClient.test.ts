@@ -60,10 +60,13 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('forwards commitCount to placeTrees', async () => {
     const client = createTreePlacementClient();
+    // Bbox sized generously so the polygon-in rejection doesn't crowd
+    // out the 25 candidates we expect. Previously the MIN_BUFFER=800 floor
+    // padded tiny bboxes; now removed, so this test sizes its own bbox big enough.
     const layout: CityLayout = {
       buildings: [], streets: [], paths: [],
       lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
-      bbox: { minX: -100, minY: -100, maxX: 100, maxY: 100, cx: 0, cy: 0, width: 200, depth: 200 },
+      bbox: { minX: -2000, minY: -2000, maxX: 2000, maxY: 2000, cx: 0, cy: 0, width: 4000, depth: 4000 },
     };
     const placements = await client.compute(layout, layout.bbox, 25, 0);
     expect(placements.length).toBe(25);
