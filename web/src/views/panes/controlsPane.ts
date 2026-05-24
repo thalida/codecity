@@ -51,7 +51,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/components/sky.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/islandMesh.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
 import { TREES } from '@/config/components/trees.js';
 import { BUSHES } from '@/config/components/bushes.js';

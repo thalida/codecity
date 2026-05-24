@@ -9,7 +9,7 @@ import { TREES } from '@/config/components/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { WORLD } from '@/config/world/world.js';
-import type { IslandGeometryConfig } from '@/config/components/islandMesh.js';
+import type { IslandGeometryConfig } from '@/config/components/island.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = ReturnType<typeof TREES.get>;

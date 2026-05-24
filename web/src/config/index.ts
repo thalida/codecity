@@ -56,7 +56,7 @@ export * from './components/buildings.js';
 export * from './components/facade.js';
 export * from './components/adPanels.js';
 export * from './components/gem.js';
-export * from './components/islandMesh.js';
+export * from './components/island.js';
 export * from './components/footprint.js';
 export * from './components/trees.js';
 export * from './components/bushes.js';

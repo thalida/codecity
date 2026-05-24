@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from '@/config/components/islandMesh.js';
+} from '@/config/components/island.js';
 
 describe('ISLAND config defaults', () => {
   it('GEOMETRY has expected default fields', () => {

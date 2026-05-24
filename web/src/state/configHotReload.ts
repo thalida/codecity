@@ -67,7 +67,7 @@ import {
   // (all hot-reloadable via island.refresh() inside applyTheme()):
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from '@/config/components/islandMesh.js';
+} from '@/config/components/island.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
 // BUILDING_DIMENSIONS.MAX_FLOORS through 30 → 200) coalesces into one
