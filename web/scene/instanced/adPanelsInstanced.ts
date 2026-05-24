@@ -7,9 +7,6 @@
 // supported by Three.js raycasting without a custom implementation;
 // adding it would restore click-to-select on media buildings.
 //
-// LOD gating: panels are always visible. Tying visibility to LOD tier is
-// possible now that the LOD evaluator exists; currently always-on.
-//
 // WebGL2 requirement: the underlying DataArrayTexture + GLSL3 shader
 // require WebGL2.
 

@@ -1,8 +1,8 @@
 // scene/spatialGrid.ts — Maps the layout world plane (XZ) onto a
 // fixed-cell-size 2D grid. Cells are the rendering primitive: each
-// owns a detail InstancedMesh, impostor InstancedMesh, label
-// InstancedMesh, and merged sidewalk geometry. Grid math is pure:
-// worldToCell, cellBoundsSphere, cellCenter.
+// owns a detail InstancedMesh, an optional label InstancedMesh, and
+// merged sidewalk geometry. Grid math is pure: worldToCell,
+// cellBoundsSphere, cellCenter.
 //
 // MIN_CELL_SIZE / CELL_SIZE: the minimum grid resolution (12 world
 // units). For small repos this is also the actual cell size. For large

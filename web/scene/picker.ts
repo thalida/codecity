@@ -64,11 +64,10 @@ export function createPicker({
   function _refreshPickables() {
     pickables = cityScene.getStreetPickables().slice();
 
-    // Add detail and impostor InstancedMeshes from each cell — buildings
-    // live in CellTile meshes (userData.cellId + userData.meshKind).
+    // Add the detail InstancedMesh from each cell — buildings live in
+    // CellTile meshes (userData.cellId + userData.meshKind).
     for (const cell of cityScene.getCells().values()) {
       if (cell.detailMesh) pickables.push(cell.detailMesh);
-      if (cell.impostorMesh) pickables.push(cell.impostorMesh);
     }
 
     const gem = cityScene.getRootGem();
@@ -207,7 +206,7 @@ export function createPicker({
 
   // ── Raycasting ────────────────────────────────────────────────────
 
-  // Tie-break: when an InstancedMesh (cell detail/impostor) hit lies within
+  // Tie-break: when an InstancedMesh (cell detail) hit lies within
   // ~0.1% of the closest hit's distance, prefer it over any sidewalk at the
   // same distance — same-distance ties otherwise swing arbitrarily by JS
   // sort stability and the user gets a directory tooltip when their cursor
@@ -222,7 +221,7 @@ export function createPicker({
       if (h.distance > tieThreshold) break;
       if (h.object instanceof THREE.InstancedMesh) {
         const hud = h.object.userData;
-        if (hud.cellId != null && (hud.meshKind === 'detail' || hud.meshKind === 'impostor')) {
+        if (hud.cellId != null && hud.meshKind === 'detail') {
           return h;
         }
       }
@@ -252,13 +251,13 @@ export function createPicker({
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
     }
-    // InstancedMesh hit from a CellTile. detailMesh and impostorMesh carry
-    // userData.cellId and userData.meshKind. The Building is looked up via
+    // InstancedMesh hit from a CellTile. detailMesh carries userData.cellId
+    // and userData.meshKind === 'detail'. The Building is looked up via
     // BuildingIndex.byCellSlot("cellId:slotId").
     if (
       hit.object instanceof THREE.InstancedMesh &&
       ud.cellId != null &&
-      (ud.meshKind === 'detail' || ud.meshKind === 'impostor')
+      ud.meshKind === 'detail'
     ) {
       const slot = hit.instanceId;
       if (slot == null) return null;

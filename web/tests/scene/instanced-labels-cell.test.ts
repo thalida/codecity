@@ -52,12 +52,9 @@ function makeFakeCell(capacity = 4): CellTile {
     used: 0,
     freeSlots: [],
     detailMesh: new THREE.InstancedMesh(placeholderGeom, placeholderMat, capacity),
-    impostorMesh: new THREE.InstancedMesh(placeholderGeom, placeholderMat, capacity),
     labelMesh,
     streetMesh: null,
     buildings: new Array(capacity).fill(null),
-    tier: 'hidden',
-    prevTier: 'hidden',
     dirs: new Set(),
   };
 }

@@ -85,7 +85,7 @@ describe('layoutCity perf smoke', () => {
     const nBuildings = layout.buildings.length;
 
     // World bbox sanity: max(W, H) of all rect extents. Useful as a
-    // baseline for v3 compactness comparisons; logged but not asserted
+    // baseline for compactness comparisons; logged but not asserted
     // against absolute thresholds (varies with synthetic tree shapes).
     let xMin = Infinity,
       xMax = -Infinity,

@@ -15,14 +15,13 @@
 // dimensions) is recomputed from the new manifest. This is the cheap
 // path for skeleton→final transitions and live updates.
 
-import { layoutCityV4 } from './layoutV4.js';
 import {
   STREET_LAYOUT,
   BUILDING_DIMENSIONS,
   GEM_SIZING,
   STREET_TIERS,
 } from '@/config/index.js';
-import { makeHeightContext, recomputeBuildingDimensions } from './layout.js';
+import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {
@@ -185,8 +184,8 @@ export function createLayoutClient(): LayoutClient {
     reject: PendingRequest['reject'],
   ): void {
     try {
-      const layout = layoutCityV4(
-        manifest as unknown as Parameters<typeof layoutCityV4>[0],
+      const layout = layoutCity(
+        manifest as unknown as Parameters<typeof layoutCity>[0],
       );
       queueMicrotask(() => {
         if (!pending.has(id)) return;

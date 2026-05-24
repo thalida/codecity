@@ -32,7 +32,6 @@ export * from './facade.js'; // procedural facade geometry (slab/window/door/roo
 export * from './adPanel.js'; // procedural ad-panel geometry (margin/offset/placeholder)
 export * from './live.js'; // live-update polling toggle + interval
 export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
-export * from './lod.js'; // per-block LOD swap thresholds
 export * from './syntaxTheme.js'; // syntax highlight theme picker
 export * from './sky.js'; // Cyberpunk Valley: flat two-color sky + stars
 export * from './world.js'; // Cyberpunk Valley: world floor + ground buffer

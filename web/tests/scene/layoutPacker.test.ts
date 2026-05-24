@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { StreetAxis } from '@/types';
-import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layoutV4';
+import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layout';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -81,7 +81,7 @@ describe('isMirrorInvariant', () => {
 });
 
 import { WorldOccupancy } from '@/scene/worldOccupancy';
-import { findSmallestValidStem } from '@/scene/layoutV4';
+import { findSmallestValidStem } from '@/scene/layout';
 
 describe('findSmallestValidStem', () => {
   // Helper to build a WorldRect for inserting into occupancy.
@@ -260,7 +260,7 @@ describe('findSmallestValidStem', () => {
   });
 });
 
-import { placeChild } from '@/scene/layoutV4';
+import { placeChild } from '@/scene/layout';
 
 describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
@@ -518,7 +518,7 @@ describe('translateRectsToWorld', () => {
   });
 });
 
-import { estimateDirReaches, layoutCityV4 } from '@/scene/layoutV4';
+import { estimateDirReaches, layoutCity } from '@/scene/layout';
 import { NodeKind } from '@/types';
 import {
   assertNoOverlap,
@@ -527,7 +527,7 @@ import {
   assertTJunctionsValid,
 } from './layout.test';
 
-describe('layoutCityV4 end-to-end', () => {
+describe('layoutCity end-to-end', () => {
   function mkFile(name: string): any {
     return {
       name, type: NodeKind.File, path: name, extension: '.ts',
@@ -552,7 +552,7 @@ describe('layoutCityV4 end-to-end', () => {
       mkFile('b.ts'),
       mkDir('sub', [mkFile('c.ts'), mkFile('d.ts')]),
     ]);
-    const layout = layoutCityV4({ tree });
+    const layout = layoutCity({ tree });
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
     expect(() => assertTreeRespecting(layout)).not.toThrow();
@@ -572,7 +572,7 @@ describe('layoutCityV4 end-to-end', () => {
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
       const reaches = estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCityV4({ tree });
+      const layout = layoutCity({ tree });
       const root = layout.streets.find((s: any) => s.dir?.name === 'root');
       expect(root).toBeDefined();
       // The estimate must be at least as large as the actual road length —
@@ -592,7 +592,7 @@ describe('layoutCityV4 end-to-end', () => {
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
       estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCityV4({ tree });
+      const layout = layoutCity({ tree });
 
       const mismatches: string[] = [];
       for (const street of layout.streets) {
@@ -618,7 +618,7 @@ describe('layoutCityV4 end-to-end', () => {
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
       estimateDirReaches(tree, stats.lines, stats.bytes, undefined, cache);
-      const layout = layoutCityV4({ tree });
+      const layout = layoutCity({ tree });
       // Every street's length should be covered by its dir's estimate.
       for (const street of layout.streets) {
         if (!street.dir) continue;
@@ -675,7 +675,7 @@ describe('layoutCityV4 end-to-end', () => {
         }),
       ]),
     ]);
-    const layout = layoutCityV4({ tree });
+    const layout = layoutCity({ tree });
     const apps = layout.streets.find((s) => s.dir?.name === 'apps');
     expect(apps).toBeDefined();
     // Sanity: apps' trunk should be long enough that any phantom-too-short

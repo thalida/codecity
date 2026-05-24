@@ -1159,7 +1159,7 @@ describe('layout invariants (current packer baseline)', () => {
     const rootStreet = layout.streets.find((s) => s.dir?.name === 'root')!;
     const bigStreet = layout.streets.find((s) => s.dir?.name === 'big')!;
     const along = rootStreet.orientation === StreetAxis.X ? 'x' : 'y';
-    // Under v3 max(W,H) side selection, big's stem lands at roughly 56% of
+    // Under the max(W,H) side selection, big's stem lands at roughly 56% of
     // root's road (≈61 units on a ~108-unit road) — not "close to the
     // start" in v2's sense, but still well within the road and well below
     // the open far end. The contract here is that big's stem must stay well
@@ -1169,16 +1169,16 @@ describe('layout invariants (current packer baseline)', () => {
   });
 
   it('B re-compute does not lengthen root street vs pre-compute baseline', () => {
-    // Verifies the root street length stays bounded under v3 with the
+    // Verifies the root street length stays bounded under the packer with the
     // depth=0 two-pass and its guard active. The original concern (B
-    // re-compute lengthening root) is now mostly absorbed by v3's
+    // re-compute lengthening root) is now mostly absorbed by the packer's
     // max(W,H) side selection: pre-compute and re-compute often pick the
     // same chosenStemX, so the guard's contribution is small for this
     // tree shape. The guard remains in the code as a defense-in-depth for
-    // tree shapes where v3 scoring can still produce divergent passes.
+    // tree shapes where the packer scoring can still produce divergent passes.
     //
     // Tree shape: root has 1 deep subdir (aaa) followed by 3 small
-    // siblings. Measured root length under v3 is ~115.4.
+    // siblings. Measured root length under the packer is ~115.4.
     const tree = mkDir('root', [
       mkDir('aaa', [
         mkDir('inner', [
@@ -1200,7 +1200,7 @@ describe('layout invariants (current packer baseline)', () => {
     expect(() => assertNoOverlap(layout)).not.toThrow();
     expect(() => assertStemOrder(layout)).not.toThrow();
     const rootStreet = layout.streets.find((s) => s.isRoot)!;
-    // Measured ~115.4 under v3 with the prior STREET_TIERS defaults; after
+    // Measured ~115.4 under the packer with the prior STREET_TIERS defaults; after
     // widening tiers (0→32, 4→48, 8→80, 16→96) the natural length is
     // ~264. Threshold scaled to ~300 to keep ~36u headroom while still
     // catching a 2× regression.
@@ -1218,10 +1218,10 @@ describe('layout invariants (current packer baseline)', () => {
   });
 });
 
-describe('v3 quickjs-scenario regression', () => {
+describe('quickjs-scenario regression', () => {
   // Reproduces the failure from screenshots: node_modules has a quickjs
   // child whose own src/ subdir picked the side facing node_modules,
-  // forcing the quickjs road to extend back. With v3, src/ should
+  // forcing the quickjs road to extend back. With the packer, src/ should
   // mirror or pick the other side, keeping quickjs road short.
   function mkFile(name: string) {
     return {

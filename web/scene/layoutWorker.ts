@@ -1,9 +1,9 @@
 // scene/layoutWorker.ts — Web Worker entry point. Receives a manifest
-// + a snapshot of the four config stores layoutCityV4 reads, populates
+// + a snapshot of the four config stores layoutCity reads, populates
 // the worker's local store instances, runs the layout, posts the
 // result back. Pure compute, no DOM or THREE.* references.
 
-import { layoutCityV4 } from './layoutV4.js';
+import { layoutCity } from './layout.js';
 import {
   STREET_LAYOUT,
   BUILDING_DIMENSIONS,
@@ -58,8 +58,8 @@ self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {
   if (!data || data.type !== 'layout') return;
   try {
     _applySnapshot(data.configSnapshot);
-    const layout = layoutCityV4(
-      data.manifest as unknown as Parameters<typeof layoutCityV4>[0],
+    const layout = layoutCity(
+      data.manifest as unknown as Parameters<typeof layoutCity>[0],
     );
     const reply: LayoutResponse = {
       type: 'layout-result',

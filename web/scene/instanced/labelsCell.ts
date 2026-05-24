@@ -1,7 +1,7 @@
 // scene/instanced/labelsCell.ts — Cell-aware label InstancedMesh factory.
 //
-// Replaces the per-block approach in labels.ts for the spatial-grid +
-// LOD rendering path. Geometry + ShaderMaterial are constructed once
+// Replaces the per-block approach in labels.ts for the spatial-grid
+// rendering path. Geometry + ShaderMaterial are constructed once
 // per cell (each cell gets its own ShaderMaterial that references the
 // shared-atlas page texture owned by the caller). Attribute buffers
 // are pre-sized to cell.capacity via InstancedBufferAttribute so new

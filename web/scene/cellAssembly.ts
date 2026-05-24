@@ -10,7 +10,6 @@ import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
 import { attachBuildingMeshToCell, writeBuildingToSlot } from './instanced/buildingsCell.js';
-import { attachImpostorMeshToCell, writeImpostorToSlot } from './instanced/impostorCell.js';
 import { InstancedAdPanels, asyncLoadMediaForBuilding } from './instanced/adPanelsInstanced.js';
 import { isMediaFile } from './adPanels.js';
 import { BuildingIndex } from './buildingIndex.js';
@@ -40,8 +39,7 @@ export interface CellAssemblyOutput {
  *   2. Walk buildings once to collect the set of occupied cellIds.
  *   3. Allocate CellTiles only for occupied cells; attach building mesh.
  *   4. Walk buildings again to write each building into its cell slot.
- *   5. Force detail tier visible on all occupied cells (no LOD yet).
- *   6. Flush instanceMatrix.needsUpdate.
+ *   5. Flush instanceMatrix.needsUpdate.
  */
 export function buildCellsFromLayout(
   bounds: WorldBounds,
@@ -65,7 +63,6 @@ export function buildCellsFromLayout(
   for (const id of occupiedIds) {
     const cell = createEmptyCellTile(grid, id, capacity);
     attachBuildingMeshToCell(cell, sharedBuildingUniforms);
-    attachImpostorMeshToCell(cell, sharedBuildingUniforms);
     cells.set(id, cell);
   }
 
@@ -91,33 +88,25 @@ export function buildCellsFromLayout(
     cell.buildings[slot] = b;
     if (b.dirNode) cell.dirs.add(b.dirNode);
     writeBuildingToSlot(cell, b);
-    writeImpostorToSlot(cell, b);
     index.insert(b);
   }
 
-  // ---- Add all cell meshes to scene root; LOD evaluator sets visibility ----
-  // Cells start with tier='hidden' and all meshes invisible (set in
-  // createEmptyCellTile). The LOD evaluator runs a forced pass on the first
-  // animate tick and adjusts visibility based on camera position.
+  // ---- Add all cell meshes to scene root ----
+  // Cells render at detail tier unconditionally; the legacy LOD tier
+  // machinery has been removed.
   const sceneRoot = new THREE.Group();
   sceneRoot.name = 'CellRoot';
   for (const cell of cells.values()) {
-    // Mesh visibility starts false (from createEmptyCellTile / impostorMesh
-    // placeholder). LOD evaluator will set the correct tier on the first frame.
     sceneRoot.add(cell.detailMesh);
-    sceneRoot.add(cell.impostorMesh);
   }
 
   // ---- Flush attribute uploads ----
   for (const cell of cells.values()) {
     cell.detailMesh.instanceMatrix.needsUpdate = true;
-    cell.impostorMesh.instanceMatrix.needsUpdate = true;
   }
 
   // ---- Instanced ad panels for media buildings ----
   // Build one InstancedMesh backed by a DataArrayTexture for all media files.
-  // TODO(Tasks 12-15): tie panel visibility to LOD tier once the LOD evaluator
-  // exists; for now panels are always visible when cell rendering is active.
   const mediaBuildings = buildings.filter((b) => isMediaFile(b.file));
   let adPanels: InstancedAdPanels | null = null;
   if (mediaBuildings.length > 0) {

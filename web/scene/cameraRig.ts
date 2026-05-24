@@ -428,16 +428,14 @@ export function createCameraRig({
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    // Raycast against every cell's detail + impostor InstancedMeshes.
-    // Three.js handles InstancedMesh natively: hits carry `.instanceId`
-    // (the slot) and we identify the cell via `object.userData.cellId`.
+    // Raycast against every cell's detail InstancedMesh. Three.js
+    // handles InstancedMesh natively: hits carry `.instanceId` (the
+    // slot) and we identify the cell via `object.userData.cellId`.
     const hits = _xrayRay.intersectObjects(cityScene.getBuildingPickables(), false);
     for (let i = 0; i < hits.length; i++) {
       const hit = hits[i];
       // Skip the focused building itself — its own faces always block its
-      // own sightline. Match on (cellId, slotId) since detail + impostor
-      // share both, and a different InstancedMesh might hold the focused
-      // building's other-tier representation.
+      // own sightline. Match on (cellId, slotId).
       const hitCellId = hit.object.userData.cellId;
       if (
         hitCellId === focused.cellId &&

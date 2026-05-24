@@ -22,7 +22,6 @@ import {
   POLL_SECONDS_MIN,
   POLL_SECONDS_MAX,
   SCAN_FILTERS,
-  LOD,
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './config/persist.js';
@@ -56,7 +55,6 @@ import { streamManifest } from './manifestStream.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
 import { createPostFx } from './scene/postFx.js';
 import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
-import { LodEvaluator } from './scene/lodEvaluator.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
 // so that every downstream consumer (root street label, file tree root row,
@@ -387,31 +385,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
   let _lastSkyTime: number | null = null;
   const labelRight = new THREE.Vector3();
 
-  // LOD evaluator — one per render loop (shared across manifest refreshes).
-  // Forced on the very first frame so cells become visible before the user
-  // has moved the camera. Also reset whenever cells are rebuilt (manifest
-  // re-apply / source switch) or LOD thresholds are tuned at runtime —
-  // otherwise the skip-eval optimisation would keep new cells in their
-  // initial hidden state until the camera moves.
-  const _lodEvaluator = new LodEvaluator();
-  let _lodFirstFrame = true;
-
-  // Re-evaluate LOD after every cityScene change (manifest re-apply, source
-  // switch, live update). cityScene fires the change subscriber AFTER cells
-  // have been rebuilt + scene state swapped, so by the time we reset() here
-  // the new cells are in place and the next animate() frame will classify them.
-  cityScene.onChange(() => {
-    _lodEvaluator.reset();
-  });
-
-  // Re-evaluate LOD when the user tunes thresholds from the controls UI.
-  // (Initial subscribe fires synchronously with the current value — that's
-  // fine; reset() is idempotent and we want the next frame to re-classify
-  // anyway.)
-  LOD.subscribe(() => {
-    _lodEvaluator.reset();
-  });
-
   // Reused scratch vector to avoid per-frame allocations from renderer.getSize().
   const _renderSize = new THREE.Vector2();
   function animate() {
@@ -440,20 +413,6 @@ async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manifest) {
     // below project mesh positions and need fresh world matrices.
     camera.updateMatrixWorld();
     scene.updateMatrixWorld();
-    // LOD evaluation — runs after world matrices are fresh so projections are
-    // correct. Skipped automatically when camera and viewport are stable.
-    {
-      const cells = cityScene.getCells();
-      if (cells.size > 0) {
-        const viewport = {
-          width: renderer.domElement.clientWidth,
-          height: renderer.domElement.clientHeight,
-        };
-        const force = _lodFirstFrame;
-        _lodFirstFrame = false;
-        _lodEvaluator.evaluate(cells.values(), camera, viewport, force);
-      }
-    }
     animator.update(0); // entering / staying tweens (scale, position)
     // Sky star twinkle — the only animation in Cyberpunk Valley.
     // Compute dt in seconds from the same startTime the gem

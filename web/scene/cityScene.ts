@@ -42,11 +42,11 @@ import { findLayoutOverlaps } from './layout.js';
 import type { LayoutOverlap } from './layout.js';
 import { createLayoutClient } from './layoutClient.js';
 import type { LayoutComputeOpts } from './layoutClient.js';
-import { layoutCityV4WithTrace } from './layoutV4.js';
+import { layoutCityWithTrace } from './layout.js';
 import type {
   ChildPlacementTrace,
   StemPlacementTrace,
-} from './layoutV4.js';
+} from './layout.js';
 import type { WorldRect } from './worldOccupancy.js';
 import { buildCityScene } from './engine.js';
 import { createSky } from './sky/sky.js';
@@ -1212,8 +1212,8 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         console.warn('[stem-diag] no manifest — apply one first');
         return;
       }
-      const { trace } = layoutCityV4WithTrace(
-        manifest as unknown as Parameters<typeof layoutCityV4WithTrace>[0],
+      const { trace } = layoutCityWithTrace(
+        manifest as unknown as Parameters<typeof layoutCityWithTrace>[0],
       );
       const lines = _formatStemDiagnostic(trace);
       for (const line of lines) {
@@ -1251,19 +1251,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       return maxH;
     },
     /**
-     * Per-cell InstancedMeshes (detail + impostor) suitable for raycasting
-     * against. Three.js raycasts InstancedMesh natively, returning hits
-     * with `.instanceId` set; hidden cells (LOD-gated) are skipped by the
-     * default visibility check. Used by cameraRig sightline tests.
-     *
-     * Both detail and impostor meshes are included so a far-away cell on
-     * the impostor tier still occludes the sightline when it's actually
-     * visible on screen.
+     * Per-cell detail InstancedMeshes suitable for raycasting against.
+     * Three.js raycasts InstancedMesh natively, returning hits with
+     * `.instanceId` set. Used by cameraRig sightline tests.
      */
     getBuildingPickables(): THREE.Object3D[] {
       const out: THREE.Object3D[] = [];
       for (const cell of _cells.values()) {
-        out.push(cell.detailMesh, cell.impostorMesh);
+        out.push(cell.detailMesh);
       }
       return out;
     },

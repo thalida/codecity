@@ -12,10 +12,7 @@
 //   outlineRenderer → ghost/outline opacities          (Task 12)
 //   ghostRenderer   → ghost mesh opacity               (Task 13)
 //
-// The fader writes iFade on each CellTile.detailMesh (same attribute name,
-// same vec3 layout). The impostorMesh is still on placeholder geometry (no
-// iFade attribute) so it is skipped until a future task attaches impostor
-// geometry.
+// The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
 import * as THREE from 'three';
 import { BUILDING_FADE } from '@/config/index.js';
@@ -149,8 +146,6 @@ export function createBuildingFader({
     const fadeCfg = BUILDING_FADE.get();
 
     // Iterate CellTile.detailMesh instances and write per-slot iFade values.
-    // impostorMesh is still on placeholder geometry (no iFade attribute);
-    // skip it until a future task attaches impostor geometry.
     const cells = cityScene.getCells();
     for (const cell of cells.values()) {
       const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;

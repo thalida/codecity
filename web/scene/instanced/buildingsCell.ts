@@ -1,6 +1,6 @@
 // scene/instanced/buildingsCell.ts — Cell-aware building InstancedMesh
 // factory. Replaces the per-block factory in buildings.ts for the
-// spatial-grid + LOD rendering path.
+// spatial-grid rendering path.
 //
 // Geometry + material are constructed once at module load and shared
 // across all cells; per-cell InstancedMeshes get a shallow geometry

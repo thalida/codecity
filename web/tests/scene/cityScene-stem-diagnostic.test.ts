@@ -7,7 +7,7 @@ import type {
   StemPlacementTrace,
   ChildPlacementTrace,
   VariantTrace,
-} from '@/scene/layoutV4.js';
+} from '@/scene/layout.js';
 
 const { _formatStemDiagnostic } = __test;
 

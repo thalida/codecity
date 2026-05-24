@@ -1,16 +1,16 @@
-// layoutV4-trace.test.ts — exercise the optional `trace` params on
-// findSmallestValidStem, placeChild, and the layoutCityV4WithTrace entry.
+// layoutTrace.test.ts — exercise the optional `trace` params on
+// findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
 import {
   findSmallestValidStem,
   placeChild,
-  layoutCityV4WithTrace,
-} from '@/scene/layoutV4.js';
+  layoutCityWithTrace,
+} from '@/scene/layout.js';
 import type {
   VariantTrace,
   StemPlacementTrace,
-} from '@/scene/layoutV4.js';
+} from '@/scene/layout.js';
 import { WorldOccupancy } from '@/scene/worldOccupancy.js';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
@@ -151,7 +151,7 @@ describe('placeChild with trace', () => {
   });
 });
 
-describe('layoutCityV4WithTrace', () => {
+describe('layoutCityWithTrace', () => {
   it('returns { layout, trace } with one placement per child across the tree', () => {
     const files = [
       { path: 'a.ts', size: 100, lines: 10 },
@@ -193,7 +193,7 @@ describe('layoutCityV4WithTrace', () => {
       tree,
     };
 
-    const { layout, trace } = layoutCityV4WithTrace(manifest as unknown as Parameters<typeof layoutCityV4WithTrace>[0]);
+    const { layout, trace } = layoutCityWithTrace(manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]);
 
     expect(layout.buildings).toHaveLength(2);
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
@@ -257,7 +257,7 @@ describe('layoutCityV4WithTrace', () => {
       tree,
     };
 
-    const { trace } = layoutCityV4WithTrace(manifest as unknown as Parameters<typeof layoutCityV4WithTrace>[0]);
+    const { trace } = layoutCityWithTrace(manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]);
 
     expect(trace.placements).toHaveLength(2);
     const sub = trace.placements.find((p) => p.childLabel === 'sub');

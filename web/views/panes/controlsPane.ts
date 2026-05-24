@@ -43,8 +43,6 @@ import {
   // Live updates
   LIVE_UPDATES,
   SCAN_FILTERS,
-  // Rendering / debug
-  LOD,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -174,8 +172,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // reads structural → decorative top-to-bottom.
   body.appendChild(_buildTreesSection());
   body.appendChild(_buildBushesSection());
-  // Effects now also owns the LOD / Rendering knobs as a collapsible
-  // subgroup — they're all "shared post-FX & render-tier" dials.
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -1130,27 +1126,6 @@ function _buildEffectsSection(): HTMLElement {
         tip: 'Luma CUTOFF — pixels below this value contribute nothing to bloom. NOT an intensity dial: lower threshold = more pixels qualify = more total bloom; higher = fewer pixels glow. ≥1.0 keeps matte walls (capped at 1.0) clean and only blooms the HDR-pushed window pixels.',
       }),
     ])
-  );
-
-  // Level-of-detail thresholds used to live in their own "Rendering"
-  // section. They're per-cell GPU throttle dials — same conceptual
-  // family as the post-FX above, just at the rasterizer tier instead
-  // of the post pass — so they fold cleanly into Effects.
-  section.appendChild(
-    _subgroup('Level of detail', [
-      _toggle('LOD enabled', LOD, 'enabled', {
-        tip: 'When off, every cell renders at full detail regardless of distance — useful for visual QA, debugging facade shader changes, or forcing detail at any zoom. Cell mode (the spatial grid) is unaffected.',
-      }),
-      _number('Detail at (frac of viewport)', LOD, 'DETAIL_VIEWPORT_FRAC', 0, 0.5, 0.005, {
-        tip: 'Cell needs to cover at least this fraction of the viewport area to render at full detail. Higher = stricter (fewer cells qualify). Scale-independent: works the same on any repo, any resolution. Default 0.025 = 2.5%. Live-tunable; cells re-evaluate next frame. Ignored when LOD is disabled.',
-      }),
-      _number('Impostor at (frac of viewport)', LOD, 'IMPOSTOR_VIEWPORT_FRAC', 0, 0.5, 0.001, {
-        tip: 'Below this fraction of viewport, a cell falls back to a flat-shaded impostor box. Between this and the detail threshold is the hysteresis band — cells stay in their current tier to avoid thrash. Default 0.005 = 0.5%. Ignored when LOD is disabled.',
-      }),
-      _number('Cull below (frac of viewport)', LOD, 'CULL_VIEWPORT_FRAC', 0, 0.01, 0.00001, {
-        tip: 'Below this fraction of viewport, the cell is hidden entirely. Default 0.00005 = 0.005% (~10×10 pixels at 1080p). Raise to skip more far geometry; lower for visible specks at extreme zoom-out. Ignored when LOD is disabled.',
-      }),
-    ]),
   );
 
   return section;
