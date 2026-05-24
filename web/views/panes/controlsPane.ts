@@ -1026,9 +1026,6 @@ function _buildGemSection(): HTMLElement {
       _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
         tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
       }),
-      _slider('Tree buffer (world units)', GEM_SIZING, 'TREE_BUFFER_RADIUS', 0, 400, 4, {
-        tip: 'No-tree halo around the gem. Trees scattered within this radius of the gem center are rejected during placement. 0 disables the buffer. Rebuild on change.',
-      }),
     ])
   );
 

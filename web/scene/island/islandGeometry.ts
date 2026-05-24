@@ -117,7 +117,12 @@ export function buildIslandGeometry(
 ): THREE.BufferGeometry {
   const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed, roundness, grassThickness } = params;
 
-  const islandRadius = Math.min(halfWidth, halfDepth);
+  // Use the LONGEST oval axis as the reference for vertical island depth.
+  // Previously Math.min was used, which made elongated cities (long X,
+  // short Z) get a very shallow underside — disproportionate to the
+  // island's horizontal extent. With max(), depth scales with the
+  // visually-dominant dimension.
+  const islandRadius = Math.max(halfWidth, halfDepth);
   const totalDepth = islandRadius * depth;
 
   // Higher ROUNDNESS → lower exponent → more bowl-like body.

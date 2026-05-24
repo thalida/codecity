@@ -5,10 +5,9 @@
 // into a uniform grid sized to hold roughly `treeTarget` candidates
 // (capped at TREE_MAX_CELLS for massive-repo memory safety). Each
 // cell contributes a single jittered candidate, which is then run
-// through the same three rejection passes:
+// through the same two rejection passes:
 //   1. layout-rect collisions (rbush against inflated buildings + streets + paths)
-//   2. gem no-tree buffer
-//   3. density-falloff probabilistic rejection
+//   2. density-falloff probabilistic rejection
 // Accepted candidates are sorted by distance to the gem (ascending)
 // and truncated to `treeTarget`; the i-th placement gets
 // commitIndex = i (oldest commit closest to gem).
@@ -28,7 +27,6 @@ import * as THREE from 'three';
 import { TREES } from '@/config/trees.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { GEM_SIZING } from '@/config/gem.js';
 import { ISLAND_GEOMETRY } from '@/config/island.js';
 import { getWorldBounds } from '../worldBounds.js';
 import {
@@ -191,11 +189,6 @@ export function placeTrees(
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
   const center = gemCenterFromLayout(layout, bbox);
 
-  // Gem buffer: hard rejection of any candidate within this radius of
-  // the gem center. Squared once for cheap comparison in the loop.
-  const gemBufferRadius = Math.max(0, GEM_SIZING.get().TREE_BUFFER_RADIUS);
-  const gemBufferR2 = gemBufferRadius * gemBufferRadius;
-
   // Expand sampling region to cover the island polygon's full bounding
   // box, not just the inscribed worldBounds rect. The polygon
   // circumscribes the rect (vertices at radius hypot(halfWidth, halfDepth)),
@@ -305,8 +298,8 @@ export function placeTrees(
   const originZ = bounds.cz - sampleHalfD;
 
   // Visit each grid cell exactly once. Each contributes a single
-  // jittered candidate; the three rejection passes (layout, gem
-  // buffer, density falloff) match the previous behavior.
+  // jittered candidate; the two rejection passes (layout, density
+  // falloff) match the previous behavior.
   const accepted: { x: number; y: number; d2: number; seed: number }[] = [];
   for (let cz = 0; cz < cellsZ; cz++) {
     for (let cx = 0; cx < cellsX; cx++) {
@@ -326,14 +319,6 @@ export function placeTrees(
           h.minY < y + halfFoot && h.maxY > y - halfFoot,
         );
         if (overlaps) continue;
-      }
-
-      // Gem buffer: hard-reject candidates inside the no-tree halo
-      // around the gem. Skipped when the buffer is 0.
-      if (gemBufferR2 > 0) {
-        const gdx = x - center.x;
-        const gdy = y - center.y;
-        if (gdx * gdx + gdy * gdy < gemBufferR2) continue;
       }
 
       // Density falloff: reject probabilistically based on distance

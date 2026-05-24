@@ -10,7 +10,6 @@ import { placeTrees, type TreePlacement } from './treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { FOOTPRINT } from '@/config/footprint.js';
-import { GEM_SIZING } from '@/config/gem.js';
 import { ISLAND_GEOMETRY } from '@/config/island.js';
 import { WORLD } from '@/config/world.js';
 import type { CityBbox, CityLayout } from '@/types';
@@ -24,7 +23,6 @@ interface ConfigSnapshot {
   trees: ReturnType<typeof TREES.get>;
   buildingDims: ReturnType<typeof BUILDING_DIMENSIONS.get>;
   footprint: ReturnType<typeof FOOTPRINT.get>;
-  gemSizing: ReturnType<typeof GEM_SIZING.get>;
   islandGeo: ReturnType<typeof ISLAND_GEOMETRY.get>;
   world: ReturnType<typeof WORLD.get>;
 }
@@ -44,7 +42,6 @@ function _snapshot(): ConfigSnapshot {
     trees: TREES.get(),
     buildingDims: BUILDING_DIMENSIONS.get(),
     footprint: FOOTPRINT.get(),
-    gemSizing: GEM_SIZING.get(),
     islandGeo: ISLAND_GEOMETRY.get(),
     world: WORLD.get(),
   };

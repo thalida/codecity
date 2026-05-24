@@ -4,7 +4,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/scene/trees/treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { GEM_SIZING } from '@/config/gem.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 function resetTrees() {
@@ -60,10 +59,6 @@ describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {
     resetTrees();
     resetBuildings();
-    // Disable the gem no-tree buffer by default so existing tests
-    // that scatter trees right up to the bbox center still find room.
-    // Per-test setups can opt into a non-zero buffer.
-    GEM_SIZING.setKey('TREE_BUFFER_RADIUS', 0);
   });
 
   it('returns empty when TREES_ENABLED is false', () => {
@@ -172,28 +167,6 @@ describe('placeTrees (commit-driven)', () => {
     }
   });
 
-  it('rejects candidates inside the gem no-tree buffer', () => {
-    const bufferRadius = 60;
-    GEM_SIZING.setKey('TREE_BUFFER_RADIUS', bufferRadius);
-    // Empty layout → no root street → gem center = bbox center (0,0).
-    const layout = emptyLayout(bbox(-500, -500, 500, 500));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });
-    for (const p of placements) {
-      const d = Math.sqrt(p.x * p.x + p.y * p.y);
-      expect(d).toBeGreaterThanOrEqual(bufferRadius);
-    }
-  });
-
-  it('buffer = 0 places trees right up to the gem (no halo)', () => {
-    GEM_SIZING.setKey('TREE_BUFFER_RADIUS', 0);
-    // Larger commitCount → denser grid → near-origin candidates exist.
-    // 1000 trees over the ~2600u sampling region gives ~40u cells, so
-    // the cell straddling the gem can place candidates well inside 60u.
-    const layout = emptyLayout(bbox(-500, -500, 500, 500));
-    const placements = placeTrees(layout, layout.bbox, { commitCount: 1000 });
-    const insideOldBuffer = placements.some((p) => Math.sqrt(p.x * p.x + p.y * p.y) < 60);
-    expect(insideOldBuffer).toBe(true);
-  });
 });
 
 export type { TreePlacement };

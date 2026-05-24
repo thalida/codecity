@@ -60,10 +60,9 @@ describe('treePlacementClient (sync fallback path)', () => {
 
   it('forwards commitCount to placeTrees', async () => {
     const client = createTreePlacementClient();
-    // Bbox sized generously so the gem buffer (default radius 200) +
-    // polygon-in rejection don't crowd out the 25 candidates we expect.
-    // Previously the MIN_BUFFER=800 floor padded tiny bboxes; now removed,
-    // so this test sizes its own bbox big enough.
+    // Bbox sized generously so the polygon-in rejection doesn't crowd
+    // out the 25 candidates we expect. Previously the MIN_BUFFER=800 floor
+    // padded tiny bboxes; now removed, so this test sizes its own bbox big enough.
     const layout: CityLayout = {
       buildings: [], streets: [], paths: [],
       lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },

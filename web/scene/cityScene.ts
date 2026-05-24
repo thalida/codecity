@@ -935,6 +935,16 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // Cell mode has no per-building interactivity that needs connectors.
       const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
       bbox = cellBuilt.bbox;
+      // buildCityScene was called with skipBuildings: true, so the returned
+      // bbox covers streets/paths/gem only — NOT buildings (rendered
+      // separately via the cell-based instanced renderer). Expand the bbox
+      // to include each building's XZ footprint + Y height so downstream
+      // consumers (sceneBbox sizing, camera framing in cameraRig, fly-mode
+      // bounds in flyControls) get the FULL visible city.
+      for (const b of newLayout.buildings) {
+        bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
+        bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
+      }
 
       streetPickables = cellBuilt.streetPickables || [];
       streetLabels = cellBuilt.streetLabels || [];
@@ -989,38 +999,19 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
 
     _emit(changeCbs, _computeDiff(prev));
 
-    // Convert the THREE.Box3 of the rendered scene to a placement-style
-    // CityBbox. The streets/paths/gem from `bbox` cover most of the city
-    // footprint — but buildings are rendered separately via the cell-based
-    // instanced renderer (the buildCityScene call above passes
-    // skipBuildings: true), so buildings are NOT in `bbox`. We union each
-    // building's XZ footprint from `newLayout.buildings` here so the island
-    // is sized against the FULL visible city, not just streets/paths/gem.
-    let sceneBbox: CityBbox | null = null;
-    if (bbox) {
-      let minX = bbox.min.x;
-      let maxX = bbox.max.x;
-      let minZ = bbox.min.z;
-      let maxZ = bbox.max.z;
-      for (const b of newLayout.buildings) {
-        const bMinX = b.x - b.w / 2;
-        const bMaxX = b.x + b.w / 2;
-        const bMinZ = b.y - b.d / 2;
-        const bMaxZ = b.y + b.d / 2;
-        if (bMinX < minX) minX = bMinX;
-        if (bMaxX > maxX) maxX = bMaxX;
-        if (bMinZ < minZ) minZ = bMinZ;
-        if (bMaxZ > maxZ) maxZ = bMaxZ;
-      }
-      sceneBbox = {
-        minX, maxX,
-        minY: minZ, maxY: maxZ,
-        cx: (minX + maxX) / 2,
-        cy: (minZ + maxZ) / 2,
-        width: maxX - minX,
-        depth: maxZ - minZ,
-      };
-    }
+    // Convert the THREE.Box3 (now includes building footprints — expanded
+    // above right after cellBuilt.bbox assignment) to a placement-style
+    // CityBbox.
+    const sceneBbox: CityBbox | null = bbox ? {
+      minX: bbox.min.x,
+      maxX: bbox.max.x,
+      minY: bbox.min.z, // three.js Z is the second world axis
+      maxY: bbox.max.z,
+      cx: (bbox.min.x + bbox.max.x) / 2,
+      cy: (bbox.min.z + bbox.max.z) / 2,
+      width: bbox.max.x - bbox.min.x,
+      depth: bbox.max.z - bbox.min.z,
+    } : null;
     // City's vertical extent — feeds into worldBounds so small-but-tall
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
