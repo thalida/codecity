@@ -16,7 +16,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { shadeColor, shadeAndShiftHue, shadeByRatio, hslToComponents } from '@/scene/hsl.js';
+import { shadeColor, shadeAndShiftHue, shadeByRatio, hslToComponents } from '@/scene/utils/color/hsl.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -182,7 +182,7 @@ function expectHslClose(
 describe('hsl.glsl parity with hsl.ts', () => {
   it('GLSL source file exists and declares all three public helpers', () => {
     const src = readFileSync(
-      resolve(__dirname, '../../scene/shaders/hsl.glsl'),
+      resolve(__dirname, '../../scene/utils/color/hsl.glsl'),
       'utf-8',
     );
     expect(src).toContain('vec3 shadeColor(vec3 rgb, float deltaPct)');

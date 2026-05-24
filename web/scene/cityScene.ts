@@ -31,7 +31,7 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { registerShaderChunks } from './shaders/registerShaderChunks.js';
+import { registerShaderChunks } from './utils/color/registerShaderChunks.js';
 import { getSharedBuildingUniforms } from './components/buildings/buildings.js';
 import { disposeLabelMaterials } from './components/labels/labels.js';
 import { buildCellsFromLayout } from './layout/cellAssembly.js';
@@ -48,7 +48,10 @@ import type {
   StemPlacementTrace,
 } from './layout/layout.js';
 import type { WorldRect } from './layout/worldOccupancy.js';
-import { buildCityScene } from './system/engine.js';
+import { createRootGem } from './components/gem/gem.js';
+import { createStreetMesh } from './components/streets/streets.js';
+import { createStreetLabels } from './components/streets/streetLabels.js';
+import { createPathMesh } from './components/streets/streetPath.js';
 import { createSky } from './components/sky/sky.js';
 import type { Sky } from './components/sky/sky.js';
 import { createTrees } from './components/trees/trees.js';
@@ -64,7 +67,7 @@ import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
 import { createCityFootprint } from './components/footprint/footprint.js';
 import type { CityFootprint } from './components/footprint/footprint.js';
 import { FOOTPRINT } from '@/config/footprint.js';
-import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
+import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './utils/color/colors.js';
 import { parentDirPath } from './utils/path.js';
 import {
   ASPHALT,
@@ -249,6 +252,121 @@ export const __test = {
   _formatCollisionReport,
   _formatStemDiagnostic,
 };
+
+/**
+ * Options for _buildCityScene.
+ *
+ * skipBuildings — skip per-building scene work that is vestigial in cell
+ * mode: per-building path-connector meshes (one per layout.paths entry).
+ * Streets, sidewalks, street labels, the root gem, and asphalt are
+ * always built regardless of this flag. The cell-rendering path sets
+ * skipBuildings: true so a large repo doesn't pay for ~N_buildings path
+ * meshes Three.js would otherwise frustum-cull every frame.
+ */
+interface BuildCityOpts {
+  skipBuildings?: boolean;
+}
+
+// _buildCityScene(layout, opts) — one-shot scene builder.
+//
+// Composes the streets / street labels / connector paths / root gem
+// component factories into a fresh THREE.Scene and returns the lookup
+// tables createCityScene needs to wire interaction + post-processing.
+// Per-cell instanced building/label/adPanel meshes are NOT built here —
+// scene/layout/cellAssembly.ts handles those once the layout is in hand.
+function _buildCityScene(layout: CityLayout, opts: BuildCityOpts = {}) {
+  // All visual values (street colors, sidewalk default, label fill/stroke,
+  // gem edge color, etc.) come from the named exports of @/config.
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+
+  // Streets + their labels
+  const streets = layout.streets || [];
+  type FlatMesh = THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>;
+  const streetPickables: FlatMesh[] = [];
+  const asphaltMeshes: FlatMesh[] = [];
+  const streetLabels: THREE.Group[] = [];
+  let rootGem: THREE.Group | null = null;
+  let rootGemBody: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | null = null;
+  let rootGemEdges: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> | null = null;
+  for (const street of streets) {
+    const sg = createStreetMesh(street, 0);
+    scene.add(sg);
+    streetPickables.push(sg.userData.sidewalk as FlatMesh);
+    if (sg.userData.asphalt) asphaltMeshes.push(sg.userData.asphalt as FlatMesh);
+
+    const labels = createStreetLabels(street);
+    for (const label of labels) {
+      scene.add(label);
+      streetLabels.push(label);
+    }
+
+    // Root-of-repo landmark at the street's origin end. The gem group
+    // wraps two children: [0] body (the colored octahedron) and [1]
+    // edges (the dark separator lines). Both are exposed so the Settings
+    // UI can hot-update color + opacity.
+    if (street.isRoot) {
+      const gemGroup = createRootGem(street);
+      scene.add(gemGroup);
+      rootGem = (gemGroup.userData.gem as THREE.Group) || null;
+      if (rootGem) {
+        rootGemBody =
+          (rootGem.userData.body as THREE.Mesh<
+            THREE.BufferGeometry,
+            THREE.MeshBasicMaterial
+          >) || null;
+        rootGemEdges =
+          (rootGem.userData.edges as THREE.LineSegments<
+            THREE.BufferGeometry,
+            THREE.LineBasicMaterial
+          >) || null;
+      }
+    }
+  }
+
+  // Per-building path-connector strips (door → sidewalk).
+  //
+  // Skipped when opts.skipBuildings is true (cell-rendering path): for
+  // a large repo this is one mesh per building (~100k for Linux), which
+  // would dominate scene.children and cause a multi-second stall in the
+  // scene.add() loop. Cell mode has no per-building interactivity that
+  // requires the connectors.
+  const pathMeshes: FlatMesh[] = [];
+  if (!opts.skipBuildings) {
+    const paths = layout.paths || [];
+    for (const path of paths) {
+      const pm = createPathMesh(path, 0);
+      scene.add(pm);
+      pathMeshes.push(pm);
+    }
+  }
+
+  // Bounding box of the whole city (in scene coords). Caller uses it
+  // to frame the camera. Empty fallback prevents NaN at boot when the
+  // layout has zero meshes.
+  const bbox = new THREE.Box3().setFromObject(scene);
+  if (bbox.isEmpty()) {
+    bbox.set(new THREE.Vector3(-50, 0, -50), new THREE.Vector3(50, 10, 50));
+  }
+
+  // buildingMeshes is empty — per-building meshes live in cell
+  // InstancedMeshes, not on this scene. Returned for shape compatibility
+  // with cityScene's disposal loop.
+  const buildingMeshes: THREE.Mesh[] = [];
+
+  return {
+    scene,
+    buildingMeshes,
+    streetPickables,
+    streetLabels,
+    pathMeshes,
+    asphaltMeshes,
+    rootGem,
+    rootGemBody,
+    rootGemEdges,
+    bbox,
+  };
+}
 
 // `canvas` is unused; kept in the signature so call sites (main.ts, tests)
 // don't have to change. outlineRenderer takes the canvas directly via its
@@ -934,7 +1052,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // repo those meshes dominate cellBuilt.scene.children and cause a
       // multi-second stall in the scene.add() loop below.
       // Cell mode has no per-building interactivity that needs connectors.
-      const cellBuilt = buildCityScene(newLayout, { skipBuildings: true });
+      const cellBuilt = _buildCityScene(newLayout, { skipBuildings: true });
       bbox = cellBuilt.bbox;
       // buildCityScene was called with skipBuildings: true, so the returned
       // bbox covers streets/paths/gem only — NOT buildings (rendered

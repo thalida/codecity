@@ -6,7 +6,7 @@ import {
   getDateRanges,
   getBuildingColor,
   getModifiedAge,
-} from '@/scene/colors.js';
+} from '@/scene/utils/color/colors.js';
 import { BUILDING_PALETTE } from '@/config/index.js';
 import type { BuildingPaletteConfig } from '@/config/building.js';
 import { NodeKind } from '@/types';
