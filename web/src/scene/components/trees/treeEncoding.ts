@@ -144,3 +144,67 @@ export function gapTByIndex(commitGaps: CommitGaps, idx: number): number {
   if (idx <= 0 || idx >= commitGaps.gaps.length) return 0.5;
   return gapT(commitGaps.gaps[idx], commitGaps.range);
 }
+
+export interface DailyCountRange {
+  /** Smallest per-day commit count across the history (>=1 for non-empty input). */
+  min: number;
+  /** Largest per-day commit count across the history. */
+  max: number;
+  /** max - min. 0 when there is no meaningful range. */
+  span: number;
+}
+
+export interface DailyCounts {
+  /** Per-commit count of commits sharing that commit's calendar date.
+   *  Same length as the input commits array; counts[i] = N when commit i
+   *  shares its date with N-1 other commits (so counts[i] >= 1 for any
+   *  valid commit). */
+  counts: number[];
+  range: DailyCountRange;
+}
+
+/** Group commits by `date` (YYYY-MM-DD) and assign each commit the size
+ *  of its day-group. Single O(n) pass: first pass tallies dates into a
+ *  Map, second pass writes per-commit counts. Min/max are taken across
+ *  the per-commit counts. */
+export function computeDailyCounts(commits: CommitEntry[] | null): DailyCounts {
+  if (!commits || commits.length === 0) {
+    return { counts: [], range: { min: 0, max: 0, span: 0 } };
+  }
+  const byDate = new Map<string, number>();
+  for (let i = 0; i < commits.length; i++) {
+    const d = commits[i].date;
+    byDate.set(d, (byDate.get(d) ?? 0) + 1);
+  }
+  const counts = new Array<number>(commits.length);
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < commits.length; i++) {
+    const c = byDate.get(commits[i].date) ?? 0;
+    counts[i] = c;
+    if (c < min) min = c;
+    if (c > max) max = c;
+  }
+  return { counts, range: { min, max, span: max - min } };
+}
+
+/** Normalize a per-day commit count to [0, 1]. **High counts (busy days)
+ *  map toward t=1**; low counts (solo-commit days) map toward t=0.
+ *  Logarithmic so the typical 1–10 commits-per-day band stays readable
+ *  when one outlier day hits 50+ commits. */
+export function dailyCountT(count: number, range: DailyCountRange): number {
+  if (range.span <= 0) return 0.5;
+  const logMin = Math.log1p(range.min);
+  const logMax = Math.log1p(range.max);
+  const logSpan = logMax - logMin;
+  if (logSpan <= 0) return 0.5;
+  return clamp01((Math.log1p(count) - logMin) / logSpan);
+}
+
+/** Convenience: daily-count-T by commit index. Out-of-range indices
+ *  return 0.5 (neutral) — every in-range commit has a valid count, so
+ *  there's no "index 0 is special" case here. */
+export function dailyCountTByIndex(dc: DailyCounts, idx: number): number {
+  if (idx < 0 || idx >= dc.counts.length) return 0.5;
+  return dailyCountT(dc.counts[idx], dc.range);
+}
