@@ -86,11 +86,6 @@ export interface RepoInfo {
 export interface CommitEntry {
   date: string;   // "YYYY-MM-DD"
   files: number;
-  /** Days since the previous commit in the oldest-first ordering. 0
-   *  for index 0 (no previous), >=0 thereafter. Pre-computed by the
-   *  scanner (codecity/scan.py::_backfill_gap_days) so the renderer
-   *  doesn't have to re-parse + diff dates on every reload. */
-  gap_days: number;
 }
 
 export interface Manifest {

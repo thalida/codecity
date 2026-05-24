@@ -197,8 +197,8 @@ class GitHistoryCacheTests(CacheTestBase):
         """Round-trip a small commits list through the cache."""
         root = Path("/some/repo")
         commits: list[CommitEntry] = [
-            {"date": "2024-01-01", "files": 3, "gap_days": 0},
-            {"date": "2024-02-15", "files": 7, "gap_days": 45},
+            {"date": "2024-01-01", "files": 3},
+            {"date": "2024-02-15", "files": 7},
         ]
         cache_mod.cache_save_git_history(
             root, head_sha="abc", git_window="3.years.ago",
@@ -226,14 +226,13 @@ class GitHistoryCacheTests(CacheTestBase):
             "created": {},
             "modified": {},
             "commits": [
-                {"date": "2024-01-01", "files": 3, "gap_days": 0},   # valid
-                "not a dict",                                          # dropped: not a dict
-                {"date": 12345, "files": 5, "gap_days": 1},            # dropped: date not str
-                {"date": "2024-02-01"},                                # dropped: missing files
-                {"date": "2024-03-01", "files": True, "gap_days": 1},  # dropped: files is bool
-                {"files": 4, "gap_days": 1},                           # dropped: missing date
-                {"date": "2024-03-15", "files": 2},                    # dropped: missing gap_days
-                {"date": "2024-04-01", "files": 7, "gap_days": 30},    # valid
+                {"date": "2024-01-01", "files": 3},          # valid
+                "not a dict",                                 # dropped: not a dict
+                {"date": 12345, "files": 5},                  # dropped: date not str
+                {"date": "2024-02-01"},                       # dropped: missing files
+                {"date": "2024-03-01", "files": True},        # dropped: files is bool
+                {"files": 4},                                 # dropped: missing date
+                {"date": "2024-04-01", "files": 7},           # valid
             ],
         }), encoding="utf-8")
         loaded = cache_mod.cache_load_git_history(root, "abc", "3.years.ago")
@@ -242,8 +241,8 @@ class GitHistoryCacheTests(CacheTestBase):
         _created, _modified, commits = loaded
         # Only the two well-formed entries survive.
         self.assertEqual(commits, [
-            {"date": "2024-01-01", "files": 3, "gap_days": 0},
-            {"date": "2024-04-01", "files": 7, "gap_days": 30},
+            {"date": "2024-01-01", "files": 3},
+            {"date": "2024-04-01", "files": 7},
         ])
 
     def test_git_history_cache_v2_returns_none(self):
