@@ -1,6 +1,9 @@
 # Output
 .codecity/
 
+# Local dev state (worktree ports, etc.)
+.local/
+
 # Tool artifacts
 .superpowers/
 docs/superpowers/

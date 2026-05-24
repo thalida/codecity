@@ -80,8 +80,7 @@ Two trees, cleanly separated: Python lives at the repo root, the frontend lives 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-uv sync                          # python deps  (run from repo root)
-( cd web && npm install )        # frontend deps
+just setup                       # uv sync + npm install
 ( cd web && npm run build )      # → codecity/static/
 uv run codecity .                # smoke test against this repo
 ```
@@ -89,10 +88,11 @@ uv run codecity .                # smoke test against this repo
 Hot-reload loop while editing the frontend:
 
 ```sh
-uv run codecity --dev .
+just dev           # Vite :5173 + Python API :8765, opens browser, Ctrl-C to stop
+just dev-worktree  # same but auto-selects free ports (safe to run across multiple worktrees)
 ```
 
-That spawns Vite on `:5173` and the Python API on `:8765`, opens your browser at the Vite URL (which proxies `/api/*` back to Python), and tears both down on Ctrl-C.
+`just dev` spawns Vite on `:5173` and the Python API on `:8765`. `just dev-worktree` picks free ports automatically and saves them to `.local/worktree-ports.json` so the same URLs survive restarts.
 
 ### Tests
 
