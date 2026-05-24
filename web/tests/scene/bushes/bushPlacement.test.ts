@@ -1,7 +1,7 @@
 // bushPlacement.test.ts — verifies decorative bush scatter placement.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { placeBushes } from '@/scene/bushes/bushPlacement.js';
+import { placeBushes } from '@/scene/components/bushes/bushPlacement.js';
 import { BUSHES } from '@/config/bushes.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';

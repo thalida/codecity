@@ -32,9 +32,9 @@ import {
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createCityScene } from './scene/cityScene.js';
-import type { createPicker } from './scene/picker.js';
-import type { createCameraRig } from './scene/cameraRig.js';
-import type { createFlyControls } from './scene/flyControls.js';
+import type { createPicker } from './scene/system/picker.js';
+import type { createCameraRig } from './scene/system/cameraRig.js';
+import type { createFlyControls } from './scene/system/flyControls.js';
 
 interface CoordinatorOpts {
   cityScene: ReturnType<typeof createCityScene>;

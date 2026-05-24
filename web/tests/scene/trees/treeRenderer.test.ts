@@ -8,14 +8,14 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createTreeRenderer, type Trees } from '@/scene/trees/treeRenderer.js';
-import type { TreePlacement } from '@/scene/trees/treePlacement.js';
+import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRenderer.js';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { LIGHTING } from '@/config/lighting.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
-import { interpolateOklch } from '@/scene/trees/colorInterp.js';
+import { interpolateOklch } from '@/scene/components/trees/colorInterp.js';
 
 function resetStores() {
   TREES.set({

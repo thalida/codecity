@@ -18,11 +18,11 @@ import * as THREE from 'three';
 import { LABEL_TYPOGRAPHY } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { Building } from '@/types/index.js';
-import type { CellTile } from '../cellTile.js';
+import type { CellTile } from '../../layout/cellTile.js';
 import type { LabelAtlasResult } from './labelAtlas.js';
 
-import labelVertSrc from '../shaders/label.vert.glsl?raw';
-import labelFragSrc from '../shaders/label.frag.glsl?raw';
+import labelVertSrc from './label.vert.glsl?raw';
+import labelFragSrc from './label.frag.glsl?raw';
 
 // ---------------------------------------------------------------------------
 // Shared base geometry — unit plane (XY plane), shared across all cells.

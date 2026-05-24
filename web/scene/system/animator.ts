@@ -30,7 +30,7 @@
 import * as THREE from 'three';
 import { ANIMATION_TIMING } from '@/config/index.js';
 import type { Building, CitySceneDiff } from '@/types';
-import type { createCityScene } from './cityScene.js';
+import type { createCityScene } from '../cityScene.js';
 
 interface Tween {
   /** Slot index within the CellTile InstancedMesh (same as building.slotId). */

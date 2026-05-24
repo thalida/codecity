@@ -26,8 +26,8 @@ import { SKY, SKY_STARS } from '@/config/sky.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { RENDER_ORDERS } from '@/constants';
 
-import skyVertSrc from '../shaders/sky.vert.glsl?raw';
-import skyFragSrc from '../shaders/sky.frag.glsl?raw';
+import skyVertSrc from './sky.vert.glsl?raw';
+import skyFragSrc from './sky.frag.glsl?raw';
 
 // Multiplier on CAMERA_PERSPECTIVE.FAR for the sky sphere's radius.
 // 0.95 keeps the sphere inside the frustum's far plane so it never

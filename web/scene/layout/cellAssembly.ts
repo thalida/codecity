@@ -9,10 +9,10 @@
 import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
-import { attachBuildingMeshToCell, writeBuildingToSlot } from './instanced/buildingsCell.js';
-import { InstancedAdPanels, asyncLoadMediaForBuilding } from './instanced/adPanelsInstanced.js';
-import { isMediaFile } from './adPanels.js';
-import { BuildingIndex } from './buildingIndex.js';
+import { attachBuildingMeshToCell, writeBuildingToSlot } from '../components/buildings/buildingsCell.js';
+import { InstancedAdPanels, asyncLoadMediaForBuilding } from '../components/adPanels/adPanelsInstanced.js';
+import { isMediaFile } from '../components/adPanels/adPanels.js';
+import { BuildingIndex } from '../components/buildings/buildingIndex.js';
 import type { Building } from '@/types/index.js';
 
 export interface CellAssemblyOutput {

@@ -23,7 +23,7 @@ import * as THREE from 'three';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/constants';
 import type { createCityScene } from '@/scene/cityScene.js';
-import type { createPicker } from '@/scene/picker.js';
+import type { createPicker } from '@/scene/system/picker.js';
 import type { FileTarget } from '@/types';
 
 // Opacity for the hover ghost overlay.  Intentionally light so the ghost

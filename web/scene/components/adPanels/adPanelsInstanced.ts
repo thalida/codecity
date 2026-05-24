@@ -13,12 +13,12 @@
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
 import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
-import { mediaKindOf } from '../adPanels.js';
+import { mediaKindOf } from './adPanels.js';
 import { AdPanelTextureArray } from './adPanelTextureArray.js';
 import type { Building } from '@/types/index.js';
 
-import adPanelVertSrc from '../shaders/adPanel.vert.glsl?raw';
-import adPanelFragSrc from '../shaders/adPanel.frag.glsl?raw';
+import adPanelVertSrc from './adPanel.vert.glsl?raw';
+import adPanelFragSrc from './adPanel.frag.glsl?raw';
 
 // ---------------------------------------------------------------------------
 // Face layout helpers — ported from adPanels.ts (orientToYRotation).

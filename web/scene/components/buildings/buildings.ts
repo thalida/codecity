@@ -19,8 +19,8 @@ import {
   SCENE_COLORS,
   WINDOW_LIGHTING,
 } from '@/config/index.js';
-import type { IconAtlas } from '../iconAtlas.js';
-import { writeSunDir } from '@/scene/lighting/sunDir.js';
+import type { IconAtlas } from '../../utils/iconAtlas.js';
+import { writeSunDir } from '@/scene/components/lighting/sunDir.js';
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are
@@ -35,8 +35,8 @@ import { writeSunDir } from '@/scene/lighting/sunDir.js';
 // Shared material singleton
 // ---------------------------------------------------------------------------
 
-import buildingVertSrc from '../shaders/building.vert.glsl?raw';
-import buildingFragSrc from '../shaders/building.frag.glsl?raw';
+import buildingVertSrc from './building.vert.glsl?raw';
+import buildingFragSrc from './building.frag.glsl?raw';
 
 // Lazy singleton material — created once and reused across all cells.
 // applyManifest can be called multiple times (hot-reload); the singleton

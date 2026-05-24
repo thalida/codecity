@@ -33,12 +33,12 @@ import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';
 
 import { createCityScene } from './scene/cityScene.js';
-import { refreshBuildingMaterial } from './scene/instanced/buildings.js';
-import { createCameraRig } from './scene/cameraRig.js';
-import { createFlyControls } from './scene/flyControls.js';
-import { createAnimator } from './scene/animator.js';
-import { createPicker, PICKER_SELECTION_KEY } from './scene/picker.js';
-import { createInputHandlers } from './scene/inputHandlers.js';
+import { refreshBuildingMaterial } from './scene/components/buildings/buildings.js';
+import { createCameraRig } from './scene/system/cameraRig.js';
+import { createFlyControls } from './scene/system/flyControls.js';
+import { createAnimator } from './scene/system/animator.js';
+import { createPicker, PICKER_SELECTION_KEY } from './scene/system/picker.js';
+import { createInputHandlers } from './scene/system/inputHandlers.js';
 import { createBuildingFader } from './scene/effects/buildingFader.js';
 import { createOutlineRenderer } from './scene/effects/outlineRenderer.js';
 import { createGhostRenderer } from './scene/effects/ghostRenderer.js';
@@ -46,14 +46,14 @@ import { createPathLineRenderer } from './scene/effects/pathLineRenderer.js';
 import { createCoordinator } from './coordinator.js';
 import { showTooltip, hideTooltip } from './views/shell/tooltip.js';
 import { buildApiUrl } from './url.js';
-import { buildIconAtlas } from './scene/iconAtlas.js';
-import { setIconAtlas } from './scene/instanced/buildings.js';
-import { setCellIconAtlas } from './scene/instanced/buildingsCell.js';
+import { buildIconAtlas } from './scene/utils/iconAtlas.js';
+import { setIconAtlas } from './scene/components/buildings/buildings.js';
+import { setCellIconAtlas } from './scene/components/buildings/buildingsCell.js';
 import { createSourcePicker, type SourcePayload } from './views/shell/sourcePicker.js';
 import { createLoadingOverlay } from './views/shell/loadingOverlay.js';
 import { streamManifest } from './manifestStream.js';
 import { pushRecent } from './views/shell/sourceRecents.js';
-import { createPostFx } from './scene/postFx.js';
+import { createPostFx } from './scene/system/postFx.js';
 import { labelFromDisplayRoot } from './views/shell/displayLabel.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root

@@ -1,7 +1,7 @@
 // bushPalette.test.ts — verifies the deterministic bush color picker.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { pickBushNeon } from '@/scene/bushes/bushPalette.js';
+import { pickBushNeon } from '@/scene/components/bushes/bushPalette.js';
 import { BUSHES } from '@/config/bushes.js';
 
 function resetBushes() {

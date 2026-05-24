@@ -16,9 +16,9 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
-import { computePathPoints } from '@/scene/path.js';
+import { computePathPoints } from '@/scene/utils/path.js';
 import type { createCityScene } from '@/scene/cityScene.js';
-import type { createPicker } from '@/scene/picker.js';
+import type { createPicker } from '@/scene/system/picker.js';
 
 export function createPathLineRenderer({
   canvas,

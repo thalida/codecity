@@ -33,10 +33,10 @@ import {
   CAMERA_ANIMATION,
   ANIMATION_TIMING,
 } from '@/config/index.js';
-import { CURRENT_SOURCE_KEY } from '../sourceContext.js';
+import { CURRENT_SOURCE_KEY } from '../../sourceContext.js';
 import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
-import type { createCityScene } from './cityScene.js';
+import type { createCityScene } from '../cityScene.js';
 
 function _cameraPoseKey(): string | null {
   const k = CURRENT_SOURCE_KEY.get();

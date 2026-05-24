@@ -6,7 +6,7 @@
 
 import * as THREE from 'three';
 import hslGlslSrc from './hsl.glsl?raw';
-import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/lighting/fogChunk.js';
+import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/components/lighting/fogChunk.js';
 
 let _registered = false;
 

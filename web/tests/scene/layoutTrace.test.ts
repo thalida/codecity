@@ -6,12 +6,12 @@ import {
   findSmallestValidStem,
   placeChild,
   layoutCityWithTrace,
-} from '@/scene/layout.js';
+} from '@/scene/layout/layout.js';
 import type {
   VariantTrace,
   StemPlacementTrace,
-} from '@/scene/layout.js';
-import { WorldOccupancy } from '@/scene/worldOccupancy.js';
+} from '@/scene/layout/layout.js';
+import { WorldOccupancy } from '@/scene/layout/worldOccupancy.js';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 

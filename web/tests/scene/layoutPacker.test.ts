@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { StreetAxis } from '@/types';
-import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layout';
+import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layout/layout';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -80,8 +80,8 @@ describe('isMirrorInvariant', () => {
   });
 });
 
-import { WorldOccupancy } from '@/scene/worldOccupancy';
-import { findSmallestValidStem } from '@/scene/layout';
+import { WorldOccupancy } from '@/scene/layout/worldOccupancy';
+import { findSmallestValidStem } from '@/scene/layout/layout';
 
 describe('findSmallestValidStem', () => {
   // Helper to build a WorldRect for inserting into occupancy.
@@ -260,7 +260,7 @@ describe('findSmallestValidStem', () => {
   });
 });
 
-import { placeChild } from '@/scene/layout';
+import { placeChild } from '@/scene/layout/layout';
 
 describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
@@ -518,7 +518,7 @@ describe('translateRectsToWorld', () => {
   });
 });
 
-import { estimateDirReaches, layoutCity } from '@/scene/layout';
+import { estimateDirReaches, layoutCity } from '@/scene/layout/layout';
 import { NodeKind } from '@/types';
 import {
   assertNoOverlap,

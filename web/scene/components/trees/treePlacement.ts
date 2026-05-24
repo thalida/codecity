@@ -28,7 +28,7 @@ import { TREES } from '@/config/trees.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { ISLAND_GEOMETRY } from '@/config/island.js';
-import { getWorldBounds } from '../worldBounds.js';
+import { getWorldBounds } from '../../layout/worldBounds.js';
 import {
   buildTopPolygon,
   pointInIslandPolygon,

@@ -1,7 +1,7 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { placeTrees, type TreePlacement } from '@/scene/trees/treePlacement.js';
+import { placeTrees, type TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import { TREES } from '@/config/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import type { CityBbox, CityLayout } from '@/types';

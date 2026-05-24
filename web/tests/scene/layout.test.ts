@@ -6,8 +6,8 @@ import {
   sortForRendering,
   computeLineStats,
   __test,
-} from '@/scene/layout.js';
-import type { Rect } from '@/scene/layout.js';
+} from '@/scene/layout/layout.js';
+import type { Rect } from '@/scene/layout/layout.js';
 import { BUILDING_DIMENSIONS } from '@/config/index.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street, Building, BuildingPath } from '@/types';

@@ -39,7 +39,7 @@ import {
   type CommitGaps,
 } from './treeEncoding.js';
 import { interpolateOklch } from './colorInterp.js';
-import { sunDirFromLighting } from '@/scene/lighting/sunDir.js';
+import { sunDirFromLighting } from '@/scene/components/lighting/sunDir.js';
 
 export interface Trees {
   group: THREE.Group;

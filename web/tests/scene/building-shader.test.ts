@@ -4,7 +4,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SHADERS = resolve(__dirname, '../../scene/shaders');
+const SHADERS = resolve(__dirname, '../../scene/components/buildings');
 
 describe('building.vert.glsl', () => {
   const src = readFileSync(resolve(SHADERS, 'building.vert.glsl'), 'utf-8');

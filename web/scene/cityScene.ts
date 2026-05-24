@@ -32,40 +32,40 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 import { registerShaderChunks } from './shaders/registerShaderChunks.js';
-import { getSharedBuildingUniforms } from './instanced/buildings.js';
-import { disposeLabelMaterials } from './instanced/labels.js';
-import { buildCellsFromLayout } from './cellAssembly.js';
-import type { CellTile } from './cellTile.js';
-import { BuildingIndex } from './buildingIndex.js';
-import type { SpatialGrid } from './spatialGrid.js';
-import { findLayoutOverlaps } from './layout.js';
-import type { LayoutOverlap } from './layout.js';
-import { createLayoutClient } from './layoutClient.js';
-import type { LayoutComputeOpts } from './layoutClient.js';
-import { layoutCityWithTrace } from './layout.js';
+import { getSharedBuildingUniforms } from './components/buildings/buildings.js';
+import { disposeLabelMaterials } from './components/labels/labels.js';
+import { buildCellsFromLayout } from './layout/cellAssembly.js';
+import type { CellTile } from './layout/cellTile.js';
+import { BuildingIndex } from './components/buildings/buildingIndex.js';
+import type { SpatialGrid } from './layout/spatialGrid.js';
+import { findLayoutOverlaps } from './layout/layout.js';
+import type { LayoutOverlap } from './layout/layout.js';
+import { createLayoutClient } from './layout/layoutClient.js';
+import type { LayoutComputeOpts } from './layout/layoutClient.js';
+import { layoutCityWithTrace } from './layout/layout.js';
 import type {
   ChildPlacementTrace,
   StemPlacementTrace,
-} from './layout.js';
-import type { WorldRect } from './worldOccupancy.js';
-import { buildCityScene } from './engine.js';
-import { createSky } from './sky/sky.js';
-import type { Sky } from './sky/sky.js';
-import { createTrees } from './trees/trees.js';
-import type { Trees } from './trees/trees.js';
-import { createTreePlacementClient } from './trees/treePlacementClient.js';
-import type { TreePlacementClient } from './trees/treePlacementClient.js';
-import { createBushes } from './bushes/bushes.js';
-import type { Bushes } from './bushes/bushes.js';
-import { placeBushes } from './bushes/bushPlacement.js';
-import { createIsland } from './island/islandMesh.js';
-import type { Island } from './island/islandMesh.js';
-import { getWorldBounds, type WorldBounds } from './worldBounds.js';
-import { createCityFootprint } from './cityFootprint/footprint.js';
-import type { CityFootprint } from './cityFootprint/footprint.js';
+} from './layout/layout.js';
+import type { WorldRect } from './layout/worldOccupancy.js';
+import { buildCityScene } from './system/engine.js';
+import { createSky } from './components/sky/sky.js';
+import type { Sky } from './components/sky/sky.js';
+import { createTrees } from './components/trees/trees.js';
+import type { Trees } from './components/trees/trees.js';
+import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
+import type { TreePlacementClient } from './components/trees/treePlacementClient.js';
+import { createBushes } from './components/bushes/bushes.js';
+import type { Bushes } from './components/bushes/bushes.js';
+import { placeBushes } from './components/bushes/bushPlacement.js';
+import { createIsland } from './components/island/islandMesh.js';
+import type { Island } from './components/island/islandMesh.js';
+import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
+import { createCityFootprint } from './components/footprint/footprint.js';
+import type { CityFootprint } from './components/footprint/footprint.js';
 import { FOOTPRINT } from '@/config/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
-import { parentDirPath } from './path.js';
+import { parentDirPath } from './utils/path.js';
 import {
   ASPHALT,
   GEM_APPEARANCE,
@@ -362,7 +362,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let _grid: SpatialGrid | null = null;
   // Instanced ad panels (DataArrayTexture-backed). One instance per
   // applyManifest call; disposed on full rebuild or resetCache.
-  let _instancedAdPanels: import('./instanced/adPanelsInstanced.js').InstancedAdPanels | null = null;
+  let _instancedAdPanels: import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels | null = null;
 
   // Layout cache: avoid redundant _layoutClient.compute() when
   // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
@@ -1063,7 +1063,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         // Off-thread tree placement via the worker. The supersede protocol
         // rejects this promise with "superseded" if another applyManifest
         // fires while placement is in-flight.
-        let treePlacements: import('./trees/treePlacement.js').TreePlacement[];
+        let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
         try {
           treePlacements = await _treePlacementClient.compute(layoutAtDefer, foliageBbox, commitCountAtDefer, cityHeightAtDefer);
         } catch (err) {

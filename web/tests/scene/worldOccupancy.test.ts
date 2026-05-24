@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WorldOccupancy, type WorldRect } from '@/scene/worldOccupancy';
+import { WorldOccupancy, type WorldRect } from '@/scene/layout/worldOccupancy';
 
 // Helper to build a WorldRect from {x, y, w, d} for terse tests.
 function mkRect(x: number, y: number, w: number, d: number): WorldRect {

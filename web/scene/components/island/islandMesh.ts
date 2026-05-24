@@ -13,7 +13,7 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
 } from '@/config/island.js';
-import { getWorldBounds, type WorldBounds } from '@/scene/worldBounds.js';
+import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds.js';
 import {
   buildIslandGeometry,
   type IslandBuildParams,

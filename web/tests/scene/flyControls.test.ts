@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, it, expect, vi } from 'vitest';
-import { createFlyControls, type FlyControlsCityScene } from '@/scene/flyControls.js';
+import { createFlyControls, type FlyControlsCityScene } from '@/scene/system/flyControls.js';
 import { StreetAxis } from '@/types';
 
 function makeFakeRig() {

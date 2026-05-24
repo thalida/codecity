@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { BuildingIndex } from '@/scene/buildingIndex.js';
+import { BuildingIndex } from '@/scene/components/buildings/buildingIndex.js';
 import type { Building } from '@/types/index.js';
 import type { DirNode } from '@/types/manifest.js';
 

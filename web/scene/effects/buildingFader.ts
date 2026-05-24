@@ -18,9 +18,9 @@ import * as THREE from 'three';
 import { BUILDING_FADE } from '@/config/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
-import { parentDirPath } from '@/scene/path.js';
+import { parentDirPath } from '@/scene/utils/path.js';
 import type { createCityScene } from '@/scene/cityScene.js';
-import type { createPicker } from '@/scene/picker.js';
+import type { createPicker } from '@/scene/system/picker.js';
 
 interface TierResult {
   detail: FadeDetail;

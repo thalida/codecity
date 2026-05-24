@@ -18,8 +18,8 @@ import { STREET_TIERS, BUILDING_DIMENSIONS, STREET_LAYOUT, GEM_SIZING } from '@/
 import type { StreetTier } from '@/config/street.js';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
-import { parentDirPath } from './path.js';
-import { isMediaFile } from './adPanels.js';
+import { parentDirPath } from '../utils/path.js';
+import { isMediaFile } from '../components/adPanels/adPanels.js';
 import { WorldOccupancy } from './worldOccupancy.js';
 import type { WorldRect, WorldRectKind } from './worldOccupancy.js';
 

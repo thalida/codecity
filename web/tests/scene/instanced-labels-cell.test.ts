@@ -2,9 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import type { LabelTypographyConfig } from '@/config/index.js';
 import { LABEL_TYPOGRAPHY } from '@/config/index.js';
-import { buildLabelAtlas } from '@/scene/instanced/labelAtlas.js';
-import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/instanced/labelsCell.js';
-import type { CellTile } from '@/scene/cellTile.js';
+import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
+import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
+import type { CellTile } from '@/scene/layout/cellTile.js';
 import type { Building } from '@/types/index.js';
 import { NodeKind, BuildingOrient } from '@/types/index.js';
 

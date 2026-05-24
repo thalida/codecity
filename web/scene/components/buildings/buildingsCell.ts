@@ -15,11 +15,11 @@ import {
   FACADE_GEOMETRY,
 } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
-import buildingVertSrc from '../shaders/building.vert.glsl?raw';
-import buildingFragSrc from '../shaders/building.frag.glsl?raw';
-import type { CellTile } from '../cellTile.js';
+import buildingVertSrc from './building.vert.glsl?raw';
+import buildingFragSrc from './building.frag.glsl?raw';
+import type { CellTile } from '../../layout/cellTile.js';
 import type { Building } from '@/types/index.js';
-import type { IconAtlas } from '../iconAtlas.js';
+import type { IconAtlas } from '../../utils/iconAtlas.js';
 import { getFileIconName } from '@/views/shell/fileIcon.js';
 import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt.js';
 

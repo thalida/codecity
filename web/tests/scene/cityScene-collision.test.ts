@@ -4,7 +4,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { __test } from '@/scene/cityScene.js';
-import type { LayoutOverlap } from '@/scene/layout.js';
+import type { LayoutOverlap } from '@/scene/layout/layout.js';
 
 const { _formatCollisionReport } = __test;
 

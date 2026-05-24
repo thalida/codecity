@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY } from '@/scene/picker.js';
+import { createPicker, PICKER_SELECTION_KEY } from '@/scene/system/picker.js';
 import { NodeKind } from '@/types';
 import type {
   Building,

@@ -13,7 +13,7 @@ import { FOOTPRINT } from '@/config/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/building.js';
 import { CAMERA_PERSPECTIVE } from '@/config/view.js';
 import { TREES } from '@/config/trees.js';
-import { getWorldBounds } from '../worldBounds.js';
+import { getWorldBounds } from '../../layout/worldBounds.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
 

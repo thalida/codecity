@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getWorldBounds } from '@/scene/worldBounds.js';
+import { getWorldBounds } from '@/scene/layout/worldBounds.js';
 import { WORLD } from '@/config/world.js';
 import type { CityBbox } from '@/types';
 

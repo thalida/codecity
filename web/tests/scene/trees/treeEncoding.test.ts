@@ -14,7 +14,7 @@ import {
   type AgeRange,
   type SizeRange,
   type GapRange,
-} from '@/scene/trees/treeEncoding.js';
+} from '@/scene/components/trees/treeEncoding.js';
 import type { CommitEntry } from '@/types';
 
 const commits: CommitEntry[] = [

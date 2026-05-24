@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildCellsFromLayout } from '@/scene/cellAssembly.js';
+import { buildCellsFromLayout } from '@/scene/layout/cellAssembly.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 
