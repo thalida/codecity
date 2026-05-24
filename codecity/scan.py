@@ -264,7 +264,6 @@ def _collect_git_dates_windowed(
                     commits_newest_first.append({
                         "date": current_date_iso[:10],
                         "files": current_files,
-                        "gap_days": 0,  # back-filled below
                     })
                 current_date_iso = line[len("COMMIT:"):]
                 current_files = 0
@@ -293,7 +292,6 @@ def _collect_git_dates_windowed(
             commits_newest_first.append({
                 "date": current_date_iso[:10],
                 "files": current_files,
-                "gap_days": 0,  # back-filled below
             })
     finally:
         proc.wait()
@@ -304,25 +302,7 @@ def _collect_git_dates_windowed(
     )
     # Reverse to oldest-first so manifest consumers can use index = age rank.
     commits_oldest_first: list[CommitEntry] = list(reversed(commits_newest_first))
-    # Back-fill gap_days = days since the previous commit. Pre-computed
-    # here so the renderer doesn't redo the parse-and-diff on every
-    # re-mount. Index 0 has no previous → gap_days stays 0.
-    _backfill_gap_days(commits_oldest_first)
     return created, modified, commits_oldest_first
-
-
-def _backfill_gap_days(commits_oldest_first: list[CommitEntry]) -> None:
-    """In-place: compute gap_days for each commit as days since the
-    previous one. commits[0].gap_days stays 0 (no previous)."""
-    if len(commits_oldest_first) < 2:
-        return
-    from datetime import date as _date
-    prev = _date.fromisoformat(commits_oldest_first[0]["date"])
-    for i in range(1, len(commits_oldest_first)):
-        cur = _date.fromisoformat(commits_oldest_first[i]["date"])
-        delta = (cur - prev).days
-        commits_oldest_first[i]["gap_days"] = max(0, delta)
-        prev = cur
 
 
 def _collect_git_metadata(

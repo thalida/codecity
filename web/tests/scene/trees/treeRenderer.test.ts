@@ -4,7 +4,8 @@
 // canopy widths driven by commit file count (more files = wider) and
 // canopy facet counts also driven by file count (more files = higher
 // subdivision), and canopy colors that interpolate between
-// TREE_COLOR_OLD and TREE_COLOR_NEW by commit age.
+// TREE_COLOR_NEW (solo-commit days) and TREE_COLOR_OLD (busy days) by
+// commits-per-day.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -295,21 +296,28 @@ describe('createTreeRenderer()', () => {
       .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
   });
 
-  it('per-instance color interpolates between OLD and NEW endpoints by commit GAP', () => {
-    // 3 commits: 0, 1 day later (shortest gap), then 30 days later
-    // (longest gap). After log-norm:
-    //   - commit 0: no previous → t=0.5 (mid color)
-    //   - commit 1 (gap=1, shortest): t=0 → OLD color (routine)
-    //   - commit 2 (gap=30, longest): t=1 → NEW color (comeback)
+  it('per-instance color interpolates between NEW (light, solo day) and OLD (dark, busy day) by COMMITS-PER-DAY', () => {
+    // Three days with 1, 2, and 4 commits respectively. After log-norm:
+    //   - solo day (count=1) → t=0 → TREE_COLOR_NEW (light green)
+    //   - busy day (count=4) → t=1 → TREE_COLOR_OLD (dark green)
+    //   - mid day (count=2)  → t≈0.5 between log1p(1) and log1p(4)
     const commits = buildCommits(
-      { date: '2026-01-01', files: 5 },
-      { date: '2026-01-02', files: 5 },
-      { date: '2026-02-01', files: 5 },
+      { date: '2026-01-01', files: 5 }, // solo day
+      { date: '2026-01-10', files: 5 }, // mid day, commit A
+      { date: '2026-01-10', files: 5 }, // mid day, commit B
+      { date: '2026-01-20', files: 5 }, // busy day, commit A
+      { date: '2026-01-20', files: 5 }, // busy day, commit B
+      { date: '2026-01-20', files: 5 }, // busy day, commit C
+      { date: '2026-01-20', files: 5 }, // busy day, commit D
     );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
+      placement(40, 0, 3, 2),
+      placement(0, 20, 4, 3),
+      placement(20, 20, 5, 4),
+      placement(40, 20, 6, 5),
+      placement(60, 20, 7, 6),
     ];
     trees = createTreeRenderer(placements, commits);
 
@@ -317,22 +325,32 @@ describe('createTreeRenderer()', () => {
     const newColor = new THREE.Color();
     oldColor.setStyle('#0a2613', THREE.LinearSRGBColorSpace);
     newColor.setStyle('#a8d68a', THREE.LinearSRGBColorSpace);
-    const expectedMid = { r: 0, g: 0, b: 0 };
-    interpolateOklch(oldColor, newColor, 0.5, expectedMid);
 
     const got = new THREE.Color();
-    const a = findCanopyInstance(trees.group, 0)!; // no previous → mid
-    const b = findCanopyInstance(trees.group, 1)!; // gap=1 → OLD
-    const c = findCanopyInstance(trees.group, 2)!; // gap=30 → NEW
-    a.mesh.getColorAt(a.instanceIdx, got);
-    expect(got.r).toBeCloseTo(expectedMid.r, 3);
-    expect(got.g).toBeCloseTo(expectedMid.g, 3);
-    b.mesh.getColorAt(b.instanceIdx, got);
-    expect(got.r).toBeCloseTo(oldColor.r, 3);
-    expect(got.g).toBeCloseTo(oldColor.g, 3);
-    c.mesh.getColorAt(c.instanceIdx, got);
+    // Solo day commit → t=0 → NEW (light).
+    const solo = findCanopyInstance(trees.group, 0)!;
+    solo.mesh.getColorAt(solo.instanceIdx, got);
     expect(got.r).toBeCloseTo(newColor.r, 3);
     expect(got.g).toBeCloseTo(newColor.g, 3);
+    expect(got.b).toBeCloseTo(newColor.b, 3);
+
+    // Busy day commit → t=1 → OLD (dark).
+    const busy = findCanopyInstance(trees.group, 3)!;
+    busy.mesh.getColorAt(busy.instanceIdx, got);
+    expect(got.r).toBeCloseTo(oldColor.r, 3);
+    expect(got.g).toBeCloseTo(oldColor.g, 3);
+    expect(got.b).toBeCloseTo(oldColor.b, 3);
+
+    // All commits on the same date render the same color.
+    const busyA = findCanopyInstance(trees.group, 3)!;
+    const busyB = findCanopyInstance(trees.group, 4)!;
+    const colorA = new THREE.Color();
+    const colorB = new THREE.Color();
+    busyA.mesh.getColorAt(busyA.instanceIdx, colorA);
+    busyB.mesh.getColorAt(busyB.instanceIdx, colorB);
+    expect(colorA.r).toBeCloseTo(colorB.r, 5);
+    expect(colorA.g).toBeCloseTo(colorB.g, 5);
+    expect(colorA.b).toBeCloseTo(colorB.b, 5);
   });
 
   it('all trees render at midpoint values when commits is null', () => {

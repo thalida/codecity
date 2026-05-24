@@ -30,13 +30,13 @@ import type { CommitEntry } from '@/types';
 import {
   computeAgeRange,
   computeSizeRange,
-  computeCommitGaps,
+  computeDailyCounts,
   ageT,
   sizeT,
-  gapTByIndex,
+  dailyCountTByIndex,
   type AgeRange,
   type SizeRange,
-  type CommitGaps,
+  type DailyCounts,
 } from './treeEncoding.js';
 import { interpolateOklch } from './colorInterp.js';
 import { sunDirFromLighting } from '@/scene/components/lighting/sunDir.js';
@@ -219,7 +219,7 @@ export function createTreeRenderer(
 
   const ageRange: AgeRange = computeAgeRange(commits);
   const sizeRange: SizeRange = computeSizeRange(commits);
-  const commitGaps: CommitGaps = computeCommitGaps(commits);
+  const dailyCounts: DailyCounts = computeDailyCounts(commits);
 
   // HEIGHT is driven by AGE: older commits grow taller. ageT=0 (oldest)
   // → max height; ageT=1 (newest) → min height. Degenerate cases
@@ -252,11 +252,12 @@ export function createTreeRenderer(
     return DETAIL_LEVELS[idx];
   }
 
-  // COLOR follows COMMIT-GAP (days since previous commit): long gaps
-  // (the "I came back to this project" comeback commits) interpolate
-  // toward TREE_COLOR_NEW; short gaps (routine cadence) interpolate
-  // toward TREE_COLOR_OLD. Log-normalized so typical 1–30 day
-  // cadences stay readable when one outlier hits 365 days.
+  // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
+  // TREE_COLOR_NEW (light green); busy days (many commits the same day)
+  // interpolate toward TREE_COLOR_OLD (dark green). All commits on the
+  // same date share a color. Log-normalized so the typical 1–10
+  // commits-per-day band stays readable when one outlier day spikes to
+  // 50+ commits.
   //
   // Interpolation is done in OKLCH (shortest hue arc) so the midpoint
   // between distant hues stays saturated — picking purple + teal gives
@@ -264,9 +265,9 @@ export function createTreeRenderer(
   function perTreeColor(i: number, target: THREE.Color): void {
     let t = 0.5;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
-      t = gapTByIndex(commitGaps, placements[i].commitIndex);
+      t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
     }
-    interpolateOklch(oldColor, newColor, t, target);
+    interpolateOklch(newColor, oldColor, t, target);
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);

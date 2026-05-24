@@ -597,14 +597,10 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         dates = [c["date"] for c in commits]
         self.assertEqual(dates, sorted(dates),
                          f"commits should be oldest-first, got {dates}")
-        for i, c in enumerate(commits):
-            self.assertEqual(set(c.keys()), {"date", "files", "gap_days"})
+        for c in commits:
+            self.assertEqual(set(c.keys()), {"date", "files"})
             self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
             self.assertGreaterEqual(c["files"], 1)
-            self.assertGreaterEqual(c["gap_days"], 0)
-            # First commit has no previous → gap_days is 0.
-            if i == 0:
-                self.assertEqual(c["gap_days"], 0)
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
