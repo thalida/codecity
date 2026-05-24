@@ -141,17 +141,6 @@ either missing from `web/config/hotReload.ts`'s lists or its consumer
 isn't subscribing. Both have been bug sources during the InstancedMesh
 refactor.
 
-## Visual regression (frozen reference comparison)
-
-```sh
-( cd web && npm run test:visual:verify )
-```
-
-Three poses (top-down, orbit-30, close-block) compared to `web/tests/visual/references/`.
-1% pixel-tolerance per pose. Sub-pixel CDN-icon drift in the sidebar can
-push top-down to ~1% — known noise. If the canvas portion of the diff
-exceeds 1%, the shader has regressed.
-
 ## Performance baseline
 
 Open Chrome DevTools → Performance. Record while orbiting for 5 s on a
