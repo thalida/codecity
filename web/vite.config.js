@@ -40,7 +40,7 @@ export default defineConfig({
     // up" instead of the real cause (another process holding the port).
     strictPort: true,
     proxy: {
-      '/api': 'http://127.0.0.1:8765',
+      '/api': `http://127.0.0.1:${process.env.VITE_API_PORT ?? 8765}`,
     },
   },
 });
