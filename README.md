@@ -6,14 +6,12 @@ CodeCity visualizes a codebase as an isometric 3D city. Point it at a directory 
 
 ```sh
 uv tool install codecity            # or: pipx install codecity
-codecity                            # current directory
-codecity /path/to/your/repo         # any local path
-codecity --clone https://github.com/user/repo.git   # clones into ~/.cache/codecity/
+codecity                            # opens the source picker in your browser
 ```
 
-Your default browser opens to a local URL with the city. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help. Ctrl-C in the terminal to stop the server.
+Your default browser opens at `http://<repo>.localhost:<port>/` to a source picker — point it at any local directory, or paste a git URL to clone into `~/.cache/codecity/clones/<hash>/` and render that. The picker remembers recent sources in localStorage. Pan with right-click drag, orbit with left-click drag, zoom with the scroll wheel. Click a building to inspect its file in the right sidebar. The left sidebar gives you a tree view, settings, and shortcut help. Ctrl-C in the terminal to stop the server.
 
-The path being rendered lives in the page URL (`?path=…` or `?clone=…&branch=…`), so you can switch projects without restarting the server by editing the address bar.
+The selected source lives in the page URL (`?src=…`, with optional `&branch=…`), so you can switch projects without restarting the server by editing the address bar.
 
 ## How it works
 
@@ -24,15 +22,16 @@ The path being rendered lives in the page URL (`?path=…` or `?clone=…&branch
 ## CLI
 
 ```sh
-codecity [PATH] [--dev] [--port N] [--no-window]
-codecity serve [PATH] [--clone URL [--branch B]] [--dev] [--port N] [--no-window]
-codecity scan  [PATH] [--output FILE]   # emit the manifest as JSON
+codecity                 # prod HTTP server, opens the source picker in your browser
+codecity --dev           # Vite dev server + Python API (frontend HMR)
+codecity --port N        # override prod HTTP port (or Vite port in --dev)
+codecity --api-port N    # override Python API port (--dev only)
 
 codecity --help
 codecity --version
 ```
 
-`PATH` defaults to the current directory. Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build. Pass `--clone URL` (with optional `--branch NAME`) to mirror a remote repo into `~/.cache/codecity/clones/<hash>/` and render that — re-running with the same URL fetches and resets the existing checkout instead of re-cloning.
+Both modes auto-select free ports (avoiding ports held by sibling worktrees), persist them to `.local/worktree-ports.json` so the same URLs survive restarts, and open the browser at `http://<repo>.localhost:<port>/`. Pass `--dev` to run via Vite (frontend HMR) instead of the committed static build. Source selection (local path or git URL) happens in the browser UI.
 
 ## Live updates and hot-reload
 
@@ -41,15 +40,7 @@ The city re-renders **in place** as you edit:
 - **Filesystem changes** — when **Updates → Live updates** is on (default), the frontend polls `/api/manifest` on a user-tunable interval (clamped to 1–60 s); when the tree's mtime/size signature changes, new buildings grow in and shifted siblings slide to make room. The camera position and your current selection survive the rebuild.
 - **Config tweaks** — every slider, color, and toggle in the Controls pane is hot-reloadable. Hot-reloadable configs (sidewalk colors, gem appearance, path-line opacity, …) update materials live; rebuild-required configs (building dimensions, layout gaps, palette mappings, …) trigger a debounced in-place re-layout. There's no "Rebuild" button to press — every change takes effect immediately.
 
-Every subcommand accepts the same scan flags:
-
-| Flag             | Default   | Meaning                                  |
-| ---------------- | --------- | ---------------------------------------- |
-| `--include PAT`  | —         | Only filenames matching this glob        |
-| `--exclude PAT`  | —         | Skip filenames matching this glob        |
-| `--no-gitignore` | off       | Include files even if `.gitignored`      |
-
-Git timestamps are preferred over filesystem timestamps when the scanned directory is a git repository.
+Scan filtering — including/excluding files and toggling `.gitignore` honoring — is configured in the in-app Controls pane, not via CLI flags. Git timestamps are preferred over filesystem timestamps when the scanned directory is a git repository.
 
 ## Building visual encoding
 
@@ -82,17 +73,16 @@ git clone https://github.com/thalida/codecity.git
 cd codecity
 just setup                       # uv sync + npm install
 ( cd web && npm run build )      # → codecity/static/
-uv run codecity .                # smoke test against this repo
+uv run codecity                  # smoke test (pick this repo in the source picker)
 ```
 
 Hot-reload loop while editing the frontend:
 
 ```sh
-just dev           # Vite :5173 + Python API :8765, opens browser, Ctrl-C to stop
-just dev-worktree  # same but auto-selects free ports (safe to run across multiple worktrees)
+just dev           # Vite + Python API on auto-selected free ports, opens browser, Ctrl-C to stop
 ```
 
-`just dev` spawns Vite on `:5173` and the Python API on `:8765`. `just dev-worktree` picks free ports automatically and saves them to `.local/worktree-ports.json` so the same URLs survive restarts.
+`just dev` picks free ports automatically (avoiding ports held by sibling worktrees), saves them to `.local/worktree-ports.json`, and opens `http://<repo>.localhost:<port>/` so the same URL survives restarts. Run `codecity` (no flag) the same way for the prod static build — it also auto-selects + persists its own port.
 
 ### Tests
 

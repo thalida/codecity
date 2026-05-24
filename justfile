@@ -7,6 +7,3 @@ setup:
 
 dev:
     uv run codecity --dev
-
-dev-worktree:
-    uv run codecity --dev-worktree

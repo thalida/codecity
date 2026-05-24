@@ -2,13 +2,15 @@
 
 Surface:
     codecity                    Start the prod HTTP server, open the browser.
-    codecity --dev              Start the Vite dev server + Python API on fixed ports
-                                (Vite: 5173, API: 8765).
-    codecity --dev-worktree     Like --dev but auto-selects free ports and saves them
-                                to .codecity/worktree-ports.json so the same URLs
-                                survive restarts within the same worktree.
-    codecity --port N           Override the Vite port (--dev only).
-    codecity --api-port N       Override the Python API port (--dev only).
+    codecity --dev              Start the Vite dev server + Python API.
+    codecity --port N           Override the prod HTTP port (or Vite port in
+                                --dev) and persist it to .local/worktree-ports.json.
+    codecity --api-port N       Override the Python API port in --dev mode
+                                (persisted to .local/worktree-ports.json).
+
+Both modes auto-select free ports, save them to .local/worktree-ports.json so
+the same URLs survive restarts within the same worktree, and open the browser
+at http://<repo>.localhost:<port>/.
 
 All source-selection (path / git URL / branch) happens in the browser UI.
 """
@@ -37,10 +39,10 @@ from codecity.server import start_server
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = REPO_ROOT / "web"
-DEFAULT_API_PORT = 8765
-DEFAULT_VITE_PORT = 5173
 PORTS_FILE = REPO_ROOT / ".local" / "worktree-ports.json"
 VITE_READY_TIMEOUT = 30  # seconds
+
+_PORT_KEYS = ("vite_port", "api_port", "prod_port")
 
 
 def _find_free_port(reserved: set[int] | None = None) -> int:
@@ -72,29 +74,77 @@ def _other_worktree_ports() -> set[int]:
             continue
         try:
             data = json.loads((wt / ".local" / "worktree-ports.json").read_text())
-            ports.add(int(data["vite_port"]))
-            ports.add(int(data["api_port"]))
-        except (FileNotFoundError, KeyError, ValueError, json.JSONDecodeError):
+            for key in _PORT_KEYS:
+                if key in data:
+                    ports.add(int(data[key]))
+        except (FileNotFoundError, ValueError, json.JSONDecodeError):
             pass
     return ports
 
 
-def _load_worktree_ports() -> tuple[int, int] | None:
+def _load_worktree_ports() -> dict[str, int]:
     try:
         data = json.loads(PORTS_FILE.read_text())
-        return int(data["vite_port"]), int(data["api_port"])
-    except (FileNotFoundError, KeyError, ValueError, json.JSONDecodeError):
-        return None
+        return {k: int(data[k]) for k in _PORT_KEYS if k in data}
+    except (FileNotFoundError, ValueError, json.JSONDecodeError):
+        return {}
 
 
-def _save_worktree_ports(vite_port: int, api_port: int) -> None:
+def _save_worktree_ports(ports: dict[str, int]) -> None:
     PORTS_FILE.parent.mkdir(exist_ok=True)
-    PORTS_FILE.write_text(json.dumps({"vite_port": vite_port, "api_port": api_port}))
+    PORTS_FILE.write_text(json.dumps(ports))
 
 
-def _serve_prod(port: int) -> int:
-    _, bound, shutdown = start_server(port=port or 0)
-    url = f"http://127.0.0.1:{bound}/"
+def _repo_label() -> str:
+    return REPO_ROOT.name.lower().replace("_", "-")
+
+
+def _resolve_port(
+    key: str,
+    override: int,
+    reserved: set[int],
+    saved: dict[str, int],
+) -> int | None:
+    """Resolve a port: explicit override > saved (if still free) > new free port.
+
+    Returns None if the override is held by another process (caller should
+    surface an error). The reserved set is mutated to include the chosen port
+    so a subsequent call in the same run won't pick the same number.
+    """
+    if override:
+        if _port_holder(override) is not None:
+            return None
+        reserved.add(override)
+        return override
+    port = saved.get(key)
+    if port and _port_holder(port) is None and port not in reserved:
+        reserved.add(port)
+        return port
+    port = _find_free_port(reserved)
+    reserved.add(port)
+    return port
+
+
+def _override_error(port: int) -> int:
+    holder = _port_holder(port)
+    print(
+        f"error: port {port} is held by PID {holder}. "
+        f"Free it with: kill {holder}",
+        file=sys.stderr,
+    )
+    return 4
+
+
+def _serve_prod(override_port: int) -> int:
+    reserved = _other_worktree_ports()
+    saved = _load_worktree_ports()
+    port = _resolve_port("prod_port", override_port, reserved, saved)
+    if port is None:
+        return _override_error(override_port)
+    saved["prod_port"] = port
+    _save_worktree_ports(saved)
+    _, bound, shutdown = start_server(port=port)
+    url = f"http://{_repo_label()}.localhost:{bound}/"
     print(f"[codecity] serving on {url}", file=sys.stderr)
     webbrowser.open(url)
     print("[codecity] Ctrl-C to stop", file=sys.stderr)
@@ -108,38 +158,19 @@ def _serve_prod(port: int) -> int:
     return 0
 
 
-def _serve_dev(port: int, api_port: int) -> int:
-    vite_port = port or DEFAULT_VITE_PORT
-    if port:
-        holder = _port_holder(vite_port)
-        if holder is not None:
-            print(
-                f"error: port {vite_port} is held by PID {holder}. "
-                f"Free it with: kill {holder}",
-                file=sys.stderr,
-            )
-            return 4
-    return _run_dev_server(vite_port, api_port or DEFAULT_API_PORT)
-
-
-def _serve_dev_worktree() -> int:
+def _serve_dev(override_vite_port: int, override_api_port: int) -> int:
     reserved = _other_worktree_ports()
     saved = _load_worktree_ports()
-    if saved:
-        vite_port, api_port = saved
-        if _port_holder(vite_port) is not None or vite_port in reserved:
-            reserved.add(vite_port)
-            vite_port = _find_free_port(reserved)
-        reserved.add(vite_port)
-        if _port_holder(api_port) is not None or api_port in reserved:
-            api_port = _find_free_port(reserved)
-        print(f"[codecity] resuming worktree ports: Vite={vite_port} API={api_port}", file=sys.stderr)
-    else:
-        vite_port = _find_free_port(reserved)
-        reserved.add(vite_port)
-        api_port = _find_free_port(reserved)
-        print(f"[codecity] new worktree ports: Vite={vite_port} API={api_port}", file=sys.stderr)
-    _save_worktree_ports(vite_port, api_port)
+    vite_port = _resolve_port("vite_port", override_vite_port, reserved, saved)
+    if vite_port is None:
+        return _override_error(override_vite_port)
+    api_port = _resolve_port("api_port", override_api_port, reserved, saved)
+    if api_port is None:
+        return _override_error(override_api_port)
+    saved["vite_port"] = vite_port
+    saved["api_port"] = api_port
+    _save_worktree_ports(saved)
+    print(f"[codecity] worktree ports: Vite={vite_port} API={api_port}", file=sys.stderr)
     return _run_dev_server(vite_port, api_port)
 
 
@@ -186,8 +217,7 @@ def _run_dev_server(vite_port: int, api_port: int) -> int:
     try:
         if not _wait_for_vite(f"http://[::1]:{vite_port}/", vite_proc, vite_port):
             return 3
-        label = REPO_ROOT.name.lower().replace("_", "-")
-        url = f"http://{label}.localhost:{vite_port}/"
+        url = f"http://{_repo_label()}.localhost:{vite_port}/"
         webbrowser.open(url)
         print(f"[codecity] open {url} — Ctrl-C to stop", file=sys.stderr)
         while True:
@@ -270,27 +300,22 @@ def _build_parser() -> argparse.ArgumentParser:
     p.add_argument(
         "--dev",
         action="store_true",
-        help="Run via Vite dev server with frontend HMR on fixed ports (Vite: 5173, API: 8765).",
-    )
-    p.add_argument(
-        "--dev-worktree",
-        action="store_true",
-        dest="dev_worktree",
-        help="Like --dev but auto-selects free ports and saves them to "
-             ".codecity/worktree-ports.json so the same URLs survive restarts.",
+        help="Run via Vite dev server with frontend HMR; auto-selects free ports.",
     )
     p.add_argument(
         "--port",
         type=int,
         default=0,
-        help="Override the Vite port (--dev only). Default: 5173.",
+        help="Override the prod HTTP port (or Vite port in --dev) and persist "
+             "it to .local/worktree-ports.json.",
     )
     p.add_argument(
         "--api-port",
         type=int,
         default=0,
         dest="api_port",
-        help="Override the Python API port (--dev only). Default: 8765.",
+        help="Override the Python API port in --dev mode (persisted to "
+             ".local/worktree-ports.json).",
     )
     return p
 
@@ -300,8 +325,6 @@ def main(argv: Optional[list[str]] = None) -> int:
         argv = sys.argv[1:]
     parser = _build_parser()
     args = parser.parse_args(argv)
-    if args.dev_worktree:
-        return _serve_dev_worktree()
     if args.dev:
         return _serve_dev(args.port, args.api_port)
     return _serve_prod(args.port)
