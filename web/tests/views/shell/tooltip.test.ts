@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { showTooltip, hideTooltip, moveTooltip } from '@/views/shell/tooltip.js';
+import { showTooltip, hideTooltip, moveTooltip } from '@/views/widgets/tooltip.js';
 
 describe('tooltip', () => {
   afterEach(() => {

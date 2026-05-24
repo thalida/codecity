@@ -8,7 +8,7 @@ import { createEmptyCellTile } from '@/scene/layout/cellTile.js';
 import { attachBuildingMeshToCell, writeBuildingToSlot, setCellIconAtlas } from '@/scene/components/buildings/buildingsCell.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
-import type { IconAtlas } from '@/scene/utils/iconAtlas.js';
+import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
 
 // ---------------------------------------------------------------------------
 // Minimal Building fixture — only the fields read by writeBuildingToSlot.

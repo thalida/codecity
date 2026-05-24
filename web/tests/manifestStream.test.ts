@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { streamManifest } from '../manifestStream';
+import { streamManifest } from '@/utils/manifestStream';
 
 function mockResponse(chunks: string[], status = 200, headers: Record<string, string> = {}): Response {
   const encoder = new TextEncoder();

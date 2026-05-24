@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { listRecents, pushRecent, removeRecent } from '../views/shell/sourceRecents.js';
+import { listRecents, pushRecent, removeRecent } from '@/views/source/sourceRecents.js';
 
 describe('sourceRecents', () => {
   beforeEach(() => {

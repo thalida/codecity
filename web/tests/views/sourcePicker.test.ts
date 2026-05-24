@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createSourcePicker } from '../../views/shell/sourcePicker.js';
-import { pushRecent } from '../../views/shell/sourceRecents.js';
+import { createSourcePicker } from '@/views/source/sourcePicker.js';
+import { pushRecent } from '@/views/source/sourceRecents.js';
 
 function mountRoot(): HTMLElement {
   document.body.innerHTML =

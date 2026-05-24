@@ -11,7 +11,7 @@ import {
   subscribe,
   _resetForTests,
 } from '@/config/drafts.js';
-import { persistStore } from '@/config/persist.js';
+import { persistStore } from '@/utils/persist.js';
 
 interface FooConfig {
   COLOR: string;
