@@ -233,7 +233,16 @@ export function createCoordinator({ world, picker, rig, flyControls, applyTheme 
   }
 
   const manifest = world.getManifest();
-  const leftSidebarApi = showLeftSidebar(manifest!, {
+  // Boot order guarantees a manifest is in place by the time the
+  // coordinator runs (createWorld → applyManifest → createCoordinator),
+  // but we guard explicitly so a future caller refactoring the boot
+  // order surfaces a real error instead of a buried `manifest!` panic.
+  if (!manifest) {
+    throw new Error(
+      'coordinator: world has no manifest — applyManifest must run before createCoordinator',
+    );
+  }
+  const leftSidebarApi = showLeftSidebar(manifest, {
     onResetView() {
       rig.reset();
     },

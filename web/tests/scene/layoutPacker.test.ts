@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 import { StreetAxis } from '@/types';
 import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layout/layout';
 
@@ -91,7 +92,7 @@ describe('findSmallestValidStem', () => {
       minY,
       maxX,
       maxY,
-      kind: 'street' as const,
+      kind: WorldRectKind.Street,
       ref: {} as never,
     };
   }
@@ -266,7 +267,7 @@ describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
     return {
       minX, minY, maxX, maxY,
-      kind: 'street' as const,
+      kind: WorldRectKind.Street,
       ref: {} as never,
     };
   }
@@ -504,7 +505,7 @@ describe('translateRectsToWorld', () => {
     // translateRectsToWorld expects {x,y,w,d,kind,ref} input form for typed rects.
     // We pass a stub ref to verify it's preserved.
     const ref = { id: 'stub' } as unknown as never;
-    const child = { x: 0, y: 10, w: 4, d: 4, kind: 'building' as const, ref };
+    const child = { x: 0, y: 10, w: 4, d: 4, kind: WorldRectKind.Building, ref };
     const world = translateRectsToWorld(
       [child],
       StreetAxis.X,

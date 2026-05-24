@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
 import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
-import { mediaKindOf } from './adPanels.js';
+import { mediaKindOf, MediaKind } from './adPanels.js';
 import { AdPanelTextureArray } from './adPanelTextureArray.js';
 import type { Building } from '@/types/index.js';
 
@@ -329,7 +329,7 @@ export function asyncLoadMediaForBuilding(
   const filePath = b.file.fullPath || b.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
 
-  if (kind === 'image') {
+  if (kind === MediaKind.Image) {
     const img = new Image();
     img.onload = () => {
       ads.loadTextureForBuilding(layer, panelSlots, img).catch(() => {
@@ -398,22 +398,48 @@ function _loadVideoPoster(url: string): Promise<HTMLCanvasElement | null> {
   });
 }
 
+// "▶" play-button overlay drawn on top of the first-frame poster of a
+// video so the user reads it as "this is a video, click to interact"
+// at thumbnail scale. Numbers below are visual-feel constants picked
+// by eye — comments call out what each fraction controls.
+//
+// CIRCLE_RADIUS_FRAC:    bg circle radius as a fraction of the shorter
+//                         canvas dim. 18% reads at thumbnail scale
+//                         without crowding the corners.
+// CIRCLE_FILL:           translucent black so the play icon stays
+//                         readable over any underlying frame.
+// TRI_RADIUS_FRAC:       triangle "radius" (apex-to-base distance) as a
+//                         fraction of the bg circle radius. 55% leaves
+//                         a thin halo of black around the white tri.
+// TRI_BASE_HALF_FRAC:    half-width of the triangle's base as a
+//                         fraction of TRI_RADIUS, also 55% — produces a
+//                         roughly equilateral wedge that reads as a
+//                         play icon at any DPI.
+// TRI_HEIGHT_FRAC:       half-height of the triangle's base. 85% keeps
+//                         the base proportions matching a standard
+//                         play-button glyph.
+const CIRCLE_RADIUS_FRAC = 0.18;
+const CIRCLE_FILL = 'rgba(0, 0, 0, 0.55)';
+const TRI_RADIUS_FRAC = 0.55;
+const TRI_BASE_HALF_FRAC = 0.55;
+const TRI_HEIGHT_FRAC = 0.85;
+
 function _drawPlayOverlay(ctx: CanvasRenderingContext2D, w: number, h: number): void {
   const cx = w / 2;
   const cy = h / 2;
-  const radius = Math.min(w, h) * 0.18;
+  const radius = Math.min(w, h) * CIRCLE_RADIUS_FRAC;
 
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.fillStyle = CIRCLE_FILL;
   ctx.beginPath();
   ctx.arc(cx, cy, radius, 0, Math.PI * 2);
   ctx.fill();
 
-  const triR = radius * 0.55;
+  const triR = radius * TRI_RADIUS_FRAC;
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.moveTo(cx + triR, cy);
-  ctx.lineTo(cx - triR * 0.55, cy - triR * 0.85);
-  ctx.lineTo(cx - triR * 0.55, cy + triR * 0.85);
+  ctx.lineTo(cx - triR * TRI_BASE_HALF_FRAC, cy - triR * TRI_HEIGHT_FRAC);
+  ctx.lineTo(cx - triR * TRI_BASE_HALF_FRAC, cy + triR * TRI_HEIGHT_FRAC);
   ctx.closePath();
   ctx.fill();
 }

@@ -72,29 +72,6 @@ if (_canvas) {
     // were both persisted as global keys. If they're still there AND we have a
     // source loaded (URL has ?src=), copy them under the source's namespace
     // and drop the legacy slots.
-    {
-      const qp = new URLSearchParams(window.location.search);
-      if (qp.has('src')) {
-        const k = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
-
-        const legacySel = localStorage.getItem('cc.PICKER_SELECTION_KEY');
-        if (legacySel !== null) {
-          if (localStorage.getItem(`cc.source.${k}.selection`) === null) {
-            localStorage.setItem(`cc.source.${k}.selection`, legacySel);
-          }
-          localStorage.removeItem('cc.PICKER_SELECTION_KEY');
-        }
-
-        const legacyCam = localStorage.getItem('cc.cameraPose');
-        if (legacyCam !== null) {
-          if (localStorage.getItem(`cc.source.${k}.cameraPose`) === null) {
-            localStorage.setItem(`cc.source.${k}.cameraPose`, legacyCam);
-          }
-          localStorage.removeItem('cc.cameraPose');
-        }
-      }
-    }
-
     // Set CURRENT_SOURCE_KEY from URL params BEFORE wiring per-source
     // persistence so hydration sees the right key.
     {

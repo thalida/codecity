@@ -7,6 +7,7 @@
 // browsers / SSR / test environments).
 
 import { placeTrees, type TreePlacement } from './treePlacement.js';
+import { MSG } from './treePlacementProtocol.js';
 import { TREES } from '@/config/components/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
@@ -75,12 +76,12 @@ export function createTreePlacementClient(): TreePlacementClient {
     }
     worker.addEventListener('message', (event: MessageEvent) => {
       const data = event.data as
-        | { type: 'place-result'; id: number; placements: TreePlacement[] }
-        | { type: 'place-error'; id: number; message: string };
+        | { type: typeof MSG.RESPONSE_OK; id: number; placements: TreePlacement[] }
+        | { type: typeof MSG.RESPONSE_ERROR; id: number; message: string };
       const entry = pending.get(data.id);
       if (!entry) return;
       pending.delete(data.id);
-      if (data.type === 'place-result') {
+      if (data.type === MSG.RESPONSE_OK) {
         entry.resolve(data.placements);
       } else {
         entry.reject(new Error(data.message));
@@ -142,7 +143,7 @@ export function createTreePlacementClient(): TreePlacementClient {
         return;
       }
       w.postMessage({
-        type: 'place',
+        type: MSG.REQUEST,
         id,
         layout,
         bbox,

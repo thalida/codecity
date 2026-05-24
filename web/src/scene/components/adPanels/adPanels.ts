@@ -12,13 +12,18 @@ const VIDEO_EXTS: ReadonlySet<string> = new Set([
   '.mp4', '.webm', '.mov', '.ogv', '.m4v', '.mkv',
 ]);
 
-export type MediaKind = 'image' | 'video';
+// String enum so consumers reference MediaKind.Image instead of the
+// raw 'image' literal — keeps the values centralized and TS-narrowable.
+export enum MediaKind {
+  Image = 'image',
+  Video = 'video',
+}
 
 export function mediaKindOf(file: { extension?: string } | null | undefined): MediaKind | null {
   if (!file) return null;
   const ext = (file.extension || '').toLowerCase();
-  if (IMAGE_EXTS.has(ext)) return 'image';
-  if (VIDEO_EXTS.has(ext)) return 'video';
+  if (IMAGE_EXTS.has(ext)) return MediaKind.Image;
+  if (VIDEO_EXTS.has(ext)) return MediaKind.Video;
   return null;
 }
 

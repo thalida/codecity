@@ -17,8 +17,10 @@ type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
 type WorldValue = ReturnType<typeof WORLD.get>;
 
+import { MSG } from './treePlacementProtocol.js';
+
 interface PlaceRequest {
-  type: 'place';
+  type: typeof MSG.REQUEST;
   id: number;
   layout: CityLayout;
   bbox: CityBbox | undefined;
@@ -40,8 +42,8 @@ interface PlaceRequest {
 }
 
 type PlaceResponse =
-  | { type: 'place-result'; id: number; placements: TreePlacement[] }
-  | { type: 'place-error'; id: number; message: string };
+  | { type: typeof MSG.RESPONSE_OK; id: number; placements: TreePlacement[] }
+  | { type: typeof MSG.RESPONSE_ERROR; id: number; message: string };
 
 function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
   for (const k of Object.keys(snap.trees) as Array<keyof TreesValue>) {
@@ -60,7 +62,7 @@ function _applySnapshot(snap: PlaceRequest['configSnapshot']): void {
 
 self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
   const data = event.data;
-  if (!data || data.type !== 'place') return;
+  if (!data || data.type !== MSG.REQUEST) return;
   try {
     _applySnapshot(data.configSnapshot);
     const placements = placeTrees(data.layout, data.bbox, {
@@ -69,14 +71,14 @@ self.addEventListener('message', (event: MessageEvent<PlaceRequest>) => {
       islandGeoOverride: data.configSnapshot.islandGeo,
     });
     const reply: PlaceResponse = {
-      type: 'place-result',
+      type: MSG.RESPONSE_OK,
       id: data.id,
       placements,
     };
     (self as unknown as Worker).postMessage(reply);
   } catch (err) {
     const reply: PlaceResponse = {
-      type: 'place-error',
+      type: MSG.RESPONSE_ERROR,
       id: data.id,
       message: err instanceof Error ? err.message : String(err),
     };

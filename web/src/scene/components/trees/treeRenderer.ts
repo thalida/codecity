@@ -58,12 +58,16 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
 
-/** Radial segment count per detail level. More segments = smoother
- *  silhouette + more facets. */
+/** Radial segment count per detail level. Tuned by eye against the
+ *  Linux fixture (~30k trees) so the lowest tier reads as a recognisable
+ *  tree silhouette while still being visibly chunky (5 sides → pentagonal
+ *  prism look), and the highest tier holds up under close zoom (12 sides
+ *  → smooth round-edged dome). Not exposed in the Settings UI — the
+ *  perf budget at each tier is calibrated against these counts. */
 const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
-  0: 5,
-  1: 8,
-  2: 12,
+  0: 5,   // distance tier — coarsest, max instance count
+  1: 8,   // mid tier — balanced
+  2: 12,  // hero tier — closest distance, fewest instances
 };
 
 /** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
@@ -91,7 +95,14 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   //     A lathe profile must converge to a point on the axis, but
   //     dense vertical samples near the apex make the silhouette read
   //     as a smooth dome rather than a sharp spike.
-  const profile: THREE.Vector2[] = [
+  // CANOPY_PROFILE: control points (radius, height) for the lathe.
+  // Hand-picked by eye to produce a low-poly Christmas-tree silhouette
+  // — there's no formula, each point sculpts the curve in a chosen
+  // place. Both axes are normalized to [0,1] (radius 1 = world radius
+  // `r`, height 1 = world height `h`) so the renderer can scale a
+  // single shared geometry per detail level. Insertion order = bottom
+  // → top.
+  const CANOPY_PROFILE: THREE.Vector2[] = [
     new THREE.Vector2(0, 0),         // axis — caps the base
     new THREE.Vector2(0.85, 0),      // bottom rim (slightly inset)
     new THREE.Vector2(1.00, 0.10),   // widest, just above the base
@@ -105,6 +116,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
     new THREE.Vector2(0.06, 0.98),   // near-apex
     new THREE.Vector2(0, 1.0),       // apex
   ];
+  const profile = CANOPY_PROFILE;
   const segments = DETAIL_SEGMENTS[detail];
   const geom = new THREE.LatheGeometry(profile, segments);
   // Non-indexed + flat normals so the baked per-vertex shading reads

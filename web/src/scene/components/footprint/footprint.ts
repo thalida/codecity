@@ -100,6 +100,20 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
   const cfg = FOOTPRINT.get();
   const halo = Math.max(0, cfg.HALO_WIDTH);
 
+  // Halo at zero (or negative — clamped to 0 above) means the footprint
+  // would render as a 0-area asphalt halo that's invisible to the user.
+  // Skip the entire build: no rects to collect, no InstancedMesh, no
+  // shader compile, no per-frame frustum slot. Returns a sentinel API
+  // (empty Group + no-op refresh/dispose) so callers don't need a null
+  // check before doing scene.add(footprint.group).
+  if (halo <= 0) {
+    return {
+      group: new THREE.Group(),
+      refresh() {},
+      dispose() {},
+    };
+  }
+
   const rects: Rect[] = [];
   for (const b of layout.buildings) rects.push(rectOfBuilding(b));
   for (const s of layout.streets) rects.push(rectOfStreet(s));

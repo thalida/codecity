@@ -20,8 +20,8 @@ import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path.js';
 import { isMediaFile } from '../components/adPanels/adPanels.js';
-import { WorldOccupancy } from './worldOccupancy.js';
-import type { WorldRect, WorldRectKind } from './worldOccupancy.js';
+import { WorldOccupancy, WorldRectKind } from './worldOccupancy.js';
+import type { WorldRect } from './worldOccupancy.js';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay
@@ -663,7 +663,7 @@ export function translateRectsToWorld(
       minY: worldY - flipped.d / 2,
       maxX: worldX + flipped.w / 2,
       maxY: worldY + flipped.d / 2,
-      kind: typed.kind ?? 'building',
+      kind: typed.kind ?? WorldRectKind.Building,
       ref: typed.ref ?? ({} as never),
     });
   }
@@ -899,7 +899,7 @@ function _layoutDir(
       minY: phantomMinY,
       maxX: phantomMaxX,
       maxY: phantomMaxY,
-      kind: 'street',
+      kind: WorldRectKind.Street,
       // Phantom ref — never read by findSmallestValidStem or the result
       // arrays (the phantom lives only in the local occupancy and never
       // appears in CityLayout). Typed as Street to satisfy WorldRect.ref.
@@ -1058,7 +1058,7 @@ function _layoutDir(
         minY: buildingWorldY - buildingLocal.d / 2,
         maxX: buildingWorldX + buildingLocal.w / 2,
         maxY: buildingWorldY + buildingLocal.d / 2,
-        kind: 'building',
+        kind: WorldRectKind.Building,
         ref: buildingRect,
       };
       occupancy.insert(buildingWorldRect);
@@ -1067,7 +1067,7 @@ function _layoutDir(
         minY: pathWorldY - pathLocal.d / 2,
         maxX: pathWorldX + pathLocal.w / 2,
         maxY: pathWorldY + pathLocal.d / 2,
-        kind: 'path',
+        kind: WorldRectKind.Path,
         ref: pathRect,
       };
       occupancy.insert(pathWorldRect);
@@ -1185,7 +1185,7 @@ function _layoutDir(
           minY: worldStreet.y - halfAlongY,
           maxX: worldStreet.x + halfAlongX,
           maxY: worldStreet.y + halfAlongY,
-          kind: 'street',
+          kind: WorldRectKind.Street,
           ref: worldStreet,
         };
         occupancy.insert(streetWorldRect);
@@ -1208,7 +1208,7 @@ function _layoutDir(
           minY: worldBuilding.y - b.d / 2,
           maxX: worldBuilding.x + b.w / 2,
           maxY: worldBuilding.y + b.d / 2,
-          kind: 'building',
+          kind: WorldRectKind.Building,
           ref: worldBuilding,
         };
         occupancy.insert(buildingWorldRect);
@@ -1227,7 +1227,7 @@ function _layoutDir(
           minY: worldPath.y - p.d / 2,
           maxX: worldPath.x + p.w / 2,
           maxY: worldPath.y + p.d / 2,
-          kind: 'path',
+          kind: WorldRectKind.Path,
           ref: worldPath,
         };
         occupancy.insert(pathWorldRect);
@@ -1265,7 +1265,7 @@ function _layoutDir(
     minY: streetCenterY - halfStreetAlongY,
     maxX: streetCenterX + halfStreetAlongX,
     maxY: streetCenterY + halfStreetAlongY,
-    kind: 'street',
+    kind: WorldRectKind.Street,
     ref: ownStreet,
   });
 }
@@ -1489,12 +1489,14 @@ function _isStreetJoinPair(a: Street, b: Street): boolean {
   return perpClose && longClose;
 }
 
-export type LayoutOverlapKind = 'street' | 'building' | 'path';
+// Layout overlap categories use the same kind values as WorldRect
+// (street / building / path), so reuse WorldRectKind instead of
+// defining a parallel union that could drift.
 export type LayoutOverlapCategory = 't-junction' | 'unexpected';
 
 export interface LayoutOverlap {
-  kindA: LayoutOverlapKind;
-  kindB: LayoutOverlapKind;
+  kindA: WorldRectKind;
+  kindB: WorldRectKind;
   labelA: string;
   labelB: string;
   rectA: Rect;
@@ -1526,20 +1528,20 @@ export function findLayoutOverlaps(layout: {
   paths: BuildingPath[];
 }): LayoutOverlap[] {
   type Tagged =
-    | { kind: 'street'; rect: Rect; label: string; ref: Street }
-    | { kind: 'building'; rect: Rect; label: string; ref: Building }
-    | { kind: 'path'; rect: Rect; label: string; ref: BuildingPath };
+    | { kind: WorldRectKind.Street; rect: Rect; label: string; ref: Street }
+    | { kind: WorldRectKind.Building; rect: Rect; label: string; ref: Building }
+    | { kind: WorldRectKind.Path; rect: Rect; label: string; ref: BuildingPath };
   const all: Tagged[] = [];
   for (const s of layout.streets) {
     const rect: Rect =
       s.orientation === StreetAxis.X
         ? { x: s.x, y: s.y, w: s.length, d: s.width }
         : { x: s.x, y: s.y, w: s.width, d: s.length };
-    all.push({ kind: 'street', rect, label: s.dir?.path ?? s.label ?? '(root)', ref: s });
+    all.push({ kind: WorldRectKind.Street, rect, label: s.dir?.path ?? s.label ?? '(root)', ref: s });
   }
   for (const b of layout.buildings) {
     all.push({
-      kind: 'building',
+      kind: WorldRectKind.Building,
       rect: { x: b.x, y: b.y, w: b.w, d: b.d },
       label: b.file?.path ?? b.file?.name ?? '?',
       ref: b,
@@ -1547,7 +1549,7 @@ export function findLayoutOverlaps(layout: {
   }
   for (const p of layout.paths) {
     all.push({
-      kind: 'path',
+      kind: WorldRectKind.Path,
       rect: { x: p.x, y: p.y, w: p.w, d: p.d },
       label: p.file?.path ?? p.file?.name ?? '?',
       ref: p,
@@ -1569,7 +1571,7 @@ export function findLayoutOverlaps(layout: {
       // imperceptible and not actual layout bugs.
       if (overlap.w < 1e-3 || overlap.d < 1e-3) continue;
       let category: LayoutOverlapCategory = 'unexpected';
-      if (A.kind === 'street' && B.kind === 'street' && _isStreetJoinPair(A.ref, B.ref)) {
+      if (A.kind === WorldRectKind.Street && B.kind === WorldRectKind.Street && _isStreetJoinPair(A.ref, B.ref)) {
         category = 't-junction';
       }
       out.push({

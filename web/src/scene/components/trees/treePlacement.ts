@@ -35,6 +35,7 @@ import {
 } from '../island/islandGeometry.js';
 import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
+import { gemAnchorXZ } from '../../utils/gemAnchor.js';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
 import type { IslandGeometryConfig } from '@/config/components/island.js';
 
@@ -133,7 +134,9 @@ function bboxOfStreet(s: Street): Rect {
 /**
  * Compute the scatter center — the gem position when the layout
  * has a root street; falls back to bbox center for layouts that
- * don't (mostly tests).
+ * don't (mostly tests). Uses the shared gemAnchorXZ helper so the
+ * scatter center stays in lockstep with the gem's actual world
+ * position (gem.ts uses the same helper).
  */
 function gemCenterFromLayout(
   layout: CityLayout,
@@ -141,16 +144,7 @@ function gemCenterFromLayout(
 ): { x: number; y: number } {
   const root = layout.streets.find((s) => s.isRoot);
   if (!root) return { x: bbox.cx, y: bbox.cy };
-  if (root.orientation === StreetAxis.X) {
-    return {
-      x: root.x - root.length / 2 + root.width / 2,
-      y: root.y,
-    };
-  }
-  return {
-    x: root.x,
-    y: root.y - root.length / 2 + root.width / 2,
-  };
+  return gemAnchorXZ(root);
 }
 
 export function placeTrees(

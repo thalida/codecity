@@ -17,7 +17,8 @@ import {
   GEM_APPEARANCE,
   GEM_GLOW,
 } from '@/config/components/gem.js';
-import { NodeKind, StreetAxis } from '@/types';
+import { NodeKind } from '@/types';
+import { gemAnchorXZ } from '../../utils/gemAnchor.js';
 import type { Street } from '@/types';
 
 // Procedural glow texture: a single-channel radial gradient drawn on a
@@ -84,17 +85,12 @@ export function createRootGem(street: Street): THREE.Group {
   if (radius < minRadius) radius = minRadius;
   const hoverY = radius + street.width * hoverFrac;
 
-  // Gem hovers at the center of the road's origin-end cap. For a stadium of
-  // length L and width W, the origin cap circle is centered at a distance
-  // W/2 inward from the tip.
-  let gemX: number, gemZ: number;
-  if (street.orientation === StreetAxis.X) {
-    gemX = street.x - street.length / 2 + street.width / 2;
-    gemZ = street.y;
-  } else {
-    gemX = street.x;
-    gemZ = street.y - street.length / 2 + street.width / 2;
-  }
+  // Gem hovers at the center of the road's origin-end cap. Shared
+  // helper so this stays in lockstep with treePlacement's scatter
+  // center — both consume the same anchor.
+  const anchor = gemAnchorXZ(street);
+  const gemX = anchor.x;
+  const gemZ = anchor.y;
 
   // ---- Gem: per-face colored octahedron -------------------------------------
   const geo = new THREE.OctahedronGeometry(radius, 0);

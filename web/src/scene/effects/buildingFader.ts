@@ -87,51 +87,61 @@ export function createBuildingFader({
     hoverFile: FileNode | null,
     fadeCfg: ReturnType<typeof BUILDING_FADE.get>,
   ): TierResult {
-    let detail: FadeDetail;
-    let bodyOpacity: number;
-    let outlineEnabled: boolean;
-    let outlineOpacity: number;
+    // Hover wins — its tier values overwrite any selection/dir-tree result
+    // unconditionally, so check first and skip the more expensive
+    // dirTreeDistance walk when the cursor is already on this building.
+    if (hoverFile && file.path === hoverFile.path) {
+      return {
+        detail: fadeCfg.DEFAULT_DETAIL,
+        bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
+        outlineEnabled: false, // hover outline is owned by outlineRenderer
+        outlineOpacity: 0,
+      };
+    }
 
     if (bldgTargetFile && file.path === bldgTargetFile.path) {
       // Selected building: always full body, no per-building outline
       // (the dedicated selectedOutline mesh from outlineRenderer handles it).
-      detail = FadeDetail.Full;
-      bodyOpacity = 1.0;
-      outlineEnabled = false;
-      outlineOpacity = 0;
-    } else if (dirTarget) {
+      return {
+        detail: FadeDetail.Full,
+        bodyOpacity: 1.0,
+        outlineEnabled: false,
+        outlineOpacity: 0,
+      };
+    }
+
+    if (dirTarget) {
       const dist = _dirTreeDistance(file, dirTarget);
       if (dist === 0) {
-        detail = fadeCfg.DEFAULT_DETAIL;
-        bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-        outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
-        outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
-      } else if (dist === 1) {
-        detail = fadeCfg.NEAR_DETAIL;
-        bodyOpacity = fadeCfg.NEAR_BODY_OPACITY;
-        outlineEnabled = fadeCfg.NEAR_OUTLINE;
-        outlineOpacity = fadeCfg.NEAR_OUTLINE_OPACITY;
-      } else {
-        detail = fadeCfg.FAR_DETAIL;
-        bodyOpacity = fadeCfg.FAR_BODY_OPACITY;
-        outlineEnabled = fadeCfg.FAR_OUTLINE;
-        outlineOpacity = fadeCfg.FAR_OUTLINE_OPACITY;
+        return {
+          detail: fadeCfg.DEFAULT_DETAIL,
+          bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
+          outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
+          outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
+        };
       }
-    } else {
-      detail = fadeCfg.DEFAULT_DETAIL;
-      bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-      outlineEnabled = fadeCfg.DEFAULT_OUTLINE;
-      outlineOpacity = fadeCfg.DEFAULT_OUTLINE_OPACITY;
+      if (dist === 1) {
+        return {
+          detail: fadeCfg.NEAR_DETAIL,
+          bodyOpacity: fadeCfg.NEAR_BODY_OPACITY,
+          outlineEnabled: fadeCfg.NEAR_OUTLINE,
+          outlineOpacity: fadeCfg.NEAR_OUTLINE_OPACITY,
+        };
+      }
+      return {
+        detail: fadeCfg.FAR_DETAIL,
+        bodyOpacity: fadeCfg.FAR_BODY_OPACITY,
+        outlineEnabled: fadeCfg.FAR_OUTLINE,
+        outlineOpacity: fadeCfg.FAR_OUTLINE_OPACITY,
+      };
     }
 
-    if (hoverFile && file.path === hoverFile.path) {
-      detail = fadeCfg.DEFAULT_DETAIL;
-      bodyOpacity = fadeCfg.DEFAULT_BODY_OPACITY;
-      outlineEnabled = false; // hover outline is owned by outlineRenderer
-      outlineOpacity = 0;
-    }
-
-    return { detail, bodyOpacity, outlineEnabled, outlineOpacity };
+    return {
+      detail: fadeCfg.DEFAULT_DETAIL,
+      bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
+      outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
+      outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
+    };
   }
 
   function _sweepAll(): void {

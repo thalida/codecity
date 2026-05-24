@@ -293,14 +293,23 @@ export function buildIslandGeometry(
   // is enough to break the depth tie at city scale (depth-buffer precision
   // resolves sub-unit differences) while staying sub-pixel visually.
   const SEAM_EPSILON = 0.05;
+  // Ambient occlusion baked into vertex alpha. The underside darkens
+  // with depth — top edge sits flush against the lit grass band so it
+  // stays bright; the deepest ring is mostly shadowed. UNDERSIDE_AO_TOP
+  // is reused for the very top rock vertices so the seam edge matches
+  // the band immediately below it without a luminance pop.
+  const UNDERSIDE_AO_TOP = 0.85;        // brightest underside vertex
+  const UNDERSIDE_AO_RANGE = 0.40;      // top - bottom AO span
+  // Resulting AO at the deepest ring: UNDERSIDE_AO_TOP - UNDERSIDE_AO_RANGE = 0.45
+
   const topRockIdx: number[] = grassBotRing.map((v) =>
-    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, 0.85),
+    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, UNDERSIDE_AO_TOP),
   );
   allRingIdx.push(topRockIdx);
 
   for (let t = 0; t < undersideRings.length; t++) {
     const frac = (t + 1) / (tiers + 1);
-    const ao = 0.85 - 0.40 * frac; // 0.85 at top edge → 0.45 at deepest ring
+    const ao = UNDERSIDE_AO_TOP - UNDERSIDE_AO_RANGE * frac;
     const ring = undersideRings[t]!;
     const ringIdx: number[] = ring.map((v) => addVertex(v, rock, ao));
     allRingIdx.push(ringIdx);

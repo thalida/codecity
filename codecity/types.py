@@ -95,10 +95,13 @@ class CommitEntry(TypedDict):
     oldest-first order so consumers can map commits[i] → i-th tree
     placement (closest-to-gem). Date is day-precision for compact
     payload + future age signal. files = count of A/M/D/T/U rows in
-    the commit's --name-status block."""
+    the commit's --name-status block. gap_days = days since the
+    previous commit (0 for the first; >=0 thereafter). Pre-computed
+    here so the renderer doesn't redo the diff on every reload."""
 
     date: str   # "YYYY-MM-DD"
     files: int
+    gap_days: int
 
 
 class Manifest(TypedDict):

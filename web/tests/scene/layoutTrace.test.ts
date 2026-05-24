@@ -1,4 +1,5 @@
 // layoutTrace.test.ts — exercise the optional `trace` params on
+import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 // findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
@@ -44,7 +45,7 @@ describe('findSmallestValidStem with trace', () => {
     // Obstacle: a building rect at along [10, 14], perp [-1, 1].
     const obstacle = {
       minX: 10, maxX: 14, minY: -1, maxY: 1,
-      kind: 'building' as const,
+      kind: WorldRectKind.Building,
       ref: { x: 12, y: 0, w: 4, d: 2 } as never,
     };
     occupancy.insert(obstacle);
@@ -76,7 +77,7 @@ describe('findSmallestValidStem with trace', () => {
     const occupancy = new WorldOccupancy();
     const obstacle = {
       minX: 4, maxX: 10, minY: -1, maxY: 1,
-      kind: 'building' as const,
+      kind: WorldRectKind.Building,
       ref: { x: 7, y: 0, w: 6, d: 2 } as never,
     };
     occupancy.insert(obstacle);

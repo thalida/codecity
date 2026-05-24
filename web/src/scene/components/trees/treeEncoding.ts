@@ -99,9 +99,9 @@ export function sizeT(commit: CommitEntry, range: SizeRange): number {
   return clamp01((commit.files - range.min) / range.span);
 }
 
-/** Compute per-commit gap (days since the previous commit) plus the
- *  min/max range across the array. commits.length < 2 → all gaps are
- *  0 and the range collapses, callers will fall through to t=0.5. */
+/** Roll up per-commit gap_days (precomputed by the scanner) into the
+ *  min/max range the gapT normalizer needs. Single O(n) pass; no
+ *  date parsing — the scanner already did that work. */
 export function computeCommitGaps(commits: CommitEntry[] | null): CommitGaps {
   if (!commits || commits.length === 0) {
     return { gaps: [], range: { min: 0, max: 0, span: 0 } };
@@ -113,15 +113,13 @@ export function computeCommitGaps(commits: CommitEntry[] | null): CommitGaps {
   }
   let min = Infinity;
   let max = -Infinity;
-  let prevDay = dateToDays(commits[0].date);
+  // Skip i=0 — there's no previous commit, so gap_days is 0 by
+  // convention and shouldn't influence the range.
   for (let i = 1; i < n; i++) {
-    const day = dateToDays(commits[i].date);
-    const gap = day - prevDay;
-    const safeGap = gap < 0 ? 0 : gap;
-    gaps[i] = safeGap;
-    if (safeGap < min) min = safeGap;
-    if (safeGap > max) max = safeGap;
-    prevDay = day;
+    const gap = commits[i].gap_days;
+    gaps[i] = gap;
+    if (gap < min) min = gap;
+    if (gap > max) max = gap;
   }
   return { gaps, range: { min, max, span: max - min } };
 }

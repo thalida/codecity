@@ -7,10 +7,15 @@ import RBush from 'rbush';
 import type { Building, BuildingPath, Street } from '@/types';
 
 // Touches at edges (zero-area overlap) are NOT reported as overlap.
-// Same convention as the v3 packer's _rectsOverlap.
 const OVERLAP_EPS = 1e-9;
 
-export type WorldRectKind = 'building' | 'street' | 'path';
+// String enum so callers reference WorldRectKind.Street instead of the
+// raw 'street' literal. Mirrors the MediaKind / NodeKind convention.
+export enum WorldRectKind {
+  Building = 'building',
+  Street = 'street',
+  Path = 'path',
+}
 
 export interface WorldRect {
   // rbush requires these exact field names.

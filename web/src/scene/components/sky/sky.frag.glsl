@@ -87,7 +87,16 @@ void main() {
         float phase = hash21(cell + vec2(31.4, 17.7));
         float starAmt = uStarBrightness * circle;
         if (uTwinkleEnabled > 0.5 && uTwinkleAmplitude > 0.0) {
-          float t = sin(uTime * uTwinkleSpeed * (0.5 + phase) + phase * 6.2831);
+          // PHASE_SPEED_BIAS: per-star speed multiplier in
+          // [PHASE_SPEED_BIAS, PHASE_SPEED_BIAS+1] so two adjacent
+          // stars never twinkle in lockstep. 0.5 = baseline; +phase
+          // ramps it up to 1.5.
+          // TAU = 2π, used to convert `phase` ∈ [0,1) into a full
+          // sine-wave phase shift so the per-star sine starts at a
+          // uniformly random point in its cycle.
+          const float PHASE_SPEED_BIAS = 0.5;
+          const float TAU = 6.2831853;
+          float t = sin(uTime * uTwinkleSpeed * (PHASE_SPEED_BIAS + phase) + phase * TAU);
           float mod_ = 1.0 + t * uTwinkleAmplitude;
           starAmt *= max(mod_, 0.0);
         }

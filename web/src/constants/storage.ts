@@ -8,13 +8,18 @@
 
 export const STORAGE_PREFIX = 'cc.';
 
+/** Per-source key namespace: `cc.source.<sourceKey>.<baseName>`. Used by
+ *  persistAtomPerSource so each loaded source gets isolated localStorage
+ *  slots for selection, camera pose, etc. */
+export const STORAGE_PER_SOURCE_PREFIX = `${STORAGE_PREFIX}source.`;
+
 export const STORAGE_KEYS = {
   /** Camera position + target, debounced-saved on every controls 'change'. */
-  CAMERA_POSE: 'cc.cameraPose',
+  CAMERA_POSE: `${STORAGE_PREFIX}cameraPose`,
   /** Right (file-preview) sidebar drag-handle width in px. */
-  FILE_SIDEBAR_WIDTH: 'cc.fileSidebarWidth',
+  FILE_SIDEBAR_WIDTH: `${STORAGE_PREFIX}fileSidebarWidth`,
   /** Left (tree/info/controls) sidebar drag-handle width in px. */
-  SIDEBAR_WIDTH: 'cc.sidebarWidth',
+  SIDEBAR_WIDTH: `${STORAGE_PREFIX}sidebarWidth`,
   /** Left sidebar collapsed state ('true' iff collapsed). */
-  SIDEBAR_COLLAPSED: 'cc.sidebarCollapsed',
+  SIDEBAR_COLLAPSED: `${STORAGE_PREFIX}sidebarCollapsed`,
 } as const;

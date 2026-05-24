@@ -16,7 +16,7 @@
 // tests + non-browser environments shouldn't touch localStorage.
 
 import type { WritableAtom } from 'nanostores';
-import { STORAGE_PREFIX } from '@/constants';
+import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
@@ -271,10 +271,8 @@ export function forEachRegisteredStore(
 // Per-source persistence — scoped to a (source, baseName) slot in localStorage
 // ---------------------------------------------------------------------------
 
-const PER_SOURCE_PREFIX = 'cc.source.';
-
 function perSourceKey(sourceKey: string, baseName: string): string {
-  return `${PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
+  return `${STORAGE_PER_SOURCE_PREFIX}${sourceKey}.${baseName}`;
 }
 
 /**

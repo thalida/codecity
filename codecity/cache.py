@@ -46,8 +46,12 @@ CACHE_ROOT = Path(
 )
 
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 3
-_MANIFEST_CACHE_VERSION = 2
+# Bumped to 4: CommitEntry now carries gap_days. Pre-v4 entries get
+# dropped on load (cache_load_git_history returns None on version
+# mismatch).
+_GIT_HISTORY_CACHE_VERSION = 4
+# Bumped to 3: Manifest's commits list also carries gap_days.
+_MANIFEST_CACHE_VERSION = 3
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
@@ -206,9 +210,11 @@ def cache_load_git_history(
             continue
         date = c.get("date")
         files = c.get("files")
+        gap_days = c.get("gap_days")
         if (isinstance(date, str) and isinstance(files, int)
-                and not isinstance(files, bool)):
-            commits.append({"date": date, "files": files})
+                and not isinstance(files, bool)
+                and isinstance(gap_days, int) and not isinstance(gap_days, bool)):
+            commits.append({"date": date, "files": files, "gap_days": gap_days})
     return created, modified, commits
 
 

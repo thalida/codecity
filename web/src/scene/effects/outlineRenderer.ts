@@ -73,7 +73,12 @@ export function createOutlineRenderer({
   selectedLineMat.resolution.set(canvas.clientWidth, canvas.clientHeight);
   const _selectedEdgesGeo = new LineSegmentsGeometry();
   _selectedEdgesGeo.setPositions(UNIT_BOX_EDGE_POSITIONS);
-  const _selectedColors = new Float32Array(12 * 6); // 12 segments × (startRGB + endRGB)
+  // A unit cube has CUBE_EDGE_COUNT edges; LineSegmentsGeometry stores
+  // start+end RGB (6 floats) per edge. UNIT_BOX_EDGE_POSITIONS encodes
+  // the same 12 edges as flat (x,y,z) pairs upstream.
+  const CUBE_EDGE_COUNT = 12;
+  const COLOR_FLOATS_PER_EDGE = 6; // start RGB + end RGB
+  const _selectedColors = new Float32Array(CUBE_EDGE_COUNT * COLOR_FLOATS_PER_EDGE);
   for (let ci = 0; ci < _selectedColors.length; ci++) _selectedColors[ci] = 1;
   _selectedEdgesGeo.setColors(_selectedColors);
   // attributes.instanceColorStart is exposed as the BufferAttribute|InterleavedBufferAttribute
@@ -197,19 +202,25 @@ export function createOutlineRenderer({
     const sel = picker.selection.get();
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
+      // Rainbow chase around the cube. The 12 cube edges split into 3
+      // groups:
+      //   - bottom face (segments 0-3): rainbow gradient flowing
+      //     counter-clockwise around the base
+      //   - top face   (segments 4-7): same gradient, in lockstep
+      //   - 4 verticals (segments 8-11): each holds one solid hue from
+      //     the quartered cycle, hinting at where the bottom/top edges
+      //     start and end so the rainbow reads as continuous around the
+      //     entire silhouette
       const t = performance.now() * RAINBOW.get().SPEED;
-      _setSegHueGradient(0, t + 0.0, t + 0.25); // bottom: back  edge
-      _setSegHueGradient(1, t + 0.25, t + 0.5); // bottom: right edge
-      _setSegHueGradient(2, t + 0.5, t + 0.75); // bottom: front edge
-      _setSegHueGradient(3, t + 0.75, t + 1.0); // bottom: left  edge
-      _setSegHueGradient(4, t + 0.0, t + 0.25); // top:    back  edge
-      _setSegHueGradient(5, t + 0.25, t + 0.5); // top:    right edge
-      _setSegHueGradient(6, t + 0.5, t + 0.75); // top:    front edge
-      _setSegHueGradient(7, t + 0.75, t + 1.0); // top:    left  edge
-      _setSegHueGradient(8, t + 0.0, t + 0.0); // vertical: back-left
-      _setSegHueGradient(9, t + 0.25, t + 0.25); // vertical: back-right
-      _setSegHueGradient(10, t + 0.5, t + 0.5); // vertical: front-right
-      _setSegHueGradient(11, t + 0.75, t + 0.75); // vertical: front-left
+      const HUE_STEPS = 4; // edges per face → quartered hue cycle
+      const HUE_STEP = 1 / HUE_STEPS;
+      for (let i = 0; i < HUE_STEPS; i++) {
+        const a = t + i * HUE_STEP;
+        const b = t + (i + 1) * HUE_STEP;
+        _setSegHueGradient(i, a, b);                 // bottom face
+        _setSegHueGradient(i + HUE_STEPS, a, b);     // top face (same gradient)
+        _setSegHueGradient(i + HUE_STEPS * 2, a, a); // vertical: solid hue
+      }
       _selColorBuf.array.set(_selectedColors);
       _selColorBuf.needsUpdate = true;
     }
