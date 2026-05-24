@@ -4,7 +4,8 @@
 // canopy widths driven by commit file count (more files = wider) and
 // canopy facet counts also driven by file count (more files = higher
 // subdivision), and canopy colors that interpolate between
-// TREE_COLOR_OLD and TREE_COLOR_NEW by commit age.
+// TREE_COLOR_NEW (solo-commit days) and TREE_COLOR_OLD (busy days) by
+// commits-per-day.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
