@@ -39,18 +39,16 @@ export interface SourcePayload {
   src: string;
   branch?: string;
   // Per-source git-log history window. Forwarded to the server as the
-  // ?git_window= query param. Undefined = server default (3.years.ago).
-  // Accepts any `git log --since=…` expression; the dropdown below
-  // exposes a handful of presets but the field is otherwise free-form
-  // if a caller wants to set it programmatically.
+  // ?git_window= query param. Undefined or "" = walk all history
+  // (server default). Accepts any `git log --since=…` expression; the
+  // dropdown below exposes a handful of presets but the field is
+  // otherwise free-form if a caller wants to set it programmatically.
   gitWindow?: string;
 }
 
 // Presets shown in the git tab's "History window" dropdown. The label
 // is what the user sees; the value is what we send to `git log --since`.
-// "All history" maps to a very-old anchor instead of dropping --since
-// entirely so the server still hits its cache on repeat loads with the
-// same selection.
+// "All history" sends an empty string → server omits --since entirely.
 interface GitWindowOption {
   label: string;
   value: string;
@@ -60,9 +58,9 @@ const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
   { label: '3 years ago', value: '3.years.ago' },
   { label: '5 years ago',  value: '5.years.ago'  },
   { label: '10 years ago', value: '10.years.ago' },
-  { label: 'All history (default)',  value: '100.years.ago' },
+  { label: 'All history (default)',  value: '' },
 ];
-const DEFAULT_GIT_WINDOW = '100.years.ago';
+const DEFAULT_GIT_WINDOW = '';
 
 /** Map a raw `git_window` value back to its human-readable label, or
  *  return the raw value when nothing matches (the field accepts any

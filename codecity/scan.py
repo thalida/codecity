@@ -1,15 +1,10 @@
-#!/usr/bin/env python3
 """scan.py — CodeCity filesystem scanner.
 
 Walks a directory tree, collects file/directory metadata + git history
 (created/modified dates only), and emits a nested JSON manifest.
 
-Invoked by the server's /api/manifest handler, or directly as a CLI:
-
-    python3 scan.py --root <path>
-
-Outputs manifest JSON on stdout; progress on stderr. Silence progress
-with CODECITY_QUIET=1.
+Invoked by the server's /api/manifest handler. Progress goes to stderr;
+silence it with CODECITY_QUIET=1.
 
 In a git repo, only tracked files are scanned (parents of tracked files
 are walked but unstaged additions and gitignored paths are skipped).
@@ -17,10 +12,8 @@ are walked but unstaged additions and gitignored paths are skipped).
 
 from __future__ import annotations
 
-import argparse
 import copy
 import hashlib
-import json
 import os
 import subprocess
 import sys
@@ -52,7 +45,7 @@ from .types import (
 
 
 class ScanCancelledError(Exception):
-    """Raised when a scan_tree_streaming cancel_event is set mid-scan.
+    """Raised when a scan_tree cancel_event is set mid-scan.
 
     Caller (the server's _serve_manifest) is expected to swallow this
     — it means 'the client disconnected, we asked the scan to stop,
@@ -62,7 +55,7 @@ class ScanCancelledError(Exception):
 def _check_cancel(event: "threading.Event | None") -> None:
     """Raise ScanCancelledError if the cancellation event is set.
 
-    Cheap; called at every phase boundary in scan_tree_streaming and
+    Cheap; called at every phase boundary in scan_tree and
     between batches in _populate_file_metadata."""
     if event is not None and event.is_set():
         raise ScanCancelledError()
@@ -189,13 +182,15 @@ def _git_history_window(override: str | None = None) -> str:
     """Resolve the git-log --since window.
 
     Precedence: explicit ``override`` argument (typically from a per-
-    request UI/API parameter) > ``CODECITY_GIT_WINDOW`` env var > the
-    built-in default of "3.years.ago". Any value `git log --since=…`
+    request UI/API parameter) > ``CODECITY_GIT_WINDOW`` env var >
+    empty (= no --since, walk all history). Any value `git log --since=…`
     accepts is valid: "3.years.ago", "2022-01-01", "6.months", etc.
+
+    Returns "" to mean "no window"; callers must omit the --since flag.
     """
     if override:
         return override
-    return os.environ.get("CODECITY_GIT_WINDOW", "3.years.ago")
+    return os.environ.get("CODECITY_GIT_WINDOW", "")
 
 
 def _collect_git_dates_windowed(
@@ -211,13 +206,14 @@ def _collect_git_dates_windowed(
       1. Halves the subprocess count — we now read the same history
          from one process, parsing both A-events and other-status
          events as we go.
-      2. Bounds the walk to ``CODECITY_GIT_WINDOW`` (default 3 years).
-         Files not touched within the window get no entry; the renderer
-         falls back to filesystem dates or the oldest-age color. Cuts
-         walks on torvalds/linux-scale repos from ~1.4M commits to
-         ~250K. Acceptable because the age-signal renders colors
-         relative to the visible date range — a file modified 10 years
-         ago and one modified 4 years ago both clamp to the
+      2. Optionally bounds the walk to ``CODECITY_GIT_WINDOW`` (default:
+         no bound — full history). When a window is set, files not
+         touched within it get no entry; the renderer falls back to
+         filesystem dates or the oldest-age color. Useful on huge repos
+         (e.g. torvalds/linux) where a window cuts walks from ~1.4M
+         commits to ~250K. Acceptable because the age-signal renders
+         colors relative to the visible date range — a file modified
+         10 years ago and one modified 4 years ago both clamp to the
          oldest-color bucket anyway.
 
     --no-renames means a rename is recorded as delete+add, so the
@@ -232,14 +228,16 @@ def _collect_git_dates_windowed(
         re-added, this is the true creation date.
     """
     window = _git_history_window(git_window)
-    _log(f"  starting git log walk (--since={window})…")
+    _log(f"  starting git log walk (--since={window or 'ALL'})…")
+    log_argv = ["git", "-C", str(root), "log",
+                "--format=COMMIT:%aI",
+                "--name-status",
+                "--no-renames"]
+    if window:
+        log_argv.append(f"--since={window}")
     try:
         proc = subprocess.Popen(
-            ["git", "-C", str(root), "log",
-             "--format=COMMIT:%aI",
-             "--name-status",
-             "--no-renames",
-             f"--since={window}"],
+            log_argv,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
@@ -256,46 +254,51 @@ def _collect_git_dates_windowed(
     commits = 0
     heartbeat_every = 25_000
     assert proc.stdout is not None
-    for line in proc.stdout:
-        line = line.rstrip("\n")
-        if not line:
-            continue
-        if line.startswith("COMMIT:"):
-            # Flush the previous commit (if any) before starting the next.
-            if current_date_iso:
-                commits_newest_first.append({
-                    "date": current_date_iso[:10],
-                    "files": current_files,
-                })
-            current_date_iso = line[len("COMMIT:"):]
-            current_files = 0
-            commits += 1
-            if commits % heartbeat_every == 0:
-                _log(
-                    f"  walked {commits:,} commits, "
-                    f"{len(modified):,} files seen so far…"
-                )
-            continue
-        # `<status>\t<path>` row from --name-status. Status is one of
-        # A/M/D/T/U. With --no-renames, R/C don't appear (renames are
-        # D + A instead).
-        tab_idx = line.find("\t")
-        if tab_idx == -1:
-            continue
-        status = line[:tab_idx]
-        path = line[tab_idx + 1:]
-        current_files += 1
-        if path not in modified:
-            modified[path] = current_date_iso
-        if status.startswith("A") and path not in created:
-            created[path] = current_date_iso
-    # Flush the final commit (the loop exits after the last block, not after a COMMIT line).
-    if current_date_iso:
-        commits_newest_first.append({
-            "date": current_date_iso[:10],
-            "files": current_files,
-        })
-    proc.wait()
+    # try/finally so an exception escaping the parse loop (MemoryError,
+    # KeyboardInterrupt, decode error) doesn't leave the git subprocess
+    # running as a zombie.
+    try:
+        for line in proc.stdout:
+            line = line.rstrip("\n")
+            if not line:
+                continue
+            if line.startswith("COMMIT:"):
+                # Flush the previous commit (if any) before starting the next.
+                if current_date_iso:
+                    commits_newest_first.append({
+                        "date": current_date_iso[:10],
+                        "files": current_files,
+                    })
+                current_date_iso = line[len("COMMIT:"):]
+                current_files = 0
+                commits += 1
+                if commits % heartbeat_every == 0:
+                    _log(
+                        f"  walked {commits:,} commits, "
+                        f"{len(modified):,} files seen so far…"
+                    )
+                continue
+            # `<status>\t<path>` row from --name-status. Status is one of
+            # A/M/D/T/U. With --no-renames, R/C don't appear (renames are
+            # D + A instead).
+            tab_idx = line.find("\t")
+            if tab_idx == -1:
+                continue
+            status = line[:tab_idx]
+            path = line[tab_idx + 1:]
+            current_files += 1
+            if path not in modified:
+                modified[path] = current_date_iso
+            if status.startswith("A") and path not in created:
+                created[path] = current_date_iso
+        # Flush the final commit (the loop exits after the last block, not after a COMMIT line).
+        if current_date_iso:
+            commits_newest_first.append({
+                "date": current_date_iso[:10],
+                "files": current_files,
+            })
+    finally:
+        proc.wait()
     _log(
         f"  done — {commits:,} commits in window, "
         f"{len(modified):,} files touched, "
@@ -312,8 +315,9 @@ def _collect_git_metadata(
     """Return (created_map, modified_map, tracked_set, commits).
 
     - created_map[path]  = ISO date of most recent ``A``-event for path
-                           within ``CODECITY_GIT_WINDOW`` (default 3y).
-                           Files added before the window are absent.
+                           within ``CODECITY_GIT_WINDOW`` (default: all
+                           history). Files added before the window
+                           are absent.
     - modified_map[path] = ISO date of most recent commit touching the
                            path within the window. Files untouched
                            since the window started are absent.
@@ -567,6 +571,15 @@ def _hash_repo_info(sig: Any, repo_info: RepoInfo) -> None:
             f"{repo_info['head_sha']}|{repo_info['dirty']}"
         ).encode("utf-8")
     )
+
+
+def _hash_git_window(sig: Any, git_window: str | None) -> None:
+    # Different --since windows produce different per-file git dates;
+    # without this, two scans with different windows hash to the same
+    # signature and the cache returns a stale manifest. None and "" both
+    # mean "no window" (= all history) and must hash the same.
+    sig.update(b"|gw=")
+    sig.update((git_window or "").encode("utf-8"))
 
 
 def _file_node(
@@ -922,7 +935,7 @@ def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:
         _force_skeleton_placeholders(child)
 
 
-def scan_tree_streaming(
+def scan_tree(
     root: str,
     *,
     include_all: bool = False,
@@ -930,11 +943,25 @@ def scan_tree_streaming(
     cancel_event: "threading.Event | None" = None,
     git_window: str | None = None,
 ) -> Iterator["ScanStreamEvent"]:
-    """Generator form of scan_tree: yields a skeleton event after the
-    tree walk, then a final event after metadata population. The
-    eager scan_tree() wrapper drains this and returns the final
-    manifest, preserving the original API for non-streaming callers
-    (CLI, tests that don't care about phasing)."""
+    """Scan a directory and yield manifest events.
+
+    Yields a "skeleton" event after the tree walk (placeholder file
+    metadata so the UI can paint immediately), then a "final" event
+    after per-file metadata is populated.
+
+    With ``include_all=False`` (default), in a git repo the scanner walks
+    only paths in ``git ls-files`` — gitignored and untracked files are
+    hidden. With ``include_all=True``, the tracked-files filter is
+    skipped entirely; every file under ``root`` is emitted EXCEPT
+    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
+    or matched by the optional ``<root>/.codecityignore`` file.
+
+    Outside a git repo, ``include_all`` has no effect — the tracked set
+    is empty either way.
+
+    The skip list is always applied. Per-project additions go in
+    ``<root>/.codecityignore`` (one literal name per line, or relative
+    paths containing ``/``)."""
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
@@ -967,6 +994,7 @@ def scan_tree_streaming(
     _reset_heartbeat()
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
+    _hash_git_window(sig, git_window)
     tree = _build_tree(
         root_abs, ".",
         is_git_repo=is_git_repo,
@@ -1016,43 +1044,6 @@ def scan_tree_streaming(
             root_abs, tree, sig, tree_sig, repo_info, commits_list,
         ),
     }
-
-
-def scan_tree(
-    root: str,
-    *,
-    include_all: bool = False,
-    use_cache: bool = True,
-    git_window: str | None = None,
-) -> Manifest:
-    """Scan a directory and return the full manifest.
-
-    With ``include_all=False`` (default), in a git repo the scanner walks
-    only paths in ``git ls-files`` — gitignored and untracked files are
-    hidden. With ``include_all=True``, the tracked-files filter is
-    skipped entirely; every file under ``root`` is emitted EXCEPT
-    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
-    or matched by the optional ``<root>/.codecityignore`` file.
-
-    Outside a git repo, ``include_all`` has no effect — the tracked set
-    is empty either way.
-
-    The skip list is always applied. Per-project additions go in
-    ``<root>/.codecityignore`` (one literal name per line, or relative
-    paths containing ``/``).
-
-    Eager wrapper: drains scan_tree_streaming and returns the final
-    manifest. Preserves the existing API for callers that don't
-    stream (CLI, older tests).
-    """
-    final: Manifest | None = None
-    for event in scan_tree_streaming(
-        root, include_all=include_all, use_cache=use_cache, git_window=git_window,
-    ):
-        if event["phase"] == "final":
-            final = event["manifest"]
-    assert final is not None, "scan_tree_streaming must yield a final event"
-    return final
 
 
 def _collect_tracked_set(root: Path) -> set[str]:
@@ -1131,6 +1122,7 @@ def signature_tree(
     *,
     include_all: bool = False,
     use_cache: bool = True,
+    git_window: str | None = None,
 ) -> SignatureResponse:
     """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
     but without building the full manifest.
@@ -1146,6 +1138,10 @@ def signature_tree(
 
     Honors the same skip list and ``<root>/.codecityignore`` file as
     scan_tree, so signatures stay in lockstep.
+
+    ``git_window`` is folded into the signature so two scans with
+    different --since windows get distinct keys (manifests with
+    different windows have different per-file dates).
 
     ``use_cache`` is accepted for API symmetry with scan_tree (so both
     /api/manifest and /api/manifest/signature take the same query
@@ -1171,6 +1167,7 @@ def signature_tree(
     )
 
     sig = hashlib.blake2b(digest_size=16)
+    _hash_git_window(sig, git_window)
     _walk_for_signature(
         root_abs, ".",
         is_git_repo=is_git_repo,
@@ -1190,21 +1187,3 @@ def signature_tree(
         "scanned_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "signature": sig.hexdigest(),
     }
-
-
-# ── CLI entry ────────────────────────────────────────────────────────────────
-
-
-def _cli() -> int:
-    p = argparse.ArgumentParser(description="Walk a directory tree and emit a JSON manifest.")
-    p.add_argument("--root", required=True, help="Directory to scan.")
-    args = p.parse_args()
-
-    manifest = scan_tree(args.root)
-    json.dump(manifest, sys.stdout, separators=(",", ":"))
-    sys.stdout.write("\n")
-    return 0
-
-
-if __name__ == "__main__":
-    sys.exit(_cli())

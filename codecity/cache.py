@@ -36,11 +36,16 @@ if TYPE_CHECKING:
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override
-# cascades through.
-CACHE_ROOT = Path.home() / ".cache" / "codecity"
+# cascades through. CODECITY_CACHE_ROOT lets ops point the cache at a
+# different directory (e.g. an XDG cache dir, or a writable mount on
+# read-only home dirs in containers).
+CACHE_ROOT = Path(
+    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
+)
 
 _FILE_CACHE_VERSION = 1
 _GIT_HISTORY_CACHE_VERSION = 3
+_MANIFEST_CACHE_VERSION = 2
 
 
 class FileEntry(TypedDict):
@@ -238,9 +243,6 @@ def cache_save_git_history(
         "commits": commits,
     }
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
-
-
-_MANIFEST_CACHE_VERSION = 2
 
 
 def _manifest_cache_path(abs_root: Path, signature: str) -> Path:

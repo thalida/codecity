@@ -49,7 +49,7 @@ from codecity.cache import (
 )
 from codecity.scan import (
     ScanCancelledError,
-    scan_tree_streaming,
+    scan_tree,
     signature_tree,
 )
 from codecity.types import (
@@ -138,6 +138,11 @@ class _State:
     # Every absolute path that has been successfully scanned this session.
     # /api/file uses this as its trust set.
     allowed_roots: set[Path] = set()
+    # Guards allowed_roots — ThreadingHTTPServer can run a manifest scan
+    # (writer) concurrently with a file fetch (reader), and CPython will
+    # raise RuntimeError: Set changed size during iteration if a write
+    # lands mid-read.
+    allowed_roots_lock: threading.Lock = threading.Lock()
     # Serializes clone-or-update so two concurrent manifest requests for
     # the same URL don't race the working tree. ensure_clone is the cache
     # itself (filesystem-backed); the lock just keeps it consistent.
@@ -474,14 +479,21 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         # Register trust root before any file-bearing event reaches the
         # client. From this point on /api/file can serve content under
         # scan_target.
-        _State.allowed_roots.add(scan_target.resolve())
+        with _State.allowed_roots_lock:
+            _State.allowed_roots.add(scan_target.resolve())
 
         yield {"phase": "scanning"}
 
         # Cheap signature probe — same call the live-poll endpoint uses.
+        # git_window MUST flow in here too: it feeds the signature, and
+        # without it a window change would collide with a previously
+        # cached manifest under a different window.
         try:
             sig_response = signature_tree(
-                str(scan_target), include_all=include_all, use_cache=use_cache,
+                str(scan_target),
+                include_all=include_all,
+                use_cache=use_cache,
+                git_window=git_window,
             )
         except Exception as e:  # pylint: disable=broad-except
             yield {"phase": "error", "error": f"scan failed: {e}"}
@@ -502,7 +514,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
         # Cache miss — stream live scan.
         try:
-            for event in scan_tree_streaming(
+            for event in scan_tree(
                 str(scan_target),
                 include_all=include_all,
                 use_cache=use_cache,
@@ -613,12 +625,16 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     scan_target, _raw_src, _raw_branch, _kind = resolved
     include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
+    # Pass git_window through so the live-update poll's signature matches
+    # the cached manifest's (which is now window-keyed).
+    git_window = _parse_git_window(query)
 
     try:
         sig = signature_tree(
             str(scan_target),
             include_all=include_all,
             use_cache=use_cache,
+            git_window=git_window,
         )
     except Exception as e:  # pylint: disable=broad-except
         _send_json(
@@ -642,7 +658,12 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
         _send_json(handler, HTTPStatus.BAD_REQUEST, {"error": "missing 'path' param"})
         return
 
-    if not _State.allowed_roots:
+    # Snapshot under the lock so a concurrent scan can't mutate the set
+    # mid-iteration. Set copy is O(roots) — typically a handful.
+    with _State.allowed_roots_lock:
+        roots_snapshot = set(_State.allowed_roots)
+
+    if not roots_snapshot:
         _send_json(
             handler,
             HTTPStatus.FORBIDDEN,
@@ -658,7 +679,7 @@ def _serve_file_api(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     # Allow if the target is under ANY registered root.
     inside = False
-    for root in _State.allowed_roots:
+    for root in roots_snapshot:
         try:
             target.relative_to(root)
         except ValueError:
@@ -815,7 +836,8 @@ def start_server(
         _State.static_dir = static_dir
     # Each call gets a fresh trust set so tests don't leak roots between
     # cases. Production only ever calls start_server once per process.
-    _State.allowed_roots = set()
+    with _State.allowed_roots_lock:
+        _State.allowed_roots = set()
 
     server = _Server(("127.0.0.1", port), Handler)
     bound_port = server.server_address[1]

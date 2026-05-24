@@ -16,16 +16,25 @@ from codecity.scan import (
     scan_tree,
     signature_tree,
 )
+from codecity.types import Manifest
 
 
 # Silence progress logs during tests.
 os.environ["CODECITY_QUIET"] = "1"
 
-# Tests use a wide history window so the fixture's hardcoded commit
-# dates (oldest is 2024-01-10) never fall outside the rolling cutoff
-# as wall-clock time advances. The default in production is
-# "3.years.ago"; for tests we want everything in scope.
-os.environ.setdefault("CODECITY_GIT_WINDOW", "30.years.ago")
+
+def _final_manifest(root: str, **kwargs) -> Manifest:
+    """Drain scan_tree() and return only the final-phase manifest.
+
+    Most tests pre-date the streaming refactor and assert against the
+    full manifest, not the skeleton — this wrapper keeps them
+    point-free of the phase iteration."""
+    final: Manifest | None = None
+    for event in scan_tree(root, **kwargs):
+        if event["phase"] == "final":
+            final = event["manifest"]
+    assert final is not None, "scan_tree must yield a final event"
+    return final
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 FIXTURE = FIXTURES_DIR / "sample-repo"
@@ -108,7 +117,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         _ensure_fixture()
 
     def test_manifest_top_level_shape(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         self.assertIn("root", m)
         self.assertIn("scanned_at", m)
         self.assertIn("tree", m)
@@ -117,7 +126,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(m["tree"]["name"], "sample-repo")
 
     def test_counts_roll_up_correctly(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
         self.assertEqual(tree["descendants_file_count"], 9)
         self.assertEqual(tree["descendants_dir_count"], 4)
@@ -125,14 +134,14 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertGreater(tree["descendants_size"], 0)
 
     def test_signature_present_and_stable(self):
-        m1 = scan_tree(str(FIXTURE))
-        m2 = scan_tree(str(FIXTURE))
+        m1 = _final_manifest(str(FIXTURE))
+        m2 = _final_manifest(str(FIXTURE))
         self.assertIn("signature", m1)
         self.assertIsInstance(m1["signature"], str)
         self.assertEqual(m1["signature"], m2["signature"])
 
     def test_git_dates_present_on_tracked_file(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         for node in _walk_files(m["tree"]):
             if node["name"] == "index.ts":
                 self.assertIsNotNone(node["git"])
@@ -142,12 +151,12 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         self.fail("index.ts not found in manifest")
 
     def test_git_dir_is_excluded(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         names = [n["name"] for n in _walk_dirs(m["tree"])]
         self.assertNotIn(".git", names)
 
     def test_binary_flag_on_png(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         for node in _walk_files(m["tree"]):
             if node["name"] == "logo.png":
                 self.assertTrue(node["binary"])
@@ -160,7 +169,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         untracked = FIXTURE / "untracked-temp.txt"
         untracked.write_text("not tracked")
         try:
-            m = scan_tree(str(FIXTURE))
+            m = _final_manifest(str(FIXTURE))
             names = [n["name"] for n in _walk_files(m["tree"])]
             self.assertNotIn("untracked-temp.txt", names)
         finally:
@@ -173,11 +182,11 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         untracked = FIXTURE / "untracked-include-all.txt"
         untracked.write_text("hello include_all")
         try:
-            m_default = scan_tree(str(FIXTURE))
+            m_default = _final_manifest(str(FIXTURE))
             names_default = [n["name"] for n in _walk_files(m_default["tree"])]
             self.assertNotIn("untracked-include-all.txt", names_default)
 
-            m_all = scan_tree(str(FIXTURE), include_all=True)
+            m_all = _final_manifest(str(FIXTURE), include_all=True)
             names_all = [n["name"] for n in _walk_files(m_all["tree"])]
             self.assertIn("untracked-include-all.txt", names_all)
 
@@ -206,11 +215,11 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
                 original_gitignore + "\nignored-include-all.txt\n"
             )
 
-            m_default = scan_tree(str(FIXTURE))
+            m_default = _final_manifest(str(FIXTURE))
             names_default = [n["name"] for n in _walk_files(m_default["tree"])]
             self.assertNotIn("ignored-include-all.txt", names_default)
 
-            m_all = scan_tree(str(FIXTURE), include_all=True)
+            m_all = _final_manifest(str(FIXTURE), include_all=True)
             names_all = [n["name"] for n in _walk_files(m_all["tree"])]
             self.assertIn("ignored-include-all.txt", names_all)
         finally:
@@ -226,8 +235,8 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             (Path(tmp) / "a.txt").write_text("a")
             (Path(tmp) / "b.txt").write_text("b")
-            m_default = scan_tree(tmp)
-            m_all = scan_tree(tmp, include_all=True)
+            m_default = _final_manifest(tmp)
+            m_all = _final_manifest(tmp, include_all=True)
             self.assertEqual(m_default["signature"], m_all["signature"])
             self.assertEqual(
                 m_default["tree"]["descendants_file_count"],
@@ -236,7 +245,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_git_dir_still_excluded_with_include_all(self):
         # .git/ is excluded independent of the tracked-files filter.
-        m = scan_tree(str(FIXTURE), include_all=True)
+        m = _final_manifest(str(FIXTURE), include_all=True)
         names = [n["name"] for n in _walk_dirs(m["tree"])]
         self.assertNotIn(".git", names)
 
@@ -248,7 +257,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         nm_file = nm_dir / "index.js"
         nm_file.write_text("module.exports = {};")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("node_modules", names)
         finally:
@@ -265,7 +274,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         ignore_file = FIXTURE / ".codecityignore"
         ignore_file.write_text("# project-specific\nnoisy-fixture\n")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("noisy-fixture", names)
         finally:
@@ -286,7 +295,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         ignore_file = FIXTURE / ".codecityignore"
         ignore_file.write_text("stash/legacy\n")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             paths = [n["path"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("stash/legacy", paths)
             # The other "legacy" at a different path stays visible.
@@ -303,7 +312,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # No file -> no error, scan proceeds normally.
         ignore_file = FIXTURE / ".codecityignore"
         self.assertFalse(ignore_file.exists())  # sanity
-        m = scan_tree(str(FIXTURE), include_all=True)
+        m = _final_manifest(str(FIXTURE), include_all=True)
         self.assertGreater(m["tree"]["descendants_file_count"], 0)
 
     def test_codecityignore_comments_and_blanks(self):
@@ -320,7 +329,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             "# trailing comment\n"
         )
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("noisy-comment-test", names)
         finally:
@@ -337,7 +346,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         ignore_file = FIXTURE / ".codecityignore"
         ignore_file.write_text("!node_modules\n")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertIn("node_modules", names)
         finally:
@@ -360,7 +369,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         # Ignore both names at the bare level, then un-ignore one path.
         ignore_file.write_text("legacy\n!stash/legacy\n")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             paths = [n["path"] for n in _walk_dirs(m["tree"])]
             self.assertIn("stash/legacy", paths)
             self.assertNotIn("elsewhere/legacy", paths)
@@ -379,14 +388,14 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         ignore_file = FIXTURE / ".codecityignore"
         ignore_file.write_text("!.git\n")
         try:
-            m = scan_tree(str(FIXTURE), include_all=True)
+            m = _final_manifest(str(FIXTURE), include_all=True)
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn(".git", names)
         finally:
             ignore_file.unlink(missing_ok=True)
 
     def test_scan_tree_emits_commits_list(self):
-        m = scan_tree(str(FIXTURE), use_cache=False, git_window="30.years.ago")
+        m = _final_manifest(str(FIXTURE), use_cache=False, git_window="30.years.ago")
         self.assertIn("commits", m)
         self.assertIsInstance(m["commits"], list)
         self.assertGreater(len(m["commits"]), 0)
@@ -397,7 +406,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         """Non-git root: commits is null, not an empty list."""
         with tempfile.TemporaryDirectory() as td:
             Path(td, "a.txt").write_text("hello")
-            m = scan_tree(td, use_cache=False)
+            m = _final_manifest(td, use_cache=False)
         self.assertIsNone(m["commits"])
 
 
@@ -411,7 +420,7 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         _ensure_fixture()
 
     def test_signature_matches_scan_tree(self):
-        m = scan_tree(str(FIXTURE))
+        m = _final_manifest(str(FIXTURE))
         s = signature_tree(str(FIXTURE))
         self.assertEqual(s["signature"], m["signature"])
 
@@ -444,7 +453,7 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_include_all_signature_matches_full_scan(self):
         # Parity contract still holds in include_all mode.
-        m = scan_tree(str(FIXTURE), include_all=True)
+        m = _final_manifest(str(FIXTURE), include_all=True)
         s = signature_tree(str(FIXTURE), include_all=True)
         self.assertEqual(s["signature"], m["signature"])
 
@@ -473,13 +482,13 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
         try:
             # Without ignore file, target is visible.
             before_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
-            before_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            before_full = _final_manifest(str(FIXTURE), include_all=True)["signature"]
             self.assertEqual(before_sig, before_full)
 
             # Add ignore entry, both signatures must shift in lockstep.
             ignore_file.write_text("sig-noise-fixture\n")
             after_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
-            after_full = scan_tree(str(FIXTURE), include_all=True)["signature"]
+            after_full = _final_manifest(str(FIXTURE), include_all=True)["signature"]
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
         finally:
@@ -708,19 +717,19 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_warm_run_skips_line_count(self):
         from unittest.mock import patch
 
-        scan_tree(str(FIXTURE))  # cold: populates cache
+        _final_manifest(str(FIXTURE))  # cold: populates cache
 
         with patch("codecity.scan._line_count") as line_mock, \
              patch("codecity.scan._is_binary") as binary_mock:
-            scan_tree(str(FIXTURE))  # warm: should not call either
+            _final_manifest(str(FIXTURE))  # warm: should not call either
             self.assertEqual(line_mock.call_count, 0,
                              "warm scan must not call _line_count")
             self.assertEqual(binary_mock.call_count, 0,
                              "warm scan must not call _is_binary")
 
     def test_warm_run_signature_matches_cold_run(self):
-        cold = scan_tree(str(FIXTURE))
-        warm = scan_tree(str(FIXTURE))
+        cold = _final_manifest(str(FIXTURE))
+        warm = _final_manifest(str(FIXTURE))
         self.assertEqual(cold["signature"], warm["signature"])
         # And tree shape — confirm `lines` survives the cache roundtrip.
         cold_lines = {
@@ -734,11 +743,11 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_modified_file_recomputed(self):
         from unittest.mock import patch
 
-        scan_tree(str(FIXTURE))  # populate
+        _final_manifest(str(FIXTURE))  # populate
 
         # Change one file's mtime by writing to it.
         target = next(
-            n for n in _walk_files(scan_tree(str(FIXTURE))["tree"])
+            n for n in _walk_files(_final_manifest(str(FIXTURE))["tree"])
             if n["name"] == "index.ts"
         )
         target_path = Path(target["fullPath"])
@@ -754,7 +763,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 return original_line_count(p)
 
             with patch("codecity.scan._line_count", side_effect=counting_line_count):
-                scan_tree(str(FIXTURE))
+                _final_manifest(str(FIXTURE))
 
             # Only the modified file should be recomputed.
             self.assertEqual(len(line_calls), 1)
@@ -765,10 +774,10 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
     def test_use_cache_false_bypasses_file_cache(self):
         from unittest.mock import patch
 
-        scan_tree(str(FIXTURE))  # populate cache
+        _final_manifest(str(FIXTURE))  # populate cache
 
         with patch("codecity.scan._line_count", return_value=42) as line_mock:
-            scan_tree(str(FIXTURE), use_cache=False)
+            _final_manifest(str(FIXTURE), use_cache=False)
             # use_cache=False -> every file gets re-read
             self.assertGreater(line_mock.call_count, 0)
 
@@ -876,11 +885,11 @@ class TreeSignatureTests(unittest.TestCase):
     def test_skeleton_and_final_manifests_share_same_tree_signature(self):
         """The same tree_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
-        from codecity.scan import scan_tree_streaming
+        from codecity.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "hello.py").write_text("x = 1\n")
             (Path(td) / "world.py").write_text("y = 2\n")
-            events = list(scan_tree_streaming(td))
+            events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
         skeleton_sig = events[0]["manifest"]["tree_signature"]
         final_sig = events[1]["manifest"]["tree_signature"]
@@ -890,10 +899,10 @@ class TreeSignatureTests(unittest.TestCase):
     def test_tree_signature_stable_when_only_metadata_changes(self):
         """tree_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
-        from codecity.scan import scan_tree_streaming
+        from codecity.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "a.py").write_text("x = 1\n" * 100)
-            events = list(scan_tree_streaming(td))
+            events = list(scan_tree(td))
         skeleton = events[0]["manifest"]
         final = events[1]["manifest"]
         # Metadata-sensitive signature changes between skeleton and final.
@@ -909,19 +918,19 @@ class ScanTreeStreamingTests(unittest.TestCase):
         return tmpdir
 
     def test_yields_skeleton_then_final(self) -> None:
-        from codecity.scan import scan_tree_streaming
+        from codecity.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            events = list(scan_tree_streaming(td))
+            events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
         self.assertEqual(events[0]["phase"], "skeleton")
         self.assertEqual(events[1]["phase"], "final")
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
-        from codecity.scan import scan_tree_streaming
+        from codecity.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            skeleton, _final = list(scan_tree_streaming(td))
+            skeleton, _final = list(scan_tree(td))
         # Walk the tree and assert every file has placeholder lines/binary.
         def files(node):
             for child in node["children"]:
@@ -933,29 +942,20 @@ class ScanTreeStreamingTests(unittest.TestCase):
             self.assertEqual(f["lines"], 1, f"{f['path']} should have placeholder lines=1")
             self.assertFalse(f["binary"], f"{f['path']} should have placeholder binary=False")
 
-    def test_final_matches_scan_tree(self) -> None:
-        from codecity.scan import scan_tree, scan_tree_streaming
-        with TemporaryDirectory() as td:
-            self._make_tiny_repo(td)
-            _skeleton, final = list(scan_tree_streaming(td))
-            eager = scan_tree(td)
-        # signature and scanned_at differ across separate calls; compare tree shape.
-        self.assertEqual(final["manifest"]["tree"], eager["tree"])
-
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
-        from codecity.scan import scan_tree_streaming, ScanCancelledError
+        from codecity.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             ev = threading.Event()
             ev.set()
-            gen = scan_tree_streaming(td, cancel_event=ev)
+            gen = scan_tree(td, cancel_event=ev)
             with self.assertRaises(ScanCancelledError):
                 list(gen)
 
     def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
         import threading
-        from codecity.scan import scan_tree_streaming, ScanCancelledError
+        from codecity.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             # Make enough files that the pool has work to do AFTER the
             # skeleton emits, so the event-set-after-skeleton case
@@ -963,7 +963,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
             for i in range(20):
                 (Path(td) / f"f{i}.py").write_text("x = 1\n" * 50)
             ev = threading.Event()
-            gen = scan_tree_streaming(td, cancel_event=ev)
+            gen = scan_tree(td, cancel_event=ev)
             skeleton = next(gen)
             self.assertEqual(skeleton["phase"], "skeleton")
             ev.set()
@@ -991,7 +991,7 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
             iend = chunk(b"IEND", b"")
             png.write_bytes(sig + ihdr + idat + iend)
 
-            manifest = scan_tree(str(tmp_path))
+            manifest = _final_manifest(str(tmp_path))
             files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
             self.assertEqual(len(files), 1)
             self.assertEqual(files[0]["media_width"], 50)
@@ -1000,7 +1000,7 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
             # Warm path: second scan should hit the file-stat cache and
             # still stamp media_width / media_height on the node — the
             # cache-hit branch in _populate_file_metadata.
-            manifest2 = scan_tree(str(tmp_path))
+            manifest2 = _final_manifest(str(tmp_path))
             files2 = [c for c in manifest2["tree"]["children"] if c["type"] == "file"]
             self.assertEqual(len(files2), 1)
             self.assertEqual(files2[0]["media_width"], 50)
@@ -1010,7 +1010,7 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             (tmp_path / "code.py").write_text("print('hi')\n")
-            manifest = scan_tree(str(tmp_path))
+            manifest = _final_manifest(str(tmp_path))
             files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
             self.assertEqual(len(files), 1)
             self.assertNotIn("media_width", files[0])
