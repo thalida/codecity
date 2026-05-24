@@ -70,7 +70,7 @@ export async function setupHarness(port = 18765): Promise<VisualHarness> {
     defaultViewport: { width: 1280, height: 800, deviceScaleFactor: 1 },
   });
   const page = await browser.newPage();
-  await page.goto(`http://127.0.0.1:${port}/?src=${encodeURIComponent(FIXTURE_PATH)}`);
+  await page.goto(`http://[::1]:${port}/?src=${encodeURIComponent(FIXTURE_PATH)}`);
 
   // I3 fix: wait for window.__rig (set in main.ts after startRenderLoop, which
   // runs AFTER the manifest fetch + world.applyManifest). Checking
