@@ -28,12 +28,15 @@ export default defineConfig({
     },
   },
   server: {
-    // Bind explicitly to IPv4. Vite's default `localhost` resolves to ::1
-    // first on many Node setups (macOS especially), but the codecity CLI
-    // polls 127.0.0.1 — the resulting v6/v4 mismatch shows up as "Vite did
-    // not become ready" while the browser still works (since the browser
-    // tries both families).
-    host: '127.0.0.1',
+    // Bind to IPv6 loopback. The codecity CLI opens
+    // `http://<label>.localhost:<port>/` so worktrees are identifiable in
+    // the URL bar; macOS resolves *.localhost to [::1, 127.0.0.1] and
+    // Chrome tries ::1 first. If we bound to 127.0.0.1, the initial doc
+    // load would fall back but parallel subresource fetches race the
+    // refused IPv6 attempt and intermittently fail with
+    // ERR_CONNECTION_REFUSED. Binding to ::1 keeps loopback-only and
+    // matches the address browsers actually try first.
+    host: '::1',
     port: 5173,
     // strictPort: don't silently shift to 5174 if 5173 is taken — codecity
     // dev mode polls 5173, so a port shift would look like "Vite never came

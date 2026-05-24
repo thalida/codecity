@@ -184,9 +184,10 @@ def _run_dev_server(vite_port: int, api_port: int) -> int:
     signal.signal(signal.SIGTERM, _signal_handler)
 
     try:
-        if not _wait_for_vite(f"http://127.0.0.1:{vite_port}/", vite_proc, vite_port):
+        if not _wait_for_vite(f"http://[::1]:{vite_port}/", vite_proc, vite_port):
             return 3
-        url = f"http://127.0.0.1:{vite_port}/"
+        label = REPO_ROOT.name.lower().replace("_", "-")
+        url = f"http://{label}.localhost:{vite_port}/"
         webbrowser.open(url)
         print(f"[codecity] open {url} — Ctrl-C to stop", file=sys.stderr)
         while True:
