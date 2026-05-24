@@ -63,20 +63,21 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   // Polygon parameterisation: ellipse with separate X and Z axes (matches
   // the city's aspect ratio — square city → circle, elongated city → oval).
   //
-  // Three corrections ensure the polygon ALWAYS fully contains the
-  // bounds rect — including the rect's CORNERS:
+  // Three corrections give the polygon room to fully contain the bounds
+  // rect — including the rect's CORNERS:
   //
   // 1. Scale the ellipse axes by sqrt(2) so the rect corner at
-  //    (halfWidth, halfDepth) sits exactly on the ellipse boundary.
-  //    Mathematical minimum for an ellipse with this aspect ratio to
-  //    contain the rect. Without it, content extending to bbox corners
-  //    pokes out.
+  //    (halfWidth, halfDepth) sits exactly on the unjittered ellipse
+  //    boundary. Mathematical minimum for an ellipse with this aspect
+  //    ratio to contain the rect.
   //
   // 2. Scale further by 1/cos(π/N) so the polygon's CHORD edges (which
   //    bow inward between vertices) still reach the ellipse boundary.
   //
-  // 3. Jitter EXPANDS outward only. Irregularity is purely additive on
-  //    top of the rect-containing baseline.
+  // 3. Jitter SHRINKS inward (reductive). Vertices pull in by up to
+  //    (irregularity × baseRadius) for a natural craggy silhouette.
+  //    Keep irregularity modest — large values can pull vertices inside
+  //    the bounds rect, exposing city corners.
   const cornerCorrection = Math.SQRT2;
   const edgeCorrection = 1 / Math.cos(Math.PI / sides);
   const baseScale = cornerCorrection * edgeCorrection;
@@ -85,7 +86,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
-    const jitter = 1 + irregularity * rand();
+    const jitter = 1 - irregularity * rand();
     pts.push(new THREE.Vector3(
       Math.cos(theta) * aX * jitter,
       0,
@@ -284,13 +285,16 @@ export function buildIslandGeometry(
   const allRingIdx: number[][] = [];
 
   // Grass-bottom perimeter re-indexed with rock color + AO for the underside.
-  // Shift down by a tiny epsilon so the underside's top edge doesn't sit at
-  // EXACTLY the same Y as the grass band's bottom edge — without this,
-  // both surfaces rasterise to identical depth values at the seam and
-  // z-fight (visible as a flickering pattern at the grass/rock junction).
-  const seamEpsilon = islandRadius * 0.001;
+  // Shift down by a tiny FIXED epsilon (not scaled with island size — that
+  // made the gap visible on large cities) so the underside's top edge
+  // doesn't sit at EXACTLY the same Y as the grass band's bottom edge.
+  // Without the shift, both surfaces rasterise to identical depth values
+  // at the seam and z-fight; with too large a shift, the gap shows. 0.05 wu
+  // is enough to break the depth tie at city scale (depth-buffer precision
+  // resolves sub-unit differences) while staying sub-pixel visually.
+  const SEAM_EPSILON = 0.05;
   const topRockIdx: number[] = grassBotRing.map((v) =>
-    addVertex(new THREE.Vector3(v.x, v.y - seamEpsilon, v.z), rock, 0.85),
+    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, 0.85),
   );
   allRingIdx.push(topRockIdx);
 

@@ -63,6 +63,7 @@ import type { Island } from './island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './worldBounds.js';
 import { createCityFootprint } from './cityFootprint/footprint.js';
 import type { CityFootprint } from './cityFootprint/footprint.js';
+import { FOOTPRINT } from '@/config/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './colors.js';
 import { parentDirPath } from './path.js';
 import {
@@ -944,6 +945,19 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       for (const b of newLayout.buildings) {
         bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
         bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
+      }
+      // Expand by the city-footprint halo width so the bbox includes the
+      // asphalt slab that wraps around the city silhouette (every layout
+      // rect is inflated by HALO_WIDTH for the footprint pass). Only
+      // expand XZ — Y stays bounded by the actual building heights so
+      // cityHeight calc isn't inflated.
+      const footprintCfg = FOOTPRINT.get();
+      if (footprintCfg.ENABLED && footprintCfg.HALO_WIDTH > 0) {
+        const halo = footprintCfg.HALO_WIDTH;
+        bbox.min.x -= halo;
+        bbox.min.z -= halo;
+        bbox.max.x += halo;
+        bbox.max.z += halo;
       }
 
       streetPickables = cellBuilt.streetPickables || [];

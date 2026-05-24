@@ -46,11 +46,14 @@ describe('buildTopPolygon', () => {
     expect(expectedR).toBeGreaterThan(Math.hypot(100, 100));
   });
 
-  it('irregularity is purely additive — vertices never sit inside the rect-containing baseline', () => {
+  it('irregularity is reductive — vertices pull inward from the baseline', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
     const baseline = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
+    const radii = pts.map((p) => Math.hypot(p.x, p.z));
+    expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(0);
+    // All vertices sit at-or-inside the baseline (never grow past it).
     pts.forEach((p) => {
-      expect(Math.hypot(p.x, p.z)).toBeGreaterThanOrEqual(baseline - 1e-6);
+      expect(Math.hypot(p.x, p.z)).toBeLessThanOrEqual(baseline + 1e-6);
     });
   });
 
