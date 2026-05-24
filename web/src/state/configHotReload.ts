@@ -61,13 +61,13 @@ import {
   // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
   // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
   FOOTPRINT,
-} from './index.js';
+} from '@/config/index.js';
 import {
   // Cyberpunk Valley — island geometry and materials
   // (all hot-reloadable via island.refresh() inside applyTheme()):
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from './island.js';
+} from '@/config/components/islandMesh.js';
 
 // 50 ms debounce so a continuous slider drag (e.g. dragging
 // BUILDING_DIMENSIONS.MAX_FLOORS through 30 → 200) coalesces into one

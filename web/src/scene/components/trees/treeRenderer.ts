@@ -23,7 +23,7 @@
 // strength) goes through the rebuild path in hotReload.ts.
 
 import * as THREE from 'three';
-import { TREES } from '@/config/trees.js';
+import { TREES } from '@/config/components/trees.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { TreePlacement } from './treePlacement.js';
 import type { CommitEntry } from '@/types';

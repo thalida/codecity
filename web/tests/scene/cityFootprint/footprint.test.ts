@@ -2,7 +2,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createCityFootprint } from '@/scene/components/footprint/footprint.js';
-import { FOOTPRINT } from '@/config/footprint.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
 import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 

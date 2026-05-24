@@ -4,7 +4,7 @@
 // the curved ends.
 
 import * as THREE from 'three';
-import { ASPHALT, SIDEWALK_COLORS } from '@/config/index.js';
+import { ASPHALT, SIDEWALK_COLORS } from '@/config/components/streets.js';
 import { RENDER_ORDERS } from '@/constants';
 import { CapStyle, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';

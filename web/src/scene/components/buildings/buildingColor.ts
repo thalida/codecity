@@ -13,7 +13,7 @@
 // Tunables come from BUILDING_PALETTE in config/building.ts. Tests
 // mutate the store via .setKey() in setup + restore in teardown.
 
-import { BUILDING_PALETTE } from '@/config/index.js';
+import { BUILDING_PALETTE } from '@/config/components/buildings.js';
 import { NodeKind } from '@/types';
 
 // Structural shapes match what real Manifest tree / FileNode supply but

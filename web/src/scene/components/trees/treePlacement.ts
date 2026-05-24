@@ -24,10 +24,10 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/config/trees.js';
-import { FOOTPRINT } from '@/config/footprint.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { ISLAND_GEOMETRY } from '@/config/island.js';
+import { TREES } from '@/config/components/trees.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
+import { ISLAND_GEOMETRY } from '@/config/components/islandMesh.js';
 import { getWorldBounds } from '../../layout/worldBounds.js';
 import {
   buildTopPolygon,
@@ -36,7 +36,7 @@ import {
 import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
-import type { IslandGeometryConfig } from '@/config/island.js';
+import type { IslandGeometryConfig } from '@/config/components/islandMesh.js';
 
 interface Rect {
   minX: number;

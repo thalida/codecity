@@ -6,7 +6,7 @@
 // sidewalk where they overlap.
 
 import * as THREE from 'three';
-import { SIDEWALK_COLORS } from '@/config/index.js';
+import { SIDEWALK_COLORS } from '@/config/components/streets.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { BuildingPath } from '@/types';
 import { flatGroundMaterial } from './streets.js';

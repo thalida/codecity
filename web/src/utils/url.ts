@@ -2,7 +2,7 @@
 // state. Pure function so it's directly unit-testable; main.ts wraps it
 // with the live `window.location.*` values for runtime callers.
 
-import { SCAN_FILTERS } from '@/config/scan.js';
+import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
 
 /**
  * Build the URL for a server endpoint, forwarding the page's `src` (and

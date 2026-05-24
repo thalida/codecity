@@ -66,7 +66,7 @@ import type { Island } from './components/island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
 import { createCityFootprint } from './components/footprint/footprint.js';
 import type { CityFootprint } from './components/footprint/footprint.js';
-import { FOOTPRINT } from '@/config/footprint.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
 import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './components/buildings/buildingColor.js';
 import { parentDirPath } from './utils/path.js';
 import {
@@ -80,7 +80,7 @@ import {
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
-import { BUSHES } from '@/config/bushes.js';
+import { BUSHES } from '@/config/components/bushes.js';
 import { REBUILD_STATUS } from '@/state/liveStatus.js';
 import type {
   Building,

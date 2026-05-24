@@ -25,9 +25,9 @@ import {
 } from './config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, refreshManifest, setRefreshManifest } from './state/liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './utils/persist.js';
-import { SYNTAX_THEME } from './config/syntaxTheme.js';
+import { SYNTAX_THEME } from './config/prefs/syntaxTheme.js';
 import { sourceKey, CURRENT_SOURCE_KEY } from './state/sourceContext.js';
-import { attachHotReload } from './config/hotReload.js';
+import { attachHotReload } from './state/configHotReload.js';
 import { DOM_IDS } from './constants';
 import { NodeKind, StreetAxis } from './types';
 import type { Manifest } from './types';

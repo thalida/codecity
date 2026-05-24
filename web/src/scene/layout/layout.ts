@@ -15,7 +15,7 @@
 // keeps the new geometry from intersecting anything already placed.
 
 import { STREET_TIERS, BUILDING_DIMENSIONS, STREET_LAYOUT, GEM_SIZING } from '@/config/index.js';
-import type { StreetTier } from '@/config/street.js';
+import type { StreetTier } from '@/config/components/streets.js';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path.js';

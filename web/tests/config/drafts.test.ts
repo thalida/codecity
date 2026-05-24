@@ -10,7 +10,7 @@ import {
   isDirty,
   subscribe,
   _resetForTests,
-} from '@/config/drafts.js';
+} from '@/state/configDrafts.js';
 import { persistStore } from '@/utils/persist.js';
 
 interface FooConfig {

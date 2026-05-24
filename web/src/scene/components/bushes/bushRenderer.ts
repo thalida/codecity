@@ -10,8 +10,8 @@
 // updates the emission uniform; it never rebuilds the InstancedMesh.
 
 import * as THREE from 'three';
-import { TREES } from '@/config/trees.js';
-import { BUSHES } from '@/config/bushes.js';
+import { TREES } from '@/config/components/trees.js';
+import { BUSHES } from '@/config/components/bushes.js';
 import { RENDER_ORDERS } from '@/constants';
 import { pickBushNeon } from './bushPalette.js';
 import type { BushPlacement } from './bushPlacement.js';

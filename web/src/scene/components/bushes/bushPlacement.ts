@@ -8,11 +8,11 @@
 // Only runs when BUSHES.BUSHES_ENABLED is true.
 
 import RBush from 'rbush';
-import { BUSHES } from '@/config/bushes.js';
-import { FOOTPRINT } from '@/config/footprint.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { CAMERA_PERSPECTIVE } from '@/config/view.js';
-import { TREES } from '@/config/trees.js';
+import { BUSHES } from '@/config/components/bushes.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
+import { CAMERA_PERSPECTIVE } from '@/config/system/cameraRig.js';
+import { TREES } from '@/config/components/trees.js';
 import { getWorldBounds } from '../../layout/worldBounds.js';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';

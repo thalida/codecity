@@ -6,7 +6,7 @@
 // day/night cycle.
 
 import * as THREE from 'three';
-import { ISLAND_MATERIALS } from '@/config/island.js';
+import { ISLAND_MATERIALS } from '@/config/components/islandMesh.js';
 
 const vertSrc = /* glsl */ `
 attribute vec3 color;

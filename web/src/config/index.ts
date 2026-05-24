@@ -1,7 +1,20 @@
-// config/index.ts — Barrel re-export. Each domain module owns its own
-// nanostore(s) and exports them by name; this file just lets callers do a
-// single bulk `import * as Config` for persistence wiring, or pull named
-// imports for direct use.
+// config/index.ts — Single source of truth for every user-tunable atom.
+//
+// Configs are grouped on disk by where they're consumed, with file
+// names mirroring the consumer:
+//   config/system/      ↔ scene/system/  (camera, input, animator,
+//                                          tooltip, fly mode)
+//   config/components/  ↔ scene/components/  (one file per component)
+//   config/effects/     ↔ scene/effects/  (cross-cutting effect tunables)
+//   config/world/       — world sizing + scene background
+//   config/prefs/       — app-level user preferences (polling, scan,
+//                          theme); not tied to a single consumer
+//
+// Component renderers (scene/components/*) import from these stores
+// rather than owning their own config. The Settings UI
+// (views/panes/controlsPane.ts) also reads + mutates through the same
+// stores, with the optional draft layer in state/configDrafts.ts
+// staging edits before commit.
 //
 // Reading values:
 //   const sc = SIDEWALK_COLORS.get();   // → { DEFAULT, HOVER, SELECTED }
@@ -15,27 +28,38 @@
 //   listenKeys(SIDEWALK_COLORS, ['HOVER'], state => { ... });
 //   SIDEWALK_COLORS.subscribe(state => { ... });   // any change
 //
-// Implementation constants that aren't user-tunable (RENDER_ORDERS, sightline
-// raycast epsilons, facade-texture pixel math, lucide-icon CDN URL, activity-
-// bar tab list, etc.) live OUTSIDE this barrel — see src/constants.js or
-// inlined private consts in their consumer module.
+// Implementation constants that aren't user-tunable (RENDER_ORDERS,
+// sightline raycast epsilons, facade-texture pixel math, lucide-icon
+// CDN URL, activity-bar tab list, etc.) live OUTSIDE this barrel —
+// see src/constants/ or inlined private consts in their consumer.
 
-export * from './view.js'; // sky color, camera, input, tooltip
-export * from './fly.js'; // fly-mode controls (WASD camera)
-export * from './animation.js'; // shared transition timing (camera + building tweens)
-export * from './street.js'; // asphalt, sidewalks, labels, path line, tiers, packing
-export * from './building.js'; // dimensions, palette, outlines, fade
-export * from './gem.js'; // root-of-repo landmark
-export * from './effects.js'; // shared visual effects (rainbow)
-export * from './lighting.js'; // scene directional lighting (sun + ambient)
-export * from './facade.js'; // procedural facade geometry (slab/window/door/roof fracs)
-export * from './adPanel.js'; // procedural ad-panel geometry (margin/offset/placeholder)
-export * from './live.js'; // live-update polling toggle + interval
-export * from './scan.js'; // scan-filter toggle (bypass tracked-files filter)
-export * from './syntaxTheme.js'; // syntax highlight theme picker
-export * from './sky.js'; // Cyberpunk Valley: flat two-color sky + stars
-export * from './world.js'; // Cyberpunk Valley: world floor + ground buffer
-export * from './island.js'; // Cyberpunk Valley: floating-island geometry, materials, underglow
-export * from './trees.js'; // Cyberpunk Valley: commit-driven trees
-export * from './bushes.js'; // Cyberpunk Valley: decorative emissive bushes
-export * from './footprint.js'; // Cyberpunk Valley: contoured asphalt slab ringing the city
+// ── System (camera, input, animation, fly, tooltip) ──────────────────
+export * from './system/cameraRig.js';
+export * from './system/flyControls.js';
+export * from './system/animator.js';
+export * from './system/inputHandlers.js';
+export * from './system/tooltip.js';
+
+// ── App-level user preferences ────────────────────────────────────────
+export * from './prefs/liveUpdates.js';
+export * from './prefs/scanFilters.js';
+export * from './prefs/syntaxTheme.js';
+
+// ── World (background + sizing) ───────────────────────────────────────
+export * from './world/world.js';
+
+// ── Visual components ─────────────────────────────────────────────────
+export * from './components/sky.js';
+export * from './components/lighting.js';
+export * from './components/streets.js';
+export * from './components/buildings.js';
+export * from './components/facade.js';
+export * from './components/adPanels.js';
+export * from './components/gem.js';
+export * from './components/islandMesh.js';
+export * from './components/footprint.js';
+export * from './components/trees.js';
+export * from './components/bushes.js';
+
+// ── Cross-cutting visual effects ──────────────────────────────────────
+export * from './effects/effects.js';

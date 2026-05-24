@@ -27,7 +27,7 @@
 // refresh() handles COLOR, CORNER_RADIUS, and ENABLED only.
 
 import * as THREE from 'three';
-import { FOOTPRINT } from '@/config/footprint.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
 import { RENDER_ORDERS } from '@/constants';
 import { StreetAxis } from '@/types';
 import type { Building, BuildingPath, CityLayout, Street } from '@/types';

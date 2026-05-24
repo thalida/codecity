@@ -50,15 +50,15 @@ import {
   // Fly mode
   FLY_CONTROLS,
 } from '@/config/index.js';
-import { SKY, SKY_STARS } from '@/config/sky.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/island.js';
-import { WORLD } from '@/config/world.js';
-import { TREES } from '@/config/trees.js';
-import { BUSHES } from '@/config/bushes.js';
-import { FOOTPRINT } from '@/config/footprint.js';
-import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/facade.js';
-import { AD_PANEL } from '@/config/adPanel.js';
-import { ANIMATION_TIMING } from '@/config/animation.js';
+import { SKY, SKY_STARS } from '@/config/components/sky.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/islandMesh.js';
+import { WORLD } from '@/config/world/world.js';
+import { TREES } from '@/config/components/trees.js';
+import { BUSHES } from '@/config/components/bushes.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
+import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
+import { AD_PANEL } from '@/config/components/adPanels.js';
+import { ANIMATION_TIMING } from '@/config/system/animator.js';
 import {
   getDefault,
   forEachRegisteredStore,
@@ -73,7 +73,7 @@ import {
   discard as discardDrafts,
   isDirty as draftsAreDirty,
   subscribe as subscribeDrafts,
-} from '@/config/drafts.js';
+} from '@/state/configDrafts.js';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
 import { makeLucideIcon } from '@/views/widgets/icon.js';

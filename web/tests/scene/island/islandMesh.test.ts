@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/scene/components/island/islandMesh.js';
 import { getWorldBounds } from '@/scene/layout/worldBounds.js';
-import { ISLAND_GEOMETRY } from '@/config/island.js';
+import { ISLAND_GEOMETRY } from '@/config/components/islandMesh.js';
 import { RENDER_ORDERS } from '@/constants';
 
 describe('createIsland', () => {

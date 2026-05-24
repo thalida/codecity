@@ -2,7 +2,7 @@
 // Reads the live BUSHES store on every call so Settings UI changes
 // flow through immediately.
 
-import { BUSHES } from '@/config/bushes.js';
+import { BUSHES } from '@/config/components/bushes.js';
 
 function hashSeed(seed: number): number {
   return Math.imul(seed | 0, 0x9e3779b1) >>> 0;

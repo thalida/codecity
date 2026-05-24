@@ -7,11 +7,11 @@
 // browsers / SSR / test environments).
 
 import { placeTrees, type TreePlacement } from './treePlacement.js';
-import { TREES } from '@/config/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
-import { FOOTPRINT } from '@/config/footprint.js';
-import { ISLAND_GEOMETRY } from '@/config/island.js';
-import { WORLD } from '@/config/world.js';
+import { TREES } from '@/config/components/trees.js';
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
+import { FOOTPRINT } from '@/config/components/footprint.js';
+import { ISLAND_GEOMETRY } from '@/config/components/islandMesh.js';
+import { WORLD } from '@/config/world/world.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {

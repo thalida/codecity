@@ -11,8 +11,8 @@ import type { Rect } from '@/scene/layout/layout.js';
 import { BUILDING_DIMENSIONS } from '@/config/index.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
 import type { CityLayout, Street, Building, BuildingPath } from '@/types';
-import type { BuildingDimensionsConfig } from '@/config/building.js';
-import type { StreetTier } from '@/config/street.js';
+import type { BuildingDimensionsConfig } from '@/config/components/buildings.js';
+import type { StreetTier } from '@/config/components/streets.js';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

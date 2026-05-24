@@ -4,7 +4,7 @@
 // panel UI; a typo here breaks both sides silently.
 
 import { describe, it, expect } from 'vitest';
-import { SKY, SKY_STARS } from '@/config/sky.js';
+import { SKY, SKY_STARS } from '@/config/components/sky.js';
 
 describe('SKY', () => {
   it('has the expected keys + defaults', () => {

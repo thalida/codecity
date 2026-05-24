@@ -16,7 +16,7 @@ import {
   GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_GLOW,
-} from '@/config/index.js';
+} from '@/config/components/gem.js';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
 

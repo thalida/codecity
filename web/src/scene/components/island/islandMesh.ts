@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from '@/config/island.js';
+} from '@/config/components/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds.js';
 import {
   buildIslandGeometry,

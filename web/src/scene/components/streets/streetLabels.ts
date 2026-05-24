@@ -10,7 +10,7 @@
 // the camera orbits to the "upside-down" side.
 
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/config/index.js';
+import { LABEL_TYPOGRAPHY } from '@/config/components/streets.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
