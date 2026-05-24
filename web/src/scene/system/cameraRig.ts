@@ -1,6 +1,6 @@
 // scene/cameraRig.ts — owns the perspective camera, OrbitControls,
-// camera-pose persistence, initial framing, and the focus/reset
-// animations (R key reset, F key focus-on-selection, dblclick focus).
+// initial framing, and the focus/reset animations (R key reset,
+// F key focus-on-selection, dblclick focus).
 //
 // Public contract:
 //
@@ -20,10 +20,8 @@
 // firstFrame flag is true and world.getBbox() returns non-empty,
 // then clears the flag. There's no surface for an accidental re-frame.
 //
-// Camera-pose persistence: every controls 'change' event debounces a
-// localStorage save (cc.source.<key>.cameraPose). Restoration happens after the
-// initial framing snapshot so reset() always animates back to the true
-// default fit, not the user's last navigated pose.
+// Camera pose is never persisted. Every world load always starts at the
+// default gem-framing position.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -38,12 +36,7 @@ import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 import type { createWorld } from '../world.js';
 
-function _cameraPoseKey(): string | null {
-  const k = CURRENT_SOURCE_KEY.get();
-  return k ? `cc.source.${k}.cameraPose` : null;
-}
 
-// _focusBuilding tries head-on, then tilts up if the view is obstructed.
 const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
@@ -102,33 +95,7 @@ export function createCameraRig({
   let initialCamPos: THREE.Vector3 | null = null;
   let initialTarget: THREE.Vector3 | null = null;
 
-  let _saveCameraTimer: ReturnType<typeof setTimeout> | 0 = 0;
-  let _changeListenerAttached = false;
   let _rebuildSubscribed = false;
-
-  function _saveCameraPose() {
-    if (typeof localStorage === 'undefined') return;
-    try {
-      const _ck = _cameraPoseKey();
-      if (_ck)
-        localStorage.setItem(
-          _ck,
-          JSON.stringify({
-            pos: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
-            target: { x: controls.target.x, y: controls.target.y, z: controls.target.z },
-          })
-        );
-    } catch (_) {
-      /* private mode / quota — ignore */
-    }
-  }
-  function _scheduleCameraSave() {
-    if (_saveCameraTimer) clearTimeout(_saveCameraTimer);
-    _saveCameraTimer = setTimeout(() => {
-      _saveCameraTimer = 0;
-      _saveCameraPose();
-    }, 500);
-  }
 
   // Animation cancellation token. Each new focus/reset animation bumps
   // this; in-flight rAF steps abort if their token doesn't match.
@@ -261,63 +228,25 @@ export function createCameraRig({
   const _scratchUserPos = new THREE.Vector3();
   const _scratchUserTarget = new THREE.Vector3();
 
-  // Apply a persisted pose object { pos, target } to the camera and controls.
-  // Extracted so both the constructor hydration and the source-switch
-  // subscription share the same logic.
-  function _applyPose(p: { pos: { x: number; y: number; z: number }; target: { x: number; y: number; z: number } } | null | undefined) {
-    if (!p?.pos || !p?.target) return;
-    camera.position.set(p.pos.x, p.pos.y, p.pos.z);
-    controls.target.set(p.target.x, p.target.y, p.target.z);
-  }
-
   function _frameToBbox() {
     if (!_captureFraming() || !initialCamPos || !initialTarget) return false;
 
-    // First-frame only: actually move the camera to the framed pose.
+    // First-frame only: move the camera to the default framed pose.
     camera.position.copy(initialCamPos);
     camera.lookAt(initialTarget);
     controls.target.copy(initialTarget);
 
-    // Restore saved pose if any. Done BEFORE attaching the change
-    // listener so the restore itself doesn't trigger a re-save.
-    {
-      const _ck = _cameraPoseKey();
-      const savedPoseRaw = _ck ? localStorage.getItem(_ck) : null;
-      if (savedPoseRaw) {
-        try {
-          _applyPose(JSON.parse(savedPoseRaw));
-        } catch (_) {
-          /* corrupt JSON / unavailable storage — stay at default */
-        }
-      }
-    }
-
-    if (!_changeListenerAttached) {
-      controls.addEventListener('change', _scheduleCameraSave);
-      _changeListenerAttached = true;
-    }
     // Re-frame on every manifest swap so R always fits the current city.
     if (!_rebuildSubscribed) {
       world.onChange(() => {
         _captureFraming();
       });
-      // Re-hydrate pose when the user switches source mid-session.
-      // Skip the immediate fire (same key as what _frameToBbox already applied).
+      // Reset to bbox framing when the user switches source mid-session.
       let _lastSourceKey = CURRENT_SOURCE_KEY.get();
       CURRENT_SOURCE_KEY.subscribe((newKey) => {
         if (newKey === null || newKey === _lastSourceKey) return;
         _lastSourceKey = newKey;
-        const raw = localStorage.getItem(`cc.source.${newKey}.cameraPose`);
-        if (raw) {
-          try {
-            _applyPose(JSON.parse(raw));
-          } catch {
-            /* bad JSON — let next bbox-frame run */
-          }
-        } else {
-          // No saved pose for the new source — reset to bbox framing.
-          controls.reset();
-        }
+        controls.reset();
       });
       _rebuildSubscribed = true;
     }
@@ -374,18 +303,6 @@ export function createCameraRig({
     // Cancel any in-flight focus/reset animation so it can't keep
     // walking the camera away from the snap target.
     camAnimToken++;
-    if (_saveCameraTimer) {
-      clearTimeout(_saveCameraTimer);
-      _saveCameraTimer = 0;
-    }
-    // Wipe persisted camera pose so a partially-applied reset doesn't
-    // leave a stale pose to be restored on next page load.
-    try {
-      const _ck = _cameraPoseKey();
-      if (_ck) localStorage.removeItem(_ck);
-    } catch (_) {
-      /* private mode / unavailable — ignore */
-    }
     camera.up.set(0, 1, 0);
     // Hard snap. Bypassing controls.reset() in favor of a manual snap
     // because controls.reset() calls update() at the end, which re-applies
@@ -565,14 +482,6 @@ export function createCameraRig({
   }
 
   function dispose() {
-    if (_changeListenerAttached) {
-      controls.removeEventListener('change', _scheduleCameraSave);
-      _changeListenerAttached = false;
-    }
-    if (_saveCameraTimer) {
-      clearTimeout(_saveCameraTimer);
-      _saveCameraTimer = 0;
-    }
     if (typeof controls.dispose === 'function') controls.dispose();
   }
 

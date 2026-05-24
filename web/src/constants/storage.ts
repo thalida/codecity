@@ -14,8 +14,6 @@ export const STORAGE_PREFIX = 'cc.';
 export const STORAGE_PER_SOURCE_PREFIX = `${STORAGE_PREFIX}source.`;
 
 export const STORAGE_KEYS = {
-  /** Camera position + target, debounced-saved on every controls 'change'. */
-  CAMERA_POSE: `${STORAGE_PREFIX}cameraPose`,
   /** Right (file-preview) sidebar drag-handle width in px. */
   FILE_SIDEBAR_WIDTH: `${STORAGE_PREFIX}fileSidebarWidth`,
   /** Left (tree/info/controls) sidebar drag-handle width in px. */

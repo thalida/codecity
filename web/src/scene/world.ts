@@ -1198,6 +1198,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         _bushes = createBushes(bushPlacements);
         scene.add(_bushes.group);
       }
+
+      REBUILD_STATUS.set('idle');
     }
   }
 

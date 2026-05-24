@@ -68,10 +68,6 @@ if (_canvas) {
     // synchronously on registration — that first fire covers the boot case.
     SYNTAX_THEME.subscribe(applyHljsTheme);
 
-    // One-shot migration: pre-this-change, PICKER_SELECTION_KEY and cameraPose
-    // were both persisted as global keys. If they're still there AND we have a
-    // source loaded (URL has ?src=), copy them under the source's namespace
-    // and drop the legacy slots.
     // Set CURRENT_SOURCE_KEY from URL params BEFORE wiring per-source
     // persistence so hydration sees the right key.
     {
