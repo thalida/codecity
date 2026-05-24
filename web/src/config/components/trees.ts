@@ -13,11 +13,11 @@
 //     are wider. Range in world units (independent of buildings):
 //       TREE_MIN_WIDTH  →  fewest files
 //       TREE_MAX_WIDTH  →  most files
-//   - COLOR (canopy): two-color interpolation by COMMIT GAP (days
-//     since the previous commit). Long gaps ("comeback" commits
-//     after a quiet period) lean toward TREE_COLOR_NEW; short gaps
-//     (routine daily cadence) lean toward TREE_COLOR_OLD.
-//     Log-normalized.
+//   - COLOR (canopy): two-color interpolation by COMMITS-PER-DAY.
+//     Solo-commit days lean toward TREE_COLOR_NEW (light green);
+//     busy days (many commits sharing that day) lean toward
+//     TREE_COLOR_OLD (dark green). All commits on the same date
+//     share a color. Log-normalized.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
