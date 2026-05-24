@@ -14,12 +14,19 @@
 //   - `position`, `uv` are always injected by Three.js.
 //   - In GLSL3 mode Three.js maps `attribute` → `in`, `varying` → `out` (vertex).
 
+// highp on the iLayerIndex pipeline: the flat layer index can reach
+// MAX_PAGES * MAX_ARRAY_TEXTURE_LAYERS (~16k), which mediump float can
+// only represent at 2-pixel resolution. The fragment shader does
+// page = int(vLayerIndex / uPageSize); if precision corrupts the input
+// here it routes the building to the wrong texture page.
+precision highp float;
+
 attribute float iLayerIndex;
 attribute vec3 iColor;
 attribute float iTextureFade;
 
 out vec2 vUv;
-out float vLayerIndex;
+out highp float vLayerIndex;
 out vec3 vColor;
 out float vTextureFade;
 

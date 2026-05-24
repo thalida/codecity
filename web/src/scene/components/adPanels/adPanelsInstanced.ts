@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
 import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
 import { mediaKindOf, MediaKind } from './adPanels.js';
-import { AdPanelTextureArray } from './adPanelTextureArray.js';
+import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray.js';
 import type { Building } from '@/types/index.js';
 
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
@@ -69,6 +69,9 @@ export class InstancedAdPanels {
   private readonly _iLayerIndex: Float32Array;
   private readonly _iColor: Float32Array;
   private readonly _iTextureFade: Float32Array;
+  // Resolved error tint (AD_ERROR_COLOR × adEmission), cached so
+  // markBuildingErrored doesn't have to redo the color math per call.
+  private readonly _errorColor!: THREE.Color;
 
   constructor(mediaFileCapacity: number) {
     this._capacity = mediaFileCapacity;
@@ -84,13 +87,31 @@ export class InstancedAdPanels {
     // Material — GLSL3 required for sampler2DArray.
     const bloomCfg = BLOOM.get();
     const adEmission = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
-    const placeholderHex = AD_PANEL.get().AD_PLACEHOLDER_COLOR;
-    const placeholderColor = new THREE.Color(placeholderHex).multiplyScalar(adEmission);
+    const adCfg = AD_PANEL.get();
+    const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR).multiplyScalar(adEmission);
+    // Cached for markBuildingErrored — recolors a panel slot's iColor
+    // when its image load/decode/upload fails permanently. Same emission
+    // multiply as the placeholder so the two states sit at comparable
+    // brightness levels and the only visual difference is hue.
+    this._errorColor = new THREE.Color(adCfg.AD_ERROR_COLOR).multiplyScalar(adEmission);
 
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
+      // AD_PANEL_MAX_PAGES injected as a shader #define so the
+      // sampler-array size + branch chain in the fragment shader stay
+      // in lockstep with the JS-side MAX_PAGES constant.
+      defines: {
+        AD_PANEL_MAX_PAGES,
+      },
       uniforms: {
-        uPanelArray: { value: this._texArray.texture },
+        // Sampler array — one DataArrayTexture per page. Padded to
+        // MAX_PAGES so the declared shader uniform always has every
+        // slot bound; unused slots reuse page 0 (never sampled because
+        // iLayerIndex stays within capacity).
+        uPanelArrays: { value: this._texArray.shaderTextures },
+        // Layers per page (hardware MAX_ARRAY_TEXTURE_LAYERS). The
+        // shader uses it to split iLayerIndex into (page, localLayer).
+        uPageSize: { value: this._texArray.pageSize },
       },
       vertexShader: adPanelVertSrc,
       fragmentShader: adPanelFragSrc,
@@ -298,6 +319,25 @@ export class InstancedAdPanels {
     (geo.getAttribute('iTextureFade') as THREE.InstancedBufferAttribute).needsUpdate = true;
   }
 
+  /**
+   * Recolor a building's 4 panel slots to the AD_ERROR_COLOR tint. Called
+   * by asyncLoadMediaForBuilding when the fetch / decode / upload chain
+   * fails permanently. iTextureFade stays at 0 so the shader keeps
+   * showing the per-instance color (now error red) instead of sampling
+   * the unwritten texture layer; the visual distinction from the
+   * loading-state placeholder color is what tells the user "this one
+   * isn't coming back" vs "still waiting".
+   */
+  markBuildingErrored(panelSlots: number[]): void {
+    for (const slot of panelSlots) {
+      this._iColor[slot * 3 + 0] = this._errorColor.r;
+      this._iColor[slot * 3 + 1] = this._errorColor.g;
+      this._iColor[slot * 3 + 2] = this._errorColor.b;
+    }
+    const geo = this.mesh.geometry as THREE.BufferGeometry;
+    (geo.getAttribute('iColor') as THREE.InstancedBufferAttribute).needsUpdate = true;
+  }
+
   dispose(): void {
     this.mesh.geometry.dispose();
     (this.mesh.material as THREE.Material).dispose();
@@ -310,12 +350,49 @@ export class InstancedAdPanels {
 // Async media loading. Accepts a Building, fires
 // loadTextureForBuilding / loadCanvasForBuilding once the image or video
 // first-frame is ready.
+//
+// Concurrency: requests funnel through a fixed-size semaphore (see
+// MAX_CONCURRENT_LOADS). Without this, a media-heavy repo (Infisical:
+// 2.6k images) would fire 2.6k <img>.src=... at once and:
+//   - exhaust the browser's per-origin HTTP/1.1 connection pool (default
+//     6), queueing the rest behind it. Queued requests often time out
+//     before they ever get a chance to start, so a large fraction of
+//     buildings end up stuck on the placeholder color.
+//   - starve any other codecity tab in the same browser process for GPU
+//     time during the burst of texSubImage3D uploads that follows decode.
+// 4 concurrent slots is comfortably under the HTTP/1.1 pool size, paces
+// GPU uploads, and keeps the main thread responsive for other tabs.
 // ---------------------------------------------------------------------------
+
+const MAX_CONCURRENT_LOADS = 4;
+let _inFlight = 0;
+const _pendingTasks: Array<() => void> = [];
+
+function _acquireSlot(): Promise<void> {
+  if (_inFlight < MAX_CONCURRENT_LOADS) {
+    _inFlight++;
+    return Promise.resolve();
+  }
+  return new Promise<void>((resolve) => {
+    _pendingTasks.push(() => {
+      _inFlight++;
+      resolve();
+    });
+  });
+}
+
+function _releaseSlot(): void {
+  _inFlight--;
+  const next = _pendingTasks.shift();
+  if (next) next();
+}
 
 /**
  * Trigger async load of a media building's image/video and upload to the
  * given InstancedAdPanels instance once ready. URL scheme:
- * `/api/file?path=<urlEncoded fullPath>`.
+ * `/api/file?path=<urlEncoded fullPath>`. Funneled through a concurrency
+ * semaphore so a media-heavy repo doesn't overwhelm the browser's
+ * connection pool or GPU upload queue (see file header comment).
  */
 export function asyncLoadMediaForBuilding(
   ads: InstancedAdPanels,
@@ -329,24 +406,48 @@ export function asyncLoadMediaForBuilding(
   const filePath = b.file.fullPath || b.file.path || '';
   const url = `/api/file?path=${encodeURIComponent(filePath)}`;
 
-  if (kind === MediaKind.Image) {
+  void (async () => {
+    await _acquireSlot();
+    let errored = false;
+    try {
+      if (kind === MediaKind.Image) {
+        const img = await _loadImage(url);
+        if (img === null) {
+          errored = true;
+        } else {
+          await ads.loadTextureForBuilding(layer, panelSlots, img);
+        }
+      } else {
+        const canvas = await _loadVideoPoster(url);
+        if (canvas === null) {
+          errored = true;
+        } else {
+          await ads.loadCanvasForBuilding(layer, panelSlots, canvas);
+        }
+      }
+    } catch {
+      // Decode-time / upload-time failure (post-fetch) — still an
+      // error from the user's perspective, so flag it for the
+      // distinct error tint instead of leaving the loading-state
+      // placeholder visible forever.
+      errored = true;
+    } finally {
+      if (errored) ads.markBuildingErrored(panelSlots);
+      _releaseSlot();
+    }
+  })();
+}
+
+/** Promise-wrapped HTMLImageElement load. Resolves with the loaded image
+ *  on success, or null on load failure (so the caller can `if (img !== null)`
+ *  without a try/catch wrap). */
+function _loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => {
-      ads.loadTextureForBuilding(layer, panelSlots, img).catch(() => {
-        /* keep placeholder — no crash */
-      });
-    };
-    img.onerror = () => { /* keep placeholder */ };
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
     img.src = url;
-  } else {
-    // Video: render first frame to a canvas, then upload the canvas.
-    _loadVideoPoster(url).then((canvas) => {
-      if (!canvas) return;
-      ads.loadCanvasForBuilding(layer, panelSlots, canvas).catch(() => {
-        /* keep placeholder */
-      });
-    }).catch(() => { /* keep placeholder */ });
-  }
+  });
 }
 
 // ---------------------------------------------------------------------------

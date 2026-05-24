@@ -36,6 +36,7 @@ import { createPathLineRenderer } from './effects/pathLineRenderer.js';
 import { createCoordinator } from '../coordinator.js';
 import { showTooltip, hideTooltip } from '../views/widgets/tooltip.js';
 import { createPostFx } from './system/postFx.js';
+import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray.js';
 import { labelFromDisplayRoot } from '../views/widgets/displayLabel.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
@@ -77,6 +78,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   });
   renderer.setPixelRatio(window.devicePixelRatio || 1);
   _resizeRendererToCanvas(renderer, canvas);
+  // Make the renderer available to AdPanelTextureArray for per-layer GPU
+  // uploads (it can't be passed through the world.applyManifest chain
+  // because that runs before this WebGLRenderer exists). Image .onload
+  // callbacks always fire asynchronously, so the registration here lands
+  // before any actual upload attempt.
+  registerAdPanelRenderer(renderer);
 
   // -- 4. Camera + controls ----------------------------------------------------
   // Camera, OrbitControls, pose persistence, framing, and the focus/reset

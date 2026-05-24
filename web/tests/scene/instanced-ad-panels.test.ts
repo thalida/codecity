@@ -4,6 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
 import { InstancedAdPanels } from '@/scene/components/adPanels/adPanelsInstanced.js';
+import { AdPanelTextureArray, PANEL_TEX_SIZE } from '@/scene/components/adPanels/adPanelTextureArray.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 
@@ -183,5 +184,52 @@ describe('InstancedAdPanels', () => {
     const ads = new InstancedAdPanels(4);
     ads.registerMediaBuilding(fakeMediaBuilding());
     expect(() => ads.dispose()).not.toThrow();
+  });
+});
+
+describe('AdPanelTextureArray storage', () => {
+  // Regression: a media-heavy repo (Infisical: 2,604 media files →
+  // adCapacity ≈ 3,906) previously triggered V8 `RangeError: Array buffer
+  // allocation failed` because the constructor pre-allocated
+  // PANEL_TEX_SIZE² × 4 × capacity bytes on the CPU. With the old 512px
+  // size that was ~3.81 GB. The texture data is uploaded layer-by-layer
+  // via the renderer; the contiguous CPU buffer is never needed.
+  it('does not pre-allocate a contiguous CPU buffer for any page', () => {
+    const arr = new AdPanelTextureArray(4000);
+    for (const tex of arr.textures) {
+      expect(tex.image.data).toBeNull();
+    }
+  });
+
+  it('keeps PANEL_TEX_SIZE small enough that even thousands of layers fit in GPU memory', () => {
+    // 128² × 4 × 4000 ≈ 244 MB — comfortably under V8 / WebGL limits.
+    // If this constant ever creeps up, recompute the worst-case allocation.
+    expect(PANEL_TEX_SIZE).toBeLessThanOrEqual(128);
+  });
+
+  // Regression: a single DataArrayTexture's depth is capped at the
+  // hardware's MAX_ARRAY_TEXTURE_LAYERS (typical: 2048; spec minimum:
+  // 256). Infisical's ~3.9k capacity exceeded that on the user's GPU,
+  // causing texStorage3D to fail. AdPanelTextureArray now pages across
+  // multiple DataArrayTextures so every requested layer is renderable.
+  it('pages capacity across multiple DataArrayTextures when it exceeds the per-page limit', () => {
+    // In the test env, _detectMaxArrayLayers falls back to 256 (no
+    // WebGL2 context). Requesting 1000 layers should produce
+    // ceil(1000 / 256) = 4 pages.
+    const arr = new AdPanelTextureArray(1000);
+    expect(arr.textures.length).toBeGreaterThan(1);
+    const totalDepth = arr.textures.reduce(
+      (sum, tex) => sum + (tex.image.depth ?? 0),
+      0,
+    );
+    expect(totalDepth).toBe(1000);
+  });
+
+  it('pads shaderTextures to MAX_PAGES for the fixed-size shader sampler array', () => {
+    const arr = new AdPanelTextureArray(1);
+    // shaderTextures must be exactly MAX_PAGES long regardless of how
+    // many pages are actually in use — the shader's uPanelArrays uniform
+    // is declared at MAX_PAGES and every slot needs a bound sampler.
+    expect(arr.shaderTextures.length).toBe(8);
   });
 });

@@ -16,6 +16,7 @@ import { LIGHTING } from '@/config/components/lighting.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
 import { interpolateOklch } from '@/scene/components/trees/colorInterp.js';
+import { commits as buildCommits } from './_commitFixtures.js';
 
 function resetStores() {
   TREES.set({
@@ -51,12 +52,12 @@ function placement(x: number, y: number, seed: number, commitIndex: number): Tre
 }
 
 function makeCommits(n: number, filesAt: (i: number) => number = (i) => i + 1): CommitEntry[] {
-  const out: CommitEntry[] = [];
+  const entries: { date: string; files: number }[] = [];
   for (let i = 0; i < n; i++) {
     const day = String(i + 1).padStart(2, '0');
-    out.push({ date: `2026-01-${day}`, files: filesAt(i) });
+    entries.push({ date: `2026-01-${day}`, files: filesAt(i) });
   }
-  return out;
+  return buildCommits(...entries);
 }
 
 function trunkMesh(group: THREE.Group): THREE.InstancedMesh {
@@ -183,11 +184,11 @@ describe('createTreeRenderer()', () => {
   });
 
   it('trunk height interpolates between MIN and MAX driven by commit age (older = taller)', () => {
-    const commits: CommitEntry[] = [
+    const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // oldest → max height
       { date: '2026-01-11', files: 5 }, // mid → mid height
       { date: '2026-01-21', files: 5 }, // newest → min height
-    ];
+    );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
@@ -206,11 +207,11 @@ describe('createTreeRenderer()', () => {
   });
 
   it('trunk XZ scale tracks per-tree canopy radius via TRUNK_RADIUS_FRAC_OF_CANOPY', () => {
-    const commits: CommitEntry[] = [
+    const commits = buildCommits(
       { date: '2026-01-01', files: 1 }, // min files → min canopy radius
       { date: '2026-01-11', files: 5 }, // mid
       { date: '2026-01-21', files: 9 }, // max files → max canopy radius
-    ];
+    );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
@@ -230,10 +231,10 @@ describe('createTreeRenderer()', () => {
   });
 
   it('canopy XZ scale matches per-tree radius (looked up via placementOrder)', () => {
-    const commits: CommitEntry[] = [
+    const commits = buildCommits(
       { date: '2026-01-01', files: 1 },
       { date: '2026-01-21', files: 9 },
-    ];
+    );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
@@ -269,11 +270,11 @@ describe('createTreeRenderer()', () => {
   });
 
   it('facet detail increases with commit file count', () => {
-    const commits: CommitEntry[] = [
+    const commits = buildCommits(
       { date: '2026-01-01', files: 1 }, // sizeT=0   → detail 0
       { date: '2026-01-11', files: 5 }, // sizeT=0.5 → detail 1
       { date: '2026-01-21', files: 9 }, // sizeT=1   → detail 2
-    ];
+    );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
@@ -300,11 +301,11 @@ describe('createTreeRenderer()', () => {
     //   - commit 0: no previous → t=0.5 (mid color)
     //   - commit 1 (gap=1, shortest): t=0 → OLD color (routine)
     //   - commit 2 (gap=30, longest): t=1 → NEW color (comeback)
-    const commits: CommitEntry[] = [
+    const commits = buildCommits(
       { date: '2026-01-01', files: 5 },
       { date: '2026-01-02', files: 5 },
       { date: '2026-02-01', files: 5 },
-    ];
+    );
     const placements = [
       placement(0, 0, 1, 0),
       placement(20, 0, 2, 1),
@@ -419,9 +420,9 @@ describe('createTreeRenderer()', () => {
       const placements = [
         placement(0, 0, 1, 0),
       ];
-      const commits: CommitEntry[] = [
+      const commits = buildCommits(
         { date: '2026-01-01', files: 1 },
-      ];
+      );
       trees = createTreeRenderer(placements, commits);
       const canopyInst = findCanopyInstance(trees.group, 0);
       expect(canopyInst).not.toBeNull();
