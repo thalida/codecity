@@ -24,9 +24,9 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { BUILDING_OUTLINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
-import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/cityScene.js';
+import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world.js';
 import { getBuildingTilt } from '@/scene/components/buildings/buildingTilt.js';
-import type { createCityScene } from '@/scene/cityScene.js';
+import type { createWorld } from '@/scene/world.js';
 import type { createPicker } from '@/scene/system/picker.js';
 import type { FileTarget } from '@/types';
 
@@ -38,7 +38,7 @@ export function createOutlineRenderer({
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   const _bo = BUILDING_OUTLINE.get();

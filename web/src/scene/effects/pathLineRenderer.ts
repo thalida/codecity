@@ -17,7 +17,7 @@ import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '@/config/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/scene/utils/path.js';
-import type { createCityScene } from '@/scene/cityScene.js';
+import type { createWorld } from '@/scene/world.js';
 import type { createPicker } from '@/scene/system/picker.js';
 
 export function createPathLineRenderer({
@@ -28,7 +28,7 @@ export function createPathLineRenderer({
 }: {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   // ── Selection path line (rainbow vertex colors) ────────────────────

@@ -13,7 +13,7 @@
 
 import { listenKeys } from 'nanostores';
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/store/liveStatus.js';
 
 import {
   // Rebuild-required (affects layout or geometry):

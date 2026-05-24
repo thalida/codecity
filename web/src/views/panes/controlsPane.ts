@@ -63,7 +63,7 @@ import {
   getDefault,
   forEachRegisteredStore,
   onAnyChange,
-} from '@/utils/persist.js';
+} from '@/store/persist.js';
 import {
   setDraft,
   getEffective,
@@ -73,7 +73,7 @@ import {
   discard as discardDrafts,
   isDirty as draftsAreDirty,
   subscribe as subscribeDrafts,
-} from '@/state/configDrafts.js';
+} from '@/store/configDrafts.js';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
 import { makeLucideIcon } from '@/views/widgets/icon.js';

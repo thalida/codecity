@@ -33,10 +33,10 @@ import {
   CAMERA_ANIMATION,
   ANIMATION_TIMING,
 } from '@/config/index.js';
-import { CURRENT_SOURCE_KEY } from '@/state/sourceContext.js';
+import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
-import type { createCityScene } from '../cityScene.js';
+import type { createWorld } from '../world.js';
 
 function _cameraPoseKey(): string | null {
   const k = CURRENT_SOURCE_KEY.get();
@@ -72,7 +72,7 @@ export function createCameraRig({
   cityScene,
 }: {
   canvas: HTMLCanvasElement;
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
 }) {
   const perspective = CAMERA_PERSPECTIVE.get();
   const W = canvas.clientWidth;

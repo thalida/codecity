@@ -19,7 +19,7 @@ import { BUILDING_FADE } from '@/config/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/utils/path.js';
-import type { createCityScene } from '@/scene/cityScene.js';
+import type { createWorld } from '@/scene/world.js';
 import type { createPicker } from '@/scene/system/picker.js';
 
 interface TierResult {
@@ -45,7 +45,7 @@ export function createBuildingFader({
   cityScene,
   picker,
 }: {
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   function _resolveDirTarget(sel: PickTarget | null, hov: PickTarget | null): DirNode | null {

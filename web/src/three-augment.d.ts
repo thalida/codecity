@@ -16,7 +16,7 @@ declare module 'three' {
   interface Object3DUserData {
     type?: NodeKind;
 
-    // Layout back-pointers stamped by buildCityScene
+    // Layout back-pointers stamped by buildWorld
     building?: Building;
     street?: Street;
     file?: FileNode;

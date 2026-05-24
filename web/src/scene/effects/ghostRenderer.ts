@@ -22,7 +22,7 @@
 import * as THREE from 'three';
 import { NodeKind } from '@/types';
 import { RENDER_ORDERS } from '@/constants';
-import type { createCityScene } from '@/scene/cityScene.js';
+import type { createWorld } from '@/scene/world.js';
 import type { createPicker } from '@/scene/system/picker.js';
 import type { FileTarget } from '@/types';
 
@@ -44,7 +44,7 @@ export function createGhostRenderer({
   picker,
 }: {
   scene: THREE.Scene;
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
   // Shared ghost mesh — a unit cube with a translucent MeshBasicMaterial.

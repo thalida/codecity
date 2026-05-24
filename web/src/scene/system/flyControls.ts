@@ -32,7 +32,7 @@ import { FLY_CONTROLS } from '@/config/index.js';
 import { StreetAxis } from '@/types';
 import type { WorldBounds } from '../layout/worldBounds.js';
 
-export interface FlyControlsCityScene {
+export interface FlyControlsWorld {
   getGemWorldPos: () => THREE.Vector3 | null;
   getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
   getBbox: () => THREE.Box3 | null;
@@ -58,7 +58,7 @@ export interface FlyControlsOpts {
   camera: THREE.PerspectiveCamera;
   canvas: HTMLCanvasElement;
   rig: FlyControlsRig;
-  cityScene: FlyControlsCityScene;
+  cityScene: FlyControlsWorld;
 }
 
 export function createFlyControls(opts: FlyControlsOpts) {

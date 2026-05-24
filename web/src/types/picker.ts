@@ -49,7 +49,7 @@ export interface PickerSelectionKey {
  * cityScene structurally satisfies this; tests can mock just these
  * methods.
  */
-export interface PickerCityScene {
+export interface PickerWorld {
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
   getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;

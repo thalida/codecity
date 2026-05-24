@@ -37,7 +37,7 @@ import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { NodeKind } from '@/types';
 
-import type { PickTarget, PickerCityScene, PickerSelectionKey } from '@/types';
+import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -50,7 +50,7 @@ export function createPicker({
 }: {
   canvas: HTMLCanvasElement;
   camera: THREE.Camera;
-  cityScene: PickerCityScene;
+  cityScene: PickerWorld;
 }) {
   const hover = atom<PickTarget | null>(null);
   const selection = atom<PickTarget | null>(null);

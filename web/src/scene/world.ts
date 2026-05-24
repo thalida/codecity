@@ -4,7 +4,7 @@
 //
 // Public contract:
 //
-//   const cityScene = createCityScene(canvas);
+//   const cityScene = createWorld(canvas);
 //   cityScene.applyManifest(manifest);    // builds OR rebuilds in-place
 //
 //   cityScene.scene                       // THREE.Scene reference
@@ -20,7 +20,7 @@
 // with them. The diff carries InstancedMesh-level entries which the
 // animator consumes.
 //
-// Disposal: every mesh added by buildCityScene or this module gets removed
+// Disposal: every mesh added by buildWorld or this module gets removed
 // from the persistent scene and disposed. The disposer walks geometry →
 // materials → any property whose value is a THREE.Texture, so new mesh
 // shapes don't need special-casing. disposeMesh() is idempotent
@@ -81,12 +81,12 @@ import {
   SIDEWALK_COLORS,
 } from '@/config/index.js';
 import { BUSHES } from '@/config/components/bushes.js';
-import { REBUILD_STATUS } from '@/state/liveStatus.js';
+import { REBUILD_STATUS } from '@/store/liveStatus.js';
 import type {
   Building,
   CityBbox,
   CityLayout,
-  CitySceneDiff,
+  WorldDiff,
   DateRanges,
   EnteringBuilding,
   EnteringStreet,
@@ -254,7 +254,7 @@ export const __test = {
 };
 
 /**
- * Options for _buildCityScene.
+ * Options for _buildWorld.
  *
  * skipBuildings — skip per-building scene work that is vestigial in cell
  * mode: per-building path-connector meshes (one per layout.paths entry).
@@ -267,14 +267,14 @@ interface BuildCityOpts {
   skipBuildings?: boolean;
 }
 
-// _buildCityScene(layout, opts) — one-shot scene builder.
+// _buildWorld(layout, opts) — one-shot scene builder.
 //
 // Composes the streets / street labels / connector paths / root gem
 // component factories into a fresh THREE.Scene and returns the lookup
-// tables createCityScene needs to wire interaction + post-processing.
+// tables createWorld needs to wire interaction + post-processing.
 // Per-cell instanced building/label/adPanel meshes are NOT built here —
 // scene/layout/cellAssembly.ts handles those once the layout is in hand.
-function _buildCityScene(layout: CityLayout, opts: BuildCityOpts = {}) {
+function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
@@ -372,7 +372,7 @@ function _buildCityScene(layout: CityLayout, opts: BuildCityOpts = {}) {
 // don't have to change. outlineRenderer takes the canvas directly via its
 // own factory now, so cityScene no longer needs to forward it — the param
 // can be dropped if a downstream pass cleans up the call sites.
-export function createCityScene(_canvas: HTMLCanvasElement) {
+export function createWorld(_canvas: HTMLCanvasElement) {
   // Register project GLSL chunks with THREE.ShaderChunk so #include <name>
   // directives in our shaders resolve natively — must run before any
   // ShaderMaterial is constructed.
@@ -491,23 +491,23 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   let _cachedLayout: CityLayout | null = null;
 
   // Scenic state cache: tracks the tree_signature that was used the last time
-  // buildCityScene ran successfully (in the cell branch). When the layout is
+  // buildWorld ran successfully (in the cell branch). When the layout is
   // reused AND this signature matches the current manifest's tree_signature,
   // the streets/labels/paths/gem meshes are already in the scene and identical
-  // to what a fresh buildCityScene call would produce — so we skip the call.
+  // to what a fresh buildWorld call would produce — so we skip the call.
   // Cleared by resetCache() when the user switches source (different tree shape).
-  let _lastBuildCitySceneTreeSig: string | null = null;
+  let _lastBuildWorldTreeSig: string | null = null;
 
   // Scenic config hash: a JSON snapshot of all config stores whose values are
-  // baked into buildCityScene output (street geometry/color, sidewalk color,
-  // label typography, gem appearance). Stored alongside _lastBuildCitySceneTreeSig
-  // after every successful buildCityScene call. On cache-hit, we also check this
+  // baked into buildWorld output (street geometry/color, sidewalk color,
+  // label typography, gem appearance). Stored alongside _lastBuildWorldTreeSig
+  // after every successful buildWorld call. On cache-hit, we also check this
   // hash — if it differs (e.g. user changed SIDEWALK_COLORS.DEFAULT via Settings),
   // we force a full scenic rebuild even though the tree_signature hasn't changed.
   let _lastScenicConfigHash: string | null = null;
 
   // computeScenicConfigHash collects the current values of every store whose
-  // output is baked into buildCityScene meshes:
+  // output is baked into buildWorld meshes:
   //   - SCENE_COLORS  : scene background (GROUND); baked into scene.background
   //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
   //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
@@ -517,7 +517,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   //   - GEM_FACE_PALETTE: vertex colors baked into gem octahedron BufferAttribute
   //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
   //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
-  // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildCityScene.
+  // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
   function computeScenicConfigHash(): string {
     return JSON.stringify({
       sceneColors: SCENE_COLORS.get(),
@@ -538,7 +538,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // outlineRenderer, etc.) each look at a different slice. Typed `any`
   // here, but each consumer narrows it locally.
 
-  const changeCbs: Array<(diff: CitySceneDiff) => void> = [];
+  const changeCbs: Array<(diff: WorldDiff) => void> = [];
 
   function _emit<T>(arr: Array<(p: T) => void>, payload: T): void {
     // Snapshot to allow listeners to unsubscribe themselves mid-emit
@@ -560,7 +560,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     };
   }
 
-  function onChange(cb: (diff: CitySceneDiff) => void): () => void {
+  function onChange(cb: (diff: WorldDiff) => void): () => void {
     changeCbs.push(cb);
     return function unsubscribe() {
       const idx = changeCbs.indexOf(cb);
@@ -707,7 +707,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   // snapshot is captured in PrevState.cells — the Map reference is stable
   // across the disposal because we replace the module-level `_cells`
   // binding but the snapshot still points at the old Map.
-  function _computeDiff(prev: PrevState): CitySceneDiff {
+  function _computeDiff(prev: PrevState): WorldDiff {
     const entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] } = {
       buildings: [],
       streets: [],
@@ -963,7 +963,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
         })();
 
     // Build the cell scene (buildings only — streets/labels/paths/gem
-    // are produced by buildCityScene below).
+    // are produced by buildWorld below).
     const cellOut = buildCellsFromLayout(bounds, newBuildings, getSharedBuildingUniforms());
 
     if (myGeneration !== _currentGeneration) {
@@ -975,7 +975,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     // ---- Atomic swap ----
     //
     // Scenic state reuse: when the layout was reused (same tree_signature,
-    // positions/streets/paths unchanged) AND buildCityScene was already run
+    // positions/streets/paths unchanged) AND buildWorld was already run
     // for this signature, AND none of the config stores that affect scenic
     // output have changed (same config hash), the streets/labels/paths/gem
     // meshes are already in the scene and would produce identical output —
@@ -984,14 +984,14 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
     const _currentScenicConfigHash = computeScenicConfigHash();
     const _scenicValid =
       _layoutReused &&
-      _lastBuildCitySceneTreeSig !== null &&
-      _lastBuildCitySceneTreeSig === _treeSig &&
+      _lastBuildWorldTreeSig !== null &&
+      _lastBuildWorldTreeSig === _treeSig &&
       _lastScenicConfigHash === _currentScenicConfigHash &&
       streetPickables.length > 0; // guard: scenic state actually exists in scene
 
     if (_scenicValid) {
       // Do NOT call _disposeAllManifestState() — existing streets/labels/
-      // paths/gem stay in the scene unmodified. Do NOT call buildCityScene.
+      // paths/gem stay in the scene unmodified. Do NOT call buildWorld.
 
       // Dispose old cell root before the new one is swapped in.
       if (_cellRoot) {
@@ -1007,7 +1007,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       manifest = newManifestTyped;
       layout = newLayout;
       dateRanges = newDateRanges;
-      // bbox stays from the previous buildCityScene call (layout unchanged).
+      // bbox stays from the previous buildWorld call (layout unchanged).
 
       _cellRoot = cellOut.sceneRoot;
       _cells = cellOut.cells;
@@ -1018,7 +1018,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // Add the new cell root (instanced building InstancedMeshes + ad panels).
       scene.add(_cellRoot);
     } else {
-      // Full rebuild path: dispose existing scenic state, run buildCityScene,
+      // Full rebuild path: dispose existing scenic state, run buildWorld,
       // and add the new meshes to the scene.
       _disposeAllManifestState();
 
@@ -1043,7 +1043,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       _grid = cellOut.grid;
       _instancedAdPanels = cellOut.adPanels;
 
-      // Also build the streets/paths/gem sub-scene from buildCityScene so
+      // Also build the streets/paths/gem sub-scene from buildWorld so
       // sidewalks, asphalt, and the root gem still appear. The cell path
       // replaces buildings; non-building scene elements are still needed.
       //
@@ -1052,9 +1052,9 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       // repo those meshes dominate cellBuilt.scene.children and cause a
       // multi-second stall in the scene.add() loop below.
       // Cell mode has no per-building interactivity that needs connectors.
-      const cellBuilt = _buildCityScene(newLayout, { skipBuildings: true });
+      const cellBuilt = _buildWorld(newLayout, { skipBuildings: true });
       bbox = cellBuilt.bbox;
-      // buildCityScene was called with skipBuildings: true, so the returned
+      // buildWorld was called with skipBuildings: true, so the returned
       // bbox covers streets/paths/gem only — NOT buildings (rendered
       // separately via the cell-based instanced renderer). Expand the bbox
       // to include each building's XZ footprint + Y height so downstream
@@ -1089,7 +1089,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
       scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
 
-      // Remove per-building meshes that buildCityScene emits — the cell
+      // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:
       // they serve as our labels on the cell path too.
       for (const bm of cellBuilt.buildingMeshes || []) {
@@ -1101,7 +1101,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
       scene.add(_cellRoot);
 
       // Record that scenic state is now valid for this tree_signature + config.
-      _lastBuildCitySceneTreeSig = _treeSig || null;
+      _lastBuildWorldTreeSig = _treeSig || null;
       _lastScenicConfigHash = _currentScenicConfigHash;
     }
 
@@ -1230,7 +1230,7 @@ export function createCityScene(_canvas: HTMLCanvasElement) {
   function resetCache(): void {
     _cachedLayoutTreeSig = null;
     _cachedLayout = null;
-    _lastBuildCitySceneTreeSig = null;
+    _lastBuildWorldTreeSig = null;
     _lastScenicConfigHash = null;
     // Dispose instanced ad panels so they are rebuilt from scratch on the
     // next applyManifest call (the new source may have a different set of

@@ -119,7 +119,7 @@ export interface StayingStreet {
  * rebuild — the animator uses entering/staying buildings to drive
  * grow-in / position tweens.
  */
-export interface CitySceneDiff {
+export interface WorldDiff {
   entering: { buildings: EnteringBuilding[]; streets: EnteringStreet[] };
   exiting: { buildings: ExitingEntry[]; streets: ExitingEntry[] };
   staying: { buildings: StayingBuilding[]; streets: StayingStreet[] };

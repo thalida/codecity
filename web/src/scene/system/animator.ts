@@ -29,8 +29,8 @@
 
 import * as THREE from 'three';
 import { ANIMATION_TIMING } from '@/config/index.js';
-import type { Building, CitySceneDiff } from '@/types';
-import type { createCityScene } from '../cityScene.js';
+import type { Building, WorldDiff } from '@/types';
+import type { createWorld } from '../world.js';
 
 interface Tween {
   /** Slot index within the CellTile InstancedMesh (same as building.slotId). */
@@ -66,7 +66,7 @@ function easeOutCubic(t: number): number {
   return 1 - u * u * u;
 }
 
-export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof createCityScene> }) {
+export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof createWorld> }) {
   // Tween queue. Each tween targets one building instance and animates
   // both scale and position together (a single matrix write per frame).
   //
@@ -104,7 +104,7 @@ export function createAnimator({ cityScene }: { cityScene: ReturnType<typeof cre
     }
   }
 
-  function _onChange(diff: CitySceneDiff): void {
+  function _onChange(diff: WorldDiff): void {
     // Snapshot the current building-transition duration once per diff —
     // every tween started by this _onChange shares the same MS, but a
     // later diff (after a Settings tweak) will pick up the new value.

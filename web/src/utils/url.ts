@@ -33,3 +33,24 @@ export function buildApiUrl(
   }
   return u.toString();
 }
+
+// Runtime wrappers that bind `buildApiUrl` to the live `window.location.*`
+// values. Kept here (rather than at callsites) so the boot orchestrator and
+// the live-update poll loop share the same construction path. Pure helper
+// stays separately testable via buildApiUrl.
+
+export function manifestUrl(): string {
+  return buildApiUrl(
+    '/api/manifest',
+    window.location.search,
+    window.location.origin
+  );
+}
+
+export function signatureUrl(): string {
+  return buildApiUrl(
+    '/api/manifest/signature',
+    window.location.search,
+    window.location.origin
+  );
+}

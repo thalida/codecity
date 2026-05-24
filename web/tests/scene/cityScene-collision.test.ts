@@ -3,7 +3,7 @@
 // and a warn-level summary + per-overlap detail block when dirty.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/cityScene.js';
+import { __test } from '@/scene/world.js';
 import type { LayoutOverlap } from '@/scene/layout/layout.js';
 
 const { _formatCollisionReport } = __test;

@@ -28,16 +28,16 @@ import {
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
   refreshManifest,
-} from './state/liveStatus.js';
+} from './store/liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
-import type { createCityScene } from './scene/cityScene.js';
+import type { createWorld } from './scene/world.js';
 import type { createPicker } from './scene/system/picker.js';
 import type { createCameraRig } from './scene/system/cameraRig.js';
 import type { createFlyControls } from './scene/system/flyControls.js';
 
 interface CoordinatorOpts {
-  cityScene: ReturnType<typeof createCityScene>;
+  cityScene: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   flyControls: ReturnType<typeof createFlyControls>;

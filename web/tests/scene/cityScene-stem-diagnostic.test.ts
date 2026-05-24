@@ -2,7 +2,7 @@
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/cityScene.js';
+import { __test } from '@/scene/world.js';
 import type {
   StemPlacementTrace,
   ChildPlacementTrace,
