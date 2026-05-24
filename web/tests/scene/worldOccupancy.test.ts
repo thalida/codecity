@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { WorldOccupancy, type WorldRect } from '@/scene/worldOccupancy';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldOccupancy, type WorldRect } from '@/scene/layout/worldOccupancy';
 
 // Helper to build a WorldRect from {x, y, w, d} for terse tests.
 function mkRect(x: number, y: number, w: number, d: number): WorldRect {
@@ -8,7 +9,7 @@ function mkRect(x: number, y: number, w: number, d: number): WorldRect {
     minY: y - d / 2,
     maxX: x + w / 2,
     maxY: y + d / 2,
-    kind: 'building',
+    kind: WorldRectKind.Building,
     // We don't care about ref for these tests; cast a stub.
     ref: { x, y, w, d } as unknown as WorldRect['ref'],
   };

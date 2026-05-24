@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildApiUrl } from '../url.js';
-import { SCAN_FILTERS } from '../config/scan.js';
+import { buildApiUrl } from '@/utils/url.js';
+import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
 
 describe('buildApiUrl', () => {
   beforeEach(() => {

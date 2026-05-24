@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createLayoutClient } from '@/scene/layoutClient.js';
+import { createLayoutClient } from '@/scene/layout/layoutClient.js';
 import { NodeKind } from '@/types';
 import type { Manifest, FileNode } from '@/types';
 

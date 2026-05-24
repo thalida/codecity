@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { buildCellsFromLayout } from '@/scene/cellAssembly.js';
+import { buildCellsFromLayout } from '@/scene/layout/cellAssembly.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 
@@ -103,8 +103,8 @@ describe('buildCellsFromLayout', () => {
     expect(out.grid.cellCount).toBeGreaterThan(N);
   });
 
-  it('sceneRoot has 2 children per occupied cell (detailMesh + impostorMesh)', () => {
-    // 2 buildings in different cells → 2 occupied cells → 4 scene children.
+  it('sceneRoot has 1 child per occupied cell (detailMesh)', () => {
+    // 2 buildings in different cells → 2 occupied cells → 2 scene children.
     // Use small bounds so cellSize stays at MIN_CELL_SIZE(12) and positions
     // CELL_SIZE apart guarantee distinct cells.
     const bounds = { minX: 0, maxX: 48, minZ: 0, maxZ: 48 };
@@ -115,23 +115,18 @@ describe('buildCellsFromLayout', () => {
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(2);
-    // 2 cells × 2 meshes (detail + impostor) = 4 children in sceneRoot.
-    expect(out.sceneRoot.children.length).toBe(4);
+    // 2 cells × 1 mesh (detail) = 2 children in sceneRoot.
+    expect(out.sceneRoot.children.length).toBe(2);
   });
 
-  it('each occupied cell starts hidden — LOD evaluator sets visibility on first frame', () => {
+  it('each occupied cell has a detailMesh and no labelMesh until attached', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
     const buildings = [fakeBuilding(5, 5)];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(1);
     const [cell] = out.cells.values();
-    // After buildCellsFromLayout, all meshes start hidden (tier='hidden').
-    // The LOD evaluator runs a forced pass on the first animate frame and
-    // sets the correct tier based on camera position.
-    expect(cell.tier).toBe('hidden');
-    expect(cell.detailMesh.visible).toBe(false);
-    expect(cell.impostorMesh.visible).toBe(false);
+    expect(cell.detailMesh).toBeDefined();
     // labelMesh is null until attachLabelMeshToCell is called.
     expect(cell.labelMesh).toBeNull();
   });

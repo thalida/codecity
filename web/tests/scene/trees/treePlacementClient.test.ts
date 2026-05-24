@@ -2,7 +2,7 @@
 // Worker is unavailable, the supersede protocol, and dispose behavior.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createTreePlacementClient } from '@/scene/trees/treePlacementClient.js';
+import { createTreePlacementClient } from '@/scene/components/trees/treePlacementClient.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {

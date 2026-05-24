@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { SpatialGrid } from '@/scene/spatialGrid.js';
-import { createEmptyCellTile, type CellTile } from '@/scene/cellTile.js';
+import { SpatialGrid } from '@/scene/layout/spatialGrid.js';
+import { createEmptyCellTile, type CellTile } from '@/scene/layout/cellTile.js';
 
 describe('CellTile', () => {
   it('createEmptyCellTile allocates meshes with preallocated capacity', () => {
@@ -12,13 +12,11 @@ describe('CellTile', () => {
     expect(tile.capacity).toBe(128);
     expect(tile.used).toBe(0);
     expect(tile.freeSlots).toEqual([]);
-    expect(tile.tier).toBe('hidden');
     expect(tile.buildings).toHaveLength(128);
     expect(tile.buildings.every((b) => b === null)).toBe(true);
 
-    // Meshes exist and have correct count
+    // Detail mesh exists and has correct count.
     expect(tile.detailMesh.count).toBe(128);
-    expect(tile.impostorMesh.count).toBe(128);
     // labelMesh is not allocated by createEmptyCellTile (no-op until
     // attachLabelMeshToCell is called by the label rendering path).
     expect(tile.labelMesh).toBeNull();
@@ -37,7 +35,5 @@ describe('CellTile', () => {
     const tile = createEmptyCellTile(grid, 7, 64);
     expect(tile.detailMesh.userData.cellId).toBe(7);
     expect(tile.detailMesh.userData.meshKind).toBe('detail');
-    expect(tile.impostorMesh.userData.cellId).toBe(7);
-    expect(tile.impostorMesh.userData.meshKind).toBe('impostor');
   });
 });

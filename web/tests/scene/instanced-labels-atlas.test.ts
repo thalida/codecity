@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildLabelAtlas } from '@/scene/instanced/labels.js';
+import { buildLabelAtlas } from '@/scene/components/labels/labels.js';
 import type { LabelTypographyConfig } from '@/config/index.js';
 
 // Minimal typography config for tests — shape matches LabelTypographyConfig.

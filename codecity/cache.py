@@ -29,32 +29,29 @@ import json
 import os
 import tempfile
 from pathlib import Path
-from typing import TYPE_CHECKING, NotRequired, TypedDict, cast
+from typing import TYPE_CHECKING, cast
+
+from codecity.types import FileEntry
 
 if TYPE_CHECKING:
     from codecity.types import CommitEntry, Manifest
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override
-# cascades through.
-CACHE_ROOT = Path.home() / ".cache" / "codecity"
+# cascades through. CODECITY_CACHE_ROOT lets ops point the cache at a
+# different directory (e.g. an XDG cache dir, or a writable mount on
+# read-only home dirs in containers).
+CACHE_ROOT = Path(
+    os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity"
+)
 
 _FILE_CACHE_VERSION = 1
-_GIT_HISTORY_CACHE_VERSION = 3
-
-
-class FileEntry(TypedDict):
-    # Required (always present in a valid entry):
-    size: int
-    mtime: float
-    lines: int
-    binary: bool
-    ext: str
-    # Optional — populated only for recognized media files. Either both
-    # or neither is present; layout treats absence as "no signal" and
-    # falls back to a square aspect.
-    media_width: NotRequired[int]
-    media_height: NotRequired[int]
+# Bumped to 4: CommitEntry now carries gap_days. Pre-v4 entries get
+# dropped on load (cache_load_git_history returns None on version
+# mismatch).
+_GIT_HISTORY_CACHE_VERSION = 4
+# Bumped to 3: Manifest's commits list also carries gap_days.
+_MANIFEST_CACHE_VERSION = 3
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
@@ -213,9 +210,11 @@ def cache_load_git_history(
             continue
         date = c.get("date")
         files = c.get("files")
+        gap_days = c.get("gap_days")
         if (isinstance(date, str) and isinstance(files, int)
-                and not isinstance(files, bool)):
-            commits.append({"date": date, "files": files})
+                and not isinstance(files, bool)
+                and isinstance(gap_days, int) and not isinstance(gap_days, bool)):
+            commits.append({"date": date, "files": files, "gap_days": gap_days})
     return created, modified, commits
 
 
@@ -238,9 +237,6 @@ def cache_save_git_history(
         "commits": commits,
     }
     _atomic_write(_git_history_cache_path(abs_root), json.dumps(payload))
-
-
-_MANIFEST_CACHE_VERSION = 2
 
 
 def _manifest_cache_path(abs_root: Path, signature: str) -> Path:

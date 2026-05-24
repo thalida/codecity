@@ -15,10 +15,10 @@ export default defineConfig({
   root: webDir,
   base: './',
   resolve: {
-    // `@/` maps to the web/ root so cross-directory imports stay short
-    // and survive file moves. Mirrored in tsconfig.json paths and
+    // `@/` maps to web/src so cross-directory imports stay short and
+    // survive file moves. Mirrored in tsconfig.json paths and
     // vitest.config.js so the editor + test runner resolve identically.
-    alias: { '@': webDir },
+    alias: { '@': resolve(webDir, 'src') },
   },
   build: {
     outDir: resolve(webDir, '..', 'codecity', 'static'),

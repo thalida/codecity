@@ -13,4 +13,9 @@
 # `Show all files`. Hide them so the city stays focused on the codebase.
 codecity/tests/fixtures/large-repo
 codecity/tests/fixtures/sample-repo
+
+# Opt node_modules back in so `--show-all` includes the web frontend's
+# compiled deps — viewing the bundled three.js / lit / nanostores trees
+# is part of what makes self-scanning interesting for this repo. The
+# default ALWAYS_SKIP behavior still applies to every other repo.
 !node_modules

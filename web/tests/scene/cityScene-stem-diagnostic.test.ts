@@ -1,13 +1,14 @@
-// cityScene-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
+// world-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
+import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/cityScene.js';
+import { __test } from '@/scene/world.js';
 import type {
   StemPlacementTrace,
   ChildPlacementTrace,
   VariantTrace,
-} from '@/scene/layoutV4.js';
+} from '@/scene/layout/layout.js';
 
 const { _formatStemDiagnostic } = __test;
 
@@ -57,7 +58,7 @@ describe('_formatStemDiagnostic', () => {
   it('marks a jumped placement with "JUMPED" and the binding obstacle', () => {
     const obstacle = {
       minX: 11, minY: -1, maxX: 18, maxY: 1,
-      kind: 'path' as const,
+      kind: WorldRectKind.Path,
       ref: { file: { path: 'src/foo.ts', name: 'foo.ts' } } as never,
     };
     const trace: StemPlacementTrace = {

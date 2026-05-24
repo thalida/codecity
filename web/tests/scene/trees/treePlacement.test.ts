@@ -1,9 +1,9 @@
 // treePlacement.test.ts — verifies commit-driven tree placement.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { placeTrees, type TreePlacement } from '@/scene/trees/treePlacement.js';
-import { TREES } from '@/config/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/building.js';
+import { placeTrees, type TreePlacement } from '@/scene/components/trees/treePlacement.js';
+import { TREES } from '@/config/components/trees.js';
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import type { CityBbox, CityLayout } from '@/types';
 
 function resetTrees() {
@@ -138,7 +138,7 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('rejects candidates inside the FOOTPRINT halo around a layout rect', async () => {
-    const { FOOTPRINT } = await import('@/config/footprint.js');
+    const { FOOTPRINT } = await import('@/config/components/footprint.js');
     FOOTPRINT.setKey('HALO_WIDTH', 100);
 
     const bb = bbox(-500, -500, 500, 500);

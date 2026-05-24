@@ -4,7 +4,7 @@ import {
   SpatialGrid,
   CELL_SIZE,
   MIN_CELL_SIZE,
-} from '@/scene/spatialGrid.js';
+} from '@/scene/layout/spatialGrid.js';
 
 describe('SpatialGrid', () => {
   it('computes grid dimensions from world bounds', () => {

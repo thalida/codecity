@@ -52,7 +52,7 @@ class FileNode(TypedDict):
     # Optional pixel dimensions for recognized media files (png/jpg/svg/
     # mp4/etc.). Either both keys appear together or neither does. Layout
     # uses these to size the building's silhouette; absence triggers a
-    # 1:1 aspect fallback. See codecity/media_dims.py.
+    # 1:1 aspect fallback. See codecity/media.py.
     media_width: NotRequired[int]
     media_height: NotRequired[int]
 
@@ -95,10 +95,13 @@ class CommitEntry(TypedDict):
     oldest-first order so consumers can map commits[i] → i-th tree
     placement (closest-to-gem). Date is day-precision for compact
     payload + future age signal. files = count of A/M/D/T/U rows in
-    the commit's --name-status block."""
+    the commit's --name-status block. gap_days = days since the
+    previous commit (0 for the first; >=0 thereafter). Pre-computed
+    here so the renderer doesn't redo the diff on every reload."""
 
     date: str   # "YYYY-MM-DD"
     files: int
+    gap_days: int
 
 
 class Manifest(TypedDict):
@@ -177,3 +180,55 @@ class ScanErrorEvent(TypedDict):
 
     phase: Literal["error"]
     error: str
+
+
+# ── Cache shapes ────────────────────────────────────────────────────────
+
+
+class FileEntry(TypedDict):
+    """One entry in the per-root file-stat cache. (size, mtime) is the
+    cache key; (lines, binary, ext) are the values warm scans skip
+    recomputing. media_width/media_height are only present for
+    recognized media files."""
+
+    # Required (always present in a valid entry):
+    size: int
+    mtime: float
+    lines: int
+    binary: bool
+    ext: str
+    # Optional — populated only for recognized media files. Either both
+    # or neither is present; layout treats absence as "no signal" and
+    # falls back to a square aspect.
+    media_width: NotRequired[int]
+    media_height: NotRequired[int]
+
+
+# ── Errors ──────────────────────────────────────────────────────────────
+
+
+class ScanCancelledError(Exception):
+    """Raised when a scan_tree cancel_event is set mid-scan.
+
+    The server's disconnect watchdog sets the event, the scanner
+    polls it at every phase boundary, and the server's outer try/
+    except catches this so cancellation isn't surfaced as a 5xx."""
+
+
+class CloneError(RuntimeError):
+    """Generic git clone/update failure. Subclasses below differentiate
+    the user-facing causes so the server can return a clean 4xx with a
+    helpful message instead of bubbling raw git stderr."""
+
+
+class BranchNotFoundError(CloneError):
+    """User asked for a branch that doesn't exist on the remote."""
+
+
+class RepoNotFoundError(CloneError):
+    """Remote URL doesn't exist, is private + unauthenticated, or was
+    typo'd."""
+
+
+class HostUnreachableError(CloneError):
+    """DNS / network failure reaching the remote host."""

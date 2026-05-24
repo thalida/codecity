@@ -1,10 +1,11 @@
-// cityScene-collision.test.ts — _formatCollisionReport() partitions overlaps
+// world-collision.test.ts — _formatCollisionReport() partitions overlaps
+import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 // into unexpected vs. t-junction, produces an info-level summary when clean,
 // and a warn-level summary + per-overlap detail block when dirty.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/cityScene.js';
-import type { LayoutOverlap } from '@/scene/layout.js';
+import { __test } from '@/scene/world.js';
+import type { LayoutOverlap } from '@/scene/layout/layout.js';
 
 const { _formatCollisionReport } = __test;
 
@@ -20,7 +21,7 @@ describe('_formatCollisionReport', () => {
 
   it('clean case — 0 unexpected, some t-junctions whitelisted', () => {
     const tj: LayoutOverlap = {
-      kindA: 'street', kindB: 'street',
+      kindA: WorldRectKind.Street, kindB: WorldRectKind.Street,
       labelA: 'a/', labelB: 'b/',
       rectA: { x: 0, y: 0, w: 10, d: 2 },
       rectB: { x: 5, y: 0, w: 2, d: 10 },
@@ -37,7 +38,7 @@ describe('_formatCollisionReport', () => {
 
   it('dirty case — emits warn level + one detail line per unexpected', () => {
     const u: LayoutOverlap = {
-      kindA: 'building', kindB: 'street',
+      kindA: WorldRectKind.Building, kindB: WorldRectKind.Street,
       labelA: 'src/foo.ts', labelB: 'src/',
       rectA: { x: 1.234, y: 2.345, w: 3.456, d: 4.567 },
       rectB: { x: 5.678, y: 6.789, w: 7.890, d: 8.901 },
@@ -45,7 +46,7 @@ describe('_formatCollisionReport', () => {
       category: 'unexpected',
     };
     const tj: LayoutOverlap = {
-      kindA: 'street', kindB: 'street',
+      kindA: WorldRectKind.Street, kindB: WorldRectKind.Street,
       labelA: 'a/', labelB: 'b/',
       rectA: { x: 0, y: 0, w: 10, d: 2 },
       rectB: { x: 5, y: 0, w: 2, d: 10 },

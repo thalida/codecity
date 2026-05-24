@@ -3,7 +3,7 @@
 
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
-import { InstancedAdPanels } from '@/scene/instanced/adPanelsInstanced.js';
+import { InstancedAdPanels } from '@/scene/components/adPanels/adPanelsInstanced.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 

@@ -73,7 +73,7 @@ export async function setupHarness(port = 18765): Promise<VisualHarness> {
   await page.goto(`http://127.0.0.1:${port}/?src=${encodeURIComponent(FIXTURE_PATH)}`);
 
   // I3 fix: wait for window.__rig (set in main.ts after startRenderLoop, which
-  // runs AFTER the manifest fetch + cityScene.applyManifest). Checking
+  // runs AFTER the manifest fetch + world.applyManifest). Checking
   // __rig.controls.target confirms OrbitControls is fully initialised.
   // This is strictly stronger than just waiting for WebGL2 context, which
   // resolves as soon as Three.js initialises — well before buildings are in

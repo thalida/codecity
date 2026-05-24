@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/lighting/fogChunk.js';
+import { FOG_UNIFORMS_GLSL, FOG_APPLY_GLSL } from '@/scene/components/lighting/fogChunk.js';
 
 describe('fog GLSL chunks', () => {
   it('uniform declarations include height-fog symbols', () => {
