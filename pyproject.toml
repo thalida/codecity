@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-codecity = "api.cli:main"
+codecity = "api.__main__:main"
 
 [tool.hatch.version]
 source = "vcs"
