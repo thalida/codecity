@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "codecity"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Visualize any codebase as an isometric 3D city"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -12,21 +12,24 @@ requires-python = ">=3.11"
 dependencies = [
     "Pillow>=10.0",
     "hachoir>=3.3",
+    "watchfiles>=0.22",
 ]
 
 [project.scripts]
 codecity = "api.cli:main"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["api"]
+exclude = ["api/tests"]
 
 [dependency-groups]
 dev = [
     "pytest>=8",
     "pyright>=1.1",
 ]
-
-[tool.hatch.build.targets.wheel]
-packages = ["api"]
-exclude = ["api/tests"]
-artifacts = ["api/static/**"]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]
