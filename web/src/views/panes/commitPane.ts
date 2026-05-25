@@ -1,9 +1,8 @@
 // views/panes/commitPane.ts — right-sidebar pane shown when a tree
-// (commit) is selected in the city. Shows the short SHA (click-to-
-// copy), absolute date, relative age, files changed, same-day commit
-// count, and an "Open on origin" link built from manifest.repo.remote_url
-// + the full SHA. When the repo has no remote, the link is replaced with
-// a muted hint.
+// (commit) is selected in the city. Shows the short SHA, absolute date,
+// relative age, files changed, same-day commit count, and an "Open on
+// origin" link built from manifest.repo.remote_url + the full SHA.
+// When the repo has no remote, the link is replaced with a muted hint.
 //
 // A colored swatch matching the tree's render color is shown inline
 // inside the "N commits that day" row (next to the same-day text)
@@ -34,7 +33,6 @@ export interface SetCommitOpts {
 }
 
 const SHORT_SHA_LEN = 7;
-const COPIED_FEEDBACK_MS = 1500;
 
 export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const pane = document.createElement('div');
@@ -49,8 +47,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const body = document.createElement('div');
   body.className = 'pane-body commit-body';
   pane.appendChild(body);
-
-  let _copiedTimer: ReturnType<typeof setTimeout> | 0 = 0;
 
   function _renderEmpty(): void {
     body.replaceChildren();
@@ -81,24 +77,9 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     const headerRow = document.createElement('div');
     headerRow.className = 'commit-row';
 
-    const shaEl = document.createElement('button');
-    shaEl.type = 'button';
+    const shaEl = document.createElement('span');
     shaEl.className = 'commit-sha';
     shaEl.textContent = commit.sha.slice(0, SHORT_SHA_LEN);
-    shaEl.title = `${commit.sha} (click to copy)`;
-    shaEl.addEventListener('click', () => {
-      void navigator.clipboard?.writeText(commit.sha).then(() => {
-        const prev = shaEl.textContent;
-        shaEl.textContent = 'Copied';
-        shaEl.classList.add('is-copied');
-        if (_copiedTimer) clearTimeout(_copiedTimer);
-        _copiedTimer = setTimeout(() => {
-          shaEl.textContent = prev;
-          shaEl.classList.remove('is-copied');
-          _copiedTimer = 0;
-        }, COPIED_FEEDBACK_MS);
-      });
-    });
     headerRow.appendChild(shaEl);
 
     // Right-side: subtle open-on-origin link (icon-only, matches app-header repo link style)
@@ -174,10 +155,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     commit: CommitEntry | null,
     opts: SetCommitOpts = {},
   ): void {
-    if (_copiedTimer) {
-      clearTimeout(_copiedTimer);
-      _copiedTimer = 0;
-    }
     if (!commit) {
       _renderEmpty();
       return;

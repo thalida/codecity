@@ -63,7 +63,18 @@ export interface Trees {
    *  the InstancedMesh that renders it. Returns a CSS hex string (e.g.
    *  "#5e8a3a") or null when the sha can't be found. */
   colorForSha(sha: string): string | null;
+  /** Set which sha is currently hovered (null clears). Tints that
+   *  tree's canopy slightly toward white for visual feedback. */
+  setHoverSha(sha: string | null): void;
+  /** Set which sha is currently selected (null clears). Tints that
+   *  tree's canopy more strongly than hover. */
+  setSelectionSha(sha: string | null): void;
 }
+
+/** Lerp-toward-white amount for hover and selection canopy tints.
+ *  0 = no change, 1 = fully white. Keep both subtle. */
+const HOVER_TINT   = 0.15;
+const SELECT_TINT  = 0.30;
 
 /** Subdivision levels of the icosahedron canopy.
  *  detail 0 → 20 faces (very faceted),
@@ -416,6 +427,11 @@ export function createTreeRenderer(
       }
       if (rec.mesh.instanceColor) rec.mesh.instanceColor.needsUpdate = true;
     }
+
+    // Re-apply hover / selection tints after the base colors are baked.
+    // Apply hover first then selected so selected wins when both apply.
+    if (_hoverSha) _applyTint(_hoverSha, HOVER_TINT);
+    if (_selectedSha) _applyTint(_selectedSha, SELECT_TINT);
   }
 
   function dispose(): void {
@@ -477,5 +493,66 @@ export function createTreeRenderer(
     return '#' + tmpColor.getHexString();
   }
 
-  return { group, refresh, dispose, commitForInstance, findTreeBySha, colorForSha };
+  // ── Hover / selection tint state machine ─────────────────────────────
+  const _WHITE = new THREE.Color(1, 1, 1);
+  const _tintTmp = new THREE.Color();
+  let _hoverSha: string | null = null;
+  let _selectedSha: string | null = null;
+
+  /** Find the canopy instance for `sha`, compute the base color for its
+   *  placement, lerp toward white by `amount`, and write it back. */
+  function _applyTint(sha: string, amount: number): void {
+    const hit = findTreeBySha(sha);
+    if (!hit) return;
+    // Find the placement index for this canopy slot so we can re-derive
+    // the base color without storing it separately.
+    const order = hit.mesh.userData.placementOrder as number[];
+    const placementIdx = order[hit.instanceId];
+    perTreeColor(placementIdx, _tintTmp);
+    _tintTmp.lerp(_WHITE, amount);
+    hit.mesh.setColorAt(hit.instanceId, _tintTmp);
+    if (hit.mesh.instanceColor) hit.mesh.instanceColor.needsUpdate = true;
+  }
+
+  /** Restore the base (unbaked) color for the canopy instance of `sha`. */
+  function _restoreBase(sha: string): void {
+    const hit = findTreeBySha(sha);
+    if (!hit) return;
+    const order = hit.mesh.userData.placementOrder as number[];
+    const placementIdx = order[hit.instanceId];
+    perTreeColor(placementIdx, _tintTmp);
+    hit.mesh.setColorAt(hit.instanceId, _tintTmp);
+    if (hit.mesh.instanceColor) hit.mesh.instanceColor.needsUpdate = true;
+  }
+
+  /** Re-derive and apply whichever state is currently "winning" for `sha`.
+   *  Priority: selected > hovered > base. */
+  function _applyStateFor(sha: string | null): void {
+    if (!sha) return;
+    if (sha === _selectedSha) {
+      _applyTint(sha, SELECT_TINT);
+    } else if (sha === _hoverSha) {
+      _applyTint(sha, HOVER_TINT);
+    } else {
+      _restoreBase(sha);
+    }
+  }
+
+  function setHoverSha(sha: string | null): void {
+    if (sha === _hoverSha) return;
+    const prev = _hoverSha;
+    _hoverSha = sha;
+    _applyStateFor(prev);
+    _applyStateFor(sha);
+  }
+
+  function setSelectionSha(sha: string | null): void {
+    if (sha === _selectedSha) return;
+    const prev = _selectedSha;
+    _selectedSha = sha;
+    _applyStateFor(prev);
+    _applyStateFor(sha);
+  }
+
+  return { group, refresh, dispose, commitForInstance, findTreeBySha, colorForSha, setHoverSha, setSelectionSha };
 }

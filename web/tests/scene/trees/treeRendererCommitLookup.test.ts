@@ -192,4 +192,88 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer([placement(0, 0)], null);
     expect(trees.colorForSha('a'.repeat(40))).toBeNull();
   });
+
+  it('setHoverSha tints the canopy instance brighter than baseline', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const tmp = new THREE.Color();
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    const baseR = tmp.r;
+
+    trees.setHoverSha(commits[1].sha);
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    expect(tmp.r).toBeGreaterThan(baseR);
+  });
+
+  it('setHoverSha(null) restores the baseline color', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const tmp = new THREE.Color();
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    const baseR = tmp.r;
+
+    trees.setHoverSha(commits[1].sha);
+    trees.setHoverSha(null);
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    expect(Math.abs(tmp.r - baseR)).toBeLessThan(0.001);
+  });
+
+  it('setSelectionSha tints more strongly than setHoverSha', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const tmp = new THREE.Color();
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+
+    trees.setHoverSha(commits[1].sha);
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    const hoverR = tmp.r;
+
+    trees.setHoverSha(null);
+    trees.setSelectionSha(commits[1].sha);
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    expect(tmp.r).toBeGreaterThan(hoverR);
+  });
+
+  it('selection wins over hover when both apply to the same tree', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const tmp = new THREE.Color();
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+
+    trees.setSelectionSha(commits[1].sha);
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    const selectedR = tmp.r;
+
+    trees.setHoverSha(commits[1].sha);  // hover same tree
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001);
+  });
+
+  it('moving hover from selected tree to another reverts the previous to selected', () => {
+    const commits = [commit(0), commit(1), commit(2)];
+    const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const tmp = new THREE.Color();
+    const hit1 = trees.findTreeBySha(commits[1].sha)!;
+
+    trees.setSelectionSha(commits[1].sha);
+    hit1.mesh.getColorAt(hit1.instanceId, tmp);
+    const selectedR = tmp.r;
+
+    trees.setHoverSha(commits[1].sha); // hover === selected, no change
+    trees.setHoverSha(commits[2].sha); // hover moves to a different tree
+    hit1.mesh.getColorAt(hit1.instanceId, tmp);
+    expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001); // still selected-tinted
+  });
 });

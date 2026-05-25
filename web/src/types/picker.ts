@@ -79,5 +79,7 @@ export interface PickerWorld {
       commit: CommitEntry;
     } | null;
     colorForSha(sha: string): string | null;
+    setHoverSha(sha: string | null): void;
+    setSelectionSha(sha: string | null): void;
   } | null;
 }

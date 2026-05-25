@@ -2804,18 +2804,9 @@ canvas {
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-2xl); /* 18px — prominent primary identifier */
   font-weight: 600;
-  background: none;
-  border: none;
-  padding: 0;
-  text-align: left;
-  cursor: pointer;
   color: var(--cc-text-primary);
   line-height: 1.3;
 }
-
-.commit-sha:hover { text-decoration: underline; }
-
-.commit-sha.is-copied { color: var(--cc-success); }
 
 .commit-files {
   color: var(--cc-text-muted);
@@ -2850,12 +2841,12 @@ canvas {
   flex-shrink: 0;
 }
 
-/* SHA row: SHA button on the left, subtle open-on-origin icon on the right. */
+/* SHA row: SHA and open-on-origin link sit adjacent (no gap-filling). */
 .commit-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--cc-space-3); /* 6px */
+  justify-content: flex-start;
+  gap: var(--cc-space-4); /* 8px */
 }
 
 /* .commit-open inherits the .btn-icon + .btn-icon--link shell (24×24,

@@ -354,6 +354,14 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     // hover is active the hover subscriber already owns the footer.
     _updateFooterFromState();
 
+    // Tree canopy selection tint.
+    const trees = world.getTrees();
+    if (trees) {
+      trees.setSelectionSha(
+        sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null
+      );
+    }
+
     // Right sidebar pane choice mirrors selection kind. File → preview,
     // Commit → commit pane, anything else closes the sidebar.
     if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
@@ -371,6 +379,14 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     // Footer follows hover in real time; when hover clears (h === null)
     // _updateFooterFromState falls back to the current selection.
     _updateFooterFromState();
+
+    // Tree canopy hover tint.
+    const trees = world.getTrees();
+    if (trees) {
+      trees.setHoverSha(
+        h && h.kind === NodeKind.Commit ? h.commit.sha : null
+      );
+    }
   });
 
   // Push the freshly-applied manifest into the Info pane so an edited

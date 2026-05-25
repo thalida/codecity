@@ -47,6 +47,8 @@ interface FakeTrees {
     mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry;
   } | null;
   colorForSha: (sha: string) => string | null;
+  setHoverSha: (sha: string | null) => void;
+  setSelectionSha: (sha: string | null) => void;
 }
 
 function makeFakeTrees(canopy: THREE.InstancedMesh, trunk: THREE.InstancedMesh, commits: CommitEntry[]): FakeTrees {
@@ -68,6 +70,8 @@ function makeFakeTrees(canopy: THREE.InstancedMesh, trunk: THREE.InstancedMesh, 
       const idx = commits.findIndex((c) => c.sha === sha);
       return idx === -1 ? null : '#abcdef';
     },
+    setHoverSha(_sha) {},
+    setSelectionSha(_sha) {},
   };
 }
 

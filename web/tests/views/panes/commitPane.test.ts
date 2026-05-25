@@ -68,18 +68,6 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('clicking the short SHA copies the full SHA to the clipboard', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    // jsdom does not implement navigator.clipboard; install a minimal stub.
-    Object.assign(navigator, { clipboard: { writeText } });
-
-    const { pane, api } = buildCommitPane({});
-    api.setCommit(COMMIT, { remoteUrl: 'https://github.com/org/repo', now: new Date('2026-05-24T12:00:00Z') });
-
-    (pane.querySelector('.commit-sha') as HTMLElement).click();
-    expect(writeText).toHaveBeenCalledWith(COMMIT.sha);
-  });
-
   it('onClose fires when the × is clicked', () => {
     const onClose = vi.fn();
     const { pane } = buildCommitPane({ onClose });
