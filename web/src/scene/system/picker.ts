@@ -22,11 +22,16 @@
 //   { kind: NodeKind.Gem }
 //   { kind: NodeKind.File,      mesh, data, file }
 //   { kind: NodeKind.Directory, sidewalk, street, dir }
+//   { kind: NodeKind.Commit,    mesh, instanceId, commit }
 //
 // Selection persistence
 // ---------------------
-// PICKER_SELECTION_KEY (exported, atom) holds the persistable form
-// `{ kind: NodeKind.File | NodeKind.Directory, path: string } | null`. It's hooked
+// PICKER_SELECTION_KEY (exported, atom) holds the persistable form, a
+// tagged union over the same three discriminators carried by selection:
+//   { kind: NodeKind.File,      path: string }
+//   { kind: NodeKind.Directory, path: string }
+//   { kind: NodeKind.Commit,    sha: string }
+// It's hooked
 // into the existing attachPersistence system as `cc.PICKER_SELECTION_KEY`.
 // One-way derivation: selection is the source of truth; whenever it
 // changes, picker writes the matching key. On world.onChange, the
@@ -172,6 +177,10 @@ export function createPicker({
       _suspendKeyDerive = false;
       return;
     }
+    // trees is null when the manifest hasn't applied yet or TREES_ENABLED
+    // is off. Either way, the SHA can't be located, so we clear — same
+    // collapse rule the File / Directory branches use when their
+    // path lookup misses.
     if (key.kind === NodeKind.Commit) {
       const trees = world.getTrees();
       const hit = trees?.findTreeBySha(key.sha) ?? null;
