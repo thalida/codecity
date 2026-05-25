@@ -51,8 +51,11 @@ _FILE_CACHE_VERSION = 1
 # UI can link to the commit on the origin remote. Pre-v6 entries get
 # dropped on load.
 _GIT_HISTORY_CACHE_VERSION = 6
-# Bumped to 4: Manifest's commits list no longer carries gap_days.
-_MANIFEST_CACHE_VERSION = 4
+# Bumped to 5: Manifest's embedded commits list now carries `sha`. Old
+# cached manifests serialize commits without sha, which crashes the
+# frontend (target.commit.sha.slice(0,7) throws). Pre-v5 entries get
+# dropped on load.
+_MANIFEST_CACHE_VERSION = 5
 
 # Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
 # Used by cache_load_git_history to reject any cache entry whose sha
