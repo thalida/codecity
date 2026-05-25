@@ -1207,7 +1207,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // other subscriber) a chance to re-refresh with the live tree group.
       // We pass an empty diff because only foliage changed; no building or
       // street geometry was added since the first emit.
-      _emit(changeCbs, { entering: { buildings: [], streets: [] }, exiting: { buildings: [], streets: [] }, staying: { buildings: [], streets: [] } });
+      // Only fire when foliage was actually placed — if both trees and
+      // bushes are null (disabled, zero commits, etc.) the first emit
+      // already captured the complete state and a second one is wasteful.
+      if (_trees !== null || _bushes !== null) {
+        _emit(changeCbs, { entering: { buildings: [], streets: [] }, exiting: { buildings: [], streets: [] }, staying: { buildings: [], streets: [] } });
+      }
 
       REBUILD_STATUS.set('idle');
     }
