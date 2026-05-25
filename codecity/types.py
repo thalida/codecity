@@ -95,10 +95,12 @@ class CommitEntry(TypedDict):
     oldest-first order so consumers can map commits[i] → i-th tree
     placement (closest-to-gem). Date is day-precision for compact
     payload + future age signal. files = count of A/M/D/T/U rows in
-    the commit's --name-status block."""
+    the commit's --name-status block. sha is the full 40-char hex;
+    the UI displays the first 7."""
 
     date: str   # "YYYY-MM-DD"
     files: int
+    sha: str
 
 
 class Manifest(TypedDict):

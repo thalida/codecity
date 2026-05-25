@@ -4,7 +4,7 @@
 import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
-import type { DirNode, FileNode, NodeKind } from './manifest';
+import type { CommitEntry, DirNode, FileNode, NodeKind } from './manifest';
 import type { BuildingIndex } from '@/scene/components/buildings/buildingIndex.js';
 import type { CellTile } from '@/scene/layout/cellTile.js';
 
@@ -32,17 +32,25 @@ export interface GemTarget {
   mesh: THREE.Object3D;
 }
 
+/** Hovered/selected tree (a canopy or trunk InstancedMesh instance). */
+export interface CommitTarget {
+  kind: NodeKind.Commit;
+  mesh: THREE.InstancedMesh;
+  instanceId: number;
+  commit: CommitEntry;
+}
+
 /** Tagged union of every pick-able thing. */
-export type PickTarget = FileTarget | DirTarget | GemTarget;
+export type PickTarget = FileTarget | DirTarget | GemTarget | CommitTarget;
 
 /**
  * Stable identity used to re-resolve a selection across world
  * rebuilds. Persisted via attachPersistence.
  */
-export interface PickerSelectionKey {
-  kind: NodeKind.File | NodeKind.Directory;
-  path: string;
-}
+export type PickerSelectionKey =
+  | { kind: NodeKind.File; path: string }
+  | { kind: NodeKind.Directory; path: string }
+  | { kind: NodeKind.Commit; sha: string };
 
 /**
  * Subset of the world API that the picker depends on. Real
@@ -60,4 +68,18 @@ export interface PickerWorld {
   getBuildingIndex(): BuildingIndex | null;
   /** Returns the cells map. */
   getCells(): Map<number, CellTile>;
+  /** Returns the Trees instance (null when no manifest applied yet
+   *  or when TREES_ENABLED is off). */
+  getTrees(): {
+    group: THREE.Group;
+    commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;
+    findTreeBySha(sha: string): {
+      mesh: THREE.InstancedMesh;
+      instanceId: number;
+      commit: CommitEntry;
+    } | null;
+    colorForSha(sha: string): string | null;
+    setHoverSha(sha: string | null): void;
+    setSelectionSha(sha: string | null): void;
+  } | null;
 }

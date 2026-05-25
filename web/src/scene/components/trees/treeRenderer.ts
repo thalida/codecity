@@ -45,7 +45,36 @@ export interface Trees {
   group: THREE.Group;
   refresh(): void;
   dispose(): void;
+  /** Resolve an InstancedMesh hit back to the commit that placed the
+   *  hit's instance. Returns null if the mesh isn't one of the tree
+   *  meshes on this group, the instanceId is out of range, or the
+   *  underlying placement has no valid commit. */
+  commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;
+  /** Resolve a commit SHA to the first canopy instance rendering that
+   *  commit's tree. Used by the picker to re-resolve a selection-by-sha
+   *  across world rebuilds. Returns null when no tree on this group has
+   *  the given sha. */
+  findTreeBySha(sha: string): {
+    mesh: THREE.InstancedMesh;
+    instanceId: number;
+    commit: CommitEntry;
+  } | null;
+  /** Read the baked canopy instanceColor for the given SHA directly from
+   *  the InstancedMesh that renders it. Returns a CSS hex string (e.g.
+   *  "#5e8a3a") or null when the sha can't be found. */
+  colorForSha(sha: string): string | null;
+  /** Set which sha is currently hovered (null clears). Tints that
+   *  tree's canopy slightly toward white for visual feedback. */
+  setHoverSha(sha: string | null): void;
+  /** Set which sha is currently selected (null clears). Tints that
+   *  tree's canopy more strongly than hover. */
+  setSelectionSha(sha: string | null): void;
 }
+
+/** Lerp-toward-white amount for hover and selection canopy tints.
+ *  0 = no change, 1 = fully white. Keep both subtle. */
+const HOVER_TINT   = 0.15;
+const SELECT_TINT  = 0.30;
 
 /** Subdivision levels of the icosahedron canopy.
  *  detail 0 → 20 faces (very faceted),
@@ -202,7 +231,7 @@ export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
 ): Trees {
-  const cfg = TREES.get();
+  let cfg = TREES.get();
 
   // Height and width in absolute world units, independent of buildings.
   // Config exposes DIAMETER for width; convert to radius for the canopy.
@@ -253,8 +282,8 @@ export function createTreeRenderer(
   }
 
   // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
-  // TREE_COLOR_NEW (light green); busy days (many commits the same day)
-  // interpolate toward TREE_COLOR_OLD (dark green). All commits on the
+  // TREE_COLOR_SOLO_DAY; busy days (many commits the same day)
+  // interpolate toward TREE_COLOR_BUSY_DAY. All commits on the
   // same date share a color. Log-normalized so the typical 1–10
   // commits-per-day band stays readable when one outlier day spikes to
   // 50+ commits.
@@ -267,7 +296,25 @@ export function createTreeRenderer(
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
       t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
     }
-    interpolateOklch(newColor, oldColor, t, target);
+    interpolateOklch(soloDayColor, busyDayColor, t, target);
+
+    if (cfg.TREE_AGE_DESAT_ENABLED && commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
+      const aT = ageT(commits[placements[i].commitIndex], ageRange);
+      const minFactor = cfg.TREE_AGE_SATURATION_MIN / 100;
+      const maxFactor = cfg.TREE_AGE_SATURATION_MAX / 100;
+      const factor = minFactor + aT * (maxFactor - minFactor);
+      // Skip the HSL roundtrip when factor is effectively 1 — the newest
+      // commit at MAX=100 lands here, saving one getHSL+setHSL per tree.
+      if (factor < 0.999) {
+        // Apply saturation scaling in HSL space.
+        const hsl = _tmpHsl;
+        target.getHSL(hsl);
+        hsl.s *= factor;
+        if (hsl.s < 0) hsl.s = 0;
+        if (hsl.s > 1) hsl.s = 1;
+        target.setHSL(hsl.h, hsl.s, hsl.l);
+      }
+    }
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
@@ -290,10 +337,11 @@ export function createTreeRenderer(
   const tmpScale = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   const tmpColor = new THREE.Color();
-  const oldColor = new THREE.Color();
-  const newColor = new THREE.Color();
-  setColorFromHex(oldColor, cfg.TREE_COLOR_OLD);
-  setColorFromHex(newColor, cfg.TREE_COLOR_NEW);
+  const busyDayColor = new THREE.Color();
+  const soloDayColor = new THREE.Color();
+  const _tmpHsl = { h: 0, s: 0, l: 0 };
+  setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
+  setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
 
   const totalTrees = placements.length;
 
@@ -304,6 +352,17 @@ export function createTreeRenderer(
     const detail = perTreeDetail(i);
     buckets[detail].push(i);
   }
+
+  // Base color cache: keyed by commit SHA, value is the hex color string
+  // (e.g. "#5e8a3a") computed during bake. Populated below and rebuilt
+  // on every refresh(). colorForSha reads from here, not the instance
+  // buffer, so hover/select tints never bleed into the returned value.
+  const _baseColorBySha = new Map<string, string>();
+
+  // O(1) index from sha → canopy instance. Populated in the bake loop
+  // alongside _baseColorBySha, cleared + rebuilt on refresh(). Lets
+  // findTreeBySha, _applyTint, and _restoreBase skip nested loops.
+  const _treeIndexBySha = new Map<string, { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }>();
 
   const canopyRecords: CanopyMeshRecord[] = [];
   for (const detail of DETAIL_LEVELS) {
@@ -317,6 +376,7 @@ export function createTreeRenderer(
     mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
     mesh.frustumCulled = false;
     mesh.visible = cfg.TREES_ENABLED;
+    mesh.userData.meshKind = 'tree-canopy';
     mesh.userData.placementOrder = indices;
 
     for (let k = 0; k < indices.length; k++) {
@@ -338,6 +398,13 @@ export function createTreeRenderer(
       mesh.setMatrixAt(k, tmpMatrix);
 
       perTreeColor(placementIdx, tmpColor);
+      // Cache the base color before writing it to the instance buffer.
+      // The buffer can later be modified by tints; the cache stays stable.
+      const c = commits?.[placements[placementIdx].commitIndex];
+      if (c?.sha) {
+        _baseColorBySha.set(c.sha, '#' + tmpColor.getHexString());
+        _treeIndexBySha.set(c.sha, { mesh, instanceId: k, commit: c });
+      }
       mesh.setColorAt(k, tmpColor);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -347,11 +414,18 @@ export function createTreeRenderer(
   }
 
   // Trunk: one shared mesh, one instance per tree in placement order.
+  // Identity array: trunk instance i is always placement i, but we
+  // materialize it so commitForInstance stays uniform across canopy +
+  // trunk lookups without a special-case branch.
+  const trunkPlacementOrder = new Array<number>(totalTrees);
+  for (let i = 0; i < totalTrees; i++) trunkPlacementOrder[i] = i;
   const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, totalTrees);
   trunkMesh.name = 'tree-trunk';
   trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
   trunkMesh.frustumCulled = false;
   trunkMesh.visible = cfg.TREES_ENABLED;
+  trunkMesh.userData.meshKind = 'tree-trunk';
+  trunkMesh.userData.placementOrder = trunkPlacementOrder;
 
   for (let i = 0; i < totalTrees; i++) {
     const p = placements[i];
@@ -374,22 +448,37 @@ export function createTreeRenderer(
   group.add(trunkMesh);
 
   function refresh(): void {
-    const c = TREES.get();
-    group.visible = c.TREES_ENABLED;
-    for (const rec of canopyRecords) rec.mesh.visible = c.TREES_ENABLED;
-    trunkMesh.visible = c.TREES_ENABLED;
+    cfg = TREES.get();
+    group.visible = cfg.TREES_ENABLED;
+    for (const rec of canopyRecords) rec.mesh.visible = cfg.TREES_ENABLED;
+    trunkMesh.visible = cfg.TREES_ENABLED;
 
-    setColorFromHex(trunkMaterial.color, c.TREE_TRUNK_COLOR);
-    setColorFromHex(oldColor, c.TREE_COLOR_OLD);
-    setColorFromHex(newColor, c.TREE_COLOR_NEW);
+    setColorFromHex(trunkMaterial.color, cfg.TREE_TRUNK_COLOR);
+    setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
+    setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
 
+    // Rebuild the base-color cache and sha index before re-baking so
+    // colorForSha / findTreeBySha always reflect the current config colors.
+    _baseColorBySha.clear();
+    _treeIndexBySha.clear();
     for (const rec of canopyRecords) {
       for (let k = 0; k < rec.placementOrder.length; k++) {
-        perTreeColor(rec.placementOrder[k], tmpColor);
+        const placementIdx = rec.placementOrder[k];
+        perTreeColor(placementIdx, tmpColor);
+        const commit = commits?.[placements[placementIdx].commitIndex];
+        if (commit?.sha) {
+          _baseColorBySha.set(commit.sha, '#' + tmpColor.getHexString());
+          _treeIndexBySha.set(commit.sha, { mesh: rec.mesh, instanceId: k, commit });
+        }
         rec.mesh.setColorAt(k, tmpColor);
       }
       if (rec.mesh.instanceColor) rec.mesh.instanceColor.needsUpdate = true;
     }
+
+    // Re-apply hover / selection tints after the base colors are baked.
+    // Apply hover first then selected so selected wins when both apply.
+    if (_hoverSha) _applyTint(_hoverSha, HOVER_TINT);
+    if (_selectedSha) _applyTint(_selectedSha, SELECT_TINT);
   }
 
   function dispose(): void {
@@ -400,5 +489,102 @@ export function createTreeRenderer(
     trunkMaterial.dispose();
   }
 
-  return { group, refresh, dispose };
+  function commitForInstance(
+    mesh: THREE.InstancedMesh,
+    instanceId: number,
+  ): CommitEntry | null {
+    const order = mesh.userData?.placementOrder as number[] | undefined;
+    if (!order) return null;
+    if (instanceId < 0 || instanceId >= order.length) return null;
+    const placementIdx = order[instanceId];
+    const p = placements[placementIdx];
+    if (!p) return null;
+    if (!commits) return null;
+    if (p.commitIndex < 0 || p.commitIndex >= commits.length) return null;
+    return commits[p.commitIndex];
+  }
+
+  function findTreeBySha(sha: string): {
+    mesh: THREE.InstancedMesh;
+    instanceId: number;
+    commit: CommitEntry;
+  } | null {
+    return _treeIndexBySha.get(sha) ?? null;
+  }
+
+  function colorForSha(sha: string): string | null {
+    return _baseColorBySha.get(sha) ?? null;
+  }
+
+  // ── Hover / selection tint state machine ─────────────────────────────
+  const _WHITE = new THREE.Color(1, 1, 1);
+  const _tintTmp = new THREE.Color();
+  let _hoverSha: string | null = null;
+  let _selectedSha: string | null = null;
+
+  /** Find the canopy instance for `sha`, read the cached base color, lerp
+   *  toward white by `amount`, and write it back. Uses addUpdateRange for
+   *  a partial GPU upload (3 floats instead of the full buffer).
+   *
+   *  The cached hex was produced by THREE.Color.getHexString(), which
+   *  converts from the working color space (linear-sRGB) to sRGB for
+   *  output. We must parse it back with SRGBColorSpace so THREE converts
+   *  it to linear-sRGB internally — a round-trip match. */
+  function _applyTint(sha: string, amount: number): void {
+    const idx = _treeIndexBySha.get(sha);
+    if (!idx) return;
+    const hex = _baseColorBySha.get(sha);
+    if (!hex) return;
+    _tintTmp.setStyle(hex, THREE.SRGBColorSpace);
+    _tintTmp.lerp(_WHITE, amount);
+    idx.mesh.setColorAt(idx.instanceId, _tintTmp);
+    const colorAttr = idx.mesh.instanceColor!;
+    colorAttr.addUpdateRange(idx.instanceId * 3, 3);
+    colorAttr.needsUpdate = true;
+  }
+
+  /** Restore the cached base color for the canopy instance of `sha`.
+   *  Uses addUpdateRange for a partial GPU upload. */
+  function _restoreBase(sha: string): void {
+    const idx = _treeIndexBySha.get(sha);
+    if (!idx) return;
+    const hex = _baseColorBySha.get(sha);
+    if (!hex) return;
+    _tintTmp.setStyle(hex, THREE.SRGBColorSpace);
+    idx.mesh.setColorAt(idx.instanceId, _tintTmp);
+    const colorAttr = idx.mesh.instanceColor!;
+    colorAttr.addUpdateRange(idx.instanceId * 3, 3);
+    colorAttr.needsUpdate = true;
+  }
+
+  /** Re-derive and apply whichever state is currently "winning" for `sha`.
+   *  Priority: selected > hovered > base. */
+  function _applyStateFor(sha: string | null): void {
+    if (!sha) return;
+    if (sha === _selectedSha) {
+      _applyTint(sha, SELECT_TINT);
+    } else if (sha === _hoverSha) {
+      _applyTint(sha, HOVER_TINT);
+    } else {
+      _restoreBase(sha);
+    }
+  }
+
+  function setHoverSha(sha: string | null): void {
+    if (sha === _hoverSha) return;
+    const prev = _hoverSha;
+    _hoverSha = sha;
+    _applyStateFor(prev);
+    _applyStateFor(sha);
+  }
+
+  function setSelectionSha(sha: string | null): void {
+    if (sha === _selectedSha) return;
+    const prev = _selectedSha;
+    _selectedSha = sha;
+    _applyStateFor(prev);
+    _applyStateFor(sha);
+  }
+
+  return { group, refresh, dispose, commitForInstance, findTreeBySha, colorForSha, setHoverSha, setSelectionSha };
 }

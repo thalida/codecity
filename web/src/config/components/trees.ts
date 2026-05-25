@@ -14,10 +14,14 @@
 //       TREE_MIN_WIDTH  →  fewest files
 //       TREE_MAX_WIDTH  →  most files
 //   - COLOR (canopy): two-color interpolation by COMMITS-PER-DAY.
-//     Solo-commit days lean toward TREE_COLOR_NEW (light green);
+//     Solo-commit days lean toward TREE_COLOR_SOLO_DAY;
 //     busy days (many commits sharing that day) lean toward
-//     TREE_COLOR_OLD (dark green). All commits on the same date
+//     TREE_COLOR_BUSY_DAY. All commits on the same date
 //     share a color. Log-normalized.
+//     When TREE_AGE_DESAT_ENABLED is true, the resulting color is
+//     additionally scaled in HSL.S by a factor ramped from
+//     TREE_AGE_SATURATION_MIN (oldest commit) to TREE_AGE_SATURATION_MAX
+//     (newest commit) — so older trees fade toward gray.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
@@ -62,11 +66,11 @@ export interface TreesConfig {
    *  canopy down without changing its overall height. */
   CANOPY_TRUNK_OVERLAP_FRAC: number;
 
-  /** Color for the oldest commit (interpolation endpoint, t=0). */
-  TREE_COLOR_OLD: string;
+  /** Color trees interpolate toward on a busy day (many commits share the same date). */
+  TREE_COLOR_BUSY_DAY: string;
 
-  /** Color for the newest commit (interpolation endpoint, t=1). */
-  TREE_COLOR_NEW: string;
+  /** Color trees interpolate toward on a solo day (only one commit on its date). */
+  TREE_COLOR_SOLO_DAY: string;
 
   /** 0 = flat canopy (no vertex shading); 1 = base of canopy fully dark. */
   TREE_SHADING_STRENGTH: number;
@@ -77,6 +81,19 @@ export interface TreesConfig {
   /** Rejection-sampling footprint half-size as a fraction of
    *  BUILDING_DIMENSIONS.MAX_WIDTH. */
   SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: number;
+
+  /** When true, trees desaturate based on commit age — oldest commits
+   *  get washed toward gray, newest keep full color. */
+  TREE_AGE_DESAT_ENABLED: boolean;
+
+  /** Fraction of base saturation retained at the OLDEST commit's age
+   *  (percent, 0-100). 0 = fully gray, 100 = no desaturation.
+   *  Only applied when TREE_AGE_DESAT_ENABLED. */
+  TREE_AGE_SATURATION_MIN: number;
+
+  /** Fraction of base saturation retained at the NEWEST commit's age
+   *  (percent, 0-100). 100 = colors at full strength. */
+  TREE_AGE_SATURATION_MAX: number;
 }
 
 export const TREES = map<TreesConfig>({
@@ -95,10 +112,14 @@ export const TREES = map<TreesConfig>({
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
   CANOPY_TRUNK_OVERLAP_FRAC: 0.10,
 
-  TREE_COLOR_OLD: '#0a2613',
-  TREE_COLOR_NEW: '#a8d68a',
+  TREE_COLOR_BUSY_DAY: '#05140a',
+  TREE_COLOR_SOLO_DAY: '#165028',
   TREE_SHADING_STRENGTH: 0.65,
-  TREE_TRUNK_COLOR: '#231810',
+  TREE_TRUNK_COLOR: '#110c08',
 
   SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
+
+  TREE_AGE_DESAT_ENABLED: true,
+  TREE_AGE_SATURATION_MIN: 50,
+  TREE_AGE_SATURATION_MAX: 100,
 });

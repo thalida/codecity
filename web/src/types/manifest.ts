@@ -13,6 +13,7 @@ export enum NodeKind {
   Directory = 'directory',
   Gem = 'gem',
   Label = 'label',
+  Commit = 'commit',
 }
 
 /** Git metadata for a file. ISO 8601 timestamps; null if untracked. */
@@ -86,6 +87,8 @@ export interface RepoInfo {
 export interface CommitEntry {
   date: string;   // "YYYY-MM-DD"
   files: number;
+  /** Full 40-char lowercase hex SHA. UI displays the first 7. */
+  sha: string;
 }
 
 export interface Manifest {

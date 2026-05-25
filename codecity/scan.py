@@ -194,7 +194,7 @@ def _collect_git_dates_windowed(
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """One newest→oldest `git log --name-status` walk that populates
     both created_map and modified_map in a single pass, and also
-    accumulates a per-commit (date, files) summary list.
+    accumulates a per-commit (date, files, sha) summary list.
 
     Replaces two parallel walks (`--diff-filter=A --reverse` for creates
     + bare walk for modifies). Two wins:
@@ -226,9 +226,10 @@ def _collect_git_dates_windowed(
     window = _git_history_window(git_window)
     _log(f"  starting git log walk (--since={window or 'ALL'})…")
     log_argv = ["git", "-C", str(root), "log",
-                "--format=COMMIT:%aI",
+                "--format=COMMIT:%aI%x09%H",
                 "--name-status",
-                "--no-renames"]
+                "--no-renames",
+                "--diff-merges=first-parent"]
     if window:
         log_argv.append(f"--since={window}")
     try:
@@ -246,6 +247,7 @@ def _collect_git_dates_windowed(
     modified: dict[str, str] = {}
     commits_newest_first: list[CommitEntry] = []
     current_date_iso = ""
+    current_sha = ""
     current_files = 0
     commits = 0
     heartbeat_every = 25_000
@@ -264,8 +266,13 @@ def _collect_git_dates_windowed(
                     commits_newest_first.append({
                         "date": current_date_iso[:10],
                         "files": current_files,
+                        "sha": current_sha,
                     })
-                current_date_iso = line[len("COMMIT:"):]
+                rest = line[len("COMMIT:"):]
+                # %aI%x09%H → "<iso-date>\t<sha40>"
+                date_part, _, sha_part = rest.partition("\t")
+                current_date_iso = date_part
+                current_sha = sha_part
                 current_files = 0
                 commits += 1
                 if commits % heartbeat_every == 0:
@@ -292,6 +299,7 @@ def _collect_git_dates_windowed(
             commits_newest_first.append({
                 "date": current_date_iso[:10],
                 "files": current_files,
+                "sha": current_sha,
             })
     finally:
         proc.wait()
@@ -319,7 +327,7 @@ def _collect_git_metadata(
                            since the window started are absent.
     - tracked_set        = all tracked paths + parent dirs (for the
                            gitignore filter — independent of history).
-    - commits            = oldest-first list of CommitEntry (date, files)
+    - commits            = oldest-first list of CommitEntry (date, files, sha)
                            for each commit within the history window.
 
     Single `git log --name-status --no-renames --since=$WINDOW` walk

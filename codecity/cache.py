@@ -27,6 +27,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -46,12 +47,25 @@ CACHE_ROOT = Path(
 )
 
 _FILE_CACHE_VERSION = 1
-# Bumped to 5: CommitEntry no longer carries gap_days (the renderer
-# replaced commit-gap with commits-per-day, derived at render time from
-# the date field). Pre-v5 entries get dropped on load.
-_GIT_HISTORY_CACHE_VERSION = 5
-# Bumped to 4: Manifest's commits list no longer carries gap_days.
-_MANIFEST_CACHE_VERSION = 4
+# Bumped to 8: scanner switched from `-c` to
+# `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
+# report their actual file count. Pre-v8 entries undercount merges.
+_GIT_HISTORY_CACHE_VERSION = 8
+# Bumped only when the manifest shape changes for reasons UNRELATED
+# to git-history output (e.g. a new field on FileNode). Git-history
+# shape changes don't need a bump here — they auto-invalidate through
+# _MANIFEST_CACHE_VERSION's composite below.
+_MANIFEST_SCHEMA_VERSION = 1
+# Composite cache version: invalidates when EITHER the manifest
+# schema OR the git-history cache shape changes. Stored as a string
+# in the cache file's `version` field; the loader's equality check
+# works the same as it did for an int.
+_MANIFEST_CACHE_VERSION: str = f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
+
+# Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
+# Used by cache_load_git_history to reject any cache entry whose sha
+# field was corrupted or hand-edited to a non-hex string.
+_SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
@@ -210,9 +224,12 @@ def cache_load_git_history(
             continue
         date = c.get("date")
         files = c.get("files")
-        if (isinstance(date, str) and isinstance(files, int)
-                and not isinstance(files, bool)):
-            commits.append({"date": date, "files": files})
+        sha = c.get("sha")
+        if (isinstance(date, str)
+                and isinstance(files, int) and not isinstance(files, bool)
+                and isinstance(sha, str)
+                and _SHA_HEX_RE.fullmatch(sha) is not None):
+            commits.append({"date": date, "files": files, "sha": sha})
     return created, modified, commits
 
 

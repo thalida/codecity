@@ -4,7 +4,7 @@
 // canopy widths driven by commit file count (more files = wider) and
 // canopy facet counts also driven by file count (more files = higher
 // subdivision), and canopy colors that interpolate between
-// TREE_COLOR_NEW (solo-commit days) and TREE_COLOR_OLD (busy days) by
+// TREE_COLOR_SOLO_DAY (solo-commit days) and TREE_COLOR_BUSY_DAY (busy days) by
 // commits-per-day.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -32,10 +32,13 @@ function resetStores() {
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
     SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
-    TREE_COLOR_OLD: '#0a2613',
-    TREE_COLOR_NEW: '#a8d68a',
+    TREE_COLOR_BUSY_DAY: '#0a2613',
+    TREE_COLOR_SOLO_DAY: '#a8d68a',
     TREE_SHADING_STRENGTH: 0.65,
     TREE_TRUNK_COLOR: '#120c08',
+    TREE_AGE_DESAT_ENABLED: false,
+    TREE_AGE_SATURATION_MIN: 20,
+    TREE_AGE_SATURATION_MAX: 100,
   });
   BUILDING_DIMENSIONS.set({
     MIN_FLOORS: 2,
@@ -296,10 +299,10 @@ describe('createTreeRenderer()', () => {
       .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
   });
 
-  it('per-instance color interpolates between NEW (light, solo day) and OLD (dark, busy day) by COMMITS-PER-DAY', () => {
+  it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
     // Three days with 1, 2, and 4 commits respectively. After log-norm:
-    //   - solo day (count=1) → t=0 → TREE_COLOR_NEW (light green)
-    //   - busy day (count=4) → t=1 → TREE_COLOR_OLD (dark green)
+    //   - solo day (count=1) → t=0 → TREE_COLOR_SOLO_DAY
+    //   - busy day (count=4) → t=1 → TREE_COLOR_BUSY_DAY
     //   - mid day (count=2)  → t≈0.5 between log1p(1) and log1p(4)
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // solo day
@@ -399,8 +402,8 @@ describe('createTreeRenderer()', () => {
     const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
     const geomsBefore = meshesBefore.map((m) => m.geometry);
 
-    TREES.setKey('TREE_COLOR_OLD', '#000000');
-    TREES.setKey('TREE_COLOR_NEW', '#ffffff');
+    TREES.setKey('TREE_COLOR_BUSY_DAY', '#000000');
+    TREES.setKey('TREE_COLOR_SOLO_DAY', '#ffffff');
     TREES.setKey('TREE_TRUNK_COLOR', '#ff0000');
     trees.refresh();
 
@@ -423,6 +426,145 @@ describe('createTreeRenderer()', () => {
     }
     trees.dispose();
     for (const t of tracked) expect(t.disposed).toBe(true);
+  });
+
+  describe('age-based desaturation', () => {
+    // Helper: read the raw THREE.Color stored in a canopy instance.
+    function instanceColor(group: THREE.Group, placementIdx: number): THREE.Color {
+      const inst = findCanopyInstance(group, placementIdx);
+      if (!inst) throw new Error(`placement ${placementIdx} not found`);
+      const color = new THREE.Color();
+      inst.mesh.getColorAt(inst.instanceIdx, color);
+      return color;
+    }
+
+    // Helper: read the HSL saturation of a canopy instance color.
+    function instanceSaturation(group: THREE.Group, placementIdx: number): number {
+      const color = instanceColor(group, placementIdx);
+      const hsl = { h: 0, s: 0, l: 0 };
+      color.getHSL(hsl);
+      return hsl.s;
+    }
+
+    it('TREE_AGE_DESAT_ENABLED=false: canopy color matches raw OKLCH-interpolated base', () => {
+      // Two commits on different dates so each is a solo day.
+      // With desat OFF, the instance color must equal the raw OKLCH-interpolated
+      // value (no saturation scaling applied). We verify by rebuilding once with
+      // desat OFF and once with desat ON at extreme min (factor→0) and confirming
+      // the OFF result differs from the ON result for the oldest commit.
+      const testCommits = buildCommits(
+        { date: '2026-01-01', files: 5 }, // oldest
+        { date: '2026-01-21', files: 5 }, // newest
+      );
+      const placements = [
+        placement(0, 0, 1, 0),
+        placement(20, 0, 2, 1),
+      ];
+
+      // Build with desat OFF (set in resetStores).
+      trees = createTreeRenderer(placements, testCommits);
+      const offColor = instanceColor(trees.group, 0).clone();
+      trees.dispose();
+
+      // Build with desat ON + extreme min (0 → fully gray).
+      TREES.setKey('TREE_AGE_DESAT_ENABLED', true);
+      TREES.setKey('TREE_AGE_SATURATION_MIN', 0);
+      TREES.setKey('TREE_AGE_SATURATION_MAX', 100);
+      trees = createTreeRenderer(placements, testCommits);
+      const onColor = instanceColor(trees.group, 0).clone();
+
+      // The OFF color must differ from the gray-forced ON color (oldest commit).
+      // If desat ON/OFF were the same this test would be meaningless.
+      const offHsl = { h: 0, s: 0, l: 0 };
+      const onHsl  = { h: 0, s: 0, l: 0 };
+      offColor.getHSL(offHsl);
+      onColor.getHSL(onHsl);
+      expect(offHsl.s).toBeGreaterThan(onHsl.s + 0.01);
+    });
+
+    it('TREE_AGE_DESAT_ENABLED=true: oldest commit saturation is reduced by minFactor relative to no-desat base', () => {
+      // Build once without desat to capture the base saturation, then again
+      // with desat ON and verify the oldest commit's saturation is base * minFactor.
+      const testCommits = buildCommits(
+        { date: '2026-01-01', files: 5 }, // oldest → ageT=0 → factor = MIN/100
+        { date: '2026-01-21', files: 5 }, // newest → ageT=1 → factor = MAX/100
+      );
+      const placements = [
+        placement(0, 0, 1, 0),
+        placement(20, 0, 2, 1),
+      ];
+
+      // Capture base saturation with desat OFF (resetStores sets it false).
+      trees = createTreeRenderer(placements, testCommits);
+      const baseS = instanceSaturation(trees.group, 0);
+      trees.dispose();
+
+      // Now build with desat ON.
+      TREES.setKey('TREE_AGE_DESAT_ENABLED', true);
+      TREES.setKey('TREE_AGE_SATURATION_MIN', 20);
+      TREES.setKey('TREE_AGE_SATURATION_MAX', 100);
+      trees = createTreeRenderer(placements, testCommits);
+
+      const oldestS = instanceSaturation(trees.group, 0);
+      // oldest → ageT=0 → factor = 20/100 = 0.20
+      expect(oldestS).toBeCloseTo(baseS * 0.20, 3);
+    });
+
+    it('TREE_AGE_DESAT_ENABLED=true: newest commit saturation is reduced by maxFactor relative to no-desat base', () => {
+      const testCommits = buildCommits(
+        { date: '2026-01-01', files: 5 }, // oldest
+        { date: '2026-01-21', files: 5 }, // newest → ageT=1 → factor = MAX/100
+      );
+      const placements = [
+        placement(0, 0, 1, 0),
+        placement(20, 0, 2, 1),
+      ];
+
+      // Capture base saturation with desat OFF.
+      trees = createTreeRenderer(placements, testCommits);
+      const baseNewestS = instanceSaturation(trees.group, 1);
+      trees.dispose();
+
+      // Build with desat ON, MAX=100 → factor=1.00 → no change to newest.
+      TREES.setKey('TREE_AGE_DESAT_ENABLED', true);
+      TREES.setKey('TREE_AGE_SATURATION_MIN', 20);
+      TREES.setKey('TREE_AGE_SATURATION_MAX', 100);
+      trees = createTreeRenderer(placements, testCommits);
+
+      const newestS = instanceSaturation(trees.group, 1);
+      // newest → ageT=1 → factor = 100/100 = 1.00 → saturation unchanged
+      expect(newestS).toBeCloseTo(baseNewestS * 1.00, 3);
+    });
+
+    it('refresh() re-applies new TREE_AGE_DESAT_ENABLED config — colors differ after toggle', () => {
+      TREES.setKey('TREE_AGE_DESAT_ENABLED', true);
+      TREES.setKey('TREE_AGE_SATURATION_MIN', 20);
+      TREES.setKey('TREE_AGE_SATURATION_MAX', 100);
+
+      const testCommits = buildCommits(
+        { date: '2026-01-01', files: 5 }, // oldest → will have reduced saturation
+        { date: '2026-01-21', files: 5 }, // newest
+      );
+      const placements = [
+        placement(0, 0, 1, 0),
+        placement(20, 0, 2, 1),
+      ];
+      trees = createTreeRenderer(placements, testCommits);
+
+      // Capture saturation of oldest tree with desat ON.
+      const sWithDesat = instanceSaturation(trees.group, 0);
+
+      // Flip desat OFF and refresh.
+      TREES.setKey('TREE_AGE_DESAT_ENABLED', false);
+      trees.refresh();
+
+      // Capture saturation of oldest tree with desat OFF.
+      const sNoDesat = instanceSaturation(trees.group, 0);
+
+      // Saturation should be higher after disabling desat — the oldest tree
+      // was at 20% saturation with desat ON, full saturation with desat OFF.
+      expect(sNoDesat).toBeGreaterThan(sWithDesat + 0.01);
+    });
   });
 
   describe('tree shading sun direction', () => {

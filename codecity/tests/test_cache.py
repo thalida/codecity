@@ -197,8 +197,8 @@ class GitHistoryCacheTests(CacheTestBase):
         """Round-trip a small commits list through the cache."""
         root = Path("/some/repo")
         commits: list[CommitEntry] = [
-            {"date": "2024-01-01", "files": 3},
-            {"date": "2024-02-15", "files": 7},
+            {"date": "2024-01-01", "files": 3, "sha": "a" * 40},
+            {"date": "2024-02-15", "files": 7, "sha": "b" * 40},
         ]
         cache_mod.cache_save_git_history(
             root, head_sha="abc", git_window="3.years.ago",
@@ -218,6 +218,8 @@ class GitHistoryCacheTests(CacheTestBase):
         root = Path("/some/repo")
         path = _git_history_cache_path(root)
         path.parent.mkdir(parents=True, exist_ok=True)
+        sha_a = "a" * 40
+        sha_b = "b" * 40
         path.write_text(json.dumps({
             "version": cache_mod._GIT_HISTORY_CACHE_VERSION,
             "root": str(root),
@@ -226,13 +228,16 @@ class GitHistoryCacheTests(CacheTestBase):
             "created": {},
             "modified": {},
             "commits": [
-                {"date": "2024-01-01", "files": 3},          # valid
-                "not a dict",                                 # dropped: not a dict
-                {"date": 12345, "files": 5},                  # dropped: date not str
-                {"date": "2024-02-01"},                       # dropped: missing files
-                {"date": "2024-03-01", "files": True},        # dropped: files is bool
-                {"files": 4},                                 # dropped: missing date
-                {"date": "2024-04-01", "files": 7},           # valid
+                {"date": "2024-01-01", "files": 3, "sha": sha_a},   # valid
+                "not a dict",                                         # dropped: not a dict
+                {"date": 12345, "files": 5, "sha": sha_a},           # dropped: date not str
+                {"date": "2024-02-01", "sha": sha_a},                # dropped: missing files
+                {"date": "2024-03-01", "files": True, "sha": sha_a}, # dropped: files is bool
+                {"files": 4, "sha": sha_a},                          # dropped: missing date
+                {"date": "2024-04-01", "files": 7},                  # dropped: missing sha
+                {"date": "2024-05-01", "files": 2, "sha": "short"},  # dropped: sha too short
+                {"date": "2024-05-15", "files": 4, "sha": "Z" * 40}, # sha contains non-hex characters
+                {"date": "2024-06-01", "files": 1, "sha": sha_b},    # valid
             ],
         }), encoding="utf-8")
         loaded = cache_mod.cache_load_git_history(root, "abc", "3.years.ago")
@@ -241,9 +246,30 @@ class GitHistoryCacheTests(CacheTestBase):
         _created, _modified, commits = loaded
         # Only the two well-formed entries survive.
         self.assertEqual(commits, [
-            {"date": "2024-01-01", "files": 3},
-            {"date": "2024-04-01", "files": 7},
+            {"date": "2024-01-01", "files": 3, "sha": sha_a},
+            {"date": "2024-06-01", "files": 1, "sha": sha_b},
         ])
+
+    def test_git_history_rejects_old_version(self):
+        from codecity import cache as cache_mod
+        from codecity.cache import (
+            _git_history_cache_path,
+            cache_load_git_history,
+        )
+        root = Path("/fake/root2")
+        path = _git_history_cache_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Simulate a pre-sha cache file (version one below current).
+        old = {
+            "version": cache_mod._GIT_HISTORY_CACHE_VERSION - 1,
+            "head_sha": "HEADSHA",
+            "git_window": "30.years.ago",
+            "created": {},
+            "modified": {},
+            "commits": [{"date": "2026-03-12", "files": 1}],
+        }
+        path.write_text(json.dumps(old))
+        self.assertIsNone(cache_load_git_history(root, "HEADSHA", "30.years.ago"))
 
     def test_git_history_cache_v2_returns_none(self):
         """A v2 cache file (no commits field) must be treated as a miss
@@ -309,6 +335,33 @@ class ManifestCacheTests(CacheTestBase):
         with gzip.open(path, "wb") as fh:
             fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
+
+    def test_manifest_rejects_when_git_history_version_changed(self):
+        """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
+        must be dropped on load, because the composite version string changes
+        when git-history bumps."""
+        from codecity.cache import (
+            _manifest_cache_path,
+            cache_load_manifest,
+        )
+        import gzip
+        # Write a manifest stamped with a version string that mimics the
+        # OLD git-history version (current minus one).
+        old_g = cache_mod._GIT_HISTORY_CACHE_VERSION - 1
+        stale_version = f"m{cache_mod._MANIFEST_SCHEMA_VERSION}-g{old_g}"
+        root = Path("/fake/root")
+        sig = "deadbeef" * 8
+        path = _manifest_cache_path(root, sig)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Manifest cache files are gzipped JSON.
+        payload = json.dumps({
+            "version": stale_version,
+            "manifest": {"root": str(root), "scanned_at": "x", "signature": sig, "tree_signature": sig, "tree": {}, "repo": None, "commits": None},
+        })
+        with gzip.open(path, "wb") as fh:
+            fh.write(payload.encode("utf-8"))
+        # Loader must reject.
+        self.assertIsNone(cache_load_manifest(root, sig))
 
     def test_clear_manifests_deletes_every_signature(self) -> None:
         root = Path("/x")
