@@ -266,6 +266,35 @@ describe('picker: tree commit picking', () => {
     p.dispose();
   });
 
+  it('refreshes pickables when trees attach asynchronously after world rebuild', () => {
+    const canopyA = makeCanopy();
+    const trunkA = makeTrunk();
+    const commits = [commit(0)];
+    const treesA = makeFakeTrees(canopyA, trunkA, commits);
+    const world = makeWorld(treesA);
+    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
+
+    // World rebuild: trees absent initially (simulates the moment between
+    // street/building rebuild and async tree placement completing).
+    world.setTrees(null);
+    world.triggerRebuild();
+    // Now trees arrive asynchronously and the world fires onChange again.
+    const canopyB = makeCanopy();
+    const trunkB = makeTrunk();
+    const treesB = makeFakeTrees(canopyB, trunkB, commits);
+    world.setTrees(treesB);
+    world.triggerRebuild();
+
+    // After the second triggerRebuild, picking the new canopy should
+    // produce a CommitTarget — proving pickables refreshed.
+    const hit = {
+      object: canopyB, instanceId: 0, distance: 1, point: new THREE.Vector3(),
+    } as unknown as THREE.Intersection<THREE.Object3D>;
+    const target = p.interpretHit(hit);
+    expect(target).not.toBeNull();
+    p.dispose();
+  });
+
   it('hydrating a Commit key for a missing sha clears the selection + key', () => {
     const canopy = makeCanopy();
     const trunk = makeTrunk();

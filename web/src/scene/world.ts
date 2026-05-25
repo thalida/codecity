@@ -1199,6 +1199,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         scene.add(_bushes.group);
       }
 
+      // Re-notify listeners now that async decoration (trees, bushes) is
+      // fully attached to the scene. The first onChange fired before this
+      // deferred block ran, so world.getTrees() returned null at that
+      // point — the picker's _refreshPickables() therefore had no tree
+      // meshes to include. This second emit gives the picker (and any
+      // other subscriber) a chance to re-refresh with the live tree group.
+      // We pass an empty diff because only foliage changed; no building or
+      // street geometry was added since the first emit.
+      _emit(changeCbs, { entering: { buildings: [], streets: [] }, exiting: { buildings: [], streets: [] }, staying: { buildings: [], streets: [] } });
+
       REBUILD_STATUS.set('idle');
     }
   }
