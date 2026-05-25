@@ -4,6 +4,6 @@
 
 import type { CommitEntry } from '@/types';
 
-export function commits(...entries: CommitEntry[]): CommitEntry[] {
-  return entries.map((e) => ({ ...e }));
+export function commits(...entries: (Omit<CommitEntry, 'sha'> & { sha?: string })[]): CommitEntry[] {
+  return entries.map((e) => ({ ...e, sha: e.sha ?? 'a'.repeat(40) }));
 }
