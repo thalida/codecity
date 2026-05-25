@@ -20,7 +20,7 @@ import argparse
 import os
 import signal
 import sys
-import time
+import threading
 from typing import Optional
 
 from api import __version__
@@ -52,8 +52,17 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = _build_parser().parse_args(argv)
 
     if args.reload:
-        # Defer the import — watchfiles isn't needed in prod.
-        from api._reload import run_with_reload
+        # Defer the import — keeps watchfiles off the cold-start import graph
+        # for `codecity --version` / `--help` / non-reload runs.
+        try:
+            from api._reload import run_with_reload
+        except ImportError:
+            print(
+                "error: --reload is not yet wired up. "
+                "Use docker compose -f docker-compose.dev.yml up for dev mode.",
+                file=sys.stderr,
+            )
+            return 2
         return run_with_reload(port=args.port)
 
     return _serve(port=args.port)
@@ -62,7 +71,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 def _serve(port: int) -> int:
     from api.server import start_server
 
-    _, bound, shutdown = start_server(port=port)
+    _, bound, shutdown = start_server(port=port, host="0.0.0.0")
     print(
         f"[codecity] listening on http://0.0.0.0:{bound}/",
         file=sys.stderr,
@@ -70,18 +79,16 @@ def _serve(port: int) -> int:
     )
     print("[codecity] Ctrl-C to stop", file=sys.stderr, flush=True)
 
-    stop_requested = False
+    stop_event = threading.Event()
 
     def _handle_signal(signum: int, _frame: object) -> None:
-        nonlocal stop_requested
-        stop_requested = True
+        stop_event.set()
 
     signal.signal(signal.SIGINT, _handle_signal)
     signal.signal(signal.SIGTERM, _handle_signal)
 
     try:
-        while not stop_requested:
-            time.sleep(0.5)
+        stop_event.wait()
     finally:
         shutdown()
     return 0

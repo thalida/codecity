@@ -809,12 +809,18 @@ class _Server(ThreadingHTTPServer):
 def start_server(
     port: int = 0,
     static_dir: Path | None = None,
+    host: str = "127.0.0.1",
 ) -> tuple[ThreadingHTTPServer, int, Callable[[], None]]:
     """Start the server on a background daemon thread.
 
     Returns ``(server, bound_port, shutdown_fn)``. ``port=0`` lets the OS
     pick a free port; the bound port is returned so the caller can point
     the browser at the right URL.
+
+    ``host`` defaults to ``127.0.0.1`` for safe local-only binding from
+    tests and direct invocations. The container entrypoint passes
+    ``host="0.0.0.0"`` so Docker's host port forward can reach the
+    server inside the container.
 
     The server has no startup state — every manifest is computed on
     demand from the query params on `/api/manifest`.
@@ -826,7 +832,7 @@ def start_server(
     with _State.allowed_roots_lock:
         _State.allowed_roots = set()
 
-    server = _Server(("127.0.0.1", port), Handler)
+    server = _Server((host, port), Handler)
     bound_port = server.server_address[1]
 
     thread = threading.Thread(target=server.serve_forever, daemon=True)
