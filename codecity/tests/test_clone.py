@@ -7,8 +7,10 @@ the user's real ``~/.cache/codecity/``.
 
 from __future__ import annotations
 
+import io
 import os
 import subprocess
+import threading
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -297,6 +299,116 @@ class EnsureCloneErrorRoutingTests(unittest.TestCase):
                 target.exists(),
                 "update-path failure removed the existing clone directory",
             )
+
+
+class _SilentFakeProc:
+    """subprocess.Popen stand-in whose stderr/stdout return EOF
+    immediately but whose wait() blocks for ``runtime`` seconds. Mimics
+    the real-world failure mode the watchdog exists to surface: a git
+    sub-process that's doing work (pack download) but emitting nothing
+    to stderr."""
+
+    returncode = 0
+
+    def __init__(self, runtime: float) -> None:
+        self.stdout = io.BytesIO(b"")
+        self.stderr = io.BytesIO(b"")
+        self._done = threading.Event()
+        threading.Timer(runtime, self._done.set).start()
+
+    def wait(self) -> int:
+        self._done.wait()
+        return 0
+
+
+class StallWatchdogTests(unittest.TestCase):
+    def test_pack_dir_bytes_sums_top_level_files(self) -> None:
+        with TemporaryDirectory() as td:
+            pack = Path(td) / "pack"
+            pack.mkdir()
+            (pack / "pack-aaa.pack").write_bytes(b"x" * 1500)
+            (pack / "pack-aaa.idx").write_bytes(b"y" * 500)
+            self.assertEqual(clone_mod._pack_dir_bytes(pack), 2000)
+
+    def test_pack_dir_bytes_missing_dir_returns_zero(self) -> None:
+        # The .git/objects/pack dir doesn't exist for the first ~second
+        # of a clone; helper must not raise.
+        self.assertEqual(
+            clone_mod._pack_dir_bytes(Path("/nonexistent/path/xyz")), 0
+        )
+
+    def test_heartbeat_fires_when_subprocess_is_silent(self) -> None:
+        """Watchdog emits 'still working' line when stderr is quiet past
+        the threshold. This is the protection against the
+        --filter=blob:none silent-blob-fetch UX bug."""
+        captured: list[str] = []
+        fake = _SilentFakeProc(runtime=0.6)
+        with mock.patch.object(clone_mod, "_STALL_HEARTBEAT_SECS", 0.15):
+            with mock.patch.object(clone_mod, "_log", side_effect=captured.append):
+                with mock.patch.object(subprocess, "Popen", return_value=fake):
+                    clone_mod._run_git_streaming("ignored")
+        heartbeats = [m for m in captured if "still working" in m]
+        self.assertGreaterEqual(
+            len(heartbeats), 1,
+            f"expected at least one heartbeat; got: {captured}",
+        )
+
+    def test_heartbeat_includes_pack_size_when_progress_dir_set(self) -> None:
+        """When progress_dir is provided, heartbeat surfaces pack-dir
+        bytes so the user sees download progress during silent fetch."""
+        captured: list[str] = []
+        with TemporaryDirectory() as td:
+            pack = Path(td) / "pack"
+            pack.mkdir()
+            (pack / "pack-xyz.pack").write_bytes(b"z" * 3 * 1024 * 1024)  # 3 MB
+
+            fake = _SilentFakeProc(runtime=0.5)
+            with mock.patch.object(clone_mod, "_STALL_HEARTBEAT_SECS", 0.15):
+                with mock.patch.object(clone_mod, "_log", side_effect=captured.append):
+                    with mock.patch.object(subprocess, "Popen", return_value=fake):
+                        clone_mod._run_git_streaming("ignored", progress_dir=pack)
+
+        heartbeats = [m for m in captured if "still working" in m]
+        self.assertTrue(heartbeats, f"no heartbeat fired; got: {captured}")
+        # First heartbeat reports current size (no delta yet).
+        self.assertIn("3 MB on disk", heartbeats[0])
+
+    def test_heartbeat_suppressed_when_subprocess_chats(self) -> None:
+        """A subprocess that produces output and exits promptly should
+        NOT trigger heartbeats — the watchdog only fires during silence.
+        Simulates a small clone that finishes naturally."""
+        class ChattyFakeProc:
+            returncode = 0
+
+            def __init__(self) -> None:
+                lines = b"\n".join(
+                    f"Resolving deltas: {p}%".encode() for p in range(0, 100, 10)
+                ) + b"\n"
+                self.stdout = io.BytesIO(b"")
+                self.stderr = io.BytesIO(lines)
+                self._done = threading.Event()
+                # Exit before the silent gap exceeds the heartbeat
+                # threshold (0.15s). Mirrors a real fast clone where
+                # stderr finishes a few ms before proc.wait returns.
+                threading.Timer(0.05, self._done.set).start()
+
+            def wait(self) -> int:
+                self._done.wait()
+                return 0
+
+        captured: list[str] = []
+        with mock.patch.object(clone_mod, "_STALL_HEARTBEAT_SECS", 0.15):
+            with mock.patch.object(clone_mod, "_log", side_effect=captured.append):
+                with mock.patch.object(subprocess, "Popen", return_value=ChattyFakeProc()):
+                    clone_mod._run_git_streaming("ignored")
+
+        heartbeats = [m for m in captured if "still working" in m]
+        self.assertEqual(
+            len(heartbeats), 0,
+            f"watchdog fired during active output: {captured}",
+        )
+        git_lines = [m for m in captured if "Resolving deltas" in m]
+        self.assertEqual(len(git_lines), 10, f"missing git lines: {captured}")
 
 
 if __name__ == "__main__":

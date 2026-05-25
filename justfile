@@ -5,5 +5,5 @@ setup:
     uv sync
     cd web && npm install
 
-dev:
+dev: setup
     uv run codecity --dev
