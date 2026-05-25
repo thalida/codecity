@@ -20,7 +20,7 @@ Run this checklist after any change that touches:
 ( cd web && npm run build )
 uv run codecity .                  # run on this repo for a real-world scene
 # or
-uv run codecity codecity/tests/fixtures/sample-repo
+uv run codecity api/tests/fixtures/sample-repo
 ```
 
 Two tabs: keep the running app + the controls pane visible.
