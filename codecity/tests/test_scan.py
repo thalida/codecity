@@ -603,6 +603,45 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
 
+    def test_collect_git_metadata_counts_merge_files(self):
+        """A merge commit's combined-diff file count must be > 0, not the
+        empty count git log emits by default for merges."""
+        import tempfile
+        from codecity.scan import _collect_git_metadata
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
+            subprocess.run(["git", "-C", td, "config", "user.email", "t@example.com"], check=True)
+            subprocess.run(["git", "-C", td, "config", "user.name", "T"], check=True)
+            # Initial commit on main.
+            (tdp / "base.txt").write_text("base\n")
+            subprocess.run(["git", "-C", td, "add", "."], check=True)
+            subprocess.run(["git", "-C", td, "commit", "-q", "-m", "base"], check=True)
+            # Side branch that modifies a file.
+            subprocess.run(["git", "-C", td, "checkout", "-q", "-b", "side"], check=True)
+            (tdp / "base.txt").write_text("side change\n")
+            subprocess.run(["git", "-C", td, "commit", "-aq", "-m", "side change"], check=True)
+            # Back to main, modify same file differently, then merge.
+            subprocess.run(["git", "-C", td, "checkout", "-q", "main"], check=True)
+            (tdp / "base.txt").write_text("main change\n")
+            subprocess.run(["git", "-C", td, "commit", "-aq", "-m", "main change"], check=True)
+            # Force a merge commit with a conflict resolution.
+            merge_result = subprocess.run(
+                ["git", "-C", td, "merge", "-q", "--no-ff", "side"],
+                capture_output=True,
+            )
+            # Conflict expected; resolve.
+            (tdp / "base.txt").write_text("merged\n")
+            subprocess.run(["git", "-C", td, "add", "."], check=True)
+            subprocess.run(["git", "-C", td, "commit", "-aq", "--no-edit"], check=True)
+            _c, _m, _t, commits = _collect_git_metadata(
+                Path(td), use_cache=False, git_window="30.years.ago",
+            )
+            # The merge commit (latest) MUST have files >= 1.
+            # commits are oldest-first, so the merge is last.
+            self.assertGreaterEqual(commits[-1]["files"], 1,
+                f"merge commit files count should be >= 1; got {commits[-1]['files']}")
+
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """When HEAD hasn't moved, _collect_git_metadata should hit the

@@ -47,15 +47,13 @@ CACHE_ROOT = Path(
 )
 
 _FILE_CACHE_VERSION = 1
-# Bumped to 6: CommitEntry gains a `sha` field (full 40-char hex) so the
-# UI can link to the commit on the origin remote. Pre-v6 entries get
-# dropped on load.
-_GIT_HISTORY_CACHE_VERSION = 6
-# Bumped to 5: Manifest's embedded commits list now carries `sha`. Old
-# cached manifests serialize commits without sha, which crashes the
-# frontend (target.commit.sha.slice(0,7) throws). Pre-v5 entries get
-# dropped on load.
-_MANIFEST_CACHE_VERSION = 5
+# Bumped to 7: scanner now passes -c to git log, so merge commits get
+# their combined-diff file counts instead of 0. Pre-v7 entries have
+# stale counts for merges and are dropped on load.
+_GIT_HISTORY_CACHE_VERSION = 7
+# Bumped to 6: scanner now counts merge commits' combined-diff files.
+# Pre-v6 manifests have stale file counts for merges.
+_MANIFEST_CACHE_VERSION = 6
 
 # Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
 # Used by cache_load_git_history to reject any cache entry whose sha

@@ -133,16 +133,34 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-same-day')).toBeNull();
   });
 
-  it('shows a colored swatch in the header when color is provided', () => {
+  it('shows a colored swatch inside .commit-same-day when color is provided', () => {
     const { pane, api } = buildCommitPane({});
-    api.setCommit(COMMIT, { color: '#5e8a3a', now: new Date('2026-05-24T12:00:00Z') });
+    api.setCommit(COMMIT, { color: '#5e8a3a', sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
 
-    const swatch = pane.querySelector('.pane-header .commit-swatch') as HTMLElement;
+    // Swatch lives inside .commit-same-day, NOT in the pane header.
+    const swatch = pane.querySelector('.commit-same-day > .commit-swatch') as HTMLElement;
     expect(swatch).not.toBeNull();
     expect(swatch.style.backgroundColor).toBe('rgb(94, 138, 58)'); // jsdom converts hex to rgb
 
-    // Setting commit to null removes the swatch
-    api.setCommit(null);
+    // No swatch in the header.
     expect(pane.querySelector('.pane-header .commit-swatch')).toBeNull();
+  });
+
+  it('omits .commit-swatch when color is undefined', () => {
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+
+    expect(pane.querySelector('.commit-swatch')).toBeNull();
+  });
+
+  it('omits .commit-swatch when sameDayTotal is undefined or 0', () => {
+    const { pane, api } = buildCommitPane({});
+    // sameDayTotal undefined
+    api.setCommit(COMMIT, { color: '#5e8a3a', now: new Date('2026-05-24T12:00:00Z') });
+    expect(pane.querySelector('.commit-swatch')).toBeNull();
+
+    // sameDayTotal === 0
+    api.setCommit(COMMIT, { color: '#5e8a3a', sameDayTotal: 0, now: new Date('2026-05-24T12:00:00Z') });
+    expect(pane.querySelector('.commit-swatch')).toBeNull();
   });
 });

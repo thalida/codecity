@@ -228,7 +228,8 @@ def _collect_git_dates_windowed(
     log_argv = ["git", "-C", str(root), "log",
                 "--format=COMMIT:%aI%x09%H",
                 "--name-status",
-                "--no-renames"]
+                "--no-renames",
+                "-c"]
     if window:
         log_argv.append(f"--since={window}")
     try:

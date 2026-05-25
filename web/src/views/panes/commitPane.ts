@@ -5,8 +5,9 @@
 // + the full SHA. When the repo has no remote, the link is replaced with
 // a muted hint.
 //
-// A colored swatch matching the tree's render color is shown in the
-// pane header (via setPrefixEl) when a color is provided.
+// A colored swatch matching the tree's render color is shown inline
+// inside the "N commits that day" row (next to the same-day text)
+// when a color is provided.
 //
 // API matches filePreviewPane's shape (build once, push selection in
 // via setCommit) so the coordinator can swap panes in the right
@@ -26,7 +27,7 @@ export interface SetCommitOpts {
   remoteUrl?: string | null;
   /** Total commits on this date (including this one); >= 1. */
   sameDayTotal?: number;
-  /** CSS color for the header swatch, e.g. "#5e8a3a". */
+  /** CSS color for the same-day swatch, e.g. "#5e8a3a". */
   color?: string;
   /** Injected for testability of relative age. Defaults to new Date(). */
   now?: Date;
@@ -39,7 +40,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const pane = document.createElement('div');
   pane.className = 'pane commit-pane';
 
-  const { el: header, api: headerApi } = buildPaneHeader({
+  const { el: header } = buildPaneHeader({
     title: 'Commit',
     onClose: opts.onClose,
   });
@@ -53,7 +54,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
   function _renderEmpty(): void {
     body.replaceChildren();
-    headerApi.setPrefixEl(null);
     const box = document.createElement('div');
     box.className = 'empty-state empty-state--lg';
     box.appendChild(makeLucideIcon('git-commit-horizontal'));
@@ -76,16 +76,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     now: Date,
   ): void {
     body.replaceChildren();
-
-    // ── Header swatch ────────────────────────────────────────────────
-    if (color) {
-      const swatch = document.createElement('span');
-      swatch.className = 'commit-swatch';
-      swatch.style.backgroundColor = color;
-      headerApi.setPrefixEl(swatch);
-    } else {
-      headerApi.setPrefixEl(null);
-    }
 
     // ── SHA row (SHA on left, open-on-origin link on right) ──────────
     const headerRow = document.createElement('div');
@@ -127,24 +117,24 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
     body.appendChild(headerRow);
 
-    // ── Date + age (side-by-side) ─────────────────────────────────────
+    // ── Date + age (side-by-side, age first) ─────────────────────────
     const whenEl = document.createElement('div');
     whenEl.className = 'commit-when';
 
-    const dateEl = document.createElement('span');
-    dateEl.className = 'commit-date';
-    dateEl.textContent = commit.date;
-    whenEl.appendChild(dateEl);
+    const ageEl = document.createElement('span');
+    ageEl.className = 'commit-age';
+    ageEl.textContent = formatRelativeAge(commit.date, now);
+    whenEl.appendChild(ageEl);
 
     const sepEl = document.createElement('span');
     sepEl.className = 'commit-when-sep';
     sepEl.textContent = '·';
     whenEl.appendChild(sepEl);
 
-    const ageEl = document.createElement('span');
-    ageEl.className = 'commit-age';
-    ageEl.textContent = formatRelativeAge(commit.date, now);
-    whenEl.appendChild(ageEl);
+    const dateEl = document.createElement('span');
+    dateEl.className = 'commit-date';
+    dateEl.textContent = commit.date;
+    whenEl.appendChild(dateEl);
 
     body.appendChild(whenEl);
 
@@ -154,15 +144,20 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     filesEl.textContent = `${commit.files} file${commit.files === 1 ? '' : 's'} changed`;
     body.appendChild(filesEl);
 
-    // ── Same-day count ───────────────────────────────────────────────
-    if (sameDayTotal > 0) {
+    // ── Same-day count (with optional color swatch) ──────────────────
+    if (sameDayTotal !== undefined && sameDayTotal > 0) {
       const sameDayEl = document.createElement('div');
       sameDayEl.className = 'commit-same-day';
-      if (sameDayTotal > 1) {
-        sameDayEl.textContent = `${sameDayTotal} commits that day`;
-      } else {
-        sameDayEl.textContent = 'only commit that day';
+      if (color) {
+        const swatch = document.createElement('span');
+        swatch.className = 'commit-swatch';
+        swatch.style.backgroundColor = color;
+        sameDayEl.appendChild(swatch);
       }
+      const text = document.createTextNode(
+        sameDayTotal === 1 ? 'only commit that day' : `${sameDayTotal} commits that day`
+      );
+      sameDayEl.appendChild(text);
       body.appendChild(sameDayEl);
     }
 

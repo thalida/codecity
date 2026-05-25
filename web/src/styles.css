@@ -2835,17 +2835,18 @@ canvas {
 }
 
 .commit-same-day {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg); /* 12px */
 }
 
 .commit-swatch {
   display: inline-block;
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  margin-right: 6px;
-  vertical-align: middle;
   flex-shrink: 0;
 }
 
