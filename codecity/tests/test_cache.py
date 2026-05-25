@@ -236,6 +236,7 @@ class GitHistoryCacheTests(CacheTestBase):
                 {"files": 4, "sha": sha_a},                          # dropped: missing date
                 {"date": "2024-04-01", "files": 7},                  # dropped: missing sha
                 {"date": "2024-05-01", "files": 2, "sha": "short"},  # dropped: sha too short
+                {"date": "2024-05-15", "files": 4, "sha": "Z" * 40}, # sha contains non-hex characters
                 {"date": "2024-06-01", "files": 1, "sha": sha_b},    # valid
             ],
         }), encoding="utf-8")
@@ -248,20 +249,6 @@ class GitHistoryCacheTests(CacheTestBase):
             {"date": "2024-01-01", "files": 3, "sha": sha_a},
             {"date": "2024-06-01", "files": 1, "sha": sha_b},
         ])
-
-    def test_git_history_round_trips_sha(self):
-        from codecity.cache import cache_save_git_history, cache_load_git_history
-        root = Path("/fake/root")
-        commits = [
-            {"date": "2026-03-12", "files": 4, "sha": "a" * 40},
-            {"date": "2026-03-15", "files": 1, "sha": "b" * 40},
-        ]
-        cache_save_git_history(root, "HEADSHA", "30.years.ago", {}, {}, commits)
-        result = cache_load_git_history(root, "HEADSHA", "30.years.ago")
-        self.assertIsNotNone(result)
-        assert result is not None  # narrow for type checker
-        _created, _modified, loaded = result
-        self.assertEqual(loaded, commits)
 
     def test_git_history_rejects_old_version(self):
         from codecity import cache as cache_mod

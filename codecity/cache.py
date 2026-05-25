@@ -27,6 +27,7 @@ import gzip
 import hashlib
 import json
 import os
+import re
 import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -52,6 +53,11 @@ _FILE_CACHE_VERSION = 1
 _GIT_HISTORY_CACHE_VERSION = 6
 # Bumped to 4: Manifest's commits list no longer carries gap_days.
 _MANIFEST_CACHE_VERSION = 4
+
+# Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
+# Used by cache_load_git_history to reject any cache entry whose sha
+# field was corrupted or hand-edited to a non-hex string.
+_SHA_HEX_RE = re.compile(r"[0-9a-f]{40}")
 
 
 def _coerce_file_entry(value: object) -> FileEntry | None:
@@ -213,7 +219,8 @@ def cache_load_git_history(
         sha = c.get("sha")
         if (isinstance(date, str)
                 and isinstance(files, int) and not isinstance(files, bool)
-                and isinstance(sha, str) and len(sha) == 40):
+                and isinstance(sha, str)
+                and _SHA_HEX_RE.fullmatch(sha) is not None):
             commits.append({"date": date, "files": files, "sha": sha})
     return created, modified, commits
 
