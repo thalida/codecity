@@ -44,6 +44,8 @@ describe('sourcePicker', () => {
     const onSubmit = vi.fn();
     const p = createSourcePicker({ onSubmit });
     p.open();
+    // Default tab is "git"; switch to local before setting the path field.
+    (root.querySelector('[data-tab="local"]') as HTMLButtonElement).click();
     const input = root.querySelector('[data-field="path"]') as HTMLInputElement;
     input.value = '/Users/foo/bar';
     (root.querySelector('button.submit') as HTMLButtonElement).click();

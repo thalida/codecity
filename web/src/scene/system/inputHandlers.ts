@@ -28,7 +28,7 @@ export function createInputHandlers({
   showTooltip,
   hideTooltip,
   onResize,
-  onRefresh,
+  onResetView,
   getRootName,
 }: {
   canvas: HTMLCanvasElement;
@@ -40,11 +40,10 @@ export function createInputHandlers({
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
-  /** Refresh action triggered by R / gem-click in ORBIT mode only.
-   *  Rebuilds the manifest and resets the orbit camera. Fly mode
-   *  routes those same gestures to flyControls.resetToDefault()
-   *  instead — no manifest refresh, no orbit reset. */
-  onRefresh: () => void;
+  /** Reset-view action triggered by R / gem-click. In orbit mode this
+   *  resets the camera; in fly mode it routes to flyControls.resetToDefault().
+   *  Does NOT rebuild the manifest — a page reload is required for that. */
+  onResetView: () => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
   getRootName: () => string | null;
@@ -179,10 +178,10 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      // Gem click = refresh + reset, same as the R key and the header
-      // refresh button. The mode-aware reset (orbit reset vs fly-mode
-      // resetToDefault) is decided inside onRefresh.
-      onRefresh();
+      // Gem click = reset view, same as the R key and the header gem
+      // button. The mode-aware reset (orbit reset vs fly-mode
+      // resetToDefault) is decided inside onResetView.
+      onResetView();
       return;
     }
     // Clicking the currently-selected building/street is a no-op — matches
@@ -200,7 +199,7 @@ export function createInputHandlers({
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
-      onRefresh();
+      onResetView();
       return;
     }
     // Route through picker.interpretHit so InstancedMesh hits resolve to a
@@ -299,8 +298,9 @@ export function createInputHandlers({
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
-      // Same behaviour in both modes: refresh + reset to current-mode default.
-      onRefresh();
+      // Same behaviour in both modes: reset to current-mode default. No
+      // manifest rebuild — reload the page for that.
+      onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();
       if (!sel) return;

@@ -244,7 +244,7 @@ function _buildShortcutsSection(): HTMLElement {
   );
   section.appendChild(
     _subgroup('General', _buildShortcutsList([
-      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Refresh — rebuild the city and reset the view' },
+      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
       { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
       { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
       { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },

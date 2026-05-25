@@ -27,7 +27,6 @@ import {
   REBUILD_STATUS,
   LAST_REBUILD_ERROR,
   LAST_UPDATED_AT,
-  refreshManifest,
 } from './store/liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
@@ -41,10 +40,13 @@ interface CoordinatorOpts {
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
   flyControls: ReturnType<typeof createFlyControls>;
+  /** Mode-aware reset for the camera. Forwarded to the header gem button so
+   *  it stays consistent with the R key and the in-scene gem click. */
+  resetView: () => void;
   applyTheme: () => void;
 }
 
-export function createCoordinator({ world, picker, rig, flyControls, applyTheme }: CoordinatorOpts) {
+export function createCoordinator({ world, picker, rig, flyControls, resetView, applyTheme }: CoordinatorOpts) {
   // Right sidebar opens on file selection and closes via its × button.
   // The previous header-toggle was removed, so the boot state is simply
   // "closed" — the first file selection will open it.
@@ -112,14 +114,7 @@ export function createCoordinator({ world, picker, rig, flyControls, applyTheme 
       const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
       fn?.();
     },
-    // Refresh button (header far left) — equivalent of a page reload:
-    // kicks off a manifest re-fetch / rebuild AND resets the camera to
-    // its default pose. refreshManifest is async; we don't await it here
-    // because REBUILD_STATUS already reflects the in-flight state.
-    onRefresh() {
-      void refreshManifest();
-      rig.reset();
-    },
+    onResetView: resetView,
     // Focus button next to the selected path — mirrors pressing F on the
     // canvas. Looks at the current picker selection and dispatches the
     // matching camera-rig call.

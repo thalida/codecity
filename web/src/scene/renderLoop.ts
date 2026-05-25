@@ -18,7 +18,6 @@ import {
   GEM_SIZING,
   BLOOM,
 } from '../config/index.js';
-import { refreshManifest } from '../store/liveStatus.js';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
@@ -111,6 +110,18 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     world,
   });
 
+  // Single mode-aware reset shared by every entry point: R key, header gem
+  // button, in-scene gem click/dblclick. In orbit mode resets the rig; in
+  // fly mode returns the fly camera to its default pose. Does NOT rebuild
+  // the city manifest — a page reload is required for that.
+  function resetView(): void {
+    if (flyControls.isActive()) {
+      flyControls.resetToDefault();
+    } else {
+      rig.reset();
+    }
+  }
+
   // -- 4b. Post-processing -----------------------------------------------------
   // UnrealBloomPass on top of the main render so emissive windows actually
   // glow into the surrounding pixels (cyberpunk neon look). Cost is screen-
@@ -168,6 +179,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     picker,
     rig,
     flyControls,
+    resetView,
     applyTheme,
   });
 
@@ -348,18 +360,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       // must match animate() so bloom shows immediately on the new size.
       postFx.render();
     },
-    // Same action as the header gem button: rebuild the manifest +
-    // reset the camera to the current mode's default pose. Fired by R,
-    // by clicking the root gem mesh in the scene, and by the header
-    // refresh button.
-    onRefresh() {
-      void refreshManifest();
-      if (flyControls.isActive()) {
-        flyControls.resetToDefault();
-      } else {
-        rig.reset();
-      }
-    },
+    onResetView: resetView,
     getRootName: () => world.getRoot()?.name ?? null,
   });
 
