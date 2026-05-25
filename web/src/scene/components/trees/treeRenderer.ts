@@ -362,6 +362,9 @@ export function createTreeRenderer(
   }
 
   // Trunk: one shared mesh, one instance per tree in placement order.
+  // Identity array: trunk instance i is always placement i, but we
+  // materialize it so commitForInstance stays uniform across canopy +
+  // trunk lookups without a special-case branch.
   const trunkPlacementOrder = new Array<number>(totalTrees);
   for (let i = 0; i < totalTrees; i++) trunkPlacementOrder[i] = i;
   const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, totalTrees);

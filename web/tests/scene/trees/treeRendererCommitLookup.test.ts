@@ -151,4 +151,18 @@ describe('Trees commit lookups', () => {
     expect(trunk).toBeDefined();
     expect(trunk!.userData.meshKind).toBe('tree-trunk');
   });
+
+  it('commitForInstance returns null when commits is null', () => {
+    const placements = [placement(0, 0)];
+    const trees = createTreeRenderer(placements, null);
+    const trunk = trees.group.children.find(
+      (c) => c.name === 'tree-trunk',
+    ) as THREE.InstancedMesh;
+    expect(trees.commitForInstance(trunk, 0)).toBeNull();
+  });
+
+  it('findTreeBySha returns null when commits is null', () => {
+    const trees = createTreeRenderer([placement(0, 0)], null);
+    expect(trees.findTreeBySha('a'.repeat(40))).toBeNull();
+  });
 });
