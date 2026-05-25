@@ -1,0 +1,85 @@
+# syntax=docker/dockerfile:1.7
+
+# ─────── Stage 1: build the frontend ───────
+FROM node:24-bookworm-slim AS web-builder
+# Pin npm to host version (11.6.2) — container ships npm 11.13.0, which is
+# stricter about lockfile shape and refuses npm ci with EUSAGE on the
+# host-generated lockfile (missing @emnapi/core, @emnapi/runtime entries).
+RUN npm install -g npm@11.6.2
+WORKDIR /build
+COPY app/package.json app/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
+COPY app/ ./
+RUN npm run build
+# Output: /build/dist/
+
+# ─────── Stage 2: runtime ───────
+FROM python:3.13-slim AS runtime
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    CODECITY_CACHE_ROOT=/cache \
+    UV_LINK_MODE=copy
+
+# System deps. Pinned via apt repo of the base image; Dependabot bumps base.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git ca-certificates tini wget \
+    && rm -rf /var/lib/apt/lists/*
+
+# uv: bring in the static binary from the official image.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
+
+WORKDIR /srv
+
+# Lockfile-first layering: a source change won't bust the dep install layer.
+# README.md + LICENSE are referenced by pyproject.toml and validated at
+# wheel-build time by hatchling — copy them alongside the manifests.
+COPY pyproject.toml uv.lock README.md LICENSE ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev --no-install-project
+
+# Python source
+COPY api/ ./api/
+
+# Built frontend → /srv/api/static (matches api/server.py default STATIC_DIR
+# resolution: Path(__file__).parent / "static"). No env var needed.
+COPY --from=web-builder /build/dist /srv/api/static
+
+# pyproject.toml uses hatch-vcs (`source = "vcs"`) for dynamic versioning,
+# but .dockerignore excludes .git to keep the build context small. Feed the
+# version through setuptools_scm's escape hatch so the project install below
+# can compute its version without a git repo. Use the unscoped
+# SETUPTOOLS_SCM_PRETEND_VERSION because hatch-vcs 0.5.0 doesn't forward
+# dist_name to setuptools_scm, so the _FOR_<NAME> form never matches.
+ARG VERSION=0.0.0+dev
+ENV SETUPTOOLS_SCM_PRETEND_VERSION=${VERSION}
+
+# Install the project (registers `api` as importable; metadata for version).
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-dev
+
+# Non-root user. /cache is the mount point for the named volume.
+RUN useradd --create-home --uid 10001 codecity \
+    && mkdir -p /cache \
+    && chown codecity:codecity /cache /srv
+USER codecity
+
+EXPOSE 8080
+
+HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
+    CMD wget -qO- http://127.0.0.1:8080/api/health || exit 1
+
+# tini reaps zombies + propagates SIGINT/SIGTERM to the Python process.
+ENTRYPOINT ["/usr/bin/tini", "--", "uv", "run", "python", "-m", "api"]
+CMD ["--port", "8080"]
+
+# Populated by CI via --build-arg.
+ARG GIT_SHA=dev
+ARG VERSION=0.0.0+dev
+LABEL org.opencontainers.image.title="codecity" \
+      org.opencontainers.image.description="Visualize any codebase as an isometric 3D city" \
+      org.opencontainers.image.source="https://github.com/thalida/codecity" \
+      org.opencontainers.image.revision="${GIT_SHA}" \
+      org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.licenses="AGPL-3.0"

@@ -41,5 +41,6 @@ api/static
 
 # Repo-level scaffolding not needed at build time
 TODO.md
-README.md
-LICENSE
+# NOTE: README.md and LICENSE are NOT ignored — pyproject.toml references
+# them (`readme = "README.md"`, `license = { file = "LICENSE" }`), and
+# hatchling validates their existence during the wheel build.
