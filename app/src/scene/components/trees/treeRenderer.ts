@@ -402,7 +402,7 @@ export function createTreeRenderer(
       // The buffer can later be modified by tints; the cache stays stable.
       const c = commits?.[placements[placementIdx].commitIndex];
       if (c?.sha) {
-        _baseColorBySha.set(c.sha, '#' + tmpColor.getHexString());
+        _baseColorBySha.set(c.sha, `#${tmpColor.getHexString()}`);
         _treeIndexBySha.set(c.sha, { mesh, instanceId: k, commit: c });
       }
       mesh.setColorAt(k, tmpColor);
@@ -467,7 +467,7 @@ export function createTreeRenderer(
         perTreeColor(placementIdx, tmpColor);
         const commit = commits?.[placements[placementIdx].commitIndex];
         if (commit?.sha) {
-          _baseColorBySha.set(commit.sha, '#' + tmpColor.getHexString());
+          _baseColorBySha.set(commit.sha, `#${tmpColor.getHexString()}`);
           _treeIndexBySha.set(commit.sha, { mesh: rec.mesh, instanceId: k, commit });
         }
         rec.mesh.setColorAt(k, tmpColor);

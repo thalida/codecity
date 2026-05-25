@@ -188,8 +188,6 @@ if (_canvas) {
       liveUpdatesStarted = true;
     }
 
-    let picker: ReturnType<typeof createSourcePicker>;
-
     // Remember the dismissible flag of the most recent open() call so error
     // reopen preserves it (header-switch reopen stays dismissible after a
     // failed submit; cold-boot reopen stays non-dismissible).
@@ -301,7 +299,7 @@ if (_canvas) {
       }
     }
 
-    picker = createSourcePicker({
+    const picker = createSourcePicker({
       onSubmit: (payload) => {
         picker.close();
         applyNewSource(payload);

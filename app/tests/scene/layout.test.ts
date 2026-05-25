@@ -1235,7 +1235,6 @@ describe('quickjs-scenario regression', () => {
       modified: '2024-01-01T00:00:00Z',
     };
   }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function mkDir(name: string, children: any[], path?: string): any {
     const dirPath = path || name;
     const prefixed = children.map((c) => {

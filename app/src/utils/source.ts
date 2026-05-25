@@ -9,11 +9,11 @@ export function _srcKind(src: string): 'git' | 'local' {
 export function _deriveLabel(src: string): string {
   if (_srcKind(src) === 'git') {
     // git URL — try "owner/repo" from the last two path segments
-    const m = src.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    const m = src.match(/[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (m) return `${m[1]}/${m[2]}`;
     return src;
   }
   // Local path — basename
-  const parts = src.split(/[\/\\]/).filter(Boolean);
+  const parts = src.split(/[/\\]/).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : src;
 }

@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import * as THREE from 'three';
 import {
   SpatialGrid,
   CELL_SIZE,

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { SpatialGrid } from '@/scene/layout/spatialGrid.js';
-import { createEmptyCellTile, type CellTile } from '@/scene/layout/cellTile.js';
+import { createEmptyCellTile } from '@/scene/layout/cellTile.js';
 
 describe('CellTile', () => {
   it('createEmptyCellTile allocates meshes with preallocated capacity', () => {

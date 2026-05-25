@@ -22,7 +22,7 @@ function djb2(s: string): string {
  * we treat empty-string branch as "no branch" — callers should pass undefined.
  */
 export function sourceKey(src: string, branch?: string): string {
-  return djb2(src + '\0' + (branch ?? ''));
+  return djb2(`${src}\0${branch ?? ''}`);
 }
 
 /**

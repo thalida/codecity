@@ -136,8 +136,6 @@ export function createCameraRig({
     );
     const worldRadius = Math.sqrt(farX * farX + farY * farY + farZ * farZ);
     const halfFov = (camera.fov * Math.PI) / 180 / 2;
-    const worldDist =
-      (worldRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
 
     // Max zoom-out: a generous multiple of the world's geometric
     // radius (which includes building heights via farY), floored at

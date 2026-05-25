@@ -10,7 +10,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', '../api/static/**', 'package-lock.json'],
+    ignores: ['node_modules/**', 'dist/**', '../api/static/**', 'package-lock.json'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,
@@ -33,7 +33,11 @@ export default tseslint.config(
       'no-useless-concat': 'error',
       '@typescript-eslint/no-unused-vars': [
         'warn',
-        { argsIgnorePattern: '^_', caughtErrorsIgnorePattern: '^_' },
+        {
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+        },
       ],
       '@typescript-eslint/no-explicit-any': 'off',
     },

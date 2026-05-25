@@ -41,7 +41,6 @@
 import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { NodeKind } from '@/types';
-import { TREES } from '@/config/components/trees.js';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 

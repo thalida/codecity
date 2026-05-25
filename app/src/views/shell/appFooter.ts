@@ -60,7 +60,7 @@ const NOOP_API = {
   setStatus(_status: FooterStatus) {},
 };
 
-interface InitAppFooterOpts {}
+type InitAppFooterOpts = Record<string, never>;
 
 /**
  * Initialise the sitewide footer. Returns:
@@ -72,7 +72,7 @@ interface InitAppFooterOpts {}
  * stores at render time and re-renders on any change, so editing an
  * extension hue or the asphalt color in Controls repaints the pill.
  */
-export function initAppFooter(opts: InitAppFooterOpts = {}) {
+export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   const footer = document.getElementById('app-footer');
   if (!footer) return NOOP_API;
 

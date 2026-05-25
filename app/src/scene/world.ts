@@ -1317,7 +1317,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     runCollisionCheck(): void {
       if (!layout) {
-        // eslint-disable-next-line no-console
         console.warn('[collision] no layout — apply a manifest first');
         return;
       }
@@ -1326,20 +1325,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         layout.streets.length + layout.buildings.length + layout.paths.length;
       const report = _formatCollisionReport(overlaps, totalRects);
       if (report.level === 'info') {
-        // eslint-disable-next-line no-console
         console.info(report.summary);
       } else {
-        // eslint-disable-next-line no-console
         console.warn(report.summary);
         for (const line of report.details) {
-          // eslint-disable-next-line no-console
           console.warn(line);
         }
       }
     },
     runStemPlacementDiagnostic(): void {
       if (!manifest) {
-        // eslint-disable-next-line no-console
         console.warn('[stem-diag] no manifest — apply one first');
         return;
       }
@@ -1348,7 +1343,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       );
       const lines = _formatStemDiagnostic(trace);
       for (const line of lines) {
-        // eslint-disable-next-line no-console
         console.log(line);
       }
     },

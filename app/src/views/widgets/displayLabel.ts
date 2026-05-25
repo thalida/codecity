@@ -38,14 +38,14 @@ export function labelFromDisplayRoot(
 ): string {
   if (!displayRoot) return fallbackName;
   // Strip optional @branch suffix before analysing the URL/path.
-  const noBranch = displayRoot.replace(/@[^@\/]+$/, '');
+  const noBranch = displayRoot.replace(/@[^@/]+$/, '');
   // git URL: derive "owner/repo" from the last two path segments.
   if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
-    const m = noBranch.match(/[\/:]([^\/]+)\/([^\/]+?)(?:\.git)?$/);
+    const m = noBranch.match(/[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
     if (m) return `${m[1]}/${m[2]}`;
     return noBranch;
   }
   // Local path: basename.
-  const parts = noBranch.split(/[\/\\]/).filter(Boolean);
+  const parts = noBranch.split(/[/\\]/).filter(Boolean);
   return parts.length ? parts[parts.length - 1] : noBranch;
 }

@@ -207,7 +207,7 @@ export function createSourcePicker(opts: {
           <div class="recent-row-body">
             <div class="recent-label">${escapeHtml(r.label)}</div>
             <div class="recent-sub">${escapeHtml(r.src)}${
-              r.branch ? ' · ' + escapeHtml(r.branch) : ''
+              r.branch ? ` · ${escapeHtml(r.branch)}` : ''
             } · ${escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))}</div>
           </div>
           ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}

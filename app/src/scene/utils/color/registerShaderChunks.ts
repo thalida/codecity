@@ -13,7 +13,6 @@ let _registered = false;
 export function registerShaderChunks(): void {
   if (_registered) return;
   _registered = true;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chunks = THREE.ShaderChunk as unknown as Record<string, string>;
   chunks['hsl_glsl_inline'] = hslGlslSrc;
   chunks['fog_uniforms_glsl_inline'] = FOG_UNIFORMS_GLSL;

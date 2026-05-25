@@ -27,7 +27,6 @@ function mkFile(name: string, depth: number) {
   };
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mkDir(name: string, children: any[], path = name): any {
   return {
     name,
@@ -53,7 +52,6 @@ function flatTree(n: number) {
 // single level of fanning out files under root. Each non-leaf level
 // branches into `fan` subdirectories; the leaf level (depth==1 in the
 // recursion) holds `fan` files.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deepChildren(depth: number, fan: number, basePath: string): any[] {
   if (depth === 1) {
     return Array.from({ length: fan }, (_, i) => mkFile(`f${i}.ts`, 0));
@@ -64,7 +62,6 @@ function deepChildren(depth: number, fan: number, basePath: string): any[] {
   });
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function deepTree(depth: number, fan: number): any {
   return mkDir('root', deepChildren(depth, fan, 'root'), 'root');
 }
@@ -76,7 +73,6 @@ function deepTree(depth: number, fan: number): any {
 const PERF_TIMEOUT_MS = 60_000;
 
 describe('layoutCity perf smoke', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function runOne(label: string, tree: any) {
     const t0 = performance.now();
     const layout = layoutCity({ tree });
@@ -109,7 +105,6 @@ describe('layoutCity perf smoke', () => {
     const H = yMax - yMin;
     const maxDim = Math.max(W, H).toFixed(0);
     const aspect = (Math.max(W, H) / Math.max(1, Math.min(W, H))).toFixed(2);
-    // eslint-disable-next-line no-console
     console.log(
       `  ${label}: ${ms} ms (${nBuildings} buildings, bbox max=${maxDim} aspect=${aspect})`
     );

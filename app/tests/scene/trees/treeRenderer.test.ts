@@ -16,7 +16,6 @@ import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import { LIGHTING } from '@/config/components/lighting.js';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
-import { interpolateOklch } from '@/scene/components/trees/colorInterp.js';
 import { commits as buildCommits } from './_commitFixtures.js';
 
 function resetStores() {
