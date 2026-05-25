@@ -21,6 +21,7 @@ import { initAppFooter } from './views/shell/appFooter.js';
 import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
+import { buildCommitPane } from './views/panes/commitPane.js';
 import { labelFromDisplayRoot } from './views/widgets/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
 import {
@@ -47,44 +48,53 @@ interface CoordinatorOpts {
 }
 
 export function createCoordinator({ world, picker, rig, flyControls, resetView, applyTheme }: CoordinatorOpts) {
-  // Right sidebar opens on file selection and closes via its × button.
-  // The previous header-toggle was removed, so the boot state is simply
-  // "closed" — the first file selection will open it.
-  let sidebarVisible = false;
+  // Right-sidebar pane choice. Selection drives which pane is mounted:
+  //   File → filePreview
+  //   Commit → commitPane
+  //   anything else → sidebar closed
+  type SidebarPane = 'file' | 'commit' | null;
+  let sidebarPane: SidebarPane = null;
 
-  // Build the right-sidebar's file-preview pane once. The shell mounts
-  // it on first show; subsequent selection changes just push a new file
-  // target into it via the pane's setFile API. onClose flips the
-  // coordinator-level visibility tracker so a subsequent file selection
-  // re-opens the sidebar (otherwise the sidebar would stay open in our
-  // mental model but be DOM-closed, and the next selection wouldn't
-  // re-trigger an open).
   const filePreview = buildFilePreviewPane({
     onClose() {
-      sidebarVisible = false;
+      sidebarPane = null;
       _renderSidebar();
     },
-    // Focus button in the pane header — mirrors pressing F on the canvas.
-    // The pane passes the file it's currently rendering, so we look up the
-    // matching building mesh and hand it to the camera rig.
     onFocus(file) {
       const b = world.getBuildingByPath(file.path);
       if (b) rig.focusBuilding(b.mesh, b.building);
     },
   });
 
+  const commitPane = buildCommitPane({
+    onClose() {
+      sidebarPane = null;
+      _renderSidebar();
+    },
+  });
+
   function _renderSidebar(): void {
-    if (!sidebarVisible) {
+    if (sidebarPane === null) {
       hideRightSidebar();
       return;
     }
-    showRightSidebar(filePreview.pane);
-    const sel: PickTarget | null = picker.selection.get();
-    // Directories collapse to the same empty "select a file" state as
-    // no-selection — the file-preview pane has nothing to show for a
-    // directory pick.
-    if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
-    else filePreview.api.setFile(null);
+    const sel = picker.selection.get();
+    if (sidebarPane === 'file') {
+      showRightSidebar(filePreview.pane);
+      if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
+      else filePreview.api.setFile(null);
+      return;
+    }
+    if (sidebarPane === 'commit') {
+      showRightSidebar(commitPane.pane);
+      const m = world.getManifest();
+      const remote = m?.repo?.remote_url ?? null;
+      if (sel && sel.kind === NodeKind.Commit) {
+        commitPane.api.setCommit(sel.commit, remote);
+      } else {
+        commitPane.api.setCommit(null, null);
+      }
+    }
   }
 
   // ── App header (refresh / project chip / breadcrumb / fly toggle) ──
@@ -340,12 +350,11 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     // hover is active the hover subscriber already owns the footer.
     _updateFooterFromState();
 
-    // Right sidebar mirrors "is there a file to preview": a building
-    // (file) selection opens it; a road (directory) selection or
-    // deselect closes it. The × button still has a job — it dismisses
-    // the preview while keeping the current building selected (next
-    // building click will reopen).
-    sidebarVisible = !!(sel && sel.kind === NodeKind.File);
+    // Right sidebar pane choice mirrors selection kind. File → preview,
+    // Commit → commit pane, anything else closes the sidebar.
+    if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
+    else if (sel && sel.kind === NodeKind.Commit) sidebarPane = 'commit';
+    else sidebarPane = null;
 
     _renderSidebar();
   });
@@ -383,6 +392,11 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     }
     if (leftSidebarApi.setSearchManifest) {
       leftSidebarApi.setSearchManifest(m);
+    }
+    const _selForCommit = picker.selection.get();
+    if (_selForCommit && _selForCommit.kind === NodeKind.Commit) {
+      const _remote = m?.repo?.remote_url ?? null;
+      commitPane.api.setCommit(_selForCommit.commit, _remote);
     }
   });
 
