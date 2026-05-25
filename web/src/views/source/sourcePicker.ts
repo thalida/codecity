@@ -93,14 +93,14 @@ export function createSourcePicker(opts: {
   }
 
   let dismissible = false;
-  let activeTab: 'local' | 'git' = 'local';
+  let activeTab: 'local' | 'git' = 'git';
 
   function isGitLike(s: string): boolean {
     return /:\/\//.test(s) || /^[^@]+@[^:]+:/.test(s);
   }
 
   function deriveTabFromPrefill(p?: SourcePayload): 'local' | 'git' {
-    if (!p) return 'local';
+    if (!p) return 'git';
     return isGitLike(p.src) ? 'git' : 'local';
   }
 
@@ -128,18 +128,10 @@ export function createSourcePicker(opts: {
           <div class="modal-body">
             ${o.error ? `<div class="modal-error">${escapeHtml(o.error)}</div>` : ''}
             <div class="modal-tabs">
-              <button type="button" data-tab="local"
-                class="${activeTab === 'local' ? 'active' : ''}">Local path</button>
               <button type="button" data-tab="git"
                 class="${activeTab === 'git' ? 'active' : ''}">Git URL</button>
-            </div>
-
-            <div data-pane="local" style="display: ${activeTab === 'local' ? 'block' : 'none'};">
-              <div class="modal-field">
-                <label>Path</label>
-                <input data-field="path" type="text" autocomplete="off" spellcheck="false"
-                  value="${activeTab === 'local' ? escapeAttr(prefillSrc) : ''}">
-              </div>
+              <button type="button" data-tab="local"
+                class="${activeTab === 'local' ? 'active' : ''}">Local path</button>
             </div>
 
             <div data-pane="git" style="display: ${activeTab === 'git' ? 'block' : 'none'};">
@@ -153,6 +145,14 @@ export function createSourcePicker(opts: {
                 <input data-field="branch" type="text" autocomplete="off" spellcheck="false"
                   placeholder="default"
                   value="${escapeAttr(prefillBranch)}">
+              </div>
+            </div>
+
+            <div data-pane="local" style="display: ${activeTab === 'local' ? 'block' : 'none'};">
+              <div class="modal-field">
+                <label>Path</label>
+                <input data-field="path" type="text" autocomplete="off" spellcheck="false"
+                  value="${activeTab === 'local' ? escapeAttr(prefillSrc) : ''}">
               </div>
             </div>
 
