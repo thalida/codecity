@@ -1,0 +1,45 @@
+# Version control + CI scaffolding
+.git
+.github
+
+# Python local
+.venv
+.mypy_cache
+.pytest_cache
+.ruff_cache
+api/__pycache__
+**/__pycache__
+**/*.pyc
+
+# Node local
+node_modules
+app/node_modules
+app/dist
+app/.vite
+
+# Codecity local artifacts
+.local
+.codecity
+.codecityignore
+
+# Tool artifacts
+.claude
+.superpowers
+docs
+
+# Stale static dir (legacy)
+api/static
+
+# OS / editors
+**/.DS_Store
+**/Thumbs.db
+*.swp
+*.swo
+*~
+.idea
+.vscode
+
+# Repo-level scaffolding not needed at build time
+TODO.md
+README.md
+LICENSE
