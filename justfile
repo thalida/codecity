@@ -24,15 +24,19 @@ dev:
 # Prod-like local run: one container, no host mount (default per spec).
 # Per the README Quick Start. Add `-v $HOME/path:$HOME/path:ro` to mount
 # a local git repo for visualization.
+# Picks a free host port per worktree (persisted to .local/worktree-ports.json
+# under key 'run') so bookmarked URLs survive restarts AND concurrent worktrees
+# don't fight over port 8080. Auto-re-picks if the saved port becomes occupied.
 run:
-    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
-     echo "[codecity] http://$SLUG.localhost:8080/" ; \
+    @PORT=$(python3 bin/pick-port.py run) ; \
+     SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     echo "[codecity] http://$SLUG.localhost:$PORT/" ; \
      IMAGE_ID=$(docker build -q \
          --build-arg GIT_SHA=$(git rev-parse HEAD) \
          --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) .) ; \
      docker run --rm --init \
          -v codecity-cache:/cache \
-         -p 8080:8080 \
+         -p $PORT:8080 \
          $IMAGE_ID
 
 # Shell into the api container in dev mode.
