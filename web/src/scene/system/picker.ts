@@ -45,33 +45,6 @@ import { TREES } from '@/config/components/trees.js';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
-/** Minimum estimated on-screen pixel height for a tree before it is
- *  included in the raycast candidate list. Trees smaller than this
- *  (camera zoomed far out) are excluded to save raycast cost. */
-export const TREE_HOVER_MIN_PIXELS = 12;
-
-/**
- * Estimate the on-screen pixel height of an object of world-space height
- * `treeMaxHeight` at the given camera distance, for a PerspectiveCamera
- * with the given vertical FOV (degrees) and canvas height.
- *
- * Formula: h_screen = h_world * (canvasHeight / 2) / (distance * tan(fov / 2))
- *
- * Returns 0 for a non-positive distance (safe — callers treat 0 as
- * "below threshold").
- *
- * Exported for unit-testing without constructing a full picker.
- */
-export function estimateTreePixelSize(
-  fovDegrees: number,
-  canvasHeight: number,
-  treeMaxHeight: number,
-  distance: number,
-): number {
-  if (distance <= 0) return 0;
-  const fovRad = (fovDegrees * Math.PI) / 180;
-  return treeMaxHeight * (canvasHeight / 2) / (distance * Math.tan(fovRad / 2));
-}
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
@@ -92,18 +65,16 @@ export function createPicker({
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
 
-  // Cached pickables split into static (streets, buildings, gem) and
-  // tree meshes. Refreshed on world.onChange so per-frame raycasts
-  // don't allocate a new array.
-  let _staticPickables: THREE.Object3D[] = [];
-  let _treePickables: THREE.Object3D[] = [];
+  // Cached pickables list. Refreshed on world.onChange so per-frame
+  // raycasts don't allocate a new array.
+  let pickables: THREE.Object3D[] = [];
   function _refreshPickables() {
-    _staticPickables = world.getStreetPickables().slice();
+    pickables = world.getStreetPickables().slice();
 
     // Add the detail InstancedMesh from each cell — buildings live in
     // CellTile meshes (userData.cellId + userData.meshKind).
     for (const cell of world.getCells().values()) {
-      if (cell.detailMesh) _staticPickables.push(cell.detailMesh);
+      if (cell.detailMesh) pickables.push(cell.detailMesh);
     }
 
     const gem = world.getRootGem();
@@ -111,29 +82,18 @@ export function createPicker({
       // Body lives at gem.userData.body — don't index children, since
       // the glow sprites are also children and the order shifts.
       const gemBody = gem.userData.body as THREE.Object3D | undefined;
-      if (gemBody) _staticPickables.push(gemBody);
+      if (gemBody) pickables.push(gemBody);
     }
 
-    _treePickables = [];
     const trees = world.getTrees();
     if (trees) {
       for (const child of trees.group.children) {
         const kind = child.userData?.meshKind;
         if (kind === 'tree-canopy' || kind === 'tree-trunk') {
-          _treePickables.push(child);
+          pickables.push(child);
         }
       }
     }
-  }
-
-  /** Estimate the on-screen pixel height of a typical tree given the
-   *  current camera position. Returns 0 if the camera is not a
-   *  PerspectiveCamera (safe fallback — callers treat 0 as "below
-   *  threshold", so tree picks are skipped for non-perspective views). */
-  function _estimateTreePixelSize(): number {
-    if (!(camera instanceof THREE.PerspectiveCamera)) return 0;
-    const distance = camera.position.length(); // trees group is at origin
-    return estimateTreePixelSize(camera.fov, canvas.clientHeight, TREES.get().TREE_MAX_HEIGHT, distance);
   }
 
   // ── Selection → key derivation ────────────────────────────────────
@@ -321,16 +281,13 @@ export function createPicker({
 
   // pickAt(x, y) — raycast at canvas-relative client coords; returns
   // the first hit or null. Pickables list is cached and refreshed on
-  // world rebuild. Trees are excluded when they're smaller than
-  // TREE_HOVER_MIN_PIXELS on screen (camera zoomed far out).
+  // world rebuild.
   function pickAt(clientX: number, clientY: number): THREE.Intersection<THREE.Object3D> | null {
     const rect = canvas.getBoundingClientRect();
     pointer.x = ((clientX - rect.left) / rect.width) * 2 - 1;
     pointer.y = -((clientY - rect.top) / rect.height) * 2 + 1;
     raycaster.setFromCamera(pointer, camera);
-    const includeTrees = _estimateTreePixelSize() >= TREE_HOVER_MIN_PIXELS;
-    const targets = includeTrees ? [..._staticPickables, ..._treePickables] : _staticPickables;
-    const hits = raycaster.intersectObjects(targets, false);
+    const hits = raycaster.intersectObjects(pickables, false);
     return _resolveTieBreak(hits);
   }
 
@@ -395,15 +352,13 @@ export function createPicker({
   // pickAtCenter() — raycast straight forward from the camera at screen
   // center. Used by fly mode where the pointer is locked and the
   // implicit target is the camera's forward direction. Same pickables
-  // list as pickAt(); same tie-break logic and pixel-size gate.
+  // list as pickAt() and same tie-break logic.
   function pickAtCenter(): THREE.Intersection<THREE.Object3D> | null {
     // Pointer at NDC (0, 0) = screen center.
     pointer.x = 0;
     pointer.y = 0;
     raycaster.setFromCamera(pointer, camera);
-    const includeTrees = _estimateTreePixelSize() >= TREE_HOVER_MIN_PIXELS;
-    const targets = includeTrees ? [..._staticPickables, ..._treePickables] : _staticPickables;
-    const hits = raycaster.intersectObjects(targets, false);
+    const hits = raycaster.intersectObjects(pickables, false);
     return _resolveTieBreak(hits);
   }
 

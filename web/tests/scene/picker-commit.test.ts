@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createPicker, PICKER_SELECTION_KEY, estimateTreePixelSize, TREE_HOVER_MIN_PIXELS } from '@/scene/system/picker.js';
+import { createPicker, PICKER_SELECTION_KEY } from '@/scene/system/picker.js';
 import { NodeKind } from '@/types';
 import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 
@@ -308,62 +308,5 @@ describe('picker: tree commit picking', () => {
     expect(p.selection.get()).toBeNull();
     expect(PICKER_SELECTION_KEY.get()).toBeNull();
     p.dispose();
-  });
-});
-
-describe('picker: tree pixel-size gate', () => {
-  it('estimateTreePixelSize returns a larger value when the camera is closer', () => {
-    // fov=50°, canvas 600px tall, tree 144 world units tall.
-    // Close at 200 units → >> 12px; far at 20_000 units → << 12px.
-    const fov = 50;
-    const canvasH = 600;
-    const treeH = 144;
-    const near = estimateTreePixelSize(fov, canvasH, treeH, 200);
-    const far = estimateTreePixelSize(fov, canvasH, treeH, 20_000);
-    expect(near).toBeGreaterThan(far);
-    expect(near).toBeGreaterThan(TREE_HOVER_MIN_PIXELS);
-    expect(far).toBeLessThan(TREE_HOVER_MIN_PIXELS);
-  });
-
-  it('estimateTreePixelSize returns 0 for non-positive distance', () => {
-    expect(estimateTreePixelSize(50, 600, 144, 0)).toBe(0);
-    expect(estimateTreePixelSize(50, 600, 144, -10)).toBe(0);
-  });
-
-  it('excludes trees from pickAt when the camera is far away (non-PerspectiveCamera → pixel size 0)', () => {
-    // The existing FAKE_CAMERA is not a THREE.PerspectiveCamera, so
-    // _estimateTreePixelSize() returns 0 (< TREE_HOVER_MIN_PIXELS).
-    // Trees are therefore excluded from the raycast candidate list.
-    // Since interpretHit is unaffected (it reads world.getTrees() directly),
-    // we verify that a fake direct intersection hit via interpretHit still
-    // works, while the pick-via-candidates path skips trees.
-    const canopy = makeCanopy();
-    const trunk = makeTrunk();
-    const commits = [commit(0)];
-    const trees = makeFakeTrees(canopy, trunk, commits);
-    const world = makeWorld(trees);
-    const p = createPicker({ canvas, camera: FAKE_CAMERA, world });
-
-    // interpretHit still resolves a hit regardless of the gate (gate
-    // only affects which objects the raycaster receives).
-    const hit = {
-      object: canopy,
-      instanceId: 0,
-      distance: 1,
-      point: new THREE.Vector3(),
-    } as unknown as THREE.Intersection<THREE.Object3D>;
-    expect(p.interpretHit(hit)).not.toBeNull();
-
-    p.dispose();
-  });
-
-  it('includes trees in pickAt candidates when the camera is a close PerspectiveCamera', () => {
-    // Use a real PerspectiveCamera very close to origin (trees group pos).
-    // estimateTreePixelSize should return >> TREE_HOVER_MIN_PIXELS.
-    const cam = new THREE.PerspectiveCamera(50, 1, 0.1, 10000);
-    cam.position.set(0, 200, 0); // 200 world units away
-    // Verify the formula produces a large enough value to pass the gate.
-    const pixelSize = estimateTreePixelSize(cam.fov, 600, 144, cam.position.length());
-    expect(pixelSize).toBeGreaterThan(TREE_HOVER_MIN_PIXELS);
   });
 });
