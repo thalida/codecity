@@ -53,6 +53,22 @@ class _CacheRedirectMixin:
 os.environ["CODECITY_QUIET"] = "1"
 
 
+def _init_git_repo(path: Path, *, bare: bool = False) -> None:
+    """Initialize ``path`` as a git repo.
+
+    Default is a working tree (what scan endpoints now require). Pass
+    ``bare=True`` for a bare-repo test fixture. No commits are made —
+    an empty working tree is still a valid working tree per
+    ``git rev-parse --is-inside-work-tree``.
+    """
+    import subprocess
+    args = ["git", "init", "-q"]
+    if bare:
+        args.append("--bare")
+    args.append(str(path))
+    subprocess.run(args, check=True)
+
+
 def _get(url: str) -> tuple[int, bytes, str]:
     """Issue a GET; return (status, body, content_type)."""
     try:
@@ -128,9 +144,12 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         (static / "assets").mkdir()
         (static / "assets" / "main.js").write_text("console.log('ok')")
 
-        # A small directory we can scan in the manifest test.
+        # A small directory we can scan in the manifest test. Initialized
+        # as a git repo because the API now requires every local scan
+        # target to be inside a git working tree.
         self.project = Path(self.tmp.name) / "project"
         self.project.mkdir()
+        _init_git_repo(self.project)
         (self.project / "README.md").write_text("# demo\n")
 
         self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
@@ -584,6 +603,7 @@ class ResolveScanTargetTests(unittest.TestCase):
 
     def test_local_path_ok(self) -> None:
         with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("print('hi')\n")
             status, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}",
@@ -596,6 +616,7 @@ class ResolveScanTargetTests(unittest.TestCase):
 
     def test_local_path_with_branch_silently_ignored(self) -> None:
         with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("print('hi')\n")
             status, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}&branch=main",
@@ -643,6 +664,7 @@ class DisplayRootTests(unittest.TestCase):
 
     def test_local_src_no_display_root(self) -> None:
         with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("\n")
             status, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}",
@@ -910,6 +932,12 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         self.addCleanup(self.shutdown)
 
     def _make_tiny_repo(self, td: str) -> None:
+        # Init as a git working tree — the API now requires every local
+        # scan target to be inside one. Files are left untracked here;
+        # tests that need them to appear under the default
+        # (tracked-only) scan should commit them explicitly. Tests that
+        # only assert on event ordering / headers don't care.
+        _init_git_repo(Path(td))
         (Path(td) / "a.py").write_text("x = 1\n")
         (Path(td) / "b.py").write_text("y = 2\ny = 3\n")
 
@@ -1007,8 +1035,18 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             )
 
     def test_skeleton_has_placeholder_lines(self) -> None:
+        import subprocess
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
+            # Default scan filters untracked files — commit a.py/b.py so
+            # they appear in the manifest tree the test inspects below.
+            for cmd in (
+                ["git", "-C", td, "config", "user.email", "t@t"],
+                ["git", "-C", td, "config", "user.name", "t"],
+                ["git", "-C", td, "add", "a.py", "b.py"],
+                ["git", "-C", td, "commit", "-q", "-m", "init"],
+            ):
+                subprocess.run(cmd, check=True)
             status, events = _request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
@@ -1090,6 +1128,7 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_clears_cache_for_local_source(self) -> None:
         with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
             (Path(td) / "a.py").write_text("x = 1\n")
             # Warm the cache by hitting /api/manifest once.
             _request_stream(self.server_port, f"/api/manifest?src={td}")
@@ -1137,6 +1176,121 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
         status, body = _delete(url)
         self.assertEqual(status, 404)
         self.assertIn("unknown api route", body["error"])
+
+
+class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
+    """Per task 11c: codecity is git-aware, so local scan targets must be
+    inside a git working tree. Non-git dirs and bare repos are rejected
+    with a 400 + helpful message; git URLs are unaffected (the clone IS
+    a working tree); cache-delete bypasses the check (purely hygienic)."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.server, self.server_port, self.shutdown = start_server(port=0)
+        self.addCleanup(self.shutdown)
+        self.base = f"http://127.0.0.1:{self.server_port}"
+
+    def test_local_path_in_git_repo_accepted(self) -> None:
+        """A path that IS a git working tree streams a manifest (200)."""
+        with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
+            (Path(td) / "x.py").write_text("print('hi')\n")
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+        self.assertEqual(status, HTTPStatus.OK)
+        # Must reach a final event — the stream actually ran.
+        self.assertTrue(any(e.get("phase") == "final" for e in events))
+
+    def test_local_path_not_in_git_repo_rejected(self) -> None:
+        """A plain directory (no git) → 400 with the helpful message."""
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("print('hi')\n")
+            status, body = _request(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+        self.assertIn("git working tree", body.get("error", ""))
+
+    def test_local_path_bare_repo_rejected(self) -> None:
+        """A bare git repo has no working tree, so it must be rejected."""
+        with TemporaryDirectory() as parent:
+            bare = Path(parent) / "bare.git"
+            _init_git_repo(bare, bare=True)
+            status, body = _request(
+                self.server_port, f"/api/manifest?src={bare}",
+            )
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+        self.assertIn("git working tree", body.get("error", ""))
+
+    def test_local_subdir_of_git_repo_accepted(self) -> None:
+        """Subdirs inherit the working-tree property — must be accepted."""
+        with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
+            sub = Path(td) / "src"
+            sub.mkdir()
+            (sub / "x.py").write_text("print('hi')\n")
+            status, events = _request_stream(
+                self.server_port, f"/api/manifest?src={sub}",
+            )
+        self.assertEqual(status, HTTPStatus.OK)
+        self.assertTrue(any(e.get("phase") == "final" for e in events))
+
+    def test_signature_endpoint_rejects_non_git_path(self) -> None:
+        """_resolve_scan_target also gates the signature endpoint."""
+        with TemporaryDirectory() as td:
+            (Path(td) / "x.py").write_text("print('hi')\n")
+            status, body = _request(
+                self.server_port, f"/api/manifest/signature?src={td}",
+            )
+        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
+        self.assertIn("git working tree", body.get("error", ""))
+
+    def test_delete_cache_bypasses_git_check(self) -> None:
+        """Cache deletion is hygienic — it must NOT require a git repo,
+        so a user can clean up a recents entry whose path was removed
+        or was never a git project."""
+        with TemporaryDirectory() as td:
+            # No git init — pure non-git directory.
+            url = (
+                f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
+                f"?src={td}"
+            )
+            status, body = _delete(url)
+        self.assertEqual(status, HTTPStatus.OK)
+        # Zero entries (nothing was cached), but the operation itself
+        # succeeded — that's the contract.
+        self.assertEqual(body, {"deleted": 0})
+
+
+class IsGitWorkingTreeHelperTests(unittest.TestCase):
+    """Direct unit tests for the helper that the server endpoints call."""
+
+    def test_returns_true_for_working_tree(self) -> None:
+        from api.server import _is_git_working_tree
+        with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
+            self.assertTrue(_is_git_working_tree(Path(td)))
+
+    def test_returns_true_for_subdir_of_working_tree(self) -> None:
+        from api.server import _is_git_working_tree
+        with TemporaryDirectory() as td:
+            _init_git_repo(Path(td))
+            sub = Path(td) / "nested"
+            sub.mkdir()
+            self.assertTrue(_is_git_working_tree(sub))
+
+    def test_returns_false_for_non_git_directory(self) -> None:
+        from api.server import _is_git_working_tree
+        with TemporaryDirectory() as td:
+            self.assertFalse(_is_git_working_tree(Path(td)))
+
+    def test_returns_false_for_bare_repo(self) -> None:
+        from api.server import _is_git_working_tree
+        with TemporaryDirectory() as parent:
+            bare = Path(parent) / "bare.git"
+            _init_git_repo(bare, bare=True)
+            self.assertFalse(_is_git_working_tree(bare))
 
 
 if __name__ == "__main__":

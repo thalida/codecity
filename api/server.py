@@ -27,6 +27,7 @@ import os
 import re
 import select
 import socket as _socket
+import subprocess
 import sys
 import threading
 from http import HTTPStatus
@@ -86,6 +87,46 @@ def _classify_source(raw: str) -> Literal["local", "git", "invalid"]:
     if "://" in raw or _GIT_SSH_FORM.match(raw):
         return "git"
     return "invalid"
+
+
+def _is_git_working_tree(path: Path) -> bool:
+    """Return True if ``path`` is inside a git working tree.
+
+    Runs ``git rev-parse --is-inside-work-tree`` with cwd=path:
+      - working tree (top-level OR subdir OR linked worktree) → "true"
+      - bare repo → "false"
+      - non-git directory → command fails with non-zero exit
+
+    CodeCity is fundamentally git-aware: every local scan needs a real
+    working tree to walk. Bare repos have no working tree (just the .git
+    object database) so they're rejected here too.
+
+    Failures (missing git binary, timeout, OS error) all fall through to
+    False — better to reject with a clear message than to scan a path we
+    can't verify."""
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=5,
+            # Defensive: a path nested inside a credentialed repo could
+            # otherwise prompt for a passphrase and hang the subprocess.
+            # We're only reading metadata, so no auth is ever needed.
+            env={**os.environ, "GIT_TERMINAL_PROMPT": "0"},
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+_NOT_GIT_ERROR = (
+    "path is not inside a git working tree. CodeCity requires a git "
+    "project — try `git init` inside the directory, or paste a git "
+    "URL instead."
+)
 
 
 # Bodies under this threshold skip compression — gzip's framing
@@ -368,6 +409,11 @@ def _resolve_scan_target(
             handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
         )
         return None
+    if not _is_git_working_tree(scan_target):
+        _send_json(
+            handler, HTTPStatus.BAD_REQUEST, {"error": _NOT_GIT_ERROR}
+        )
+        return None
     return scan_target, raw_src, None, "local"
 
 
@@ -423,6 +469,11 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         if not local_target.is_dir():
             _send_json(
                 handler, HTTPStatus.BAD_REQUEST, {"error": "path is not a directory"}
+            )
+            return
+        if not _is_git_working_tree(local_target):
+            _send_json(
+                handler, HTTPStatus.BAD_REQUEST, {"error": _NOT_GIT_ERROR}
             )
             return
 
