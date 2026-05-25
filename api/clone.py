@@ -48,7 +48,10 @@ def _log(msg: str) -> None:
         print(f"[clone] {msg}", file=sys.stderr, flush=True)
 
 
-CACHE_ROOT = Path.home() / ".cache" / "codecity" / "clones"
+CACHE_ROOT = (
+    Path(os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity")
+    / "clones"
+)
 
 
 _BRANCH_NOT_FOUND_PATTERNS = (

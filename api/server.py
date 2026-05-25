@@ -4,8 +4,12 @@ Serves the Vite-built frontend from a static dir supplied by the Docker
 entrypoint (or `static_dir=` kwarg to `start_server`) and computes a
 scan manifest on demand at `/api/manifest?src=…[&branch=…]`. `src` is
 either a local absolute path or a git URL; for git URLs, the repo is
-cloned into `~/.cache/codecity/clones/` and scanned from there. Bound to
-127.0.0.1 only — no remote access.
+cloned into `~/.cache/codecity/clones/` and scanned from there.
+
+Bind address is configurable via `start_server(host=...)`; production
+(`python -m api`) binds 0.0.0.0 so Docker port-forwarding works.
+Container isolation gates external access — the published `-p 8080:8080`
+is what the host actually exposes.
 
 Threading: ``ThreadingHTTPServer`` so concurrent /api/file fetches and a
 manifest scan don't serialize on each other. The server runs on a daemon
@@ -442,6 +446,13 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     is already 200 by then."""
     # Pre-stream validation: param parsing + classify + local-path stat.
     # Anything caught here still gets a clean 4xx response.
+    #
+    # NOTE: this re-validates the same things as _resolve_scan_target (used
+    # by /api/manifest/signature). Duplicated deliberately — _serve_manifest
+    # must emit a chunked NDJSON stream with phase events (`cloning`,
+    # `scanning`), but _resolve_scan_target calls ensure_clone synchronously
+    # which would block before any stream byte reaches the client. If you
+    # change the validation rules, update BOTH places.
     params = parse_qs(query)
     raw_src = params.get("src", [""])[0]
     raw_branch = params.get("branch", [""])[0] or None

@@ -17,11 +17,13 @@ Run this checklist after any change that touches:
 ## Setup
 
 ```sh
-( cd app && npm run build )
-uv run codecity .                  # run on this repo for a real-world scene
+just dev    # dev verification (hot-reload frontend + API)
 # or
-uv run codecity api/tests/fixtures/sample-repo
+just run    # prod-like verification (Docker image, built frontend)
 ```
+
+Then open the app in a browser and point it at this repo (or
+`api/tests/fixtures/sample-repo` for a smaller scene).
 
 Two tabs: keep the running app + the controls pane visible.
 

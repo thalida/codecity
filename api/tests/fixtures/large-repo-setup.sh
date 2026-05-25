@@ -7,11 +7,11 @@
 #
 # USAGE:
 #   bash api/tests/fixtures/large-repo-setup.sh
-#   # Then run THREE measurements to compare the perf paths:
-#   rm -rf ~/.cache/codecity/files ~/.cache/codecity/git-history
-#   time python3 -m api.cli scan api/tests/fixtures/large-repo --no-cache --output /dev/null  # cold (no-cache baseline)
-#   time python3 -m api.cli scan api/tests/fixtures/large-repo --output /dev/null             # cold + populate cache
-#   time python3 -m api.cli scan api/tests/fixtures/large-repo --output /dev/null             # warm (cache hits)
+#
+# NOTE: Benchmark recipe removed during Docker refactor — codecity no
+# longer exposes a standalone scan CLI. The script still generates the
+# fixture repo; benchmark against it via the HTTP /api/manifest endpoint
+# or by importing api.scan in a one-off Python harness.
 
 set -euo pipefail
 
@@ -75,8 +75,7 @@ count=$(find "$REPO_DIR" -type f -not -path '*/.git/*' | wc -l | tr -d ' ')
 echo
 echo "Done: $REPO_DIR ($count files, $(du -sh "$REPO_DIR" | cut -f1))."
 echo
-echo "Benchmark recipe (three runs to compare paths):"
-echo "  rm -rf ~/.cache/codecity/files ~/.cache/codecity/git-history"
-echo "  time python3 -m api.cli scan $REPO_DIR --no-cache --output /dev/null  # cold (no-cache baseline)"
-echo "  time python3 -m api.cli scan $REPO_DIR --output /dev/null             # cold + populate cache"
-echo "  time python3 -m api.cli scan $REPO_DIR --output /dev/null             # warm (cache hits)"
+echo "Benchmark recipe removed during Docker refactor — codecity no"
+echo "longer exposes a standalone scan CLI. To benchmark, hit the running"
+echo "server's /api/manifest endpoint with src=$REPO_DIR, or import"
+echo "api.scan in a one-off Python harness."
