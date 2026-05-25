@@ -642,6 +642,41 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertGreaterEqual(commits[-1]["files"], 1,
                 f"merge commit files count should be >= 1; got {commits[-1]['files']}")
 
+    def test_collect_git_metadata_counts_clean_merge_files(self):
+        """A clean (non-conflicting) merge commit must also report its
+        files. With `-c`, clean merges report 0; with
+        `--diff-merges=first-parent` they report the side-branch diff."""
+        import tempfile, subprocess
+        from codecity.scan import _collect_git_metadata
+        with tempfile.TemporaryDirectory() as td:
+            tdp = Path(td)
+            subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
+            subprocess.run(["git", "-C", td, "config", "user.email", "t@example.com"], check=True)
+            subprocess.run(["git", "-C", td, "config", "user.name", "T"], check=True)
+            # Initial commit.
+            (tdp / "a.txt").write_text("a\n")
+            subprocess.run(["git", "-C", td, "add", "."], check=True)
+            subprocess.run(["git", "-C", td, "commit", "-q", "-m", "initial"], check=True)
+            # Side branch adds a DIFFERENT file (no conflict with main).
+            subprocess.run(["git", "-C", td, "checkout", "-q", "-b", "side"], check=True)
+            (tdp / "b.txt").write_text("b\n")
+            subprocess.run(["git", "-C", td, "add", "."], check=True)
+            subprocess.run(["git", "-C", td, "commit", "-q", "-m", "add b"], check=True)
+            # Back to main, no changes here, then merge --no-ff.
+            subprocess.run(["git", "-C", td, "checkout", "-q", "main"], check=True)
+            subprocess.run(
+                ["git", "-C", td, "merge", "-q", "--no-ff", "-m", "merge side", "side"],
+                check=True,
+            )
+            _c, _m, _t, commits = _collect_git_metadata(
+                Path(td), use_cache=False, git_window="30.years.ago",
+            )
+            # Merge is the most recent commit (oldest-first list, so [-1]).
+            # Side branch added b.txt; the merge against the first parent
+            # (main, which has only a.txt) introduces b.txt — so files >= 1.
+            self.assertGreaterEqual(commits[-1]["files"], 1,
+                f"clean merge files count should be >= 1; got {commits[-1]['files']}")
+
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """When HEAD hasn't moved, _collect_git_metadata should hit the

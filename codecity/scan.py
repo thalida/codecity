@@ -229,7 +229,7 @@ def _collect_git_dates_windowed(
                 "--format=COMMIT:%aI%x09%H",
                 "--name-status",
                 "--no-renames",
-                "-c"]
+                "--diff-merges=first-parent"]
     if window:
         log_argv.append(f"--since={window}")
     try:

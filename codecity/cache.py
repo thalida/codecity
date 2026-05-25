@@ -47,13 +47,14 @@ CACHE_ROOT = Path(
 )
 
 _FILE_CACHE_VERSION = 1
-# Bumped to 7: scanner now passes -c to git log, so merge commits get
-# their combined-diff file counts instead of 0. Pre-v7 entries have
-# stale counts for merges and are dropped on load.
-_GIT_HISTORY_CACHE_VERSION = 7
-# Bumped to 6: scanner now counts merge commits' combined-diff files.
-# Pre-v6 manifests have stale file counts for merges.
-_MANIFEST_CACHE_VERSION = 6
+# Bumped to 8: scanner switched from `-c` to
+# `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
+# report their actual file count. Pre-v8 entries undercount merges.
+_GIT_HISTORY_CACHE_VERSION = 8
+# Bumped to 7: scanner now counts CLEAN merge commits via
+# --diff-merges=first-parent. Pre-v7 manifests undercount clean
+# merges.
+_MANIFEST_CACHE_VERSION = 7
 
 # Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
 # Used by cache_load_git_history to reject any cache entry whose sha
