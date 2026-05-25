@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 from pathlib import Path
 
 from codecity.types import (
@@ -114,7 +115,39 @@ def _run_git(*args: str, cwd: Path | None = None) -> str:
     return proc.stdout
 
 
-def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
+# Heartbeat cadence for the stall watchdog. Tuned for the gap between
+# git's "Resolving deltas: 100% done" and clone return on a large
+# --filter=blob:none clone — that gap is the on-demand promisor fetch
+# materializing the working tree, which emits no progress at all. Short
+# enough that the user notices the heartbeat within a few seconds of
+# git falling silent; long enough that a normal small clone never sees
+# a heartbeat fire at all.
+_STALL_HEARTBEAT_SECS = 5.0
+
+
+def _pack_dir_bytes(pack_dir: Path) -> int:
+    """Sum of file sizes directly under ``pack_dir``. Non-recursive: git
+    writes `pack-<sha>.pack` and `pack-<sha>.idx` flat in this dir, so
+    we don't need to descend. Returns 0 if the dir doesn't exist yet
+    (clone is still setting up .git/)."""
+    total = 0
+    try:
+        for entry in os.scandir(pack_dir):
+            try:
+                if entry.is_file(follow_symlinks=False):
+                    total += entry.stat(follow_symlinks=False).st_size
+            except OSError:
+                continue
+    except OSError:
+        return 0
+    return total
+
+
+def _run_git_streaming(
+    *args: str,
+    cwd: Path | None = None,
+    progress_dir: Path | None = None,
+) -> str:
     """Run git and forward stderr to ``_log`` line-by-line as it arrives.
 
     Use for long-running network ops (clone, fetch) so the user sees
@@ -128,7 +161,16 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
     a syscall hot spot on large clones (linux kernel: ~5M stderr bytes
     → ~5M read() calls). 4 KB chunks reduce that to ~1.2K syscalls
     without changing semantics — we still split on the same CR/LF
-    boundaries."""
+    boundaries.
+
+    ``progress_dir`` (typically the clone target's
+    ``.git/objects/pack``) is sampled by the stall watchdog when git
+    falls silent. ``--filter=blob:none`` clones spend minutes in a
+    silent on-demand blob fetch after "Resolving deltas: 100% done";
+    git launches it as an internal sub-process that does NOT inherit
+    ``--progress``, so we'd otherwise show nothing for the entire
+    materialization phase. The watchdog surfaces pack-dir growth so
+    the user can see download progress."""
     try:
         proc = subprocess.Popen(
             ["git", *args],
@@ -144,6 +186,10 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
 
     captured_stderr: list[str] = []
     stdout_holder: list[str] = []
+    # Wall-clock of the last stderr line we forwarded. The watchdog
+    # treats anything older than _STALL_HEARTBEAT_SECS as a stall.
+    last_output_at = [time.monotonic()]
+    proc_done = threading.Event()
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None
@@ -163,6 +209,7 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
                     if line:
                         captured_stderr.append(line)
                         _log(line)
+                        last_output_at[0] = time.monotonic()
                     start = i + 1
             if start:
                 del buf[:start]
@@ -171,18 +218,55 @@ def _run_git_streaming(*args: str, cwd: Path | None = None) -> str:
             if line:
                 captured_stderr.append(line)
                 _log(line)
+                last_output_at[0] = time.monotonic()
 
     def _drain_stdout() -> None:
         assert proc.stdout is not None
         stdout_holder.append(proc.stdout.read().decode("utf-8", errors="replace"))
 
+    def _heartbeat() -> None:
+        """Emit a 'still working' line when git has been silent past the
+        threshold. Includes pack-dir size + delta when ``progress_dir``
+        is set so the user sees actual download progress during the
+        promisor blob fetch (which is otherwise invisible)."""
+        last_bytes: int | None = None
+        # Poll faster than the threshold so we notice stalls within
+        # roughly one threshold period, not two. Capped at 1s so quick
+        # commands don't pay any noticeable thread-wakeup overhead.
+        poll = min(1.0, _STALL_HEARTBEAT_SECS / 3)
+        while not proc_done.wait(poll):
+            silent_for = time.monotonic() - last_output_at[0]
+            if silent_for < _STALL_HEARTBEAT_SECS:
+                continue
+            size_note = ""
+            if progress_dir is not None:
+                current = _pack_dir_bytes(progress_dir)
+                current_mb = current / (1024 * 1024)
+                if last_bytes is not None:
+                    delta_mb = (current - last_bytes) / (1024 * 1024)
+                    size_note = (
+                        f", {current_mb:.0f} MB on disk "
+                        f"({delta_mb:+.1f} MB since last tick)"
+                    )
+                else:
+                    size_note = f", {current_mb:.0f} MB on disk"
+                last_bytes = current
+            _log(f"still working… ({silent_for:.0f}s silent{size_note})")
+            # Reset so the next heartbeat fires at a regular cadence
+            # instead of every second once silent_for > threshold.
+            last_output_at[0] = time.monotonic()
+
     t_err = threading.Thread(target=_drain_stderr, daemon=True)
     t_out = threading.Thread(target=_drain_stdout, daemon=True)
+    t_heartbeat = threading.Thread(target=_heartbeat, daemon=True)
     t_err.start()
     t_out.start()
+    t_heartbeat.start()
     proc.wait()
+    proc_done.set()
     t_err.join()
     t_out.join()
+    t_heartbeat.join()
 
     stdout = stdout_holder[0] if stdout_holder else ""
     if proc.returncode != 0:
@@ -221,10 +305,14 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
       - CloneError          — any other git failure (auth, ssl, etc.)
     """
     target = clone_dir_for(url, branch)
+    pack_dir = target / ".git" / "objects" / "pack"
     if target.exists():
         try:
             _log(f"fetching updates for {url}")
-            _run_git_streaming("fetch", "--prune", "--progress", "origin", cwd=target)
+            _run_git_streaming(
+                "fetch", "--prune", "--progress", "origin",
+                cwd=target, progress_dir=pack_dir,
+            )
             ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
             _log(f"resetting to {ref}")
             _run_git("reset", "--hard", ref, cwd=target)
@@ -253,7 +341,7 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
         args += ["--branch", branch]
     args += ["--", url, str(target)]
     try:
-        _run_git_streaming(*args)
+        _run_git_streaming(*args, progress_dir=pack_dir)
         _log("clone complete")
     except CloneError as e:
         # First-clone failure: nuke the partial directory before re-raising,
