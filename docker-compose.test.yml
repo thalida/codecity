@@ -51,5 +51,9 @@ services:
     # 8192-tall page fails because measurements come back too narrow.
     command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm test"
     volumes:
-      - "./app:/app:ro"
+      # Not :ro — Docker can't mkdir the /app/node_modules mountpoint under a
+      # read-only parent mount on a fresh checkout (no existing node_modules
+      # dir to overlay on). Vitest tests are pure-functional and don't write
+      # to source.
+      - "./app:/app"
       - "/app/node_modules"             # anonymous volume — npm-installed in container
