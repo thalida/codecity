@@ -24,22 +24,19 @@ export default defineConfig({
     emptyOutDir: true,
   },
   server: {
-    // Bind to IPv6 loopback. The codecity CLI opens
-    // `http://<label>.localhost:<port>/` so worktrees are identifiable in
-    // the URL bar; macOS resolves *.localhost to [::1, 127.0.0.1] and
-    // Chrome tries ::1 first. If we bound to 127.0.0.1, the initial doc
-    // load would fall back but parallel subresource fetches race the
-    // refused IPv6 attempt and intermittently fail with
-    // ERR_CONNECTION_REFUSED. Binding to ::1 keeps loopback-only and
-    // matches the address browsers actually try first.
-    host: '::1',
+    // Bind in container (0.0.0.0) so the host can reach the dev server
+    // via the published port. Was '::1' which is host-only.
+    host: '0.0.0.0',
     port: 5173,
-    // strictPort: don't silently shift to 5174 if 5173 is taken — codecity
-    // dev mode polls 5173, so a port shift would look like "Vite never came
-    // up" instead of the real cause (another process holding the port).
     strictPort: true,
+    // Accept any Host header — required for worktree subdomains like
+    // `feature-x.localhost:5174`. Vite 5+ rejects unknown hosts by default.
+    allowedHosts: true,
     proxy: {
-      '/api': `http://127.0.0.1:${process.env.VITE_API_PORT ?? 8765}`,
+      // VITE_API_PROXY is set by docker-compose.dev.yml to point at the
+      // api service over the compose-internal network. Fallback covers
+      // non-container dev (unlikely now).
+      '/api': process.env.VITE_API_PROXY ?? 'http://localhost:8000',
     },
   },
 });
