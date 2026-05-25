@@ -33,10 +33,10 @@ export default defineConfig({
     // `feature-x.localhost:5174`. Vite 5+ rejects unknown hosts by default.
     allowedHosts: true,
     proxy: {
-      // VITE_API_PROXY is set by docker-compose.dev.yml to point at the
-      // api service over the compose-internal network. Fallback covers
-      // non-container dev (unlikely now).
-      '/api': process.env.VITE_API_PROXY ?? 'http://localhost:8000',
+      // VITE_API_PROXY is set by docker-compose.dev.yml (Task 13) to point at
+      // the api service over the compose-internal network. Fallback matches
+      // `python -m api`'s default port for ad-hoc "vite alone, api alone" dev.
+      '/api': process.env.VITE_API_PROXY ?? 'http://localhost:8080',
     },
   },
 });
