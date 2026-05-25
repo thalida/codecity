@@ -336,6 +336,33 @@ class ManifestCacheTests(CacheTestBase):
             fh.write(json.dumps({"version": 999, "manifest": {}}).encode("utf-8"))
         self.assertIsNone(cache_mod.cache_load_manifest(Path("/x"), "a" * 32))
 
+    def test_manifest_rejects_when_git_history_version_changed(self):
+        """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
+        must be dropped on load, because the composite version string changes
+        when git-history bumps."""
+        from codecity.cache import (
+            _manifest_cache_path,
+            cache_load_manifest,
+        )
+        import gzip
+        # Write a manifest stamped with a version string that mimics the
+        # OLD git-history version (current minus one).
+        old_g = cache_mod._GIT_HISTORY_CACHE_VERSION - 1
+        stale_version = f"m{cache_mod._MANIFEST_SCHEMA_VERSION}-g{old_g}"
+        root = Path("/fake/root")
+        sig = "deadbeef" * 8
+        path = _manifest_cache_path(root, sig)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        # Manifest cache files are gzipped JSON.
+        payload = json.dumps({
+            "version": stale_version,
+            "manifest": {"root": str(root), "scanned_at": "x", "signature": sig, "tree_signature": sig, "tree": {}, "repo": None, "commits": None},
+        })
+        with gzip.open(path, "wb") as fh:
+            fh.write(payload.encode("utf-8"))
+        # Loader must reject.
+        self.assertIsNone(cache_load_manifest(root, sig))
+
     def test_clear_manifests_deletes_every_signature(self) -> None:
         root = Path("/x")
         manifest = self._make_manifest()

@@ -51,10 +51,16 @@ _FILE_CACHE_VERSION = 1
 # `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
 # report their actual file count. Pre-v8 entries undercount merges.
 _GIT_HISTORY_CACHE_VERSION = 8
-# Bumped to 7: scanner now counts CLEAN merge commits via
-# --diff-merges=first-parent. Pre-v7 manifests undercount clean
-# merges.
-_MANIFEST_CACHE_VERSION = 7
+# Bumped only when the manifest shape changes for reasons UNRELATED
+# to git-history output (e.g. a new field on FileNode). Git-history
+# shape changes don't need a bump here — they auto-invalidate through
+# _MANIFEST_CACHE_VERSION's composite below.
+_MANIFEST_SCHEMA_VERSION = 1
+# Composite cache version: invalidates when EITHER the manifest
+# schema OR the git-history cache shape changes. Stored as a string
+# in the cache file's `version` field; the loader's equality check
+# works the same as it did for an int.
+_MANIFEST_CACHE_VERSION: str = f"m{_MANIFEST_SCHEMA_VERSION}-g{_GIT_HISTORY_CACHE_VERSION}"
 
 # Full 40-char lowercase hex SHA, as emitted by `git log --format=%H`.
 # Used by cache_load_git_history to reject any cache entry whose sha
