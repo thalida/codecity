@@ -14,6 +14,7 @@ import { INPUT_TIMING } from '@/config/index.js';
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
+import { formatRelativeAge } from '@/views/widgets/formatRelativeAge.js';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
 import type { createFlyControls } from './flyControls.js';
@@ -86,6 +87,11 @@ export function createInputHandlers({
       // camera. Show both so the affordance is discoverable.
       return `${_withRoot('')}  ·  click to reset view`;
     }
+    if (target.kind === NodeKind.Commit) {
+      const c = target.commit;
+      const shortSha = c.sha.slice(0, 7);
+      return `commit ${shortSha}  ·  ${formatRelativeAge(c.date)}`;
+    }
     if (target.kind === NodeKind.File && target.file) {
       const f = target.file;
       const fpath = _withRoot(f.path || f.name || 'file');
@@ -119,6 +125,9 @@ export function createInputHandlers({
       return a.file?.path === (b as typeof a).file?.path;
     }
     if (a.kind === NodeKind.Directory) return a.sidewalk === (b as typeof a).sidewalk;
+    if (a.kind === NodeKind.Commit) {
+      return a.commit.sha === (b as typeof a).commit.sha;
+    }
     if (a.kind === NodeKind.Gem) return true;
     return false;
   }
