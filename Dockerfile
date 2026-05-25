@@ -23,8 +23,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     UV_LINK_MODE=copy
 
 # System deps. Pinned via apt repo of the base image; Dependabot bumps base.
+# Note: PID 1 init duties are handled by Docker's --init flag (compose: init: true),
+# so we don't install tini here.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git ca-certificates tini wget \
+        git ca-certificates wget \
     && rm -rf /var/lib/apt/lists/*
 
 # uv: bring in the static binary from the official image.
@@ -70,8 +72,11 @@ EXPOSE 8080
 HEALTHCHECK --interval=10s --timeout=2s --start-period=3s --retries=3 \
     CMD wget -qO- http://127.0.0.1:8080/api/health || exit 1
 
-# tini reaps zombies + propagates SIGINT/SIGTERM to the Python process.
-ENTRYPOINT ["/usr/bin/tini", "--", "uv", "run", "python", "-m", "api"]
+# Invoke the venv's python directly. Bypassing `uv run` avoids a startup
+# re-sync that re-downloads dev deps and tries to reinstall the console
+# script into /srv/.venv/bin (read-only for the non-root runtime user).
+# Zombie reaping + signal propagation are handled by Docker's --init.
+ENTRYPOINT ["/srv/.venv/bin/python", "-m", "api"]
 CMD ["--port", "8080"]
 
 # Populated by CI via --build-arg.
