@@ -194,7 +194,7 @@ def _collect_git_dates_windowed(
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
     """One newest→oldest `git log --name-status` walk that populates
     both created_map and modified_map in a single pass, and also
-    accumulates a per-commit (date, files) summary list.
+    accumulates a per-commit (date, files, sha) summary list.
 
     Replaces two parallel walks (`--diff-filter=A --reverse` for creates
     + bare walk for modifies). Two wins:
@@ -326,7 +326,7 @@ def _collect_git_metadata(
                            since the window started are absent.
     - tracked_set        = all tracked paths + parent dirs (for the
                            gitignore filter — independent of history).
-    - commits            = oldest-first list of CommitEntry (date, files)
+    - commits            = oldest-first list of CommitEntry (date, files, sha)
                            for each commit within the history window.
 
     Single `git log --name-status --no-renames --since=$WINDOW` walk
