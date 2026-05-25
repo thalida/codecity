@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0    # full history for hatch-vcs
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: codecity:ci codecity:test codecity:dev
+          build-args: |
+            GIT_SHA=${{ github.sha }}
+            VERSION=0.0.0+g${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run pytest
+        run: docker compose -f docker-compose.test.yml run --rm pytest
+
+      - name: Run vitest
+        run: docker compose -f docker-compose.test.yml run --rm vitest
+
+      - name: Lint + typecheck + format check
+        run: |
+          docker compose -f docker-compose.test.yml run --rm vitest \
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@11.6.2 && npm ci && npm run lint && npm run typecheck && npm run format:check"
+
+      - name: Trivy scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: codecity:ci
+          format: table
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: 1
