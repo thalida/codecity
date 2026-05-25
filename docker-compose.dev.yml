@@ -1,0 +1,58 @@
+# Contributor-only dev compose: Vite HMR + api auto-reload.
+#
+# Run via `just dev` (which handles per-worktree port picking, unique
+# project name, and the subdomain URL). Running `docker compose up`
+# directly will work but skip the worktree-friendliness.
+services:
+  api:
+    image: codecity:dev
+    build:
+      context: .
+    # The image ENTRYPOINT is `/srv/.venv/bin/python -m api`; this `command:`
+    # supplies just the flags appended to it. Adds `--reload` so source edits
+    # under ./api auto-restart uvicorn, and pins the port to 8000 for dev.
+    command: ["--reload", "--port", "8000"]
+    volumes:
+      # Bind source for auto-reload. Read-only inside the container — host
+      # owns the files.
+      - "./api:/srv/api:ro"
+      # The codecity-cache named volume holds clones + manifest cache.
+      - "codecity-cache:/cache"
+    init: true
+    environment:
+      - CODECITY_QUIET=0
+    # The image's baked-in HEALTHCHECK targets port 8080; dev runs on 8000,
+    # so override it here. `depends_on: service_healthy` on the app service
+    # requires this to actually flip healthy.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8000/api/health"]
+      interval: 10s
+      timeout: 2s
+      start_period: 3s
+      retries: 3
+    # No host port published — only the app container talks to it,
+    # via compose-internal DNS (`http://api:8000`).
+
+  app:
+    image: node:24-bookworm-slim
+    working_dir: /app
+    # Pin npm to host version to match the lockfile shape (see Dockerfile
+    # for the same workaround).
+    command: sh -c "npm install -g npm@11.6.2 && npm ci && npm run dev -- --host 0.0.0.0 --port 5173"
+    ports:
+      # ${VITE_HOST_PORT} is set by `just dev` to a per-worktree free port.
+      # Default 5173 covers ad-hoc `docker compose up` in a single worktree.
+      - "${VITE_HOST_PORT:-5173}:5173"
+    volumes:
+      - "./app:/app"
+      - "/app/node_modules"             # anonymous volume — npm-installed in container
+    environment:
+      - VITE_API_PROXY=http://api:8000
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  codecity-cache:
+    # Default: compose-project-scoped (e.g. `codecity-feature-x_codecity-cache`).
+    # Per-worktree isolation by design.
