@@ -32,8 +32,11 @@ interface InitAppHeaderOpts {
   onSegmentClick?: ((path: string) => void) | null;
   /** fires when the user clicks the project button in the header */
   onSwitchSource?: () => void;
-  /** fires when the user clicks the refresh button in the header (far left) */
-  onRefresh?: () => void;
+  /** Fires when the user clicks the reset-view (gem) button in the header
+   *  (far left). Mirrors the R keyboard shortcut and clicking the gem in
+   *  the city. Caller must pass the same mode-aware reset function used by
+   *  the canvas-side input handlers, so all entry points stay consistent. */
+  onResetView?: () => void;
   /** fires when the user clicks the focus button next to the selected path —
    *  mirrors pressing F on the canvas. Caller looks at the current selection
    *  and calls rig.focusBuilding / rig.focusStreet as appropriate. */
@@ -48,7 +51,7 @@ interface InitAppHeaderOpts {
 
 /**
  * Initialise the sitewide header. Layout (left → right):
- *   refresh (gem) icon button   — far left
+ *   reset-view (gem) icon button   — far left
  *   project button (icon + label + @branch pill)
  *   repo link icon (if git url)
  *   #app-title slot (chip + path segments + copy) — empty at root
@@ -58,7 +61,7 @@ interface InitAppHeaderOpts {
  * extension hue or the asphalt color in Controls live-repaints the badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onRefresh, onFocus, onToggleFly } = opts;
+  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onResetView, onFocus, onToggleFly } = opts;
 
   const titleEl = document.getElementById('app-title');
   if (!titleEl) {
@@ -312,19 +315,19 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     _syncRepoLink();
   }
 
-  // Refresh button — sits at the FAR LEFT of the header row, prepended
+  // Reset-view button — sits at the FAR LEFT of the header row, prepended
   // before the project button. Same action as the R keyboard shortcut
-  // and as clicking the gem in the city: rebuild the manifest and
-  // reset the camera view.
-  if (onRefresh) {
+  // and as clicking the gem in the city: reset the camera view. Does NOT
+  // rebuild the city — reload the page for that.
+  if (onResetView) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-icon btn-icon--no-drag btn-icon--rainbow';
-    btn.title = 'Refresh — rebuild the city and reset the view (R)';
-    btn.setAttribute('aria-label', 'Refresh');
+    btn.title = 'Reset view (R)';
+    btn.setAttribute('aria-label', 'Reset view');
     btn.appendChild(makeLucideIcon('gem'));
     btn.dataset.appHeaderInjected = '1';
-    btn.addEventListener('click', () => onRefresh());
+    btn.addEventListener('click', () => onResetView());
     titleEl.parentElement?.prepend(btn);
   }
 
