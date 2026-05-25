@@ -31,7 +31,10 @@ jobs:
         with:
           context: .
           load: true
-          tags: codecity:ci codecity:test codecity:dev
+          tags: |
+            codecity:ci
+            codecity:test
+            codecity:dev
           build-args: |
             GIT_SHA=${{ github.sha }}
             VERSION=0.0.0+g${{ github.sha }}
