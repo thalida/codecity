@@ -1,8 +1,12 @@
 // views/panes/commitPane.ts — right-sidebar pane shown when a tree
 // (commit) is selected in the city. Shows the short SHA (click-to-
-// copy), absolute date, relative age, and an "Open on origin" link
-// built from manifest.repo.remote_url + the full SHA. When the repo
-// has no remote, the link is replaced with a muted hint.
+// copy), absolute date, relative age, files changed, same-day commit
+// count, and an "Open on origin" link built from manifest.repo.remote_url
+// + the full SHA. When the repo has no remote, the link is replaced with
+// a muted hint.
+//
+// A colored swatch matching the tree's render color is shown in the
+// pane header (via setPrefixEl) when a color is provided.
 //
 // API matches filePreviewPane's shape (build once, push selection in
 // via setCommit) so the coordinator can swap panes in the right
@@ -18,6 +22,16 @@ interface BuildCommitPaneOpts {
   onClose?: () => void;
 }
 
+export interface SetCommitOpts {
+  remoteUrl?: string | null;
+  /** Total commits on this date (including this one); >= 1. */
+  sameDayTotal?: number;
+  /** CSS color for the header swatch, e.g. "#5e8a3a". */
+  color?: string;
+  /** Injected for testability of relative age. Defaults to new Date(). */
+  now?: Date;
+}
+
 const SHORT_SHA_LEN = 7;
 const COPIED_FEEDBACK_MS = 1500;
 
@@ -25,7 +39,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const pane = document.createElement('div');
   pane.className = 'pane commit-pane';
 
-  const { el: header } = buildPaneHeader({
+  const { el: header, api: headerApi } = buildPaneHeader({
     title: 'Commit',
     onClose: opts.onClose,
   });
@@ -39,6 +53,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
   function _renderEmpty(): void {
     body.replaceChildren();
+    headerApi.setPrefixEl(null);
     const box = document.createElement('div');
     box.className = 'empty-state empty-state--lg';
     box.appendChild(makeLucideIcon('git-commit-horizontal'));
@@ -56,10 +71,23 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   function _renderCommit(
     commit: CommitEntry,
     remoteUrl: string | null,
+    sameDayTotal: number,
+    color: string | undefined,
     now: Date,
   ): void {
     body.replaceChildren();
 
+    // ── Header swatch ────────────────────────────────────────────────
+    if (color) {
+      const swatch = document.createElement('span');
+      swatch.className = 'commit-swatch';
+      swatch.style.backgroundColor = color;
+      headerApi.setPrefixEl(swatch);
+    } else {
+      headerApi.setPrefixEl(null);
+    }
+
+    // ── SHA ──────────────────────────────────────────────────────────
     const shaEl = document.createElement('button');
     shaEl.type = 'button';
     shaEl.className = 'commit-sha';
@@ -80,21 +108,46 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     });
     body.appendChild(shaEl);
 
-    const dateEl = document.createElement('div');
+    // ── Date + age (side-by-side) ─────────────────────────────────────
+    const whenEl = document.createElement('div');
+    whenEl.className = 'commit-when';
+
+    const dateEl = document.createElement('span');
     dateEl.className = 'commit-date';
     dateEl.textContent = commit.date;
-    body.appendChild(dateEl);
+    whenEl.appendChild(dateEl);
 
-    const ageEl = document.createElement('div');
+    const sepEl = document.createElement('span');
+    sepEl.className = 'commit-when-sep';
+    sepEl.textContent = '·';
+    whenEl.appendChild(sepEl);
+
+    const ageEl = document.createElement('span');
     ageEl.className = 'commit-age';
     ageEl.textContent = formatRelativeAge(commit.date, now);
-    body.appendChild(ageEl);
+    whenEl.appendChild(ageEl);
 
+    body.appendChild(whenEl);
+
+    // ── Files changed ────────────────────────────────────────────────
     const filesEl = document.createElement('div');
     filesEl.className = 'commit-files';
     filesEl.textContent = `${commit.files} file${commit.files === 1 ? '' : 's'} changed`;
     body.appendChild(filesEl);
 
+    // ── Same-day count ───────────────────────────────────────────────
+    if (sameDayTotal > 0) {
+      const sameDayEl = document.createElement('div');
+      sameDayEl.className = 'commit-same-day';
+      if (sameDayTotal > 1) {
+        sameDayEl.textContent = `${sameDayTotal} commits that day`;
+      } else {
+        sameDayEl.textContent = 'only commit that day';
+      }
+      body.appendChild(sameDayEl);
+    }
+
+    // ── Open on origin ───────────────────────────────────────────────
     const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
     if (url) {
       const link = document.createElement('a');
@@ -117,8 +170,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
   function setCommit(
     commit: CommitEntry | null,
-    remoteUrl: string | null,
-    now: Date = new Date(),
+    opts: SetCommitOpts = {},
   ): void {
     if (_copiedTimer) {
       clearTimeout(_copiedTimer);
@@ -128,10 +180,14 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       _renderEmpty();
       return;
     }
-    _renderCommit(commit, remoteUrl, now);
+    const remoteUrl = opts.remoteUrl ?? null;
+    const sameDayTotal = opts.sameDayTotal ?? 0;
+    const color = opts.color;
+    const now = opts.now ?? new Date();
+    _renderCommit(commit, remoteUrl, sameDayTotal, color, now);
   }
 
-  setCommit(null, null);
+  setCommit(null);
 
   return {
     pane,

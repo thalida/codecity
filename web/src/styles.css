@@ -2817,11 +2817,36 @@ canvas {
 
 .commit-sha.is-copied { color: var(--cc-success); }
 
-.commit-date,
-.commit-age,
 .commit-files {
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg); /* 12px */
+}
+
+.commit-when {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.commit-when-sep {
+  opacity: 0.5;
+}
+
+.commit-same-day {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.commit-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+  flex-shrink: 0;
 }
 
 .commit-open {

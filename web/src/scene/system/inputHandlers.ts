@@ -90,7 +90,8 @@ export function createInputHandlers({
     if (target.kind === NodeKind.Commit) {
       const c = target.commit;
       const shortSha = c.sha.slice(0, 7);
-      return `commit ${shortSha}  ·  ${formatRelativeAge(c.date)}`;
+      const filesLabel = `${c.files} file${c.files === 1 ? '' : 's'}`;
+      return `commit ${shortSha}  ·  ${formatRelativeAge(c.date)}  ·  ${filesLabel}`;
     }
     if (target.kind === NodeKind.File && target.file) {
       const f = target.file;
