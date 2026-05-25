@@ -2786,3 +2786,64 @@ canvas {
    .btn-icon + .btn-icon--link + .btn-icon--no-drag (repo-link).
    Inner svg rendering tweak applies to any svg child of a header btn-icon. */
 #app-header .btn-icon svg { display: block; }
+
+/* ── Commit pane (right sidebar) ────────────────────────────────────────
+   Shown when a tree is selected in the city. Layout: pane-header from
+   buildPaneHeader + .commit-body scrollable area with sha / date / age /
+   open-on-origin link. Follows the same pane-body padding pattern as
+   other right-sidebar panes. */
+
+.commit-body {
+  padding: var(--cc-space-7); /* 16px */
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-4); /* 8px */
+}
+
+.commit-sha {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-2xl); /* 18px — prominent primary identifier */
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  color: var(--cc-text-primary);
+  line-height: 1.3;
+}
+
+.commit-sha:hover { text-decoration: underline; }
+
+.commit-sha.is-copied { color: var(--cc-success); }
+
+.commit-date,
+.commit-age {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.commit-open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  margin-top: var(--cc-space-4); /* 8px */
+  padding: var(--cc-space-4) var(--cc-space-6); /* 8px 12px */
+  border-radius: var(--cc-radius-sm);
+  background: var(--cc-accent-bg-soft);
+  color: var(--cc-text-primary);
+  text-decoration: none;
+  align-self: flex-start;
+  font-size: var(--cc-font-lg); /* 12px */
+  border: 1px solid var(--cc-accent-border);
+  transition: background 120ms ease;
+}
+
+.commit-open:hover { background: var(--cc-accent-bg); }
+
+.commit-no-remote {
+  margin-top: var(--cc-space-4); /* 8px */
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+  font-style: italic;
+}
