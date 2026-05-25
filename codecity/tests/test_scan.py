@@ -598,9 +598,10 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(dates, sorted(dates),
                          f"commits should be oldest-first, got {dates}")
         for c in commits:
-            self.assertEqual(set(c.keys()), {"date", "files"})
+            self.assertEqual(set(c.keys()), {"date", "files", "sha"})
             self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
             self.assertGreaterEqual(c["files"], 1)
+            self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
 
 
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
