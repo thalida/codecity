@@ -5,8 +5,8 @@ import { resolve } from 'node:path';
 // Dockerfile copies app/dist/ into the runtime image's static dir, and
 // the api server (api/server.py) serves from there at runtime.
 //
-// Three.js is loaded from a CDN via the importmap in index.html; rollup
-// treats it as external.
+// Three.js is bundled into the output via the standard `three` npm
+// dependency — no importmap, no CDN runtime fetch.
 
 const appDir = import.meta.dirname;
 
@@ -22,9 +22,6 @@ export default defineConfig({
   build: {
     outDir: resolve(appDir, 'dist'),
     emptyOutDir: true,
-    rollupOptions: {
-      external: [/^three$/, /^three\/addons\//],
-    },
   },
   server: {
     // Bind to IPv6 loopback. The codecity CLI opens
