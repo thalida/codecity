@@ -90,6 +90,11 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     ageEl.textContent = formatRelativeAge(commit.date, now);
     body.appendChild(ageEl);
 
+    const filesEl = document.createElement('div');
+    filesEl.className = 'commit-files';
+    filesEl.textContent = `${commit.files} file${commit.files === 1 ? '' : 's'} changed`;
+    body.appendChild(filesEl);
+
     const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
     if (url) {
       const link = document.createElement('a');

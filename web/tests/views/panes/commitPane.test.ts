@@ -28,7 +28,7 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('renders short SHA, date, age, and an open-on-origin link', () => {
+  it('renders short SHA, date, age, files changed, and an open-on-origin link', () => {
     const { pane, api } = buildCommitPane({});
     const now = new Date('2026-05-24T12:00:00Z');
     api.setCommit(COMMIT, 'https://github.com/org/repo', now);
@@ -36,6 +36,7 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-sha')!.textContent).toBe('a1b2c3d');
     expect(pane.querySelector('.commit-date')!.textContent).toBe('2026-03-12');
     expect(pane.querySelector('.commit-age')!.textContent).toBe('2 months ago');
+    expect(pane.querySelector('.commit-files')!.textContent).toBe('4 files changed');
 
     const link = pane.querySelector('.commit-open') as HTMLAnchorElement;
     expect(link).not.toBeNull();
@@ -43,6 +44,13 @@ describe('buildCommitPane', () => {
     expect(link.target).toBe('_blank');
     expect(link.rel).toContain('noopener');
     expect(link.rel).toContain('noreferrer');
+  });
+
+  it('uses singular "1 file changed" when files is 1', () => {
+    const { pane, api } = buildCommitPane({});
+    const oneFile: CommitEntry = { ...COMMIT, files: 1 };
+    api.setCommit(oneFile, null, new Date('2026-05-24T12:00:00Z'));
+    expect(pane.querySelector('.commit-files')!.textContent).toBe('1 file changed');
   });
 
   it('hides the open link and shows a no-remote hint when remoteUrl is null', () => {

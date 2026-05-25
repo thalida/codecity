@@ -2818,7 +2818,8 @@ canvas {
 .commit-sha.is-copied { color: var(--cc-success); }
 
 .commit-date,
-.commit-age {
+.commit-age,
+.commit-files {
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg); /* 12px */
 }
