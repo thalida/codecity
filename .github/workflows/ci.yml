@@ -6,6 +6,12 @@ on:
   push:
     branches: [main]
 
+# Mirror of the NPM_VERSION pin in .env / Dockerfile ARG. Keep in sync —
+# the .env file is the canonical source for compose + justfile, this env
+# block is the canonical source for CI shell steps. See Dockerfile header.
+env:
+  NPM_VERSION: '11.6.2'
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -41,10 +47,10 @@ jobs:
       - name: Lint + typecheck + format check
         run: |
           docker compose -f docker-compose.test.yml run --rm vitest \
-            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@11.6.2 && npm ci && npm run lint && npm run typecheck && npm run format:check"
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
       - name: Trivy scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: codecity:ci
           format: table

@@ -15,6 +15,7 @@ services:
     # non-root runtime user can't write to it. This is a test-only ephemeral
     # container (--rm), not production — root is acceptable here.
     user: "root"
+    init: true
     entrypoint: ["sh", "-c", "uv sync --frozen && /srv/.venv/bin/python -m pytest -v"]
     environment:
       # A couple of tests in api/tests/test_scan.py shell out to `git commit`
@@ -37,8 +38,10 @@ services:
   vitest:
     image: node:24-bookworm-slim
     working_dir: /app
+    init: true
     # Pin npm to host version to match the lockfile shape (see Dockerfile
-    # for the same workaround).
+    # for the same workaround). NPM_VERSION is loaded from the repo-root
+    # .env file by compose; fallback keeps this working if .env is missing.
     #
     # The `canvas` package's prebuilt binary requires `libexpat1` from the
     # system (jsdom delegates `getContext('2d')` to node-canvas, and several
@@ -46,7 +49,7 @@ services:
     # required so labelAtlas text measurements match real-browser widths —
     # without them, a pagination test that depends on text overflowing one
     # 8192-tall page fails because measurements come back too narrow.
-    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@11.6.2 && npm ci && npm test"
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@${NPM_VERSION:-11.6.2} && npm ci && npm test"
     volumes:
       - "./app:/app:ro"
       - "/app/node_modules"             # anonymous volume — npm-installed in container

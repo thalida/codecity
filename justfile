@@ -50,9 +50,12 @@ test-app:
     docker compose -f docker-compose.test.yml run --rm vitest
 
 # ── Lint / typecheck ─────────────────────────────────────────────
+# Reads NPM_VERSION from the repo-root .env file (canonical source for
+# compose + just). Dockerfile ARG default and ci.yml `env:` block mirror it.
 lint:
-    docker compose -f docker-compose.test.yml run --rm vitest \
-        sh -c "npm install -g npm@11.6.2 && npm ci && npm run lint && npm run typecheck && npm run format:check"
+    @NPM_VERSION=$(grep '^NPM_VERSION=' .env | cut -d= -f2) ; \
+     docker compose -f docker-compose.test.yml run --rm vitest \
+         sh -c "npm install -g npm@$$NPM_VERSION && npm ci && npm run lint && npm run typecheck && npm run format:check"
 
 # ── Build ────────────────────────────────────────────────────────
 build:

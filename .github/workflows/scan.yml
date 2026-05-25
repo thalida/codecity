@@ -19,19 +19,24 @@ jobs:
 
       - name: Run Trivy on :latest
         id: trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/codecity:latest
-          format: table
+          format: json
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: 0    # don't fail; we open an issue instead
-          output: trivy-results.txt
+          output: trivy-results.json
 
       - name: Check for findings
         id: findings
+        # jq is preinstalled on ubuntu-latest runners. Parse Trivy's JSON
+        # rather than grepping the table format — robust against upstream
+        # rendering changes.
         run: |
-          if grep -q 'Total:' trivy-results.txt && ! grep -q 'Total: 0' trivy-results.txt; then
+          count=$(jq '[.Results[]?.Vulnerabilities // [] | length] | add // 0' trivy-results.json)
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+          if [ "$count" -gt 0 ]; then
             echo "found=true" >> "$GITHUB_OUTPUT"
           else
             echo "found=false" >> "$GITHUB_OUTPUT"
@@ -43,11 +48,15 @@ jobs:
         with:
           script: |
             const fs = require('fs');
-            const results = fs.readFileSync('trivy-results.txt', 'utf8');
+            const json = JSON.parse(fs.readFileSync('trivy-results.json', 'utf8'));
+            const vulns = (json.Results || []).flatMap(r => r.Vulnerabilities || []);
+            const summary = vulns
+              .map(v => `- **${v.Severity}** ${v.VulnerabilityID} in ${v.PkgName}@${v.InstalledVersion}: ${v.Title}`)
+              .join('\n');
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title: `Trivy scan: HIGH/CRITICAL CVEs in codecity:latest (${new Date().toISOString().split('T')[0]})`,
-              body: `Weekly scan found HIGH/CRITICAL CVEs in the published image. Time to rebuild against a fresh base.\n\n\`\`\`\n${results}\n\`\`\``,
+              title: `Trivy scan: ${vulns.length} HIGH/CRITICAL CVEs in codecity:latest (${new Date().toISOString().split('T')[0]})`,
+              body: `Weekly scan found ${vulns.length} HIGH/CRITICAL CVEs in the published image. Time to rebuild against a fresh base.\n\n${summary}`,
               labels: ['security', 'dependencies'],
             });

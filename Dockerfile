@@ -2,10 +2,15 @@
 
 # ─────── Stage 1: build the frontend ───────
 FROM node:24-bookworm-slim AS web-builder
-# Pin npm to host version (11.6.2) — container ships npm 11.13.0, which is
-# stricter about lockfile shape and refuses npm ci with EUSAGE on the
-# host-generated lockfile (missing @emnapi/core, @emnapi/runtime entries).
-RUN npm install -g npm@11.6.2
+# Pin npm to host version — container ships npm 11.13.0, which is stricter
+# about lockfile shape and refuses npm ci with EUSAGE on the host-generated
+# lockfile (missing @emnapi/core, @emnapi/runtime entries).
+#
+# Canonical version source: this ARG default. The repo-root `.env` file
+# mirrors it for docker-compose + justfile; .github/workflows/ci.yml mirrors
+# it as an `env:` block. Bump all three together.
+ARG NPM_VERSION=11.6.2
+RUN npm install -g npm@${NPM_VERSION}
 WORKDIR /build
 COPY app/package.json app/package-lock.json ./
 RUN --mount=type=cache,target=/root/.npm \
