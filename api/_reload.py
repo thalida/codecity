@@ -67,8 +67,15 @@ def run_with_reload(port: int) -> int:
             # same argv. execv replaces the process — no return.
             try:
                 shutdown()
-            except Exception:  # pylint: disable=broad-except
-                pass
+            except Exception as e:  # pylint: disable=broad-except
+                print(
+                    f"[codecity] shutdown error before reload: {e}",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            # Re-exec with `python -m api <original-flags>`. sys.argv[1:] preserves
+            # --port and --reload because argparse doesn't consume args destructively.
+            # Revisit if we add subcommands or env-driven config that argparse mutates.
             os.execv(sys.executable, [sys.executable, "-m", "api", *sys.argv[1:]])
 
     Thread(target=_watcher, daemon=True, name="cc-reload-watcher").start()
