@@ -46,10 +46,10 @@ CACHE_ROOT = Path(
 )
 
 _FILE_CACHE_VERSION = 1
-# Bumped to 5: CommitEntry no longer carries gap_days (the renderer
-# replaced commit-gap with commits-per-day, derived at render time from
-# the date field). Pre-v5 entries get dropped on load.
-_GIT_HISTORY_CACHE_VERSION = 5
+# Bumped to 6: CommitEntry gains a `sha` field (full 40-char hex) so the
+# UI can link to the commit on the origin remote. Pre-v6 entries get
+# dropped on load.
+_GIT_HISTORY_CACHE_VERSION = 6
 # Bumped to 4: Manifest's commits list no longer carries gap_days.
 _MANIFEST_CACHE_VERSION = 4
 
@@ -210,9 +210,11 @@ def cache_load_git_history(
             continue
         date = c.get("date")
         files = c.get("files")
-        if (isinstance(date, str) and isinstance(files, int)
-                and not isinstance(files, bool)):
-            commits.append({"date": date, "files": files})
+        sha = c.get("sha")
+        if (isinstance(date, str)
+                and isinstance(files, int) and not isinstance(files, bool)
+                and isinstance(sha, str) and len(sha) == 40):
+            commits.append({"date": date, "files": files, "sha": sha})
     return created, modified, commits
 
 
