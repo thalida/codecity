@@ -19,7 +19,7 @@ jobs:
 
       - name: Run Trivy on :latest
         id: trivy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ghcr.io/${{ github.repository_owner }}/codecity:latest
           format: json
