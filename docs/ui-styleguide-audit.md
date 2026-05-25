@@ -1,7 +1,7 @@
 # UI Styleguide Audit — CodeCity
 
 Branch audited: `feat/ui-source-selection`
-File audited: `web/styles.css` (2 462 lines)
+File audited: `app/styles.css` (2 462 lines)
 
 ---
 
@@ -388,7 +388,7 @@ Tiny inline reset icon button used in Controls rows. Distinct from `btn-icon` be
 ## 8. Migration plan (ordered by impact)
 
 ### Step 1 — Declare CSS custom properties (XS, ~30 min)
-Add the `:root { ... }` token block to the top of `web/styles.css` (after the reset). No existing rules change; this is purely additive. Establishes the vocabulary for all subsequent steps.
+Add the `:root { ... }` token block to the top of `app/styles.css` (after the reset). No existing rules change; this is purely additive. Establishes the vocabulary for all subsequent steps.
 
 **Rules touched:** 0 existing. 1 new `:root` block (~25 lines).
 

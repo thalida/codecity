@@ -38,7 +38,7 @@ from api import __version__
 from api.server import start_server
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-WEB_DIR = REPO_ROOT / "web"
+APP_DIR = REPO_ROOT / "app"
 PORTS_FILE = REPO_ROOT / ".local" / "worktree-ports.json"
 VITE_READY_TIMEOUT = 30  # seconds
 
@@ -178,9 +178,9 @@ def _run_dev_server(vite_port: int, api_port: int) -> int:
     if shutil.which("npm") is None:
         print("error: 'npm' not found on PATH; required for --dev", file=sys.stderr)
         return 2
-    if not (WEB_DIR / "node_modules").exists():
+    if not (APP_DIR / "node_modules").exists():
         print(
-            "error: web/node_modules missing — run (cd web && npm install) first",
+            "error: app/node_modules missing — run (cd app && npm install) first",
             file=sys.stderr,
         )
         return 2
@@ -192,7 +192,7 @@ def _run_dev_server(vite_port: int, api_port: int) -> int:
     env = {**os.environ, "VITE_API_PORT": str(actual_api_port)}
     vite_proc = subprocess.Popen(
         ["npm", "run", "dev", "--", "--port", str(vite_port)],
-        cwd=str(WEB_DIR),
+        cwd=str(APP_DIR),
         env=env,
         stdout=sys.stderr,
         stderr=sys.stderr,

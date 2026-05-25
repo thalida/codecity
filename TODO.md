@@ -41,9 +41,9 @@
 ### Optimize the layoutV4 worker (~70-80s Linux cold-load cost)
 
 ```text
-The cell-rendering branch (feat/large-repo-rendering) reduced Linux load time from ~6 min to ~90s, but ~80s of that is now inside _layoutClient.compute — i.e. the layout worker (web/scene/layoutWorker.ts → web/scene/layoutV4.ts). The rendering side is no longer the bottleneck; the layout algorithm itself is. Profile it on the Linux kernel (torvalds/linux.git, ~93k files / ~5k directories) and identify the hottest section.
+The cell-rendering branch (feat/large-repo-rendering) reduced Linux load time from ~6 min to ~90s, but ~80s of that is now inside _layoutClient.compute — i.e. the layout worker (app/scene/layoutWorker.ts → app/scene/layoutV4.ts). The rendering side is no longer the bottleneck; the layout algorithm itself is. Profile it on the Linux kernel (torvalds/linux.git, ~93k files / ~5k directories) and identify the hottest section.
 
-Suspect O(N²) loops in street collision detection or building rasterization (layoutV4 is ~920 lines with hierarchical street/stem placement). Don't touch the OUTPUT (positions, dimensions) — keep the algorithm's results bit-identical against the existing snapshot tests in web/tests/scene/layoutV4.test.ts and web/tests/scene/layoutV4-trace.test.ts. Only change implementation. The layout cache wrapper in web/scene/layoutClient.ts is fine as-is.
+Suspect O(N²) loops in street collision detection or building rasterization (layoutV4 is ~920 lines with hierarchical street/stem placement). Don't touch the OUTPUT (positions, dimensions) — keep the algorithm's results bit-identical against the existing snapshot tests in app/tests/scene/layoutV4.test.ts and app/tests/scene/layoutV4-trace.test.ts. Only change implementation. The layout cache wrapper in app/scene/layoutClient.ts is fine as-is.
 
 Start by adding a single perf log inside layoutV4.ts that breaks down time per phase (tree walk / street placement / collision check / building dimension assignment / etc.) so we know what's actually slow before changing anything. Then bring me the perf breakdown and a proposed approach before refactoring.
 ```

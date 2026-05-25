@@ -2,7 +2,7 @@
 
 The Python wheel ships api/static/ as bundled artifact, so users don't
 need Node to install. That contract relies on the committed build matching
-the current web/ source — if a frontend change lands without rerunning
+the current app/ source — if a frontend change lands without rerunning
 `npm run build`, the published package serves stale JS/CSS.
 
 This test does a fresh build into a tempdir and walks both trees,
@@ -21,7 +21,7 @@ from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 STATIC_DIR = REPO_ROOT / "api" / "static"
-WEB_DIR = REPO_ROOT / "web"
+APP_DIR = REPO_ROOT / "app"
 
 
 def _walk_files(root: Path) -> set[str]:
@@ -35,7 +35,7 @@ def _walk_files(root: Path) -> set[str]:
 
 
 @unittest.skipIf(shutil.which("npm") is None, "npm not on PATH")
-@unittest.skipIf(not (WEB_DIR / "node_modules").exists(), "web/node_modules missing — run (cd web && npm install)")
+@unittest.skipIf(not (APP_DIR / "node_modules").exists(), "app/node_modules missing — run (cd app && npm install)")
 class StaticBuildDriftTests(unittest.TestCase):
     def test_committed_static_matches_fresh_build(self) -> None:
         with TemporaryDirectory() as tmp:
@@ -44,7 +44,7 @@ class StaticBuildDriftTests(unittest.TestCase):
             # without touching the committed api/static/.
             subprocess.run(
                 ["npx", "vite", "build", "--outDir", str(tmp_out), "--emptyOutDir"],
-                cwd=str(WEB_DIR),
+                cwd=str(APP_DIR),
                 check=True,
                 capture_output=True,
             )

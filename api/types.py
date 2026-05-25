@@ -1,6 +1,6 @@
 """TypedDict shapes for the JSON manifest the scanner emits.
 
-Mirrors web/types/manifest.ts. Keep both files in sync — the web app
+Mirrors app/types/manifest.ts. Keep both files in sync — the web app
 consumes the JSON exactly as these TypedDicts describe it. Drift here
 is shape drift in the wire format and will be caught by pyright on
 the Python side and tsc on the TS side, but only within each language.
@@ -16,7 +16,7 @@ from typing import Literal, NotRequired, TypedDict
 
 
 class NodeKind:
-    """String constants matching web/types/manifest.ts:NodeKind. Plain
+    """String constants matching app/types/manifest.ts:NodeKind. Plain
     class with string attrs (not enum.Enum) so the Literal discriminators
     on FileNode/DirNode can reference them as bare string literals —
     enum.StrEnum doesn't narrow as cleanly through TypedDict Literal."""

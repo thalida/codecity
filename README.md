@@ -66,13 +66,13 @@ Tweak any of these live from the in-app Controls pane (left sidebar → gear ico
 
 ## Development
 
-Two trees, cleanly separated: Python lives at the repo root, the frontend lives in `web/`.
+Two trees, cleanly separated: Python lives at the repo root, the frontend lives in `app/`.
 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
 just setup                       # uv sync + npm install
-( cd web && npm run build )      # → api/static/
+( cd app && npm run build )      # → api/static/
 uv run codecity                  # smoke test (pick this repo in the source picker)
 ```
 
@@ -87,11 +87,11 @@ just dev           # Vite + Python API on auto-selected free ports, opens browse
 ### Tests
 
 ```sh
-( cd web && npm test )           # vitest
+( cd app && npm test )           # vitest
 uv run pytest                    # pytest  (run from repo root)
 ```
 
-`pytest` includes a **drift check** (`api/tests/test_drift.py`) that does a fresh `npm run build` into a tempdir and fails if the result differs from the committed `api/static/`. That guarantees the bundled frontend on PyPI matches `web/` source. The check skips automatically when `npm` or `web/node_modules/` are missing.
+`pytest` includes a **drift check** (`api/tests/test_drift.py`) that does a fresh `npm run build` into a tempdir and fails if the result differs from the committed `api/static/`. That guarantees the bundled frontend on PyPI matches `app/` source. The check skips automatically when `npm` or `app/node_modules/` are missing.
 
 ### Layout
 
@@ -104,7 +104,7 @@ api/                     # python package
   tests/                 # pytest
 pyproject.toml, uv.lock  # python tooling
 
-web/                     # frontend, fully self-contained
+app/                     # frontend, fully self-contained
   package.json, vite.config.js, vitest.config.js
   index.html, main.js, styles.css
   components/, scene/, config/
@@ -116,8 +116,8 @@ web/                     # frontend, fully self-contained
 Cut a release from `main` after the drift test is green:
 
 ```sh
-# 1. Rebuild the frontend if web/ has changed since the last commit.
-( cd web && npm run build )
+# 1. Rebuild the frontend if app/ has changed since the last commit.
+( cd app && npm run build )
 git add api/static
 git commit -m "chore: rebuild frontend"   # only if anything changed
 

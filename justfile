@@ -3,7 +3,7 @@ default:
 
 setup:
     uv sync
-    cd web && npm install
+    cd app && npm install
 
 dev: setup
     uv run codecity --dev
