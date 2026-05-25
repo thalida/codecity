@@ -36,6 +36,6 @@ testpaths = ["api/tests"]
 
 [tool.pyright]
 include = ["api"]
-exclude = ["api/static", "api/tests"]
+exclude = ["api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"

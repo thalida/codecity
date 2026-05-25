@@ -42,7 +42,6 @@
   "include": ["**/*.js", "**/*.ts", "tests/**/*"],
   "exclude": [
     "node_modules",
-    "../api/static",
     // Node-side scripts — checked by tsconfig.node.json which adds @types/node.
     // Excluding them here prevents @types/node from bleeding into browser source
     // via `import 'node:path'` etc. in these files.

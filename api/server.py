@@ -1,6 +1,7 @@
 """Local HTTP server backing the browser-served frontend.
 
-Serves the Vite-built frontend out of `api/static/` and computes a
+Serves the Vite-built frontend from a static dir supplied by the Docker
+entrypoint (or `static_dir=` kwarg to `start_server`) and computes a
 scan manifest on demand at `/api/manifest?src=…[&branch=…]`. `src` is
 either a local absolute path or a git URL; for git URLs, the repo is
 cloned into `~/.cache/codecity/clones/` and scanned from there. Bound to
