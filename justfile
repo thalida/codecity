@@ -4,19 +4,13 @@ default:
 
 # ── Local run ────────────────────────────────────────────────────
 # Dev mode: Vite HMR + api auto-reload. Worktree-aware.
-# Picks a free host port per worktree (persisted to .local/worktree-ports.json),
-# uses a worktree-derived compose project name (so containers + volumes don't
-# collide), and prints a subdomain URL so browser storage is isolated per
-# worktree.
+# Picks a free host port per worktree (persisted to .local/worktree-ports.json
+# under key 'vite'), uses a worktree-derived compose project name (so containers
+# + volumes don't collide), and prints a subdomain URL so browser storage is
+# isolated per worktree. Auto-re-picks if the saved port becomes occupied.
 dev:
-    @mkdir -p .local
-    @python3 -c "import json, socket, pathlib; \
-        p = pathlib.Path('.local/worktree-ports.json'); \
-        d = json.loads(p.read_text()) if p.exists() else {}; \
-        s = socket.socket(); s.bind(('', 0)); d.setdefault('vite', s.getsockname()[1]); s.close(); \
-        p.write_text(json.dumps(d))"
-    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
-     PORT=$(python3 -c "import json; print(json.load(open('.local/worktree-ports.json'))['vite'])") ; \
+    @PORT=$(python3 bin/pick-port.py vite) ; \
+     SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      echo "[codecity-dev] http://$SLUG.localhost:$PORT/" ; \
      VITE_HOST_PORT=$PORT \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml up --build
