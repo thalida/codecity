@@ -120,6 +120,9 @@ function makeFakeWorld(
     getCells() {
       return new Map();
     },
+    getTrees() {
+      return null;
+    },
   };
   return Object.assign(api, { setSnapshot });
 }
@@ -162,6 +165,7 @@ describe('picker.pickAtCenter', () => {
       onChange: () => () => {},
       getBuildingIndex: () => null,
       getCells: () => new Map(),
+      getTrees: () => null,
     };
 
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
@@ -186,6 +190,7 @@ describe('picker.pickAtCenter', () => {
       onChange: () => () => {},
       getBuildingIndex: () => null,
       getCells: () => new Map(),
+      getTrees: () => null,
     };
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
     const p = createPicker({ canvas, camera, world: mockWorld });

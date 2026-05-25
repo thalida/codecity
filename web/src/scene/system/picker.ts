@@ -77,13 +77,27 @@ export function createPicker({
       const gemBody = gem.userData.body as THREE.Object3D | undefined;
       if (gemBody) pickables.push(gemBody);
     }
+
+    const trees = world.getTrees();
+    if (trees) {
+      for (const child of trees.group.children) {
+        const kind = child.userData?.meshKind;
+        if (kind === 'tree-canopy' || kind === 'tree-trunk') {
+          pickables.push(child);
+        }
+      }
+    }
   }
 
   // ── Selection → key derivation ────────────────────────────────────
   // selection is the source of truth. Any time it changes, we recompute
   // PICKER_SELECTION_KEY so the persistence layer sees the new key.
   // No code path writes to both atoms simultaneously.
-  let _suspendKeyDerive = false;
+  //
+  // NOTE: nanostores subscribe() fires immediately with the current value.
+  // We suppress the initial fire so we don't clobber a key that was
+  // hydrated by attachPersistence before this picker was created.
+  let _suspendKeyDerive = true;
   selection.subscribe((sel) => {
     if (_suspendKeyDerive) return;
     if (!sel) {
@@ -98,7 +112,13 @@ export function createPicker({
       PICKER_SELECTION_KEY.set({ kind: NodeKind.Directory, path: sel.dir.path });
       return;
     }
+    if (sel.kind === NodeKind.Commit && sel.commit?.sha) {
+      PICKER_SELECTION_KEY.set({ kind: NodeKind.Commit, sha: sel.commit.sha });
+      return;
+    }
   });
+  // Lift the initial suppression now that the first (no-op) fire is done.
+  _suspendKeyDerive = false;
 
   // ── Key → selection re-resolution on world rebuild ────────────
   // After a manifest swap, any prior live selection (mesh, street ref)
@@ -150,6 +170,25 @@ export function createPicker({
         PICKER_SELECTION_KEY.set(null);
       }
       _suspendKeyDerive = false;
+      return;
+    }
+    if (key.kind === NodeKind.Commit) {
+      const trees = world.getTrees();
+      const hit = trees?.findTreeBySha(key.sha) ?? null;
+      _suspendKeyDerive = true;
+      if (hit) {
+        selection.set({
+          kind: NodeKind.Commit,
+          mesh: hit.mesh,
+          instanceId: hit.instanceId,
+          commit: hit.commit,
+        });
+      } else {
+        selection.set(null);
+        PICKER_SELECTION_KEY.set(null);
+      }
+      _suspendKeyDerive = false;
+      return;
     }
   }
 
@@ -250,6 +289,22 @@ export function createPicker({
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
       return { kind: NodeKind.Gem, mesh: hit.object };
+    }
+    if (
+      hit.object instanceof THREE.InstancedMesh &&
+      (ud.meshKind === 'tree-canopy' || ud.meshKind === 'tree-trunk')
+    ) {
+      const slot = hit.instanceId;
+      if (slot == null) return null;
+      const trees = world.getTrees();
+      const commit = trees?.commitForInstance(hit.object, slot);
+      if (!commit) return null;
+      return {
+        kind: NodeKind.Commit,
+        mesh: hit.object,
+        instanceId: slot,
+        commit,
+      };
     }
     // InstancedMesh hit from a CellTile. detailMesh carries userData.cellId
     // and userData.meshKind === 'detail'. The Building is looked up via
