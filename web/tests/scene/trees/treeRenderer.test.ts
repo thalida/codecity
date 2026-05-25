@@ -4,7 +4,7 @@
 // canopy widths driven by commit file count (more files = wider) and
 // canopy facet counts also driven by file count (more files = higher
 // subdivision), and canopy colors that interpolate between
-// TREE_COLOR_NEW (solo-commit days) and TREE_COLOR_OLD (busy days) by
+// TREE_COLOR_SOLO_DAY (solo-commit days) and TREE_COLOR_BUSY_DAY (busy days) by
 // commits-per-day.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -32,8 +32,8 @@ function resetStores() {
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
     SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
-    TREE_COLOR_OLD: '#0a2613',
-    TREE_COLOR_NEW: '#a8d68a',
+    TREE_COLOR_BUSY_DAY: '#0a2613',
+    TREE_COLOR_SOLO_DAY: '#a8d68a',
     TREE_SHADING_STRENGTH: 0.65,
     TREE_TRUNK_COLOR: '#120c08',
   });
@@ -296,10 +296,10 @@ describe('createTreeRenderer()', () => {
       .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
   });
 
-  it('per-instance color interpolates between NEW (light, solo day) and OLD (dark, busy day) by COMMITS-PER-DAY', () => {
+  it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
     // Three days with 1, 2, and 4 commits respectively. After log-norm:
-    //   - solo day (count=1) → t=0 → TREE_COLOR_NEW (light green)
-    //   - busy day (count=4) → t=1 → TREE_COLOR_OLD (dark green)
+    //   - solo day (count=1) → t=0 → TREE_COLOR_SOLO_DAY
+    //   - busy day (count=4) → t=1 → TREE_COLOR_BUSY_DAY
     //   - mid day (count=2)  → t≈0.5 between log1p(1) and log1p(4)
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // solo day
@@ -399,8 +399,8 @@ describe('createTreeRenderer()', () => {
     const meshesBefore = [...canopyMeshes(trees.group), trunkMesh(trees.group)];
     const geomsBefore = meshesBefore.map((m) => m.geometry);
 
-    TREES.setKey('TREE_COLOR_OLD', '#000000');
-    TREES.setKey('TREE_COLOR_NEW', '#ffffff');
+    TREES.setKey('TREE_COLOR_BUSY_DAY', '#000000');
+    TREES.setKey('TREE_COLOR_SOLO_DAY', '#ffffff');
     TREES.setKey('TREE_TRUNK_COLOR', '#ff0000');
     trees.refresh();
 

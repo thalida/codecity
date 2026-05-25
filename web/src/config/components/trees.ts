@@ -14,9 +14,9 @@
 //       TREE_MIN_WIDTH  →  fewest files
 //       TREE_MAX_WIDTH  →  most files
 //   - COLOR (canopy): two-color interpolation by COMMITS-PER-DAY.
-//     Solo-commit days lean toward TREE_COLOR_NEW (light green);
+//     Solo-commit days lean toward TREE_COLOR_SOLO_DAY;
 //     busy days (many commits sharing that day) lean toward
-//     TREE_COLOR_OLD (dark green). All commits on the same date
+//     TREE_COLOR_BUSY_DAY. All commits on the same date
 //     share a color. Log-normalized.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
@@ -62,11 +62,11 @@ export interface TreesConfig {
    *  canopy down without changing its overall height. */
   CANOPY_TRUNK_OVERLAP_FRAC: number;
 
-  /** Color for the oldest commit (interpolation endpoint, t=0). */
-  TREE_COLOR_OLD: string;
+  /** Color trees interpolate toward on a busy day (many commits share the same date). */
+  TREE_COLOR_BUSY_DAY: string;
 
-  /** Color for the newest commit (interpolation endpoint, t=1). */
-  TREE_COLOR_NEW: string;
+  /** Color trees interpolate toward on a solo day (only one commit on its date). */
+  TREE_COLOR_SOLO_DAY: string;
 
   /** 0 = flat canopy (no vertex shading); 1 = base of canopy fully dark. */
   TREE_SHADING_STRENGTH: number;
@@ -95,8 +95,8 @@ export const TREES = map<TreesConfig>({
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
   CANOPY_TRUNK_OVERLAP_FRAC: 0.10,
 
-  TREE_COLOR_OLD: '#05140a',
-  TREE_COLOR_NEW: '#165028',
+  TREE_COLOR_BUSY_DAY: '#05140a',
+  TREE_COLOR_SOLO_DAY: '#165028',
   TREE_SHADING_STRENGTH: 0.65,
   TREE_TRUNK_COLOR: '#110c08',
 

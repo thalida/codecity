@@ -505,12 +505,12 @@ function _buildIslandSection(): HTMLElement {
 // Commit-driven trees: one per commit. Oldest commit closest to the gem;
 // newest farthest. Height encodes commit AGE (older = taller), width
 // encodes commit FILES (more files = wider canopy), color interpolates
-// between TREE_COLOR_NEW (solo-commit days) and TREE_COLOR_OLD (busy
+// between TREE_COLOR_SOLO_DAY (solo-commit days) and TREE_COLOR_BUSY_DAY (busy
 // days) by commits-per-day.
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days = "new" (light) color; busy days = "old" (dark) color. All commits on the same date share a color.',
+    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days lean toward TREE_COLOR_SOLO_DAY; busy days lean toward TREE_COLOR_BUSY_DAY. All commits on the same date share a color.',
   );
 
   section.appendChild(
@@ -534,10 +534,10 @@ function _buildTreesSection(): HTMLElement {
 
   section.appendChild(
     _subgroup('Color by commits-per-day', [
-      _color('Busy-day color', TREES, 'TREE_COLOR_OLD', {
+      _color('Busy-day color', TREES, 'TREE_COLOR_BUSY_DAY', {
         tip: 'Color for commits on a busy day — many commits sharing the same date. Live.',
       }),
-      _color('Solo-day color', TREES, 'TREE_COLOR_NEW', {
+      _color('Solo-day color', TREES, 'TREE_COLOR_SOLO_DAY', {
         tip: 'Color for commits on a solo day — only one commit that date. Live.',
       }),
       _color('Trunk color', TREES, 'TREE_TRUNK_COLOR', {

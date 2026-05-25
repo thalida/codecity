@@ -282,8 +282,8 @@ export function createTreeRenderer(
   }
 
   // COLOR follows COMMITS-PER-DAY: solo-commit days interpolate toward
-  // TREE_COLOR_NEW (light green); busy days (many commits the same day)
-  // interpolate toward TREE_COLOR_OLD (dark green). All commits on the
+  // TREE_COLOR_SOLO_DAY; busy days (many commits the same day)
+  // interpolate toward TREE_COLOR_BUSY_DAY. All commits on the
   // same date share a color. Log-normalized so the typical 1–10
   // commits-per-day band stays readable when one outlier day spikes to
   // 50+ commits.
@@ -296,7 +296,7 @@ export function createTreeRenderer(
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
       t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
     }
-    interpolateOklch(newColor, oldColor, t, target);
+    interpolateOklch(soloDayColor, busyDayColor, t, target);
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
@@ -319,10 +319,10 @@ export function createTreeRenderer(
   const tmpScale = new THREE.Vector3();
   const tmpQ = new THREE.Quaternion();
   const tmpColor = new THREE.Color();
-  const oldColor = new THREE.Color();
-  const newColor = new THREE.Color();
-  setColorFromHex(oldColor, cfg.TREE_COLOR_OLD);
-  setColorFromHex(newColor, cfg.TREE_COLOR_NEW);
+  const busyDayColor = new THREE.Color();
+  const soloDayColor = new THREE.Color();
+  setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
+  setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
 
   const totalTrees = placements.length;
 
@@ -429,8 +429,8 @@ export function createTreeRenderer(
     trunkMesh.visible = c.TREES_ENABLED;
 
     setColorFromHex(trunkMaterial.color, c.TREE_TRUNK_COLOR);
-    setColorFromHex(oldColor, c.TREE_COLOR_OLD);
-    setColorFromHex(newColor, c.TREE_COLOR_NEW);
+    setColorFromHex(busyDayColor, c.TREE_COLOR_BUSY_DAY);
+    setColorFromHex(soloDayColor, c.TREE_COLOR_SOLO_DAY);
 
     // Rebuild the base-color cache before re-baking so colorForSha
     // always reflects the current config colors, not the previous bake.
