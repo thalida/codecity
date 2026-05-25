@@ -46,6 +46,7 @@ interface FakeTrees {
   findTreeBySha: (sha: string) => {
     mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry;
   } | null;
+  colorForSha: (sha: string) => string | null;
 }
 
 function makeFakeTrees(canopy: THREE.InstancedMesh, trunk: THREE.InstancedMesh, commits: CommitEntry[]): FakeTrees {
@@ -62,6 +63,10 @@ function makeFakeTrees(canopy: THREE.InstancedMesh, trunk: THREE.InstancedMesh, 
       const idx = commits.findIndex((c) => c.sha === sha);
       if (idx === -1) return null;
       return { mesh: canopy, instanceId: idx, commit: commits[idx] };
+    },
+    colorForSha(sha) {
+      const idx = commits.findIndex((c) => c.sha === sha);
+      return idx === -1 ? null : '#abcdef';
     },
   };
 }

@@ -165,4 +165,31 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer([placement(0, 0)], null);
     expect(trees.findTreeBySha('a'.repeat(40))).toBeNull();
   });
+
+  it('colorForSha returns the canopy instanceColor for a commit', () => {
+    const commits = [commit(0), commit(1), commit(2)];
+    const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const color = trees.colorForSha(commits[1].sha);
+    expect(color).toMatch(/^#[0-9a-f]{6}$/);
+
+    // The same canopy slot read directly with THREE.Color must match.
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+    const tmp = new THREE.Color();
+    hit.mesh.getColorAt(hit.instanceId, tmp);
+    expect(color).toBe(`#${tmp.getHexString()}`);
+  });
+
+  it('colorForSha returns null for an unknown sha', () => {
+    const commits = [commit(0)];
+    const placements = [placement(0, 0)];
+    const trees = createTreeRenderer(placements, commits);
+    expect(trees.colorForSha('f'.repeat(40))).toBeNull();
+  });
+
+  it('colorForSha returns null when commits is null', () => {
+    const trees = createTreeRenderer([placement(0, 0)], null);
+    expect(trees.colorForSha('a'.repeat(40))).toBeNull();
+  });
 });

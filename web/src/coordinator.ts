@@ -22,7 +22,7 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { buildCommitPane } from './views/panes/commitPane.js';
-import { sameDayCommitCount, treeColorForCommit } from './views/widgets/commitMetrics.js';
+import { sameDayCommitCount } from './views/widgets/commitMetrics.js';
 import { labelFromDisplayRoot } from './views/widgets/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
 import {
@@ -93,7 +93,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
       if (sel && sel.kind === NodeKind.Commit) {
         const commits = m?.commits ?? [];
         const sameDayTotal = sameDayCommitCount(sel.commit, commits);
-        const color = commits.length > 0 ? treeColorForCommit(sel.commit, commits) : undefined;
+        const color = world.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
         commitPane.api.setCommit(sel.commit, { remoteUrl: remote, sameDayTotal, color });
       } else {
         commitPane.api.setCommit(null);
@@ -402,7 +402,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
       const _remote = m?.repo?.remote_url ?? null;
       const _commits = m?.commits ?? [];
       const _sameDayTotal = sameDayCommitCount(_selForCommit.commit, _commits);
-      const _color = _commits.length > 0 ? treeColorForCommit(_selForCommit.commit, _commits) : undefined;
+      const _color = world.getTrees()?.colorForSha(_selForCommit.commit.sha) ?? undefined;
       commitPane.api.setCommit(_selForCommit.commit, { remoteUrl: _remote, sameDayTotal: _sameDayTotal, color: _color });
     }
   });

@@ -2849,26 +2849,21 @@ canvas {
   flex-shrink: 0;
 }
 
-.commit-open {
-  display: inline-flex;
+/* SHA row: SHA button on the left, subtle open-on-origin icon on the right. */
+.commit-row {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--cc-space-3); /* 6px */
-  margin-top: var(--cc-space-4); /* 8px */
-  padding: var(--cc-space-4) var(--cc-space-6); /* 8px 12px */
-  border-radius: var(--cc-radius-sm);
-  background: var(--cc-accent-bg-soft);
-  color: var(--cc-text-primary);
-  text-decoration: none;
-  align-self: flex-start;
-  font-size: var(--cc-font-lg); /* 12px */
-  border: 1px solid var(--cc-accent-border);
-  transition: background 120ms ease;
 }
 
-.commit-open:hover { background: var(--cc-accent-bg); }
+/* .commit-open inherits the .btn-icon + .btn-icon--link shell (24×24,
+   icon-only, muted color, hover overlay) — matches the app-header repo link. */
+.commit-open {
+  flex-shrink: 0;
+}
 
 .commit-no-remote {
-  margin-top: var(--cc-space-4); /* 8px */
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg); /* 12px */
   font-style: italic;

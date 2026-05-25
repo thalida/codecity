@@ -59,6 +59,10 @@ export interface Trees {
     instanceId: number;
     commit: CommitEntry;
   } | null;
+  /** Read the baked canopy instanceColor for the given SHA directly from
+   *  the InstancedMesh that renders it. Returns a CSS hex string (e.g.
+   *  "#5e8a3a") or null when the sha can't be found. */
+  colorForSha(sha: string): string | null;
 }
 
 /** Subdivision levels of the icosahedron canopy.
@@ -466,5 +470,12 @@ export function createTreeRenderer(
     return null;
   }
 
-  return { group, refresh, dispose, commitForInstance, findTreeBySha };
+  function colorForSha(sha: string): string | null {
+    const hit = findTreeBySha(sha);
+    if (!hit) return null;
+    hit.mesh.getColorAt(hit.instanceId, tmpColor);
+    return '#' + tmpColor.getHexString();
+  }
+
+  return { group, refresh, dispose, commitForInstance, findTreeBySha, colorForSha };
 }

@@ -78,5 +78,6 @@ export interface PickerWorld {
       instanceId: number;
       commit: CommitEntry;
     } | null;
+    colorForSha(sha: string): string | null;
   } | null;
 }

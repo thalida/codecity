@@ -87,7 +87,10 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       headerApi.setPrefixEl(null);
     }
 
-    // ── SHA ──────────────────────────────────────────────────────────
+    // ── SHA row (SHA on left, open-on-origin link on right) ──────────
+    const headerRow = document.createElement('div');
+    headerRow.className = 'commit-row';
+
     const shaEl = document.createElement('button');
     shaEl.type = 'button';
     shaEl.className = 'commit-sha';
@@ -106,7 +109,23 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
         }, COPIED_FEEDBACK_MS);
       });
     });
-    body.appendChild(shaEl);
+    headerRow.appendChild(shaEl);
+
+    // Right-side: subtle open-on-origin link (icon-only, matches app-header repo link style)
+    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
+    if (url) {
+      const link = document.createElement('a');
+      link.className = 'commit-open btn-icon btn-icon--link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = 'Open this commit on the origin remote';
+      link.setAttribute('aria-label', 'Open commit on origin');
+      link.appendChild(makeLucideIcon('external-link'));
+      headerRow.appendChild(link);
+    }
+
+    body.appendChild(headerRow);
 
     // ── Date + age (side-by-side) ─────────────────────────────────────
     const whenEl = document.createElement('div');
@@ -147,20 +166,8 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       body.appendChild(sameDayEl);
     }
 
-    // ── Open on origin ───────────────────────────────────────────────
-    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
-    if (url) {
-      const link = document.createElement('a');
-      link.className = 'commit-open';
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.appendChild(makeLucideIcon('external-link'));
-      const label = document.createElement('span');
-      label.textContent = 'Open on origin';
-      link.appendChild(label);
-      body.appendChild(link);
-    } else {
+    // ── No remote hint (only when no remote configured) ──────────────
+    if (!remoteUrl) {
       const note = document.createElement('div');
       note.className = 'commit-no-remote';
       note.textContent = 'No remote configured';
