@@ -57,13 +57,13 @@ class StaticBuildDriftTests(unittest.TestCase):
             self.assertFalse(
                 extra_in_committed,
                 f"files in api/static/ that a fresh build would not produce: "
-                f"{sorted(extra_in_committed)} — run (cd web && npm run build) "
+                f"{sorted(extra_in_committed)} — run (cd app && npm run build) "
                 f"and commit the result",
             )
             self.assertFalse(
                 missing_from_committed,
                 f"files a fresh build produces that are not committed: "
-                f"{sorted(missing_from_committed)} — run (cd web && npm run build) "
+                f"{sorted(missing_from_committed)} — run (cd app && npm run build) "
                 f"and commit the result",
             )
 
@@ -74,7 +74,7 @@ class StaticBuildDriftTests(unittest.TestCase):
             self.assertFalse(
                 mismatched,
                 f"files differ between api/static/ and a fresh build: "
-                f"{sorted(mismatched)} — run (cd web && npm run build) and commit",
+                f"{sorted(mismatched)} — run (cd app && npm run build) and commit",
             )
 
 
