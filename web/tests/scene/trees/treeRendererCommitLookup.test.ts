@@ -172,13 +172,29 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer(placements, commits);
 
     const color = trees.colorForSha(commits[1].sha);
+    // colorForSha must return a valid CSS hex color string.
     expect(color).toMatch(/^#[0-9a-f]{6}$/);
+  });
 
-    // The same canopy slot read directly with THREE.Color must match.
-    const hit = trees.findTreeBySha(commits[1].sha)!;
-    const tmp = new THREE.Color();
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    expect(color).toBe(`#${tmp.getHexString()}`);
+  it('colorForSha returns the base color even when the tree is hovered', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const base = trees.colorForSha(commits[1].sha);
+    expect(base).toMatch(/^#[0-9a-f]{6}$/);
+
+    trees.setHoverSha(commits[1].sha);
+    const duringHover = trees.colorForSha(commits[1].sha);
+    expect(duringHover).toBe(base);
+
+    trees.setSelectionSha(commits[1].sha);
+    const duringSelect = trees.colorForSha(commits[1].sha);
+    expect(duringSelect).toBe(base);
+
+    trees.setHoverSha(null);
+    trees.setSelectionSha(null);
+    expect(trees.colorForSha(commits[1].sha)).toBe(base);
   });
 
   it('colorForSha returns null for an unknown sha', () => {

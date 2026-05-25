@@ -334,6 +334,12 @@ export function createTreeRenderer(
     buckets[detail].push(i);
   }
 
+  // Base color cache: keyed by commit SHA, value is the hex color string
+  // (e.g. "#5e8a3a") computed during bake. Populated below and rebuilt
+  // on every refresh(). colorForSha reads from here, not the instance
+  // buffer, so hover/select tints never bleed into the returned value.
+  const _baseColorBySha = new Map<string, string>();
+
   const canopyRecords: CanopyMeshRecord[] = [];
   for (const detail of DETAIL_LEVELS) {
     const indices = buckets[detail];
@@ -368,6 +374,12 @@ export function createTreeRenderer(
       mesh.setMatrixAt(k, tmpMatrix);
 
       perTreeColor(placementIdx, tmpColor);
+      // Cache the base color before writing it to the instance buffer.
+      // The buffer can later be modified by tints; the cache stays stable.
+      const c = commits?.[placements[placementIdx].commitIndex];
+      if (c?.sha) {
+        _baseColorBySha.set(c.sha, '#' + tmpColor.getHexString());
+      }
       mesh.setColorAt(k, tmpColor);
     }
     mesh.instanceMatrix.needsUpdate = true;
@@ -420,9 +432,17 @@ export function createTreeRenderer(
     setColorFromHex(oldColor, c.TREE_COLOR_OLD);
     setColorFromHex(newColor, c.TREE_COLOR_NEW);
 
+    // Rebuild the base-color cache before re-baking so colorForSha
+    // always reflects the current config colors, not the previous bake.
+    _baseColorBySha.clear();
     for (const rec of canopyRecords) {
       for (let k = 0; k < rec.placementOrder.length; k++) {
-        perTreeColor(rec.placementOrder[k], tmpColor);
+        const placementIdx = rec.placementOrder[k];
+        perTreeColor(placementIdx, tmpColor);
+        const c = commits?.[placements[placementIdx].commitIndex];
+        if (c?.sha) {
+          _baseColorBySha.set(c.sha, '#' + tmpColor.getHexString());
+        }
         rec.mesh.setColorAt(k, tmpColor);
       }
       if (rec.mesh.instanceColor) rec.mesh.instanceColor.needsUpdate = true;
@@ -487,10 +507,7 @@ export function createTreeRenderer(
   }
 
   function colorForSha(sha: string): string | null {
-    const hit = findTreeBySha(sha);
-    if (!hit) return null;
-    hit.mesh.getColorAt(hit.instanceId, tmpColor);
-    return '#' + tmpColor.getHexString();
+    return _baseColorBySha.get(sha) ?? null;
   }
 
   // ── Hover / selection tint state machine ─────────────────────────────
