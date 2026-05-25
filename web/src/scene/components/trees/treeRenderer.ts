@@ -45,6 +45,20 @@ export interface Trees {
   group: THREE.Group;
   refresh(): void;
   dispose(): void;
+  /** Resolve an InstancedMesh hit back to the commit that placed the
+   *  hit's instance. Returns null if the mesh isn't one of the tree
+   *  meshes on this group, the instanceId is out of range, or the
+   *  underlying placement has no valid commit. */
+  commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null;
+  /** Resolve a commit SHA to the first canopy instance rendering that
+   *  commit's tree. Used by the picker to re-resolve a selection-by-sha
+   *  across world rebuilds. Returns null when no tree on this group has
+   *  the given sha. */
+  findTreeBySha(sha: string): {
+    mesh: THREE.InstancedMesh;
+    instanceId: number;
+    commit: CommitEntry;
+  } | null;
 }
 
 /** Subdivision levels of the icosahedron canopy.
@@ -317,6 +331,7 @@ export function createTreeRenderer(
     mesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
     mesh.frustumCulled = false;
     mesh.visible = cfg.TREES_ENABLED;
+    mesh.userData.meshKind = 'tree-canopy';
     mesh.userData.placementOrder = indices;
 
     for (let k = 0; k < indices.length; k++) {
@@ -347,11 +362,15 @@ export function createTreeRenderer(
   }
 
   // Trunk: one shared mesh, one instance per tree in placement order.
+  const trunkPlacementOrder = new Array<number>(totalTrees);
+  for (let i = 0; i < totalTrees; i++) trunkPlacementOrder[i] = i;
   const trunkMesh = new THREE.InstancedMesh(trunkGeometry, trunkMaterial, totalTrees);
   trunkMesh.name = 'tree-trunk';
   trunkMesh.renderOrder = RENDER_ORDERS.PARK_FOLIAGE;
   trunkMesh.frustumCulled = false;
   trunkMesh.visible = cfg.TREES_ENABLED;
+  trunkMesh.userData.meshKind = 'tree-trunk';
+  trunkMesh.userData.placementOrder = trunkPlacementOrder;
 
   for (let i = 0; i < totalTrees; i++) {
     const p = placements[i];
@@ -400,5 +419,49 @@ export function createTreeRenderer(
     trunkMaterial.dispose();
   }
 
-  return { group, refresh, dispose };
+  function commitForInstance(
+    mesh: THREE.InstancedMesh,
+    instanceId: number,
+  ): CommitEntry | null {
+    const order = mesh.userData?.placementOrder as number[] | undefined;
+    if (!order) return null;
+    if (instanceId < 0 || instanceId >= order.length) return null;
+    const placementIdx = order[instanceId];
+    const p = placements[placementIdx];
+    if (!p) return null;
+    if (!commits) return null;
+    if (p.commitIndex < 0 || p.commitIndex >= commits.length) return null;
+    return commits[p.commitIndex];
+  }
+
+  function findTreeBySha(sha: string): {
+    mesh: THREE.InstancedMesh;
+    instanceId: number;
+    commit: CommitEntry;
+  } | null {
+    if (!commits) return null;
+    // Find the commit index first (one pass over commits, not over trees).
+    let commitIdx = -1;
+    for (let i = 0; i < commits.length; i++) {
+      if (commits[i].sha === sha) { commitIdx = i; break; }
+    }
+    if (commitIdx === -1) return null;
+    // Find the first placement that points at this commit.
+    let placementIdx = -1;
+    for (let i = 0; i < placements.length; i++) {
+      if (placements[i].commitIndex === commitIdx) { placementIdx = i; break; }
+    }
+    if (placementIdx === -1) return null;
+    // Find which canopy bucket owns this placement and at what slot.
+    for (const rec of canopyRecords) {
+      for (let k = 0; k < rec.placementOrder.length; k++) {
+        if (rec.placementOrder[k] === placementIdx) {
+          return { mesh: rec.mesh, instanceId: k, commit: commits[commitIdx] };
+        }
+      }
+    }
+    return null;
+  }
+
+  return { group, refresh, dispose, commitForInstance, findTreeBySha };
 }
