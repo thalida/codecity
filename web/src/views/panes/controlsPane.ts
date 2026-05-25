@@ -550,6 +550,17 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
+    _subgroup('Age desaturation', [
+      _toggle('Age desaturation enabled', TREES, 'TREE_AGE_DESAT_ENABLED', {
+        tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
+      }),
+      _rangePair('Saturation range', TREES, 'TREE_AGE_SATURATION_MIN', 'TREE_AGE_SATURATION_MAX', 0, 100, 1, {
+        tip: 'Saturation retained at the OLDEST (left) and NEWEST (right) commit — percent 0–100. At 20 the oldest tree keeps only 20% of its base color saturation; at 100 it is fully saturated. Live.',
+      }),
+    ]),
+  );
+
+  section.appendChild(
     _subgroup('Height by age', [
       _slider('Min height', TREES, 'TREE_MIN_HEIGHT', 4, 400, 4, {
         tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',

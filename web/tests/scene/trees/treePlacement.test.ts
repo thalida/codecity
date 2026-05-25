@@ -23,6 +23,9 @@ function resetTrees() {
     TREE_COLOR_SOLO_DAY: '#a8d68a',
     TREE_SHADING_STRENGTH: 0.35,
     TREE_TRUNK_COLOR: '#4a3220',
+    TREE_AGE_DESAT_ENABLED: false,
+    TREE_AGE_SATURATION_MIN: 20,
+    TREE_AGE_SATURATION_MAX: 100,
   });
 }
 

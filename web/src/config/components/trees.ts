@@ -18,6 +18,10 @@
 //     busy days (many commits sharing that day) lean toward
 //     TREE_COLOR_BUSY_DAY. All commits on the same date
 //     share a color. Log-normalized.
+//     When TREE_AGE_DESAT_ENABLED is true, the resulting color is
+//     additionally scaled in HSL.S by a factor ramped from
+//     TREE_AGE_SATURATION_MIN (oldest commit) to TREE_AGE_SATURATION_MAX
+//     (newest commit) — so older trees fade toward gray.
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
@@ -77,6 +81,19 @@ export interface TreesConfig {
   /** Rejection-sampling footprint half-size as a fraction of
    *  BUILDING_DIMENSIONS.MAX_WIDTH. */
   SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: number;
+
+  /** When true, trees desaturate based on commit age — oldest commits
+   *  get washed toward gray, newest keep full color. */
+  TREE_AGE_DESAT_ENABLED: boolean;
+
+  /** Fraction of base saturation retained at the OLDEST commit's age
+   *  (percent, 0-100). 0 = fully gray, 100 = no desaturation.
+   *  Only applied when TREE_AGE_DESAT_ENABLED. */
+  TREE_AGE_SATURATION_MIN: number;
+
+  /** Fraction of base saturation retained at the NEWEST commit's age
+   *  (percent, 0-100). 100 = colors at full strength. */
+  TREE_AGE_SATURATION_MAX: number;
 }
 
 export const TREES = map<TreesConfig>({
@@ -101,4 +118,8 @@ export const TREES = map<TreesConfig>({
   TREE_TRUNK_COLOR: '#110c08',
 
   SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
+
+  TREE_AGE_DESAT_ENABLED: true,
+  TREE_AGE_SATURATION_MIN: 20,
+  TREE_AGE_SATURATION_MAX: 100,
 });

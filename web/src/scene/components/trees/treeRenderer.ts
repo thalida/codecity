@@ -231,7 +231,7 @@ export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null,
 ): Trees {
-  const cfg = TREES.get();
+  let cfg = TREES.get();
 
   // Height and width in absolute world units, independent of buildings.
   // Config exposes DIAMETER for width; convert to radius for the canopy.
@@ -297,6 +297,20 @@ export function createTreeRenderer(
       t = dailyCountTByIndex(dailyCounts, placements[i].commitIndex);
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
+
+    if (cfg.TREE_AGE_DESAT_ENABLED && commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
+      const aT = ageT(commits[placements[i].commitIndex], ageRange);
+      const minFactor = cfg.TREE_AGE_SATURATION_MIN / 100;
+      const maxFactor = cfg.TREE_AGE_SATURATION_MAX / 100;
+      const factor = minFactor + aT * (maxFactor - minFactor);
+      // Apply saturation scaling in HSL space.
+      const hsl = _tmpHsl;
+      target.getHSL(hsl);
+      hsl.s *= factor;
+      if (hsl.s < 0) hsl.s = 0;
+      if (hsl.s > 1) hsl.s = 1;
+      target.setHSL(hsl.h, hsl.s, hsl.l);
+    }
   }
 
   const trunkGeometry = new THREE.CylinderGeometry(1.0, 1.0, 1.0, 12);
@@ -321,6 +335,7 @@ export function createTreeRenderer(
   const tmpColor = new THREE.Color();
   const busyDayColor = new THREE.Color();
   const soloDayColor = new THREE.Color();
+  const _tmpHsl = { h: 0, s: 0, l: 0 };
   setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
   setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
 
@@ -423,14 +438,14 @@ export function createTreeRenderer(
   group.add(trunkMesh);
 
   function refresh(): void {
-    const c = TREES.get();
-    group.visible = c.TREES_ENABLED;
-    for (const rec of canopyRecords) rec.mesh.visible = c.TREES_ENABLED;
-    trunkMesh.visible = c.TREES_ENABLED;
+    cfg = TREES.get();
+    group.visible = cfg.TREES_ENABLED;
+    for (const rec of canopyRecords) rec.mesh.visible = cfg.TREES_ENABLED;
+    trunkMesh.visible = cfg.TREES_ENABLED;
 
-    setColorFromHex(trunkMaterial.color, c.TREE_TRUNK_COLOR);
-    setColorFromHex(busyDayColor, c.TREE_COLOR_BUSY_DAY);
-    setColorFromHex(soloDayColor, c.TREE_COLOR_SOLO_DAY);
+    setColorFromHex(trunkMaterial.color, cfg.TREE_TRUNK_COLOR);
+    setColorFromHex(busyDayColor, cfg.TREE_COLOR_BUSY_DAY);
+    setColorFromHex(soloDayColor, cfg.TREE_COLOR_SOLO_DAY);
 
     // Rebuild the base-color cache before re-baking so colorForSha
     // always reflects the current config colors, not the previous bake.
@@ -439,9 +454,9 @@ export function createTreeRenderer(
       for (let k = 0; k < rec.placementOrder.length; k++) {
         const placementIdx = rec.placementOrder[k];
         perTreeColor(placementIdx, tmpColor);
-        const c = commits?.[placements[placementIdx].commitIndex];
-        if (c?.sha) {
-          _baseColorBySha.set(c.sha, '#' + tmpColor.getHexString());
+        const commit = commits?.[placements[placementIdx].commitIndex];
+        if (commit?.sha) {
+          _baseColorBySha.set(commit.sha, '#' + tmpColor.getHexString());
         }
         rec.mesh.setColorAt(k, tmpColor);
       }
