@@ -12,5 +12,5 @@
     "types": ["node"]
   },
   "include": ["vite.config.js", "vitest.config.js", "tests/visual/**/*", "tests/scene/hsl-glsl-parity.test.ts", "tests/scene/building-shader.test.ts", "tests/scene/sky/skyShader.test.ts"],
-  "exclude": ["node_modules", "../codecity/static"]
+  "exclude": ["node_modules", "../api/static"]
 }

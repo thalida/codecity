@@ -3,7 +3,7 @@ import sys
 import unittest
 
 
-CMD = [sys.executable, "-m", "codecity"]
+CMD = [sys.executable, "-m", "api"]
 
 
 class CLIArgSurfaceTests(unittest.TestCase):

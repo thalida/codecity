@@ -6,12 +6,12 @@
 # tiny files). Generate locally; not in CI.
 #
 # USAGE:
-#   bash codecity/tests/fixtures/large-repo-setup.sh
+#   bash api/tests/fixtures/large-repo-setup.sh
 #   # Then run THREE measurements to compare the perf paths:
 #   rm -rf ~/.cache/codecity/files ~/.cache/codecity/git-history
-#   time python3 -m codecity.cli scan codecity/tests/fixtures/large-repo --no-cache --output /dev/null  # cold (no-cache baseline)
-#   time python3 -m codecity.cli scan codecity/tests/fixtures/large-repo --output /dev/null             # cold + populate cache
-#   time python3 -m codecity.cli scan codecity/tests/fixtures/large-repo --output /dev/null             # warm (cache hits)
+#   time python3 -m api.cli scan api/tests/fixtures/large-repo --no-cache --output /dev/null  # cold (no-cache baseline)
+#   time python3 -m api.cli scan api/tests/fixtures/large-repo --output /dev/null             # cold + populate cache
+#   time python3 -m api.cli scan api/tests/fixtures/large-repo --output /dev/null             # warm (cache hits)
 
 set -euo pipefail
 
@@ -77,6 +77,6 @@ echo "Done: $REPO_DIR ($count files, $(du -sh "$REPO_DIR" | cut -f1))."
 echo
 echo "Benchmark recipe (three runs to compare paths):"
 echo "  rm -rf ~/.cache/codecity/files ~/.cache/codecity/git-history"
-echo "  time python3 -m codecity.cli scan $REPO_DIR --no-cache --output /dev/null  # cold (no-cache baseline)"
-echo "  time python3 -m codecity.cli scan $REPO_DIR --output /dev/null             # cold + populate cache"
-echo "  time python3 -m codecity.cli scan $REPO_DIR --output /dev/null             # warm (cache hits)"
+echo "  time python3 -m api.cli scan $REPO_DIR --no-cache --output /dev/null  # cold (no-cache baseline)"
+echo "  time python3 -m api.cli scan $REPO_DIR --output /dev/null             # cold + populate cache"
+echo "  time python3 -m api.cli scan $REPO_DIR --output /dev/null             # warm (cache hits)"

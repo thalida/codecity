@@ -1,4 +1,4 @@
-"""Tests for codecity/media.py — media dimension probing + MIME classification."""
+"""Tests for api/media.py — media dimension probing + MIME classification."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import zlib
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from codecity.media import _parse_svg_length, probe_media_dims
+from api.media import _parse_svg_length, probe_media_dims
 
 
 def _write_minimal_png(path: Path, width: int, height: int) -> None:

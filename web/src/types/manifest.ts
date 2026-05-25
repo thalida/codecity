@@ -39,7 +39,7 @@ export interface FileNode {
    * mp4/etc.). Either both keys appear together or neither does. Layout
    * uses these to size the building's silhouette; absence triggers a
    * 1:1 aspect fallback. Stamped by the Python scanner via
-   * codecity/media_dims.py.
+   * api/media.py.
    */
   media_width?: number;
   media_height?: number;

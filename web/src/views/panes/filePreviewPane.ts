@@ -23,7 +23,7 @@ const BYTES_PER_MB = 1024 * 1024;
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
 // Auto-load text up to the server's own ceiling — kept in sync with
-// MAX_FILE_BYTES in codecity/server.py so any file the API can serve, the
+// MAX_FILE_BYTES in api/server.py so any file the API can serve, the
 // preview can render. Above that, the server itself rejects the fetch
 // and the preview shows the resulting error in the empty/error state.
 const TEXT_PREVIEW_MAX_BYTES = 100 * 1024 * 1024;

@@ -26,7 +26,7 @@ import threading
 import time
 from pathlib import Path
 
-from codecity.types import (
+from api.types import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,

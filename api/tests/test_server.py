@@ -19,25 +19,25 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from codecity import clone as clone_mod
-from codecity import server as server_mod
-from codecity.server import (
+from api import clone as clone_mod
+from api import server as server_mod
+from api.server import (
     _classify_source,
     _start_disconnect_watchdog,
     _stream_events,
     start_server,
 )
-from codecity.tests.test_clone import _make_fake_remote
+from api.tests.test_clone import _make_fake_remote
 
 
 class _CacheRedirectMixin:
-    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    """Mixin that redirects api.cache.CACHE_ROOT to a per-test
     tempdir so server-side calls into scan_tree() / signature_tree()
     don't pollute the user's actual ~/.cache/codecity/ during tests."""
 
     def setUp(self) -> None:
         super().setUp()  # cooperative chaining
-        from codecity import cache as cache_mod
+        from api import cache as cache_mod
         self._cache_tmp = TemporaryDirectory()
         self.addCleanup(self._cache_tmp.cleanup)
         self._original_cache_root = cache_mod.CACHE_ROOT
@@ -45,7 +45,7 @@ class _CacheRedirectMixin:
         self.addCleanup(self._restore_cache_root)
 
     def _restore_cache_root(self) -> None:
-        from codecity import cache as cache_mod
+        from api import cache as cache_mod
         cache_mod.CACHE_ROOT = self._original_cache_root
 
 
@@ -218,7 +218,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         # urllib normalizes ../ on the client side, so we go raw to make sure
         # the server itself rejects a crafted escape attempt.
         conn = http.client.HTTPConnection("127.0.0.1", self.port)
-        conn.request("GET", "/../codecity/scan.py")
+        conn.request("GET", "/../api/scan.py")
         resp = conn.getresponse()
         self.assertIn(resp.status, (HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND))
 
@@ -302,7 +302,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def test_include_all_truthy_parsing(self) -> None:
         # Accept 'true' (any case) and '1' as truthy; everything else
         # (including absent) is false.
-        from codecity.server import _parse_include_all
+        from api.server import _parse_include_all
         self.assertTrue(_parse_include_all("include_all=true"))
         self.assertTrue(_parse_include_all("include_all=TRUE"))
         self.assertTrue(_parse_include_all("include_all=1"))
@@ -349,7 +349,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertNotIn("node_modules", names)
 
     def test_no_cache_query_param_truthy_parsing(self) -> None:
-        from codecity.server import _parse_no_cache
+        from api.server import _parse_no_cache
         self.assertTrue(_parse_no_cache("no_cache=true"))
         self.assertTrue(_parse_no_cache("no_cache=TRUE"))
         self.assertTrue(_parse_no_cache("no_cache=1"))
@@ -1045,7 +1045,7 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             # Patch _populate_file_metadata to blow up. The skeleton has
             # already been yielded by the time this runs, so we exercise
             # the mid-stream-error path specifically.
-            with patch("codecity.scan._populate_file_metadata") as mock_pop:
+            with patch("api.scan._populate_file_metadata") as mock_pop:
                 mock_pop.side_effect = RuntimeError("disk on fire")
                 status, events = _request_stream(
                     self.server_port, f"/api/manifest?src={td}",

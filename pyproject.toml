@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.scripts]
-codecity = "codecity.cli:main"
+codecity = "api.cli:main"
 
 [dependency-groups]
 dev = [
@@ -24,15 +24,15 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["codecity"]
-exclude = ["codecity/tests"]
-artifacts = ["codecity/static/**"]
+packages = ["api"]
+exclude = ["api/tests"]
+artifacts = ["api/static/**"]
 
 [tool.pytest.ini_options]
-testpaths = ["codecity/tests"]
+testpaths = ["api/tests"]
 
 [tool.pyright]
-include = ["codecity"]
-exclude = ["codecity/static", "codecity/tests"]
+include = ["api"]
+exclude = ["api/static", "api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"

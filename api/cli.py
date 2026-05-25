@@ -34,8 +34,8 @@ from pathlib import Path
 from types import FrameType
 from typing import Optional
 
-from codecity import __version__
-from codecity.server import start_server
+from api import __version__
+from api.server import start_server
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 WEB_DIR = REPO_ROOT / "web"

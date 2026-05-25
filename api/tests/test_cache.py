@@ -1,4 +1,4 @@
-"""Unit tests for codecity/cache.py."""
+"""Unit tests for api/cache.py."""
 
 from __future__ import annotations
 
@@ -7,9 +7,9 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from codecity import cache as cache_mod
-from codecity.cache import _git_history_cache_path
-from codecity.types import CommitEntry
+from api import cache as cache_mod
+from api.cache import _git_history_cache_path
+from api.types import CommitEntry
 
 
 class CacheTestBase(unittest.TestCase):
@@ -251,8 +251,8 @@ class GitHistoryCacheTests(CacheTestBase):
         ])
 
     def test_git_history_rejects_old_version(self):
-        from codecity import cache as cache_mod
-        from codecity.cache import (
+        from api import cache as cache_mod
+        from api.cache import (
             _git_history_cache_path,
             cache_load_git_history,
         )
@@ -340,7 +340,7 @@ class ManifestCacheTests(CacheTestBase):
         """A manifest cache file written under a prior _GIT_HISTORY_CACHE_VERSION
         must be dropped on load, because the composite version string changes
         when git-history bumps."""
-        from codecity.cache import (
+        from api.cache import (
             _manifest_cache_path,
             cache_load_manifest,
         )

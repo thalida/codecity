@@ -1,6 +1,6 @@
 """Local HTTP server backing the browser-served frontend.
 
-Serves the Vite-built frontend out of `codecity/static/` and computes a
+Serves the Vite-built frontend out of `api/static/` and computes a
 scan manifest on demand at `/api/manifest?src=…[&branch=…]`. `src` is
 either a local absolute path or a git URL; for git URLs, the repo is
 cloned into `~/.cache/codecity/clones/` and scanned from there. Bound to
@@ -35,25 +35,25 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
-from codecity.clone import (
+from api.clone import (
     CloneError,
     BranchNotFoundError,
     RepoNotFoundError,
     HostUnreachableError,
     ensure_clone,
 )
-from codecity.cache import (
+from api.cache import (
     cache_clear_manifests,
     cache_load_manifest,
     cache_save_manifest,
 )
-from codecity.media import is_media
-from codecity.scan import (
+from api.media import is_media
+from api.scan import (
     ScanCancelledError,
     scan_tree,
     signature_tree,
 )
-from codecity.types import (
+from api.types import (
     CacheClearResponse,
     ErrorResponse,
     FileTooLargeResponse,
@@ -580,7 +580,7 @@ def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     if kind == "git":
         # Pure path derivation — no clone, no network.
-        from codecity.clone import clone_dir_for
+        from api.clone import clone_dir_for
         abs_root = clone_dir_for(raw_src, raw_branch)
     else:
         # Local source: non-strict resolve so a recents entry for a

@@ -1,6 +1,6 @@
-"""Drift check: committed codecity/static/ must match a fresh `npm run build`.
+"""Drift check: committed api/static/ must match a fresh `npm run build`.
 
-The Python wheel ships codecity/static/ as bundled artifact, so users don't
+The Python wheel ships api/static/ as bundled artifact, so users don't
 need Node to install. That contract relies on the committed build matching
 the current web/ source — if a frontend change lands without rerunning
 `npm run build`, the published package serves stale JS/CSS.
@@ -20,7 +20,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
-STATIC_DIR = REPO_ROOT / "codecity" / "static"
+STATIC_DIR = REPO_ROOT / "api" / "static"
 WEB_DIR = REPO_ROOT / "web"
 
 
@@ -41,7 +41,7 @@ class StaticBuildDriftTests(unittest.TestCase):
         with TemporaryDirectory() as tmp:
             tmp_out = Path(tmp) / "static"
             # `vite build --outDir <abs>` writes the bundle to our tmpdir
-            # without touching the committed codecity/static/.
+            # without touching the committed api/static/.
             subprocess.run(
                 ["npx", "vite", "build", "--outDir", str(tmp_out), "--emptyOutDir"],
                 cwd=str(WEB_DIR),
@@ -56,7 +56,7 @@ class StaticBuildDriftTests(unittest.TestCase):
             missing_from_committed = fresh - committed
             self.assertFalse(
                 extra_in_committed,
-                f"files in codecity/static/ that a fresh build would not produce: "
+                f"files in api/static/ that a fresh build would not produce: "
                 f"{sorted(extra_in_committed)} — run (cd web && npm run build) "
                 f"and commit the result",
             )
@@ -73,7 +73,7 @@ class StaticBuildDriftTests(unittest.TestCase):
                     mismatched.append(rel)
             self.assertFalse(
                 mismatched,
-                f"files differ between codecity/static/ and a fresh build: "
+                f"files differ between api/static/ and a fresh build: "
                 f"{sorted(mismatched)} — run (cd web && npm run build) and commit",
             )
 

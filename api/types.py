@@ -52,7 +52,7 @@ class FileNode(TypedDict):
     # Optional pixel dimensions for recognized media files (png/jpg/svg/
     # mp4/etc.). Either both keys appear together or neither does. Layout
     # uses these to size the building's silhouette; absence triggers a
-    # 1:1 aspect fallback. See codecity/media.py.
+    # 1:1 aspect fallback. See api/media.py.
     media_width: NotRequired[int]
     media_height: NotRequired[int]
 

@@ -32,10 +32,10 @@ import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
 
-from codecity.types import FileEntry
+from api.types import FileEntry
 
 if TYPE_CHECKING:
-    from codecity.types import CommitEntry, Manifest
+    from api.types import CommitEntry, Manifest
 
 # Module-level CACHE_ROOT — tests monkeypatch this to a tempdir. Derived
 # subdirs are computed at call time (not at import) so the override

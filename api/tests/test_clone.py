@@ -1,4 +1,4 @@
-"""Tests for codecity.clone — the read-only clone-or-update helper.
+"""Tests for api.clone — the read-only clone-or-update helper.
 
 Uses a local bare repo as the "remote" so tests don't hit the network.
 ``CACHE_ROOT`` is monkey-patched to a per-test tempdir so we never touch
@@ -16,8 +16,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
 
-from codecity import clone as clone_mod
-from codecity.clone import (
+from api import clone as clone_mod
+from api.clone import (
     BranchNotFoundError,
     CloneError,
     HostUnreachableError,
@@ -175,7 +175,7 @@ class CleanCloneErrorDispatcherTests(unittest.TestCase):
 
 class RunGitEnvTests(unittest.TestCase):
     def test_run_git_disables_terminal_prompt(self) -> None:
-        from codecity import clone as clone_mod
+        from api import clone as clone_mod
 
         captured = {}
 

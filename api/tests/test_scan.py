@@ -1,4 +1,4 @@
-"""Unit tests for codecity/scan.py."""
+"""Unit tests for api/scan.py."""
 
 from __future__ import annotations
 
@@ -9,14 +9,14 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from codecity.scan import (
+from api.scan import (
     _extension,
     _is_binary,
     compute_tree_signature,
     scan_tree,
     signature_tree,
 )
-from codecity.types import Manifest
+from api.types import Manifest
 
 
 # Silence progress logs during tests.
@@ -47,13 +47,13 @@ def _ensure_fixture() -> None:
 
 
 class _CacheRedirectMixin:
-    """Mixin that redirects codecity.cache.CACHE_ROOT to a per-test
+    """Mixin that redirects api.cache.CACHE_ROOT to a per-test
     tempdir so calls to scan_tree() / signature_tree() / etc. don't
     pollute the user's actual ~/.cache/codecity/ during tests."""
 
     def setUp(self) -> None:
         super().setUp()  # cooperative chaining for subclasses with their own setUp
-        from codecity import cache as cache_mod
+        from api import cache as cache_mod
         self._cache_tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._cache_tmp.cleanup)
         self._original_cache_root = cache_mod.CACHE_ROOT
@@ -61,7 +61,7 @@ class _CacheRedirectMixin:
         self.addCleanup(self._restore_cache_root)
 
     def _restore_cache_root(self) -> None:
-        from codecity import cache as cache_mod
+        from api import cache as cache_mod
         cache_mod.CACHE_ROOT = self._original_cache_root
 
 
@@ -503,7 +503,7 @@ class LineCountCapTests(unittest.TestCase):
     an order-of-magnitude estimate is fine on huge files."""
 
     def test_exact_count_below_threshold(self):
-        from codecity.scan import _line_count
+        from api.scan import _line_count
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             fh.write(b"line\n" * 1000)
             small = Path(fh.name)
@@ -511,7 +511,7 @@ class LineCountCapTests(unittest.TestCase):
         self.assertEqual(_line_count(small), 1000)
 
     def test_sample_extrapolation_above_threshold(self):
-        from codecity.scan import _line_count
+        from api.scan import _line_count
         # 6 MB file with one newline every 50 bytes -> ~125k lines true.
         with tempfile.NamedTemporaryFile("wb", delete=False) as fh:
             line = b"x" * 49 + b"\n"  # 50 bytes, one newline
@@ -557,7 +557,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
         from unittest.mock import patch
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
 
         original_run = subprocess.run
         original_popen = subprocess.Popen
@@ -579,15 +579,15 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_git_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
-             patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
+        with patch("api.scan.subprocess.run", side_effect=counting_run), \
+             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
 
         self.assertEqual(len(log_calls), 1,
                          f"expected exactly 1 git log call, got: {log_calls}")
 
     def test_collect_git_metadata_returns_commits_list(self):
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
         _created, _modified, _tracked, commits = _collect_git_metadata(
             FIXTURE, use_cache=False, git_window="30.years.ago",
         )
@@ -607,7 +607,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         """A merge commit's combined-diff file count must be > 0, not the
         empty count git log emits by default for merges."""
         import tempfile
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
@@ -647,7 +647,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         files. With `-c`, clean merges report 0; with
         `--diff-merges=first-parent` they report the side-branch diff."""
         import tempfile, subprocess
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
         with tempfile.TemporaryDirectory() as td:
             tdp = Path(td)
             subprocess.run(["git", "init", "-q", "-b", "main", td], check=True)
@@ -688,7 +688,7 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_warm_run_skips_git_log(self):
         from unittest.mock import patch
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
 
         # Cold run: populates cache.
         _collect_git_metadata(FIXTURE, use_cache=True)
@@ -702,13 +702,13 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             return original_run(args, **kwargs)
 
         # Warm run: must not invoke `git log` at all.
-        with patch("codecity.scan.subprocess.run", side_effect=counting_run):
+        with patch("api.scan.subprocess.run", side_effect=counting_run):
             _collect_git_metadata(FIXTURE, use_cache=True)
         self.assertEqual(log_calls, [], "expected zero git log calls on warm run")
 
     def test_use_cache_false_bypasses(self):
         from unittest.mock import patch
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)  # populate
 
@@ -728,15 +728,15 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
             _record_if_log(args)
             return original_popen(args, **kwargs)
 
-        with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
-             patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
+        with patch("api.scan.subprocess.run", side_effect=counting_run), \
+             patch("api.scan.subprocess.Popen", side_effect=counting_popen):
             _collect_git_metadata(FIXTURE, use_cache=False)
         self.assertEqual(len(log_calls), 1, "use_cache=False must run the combined log walk")
 
     def test_cache_invalidated_after_new_commit(self):
         # Make a commit, confirm next call re-walks history.
         from unittest.mock import patch
-        from codecity.scan import _collect_git_metadata
+        from api.scan import _collect_git_metadata
 
         _collect_git_metadata(FIXTURE, use_cache=True)
 
@@ -767,8 +767,8 @@ class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 _record_if_log(args)
                 return original_popen(args, **kwargs)
 
-            with patch("codecity.scan.subprocess.run", side_effect=counting_run), \
-                 patch("codecity.scan.subprocess.Popen", side_effect=counting_popen):
+            with patch("api.scan.subprocess.run", side_effect=counting_run), \
+                 patch("api.scan.subprocess.Popen", side_effect=counting_popen):
                 _collect_git_metadata(FIXTURE, use_cache=True)
             self.assertEqual(len(log_calls), 1,
                              "HEAD moved -> must re-walk")
@@ -794,8 +794,8 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # cold: populates cache
 
-        with patch("codecity.scan._line_count") as line_mock, \
-             patch("codecity.scan._is_binary") as binary_mock:
+        with patch("api.scan._line_count") as line_mock, \
+             patch("api.scan._is_binary") as binary_mock:
             _final_manifest(str(FIXTURE))  # warm: should not call either
             self.assertEqual(line_mock.call_count, 0,
                              "warm scan must not call _line_count")
@@ -837,7 +837,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
                 line_calls.append(p)
                 return original_line_count(p)
 
-            with patch("codecity.scan._line_count", side_effect=counting_line_count):
+            with patch("api.scan._line_count", side_effect=counting_line_count):
                 _final_manifest(str(FIXTURE))
 
             # Only the modified file should be recomputed.
@@ -851,7 +851,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 
         _final_manifest(str(FIXTURE))  # populate cache
 
-        with patch("codecity.scan._line_count", return_value=42) as line_mock:
+        with patch("api.scan._line_count", return_value=42) as line_mock:
             _final_manifest(str(FIXTURE), use_cache=False)
             # use_cache=False -> every file gets re-read
             self.assertGreater(line_mock.call_count, 0)
@@ -860,7 +860,7 @@ class FileStatCacheTests(_CacheRedirectMixin, unittest.TestCase):
 def _line_count_real():
     """Get the unwrapped _line_count for tests that want to call the
     real implementation while also mocking it."""
-    from codecity.scan import _line_count
+    from api.scan import _line_count
     return _line_count
 
 
@@ -960,7 +960,7 @@ class TreeSignatureTests(unittest.TestCase):
     def test_skeleton_and_final_manifests_share_same_tree_signature(self):
         """The same tree_signature must appear in both the skeleton and final
         manifest events for the same scan — the whole point of this feature."""
-        from codecity.scan import scan_tree
+        from api.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "hello.py").write_text("x = 1\n")
             (Path(td) / "world.py").write_text("y = 2\n")
@@ -974,7 +974,7 @@ class TreeSignatureTests(unittest.TestCase):
     def test_tree_signature_stable_when_only_metadata_changes(self):
         """tree_signature must be unchanged when only file content/lines/binary
         differs — i.e., between skeleton and final phases."""
-        from codecity.scan import scan_tree
+        from api.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
             (Path(td) / "a.py").write_text("x = 1\n" * 100)
             events = list(scan_tree(td))
@@ -993,7 +993,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
         return tmpdir
 
     def test_yields_skeleton_then_final(self) -> None:
-        from codecity.scan import scan_tree
+        from api.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             events = list(scan_tree(td))
@@ -1002,7 +1002,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
         self.assertEqual(events[1]["phase"], "final")
 
     def test_skeleton_has_placeholder_metadata(self) -> None:
-        from codecity.scan import scan_tree
+        from api.scan import scan_tree
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             skeleton, _final = list(scan_tree(td))
@@ -1019,7 +1019,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
     def test_cancel_event_pre_set_raises_at_first_boundary(self) -> None:
         import threading
-        from codecity.scan import scan_tree, ScanCancelledError
+        from api.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             ev = threading.Event()
@@ -1030,7 +1030,7 @@ class ScanTreeStreamingTests(unittest.TestCase):
 
     def test_cancel_event_set_after_skeleton_raises_in_populate(self) -> None:
         import threading
-        from codecity.scan import scan_tree, ScanCancelledError
+        from api.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
             # Make enough files that the pool has work to do AFTER the
             # skeleton emits, so the event-set-after-skeleton case

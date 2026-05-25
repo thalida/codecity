@@ -9,10 +9,10 @@
 docs/superpowers/
 
 # Generated test fixtures
-#   run `bash codecity/tests/fixtures/setup.sh` to regenerate
-codecity/tests/fixtures/sample-repo/
-#   run `bash codecity/tests/fixtures/large-repo-setup.sh` to regenerate
-codecity/tests/fixtures/large-repo/
+#   run `bash api/tests/fixtures/setup.sh` to regenerate
+api/tests/fixtures/sample-repo/
+#   run `bash api/tests/fixtures/large-repo-setup.sh` to regenerate
+api/tests/fixtures/large-repo/
 
 # OS
 .DS_Store

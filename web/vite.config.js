@@ -1,9 +1,9 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'node:path';
 
-// Vite root is this directory. Build output lands in ../codecity/static/
+// Vite root is this directory. Build output lands in ../api/static/
 // so the Python package can serve it directly via the http server in
-// codecity/server.py — that committed `codecity/static/` is what
+// api/server.py — that committed `api/static/` is what
 // `pip install codecity` ships.
 //
 // Three.js is loaded from a CDN via the importmap in index.html; rollup
@@ -21,7 +21,7 @@ export default defineConfig({
     alias: { '@': resolve(webDir, 'src') },
   },
   build: {
-    outDir: resolve(webDir, '..', 'codecity', 'static'),
+    outDir: resolve(webDir, '..', 'api', 'static'),
     emptyOutDir: true,
     rollupOptions: {
       external: [/^three$/, /^three\/addons\//],
