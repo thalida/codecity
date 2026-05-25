@@ -1,0 +1,52 @@
+# Contributor-only test compose: pytest + vitest in containers.
+#
+# Run via `just test` / `just test-api` / `just test-app`.
+services:
+  pytest:
+    image: codecity:test
+    build:
+      context: .
+    # The runtime image was built with `uv sync --no-dev`, so pytest isn't in
+    # /srv/.venv. Re-sync at container start (without --no-dev) to add the
+    # `dev` dependency group, then run pytest from the same venv.
+    #
+    # `user: root` is required because the venv was created by root during the
+    # image build (Dockerfile runs `uv sync` before `USER codecity`), so the
+    # non-root runtime user can't write to it. This is a test-only ephemeral
+    # container (--rm), not production — root is acceptable here.
+    user: "root"
+    entrypoint: ["sh", "-c", "uv sync --frozen && /srv/.venv/bin/python -m pytest -v"]
+    environment:
+      # A couple of tests in api/tests/test_scan.py shell out to `git commit`
+      # to test cache invalidation. On a developer's host this works via
+      # ~/.gitconfig; in a fresh container there's no identity. Provide one.
+      - GIT_AUTHOR_NAME=Test Runner
+      - GIT_AUTHOR_EMAIL=test@codecity.local
+      - GIT_COMMITTER_NAME=Test Runner
+      - GIT_COMMITTER_EMAIL=test@codecity.local
+    volumes:
+      # `./api` is read-write (not :ro) because several tests in
+      # api/tests/test_scan.py mutate api/tests/fixtures/sample-repo/ (writing
+      # cache-bust files, modifying tracked files to test stat-cache
+      # invalidation). They clean up via addCleanup, but they need write
+      # access. The manifests are read-only — they never change at runtime.
+      - "./api:/srv/api"
+      - "./uv.lock:/srv/uv.lock:ro"
+      - "./pyproject.toml:/srv/pyproject.toml:ro"
+
+  vitest:
+    image: node:24-bookworm-slim
+    working_dir: /app
+    # Pin npm to host version to match the lockfile shape (see Dockerfile
+    # for the same workaround).
+    #
+    # The `canvas` package's prebuilt binary requires `libexpat1` from the
+    # system (jsdom delegates `getContext('2d')` to node-canvas, and several
+    # scene tests exercise that path). Fontconfig + DejaVu fonts are also
+    # required so labelAtlas text measurements match real-browser widths —
+    # without them, a pagination test that depends on text overflowing one
+    # 8192-tall page fails because measurements come back too narrow.
+    command: sh -c "apt-get update >/dev/null && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core >/dev/null && npm install -g npm@11.6.2 && npm ci && npm test"
+    volumes:
+      - "./app:/app:ro"
+      - "/app/node_modules"             # anonymous volume — npm-installed in container
