@@ -27,14 +27,14 @@ void main() {
   float pulseDist = abs(vUv.y - pulsePos);
   // Wrap distance so the pulse looks continuous across the seam.
   pulseDist = min(pulseDist, 1.0 - pulseDist);
-  // Narrow Gaussian peak.
-  float pulse = exp(-pulseDist * pulseDist * 80.0);
+  // Narrow Gaussian peak. Higher coefficient = thinner band.
+  float pulse = exp(-pulseDist * pulseDist * 250.0);
   // Pulse fades along the column too — linearly so it's still
   // visible mid-travel, but reaches zero at the panel so the pulse
   // doesn't paint over the faint cone at the top.
   pulse *= vFadeLinear;
 
-  float a = (baseAlpha + pulse * 0.8) * uOpacity;
+  float a = (baseAlpha + pulse * 0.5) * uOpacity;
 
   gl_FragColor = vec4(uColor, a);
 }
