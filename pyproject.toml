@@ -28,11 +28,13 @@ exclude = ["api/tests"]
 [dependency-groups]
 dev = [
     "pytest>=8",
+    "pytest-xdist>=3",
     "pyright>=1.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]
+addopts = "-ra --strict-markers -n auto"
 
 [tool.pyright]
 include = ["api"]

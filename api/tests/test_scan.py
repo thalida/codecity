@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -39,13 +40,41 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
     return final
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
-FIXTURE = FIXTURES_DIR / "sample-repo"
+_CANONICAL_FIXTURE = FIXTURES_DIR / "sample-repo"
+
+
+def _resolve_fixture() -> Path:
+    """Return the sample-repo path this worker should use.
+
+    Many tests in this file mutate ``FIXTURE`` (write .codecityignore,
+    create stash/ and node_modules/ subdirs, commit cache-bust files,
+    etc.). Under pytest-xdist's ``-n auto`` those writes race across
+    worker processes. To isolate, each xdist worker gets its own private
+    copy under ``$TMPDIR/codecity-test-fixtures/<worker>/sample-repo``.
+    When running serially (no PYTEST_XDIST_WORKER env var), use the
+    canonical in-tree path so behavior is unchanged.
+    """
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return _CANONICAL_FIXTURE
+    base = Path(tempfile.gettempdir()) / "codecity-test-fixtures" / worker
+    return base / "sample-repo"
+
+
+FIXTURE = _resolve_fixture()
 
 
 def _ensure_fixture() -> None:
-    """Make sure fixtures/setup.sh has been run."""
-    if not (FIXTURE / ".git").is_dir():
+    """Make sure fixtures/setup.sh has been run, with per-worker copies
+    when running under pytest-xdist."""
+    # Always make sure the canonical fixture exists first — it's the
+    # source for per-worker copies.
+    if not (_CANONICAL_FIXTURE / ".git").is_dir():
         subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
+    # If FIXTURE was redirected to a per-worker path, materialize it.
+    if FIXTURE != _CANONICAL_FIXTURE and not (FIXTURE / ".git").is_dir():
+        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)
 
 
 class _CacheRedirectMixin:
