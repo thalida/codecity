@@ -7,7 +7,7 @@ CodeCity visualizes a codebase as an isometric 3D city. Point it at a git reposi
 Requires: Docker.
 
 ```sh
-docker run --rm --init \
+docker run --rm --init --pull=always \
     -v codecity-cache:/cache \
     -p 8080:8080 \
     ghcr.io/thalida/codecity
@@ -21,7 +21,7 @@ Out of the box, CodeCity works with **git URLs only**. To render a local repo, s
 
 Cache lives in the Docker volume `codecity-cache`. To wipe: `docker volume rm codecity-cache`. Port conflict? Use a different host port: `-p 8081:8080`.
 
-To update to the latest image, either pull it explicitly: `docker pull ghcr.io/thalida/codecity:latest`, or add `--pull=always` to the `docker run` command so each run checks for a newer image.
+The `--pull=always` flag makes Docker check for a newer image on every run, so you always get the latest CodeCity. To pin to your cached version (offline, or to avoid the network hit), drop the flag and pull explicitly when you want updates: `docker pull ghcr.io/thalida/codecity:latest`.
 
 ## Advanced: rendering local directories
 
@@ -30,7 +30,7 @@ To render a local git repo, mount it into the container at the same absolute pat
 **Recommended — mount your code/repos directory only:**
 
 ```sh
-docker run --rm --init \
+docker run --rm --init --pull=always \
     -v "$HOME/Documents/Repos:$HOME/Documents/Repos:ro" \
     -v codecity-cache:/cache \
     -p 8080:8080 \
@@ -42,7 +42,7 @@ Replace `$HOME/Documents/Repos` with wherever you keep code. Use multiple `-v` f
 **Full `$HOME` mount — browse anywhere under your home:**
 
 ```sh
-docker run --rm --init \
+docker run --rm --init --pull=always \
     -v "$HOME:$HOME:ro" \
     -v codecity-cache:/cache \
     -p 8080:8080 \
