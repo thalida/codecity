@@ -105,6 +105,8 @@ just build                        # build the local image
 just run                          # run the local image like an end user
 ```
 
+Both `just dev` and `just run` accept an optional path arg to mount a local git repo for visualization: `just dev ~/Documents/Repos/myproj`. Without an arg, codecity is git-URL-only (matches the production `docker run` quickstart).
+
 The pre-push hook runs pytest, vitest, eslint, prettier --check, and typecheck before any `git push` to origin. Bypass with `git push --no-verify` if you need to push WIP. Docker must be running (used for pytest + vitest).
 
 ### Multiple worktrees

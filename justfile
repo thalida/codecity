@@ -4,32 +4,53 @@ default:
 
 # ── Local run ────────────────────────────────────────────────────
 # Dev mode: Vite HMR + api auto-reload. Worktree-aware.
+# Optional positional `mount` arg: a path to mount read-only into the api
+# container at the same absolute path (same UX as `just run`). Generates
+# a compose override at .local/dev-mount.override.yml (gitignored) so the
+# extra mount can be layered onto the base dev compose without editing it.
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
 # under key 'vite'), uses a worktree-derived compose project name (so containers
 # + volumes don't collide), and prints a subdomain URL so browser storage is
 # isolated per worktree. Auto-re-picks if the saved port becomes occupied.
-dev:
+dev mount='':
     @PORT=$(python3 bin/pick-port.py vite) ; \
      SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     COMPOSE_ARGS="-f docker-compose.dev.yml" ; \
+     if [ -n "{{mount}}" ]; then \
+         ABS=$(realpath "{{mount}}") || exit 1 ; \
+         mkdir -p .local ; \
+         printf 'services:\n  api:\n    volumes:\n      - "%s:%s:ro"\n' "$ABS" "$ABS" > .local/dev-mount.override.yml ; \
+         COMPOSE_ARGS="$COMPOSE_ARGS -f .local/dev-mount.override.yml" ; \
+         echo "[codecity-dev] mounted $ABS" ; \
+     fi ; \
      echo "[codecity-dev] http://$SLUG.localhost:$PORT/" ; \
      VITE_HOST_PORT=$PORT \
-     docker compose -p codecity-$SLUG -f docker-compose.dev.yml up --build
+     docker compose -p codecity-$SLUG $COMPOSE_ARGS up --build
 
-# Prod-like local run: one container, no host mount (default per spec).
-# Per the README Quick Start. Add `-v $HOME/path:$HOME/path:ro` to mount
-# a local git repo for visualization.
+# Prod-like local run: one container, mirrors the README Quick Start.
+# Optional positional `mount` arg: a path to mount read-only at the same
+# absolute path inside the container, so codecity can render that local
+# git repo. Without it, the container has no host filesystem access and
+# can only render git URLs.
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
 # under key 'run') so bookmarked URLs survive restarts AND concurrent worktrees
 # don't fight over port 8080. Auto-re-picks if the saved port becomes occupied.
-run:
+run mount='':
     @PORT=$(python3 bin/pick-port.py run) ; \
      SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     MOUNT_ARG="" ; \
+     if [ -n "{{mount}}" ]; then \
+         ABS=$(realpath "{{mount}}") || exit 1 ; \
+         MOUNT_ARG="-v $ABS:$ABS:ro" ; \
+         echo "[codecity] mounted $ABS" ; \
+     fi ; \
      echo "[codecity] http://$SLUG.localhost:$PORT/" ; \
      IMAGE_ID=$(docker build -q \
          --build-arg GIT_SHA=$(git rev-parse HEAD) \
          --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) .) ; \
      docker run --rm --init \
          -v codecity-cache:/cache \
+         $MOUNT_ARG \
          -p $PORT:8080 \
          $IMAGE_ID
 
