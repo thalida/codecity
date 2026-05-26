@@ -16,7 +16,12 @@ services:
     # container (--rm), not production — root is acceptable here.
     user: "root"
     init: true
-    entrypoint: ["sh", "-c", "uv sync --frozen && /srv/.venv/bin/python -m pytest -v"]
+    # The trailing `"--"` becomes `$0` to the sh -c script, so extra args
+    # passed via `docker compose run --rm pytest <args>` propagate to pytest
+    # through `"$@"`. Without this, `sh -c` silently drops them (e.g. CI's
+    # `--cov-report=xml:...` flag — no xml emitted, upload-artifact warns
+    # "no files found").
+    entrypoint: ["sh", "-c", "uv sync --frozen && exec /srv/.venv/bin/python -m pytest -v \"$@\"", "--"]
     environment:
       # A couple of tests in api/tests/test_scan.py shell out to `git commit`
       # to test cache invalidation. On a developer's host this works via
