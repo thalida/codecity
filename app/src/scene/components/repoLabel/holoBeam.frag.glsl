@@ -16,8 +16,15 @@ void main() {
   // base alpha (so the beam is a tight bright point at the gem and
   // reads as faint atmosphere near the top).
   float vFadeLinear = 1.0 - vUv.y;
-  float vFade = pow(vFadeLinear, 3.0);
-  float baseAlpha = vFade * 0.95;
+  // Top fade: pow-2 falloff — soft, the top stays visible as a wide
+  // atmospheric bloom rather than disappearing.
+  float vFade = pow(vFadeLinear, 2.0);
+  // Bottom fade: smoothstep ramps brightness IN from the gem over
+  // the bottom 30% of the beam, so the brightest band sits well
+  // above the gem rather than directly at it.
+  float bottomFade = smoothstep(0.0, 0.30, vUv.y);
+  vFade *= bottomFade;
+  float baseAlpha = vFade * 0.15;
 
   // Energy pulse: a narrow band of extra brightness that travels
   // upward at ~0.5 units of beam height per second (at ANIMATION_SPEED=1).
@@ -29,12 +36,12 @@ void main() {
   pulseDist = min(pulseDist, 1.0 - pulseDist);
   // Narrow Gaussian peak. Higher coefficient = thinner band.
   float pulse = exp(-pulseDist * pulseDist * 250.0);
-  // Pulse fades along the column too — linearly so it's still
-  // visible mid-travel, but reaches zero at the panel so the pulse
-  // doesn't paint over the faint cone at the top.
-  pulse *= vFadeLinear;
+  // Pulse fades along the column too — using a pow-3 curve like the
+  // base alpha, so the pulse loses brightness fast as it travels up
+  // and is essentially gone by the time it reaches the panel.
+  pulse *= pow(vFadeLinear, 3.0);
 
-  float a = (baseAlpha + pulse * 0.5) * uOpacity;
+  float a = (baseAlpha + pulse * 0.15) * uOpacity;
 
   gl_FragColor = vec4(uColor, a);
 }

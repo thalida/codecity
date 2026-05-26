@@ -6,10 +6,10 @@ describe('REPO_LABEL config store', () => {
     REPO_LABEL.set({
       ENABLED: true,
       HEIGHT: 1305,
-      FONT_SIZE: 96,
+      FONT_SIZE: 128,
       ANIMATION_SPEED: 1.0,
       OPACITY: 0.9,
-      BEAM_COLOR: '#33ffff',
+      BEAM_COLOR: '#bfb3ff',
       TEXT_COLOR: '#ffffff',
     });
   });
@@ -18,10 +18,10 @@ describe('REPO_LABEL config store', () => {
     expect(REPO_LABEL.get()).toEqual({
       ENABLED: true,
       HEIGHT: 1305,
-      FONT_SIZE: 96,
+      FONT_SIZE: 128,
       ANIMATION_SPEED: 1.0,
       OPACITY: 0.9,
-      BEAM_COLOR: '#33ffff',
+      BEAM_COLOR: '#bfb3ff',
       TEXT_COLOR: '#ffffff',
     });
   });

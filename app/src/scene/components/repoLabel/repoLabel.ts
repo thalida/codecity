@@ -39,9 +39,9 @@ import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './t
 // column of light, not a hairline.
 const BEAM_RADIUS_FRAC = 0.04;
 // Beam taper: top radius / bottom radius. Larger = more flare toward
-// the panel. 10× reads as a wide cone blooming out from a tight point
-// at the gem.
-const BEAM_TAPER_RATIO = 10.0;
+// the panel. 20× — top is a wide bloom roughly matching the panel's
+// width band; bottom stays tight at the gem.
+const BEAM_TAPER_RATIO = 20.0;
 // Beam base geometry — bottom radius 1, top radius = BEAM_TAPER_RATIO.
 // mesh.scale.x/z multiplies these so world bottom radius =
 // FONT_SIZE × BEAM_RADIUS_FRAC.

@@ -45,12 +45,13 @@ export const REPO_LABEL = map<RepoLabelConfig>({
   // but clearly above any typical one. Tied to BUILDING_DIMENSIONS by
   // design, not by import — update both if either drifts.
   HEIGHT: 1305,
-  // Tracks BUILDING_DIMENSIONS.MAX_WIDTH default (96). Update both if
-  // either ever drifts — they're tied by design, not by import (the
-  // import would force a module-load order that adds no real value).
-  FONT_SIZE: 96,
+  // Tuned by eye to feel like a substantial banner above the city
+  // at default camera framing — roughly 1.3× BUILDING_DIMENSIONS.MAX_WIDTH
+  // (96 × 1.33 ≈ 128) so the label scales bigger than the biggest
+  // single building.
+  FONT_SIZE: 128,
   ANIMATION_SPEED: 1.0,
   OPACITY: 0.9,
-  BEAM_COLOR: '#33ffff',
+  BEAM_COLOR: '#bfb3ff',
   TEXT_COLOR: '#ffffff',
 });
