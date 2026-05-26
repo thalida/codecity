@@ -86,9 +86,23 @@ export function createRepoNameTexture(name: string): RepoNameTexture {
 export function redrawRepoName(out: RepoNameTexture, name: string): void {
   const newWidth = measureWidth(name);
   if (newWidth !== out.canvas.width) {
-    out.canvas.width = newWidth;
+    // Three.js cannot resize a Texture's GPU allocation once texStorage2D
+    // has run — Texture.js says "After the initial use of a texture, its
+    // dimensions [...] cannot be changed. Instead, call Texture#dispose
+    // [...] and instantiate a new one." Mutating the canvas in place and
+    // flagging needsUpdate uploads via texSubImage2D into the OLD-sized
+    // GPU allocation, which either clips the new text or leaves stale
+    // pixels visible. Dispose + rebuild so the next render allocates fresh
+    // storage at the new dimensions. Callers must re-read out.texture and
+    // update any uniforms that previously referenced the old one.
+    out.texture.dispose();
+    const fresh = createRepoNameTexture(name);
+    out.canvas = fresh.canvas;
+    out.texture = fresh.texture;
+    out.aspect = fresh.aspect;
+    return;
   }
+  // Same width — texSubImage2D handles the upload without re-allocation.
   paint(out.canvas, name);
-  out.aspect = out.canvas.width / out.canvas.height;
   out.texture.needsUpdate = true;
 }

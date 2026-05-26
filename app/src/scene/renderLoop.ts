@@ -45,7 +45,11 @@ import { labelFromDisplayRoot } from '../views/widgets/displayLabel.js';
 // client-side mutation is the single point of policy. Must be called BEFORE
 // applyManifest so the scene is built with the correct name from the start.
 export function _applyDisplayLabel(manifest: Manifest): void {
-  const friendly = labelFromDisplayRoot(manifest.display_root, manifest.tree?.name ?? '');
+  const friendly = labelFromDisplayRoot(
+    manifest.display_root,
+    manifest.repo?.remote_url,
+    manifest.tree?.name ?? ''
+  );
   if (manifest.tree && friendly) {
     manifest.tree.name = friendly;
   }

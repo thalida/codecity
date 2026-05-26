@@ -153,6 +153,24 @@ describe('createRepoLabel()', () => {
     expect(label!.group.children.length).toBe(2);
   });
 
+  it('setRepoName with a wider name repoints the panel uniform at the new texture', () => {
+    // Three.js cannot resize a CanvasTexture's GPU allocation in place;
+    // textCanvas.redrawRepoName swaps RepoNameTexture.texture when the
+    // canvas width changes. setRepoName must follow that swap by updating
+    // the panel material's uMap uniform — otherwise the panel keeps
+    // sampling the disposed old texture and the new name never appears.
+    label!.setRepoName('a');
+    const panel = label!.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
+    ) as THREE.Mesh;
+    const mat = panel.material as THREE.ShaderMaterial;
+    const oldTex = mat.uniforms.uMap.value as THREE.Texture;
+    label!.setRepoName('a-much-longer-repo-name-than-before');
+    const newTex = mat.uniforms.uMap.value as THREE.Texture;
+    expect(newTex).not.toBe(oldTex);
+    expect(newTex).toBeInstanceOf(THREE.CanvasTexture);
+  });
+
   it("setGem makes the beam track the gem's live world Y (hover + bob)", () => {
     label!.setRepoName('codecity');
     REPO_LABEL.setKey('HEIGHT', 300);

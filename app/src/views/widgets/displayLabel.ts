@@ -24,21 +24,30 @@ export function toHttpsRepoUrl(src: string): string {
 }
 
 /**
- * Derive a short, human-friendly label from a `display_root` value and an
- * optional fallback name.
+ * Derive a short, human-friendly label for a repo.
  *
- * - If `displayRoot` is provided: strip the optional `@branch` suffix, then
- *   extract "owner/repo" for git URLs (http/https/ssh) or the basename for
- *   local paths.
- * - Otherwise: return `fallbackName` as-is.
+ * Source preference, in order:
+ *   1. `displayRoot` — set by the API for git-URL-synced sources (carries
+ *      an optional `@branch` suffix that is stripped before parsing).
+ *   2. `remoteUrl` — `manifest.repo.remote_url` from the scanner; set for
+ *      any local repo whose working tree has a remote configured, so that
+ *      a local clone of github.com/foo/bar still labels as "foo/bar"
+ *      instead of the on-disk basename.
+ *   3. `fallbackName` — the raw tree name (basename) when no URL signal is
+ *      available (e.g. a local repo with no remote).
+ *
+ * For any URL form (http/https/ssh) we extract "owner/repo" from the last
+ * two path segments. For a local-path display root we return the basename.
  */
 export function labelFromDisplayRoot(
   displayRoot: string | undefined,
+  remoteUrl: string | null | undefined,
   fallbackName: string
 ): string {
-  if (!displayRoot) return fallbackName;
+  const src = displayRoot || remoteUrl || null;
+  if (!src) return fallbackName;
   // Strip optional @branch suffix before analysing the URL/path.
-  const noBranch = displayRoot.replace(/@[^@/]+$/, '');
+  const noBranch = src.replace(/@[^@/]+$/, '');
   // git URL: derive "owner/repo" from the last two path segments.
   if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
     const m = noBranch.match(/[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);

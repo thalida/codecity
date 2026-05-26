@@ -110,7 +110,11 @@ export function createCoordinator({
   // Derive the friendly label for the header breadcrumb and document title.
   // manifest.tree.name is already set to the friendly value by main.ts
   // (_applyDisplayLabel) before applyManifest is called, so no mutation needed here.
-  const _rootLabel = labelFromDisplayRoot(_initManifest?.display_root, rootNode?.name ?? '');
+  const _rootLabel = labelFromDisplayRoot(
+    _initManifest?.display_root,
+    _initManifest?.repo?.remote_url,
+    rootNode?.name ?? ''
+  );
   document.title = _rootLabel ? `${_rootLabel} — codecity` : 'codecity';
   // Read initial branch + source URL from the current page URL so the header
   // can show the branch pill and repo link on first paint.
@@ -397,7 +401,11 @@ export function createCoordinator({
     // _applyDisplayLabel before every applyManifest, so no mutation needed here.
     // Keep document.title in sync with the now-correct name.
     if (m) {
-      const freshLabel = labelFromDisplayRoot(m.display_root, m.tree?.name ?? '');
+      const freshLabel = labelFromDisplayRoot(
+        m.display_root,
+        m.repo?.remote_url,
+        m.tree?.name ?? ''
+      );
       document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
     }
     LAST_UPDATED_AT.set(Date.now());
@@ -441,7 +449,11 @@ export function createCoordinator({
     // project-btn updates after a switch. manifest.tree.name is already
     // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
     const m = world.getManifest();
-    const label = labelFromDisplayRoot(m?.display_root, m?.tree?.name ?? '');
+    const label = labelFromDisplayRoot(
+      m?.display_root,
+      m?.repo?.remote_url,
+      m?.tree?.name ?? ''
+    );
     appHeader.setSourceInfo(label, branch, sourceUrl);
   }
 

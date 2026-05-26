@@ -245,14 +245,23 @@ export function createRepoLabel(): RepoLabel {
       _buildMeshes();
       return;
     }
+    const prevTexture = textTex.texture;
     redrawRepoName(textTex, name);
     if (!panelMesh) {
       _buildMeshes();
-    } else {
-      // Aspect may have changed; re-apply transform so the panel's
-      // scale.x updates to the new FONT_SIZE × aspect.
-      _applyTransform();
+      return;
     }
+    // redrawRepoName swaps textTex.texture for a fresh CanvasTexture when
+    // the canvas width changes (three.js can't resize a GPU allocation
+    // after texStorage2D). Repoint the panel uniform so it samples the
+    // new texture; without this, the panel keeps reading the disposed
+    // one and the new repo name never appears.
+    if (panelMat && textTex.texture !== prevTexture) {
+      (panelMat.uniforms.uMap as { value: THREE.Texture }).value = textTex.texture;
+    }
+    // Aspect may have changed; re-apply transform so the panel's
+    // scale.x updates to the new FONT_SIZE × aspect.
+    _applyTransform();
   }
 
   function setAnchor(anchor: THREE.Vector3): void {
