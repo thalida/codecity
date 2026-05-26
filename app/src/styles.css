@@ -1992,15 +1992,21 @@ canvas {
 .tree-list {
   list-style: none;
   margin: var(--cc-space-0);
-  /* Per-level indent. Kept tighter than the historical 14px so deep
-   * trees don't run off the side of a narrow sidebar; the chevron
-   * column + folder icon already give each level a clear visual step. */
-  padding: 0 0 0 var(--cc-space-4);
+  /* Per-level indent = chevron width (14px) + row gap (2px) so a child
+   * row's chevron lands directly under its parent's folder icon. */
+  padding: 0 0 0 var(--cc-space-7);
 }
 
 .tree-root.tree-list {
   /* The root folder row already brings its own 8px padding through .row;
      no need to indent the root list itself. */
+  padding-left: var(--cc-space-0);
+}
+
+/* The root row's chevron is hidden (.tree-root-item > .row > .tree-chevron),
+   so depth-1 chevrons should slot into that same gutter column under the
+   root's folder icon — they don't need an extra level of indent. */
+.tree-root-item > .tree-list {
   padding-left: var(--cc-space-0);
 }
 
@@ -2050,6 +2056,17 @@ canvas {
  * working; only its layout box is suppressed. */
 .tree-root-item > .row > .tree-chevron {
   display: none;
+}
+
+/* Root glyph — Lucide gem rendered via mask-image so it picks up
+ * currentColor (matches the row's label color; no brand tint). Sized
+ * to match the 14px Material file/folder icons used on every other row
+ * so the icon column stays a consistent width. */
+.tree-root-glyph {
+  width: 12px;
+  height: 12px;
+  margin-right: var(--cc-space-2);
+  vertical-align: middle;
 }
 
 .tree-icon {

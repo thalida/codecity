@@ -74,10 +74,14 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
     chevron.appendChild(chevronIcon);
     row.appendChild(chevron);
     // Folder glyph sits between the chevron and the label so the row
-    // reads "[state arrow] [folder icon] [name]". The icon is picked
-    // by directory name (src/, tests/, views/, …) when we recognize
-    // it, generic folder otherwise.
-    row.appendChild(makeFolderIcon(child as DirNode));
+    // reads "[state arrow] [folder icon] [name]". The root row gets the
+    // brand gem (mask-image, picks up currentColor — no brand colors);
+    // other folders use the name-based Material Icon Theme glyph.
+    if (isRoot) {
+      row.appendChild(makeLucideIcon('gem', { class: 'tree-root-glyph' }));
+    } else {
+      row.appendChild(makeFolderIcon(child as DirNode));
+    }
     row.appendChild(label);
     li.appendChild(row);
 

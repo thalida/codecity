@@ -31,8 +31,8 @@
 - [x] fix loading by git url via cmd line
 - [x] add ability to set path in ui
 - [x] make controls tab more compact
-- [ ] change the info panel to be about codecity not the repo readme
-- [ ] fix alignment in file tree
+- [-] change the info panel to be about codecity not the repo readme
+- [x] fix alignment in file tree
 - [x] don't select when rotating the world
 - [x] media billboards as buildings w/ ads (width by file size and height by dimensions? duration?) same age / window considerations
 
