@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 import unittest
 from pathlib import Path
-from tempfile import TemporaryDirectory
+
+import pytest
 
 from api import cache as cache_mod
 from api.cache import _git_history_cache_path
@@ -13,17 +14,17 @@ from api.types import CommitEntry
 
 
 class CacheTestBase(unittest.TestCase):
-    """Redirect CACHE_ROOT to a tempdir so tests don't touch ~/.cache."""
+    """Base that pulls in the ``redirect_cache_root`` conftest fixture so
+    tests don't touch ``~/.cache/codecity/`` and don't leak CACHE_ROOT
+    mutations across tests.
 
-    def setUp(self) -> None:
-        self._tmp = TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self._original_root = cache_mod.CACHE_ROOT
-        cache_mod.CACHE_ROOT = Path(self._tmp.name)
-        self.addCleanup(self._restore_root)
+    Autouse fixtures *do* run for unittest.TestCase subclasses (unlike
+    parameter-injected fixtures), so this is the canonical bridge."""
 
-    def _restore_root(self) -> None:
-        cache_mod.CACHE_ROOT = self._original_root
+    @pytest.fixture(autouse=True)
+    def _redirect_cache_root(self, redirect_cache_root: Path) -> None:
+        # Exposed for tests that want the per-test cache dir.
+        self.cache_root = redirect_cache_root
 
 
 class RepoKeyTests(CacheTestBase):
@@ -390,7 +391,7 @@ class ManifestCacheTests(CacheTestBase):
 class MediaDimsCacheTests(CacheTestBase):
     def setUp(self) -> None:
         super().setUp()
-        self.abs_root = Path(self._tmp.name) / "fake-repo"
+        self.abs_root = self.cache_root / "fake-repo"
 
     def test_media_dims_round_trip(self) -> None:
         entry: cache_mod.FileEntry = {
