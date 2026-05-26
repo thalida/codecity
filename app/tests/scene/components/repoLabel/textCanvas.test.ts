@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createRepoNameTexture, redrawRepoName } from '@/scene/components/repoLabel/textCanvas.js';
+import {
+  createRepoNameTexture,
+  measureForName,
+  redrawRepoName,
+} from '@/scene/components/repoLabel/textCanvas.js';
 
 describe('repoLabel textCanvas', () => {
   it('createRepoNameTexture returns a CanvasTexture sized for the name', () => {
@@ -60,5 +64,31 @@ describe('repoLabel textCanvas', () => {
 
   it('handles empty name without throwing', () => {
     expect(() => createRepoNameTexture('')).not.toThrow();
+  });
+
+  it('keeps the requested font size for names that fit at full FONT_PX', () => {
+    // A short "org/repo" easily fits inside the 1024px canvas cap at
+    // FONT_PX=80. The shrink path must not engage here — we want full
+    // visual weight for the common case.
+    const { fontPx } = measureForName('foo/bar');
+    expect(fontPx).toBe(80);
+  });
+
+  it('shrinks the font so long org/repo names fit without canvas clipping', () => {
+    // Regression: an org/repo label like "dependency-check/DependencyCheck"
+    // is wider than (MAX_WIDTH − 2·SIDE_PAD) = 960px at FONT_PX=80 and used
+    // to spill off both sides of the center-aligned fillText. measureForName
+    // must pick a smaller font so the rendered text fits inside the canvas.
+    const longName = 'dependency-check/DependencyCheck';
+    const { fontPx, canvasWidth } = measureForName(longName);
+    expect(fontPx).toBeLessThan(80);
+    expect(fontPx).toBeGreaterThanOrEqual(24);
+    // Verify the chosen font actually fits the chosen canvas.
+    const probe = document.createElement('canvas').getContext('2d');
+    if (!probe) throw new Error('no 2d context');
+    probe.font = `700 ${fontPx}px 'Orbitron', 'Eurostile', system-ui, sans-serif`;
+    const width = probe.measureText(longName).width;
+    // 64 = SIDE_PAD * 2.
+    expect(width).toBeLessThanOrEqual(canvasWidth - 64);
   });
 });

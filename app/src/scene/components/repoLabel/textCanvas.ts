@@ -13,10 +13,17 @@ import * as THREE from 'three';
 
 const CANVAS_HEIGHT = 128;
 const FONT_PX = 80;
+// Floor for the auto-shrink path. Below this the label becomes unreadable;
+// pathologically long names that would need a smaller font are kept at
+// MIN_FONT_PX and accept some letter overlap rather than vanishing.
+const MIN_FONT_PX = 24;
 // Padding on each side so the outer glow doesn't clip at the canvas edge.
 const SIDE_PAD = 32;
-// Max canvas width — above this, sampling cost is noticeable. Long
-// repo names beyond this cap are clipped.
+// Canvas-width cap. Bounds the panel's world-space width (panel.scale.x =
+// FONT_SIZE × canvas.width / canvas.height) so the label doesn't grow wider
+// than the city for a long name. When the text wouldn't fit at FONT_PX
+// inside (MAX_WIDTH − 2·SIDE_PAD), the font is auto-shrunk to fit; the
+// canvas itself never exceeds MAX_WIDTH.
 const MAX_WIDTH = 1024;
 const FONT_FAMILY = "'Orbitron', 'Eurostile', system-ui, sans-serif";
 
@@ -33,23 +40,55 @@ function nextPow2(n: number): number {
   return p;
 }
 
-function measureWidth(name: string): number {
+/**
+ * Choose the font size + canvas width for a given name.
+ *
+ * Picks the largest font size ≤ FONT_PX such that the text fits within
+ * (MAX_WIDTH − 2·SIDE_PAD). For typical names this is FONT_PX unchanged;
+ * only names that would overflow at full size trigger the shrink path.
+ * The returned canvasWidth is the smallest pow-of-2 ≥ 256 that fits the
+ * (possibly shrunken) text plus padding, capped at MAX_WIDTH.
+ *
+ * Exported for test access — paint() needs the same fontPx that
+ * measureForName picked so the text actually fits the canvas it sized.
+ */
+export function measureForName(name: string): { fontPx: number; canvasWidth: number } {
   const measureCanvas = document.createElement('canvas');
   const ctx = measureCanvas.getContext('2d');
-  if (!ctx) return MAX_WIDTH;
+  if (!ctx) return { fontPx: FONT_PX, canvasWidth: MAX_WIDTH };
+
+  const safeName = name || ' ';
+  const maxTextWidth = MAX_WIDTH - SIDE_PAD * 2;
+
   ctx.font = `700 ${FONT_PX}px ${FONT_FAMILY}`;
-  const m = ctx.measureText(name || ' ');
-  const desired = Math.ceil(m.width) + SIDE_PAD * 2;
-  return Math.min(MAX_WIDTH, Math.max(256, nextPow2(desired)));
+  let textWidth = ctx.measureText(safeName).width;
+  let fontPx = FONT_PX;
+  if (textWidth > maxTextWidth) {
+    // Shrink proportionally to the overflow ratio. measureText is roughly
+    // linear in font size, but subpixel hinting can leave the result a
+    // fraction of a pixel over; nudge fontPx down until it actually fits
+    // (≤2 iterations in practice, and MIN_FONT_PX caps the worst case).
+    fontPx = Math.max(MIN_FONT_PX, Math.floor((FONT_PX * maxTextWidth) / textWidth));
+    ctx.font = `700 ${fontPx}px ${FONT_FAMILY}`;
+    textWidth = ctx.measureText(safeName).width;
+    while (fontPx > MIN_FONT_PX && textWidth > maxTextWidth) {
+      fontPx -= 1;
+      ctx.font = `700 ${fontPx}px ${FONT_FAMILY}`;
+      textWidth = ctx.measureText(safeName).width;
+    }
+  }
+  const desired = Math.ceil(textWidth) + SIDE_PAD * 2;
+  const canvasWidth = Math.min(MAX_WIDTH, Math.max(256, nextPow2(desired)));
+  return { fontPx, canvasWidth };
 }
 
-function paint(canvas: HTMLCanvasElement, name: string): void {
+function paint(canvas: HTMLCanvasElement, name: string, fontPx: number): void {
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   // Center the text horizontally and vertically.
-  ctx.font = `700 ${FONT_PX}px ${FONT_FAMILY}`;
+  ctx.font = `700 ${fontPx}px ${FONT_FAMILY}`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -67,10 +106,11 @@ function paint(canvas: HTMLCanvasElement, name: string): void {
 }
 
 export function createRepoNameTexture(name: string): RepoNameTexture {
+  const { fontPx, canvasWidth } = measureForName(name);
   const canvas = document.createElement('canvas');
-  canvas.width = measureWidth(name);
+  canvas.width = canvasWidth;
   canvas.height = CANVAS_HEIGHT;
-  paint(canvas, name);
+  paint(canvas, name, fontPx);
 
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -84,8 +124,8 @@ export function createRepoNameTexture(name: string): RepoNameTexture {
 }
 
 export function redrawRepoName(out: RepoNameTexture, name: string): void {
-  const newWidth = measureWidth(name);
-  if (newWidth !== out.canvas.width) {
+  const { fontPx, canvasWidth } = measureForName(name);
+  if (canvasWidth !== out.canvas.width) {
     // Three.js cannot resize a Texture's GPU allocation once texStorage2D
     // has run — Texture.js says "After the initial use of a texture, its
     // dimensions [...] cannot be changed. Instead, call Texture#dispose
@@ -103,6 +143,6 @@ export function redrawRepoName(out: RepoNameTexture, name: string): void {
     return;
   }
   // Same width — texSubImage2D handles the upload without re-allocation.
-  paint(out.canvas, name);
+  paint(out.canvas, name, fontPx);
   out.texture.needsUpdate = true;
 }
