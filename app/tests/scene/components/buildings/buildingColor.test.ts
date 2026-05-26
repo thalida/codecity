@@ -320,13 +320,20 @@ describe('getBuildingColor', () => {
     // b.ts with modified anchor: t=1.0 → S=100, L=70 ✓
     // b.ts with created anchor:  t≈0.7 → S≈76, L≈57 ✗  (proves the test fails today)
     const tree = {
-      name: 'p', type: NodeKind.Directory, path: '.', children: [
+      name: 'p',
+      type: NodeKind.Directory,
+      path: '.',
+      children: [
         {
-          name: 'a.ts', type: NodeKind.File, extension: '.ts',
+          name: 'a.ts',
+          type: NodeKind.File,
+          extension: '.ts',
           git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
         },
         {
-          name: 'b.ts', type: NodeKind.File, extension: '.ts',
+          name: 'b.ts',
+          type: NodeKind.File,
+          extension: '.ts',
           git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
         },
       ],
@@ -343,13 +350,20 @@ describe('getBuildingColor', () => {
     // a.ts with modified anchor: t=0.0 → S=20,  L=25 ✓
     // a.ts with created anchor:  t≈0.4 → S≈52, L≈43 ✗  (proves the test fails today)
     const tree = {
-      name: 'p', type: NodeKind.Directory, path: '.', children: [
+      name: 'p',
+      type: NodeKind.Directory,
+      path: '.',
+      children: [
         {
-          name: 'a.ts', type: NodeKind.File, extension: '.ts',
+          name: 'a.ts',
+          type: NodeKind.File,
+          extension: '.ts',
           git: { created: '2020-01-01T00:00:00Z', modified: '2022-01-01T00:00:00Z' },
         },
         {
-          name: 'b.ts', type: NodeKind.File, extension: '.ts',
+          name: 'b.ts',
+          type: NodeKind.File,
+          extension: '.ts',
           git: { created: '2024-12-31T00:00:00Z', modified: '2023-06-01T00:00:00Z' },
         },
       ],

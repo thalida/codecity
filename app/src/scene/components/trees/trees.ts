@@ -14,10 +14,7 @@ import { createTreeRenderer, type Trees } from './treeRenderer.js';
 import type { TreePlacement } from './treePlacement.js';
 import type { CommitEntry } from '@/types';
 
-export function createTrees(
-  placements: TreePlacement[],
-  commits: CommitEntry[] | null,
-): Trees {
+export function createTrees(placements: TreePlacement[], commits: CommitEntry[] | null): Trees {
   return createTreeRenderer(placements, commits);
 }
 

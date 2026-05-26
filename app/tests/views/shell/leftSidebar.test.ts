@@ -27,9 +27,7 @@ describe('showLeftSidebar', () => {
 
   it('mounts an activity bar with one icon per tab', () => {
     showLeftSidebar({ tree: TEST_TREE }, {});
-    const icons = container.querySelectorAll<HTMLButtonElement>(
-      '.activity-bar .activity-bar-icon'
-    );
+    const icons = container.querySelectorAll<HTMLButtonElement>('.activity-bar .activity-bar-icon');
     expect(icons.length).toBe(4);
     expect(icons[0].dataset.tab).toBe('tree');
     expect(icons[1].dataset.tab).toBe('search');

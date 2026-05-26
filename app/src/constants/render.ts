@@ -10,7 +10,7 @@ export const RENDER_ORDERS = {
   // separate floor mesh is needed. Mesas (-500) and foliage (~0) will
   // slot in between SKY and SIDEWALK.
   SKY: -1000, // procedural sky icosphere (draws first; lower hemisphere
-              // also acts as the visual ground via uGroundColor)
+  // also acts as the visual ground via uGroundColor)
   // Valley floor — a large flat plane world-anchored at y=0 beneath
   // the gem, painted with a forest-tinted color. Sits BETWEEN sky and
   // the city's own ground tiles (sidewalks/asphalt), so the city

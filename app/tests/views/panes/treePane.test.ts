@@ -333,12 +333,8 @@ describe('buildTreePane', () => {
       ],
     };
     const bundle = buildTreePane(multiBranch);
-    const chevA = bundle.pane.querySelector<HTMLElement>(
-      '[data-path="a"] > .row > .tree-chevron'
-    )!;
-    const chevB = bundle.pane.querySelector<HTMLElement>(
-      '[data-path="b"] > .row > .tree-chevron'
-    )!;
+    const chevA = bundle.pane.querySelector<HTMLElement>('[data-path="a"] > .row > .tree-chevron')!;
+    const chevB = bundle.pane.querySelector<HTMLElement>('[data-path="b"] > .row > .tree-chevron')!;
 
     chevA.click();
     expect(bundle.pane.querySelector('[data-path="a"]')!.classList.contains('tree-expanded')).toBe(

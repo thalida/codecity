@@ -15,5 +15,5 @@ export const INPUT_TIMING = map<InputTimingConfig>({
   CLICK_MOVE_THRESHOLD_PX: 5, // pointer must move < this px to count as a click
   CLICK_TIME_THRESHOLD_MS: 400, // …and release within this window
   HOVER_COMMIT_MS: 35, // ms cursor must stay on a target before the heavy
-                       // fade cascade commits
+  // fade cascade commits
 });

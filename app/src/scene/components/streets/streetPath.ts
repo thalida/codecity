@@ -13,14 +13,14 @@ import { flatGroundMaterial } from './streets.js';
 
 export function createPathMesh(
   path: BuildingPath,
-  yBase: number,
+  yBase: number
 ): THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> {
   // Paths sit between sidewalks and asphalts so they extend the sidewalk
   // all the way to the building without overdrawing the asphalt.
   const pathOrder = RENDER_ORDERS.PATH_CONNECTOR;
   const mesh = new THREE.Mesh(
     new THREE.PlaneGeometry(path.w, path.d),
-    flatGroundMaterial(SIDEWALK_COLORS.get().DEFAULT, pathOrder),
+    flatGroundMaterial(SIDEWALK_COLORS.get().DEFAULT, pathOrder)
   );
   mesh.rotation.x = -Math.PI / 2;
   mesh.position.set(path.x, yBase, path.y);

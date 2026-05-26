@@ -16,8 +16,12 @@ function resetStores() {
     COLOR: '#010005',
   });
   SKY_STARS.set({
-    ENABLED: true, DENSITY: 0.0075, SIZE: 0.15, BRIGHTNESS: 1.2,
-    TWINKLE_ENABLED: true, TWINKLE_SPEED: 0.5,
+    ENABLED: true,
+    DENSITY: 0.0075,
+    SIZE: 0.15,
+    BRIGHTNESS: 1.2,
+    TWINKLE_ENABLED: true,
+    TWINKLE_SPEED: 0.5,
     TWINKLE_AMPLITUDE: 1.0,
   });
 }
@@ -100,9 +104,14 @@ describe('createSky()', () => {
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     let disposedGeom = false;
     let disposedMat = false;
-    geom.dispose = () => { disposedGeom = true; };
+    geom.dispose = () => {
+      disposedGeom = true;
+    };
     const origDispose = mat.dispose.bind(mat);
-    mat.dispose = () => { disposedMat = true; origDispose(); };
+    mat.dispose = () => {
+      disposedMat = true;
+      origDispose();
+    };
     sky.dispose();
     expect(disposedGeom).toBe(true);
     expect(disposedMat).toBe(true);

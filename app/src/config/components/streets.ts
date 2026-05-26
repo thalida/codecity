@@ -50,8 +50,8 @@ export interface LabelTypographyConfig {
   FONT_FAMILY: string;
   FONT_WEIGHT: number;
   FONT_SIZE_PX: number;
-  CANVAS_PADDING_FRAC: number;  // padding around glyphs as fraction of FONT_SIZE_PX (default 0.25 = 48px at 192px font)
-  STROKE_WIDTH_FRAC: number;    // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
+  CANVAS_PADDING_FRAC: number; // padding around glyphs as fraction of FONT_SIZE_PX (default 0.25 = 48px at 192px font)
+  STROKE_WIDTH_FRAC: number; // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
   HEIGHT_FRAC: number;
   SPACING_MULT: number;
   SPACING_FLOOR: number;
@@ -66,8 +66,8 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   FONT_WEIGHT: 700,
   FONT_SIZE_PX: 192,
   CANVAS_PADDING_FRAC: 0.25,
-  STROKE_WIDTH_FRAC: 0.20,
-  HEIGHT_FRAC: 0.50, // label plane height = street width × this
+  STROKE_WIDTH_FRAC: 0.2,
+  HEIGHT_FRAC: 0.5, // label plane height = street width × this
   SPACING_MULT: 8.0, // repeat spacing = label width × this
   SPACING_FLOOR: 256, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)

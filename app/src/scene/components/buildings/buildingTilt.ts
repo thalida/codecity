@@ -84,7 +84,7 @@ export function getBuildingTilt(b: Building): BuildingTilt {
 export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
   const UNIT_BOX = new THREE.Box3(
     new THREE.Vector3(-0.5, -0.5, -0.5),
-    new THREE.Vector3(0.5, 0.5, 0.5),
+    new THREE.Vector3(0.5, 0.5, 0.5)
   );
 
   // Scratch — allocated once per mesh, reused across raycast calls.
@@ -102,9 +102,7 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
     if (!mesh.visible) return;
 
     const aging = BUILDING_AGING.get();
-    const tiltMaxRad = aging.TILT_ENABLED
-      ? (aging.TILT_DEGREES * Math.PI) / 180
-      : 0;
+    const tiltMaxRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
 
     const iIconUV = mesh.geometry.getAttribute('iIconUV') as
       | THREE.InstancedBufferAttribute
@@ -114,9 +112,7 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
     // touched even though detail cells normally render at identity).
     mesh.updateMatrixWorld();
     invMatrix.copy(mesh.matrixWorld).invert();
-    const localRay = new THREE.Ray()
-      .copy(raycaster.ray)
-      .applyMatrix4(invMatrix);
+    const localRay = new THREE.Ray().copy(raycaster.ray).applyMatrix4(invMatrix);
 
     for (let i = 0; i < mesh.count; i++) {
       mesh.getMatrixAt(i, tmpInstanceMatrix);
@@ -148,10 +144,22 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
       const py = tmpPos.y;
       const pz = tmpPos.z;
       tmpMatrix.set(
-        sx,  sy * tiltX, 0,    px + py * tiltX,
-        0,   sy,         0,    py,
-        0,   sy * tiltZ, sz,   pz + py * tiltZ,
-        0,   0,          0,    1,
+        sx,
+        sy * tiltX,
+        0,
+        px + py * tiltX,
+        0,
+        sy,
+        0,
+        py,
+        0,
+        sy * tiltZ,
+        sz,
+        pz + py * tiltZ,
+        0,
+        0,
+        0,
+        1
       );
 
       // Transform the local-space ray into instance-local (unit-box)

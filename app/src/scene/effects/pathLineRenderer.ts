@@ -94,11 +94,7 @@ export function createPathLineRenderer({
       pathSegmentCount = 0;
       return;
     }
-    const pts = computePathPoints(
-      sel,
-      { x: gemPos.x, z: gemPos.z },
-      world.getStreetsByDirMap()
-    );
+    const pts = computePathPoints(sel, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
     if (pts.length < 2) {
       pathLine.visible = false;
       pathLineMat.opacity = 0;
@@ -139,11 +135,7 @@ export function createPathLineRenderer({
     if (!cfg.ENABLED || !gemPos || !hov) return hide();
     if (hov.kind === NodeKind.Gem) return hide();
     if (_isHoverSameAsSelection()) return hide();
-    const pts = computePathPoints(
-      hov,
-      { x: gemPos.x, z: gemPos.z },
-      world.getStreetsByDirMap()
-    );
+    const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
     if (pts.length < 2) return hide();
     const elev = cfg.ELEVATION;
     const flat: number[] = [];

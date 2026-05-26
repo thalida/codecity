@@ -59,11 +59,7 @@ import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
 import { ANIMATION_TIMING } from '@/config/system/animator.js';
-import {
-  getDefault,
-  forEachRegisteredStore,
-  onAnyChange,
-} from '@/store/persist.js';
+import { getDefault, forEachRegisteredStore, onAnyChange } from '@/store/persist.js';
 import {
   setDraft,
   getEffective,
@@ -131,7 +127,6 @@ interface ControlsPaneBundle {
 }
 
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
-
   const pane = document.createElement('div');
   pane.className = 'pane controls-pane';
 
@@ -178,9 +173,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
     typeof opts.onRunCollisionCheck === 'function' ||
     typeof opts.onRunStemDiagnostic === 'function'
   ) {
-    body.appendChild(
-      _buildDebugSection(opts.onRunCollisionCheck, opts.onRunStemDiagnostic),
-    );
+    body.appendChild(_buildDebugSection(opts.onRunCollisionCheck, opts.onRunStemDiagnostic));
   }
 
   pane.appendChild(body);
@@ -243,31 +236,43 @@ function _buildShortcutsSection(): HTMLElement {
     'Quick reference for cursor actions and keyboard shortcuts.'
   );
   section.appendChild(
-    _subgroup('General', _buildShortcutsList([
-      { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
-      { kbd: [KEY_BINDINGS.FOCUS_SELECTION.label], action: 'Focus camera on the current selection' },
-      { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
-      { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },
-      null,
-      { mouse: 'Click', action: 'Select building / street / gem' },
-      { mouse: 'Double-click', action: 'Focus camera on the target' },
-    ]))
+    _subgroup(
+      'General',
+      _buildShortcutsList([
+        { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
+        {
+          kbd: [KEY_BINDINGS.FOCUS_SELECTION.label],
+          action: 'Focus camera on the current selection',
+        },
+        { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
+        { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },
+        null,
+        { mouse: 'Click', action: 'Select building / street / gem' },
+        { mouse: 'Double-click', action: 'Focus camera on the target' },
+      ])
+    )
   );
   section.appendChild(
-    _subgroup('Orbit mode', _buildShortcutsList([
-      { mouse: 'Left drag', action: 'Orbit' },
-      { mouse: 'Right drag', action: 'Pan' },
-      { mouse: 'Middle drag', action: 'Dolly (zoom)' },
-      { mouse: 'Scroll', action: 'Zoom toward cursor' },
-    ]))
+    _subgroup(
+      'Orbit mode',
+      _buildShortcutsList([
+        { mouse: 'Left drag', action: 'Orbit' },
+        { mouse: 'Right drag', action: 'Pan' },
+        { mouse: 'Middle drag', action: 'Dolly (zoom)' },
+        { mouse: 'Scroll', action: 'Zoom toward cursor' },
+      ])
+    )
   );
   section.appendChild(
-    _subgroup('Fly mode', _buildShortcutsList([
-      { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
-      { kbd: ['Q', 'E'], action: 'Drop / rise' },
-      { kbd: ['Shift'], action: 'Boost (hold)' },
-      { mouse: 'Left / right drag', action: 'Look around' },
-    ]))
+    _subgroup(
+      'Fly mode',
+      _buildShortcutsList([
+        { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
+        { kbd: ['Q', 'E'], action: 'Drop / rise' },
+        { kbd: ['Shift'], action: 'Boost (hold)' },
+        { mouse: 'Left / right drag', action: 'Look around' },
+      ])
+    )
   );
 
   // Fly-mode tuning — collapsible so the always-visible shortcut cheat
@@ -305,9 +310,17 @@ function _buildShortcutsSection(): HTMLElement {
         }),
       ]),
       _subgroup('Entry pose (on fly-mode enter)', [
-        _number('Gem offset multiplier', FLY_CONTROLS, 'FLY_DEFAULT_GEM_OFFSET_MULT', 0.5, 10, 0.1, {
-          tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
-        }),
+        _number(
+          'Gem offset multiplier',
+          FLY_CONTROLS,
+          'FLY_DEFAULT_GEM_OFFSET_MULT',
+          0.5,
+          10,
+          0.1,
+          {
+            tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
+          }
+        ),
         _slider('Altitude fraction', FLY_CONTROLS, 'FLY_DEFAULT_ALTITUDE_FRAC', 0.05, 2, 0.05, {
           tip: 'Starting height as a fraction of the tallest building. 0.3 = eye-level with a mid-rise; 1.0 = rooftop height of the tallest building.',
         }),
@@ -370,7 +383,7 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 function _buildSceneSection(): HTMLElement {
   const section = _section(
     'Scene',
-    'Sky, stars, ground, and atmosphere — everything that frames the city. (Sun lighting is fixed in code.)',
+    'Sky, stars, ground, and atmosphere — everything that frames the city. (Sun lighting is fixed in code.)'
   );
 
   section.appendChild(
@@ -384,7 +397,7 @@ function _buildSceneSection(): HTMLElement {
       _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
         tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -410,15 +423,15 @@ function _buildSceneSection(): HTMLElement {
       _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
         tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
     _collapsibleSubgroup('scene-ground', 'Ground sizing', () => [
       _slider('Ground buffer (% of city)', WORLD, 'GROUND_BUFFER_PERCENT', 0, 100, 1, {
-        tip: 'Padding around the city as a percentage of the city\'s longest dimension. 0% = island exactly fits the city; 50% = generous halo of bare ground past the buildings.',
+        tip: "Padding around the city as a percentage of the city's longest dimension. 0% = island exactly fits the city; 50% = generous halo of bare ground past the buildings.",
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -435,7 +448,7 @@ function _buildSceneSection(): HTMLElement {
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
       }),
-    ]),
+    ])
   );
 
   return section;
@@ -449,7 +462,7 @@ function _buildSceneSection(): HTMLElement {
 function _buildIslandSection(): HTMLElement {
   const section = _section(
     'Island',
-    'Floating-island world-plane beneath the city. Geometry controls the polygon silhouette and depth; Materials set the baked colors and lighting.',
+    'Floating-island world-plane beneath the city. Geometry controls the polygon silhouette and depth; Materials set the baked colors and lighting.'
   );
 
   section.appendChild(
@@ -475,7 +488,7 @@ function _buildIslandSection(): HTMLElement {
       _slider('Grass thickness', ISLAND_GEOMETRY, 'GRASS_THICKNESS', 0, 0.1, 0.005, {
         tip: 'Vertical thickness of the green grass layer as a fraction of island radius. 0 = no grass band, just the flat top.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -495,7 +508,7 @@ function _buildIslandSection(): HTMLElement {
       _color('Hemi ground color', ISLAND_MATERIALS, 'HEMI_GROUND_COLOR', {
         tip: 'Cool "from below" tone blended onto downward-facing surfaces by the hemispheric lighting model.',
       }),
-    ]),
+    ])
   );
 
   return section;
@@ -510,7 +523,7 @@ function _buildIslandSection(): HTMLElement {
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days lean toward TREE_COLOR_SOLO_DAY; busy days lean toward TREE_COLOR_BUSY_DAY. All commits on the same date share a color.',
+    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days lean toward TREE_COLOR_SOLO_DAY; busy days lean toward TREE_COLOR_BUSY_DAY. All commits on the same date share a color.'
   );
 
   section.appendChild(
@@ -518,7 +531,7 @@ function _buildTreesSection(): HTMLElement {
       _toggle('Trees enabled', TREES, 'TREES_ENABLED', {
         tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -529,7 +542,7 @@ function _buildTreesSection(): HTMLElement {
       _slider('Density falloff', TREES, 'TREE_DENSITY_FALLOFF', 0, 50, 0.1, {
         tip: 'How tightly trees cluster near the city. 0 = uniform spread. Higher = denser near city, sparser at edges (acceptance prob = (1 - dist/maxDist)^falloff). Very high values (>20) push almost every tree into a dense ring right at the city edge. Rebuild on change.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -546,7 +559,7 @@ function _buildTreesSection(): HTMLElement {
       _slider('Shading strength', TREES, 'TREE_SHADING_STRENGTH', 0, 1, 0.05, {
         tip: 'Baked vertex-color gradient depth on the canopy. 0 = flat (no shading), 1 = fully dark at the base. Rebuild on change.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -554,10 +567,19 @@ function _buildTreesSection(): HTMLElement {
       _toggle('Age desaturation enabled', TREES, 'TREE_AGE_DESAT_ENABLED', {
         tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
       }),
-      _rangePair('Saturation range', TREES, 'TREE_AGE_SATURATION_MIN', 'TREE_AGE_SATURATION_MAX', 0, 100, 1, {
-        tip: 'Saturation retained at the OLDEST (left) and NEWEST (right) commit — percent 0–100. At 20 the oldest tree keeps only 20% of its base color saturation; at 100 it is fully saturated. Live.',
-      }),
-    ]),
+      _rangePair(
+        'Saturation range',
+        TREES,
+        'TREE_AGE_SATURATION_MIN',
+        'TREE_AGE_SATURATION_MAX',
+        0,
+        100,
+        1,
+        {
+          tip: 'Saturation retained at the OLDEST (left) and NEWEST (right) commit — percent 0–100. At 20 the oldest tree keeps only 20% of its base color saturation; at 100 it is fully saturated. Live.',
+        }
+      ),
+    ])
   );
 
   section.appendChild(
@@ -574,7 +596,7 @@ function _buildTreesSection(): HTMLElement {
       _slider('Canopy-trunk overlap (% of trunk)', TREES, 'CANOPY_TRUNK_OVERLAP_FRAC', 0, 1, 0.05, {
         tip: 'How much of the trunk top is hidden inside the canopy. 0 = canopy bottom point touches trunk top. 1 = canopy bottom reaches the ground, hiding the entire trunk. Rebuild on change.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -585,10 +607,18 @@ function _buildTreesSection(): HTMLElement {
       _slider('Max canopy width', TREES, 'TREE_MAX_WIDTH', 4, 600, 2, {
         tip: 'Canopy diameter (world units) of commits with the most files changed. Independent of building dimensions. Rebuild on change.',
       }),
-      _slider('Trunk thickness (% of canopy)', TREES, 'TRUNK_RADIUS_FRAC_OF_CANOPY', 0.05, 0.5, 0.01, {
-        tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
-      }),
-    ]),
+      _slider(
+        'Trunk thickness (% of canopy)',
+        TREES,
+        'TRUNK_RADIUS_FRAC_OF_CANOPY',
+        0.05,
+        0.5,
+        0.01,
+        {
+          tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
+        }
+      ),
+    ])
   );
 
   return section;
@@ -599,7 +629,7 @@ function _buildTreesSection(): HTMLElement {
 function _buildBushesSection(): HTMLElement {
   const section = _section(
     'Bushes',
-    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.',
+    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.'
   );
 
   section.appendChild(
@@ -607,7 +637,7 @@ function _buildBushesSection(): HTMLElement {
       _toggle('Bushes enabled', BUSHES, 'BUSHES_ENABLED', {
         tip: 'Master toggle. Enabling triggers a placement rebuild; disabling hides the mesh without a rebuild.',
       }),
-    ]),
+    ])
   );
 
   section.appendChild(
@@ -615,7 +645,7 @@ function _buildBushesSection(): HTMLElement {
       _slider('Emission boost', BUSHES, 'BUSH_EMISSION_BOOST', 0.5, 5, 0.1, {
         tip: 'Multiplier applied to bush colors before the HDR bloom pass. Values above 1.0 push into bloom; below 1.0 dims them toward matte.',
       }),
-    ]),
+    ])
   );
 
   return section;
@@ -875,7 +905,7 @@ function _buildBuildingsSection(): HTMLElement {
       _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
         tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
       }),
-    ]),
+    ])
   );
 
   // Facade parent — geometry, contrast, and window lighting share the
@@ -887,7 +917,7 @@ function _buildBuildingsSection(): HTMLElement {
     _collapsibleSubgroup('facade', 'Facade', () => [
       _subgroup('Geometry', [
         _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
-          tip: 'Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor\'s window band — the facade reads as horizontal banding instead of windowed.',
+          tip: "Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor's window band — the facade reads as horizontal banding instead of windowed.",
         }),
         _slider('Window width × cell', FACADE_GEOMETRY, 'WINDOW_WIDTH_FRAC', 0, 1, 0.01, {
           tip: 'Window width as a fraction of its grid cell.',
@@ -1101,7 +1131,7 @@ function _buildGemSection(): HTMLElement {
 function _buildEffectsSection(): HTMLElement {
   const section = _section(
     'Effects',
-    'Shared visual effects + per-cell level-of-detail thresholds.',
+    'Shared visual effects + per-cell level-of-detail thresholds.'
   );
 
   section.appendChild(
@@ -1120,10 +1150,10 @@ function _buildEffectsSection(): HTMLElement {
         tip: 'Off → bloom pass bypassed AND windows/gem stay LDR — approximates the pre-HDR "flat" look for side-by-side comparison. Other knobs stay in config.',
       }),
       _slider('Window emission', BLOOM, 'WINDOW_EMISSION', 0, 3.0, 0.05, {
-        tip: 'Peak HDR push for the freshest building\'s lit windows; scales linearly down to 0 for the oldest. The bloom pass\'s strength × radius then operates on that age-scaled HDR signal, so total glow tracks building age. 0 = no bloom from windows; 1 = moderate; 3 = full neon.',
+        tip: "Peak HDR push for the freshest building's lit windows; scales linearly down to 0 for the oldest. The bloom pass's strength × radius then operates on that age-scaled HDR signal, so total glow tracks building age. 0 = no bloom from windows; 1 = moderate; 3 = full neon.",
       }),
       _slider('Gem emission', BLOOM, 'GEM_EMISSION', 0, 5.0, 0.1, {
-        tip: 'Multiplier on the root-gem\'s halo sprite colors. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem, independent of Window emission.',
+        tip: "Multiplier on the root-gem's halo sprite colors. 0 = halos black (invisible); 1 = LDR (no bloom from gem); higher = HDR push that drives selective bloom on the gem, independent of Window emission.",
       }),
       _slider('Ad emission', BLOOM, 'AD_EMISSION', 0, 5.0, 0.1, {
         tip: 'Multiplier on ad panel colors. Bright pixels in the texture push past 1.0 and bloom; dark pixels stay below threshold. 0 = panel black; 1 = LDR (no bloom); higher = neon storefront.',
@@ -1132,7 +1162,7 @@ function _buildEffectsSection(): HTMLElement {
         tip: 'Overall bloom intensity multiplier. 0 = bloom pass produces nothing; 1 = full strength.',
       }),
       _slider('Radius', BLOOM, 'RADIUS', 0, 1.0, 0.05, {
-        tip: 'How far each bright pixel\'s glow spreads. Lower = tighter halos; higher = soft diffuse glow.',
+        tip: "How far each bright pixel's glow spreads. Lower = tighter halos; higher = soft diffuse glow.",
       }),
       _slider('Threshold (cutoff)', BLOOM, 'THRESHOLD', 0, 2.0, 0.05, {
         tip: 'Luma CUTOFF — pixels below this value contribute nothing to bloom. NOT an intensity dial: lower threshold = more pixels qualify = more total bloom; higher = fewer pixels glow. ≥1.0 keeps matte walls (capped at 1.0) clean and only blooms the HDR-pushed window pixels.',
@@ -1171,7 +1201,7 @@ function _buildFilePreviewSection(): HTMLElement {
   const resetBtn = document.createElement('button');
   resetBtn.type = 'button';
   resetBtn.className = 'theme-row-reset';
-  resetBtn.title = `Default: ${SYNTAX_THEME_OPTIONS.find(o => o.value === SYNTAX_THEME_DEFAULT)?.label ?? SYNTAX_THEME_DEFAULT}`;
+  resetBtn.title = `Default: ${SYNTAX_THEME_OPTIONS.find((o) => o.value === SYNTAX_THEME_DEFAULT)?.label ?? SYNTAX_THEME_DEFAULT}`;
   resetBtn.setAttribute('aria-label', 'Reset syntax theme to default');
   resetBtn.appendChild(makeLucideIcon('rotate-ccw'));
   resetBtn.addEventListener('click', (e) => {
@@ -1213,12 +1243,12 @@ function _buildFilePreviewSection(): HTMLElement {
 // only when their callback is provided; either or both may be present.
 function _buildDebugSection(
   onRunCollisionCheck: (() => void) | undefined,
-  onRunStemDiagnostic: (() => void) | undefined,
+  onRunStemDiagnostic: (() => void) | undefined
 ): HTMLElement {
   const section = _section(
     'Debug',
     'Developer-only diagnostics. Output goes to the browser console.',
-    false,
+    false
   );
 
   if (onRunCollisionCheck) {
@@ -1327,7 +1357,12 @@ function _buildActionsSection(): HTMLElement {
       ) {
         for (const k in defaults) {
           if (!Object.hasOwn(defaults, k)) continue;
-          if (!_isEqual(getEffective(store as MapLikeStore, k), (defaults as Record<string, unknown>)[k])) {
+          if (
+            !_isEqual(
+              getEffective(store as MapLikeStore, k),
+              (defaults as Record<string, unknown>)[k]
+            )
+          ) {
             canReset = true;
             return;
           }
@@ -1559,9 +1594,7 @@ function _makeResetButton(
   });
 
   function refresh() {
-    btn.disabled = keys.every((k) =>
-      _isEqual(getEffective(store, k), getDefault(store, k))
-    );
+    btn.disabled = keys.every((k) => _isEqual(getEffective(store, k), getDefault(store, k)));
   }
   refresh();
   store.subscribe(refresh);
@@ -1846,7 +1879,7 @@ function _makeNestedResetButton(
     if (btn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    const current = ((getEffective(store, parentKey) as Record<string, unknown>) || {});
+    const current = (getEffective(store, parentKey) as Record<string, unknown>) || {};
     const next = {} as Record<string, unknown>;
     for (const k in current) {
       if (Object.hasOwn(current, k)) next[k] = current[k];

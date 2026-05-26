@@ -28,11 +28,16 @@ import adPanelFragSrc from './adPanel.frag.glsl?raw';
 /** Map BuildingOrient → Y-axis rotation so the panel faces away from the building. */
 function orientToYRotation(orient: BuildingOrient): number {
   switch (orient) {
-    case BuildingOrient.South: return 0;
-    case BuildingOrient.North: return Math.PI;
-    case BuildingOrient.East:  return Math.PI / 2;
-    case BuildingOrient.West:  return -Math.PI / 2;
-    default: return 0;
+    case BuildingOrient.South:
+      return 0;
+    case BuildingOrient.North:
+      return Math.PI;
+    case BuildingOrient.East:
+      return Math.PI / 2;
+    case BuildingOrient.West:
+      return -Math.PI / 2;
+    default:
+      return 0;
   }
 }
 
@@ -175,10 +180,10 @@ export class InstancedAdPanels {
     this.mesh.renderOrder = 1;
 
     // Pre-allocate per-instance attribute arrays.
-    this._iLayerIndex = new Float32Array(slotCount);       // 1 float per slot
-    this._iColor      = new Float32Array(slotCount * 3);   // vec3 per slot
-    this._iTextureFade = new Float32Array(slotCount);      // 1 float per slot
-    this._iBuildingFade = new Float32Array(slotCount);     // 1 float per slot
+    this._iLayerIndex = new Float32Array(slotCount); // 1 float per slot
+    this._iColor = new Float32Array(slotCount * 3); // vec3 per slot
+    this._iTextureFade = new Float32Array(slotCount); // 1 float per slot
+    this._iBuildingFade = new Float32Array(slotCount); // 1 float per slot
 
     // Initialize iColor to placeholder, iTextureFade to 0 (no texture yet),
     // and iBuildingFade to 1.0 (no fade until buildingFader writes a tier).
@@ -191,22 +196,10 @@ export class InstancedAdPanels {
     }
 
     // Attach as InstancedBufferAttributes so they feed the vertex shader.
-    geo.setAttribute(
-      'iLayerIndex',
-      new THREE.InstancedBufferAttribute(this._iLayerIndex, 1),
-    );
-    geo.setAttribute(
-      'iColor',
-      new THREE.InstancedBufferAttribute(this._iColor, 3),
-    );
-    geo.setAttribute(
-      'iTextureFade',
-      new THREE.InstancedBufferAttribute(this._iTextureFade, 1),
-    );
-    geo.setAttribute(
-      'iBuildingFade',
-      new THREE.InstancedBufferAttribute(this._iBuildingFade, 1),
-    );
+    geo.setAttribute('iLayerIndex', new THREE.InstancedBufferAttribute(this._iLayerIndex, 1));
+    geo.setAttribute('iColor', new THREE.InstancedBufferAttribute(this._iColor, 3));
+    geo.setAttribute('iTextureFade', new THREE.InstancedBufferAttribute(this._iTextureFade, 1));
+    geo.setAttribute('iBuildingFade', new THREE.InstancedBufferAttribute(this._iBuildingFade, 1));
 
     // Hide all instances initially via scale-zero matrices.
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);
@@ -248,10 +241,10 @@ export class InstancedAdPanels {
     const rawAspect = mw && mh && mw > 0 ? mh / mw : 1.0;
     const aspect = Math.min(2.5, Math.max(0.4, rawAspect));
 
-    const adWidth  = Math.max(0.1, b.w * (1 - 2 * cfg.AD_SIDE_MARGIN_FRAC));
+    const adWidth = Math.max(0.1, b.w * (1 - 2 * cfg.AD_SIDE_MARGIN_FRAC));
     const adHeight = adWidth * aspect;
-    const bottomY  = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT;
-    const centerY  = bottomY + adHeight / 2;
+    const bottomY = cfg.AD_BOTTOM_OFFSET_FLOORS * dims.FLOOR_HEIGHT;
+    const centerY = bottomY + adHeight / 2;
 
     const dHalf = b.d / 2;
     const wHalf = b.w / 2;
@@ -266,9 +259,8 @@ export class InstancedAdPanels {
       const cos = Math.cos(angle);
       const sin = Math.sin(angle);
 
-      const halfExtent = (orient === BuildingOrient.South || orient === BuildingOrient.North)
-        ? dHalf
-        : wHalf;
+      const halfExtent =
+        orient === BuildingOrient.South || orient === BuildingOrient.North ? dHalf : wHalf;
       const zOffset = halfExtent + cfg.AD_OFFSET;
       const worldX = b.x + sin * zOffset;
       const worldZ = b.y + cos * zOffset;
@@ -317,7 +309,7 @@ export class InstancedAdPanels {
   async loadTextureForBuilding(
     layer: number,
     panelSlots: number[],
-    img: HTMLImageElement,
+    img: HTMLImageElement
   ): Promise<void> {
     const ok = await this._texArray.uploadImage(layer, img);
     // _disposed: whole mesh is being torn down (skeleton→final or live
@@ -347,7 +339,7 @@ export class InstancedAdPanels {
   async loadCanvasForBuilding(
     layer: number,
     panelSlots: number[],
-    canvas: HTMLCanvasElement,
+    canvas: HTMLCanvasElement
   ): Promise<void> {
     const ok = await this._texArray.uploadCanvas(layer, canvas);
     if (this._disposed) return;
@@ -471,7 +463,7 @@ export function asyncLoadMediaForBuilding(
   ads: InstancedAdPanels,
   b: Building,
   layer: number,
-  panelSlots: number[],
+  panelSlots: number[]
 ): void {
   const kind = mediaKindOf(b.file);
   if (!kind) return;
@@ -554,7 +546,10 @@ function _loadVideoPoster(url: string): Promise<HTMLCanvasElement | null> {
         canvas.width = w;
         canvas.height = h;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { settle(null); return; }
+        if (!ctx) {
+          settle(null);
+          return;
+        }
         ctx.drawImage(video, 0, 0, w, h);
         _drawPlayOverlay(ctx, w, h);
         settle(canvas);

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { streamManifest } from '@/utils/manifestStream';
 
-function mockResponse(chunks: string[], status = 200, headers: Record<string, string> = {}): Response {
+function mockResponse(
+  chunks: string[],
+  status = 200,
+  headers: Record<string, string> = {}
+): Response {
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     start(controller) {
@@ -14,10 +18,11 @@ function mockResponse(chunks: string[], status = 200, headers: Record<string, st
 
 describe('streamManifest', () => {
   it('yields each NDJSON line as an event', async () => {
-    const fetchMock = async () => mockResponse([
-      '{"phase":"skeleton","manifest":{"x":1}}\n',
-      '{"phase":"final","manifest":{"x":2}}\n',
-    ]);
+    const fetchMock = async () =>
+      mockResponse([
+        '{"phase":"skeleton","manifest":{"x":1}}\n',
+        '{"phase":"final","manifest":{"x":2}}\n',
+      ]);
     const events = [];
     for await (const ev of streamManifest('http://x', fetchMock as typeof fetch)) {
       events.push(ev);
@@ -28,10 +33,7 @@ describe('streamManifest', () => {
   });
 
   it('reassembles a line split across chunks', async () => {
-    const fetchMock = async () => mockResponse([
-      '{"phase":"skel',
-      'eton","manifest":{}}\n',
-    ]);
+    const fetchMock = async () => mockResponse(['{"phase":"skel', 'eton","manifest":{}}\n']);
     const events = [];
     for await (const ev of streamManifest('http://x', fetchMock as typeof fetch)) {
       events.push(ev);
@@ -41,9 +43,7 @@ describe('streamManifest', () => {
   });
 
   it('yields a final line without a trailing newline', async () => {
-    const fetchMock = async () => mockResponse([
-      '{"phase":"final","manifest":{}}',
-    ]);
+    const fetchMock = async () => mockResponse(['{"phase":"final","manifest":{}}']);
     const events = [];
     for await (const ev of streamManifest('http://x', fetchMock as typeof fetch)) {
       events.push(ev);
@@ -52,10 +52,7 @@ describe('streamManifest', () => {
   });
 
   it('rejects on a non-2xx response', async () => {
-    const fetchMock = async () => new Response(
-      JSON.stringify({ error: 'boom' }),
-      { status: 500 },
-    );
+    const fetchMock = async () => new Response(JSON.stringify({ error: 'boom' }), { status: 500 });
     await expect(async () => {
       for await (const _ of streamManifest('http://x', fetchMock as typeof fetch)) {
         /* unreachable */

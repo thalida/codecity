@@ -44,8 +44,11 @@ describe('_formatStemDiagnostic', () => {
         makePlacement({ childLabel: 'a.ts', parentPath: '.', chosen: makeVariant(5), baseline: 5 }),
         makePlacement({ childLabel: 'b.ts', parentPath: '.', chosen: makeVariant(8), baseline: 8 }),
         makePlacement({
-          childKind: 'dir', childLabel: 'sub', parentPath: '.',
-          chosen: makeVariant(20), baseline: 11,
+          childKind: 'dir',
+          childLabel: 'sub',
+          parentPath: '.',
+          chosen: makeVariant(20),
+          baseline: 11,
         }),
       ],
     };
@@ -57,20 +60,25 @@ describe('_formatStemDiagnostic', () => {
 
   it('marks a jumped placement with "JUMPED" and the binding obstacle', () => {
     const obstacle = {
-      minX: 11, minY: -1, maxX: 18, maxY: 1,
+      minX: 11,
+      minY: -1,
+      maxX: 18,
+      maxY: 1,
       kind: WorldRectKind.Path,
       ref: { file: { path: 'src/foo.ts', name: 'foo.ts' } } as never,
     };
     const trace: StemPlacementTrace = {
       placements: [
         makePlacement({
-          childKind: 'dir', childLabel: 'sub', parentPath: '.',
+          childKind: 'dir',
+          childLabel: 'sub',
+          parentPath: '.',
           baseline: 5,
           chosen: {
-            side: 0, mirror: false, stem: 19,
-            forbidden: [
-              { lower: 4, upper: 19, obstacle, fromChildRectIndex: 0 },
-            ],
+            side: 0,
+            mirror: false,
+            stem: 19,
+            forbidden: [{ lower: 4, upper: 19, obstacle, fromChildRectIndex: 0 }],
             bindingIndex: 0,
           },
         }),
@@ -88,8 +96,10 @@ describe('_formatStemDiagnostic', () => {
     const trace: StemPlacementTrace = {
       placements: [
         makePlacement({
-          childLabel: 'a.ts', parentPath: '.',
-          baseline: 5, chosen: makeVariant(5),
+          childLabel: 'a.ts',
+          parentPath: '.',
+          baseline: 5,
+          chosen: makeVariant(5),
         }),
       ],
     };
@@ -101,7 +111,8 @@ describe('_formatStemDiagnostic', () => {
     const trace: StemPlacementTrace = {
       placements: [
         makePlacement({
-          childLabel: 'a.ts', parentPath: '.',
+          childLabel: 'a.ts',
+          parentPath: '.',
           baseline: 5,
           chosen: makeVariant(5, 0, false),
           others: [makeVariant(5, 1, false)],

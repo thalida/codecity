@@ -62,7 +62,10 @@ describe('buildCommitPane', () => {
 
   it('setCommit(null) returns to the empty state', () => {
     const { pane, api } = buildCommitPane({});
-    api.setCommit(COMMIT, { remoteUrl: 'https://github.com/org/repo', now: new Date('2026-05-24T12:00:00Z') });
+    api.setCommit(COMMIT, {
+      remoteUrl: 'https://github.com/org/repo',
+      now: new Date('2026-05-24T12:00:00Z'),
+    });
     api.setCommit(null);
     expect(pane.querySelector('.commit-sha')).toBeNull();
     expect(pane.querySelector('.empty-state')).not.toBeNull();
@@ -71,7 +74,9 @@ describe('buildCommitPane', () => {
   it('onClose fires when the × is clicked', () => {
     const onClose = vi.fn();
     const { pane } = buildCommitPane({ onClose });
-    const closeBtn = pane.querySelector('.pane-header [aria-label*="lose" i], .pane-header .pane-header-close, .pane-header button') as HTMLButtonElement;
+    const closeBtn = pane.querySelector(
+      '.pane-header [aria-label*="lose" i], .pane-header .pane-header-close, .pane-header button'
+    ) as HTMLButtonElement;
     expect(closeBtn).not.toBeNull();
     closeBtn.click();
     expect(onClose).toHaveBeenCalled();
@@ -123,7 +128,11 @@ describe('buildCommitPane', () => {
 
   it('shows a colored swatch inside .commit-same-day when color is provided', () => {
     const { pane, api } = buildCommitPane({});
-    api.setCommit(COMMIT, { color: '#5e8a3a', sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+    api.setCommit(COMMIT, {
+      color: '#5e8a3a',
+      sameDayTotal: 3,
+      now: new Date('2026-05-24T12:00:00Z'),
+    });
 
     // Swatch lives inside .commit-same-day, NOT in the pane header.
     const swatch = pane.querySelector('.commit-same-day > .commit-swatch') as HTMLElement;
@@ -148,7 +157,11 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-swatch')).toBeNull();
 
     // sameDayTotal === 0
-    api.setCommit(COMMIT, { color: '#5e8a3a', sameDayTotal: 0, now: new Date('2026-05-24T12:00:00Z') });
+    api.setCommit(COMMIT, {
+      color: '#5e8a3a',
+      sameDayTotal: 0,
+      now: new Date('2026-05-24T12:00:00Z'),
+    });
     expect(pane.querySelector('.commit-swatch')).toBeNull();
   });
 });

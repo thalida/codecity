@@ -279,19 +279,25 @@ export function attachHotReload({ world, applyTheme }: HotReloadOpts): () => voi
   // refresh path via the TREES hotStores subscription above.
   // TREES_ENABLED is intentionally excluded — it only flips mesh.visible
   // via trees.refresh() (trees are placed regardless of visibility).
-  unsubs.push(listenKeys(TREES, [
-    'TREE_MIN_HEIGHT',
-    'TREE_MAX_HEIGHT',
-    'TREE_MIN_WIDTH',
-    'TREE_MAX_WIDTH',
-    'TRUNK_HEIGHT_FRAC',
-    'TRUNK_RADIUS_FRAC_OF_CANOPY',
-    'CANOPY_TRUNK_OVERLAP_FRAC',
-    'TREE_SHADING_STRENGTH',
-    'EDGE_INSET_PERCENT',
-    'TREE_DENSITY_FALLOFF',
-    'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
-  ], scheduleRebuild));
+  unsubs.push(
+    listenKeys(
+      TREES,
+      [
+        'TREE_MIN_HEIGHT',
+        'TREE_MAX_HEIGHT',
+        'TREE_MIN_WIDTH',
+        'TREE_MAX_WIDTH',
+        'TRUNK_HEIGHT_FRAC',
+        'TRUNK_RADIUS_FRAC_OF_CANOPY',
+        'CANOPY_TRUNK_OVERLAP_FRAC',
+        'TREE_SHADING_STRENGTH',
+        'EDGE_INSET_PERCENT',
+        'TREE_DENSITY_FALLOFF',
+        'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
+      ],
+      scheduleRebuild
+    )
+  );
   // GROUND_BUFFER_PERCENT changes the island size (and therefore
   // the foliage sampling region), so it requires a full rebuild.
   // Visual island config lives in ISLAND.* and is hot-patched via island.refresh().
@@ -301,14 +307,13 @@ export function attachHotReload({ world, applyTheme }: HotReloadOpts): () => voi
   // rebuilds the island mesh, but trees were placed against the OLD
   // polygon — they need a re-place via applyManifest. ENABLED is
   // excluded since it just flips group.visible (no shape change).
-  unsubs.push(listenKeys(ISLAND_GEOMETRY, [
-    'SIDES',
-    'IRREGULARITY',
-    'TIERS',
-    'DEPTH',
-    'ROUNDNESS',
-    'GRASS_THICKNESS',
-  ], scheduleRebuild));
+  unsubs.push(
+    listenKeys(
+      ISLAND_GEOMETRY,
+      ['SIDES', 'IRREGULARITY', 'TIERS', 'DEPTH', 'ROUNDNESS', 'GRASS_THICKNESS'],
+      scheduleRebuild
+    )
+  );
   armed = true;
 
   return function dispose() {

@@ -32,11 +32,13 @@ const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
 // Minimal FileTarget / DirTarget builders: tests only exercise identity
 // (mesh ===, file.path), so the unrelated fields are stubbed and cast.
-function makeFileTarget(opts: {
-  path?: string;
-  mesh?: object;
-  data?: object;
-} = {}): FileTarget {
+function makeFileTarget(
+  opts: {
+    path?: string;
+    mesh?: object;
+    data?: object;
+  } = {}
+): FileTarget {
   return {
     kind: NodeKind.File,
     mesh: (opts.mesh ?? {}) as unknown as THREE.Mesh,
@@ -45,7 +47,9 @@ function makeFileTarget(opts: {
   };
 }
 
-function makeDirTarget(opts: { path?: string; sidewalk?: object; street?: object } = {}): DirTarget {
+function makeDirTarget(
+  opts: { path?: string; sidewalk?: object; street?: object } = {}
+): DirTarget {
   return {
     kind: NodeKind.Directory,
     sidewalk: (opts.sidewalk ?? {}) as unknown as THREE.Mesh,
@@ -147,10 +151,7 @@ describe('picker.pickAtCenter', () => {
   it('hits an object directly in front of the camera', () => {
     // A mesh placed at z = -10 should be hit when the camera is at the
     // origin looking toward -z and the raycaster fires at NDC (0, 0).
-    const cube = new THREE.Mesh(
-      new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshBasicMaterial()
-    );
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), new THREE.MeshBasicMaterial());
     cube.position.set(0, 0, -10);
     cube.updateMatrixWorld();
     cube.userData.street = { dir: { path: 'test' }, orientation: 'X' };

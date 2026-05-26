@@ -115,8 +115,12 @@ export function createOutlineRenderer({
   function _syncOutlineToTarget(outline: LineSegments2, target: FileTarget): void {
     const b = target.data;
 
-    let sx = b.w, sy = b.h, sz = b.d;
-    let px = b.x, py = b.h / 2, pz = b.y;
+    let sx = b.w,
+      sy = b.h,
+      sz = b.d;
+    let px = b.x,
+      py = b.h / 2,
+      pz = b.y;
 
     // Cell mode: resolve via Building.cellId + Building.slotId.
     if (b.cellId != null && b.slotId != null) {
@@ -126,8 +130,12 @@ export function createOutlineRenderer({
         if (cell?.detailMesh) {
           cell.detailMesh.getMatrixAt(b.slotId, _tmpMatrix);
           _tmpMatrix.decompose(_tmpPos, _tmpQuat, _tmpScale);
-          sx = _tmpScale.x; sy = _tmpScale.y; sz = _tmpScale.z;
-          px = _tmpPos.x;   py = _tmpPos.y;   pz = _tmpPos.z;
+          sx = _tmpScale.x;
+          sy = _tmpScale.y;
+          sz = _tmpScale.z;
+          px = _tmpPos.x;
+          py = _tmpPos.y;
+          pz = _tmpPos.z;
         }
       }
     }
@@ -140,10 +148,22 @@ export function createOutlineRenderer({
     // Matrix4 is column-major; .set() takes row-major args.
     const { tiltX, tiltZ } = getBuildingTilt(b);
     _tmpMatrix.set(
-      sx,   sy * tiltX, 0,    px + py * tiltX,
-      0,    sy,         0,    py,
-      0,    sy * tiltZ, sz,   pz + py * tiltZ,
-      0,    0,          0,    1,
+      sx,
+      sy * tiltX,
+      0,
+      px + py * tiltX,
+      0,
+      sy,
+      0,
+      py,
+      0,
+      sy * tiltZ,
+      sz,
+      pz + py * tiltZ,
+      0,
+      0,
+      0,
+      1
     );
     outline.matrix.copy(_tmpMatrix);
     outline.matrixAutoUpdate = false;
@@ -217,8 +237,8 @@ export function createOutlineRenderer({
       for (let i = 0; i < HUE_STEPS; i++) {
         const a = t + i * HUE_STEP;
         const b = t + (i + 1) * HUE_STEP;
-        _setSegHueGradient(i, a, b);                 // bottom face
-        _setSegHueGradient(i + HUE_STEPS, a, b);     // top face (same gradient)
+        _setSegHueGradient(i, a, b); // bottom face
+        _setSegHueGradient(i + HUE_STEPS, a, b); // top face (same gradient)
         _setSegHueGradient(i + HUE_STEPS * 2, a, a); // vertical: solid hue
       }
       _selColorBuf.array.set(_selectedColors);

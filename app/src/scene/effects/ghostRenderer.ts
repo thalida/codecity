@@ -83,7 +83,7 @@ export function createGhostRenderer({
       ghostMesh.scale.set(
         _tmpScale.x * GHOST_SCALE_INSET,
         _tmpScale.y * GHOST_SCALE_INSET,
-        _tmpScale.z * GHOST_SCALE_INSET,
+        _tmpScale.z * GHOST_SCALE_INSET
       );
       ghostMesh.position.copy(_tmpPos);
 
@@ -101,7 +101,7 @@ export function createGhostRenderer({
       ghostMesh.scale.set(
         b.w * GHOST_SCALE_INSET,
         b.h * GHOST_SCALE_INSET,
-        b.d * GHOST_SCALE_INSET,
+        b.d * GHOST_SCALE_INSET
       );
       ghostMesh.position.set(b.x, b.h / 2, b.y);
       _ghostMat.color.set(b.color ?? '#ffffff');

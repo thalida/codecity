@@ -7,15 +7,22 @@ import type { CityBbox, CityLayout } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
   return {
-    minX, minY, maxX, maxY,
-    cx: (minX + maxX) / 2, cy: (minY + maxY) / 2,
-    width: maxX - minX, depth: maxY - minY,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    width: maxX - minX,
+    depth: maxY - minY,
   };
 }
 
 function emptyLayout(bb: CityBbox): CityLayout {
   return {
-    buildings: [], streets: [], paths: [],
+    buildings: [],
+    streets: [],
+    paths: [],
     lineStats: { min: 0, max: 0 },
     byteStats: { min: 0, max: 0 },
     bbox: bb,
@@ -64,9 +71,21 @@ describe('treePlacementClient (sync fallback path)', () => {
     // out the 25 candidates we expect. Previously the MIN_BUFFER=800 floor
     // padded tiny bboxes; now removed, so this test sizes its own bbox big enough.
     const layout: CityLayout = {
-      buildings: [], streets: [], paths: [],
-      lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
-      bbox: { minX: -2000, minY: -2000, maxX: 2000, maxY: 2000, cx: 0, cy: 0, width: 4000, depth: 4000 },
+      buildings: [],
+      streets: [],
+      paths: [],
+      lineStats: { min: 0, max: 0 },
+      byteStats: { min: 0, max: 0 },
+      bbox: {
+        minX: -2000,
+        minY: -2000,
+        maxX: 2000,
+        maxY: 2000,
+        cx: 0,
+        cy: 0,
+        width: 4000,
+        depth: 4000,
+      },
     };
     const placements = await client.compute(layout, layout.bbox, 25, 0);
     expect(placements.length).toBe(25);

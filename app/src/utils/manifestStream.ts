@@ -25,12 +25,12 @@ export type ScanStreamEvent =
 
 export async function* streamManifest(
   url: string,
-  fetchImpl: typeof fetch = fetch,
+  fetchImpl: typeof fetch = fetch
 ): AsyncIterable<ScanStreamEvent> {
   const resp = await fetchImpl(url);
   if (!resp.ok) {
     const body = await resp.json().catch(() => null);
-    const errMsg = (body && typeof body.error === 'string') ? body.error : `HTTP ${resp.status}`;
+    const errMsg = body && typeof body.error === 'string' ? body.error : `HTTP ${resp.status}`;
     throw new Error(errMsg);
   }
   if (!resp.body) {

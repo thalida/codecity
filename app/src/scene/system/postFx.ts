@@ -35,7 +35,7 @@ export interface PostFx {
 export function createPostFx(
   renderer: THREE.WebGLRenderer,
   scene: THREE.Scene,
-  camera: THREE.PerspectiveCamera,
+  camera: THREE.PerspectiveCamera
 ): PostFx {
   const bloomCfg = BLOOM.get();
   // ACES tonemapping compresses HDR (>1.0) values back into display
@@ -59,7 +59,7 @@ export function createPostFx(
     new THREE.Vector2(1, 1), // resized via setSize() immediately after construction
     bloomCfg.STRENGTH,
     bloomCfg.RADIUS,
-    bloomCfg.THRESHOLD,
+    bloomCfg.THRESHOLD
   );
   composer.addPass(bloom);
 

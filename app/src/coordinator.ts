@@ -25,11 +25,7 @@ import { buildCommitPane } from './views/panes/commitPane.js';
 import { sameDayCommitCount } from './views/widgets/commitMetrics.js';
 import { labelFromDisplayRoot } from './views/widgets/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
-import {
-  REBUILD_STATUS,
-  LAST_REBUILD_ERROR,
-  LAST_UPDATED_AT,
-} from './store/liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './store/liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createWorld } from './scene/world.js';
@@ -48,7 +44,14 @@ interface CoordinatorOpts {
   applyTheme: () => void;
 }
 
-export function createCoordinator({ world, picker, rig, flyControls, resetView, applyTheme }: CoordinatorOpts) {
+export function createCoordinator({
+  world,
+  picker,
+  rig,
+  flyControls,
+  resetView,
+  applyTheme,
+}: CoordinatorOpts) {
   // Right-sidebar pane choice. Selection drives which pane is mounted:
   //   File → filePreview
   //   Commit → commitPane
@@ -114,9 +117,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
   const _qp = new URLSearchParams(window.location.search);
   const _initSrc = _qp.get('src') ?? undefined;
   const _initBranch = _qp.get('branch') ?? undefined;
-  const _initIsGitUrl = _initSrc
-    ? /:\/\//.test(_initSrc) || /^[^@]+@[^:]+:/.test(_initSrc)
-    : false;
+  const _initIsGitUrl = _initSrc ? /:\/\//.test(_initSrc) || /^[^@]+@[^:]+:/.test(_initSrc) : false;
 
   const appHeader = initAppHeader({
     rootLabel: _rootLabel,
@@ -248,7 +249,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
   // order surfaces a real error instead of a buried `manifest!` panic.
   if (!manifest) {
     throw new Error(
-      'coordinator: world has no manifest — applyManifest must run before createCoordinator',
+      'coordinator: world has no manifest — applyManifest must run before createCoordinator'
     );
   }
   const leftSidebarApi = showLeftSidebar(manifest, {
@@ -357,9 +358,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     // Tree canopy selection tint.
     const trees = world.getTrees();
     if (trees) {
-      trees.setSelectionSha(
-        sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null
-      );
+      trees.setSelectionSha(sel && sel.kind === NodeKind.Commit ? sel.commit.sha : null);
     }
 
     // Right sidebar pane choice mirrors selection kind. File → preview,
@@ -383,9 +382,7 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     // Tree canopy hover tint.
     const trees = world.getTrees();
     if (trees) {
-      trees.setHoverSha(
-        h && h.kind === NodeKind.Commit ? h.commit.sha : null
-      );
+      trees.setHoverSha(h && h.kind === NodeKind.Commit ? h.commit.sha : null);
     }
   });
 
@@ -419,7 +416,11 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
       const _commits = m?.commits ?? [];
       const _sameDayTotal = sameDayCommitCount(_selForCommit.commit, _commits);
       const _color = world.getTrees()?.colorForSha(_selForCommit.commit.sha) ?? undefined;
-      commitPane.api.setCommit(_selForCommit.commit, { remoteUrl: _remote, sameDayTotal: _sameDayTotal, color: _color });
+      commitPane.api.setCommit(_selForCommit.commit, {
+        remoteUrl: _remote,
+        sameDayTotal: _sameDayTotal,
+        color: _color,
+      });
     }
   });
 
@@ -452,4 +453,3 @@ export function createCoordinator({ world, picker, rig, flyControls, resetView, 
     setSourceInfo,
   };
 }
-

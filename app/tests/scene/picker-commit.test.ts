@@ -11,21 +11,13 @@ import type { CommitEntry, PickerWorld, CommitTarget } from '@/types';
 const FAKE_CAMERA = {} as unknown as THREE.Camera;
 
 function makeCanopy(): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(),
-    new THREE.MeshBasicMaterial(),
-    3,
-  );
+  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
   m.userData.meshKind = 'tree-canopy';
   return m;
 }
 
 function makeTrunk(): THREE.InstancedMesh {
-  const m = new THREE.InstancedMesh(
-    new THREE.BoxGeometry(),
-    new THREE.MeshBasicMaterial(),
-    3,
-  );
+  const m = new THREE.InstancedMesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial(), 3);
   m.userData.meshKind = 'tree-trunk';
   return m;
 }
@@ -40,18 +32,22 @@ function commit(i: number): CommitEntry {
 
 interface FakeTrees {
   group: THREE.Group;
-  commitForInstance: (
-    mesh: THREE.InstancedMesh, instanceId: number,
-  ) => CommitEntry | null;
+  commitForInstance: (mesh: THREE.InstancedMesh, instanceId: number) => CommitEntry | null;
   findTreeBySha: (sha: string) => {
-    mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry;
+    mesh: THREE.InstancedMesh;
+    instanceId: number;
+    commit: CommitEntry;
   } | null;
   colorForSha: (sha: string) => string | null;
   setHoverSha: (sha: string | null) => void;
   setSelectionSha: (sha: string | null) => void;
 }
 
-function makeFakeTrees(canopy: THREE.InstancedMesh, trunk: THREE.InstancedMesh, commits: CommitEntry[]): FakeTrees {
+function makeFakeTrees(
+  canopy: THREE.InstancedMesh,
+  trunk: THREE.InstancedMesh,
+  commits: CommitEntry[]
+): FakeTrees {
   const group = new THREE.Group();
   group.add(canopy);
   group.add(trunk);
@@ -288,7 +284,10 @@ describe('picker: tree commit picking', () => {
     // After the second triggerRebuild, picking the new canopy should
     // produce a CommitTarget — proving pickables refreshed.
     const hit = {
-      object: canopyB, instanceId: 0, distance: 1, point: new THREE.Vector3(),
+      object: canopyB,
+      instanceId: 0,
+      distance: 1,
+      point: new THREE.Vector3(),
     } as unknown as THREE.Intersection<THREE.Object3D>;
     const target = p.interpretHit(hit);
     expect(target).not.toBeNull();

@@ -87,7 +87,7 @@ function getOrCreateLabelMaterial(uniforms: Record<string, THREE.IUniform>): THR
  */
 export function attachLabelMeshToCell(
   cell: CellTile,
-  sharedUniforms: Record<string, THREE.IUniform>,
+  sharedUniforms: Record<string, THREE.IUniform>
 ): void {
   // Guard: if no atlas texture is available (empty manifest or skeleton phase),
   // or if no labelMesh has been allocated on this cell, skip attachment.
@@ -102,12 +102,12 @@ export function attachLabelMeshToCell(
   // iUvRect: vec4 — (u, v, w, h) atlas sub-rect in [0,1] space.
   geom.setAttribute(
     'iUvRect',
-    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 4), 4),
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 4), 4)
   );
   // iFlip: float — 0 = normal, 1 = horizontally mirrored.
   geom.setAttribute(
     'iFlip',
-    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1),
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
   );
 
   const mat = getOrCreateLabelMaterial(sharedUniforms);
@@ -141,11 +141,7 @@ export function attachLabelMeshToCell(
  *
  * Both `b.cellId` and `b.slotId` must already be set before calling.
  */
-export function writeLabelToSlot(
-  cell: CellTile,
-  b: Building,
-  atlas: LabelAtlasResult,
-): void {
+export function writeLabelToSlot(cell: CellTile, b: Building, atlas: LabelAtlasResult): void {
   if (!cell.labelMesh) return;
   const slot = b.slotId!;
   const mesh = cell.labelMesh;

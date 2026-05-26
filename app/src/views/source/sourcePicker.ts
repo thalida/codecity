@@ -54,11 +54,11 @@ interface GitWindowOption {
   value: string;
 }
 const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
-  { label: '1 year ago',  value: '1.years.ago'  },
+  { label: '1 year ago', value: '1.years.ago' },
   { label: '3 years ago', value: '3.years.ago' },
-  { label: '5 years ago',  value: '5.years.ago'  },
+  { label: '5 years ago', value: '5.years.ago' },
   { label: '10 years ago', value: '10.years.ago' },
-  { label: 'All history (default)',  value: '' },
+  { label: 'All history (default)', value: '' },
 ];
 const DEFAULT_GIT_WINDOW = '';
 
@@ -75,7 +75,7 @@ function gitWindowLabel(value: string | undefined | null): string {
 
 export interface OpenOpts {
   prefill?: SourcePayload;
-  dismissible?: boolean;       // default: false
+  dismissible?: boolean; // default: false
   error?: string;
 }
 
@@ -84,9 +84,7 @@ export interface SourcePicker {
   close(): void;
 }
 
-export function createSourcePicker(opts: {
-  onSubmit: (s: SourcePayload) => void;
-}): SourcePicker {
+export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void }): SourcePicker {
   const root = document.getElementById('source-picker-root');
   if (!root) {
     return { open: () => {}, close: () => {} };
@@ -121,9 +119,11 @@ export function createSourcePicker(opts: {
         <div class="modal-card" role="dialog" aria-modal="true" aria-label="Open project">
           <div class="modal-header">
             <span>Open project</span>
-            ${dismissible
-              ? '<button class="btn-icon btn-icon--lg" data-action="close" aria-label="Close">×</button>'
-              : ''}
+            ${
+              dismissible
+                ? '<button class="btn-icon btn-icon--lg" data-action="close" aria-label="Close">×</button>'
+                : ''
+            }
           </div>
           <div class="modal-body">
             ${o.error ? `<div class="modal-error">${escapeHtml(o.error)}</div>` : ''}
@@ -161,11 +161,13 @@ export function createSourcePicker(opts: {
             <div class="modal-field">
               <label>History window</label>
               <select data-field="git_window">
-                ${GIT_WINDOW_OPTIONS.map((o) => `
+                ${GIT_WINDOW_OPTIONS.map(
+                  (o) => `
                   <option value="${escapeAttr(o.value)}"${
                     o.value === prefillWindow ? ' selected' : ''
                   }>${escapeHtml(o.label)}</option>
-                `).join('')}
+                `
+                ).join('')}
               </select>
               <div class="modal-field-help">
                 Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
@@ -191,12 +193,11 @@ export function createSourcePicker(opts: {
     const list = listRecents();
     if (list.length === 0) return '';
     const trashMaskUrl = `url(${LUCIDE_ICON_BASE_URL}trash-2.svg)`;
-    const rows = list.map((r) => {
-      const isActive =
-        r.src === currentSrc &&
-        (r.branch ?? '') === (currentBranch ?? '');
-      const icon = isGitLike(r.src) ? _hostingIconSvg(r.src) : '📁';
-      return `
+    const rows = list
+      .map((r) => {
+        const isActive = r.src === currentSrc && (r.branch ?? '') === (currentBranch ?? '');
+        const icon = isGitLike(r.src) ? _hostingIconSvg(r.src) : '📁';
+        return `
       <div class="recent-item">
         <button type="button"
                 class="recent-row${isActive ? ' recent-row--active' : ''}"
@@ -221,7 +222,8 @@ export function createSourcePicker(opts: {
         </button>
       </div>
     `;
-    }).join('');
+      })
+      .join('');
     return `<div class="recents-list"><h3>Recent</h3>${rows}</div>`;
   }
 
@@ -230,10 +232,10 @@ export function createSourcePicker(opts: {
     root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((btn) => {
       btn.addEventListener('click', () => {
         activeTab = btn.dataset.tab as 'local' | 'git';
-        (root!.querySelector('[data-pane="local"]') as HTMLElement).style.display
-          = activeTab === 'local' ? 'block' : 'none';
-        (root!.querySelector('[data-pane="git"]') as HTMLElement).style.display
-          = activeTab === 'git' ? 'block' : 'none';
+        (root!.querySelector('[data-pane="local"]') as HTMLElement).style.display =
+          activeTab === 'local' ? 'block' : 'none';
+        (root!.querySelector('[data-pane="git"]') as HTMLElement).style.display =
+          activeTab === 'git' ? 'block' : 'none';
         root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
           b.classList.toggle('active', b === btn);
         });
@@ -242,7 +244,8 @@ export function createSourcePicker(opts: {
     });
 
     // Submit
-    root!.querySelector<HTMLButtonElement>('button.submit')!
+    root!
+      .querySelector<HTMLButtonElement>('button.submit')!
       .addEventListener('click', submitFromForm);
 
     // Recent rows — the row button opens the recent; the sibling trash
@@ -263,8 +266,8 @@ export function createSourcePicker(opts: {
         const branchSuffix = branch ? ` (${branch})` : '';
         const confirmed = window.confirm(
           `Remove "${src}"${branchSuffix} from recents?\n\n` +
-          `This also clears its scan cache — re-adding it will trigger ` +
-          `a fresh scan.`,
+            `This also clears its scan cache — re-adding it will trigger ` +
+            `a fresh scan.`
         );
         if (!confirmed) return;
 
@@ -284,12 +287,12 @@ export function createSourcePicker(opts: {
 
     // Dismissible-only handlers
     if (dismissible) {
-      root!.querySelector<HTMLButtonElement>('[data-action="close"]')!
+      root!
+        .querySelector<HTMLButtonElement>('[data-action="close"]')!
         .addEventListener('click', close);
-      root!.querySelector<HTMLElement>('.modal-backdrop')!
-        .addEventListener('click', (e) => {
-          if (e.target === e.currentTarget) close();
-        });
+      root!.querySelector<HTMLElement>('.modal-backdrop')!.addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) close();
+      });
       document.addEventListener('keydown', escHandler);
     }
   }
@@ -300,13 +303,16 @@ export function createSourcePicker(opts: {
   }
 
   function submitFromForm(): void {
-    const src = activeTab === 'local'
-      ? (root!.querySelector('[data-field="path"]') as HTMLInputElement).value.trim()
-      : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
+    const src =
+      activeTab === 'local'
+        ? (root!.querySelector('[data-field="path"]') as HTMLInputElement).value.trim()
+        : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
     if (!src) return;
-    const branch = activeTab === 'git'
-      ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() || undefined
-      : undefined;
+    const branch =
+      activeTab === 'git'
+        ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() ||
+          undefined
+        : undefined;
     // History window applies to any git source — git URL OR a local
     // path pointing at a git directory. Non-git local paths just
     // ignore the param server-side. We still suppress the URL param
@@ -328,14 +334,21 @@ export function createSourcePicker(opts: {
   }
 
   return {
-    open(o: OpenOpts = {}) { render(o); },
+    open(o: OpenOpts = {}) {
+      render(o);
+    },
     close,
   };
 }
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
-function escapeAttr(s: string): string { return escapeHtml(s); }
+function escapeAttr(s: string): string {
+  return escapeHtml(s);
+}

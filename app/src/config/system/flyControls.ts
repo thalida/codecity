@@ -12,15 +12,15 @@ export interface FlyControlsConfig {
   BASE_SPEED_MIN: number;
   BASE_SPEED_MAX: number;
 
-  BOOST_MULT: number;          // Shift-hold multiplier
-  ACCEL_RAMP_MS: number;       // Velocity ease time (in + out)
-  MOUSE_SENSITIVITY: number;   // Radians per pixel of pointer-lock movement
-  PITCH_CLAMP_DEG: number;     // Prevent gimbal lock
-  ALTITUDE_FLOOR: number;      // Min y position (prevents going under ground)
+  BOOST_MULT: number; // Shift-hold multiplier
+  ACCEL_RAMP_MS: number; // Velocity ease time (in + out)
+  MOUSE_SENSITIVITY: number; // Radians per pixel of pointer-lock movement
+  PITCH_CLAMP_DEG: number; // Prevent gimbal lock
+  ALTITUDE_FLOOR: number; // Min y position (prevents going under ground)
 
   // Fly-default pose
-  FLY_DEFAULT_GEM_OFFSET_MULT: number;  // Distance behind gem = gemRadius × this
-  FLY_DEFAULT_ALTITUDE_FRAC: number;    // Height = maxBuildingHeight × this
+  FLY_DEFAULT_GEM_OFFSET_MULT: number; // Distance behind gem = gemRadius × this
+  FLY_DEFAULT_ALTITUDE_FRAC: number; // Height = maxBuildingHeight × this
 }
 
 export const FLY_CONTROLS = map<FlyControlsConfig>({

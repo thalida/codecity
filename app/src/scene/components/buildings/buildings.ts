@@ -96,7 +96,9 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // uFogEnabled drives the boolean branch in the shared fog chunk;
       // uFogIntensity is still set to 0 when disabled (belt-and-suspenders).
       uFogEnabled: { value: SCENE_COLORS.get().FOG_ENABLED },
-      uFogColor: { value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace) },
+      uFogColor: {
+        value: new THREE.Color().setStyle(SCENE_COLORS.get().FOG_COLOR, THREE.LinearSRGBColorSpace),
+      },
       uFogIntensity: { value: SCENE_COLORS.get().FOG_INTENSITY },
       uFogHeight: { value: _computeFogHeight() },
       // Extra HDR emission applied to the freshest building's lit
@@ -150,7 +152,12 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // conversion. The shader consumes uDimGlowColor in sRGB space (the prior
       // hardcoded vec3(0.5, 0.4, 0.15) was sRGB), so we pass the hex bytes
       // through unchanged.
-      uDimGlowColor: { value: new THREE.Color().setStyle(WINDOW_LIGHTING.get().DIM_GLOW_COLOR, THREE.LinearSRGBColorSpace) },
+      uDimGlowColor: {
+        value: new THREE.Color().setStyle(
+          WINDOW_LIGHTING.get().DIM_GLOW_COLOR,
+          THREE.LinearSRGBColorSpace
+        ),
+      },
       uLitFreshnessExponent: { value: WINDOW_LIGHTING.get().LIT_FRESHNESS_EXPONENT },
     },
   });
@@ -188,14 +195,16 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uFogEnabled.value = sceneCfg.FOG_ENABLED;
   (_sharedMaterial.uniforms.uFogColor.value as THREE.Color).setStyle(
     sceneCfg.FOG_COLOR,
-    THREE.LinearSRGBColorSpace,
+    THREE.LinearSRGBColorSpace
   );
   _sharedMaterial.uniforms.uFogIntensity.value = sceneCfg.FOG_ENABLED ? sceneCfg.FOG_INTENSITY : 0;
   _sharedMaterial.uniforms.uFogHeight.value = _computeFogHeight();
   // BLOOM.ENABLED off → no HDR push for windows, so they stay LDR and
   // produce nothing the bloom pass (also bypassed via postFx.refresh)
   // could pick up.
-  _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED ? bloomCfg.WINDOW_EMISSION : 0;
+  _sharedMaterial.uniforms.uWindowEmissionBoost.value = bloomCfg.ENABLED
+    ? bloomCfg.WINDOW_EMISSION
+    : 0;
   const aging = BUILDING_AGING.get();
   _sharedMaterial.uniforms.uGrimeIntensity.value = aging.GRIME_ENABLED ? aging.GRIME_INTENSITY : 0;
   _sharedMaterial.uniforms.uGrimeCoverage.value = aging.GRIME_COVERAGE;
@@ -223,7 +232,8 @@ export function refreshBuildingMaterial(): void {
   const facadeDetail = FACADE_DETAIL.get();
   _sharedMaterial.uniforms.uSlabLightnessDelta.value = facadeDetail.SLAB_LIGHTNESS_DELTA;
   _sharedMaterial.uniforms.uDoorLightnessDelta.value = facadeDetail.DOOR_LIGHTNESS_DELTA;
-  _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value = facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
+  _sharedMaterial.uniforms.uRoofBorderLightnessDelta.value =
+    facadeDetail.ROOF_BORDER_LIGHTNESS_DELTA;
   // WINDOW_LIGHTING store — pure uniform refresh. .set(cssString) on the
   // pre-allocated THREE.Color preserves the linear-sRGB conversion path.
   const windowLighting = WINDOW_LIGHTING.get();
@@ -234,7 +244,7 @@ export function refreshBuildingMaterial(): void {
   // matching the prior hardcoded vec3(0.5, 0.4, 0.15) literal.
   (_sharedMaterial.uniforms.uDimGlowColor.value as THREE.Color).setStyle(
     windowLighting.DIM_GLOW_COLOR,
-    THREE.LinearSRGBColorSpace,
+    THREE.LinearSRGBColorSpace
   );
   _sharedMaterial.uniforms.uLitFreshnessExponent.value = windowLighting.LIT_FRESHNESS_EXPONENT;
 }

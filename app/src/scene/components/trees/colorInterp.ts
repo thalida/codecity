@@ -15,8 +15,10 @@
 //     so the midpoint stays at the average chroma — saturated.
 
 function linearToOklab(
-  r: number, g: number, b: number,
-  out: { L: number; a: number; b: number },
+  r: number,
+  g: number,
+  b: number,
+  out: { L: number; a: number; b: number }
 ): void {
   const l = 0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b;
   const m = 0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b;
@@ -24,24 +26,26 @@ function linearToOklab(
   const lc = Math.cbrt(l);
   const mc = Math.cbrt(m);
   const sc = Math.cbrt(s);
-  out.L = 0.2104542553 * lc + 0.7936177850 * mc - 0.0040720468 * sc;
-  out.a = 1.9779984951 * lc - 2.4285922050 * mc + 0.4505937099 * sc;
-  out.b = 0.0259040371 * lc + 0.7827717662 * mc - 0.8086757660 * sc;
+  out.L = 0.2104542553 * lc + 0.793617785 * mc - 0.0040720468 * sc;
+  out.a = 1.9779984951 * lc - 2.428592205 * mc + 0.4505937099 * sc;
+  out.b = 0.0259040371 * lc + 0.7827717662 * mc - 0.808675766 * sc;
 }
 
 function oklabToLinear(
-  L: number, a: number, b: number,
-  out: { r: number; g: number; b: number },
+  L: number,
+  a: number,
+  b: number,
+  out: { r: number; g: number; b: number }
 ): void {
   const lc = L + 0.3963377774 * a + 0.2158037573 * b;
   const mc = L - 0.1055613458 * a - 0.0638541728 * b;
-  const sc = L - 0.0894841775 * a - 1.2914855480 * b;
+  const sc = L - 0.0894841775 * a - 1.291485548 * b;
   const l = lc * lc * lc;
   const m = mc * mc * mc;
   const s = sc * sc * sc;
-  out.r =  4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
+  out.r = 4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s;
   out.g = -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s;
-  out.b = -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s;
+  out.b = -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s;
 }
 
 const _lab1 = { L: 0, a: 0, b: 0 };
@@ -51,7 +55,9 @@ const _lin = { r: 0, g: 0, b: 0 };
 const CHROMA_EPSILON = 1e-6;
 
 export interface RgbLike {
-  r: number; g: number; b: number;
+  r: number;
+  g: number;
+  b: number;
 }
 
 /** Interpolate `c1` → `c2` at parameter `t` through OKLCH, writing
@@ -61,12 +67,7 @@ export interface RgbLike {
  *
  *  Out-of-gamut results (rare for moderate chroma but possible on
  *  highly saturated paths) are clamped to [0, 1] per channel. */
-export function interpolateOklch(
-  c1: RgbLike,
-  c2: RgbLike,
-  t: number,
-  out: RgbLike,
-): void {
+export function interpolateOklch(c1: RgbLike, c2: RgbLike, t: number, out: RgbLike): void {
   linearToOklab(c1.r, c1.g, c1.b, _lab1);
   linearToOklab(c2.r, c2.g, c2.b, _lab2);
 

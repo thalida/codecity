@@ -3,8 +3,7 @@ import { createSourcePicker } from '@/views/source/sourcePicker.js';
 import { pushRecent } from '@/views/source/sourceRecents.js';
 
 function mountRoot(): HTMLElement {
-  document.body.innerHTML =
-    '<div id="source-picker-root" style="display: none;"></div>';
+  document.body.innerHTML = '<div id="source-picker-root" style="display: none;"></div>';
   return document.getElementById('source-picker-root')!;
 }
 
@@ -57,10 +56,8 @@ describe('sourcePicker', () => {
     const p = createSourcePicker({ onSubmit });
     p.open();
     (root.querySelector('[data-tab="git"]') as HTMLButtonElement).click();
-    (root.querySelector('[data-field="url"]') as HTMLInputElement).value
-      = 'https://github.com/o/r';
-    (root.querySelector('[data-field="branch"]') as HTMLInputElement).value
-      = 'main';
+    (root.querySelector('[data-field="url"]') as HTMLInputElement).value = 'https://github.com/o/r';
+    (root.querySelector('[data-field="branch"]') as HTMLInputElement).value = 'main';
     (root.querySelector('button.submit') as HTMLButtonElement).click();
     expect(onSubmit).toHaveBeenCalledWith({
       src: 'https://github.com/o/r',
@@ -126,13 +123,12 @@ describe('sourcePicker', () => {
     const p = createSourcePicker({ onSubmit: () => {} });
     p.open({ prefill: { src: 'https://github.com/o/r', branch: 'develop' } });
     expect(
-      (root.querySelector('[data-tab="git"]') as HTMLButtonElement)
-        .classList.contains('active')
+      (root.querySelector('[data-tab="git"]') as HTMLButtonElement).classList.contains('active')
     ).toBe(true);
-    expect((root.querySelector('[data-field="url"]') as HTMLInputElement).value)
-      .toBe('https://github.com/o/r');
-    expect((root.querySelector('[data-field="branch"]') as HTMLInputElement).value)
-      .toBe('develop');
+    expect((root.querySelector('[data-field="url"]') as HTMLInputElement).value).toBe(
+      'https://github.com/o/r'
+    );
+    expect((root.querySelector('[data-field="branch"]') as HTMLInputElement).value).toBe('develop');
   });
 
   it('marks the currently-loaded recent as active', () => {

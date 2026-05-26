@@ -6,7 +6,9 @@ describe('buildControlsPane', () => {
     const { pane } = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector<HTMLElement>('.text-pane-title')!.textContent).toBe('Controls');
-    expect(pane.querySelector<HTMLElement>('.controls-section-summary .text-label')!.textContent).toBe('Keyboard & mouse');
+    expect(
+      pane.querySelector<HTMLElement>('.controls-section-summary .text-label')!.textContent
+    ).toBe('Keyboard & mouse');
   });
 
   it('renders a shortcuts list in the Keyboard & mouse section', () => {
@@ -58,9 +60,13 @@ describe('buildControlsPane', () => {
   it('resetCollapsed() sets all <details> elements to closed', () => {
     const { pane, resetCollapsed } = buildControlsPane({});
     // Open every details element, then reset.
-    pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => { d.open = true; });
+    pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
+      d.open = true;
+    });
     resetCollapsed();
-    const openDetails = Array.from(pane.querySelectorAll<HTMLDetailsElement>('details')).filter((d) => d.open);
+    const openDetails = Array.from(pane.querySelectorAll<HTMLDetailsElement>('details')).filter(
+      (d) => d.open
+    );
     expect(openDetails).toHaveLength(0);
   });
 });

@@ -260,7 +260,7 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG },
       { min: 10, max: 10000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     // Square aspect → floors = round(width / FLOOR_HEIGHT), min MIN_FLOORS.
     expect(dim.d).toBe(dim.w);
@@ -273,7 +273,7 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG, media_width: 100, media_height: 200 },
       { min: 10, max: 10000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     expect(dim.h).toBeGreaterThan(dim.w);
   });
@@ -282,7 +282,7 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG, media_width: 200, media_height: 50 },
       { min: 10, max: 10000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     // Aspect 0.25 → raw_h = width × 0.25, but clamped at 0.4 → raw_h ≥ 0.4w.
     // Still: height < width.
@@ -294,12 +294,12 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG, media_width: 500, media_height: 5000 },
       { min: 10, max: 10000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     // raw_h = w × 2.5, floors = round(raw_h / FLOOR_HEIGHT), h = floors × FLOOR_HEIGHT.
     const expectedFloors = Math.max(
       TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 2.5) / TEST_BUILDING_DIMS.FLOOR_HEIGHT),
+      Math.round((dim.w * 2.5) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
     );
     expect(dim.floors).toBe(expectedFloors);
   });
@@ -308,11 +308,11 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 0, size: 1000, extension: PNG, media_width: 5000, media_height: 500 },
       { min: 10, max: 10000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     const expectedFloors = Math.max(
       TEST_BUILDING_DIMS.MIN_FLOORS,
-      Math.round((dim.w * 0.4) / TEST_BUILDING_DIMS.FLOOR_HEIGHT),
+      Math.round((dim.w * 0.4) / TEST_BUILDING_DIMS.FLOOR_HEIGHT)
     );
     expect(dim.floors).toBe(expectedFloors);
   });
@@ -322,7 +322,7 @@ describe('getBuildingDimensions — media files', () => {
     const dim = getBuildingDimensions(
       { lines: 100, size: 1000, extension: '.ts', media_width: 9999, media_height: 1 },
       { min: 10, max: 1000 },
-      { min: 10, max: 10000 },
+      { min: 10, max: 10000 }
     );
     // Height should be lines-derived (sqrt-interpolation), not byte-aspect-derived.
     // For a non-media file the media_* fields are ignored entirely.
@@ -696,7 +696,6 @@ describe('_rectsOverlap', () => {
   });
 });
 
-
 describe('_bboxOfRects', () => {
   const { _bboxOfRects } = __test;
   it('empty input returns zero-size rect at origin', () => {
@@ -978,9 +977,7 @@ export function assertTreeRespecting(layout: CityLayout): void {
     const parentPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '.';
     const parent = byPath[parentPath];
     if (!parent) {
-      throw new Error(
-        `street ${s.dir.path}: tree parent path ${parentPath} has no street`
-      );
+      throw new Error(`street ${s.dir.path}: tree parent path ${parentPath} has no street`);
     }
   }
 }
@@ -1004,9 +1001,7 @@ export function assertTJunctionsValid(layout: CityLayout): void {
 
     // Perpendicular streets only join validly via T-junction.
     if (s.orientation === parent.orientation) {
-      throw new Error(
-        `street ${s.dir.path} has same orientation as parent ${parentPath}`
-      );
+      throw new Error(`street ${s.dir.path} has same orientation as parent ${parentPath}`);
     }
 
     // The joining endpoint sits on the parent's centerline (constant value of
@@ -1307,4 +1302,3 @@ describe('quickjs-scenario regression', () => {
     expect(quickjsStreet!.length).toBeLessThan(210);
   });
 });
-

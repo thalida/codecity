@@ -4,7 +4,10 @@
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
 import { InstancedAdPanels } from '@/scene/components/adPanels/adPanelsInstanced.js';
-import { AdPanelTextureArray, PANEL_TEX_SIZE } from '@/scene/components/adPanels/adPanelTextureArray.js';
+import {
+  AdPanelTextureArray,
+  PANEL_TEX_SIZE,
+} from '@/scene/components/adPanels/adPanelTextureArray.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 
@@ -61,8 +64,36 @@ describe('InstancedAdPanels', () => {
   it('registerMediaBuilding increments layer for each new building', () => {
     const ads = new InstancedAdPanels(4);
 
-    const b1 = fakeMediaBuilding({ file: { path: 'a.png', name: 'a.png', type: NodeKind.File, fullPath: '/a.png', extension: '.png', size: 1, lines: 0, binary: true, created: '', modified: '', git: null } });
-    const b2 = fakeMediaBuilding({ file: { path: 'b.jpg', name: 'b.jpg', type: NodeKind.File, fullPath: '/b.jpg', extension: '.jpg', size: 1, lines: 0, binary: true, created: '', modified: '', git: null } });
+    const b1 = fakeMediaBuilding({
+      file: {
+        path: 'a.png',
+        name: 'a.png',
+        type: NodeKind.File,
+        fullPath: '/a.png',
+        extension: '.png',
+        size: 1,
+        lines: 0,
+        binary: true,
+        created: '',
+        modified: '',
+        git: null,
+      },
+    });
+    const b2 = fakeMediaBuilding({
+      file: {
+        path: 'b.jpg',
+        name: 'b.jpg',
+        type: NodeKind.File,
+        fullPath: '/b.jpg',
+        extension: '.jpg',
+        size: 1,
+        lines: 0,
+        binary: true,
+        created: '',
+        modified: '',
+        git: null,
+      },
+    });
 
     const reg1 = ads.registerMediaBuilding(b1);
     const reg2 = ads.registerMediaBuilding(b2);
@@ -147,21 +178,23 @@ describe('InstancedAdPanels', () => {
     ads.registerMediaBuilding(fakeMediaBuilding());
     expect(ads.mesh.count).toBe(4); // 1 building × 4 faces
 
-    ads.registerMediaBuilding(fakeMediaBuilding({
-      file: {
-        path: 'b.mp4',
-        name: 'b.mp4',
-        type: NodeKind.File,
-        fullPath: '/b.mp4',
-        extension: '.mp4',
-        size: 2000,
-        lines: 0,
-        binary: true,
-        created: '',
-        modified: '',
-        git: null,
-      },
-    }));
+    ads.registerMediaBuilding(
+      fakeMediaBuilding({
+        file: {
+          path: 'b.mp4',
+          name: 'b.mp4',
+          type: NodeKind.File,
+          fullPath: '/b.mp4',
+          extension: '.mp4',
+          size: 2000,
+          lines: 0,
+          binary: true,
+          created: '',
+          modified: '',
+          git: null,
+        },
+      })
+    );
     expect(ads.mesh.count).toBe(8); // 2 buildings × 4 faces
   });
 
@@ -218,10 +251,7 @@ describe('AdPanelTextureArray storage', () => {
     // ceil(1000 / 256) = 4 pages.
     const arr = new AdPanelTextureArray(1000);
     expect(arr.textures.length).toBeGreaterThan(1);
-    const totalDepth = arr.textures.reduce(
-      (sum, tex) => sum + (tex.image.depth ?? 0),
-      0,
-    );
+    const totalDepth = arr.textures.reduce((sum, tex) => sum + (tex.image.depth ?? 0), 0);
     expect(totalDepth).toBe(1000);
   });
 

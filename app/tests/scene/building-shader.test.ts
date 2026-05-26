@@ -14,7 +14,17 @@ describe('building.vert.glsl', () => {
     }
   });
   it('declares all varyings the fragment expects', () => {
-    for (const v of ['vFace', 'vUv', 'vCols', 'vFloors', 'vOrient', 'vDoorWidth', 'vOpacity', 'vColor', 'vScale']) {
+    for (const v of [
+      'vFace',
+      'vUv',
+      'vCols',
+      'vFloors',
+      'vOrient',
+      'vDoorWidth',
+      'vOpacity',
+      'vColor',
+      'vScale',
+    ]) {
       expect(src).toContain(v);
     }
   });

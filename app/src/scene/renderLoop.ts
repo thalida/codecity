@@ -468,8 +468,16 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         if (glowCfg.ANIMATE_COLORS) {
           const palette = GEM_FACE_PALETTE.get();
           const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
-          if (inner) _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
-          if (outer) _setPaletteColor((outer.material as THREE.SpriteMaterial).color, palette, t, period, 0.5);
+          if (inner)
+            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
+          if (outer)
+            _setPaletteColor(
+              (outer.material as THREE.SpriteMaterial).color,
+              palette,
+              t,
+              period,
+              0.5
+            );
         } else {
           const edge = GEM_APPEARANCE.get().EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
@@ -527,18 +535,14 @@ function _setPaletteColor(
 ): void {
   const n = palette.length;
   if (n === 0) return;
-  const phase = (((t / period) + offset) % 1 + 1) % 1; // wrap negatives
+  const phase = (((t / period + offset) % 1) + 1) % 1; // wrap negatives
   const idxf = phase * n;
   const a = Math.floor(idxf) % n;
   const b = (a + 1) % n;
   const f = idxf - Math.floor(idxf);
   const A = palette[a];
   const B = palette[b];
-  out.setRGB(
-    A[0] + (B[0] - A[0]) * f,
-    A[1] + (B[1] - A[1]) * f,
-    A[2] + (B[2] - A[2]) * f
-  );
+  out.setRGB(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f);
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the

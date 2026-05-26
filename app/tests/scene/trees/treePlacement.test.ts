@@ -43,15 +43,22 @@ function resetBuildings() {
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
   return {
-    minX, minY, maxX, maxY,
-    cx: (minX + maxX) / 2, cy: (minY + maxY) / 2,
-    width: maxX - minX, depth: maxY - minY,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    width: maxX - minX,
+    depth: maxY - minY,
   };
 }
 
 function emptyLayout(bb: CityBbox): CityLayout {
   return {
-    buildings: [], streets: [], paths: [],
+    buildings: [],
+    streets: [],
+    paths: [],
     lineStats: { min: 0, max: 0 },
     byteStats: { min: 0, max: 0 },
     bbox: bb,
@@ -66,12 +73,16 @@ describe('placeTrees (commit-driven)', () => {
 
   it('returns empty when TREES_ENABLED is false', () => {
     TREES.setKey('TREES_ENABLED', false);
-    expect(placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })).toEqual([]);
+    expect(
+      placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })
+    ).toEqual([]);
   });
 
   it('returns empty when bbox is missing', () => {
     const layout: CityLayout = {
-      buildings: [], streets: [], paths: [],
+      buildings: [],
+      streets: [],
+      paths: [],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
     };
@@ -93,8 +104,7 @@ describe('placeTrees (commit-driven)', () => {
     const layout = emptyLayout(bbox(-100, -100, 100, 100));
     const placements = placeTrees(layout, layout.bbox, { commitCount: 100 });
     const gem = { x: 0, y: 0 };
-    const d2 = (p: TreePlacement) =>
-      (p.x - gem.x) ** 2 + (p.y - gem.y) ** 2;
+    const d2 = (p: TreePlacement) => (p.x - gem.x) ** 2 + (p.y - gem.y) ** 2;
     for (let i = 1; i < placements.length; i++) {
       expect(d2(placements[i])).toBeGreaterThanOrEqual(d2(placements[i - 1]));
     }
@@ -124,7 +134,12 @@ describe('placeTrees (commit-driven)', () => {
     const bb = bbox(-500, -500, 500, 500);
     function makeBuilding(x: number, y: number, w: number, d: number) {
       return {
-        x, y, w, d, h: 10, color: '#000',
+        x,
+        y,
+        w,
+        d,
+        h: 10,
+        color: '#000',
         file: { path: '', name: '', size: 0, lines: 0, modified: 0, created: 0 } as never,
         orient: 'n' as never,
       } as never;
@@ -148,7 +163,15 @@ describe('placeTrees (commit-driven)', () => {
     const layout: CityLayout = {
       ...emptyLayout(bb),
       buildings: [
-        { x: 0, y: 0, w: 20, d: 20, h: 32, floors: 2, file: { path: 'a.ts', size: 0, lines: 0 } } as never,
+        {
+          x: 0,
+          y: 0,
+          w: 20,
+          d: 20,
+          h: 32,
+          floors: 2,
+          file: { path: 'a.ts', size: 0, lines: 0 },
+        } as never,
       ],
     };
 
@@ -169,7 +192,6 @@ describe('placeTrees (commit-driven)', () => {
       expect(p.commitIndex).toBeDefined();
     }
   });
-
 });
 
 export type { TreePlacement };

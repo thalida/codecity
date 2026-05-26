@@ -51,10 +51,7 @@ describe('buildLabelAtlas', () => {
     // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per
     // page. With ~5-char labels + padding the row holds many; we use
     // wide labels to force frequent row wraps.
-    const wide = Array.from(
-      { length: 1500 },
-      (_, i) => `${'x'.repeat(20)}-${i}`,
-    );
+    const wide = Array.from({ length: 1500 }, (_, i) => `${'x'.repeat(20)}-${i}`);
     const result = buildLabelAtlas(wide, TYPOGRAPHY);
     expect(result.pages.length).toBeGreaterThan(1);
     // Every label must have a rect on a real page.
@@ -65,14 +62,18 @@ describe('buildLabelAtlas', () => {
     }
   });
 
-  it('truncates labels when atlas overflows MAX_PAGES instead of throwing', { timeout: 30_000 }, () => {
-    // MAX_PAGES is 16; one page holds many thousand short labels at
-    // default font, so generating ~3k wide labels forces overflow.
-    // (The original spec used 50 000 × 80-char labels — same semantic
-    // overflow scenario; we use 3 000 × 30-char labels to keep jsdom
-    // canvas measurement below a 30s budget while still exercising the
-    // overflow path.)
-    const labels = Array.from({ length: 3_000 }, (_, i) => `label_${'x'.repeat(30)}_${i}`);
-    expect(() => buildLabelAtlas(labels, TYPOGRAPHY)).not.toThrow();
-  });
+  it(
+    'truncates labels when atlas overflows MAX_PAGES instead of throwing',
+    { timeout: 30_000 },
+    () => {
+      // MAX_PAGES is 16; one page holds many thousand short labels at
+      // default font, so generating ~3k wide labels forces overflow.
+      // (The original spec used 50 000 × 80-char labels — same semantic
+      // overflow scenario; we use 3 000 × 30-char labels to keep jsdom
+      // canvas measurement below a 30s budget while still exercising the
+      // overflow path.)
+      const labels = Array.from({ length: 3_000 }, (_, i) => `label_${'x'.repeat(30)}_${i}`);
+      expect(() => buildLabelAtlas(labels, TYPOGRAPHY)).not.toThrow();
+    }
+  );
 });

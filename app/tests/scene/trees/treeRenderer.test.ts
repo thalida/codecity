@@ -79,7 +79,7 @@ function canopyMeshes(group: THREE.Group): THREE.InstancedMesh[] {
  *  placement. Returns null if not found (e.g. all shapes disabled). */
 function findCanopyInstance(
   group: THREE.Group,
-  placementIdx: number,
+  placementIdx: number
 ): { mesh: THREE.InstancedMesh; instanceIdx: number } | null {
   for (const m of canopyMeshes(group)) {
     const order = m.userData.placementOrder as number[] | undefined;
@@ -122,11 +122,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('builds at most one canopy mesh per detail level (d0/d1/d2) plus trunk', () => {
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = createTreeRenderer(placements, makeCommits(3));
     const names = trees.group.children.map((c) => c.name).sort();
     expect(names).toContain('tree-trunk');
@@ -190,13 +186,9 @@ describe('createTreeRenderer()', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 5 }, // oldest → max height
       { date: '2026-01-11', files: 5 }, // mid → mid height
-      { date: '2026-01-21', files: 5 }, // newest → min height
+      { date: '2026-01-21', files: 5 } // newest → min height
     );
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = createTreeRenderer(placements, commits);
 
     const trunk = trunkMesh(trees.group);
@@ -213,13 +205,9 @@ describe('createTreeRenderer()', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 1 }, // min files → min canopy radius
       { date: '2026-01-11', files: 5 }, // mid
-      { date: '2026-01-21', files: 9 }, // max files → max canopy radius
+      { date: '2026-01-21', files: 9 } // max files → max canopy radius
     );
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = createTreeRenderer(placements, commits);
 
     const trunk = trunkMesh(trees.group);
@@ -236,12 +224,9 @@ describe('createTreeRenderer()', () => {
   it('canopy XZ scale matches per-tree radius (looked up via placementOrder)', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 1 },
-      { date: '2026-01-21', files: 9 },
+      { date: '2026-01-21', files: 9 }
     );
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
     trees = createTreeRenderer(placements, commits);
     const minR = 32 / 2;
     const maxR = 128 / 2;
@@ -276,13 +261,9 @@ describe('createTreeRenderer()', () => {
     const commits = buildCommits(
       { date: '2026-01-01', files: 1 }, // sizeT=0   → detail 0
       { date: '2026-01-11', files: 5 }, // sizeT=0.5 → detail 1
-      { date: '2026-01-21', files: 9 }, // sizeT=1   → detail 2
+      { date: '2026-01-21', files: 9 } // sizeT=1   → detail 2
     );
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-      placement(0, 20, 3, 2),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1), placement(0, 20, 3, 2)];
     trees = createTreeRenderer(placements, commits);
 
     const a = findCanopyInstance(trees.group, 0);
@@ -292,10 +273,12 @@ describe('createTreeRenderer()', () => {
     expect(b!.mesh.name).toBe('tree-canopy-d1');
     expect(c!.mesh.name).toBe('tree-canopy-d2');
     // More facets = strictly more triangles (after toNonIndexed).
-    expect(b!.mesh.geometry.getAttribute('position').count)
-      .toBeGreaterThan(a!.mesh.geometry.getAttribute('position').count);
-    expect(c!.mesh.geometry.getAttribute('position').count)
-      .toBeGreaterThan(b!.mesh.geometry.getAttribute('position').count);
+    expect(b!.mesh.geometry.getAttribute('position').count).toBeGreaterThan(
+      a!.mesh.geometry.getAttribute('position').count
+    );
+    expect(c!.mesh.geometry.getAttribute('position').count).toBeGreaterThan(
+      b!.mesh.geometry.getAttribute('position').count
+    );
   });
 
   it('per-instance color interpolates between SOLO_DAY (solo day) and BUSY_DAY (busy day) by COMMITS-PER-DAY', () => {
@@ -310,7 +293,7 @@ describe('createTreeRenderer()', () => {
       { date: '2026-01-20', files: 5 }, // busy day, commit A
       { date: '2026-01-20', files: 5 }, // busy day, commit B
       { date: '2026-01-20', files: 5 }, // busy day, commit C
-      { date: '2026-01-20', files: 5 }, // busy day, commit D
+      { date: '2026-01-20', files: 5 } // busy day, commit D
     );
     const placements = [
       placement(0, 0, 1, 0),
@@ -356,10 +339,7 @@ describe('createTreeRenderer()', () => {
   });
 
   it('all trees render at midpoint values when commits is null', () => {
-    const placements = [
-      placement(0, 0, 1, 0),
-      placement(20, 0, 2, 1),
-    ];
+    const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
     trees = createTreeRenderer(placements, null);
 
     const trunk = trunkMesh(trees.group);
@@ -421,7 +401,10 @@ describe('createTreeRenderer()', () => {
       const entry = { name: mesh.name, disposed: false };
       tracked.push(entry);
       const origDispose = mesh.geometry.dispose.bind(mesh.geometry);
-      mesh.geometry.dispose = () => { entry.disposed = true; origDispose(); };
+      mesh.geometry.dispose = () => {
+        entry.disposed = true;
+        origDispose();
+      };
     }
     trees.dispose();
     for (const t of tracked) expect(t.disposed).toBe(true);
@@ -453,12 +436,9 @@ describe('createTreeRenderer()', () => {
       // the OFF result differs from the ON result for the oldest commit.
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest
-        { date: '2026-01-21', files: 5 }, // newest
+        { date: '2026-01-21', files: 5 } // newest
       );
-      const placements = [
-        placement(0, 0, 1, 0),
-        placement(20, 0, 2, 1),
-      ];
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Build with desat OFF (set in resetStores).
       trees = createTreeRenderer(placements, testCommits);
@@ -475,7 +455,7 @@ describe('createTreeRenderer()', () => {
       // The OFF color must differ from the gray-forced ON color (oldest commit).
       // If desat ON/OFF were the same this test would be meaningless.
       const offHsl = { h: 0, s: 0, l: 0 };
-      const onHsl  = { h: 0, s: 0, l: 0 };
+      const onHsl = { h: 0, s: 0, l: 0 };
       offColor.getHSL(offHsl);
       onColor.getHSL(onHsl);
       expect(offHsl.s).toBeGreaterThan(onHsl.s + 0.01);
@@ -486,12 +466,9 @@ describe('createTreeRenderer()', () => {
       // with desat ON and verify the oldest commit's saturation is base * minFactor.
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest → ageT=0 → factor = MIN/100
-        { date: '2026-01-21', files: 5 }, // newest → ageT=1 → factor = MAX/100
+        { date: '2026-01-21', files: 5 } // newest → ageT=1 → factor = MAX/100
       );
-      const placements = [
-        placement(0, 0, 1, 0),
-        placement(20, 0, 2, 1),
-      ];
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Capture base saturation with desat OFF (resetStores sets it false).
       trees = createTreeRenderer(placements, testCommits);
@@ -506,18 +483,15 @@ describe('createTreeRenderer()', () => {
 
       const oldestS = instanceSaturation(trees.group, 0);
       // oldest → ageT=0 → factor = 20/100 = 0.20
-      expect(oldestS).toBeCloseTo(baseS * 0.20, 3);
+      expect(oldestS).toBeCloseTo(baseS * 0.2, 3);
     });
 
     it('TREE_AGE_DESAT_ENABLED=true: newest commit saturation is reduced by maxFactor relative to no-desat base', () => {
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest
-        { date: '2026-01-21', files: 5 }, // newest → ageT=1 → factor = MAX/100
+        { date: '2026-01-21', files: 5 } // newest → ageT=1 → factor = MAX/100
       );
-      const placements = [
-        placement(0, 0, 1, 0),
-        placement(20, 0, 2, 1),
-      ];
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
 
       // Capture base saturation with desat OFF.
       trees = createTreeRenderer(placements, testCommits);
@@ -532,7 +506,7 @@ describe('createTreeRenderer()', () => {
 
       const newestS = instanceSaturation(trees.group, 1);
       // newest → ageT=1 → factor = 100/100 = 1.00 → saturation unchanged
-      expect(newestS).toBeCloseTo(baseNewestS * 1.00, 3);
+      expect(newestS).toBeCloseTo(baseNewestS * 1.0, 3);
     });
 
     it('refresh() re-applies new TREE_AGE_DESAT_ENABLED config — colors differ after toggle', () => {
@@ -542,12 +516,9 @@ describe('createTreeRenderer()', () => {
 
       const testCommits = buildCommits(
         { date: '2026-01-01', files: 5 }, // oldest → will have reduced saturation
-        { date: '2026-01-21', files: 5 }, // newest
+        { date: '2026-01-21', files: 5 } // newest
       );
-      const placements = [
-        placement(0, 0, 1, 0),
-        placement(20, 0, 2, 1),
-      ];
+      const placements = [placement(0, 0, 1, 0), placement(20, 0, 2, 1)];
       trees = createTreeRenderer(placements, testCommits);
 
       // Capture saturation of oldest tree with desat ON.
@@ -576,12 +547,8 @@ describe('createTreeRenderer()', () => {
         AMBIENT: 0.72,
         SUN_CONTRAST: 0.5,
       });
-      const placements = [
-        placement(0, 0, 1, 0),
-      ];
-      const commits = buildCommits(
-        { date: '2026-01-01', files: 1 },
-      );
+      const placements = [placement(0, 0, 1, 0)];
+      const commits = buildCommits({ date: '2026-01-01', files: 1 });
       trees = createTreeRenderer(placements, commits);
       const canopyInst = findCanopyInstance(trees.group, 0);
       expect(canopyInst).not.toBeNull();

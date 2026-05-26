@@ -1,8 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  ISLAND_GEOMETRY,
-  ISLAND_MATERIALS,
-} from '@/config/components/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 
 describe('ISLAND config defaults', () => {
   it('GEOMETRY has expected default fields', () => {
@@ -24,6 +21,4 @@ describe('ISLAND config defaults', () => {
     expect(m.HEMI_SKY_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.HEMI_GROUND_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
   });
-
-
 });

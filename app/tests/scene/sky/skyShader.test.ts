@@ -48,8 +48,13 @@ describe('sky.frag.glsl', () => {
 
   it('declares the star uniforms + the time uniform driving twinkle', () => {
     for (const u of [
-      'uStarsEnabled', 'uStarDensity', 'uStarSize', 'uStarBrightness',
-      'uTwinkleEnabled', 'uTwinkleSpeed', 'uTwinkleAmplitude',
+      'uStarsEnabled',
+      'uStarDensity',
+      'uStarSize',
+      'uStarBrightness',
+      'uTwinkleEnabled',
+      'uTwinkleSpeed',
+      'uTwinkleAmplitude',
       'uTime',
     ]) {
       expect(src).toContain(u);

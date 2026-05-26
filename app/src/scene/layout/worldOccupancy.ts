@@ -44,12 +44,13 @@ export class WorldOccupancy {
   }
 
   query(minX: number, minY: number, maxX: number, maxY: number): WorldRect[] {
-    return this.tree.search({ minX, minY, maxX, maxY }).filter((r) =>
-      // Strict overlap (touching edges return false).
-      r.minX < maxX - OVERLAP_EPS &&
-      r.maxX > minX + OVERLAP_EPS &&
-      r.minY < maxY - OVERLAP_EPS &&
-      r.maxY > minY + OVERLAP_EPS
+    return this.tree.search({ minX, minY, maxX, maxY }).filter(
+      (r) =>
+        // Strict overlap (touching edges return false).
+        r.minX < maxX - OVERLAP_EPS &&
+        r.maxX > minX + OVERLAP_EPS &&
+        r.minY < maxY - OVERLAP_EPS &&
+        r.maxY > minY + OVERLAP_EPS
     );
   }
 

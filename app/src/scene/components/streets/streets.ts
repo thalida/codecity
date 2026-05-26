@@ -28,7 +28,7 @@ const STADIUM_SEGMENTS = 16;
 // Ground planes still `depthTest` so buildings occlude them correctly.
 export function flatGroundMaterial(
   color: string | number,
-  renderOrderLayer: number,
+  renderOrderLayer: number
 ): THREE.MeshBasicMaterial {
   const mat = new THREE.MeshBasicMaterial({
     color,
@@ -62,7 +62,7 @@ function _buildStadiumGeometry(
   length: number,
   width: number,
   orientation: StreetAxis,
-  capStyle: CapStyle,
+  capStyle: CapStyle
 ): THREE.ShapeGeometry {
   capStyle = capStyle || CapStyle.Both;
   // capStyle is specified in WORLD-axis terms (Low = round the world-low
@@ -148,7 +148,7 @@ export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.G
   const orders = RENDER_ORDERS;
   const sidewalk = new THREE.Mesh(
     _buildStadiumGeometry(street.length, street.width, street.orientation, capStyle),
-    flatGroundMaterial(sidewalkCfg.DEFAULT, orders.SIDEWALK),
+    flatGroundMaterial(sidewalkCfg.DEFAULT, orders.SIDEWALK)
   );
   sidewalk.rotation.x = -Math.PI / 2;
   sidewalk.position.set(street.x, yBase, street.y);
@@ -160,7 +160,7 @@ export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.G
   // Asphalt — narrower, always draws on top of every sidewalk.
   const asphalt = new THREE.Mesh(
     _buildStadiumGeometry(asphaltLength, asphaltWidth, street.orientation, capStyle),
-    flatGroundMaterial(asphaltCfg.COLOR, orders.ASPHALT),
+    flatGroundMaterial(asphaltCfg.COLOR, orders.ASPHALT)
   );
   asphalt.rotation.x = -Math.PI / 2;
   asphalt.position.set(street.x, yBase, street.y);

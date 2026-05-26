@@ -29,14 +29,14 @@
 import * as THREE from 'three';
 
 export interface IslandBuildParams {
-  sides: number;        // top polygon side count
+  sides: number; // top polygon side count
   irregularity: number; // 0–0.5 radial jitter
-  tiers: number;        // count of intermediate rings on the underside
-  depth: number;        // total island depth as fraction of island radius
-  halfWidth: number;    // bounds half-width (X)
-  halfDepth: number;    // bounds half-depth (Z)
-  seed: number;         // deterministic shape per bounds
-  roundness: number;    // 0–1; maps to taperExponent = 2.0 - roundness*1.93
+  tiers: number; // count of intermediate rings on the underside
+  depth: number; // total island depth as fraction of island radius
+  halfWidth: number; // bounds half-width (X)
+  halfDepth: number; // bounds half-depth (Z)
+  seed: number; // deterministic shape per bounds
+  roundness: number; // 0–1; maps to taperExponent = 2.0 - roundness*1.93
   grassThickness: number; // 0–0.1; vertical grass band as fraction of island radius
 }
 
@@ -87,11 +87,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
     const jitter = 1 - irregularity * rand();
-    pts.push(new THREE.Vector3(
-      Math.cos(theta) * aX * jitter,
-      0,
-      -Math.sin(theta) * aZ * jitter,
-    ));
+    pts.push(new THREE.Vector3(Math.cos(theta) * aX * jitter, 0, -Math.sin(theta) * aZ * jitter));
   }
   return pts;
 }
@@ -114,9 +110,19 @@ export interface IslandColors {
  */
 export function buildIslandGeometry(
   params: IslandBuildParams,
-  colors: IslandColors,
+  colors: IslandColors
 ): THREE.BufferGeometry {
-  const { sides, irregularity, tiers, depth, halfWidth, halfDepth, seed, roundness, grassThickness } = params;
+  const {
+    sides,
+    irregularity,
+    tiers,
+    depth,
+    halfWidth,
+    halfDepth,
+    seed,
+    roundness,
+    grassThickness,
+  } = params;
 
   // Use the LONGEST oval axis as the reference for vertical island depth.
   // Previously Math.min was used, which made elongated cities (long X,
@@ -172,7 +178,7 @@ export function buildIslandGeometry(
     const radiusFrac = Math.pow(1 - frac, taperExponent); // 1→0 with curved profile
 
     // Depth: start deep quickly (convex underside, not a flat ledge).
-    const depthFrac = Math.pow(frac, 0.80);
+    const depthFrac = Math.pow(frac, 0.8);
 
     const targetY = -totalDepth * depthFrac;
     // Rotate each ring by half a "tooth" so vertices stagger between rings.
@@ -298,12 +304,12 @@ export function buildIslandGeometry(
   // stays bright; the deepest ring is mostly shadowed. UNDERSIDE_AO_TOP
   // is reused for the very top rock vertices so the seam edge matches
   // the band immediately below it without a luminance pop.
-  const UNDERSIDE_AO_TOP = 0.85;        // brightest underside vertex
-  const UNDERSIDE_AO_RANGE = 0.40;      // top - bottom AO span
+  const UNDERSIDE_AO_TOP = 0.85; // brightest underside vertex
+  const UNDERSIDE_AO_RANGE = 0.4; // top - bottom AO span
   // Resulting AO at the deepest ring: UNDERSIDE_AO_TOP - UNDERSIDE_AO_RANGE = 0.45
 
   const topRockIdx: number[] = grassBotRing.map((v) =>
-    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, UNDERSIDE_AO_TOP),
+    addVertex(new THREE.Vector3(v.x, v.y - SEAM_EPSILON, v.z), rock, UNDERSIDE_AO_TOP)
   );
   allRingIdx.push(topRockIdx);
 
@@ -370,18 +376,14 @@ export function buildIslandGeometry(
  * given as a CCW (or CW — algorithm is winding-agnostic) loop on the
  * XZ plane. Returns true if (px, pz) is inside or on the polygon edge.
  */
-export function pointInIslandPolygon(
-  px: number,
-  pz: number,
-  polygon: THREE.Vector3[],
-): boolean {
+export function pointInIslandPolygon(px: number, pz: number, polygon: THREE.Vector3[]): boolean {
   let inside = false;
   for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
-    const xi = polygon[i]!.x, zi = polygon[i]!.z;
-    const xj = polygon[j]!.x, zj = polygon[j]!.z;
-    const intersects =
-      (zi > pz) !== (zj > pz) &&
-      px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi;
+    const xi = polygon[i]!.x,
+      zi = polygon[i]!.z;
+    const xj = polygon[j]!.x,
+      zj = polygon[j]!.z;
+    const intersects = zi > pz !== zj > pz && px < ((xj - xi) * (pz - zi)) / (zj - zi) + xi;
     if (intersects) inside = !inside;
   }
   return inside;

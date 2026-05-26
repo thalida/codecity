@@ -34,7 +34,14 @@ import type { WorldBounds } from '../layout/worldBounds.js';
 
 export interface FlyControlsWorld {
   getGemWorldPos: () => THREE.Vector3 | null;
-  getRootStreet: () => { x: number; y: number; orientation: StreetAxis; isRoot?: boolean; width: number; length: number } | null;
+  getRootStreet: () => {
+    x: number;
+    y: number;
+    orientation: StreetAxis;
+    isRoot?: boolean;
+    width: number;
+    length: number;
+  } | null;
   getBbox: () => THREE.Box3 | null;
   /** Current world floor bounds (rectangle the plane covers). Used to
    *  clamp fly-mode movement to the visible plane. Returns null when
@@ -87,8 +94,8 @@ export function createFlyControls(opts: FlyControlsOpts) {
     boost: false,
   };
 
-  let yaw = 0;    // rotation around world-Y (radians)
-  let pitch = 0;  // rotation around camera-local X (radians)
+  let yaw = 0; // rotation around world-Y (radians)
+  let pitch = 0; // rotation around camera-local X (radians)
   let mouseDeltaX = 0;
   let mouseDeltaY = 0;
   // Look-engage flags, one per button. Either button-down engages
@@ -181,14 +188,22 @@ export function createFlyControls(opts: FlyControlsOpts) {
   function _keyToField(k: string): keyof KeyState | null {
     const lower = k.length === 1 ? k.toLowerCase() : k;
     switch (lower) {
-      case 'w': return 'forward';
-      case 's': return 'back';
-      case 'a': return 'left';
-      case 'd': return 'right';
-      case 'e': return 'up';
-      case 'q': return 'down';
-      case 'Shift': return 'boost';
-      default: return null;
+      case 'w':
+        return 'forward';
+      case 's':
+        return 'back';
+      case 'a':
+        return 'left';
+      case 'd':
+        return 'right';
+      case 'e':
+        return 'up';
+      case 'q':
+        return 'down';
+      case 'Shift':
+        return 'boost';
+      default:
+        return null;
     }
   }
 
@@ -243,10 +258,20 @@ export function createFlyControls(opts: FlyControlsOpts) {
     const minZ = wb.cz - wb.halfDepth;
     const maxZ = wb.cz + wb.halfDepth;
     let moved = false;
-    if (camera.position.x < minX) { camera.position.x = minX; moved = true; }
-    else if (camera.position.x > maxX) { camera.position.x = maxX; moved = true; }
-    if (camera.position.z < minZ) { camera.position.z = minZ; moved = true; }
-    else if (camera.position.z > maxZ) { camera.position.z = maxZ; moved = true; }
+    if (camera.position.x < minX) {
+      camera.position.x = minX;
+      moved = true;
+    } else if (camera.position.x > maxX) {
+      camera.position.x = maxX;
+      moved = true;
+    }
+    if (camera.position.z < minZ) {
+      camera.position.z = minZ;
+      moved = true;
+    } else if (camera.position.z > maxZ) {
+      camera.position.z = maxZ;
+      moved = true;
+    }
     return moved;
   }
 
@@ -321,7 +346,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
     rig.controls.target.set(
       camera.position.x + fwd.x * dist,
       camera.position.y + fwd.y * dist,
-      camera.position.z + fwd.z * dist,
+      camera.position.z + fwd.z * dist
     );
 
     _setActive(false);
@@ -361,8 +386,12 @@ export function createFlyControls(opts: FlyControlsOpts) {
     // module's seeding logic.
     const hasInput =
       mouseDeltaConsumed ||
-      keyState.forward || keyState.back || keyState.left || keyState.right ||
-      keyState.up || keyState.down;
+      keyState.forward ||
+      keyState.back ||
+      keyState.left ||
+      keyState.right ||
+      keyState.up ||
+      keyState.down;
     if (hasInput) {
       // Compose camera quaternion from yaw (Y-axis) then pitch (X-axis).
       // YXZ order keeps roll at zero — no banking.
@@ -444,7 +473,11 @@ export function createFlyControls(opts: FlyControlsOpts) {
       const outward = streetCenter.clone().sub(gem).setY(0);
       if (outward.lengthSq() < 1e-6) {
         // Degenerate: gem and street center coincide. Pick orientation axis.
-        outward.set(root.orientation === StreetAxis.X ? 1 : 0, 0, root.orientation === StreetAxis.X ? 0 : 1);
+        outward.set(
+          root.orientation === StreetAxis.X ? 1 : 0,
+          0,
+          root.orientation === StreetAxis.X ? 0 : 1
+        );
       }
       outward.normalize();
 
@@ -482,7 +515,10 @@ export function createFlyControls(opts: FlyControlsOpts) {
       bbox.getSize(size);
       const radius = Math.max(size.x, size.y, size.z) / 2;
       const altitude = Math.max(radius * 0.5, cfg.ALTITUDE_FLOOR);
-      camPos = center.clone().add(new THREE.Vector3(-radius, 0, -radius)).setY(altitude);
+      camPos = center
+        .clone()
+        .add(new THREE.Vector3(-radius, 0, -radius))
+        .setY(altitude);
       target = center.setY(0);
     } else {
       // No world at all — sane sentinel.

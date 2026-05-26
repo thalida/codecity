@@ -89,13 +89,7 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
 
   function setStatus(status: FooterStatus): void {
     statusEl.replaceChildren();
-    statusEl.classList.remove(
-      'is-rebuilding',
-      'is-ready',
-      'is-error',
-      'is-live',
-      'is-paused'
-    );
+    statusEl.classList.remove('is-rebuilding', 'is-ready', 'is-error', 'is-live', 'is-paused');
     statusEl.removeAttribute('title');
 
     let buildModifier: 'is-rebuilding' | 'is-ready' | 'is-error';
@@ -115,9 +109,7 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
       // calls setStatus before LAST_UPDATED_AT is seeded. Production
       // boot seeds the stamp in coordinator.ts before this setter runs.
       detailText =
-        status.lastUpdatedAt > 0
-          ? _relativeTime(status.lastUpdatedAt, Date.now())
-          : 'ready';
+        status.lastUpdatedAt > 0 ? _relativeTime(status.lastUpdatedAt, Date.now()) : 'ready';
     }
     statusEl.classList.add(buildModifier);
     statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
@@ -261,7 +253,7 @@ function _directoryCountItem(
   return _item(
     `${direct} ${label} (${total} total)`,
     undefined,
-    `${direct} direct · ${total} total in this subtree`,
+    `${direct} direct · ${total} total in this subtree`
   );
 }
 

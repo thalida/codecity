@@ -78,7 +78,9 @@ describe('drafts', () => {
   describe('subscribe', () => {
     it('fires on setDraft, stageReset, stageResetAll, commit, discard', () => {
       let count = 0;
-      const unsub = subscribe(() => { count++; });
+      const unsub = subscribe(() => {
+        count++;
+      });
 
       setDraft(FOO, 'COUNT', 5);
       expect(count).toBe(1);
@@ -145,7 +147,9 @@ describe('drafts', () => {
       FOO.setKey('COLOR', '#ff0000');
       stageResetAll();
       let count = 0;
-      const unsub = subscribe(() => { count++; });
+      const unsub = subscribe(() => {
+        count++;
+      });
       stageResetAll();
       // No new draft entries to stage → no subscribers fired beyond
       // the always-fire end-of-call notification (allow ≤ 1).

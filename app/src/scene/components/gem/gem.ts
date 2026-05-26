@@ -11,12 +11,7 @@
 // just builds the static structure; mutation lives elsewhere.
 
 import * as THREE from 'three';
-import {
-  GEM_SIZING,
-  GEM_FACE_PALETTE,
-  GEM_APPEARANCE,
-  GEM_GLOW,
-} from '@/config/components/gem.js';
+import { GEM_SIZING, GEM_FACE_PALETTE, GEM_APPEARANCE, GEM_GLOW } from '@/config/components/gem.js';
 import { NodeKind } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor.js';
 import type { Street } from '@/types';
@@ -168,11 +163,7 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: false,
       })
     );
-    innerGlowSprite.scale.set(
-      radius * glowCfg.INNER_SCALE,
-      radius * glowCfg.INNER_SCALE,
-      1
-    );
+    innerGlowSprite.scale.set(radius * glowCfg.INNER_SCALE, radius * glowCfg.INNER_SCALE, 1);
     innerGlowSprite.visible = glowCfg.ENABLED;
     // Glow is purely visual — never absorbs hover / click. Sprites are
     // raycast-pickable by default, so override with a no-op.
@@ -193,11 +184,7 @@ export function createRootGem(street: Street): THREE.Group {
         depthTest: false,
       })
     );
-    outerGlowSprite.scale.set(
-      radius * glowCfg.OUTER_SCALE,
-      radius * glowCfg.OUTER_SCALE,
-      1
-    );
+    outerGlowSprite.scale.set(radius * glowCfg.OUTER_SCALE, radius * glowCfg.OUTER_SCALE, 1);
     outerGlowSprite.visible = glowCfg.ENABLED;
     outerGlowSprite.raycast = () => {};
 

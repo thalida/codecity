@@ -3,11 +3,7 @@ import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 // findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
-import {
-  findSmallestValidStem,
-  placeChild,
-  layoutCityWithTrace,
-} from '@/scene/layout/layout.js';
+import { findSmallestValidStem, placeChild, layoutCityWithTrace } from '@/scene/layout/layout.js';
 import type { VariantTrace } from '@/scene/layout/layout.js';
 import { WorldOccupancy } from '@/scene/layout/worldOccupancy.js';
 import { StreetAxis, NodeKind } from '@/types';
@@ -17,19 +13,26 @@ describe('findSmallestValidStem with trace', () => {
   it('no obstacles — stem at baseline, no forbidden intervals, no binding', () => {
     const occupancy = new WorldOccupancy();
     const trace: VariantTrace = {
-      side: 0, mirror: false, stem: 0,
-      forbidden: [], bindingIndex: null,
+      side: 0,
+      mirror: false,
+      stem: 0,
+      forbidden: [],
+      bindingIndex: null,
     };
     const stem = findSmallestValidStem(
       {
         childRects: [{ x: 0, y: 0, w: 2, d: 2 }],
         parentOrient: StreetAxis.X,
-        side: 0, mirror: false,
-        parentOriginX: 0, parentOriginY: 0,
-        priorStem: 0, originPad: 5, childGap: 1,
+        side: 0,
+        mirror: false,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem: 0,
+        originPad: 5,
+        childGap: 1,
         occupancy,
       },
-      trace,
+      trace
     );
     expect(stem).toBe(5);
     expect(trace.stem).toBe(5);
@@ -41,25 +44,35 @@ describe('findSmallestValidStem with trace', () => {
     const occupancy = new WorldOccupancy();
     // Obstacle: a building rect at along [10, 14], perp [-1, 1].
     const obstacle = {
-      minX: 10, maxX: 14, minY: -1, maxY: 1,
+      minX: 10,
+      maxX: 14,
+      minY: -1,
+      maxY: 1,
       kind: WorldRectKind.Building,
       ref: { x: 12, y: 0, w: 4, d: 2 } as never,
     };
     occupancy.insert(obstacle);
     const trace: VariantTrace = {
-      side: 0, mirror: false, stem: 0,
-      forbidden: [], bindingIndex: null,
+      side: 0,
+      mirror: false,
+      stem: 0,
+      forbidden: [],
+      bindingIndex: null,
     };
     const stem = findSmallestValidStem(
       {
-        childRects: [{ x: 0, y: 0, w: 2, d: 2 }],   // perp [-1, 1] — overlaps
+        childRects: [{ x: 0, y: 0, w: 2, d: 2 }], // perp [-1, 1] — overlaps
         parentOrient: StreetAxis.X,
-        side: 0, mirror: false,
-        parentOriginX: 0, parentOriginY: 0,
-        priorStem: 0, originPad: 5, childGap: 1,
+        side: 0,
+        mirror: false,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem: 0,
+        originPad: 5,
+        childGap: 1,
         occupancy,
       },
-      trace,
+      trace
     );
     // baseline = 5. Forbidden interval: (10 - 1 - 1, 14 + 1 + 1) = (8, 16).
     // s=5 < lower=8 → return 5; no jump.
@@ -73,25 +86,35 @@ describe('findSmallestValidStem with trace', () => {
   it('obstacle forces jump — bindingIndex points to the interval that set the stem', () => {
     const occupancy = new WorldOccupancy();
     const obstacle = {
-      minX: 4, maxX: 10, minY: -1, maxY: 1,
+      minX: 4,
+      maxX: 10,
+      minY: -1,
+      maxY: 1,
       kind: WorldRectKind.Building,
       ref: { x: 7, y: 0, w: 6, d: 2 } as never,
     };
     occupancy.insert(obstacle);
     const trace: VariantTrace = {
-      side: 0, mirror: false, stem: 0,
-      forbidden: [], bindingIndex: null,
+      side: 0,
+      mirror: false,
+      stem: 0,
+      forbidden: [],
+      bindingIndex: null,
     };
     const stem = findSmallestValidStem(
       {
         childRects: [{ x: 0, y: 0, w: 2, d: 2 }],
         parentOrient: StreetAxis.X,
-        side: 0, mirror: false,
-        parentOriginX: 0, parentOriginY: 0,
-        priorStem: 0, originPad: 5, childGap: 1,
+        side: 0,
+        mirror: false,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem: 0,
+        originPad: 5,
+        childGap: 1,
         occupancy,
       },
-      trace,
+      trace
     );
     // baseline=5. Forbidden: (4 - 1 - 1, 10 + 1 + 1) = (2, 12).
     // s=5 inside, jump to 12.
@@ -110,11 +133,14 @@ describe('placeChild with trace', () => {
       {
         childRects: [{ x: 0, y: 0, w: 2, d: 2 }],
         parentOrient: StreetAxis.X,
-        parentOriginX: 0, parentOriginY: 0,
-        priorStem: 0, originPad: 5, childGap: 1,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem: 0,
+        originPad: 5,
+        childGap: 1,
         occupancy,
       },
-      { variants },
+      { variants }
     );
     expect(result.stem).toBe(5);
     // Symmetric rect ⇒ mirror-invariant ⇒ only 2 variants evaluated.
@@ -133,11 +159,14 @@ describe('placeChild with trace', () => {
       {
         childRects: [{ x: 3, y: 0, w: 2, d: 2 }],
         parentOrient: StreetAxis.X,
-        parentOriginX: 0, parentOriginY: 0,
-        priorStem: 0, originPad: 5, childGap: 1,
+        parentOriginX: 0,
+        parentOriginY: 0,
+        priorStem: 0,
+        originPad: 5,
+        childGap: 1,
         occupancy,
       },
-      { variants },
+      { variants }
     );
     expect(variants).toHaveLength(4);
     expect(variants.map((v) => ({ side: v.side, mirror: v.mirror }))).toEqual([
@@ -191,7 +220,9 @@ describe('layoutCityWithTrace', () => {
       tree,
     };
 
-    const { layout, trace } = layoutCityWithTrace(manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]);
+    const { layout, trace } = layoutCityWithTrace(
+      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]
+    );
 
     expect(layout.buildings).toHaveLength(2);
     expect(layout.streets.length).toBeGreaterThanOrEqual(1);
@@ -231,8 +262,12 @@ describe('layoutCityWithTrace', () => {
           git: null,
         },
       ] as unknown as FileNode[],
-      children_count: 1, children_file_count: 1, children_dir_count: 0,
-      descendants_count: 1, descendants_file_count: 1, descendants_dir_count: 0,
+      children_count: 1,
+      children_file_count: 1,
+      children_dir_count: 0,
+      descendants_count: 1,
+      descendants_file_count: 1,
+      descendants_dir_count: 0,
       descendants_size: 50,
     } as unknown as DirNode;
     const tree: DirNode = {
@@ -241,8 +276,12 @@ describe('layoutCityWithTrace', () => {
       path: '.',
       fullPath: '/tmp/root',
       children: [subDir] as unknown as FileNode[],
-      children_count: 1, children_file_count: 0, children_dir_count: 1,
-      descendants_count: 2, descendants_file_count: 1, descendants_dir_count: 1,
+      children_count: 1,
+      children_file_count: 0,
+      children_dir_count: 1,
+      descendants_count: 2,
+      descendants_file_count: 1,
+      descendants_dir_count: 1,
       descendants_size: 50,
     } as unknown as DirNode;
     const manifest: Manifest = {
@@ -255,7 +294,9 @@ describe('layoutCityWithTrace', () => {
       tree,
     };
 
-    const { trace } = layoutCityWithTrace(manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]);
+    const { trace } = layoutCityWithTrace(
+      manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]
+    );
 
     expect(trace.placements).toHaveLength(2);
     const sub = trace.placements.find((p) => p.childLabel === 'sub');

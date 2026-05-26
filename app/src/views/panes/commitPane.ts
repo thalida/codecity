@@ -69,7 +69,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     remoteUrl: string | null,
     sameDayTotal: number,
     color: string | undefined,
-    now: Date,
+    now: Date
   ): void {
     body.replaceChildren();
 
@@ -151,10 +151,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     }
   }
 
-  function setCommit(
-    commit: CommitEntry | null,
-    opts: SetCommitOpts = {},
-  ): void {
+  function setCommit(commit: CommitEntry | null, opts: SetCommitOpts = {}): void {
     if (!commit) {
       _renderEmpty();
       return;

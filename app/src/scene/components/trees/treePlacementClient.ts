@@ -33,7 +33,7 @@ export interface TreePlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
-    cityHeight: number,
+    cityHeight: number
   ): Promise<TreePlacement[]>;
   dispose(): void;
 }
@@ -66,10 +66,7 @@ export function createTreePlacementClient(): TreePlacementClient {
     if (worker) return worker;
     if (typeof Worker === 'undefined') return null;
     try {
-      worker = new Worker(
-        new URL('./treePlacementWorker.ts', import.meta.url),
-        { type: 'module' },
-      );
+      worker = new Worker(new URL('./treePlacementWorker.ts', import.meta.url), { type: 'module' });
     } catch (_) {
       worker = null;
       return null;
@@ -106,7 +103,7 @@ export function createTreePlacementClient(): TreePlacementClient {
     commitCount: number,
     cityHeight: number,
     resolve: PendingRequest['resolve'],
-    reject: PendingRequest['reject'],
+    reject: PendingRequest['reject']
   ): void {
     try {
       const placements = placeTrees(layout, bbox, { commitCount, cityHeight });
@@ -128,7 +125,7 @@ export function createTreePlacementClient(): TreePlacementClient {
     layout: CityLayout,
     bbox: CityBbox | undefined,
     commitCount: number,
-    cityHeight: number,
+    cityHeight: number
   ): Promise<TreePlacement[]> {
     if (disposed) {
       return Promise.reject(new Error('treePlacementClient disposed'));

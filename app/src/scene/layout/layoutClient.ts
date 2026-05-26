@@ -15,12 +15,7 @@
 // dimensions) is recomputed from the new manifest. This is the cheap
 // path for skeleton→final transitions and live updates.
 
-import {
-  STREET_LAYOUT,
-  BUILDING_DIMENSIONS,
-  GEM_SIZING,
-  STREET_TIERS,
-} from '@/config/index.js';
+import { STREET_LAYOUT, BUILDING_DIMENSIONS, GEM_SIZING, STREET_TIERS } from '@/config/index.js';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
@@ -87,12 +82,14 @@ function buildPathToFile(tree: TreeNode): Map<string, FileNode> {
 // the layout worker — skips collision detection and placement entirely.
 function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
   const filesByPath = buildPathToFile(newManifest.tree as unknown as TreeNode);
-  const heightCtx = makeHeightContext(newManifest.tree as unknown as Parameters<typeof makeHeightContext>[0]);
+  const heightCtx = makeHeightContext(
+    newManifest.tree as unknown as Parameters<typeof makeHeightContext>[0]
+  );
   const newBuildings = prior.buildings.map((b) => {
     const freshFile = (b.file?.path ? filesByPath.get(b.file.path) : null) ?? b.file;
     const dims = recomputeBuildingDimensions(
       freshFile as unknown as Parameters<typeof recomputeBuildingDimensions>[0],
-      heightCtx,
+      heightCtx
     );
     return {
       ...b,
@@ -181,12 +178,10 @@ export function createLayoutClient(): LayoutClient {
     id: number,
     manifest: Manifest,
     resolve: PendingRequest['resolve'],
-    reject: PendingRequest['reject'],
+    reject: PendingRequest['reject']
   ): void {
     try {
-      const layout = layoutCity(
-        manifest as unknown as Parameters<typeof layoutCity>[0],
-      );
+      const layout = layoutCity(manifest as unknown as Parameters<typeof layoutCity>[0]);
       queueMicrotask(() => {
         if (!pending.has(id)) return;
         pending.delete(id);

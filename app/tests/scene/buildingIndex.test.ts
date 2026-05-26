@@ -6,7 +6,11 @@ import type { DirNode } from '@/types/manifest.js';
 function makeBuilding(path: string, dir: DirNode, cellId: number, slotId: number): Building {
   return {
     file: { path, name: path.split('/').pop()! } as Building['file'],
-    x: 0, y: 0, w: 1, d: 1, h: 1,
+    x: 0,
+    y: 0,
+    w: 1,
+    d: 1,
+    h: 1,
     color: '#888',
     cellId,
     slotId,

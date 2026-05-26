@@ -22,7 +22,7 @@ import { commits as buildCommits } from './_commitFixtures.js';
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },
   { date: '2026-01-11', files: 5 },
-  { date: '2026-01-21', files: 9 },
+  { date: '2026-01-21', files: 9 }
 );
 
 describe('computeAgeRange()', () => {
@@ -41,10 +41,7 @@ describe('computeAgeRange()', () => {
   });
 
   it('span = 0 when all commits share a date', () => {
-    const same = buildCommits(
-      { date: '2026-01-01', files: 1 },
-      { date: '2026-01-01', files: 5 },
-    );
+    const same = buildCommits({ date: '2026-01-01', files: 1 }, { date: '2026-01-01', files: 5 });
     expect(computeAgeRange(same).span).toBe(0);
   });
 });
@@ -66,10 +63,7 @@ describe('computeSizeRange()', () => {
   });
 
   it('span = 0 when all commits have equal file counts', () => {
-    const same = buildCommits(
-      { date: '2026-01-01', files: 4 },
-      { date: '2026-01-02', files: 4 },
-    );
+    const same = buildCommits({ date: '2026-01-01', files: 4 }, { date: '2026-01-02', files: 4 });
     expect(computeSizeRange(same).span).toBe(0);
   });
 });
@@ -121,12 +115,14 @@ describe('sizeT()', () => {
 
 describe('computeDailyCounts()', () => {
   it('counts commits per calendar date in oldest-first order', () => {
-    const dc = computeDailyCounts(buildCommits(
-      { date: '2026-01-01', files: 1 },
-      { date: '2026-01-02', files: 1 },
-      { date: '2026-01-02', files: 1 },
-      { date: '2026-01-02', files: 1 },
-    ));
+    const dc = computeDailyCounts(
+      buildCommits(
+        { date: '2026-01-01', files: 1 },
+        { date: '2026-01-02', files: 1 },
+        { date: '2026-01-02', files: 1 },
+        { date: '2026-01-02', files: 1 }
+      )
+    );
     expect(dc.counts).toEqual([1, 3, 3, 3]);
     expect(dc.range.min).toBe(1);
     expect(dc.range.max).toBe(3);
@@ -152,11 +148,13 @@ describe('computeDailyCounts()', () => {
   });
 
   it('all-same-day collapses the range (every count equal)', () => {
-    const dc = computeDailyCounts(buildCommits(
-      { date: '2026-01-01', files: 1 },
-      { date: '2026-01-01', files: 1 },
-      { date: '2026-01-01', files: 1 },
-    ));
+    const dc = computeDailyCounts(
+      buildCommits(
+        { date: '2026-01-01', files: 1 },
+        { date: '2026-01-01', files: 1 },
+        { date: '2026-01-01', files: 1 }
+      )
+    );
     expect(dc.counts).toEqual([3, 3, 3]);
     expect(dc.range.min).toBe(3);
     expect(dc.range.max).toBe(3);
@@ -188,15 +186,17 @@ describe('dailyCountT()', () => {
 });
 
 describe('dailyCountTByIndex()', () => {
-  const dc = computeDailyCounts(buildCommits(
-    { date: '2026-01-01', files: 1 }, // count=1 → t=0
-    { date: '2026-01-15', files: 1 }, // count=1 → t=0 (unique date)
-    { date: '2026-02-01', files: 1 }, // count=1 (no other Feb 1)
-    { date: '2026-03-01', files: 1 }, // count=4 → t=1
-    { date: '2026-03-01', files: 1 },
-    { date: '2026-03-01', files: 1 },
-    { date: '2026-03-01', files: 1 },
-  ));
+  const dc = computeDailyCounts(
+    buildCommits(
+      { date: '2026-01-01', files: 1 }, // count=1 → t=0
+      { date: '2026-01-15', files: 1 }, // count=1 → t=0 (unique date)
+      { date: '2026-02-01', files: 1 }, // count=1 (no other Feb 1)
+      { date: '2026-03-01', files: 1 }, // count=4 → t=1
+      { date: '2026-03-01', files: 1 },
+      { date: '2026-03-01', files: 1 },
+      { date: '2026-03-01', files: 1 }
+    )
+  );
 
   it('maps single-commit days to ~0 and busiest days to ~1', () => {
     expect(dailyCountTByIndex(dc, 0)).toBeCloseTo(0, 5);

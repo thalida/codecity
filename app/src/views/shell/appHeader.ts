@@ -61,7 +61,15 @@ interface InitAppHeaderOpts {
  * extension hue or the asphalt color in Controls live-repaints the badge.
  */
 export function initAppHeader(opts: InitAppHeaderOpts = {}) {
-  const { rootLabel = '', rootPath = '', onSegmentClick = null, onSwitchSource, onResetView, onFocus, onToggleFly } = opts;
+  const {
+    rootLabel = '',
+    rootPath = '',
+    onSegmentClick = null,
+    onSwitchSource,
+    onResetView,
+    onFocus,
+    onToggleFly,
+  } = opts;
 
   const titleEl = document.getElementById('app-title');
   if (!titleEl) {

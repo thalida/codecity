@@ -165,12 +165,7 @@ export function buildSearchPane(
 // ── helpers ──────────────────────────────────────────────────────────
 
 function _flattenFiles(
-  manifest:
-    | Manifest
-    | DirNode
-    | TreeNode
-    | { tree?: unknown; [k: string]: unknown }
-    | null
+  manifest: Manifest | DirNode | TreeNode | { tree?: unknown; [k: string]: unknown } | null
 ): FileNode[] {
   const out: FileNode[] = [];
   if (!manifest) return out;

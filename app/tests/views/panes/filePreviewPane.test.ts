@@ -105,7 +105,9 @@ describe('buildFilePreviewPane', () => {
         closed = true;
       },
     });
-    const btn = withClose.pane.querySelector('.pane-header .btn-icon--text:last-child') as HTMLButtonElement | null;
+    const btn = withClose.pane.querySelector(
+      '.pane-header .btn-icon--text:last-child'
+    ) as HTMLButtonElement | null;
     expect(btn).not.toBeNull();
     btn!.click();
     expect(closed).toBe(true);

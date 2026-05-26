@@ -39,7 +39,7 @@ describe('buildTopPolygon', () => {
   it('polygon FULLY CONTAINS the bounds rect (sqrt(2) corner correction × edge correction)', () => {
     const pts = buildTopPolygon(baseParams);
     // baseScale = sqrt(2) × 1/cos(π/12) ≈ 1.464.
-    const expectedR = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
+    const expectedR = (100 * Math.SQRT2) / Math.cos(Math.PI / 12);
     pts.forEach((p) => {
       expect(Math.hypot(p.x, p.z)).toBeCloseTo(expectedR, 1);
     });
@@ -48,7 +48,7 @@ describe('buildTopPolygon', () => {
 
   it('irregularity is reductive — vertices pull inward from the baseline', () => {
     const pts = buildTopPolygon({ ...baseParams, irregularity: 0.3 });
-    const baseline = 100 * Math.SQRT2 / Math.cos(Math.PI / 12);
+    const baseline = (100 * Math.SQRT2) / Math.cos(Math.PI / 12);
     const radii = pts.map((p) => Math.hypot(p.x, p.z));
     expect(Math.max(...radii) - Math.min(...radii)).toBeGreaterThan(0);
     // All vertices sit at-or-inside the baseline (never grow past it).
@@ -85,9 +85,15 @@ describe('buildTopPolygon', () => {
 
 describe('buildIslandGeometry', () => {
   const baseParams: IslandBuildParams = {
-    sides: 12, irregularity: 0.18, tiers: 2, depth: 0.6,
-    halfWidth: 100, halfDepth: 100, seed: 1234,
-    roundness: 0.7, grassThickness: 0.025,
+    sides: 12,
+    irregularity: 0.18,
+    tiers: 2,
+    depth: 0.6,
+    halfWidth: 100,
+    halfDepth: 100,
+    seed: 1234,
+    roundness: 0.7,
+    grassThickness: 0.025,
   };
   const colors: IslandColors = {
     GRASS: '#1a2620',
@@ -112,11 +118,20 @@ describe('buildIslandGeometry', () => {
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const col = geom.getAttribute('color') as THREE.BufferAttribute;
     // Find the highest-y vertex (top cap interior).
-    let topIdx = 0, topY = -Infinity, bottomIdx = 0, bottomY = Infinity;
+    let topIdx = 0,
+      topY = -Infinity,
+      bottomIdx = 0,
+      bottomY = Infinity;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
-      if (y > topY) { topY = y; topIdx = i; }
-      if (y < bottomY) { bottomY = y; bottomIdx = i; }
+      if (y > topY) {
+        topY = y;
+        topIdx = i;
+      }
+      if (y < bottomY) {
+        bottomY = y;
+        bottomIdx = i;
+      }
     }
     const grass = new THREE.Color('#1a2620');
     const rockColor = new THREE.Color('#0a0a10');
@@ -129,7 +144,8 @@ describe('buildIslandGeometry', () => {
     const geom = buildIslandGeometry(baseParams, colors);
     const pos = geom.getAttribute('position') as THREE.BufferAttribute;
     const ao = geom.getAttribute('ao') as THREE.BufferAttribute;
-    let topAO = 0, bottomAO = 1;
+    let topAO = 0,
+      bottomAO = 1;
     for (let i = 0; i < pos.count; i++) {
       const y = pos.getY(i);
       const aoVal = ao.getX(i);
@@ -264,9 +280,9 @@ describe('pointInIslandPolygon', () => {
       new THREE.Vector3(1, 0, 1),
       new THREE.Vector3(-1, 0, 1),
     ];
-    expect(pointInIslandPolygon(0, 0, square)).toBe(true);   // center
-    expect(pointInIslandPolygon(0.9, 0.9, square)).toBe(true);  // inside corner
+    expect(pointInIslandPolygon(0, 0, square)).toBe(true); // center
+    expect(pointInIslandPolygon(0.9, 0.9, square)).toBe(true); // inside corner
     expect(pointInIslandPolygon(1.1, 1.1, square)).toBe(false); // outside corner
-    expect(pointInIslandPolygon(0, 1.1, square)).toBe(false);   // past top edge
+    expect(pointInIslandPolygon(0, 1.1, square)).toBe(false); // past top edge
   });
 });

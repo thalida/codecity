@@ -4,12 +4,7 @@
 // result back. Pure compute, no DOM or THREE.* references.
 
 import { layoutCity } from './layout.js';
-import {
-  STREET_LAYOUT,
-  BUILDING_DIMENSIONS,
-  GEM_SIZING,
-  STREET_TIERS,
-} from '@/config/index.js';
+import { STREET_LAYOUT, BUILDING_DIMENSIONS, GEM_SIZING, STREET_TIERS } from '@/config/index.js';
 import type { Manifest } from '@/types';
 import type { CityLayout } from '@/types';
 
@@ -37,14 +32,10 @@ type LayoutResponse =
 function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {
   // map-shaped stores get setKey for each key; atom-shaped stores get
   // a single set. STREET_TIERS is an atom (whole-array value).
-  for (const k of Object.keys(snap.streetLayout) as Array<
-    keyof StreetLayoutValue
-  >) {
+  for (const k of Object.keys(snap.streetLayout) as Array<keyof StreetLayoutValue>) {
     STREET_LAYOUT.setKey(k, snap.streetLayout[k]);
   }
-  for (const k of Object.keys(snap.buildingDimensions) as Array<
-    keyof BuildingDimensionsValue
-  >) {
+  for (const k of Object.keys(snap.buildingDimensions) as Array<keyof BuildingDimensionsValue>) {
     BUILDING_DIMENSIONS.setKey(k, snap.buildingDimensions[k]);
   }
   for (const k of Object.keys(snap.gemSizing) as Array<keyof GemSizingValue>) {
@@ -58,9 +49,7 @@ self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {
   if (!data || data.type !== 'layout') return;
   try {
     _applySnapshot(data.configSnapshot);
-    const layout = layoutCity(
-      data.manifest as unknown as Parameters<typeof layoutCity>[0],
-    );
+    const layout = layoutCity(data.manifest as unknown as Parameters<typeof layoutCity>[0]);
     const reply: LayoutResponse = {
       type: 'layout-result',
       id: data.id,

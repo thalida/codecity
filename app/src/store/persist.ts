@@ -290,7 +290,7 @@ function perSourceKey(sourceKey: string, baseName: string): string {
 export function persistAtomPerSource<T>(
   baseName: string,
   store: WritableAtom<T>,
-  defaultValue: T,
+  defaultValue: T
 ): void {
   let lastKey: string | null = CURRENT_SOURCE_KEY.get();
 
@@ -322,10 +322,7 @@ export function persistAtomPerSource<T>(
     // whenever the atom was last mutated, so a redundant write here would
     // cause stale-subscriber cross-test pollution and isn't needed.
     if (lastKey !== null && nextKey !== null) {
-      localStorage.setItem(
-        perSourceKey(lastKey, baseName),
-        JSON.stringify(store.get()),
-      );
+      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.get()));
     }
     // Hydrate atom from NEW slot.
     if (nextKey !== null) {

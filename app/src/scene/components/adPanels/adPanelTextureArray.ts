@@ -100,9 +100,8 @@ function _detectMaxArrayLayers(): number {
     const gl = probe.getContext('webgl2') as WebGL2RenderingContext | null;
     if (gl) {
       const limit = gl.getParameter(gl.MAX_ARRAY_TEXTURE_LAYERS);
-      _maxArrayLayersCache = typeof limit === 'number' && limit > 0
-        ? limit
-        : _MAX_ARRAY_LAYERS_FALLBACK;
+      _maxArrayLayersCache =
+        typeof limit === 'number' && limit > 0 ? limit : _MAX_ARRAY_LAYERS_FALLBACK;
     } else {
       _maxArrayLayersCache = _MAX_ARRAY_LAYERS_FALLBACK;
     }
@@ -143,9 +142,9 @@ export class AdPanelTextureArray {
       // (and the matching `else if` branches in the shader) is the fix.
       console.warn(
         `[adPanelTextureArray] requested capacity ${capacity} exceeds ` +
-        `MAX_PAGES (${MAX_PAGES}) × pageSize (${pageSize}) = ${hardCap}. ` +
-        `Bump MAX_PAGES in adPanelTextureArray.ts and add matching shader ` +
-        `branches in adPanel.frag.glsl to support more layers.`,
+          `MAX_PAGES (${MAX_PAGES}) × pageSize (${pageSize}) = ${hardCap}. ` +
+          `Bump MAX_PAGES in adPanelTextureArray.ts and add matching shader ` +
+          `branches in adPanel.frag.glsl to support more layers.`
       );
       capacity = hardCap;
     }
@@ -155,12 +154,7 @@ export class AdPanelTextureArray {
     let remaining = capacity;
     while (remaining > 0) {
       const depth = Math.min(remaining, pageSize);
-      const tex = new THREE.DataArrayTexture(
-        null,
-        PANEL_TEX_SIZE,
-        PANEL_TEX_SIZE,
-        depth,
-      );
+      const tex = new THREE.DataArrayTexture(null, PANEL_TEX_SIZE, PANEL_TEX_SIZE, depth);
       tex.format = THREE.RGBAFormat;
       tex.type = THREE.UnsignedByteType;
       tex.minFilter = THREE.LinearFilter;
@@ -239,9 +233,9 @@ export class AdPanelTextureArray {
       dstTex,
       new THREE.Box3(
         new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(PANEL_TEX_SIZE, PANEL_TEX_SIZE, 1),
+        new THREE.Vector3(PANEL_TEX_SIZE, PANEL_TEX_SIZE, 1)
       ),
-      new THREE.Vector3(0, 0, localLayer),
+      new THREE.Vector3(0, 0, localLayer)
     );
     tempTex.dispose();
     return true;

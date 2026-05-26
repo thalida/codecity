@@ -42,10 +42,7 @@ import type { LayoutOverlap } from './layout/layout.js';
 import { createLayoutClient } from './layout/layoutClient.js';
 import type { LayoutComputeOpts } from './layout/layoutClient.js';
 import { layoutCityWithTrace } from './layout/layout.js';
-import type {
-  ChildPlacementTrace,
-  StemPlacementTrace,
-} from './layout/layout.js';
+import type { ChildPlacementTrace, StemPlacementTrace } from './layout/layout.js';
 import type { WorldRect } from './layout/worldOccupancy.js';
 import { createRootGem } from './components/gem/gem.js';
 import { createStreetMesh } from './components/streets/streets.js';
@@ -66,7 +63,12 @@ import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
 import { createCityFootprint } from './components/footprint/footprint.js';
 import type { CityFootprint } from './components/footprint/footprint.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
-import { getBuildingColor, getCreatedAge, getModifiedAge, getDateRanges } from './components/buildings/buildingColor.js';
+import {
+  getBuildingColor,
+  getCreatedAge,
+  getModifiedAge,
+  getDateRanges,
+} from './components/buildings/buildingColor.js';
 import { parentDirPath } from './utils/path.js';
 import {
   ASPHALT,
@@ -119,20 +121,14 @@ interface PrevState {
 // outlineRenderer.js) share this geometry definition.
 export const UNIT_BOX_EDGE_POSITIONS = [
   // Bottom face (y = -0.5) — 4 edges around the base.
-  -0.5, -0.5, -0.5,  0.5, -0.5, -0.5,
-   0.5, -0.5, -0.5,  0.5, -0.5,  0.5,
-   0.5, -0.5,  0.5, -0.5, -0.5,  0.5,
-  -0.5, -0.5,  0.5, -0.5, -0.5, -0.5,
+  -0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, -0.5,
+  0.5, -0.5, -0.5, 0.5, -0.5, -0.5, -0.5,
   // Top face (y = 0.5) — 4 edges around the roof.
-  -0.5,  0.5, -0.5,  0.5,  0.5, -0.5,
-   0.5,  0.5, -0.5,  0.5,  0.5,  0.5,
-   0.5,  0.5,  0.5, -0.5,  0.5,  0.5,
-  -0.5,  0.5,  0.5, -0.5,  0.5, -0.5,
+  -0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, -0.5, 0.5, 0.5,
+  -0.5, 0.5, 0.5, -0.5, 0.5, -0.5,
   // Vertical edges — 4 edges connecting corresponding base + roof corners.
-  -0.5, -0.5, -0.5, -0.5,  0.5, -0.5,
-   0.5, -0.5, -0.5,  0.5,  0.5, -0.5,
-   0.5, -0.5,  0.5,  0.5,  0.5,  0.5,
-  -0.5, -0.5,  0.5, -0.5,  0.5,  0.5,
+  -0.5, -0.5, -0.5, -0.5, 0.5, -0.5, 0.5, -0.5, -0.5, 0.5, 0.5, -0.5, 0.5, -0.5, 0.5, 0.5, 0.5, 0.5,
+  -0.5, -0.5, 0.5, -0.5, 0.5, 0.5,
 ];
 
 // _formatCollisionReport(overlaps, totalRects) -> {level, summary, details}
@@ -193,12 +189,10 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
       // as +0.00 and would be misleading.
       const jumped = c.chosen.stem - c.baseline > 0.005;
       const tag = c.childKind === 'dir' ? `"${c.childLabel}/"` : `"${c.childLabel}"`;
-      const jumpedNote = jumped
-        ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}`
-        : '';
+      const jumpedNote = jumped ? `  ← JUMPED +${(c.chosen.stem - c.baseline).toFixed(2)}` : '';
       out.push(
         `  ─ ${tag} (${c.childKind}) — stem=${c.chosen.stem.toFixed(2)}  ` +
-          `(baseline=${c.baseline.toFixed(2)})${jumpedNote}`,
+          `(baseline=${c.baseline.toFixed(2)})${jumpedNote}`
       );
       if (jumped && c.chosen.bindingIndex !== null) {
         const binding = c.chosen.forbidden[c.chosen.bindingIndex];
@@ -206,18 +200,18 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
         const label = _obstacleLabel(obs);
         out.push(
           `     forced by: ${obs.kind} ${label}  ` +
-            `y=[${_yBounds(obs).join(', ')}] x=[${_xBounds(obs).join(', ')}]`,
+            `y=[${_yBounds(obs).join(', ')}] x=[${_xBounds(obs).join(', ')}]`
         );
       }
       if (jumped && c.others.length > 0) {
         out.push(`     other variants tried:`);
         const all = [c.chosen, ...c.others].sort(
-          (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror),
+          (a, b) => a.side - b.side || Number(a.mirror) - Number(b.mirror)
         );
         for (const v of all) {
           const marker = v === c.chosen ? '(chosen)' : '';
           out.push(
-            `       side=${v.side} mirror=${v.mirror} → stem=${v.stem.toFixed(2)} ${marker}`.trimEnd(),
+            `       side=${v.side} mirror=${v.mirror} → stem=${v.stem.toFixed(2)} ${marker}`.trimEnd()
           );
         }
       }
@@ -229,13 +223,12 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
 function _obstacleLabel(o: WorldRect): string {
   // WorldRect.ref is loosely typed (Building | Street | BuildingPath); try
   // common shapes without forcing tight coupling.
-  const r = o.ref as { file?: { path?: string; name?: string }; label?: string; dir?: { path?: string } };
-  return (
-    (r.file && (r.file.path ?? r.file.name)) ??
-    r.label ??
-    (r.dir && r.dir.path) ??
-    '?'
-  );
+  const r = o.ref as {
+    file?: { path?: string; name?: string };
+    label?: string;
+    dir?: { path?: string };
+  };
+  return (r.file && (r.file.path ?? r.file.name)) ?? r.label ?? (r.dir && r.dir.path) ?? '?';
 }
 
 function _yBounds(o: WorldRect): [string, string] {
@@ -310,10 +303,8 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
       rootGem = (gemGroup.userData.gem as THREE.Group) || null;
       if (rootGem) {
         rootGemBody =
-          (rootGem.userData.body as THREE.Mesh<
-            THREE.BufferGeometry,
-            THREE.MeshBasicMaterial
-          >) || null;
+          (rootGem.userData.body as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>) ||
+          null;
         rootGemEdges =
           (rootGem.userData.edges as THREE.LineSegments<
             THREE.BufferGeometry,
@@ -469,7 +460,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   let sidewalksByDirPath: Record<string, FlatMesh> = {};
   let streetsByDirPath: Record<string, Street> = {};
-  let buildingsByPath: Record<string, { mesh: THREE.Mesh; building: Building; instanceId: number }> = {};
+  let buildingsByPath: Record<
+    string,
+    { mesh: THREE.Mesh; building: Building; instanceId: number }
+  > = {};
   let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Cell-rendering state — owns the InstancedMesh-per-cell scene root.
@@ -478,7 +472,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   let _buildingIndex: BuildingIndex | null = null;
   // Instanced ad panels (DataArrayTexture-backed). One instance per
   // applyManifest call; disposed on full rebuild or resetCache.
-  let _instancedAdPanels: import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels | null = null;
+  let _instancedAdPanels:
+    | import('./components/adPanels/adPanelsInstanced.js').InstancedAdPanels
+    | null = null;
 
   // Layout cache: avoid redundant _layoutClient.compute() when
   // the manifest's tree shape is unchanged (e.g., skeleton → final transition).
@@ -853,7 +849,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // 'directory'/'file'. Real callers (the scanner/IPC path) hand us
   // proper Manifest objects.
   async function applyManifest(
-    newManifest: Manifest | { tree: unknown; [k: string]: unknown },
+    newManifest: Manifest | { tree: unknown; [k: string]: unknown }
   ): Promise<void> {
     const myGeneration = ++_currentGeneration;
 
@@ -879,11 +875,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // It is structure-only (paths + nesting, NO mtime/size), so it is
     // stable across skeleton/final events for the same scan.
     const _treeSig = newManifestTyped.tree_signature ?? '';
-    const _reuseFrom =
-      _treeSig && _cachedLayoutTreeSig === _treeSig ? _cachedLayout : null;
-    const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom
-      ? { reuseLayoutFrom: _reuseFrom }
-      : {};
+    const _reuseFrom = _treeSig && _cachedLayoutTreeSig === _treeSig ? _cachedLayout : null;
+    const _layoutComputeOpts: LayoutComputeOpts = _reuseFrom ? { reuseLayoutFrom: _reuseFrom } : {};
     let newLayout: CityLayout;
     // Pass the full manifest envelope (not `manifest.tree`) — the worker
     // forwards it to layoutCityV4, which internally unwraps `.tree` via
@@ -912,7 +905,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // recomputed them via reuseLayout (cheap path) or the worker produced them
     // fresh (full compute). dateRanges and the color loops don't touch the scene yet.
     const newDateRanges = getDateRanges(
-      newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0],
+      newManifestTyped.tree as unknown as Parameters<typeof getDateRanges>[0]
     );
     const newBuildings = newLayout?.buildings ?? [];
 
@@ -921,18 +914,18 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // not buildings — see layoutV4.ts).
       b.color = getBuildingColor(
         b.file as unknown as Parameters<typeof getBuildingColor>[0],
-        newDateRanges,
+        newDateRanges
       );
       // createdAge is independent of color: it tracks file age (creation
       // date) so grime/weathering can mark old files even if they were
       // recently edited.
       b.createdAge = getCreatedAge(
         b.file as unknown as Parameters<typeof getCreatedAge>[0],
-        newDateRanges,
+        newDateRanges
       );
       b.modifiedAge = getModifiedAge(
         b.file as unknown as Parameters<typeof getModifiedAge>[0],
-        newDateRanges,
+        newDateRanges
       );
     }
     if (myGeneration !== _currentGeneration) return;
@@ -950,7 +943,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     const bounds = lb
       ? { minX: lb.minX, maxX: lb.maxX, minZ: lb.minY, maxZ: lb.maxY }
       : (() => {
-          let minX = 0, maxX = 0, minZ = 0, maxZ = 0;
+          let minX = 0,
+            maxX = 0,
+            minZ = 0,
+            maxZ = 0;
           for (const b of newBuildings) {
             if (b.x - b.w / 2 < minX) minX = b.x - b.w / 2;
             if (b.x + b.w / 2 > maxX) maxX = b.x + b.w / 2;
@@ -1130,16 +1126,18 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // Convert the THREE.Box3 (now includes building footprints — expanded
     // above right after cellBuilt.bbox assignment) to a placement-style
     // CityBbox.
-    const sceneBbox: CityBbox | null = bbox ? {
-      minX: bbox.min.x,
-      maxX: bbox.max.x,
-      minY: bbox.min.z, // three.js Z is the second world axis
-      maxY: bbox.max.z,
-      cx: (bbox.min.x + bbox.max.x) / 2,
-      cy: (bbox.min.z + bbox.max.z) / 2,
-      width: bbox.max.x - bbox.min.x,
-      depth: bbox.max.z - bbox.min.z,
-    } : null;
+    const sceneBbox: CityBbox | null = bbox
+      ? {
+          minX: bbox.min.x,
+          maxX: bbox.max.x,
+          minY: bbox.min.z, // three.js Z is the second world axis
+          maxY: bbox.max.z,
+          cx: (bbox.min.x + bbox.max.x) / 2,
+          cy: (bbox.min.z + bbox.max.z) / 2,
+          width: bbox.max.x - bbox.min.x,
+          depth: bbox.max.z - bbox.min.z,
+        }
+      : null;
     // City's vertical extent — feeds into worldBounds so small-but-tall
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
@@ -1179,7 +1177,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         // fires while placement is in-flight.
         let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
         try {
-          treePlacements = await _treePlacementClient.compute(layoutAtDefer, foliageBbox, commitCountAtDefer, cityHeightAtDefer);
+          treePlacements = await _treePlacementClient.compute(
+            layoutAtDefer,
+            foliageBbox,
+            commitCountAtDefer,
+            cityHeightAtDefer
+          );
         } catch (err) {
           if (err instanceof Error && err.message === 'superseded') return;
           throw err;
@@ -1193,7 +1196,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       if (bushesEnabled) {
         // Bush placement is synchronous (fast, no worker needed).
         if (generationAtDefer !== _currentGeneration) return;
-        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, { cityHeight: cityHeightAtDefer });
+        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, {
+          cityHeight: cityHeightAtDefer,
+        });
         if (generationAtDefer !== _currentGeneration) return;
         _bushes = createBushes(bushPlacements);
         scene.add(_bushes.group);
@@ -1211,7 +1216,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // bushes are null (disabled, zero commits, etc.) the first emit
       // already captured the complete state and a second one is wasteful.
       if (_trees !== null || _bushes !== null) {
-        _emit(changeCbs, { entering: { buildings: [], streets: [] }, exiting: { buildings: [], streets: [] }, staying: { buildings: [], streets: [] } });
+        _emit(changeCbs, {
+          entering: { buildings: [], streets: [] },
+          exiting: { buildings: [], streets: [] },
+          staying: { buildings: [], streets: [] },
+        });
       }
 
       REBUILD_STATUS.set('idle');
@@ -1321,8 +1330,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         return;
       }
       const overlaps = findLayoutOverlaps(layout);
-      const totalRects =
-        layout.streets.length + layout.buildings.length + layout.paths.length;
+      const totalRects = layout.streets.length + layout.buildings.length + layout.paths.length;
       const report = _formatCollisionReport(overlaps, totalRects);
       if (report.level === 'info') {
         console.info(report.summary);
@@ -1339,7 +1347,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         return;
       }
       const { trace } = layoutCityWithTrace(
-        manifest as unknown as Parameters<typeof layoutCityWithTrace>[0],
+        manifest as unknown as Parameters<typeof layoutCityWithTrace>[0]
       );
       const lines = _formatStemDiagnostic(trace);
       for (const line of lines) {

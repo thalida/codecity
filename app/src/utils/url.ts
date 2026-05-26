@@ -10,11 +10,7 @@ import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
  * `no_cache`). When no `src` is present, returns the endpoint URL without
  * any source params — boot uses this to detect "no source picked yet".
  */
-export function buildApiUrl(
-  endpoint: string,
-  pageSearch: string,
-  origin: string
-): string {
+export function buildApiUrl(endpoint: string, pageSearch: string, origin: string): string {
   const qp = new URLSearchParams(pageSearch);
   const u = new URL(endpoint, origin);
   if (qp.has('src')) {
@@ -40,17 +36,9 @@ export function buildApiUrl(
 // stays separately testable via buildApiUrl.
 
 export function manifestUrl(): string {
-  return buildApiUrl(
-    '/api/manifest',
-    window.location.search,
-    window.location.origin
-  );
+  return buildApiUrl('/api/manifest', window.location.search, window.location.origin);
 }
 
 export function signatureUrl(): string {
-  return buildApiUrl(
-    '/api/manifest/signature',
-    window.location.search,
-    window.location.origin
-  );
+  return buildApiUrl('/api/manifest/signature', window.location.search, window.location.origin);
 }

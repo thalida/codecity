@@ -95,7 +95,7 @@ function truncateWithHash(s: string, maxLen: number): string {
  */
 export function buildLabelAtlas(
   uniqueTexts: string[],
-  typography: LabelTypographyConfig,
+  typography: LabelTypographyConfig
 ): LabelAtlasResult {
   if (uniqueTexts.length === 0) {
     return { pages: [], rectByText: new Map() };
@@ -108,8 +108,7 @@ export function buildLabelAtlas(
   const paddingPx = Math.round(typography.FONT_SIZE_PX * typography.CANVAS_PADDING_FRAC);
   const strokeWidthPx = Math.round(typography.FONT_SIZE_PX * typography.STROKE_WIDTH_FRAC);
   const items = uniqueTexts.map((text) => {
-    const w =
-      Math.ceil(measureCtx.measureText(text).width) + paddingPx * 2;
+    const w = Math.ceil(measureCtx.measureText(text).width) + paddingPx * 2;
     const h = typography.FONT_SIZE_PX + paddingPx * 2;
     return { text, w, h };
   });

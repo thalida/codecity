@@ -136,9 +136,9 @@ describe('buildSearchPane', () => {
     input.value = 'src .ts';
     input.dispatchEvent(new Event('input'));
 
-    const paths = Array.from(
-      pane.querySelectorAll<HTMLLIElement>('.search-result')
-    ).map((r) => r.textContent);
+    const paths = Array.from(pane.querySelectorAll<HTMLLIElement>('.search-result')).map(
+      (r) => r.textContent
+    );
     expect(paths).toContain('src/coordinator.ts');
     expect(paths).toContain('src/main.ts');
     expect(paths).toContain('src/parsing.ts');

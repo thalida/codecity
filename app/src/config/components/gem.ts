@@ -78,7 +78,7 @@ export const GEM_GLOW = map<GemGlowConfig>({
   INNER_SCALE: 4.0, // hot core, hugging the gem
   OUTER_SCALE: 15.0, // atmospheric falloff, large soft disk
   INNER_OPACITY: 0.75,
-  OUTER_OPACITY: 0.50,
+  OUTER_OPACITY: 0.5,
   ANIMATE_COLORS: true, // cycle the halo color through GEM_FACE_PALETTE
   CYCLE_PERIOD_SECONDS: 10.0, // one full palette cycle every N seconds
 });
@@ -94,9 +94,9 @@ export interface GemAnimationConfig {
 }
 
 export const GEM_ANIMATION = map<GemAnimationConfig>({
-  ROTATION_SPEED: 1.00, // radians/sec multiplier
+  ROTATION_SPEED: 1.0, // radians/sec multiplier
   BOB_FREQUENCY: 1.0, // bob cycles/sec multiplier
   BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this
   HOVER_SCALE: 1.25, // gem grows by this factor on hover
-  SCALE_LERP_SPEED: 0.10, // per-frame ease toward HOVER_SCALE
+  SCALE_LERP_SPEED: 0.1, // per-frame ease toward HOVER_SCALE
 });

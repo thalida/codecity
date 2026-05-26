@@ -5,5 +5,5 @@ import type { CommitEntry } from '@/types';
 
 /** Count of commits whose date matches `commit.date` (includes `commit` itself). */
 export function sameDayCommitCount(commit: CommitEntry, commits: CommitEntry[]): number {
-  return commits.filter(c => c.date === commit.date).length;
+  return commits.filter((c) => c.date === commit.date).length;
 }

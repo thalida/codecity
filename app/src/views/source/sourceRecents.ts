@@ -5,12 +5,12 @@ const KEY = 'codecity:recents';
 const MAX = 10;
 
 export interface RecentSource {
-  src: string;          // exactly what was typed / passed; goes into ?src=
-  branch?: string;      // only meaningful for git URLs
-  gitWindow?: string;   // per-source git-log --since override (e.g. "1.years.ago");
-                        // undefined = server default. Only set for git sources
-                        // where the user picked a non-default in the modal.
-  label: string;        // derived at save time: basename(src) or "owner/repo"
+  src: string; // exactly what was typed / passed; goes into ?src=
+  branch?: string; // only meaningful for git URLs
+  gitWindow?: string; // per-source git-log --since override (e.g. "1.years.ago");
+  // undefined = server default. Only set for git sources
+  // where the user picked a non-default in the modal.
+  label: string; // derived at save time: basename(src) or "owner/repo"
   lastOpenedAt: number; // ms since epoch, for MRU sort
 }
 
@@ -53,8 +53,6 @@ export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
  */
 export function removeRecent(src: string, branch?: string): void {
   const list = _read();
-  const filtered = list.filter(
-    (r) => !(r.src === src && (r.branch ?? '') === (branch ?? ''))
-  );
+  const filtered = list.filter((r) => !(r.src === src && (r.branch ?? '') === (branch ?? '')));
   _write(filtered);
 }

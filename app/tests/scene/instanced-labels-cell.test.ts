@@ -147,7 +147,9 @@ describe('writeLabelToSlot', () => {
 
     // iUvRect at slot 0 should reference the atlas rect for 'index.ts'.
     const rect = atlas.rectByText.get('index.ts')!;
-    const iUvRectAttr = cell.labelMesh.geometry.getAttribute('iUvRect') as THREE.InstancedBufferAttribute;
+    const iUvRectAttr = cell.labelMesh.geometry.getAttribute(
+      'iUvRect'
+    ) as THREE.InstancedBufferAttribute;
     expect(iUvRectAttr.getX(0)).toBeCloseTo(rect.u);
     expect(iUvRectAttr.getY(0)).toBeCloseTo(rect.v);
     expect(iUvRectAttr.getZ(0)).toBeCloseTo(rect.w);

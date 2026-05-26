@@ -75,7 +75,7 @@ export class SpatialGrid {
     return new THREE.Vector3(
       this.bounds.minX + (cx + 0.5) * this.cellSize,
       0,
-      this.bounds.minZ + (cz + 0.5) * this.cellSize,
+      this.bounds.minZ + (cz + 0.5) * this.cellSize
     );
   }
 
@@ -87,9 +87,7 @@ export class SpatialGrid {
   cellBoundsSphere(cellId: number, maxBuildingHeight = 20): THREE.Sphere {
     const center = this.cellCenter(cellId);
     center.y = maxBuildingHeight / 2;
-    const halfDiag = Math.sqrt(
-      (this.cellSize / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2,
-    );
+    const halfDiag = Math.sqrt((this.cellSize / 2) ** 2 * 2 + (maxBuildingHeight / 2) ** 2);
     return new THREE.Sphere(center, halfDiag);
   }
 }

@@ -13,17 +13,8 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
-import {
-  LIVE_UPDATES,
-  POLL_SECONDS_MIN,
-  POLL_SECONDS_MAX,
-  SCAN_FILTERS,
-} from '@/config/index.js';
-import {
-  REBUILD_STATUS,
-  LAST_REBUILD_ERROR,
-  setRefreshManifest,
-} from '@/store/liveStatus.js';
+import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX, SCAN_FILTERS } from '@/config/index.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/store/liveStatus.js';
 import { streamManifest } from '@/utils/manifestStream.js';
 import { manifestUrl, signatureUrl } from '@/utils/url.js';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop.js';
@@ -46,7 +37,7 @@ interface SignatureResponse {
 
 export function setupLiveUpdates(
   handle: LiveUpdateHandle,
-  initialSignature: string,
+  initialSignature: string
 ): { setSignature(sig: string): void } {
   let lastSignature = initialSignature || '';
   let timer: number | null = null;

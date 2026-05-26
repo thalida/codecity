@@ -230,15 +230,15 @@ const NAME_ICON: Record<string, string> = {
   'requirements-dev.txt': 'pip',
   'setup.py': 'python-misc',
   'setup.cfg': 'python-misc',
-  'pipfile': 'python-misc',
+  pipfile: 'python-misc',
   'pipfile.lock': 'python-misc',
   'cargo.toml': 'rust',
   'cargo.lock': 'rust',
   'go.mod': 'go-mod',
   'go.sum': 'go-mod',
-  'gemfile': 'ruby',
+  gemfile: 'ruby',
   'gemfile.lock': 'ruby',
-  'rakefile': 'ruby',
+  rakefile: 'ruby',
   '.env.local': 'tune',
   '.env.example': 'tune',
   '.env.development': 'tune',
@@ -341,9 +341,7 @@ const HARD_FALLBACK_FOLDER = 'folder';
  * order makeFileIcon uses (exact filename > extension > generic).
  * Exported so the building roof-icon atlas can key off the same names.
  */
-export function getFileIconName(
-  file: FileNode | { name?: string; extension?: string }
-): string {
+export function getFileIconName(file: FileNode | { name?: string; extension?: string }): string {
   const name = (file.name || '').toLowerCase();
   const ext = (file.extension || '').toLowerCase();
   return NAME_ICON[name] ?? EXT_ICON[ext] ?? GENERIC_FILE;
@@ -359,7 +357,9 @@ export function getFolderIconName(dir: DirNode | { name?: string }): string {
 export const FILE_ICON_CDN_BASE = ICON_CDN_BASE;
 
 /** Build the <img> for a file node, with extension/name lookups + fallback. */
-export function makeFileIcon(file: FileNode | { name?: string; extension?: string }): HTMLImageElement {
+export function makeFileIcon(
+  file: FileNode | { name?: string; extension?: string }
+): HTMLImageElement {
   return _makeIcon(getFileIconName(file), file.name || '');
 }
 

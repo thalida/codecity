@@ -30,8 +30,8 @@ describe('interpolateOklch()', () => {
 
   it('purple→teal midpoint keeps real chroma (not gray)', () => {
     // Purple-ish and teal-ish picked from clearly opposite-ish hues.
-    const purple = rgb(0.55, 0.10, 0.85);
-    const teal = rgb(0.00, 0.70, 0.65);
+    const purple = rgb(0.55, 0.1, 0.85);
+    const teal = rgb(0.0, 0.7, 0.65);
     const out = rgb(0, 0, 0);
     interpolateOklch(purple, teal, 0.5, out);
 

@@ -132,7 +132,10 @@ if (_canvas) {
               setIconAtlas(_builtAtlas);
               setCellIconAtlas(_builtAtlas);
             } catch (err) {
-              console.warn('[codecity] icon atlas build failed; roofs will render without icons', err);
+              console.warn(
+                '[codecity] icon atlas build failed; roofs will render without icons',
+                err
+              );
             }
             handle = await startRenderLoop(_canvas, m);
             attachHotReload({
@@ -237,7 +240,7 @@ if (_canvas) {
             // payload.
             handle.coordinator.setSourceInfo(
               payload.branch,
-              _srcKind(payload.src) === 'git' ? payload.src : undefined,
+              _srcKind(payload.src) === 'git' ? payload.src : undefined
             );
           }
           manifest = event.manifest;
@@ -272,7 +275,7 @@ if (_canvas) {
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
           payload.branch,
-          _srcKind(payload.src) === 'git' ? payload.src : undefined,
+          _srcKind(payload.src) === 'git' ? payload.src : undefined
         );
 
         _liveUpdates?.setSignature(manifest.signature);

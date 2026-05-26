@@ -118,7 +118,6 @@ function _bboxOfRects(rects: Rect[]): Rect {
   return { x: (minX + maxX) / 2, y: (minY + maxY) / 2, w: maxX - minX, d: maxY - minY };
 }
 
-
 // _collectRects(layout) -> Rect[]
 //
 // Flatten a partial layout (streets + buildings + paths) into a single
@@ -229,7 +228,13 @@ export function computeLineStats(tree: TreeLike): RangeStat {
 // width uses log (file sizes span many orders of magnitude). Without a
 // stats object, the corresponding dimension falls back to MIN_*.
 export function getBuildingDimensions(
-  file: { lines?: number | null; size?: number | null; extension?: string; media_width?: number; media_height?: number },
+  file: {
+    lines?: number | null;
+    size?: number | null;
+    extension?: string;
+    media_width?: number;
+    media_height?: number;
+  },
   lineStats?: RangeStat,
   byteStats?: RangeStat
 ): { w: number; d: number; h: number; floors: number } {
@@ -321,7 +326,7 @@ export function makeHeightContext(tree: TreeLike): HeightContext {
 // manifest's real per-file sizes and line counts.
 export function recomputeBuildingDimensions(
   file: FileLike,
-  ctx: HeightContext,
+  ctx: HeightContext
 ): { w: number; d: number; h: number; floors: number } {
   return getBuildingDimensions(file, ctx.lineStats, ctx.byteStats);
 }
@@ -436,16 +441,16 @@ export function isMirrorInvariant(rects: Rect[], parentOrient: StreetAxis): bool
 }
 
 interface FindSmallestValidStemParams {
-  childRects: Rect[];           // rects in CHILD-LOCAL frame
+  childRects: Rect[]; // rects in CHILD-LOCAL frame
   parentOrient: StreetAxis;
   side: 0 | 1;
   mirror: boolean;
-  parentOriginX: number;        // parent's main-street origin in world
+  parentOriginX: number; // parent's main-street origin in world
   parentOriginY: number;
-  priorStem: number;            // alphabetical-monotonic: stem ≥ priorStem
-  originPad: number;            // stem ≥ originPad (parent's join clearance)
-  childGap: number;             // minimum gap between this child and others
-  occupancy: WorldOccupancy;    // global occupancy structure
+  priorStem: number; // alphabetical-monotonic: stem ≥ priorStem
+  originPad: number; // stem ≥ originPad (parent's join clearance)
+  childGap: number; // minimum gap between this child and others
+  occupancy: WorldOccupancy; // global occupancy structure
 }
 
 // findSmallestValidStem — for one (side, mirror) variant, compute the
@@ -462,7 +467,7 @@ interface FindSmallestValidStemParams {
 // algorithm or return value; it is purely an out-parameter.
 export function findSmallestValidStem(
   p: FindSmallestValidStemParams,
-  trace?: VariantTrace,
+  trace?: VariantTrace
 ): number {
   const { flipX, flipY } = computeFlips(p.parentOrient, p.side, p.mirror);
 
@@ -563,10 +568,7 @@ export interface PlaceChildResult {
 // Optional `trace` param: when provided, every variant evaluated (including
 // the loser ones) pushes a VariantTrace into trace.variants. No effect on
 // algorithm or return value.
-export function placeChild(
-  p: PlaceChildParams,
-  trace?: PlaceChildTrace,
-): PlaceChildResult {
+export function placeChild(p: PlaceChildParams, trace?: PlaceChildTrace): PlaceChildResult {
   const mirrorInvariant = isMirrorInvariant(p.childRects, p.parentOrient);
 
   let bestStem = +Infinity;
@@ -591,7 +593,7 @@ export function placeChild(
         childGap: p.childGap,
         occupancy: p.occupancy,
       },
-      variantTrace,
+      variantTrace
     );
     if (trace && variantTrace) trace.variants.push(variantTrace);
 
@@ -649,14 +651,8 @@ export function translateRectsToWorld(
   for (const r of childRects) {
     const flipped = applyFlips(r, flipX, flipY);
     // Add parent origin and stem along the parent's along axis.
-    const worldX =
-      flipped.x +
-      parentOriginX +
-      (parentOrient === StreetAxis.X ? stem : 0);
-    const worldY =
-      flipped.y +
-      parentOriginY +
-      (parentOrient === StreetAxis.Y ? stem : 0);
+    const worldX = flipped.x + parentOriginX + (parentOrient === StreetAxis.X ? stem : 0);
+    const worldY = flipped.y + parentOriginY + (parentOrient === StreetAxis.Y ? stem : 0);
     const typed = r as TypedRect;
     out.push({
       minX: worldX - flipped.w / 2,
@@ -710,7 +706,7 @@ export function estimateDirReaches(
   lineStats: RangeStat,
   byteStats: RangeStat,
   parentStreetWidth: number | undefined,
-  cache: Map<DirLike, DirReaches>,
+  cache: Map<DirLike, DirReaches>
 ): DirReaches {
   const cached = cache.get(dir);
   if (cached) return cached;
@@ -728,9 +724,7 @@ export function estimateDirReaches(
   // real placement's bounds.
   const myStreetWidth = _streetWidthForDir(dir);
   const openEndPad = myStreetWidth / 2 + bldgPathLength;
-  const joinEndBaseline = parentStreetWidth
-    ? parentStreetWidth / 2 + parentJoinPad
-    : rootEndPad;
+  const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
     : Math.max(rootEndPad, openEndPad);
@@ -770,9 +764,7 @@ export function estimateDirReaches(
       alongContrib = dim.w;
       perpContrib = myStreetWidth / 2 + bldgPathLength + dim.d;
     } else {
-      const sub = estimateDirReaches(
-        child as DirLike, lineStats, byteStats, myStreetWidth, cache,
-      );
+      const sub = estimateDirReaches(child as DirLike, lineStats, byteStats, myStreetWidth, cache);
       // A perpendicular subdir occupies 2*subdir.perpReach in the parent's
       // along axis (both sides of the subdir's road) and subdir.alongReach
       // in the parent's perp axis (one-sided, from join to end).
@@ -832,7 +824,7 @@ function _layoutDir(
    *  (covering the parent's full road body, not just the extent at this
    *  recursion's start). Undefined at the top-level call where no parent
    *  body exists. */
-  parentFinalAlongReach?: number,
+  parentFinalAlongReach?: number
 ): void {
   // ----- Tunables (one .get() per call) -----
   const streetLayout = STREET_LAYOUT.get();
@@ -846,9 +838,7 @@ function _layoutDir(
   // ----- Padding chain -----
   const myStreetWidth = _streetWidthForDir(dir);
   const openEndPad = myStreetWidth / 2 + bldgPathLength;
-  const joinEndBaseline = parentStreetWidth
-    ? parentStreetWidth / 2 + parentJoinPad
-    : rootEndPad;
+  const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
     : Math.max(rootEndPad, openEndPad);
@@ -858,10 +848,7 @@ function _layoutDir(
   // space scales with the gem. Mirror the same MIN_RADIUS floor that
   // engine.ts uses when sizing the actual gem geometry so the layout
   // pad never under-reserves for a narrow root street.
-  const gemRadius = Math.max(
-    myStreetWidth * gemRadiusFrac,
-    gemSizing.MIN_RADIUS
-  );
+  const gemRadius = Math.max(myStreetWidth * gemRadiusFrac, gemSizing.MIN_RADIUS);
   const gemDiameter = gemRadius * 2;
   const gemClearance = gemDiameter * gemSizing.CLEARANCE_AS_GEM_WIDTH_FRAC;
   const originPad = !parentStreetWidth
@@ -887,9 +874,7 @@ function _layoutDir(
     // +1 unit absorbs floating-point drift between the estimate (computed
     // in the pre-pass) and the actual placement (computed here).
     const phantomReach =
-      parentFinalAlongReach !== undefined
-        ? parentFinalAlongReach + 1
-        : PHANTOM_FAR;
+      parentFinalAlongReach !== undefined ? parentFinalAlongReach + 1 : PHANTOM_FAR;
     const phantomMinX = orientation === StreetAxis.X ? -halfP : -phantomReach;
     const phantomMaxX = orientation === StreetAxis.X ? +halfP : +phantomReach;
     const phantomMinY = orientation === StreetAxis.Y ? -halfP : -phantomReach;
@@ -904,7 +889,10 @@ function _layoutDir(
       // arrays (the phantom lives only in the local occupancy and never
       // appears in CityLayout). Typed as Street to satisfy WorldRect.ref.
       ref: {
-        x: 0, y: 0, length: 0, width: parentStreetWidth,
+        x: 0,
+        y: 0,
+        length: 0,
+        width: parentStreetWidth,
         orientation: orientation === StreetAxis.X ? StreetAxis.Y : StreetAxis.X,
         label: '__phantom_parent_body__',
         dir: null as unknown as Street['dir'],
@@ -942,9 +930,15 @@ function _layoutDir(
       const perpCenter = myStreetWidth / 2 + bldgPathLength + perpDepth / 2;
       let bx: number, by: number, bw: number, bd: number;
       if (orientation === StreetAxis.X) {
-        bx = 0; by = perpCenter; bw = along; bd = perpDepth;
+        bx = 0;
+        by = perpCenter;
+        bw = along;
+        bd = perpDepth;
       } else {
-        bx = perpCenter; by = 0; bw = perpDepth; bd = along;
+        bx = perpCenter;
+        by = 0;
+        bw = perpDepth;
+        bd = along;
       }
       let px: number, py: number, pw: number, pd: number;
       if (orientation === StreetAxis.X) {
@@ -980,15 +974,15 @@ function _layoutDir(
           childGap,
           occupancy,
         },
-        trace ? { variants } : undefined,
+        trace ? { variants } : undefined
       );
       if (trace) {
         const chosenIdx = variants.findIndex(
-          (v) => v.side === placed.side && v.mirror === placed.mirror,
+          (v) => v.side === placed.side && v.mirror === placed.mirror
         );
         if (chosenIdx < 0) {
           throw new Error(
-            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`
           );
         }
         const chosenPriorStem = priorStems[placed.side];
@@ -1011,8 +1005,10 @@ function _layoutDir(
       const pathLocal = applyFlips({ x: px, y: py, w: pw, d: pd }, flipX, flipY);
 
       const stemAlong = placed.stem;
-      const buildingWorldX = buildingLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
-      const buildingWorldY = buildingLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
+      const buildingWorldX =
+        buildingLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
+      const buildingWorldY =
+        buildingLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
       const pathWorldX = pathLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
       const pathWorldY = pathLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
 
@@ -1091,15 +1087,17 @@ function _layoutDir(
       const myReaches = reachCache.get(dir);
       _layoutDir(
         child as DirLike,
-        0, 0,
+        0,
+        0,
         subOrient,
         childResult,
         myStreetWidth,
-        lineStats, byteStats,
+        lineStats,
+        byteStats,
         localOccupancy,
         reachCache,
         trace,
-        myReaches?.alongReach,
+        myReaches?.alongReach
       );
 
       // Build child-local rect list from the subtree result. These are the
@@ -1134,15 +1132,15 @@ function _layoutDir(
           childGap,
           occupancy,
         },
-        trace ? { variants } : undefined,
+        trace ? { variants } : undefined
       );
       if (trace) {
         const chosenIdx = variants.findIndex(
-          (v) => v.side === placed.side && v.mirror === placed.mirror,
+          (v) => v.side === placed.side && v.mirror === placed.mirror
         );
         if (chosenIdx < 0) {
           throw new Error(
-            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`,
+            `[stem-diag] placed variant not found in trace.variants — placeChild invariant broken (side=${placed.side}, mirror=${placed.mirror})`
           );
         }
         const chosenPriorStem = priorStems[placed.side];
@@ -1295,15 +1293,16 @@ export function layoutCity(manifest: ManifestLike | DirLike): CityLayout {
 // layoutCityWithTrace — same layout output, plus a StemPlacementTrace
 // recording each placeChild decision for the "Diagnose stem placement"
 // debug button.
-export function layoutCityWithTrace(
-  manifest: ManifestLike | DirLike,
-): { layout: CityLayout; trace: StemPlacementTrace } {
+export function layoutCityWithTrace(manifest: ManifestLike | DirLike): {
+  layout: CityLayout;
+  trace: StemPlacementTrace;
+} {
   return _layoutCityInternal(manifest, { placements: [] });
 }
 
 function _layoutCityInternal(
   manifest: ManifestLike | DirLike,
-  trace: StemPlacementTrace | undefined,
+  trace: StemPlacementTrace | undefined
 ): { layout: CityLayout; trace: StemPlacementTrace } {
   const tree = ((manifest as { tree?: DirLike }).tree ?? manifest) as DirLike;
   const result: CityLayout = {
@@ -1330,10 +1329,17 @@ function _layoutCityInternal(
   const reachCache = new Map<DirLike, DirReaches>();
   estimateDirReaches(tree, stats.lines, stats.bytes, undefined, reachCache);
   _layoutDir(
-    tree, 0, 0, StreetAxis.X,
-    subResult, undefined,
-    stats.lines, stats.bytes,
-    occupancy, reachCache, trace,
+    tree,
+    0,
+    0,
+    StreetAxis.X,
+    subResult,
+    undefined,
+    stats.lines,
+    stats.bytes,
+    occupancy,
+    reachCache,
+    trace
   );
 
   for (const street of result.streets) {
@@ -1423,7 +1429,11 @@ export function _markJoinSides(streets: StreetWithJoin[]): void {
 // the building ends up on the opposite side of its own street with its door
 // pointing away.
 // -----------------------------------------------------------------------------
-export function _mirrorOrient(orient: BuildingOrient, negateX: boolean, negateY: boolean): BuildingOrient {
+export function _mirrorOrient(
+  orient: BuildingOrient,
+  negateX: boolean,
+  negateY: boolean
+): BuildingOrient {
   if (negateX) {
     if (orient === BuildingOrient.East) orient = BuildingOrient.West;
     else if (orient === BuildingOrient.West) orient = BuildingOrient.East;
@@ -1537,7 +1547,12 @@ export function findLayoutOverlaps(layout: {
       s.orientation === StreetAxis.X
         ? { x: s.x, y: s.y, w: s.length, d: s.width }
         : { x: s.x, y: s.y, w: s.width, d: s.length };
-    all.push({ kind: WorldRectKind.Street, rect, label: s.dir?.path ?? s.label ?? '(root)', ref: s });
+    all.push({
+      kind: WorldRectKind.Street,
+      rect,
+      label: s.dir?.path ?? s.label ?? '(root)',
+      ref: s,
+    });
   }
   for (const b of layout.buildings) {
     all.push({
@@ -1571,7 +1586,11 @@ export function findLayoutOverlaps(layout: {
       // imperceptible and not actual layout bugs.
       if (overlap.w < 1e-3 || overlap.d < 1e-3) continue;
       let category: LayoutOverlapCategory = 'unexpected';
-      if (A.kind === WorldRectKind.Street && B.kind === WorldRectKind.Street && _isStreetJoinPair(A.ref, B.ref)) {
+      if (
+        A.kind === WorldRectKind.Street &&
+        B.kind === WorldRectKind.Street &&
+        _isStreetJoinPair(A.ref, B.ref)
+      ) {
         category = 't-junction';
       }
       out.push({

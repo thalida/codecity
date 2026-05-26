@@ -9,8 +9,14 @@
 import * as THREE from 'three';
 import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
 import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
-import { attachBuildingMeshToCell, writeBuildingToSlot } from '../components/buildings/buildingsCell.js';
-import { InstancedAdPanels, asyncLoadMediaForBuilding } from '../components/adPanels/adPanelsInstanced.js';
+import {
+  attachBuildingMeshToCell,
+  writeBuildingToSlot,
+} from '../components/buildings/buildingsCell.js';
+import {
+  InstancedAdPanels,
+  asyncLoadMediaForBuilding,
+} from '../components/adPanels/adPanelsInstanced.js';
 import { isMediaFile } from '../components/adPanels/adPanels.js';
 import { BuildingIndex } from '../components/buildings/buildingIndex.js';
 import type { Building } from '@/types/index.js';
@@ -44,7 +50,7 @@ export interface CellAssemblyOutput {
 export function buildCellsFromLayout(
   bounds: WorldBounds,
   buildings: Building[],
-  sharedBuildingUniforms: Record<string, THREE.IUniform>,
+  sharedBuildingUniforms: Record<string, THREE.IUniform>
 ): CellAssemblyOutput {
   const cellSize = SpatialGrid.computeOptimalCellSize(bounds);
   const grid = new SpatialGrid(bounds, cellSize);
@@ -80,7 +86,13 @@ export function buildCellsFromLayout(
     if (slot < 0) {
       // Overflow: capacity was under-estimated. Log and skip — Task 17
       // adds overflow tile chaining so no building is silently dropped.
-      console.warn('[cellAssembly] capacity overflow for cell', cellId, '— building', b.file?.path, 'skipped');
+      console.warn(
+        '[cellAssembly] capacity overflow for cell',
+        cellId,
+        '— building',
+        b.file?.path,
+        'skipped'
+      );
       continue;
     }
     b.cellId = cellId;

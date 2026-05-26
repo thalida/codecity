@@ -41,11 +41,7 @@ export interface CellTile {
  * builders swap the placeholder geometry for the shared building
  * geometry once the cell is attached.
  */
-export function createEmptyCellTile(
-  grid: SpatialGrid,
-  cellId: number,
-  capacity: number,
-): CellTile {
+export function createEmptyCellTile(grid: SpatialGrid, cellId: number, capacity: number): CellTile {
   const cx = cellId % grid.gridW;
   const cz = Math.floor(cellId / grid.gridW);
   const boundsSphere = grid.cellBoundsSphere(cellId);

@@ -29,10 +29,7 @@ import { FOOTPRINT } from '@/config/components/footprint.js';
 import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import { ISLAND_GEOMETRY } from '@/config/components/island.js';
 import { getWorldBounds } from '../../layout/worldBounds.js';
-import {
-  buildTopPolygon,
-  pointInIslandPolygon,
-} from '../island/islandGeometry.js';
+import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry.js';
 import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor.js';
@@ -121,13 +118,17 @@ function bboxOfStreet(s: Street): Rect {
   const halfWid = s.width / 2;
   if (s.orientation === StreetAxis.X) {
     return {
-      minX: s.x - halfLen, maxX: s.x + halfLen,
-      minY: s.y - halfWid, maxY: s.y + halfWid,
+      minX: s.x - halfLen,
+      maxX: s.x + halfLen,
+      minY: s.y - halfWid,
+      maxY: s.y + halfWid,
     };
   }
   return {
-    minX: s.x - halfWid, maxX: s.x + halfWid,
-    minY: s.y - halfLen, maxY: s.y + halfLen,
+    minX: s.x - halfWid,
+    maxX: s.x + halfWid,
+    minY: s.y - halfLen,
+    maxY: s.y + halfLen,
   };
 }
 
@@ -138,10 +139,7 @@ function bboxOfStreet(s: Street): Rect {
  * scatter center stays in lockstep with the gem's actual world
  * position (gem.ts uses the same helper).
  */
-function gemCenterFromLayout(
-  layout: CityLayout,
-  bbox: CityBbox,
-): { x: number; y: number } {
+function gemCenterFromLayout(layout: CityLayout, bbox: CityBbox): { x: number; y: number } {
   const root = layout.streets.find((s) => s.isRoot);
   if (!root) return { x: bbox.cx, y: bbox.cy };
   return gemAnchorXZ(root);
@@ -150,7 +148,7 @@ function gemCenterFromLayout(
 export function placeTrees(
   layout: CityLayout,
   bboxOverride?: CityBbox,
-  options: PlaceTreesOptions = { commitCount: 0 },
+  options: PlaceTreesOptions = { commitCount: 0 }
 ): TreePlacement[] {
   const cfg = TREES.get();
   if (!cfg.TREES_ENABLED) return [];
@@ -168,8 +166,10 @@ export function placeTrees(
   const rtree = new RBush<Rect>();
   const rects: Rect[] = [];
   const inflate = (r: Rect): Rect => ({
-    minX: r.minX - halo, minY: r.minY - halo,
-    maxX: r.maxX + halo, maxY: r.maxY + halo,
+    minX: r.minX - halo,
+    minY: r.minY - halo,
+    maxX: r.maxX + halo,
+    maxY: r.maxY + halo,
   });
   for (const b of layout.buildings) rects.push(inflate(bboxOfBuilding(b)));
   for (const s of layout.streets) rects.push(inflate(bboxOfStreet(s)));
@@ -201,7 +201,8 @@ export function placeTrees(
   // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
   // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
   const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.get().SIDES;
-  const irregularity = options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
+  const irregularity =
+    options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
   // Irregularity is now reductive (vertices shrink inward), so the polygon's
   // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
   // expansion factor needed.
@@ -223,9 +224,7 @@ export function placeTrees(
   const dxRight = Math.max(0, worldMaxX - bbox.maxX);
   const dyTop = Math.max(0, bbox.minY - worldMinZ);
   const dyBot = Math.max(0, worldMaxZ - bbox.maxY);
-  const maxFalloffDist = Math.sqrt(
-    Math.max(dxLeft, dxRight) ** 2 + Math.max(dyTop, dyBot) ** 2,
-  );
+  const maxFalloffDist = Math.sqrt(Math.max(dxLeft, dxRight) ** 2 + Math.max(dyTop, dyBot) ** 2);
   const falloffActive = falloffPower > 0 && maxFalloffDist > 0;
 
   // Island polygon containment: build the same polygon that islandMesh
@@ -279,16 +278,14 @@ export function placeTrees(
   // Aspect ratio follows the sampling region.
   const samplingW = sampleHalfW * 2;
   const samplingD = sampleHalfD * 2;
-  const desiredCells = Math.min(
-    TREE_MAX_CELLS,
-    Math.max(1, treeTarget) * TREE_CELL_OVERSAMPLE,
-  );
+  const desiredCells = Math.min(TREE_MAX_CELLS, Math.max(1, treeTarget) * TREE_CELL_OVERSAMPLE);
   const aspect = samplingW / Math.max(1e-6, samplingD);
   let cellsX = Math.max(1, Math.round(Math.sqrt(desiredCells * aspect)));
   let cellsZ = Math.max(1, Math.round(Math.sqrt(desiredCells / aspect)));
   // Trim back so the rounded grid never exceeds the cap.
   while (cellsX * cellsZ > TREE_MAX_CELLS) {
-    if (cellsX >= cellsZ) cellsX--; else cellsZ--;
+    if (cellsX >= cellsZ) cellsX--;
+    else cellsZ--;
   }
   const cellW = samplingW / cellsX;
   const cellD = samplingD / cellsZ;
@@ -309,12 +306,17 @@ export function placeTrees(
 
       if (hasRects) {
         const hits = rtree.search({
-          minX: x - halfFoot, minY: y - halfFoot,
-          maxX: x + halfFoot, maxY: y + halfFoot,
+          minX: x - halfFoot,
+          minY: y - halfFoot,
+          maxX: x + halfFoot,
+          maxY: y + halfFoot,
         });
-        const overlaps = hits.some((h) =>
-          h.minX < x + halfFoot && h.maxX > x - halfFoot &&
-          h.minY < y + halfFoot && h.maxY > y - halfFoot,
+        const overlaps = hits.some(
+          (h) =>
+            h.minX < x + halfFoot &&
+            h.maxX > x - halfFoot &&
+            h.minY < y + halfFoot &&
+            h.maxY > y - halfFoot
         );
         if (overlaps) continue;
       }
@@ -338,10 +340,8 @@ export function placeTrees(
       // on origin) but (x, y) are WORLD coords (offset by bounds.cx/cz).
       // Shift the candidate back into the polygon's frame before testing.
       // treePlacement uses (x, y) for the XZ plane; the polygon uses (x, z).
-      if (
-        islandPolygon &&
-        !pointInIslandPolygon(x - bounds.cx, y - bounds.cz, islandPolygon)
-      ) continue;
+      if (islandPolygon && !pointInIslandPolygon(x - bounds.cx, y - bounds.cz, islandPolygon))
+        continue;
 
       const dx = x - center.x;
       const dy = y - center.y;
@@ -370,14 +370,8 @@ export function placeTrees(
   const acceptedStride = (accepted.length - 1) / Math.max(1, treesToPlace - 1);
   const commitStride = (treeTarget - 1) / Math.max(1, treesToPlace - 1);
   for (let i = 0; i < treesToPlace; i++) {
-    const acceptedIdx = Math.min(
-      accepted.length - 1,
-      Math.round(i * acceptedStride),
-    );
-    const commitIdx = Math.min(
-      treeTarget - 1,
-      Math.round(i * commitStride),
-    );
+    const acceptedIdx = Math.min(accepted.length - 1, Math.round(i * acceptedStride));
+    const commitIdx = Math.min(treeTarget - 1, Math.round(i * commitStride));
     const c = accepted[acceptedIdx];
     placements.push({ x: c.x, y: c.y, seed: c.seed, commitIndex: commitIdx });
   }

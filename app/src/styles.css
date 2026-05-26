@@ -59,7 +59,12 @@ table {
   border-collapse: collapse;
 }
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-size: inherit;
   font-weight: inherit;
 }
@@ -96,136 +101,139 @@ h1, h2, h3, h4, h5, h6 {
      ────────────────────────────────────────────────────────────────────── */
 
   /* ── COLORS — Surfaces ────────────────────────────────────────────────── */
-  --cc-bg-app:           oklch(0.151 0.011 276.2);
-  --cc-bg-chrome:        oklch(0.162 0.015 278.3);
-  --cc-bg-sidebar:       oklch(0.181 0.019 279.4);
-  --cc-bg-modal:         var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
-  --cc-bg-backdrop:      color-mix(in oklch, var(--cc-black) 55%, transparent);
-  --cc-bg-tooltip:       color-mix(in oklch, var(--cc-bg-app) 94%, transparent);
-  --cc-bg-base:          var(--cc-bg-app);
+  --cc-bg-app: oklch(0.151 0.011 276.2);
+  --cc-bg-chrome: oklch(0.162 0.015 278.3);
+  --cc-bg-sidebar: oklch(0.181 0.019 279.4);
+  --cc-bg-modal: var(--cc-bg-sidebar); /* alias — modal uses the same panel surface as sidebars */
+  --cc-bg-backdrop: color-mix(in oklch, var(--cc-black) 55%, transparent);
+  --cc-bg-tooltip: color-mix(in oklch, var(--cc-bg-app) 94%, transparent);
+  --cc-bg-base: var(--cc-bg-app);
 
   /* ── COLORS — Borders & tracks ────────────────────────────────────────── */
-  --cc-border-subtle:    oklch(0.249 0.030 278.4);
-  --cc-border-input:     oklch(0.281 0.030 276.1);
-  --cc-border-tooltip:   oklch(0.320 0.058 274.6);
-  --cc-track:            oklch(0.230 0.023 277.0);
-  --cc-track-hover:      oklch(0.355 0.042 276.7);
-  --cc-border-base:      var(--cc-border-subtle);
+  --cc-border-subtle: oklch(0.249 0.03 278.4);
+  --cc-border-input: oklch(0.281 0.03 276.1);
+  --cc-border-tooltip: oklch(0.32 0.058 274.6);
+  --cc-track: oklch(0.23 0.023 277);
+  --cc-track-hover: oklch(0.355 0.042 276.7);
+  --cc-border-base: var(--cc-border-subtle);
 
   /* ── COLORS — Text. Ladder of brightness. ─────────────────────────────── */
-  --cc-text-primary:     oklch(0.921 0.023 275.3);  /* brightest — active/hover text */
-  --cc-text-secondary:   oklch(0.823 0.028 276.8);  /* default body, tree directories */
-  --cc-text-muted:       oklch(0.655 0.038 276.4);  /* breadcrumbs, footer chrome, modal labels, tree files */
-  --cc-text-faint:       oklch(0.586 0.063 276.8);  /* icon buttons rest, hints, placeholders */
-  --cc-text-ghost:       oklch(0.407 0.037 276.6);  /* decorative separators ("·") only */
-  --cc-text-inverse:     oklch(0.148 0.013 284.7);  /* dark text on accent CTA */
-  --cc-text-base:        var(--cc-text-secondary);
+  --cc-text-primary: oklch(0.921 0.023 275.3); /* brightest — active/hover text */
+  --cc-text-secondary: oklch(0.823 0.028 276.8); /* default body, tree directories */
+  --cc-text-muted: oklch(
+    0.655 0.038 276.4
+  ); /* breadcrumbs, footer chrome, modal labels, tree files */
+  --cc-text-faint: oklch(0.586 0.063 276.8); /* icon buttons rest, hints, placeholders */
+  --cc-text-ghost: oklch(0.407 0.037 276.6); /* decorative separators ("·") only */
+  --cc-text-inverse: oklch(0.148 0.013 284.7); /* dark text on accent CTA */
+  --cc-text-base: var(--cc-text-secondary);
 
   /* ── COLORS — Accent (brand blue + role-based alpha variants) ──────────
      Alpha variants derive from --cc-accent via color-mix → swap that one
      to recolor the brand everywhere. */
-  --cc-accent:           oklch(0.697 0.160 258.2);
-  --cc-accent-light:     oklch(0.806 0.097 260.0);
-  --cc-accent-dark:      oklch(0.588 0.196 268.5);
-  --cc-accent-bg-soft:   color-mix(in oklch, var(--cc-accent) 10%, transparent);
-  --cc-accent-bg:        color-mix(in oklch, var(--cc-accent) 18%, transparent);
+  --cc-accent: oklch(0.697 0.16 258.2);
+  --cc-accent-light: oklch(0.806 0.097 260);
+  --cc-accent-dark: oklch(0.588 0.196 268.5);
+  --cc-accent-bg-soft: color-mix(in oklch, var(--cc-accent) 10%, transparent);
+  --cc-accent-bg: color-mix(in oklch, var(--cc-accent) 18%, transparent);
   --cc-accent-bg-strong: color-mix(in oklch, var(--cc-accent) 30%, transparent);
-  --cc-accent-border:    color-mix(in oklch, var(--cc-accent) 45%, transparent);
+  --cc-accent-border: color-mix(in oklch, var(--cc-accent) 45%, transparent);
 
   /* ── COLORS — Semantic (success / warning / error) ────────────────────── */
-  --cc-success:          oklch(0.800 0.182 151.7);
-  --cc-success-dark:     oklch(0.681 0.123 157.3);
-  --cc-success-bg:       color-mix(in oklch, var(--cc-success) 10%, transparent);
-  --cc-warning:          oklch(0.837 0.164 84.4);
-  --cc-error:            oklch(0.637 0.208 25.3);
-  --cc-error-light:      oklch(0.843 0.088 10.3);
-  --cc-error-bg:         color-mix(in oklch, var(--cc-error) 18%, transparent);
-  --cc-error-border:     color-mix(in oklch, var(--cc-error) 45%, transparent);
+  --cc-success: oklch(0.8 0.182 151.7);
+  --cc-success-dark: oklch(0.681 0.123 157.3);
+  --cc-success-bg: color-mix(in oklch, var(--cc-success) 10%, transparent);
+  --cc-warning: oklch(0.837 0.164 84.4);
+  --cc-error: oklch(0.637 0.208 25.3);
+  --cc-error-light: oklch(0.843 0.088 10.3);
+  --cc-error-bg: color-mix(in oklch, var(--cc-error) 18%, transparent);
+  --cc-error-border: color-mix(in oklch, var(--cc-error) 45%, transparent);
 
   /* ── COLORS — Overlay (white-on-dark hovers & borders) ────────────────── */
-  --cc-overlay-bg-soft:   color-mix(in oklch, var(--cc-white)  4%, transparent);
-  --cc-overlay-bg:        color-mix(in oklch, var(--cc-white)  6%, transparent);
+  --cc-overlay-bg-soft: color-mix(in oklch, var(--cc-white) 4%, transparent);
+  --cc-overlay-bg: color-mix(in oklch, var(--cc-white) 6%, transparent);
   --cc-overlay-bg-strong: color-mix(in oklch, var(--cc-white) 10%, transparent);
-  --cc-overlay-border:    color-mix(in oklch, var(--cc-white) 18%, transparent);
+  --cc-overlay-border: color-mix(in oklch, var(--cc-white) 18%, transparent);
 
   /* ── COLORS — Pure neutrals ───────────────────────────────────────────── */
-  --cc-black:            oklch(0 0 0);
-  --cc-white:            oklch(1 0 0);
+  --cc-black: oklch(0 0 0);
+  --cc-white: oklch(1 0 0);
 
   /* ── COLORS — Syntax palette (highlight.js consumers) ─────────────────── */
-  --cc-syntax-keyword:   oklch(0.722 0.177 305.5);
-  --cc-syntax-string:    oklch(0.871 0.136 154.4);
-  --cc-syntax-builtin:   oklch(0.754 0.139 232.7);
-  --cc-syntax-variable:  oklch(0.810 0.106 11.6);
-  --cc-syntax-comment:   oklch(0.496 0.038 273.5);
-  --cc-syntax-deletion:  oklch(0.808 0.103 19.6);
-  --cc-syntax-string-bg:   color-mix(in oklch, var(--cc-syntax-string)   8%, transparent);
+  --cc-syntax-keyword: oklch(0.722 0.177 305.5);
+  --cc-syntax-string: oklch(0.871 0.136 154.4);
+  --cc-syntax-builtin: oklch(0.754 0.139 232.7);
+  --cc-syntax-variable: oklch(0.81 0.106 11.6);
+  --cc-syntax-comment: oklch(0.496 0.038 273.5);
+  --cc-syntax-deletion: oklch(0.808 0.103 19.6);
+  --cc-syntax-string-bg: color-mix(in oklch, var(--cc-syntax-string) 8%, transparent);
   --cc-syntax-deletion-bg: color-mix(in oklch, var(--cc-syntax-deletion) 8%, transparent);
 
   /* ── Back-compat aliases for prior commits ───────────────────────────── */
-  --cc-hover-overlay:    var(--cc-overlay-bg);
+  --cc-hover-overlay: var(--cc-overlay-bg);
   --cc-hover-overlay-sm: var(--cc-overlay-bg-soft);
 
   /* ── SCALES — Spacing ─────────────────────────────────────────────────── */
-  --cc-space-0:    0;
-  --cc-space-px:   1px;     /* hairline (kbd padding, dense badges) */
-  --cc-space-1:    2px;     /* tightest gap (chevron-label, crumb segments) */
-  --cc-space-2:    4px;
-  --cc-space-3:    6px;
-  --cc-space-4:    8px;
-  --cc-space-5:    10px;
-  --cc-space-6:    12px;
-  --cc-space-7:    16px;
-  --cc-space-8:    24px;
-  --cc-space-9:    32px;
-  --cc-space-base: var(--cc-space-4);  /* 8px */
+  --cc-space-0: 0;
+  --cc-space-px: 1px; /* hairline (kbd padding, dense badges) */
+  --cc-space-1: 2px; /* tightest gap (chevron-label, crumb segments) */
+  --cc-space-2: 4px;
+  --cc-space-3: 6px;
+  --cc-space-4: 8px;
+  --cc-space-5: 10px;
+  --cc-space-6: 12px;
+  --cc-space-7: 16px;
+  --cc-space-8: 24px;
+  --cc-space-9: 32px;
+  --cc-space-base: var(--cc-space-4); /* 8px */
 
   /* ── SCALES — Radius ──────────────────────────────────────────────────── */
-  --cc-radius-0:      0;
-  --cc-radius-sm:     4px;    /* every interactive control */
-  --cc-radius-md:     6px;    /* modal-context controls, card-internal */
-  --cc-radius-lg:     10px;   /* outer modal/loading card */
-  --cc-radius-pill:   100px;  /* fully rounded pill */
-  --cc-radius-circle: 50%;    /* dots, slider thumbs, spinner */
-  --cc-radius-base:   var(--cc-radius-sm);
+  --cc-radius-0: 0;
+  --cc-radius-sm: 4px; /* every interactive control */
+  --cc-radius-md: 6px; /* modal-context controls, card-internal */
+  --cc-radius-lg: 10px; /* outer modal/loading card */
+  --cc-radius-pill: 100px; /* fully rounded pill */
+  --cc-radius-circle: 50%; /* dots, slider thumbs, spinner */
+  --cc-radius-base: var(--cc-radius-sm);
 
   /* ── SCALES — Font sizes ──────────────────────────────────────────────── */
-  --cc-font-sm:    10px;
-  --cc-font-md:    11px;
-  --cc-font-lg:    12px;
-  --cc-font-xl:    14px;
-  --cc-font-2xl:   18px;
-  --cc-font-3xl:   22px;
-  --cc-font-4xl:   28px;
-  --cc-font-base:  var(--cc-font-lg);   /* 12px */
-  --cc-font-root:  var(--cc-font-xl);   /* 14px — html/body */
+  --cc-font-sm: 10px;
+  --cc-font-md: 11px;
+  --cc-font-lg: 12px;
+  --cc-font-xl: 14px;
+  --cc-font-2xl: 18px;
+  --cc-font-3xl: 22px;
+  --cc-font-4xl: 28px;
+  --cc-font-base: var(--cc-font-lg); /* 12px */
+  --cc-font-root: var(--cc-font-xl); /* 14px — html/body */
 
   /* ── SCALES — Font weights ────────────────────────────────────────────── */
-  --cc-fw-normal:   400;
-  --cc-fw-medium:   500;
+  --cc-fw-normal: 400;
+  --cc-fw-medium: 500;
   --cc-fw-semibold: 600;
-  --cc-fw-bold:     700;
-  --cc-fw-base:     var(--cc-fw-normal);
+  --cc-fw-bold: 700;
+  --cc-fw-base: var(--cc-fw-normal);
 
   /* ── SCALES — Font families ───────────────────────────────────────────── */
-  --cc-font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+  --cc-font-sans:
+    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   --cc-font-mono: var(--cc-font-mono);
 
   /* ── SCALES — Letter-spacing (tracking) ──────────────────────────────── */
-  --cc-track-label: 0.08em;  /* uppercase section labels */
-  --cc-track-base:  0;
+  --cc-track-label: 0.08em; /* uppercase section labels */
+  --cc-track-base: 0;
 
   /* ── SCALES — Transition durations ───────────────────────────────────── */
-  --cc-t-fast:  0.1s;   /* row hover */
-  --cc-t-base:  0.15s;  /* button/input hover (default) */
+  --cc-t-fast: 0.1s; /* row hover */
+  --cc-t-base: 0.15s; /* button/input hover (default) */
 
   /* ── SCALES — Shadows ────────────────────────────────────────────────── */
-  --cc-shadow-sm:    0 1px 3px oklch(0 0 0 / 0.4);     /* slider thumb */
-  --cc-shadow-md:    0 2px 10px oklch(0 0 0 / 0.4);    /* tooltip */
-  --cc-shadow-lg:    0 10px 40px oklch(0 0 0 / 0.6);   /* modal, loading-card */
-  --cc-shadow-base:  var(--cc-shadow-md);
-  --cc-shadow-text:  0 1px 2px oklch(0 0 0 / 0.5);     /* canvas overlay text */
-  --cc-glow-accent:  0 0 6px oklch(0.697 0.160 258.2 / 0.35); /* range-pair fill */
+  --cc-shadow-sm: 0 1px 3px oklch(0 0 0 / 0.4); /* slider thumb */
+  --cc-shadow-md: 0 2px 10px oklch(0 0 0 / 0.4); /* tooltip */
+  --cc-shadow-lg: 0 10px 40px oklch(0 0 0 / 0.6); /* modal, loading-card */
+  --cc-shadow-base: var(--cc-shadow-md);
+  --cc-shadow-text: 0 1px 2px oklch(0 0 0 / 0.5); /* canvas overlay text */
+  --cc-glow-accent: 0 0 6px oklch(0.697 0.16 258.2 / 0.35); /* range-pair fill */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -244,19 +252,41 @@ h1, h2, h3, h4, h5, h6 {
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Atomic color classes — drop into a selector list as an alias. */
-.text-primary   { color: var(--cc-text-primary); }
-.text-secondary { color: var(--cc-text-secondary); }
-.text-muted     { color: var(--cc-text-muted); }
-.text-faint     { color: var(--cc-text-faint); }
-.text-ghost     { color: var(--cc-text-ghost); }
-.text-inverse   { color: var(--cc-text-inverse); }
-.text-accent    { color: var(--cc-accent); }
-.text-success   { color: var(--cc-success); }
-.text-warning   { color: var(--cc-warning); }
-.text-error     { color: var(--cc-error); }
+.text-primary {
+  color: var(--cc-text-primary);
+}
+.text-secondary {
+  color: var(--cc-text-secondary);
+}
+.text-muted {
+  color: var(--cc-text-muted);
+}
+.text-faint {
+  color: var(--cc-text-faint);
+}
+.text-ghost {
+  color: var(--cc-text-ghost);
+}
+.text-inverse {
+  color: var(--cc-text-inverse);
+}
+.text-accent {
+  color: var(--cc-accent);
+}
+.text-success {
+  color: var(--cc-success);
+}
+.text-warning {
+  color: var(--cc-warning);
+}
+.text-error {
+  color: var(--cc-error);
+}
 
 /* Atomic family class. */
-.text-mono { font-family: var(--cc-font-mono); }
+.text-mono {
+  font-family: var(--cc-font-mono);
+}
 
 /* Truncation utility — collapses 3 declarations used 6+ times in the file. */
 .text-truncate {
@@ -329,9 +359,15 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: var(--cc-radius-circle);
   flex: 0 0 auto;
 }
-.dot--success { background: var(--cc-success); }
-.dot--warning { background: var(--cc-warning); }
-.dot--error   { background: var(--cc-error); }
+.dot--success {
+  background: var(--cc-success);
+}
+.dot--warning {
+  background: var(--cc-warning);
+}
+.dot--error {
+  background: var(--cc-error);
+}
 
 .code-inline,
 .controls-section-hint kbd,
@@ -395,8 +431,8 @@ h1, h2, h3, h4, h5, h6 {
 .row {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-2);  /* 4px default; --tight overrides to 2px */
-  padding: var(--cc-space-2) var(--cc-space-7);  /* 4px 16px */
+  gap: var(--cc-space-2); /* 4px default; --tight overrides to 2px */
+  padding: var(--cc-space-2) var(--cc-space-7); /* 4px 16px */
   border-radius: var(--cc-radius-sm);
   cursor: pointer;
   user-select: none;
@@ -416,7 +452,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Bleed variant — extends hover background to the pane edge. Used by
    collapsible summaries inside the controls-pane. */
 .row--bleed {
-  margin-left:  calc(-1 * var(--cc-space-7));
+  margin-left: calc(-1 * var(--cc-space-7));
   margin-right: calc(-1 * var(--cc-space-7));
   margin-bottom: var(--cc-space-2);
 }
@@ -429,7 +465,7 @@ h1, h2, h3, h4, h5, h6 {
 .row--selected:hover,
 .tree-item.tree-selected > .row:hover,
 .tree-item.tree-selected.tree-hovered > .row {
-  background: var(--cc-accent-bg);  /* keep selected state on hover */
+  background: var(--cc-accent-bg); /* keep selected state on hover */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -570,7 +606,9 @@ h1, h2, h3, h4, h5, h6 {
   cursor: default;
 }
 /* Controls-section variant pushes itself to the right end of its summary row. */
-.controls-section-reset { margin-left: auto; }
+.controls-section-reset {
+  margin-left: auto;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    LAYER-2 COMPONENTS — Icon buttons
@@ -605,18 +643,41 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--cc-text-primary);
   background: var(--cc-overlay-bg);
 }
-.btn-icon:disabled { cursor: default; }
+.btn-icon:disabled {
+  cursor: default;
+}
 .btn-icon.is-active {
   color: var(--cc-accent);
   background: var(--cc-accent-bg-soft);
 }
 
 /* Modifiers */
-.btn-icon--sm   { width: 22px; height: 22px; font-size: var(--cc-font-lg); }
-.btn-icon--lg   { width: auto; height: auto; padding: var(--cc-space-2) var(--cc-space-4); border-radius: var(--cc-radius-md); font-size: var(--cc-font-2xl); color: inherit; }
-.btn-icon--text { width: auto; height: auto; padding: var(--cc-space-px) var(--cc-space-2); font: inherit; color: var(--cc-text-muted); }
-.btn-icon--link { text-decoration: none; }
-.btn-icon--no-drag { -webkit-app-region: no-drag; }
+.btn-icon--sm {
+  width: 22px;
+  height: 22px;
+  font-size: var(--cc-font-lg);
+}
+.btn-icon--lg {
+  width: auto;
+  height: auto;
+  padding: var(--cc-space-2) var(--cc-space-4);
+  border-radius: var(--cc-radius-md);
+  font-size: var(--cc-font-2xl);
+  color: inherit;
+}
+.btn-icon--text {
+  width: auto;
+  height: auto;
+  padding: var(--cc-space-px) var(--cc-space-2);
+  font: inherit;
+  color: var(--cc-text-muted);
+}
+.btn-icon--link {
+  text-decoration: none;
+}
+.btn-icon--no-drag {
+  -webkit-app-region: no-drag;
+}
 
 /* Modal-close uses a stronger hover overlay than other btn-icons. */
 .modal-header .btn-icon:not(:disabled):hover {
@@ -656,7 +717,9 @@ h1, h2, h3, h4, h5, h6 {
   color: var(--cc-text-primary);
   background: var(--cc-overlay-bg);
 }
-.btn-chip:disabled { cursor: default; }
+.btn-chip:disabled {
+  cursor: default;
+}
 /* Trailing chevron — visual cue that the chip opens a picker. */
 .btn-chip-chevron {
   margin-left: var(--cc-space-1);
@@ -676,8 +739,8 @@ h1, h2, h3, h4, h5, h6 {
      props don't interpolate). */
   background-image: linear-gradient(
     in oklch var(--gem-angle, 180deg),
-    oklch(0.951 0.204 107.3) 0%,    /* neon yellow */
-    oklch(0.531 0.261 265.0) 100%   /* neon electric blue */
+    oklch(0.951 0.204 107.3) 0%,
+    /* neon yellow */ oklch(0.531 0.261 265) 100% /* neon electric blue */
   );
   animation: gem-shimmer 12s linear infinite;
 }
@@ -687,8 +750,12 @@ h1, h2, h3, h4, h5, h6 {
   inherits: false;
 }
 @keyframes gem-shimmer {
-  from { --gem-angle:   0deg; }
-  to   { --gem-angle: 360deg; }
+  from {
+    --gem-angle: 0deg;
+  }
+  to {
+    --gem-angle: 360deg;
+  }
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -814,8 +881,14 @@ canvas {
   cursor: ew-resize;
   background: transparent;
 }
-.sidebar-resize-handle-right { left:  -3px; z-index: 101; }
-.sidebar-resize-handle       { right: -3px; z-index: 91; }
+.sidebar-resize-handle-right {
+  left: -3px;
+  z-index: 101;
+}
+.sidebar-resize-handle {
+  right: -3px;
+  z-index: 91;
+}
 .sidebar-resize-handle:hover,
 .sidebar-resize-handle.dragging,
 .sidebar-resize-handle-right:hover,
@@ -961,7 +1034,9 @@ canvas {
 /* ── Editor body — fills the panel under the tab bar + breadcrumb ─────── */
 
 /* Layout in .pane; this rule only adds the app-bg fill behind the canvas. */
-.editor-body { background: var(--cc-bg-app); }
+.editor-body {
+  background: var(--cc-bg-app);
+}
 .editor-body > * {
   flex: 1 1 auto;
   min-height: 0;
@@ -1194,7 +1269,6 @@ canvas {
 
 /* ── Fly-mode reticle ──────────────────────────────────────────────────────── */
 
-
 /* ── Street labels (rendered on canvas, these styles are for overlay fallback) ── */
 
 .street-label {
@@ -1253,8 +1327,12 @@ canvas {
 }
 
 /* Pane-header close + action buttons use .btn-icon + .btn-icon--text. */
-.pane-header .btn-icon--text { line-height: 1; }
-.pane-header .btn-icon--text:disabled { opacity: 0.35; }
+.pane-header .btn-icon--text {
+  line-height: 1;
+}
+.pane-header .btn-icon--text:disabled {
+  opacity: 0.35;
+}
 
 /* Activity bar splits into two nested flex columns: a top group that
  * stacks from the top and a bottom group that pins to the bottom. The
@@ -1369,7 +1447,9 @@ canvas {
   align-items: center;
   gap: var(--cc-space-1); /* 2px; tight gap between truncation segments */
 }
-.text-pane-title.is-mono { font-family: var(--cc-font-mono); }
+.text-pane-title.is-mono {
+  font-family: var(--cc-font-mono);
+}
 
 .tree-root {
   flex: 1;
@@ -1666,7 +1746,9 @@ canvas {
 /* Per-row reset icon. ACTIONABLE — clearly shown in brand-blue when the
  * row's value differs from its default, fades in on hover. */
 /* .theme-row-reset typography in .btn-reset-inline. */
-.theme-row-reset { margin: var(--cc-space-0); }
+.theme-row-reset {
+  margin: var(--cc-space-0);
+}
 
 /* Color swatch — small native color picker */
 .theme-color {
@@ -2062,7 +2144,9 @@ canvas {
    per-class margin-0 / max-width / line-height bits live here so the
    card title + subtitle render tightly inside the state card regardless
    of which alias they were dropped into. */
-.empty-state .text-card-title { margin: var(--cc-space-0); }
+.empty-state .text-card-title {
+  margin: var(--cc-space-0);
+}
 .empty-state .text-card-sub {
   margin: var(--cc-space-0);
   max-width: 240px;
@@ -2123,7 +2207,9 @@ canvas {
    error states use the .empty-state + .empty-state--lg helper. */
 
 /* Layout in .pane-body; this rule keeps the empty-state child fill. */
-.info-body > .empty-state { flex: 1 1 auto; }
+.info-body > .empty-state {
+  flex: 1 1 auto;
+}
 #tree-sidebar .info-body {
   scrollbar-width: thin;
   scrollbar-color: var(--cc-border-input) transparent;
@@ -2393,7 +2479,9 @@ canvas {
   padding: var(--cc-space-5) var(--cc-space-4) var(--cc-space-5) var(--cc-space-5);
   background: var(--cc-bg-chrome);
   border-right: 1px solid var(--cc-track);
-  color: var(--cc-text-faint); /* was var(--cc-text-ghost) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
+  color: var(
+    --cc-text-faint
+  ); /* was var(--cc-text-ghost) (2.15:1 → now 3.41:1, WCAG AA for UI text) */
   text-align: right;
   user-select: none;
   /* The gutter's width is content-driven (3 digits + padding) and stays
@@ -2624,7 +2712,9 @@ canvas {
   padding-top: var(--cc-space-5);
 }
 /* Typography in .text-label. */
-.recents-list h3 { margin: 0 0 var(--cc-space-4); /* 0 0 8px */ }
+.recents-list h3 {
+  margin: 0 0 var(--cc-space-4); /* 0 0 8px */
+}
 /* Each recent project is a .recent-item row: a .recent-row click target
    that opens the project, plus a sibling .btn-icon that removes it.
    Keeping them as siblings (not parent/child) means the row's hover
@@ -2677,11 +2767,11 @@ canvas {
 /* Destructive trash button next to each recent — red icon at rest and
    on hover, with a red-tinted hover background. Vertical padding gives
    the icon breathing room and a generous vertical click target. */
-.recent-item .btn-icon[data-action="recent-remove"] {
+.recent-item .btn-icon[data-action='recent-remove'] {
   padding: var(--cc-space-4) var(--cc-space-2); /* 8px 4px */
   color: var(--cc-error);
 }
-.recent-item .btn-icon[data-action="recent-remove"]:hover {
+.recent-item .btn-icon[data-action='recent-remove']:hover {
   color: var(--cc-error-light);
   background: var(--cc-error-bg);
 }
@@ -2726,10 +2816,14 @@ canvas {
   animation: cc-spin 0.8s linear infinite;
 }
 @keyframes cc-spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 /* Typography in .text-card-title.is-loading (loading variant). */
-.text-card-title.is-loading { text-align: center; }
+.text-card-title.is-loading {
+  text-align: center;
+}
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);
@@ -2756,22 +2850,22 @@ canvas {
   text-align: center;
   font-size: var(--cc-font-md);
 }
-.loading-steps li[data-state="pending"] {
+.loading-steps li[data-state='pending'] {
   color: var(--cc-text-muted); /* was 0.35 (2.85:1 → now 4.39:1, WCAG AA) */
 }
-.loading-steps li[data-state="active"] {
+.loading-steps li[data-state='active'] {
   color: var(--cc-accent);
 }
-.loading-steps li[data-state="active"]::before {
+.loading-steps li[data-state='active']::before {
   content: '›';
   color: var(--cc-accent);
   font-size: var(--cc-font-xl);
   font-weight: var(--cc-fw-bold);
 }
-.loading-steps li[data-state="done"] {
+.loading-steps li[data-state='done'] {
   color: var(--cc-text-muted);
 }
-.loading-steps li[data-state="done"]::before {
+.loading-steps li[data-state='done']::before {
   content: '✓';
   color: var(--cc-success-dark);
   font-size: var(--cc-font-sm);
@@ -2785,7 +2879,9 @@ canvas {
    .btn-icon + .btn-icon--no-drag (refresh/switch) or
    .btn-icon + .btn-icon--link + .btn-icon--no-drag (repo-link).
    Inner svg rendering tweak applies to any svg child of a header btn-icon. */
-#app-header .btn-icon svg { display: block; }
+#app-header .btn-icon svg {
+  display: block;
+}
 
 /* ── Commit pane (right sidebar) ────────────────────────────────────────
    Shown when a tree is selected in the city. Layout: pane-header from

@@ -10,10 +10,7 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import {
-  BUILDING_DIMENSIONS,
-  FACADE_GEOMETRY,
-} from '@/config/index.js';
+import { BUILDING_DIMENSIONS, FACADE_GEOMETRY } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
@@ -70,7 +67,9 @@ function orientToIndex(orient: BuildingOrient): number {
 let _sharedBuildingMaterial: THREE.ShaderMaterial | null = null;
 let _sharedBuildingMaterialUniforms: Record<string, THREE.IUniform> | null = null;
 
-function getOrCreateBuildingMaterial(uniforms: Record<string, THREE.IUniform>): THREE.ShaderMaterial {
+function getOrCreateBuildingMaterial(
+  uniforms: Record<string, THREE.IUniform>
+): THREE.ShaderMaterial {
   if (_sharedBuildingMaterial && _sharedBuildingMaterialUniforms === uniforms) {
     return _sharedBuildingMaterial;
   }
@@ -129,26 +128,47 @@ export function setCellIconAtlas(atlas: IconAtlas | null): void {
  */
 export function attachBuildingMeshToCell(
   cell: CellTile,
-  uniforms: Record<string, THREE.IUniform>,
+  uniforms: Record<string, THREE.IUniform>
 ): void {
   const geom = SHARED_BUILDING_GEOMETRY.clone();
 
   // Per-instance attribute buffers sized to cell.capacity — matching
   // the attribute names and strides from buildings.ts / building.vert.glsl.
   // iCols: vec2 (cols_ew, cols_ns) — two floats per instance.
-  geom.setAttribute('iCols', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 2), 2));
+  geom.setAttribute(
+    'iCols',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 2), 2)
+  );
   // iFloors: float — one float per instance.
-  geom.setAttribute('iFloors', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1));
+  geom.setAttribute(
+    'iFloors',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
   // iOrient: float — one float per instance (0=S, 1=N, 2=E, 3=W).
-  geom.setAttribute('iOrient', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1));
+  geom.setAttribute(
+    'iOrient',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
   // iDoorWidth: float — one float per instance.
-  geom.setAttribute('iDoorWidth', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1));
+  geom.setAttribute(
+    'iDoorWidth',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
   // iFade: vec3 — three floats per instance (.x=opacity, .y=silhouette, .z=outlineOpacity).
-  geom.setAttribute('iFade', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 3), 3));
+  geom.setAttribute(
+    'iFade',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 3), 3)
+  );
   // iIconUV: vec4 — four floats per instance (.xy=atlas UV, .z=seed, .w=createdAge).
-  geom.setAttribute('iIconUV', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 4), 4));
+  geom.setAttribute(
+    'iIconUV',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity * 4), 4)
+  );
   // iModifiedAge: float — one float per instance.
-  geom.setAttribute('iModifiedAge', new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1));
+  geom.setAttribute(
+    'iModifiedAge',
+    new THREE.InstancedBufferAttribute(new Float32Array(cell.capacity), 1)
+  );
 
   const mat = getOrCreateBuildingMaterial(uniforms);
 
@@ -164,7 +184,7 @@ export function attachBuildingMeshToCell(
   // instanceColor: three floats per instance (linear RGB).
   cell.detailMesh.instanceColor = new THREE.InstancedBufferAttribute(
     new Float32Array(cell.capacity * 3),
-    3,
+    3
   );
 
   // Replace the default InstancedMesh raycast with one that honors the
@@ -260,6 +280,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   iIconUVAttr.setXYZW(slot, iconU, iconV, seed, b.createdAge ?? 0);
 
   // --- Modified age ---
-  const iModifiedAgeAttr = mesh.geometry.getAttribute('iModifiedAge') as THREE.InstancedBufferAttribute;
+  const iModifiedAgeAttr = mesh.geometry.getAttribute(
+    'iModifiedAge'
+  ) as THREE.InstancedBufferAttribute;
   iModifiedAgeAttr.setX(slot, b.modifiedAge ?? 0);
 }

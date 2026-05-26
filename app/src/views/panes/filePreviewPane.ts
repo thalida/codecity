@@ -177,7 +177,8 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   function _renderFilenameTitle(file: { path?: string; name?: string } | null): void {
     const rawPath = (file as FileNode | null)?.path ?? '';
     const segs = rawPath.split('/').filter(Boolean);
-    const leaf = segs.length > 0 ? segs[segs.length - 1] : file?.name ? String(file.name) : 'No file';
+    const leaf =
+      segs.length > 0 ? segs[segs.length - 1] : file?.name ? String(file.name) : 'No file';
     headerApi.setTitle(leaf);
     if (rawPath) headerApi.titleEl.title = rawPath;
     else headerApi.titleEl.removeAttribute('title');
@@ -187,7 +188,9 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   // Drop the initial synchronous callback at subscribe time (same pattern
   // as appHeader) — _ready gates it until after first setFile().
   let _ready = false;
-  const _onConfigChange = () => { if (_ready) _renderBadge(); };
+  const _onConfigChange = () => {
+    if (_ready) _renderBadge();
+  };
   BUILDING_PALETTE.subscribe(_onConfigChange);
   ASPHALT.subscribe(_onConfigChange);
   _ready = true;

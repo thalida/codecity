@@ -119,11 +119,7 @@ export function stageResetAll(): void {
 
 // Same write logic as setDraft but defers the _emit() call. Used by
 // stageResetAll so a single fan-out happens after the whole sweep.
-function _stageWithoutEmit(
-  store: MapLikeStore,
-  key: DraftKey,
-  value: unknown
-): void {
+function _stageWithoutEmit(store: MapLikeStore, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (_equal(value, committed)) {

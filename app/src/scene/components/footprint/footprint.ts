@@ -39,7 +39,10 @@ export interface CityFootprint {
 }
 
 interface Rect {
-  cx: number; cz: number; w: number; d: number;
+  cx: number;
+  cz: number;
+  w: number;
+  d: number;
 }
 
 function rectOfBuilding(b: Building): Rect {
@@ -130,10 +133,7 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
     halfExtents[i * 2 + 0] = (rects[i].w + halo * 2) * 0.5;
     halfExtents[i * 2 + 1] = (rects[i].d + halo * 2) * 0.5;
   }
-  geometry.setAttribute(
-    'aHalfExtent',
-    new THREE.InstancedBufferAttribute(halfExtents, 2),
-  );
+  geometry.setAttribute('aHalfExtent', new THREE.InstancedBufferAttribute(halfExtents, 2));
 
   const colorUniform = new THREE.Color();
   setColorFromHex(colorUniform, cfg.COLOR);

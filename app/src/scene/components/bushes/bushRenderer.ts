@@ -48,12 +48,16 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
 function setInstanceMatrix(
   mesh: THREE.InstancedMesh,
   i: number,
-  x: number, y: number, z: number,
-  sx: number, sy: number, sz: number,
+  x: number,
+  y: number,
+  z: number,
+  sx: number,
+  sy: number,
+  sz: number,
   tmpMatrix: THREE.Matrix4,
   tmpV3a: THREE.Vector3,
   tmpV3b: THREE.Vector3,
-  tmpQ: THREE.Quaternion,
+  tmpQ: THREE.Quaternion
 ): void {
   tmpV3a.set(x, y, z);
   tmpV3b.set(sx, sy, sz);
@@ -68,7 +72,7 @@ export function createBushRenderer(placements: BushPlacement[]): Bushes {
   // Bushes scale to the "typical" tree canopy radius: midpoint of the
   // files-driven canopy diameter range (now in absolute world units),
   // converted to a radius.
-  const treeRadius = ((treesCfg.TREE_MIN_WIDTH + treesCfg.TREE_MAX_WIDTH) / 2) / 2;
+  const treeRadius = (treesCfg.TREE_MIN_WIDTH + treesCfg.TREE_MAX_WIDTH) / 2 / 2;
   const bushRadius = bushesCfg.BUSH_RADIUS_FRAC_OF_TREE * treeRadius;
 
   const totalBushes = placements.length;
@@ -84,10 +88,7 @@ export function createBushRenderer(placements: BushPlacement[]): Bushes {
   const bushGeometry = new THREE.IcosahedronGeometry(bushRadius, 0);
 
   const bushColors = new Float32Array(totalBushes * 3);
-  bushGeometry.setAttribute(
-    'aColor',
-    new THREE.InstancedBufferAttribute(bushColors, 3),
-  );
+  bushGeometry.setAttribute('aColor', new THREE.InstancedBufferAttribute(bushColors, 3));
 
   const bushMesh = new THREE.InstancedMesh(bushGeometry, bushMaterial, totalBushes);
   bushMesh.name = 'bush-mesh';
@@ -103,10 +104,18 @@ export function createBushRenderer(placements: BushPlacement[]): Bushes {
   for (let i = 0; i < placements.length; i++) {
     const p = placements[i];
     setInstanceMatrix(
-      bushMesh, i,
-      p.x, bushRadius * 0.5, p.y,
-      1, 1, 1,
-      tmpMatrix, tmpV3a, tmpV3b, tmpQ,
+      bushMesh,
+      i,
+      p.x,
+      bushRadius * 0.5,
+      p.y,
+      1,
+      1,
+      1,
+      tmpMatrix,
+      tmpV3a,
+      tmpV3b,
+      tmpQ
     );
     setColorFromHex(tmpColor, pickBushNeon(p.seed ^ (i * 47 + 5)));
     bushColors[i * 3 + 0] = tmpColor.r;

@@ -16,7 +16,12 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { shadeColor, shadeAndShiftHue, shadeByRatio, hslToComponents } from '@/scene/utils/color/hsl.js';
+import {
+  shadeColor,
+  shadeAndShiftHue,
+  shadeByRatio,
+  hslToComponents,
+} from '@/scene/utils/color/hsl.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -36,9 +41,9 @@ function _rgbToHsl([r, g, b]: RGB): HSL {
   if (d < 0.0001) return [0, 0, l];
   const s = l > 0.5 ? d / (2 - maxc - minc) : d / (maxc + minc);
   let h: number;
-  if (maxc === r) h = ((g - b) / d) + (g < b ? 6 : 0);
-  else if (maxc === g) h = ((b - r) / d) + 2;
-  else h = ((r - g) / d) + 4;
+  if (maxc === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (maxc === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
   return [h / 6, s, l];
 }
 
@@ -69,9 +74,14 @@ function twinShadeColor(rgb: RGB, deltaPct: number): RGB {
 
 // Twin of GLSL shadeAndShiftHue(rgb, deltaLightPct, deltaHueDeg, minLightPct)
 // Pass minLightPct < 0 to mean "no floor" (same as null in JS).
-function twinShadeAndShiftHue(rgb: RGB, deltaLightPct: number, deltaHueDeg: number, minLightPct: number): RGB {
+function twinShadeAndShiftHue(
+  rgb: RGB,
+  deltaLightPct: number,
+  deltaHueDeg: number,
+  minLightPct: number
+): RGB {
   const hsl = _rgbToHsl(rgb);
-  hsl[0] = ((hsl[0] + deltaHueDeg / 360 + 1) % 1 + 1) % 1; // extra +1/%1 for negative shifts
+  hsl[0] = (((hsl[0] + deltaHueDeg / 360 + 1) % 1) + 1) % 1; // extra +1/%1 for negative shifts
   const floor01 = minLightPct < 0 ? 0 : minLightPct / 100;
   hsl[2] = clamp01(Math.max(hsl[2] + deltaLightPct / 100, floor01));
   return _hslToRgb(hsl);
@@ -83,7 +93,7 @@ function twinShadeAndShiftHue(rgb: RGB, deltaLightPct: number, deltaHueDeg: numb
 // Production callers always pass ratio<1, so l never exceeds 1.0 in practice.
 function twinShadeByRatio(rgb: RGB, ratio: number, deltaHueDeg: number, floorPct: number): RGB {
   const hsl = _rgbToHsl(rgb);
-  hsl[0] = ((hsl[0] + deltaHueDeg / 360 + 1) % 1 + 1) % 1;
+  hsl[0] = (((hsl[0] + deltaHueDeg / 360 + 1) % 1) + 1) % 1;
   const newL = hsl[2] * ratio;
   hsl[2] = Math.max(newL, floorPct / 100);
   return _hslToRgb(hsl);
@@ -119,21 +129,21 @@ function hslDegToRgb(h: number, s: number, l: number): RGB {
 // ---------------------------------------------------------------------------
 
 const HSL_SAMPLES: Array<[number, number, number]> = [
-  [0,   80, 50],    // red
-  [120, 80, 50],    // green
-  [240, 80, 50],    // blue
-  [60,  70, 60],    // yellow-ish
-  [180, 60, 45],    // cyan-ish
-  [300, 70, 55],    // magenta-ish
-  [215, 80, 55],    // representative app blue
-  [30,  50, 35],    // dim brownish (old file)
-  [200, 50, 15],    // very dark
-  [200, 50, 85],    // very light
-  [0,   0,  50],    // grey (achromatic)
-  [0,   0,  0],     // black
-  [0,   0,  100],   // white
-  [350, 60, 50],    // near-0 hue (wrapping tests)
-  [5,   60, 50],    // just above 0 hue
+  [0, 80, 50], // red
+  [120, 80, 50], // green
+  [240, 80, 50], // blue
+  [60, 70, 60], // yellow-ish
+  [180, 60, 45], // cyan-ish
+  [300, 70, 55], // magenta-ish
+  [215, 80, 55], // representative app blue
+  [30, 50, 35], // dim brownish (old file)
+  [200, 50, 15], // very dark
+  [200, 50, 85], // very light
+  [0, 0, 50], // grey (achromatic)
+  [0, 0, 0], // black
+  [0, 0, 100], // white
+  [350, 60, 50], // near-0 hue (wrapping tests)
+  [5, 60, 50], // just above 0 hue
 ];
 
 function hslSampleToString(h: number, s: number, l: number): string {
@@ -155,8 +165,8 @@ const SL_TOL = 0.1;
 
 function expectHslClose(
   label: string,
-  actual: [number, number, number],   // [h_deg, s_pct, l_pct] from hsl.ts
-  twin: RGB,                           // RGB from GLSL twin
+  actual: [number, number, number], // [h_deg, s_pct, l_pct] from hsl.ts
+  twin: RGB // RGB from GLSL twin
 ): void {
   const twinHsl = rgbToHslDeg(twin);
   // When lightness is at or near 0 or 100 (grey/black/white), hue and
@@ -166,11 +176,13 @@ function expectHslClose(
     // Handle wrap-around: treat 0° and 360° as the same
     const hueDiff = Math.min(
       Math.abs(twinHsl[0] - actual[0]),
-      360 - Math.abs(twinHsl[0] - actual[0]),
+      360 - Math.abs(twinHsl[0] - actual[0])
     );
     expect(hueDiff, `${label} — hue diff`).toBeLessThanOrEqual(HUE_TOL);
     // Saturation is also degenerate when lightness is at boundary
-    expect(Math.abs(twinHsl[1] - actual[1]), `${label} — saturation diff`).toBeLessThanOrEqual(SL_TOL);
+    expect(Math.abs(twinHsl[1] - actual[1]), `${label} — saturation diff`).toBeLessThanOrEqual(
+      SL_TOL
+    );
   }
   expect(Math.abs(twinHsl[2] - actual[2]), `${label} — lightness diff`).toBeLessThanOrEqual(SL_TOL);
 }
@@ -181,13 +193,14 @@ function expectHslClose(
 
 describe('hsl.glsl parity with hsl.ts', () => {
   it('GLSL source file exists and declares all three public helpers', () => {
-    const src = readFileSync(
-      resolve(__dirname, '../../src/scene/utils/color/hsl.glsl'),
-      'utf-8',
-    );
+    const src = readFileSync(resolve(__dirname, '../../src/scene/utils/color/hsl.glsl'), 'utf-8');
     expect(src).toContain('vec3 shadeColor(vec3 rgb, float deltaPct)');
-    expect(src).toContain('vec3 shadeAndShiftHue(vec3 rgb, float deltaLightPct, float deltaHueDeg, float minLightPct)');
-    expect(src).toContain('vec3 shadeByRatio(vec3 rgb, float ratio, float deltaHueDeg, float floorPct)');
+    expect(src).toContain(
+      'vec3 shadeAndShiftHue(vec3 rgb, float deltaLightPct, float deltaHueDeg, float minLightPct)'
+    );
+    expect(src).toContain(
+      'vec3 shadeByRatio(vec3 rgb, float ratio, float deltaHueDeg, float floorPct)'
+    );
   });
 
   describe('shadeColor parity', () => {

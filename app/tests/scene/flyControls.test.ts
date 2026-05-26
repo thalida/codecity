@@ -334,7 +334,10 @@ describe('flyControls velocity integration', () => {
     camera.lookAt(0, 20, -1);
     camera.updateMatrixWorld();
     const fly = createFlyControls({
-      camera, canvas: makeCanvas(), rig: makeFakeRig(), world: makeFakeWorld(),
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
@@ -456,7 +459,10 @@ describe('flyControls mouse look', () => {
     camera.updateMatrixWorld();
     const canvas = makeCanvas();
     const fly = createFlyControls({
-      camera, canvas, rig: makeFakeRig(), world: makeFakeWorld(),
+      camera,
+      canvas,
+      rig: makeFakeRig(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     const before = new THREE.Quaternion().copy(camera.quaternion);
@@ -520,8 +526,8 @@ describe('flyControls resetToDefault', () => {
       getGemWorldPos: () => new THREE.Vector3(0, 0, 0),
       // Root street runs along world X with length 200, width 20.
       getRootStreet: () => ({
-        x: 50,    // street center
-        y: 0,     // street z-position
+        x: 50, // street center
+        y: 0, // street z-position
         orientation: StreetAxis.X,
         isRoot: true,
         width: 20,
@@ -548,9 +554,9 @@ describe('flyControls resetToDefault', () => {
     // the +X axis (toward the road end), with only a slight downward tilt.
     const dir = new THREE.Vector3();
     camera.getWorldDirection(dir);
-    expect(dir.x).toBeGreaterThan(0.9);   // mostly forward
-    expect(dir.y).toBeLessThan(0);         // slight downward
-    expect(dir.y).toBeGreaterThan(-0.3);  // but not steeply down
+    expect(dir.x).toBeGreaterThan(0.9); // mostly forward
+    expect(dir.y).toBeLessThan(0); // slight downward
+    expect(dir.y).toBeGreaterThan(-0.3); // but not steeply down
 
     // Sanity check: the gem (at origin) lies in front of the camera —
     // i.e. projecting the camera-to-gem vector onto forward is positive.
@@ -586,7 +592,10 @@ describe('flyControls idle quaternion passthrough', () => {
     camera.lookAt(0, 0, -1);
     camera.updateMatrixWorld();
     const fly = createFlyControls({
-      camera, canvas: makeCanvas(), rig: makeFakeRig(), world: makeFakeWorld(),
+      camera,
+      canvas: makeCanvas(),
+      rig: makeFakeRig(),
+      world: makeFakeWorld(),
     });
     fly.enable();
     // Let velocity fully decay to zero by running several idle frames.

@@ -36,7 +36,6 @@ import { BuildingOrient, StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 import type { createWorld } from '../world.js';
 
-
 const SIGHTLINE_STEP_DEG = 20;
 const SIGHTLINE_MAX_ATTEMPTS = 5;
 const SIGHTLINE_FAR_OFFSET = 0.5;
@@ -146,7 +145,7 @@ export function createCameraRig({
     // small cities cramped because worldDist was itself small.
     controls.maxDistance = Math.max(
       worldRadius * cameraControlsCfg.MAX_DISTANCE_MULT,
-      MIN_MAX_DISTANCE,
+      MIN_MAX_DISTANCE
     );
 
     // Far clip: covers the farthest point a fully-zoomed-out camera can
@@ -198,9 +197,10 @@ export function createCameraRig({
     // (no gem) keeps the old high-oblique direction for completeness.
     let dir: THREE.Vector3;
     if (rootStreet) {
-      dir = rootStreet.orientation === StreetAxis.X
-        ? new THREE.Vector3(-1, 0.25, 0).normalize()
-        : new THREE.Vector3(0, 0.25, -1).normalize();
+      dir =
+        rootStreet.orientation === StreetAxis.X
+          ? new THREE.Vector3(-1, 0.25, 0).normalize()
+          : new THREE.Vector3(0, 0.25, -1).normalize();
     } else {
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
@@ -335,11 +335,7 @@ export function createCameraRig({
     );
   }
 
-  function _isSightClear(
-    camPos: THREE.Vector3,
-    target: THREE.Vector3,
-    focused: Building
-  ): boolean {
+  function _isSightClear(camPos: THREE.Vector3, target: THREE.Vector3, focused: Building): boolean {
     _xrayDir.subVectors(target, camPos).normalize();
     _xrayRay.set(camPos, _xrayDir);
     _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
@@ -352,10 +348,7 @@ export function createCameraRig({
       // Skip the focused building itself — its own faces always block its
       // own sightline. Match on (cellId, slotId).
       const hitCellId = hit.object.userData.cellId;
-      if (
-        hitCellId === focused.cellId &&
-        hit.instanceId === focused.slotId
-      ) continue;
+      if (hitCellId === focused.cellId && hit.instanceId === focused.slotId) continue;
       return false;
     }
     return true;

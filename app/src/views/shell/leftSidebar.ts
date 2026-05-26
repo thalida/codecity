@@ -333,4 +333,3 @@ function _clearLegacyControlsState(): void {
     /* private mode / quota — silently skip */
   }
 }
-

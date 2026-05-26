@@ -60,7 +60,9 @@ export type PickerSelectionKey =
 export interface PickerWorld {
   getStreetPickables(): THREE.Object3D[];
   getRootGem(): THREE.Object3D | null;
-  getBuildingByPath(path: string): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;
+  getBuildingByPath(
+    path: string
+  ): { mesh: THREE.Mesh; building: Building; instanceId?: number } | null;
   getSidewalkByDir(path: string): THREE.Mesh | null;
   getStreetByDir(path: string): Street | null;
   onChange(cb: () => void): () => void;

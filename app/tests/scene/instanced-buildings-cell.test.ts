@@ -5,7 +5,11 @@ import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { SpatialGrid } from '@/scene/layout/spatialGrid.js';
 import { createEmptyCellTile } from '@/scene/layout/cellTile.js';
-import { attachBuildingMeshToCell, writeBuildingToSlot, setCellIconAtlas } from '@/scene/components/buildings/buildingsCell.js';
+import {
+  attachBuildingMeshToCell,
+  writeBuildingToSlot,
+  setCellIconAtlas,
+} from '@/scene/components/buildings/buildingsCell.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
@@ -14,7 +18,9 @@ import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
 // Minimal Building fixture — only the fields read by writeBuildingToSlot.
 // ---------------------------------------------------------------------------
 
-function fakeBuilding(overrides: Partial<Building> & { x: number; y: number; h: number }): Building {
+function fakeBuilding(
+  overrides: Partial<Building> & { x: number; y: number; h: number }
+): Building {
   return {
     x: overrides.x,
     y: overrides.y,
@@ -88,13 +94,19 @@ describe('buildingsCell factory', () => {
     expect(cell.detailMesh.instanceColor!.count).toBe(64);
 
     // Attribute sizes should match capacity.
-    const colsAttr = cell.detailMesh.geometry.getAttribute('iCols') as THREE.InstancedBufferAttribute;
+    const colsAttr = cell.detailMesh.geometry.getAttribute(
+      'iCols'
+    ) as THREE.InstancedBufferAttribute;
     expect(colsAttr.count).toBe(64); // N instances
     expect(colsAttr.itemSize).toBe(2); // vec2
-    const fadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
+    const fadeAttr = cell.detailMesh.geometry.getAttribute(
+      'iFade'
+    ) as THREE.InstancedBufferAttribute;
     expect(fadeAttr.count).toBe(64);
     expect(fadeAttr.itemSize).toBe(3); // vec3
-    const iconAttr = cell.detailMesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
+    const iconAttr = cell.detailMesh.geometry.getAttribute(
+      'iIconUV'
+    ) as THREE.InstancedBufferAttribute;
     expect(iconAttr.count).toBe(64);
     expect(iconAttr.itemSize).toBe(4); // vec4
 
@@ -143,7 +155,9 @@ describe('buildingsCell factory', () => {
     const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 1 });
     writeBuildingToSlot(cell, b);
 
-    const fadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;
+    const fadeAttr = cell.detailMesh.geometry.getAttribute(
+      'iFade'
+    ) as THREE.InstancedBufferAttribute;
     expect(fadeAttr.getX(1)).toBeCloseTo(1.0); // opacity = 1
     expect(fadeAttr.getY(1)).toBeCloseTo(0.0); // silhouette = 0
     expect(fadeAttr.getZ(1)).toBeCloseTo(0.0); // outlineOpacity = 0
@@ -157,7 +171,9 @@ describe('buildingsCell factory', () => {
     const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 2 });
     writeBuildingToSlot(cell, b);
 
-    const iconAttr = cell.detailMesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
+    const iconAttr = cell.detailMesh.geometry.getAttribute(
+      'iIconUV'
+    ) as THREE.InstancedBufferAttribute;
     expect(iconAttr.getX(2)).toBeCloseTo(-1.0); // no icon — shader skips atlas sample
     expect(iconAttr.getY(2)).toBeCloseTo(-1.0);
   });
@@ -174,16 +190,18 @@ describe('buildingsCell factory', () => {
     // seed the two most likely names instead.
     const knownUV: [number, number] = [0.125, 0.25];
     const atlas = fakeAtlas({
-      'typescript': knownUV,
-      'file_type_typescript': knownUV,
-      'ts': knownUV,
+      typescript: knownUV,
+      file_type_typescript: knownUV,
+      ts: knownUV,
     });
     setCellIconAtlas(atlas);
 
     const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 4 });
     writeBuildingToSlot(cell, b);
 
-    const iconAttr = cell.detailMesh.geometry.getAttribute('iIconUV') as THREE.InstancedBufferAttribute;
+    const iconAttr = cell.detailMesh.geometry.getAttribute(
+      'iIconUV'
+    ) as THREE.InstancedBufferAttribute;
     // iIconUV.xy must NOT be (-1, -1) — the atlas lookup must have succeeded.
     const u = iconAttr.getX(4);
     const v = iconAttr.getY(4);
@@ -205,7 +223,9 @@ describe('buildingsCell factory', () => {
     const b = fakeBuilding({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
     writeBuildingToSlot(cell, b);
 
-    const orientAttr = cell.detailMesh.geometry.getAttribute('iOrient') as THREE.InstancedBufferAttribute;
+    const orientAttr = cell.detailMesh.geometry.getAttribute(
+      'iOrient'
+    ) as THREE.InstancedBufferAttribute;
     expect(orientAttr.getX(5)).toBe(0); // South = 0
   });
 

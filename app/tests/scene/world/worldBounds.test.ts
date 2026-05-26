@@ -5,9 +5,14 @@ import type { CityBbox } from '@/types';
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
   return {
-    minX, minY, maxX, maxY,
-    cx: (minX + maxX) / 2, cy: (minY + maxY) / 2,
-    width: maxX - minX, depth: maxY - minY,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    width: maxX - minX,
+    depth: maxY - minY,
   };
 }
 

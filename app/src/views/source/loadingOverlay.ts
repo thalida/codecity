@@ -93,10 +93,11 @@ export function createLoadingOverlay(): LoadingOverlay {
       </div>
     `;
 
-    _titleEl   = root.querySelector('.text-card-title.is-loading');
-    _stepEls   = {};
+    _titleEl = root.querySelector('.text-card-title.is-loading');
+    _stepEls = {};
     for (const step of ALL_STEPS) {
-      _stepEls[step] = root.querySelector(`[data-step="${step}"]`) as HTMLElement | null ?? undefined;
+      _stepEls[step] =
+        (root.querySelector(`[data-step="${step}"]`) as HTMLElement | null) ?? undefined;
     }
   }
 
@@ -135,9 +136,9 @@ export function createLoadingOverlay(): LoadingOverlay {
       // Hide git-only steps for local sources.
       if (kind === 'local') {
         const resolvingEl = _stepEls['resolving'];
-        const cloningEl   = _stepEls['cloning'];
+        const cloningEl = _stepEls['cloning'];
         if (resolvingEl) resolvingEl.style.display = 'none';
-        if (cloningEl)   cloningEl.style.display   = 'none';
+        if (cloningEl) cloningEl.style.display = 'none';
         _applyStep('scanning');
       } else {
         // Git sources: start at 'resolving'. The server emits 'cloning'

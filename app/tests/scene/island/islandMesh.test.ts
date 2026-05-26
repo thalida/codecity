@@ -34,7 +34,7 @@ describe('createIsland', () => {
   it('setBounds rebuilds the geometry and repositions', () => {
     const island = createIsland(null);
     const islandMesh = island.group.children.find(
-      (c) => c.userData.island === 'islandMesh',
+      (c) => c.userData.island === 'islandMesh'
     ) as THREE.Mesh;
     const oldGeom = islandMesh.geometry;
     island.setBounds({ cx: 50, cz: 50, halfWidth: 25, halfDepth: 25 });
@@ -54,7 +54,7 @@ describe('createIsland', () => {
   it('uses RENDER_ORDERS.VALLEY_FLOOR for the island mesh', () => {
     const island = createIsland(null);
     const islandMesh = island.group.children.find(
-      (c) => c.userData.island === 'islandMesh',
+      (c) => c.userData.island === 'islandMesh'
     ) as THREE.Mesh;
     expect(islandMesh.renderOrder).toBe(RENDER_ORDERS.VALLEY_FLOOR);
     island.dispose();

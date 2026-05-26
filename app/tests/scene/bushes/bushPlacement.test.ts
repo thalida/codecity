@@ -47,15 +47,22 @@ function resetConfig() {
 
 function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
   return {
-    minX, minY, maxX, maxY,
-    cx: (minX + maxX) / 2, cy: (minY + maxY) / 2,
-    width: maxX - minX, depth: maxY - minY,
+    minX,
+    minY,
+    maxX,
+    maxY,
+    cx: (minX + maxX) / 2,
+    cy: (minY + maxY) / 2,
+    width: maxX - minX,
+    depth: maxY - minY,
   };
 }
 
 function emptyLayout(bb: CityBbox): CityLayout {
   return {
-    buildings: [], streets: [], paths: [],
+    buildings: [],
+    streets: [],
+    paths: [],
     lineStats: { min: 0, max: 0 },
     byteStats: { min: 0, max: 0 },
     bbox: bb,
@@ -72,7 +79,9 @@ describe('placeBushes (decorative scatter)', () => {
 
   it('returns empty when bbox is missing', () => {
     const layout: CityLayout = {
-      buildings: [], streets: [], paths: [],
+      buildings: [],
+      streets: [],
+      paths: [],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
     };

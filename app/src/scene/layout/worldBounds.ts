@@ -52,7 +52,7 @@ export interface WorldBounds {
  */
 export function getWorldBounds(
   bbox: CityBbox | null | undefined,
-  cityHeight: number = 0,
+  cityHeight: number = 0
 ): WorldBounds {
   if (!bbox) {
     return {
@@ -67,7 +67,7 @@ export function getWorldBounds(
   const buffer = characteristicSize * bufferFrac;
   return {
     cx: bbox.cx,
-    cz: bbox.cy,             // bbox.cy is the Z-axis center in this codebase
+    cz: bbox.cy, // bbox.cy is the Z-axis center in this codebase
     halfWidth: bbox.width / 2 + buffer,
     halfDepth: bbox.depth / 2 + buffer,
   };

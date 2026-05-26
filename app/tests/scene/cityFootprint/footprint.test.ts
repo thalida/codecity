@@ -12,9 +12,21 @@ function resetFootprint() {
 
 function singleBuildingLayout(): CityLayout {
   return {
-    buildings: [{ x: 0, y: 0, w: 10, d: 10, h: 16, floors: 1, file: { path: 'a', size: 0, lines: 0 } } as never],
-    streets: [], paths: [],
-    lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
+    buildings: [
+      {
+        x: 0,
+        y: 0,
+        w: 10,
+        d: 10,
+        h: 16,
+        floors: 1,
+        file: { path: 'a', size: 0, lines: 0 },
+      } as never,
+    ],
+    streets: [],
+    paths: [],
+    lineStats: { min: 0, max: 0 },
+    byteStats: { min: 0, max: 0 },
     bbox: { minX: -10, minY: -10, maxX: 10, maxY: 10, cx: 0, cy: 0, width: 20, depth: 20 },
   };
 }
@@ -25,14 +37,28 @@ describe('createCityFootprint', () => {
   it('emits one InstancedMesh instance per layout rect', () => {
     const layout: CityLayout = {
       buildings: [
-        { x: 0, y: 0, w: 20, d: 20, h: 32, floors: 2, file: { path: 'a', size: 0, lines: 0 } } as never,
+        {
+          x: 0,
+          y: 0,
+          w: 20,
+          d: 20,
+          h: 32,
+          floors: 2,
+          file: { path: 'a', size: 0, lines: 0 },
+        } as never,
       ],
       streets: [
-        { x: 100, y: 0, length: 200, width: 32, orientation: StreetAxis.X, isRoot: true, name: 'main' } as never,
+        {
+          x: 100,
+          y: 0,
+          length: 200,
+          width: 32,
+          orientation: StreetAxis.X,
+          isRoot: true,
+          name: 'main',
+        } as never,
       ],
-      paths: [
-        { x: 0, y: 50, w: 8, d: 8 } as never,
-      ],
+      paths: [{ x: 0, y: 50, w: 8, d: 8 } as never],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
       bbox: { minX: -100, minY: -100, maxX: 200, maxY: 100, cx: 50, cy: 0, width: 300, depth: 200 },
@@ -46,9 +72,21 @@ describe('createCityFootprint', () => {
   it('attaches a per-instance aHalfExtent attribute carrying inflated half-extents', () => {
     FOOTPRINT.setKey('HALO_WIDTH', 50);
     const layout: CityLayout = {
-      buildings: [{ x: 0, y: 0, w: 20, d: 40, h: 32, floors: 2, file: { path: 'a', size: 0, lines: 0 } } as never],
-      streets: [], paths: [],
-      lineStats: { min: 0, max: 0 }, byteStats: { min: 0, max: 0 },
+      buildings: [
+        {
+          x: 0,
+          y: 0,
+          w: 20,
+          d: 40,
+          h: 32,
+          floors: 2,
+          file: { path: 'a', size: 0, lines: 0 },
+        } as never,
+      ],
+      streets: [],
+      paths: [],
+      lineStats: { min: 0, max: 0 },
+      byteStats: { min: 0, max: 0 },
       bbox: { minX: -10, minY: -20, maxX: 10, maxY: 20, cx: 0, cy: 0, width: 20, depth: 40 },
     };
     const fp = createCityFootprint(layout);

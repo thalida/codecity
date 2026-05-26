@@ -1,15 +1,13 @@
 import { describe, it, expect } from 'vitest';
-import {
-  SpatialGrid,
-  CELL_SIZE,
-  MIN_CELL_SIZE,
-} from '@/scene/layout/spatialGrid.js';
+import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/scene/layout/spatialGrid.js';
 
 describe('SpatialGrid', () => {
   it('computes grid dimensions from world bounds', () => {
     const grid = new SpatialGrid({
-      minX: 0, maxX: 100,
-      minZ: 0, maxZ: 60,
+      minX: 0,
+      maxX: 100,
+      minZ: 0,
+      maxZ: 60,
     });
     expect(grid.gridW).toBe(Math.ceil(100 / CELL_SIZE));
     expect(grid.gridH).toBe(Math.ceil(60 / CELL_SIZE));
@@ -63,7 +61,12 @@ describe('SpatialGrid.computeOptimalCellSize', () => {
 
   it('scales with bbox area', () => {
     const small = SpatialGrid.computeOptimalCellSize({ minX: 0, maxX: 100, minZ: 0, maxZ: 100 });
-    const large = SpatialGrid.computeOptimalCellSize({ minX: 0, maxX: 10000, minZ: 0, maxZ: 10000 });
+    const large = SpatialGrid.computeOptimalCellSize({
+      minX: 0,
+      maxX: 10000,
+      minZ: 0,
+      maxZ: 10000,
+    });
     expect(large).toBeGreaterThan(small);
   });
 

@@ -41,9 +41,7 @@ function mkDir(name: string, children: any[], path = name): any {
 }
 
 function flatTree(n: number) {
-  const files = Array.from({ length: n }, (_, i) =>
-    mkFile(`f${String(i).padStart(4, '0')}.ts`, 0)
-  );
+  const files = Array.from({ length: n }, (_, i) => mkFile(`f${String(i).padStart(4, '0')}.ts`, 0));
   return mkDir('root', files);
 }
 

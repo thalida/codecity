@@ -6,11 +6,18 @@
 // Mirrors the media-recognizing extension sets in the Python scanner.
 // Kept in sync by hand.
 const IMAGE_EXTS: ReadonlySet<string> = new Set([
-  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.ico', '.avif', '.tiff',
+  '.png',
+  '.jpg',
+  '.jpeg',
+  '.gif',
+  '.webp',
+  '.svg',
+  '.bmp',
+  '.ico',
+  '.avif',
+  '.tiff',
 ]);
-const VIDEO_EXTS: ReadonlySet<string> = new Set([
-  '.mp4', '.webm', '.mov', '.ogv', '.m4v', '.mkv',
-]);
+const VIDEO_EXTS: ReadonlySet<string> = new Set(['.mp4', '.webm', '.mov', '.ogv', '.m4v', '.mkv']);
 
 // String enum so consumers reference MediaKind.Image instead of the
 // raw 'image' literal — keeps the values centralized and TS-narrowable.

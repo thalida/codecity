@@ -76,7 +76,9 @@ describe('loadingOverlay', () => {
   it('git mode starts with resolving active', () => {
     const o = createLoadingOverlay();
     o.show({ kind: 'git', label: 'owner/repo' });
-    expect(root.querySelector('[data-step="resolving"]')?.getAttribute('data-state')).toBe('active');
+    expect(root.querySelector('[data-step="resolving"]')?.getAttribute('data-state')).toBe(
+      'active'
+    );
     expect(root.querySelector('[data-step="cloning"]')?.getAttribute('data-state')).toBe('pending');
   });
 
@@ -84,7 +86,8 @@ describe('loadingOverlay', () => {
     const o = createLoadingOverlay();
     o.show({ kind: 'local', label: 'mydir' });
     expect(root.querySelector('[data-step="scanning"]')?.getAttribute('data-state')).toBe('active');
-    expect(root.querySelector('[data-step="building"]')?.getAttribute('data-state')).toBe('pending');
+    expect(root.querySelector('[data-step="building"]')?.getAttribute('data-state')).toBe(
+      'pending'
+    );
   });
-
 });

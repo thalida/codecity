@@ -65,9 +65,9 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer(placements, commits);
 
     // Find any canopy mesh on the trees group.
-    const canopy = trees.group.children.find(
-      (c) => c.name.startsWith('tree-canopy-'),
-    ) as THREE.InstancedMesh | undefined;
+    const canopy = trees.group.children.find((c) => c.name.startsWith('tree-canopy-')) as
+      | THREE.InstancedMesh
+      | undefined;
     expect(canopy).toBeDefined();
 
     // For each instance on that mesh, the lookup should return the
@@ -84,9 +84,9 @@ describe('Trees commit lookups', () => {
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits);
 
-    const trunk = trees.group.children.find(
-      (c) => c.name === 'tree-trunk',
-    ) as THREE.InstancedMesh | undefined;
+    const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as
+      | THREE.InstancedMesh
+      | undefined;
     expect(trunk).toBeDefined();
 
     // Trunk instances are in placement order (one instance per placement).
@@ -99,9 +99,7 @@ describe('Trees commit lookups', () => {
     const placements = [placement(0, 0)];
     const trees = createTreeRenderer(placements, commits);
 
-    const trunk = trees.group.children.find(
-      (c) => c.name === 'tree-trunk',
-    ) as THREE.InstancedMesh;
+    const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as THREE.InstancedMesh;
     expect(trees.commitForInstance(trunk, 42)).toBeNull();
     expect(trees.commitForInstance(trunk, -1)).toBeNull();
   });
@@ -114,7 +112,7 @@ describe('Trees commit lookups', () => {
     const stranger = new THREE.InstancedMesh(
       new THREE.BoxGeometry(),
       new THREE.MeshBasicMaterial(),
-      1,
+      1
     );
     expect(trees.commitForInstance(stranger, 0)).toBeNull();
   });
@@ -144,9 +142,7 @@ describe('Trees commit lookups', () => {
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits);
 
-    const canopies = trees.group.children.filter((c) =>
-      c.name.startsWith('tree-canopy-'),
-    );
+    const canopies = trees.group.children.filter((c) => c.name.startsWith('tree-canopy-'));
     for (const c of canopies) {
       expect(c.userData.meshKind).toBe('tree-canopy');
     }
@@ -158,9 +154,7 @@ describe('Trees commit lookups', () => {
   it('commitForInstance returns null when commits is null', () => {
     const placements = [placement(0, 0)];
     const trees = createTreeRenderer(placements, null);
-    const trunk = trees.group.children.find(
-      (c) => c.name === 'tree-trunk',
-    ) as THREE.InstancedMesh;
+    const trunk = trees.group.children.find((c) => c.name === 'tree-trunk') as THREE.InstancedMesh;
     expect(trees.commitForInstance(trunk, 0)).toBeNull();
   });
 
@@ -273,7 +267,7 @@ describe('Trees commit lookups', () => {
     hit.mesh.getColorAt(hit.instanceId, tmp);
     const selectedR = tmp.r;
 
-    trees.setHoverSha(commits[1].sha);  // hover same tree
+    trees.setHoverSha(commits[1].sha); // hover same tree
     hit.mesh.getColorAt(hit.instanceId, tmp);
     expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001);
   });

@@ -8,17 +8,17 @@ import * as THREE from 'three';
 import type { SpatialGrid } from '@/scene/layout/spatialGrid.js';
 
 export interface SidewalkRect {
-  x: number;       // centroid X
-  z: number;       // centroid Z
-  w: number;       // width in X
-  d: number;       // depth in Z
-  color: string;   // hex
+  x: number; // centroid X
+  z: number; // centroid Z
+  w: number; // width in X
+  d: number; // depth in Z
+  color: string; // hex
 }
 
 export function buildCellStreetMesh(
   grid: SpatialGrid,
   cellId: number,
-  allRects: SidewalkRect[],
+  allRects: SidewalkRect[]
 ): THREE.Mesh | null {
   const cellRects = allRects.filter((r) => grid.worldToCell(r.x, r.z).cellId === cellId);
   if (cellRects.length === 0) return null;
@@ -30,19 +30,21 @@ export function buildCellStreetMesh(
 
   for (let i = 0; i < cellRects.length; i++) {
     const r = cellRects[i];
-    const x0 = r.x - r.w / 2, x1 = r.x + r.w / 2;
-    const z0 = r.z - r.d / 2, z1 = r.z + r.d / 2;
+    const x0 = r.x - r.w / 2,
+      x1 = r.x + r.w / 2;
+    const z0 = r.z - r.d / 2,
+      z1 = r.z + r.d / 2;
     const Y = 0.01; // slight lift above ground plane to prevent z-fighting
 
     const v0 = i * 4;
-    positions.set([x0, Y, z0,  x1, Y, z0,  x1, Y, z1,  x0, Y, z1], v0 * 3);
+    positions.set([x0, Y, z0, x1, Y, z0, x1, Y, z1, x0, Y, z1], v0 * 3);
 
     color.set(r.color);
     for (let k = 0; k < 4; k++) {
       colors.set([color.r, color.g, color.b], (v0 + k) * 3);
     }
 
-    indices.set([v0, v0 + 1, v0 + 2,  v0, v0 + 2, v0 + 3], i * 6);
+    indices.set([v0, v0 + 1, v0 + 2, v0, v0 + 2, v0 + 3], i * 6);
   }
 
   const geom = new THREE.BufferGeometry();

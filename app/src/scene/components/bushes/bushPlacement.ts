@@ -48,15 +48,19 @@ function u32ToUnit(u: number): number {
 
 function bboxOfBuilding(b: Building): Rect {
   return {
-    minX: b.x - b.w / 2, minY: b.y - b.d / 2,
-    maxX: b.x + b.w / 2, maxY: b.y + b.d / 2,
+    minX: b.x - b.w / 2,
+    minY: b.y - b.d / 2,
+    maxX: b.x + b.w / 2,
+    maxY: b.y + b.d / 2,
   };
 }
 
 function bboxOfPath(p: BuildingPath): Rect {
   return {
-    minX: p.x - p.w / 2, minY: p.y - p.d / 2,
-    maxX: p.x + p.w / 2, maxY: p.y + p.d / 2,
+    minX: p.x - p.w / 2,
+    minY: p.y - p.d / 2,
+    maxX: p.x + p.w / 2,
+    maxY: p.y + p.d / 2,
   };
 }
 
@@ -69,14 +73,12 @@ function bboxOfStreet(s: Street): Rect {
   return { minX: s.x - halfWid, maxX: s.x + halfWid, minY: s.y - halfLen, maxY: s.y + halfLen };
 }
 
-function distToNearestRect(
-  x: number, y: number,
-  rbushTree: RBush<Rect>,
-  cap: number,
-): number {
+function distToNearestRect(x: number, y: number, rbushTree: RBush<Rect>, cap: number): number {
   const hits = rbushTree.search({
-    minX: x - cap, minY: y - cap,
-    maxX: x + cap, maxY: y + cap,
+    minX: x - cap,
+    minY: y - cap,
+    maxX: x + cap,
+    maxY: y + cap,
   });
   if (hits.length === 0) return cap;
   let min = cap;
@@ -93,14 +95,14 @@ function distToNearestRect(
  *  the city, 100% in the outskirts. */
 const BUSH_CITY_DENSITY = 0.3;
 /** Gradient reach as a fraction of CAMERA_PERSPECTIVE.FAR. */
-const BUSH_GRADIENT_REACH_FRAC = 0.40;
+const BUSH_GRADIENT_REACH_FRAC = 0.4;
 /** Number of scatter attempts (scales with density). */
 const BUSH_SCATTER_ATTEMPTS = 50_000;
 
 export function placeBushes(
   layout: CityLayout,
   bboxOverride?: CityBbox,
-  options: PlaceBushesOptions = {},
+  options: PlaceBushesOptions = {}
 ): BushPlacement[] {
   const cfg = BUSHES.get();
   if (!cfg.BUSHES_ENABLED) return [];
@@ -114,8 +116,10 @@ export function placeBushes(
   const rtree = new RBush<Rect>();
   const rects: Rect[] = [];
   const inflate = (r: Rect): Rect => ({
-    minX: r.minX - halo, minY: r.minY - halo,
-    maxX: r.maxX + halo, maxY: r.maxY + halo,
+    minX: r.minX - halo,
+    minY: r.minY - halo,
+    maxX: r.maxX + halo,
+    maxY: r.maxY + halo,
   });
   for (const b of layout.buildings) rects.push(inflate(bboxOfBuilding(b)));
   for (const s of layout.streets) rects.push(inflate(bboxOfStreet(s)));
@@ -144,10 +148,7 @@ export function placeBushes(
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxX * 1000));
   masterSeed = mulberry32(masterSeed ^ Math.round(bbox.maxY * 1000));
 
-  const gradientReach = Math.max(
-    1,
-    BUSH_GRADIENT_REACH_FRAC * CAMERA_PERSPECTIVE.get().FAR,
-  );
+  const gradientReach = Math.max(1, BUSH_GRADIENT_REACH_FRAC * CAMERA_PERSPECTIVE.get().FAR);
 
   const placements: BushPlacement[] = [];
 
@@ -161,12 +162,17 @@ export function placeBushes(
 
     if (hasRects) {
       const hits = rtree.search({
-        minX: x - halfFoot, minY: y - halfFoot,
-        maxX: x + halfFoot, maxY: y + halfFoot,
+        minX: x - halfFoot,
+        minY: y - halfFoot,
+        maxX: x + halfFoot,
+        maxY: y + halfFoot,
       });
-      const overlaps = hits.some((h) =>
-        h.minX < x + halfFoot && h.maxX > x - halfFoot &&
-        h.minY < y + halfFoot && h.maxY > y - halfFoot,
+      const overlaps = hits.some(
+        (h) =>
+          h.minX < x + halfFoot &&
+          h.maxX > x - halfFoot &&
+          h.minY < y + halfFoot &&
+          h.maxY > y - halfFoot
       );
       if (overlaps) continue;
     }

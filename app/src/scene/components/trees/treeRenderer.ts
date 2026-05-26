@@ -73,15 +73,15 @@ export interface Trees {
 
 /** Lerp-toward-white amount for hover and selection canopy tints.
  *  0 = no change, 1 = fully white. Keep both subtle. */
-const HOVER_TINT   = 0.15;
-const SELECT_TINT  = 0.30;
+const HOVER_TINT = 0.15;
+const SELECT_TINT = 0.3;
 
 /** Subdivision levels of the icosahedron canopy.
  *  detail 0 → 20 faces (very faceted),
  *  detail 1 → 80 faces,
  *  detail 2 → 320 faces (smoothest, still reads as low-poly). */
 const DETAIL_LEVELS = [0, 1, 2] as const;
-type DetailLevel = typeof DETAIL_LEVELS[number];
+type DetailLevel = (typeof DETAIL_LEVELS)[number];
 
 function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
@@ -94,9 +94,9 @@ function setColorFromHex(target: THREE.Color, hex: string): void {
  *  → smooth round-edged dome). Not exposed in the Settings UI — the
  *  perf budget at each tier is calibrated against these counts. */
 const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
-  0: 5,   // distance tier — coarsest, max instance count
-  1: 8,   // mid tier — balanced
-  2: 12,  // hero tier — closest distance, fewest instances
+  0: 5, // distance tier — coarsest, max instance count
+  1: 8, // mid tier — balanced
+  2: 12, // hero tier — closest distance, fewest instances
 };
 
 /** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
@@ -132,18 +132,18 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   // single shared geometry per detail level. Insertion order = bottom
   // → top.
   const CANOPY_PROFILE: THREE.Vector2[] = [
-    new THREE.Vector2(0, 0),         // axis — caps the base
-    new THREE.Vector2(0.85, 0),      // bottom rim (slightly inset)
-    new THREE.Vector2(1.00, 0.10),   // widest, just above the base
+    new THREE.Vector2(0, 0), // axis — caps the base
+    new THREE.Vector2(0.85, 0), // bottom rim (slightly inset)
+    new THREE.Vector2(1.0, 0.1), // widest, just above the base
     new THREE.Vector2(0.95, 0.25),
     new THREE.Vector2(0.82, 0.42),
     new THREE.Vector2(0.66, 0.58),
-    new THREE.Vector2(0.50, 0.72),
+    new THREE.Vector2(0.5, 0.72),
     new THREE.Vector2(0.36, 0.82),
-    new THREE.Vector2(0.24, 0.89),   // upper shoulder
-    new THREE.Vector2(0.14, 0.94),   // dense samples
-    new THREE.Vector2(0.06, 0.98),   // near-apex
-    new THREE.Vector2(0, 1.0),       // apex
+    new THREE.Vector2(0.24, 0.89), // upper shoulder
+    new THREE.Vector2(0.14, 0.94), // dense samples
+    new THREE.Vector2(0.06, 0.98), // near-apex
+    new THREE.Vector2(0, 1.0), // apex
   ];
   const profile = CANOPY_PROFILE;
   const segments = DETAIL_SEGMENTS[detail];
@@ -170,10 +170,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
  *  `vertexColors: true` on the canopy material multiplies these per-
  *  vertex colors with the per-instance color (age lerp), so the same
  *  tree gets both an age-driven hue AND clear facet definition. */
-function bakeVertexShading(
-  geom: THREE.BufferGeometry,
-  strength: number,
-): void {
+function bakeVertexShading(geom: THREE.BufferGeometry, strength: number): void {
   // Sun direction sourced from LIGHTING config (shared with buildings
   // and the island mesh) so the scene agrees on where the sun is.
   // Note: trees bake shading at geometry-build time, so re-bake is
@@ -203,10 +200,7 @@ function bakeVertexShading(
 
     let faceShade = 1;
     if (nrm) {
-      const dot =
-        nrm.getX(i) * LIGHT_X +
-        nrm.getY(i) * LIGHT_Y +
-        nrm.getZ(i) * LIGHT_Z;
+      const dot = nrm.getX(i) * LIGHT_X + nrm.getY(i) * LIGHT_Y + nrm.getZ(i) * LIGHT_Z;
       const faceFactor = (dot + 1) * 0.5; // [0,1]
       faceShade = 1 - strength * DIRECTIONAL_RANGE * (1 - faceFactor);
     }
@@ -229,7 +223,7 @@ interface CanopyMeshRecord {
 
 export function createTreeRenderer(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null,
+  commits: CommitEntry[] | null
 ): Trees {
   let cfg = TREES.get();
 
@@ -298,7 +292,12 @@ export function createTreeRenderer(
     }
     interpolateOklch(soloDayColor, busyDayColor, t, target);
 
-    if (cfg.TREE_AGE_DESAT_ENABLED && commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
+    if (
+      cfg.TREE_AGE_DESAT_ENABLED &&
+      commits &&
+      placements[i].commitIndex >= 0 &&
+      placements[i].commitIndex < commits.length
+    ) {
       const aT = ageT(commits[placements[i].commitIndex], ageRange);
       const minFactor = cfg.TREE_AGE_SATURATION_MIN / 100;
       const maxFactor = cfg.TREE_AGE_SATURATION_MAX / 100;
@@ -362,7 +361,10 @@ export function createTreeRenderer(
   // O(1) index from sha → canopy instance. Populated in the bake loop
   // alongside _baseColorBySha, cleared + rebuilt on refresh(). Lets
   // findTreeBySha, _applyTint, and _restoreBase skip nested loops.
-  const _treeIndexBySha = new Map<string, { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }>();
+  const _treeIndexBySha = new Map<
+    string,
+    { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }
+  >();
 
   const canopyRecords: CanopyMeshRecord[] = [];
   for (const detail of DETAIL_LEVELS) {
@@ -489,10 +491,7 @@ export function createTreeRenderer(
     trunkMaterial.dispose();
   }
 
-  function commitForInstance(
-    mesh: THREE.InstancedMesh,
-    instanceId: number,
-  ): CommitEntry | null {
+  function commitForInstance(mesh: THREE.InstancedMesh, instanceId: number): CommitEntry | null {
     const order = mesh.userData?.placementOrder as number[] | undefined;
     if (!order) return null;
     if (instanceId < 0 || instanceId >= order.length) return null;
@@ -586,5 +585,14 @@ export function createTreeRenderer(
     _applyStateFor(sha);
   }
 
-  return { group, refresh, dispose, commitForInstance, findTreeBySha, colorForSha, setHoverSha, setSelectionSha };
+  return {
+    group,
+    refresh,
+    dispose,
+    commitForInstance,
+    findTreeBySha,
+    colorForSha,
+    setHoverSha,
+    setSelectionSha,
+  };
 }

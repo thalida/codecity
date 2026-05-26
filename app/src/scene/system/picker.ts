@@ -44,7 +44,6 @@ import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
-
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
 export const PICKER_SELECTION_KEY = atom<PickerSelectionKey | null>(null);
@@ -261,7 +260,7 @@ export function createPicker({
   // sort stability and the user gets a directory tooltip when their cursor
   // is plainly over a building.
   function _resolveTieBreak(
-    hits: THREE.Intersection<THREE.Object3D>[],
+    hits: THREE.Intersection<THREE.Object3D>[]
   ): THREE.Intersection<THREE.Object3D> | null {
     if (hits.length === 0) return null;
     const closest = hits[0];

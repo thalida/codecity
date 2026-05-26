@@ -85,7 +85,7 @@ export function createBuildingFader({
     bldgTargetFile: FileNode | null,
     dirTarget: DirNode | null,
     hoverFile: FileNode | null,
-    fadeCfg: ReturnType<typeof BUILDING_FADE.get>,
+    fadeCfg: ReturnType<typeof BUILDING_FADE.get>
   ): TierResult {
     // Hover wins — its tier values overwrite any selection/dir-tree result
     // unconditionally, so check first and skip the more expensive
@@ -148,8 +148,7 @@ export function createBuildingFader({
     const sel = picker.selection.get();
     const hov = picker.hover.get();
 
-    const bldgTargetFile =
-      sel && sel.kind === NodeKind.File ? sel.file : null;
+    const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
     const dirTarget = _resolveDirTarget(sel, hov);
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
@@ -165,7 +164,9 @@ export function createBuildingFader({
     // Iterate CellTile.detailMesh instances and write per-slot iFade values.
     const cells = world.getCells();
     for (const cell of cells.values()) {
-      const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as THREE.BufferAttribute | undefined;
+      const iFadeAttr = cell.detailMesh.geometry.getAttribute('iFade') as
+        | THREE.BufferAttribute
+        | undefined;
       if (!iFadeAttr) continue;
 
       for (let slot = 0; slot < cell.buildings.length; slot++) {
@@ -181,8 +182,8 @@ export function createBuildingFader({
         // Hidden     → body opacity 0; only the per-instance outline
         //              composites at face edges, leaving the road visible
         //              through the empty body.
-        const opacity        = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
-        const silhouette     = tier.detail === FadeDetail.Silhouette ? 1 : 0;
+        const opacity = tier.detail === FadeDetail.Hidden ? 0 : tier.bodyOpacity;
+        const silhouette = tier.detail === FadeDetail.Silhouette ? 1 : 0;
         const outlineOpacity = tier.outlineEnabled ? tier.outlineOpacity : 0;
 
         iFadeAttr.setXYZ(slot, opacity, silhouette, outlineOpacity);

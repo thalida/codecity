@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
 import { StreetAxis } from '@/types';
-import { applyFlips, computeFlips, isMirrorInvariant, translateRectsToWorld } from '@/scene/layout/layout';
+import {
+  applyFlips,
+  computeFlips,
+  isMirrorInvariant,
+  translateRectsToWorld,
+} from '@/scene/layout/layout';
 
 describe('computeFlips', () => {
   it('X-orient parent, side 0, no mirror: flipY only', () => {
@@ -27,22 +32,34 @@ describe('computeFlips', () => {
 describe('applyFlips', () => {
   it('no flips: rect unchanged', () => {
     expect(applyFlips({ x: 10, y: 20, w: 3, d: 4 }, false, false)).toEqual({
-      x: 10, y: 20, w: 3, d: 4,
+      x: 10,
+      y: 20,
+      w: 3,
+      d: 4,
     });
   });
   it('flipX: negates x center, w/d unchanged', () => {
     expect(applyFlips({ x: 10, y: 20, w: 3, d: 4 }, true, false)).toEqual({
-      x: -10, y: 20, w: 3, d: 4,
+      x: -10,
+      y: 20,
+      w: 3,
+      d: 4,
     });
   });
   it('flipY: negates y center, w/d unchanged', () => {
     expect(applyFlips({ x: 10, y: 20, w: 3, d: 4 }, false, true)).toEqual({
-      x: 10, y: -20, w: 3, d: 4,
+      x: 10,
+      y: -20,
+      w: 3,
+      d: 4,
     });
   });
   it('both flips: negates both centers', () => {
     expect(applyFlips({ x: 10, y: 20, w: 3, d: 4 }, true, true)).toEqual({
-      x: -10, y: -20, w: 3, d: 4,
+      x: -10,
+      y: -20,
+      w: 3,
+      d: 4,
     });
   });
 });
@@ -133,7 +150,7 @@ describe('findSmallestValidStem', () => {
     expect(s).toBe(30);
   });
 
-  it('global rect blocks forward at child rect\'s perp band → slides past', () => {
+  it("global rect blocks forward at child rect's perp band → slides past", () => {
     // X-orient parent. Child rect at child-local (0, 10), w=4, d=4.
     // After side=1 (no flips), it sits at world (stem, 10), perp band [8, 12].
     // Insert a global rect at world x in [50, 100], y in [8, 12].
@@ -266,7 +283,10 @@ import { placeChild } from '@/scene/layout/layout';
 describe('placeChild', () => {
   function worldRect(minX: number, minY: number, maxX: number, maxY: number) {
     return {
-      minX, minY, maxX, maxY,
+      minX,
+      minY,
+      maxX,
+      maxY,
       kind: WorldRectKind.Street,
       ref: {} as never,
     };
@@ -434,10 +454,11 @@ describe('translateRectsToWorld', () => {
     const world = translateRectsToWorld(
       [child],
       StreetAxis.X,
-      0, 0,  // parent origin
-      0,     // stem
-      1,     // side
-      false  // mirror
+      0,
+      0, // parent origin
+      0, // stem
+      1, // side
+      false // mirror
     );
     expect(world).toHaveLength(1);
     // After: world.x = child.x + parentOriginX + stem = 5; world.y = child.y + parentOriginY = 10.
@@ -449,14 +470,7 @@ describe('translateRectsToWorld', () => {
 
   it('X-orient parent, side 0, stem=10 → flipY + alongShift', () => {
     const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld(
-      [child],
-      StreetAxis.X,
-      0, 0,
-      10,
-      0,
-      false
-    );
+    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 10, 0, false);
     // For X-orient parent, side=0 → flipY=true. World y = -child.y + parentOriginY = -10.
     // World x = child.x + parentOriginX + stem = 5 + 10 = 15.
     expect(world[0].minX).toBe(13);
@@ -467,14 +481,7 @@ describe('translateRectsToWorld', () => {
 
   it('X-orient parent, side 1, mirror=true → flipX, no flipY, alongShift', () => {
     const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld(
-      [child],
-      StreetAxis.X,
-      0, 0,
-      10,
-      1,
-      true
-    );
+    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 10, 1, true);
     // For X-orient parent, mirror → flipX=true. World x = -child.x + parentOriginX + stem = -5 + 10 = 5.
     // World y = child.y = 10.
     expect(world[0].minX).toBe(3);
@@ -485,14 +492,7 @@ describe('translateRectsToWorld', () => {
 
   it('Y-orient parent, side 0, stem=10 → flipX + alongShift', () => {
     const child = { x: 5, y: 10, w: 4, d: 4 };
-    const world = translateRectsToWorld(
-      [child],
-      StreetAxis.Y,
-      0, 0,
-      10,
-      0,
-      false
-    );
+    const world = translateRectsToWorld([child], StreetAxis.Y, 0, 0, 10, 0, false);
     // For Y-orient parent: along=Y, perp=X. side=0 → flipX=true.
     // World x = -child.x + parentOriginX = -5. World y = child.y + parentOriginY + stem = 10 + 10 = 20.
     expect(world[0].minX).toBe(-7);
@@ -506,14 +506,7 @@ describe('translateRectsToWorld', () => {
     // We pass a stub ref to verify it's preserved.
     const ref = { id: 'stub' } as unknown as never;
     const child = { x: 0, y: 10, w: 4, d: 4, kind: WorldRectKind.Building, ref };
-    const world = translateRectsToWorld(
-      [child],
-      StreetAxis.X,
-      0, 0,
-      0,
-      1,
-      false
-    );
+    const world = translateRectsToWorld([child], StreetAxis.X, 0, 0, 0, 1, false);
     expect(world[0].kind).toBe('building');
     expect(world[0].ref).toBe(ref);
   });
@@ -531,17 +524,25 @@ import {
 describe('layoutCity end-to-end', () => {
   function mkFile(name: string): any {
     return {
-      name, type: NodeKind.File, path: name, extension: '.ts',
-      size: 500, lines: 20,
-      created: '2024-01-01T00:00:00Z', modified: '2024-01-01T00:00:00Z',
+      name,
+      type: NodeKind.File,
+      path: name,
+      extension: '.ts',
+      size: 500,
+      lines: 20,
+      created: '2024-01-01T00:00:00Z',
+      modified: '2024-01-01T00:00:00Z',
     };
   }
   function mkDir(name: string, children: any[]): any {
     const prefixed = children.map((c) => ({ ...c, path: `${name}/${c.path || c.name}` }));
     return {
-      name, type: NodeKind.Directory, path: name,
+      name,
+      type: NodeKind.Directory,
+      path: name,
       children_count: prefixed.length,
-      descendants_count: prefixed.length + prefixed.filter((c) => c.type === NodeKind.Directory).length,
+      descendants_count:
+        prefixed.length + prefixed.filter((c) => c.type === NodeKind.Directory).length,
       descendants_size: 1000,
       children: prefixed,
     };
@@ -567,8 +568,11 @@ describe('layoutCity end-to-end', () => {
   describe('estimateDirReaches matches actual layout', () => {
     it('flat tree: estimated alongReach >= actual road length', () => {
       const tree = mkDir('root', [
-        mkFile('a.ts'), mkFile('b.ts'), mkFile('c.ts'),
-        mkFile('d.ts'), mkFile('e.ts'),
+        mkFile('a.ts'),
+        mkFile('b.ts'),
+        mkFile('c.ts'),
+        mkFile('d.ts'),
+        mkFile('e.ts'),
       ]);
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
@@ -581,7 +585,7 @@ describe('layoutCity end-to-end', () => {
       expect(reaches.alongReach).toBeGreaterThanOrEqual(root!.length - 1);
     });
 
-    it('nested tree: every dir\'s estimate >= actual road length', () => {
+    it("nested tree: every dir's estimate >= actual road length", () => {
       const tree = mkDir('root', [
         mkDir('a', [mkFile('a1.ts'), mkFile('a2.ts'), mkFile('a3.ts')]),
         mkDir('b', [mkFile('b1.ts'), mkFile('b2.ts')]),
@@ -610,11 +614,7 @@ describe('layoutCity end-to-end', () => {
     it('deep chain: subdir contributions correctly propagate', () => {
       // root → a → aa → aaa with files at the deepest level.
       const tree = mkDir('root', [
-        mkDir('a', [
-          mkDir('aa', [
-            mkDir('aaa', [mkFile('x.ts'), mkFile('y.ts'), mkFile('z.ts')]),
-          ]),
-        ]),
+        mkDir('a', [mkDir('aa', [mkDir('aaa', [mkFile('x.ts'), mkFile('y.ts'), mkFile('z.ts')])])]),
       ]);
       const stats = { lines: { min: 20, max: 20 }, bytes: { min: 500, max: 500 } };
       const cache = new Map();
@@ -640,9 +640,14 @@ describe('layoutCity end-to-end', () => {
   it('long-road ancestor body does not overlap deep grandchildren in first-alpha subtree', () => {
     function mkSizedFile(name: string, sizeBytes: number, lines: number): any {
       return {
-        name, type: NodeKind.File, path: name, extension: '.ts',
-        size: sizeBytes, lines,
-        created: '2024-01-01T00:00:00Z', modified: '2024-01-01T00:00:00Z',
+        name,
+        type: NodeKind.File,
+        path: name,
+        extension: '.ts',
+        size: sizeBytes,
+        lines,
+        created: '2024-01-01T00:00:00Z',
+        modified: '2024-01-01T00:00:00Z',
       };
     }
     function manyVariedFiles(prefix: string, count: number): any[] {

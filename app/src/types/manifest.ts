@@ -85,7 +85,7 @@ export interface RepoInfo {
  * (`A/M/D/T/U` rows from `git log --name-status`).
  */
 export interface CommitEntry {
-  date: string;   // "YYYY-MM-DD"
+  date: string; // "YYYY-MM-DD"
   files: number;
   /** Full 40-char lowercase hex SHA. UI displays the first 7. */
   sha: string;

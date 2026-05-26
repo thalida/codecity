@@ -112,7 +112,8 @@ export function createAnimator({ world }: { world: ReturnType<typeof createWorld
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {
-      const { building, instanceId, newScaleX, newScaleY, newScaleZ, newPosX, newPosY, newPosZ } = e;
+      const { building, instanceId, newScaleX, newScaleY, newScaleZ, newPosX, newPosY, newPosZ } =
+        e;
       if (!building) continue;
       _addOrUpdate({
         building,
