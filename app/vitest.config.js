@@ -15,5 +15,7 @@ export default defineConfig({
     setupFiles: ['tests/setup.ts'],
     // jsdom + canvas tests can spike past the 5s default under parallel load.
     testTimeout: 15_000,
+    // bench/ holds perf smoke harnesses run via `npm run bench`, not the default test run.
+    exclude: ['**/node_modules/**', '**/dist/**', '**/bench/**'],
   },
 });
