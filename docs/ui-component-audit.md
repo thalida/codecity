@@ -1,6 +1,6 @@
 # UI Component Inventory — styles.css
 
-Source: `/Users/thalida/Documents/Repos/codecity/web/styles.css` (2666 lines).
+Source: `/Users/thalida/Documents/Repos/codecity/app/styles.css` (2666 lines).
 
 Reference material for the component-system refactor. Inventory only —
 no proposed names. Line numbers refer to the declaration line (not the

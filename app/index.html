@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CodeCity</title>
+  </head>
+  <body>
+    <!-- All divs in the body are empty mount points; their content is
+         rendered by TS modules at boot (appHeader.ts populates
+         #app-title with the path breadcrumb, etc.). -->
+    <header id="app-header">
+      <div id="app-title"></div>
+    </header>
+    <main id="app-body">
+      <div id="tree-sidebar"></div>
+      <div id="center-pane">
+        <canvas id="city"></canvas>
+      </div>
+      <div id="sidebar"></div>
+    </main>
+    <footer id="app-footer"></footer>
+
+    <div id="source-picker-root" style="display: none"></div>
+    <div id="loading-overlay-root" style="display: none"></div>
+
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+
+    // Strict flags will be flipped one at a time in a follow-up PR
+    // (Phase 3 of the migration plan). Each flag will surface a few
+    // hundred annotations and is best reviewed in isolation. See
+    // ~/.claude/plans/codecity-ts-eslint-prettier.md.
+    "strict": false,
+    "noImplicitAny": false,
+    "strictNullChecks": false,
+
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+
+    // Path alias mirrored in vite.config.js + vitest.config.js. `@/`
+    // maps to app/src so cross-directory imports stay short and survive
+    // file moves. Editor + tsc resolve through `paths`; bundler +
+    // tests resolve through `resolve.alias`.
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+
+    // Explicit allowlist prevents auto-inclusion of every package under
+    // node_modules/@types/ (the TS default). Without this, @types/node
+    // bleeds into browser source after it was installed for tests/visual.
+    // "three" is required because three.js ships no bundled .d.ts files;
+    // "webxr" is @types/three's declared dependency and referenced in its
+    // declarations (XRSession etc.), so it must be listed here too.
+    "types": ["three", "webxr"]
+  },
+  "include": ["**/*.js", "**/*.ts", "tests/**/*"],
+  "exclude": [
+    "node_modules",
+    // Node-side scripts — checked by tsconfig.node.json which adds @types/node.
+    // Excluding them here prevents @types/node from bleeding into browser source
+    // via `import 'node:path'` etc. in these files.
+    "vite.config.js",
+    "vitest.config.js",
+    "tests/visual/**/*",
+    // Use Node built-ins (fs/path/url) to read GLSL source files at test
+    // time — checked by tsconfig.node.json which adds @types/node.
+    "tests/scene/hsl-glsl-parity.test.ts",
+    "tests/scene/building-shader.test.ts",
+    "tests/scene/sky/skyShader.test.ts"
+  ]
+}

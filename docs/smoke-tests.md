@@ -8,20 +8,22 @@ at least once by refactors that passed the unit suite.
 
 Run this checklist after any change that touches:
 
-- `web/scene/cityScene.ts`, `web/scene/picker.ts`, `web/scene/inputHandlers.ts`
-- `web/scene/instanced/*` or `web/scene/shaders/*`
-- `web/scene/effects/*` (fader, outlineRenderer, ghostRenderer, pathLineRenderer)
-- `web/scene/lodController.ts`, `web/scene/animator.ts`
-- `web/config/*` or `web/main.ts`'s `applyTheme` / `attachHotReload` wiring
+- `app/scene/cityScene.ts`, `app/scene/picker.ts`, `app/scene/inputHandlers.ts`
+- `app/scene/instanced/*` or `app/scene/shaders/*`
+- `app/scene/effects/*` (fader, outlineRenderer, ghostRenderer, pathLineRenderer)
+- `app/scene/lodController.ts`, `app/scene/animator.ts`
+- `app/config/*` or `app/main.ts`'s `applyTheme` / `attachHotReload` wiring
 
 ## Setup
 
 ```sh
-( cd web && npm run build )
-uv run codecity .                  # run on this repo for a real-world scene
+just dev    # dev verification (hot-reload frontend + API)
 # or
-uv run codecity codecity/tests/fixtures/sample-repo
+just run    # prod-like verification (Docker image, built frontend)
 ```
+
+Then open the app in a browser and point it at this repo (or
+`api/tests/fixtures/sample-repo` for a smaller scene).
 
 Two tabs: keep the running app + the controls pane visible.
 
@@ -29,9 +31,9 @@ Two tabs: keep the running app + the controls pane visible.
 
 | | |
 |---|---|
-| Hover a foreground building | Tooltip shows the **file's path** ("web/scene/cityScene.ts · 15 lines") |
+| Hover a foreground building | Tooltip shows the **file's path** ("app/scene/cityScene.ts · 15 lines") |
 | Move cursor between two buildings in the same block | Tooltip text **updates** on each new building (regression: stuck on first) |
-| Hover a sidewalk | Tooltip shows the **directory's path** ("web/scene · 24 files, X dirs") |
+| Hover a sidewalk | Tooltip shows the **directory's path** ("app/scene · 24 files, X dirs") |
 | Hover the gem | Cursor changes; no tooltip |
 | Hover a far building (one whose block has swapped to placeholder LOD) | Tooltip shows the directory path (placeholder represents the whole block) |
 | Hover empty space | No tooltip; cursor returns to grab |
@@ -137,7 +139,7 @@ scene reacts **without a page reload**:
 | Updates | `SCAN_FILTERS.SHOW_ALL_FILES` | Server refetches manifest with untracked + gitignored files |
 
 If any row changes the value but the scene doesn't react: the store is
-either missing from `web/config/hotReload.ts`'s lists or its consumer
+either missing from `app/config/hotReload.ts`'s lists or its consumer
 isn't subscribing. Both have been bug sources during the InstancedMesh
 refactor.
 

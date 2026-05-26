@@ -11,8 +11,8 @@
 
 # Synthetic benchmark fixtures — gitignored, but surface under
 # `Show all files`. Hide them so the city stays focused on the codebase.
-codecity/tests/fixtures/large-repo
-codecity/tests/fixtures/sample-repo
+api/tests/fixtures/large-repo
+api/tests/fixtures/sample-repo
 
 # Opt node_modules back in so `--show-all` includes the web frontend's
 # compiled deps — viewing the bundled three.js / lit / nanostores trees
