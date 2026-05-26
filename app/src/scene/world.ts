@@ -1156,6 +1156,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // the floor; larger → label rises with a visible beam.
     _repoLabel.setRepoName(manifest.tree.name);
     _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
+    // Hand the live gem to the label so its beam foot tracks the
+    // gem's hover height + bob animation. rootGem is the gem GROUP
+    // whose .position.y is mutated each frame by the renderLoop.
+    _repoLabel.setGem(rootGem);
     _repoLabel.refresh();
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a

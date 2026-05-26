@@ -11,8 +11,13 @@ uniform float uOpacity;
 
 void main() {
   // Vertical fade: bright at the gem (v=0), fading toward the panel (v=1).
-  float vFade = 1.0 - vUv.y;
-  float baseAlpha = vFade * 0.85;
+  // We keep TWO fade curves: a linear one for the pulse modulator (so
+  // the pulse stays visible the whole way up) and a pow-3 one for the
+  // base alpha (so the beam is a tight bright point at the gem and
+  // reads as faint atmosphere near the top).
+  float vFadeLinear = 1.0 - vUv.y;
+  float vFade = pow(vFadeLinear, 3.0);
+  float baseAlpha = vFade * 0.95;
 
   // Energy pulse: a narrow band of extra brightness that travels
   // upward at ~0.5 units of beam height per second (at ANIMATION_SPEED=1).
@@ -24,11 +29,12 @@ void main() {
   pulseDist = min(pulseDist, 1.0 - pulseDist);
   // Narrow Gaussian peak.
   float pulse = exp(-pulseDist * pulseDist * 80.0);
-  // Pulse fades along with the base gradient so it's not visible at
-  // the panel end where the beam has otherwise faded out.
-  pulse *= vFade;
+  // Pulse stays visible end-to-end: linear fade dims it gently toward
+  // the top but never to zero, so you can watch the pulse travel
+  // through the wide cone of the beam.
+  pulse *= mix(0.4, 1.0, vFadeLinear);
 
-  float a = (baseAlpha + pulse * 0.6) * uOpacity;
+  float a = (baseAlpha + pulse * 0.8) * uOpacity;
 
   gl_FragColor = vec4(uColor, a);
 }

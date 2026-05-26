@@ -152,4 +152,44 @@ describe('createRepoLabel()', () => {
     label!.setRepoName('codecity');
     expect(label!.group.children.length).toBe(2);
   });
+
+  it('setGem makes the beam track the gem\'s live world Y (hover + bob)', () => {
+    label!.setRepoName('codecity');
+    REPO_LABEL.setKey('HEIGHT', 300);
+    REPO_LABEL.setKey('FONT_SIZE', 100);
+    label!.refresh();
+    // Stand-in for the gem — a THREE.Object3D with a settable position.y.
+    // (In real use this is the gem THREE.Group; renderLoop mutates its
+    // .position.y each frame.)
+    const fakeGem = new THREE.Object3D();
+    fakeGem.position.y = 25; // gem center, dynamic
+    label!.setGem(fakeGem);
+    const beam = label!.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
+    ) as THREE.Mesh;
+    // beamLength = panelBottom (300) - gem (25) = 275
+    expect(beam.scale.y).toBeCloseTo(275);
+    // Simulate a frame of bob — gem moves up.
+    fakeGem.position.y = 35;
+    label!.tick(0.016, new THREE.PerspectiveCamera());
+    // beamLength = 300 - 35 = 265
+    expect(beam.scale.y).toBeCloseTo(265);
+  });
+
+  it('setGem(null) falls back to the constant inset above the anchor', () => {
+    label!.setRepoName('codecity');
+    REPO_LABEL.setKey('HEIGHT', 100);
+    REPO_LABEL.setKey('FONT_SIZE', 60);
+    label!.refresh();
+    const fakeGem = new THREE.Object3D();
+    fakeGem.position.y = 50;
+    label!.setGem(fakeGem);
+    label!.setGem(null);
+    const beam = label!.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
+    ) as THREE.Mesh;
+    // Fallback: beam foot at anchor.y (0) + 10 (BEAM_FOOT_FALLBACK).
+    // beamLength = 100 - 10 = 90.
+    expect(beam.scale.y).toBeCloseTo(90);
+  });
 });

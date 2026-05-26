@@ -16,10 +16,13 @@
 //   panel width  = FONT_SIZE × textureAspect (text-content-driven,
 //                  so long repo names get proportionally wider panels
 //                  rather than squished text)
-//   beam length  = max(0, REPO_LABEL.HEIGHT - BEAM_FOOT_INSIDE_GEM)
-//                  (spans the gap from BEAM_FOOT_INSIDE_GEM above the
-//                  floor up to the panel's bottom — 0 means the panel
-//                  sits flush with the floor and the beam is invisible)
+//   beam length  = (panel bottom world Y) − (gem center world Y).
+//                  Beam top sits at the panel bottom; beam bottom
+//                  tracks the gem's live position each frame (via
+//                  setGem + tick), so the beam follows both the gem's
+//                  per-repo hover height AND its bob animation. If no
+//                  gem is set, falls back to BEAM_FOOT_FALLBACK above
+//                  the anchor.
 
 import * as THREE from 'three';
 
@@ -36,18 +39,21 @@ import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './t
 // column of light, not a hairline.
 const BEAM_RADIUS_FRAC = 0.04;
 // Beam taper: top radius / bottom radius. Larger = more flare toward
-// the panel. 3.0 reads as a clear "energy-cone-broadening-into-the-label" look.
-const BEAM_TAPER_RATIO = 3.0;
+// the panel. 10× reads as a wide cone blooming out from a tight point
+// at the gem.
+const BEAM_TAPER_RATIO = 10.0;
 // Beam base geometry — bottom radius 1, top radius = BEAM_TAPER_RATIO.
 // mesh.scale.x/z multiplies these so world bottom radius =
 // FONT_SIZE × BEAM_RADIUS_FRAC.
 const BEAM_BASE_RADIUS_BOTTOM = 1;
 const BEAM_BASE_RADIUS_TOP = BEAM_BASE_RADIUS_BOTTOM * BEAM_TAPER_RATIO;
 const BEAM_BASE_HEIGHT = 1;
-// Beam bottom Y offset from the anchor (= gem world position). The
-// beam ends this far ABOVE the floor so it appears to emerge from
-// INSIDE the gem rather than penetrate the ground.
-const BEAM_FOOT_INSIDE_GEM = 10;
+// Fallback beam-foot offset above the anchor, in world units. Used
+// when setGem() has not been called (e.g. in tests, or before the
+// first manifest applies). When a gem reference is supplied, the
+// beam's foot tracks the gem's live world Y instead — so it inherits
+// the gem's hover height + bobbing animation.
+const BEAM_FOOT_FALLBACK = 10;
 // Panel base height (1 unit); the mesh's scale.y multiplies this so its
 // world height equals REPO_LABEL.FONT_SIZE. Width is also scaled so
 // width = FONT_SIZE × textureAspect.
@@ -57,6 +63,14 @@ export interface RepoLabel {
   group: THREE.Group;
   setRepoName(name: string): void;
   setAnchor(anchor: THREE.Vector3): void;
+  /**
+   * Supply a reference to the root gem (its THREE.Group). The beam's
+   * bottom will track gem.position.y each frame — picking up both the
+   * gem's static hover height (from GEM_SIZING) AND its per-frame bob
+   * animation. Pass null to clear (beam falls back to a constant
+   * inset above the anchor).
+   */
+  setGem(gem: THREE.Object3D | null): void;
   tick(dtSeconds: number, camera: THREE.Camera): void;
   refresh(): void;
   dispose(): void;
@@ -86,11 +100,40 @@ export function createRepoLabel(): RepoLabel {
   let beamMat: THREE.ShaderMaterial | null = null;
 
   // Anchor state — the floor-level point the label rises from (the gem's
-  // world position). Cached so refresh() can re-apply HEIGHT / FONT_SIZE
+  // base x/z). Cached so refresh() can re-apply HEIGHT / FONT_SIZE
   // changes without the caller having to pass the anchor again.
   let anchorX = 0;
   let anchorY = 0;
   let anchorZ = 0;
+
+  // Optional gem reference. When set, the beam's bottom tracks the
+  // gem's live world Y each frame (so the beam's foot follows the
+  // gem's hover height + bob animation).
+  let gemRef: THREE.Object3D | null = null;
+
+  // _updateBeamGeometry recomputes the beam's scale + position so its
+  // top sits at the panel bottom and its bottom sits at the gem's
+  // current world Y (or, if no gem is set, at the fallback inset above
+  // the anchor). Called from _applyTransform (for HEIGHT / FONT_SIZE
+  // changes) AND from tick() each frame (so the beam follows the gem's
+  // bob animation).
+  function _updateBeamGeometry(): void {
+    if (!beamMesh) return;
+    const cfg = REPO_LABEL.get();
+    const halfFont = cfg.FONT_SIZE / 2;
+    const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
+
+    const groupWorldY = anchorY + cfg.HEIGHT + halfFont;
+    const beamTopWorld = anchorY + cfg.HEIGHT; // = panel bottom
+    const beamBottomWorld = gemRef ? gemRef.position.y : anchorY + BEAM_FOOT_FALLBACK;
+    const beamLength = Math.max(0, beamTopWorld - beamBottomWorld);
+
+    beamMesh.scale.set(beamRadius, beamLength, beamRadius);
+    // Place beam center at midpoint of top/bottom (in local coords,
+    // relative to the group's world Y).
+    const beamCenterWorld = (beamTopWorld + beamBottomWorld) / 2;
+    beamMesh.position.y = beamCenterWorld - groupWorldY;
+  }
 
   function _applyTransform(): void {
     const cfg = REPO_LABEL.get();
@@ -100,23 +143,14 @@ export function createRepoLabel(): RepoLabel {
     group.position.set(anchorX, anchorY + cfg.HEIGHT + halfFont, anchorZ);
     group.visible = cfg.ENABLED;
 
-    if (beamMesh) {
-      const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
-      // Beam length is HEIGHT minus the foot inset (so the beam ends
-      // inside the gem rather than at the floor).
-      const beamLength = Math.max(0, cfg.HEIGHT - BEAM_FOOT_INSIDE_GEM);
-      beamMesh.scale.set(beamRadius, beamLength, beamRadius);
-      // Beam top sits at panel bottom (-halfFont); beam bottom sits at
-      // -halfFont - beamLength. Center is the midpoint.
-      beamMesh.position.y = -halfFont - beamLength / 2;
-    }
-
     if (panelMesh) {
       // Panel scale.y = FONT_SIZE (panel height in world units).
       // Panel scale.x = FONT_SIZE × textureAspect (so width is text-driven).
       const aspect = textTex?.aspect ?? 1;
       panelMesh.scale.set(cfg.FONT_SIZE * aspect, cfg.FONT_SIZE, 1);
     }
+
+    _updateBeamGeometry();
   }
 
   function _applyOpacity(): void {
@@ -228,6 +262,11 @@ export function createRepoLabel(): RepoLabel {
     _applyTransform();
   }
 
+  function setGem(gem: THREE.Object3D | null): void {
+    gemRef = gem;
+    _updateBeamGeometry();
+  }
+
   function tick(dtSeconds: number, camera: THREE.Camera): void {
     if (!panelMesh || !panelMat) return;
     const cfg = REPO_LABEL.get();
@@ -236,6 +275,10 @@ export function createRepoLabel(): RepoLabel {
     panelMat.uniforms.uTime.value += dtScaled;
     if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
     _faceCameraYLocked(panelMesh, camera);
+    // Track the gem's per-frame bob — the renderLoop mutates
+    // gemRef.position.y each frame (sin-wave around its baseY), so the
+    // beam's foot follows the gem live.
+    _updateBeamGeometry();
   }
 
   function refresh(): void {
@@ -266,5 +309,5 @@ export function createRepoLabel(): RepoLabel {
     if (group.parent) group.parent.remove(group);
   }
 
-  return { group, setRepoName, setAnchor, tick, refresh, dispose };
+  return { group, setRepoName, setAnchor, setGem, tick, refresh, dispose };
 }
