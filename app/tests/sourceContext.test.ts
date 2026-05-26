@@ -15,7 +15,7 @@ describe('sourceKey', () => {
   });
 
   it('produces a short alphanumeric string', () => {
-    const k = sourceKey('/Users/thalida/Documents/Repos/codecity');
+    const k = sourceKey('/Users/example/repos/codecity');
     expect(k).toMatch(/^[a-z0-9]{1,10}$/);
   });
 });

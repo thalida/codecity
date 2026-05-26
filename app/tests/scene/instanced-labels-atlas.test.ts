@@ -1,23 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildLabelAtlas } from '@/scene/components/labels/labels.js';
-import type { LabelTypographyConfig } from '@/config/index.js';
-
-// Minimal typography config for tests — shape matches LabelTypographyConfig.
-const TYPOGRAPHY: LabelTypographyConfig = {
-  FONT_FAMILY: 'sans-serif',
-  FONT_WEIGHT: 700,
-  FONT_SIZE_PX: 64,
-  FILL: '#fff',
-  STROKE: '#000',
-  STROKE_WIDTH_FRAC: 4 / 64,
-  CANVAS_PADDING_FRAC: 16 / 64,
-  HEIGHT_FRAC: 0.45,
-  MIN_SCALE: 0.5,
-  SPACING_MULT: 3.5,
-  SPACING_FLOOR: 200,
-  ELEVATION: 0,
-  FLIP_HYSTERESIS: 0.15,
-};
+import { TYPOGRAPHY } from '../_helpers/typography.js';
 
 describe('buildLabelAtlas', () => {
   it('returns at least one page + UV rect per text', () => {

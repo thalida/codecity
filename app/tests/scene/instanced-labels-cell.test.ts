@@ -1,32 +1,20 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import type { LabelTypographyConfig } from '@/config/index.js';
 import { LABEL_TYPOGRAPHY } from '@/config/index.js';
 import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
 import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
 import type { CellTile } from '@/scene/layout/cellTile.js';
 import type { Building } from '@/types/index.js';
 import { NodeKind, BuildingOrient } from '@/types/index.js';
+import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../_helpers/typography.js';
 
 // ---------------------------------------------------------------------------
 // Minimal typography config for tests
 // ---------------------------------------------------------------------------
+// Cell tests place a mesh in the world and assert on Y, so override
+// ELEVATION (the helper's default is 0 for the atlas-only tests).
 
-const TYPOGRAPHY: LabelTypographyConfig = {
-  FONT_FAMILY: 'sans-serif',
-  FONT_WEIGHT: 700,
-  FONT_SIZE_PX: 64,
-  FILL: '#fff',
-  STROKE: '#000',
-  STROKE_WIDTH_FRAC: 4 / 64,
-  CANVAS_PADDING_FRAC: 16 / 64,
-  HEIGHT_FRAC: 0.45,
-  MIN_SCALE: 0.5,
-  SPACING_MULT: 3.5,
-  SPACING_FLOOR: 200,
-  ELEVATION: 0.5,
-  FLIP_HYSTERESIS: 0.15,
-};
+const TYPOGRAPHY = { ...BASE_TYPOGRAPHY, ELEVATION: 0.5 };
 
 // ---------------------------------------------------------------------------
 // Helpers
