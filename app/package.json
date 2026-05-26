@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "bench": "vitest run --config vitest.bench.config.js",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test": "vitest run --project=unit",
+    "test:watch": "vitest --project=unit",
+    "bench": "vitest run --project=bench",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
