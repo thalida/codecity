@@ -591,9 +591,14 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         log_calls: list[list[str]] = []
 
         def _record_if_git_log(args) -> None:
+            # Match any invocation that runs `git ... log ...`. _run_git
+            # prepends `-c safe.directory=*` (and the log path also does
+            # so), so we can't assume a fixed position for "log" — just
+            # check the binary name and that "log" appears as a token.
             if (
                 isinstance(args, list)
-                and args[:2] == ["git", "-C"]
+                and len(args) > 0
+                and args[0] == "git"
                 and "log" in args
             ):
                 log_calls.append(list(args))

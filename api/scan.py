@@ -158,10 +158,21 @@ def _line_count(path: Path) -> int:
 
 
 def _run_git(root: Path, *args: str) -> str:
-    """Run git with CWD=root, return stdout. Empty string on failure."""
+    """Run git with CWD=root, return stdout. Empty string on failure.
+
+    Includes ``-c safe.directory=*`` so the scanner can read repos
+    whose ownership doesn't match the process uid — common in CI /
+    container setups where the bind-mounted workspace is owned by a
+    different user than the one running pytest. Without this, git
+    2.35+ refuses with "dubious ownership" and we silently get an
+    empty stdout, which manifests downstream as an empty manifest
+    (0 tracked files, 0 commits). codecity intentionally scans
+    arbitrary repos, so disabling the check globally for this
+    invocation is appropriate.
+    """
     try:
         return subprocess.run(
-            ["git", "-C", str(root), *args],
+            ["git", "-c", "safe.directory=*", "-C", str(root), *args],
             capture_output=True,
             text=True,
             check=False,
@@ -225,7 +236,8 @@ def _collect_git_dates_windowed(
     """
     window = _git_history_window(git_window)
     _log(f"  starting git log walk (--since={window or 'ALL'})…")
-    log_argv = ["git", "-C", str(root), "log",
+    # See _run_git docstring for why -c safe.directory=* is needed.
+    log_argv = ["git", "-c", "safe.directory=*", "-C", str(root), "log",
                 "--format=COMMIT:%aI%x09%H",
                 "--name-status",
                 "--no-renames",
