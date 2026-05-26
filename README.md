@@ -21,6 +21,8 @@ Out of the box, CodeCity works with **git URLs only**. To render a local repo, s
 
 Cache lives in the Docker volume `codecity-cache`. To wipe: `docker volume rm codecity-cache`. Port conflict? Use a different host port: `-p 8081:8080`.
 
+To update to the latest image, either pull it explicitly: `docker pull ghcr.io/thalida/codecity:latest`, or add `--pull=always` to the `docker run` command so each run checks for a newer image.
+
 ## Advanced: rendering local directories
 
 To render a local git repo, mount it into the container at the same absolute path. The source picker will show the host path and resolve correctly inside the container.
