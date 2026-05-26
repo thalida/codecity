@@ -27,10 +27,11 @@ void main() {
   float baseAlpha = vFade * 0.15;
 
   // Energy pulse: a narrow band of extra brightness that travels
-  // upward at ~0.5 units of beam height per second (at ANIMATION_SPEED=1).
-  // The pulse position cycles through [0, 1); when it equals vUv.y the
-  // local fragment is at the peak of the pulse.
-  float pulsePos = fract(uTime * 0.5);
+  // upward at ~0.3 units of beam height per second (at ANIMATION_SPEED=1)
+  // — roughly one pulse every ~3.3 seconds. The pulse position
+  // cycles through [0, 1); when it equals vUv.y the local fragment is
+  // at the peak of the pulse.
+  float pulsePos = fract(uTime * 0.3);
   float pulseDist = abs(vUv.y - pulsePos);
   // Wrap distance so the pulse looks continuous across the seam.
   pulseDist = min(pulseDist, 1.0 - pulseDist);
