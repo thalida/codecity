@@ -47,28 +47,25 @@ describe('buildLabelAtlas', () => {
     expect(result.rectByText.size).toBe(0);
   });
 
-  it(
-    'paginates when one page would overflow',
-    { timeout: 15_000 },
-    () => {
-      // Generate enough labels to force at least 2 pages. Each label is
-      // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per
-      // page. In jsdom, measureText returns ~32px per char at 64px font,
-      // so a 24-char label is ~768px + 32px padding = ~800px wide. That's
-      // ~10 per row × 85 rows = ~850 capacity per page. 1100 labels gives
-      // a comfortable margin above that threshold while running noticeably
-      // faster than the original 1500 under parallel jsdom load.
-      const wide = Array.from({ length: 1100 }, (_, i) => `${'x'.repeat(20)}-${i}`);
-      const result = buildLabelAtlas(wide, TYPOGRAPHY);
-      expect(result.pages.length).toBeGreaterThan(1);
-      // Every label must have a rect on a real page.
-      for (const text of wide) {
-        const rect = result.rectByText.get(text);
-        expect(rect).toBeDefined();
-        expect(rect!.page).toBeLessThan(result.pages.length);
-      }
+  it('paginates when one page would overflow', () => {
+    // Generate enough labels to force at least 2 pages. Each label is
+    // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per page.
+    // Labels are 22-25 chars total (`'x'.repeat(20)` + `-${i}` for i=0..N-1).
+    // jsdom's measureText returns ~32px per char at 64px font → average
+    // ~770px wide. Atlas page is ~8192px wide → ~10 per row × 85 rows =
+    // ~850 capacity per page. 1100 was confirmed empirically to force >1
+    // page; the arithmetic above is approximate (jsdom rendering can shift)
+    // so don't trust it blindly if tweaking.
+    const wide = Array.from({ length: 1100 }, (_, i) => `${'x'.repeat(20)}-${i}`);
+    const result = buildLabelAtlas(wide, TYPOGRAPHY);
+    expect(result.pages.length).toBeGreaterThan(1);
+    // Every label must have a rect on a real page.
+    for (const text of wide) {
+      const rect = result.rectByText.get(text);
+      expect(rect).toBeDefined();
+      expect(rect!.page).toBeLessThan(result.pages.length);
     }
-  );
+  });
 
   it(
     'truncates labels when atlas overflows MAX_PAGES instead of throwing',
