@@ -104,6 +104,44 @@ install-hooks:
     git config core.hooksPath bin/git-hooks
     @echo "[just] git core.hooksPath set to bin/git-hooks/"
 
+# ── Release ──────────────────────────────────────────────────────
+# Tag + push a release. Pushing a `v*` tag triggers .github/workflows/release.yml
+# which builds the multi-arch image, signs it, smoke-tests, and creates the
+# GitHub Release. VERSION must look like v1.2.3 or v1.2.3-alpha-4 / v1.2.3-rc.1.
+# Refuses to tag unless: on main, working tree clean, in sync with origin/main,
+# and the tag doesn't already exist locally or on origin.
+release VERSION:
+    @set -e ; \
+     VERSION="{{VERSION}}" ; \
+     if ! printf '%s' "$VERSION" | grep -Eq '^v[0-9]+\.[0-9]+\.[0-9]+(-.+)?$'; then \
+         echo "[just] error: VERSION must match v<major>.<minor>.<patch>[-suffix] (e.g. v0.1.0 or v0.0.0-alpha-3)" >&2 ; exit 1 ; \
+     fi ; \
+     BRANCH=$(git rev-parse --abbrev-ref HEAD) ; \
+     if [ "$BRANCH" != "main" ]; then \
+         echo "[just] error: releases must be tagged from main (currently on $BRANCH)" >&2 ; exit 1 ; \
+     fi ; \
+     if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then \
+         echo "[just] error: working tree is dirty; commit or stash before releasing" >&2 ; exit 1 ; \
+     fi ; \
+     git fetch --quiet origin main ; \
+     LOCAL=$(git rev-parse main) ; \
+     REMOTE=$(git rev-parse origin/main) ; \
+     if [ "$LOCAL" != "$REMOTE" ]; then \
+         echo "[just] error: local main ($LOCAL) is not in sync with origin/main ($REMOTE); pull/push first" >&2 ; exit 1 ; \
+     fi ; \
+     if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then \
+         echo "[just] error: tag $VERSION already exists locally" >&2 ; exit 1 ; \
+     fi ; \
+     if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then \
+         echo "[just] error: tag $VERSION already exists on origin" >&2 ; exit 1 ; \
+     fi ; \
+     echo "[just] tagging $VERSION at $LOCAL" ; \
+     git tag -a "$VERSION" -m "Release $VERSION" ; \
+     echo "[just] pushing $VERSION to origin" ; \
+     git push origin "$VERSION" ; \
+     REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<owner>/<repo>") ; \
+     echo "[just] released — watch: https://github.com/$REPO/actions/workflows/release.yml"
+
 # ── Cleanup ──────────────────────────────────────────────────────
 clean:
     @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
