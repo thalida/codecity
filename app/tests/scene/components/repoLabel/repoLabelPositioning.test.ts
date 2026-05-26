@@ -6,7 +6,7 @@ import { REPO_LABEL } from '@/config/components/repoLabel.js';
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
-    HEIGHT: 200,
+    HEIGHT: 1305,
     FONT_SIZE: 96,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,
@@ -28,16 +28,16 @@ describe('RepoLabel positioning', () => {
 
   it('default config places panel center at anchor.y + HEIGHT + FONT_SIZE/2', () => {
     label.setAnchor(new THREE.Vector3(10, 0, 20));
-    // 0 + 200 + 96/2 = 248
+    // 0 + 1305 + 96/2 = 1353
     expect(label.group.position.x).toBeCloseTo(10);
-    expect(label.group.position.y).toBeCloseTo(248);
+    expect(label.group.position.y).toBeCloseTo(1353);
     expect(label.group.position.z).toBeCloseTo(20);
   });
 
   it('non-zero anchor.y is added to HEIGHT (label rises from the anchor, not from y=0)', () => {
     label.setAnchor(new THREE.Vector3(0, 40, 0));
-    // 40 + 200 + 48 = 288
-    expect(label.group.position.y).toBeCloseTo(288);
+    // 40 + 1305 + 48 = 1393
+    expect(label.group.position.y).toBeCloseTo(1393);
   });
 
   it('HEIGHT=0 places the panel bottom flush with the floor (= anchor.y)', () => {
@@ -50,7 +50,7 @@ describe('RepoLabel positioning', () => {
 
   it('refresh() picks up new HEIGHT without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
-    expect(label.group.position.y).toBeCloseTo(248);
+    expect(label.group.position.y).toBeCloseTo(1353);
     REPO_LABEL.setKey('HEIGHT', 500);
     label.refresh();
     // 0 + 500 + 48 = 548
@@ -61,7 +61,7 @@ describe('RepoLabel positioning', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     REPO_LABEL.setKey('FONT_SIZE', 200);
     label.refresh();
-    // 0 + 200 + 100 = 300
-    expect(label.group.position.y).toBeCloseTo(300);
+    // 0 + 1305 + 100 = 1405
+    expect(label.group.position.y).toBeCloseTo(1405);
   });
 });

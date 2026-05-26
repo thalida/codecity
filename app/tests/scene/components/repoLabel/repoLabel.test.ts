@@ -7,7 +7,7 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
-    HEIGHT: 200,
+    HEIGHT: 1305,
     FONT_SIZE: 96,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,

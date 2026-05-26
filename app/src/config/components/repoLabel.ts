@@ -31,11 +31,12 @@ export interface RepoLabelConfig {
 
 export const REPO_LABEL = map<RepoLabelConfig>({
   ENABLED: true,
-  // Default elevation: high enough that the label sits well above a
-  // typical city silhouette but the user immediately sees how the
-  // slider behaves (try 0 → label on floor; try 1500 → label way up
-  // past the tallest possible building).
-  HEIGHT: 200,
+  // Default: 0.85 × the tallest possible building (BUILDING_DIMENSIONS
+  // MAX_FLOORS × FLOOR_HEIGHT = 96 × 16 = 1536; × 0.85 ≈ 1305).
+  // Sits the label inside the silhouette band of an extreme-tall city
+  // but clearly above any typical one. Tied to BUILDING_DIMENSIONS by
+  // design, not by import — update both if either drifts.
+  HEIGHT: 1305,
   // Tracks BUILDING_DIMENSIONS.MAX_WIDTH default (96). Update both if
   // either ever drifts — they're tied by design, not by import (the
   // import would force a module-load order that adds no real value).
