@@ -455,10 +455,13 @@ function _buildSceneSection(): HTMLElement {
   section.appendChild(
     _collapsibleSubgroup('scene-repo-label', 'Repo label', () => [
       _toggle('Enabled', REPO_LABEL, 'ENABLED', {
-        tip: 'Master toggle for the floating holographic repo-name label above the city.',
+        tip: 'Master toggle for the floating holographic repo-name label.',
       }),
-      _slider('Height above city', REPO_LABEL, 'HEIGHT_ABOVE_CITY', 0, 60, 1, {
-        tip: 'World units the label is lifted above the tallest building. Also sets the beam length — beam reaches from the gem up to the label.',
+      _slider('Height', REPO_LABEL, 'HEIGHT', 0, 1500, 1, {
+        tip: 'Panel bottom\'s elevation above the floor, in world units. 0 = flush with the floor (no beam). Larger lifts the panel and grows the beam underneath. Default 200 clears a typical city silhouette; 1500 reaches the max possible building height.',
+      }),
+      _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
+        tip: 'Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don\'t squish.',
       }),
       _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
         tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',

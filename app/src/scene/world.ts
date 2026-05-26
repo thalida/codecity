@@ -1150,12 +1150,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
 
-    // Floating repo-name label — anchor over the gem, lifted to clear
-    // the city silhouette. Pulls the repo name from the manifest's
-    // root tree node. refresh() pulls the current ENABLED/OPACITY/
-    // HEIGHT_ABOVE_CITY/ANIMATION_SPEED config values.
+    // Floating repo-name label — anchored at the gem position (the
+    // floor-level root marker). The label's elevation is governed by
+    // REPO_LABEL.HEIGHT, not by city silhouette: 0 → label flush with
+    // the floor; larger → label rises with a visible beam.
     _repoLabel.setRepoName(manifest.tree.name);
-    _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3(), cityHeight);
+    _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
     _repoLabel.refresh();
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a

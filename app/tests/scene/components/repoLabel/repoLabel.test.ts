@@ -7,7 +7,8 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
-    HEIGHT_ABOVE_CITY: 18,
+    HEIGHT: 200,
+    FONT_SIZE: 96,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,
   });
@@ -51,29 +52,45 @@ describe('createRepoLabel()', () => {
     }
   });
 
-  it('beam length tracks HEIGHT_ABOVE_CITY', () => {
+  it('beam length tracks REPO_LABEL.HEIGHT', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT_ABOVE_CITY', 25);
+    REPO_LABEL.setKey('HEIGHT', 250);
+    REPO_LABEL.setKey('FONT_SIZE', 100);
     label!.refresh();
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
-    expect(beam.scale.y).toBeCloseTo(25);
-    expect(beam.position.y).toBeCloseTo(-12.5);
+    expect(beam.scale.y).toBeCloseTo(250);
+    // Beam top sits at panel bottom (local y = -FONT_SIZE/2 = -50);
+    // beam bottom sits at panel bottom - HEIGHT = -300. Center of beam
+    // is therefore at (-50 + -300) / 2 = -175.
+    expect(beam.position.y).toBeCloseTo(-175);
   });
 
-  it('panel width tracks texture aspect (text-content-based)', () => {
-    label!.setRepoName('a');
-    const shortPanel = label!.group.children.find(
+  it('panel scale tracks FONT_SIZE × textureAspect', () => {
+    label!.setRepoName('codecity');
+    REPO_LABEL.setKey('FONT_SIZE', 120);
+    label!.refresh();
+    const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
     ) as THREE.Mesh;
-    const shortWidth = (shortPanel.geometry as THREE.PlaneGeometry).parameters.width;
+    // Panel scale.y = FONT_SIZE (120); scale.x = FONT_SIZE * aspect.
+    expect(panel.scale.y).toBeCloseTo(120);
+    expect(panel.scale.x).toBeGreaterThan(panel.scale.y); // text canvas is wider than tall
+  });
+
+  it('panel width grows with name length (text-content-based)', () => {
+    label!.setRepoName('a');
+    let panel = label!.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
+    ) as THREE.Mesh;
+    const shortWidth = panel.scale.x;
 
     label!.setRepoName('a-much-longer-repo-name-than-before');
-    const longPanel = label!.group.children.find(
+    panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
     ) as THREE.Mesh;
-    const longWidth = (longPanel.geometry as THREE.PlaneGeometry).parameters.width;
+    const longWidth = panel.scale.x;
 
     expect(longWidth).toBeGreaterThan(shortWidth);
   });
@@ -100,21 +117,35 @@ describe('createRepoLabel()', () => {
     expect(label!.group.visible).toBe(false);
   });
 
-  it('setAnchor positions the group at (anchor.x, max(cityHeight, anchor.y) + HEIGHT_ABOVE_CITY, anchor.z)', () => {
+  it('setAnchor positions the group at anchor.x/z and lifts y by HEIGHT + FONT_SIZE/2', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT_ABOVE_CITY', 20);
-    label!.setAnchor(new THREE.Vector3(10, 0, 30), 40);
+    REPO_LABEL.setKey('HEIGHT', 100);
+    REPO_LABEL.setKey('FONT_SIZE', 80);
+    label!.refresh();
+    label!.setAnchor(new THREE.Vector3(10, 0, 30));
     expect(label!.group.position.x).toBeCloseTo(10);
-    expect(label!.group.position.y).toBeCloseTo(60);
+    // anchor.y (0) + HEIGHT (100) + FONT_SIZE/2 (40) = 140
+    expect(label!.group.position.y).toBeCloseTo(140);
     expect(label!.group.position.z).toBeCloseTo(30);
   });
 
-  it('setRepoName twice with the same name does NOT dispose the canvas texture', () => {
+  it('HEIGHT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
     label!.setRepoName('codecity');
-    const tex = ((label!.group.children[0] as THREE.Mesh).material as THREE.ShaderMaterial).uniforms
-      .uOpacity; // pin some material reference to compare
+    REPO_LABEL.setKey('HEIGHT', 0);
+    REPO_LABEL.setKey('FONT_SIZE', 100);
+    label!.refresh();
+    label!.setAnchor(new THREE.Vector3(0, 0, 0));
+    // Panel center = 0 + 0 + 50 = 50 → panel bottom = 0 (floor). ✓
+    expect(label!.group.position.y).toBeCloseTo(50);
+    const beam = label!.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
+    ) as THREE.Mesh;
+    expect(beam.scale.y).toBeCloseTo(0);
+  });
+
+  it('setRepoName twice keeps both meshes in the group', () => {
     label!.setRepoName('codecity');
-    // The implementation should reuse the existing texture (only aspect-change triggers panel rebuild).
+    label!.setRepoName('codecity');
     expect(label!.group.children.length).toBe(2);
   });
 });

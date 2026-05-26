@@ -1,23 +1,25 @@
 // scene/components/repoLabel/repoLabel.ts — Floating holographic
 // repo-name label. One group at the scene root, holding a vertical
-// light beam from the gem + a Y-locked-billboard text panel.
+// light beam from the floor + a Y-locked-billboard text panel.
 //
 // Lifecycle (matches sky / island):
 //   const label = createRepoLabel();
 //   scene.add(label.group);              // once, at world boot
 //   label.setRepoName(manifest.tree.name);
-//   label.setAnchor(gemWorldPos, cityHeight);
+//   label.setAnchor(gemWorldPos);
 //   label.tick(dt, camera);              // every frame
 //   label.refresh();                     // on applyTheme() hot-reload
 //   label.dispose();                     // on world teardown
 //
 // Sizing:
-//   panel height = PANEL_HEIGHT world units (constant)
-//   panel width  = PANEL_HEIGHT × textureAspect (text-content-driven,
+//   panel height = REPO_LABEL.FONT_SIZE world units (live-tunable)
+//   panel width  = FONT_SIZE × textureAspect (text-content-driven,
 //                  so long repo names get proportionally wider panels
 //                  rather than squished text)
-//   beam length  = HEIGHT_ABOVE_CITY world units (so the beam always
-//                  reaches from the anchor base to the panel center)
+//   beam length  = REPO_LABEL.HEIGHT world units (spans the gap from
+//                  the floor up to the panel's bottom — 0 means the
+//                  panel sits flush with the floor and the beam is
+//                  invisible)
 
 import * as THREE from 'three';
 
@@ -29,22 +31,21 @@ import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
 import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './textCanvas.js';
 
-// Panel world height. 20 lands the text big enough to read on typical
-// codecity scenes (cities span 100s of world units, default camera frames
-// the city). Bump if it's too small.
-const PANEL_HEIGHT = 20;
-// Beam base radius in world units. Beam thickness scales with the panel
-// indirectly (we don't multiply by aspect — it stays a narrow pillar
-// regardless of name length).
+// Beam base radius in world units. Stays constant regardless of FONT_SIZE
+// — beam reads as a narrow pillar even when the panel is large.
 const BEAM_RADIUS = 0.6;
 // Beam base height (1 unit); the mesh's scale.y multiplies this so its
-// world height equals the cached beamLength.
+// world height equals REPO_LABEL.HEIGHT.
 const BEAM_BASE_HEIGHT = 1;
+// Panel base height (1 unit); the mesh's scale.y multiplies this so its
+// world height equals REPO_LABEL.FONT_SIZE. Width is also scaled so
+// width = FONT_SIZE × textureAspect.
+const PANEL_BASE_HEIGHT = 1;
 
 export interface RepoLabel {
   group: THREE.Group;
   setRepoName(name: string): void;
-  setAnchor(anchor: THREE.Vector3, cityHeight: number): void;
+  setAnchor(anchor: THREE.Vector3): void;
   tick(dtSeconds: number, camera: THREE.Camera): void;
   refresh(): void;
   dispose(): void;
@@ -73,22 +74,33 @@ export function createRepoLabel(): RepoLabel {
   let panelMat: THREE.ShaderMaterial | null = null;
   let beamMat: THREE.ShaderMaterial | null = null;
 
-  // Anchor state — cached so refresh() can re-apply HEIGHT_ABOVE_CITY
+  // Anchor state — the floor-level point the label rises from (the gem's
+  // world position). Cached so refresh() can re-apply HEIGHT / FONT_SIZE
   // changes without the caller having to pass the anchor again.
   let anchorX = 0;
+  let anchorY = 0;
   let anchorZ = 0;
-  let anchorBaseY = 0;
 
   function _applyTransform(): void {
     const cfg = REPO_LABEL.get();
-    group.position.set(anchorX, anchorBaseY + cfg.HEIGHT_ABOVE_CITY, anchorZ);
+    const halfFont = cfg.FONT_SIZE / 2;
+    // Group origin = panel center. Panel bottom = HEIGHT above the
+    // anchor (floor). So panel center = anchor.y + HEIGHT + halfFont.
+    group.position.set(anchorX, anchorY + cfg.HEIGHT + halfFont, anchorZ);
     group.visible = cfg.ENABLED;
 
     if (beamMesh) {
-      // Beam reaches from the panel (group origin) down to the anchor
-      // base, a span of HEIGHT_ABOVE_CITY world units.
-      beamMesh.scale.y = cfg.HEIGHT_ABOVE_CITY;
-      beamMesh.position.y = -cfg.HEIGHT_ABOVE_CITY / 2;
+      // Beam reaches from panel bottom (local y = -halfFont) DOWN
+      // to the floor (local y = -halfFont - HEIGHT). Length = HEIGHT.
+      beamMesh.scale.y = cfg.HEIGHT;
+      beamMesh.position.y = -halfFont - cfg.HEIGHT / 2;
+    }
+
+    if (panelMesh) {
+      // Panel scale.y = FONT_SIZE (panel height in world units).
+      // Panel scale.x = FONT_SIZE × textureAspect (so width is text-driven).
+      const aspect = textTex?.aspect ?? 1;
+      panelMesh.scale.set(cfg.FONT_SIZE * aspect, cfg.FONT_SIZE, 1);
     }
   }
 
@@ -100,7 +112,7 @@ export function createRepoLabel(): RepoLabel {
 
   // _buildMeshes constructs the panel + beam from the current texture
   // and adds them as children of `group`. Disposes any prior meshes
-  // first. Called by setRepoName (which also handles texture changes).
+  // first. Called by setRepoName.
   function _buildMeshes(): void {
     if (!textTex) return;
 
@@ -143,10 +155,9 @@ export function createRepoLabel(): RepoLabel {
     group.add(beamMesh);
 
     // ---- Text panel ----
-    // Width is canvas aspect × PANEL_HEIGHT — long repo names get
-    // proportionally wider panels (no horizontal squish).
-    const panelWidth = PANEL_HEIGHT * textTex.aspect;
-    const panelGeom = new THREE.PlaneGeometry(panelWidth, PANEL_HEIGHT);
+    // Geometry is a unit plane (1 × 1); scale.x/scale.y in _applyTransform
+    // stretches it to FONT_SIZE × (FONT_SIZE × textureAspect) world units.
+    const panelGeom = new THREE.PlaneGeometry(1, PANEL_BASE_HEIGHT);
     panelMat = new THREE.ShaderMaterial({
       vertexShader: vertSrc,
       fragmentShader: textFragSrc,
@@ -173,22 +184,20 @@ export function createRepoLabel(): RepoLabel {
       _buildMeshes();
       return;
     }
-
-    const aspectBefore = textTex.aspect;
     redrawRepoName(textTex, name);
-    // The canvas may have changed aspect (different name length → different
-    // canvas.width). Rebuild the panel geometry so the new aspect maps
-    // correctly. Beam is unaffected; if aspect is unchanged we can skip
-    // the rebuild and just rely on the texture-update.
-    if (textTex.aspect !== aspectBefore || !panelMesh) {
+    if (!panelMesh) {
       _buildMeshes();
+    } else {
+      // Aspect may have changed; re-apply transform so the panel's
+      // scale.x updates to the new FONT_SIZE × aspect.
+      _applyTransform();
     }
   }
 
-  function setAnchor(anchor: THREE.Vector3, cityHeight: number): void {
+  function setAnchor(anchor: THREE.Vector3): void {
     anchorX = anchor.x;
+    anchorY = anchor.y;
     anchorZ = anchor.z;
-    anchorBaseY = Math.max(cityHeight, anchor.y);
     _applyTransform();
   }
 
