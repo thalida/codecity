@@ -11,6 +11,8 @@ docs/superpowers/
 # Generated test fixtures
 #   run `bash api/tests/fixtures/setup.sh` to regenerate
 api/tests/fixtures/sample-repo/
+api/tests/fixtures/.sample-repo-ready
+api/tests/fixtures/.sample-repo-setup.lock
 #   run `bash api/tests/fixtures/large-repo-setup.sh` to regenerate
 api/tests/fixtures/large-repo/
 

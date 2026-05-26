@@ -28,7 +28,11 @@ describe('labelFromDisplayRoot', () => {
 
   it('prefers display_root over remote_url when both are set', () => {
     expect(
-      labelFromDisplayRoot('https://github.com/displayed/repo', 'https://github.com/other/repo', 'fallback')
+      labelFromDisplayRoot(
+        'https://github.com/displayed/repo',
+        'https://github.com/other/repo',
+        'fallback'
+      )
     ).toBe('displayed/repo');
   });
 

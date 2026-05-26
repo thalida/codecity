@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import os
 import shutil
 import subprocess
@@ -66,12 +67,35 @@ FIXTURE = _resolve_fixture()
 
 def _ensure_fixture() -> None:
     """Make sure fixtures/setup.sh has been run, with per-worker copies
-    when running under pytest-xdist."""
-    # Always make sure the canonical fixture exists first — it's the
-    # source for per-worker copies.
-    if not (_CANONICAL_FIXTURE / ".git").is_dir():
-        subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
-    # If FIXTURE was redirected to a per-worker path, materialize it.
+    when running under pytest-xdist.
+
+    setup.sh starts with `rm -rf` and only commits at the end, so a
+    second worker that enters this function mid-build and sees `.git`
+    already exists (git init has run) will skip setup.sh and read /
+    copytree a partial fixture (3 files from commit 1 instead of 9
+    from commits 1+2). We serialize the canonical build with an
+    exclusive file lock and gate the skip-decision on a sentinel
+    file that's only written after setup.sh completes successfully —
+    `.git` existence alone is not enough.
+    """
+    sentinel = FIXTURES_DIR / ".sample-repo-ready"
+    lockfile_path = FIXTURES_DIR / ".sample-repo-setup.lock"
+    lockfile_path.touch(exist_ok=True)
+    with open(lockfile_path) as fp:
+        fcntl.flock(fp.fileno(), fcntl.LOCK_EX)
+        try:
+            if not sentinel.is_file():
+                # Wipe any partial state from an interrupted prior run
+                # so setup.sh's `rm -rf` isn't the only safety net.
+                if _CANONICAL_FIXTURE.exists():
+                    shutil.rmtree(_CANONICAL_FIXTURE)
+                subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
+                sentinel.touch()
+        finally:
+            fcntl.flock(fp.fileno(), fcntl.LOCK_UN)
+    # Per-worker copy: safe outside the lock because the sentinel now
+    # guards future setup.sh runs (nothing else can mutate the canonical)
+    # and each worker writes to its own unique FIXTURE path.
     if FIXTURE != _CANONICAL_FIXTURE and not (FIXTURE / ".git").is_dir():
         FIXTURE.parent.mkdir(parents=True, exist_ok=True)
         shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)

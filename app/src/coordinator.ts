@@ -449,11 +449,7 @@ export function createCoordinator({
     // project-btn updates after a switch. manifest.tree.name is already
     // the friendly label (main.ts._applyDisplayLabel sets it pre-applyManifest).
     const m = world.getManifest();
-    const label = labelFromDisplayRoot(
-      m?.display_root,
-      m?.repo?.remote_url,
-      m?.tree?.name ?? ''
-    );
+    const label = labelFromDisplayRoot(m?.display_root, m?.repo?.remote_url, m?.tree?.name ?? '');
     appHeader.setSourceInfo(label, branch, sourceUrl);
   }
 
