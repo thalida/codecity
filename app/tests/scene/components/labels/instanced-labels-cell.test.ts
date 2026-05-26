@@ -5,8 +5,8 @@ import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
 import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
 import type { CellTile } from '@/scene/layout/cellTile.js';
 import { NodeKind } from '@/types/index.js';
-import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../_helpers/typography.js';
-import { building } from '../_helpers/buildingFixture';
+import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../../../_helpers/typography.js';
+import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
 // Minimal typography config for tests

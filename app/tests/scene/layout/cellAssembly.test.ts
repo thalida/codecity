@@ -7,7 +7,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { buildCellsFromLayout } from '@/scene/layout/cellAssembly.js';
 import { NodeKind } from '@/types/index.js';
-import { building } from '../_helpers/buildingFixture';
+import { building } from '../../_helpers/buildingFixture';
 
 const EMPTY_UNIFORMS: Record<string, THREE.IUniform> = {};
 

@@ -17,8 +17,8 @@ import {
   assertStemOrder,
   assertTreeRespecting,
   assertTJunctionsValid,
-} from '../_helpers/layoutAsserts';
-import { mkFile, mkDir } from '../_helpers/cityFixtures';
+} from '../../_helpers/layoutAsserts';
+import { mkFile, mkDir } from '../../_helpers/cityFixtures';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },

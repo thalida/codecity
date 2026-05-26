@@ -519,8 +519,8 @@ import {
   assertStemOrder,
   assertTreeRespecting,
   assertTJunctionsValid,
-} from '../_helpers/layoutAsserts';
-import { mkFile, mkDir } from '../_helpers/cityFixtures';
+} from '../../_helpers/layoutAsserts';
+import { mkFile, mkDir } from '../../_helpers/cityFixtures';
 
 describe('layoutCity end-to-end', () => {
   it('lays out a minimal tree with all four invariants satisfied', () => {

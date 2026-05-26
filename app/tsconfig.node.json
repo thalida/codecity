@@ -15,8 +15,8 @@
     "vite.config.js",
     "vitest.config.js",
     "tests/visual/**/*",
-    "tests/scene/hsl-glsl-parity.test.ts",
-    "tests/scene/building-shader.test.ts",
+    "tests/scene/utils/color/hsl-glsl-parity.test.ts",
+    "tests/scene/components/buildings/building-shader.test.ts",
     "tests/scene/sky/skyShader.test.ts"
   ],
   "exclude": ["node_modules"]

@@ -12,7 +12,7 @@ import {
 } from '@/scene/components/buildings/buildingsCell.js';
 import { BuildingOrient } from '@/types/index.js';
 import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
-import { building } from '../_helpers/buildingFixture';
+import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
 // Tests
