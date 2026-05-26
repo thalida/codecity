@@ -38,5 +38,22 @@ export default defineConfig({
         },
       },
     ],
+    // Coverage applies to whichever project is selected via --project=unit.
+    // Top-level placement keeps the config in one spot rather than per-project.
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'lcov', 'json-summary'],
+      include: ['src/**/*.ts'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/types/**', // type-only files
+        'src/three-augment.d.ts',
+        'src/vite-env.d.ts',
+      ],
+      // No thresholds — coverage is measured + reported, not enforced.
+      // Current baseline ~51% lines / 39% branches; raising the bar is
+      // future work (would require tests for entrypoints, renderLoop,
+      // scene effects, UI shell).
+    },
   },
 });

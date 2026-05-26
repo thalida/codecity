@@ -25,6 +25,9 @@ node_modules/
 .vite/
 app/.vite/
 
+# vitest coverage report output
+app/coverage/
+
 # Python
 __pycache__/
 *.pyc
