@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload pytest coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: pytest-coverage
           path: api/coverage.xml
@@ -71,7 +71,7 @@ jobs:
 
       - name: Upload vitest coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vitest-coverage
           path: app/coverage/
