@@ -98,11 +98,14 @@ Requires: Docker, just (optional but recommended), python3 (for the worktree-awa
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
+just install-hooks                # one-time: enable pre-push quality gate (lint + prettier + tests)
 just dev                          # http://<worktree-slug>.localhost:<port>/  (Vite HMR + Python API)
 just test                         # pytest + vitest in containers (230 + 1940 tests)
 just build                        # build the local image
 just run                          # run the local image like an end user
 ```
+
+The pre-push hook runs pytest, vitest, eslint, prettier --check, and typecheck before any `git push` to origin. Bypass with `git push --no-verify` if you need to push WIP. Docker must be running (used for pytest + vitest).
 
 ### Multiple worktrees
 

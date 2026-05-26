@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Pre-push gate: run the same checks CI runs before allowing a push to origin.
+# Bypass with: git push --no-verify
+#
+# What runs (in this order — fail fast):
+#   1. Python tests (api/) — pytest in container
+#   2. Frontend tests (app/) — vitest in container
+#   3. Frontend lint — eslint
+#   4. Frontend prettier — prettier --check
+#   5. Frontend typecheck — tsc --noEmit
+
+set -e
+
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$ROOT"
+
+echo "[pre-push] running quality gate..."
+
+echo "[pre-push] 1/5  pytest (api/)"
+docker compose -f docker-compose.test.yml run --rm pytest >/dev/null
+
+echo "[pre-push] 2/5  vitest (app/)"
+docker compose -f docker-compose.test.yml run --rm vitest >/dev/null
+
+echo "[pre-push] 3/5  eslint (app/)"
+( cd app && npm run lint >/dev/null )
+
+echo "[pre-push] 4/5  prettier --check (app/)"
+( cd app && npm run format:check >/dev/null )
+
+echo "[pre-push] 5/5  typecheck (app/)"
+( cd app && npm run typecheck >/dev/null )
+
+echo "[pre-push] all checks passed — pushing"

@@ -68,6 +68,13 @@ build-multiarch:
         --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) \
         -t codecity:local .
 
+# ── Git hooks ────────────────────────────────────────────────────
+# Install repo-local git hooks. Run once after cloning.
+# `core.hooksPath` is per-clone (not committed), so this bootstrap is required.
+install-hooks:
+    git config core.hooksPath bin/git-hooks
+    @echo "[just] git core.hooksPath set to bin/git-hooks/"
+
 # ── Cleanup ──────────────────────────────────────────────────────
 clean:
     @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
