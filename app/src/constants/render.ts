@@ -29,8 +29,12 @@ export const RENDER_ORDERS = {
   BUILDING_OUTLINE: 5, // per-building default wireframe
   STREET_LABEL: 6, // baked road-name plane
   SELECTED_OUTLINE: 7, // chasing-rainbow selected wireframe
+  // Floating repo-name label — drawn above buildings/outlines so it
+  // reads cleanly against any silhouette. Additive blending; depth
+  // test still on so distant city geometry never punches a hole in it.
+  REPO_LABEL: 9,
   // Foliage (matte tree canopies + trunks + emissive bushes) draws
   // after the city. Depth-tested normally so buildings occlude foliage
   // that's behind them.
-  PARK_FOLIAGE: 8,
+  PARK_FOLIAGE: 10,
 } as const;
