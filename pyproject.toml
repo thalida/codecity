@@ -29,15 +29,29 @@ exclude = ["api/tests"]
 dev = [
     "pytest>=8",
     "pytest-xdist>=3",
+    "pytest-cov>=4",
     "pyright>=1.1",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["api/tests"]
-addopts = "-ra --strict-markers -n auto"
+addopts = "-ra --strict-markers -n auto --cov=api --cov-report=term --cov-fail-under=80"
 
 [tool.pyright]
 include = ["api"]
 exclude = ["api/tests"]
 pythonVersion = "3.11"
 typeCheckingMode = "strict"
+
+[tool.coverage.run]
+source = ["api"]
+omit = ["api/tests/*", "api/__main__.py"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+    "if __name__ == .__main__.:",
+]
