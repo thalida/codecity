@@ -252,3 +252,45 @@ def http_helpers() -> _HTTPHelpers:
     ``http.request_stream(...)``, ``http.get_with_headers(...)``,
     ``http.delete(...)``)."""
     return _HTTPHelpers()
+
+
+# ── Session-scoped shared bare repo + per-test worktree ──────────────
+
+
+@pytest.fixture(scope="session")
+def _session_bare_repo(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """One bare repo per pytest session, used as the source for
+    per-test ``git worktree add`` operations.
+
+    Building this once instead of per-test shaves ~20s off the suite
+    (top 10 pytest tests previously each spent ~1s on git init).
+    """
+    bare = tmp_path_factory.mktemp("session-bare") / "origin.git"
+    bare.mkdir(parents=True, exist_ok=True)
+    _run("git", "init", "--bare", "-q", "--initial-branch=main", cwd=bare)
+    # Seed with one empty commit so HEAD exists (worktree-add needs a ref)
+    seed = tmp_path_factory.mktemp("session-seed") / "seed"
+    _run("git", "clone", "-q", str(bare), str(seed), cwd=seed.parent)
+    _run("git", "config", "user.email", "test@example.com", cwd=seed)
+    _run("git", "config", "user.name", "Test", cwd=seed)
+    _run("git", "commit", "--allow-empty", "-q", "-m", "session seed", cwd=seed)
+    _run("git", "push", "-q", "origin", "main", cwd=seed)
+    return bare
+
+
+@pytest.fixture
+def git_working_tree(_session_bare_repo: Path, tmp_path: Path) -> Iterator[Path]:
+    """Per-test git working tree. Cheap: ``git worktree add`` off of the
+    session-scoped bare repo.
+    """
+    wt = tmp_path / "wt"
+    _run("git", "worktree", "add", "-q", str(wt), "main", cwd=_session_bare_repo)
+    yield wt
+    # Best-effort cleanup
+    try:
+        _run(
+            "git", "worktree", "remove", "-q", "--force", str(wt),
+            cwd=_session_bare_repo,
+        )
+    except subprocess.CalledProcessError:
+        pass
