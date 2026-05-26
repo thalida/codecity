@@ -10,6 +10,7 @@ import {
   resetTreesConfig,
   resetBuildingsConfig,
 } from '../../_helpers/cityFixtures';
+import { building } from '../../_helpers/buildingFixture';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {
@@ -78,21 +79,9 @@ describe('placeTrees (commit-driven)', () => {
 
   it('rejects tree candidates that overlap a building', () => {
     const bb = bbox(-500, -500, 500, 500);
-    function makeBuilding(x: number, y: number, w: number, d: number) {
-      return {
-        x,
-        y,
-        w,
-        d,
-        h: 10,
-        color: '#000',
-        file: { path: '', name: '', size: 0, lines: 0, modified: 0, created: 0 } as never,
-        orient: 'n' as never,
-      } as never;
-    }
     const layout: CityLayout = {
       ...emptyLayout(bb),
-      buildings: [makeBuilding(0, 0, 400, 400)],
+      buildings: [building({ x: 0, y: 0, w: 400, d: 400, h: 10 })],
     };
     const placements = placeTrees(layout, bb, { commitCount: 50 });
     for (const p of placements) {

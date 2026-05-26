@@ -6,43 +6,8 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { buildCellsFromLayout } from '@/scene/layout/cellAssembly.js';
-import { BuildingOrient, NodeKind } from '@/types/index.js';
-import type { Building } from '@/types/index.js';
-
-// ---------------------------------------------------------------------------
-// Minimal Building fixture — only fields needed by buildCellsFromLayout.
-// ---------------------------------------------------------------------------
-
-function fakeBuilding(x: number, y: number, overrides: Partial<Building> = {}): Building {
-  return {
-    x,
-    y,
-    w: overrides.w ?? 2,
-    d: overrides.d ?? 2,
-    h: overrides.h ?? 4,
-    color: overrides.color ?? '#aabbcc',
-    orient: overrides.orient ?? BuildingOrient.South,
-    floors: overrides.floors ?? 1,
-    cellId: 0,
-    slotId: 0,
-    createdAge: 0,
-    modifiedAge: 0,
-    file: {
-      path: overrides.file?.path ?? `file_${x}_${y}.ts`,
-      name: overrides.file?.name ?? `file_${x}_${y}.ts`,
-      type: NodeKind.File,
-      fullPath: `/abs/file_${x}_${y}.ts`,
-      extension: '.ts',
-      size: 100,
-      lines: 10,
-      binary: false,
-      created: '',
-      modified: '',
-      git: null,
-    },
-    ...overrides,
-  } as Building;
-}
+import { NodeKind } from '@/types/index.js';
+import { building } from '../_helpers/buildingFixture';
 
 const EMPTY_UNIFORMS: Record<string, THREE.IUniform> = {};
 
@@ -56,7 +21,7 @@ const CELL_SIZE = 12;
 describe('buildCellsFromLayout', () => {
   it('returns a Map, SpatialGrid, BuildingIndex, and a sceneRoot Group', () => {
     const bounds = { minX: 0, maxX: 100, minZ: 0, maxZ: 100 };
-    const buildings = [fakeBuilding(10, 10), fakeBuilding(20, 20)];
+    const buildings = [building({ x: 10, y: 10 }), building({ x: 20, y: 20 })];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells).toBeInstanceOf(Map);
@@ -72,10 +37,10 @@ describe('buildCellsFromLayout', () => {
     // All buildings are at (x<12, z<12) → all land in cell 0.
     const bounds = { minX: 0, maxX: 96, minZ: 0, maxZ: 96 };
     const buildings = [
-      fakeBuilding(1, 1),
-      fakeBuilding(3, 5),
-      fakeBuilding(7, 2),
-      fakeBuilding(10, 9),
+      building({ x: 1, y: 1 }),
+      building({ x: 3, y: 5 }),
+      building({ x: 7, y: 2 }),
+      building({ x: 10, y: 9 }),
     ];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
@@ -94,7 +59,9 @@ describe('buildCellsFromLayout', () => {
     const N = 5;
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
-    const buildings = Array.from({ length: N }, (_, i) => fakeBuilding(i * CELL_SIZE + 1, 1));
+    const buildings = Array.from({ length: N }, (_, i) =>
+      building({ x: i * CELL_SIZE + 1, y: 1 })
+    );
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(N);
@@ -107,8 +74,8 @@ describe('buildCellsFromLayout', () => {
     // CELL_SIZE apart guarantee distinct cells.
     const bounds = { minX: 0, maxX: 48, minZ: 0, maxZ: 48 };
     const buildings = [
-      fakeBuilding(1, 1), // cell at grid-col 0, row 0
-      fakeBuilding(CELL_SIZE + 1, 1), // cell at grid-col 1, row 0
+      building({ x: 1, y: 1 }), // cell at grid-col 0, row 0
+      building({ x: CELL_SIZE + 1, y: 1 }), // cell at grid-col 1, row 0
     ];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
@@ -119,7 +86,7 @@ describe('buildCellsFromLayout', () => {
 
   it('each occupied cell has a detailMesh and no labelMesh until attached', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
-    const buildings = [fakeBuilding(5, 5)];
+    const buildings = [building({ x: 5, y: 5 })];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(1);
@@ -131,7 +98,7 @@ describe('buildCellsFromLayout', () => {
 
   it('no Mesh (street tile) is added to sceneRoot — only InstancedMeshes', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
-    const buildings = [fakeBuilding(5, 5)];
+    const buildings = [building({ x: 5, y: 5 })];
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     for (const child of out.sceneRoot.children) {
@@ -141,7 +108,9 @@ describe('buildCellsFromLayout', () => {
 
   it('buildings are indexed and retrievable by path', () => {
     const bounds = { minX: 0, maxX: 50, minZ: 0, maxZ: 50 };
-    const b = fakeBuilding(5, 5, {
+    const b = building({
+      x: 5,
+      y: 5,
       file: {
         path: 'src/foo.ts',
         name: 'foo.ts',

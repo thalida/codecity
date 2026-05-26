@@ -4,9 +4,9 @@ import { LABEL_TYPOGRAPHY } from '@/config/index.js';
 import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
 import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
 import type { CellTile } from '@/scene/layout/cellTile.js';
-import type { Building } from '@/types/index.js';
-import { NodeKind, BuildingOrient } from '@/types/index.js';
+import { NodeKind } from '@/types/index.js';
 import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../_helpers/typography.js';
+import { building } from '../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
 // Minimal typography config for tests
@@ -48,15 +48,15 @@ function makeFakeCell(capacity = 4): CellTile {
   };
 }
 
-function makeFakeBuilding(name: string, slotId = 0): Building {
-  return {
+// Build a label-test building for a given file name + slot. The label-write
+// path reads `file.name` (atlas key) and `h`/`x`/`y` for positioning.
+function buildingForLabel(name: string, slotId: number) {
+  return building({
     x: 10,
     y: 20,
     w: 8,
     d: 8,
     h: 4,
-    color: '#aabbcc',
-    orient: BuildingOrient.South,
     cellId: 0,
     slotId,
     file: {
@@ -72,7 +72,7 @@ function makeFakeBuilding(name: string, slotId = 0): Building {
       modified: '2024-01-01T00:00:00Z',
       git: null,
     },
-  };
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -124,9 +124,9 @@ describe('writeLabelToSlot', () => {
     attachLabelMeshToCell(cell, uniforms);
 
     const atlas = buildLabelAtlas(['index.ts'], TYPOGRAPHY);
-    const building = makeFakeBuilding('index.ts', 0);
+    const b = buildingForLabel('index.ts', 0);
 
-    writeLabelToSlot(cell, building, atlas);
+    writeLabelToSlot(cell, b, atlas);
 
     const tmpM = new THREE.Matrix4();
     cell.labelMesh.getMatrixAt(0, tmpM);
@@ -153,9 +153,9 @@ describe('writeLabelToSlot', () => {
 
     // Atlas built without 'missing.ts'.
     const atlas = buildLabelAtlas(['other.ts'], TYPOGRAPHY);
-    const building = makeFakeBuilding('missing.ts', 1);
+    const b = buildingForLabel('missing.ts', 1);
 
-    writeLabelToSlot(cell, building, atlas);
+    writeLabelToSlot(cell, b, atlas);
 
     const tmpM = new THREE.Matrix4();
     cell.labelMesh.getMatrixAt(1, tmpM);
@@ -173,9 +173,9 @@ describe('writeLabelToSlot', () => {
     attachLabelMeshToCell(cell, uniforms);
 
     const atlas = buildLabelAtlas(['roof.ts'], TYPOGRAPHY);
-    const building = makeFakeBuilding('roof.ts', 2);
+    const b = buildingForLabel('roof.ts', 2);
 
-    writeLabelToSlot(cell, building, atlas);
+    writeLabelToSlot(cell, b, atlas);
 
     const tmpM = new THREE.Matrix4();
     cell.labelMesh.getMatrixAt(2, tmpM);
@@ -186,8 +186,8 @@ describe('writeLabelToSlot', () => {
 
     // y should equal b.h + LABEL_TYPOGRAPHY.get().ELEVATION (runtime config, default = 0).
     const configElevation = LABEL_TYPOGRAPHY.get().ELEVATION;
-    expect(pos.y).toBeCloseTo(building.h + configElevation);
-    expect(pos.x).toBeCloseTo(building.x);
-    expect(pos.z).toBeCloseTo(building.y);
+    expect(pos.y).toBeCloseTo(b.h + configElevation);
+    expect(pos.x).toBeCloseTo(b.x);
+    expect(pos.z).toBeCloseTo(b.y);
   });
 });

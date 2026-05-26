@@ -1,21 +1,26 @@
 import { describe, it, expect } from 'vitest';
 import { BuildingIndex } from '@/scene/components/buildings/buildingIndex.js';
-import type { Building } from '@/types/index.js';
-import type { DirNode } from '@/types/manifest.js';
+import { NodeKind } from '@/types/index.js';
+import type { FileNode, DirNode } from '@/types/manifest.js';
+import { building } from '../_helpers/buildingFixture';
 
-function makeBuilding(path: string, dir: DirNode, cellId: number, slotId: number): Building {
+// Build a FileNode whose only meaningful fields are `path` and `name` (which
+// is what BuildingIndex.insert reads via b.file.path). Other FileNode fields
+// are defaulted to satisfy the type.
+function fileFor(path: string): FileNode {
   return {
-    file: { path, name: path.split('/').pop()! } as Building['file'],
-    x: 0,
-    y: 0,
-    w: 1,
-    d: 1,
-    h: 1,
-    color: '#888',
-    cellId,
-    slotId,
-    dirNode: dir,
-  } as unknown as Building;
+    path,
+    name: path.split('/').pop()!,
+    type: NodeKind.File,
+    fullPath: `/abs/${path}`,
+    extension: '.ts',
+    size: 0,
+    lines: 0,
+    binary: false,
+    created: '',
+    modified: '',
+    git: null,
+  };
 }
 
 function makeDir(path: string): DirNode {
@@ -26,7 +31,12 @@ describe('BuildingIndex', () => {
   it('round-trips path → building and (cellId, slotId) → building', () => {
     const idx = new BuildingIndex();
     const dir = makeDir('src');
-    const b = makeBuilding('src/foo.ts', dir, /* cellId */ 3, /* slotId */ 7);
+    const b = building({
+      file: fileFor('src/foo.ts'),
+      cellId: /* cellId */ 3,
+      slotId: /* slotId */ 7,
+      dirNode: dir,
+    });
 
     idx.insert(b);
 
@@ -38,7 +48,7 @@ describe('BuildingIndex', () => {
   it('remove clears all maps', () => {
     const idx = new BuildingIndex();
     const dir = makeDir('src');
-    const b = makeBuilding('src/foo.ts', dir, 3, 7);
+    const b = building({ file: fileFor('src/foo.ts'), cellId: 3, slotId: 7, dirNode: dir });
     idx.insert(b);
     idx.remove(b);
 
@@ -50,9 +60,9 @@ describe('BuildingIndex', () => {
   it('multiple buildings in same dir', () => {
     const idx = new BuildingIndex();
     const dir = makeDir('src');
-    idx.insert(makeBuilding('src/a.ts', dir, 1, 0));
-    idx.insert(makeBuilding('src/b.ts', dir, 1, 1));
-    idx.insert(makeBuilding('src/c.ts', dir, 2, 0));
+    idx.insert(building({ file: fileFor('src/a.ts'), cellId: 1, slotId: 0, dirNode: dir }));
+    idx.insert(building({ file: fileFor('src/b.ts'), cellId: 1, slotId: 1, dirNode: dir }));
+    idx.insert(building({ file: fileFor('src/c.ts'), cellId: 2, slotId: 0, dirNode: dir }));
 
     const inDir = Array.from(idx.forEachInDir(dir));
     expect(inDir).toHaveLength(3);

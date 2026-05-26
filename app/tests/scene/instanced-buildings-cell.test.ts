@@ -10,45 +10,9 @@ import {
   writeBuildingToSlot,
   setCellIconAtlas,
 } from '@/scene/components/buildings/buildingsCell.js';
-import { BuildingOrient, NodeKind } from '@/types/index.js';
-import type { Building } from '@/types/index.js';
+import { BuildingOrient } from '@/types/index.js';
 import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
-
-// ---------------------------------------------------------------------------
-// Minimal Building fixture — only the fields read by writeBuildingToSlot.
-// ---------------------------------------------------------------------------
-
-function fakeBuilding(
-  overrides: Partial<Building> & { x: number; y: number; h: number }
-): Building {
-  return {
-    x: overrides.x,
-    y: overrides.y,
-    w: overrides.w ?? 2,
-    d: overrides.d ?? 2,
-    h: overrides.h,
-    color: overrides.color ?? '#ff0000',
-    orient: overrides.orient ?? BuildingOrient.South,
-    floors: overrides.floors ?? 1,
-    cellId: overrides.cellId ?? 0,
-    slotId: overrides.slotId ?? 0,
-    createdAge: overrides.createdAge ?? 0,
-    modifiedAge: overrides.modifiedAge ?? 0,
-    file: overrides.file ?? {
-      path: 'a.ts',
-      name: 'a.ts',
-      type: NodeKind.File,
-      fullPath: '/abs/a.ts',
-      extension: '.ts',
-      size: 100,
-      lines: 10,
-      binary: false,
-      created: '',
-      modified: '',
-      git: null,
-    },
-  } as Building;
-}
+import { building } from '../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -119,7 +83,7 @@ describe('buildingsCell factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
-    const b = fakeBuilding({ x: 5, y: 7, h: 4, slotId: 3 });
+    const b = building({ x: 5, y: 7, h: 4, slotId: 3 });
     writeBuildingToSlot(cell, b);
 
     const matrix = new THREE.Matrix4();
@@ -135,7 +99,7 @@ describe('buildingsCell factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
-    const b = fakeBuilding({ x: 0, y: 0, w: 3, d: 4, h: 6, slotId: 0 });
+    const b = building({ x: 0, y: 0, w: 3, d: 4, h: 6, slotId: 0 });
     writeBuildingToSlot(cell, b);
 
     const matrix = new THREE.Matrix4();
@@ -152,7 +116,7 @@ describe('buildingsCell factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
-    const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 1 });
+    const b = building({ x: 0, y: 0, h: 2, slotId: 1 });
     writeBuildingToSlot(cell, b);
 
     const fadeAttr = cell.detailMesh.geometry.getAttribute(
@@ -168,7 +132,7 @@ describe('buildingsCell factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
-    const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 2 });
+    const b = building({ x: 0, y: 0, h: 2, slotId: 2 });
     writeBuildingToSlot(cell, b);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
@@ -196,7 +160,7 @@ describe('buildingsCell factory', () => {
     });
     setCellIconAtlas(atlas);
 
-    const b = fakeBuilding({ x: 0, y: 0, h: 2, slotId: 4 });
+    const b = building({ x: 0, y: 0, h: 2, slotId: 4 });
     writeBuildingToSlot(cell, b);
 
     const iconAttr = cell.detailMesh.geometry.getAttribute(
@@ -220,7 +184,7 @@ describe('buildingsCell factory', () => {
     const cell = createEmptyCellTile(grid, 0, 64);
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
-    const b = fakeBuilding({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
+    const b = building({ x: 0, y: 0, h: 2, orient: BuildingOrient.South, slotId: 5 });
     writeBuildingToSlot(cell, b);
 
     const orientAttr = cell.detailMesh.geometry.getAttribute(
@@ -235,7 +199,7 @@ describe('buildingsCell factory', () => {
     attachBuildingMeshToCell(cell, {} as Record<string, THREE.IUniform>);
 
     // Write to slot 10; slots 9 and 11 should remain scale-zero (from createEmptyCellTile).
-    const b = fakeBuilding({ x: 1, y: 2, h: 3, slotId: 10 });
+    const b = building({ x: 1, y: 2, h: 3, slotId: 10 });
     writeBuildingToSlot(cell, b);
 
     // Slot 10 should have a real position.
