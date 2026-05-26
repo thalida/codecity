@@ -519,7 +519,7 @@ import {
   assertStemOrder,
   assertTreeRespecting,
   assertTJunctionsValid,
-} from './layout.test';
+} from '../_helpers/layoutAsserts';
 
 describe('layoutCity end-to-end', () => {
   function mkFile(name: string): any {
