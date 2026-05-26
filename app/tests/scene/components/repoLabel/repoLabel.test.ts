@@ -153,7 +153,7 @@ describe('createRepoLabel()', () => {
     expect(label!.group.children.length).toBe(2);
   });
 
-  it('setGem makes the beam track the gem\'s live world Y (hover + bob)', () => {
+  it("setGem makes the beam track the gem's live world Y (hover + bob)", () => {
     label!.setRepoName('codecity');
     REPO_LABEL.setKey('HEIGHT', 300);
     REPO_LABEL.setKey('FONT_SIZE', 100);

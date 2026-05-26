@@ -458,10 +458,10 @@ function _buildSceneSection(): HTMLElement {
         tip: 'Master toggle for the floating holographic repo-name label.',
       }),
       _slider('Height', REPO_LABEL, 'HEIGHT', 0, 2500, 5, {
-        tip: 'Panel bottom\'s elevation above the floor, in world units. 0 = flush with the floor (no beam). Larger lifts the panel and grows the beam underneath. Default 1305 ≈ 0.85 × the tallest possible building — sits inside the silhouette band of an extreme-tall city but above any typical one.',
+        tip: "Panel bottom's elevation above the floor, in world units. 0 = flush with the floor (no beam). Larger lifts the panel and grows the beam underneath. Default 1305 ≈ 0.85 × the tallest possible building — sits inside the silhouette band of an extreme-tall city but above any typical one.",
       }),
       _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
-        tip: 'Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don\'t squish.',
+        tip: "Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don't squish.",
       }),
       _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
         tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
