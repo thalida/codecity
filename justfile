@@ -89,6 +89,14 @@ build-multiarch:
         --build-arg VERSION=0.0.0+g$(git rev-parse --short HEAD) \
         -t codecity:local .
 
+# ── Onboarding ───────────────────────────────────────────────────
+# One-shot bootstrap for a fresh clone or new worktree: installs app
+# node_modules (so local vitest / IDE intellisense work — runtime
+# itself uses Docker via `just dev`) and the per-clone git hooks.
+setup: install-hooks
+    cd app && npm install
+    @echo "[just] setup complete — try 'just dev'"
+
 # ── Git hooks ────────────────────────────────────────────────────
 # Install repo-local git hooks. Run once after cloning.
 # `core.hooksPath` is per-clone (not committed), so this bootstrap is required.
