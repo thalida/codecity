@@ -59,9 +59,7 @@ describe('buildCellsFromLayout', () => {
     const N = 5;
     const bounds = { minX: 0, maxX: N * CELL_SIZE * 2, minZ: 0, maxZ: CELL_SIZE * 2 };
     // Each building at (i*CELL_SIZE + 1, 1) → distinct column cells.
-    const buildings = Array.from({ length: N }, (_, i) =>
-      building({ x: i * CELL_SIZE + 1, y: 1 })
-    );
+    const buildings = Array.from({ length: N }, (_, i) => building({ x: i * CELL_SIZE + 1, y: 1 }));
     const out = buildCellsFromLayout(bounds, buildings, EMPTY_UNIFORMS);
 
     expect(out.cells.size).toBe(N);
