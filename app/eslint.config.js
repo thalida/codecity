@@ -10,7 +10,7 @@ import globals from 'globals';
 
 export default tseslint.config(
   {
-    ignores: ['node_modules/**', 'dist/**', '../api/static/**', 'package-lock.json'],
+    ignores: ['node_modules/**', 'dist/**', 'coverage/**', '../api/static/**', 'package-lock.json'],
   },
   js.configs.recommended,
   ...tseslint.configs.recommended,

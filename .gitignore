@@ -25,6 +25,17 @@ node_modules/
 .vite/
 app/.vite/
 
+# vitest coverage report output
+app/coverage/
+
+# pytest-cov output
+#   .coverage   = SQLite data file (default)
+#   coverage.xml = Cobertura XML (CI artifact, written into api/ via
+#                  --cov-report=xml:/srv/api/coverage.xml in ci.yml)
+.coverage
+coverage.xml
+api/coverage.xml
+
 # Python
 __pycache__/
 *.pyc

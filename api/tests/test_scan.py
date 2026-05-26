@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
+
+import pytest
 
 from api.scan import (
     _extension,
@@ -19,8 +22,8 @@ from api.scan import (
 from api.types import Manifest
 
 
-# Silence progress logs during tests.
-os.environ["CODECITY_QUIET"] = "1"
+# CODECITY_QUIET=1 is set by the session-autouse ``quiet_logs`` fixture
+# in api/tests/conftest.py.
 
 
 def _final_manifest(root: str, **kwargs) -> Manifest:
@@ -37,32 +40,56 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
     return final
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
-FIXTURE = FIXTURES_DIR / "sample-repo"
+_CANONICAL_FIXTURE = FIXTURES_DIR / "sample-repo"
+
+
+def _resolve_fixture() -> Path:
+    """Return the sample-repo path this worker should use.
+
+    Many tests in this file mutate ``FIXTURE`` (write .codecityignore,
+    create stash/ and node_modules/ subdirs, commit cache-bust files,
+    etc.). Under pytest-xdist's ``-n auto`` those writes race across
+    worker processes. To isolate, each xdist worker gets its own private
+    copy under ``$TMPDIR/codecity-test-fixtures/<worker>/sample-repo``.
+    When running serially (no PYTEST_XDIST_WORKER env var), use the
+    canonical in-tree path so behavior is unchanged.
+    """
+    worker = os.environ.get("PYTEST_XDIST_WORKER")
+    if not worker:
+        return _CANONICAL_FIXTURE
+    base = Path(tempfile.gettempdir()) / "codecity-test-fixtures" / worker
+    return base / "sample-repo"
+
+
+FIXTURE = _resolve_fixture()
 
 
 def _ensure_fixture() -> None:
-    """Make sure fixtures/setup.sh has been run."""
-    if not (FIXTURE / ".git").is_dir():
+    """Make sure fixtures/setup.sh has been run, with per-worker copies
+    when running under pytest-xdist."""
+    # Always make sure the canonical fixture exists first — it's the
+    # source for per-worker copies.
+    if not (_CANONICAL_FIXTURE / ".git").is_dir():
         subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
+    # If FIXTURE was redirected to a per-worker path, materialize it.
+    if FIXTURE != _CANONICAL_FIXTURE and not (FIXTURE / ".git").is_dir():
+        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)
 
 
 class _CacheRedirectMixin:
-    """Mixin that redirects api.cache.CACHE_ROOT to a per-test
-    tempdir so calls to scan_tree() / signature_tree() / etc. don't
-    pollute the user's actual ~/.cache/codecity/ during tests."""
+    """Bridge that pulls in the ``redirect_cache_root`` conftest fixture
+    for unittest-style test classes. Autouse fixtures fire on
+    unittest.TestCase subclasses (unlike parameter-injected fixtures),
+    so this preserves the per-test CACHE_ROOT redirect behavior the old
+    mixin provided.
+    """
 
-    def setUp(self) -> None:
-        super().setUp()  # cooperative chaining for subclasses with their own setUp
-        from api import cache as cache_mod
-        self._cache_tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._cache_tmp.cleanup)
-        self._original_cache_root = cache_mod.CACHE_ROOT
-        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
-        self.addCleanup(self._restore_cache_root)
-
-    def _restore_cache_root(self) -> None:
-        from api import cache as cache_mod
-        cache_mod.CACHE_ROOT = self._original_cache_root
+    @pytest.fixture(autouse=True)
+    def _redirect_cache_root(self, redirect_cache_root: Path) -> None:
+        # Exposed for tests that need the path; most callers just rely
+        # on the side-effect of redirecting api.cache.CACHE_ROOT.
+        self.cache_root = redirect_cache_root
 
 
 class ExtensionTests(unittest.TestCase):

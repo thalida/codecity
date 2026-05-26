@@ -1,22 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildLabelAtlas } from '@/scene/components/labels/labels.js';
-import type { LabelTypographyConfig } from '@/config/index.js';
-
-// Minimal typography config for tests — shape matches LabelTypographyConfig.
-const TYPOGRAPHY: LabelTypographyConfig = {
-  FONT_FAMILY: 'sans-serif',
-  FONT_WEIGHT: 700,
-  FONT_SIZE_PX: 64,
-  FILL: '#fff',
-  STROKE: '#000',
-  STROKE_WIDTH_FRAC: 4 / 64,
-  CANVAS_PADDING_FRAC: 16 / 64,
-  HEIGHT_FRAC: 0.45,
-  SPACING_MULT: 3.5,
-  SPACING_FLOOR: 200,
-  ELEVATION: 0,
-  FLIP_HYSTERESIS: 0.15,
-};
+import { TYPOGRAPHY } from '../../../_helpers/typography.js';
 
 describe('buildLabelAtlas', () => {
   it('returns at least one page + UV rect per text', () => {
@@ -48,10 +32,14 @@ describe('buildLabelAtlas', () => {
 
   it('paginates when one page would overflow', () => {
     // Generate enough labels to force at least 2 pages. Each label is
-    // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per
-    // page. With ~5-char labels + padding the row holds many; we use
-    // wide labels to force frequent row wraps.
-    const wide = Array.from({ length: 1500 }, (_, i) => `${'x'.repeat(20)}-${i}`);
+    // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per page.
+    // Labels are 22-25 chars total (`'x'.repeat(20)` + `-${i}` for i=0..N-1).
+    // jsdom's measureText returns ~32px per char at 64px font → average
+    // ~770px wide. Atlas page is ~8192px wide → ~10 per row × 85 rows =
+    // ~850 capacity per page. 1100 was confirmed empirically to force >1
+    // page; the arithmetic above is approximate (jsdom rendering can shift)
+    // so don't trust it blindly if tweaking.
+    const wide = Array.from({ length: 1100 }, (_, i) => `${'x'.repeat(20)}-${i}`);
     const result = buildLabelAtlas(wide, TYPOGRAPHY);
     expect(result.pages.length).toBeGreaterThan(1);
     // Every label must have a rect on a real page.

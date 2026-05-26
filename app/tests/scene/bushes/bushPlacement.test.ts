@@ -3,74 +3,21 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { placeBushes } from '@/scene/components/bushes/bushPlacement.js';
 import { BUSHES } from '@/config/components/bushes.js';
-import { TREES } from '@/config/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import type { CityBbox, CityLayout } from '@/types';
-
-function resetConfig() {
-  BUSHES.set({
-    BUSHES_ENABLED: true,
-    BUSH_RADIUS_FRAC_OF_TREE: 0.4,
-    BUSH_NEON_COLORS: ['#00ff88', '#ff2bd6', '#b400ff', '#00d9ff', '#ffd400'],
-    BUSH_EMISSION_BOOST: 1.5,
-  });
-  TREES.set({
-    TREES_ENABLED: true,
-    EDGE_INSET_PERCENT: 8,
-    TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT: 48,
-    TREE_MAX_HEIGHT: 144,
-    TREE_MIN_WIDTH: 32,
-    TREE_MAX_WIDTH: 128,
-    TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
-    CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
-    TREE_COLOR_BUSY_DAY: '#0a2613',
-    TREE_COLOR_SOLO_DAY: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.35,
-    TREE_TRUNK_COLOR: '#4a3220',
-    TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION_MIN: 20,
-    TREE_AGE_SATURATION_MAX: 100,
-  });
-  BUILDING_DIMENSIONS.set({
-    MIN_FLOORS: 2,
-    MAX_FLOORS: 96,
-    FLOOR_HEIGHT: 16,
-    MIN_WIDTH: 8,
-    MAX_WIDTH: 8,
-    PATH_LENGTH: 8,
-    PATH_WIDTH_FRAC: 0.5,
-  });
-}
-
-function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-    width: maxX - minX,
-    depth: maxY - minY,
-  };
-}
-
-function emptyLayout(bb: CityBbox): CityLayout {
-  return {
-    buildings: [],
-    streets: [],
-    paths: [],
-    lineStats: { min: 0, max: 0 },
-    byteStats: { min: 0, max: 0 },
-    bbox: bb,
-  };
-}
+import type { CityLayout } from '@/types';
+import {
+  bbox,
+  emptyLayout,
+  resetBushesConfig,
+  resetTreesConfig,
+  resetBuildingsConfig,
+} from '../../_helpers/cityFixtures';
 
 describe('placeBushes (decorative scatter)', () => {
-  beforeEach(resetConfig);
+  beforeEach(() => {
+    resetBushesConfig();
+    resetTreesConfig();
+    resetBuildingsConfig();
+  });
 
   it('returns empty when BUSHES_ENABLED is false', () => {
     BUSHES.setKey('BUSHES_ENABLED', false);

@@ -3,72 +3,19 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { placeTrees, type TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import { TREES } from '@/config/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import type { CityBbox, CityLayout } from '@/types';
-
-function resetTrees() {
-  TREES.set({
-    TREES_ENABLED: true,
-    EDGE_INSET_PERCENT: 8,
-    TREE_DENSITY_FALLOFF: 0,
-    TREE_MIN_HEIGHT: 48,
-    TREE_MAX_HEIGHT: 144,
-    TREE_MIN_WIDTH: 32,
-    TREE_MAX_WIDTH: 128,
-    TRUNK_HEIGHT_FRAC: 0.25,
-    TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
-    CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
-    SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH: 0.5,
-    TREE_COLOR_BUSY_DAY: '#0a2613',
-    TREE_COLOR_SOLO_DAY: '#a8d68a',
-    TREE_SHADING_STRENGTH: 0.35,
-    TREE_TRUNK_COLOR: '#4a3220',
-    TREE_AGE_DESAT_ENABLED: false,
-    TREE_AGE_SATURATION_MIN: 20,
-    TREE_AGE_SATURATION_MAX: 100,
-  });
-}
-
-function resetBuildings() {
-  BUILDING_DIMENSIONS.set({
-    MIN_FLOORS: 2,
-    MAX_FLOORS: 96,
-    FLOOR_HEIGHT: 16,
-    MIN_WIDTH: 8,
-    MAX_WIDTH: 8,
-    PATH_LENGTH: 8,
-    PATH_WIDTH_FRAC: 0.5,
-  });
-}
-
-function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-    width: maxX - minX,
-    depth: maxY - minY,
-  };
-}
-
-function emptyLayout(bb: CityBbox): CityLayout {
-  return {
-    buildings: [],
-    streets: [],
-    paths: [],
-    lineStats: { min: 0, max: 0 },
-    byteStats: { min: 0, max: 0 },
-    bbox: bb,
-  };
-}
+import type { CityLayout } from '@/types';
+import {
+  bbox,
+  emptyLayout,
+  resetTreesConfig,
+  resetBuildingsConfig,
+} from '../../_helpers/cityFixtures';
+import { building } from '../../_helpers/buildingFixture';
 
 describe('placeTrees (commit-driven)', () => {
   beforeEach(() => {
-    resetTrees();
-    resetBuildings();
+    resetTreesConfig();
+    resetBuildingsConfig();
   });
 
   it('returns empty when TREES_ENABLED is false', () => {
@@ -132,21 +79,9 @@ describe('placeTrees (commit-driven)', () => {
 
   it('rejects tree candidates that overlap a building', () => {
     const bb = bbox(-500, -500, 500, 500);
-    function makeBuilding(x: number, y: number, w: number, d: number) {
-      return {
-        x,
-        y,
-        w,
-        d,
-        h: 10,
-        color: '#000',
-        file: { path: '', name: '', size: 0, lines: 0, modified: 0, created: 0 } as never,
-        orient: 'n' as never,
-      } as never;
-    }
     const layout: CityLayout = {
       ...emptyLayout(bb),
-      buildings: [makeBuilding(0, 0, 400, 400)],
+      buildings: [building({ x: 0, y: 0, w: 400, d: 400, h: 10 })],
     };
     const placements = placeTrees(layout, bb, { commitCount: 50 });
     for (const p of placements) {
