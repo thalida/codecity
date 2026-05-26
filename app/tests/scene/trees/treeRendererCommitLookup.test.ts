@@ -206,7 +206,7 @@ describe('Trees commit lookups', () => {
     expect(trees.colorForSha('a'.repeat(40))).toBeNull();
   });
 
-  it('setHoverSha tints the canopy instance brighter than baseline', () => {
+  it('setHoverSha tints the canopy instance with a contrasting inverse color', () => {
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits);
@@ -215,10 +215,20 @@ describe('Trees commit lookups', () => {
     const hit = trees.findTreeBySha(commits[1].sha)!;
     hit.mesh.getColorAt(hit.instanceId, tmp);
     const baseR = tmp.r;
+    const baseG = tmp.g;
+    const baseB = tmp.b;
 
     trees.setHoverSha(commits[1].sha);
     hit.mesh.getColorAt(hit.instanceId, tmp);
-    expect(tmp.r).toBeGreaterThan(baseR);
+    // The new tinting algorithm (PR 5c1ad90) paints the canopy with the
+    // sRGB inverse of its base color (with a contrast-pull when the raw
+    // inverse is too close to the base in luminance). The tinted color
+    // may be either brighter or darker than baseline depending on the
+    // base color, so just assert a meaningful color change in any
+    // channel rather than a directional brightness shift.
+    const channelDelta =
+      Math.abs(tmp.r - baseR) + Math.abs(tmp.g - baseG) + Math.abs(tmp.b - baseB);
+    expect(channelDelta).toBeGreaterThan(0.1);
   });
 
   it('setHoverSha(null) restores the baseline color', () => {
@@ -237,7 +247,7 @@ describe('Trees commit lookups', () => {
     expect(Math.abs(tmp.r - baseR)).toBeLessThan(0.001);
   });
 
-  it('setSelectionSha tints more strongly than setHoverSha', () => {
+  it('setSelectionSha paints the canopy with the same tint as setHoverSha', () => {
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits);
@@ -248,11 +258,18 @@ describe('Trees commit lookups', () => {
     trees.setHoverSha(commits[1].sha);
     hit.mesh.getColorAt(hit.instanceId, tmp);
     const hoverR = tmp.r;
+    const hoverG = tmp.g;
+    const hoverB = tmp.b;
 
     trees.setHoverSha(null);
     trees.setSelectionSha(commits[1].sha);
     hit.mesh.getColorAt(hit.instanceId, tmp);
-    expect(tmp.r).toBeGreaterThan(hoverR);
+    // PR 5c1ad90: hover and selection share one paint (the contrasting
+    // inverse). Priority semantics (selection wins over hover) are still
+    // exercised by the dedicated tests below.
+    expect(Math.abs(tmp.r - hoverR)).toBeLessThan(0.001);
+    expect(Math.abs(tmp.g - hoverG)).toBeLessThan(0.001);
+    expect(Math.abs(tmp.b - hoverB)).toBeLessThan(0.001);
   });
 
   it('selection wins over hover when both apply to the same tree', () => {
