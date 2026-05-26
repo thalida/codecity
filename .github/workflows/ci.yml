@@ -41,11 +41,41 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Run pytest
-        run: docker compose -f docker-compose.test.yml run --rm pytest
+      - name: Run pytest with coverage
+        # pyproject.toml's pytest addopts already include
+        # `--cov=api --cov-report=term --cov-fail-under=80`. The extra
+        # `--cov-report=xml:/srv/api/coverage.xml` lands the XML report
+        # inside the mounted `./api` dir so it's visible on the host for
+        # artifact upload (the compose service only mounts ./api, uv.lock,
+        # and pyproject.toml — not the repo root).
+        run: |
+          docker compose -f docker-compose.test.yml run --rm pytest \
+            --cov-report=xml:/srv/api/coverage.xml
 
-      - name: Run vitest
-        run: docker compose -f docker-compose.test.yml run --rm vitest
+      - name: Run vitest with coverage
+        # Override the default compose command (which runs `npm test`) to
+        # run `npm run coverage` instead. Same apt-get / npm bootstrap as
+        # the compose service. Output lands in app/coverage/ on the host
+        # via the ./app:/app bind mount.
+        run: |
+          docker compose -f docker-compose.test.yml run --rm vitest \
+            sh -c "apt-get update && apt-get install -y --no-install-recommends libexpat1 fontconfig fonts-dejavu-core && npm install -g npm@$NPM_VERSION && npm ci && npm run coverage"
+
+      - name: Upload pytest coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-coverage
+          path: api/coverage.xml
+          if-no-files-found: warn
+
+      - name: Upload vitest coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vitest-coverage
+          path: app/coverage/
+          if-no-files-found: warn
 
       - name: Lint + typecheck + format check
         run: |
