@@ -51,6 +51,7 @@ import {
   FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/components/sky.js';
+import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
 import { TREES } from '@/config/components/trees.js';
@@ -447,6 +448,32 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('scene-repo-label', 'Repo label', () => [
+      _toggle('Enabled', REPO_LABEL, 'ENABLED', {
+        tip: 'Master toggle for the floating holographic repo-name label.',
+      }),
+      _slider('Height', REPO_LABEL, 'HEIGHT', 0, 2500, 5, {
+        tip: "Panel bottom's elevation above the floor, in world units. 0 = flush with the floor (no beam). Larger lifts the panel and grows the beam underneath. Default 1305 ≈ 0.85 × the tallest possible building — sits inside the silhouette band of an extreme-tall city but above any typical one.",
+      }),
+      _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
+        tip: "Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don't squish.",
+      }),
+      _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
+        tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
+      }),
+      _slider('Opacity', REPO_LABEL, 'OPACITY', 0, 1, 0.05, {
+        tip: 'Master opacity. 0 invisible, 1 fully painted.',
+      }),
+      _color('Beam color', REPO_LABEL, 'BEAM_COLOR', {
+        tip: 'Color of the light beam rising from the gem.',
+      }),
+      _color('Text color', REPO_LABEL, 'TEXT_COLOR', {
+        tip: 'Tint applied to the holographic text. White preserves the chromatic-aberration look; other colors fold the aberration into the chosen hue.',
       }),
     ])
   );

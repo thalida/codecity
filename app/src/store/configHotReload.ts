@@ -61,6 +61,10 @@ import {
   // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
   // matrices → rebuild; COLOR/ENABLED → hot path via footprint.refresh()):
   FOOTPRINT,
+
+  // Cyberpunk Valley — floating repo-name label (all keys hot-reloadable
+  // via repoLabel.refresh() inside applyTheme()):
+  REPO_LABEL,
 } from '@/config/index.js';
 import {
   // Cyberpunk Valley — island geometry and materials
@@ -252,6 +256,12 @@ export function attachHotReload({ world, applyTheme }: HotReloadOpts): () => voi
     // material keys push uniforms directly. No full rebuild needed.
     ISLAND_GEOMETRY,
     ISLAND_MATERIALS,
+    // REPO_LABEL — every key (ENABLED, STYLE, HEIGHT_ABOVE_CITY,
+    // ANIMATION_SPEED, OPACITY) is pushed live through
+    // repoLabel.refresh() inside applyTheme(). STYLE triggers a cheap
+    // mesh swap inside refresh(); the others update uniforms or the
+    // group transform directly. No applyManifest rebuild needed.
+    REPO_LABEL,
   ];
 
   const unsubs: Array<() => void> = [];

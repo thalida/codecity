@@ -50,6 +50,8 @@ import { createStreetLabels } from './components/streets/streetLabels.js';
 import { createPathMesh } from './components/streets/streetPath.js';
 import { createSky } from './components/sky/sky.js';
 import type { Sky } from './components/sky/sky.js';
+import { createRepoLabel } from './components/repoLabel/repoLabel.js';
+import type { RepoLabel } from './components/repoLabel/repoLabel.js';
 import { createTrees } from './components/trees/trees.js';
 import type { Trees } from './components/trees/trees.js';
 import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
@@ -380,6 +382,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // through as the fallback.
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
+
+  // Floating repo-name label — created ONCE at scene init, parallel
+  // to sky and island. The group is empty (and invisible-effectively)
+  // until applyManifest calls setRepoName + setAnchor.
+  const _repoLabel: RepoLabel = createRepoLabel();
+  scene.add(_repoLabel.group);
 
   // Cyberpunk Valley floating island — a shaped polygonal slab that
   // replaces the old flat world-floor plane. Built ONCE at scene init
@@ -1142,6 +1150,18 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
 
+    // Floating repo-name label — anchored at the gem position (the
+    // floor-level root marker). The label's elevation is governed by
+    // REPO_LABEL.HEIGHT, not by city silhouette: 0 → label flush with
+    // the floor; larger → label rises with a visible beam.
+    _repoLabel.setRepoName(manifest.tree.name);
+    _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
+    // Hand the live gem to the label so its beam foot tracks the
+    // gem's hover height + bob animation. rootGem is the gem GROUP
+    // whose .position.y is mutated each frame by the renderLoop.
+    _repoLabel.setGem(rootGem);
+    _repoLabel.refresh();
+
     // Floor is sized from the scene's bbox + buffer. Falls back to a
     // small default at the origin when there's no city (empty manifest).
     latestWorldBounds = getWorldBounds(sceneBbox, cityHeight);
@@ -1230,6 +1250,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   function dispose() {
     _disposeAllManifestState();
     _sky.dispose();
+    _repoLabel.dispose();
     _island.dispose();
     if (_trees) {
       _trees.dispose();
@@ -1279,6 +1300,15 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getSky(): Sky {
       return _sky;
+    },
+
+    /**
+     * Floating repo-name label reference. Exposed so main.ts's
+     * applyTheme() can call repoLabel.refresh() on hot-reload and the
+     * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
+     */
+    getRepoLabel(): RepoLabel {
+      return _repoLabel;
     },
 
     /**
