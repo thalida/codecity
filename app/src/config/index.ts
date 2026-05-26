@@ -60,6 +60,7 @@ export * from './components/island.js';
 export * from './components/footprint.js';
 export * from './components/trees.js';
 export * from './components/bushes.js';
+export * from './components/repoLabel.js';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────
 export * from './effects/effects.js';
