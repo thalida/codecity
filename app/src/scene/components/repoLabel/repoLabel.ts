@@ -31,11 +31,14 @@ import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
 import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './textCanvas.js';
 
-// Beam base radius in world units. Stays constant regardless of FONT_SIZE
-// — beam reads as a narrow pillar even when the panel is large.
-const BEAM_RADIUS = 0.6;
-// Beam base height (1 unit); the mesh's scale.y multiplies this so its
-// world height equals REPO_LABEL.HEIGHT.
+// Beam radius as a fraction of FONT_SIZE. Beam thickens automatically
+// when the user grows the label — keeps the beam reading as a real
+// column of light, not a hairline.
+const BEAM_RADIUS_FRAC = 0.04;
+// Beam base geometry (radius 1, height 1). mesh.scale.x/z multiplies
+// the radius to FONT_SIZE × BEAM_RADIUS_FRAC; mesh.scale.y multiplies
+// the height to REPO_LABEL.HEIGHT.
+const BEAM_BASE_RADIUS = 1;
 const BEAM_BASE_HEIGHT = 1;
 // Panel base height (1 unit); the mesh's scale.y multiplies this so its
 // world height equals REPO_LABEL.FONT_SIZE. Width is also scaled so
@@ -92,7 +95,10 @@ export function createRepoLabel(): RepoLabel {
     if (beamMesh) {
       // Beam reaches from panel bottom (local y = -halfFont) DOWN
       // to the floor (local y = -halfFont - HEIGHT). Length = HEIGHT.
-      beamMesh.scale.y = cfg.HEIGHT;
+      // Radius scales with FONT_SIZE so the beam reads proportional
+      // to the label it carries.
+      const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
+      beamMesh.scale.set(beamRadius, cfg.HEIGHT, beamRadius);
       beamMesh.position.y = -halfFont - cfg.HEIGHT / 2;
     }
 
@@ -134,8 +140,8 @@ export function createRepoLabel(): RepoLabel {
 
     // ---- Beam ----
     const beamGeom = new THREE.CylinderGeometry(
-      BEAM_RADIUS,
-      BEAM_RADIUS,
+      BEAM_BASE_RADIUS,
+      BEAM_BASE_RADIUS,
       BEAM_BASE_HEIGHT,
       16,
       1,

@@ -1,15 +1,21 @@
-// holoBeam.frag.glsl — Vertical light column from the gem up to the
-// label. Alpha fades from 0.6 at the base (v=0) to 0 at the top (v=1).
-// Color is cyan with a magenta tint at the cylinder's outer rim.
+// holoBeam.frag.glsl — Vertical light column rising from the gem to
+// the label. Alpha is brightest at the gem (cylinder base) and fades
+// out toward the panel (cylinder top). Color is cyan with a magenta
+// tint at the cylinder's outer rim.
+//
+// three.js CylinderGeometry maps v=0 to the TOP of the cylinder and
+// v=1 to the bottom, so we use vUv.y directly (no `1.0 -`) to put the
+// bright end at the gem.
 
 varying vec2 vUv;
 
 uniform float uOpacity;
 
 void main() {
-  // Vertical fade — base is the cylinder's bottom in UV space.
-  float vFade = 1.0 - vUv.y;
-  float a = vFade * 0.6;
+  // Vertical fade: bright at the gem (v=1 in CylinderGeometry's UV),
+  // fading to invisible at the panel end (v=0).
+  float vFade = vUv.y;
+  float a = vFade * 0.85;
 
   // Side tint — vUv.x runs around the cylinder; tint magenta near
   // the seam where the U coordinate hits 0/1.
