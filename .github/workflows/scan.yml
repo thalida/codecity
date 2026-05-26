@@ -15,7 +15,7 @@ jobs:
       issues: write       # to open an issue on new findings
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Run Trivy on :latest
         id: trivy
