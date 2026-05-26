@@ -29,10 +29,10 @@ void main() {
   pulseDist = min(pulseDist, 1.0 - pulseDist);
   // Narrow Gaussian peak.
   float pulse = exp(-pulseDist * pulseDist * 80.0);
-  // Pulse stays visible end-to-end: linear fade dims it gently toward
-  // the top but never to zero, so you can watch the pulse travel
-  // through the wide cone of the beam.
-  pulse *= mix(0.4, 1.0, vFadeLinear);
+  // Pulse fades along the column too — linearly so it's still
+  // visible mid-travel, but reaches zero at the panel so the pulse
+  // doesn't paint over the faint cone at the top.
+  pulse *= vFadeLinear;
 
   float a = (baseAlpha + pulse * 0.8) * uOpacity;
 
