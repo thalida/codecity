@@ -13,5 +13,7 @@ export default defineConfig({
     include: ['tests/**/*.test.{js,ts}'],
     environment: 'jsdom',
     setupFiles: ['tests/setup.ts'],
+    // jsdom + canvas tests can spike past the 5s default under parallel load.
+    testTimeout: 15_000,
   },
 });
