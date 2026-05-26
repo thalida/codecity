@@ -455,29 +455,16 @@ function _buildSceneSection(): HTMLElement {
   section.appendChild(
     _collapsibleSubgroup('scene-repo-label', 'Repo label', () => [
       _toggle('Enabled', REPO_LABEL, 'ENABLED', {
-        tip: 'Master toggle for the floating repo-name label above the city.',
+        tip: 'Master toggle for the floating holographic repo-name label above the city.',
       }),
-      _select(
-        'Style',
-        REPO_LABEL,
-        'STYLE',
-        [
-          { value: 'ring', label: 'Ring' },
-          { value: 'hologram', label: 'Hologram' },
-          { value: 'concentric', label: 'Concentric' },
-        ],
-        {
-          tip: 'Ring = spinning text torus. Hologram = light beam + glitchy projection. Concentric = text ring + decorative inner ring.',
-        }
-      ),
       _slider('Height above city', REPO_LABEL, 'HEIGHT_ABOVE_CITY', 0, 60, 1, {
-        tip: 'World units the label is lifted above the tallest building. 0 = embedded in the silhouette; above 40 it floats far overhead.',
+        tip: 'World units the label is lifted above the tallest building. Also sets the beam length — beam reaches from the gem up to the label.',
       }),
       _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
-        tip: 'Multiplier on spin / glitch / pulse rates. 0 freezes the label; 4 reads as frantic.',
+        tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
       }),
       _slider('Opacity', REPO_LABEL, 'OPACITY', 0, 1, 0.05, {
-        tip: 'Master opacity for the active style. 0 invisible, 1 fully painted.',
+        tip: 'Master opacity. 0 invisible, 1 fully painted.',
       }),
     ])
   );
