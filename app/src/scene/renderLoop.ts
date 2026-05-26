@@ -260,6 +260,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
     // hotStores route in app/config/hotReload.ts.
     world.getSky().refresh();
+    // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
+    // HEIGHT_ABOVE_CITY/ANIMATION_SPEED. Swaps the active style mesh
+    // when STYLE changed; otherwise just updates uniforms + transform.
+    world.getRepoLabel().refresh();
 
     // Cyberpunk Valley floating island — pulls fresh ISLAND_MATERIALS /
     // ISLAND_GEOMETRY / ISLAND_UNDERGLOW config so colour pickers + toggles
@@ -430,6 +434,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       // shared by the sky. Must run after sky.tick() so the sun direction
       // is current before the island shader samples it.
       world.getIsland().tick();
+      // Floating repo-name label tick — advances per-style uTime and
+      // (for the Hologram style) rotates the text panel to face the
+      // camera. Pulls the active ANIMATION_SPEED from REPO_LABEL config.
+      world.getRepoLabel().tick(dt, camera);
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
