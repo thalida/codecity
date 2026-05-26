@@ -63,18 +63,18 @@ export interface Trees {
    *  the InstancedMesh that renders it. Returns a CSS hex string (e.g.
    *  "#5e8a3a") or null when the sha can't be found. */
   colorForSha(sha: string): string | null;
-  /** Set which sha is currently hovered (null clears). Tints that
-   *  tree's canopy slightly toward white for visual feedback. */
+  /** Set which sha is currently hovered (null clears). Repaints that
+   *  tree's canopy with a high-contrast inverse of its base color. */
   setHoverSha(sha: string | null): void;
-  /** Set which sha is currently selected (null clears). Tints that
-   *  tree's canopy more strongly than hover. */
+  /** Set which sha is currently selected (null clears). Repaints that
+   *  tree's canopy with the same inverse treatment as hover. */
   setSelectionSha(sha: string | null): void;
 }
 
-/** Lerp-toward-white amount for hover and selection canopy tints.
- *  0 = no change, 1 = fully white. Keep both subtle. */
-const HOVER_TINT = 0.15;
-const SELECT_TINT = 0.3;
+/** Minimum sRGB luminance gap between base and inverse. If the raw RGB
+ *  inverse lands closer than this (e.g. base near mid-gray), push the
+ *  hover/selection toward black or white so contrast is guaranteed. */
+const INVERSE_MIN_LUMINANCE_DELTA = 0.4;
 
 /** Subdivision levels of the icosahedron canopy.
  *  detail 0 → 20 faces (very faceted),
@@ -360,7 +360,7 @@ export function createTreeRenderer(
 
   // O(1) index from sha → canopy instance. Populated in the bake loop
   // alongside _baseColorBySha, cleared + rebuilt on refresh(). Lets
-  // findTreeBySha, _applyTint, and _restoreBase skip nested loops.
+  // findTreeBySha, _applyInverse, and _restoreBase skip nested loops.
   const _treeIndexBySha = new Map<
     string,
     { mesh: THREE.InstancedMesh; instanceId: number; commit: CommitEntry }
@@ -478,9 +478,10 @@ export function createTreeRenderer(
     }
 
     // Re-apply hover / selection tints after the base colors are baked.
-    // Apply hover first then selected so selected wins when both apply.
-    if (_hoverSha) _applyTint(_hoverSha, HOVER_TINT);
-    if (_selectedSha) _applyTint(_selectedSha, SELECT_TINT);
+    // Apply hover first then selected so selected wins when both apply
+    // (currently the same paint, but priority still matters if they diverge).
+    if (_hoverSha) _applyInverse(_hoverSha);
+    if (_selectedSha) _applyInverse(_selectedSha);
   }
 
   function dispose(): void {
@@ -516,26 +517,40 @@ export function createTreeRenderer(
   }
 
   // ── Hover / selection tint state machine ─────────────────────────────
-  const _WHITE = new THREE.Color(1, 1, 1);
   const _tintTmp = new THREE.Color();
   let _hoverSha: string | null = null;
   let _selectedSha: string | null = null;
 
-  /** Find the canopy instance for `sha`, read the cached base color, lerp
-   *  toward white by `amount`, and write it back. Uses addUpdateRange for
-   *  a partial GPU upload (3 floats instead of the full buffer).
+  /** Paint the canopy with the sRGB inverse (1−r, 1−g, 1−b) of its base
+   *  color. If the inverse ends up too close in luminance to the base
+   *  (e.g. base near mid-gray), pull it halfway toward black or white so
+   *  contrast holds. Operating on sRGB hex bytes — not the linear-RGB
+   *  working space — matches what users perceive as "inverse" (the same
+   *  transform CSS `filter: invert()` applies).
    *
-   *  The cached hex was produced by THREE.Color.getHexString(), which
-   *  converts from the working color space (linear-sRGB) to sRGB for
-   *  output. We must parse it back with SRGBColorSpace so THREE converts
-   *  it to linear-sRGB internally — a round-trip match. */
-  function _applyTint(sha: string, amount: number): void {
+   *  Used for both hover and selection so the two states share one visual
+   *  treatment. Uses addUpdateRange for a partial GPU upload (3 floats
+   *  instead of the full buffer). */
+  function _applyInverse(sha: string): void {
     const idx = _treeIndexBySha.get(sha);
     if (!idx) return;
     const hex = _baseColorBySha.get(sha);
     if (!hex) return;
-    _tintTmp.setStyle(hex, THREE.SRGBColorSpace);
-    _tintTmp.lerp(_WHITE, amount);
+    const baseR = parseInt(hex.slice(1, 3), 16) / 255;
+    const baseG = parseInt(hex.slice(3, 5), 16) / 255;
+    const baseB = parseInt(hex.slice(5, 7), 16) / 255;
+    let invR = 1 - baseR;
+    let invG = 1 - baseG;
+    let invB = 1 - baseB;
+    const baseLum = 0.2126 * baseR + 0.7152 * baseG + 0.0722 * baseB;
+    const invLum = 0.2126 * invR + 0.7152 * invG + 0.0722 * invB;
+    if (Math.abs(invLum - baseLum) < INVERSE_MIN_LUMINANCE_DELTA) {
+      const target = baseLum < 0.5 ? 1 : 0;
+      invR = invR * 0.5 + target * 0.5;
+      invG = invG * 0.5 + target * 0.5;
+      invB = invB * 0.5 + target * 0.5;
+    }
+    _tintTmp.setRGB(invR, invG, invB, THREE.SRGBColorSpace);
     idx.mesh.setColorAt(idx.instanceId, _tintTmp);
     const colorAttr = idx.mesh.instanceColor!;
     colorAttr.addUpdateRange(idx.instanceId * 3, 3);
@@ -557,13 +572,13 @@ export function createTreeRenderer(
   }
 
   /** Re-derive and apply whichever state is currently "winning" for `sha`.
-   *  Priority: selected > hovered > base. */
+   *  Priority: selected > hovered > base. Hover and selection currently
+   *  share the same paint, but the priority ordering is preserved so the
+   *  two can diverge again without rewiring the state machine. */
   function _applyStateFor(sha: string | null): void {
     if (!sha) return;
-    if (sha === _selectedSha) {
-      _applyTint(sha, SELECT_TINT);
-    } else if (sha === _hoverSha) {
-      _applyTint(sha, HOVER_TINT);
+    if (sha === _selectedSha || sha === _hoverSha) {
+      _applyInverse(sha);
     } else {
       _restoreBase(sha);
     }
