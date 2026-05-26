@@ -1,9 +1,13 @@
-"""Tests for the local HTTP server."""
+"""Tests for /api/manifest streaming and its supporting machinery
+(split from test_server.py).
+
+Includes the route-level coverage plus the helpers and infra that back
+the streaming endpoint (source classification, scan-target resolution,
+disconnect handling, NDJSON event streaming, git working-tree gating)."""
 
 from __future__ import annotations
 
 import gzip
-import http.client
 import io
 import json
 import socket
@@ -28,13 +32,11 @@ from api.server import (
     start_server,
 )
 
-# CODECITY_QUIET=1, the cache-root redirect, _init_git_repo,
-# _make_fake_remote, and the HTTP request helpers all live in
-# api/tests/conftest.py now. Each test class below pulls in only the
-# fixtures it uses via a small ``_setup_fixtures`` autouse method.
 
+class ManifestRouteTests(unittest.TestCase):
+    """Coverage for /api/manifest at the HTTP layer — query handling,
+    include_all/no_cache parsing, gzip negotiation, error codes."""
 
-class ServerTests(unittest.TestCase):
     @pytest.fixture(autouse=True)
     def _setup_fixtures(
         self, redirect_cache_root, init_git_repo, http_helpers,
@@ -50,8 +52,6 @@ class ServerTests(unittest.TestCase):
         static = Path(self.tmp.name) / "static"
         static.mkdir()
         (static / "index.html").write_text("<html><body>hi</body></html>")
-        (static / "assets").mkdir()
-        (static / "assets" / "main.js").write_text("console.log('ok')")
 
         # A small directory we can scan in the manifest test. Initialized
         # as a git repo because the API now requires every local scan
@@ -64,12 +64,6 @@ class ServerTests(unittest.TestCase):
         self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
         self.addCleanup(self.shutdown)
         self.base = f"http://127.0.0.1:{self.port}"
-
-    def test_health_route(self) -> None:
-        status, body, ctype = self._http.get(self.base + "/api/health")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertIn("application/json", ctype)
-        self.assertEqual(json.loads(body), {"ok": True})
 
     def test_manifest_route_scans_query_path(self) -> None:
         q = urllib.parse.urlencode({"src": str(self.project)})
@@ -91,64 +85,6 @@ class ServerTests(unittest.TestCase):
         q = urllib.parse.urlencode({"src": str(self.project / "nope")})
         status, _, _ = self._http.get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_signature_route_matches_manifest_signature(self) -> None:
-        # The contract powering the cheap-poll: the signature endpoint
-        # returns the same digest the full manifest would have produced.
-        q = urllib.parse.urlencode({"src": str(self.project)})
-        m_status, m_events = self._http.request_stream(self.port, f"/api/manifest?{q}")
-        s_status, s_body, s_ctype = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        self.assertEqual(m_status, HTTPStatus.OK)
-        self.assertEqual(s_status, HTTPStatus.OK)
-        self.assertIn("application/json", s_ctype)
-        manifest = next(e for e in m_events if e["phase"] == "final")["manifest"]
-        sig = json.loads(s_body)
-        self.assertEqual(sig["signature"], manifest["signature"])
-        # Lean shape — no tree / repo fields on the signature endpoint.
-        self.assertNotIn("tree", sig)
-        self.assertNotIn("repo", sig)
-
-    def test_signature_route_missing_query_returns_400(self) -> None:
-        status, _, _ = self._http.get(self.base + "/api/manifest/signature")
-        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
-
-    def test_signature_route_nonexistent_path_returns_404(self) -> None:
-        q = urllib.parse.urlencode({"src": str(self.project / "nope")})
-        status, _, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_root_serves_index_html(self) -> None:
-        status, body, ctype = self._http.get(self.base + "/")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertIn("text/html", ctype)
-        self.assertIn(b"<body>hi</body>", body)
-
-    def test_static_asset_with_correct_mime(self) -> None:
-        status, body, ctype = self._http.get(self.base + "/assets/main.js")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertTrue(
-            ctype.startswith("text/javascript")
-            or ctype.startswith("application/javascript")
-        )
-        self.assertEqual(body, b"console.log('ok')")
-
-    def test_unknown_api_route_returns_404_json(self) -> None:
-        status, body, ctype = self._http.get(self.base + "/api/nope")
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
-        self.assertIn("application/json", ctype)
-        self.assertEqual(json.loads(body), {"error": "unknown api route"})
-
-    def test_missing_static_returns_404(self) -> None:
-        status, _, _ = self._http.get(self.base + "/does-not-exist.html")
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_path_traversal_rejected(self) -> None:
-        # urllib normalizes ../ on the client side, so we go raw to make sure
-        # the server itself rejects a crafted escape attempt.
-        conn = http.client.HTTPConnection("127.0.0.1", self.port)
-        conn.request("GET", "/../api/scan.py")
-        resp = conn.getresponse()
-        self.assertIn(resp.status, (HTTPStatus.FORBIDDEN, HTTPStatus.NOT_FOUND))
 
     def test_manifest_route_honors_include_all(self) -> None:
         # Add an untracked file by initializing the project as a git repo
@@ -190,42 +126,6 @@ class ServerTests(unittest.TestCase):
         final_all = next(e for e in events_all if e["phase"] == "final")["manifest"]
         names_all = [c["name"] for c in final_all["tree"]["children"]]
         self.assertIn("untracked.txt", names_all)
-
-    def test_signature_route_honors_include_all(self) -> None:
-        # Reuses the project setup from the previous test — set up inline
-        # so this test runs independently if the order changes.
-        import subprocess
-        subprocess.run(
-            ["git", "-C", str(self.project), "init", "-q"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.name", "t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "add", "README.md"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
-            check=True,
-        )
-        (self.project / "untracked.txt").write_text("hidden by default")
-
-        q = urllib.parse.urlencode({"src": str(self.project)})
-        _, body_default, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        sig_default = json.loads(body_default)["signature"]
-
-        q_all = urllib.parse.urlencode(
-            {"src": str(self.project), "include_all": "true"}
-        )
-        _, body_all, _ = self._http.get(self.base + f"/api/manifest/signature?{q_all}")
-        sig_all = json.loads(body_all)["signature"]
-
-        self.assertNotEqual(sig_default, sig_all)
 
     def test_include_all_truthy_parsing(self) -> None:
         # Accept 'true' (any case) and '1' as truthy; everything else
@@ -328,156 +228,6 @@ class ServerTests(unittest.TestCase):
         # Sanity: each line is valid JSON.
         events = [json.loads(line) for line in body.splitlines() if line]
         self.assertGreaterEqual(len(events), 1)
-
-    def test_health_response_below_threshold_uncompressed(self) -> None:
-        # /api/health body is ~15 bytes — below the 256-byte threshold.
-        # Even with gzip in Accept-Encoding, response is not compressed.
-        status, body, _, enc = self._http.get_with_headers(
-            self.base + "/api/health",
-            {"Accept-Encoding": "gzip"},
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(enc, "")
-        self.assertEqual(json.loads(body), {"ok": True})
-
-
-class FileApiTests(unittest.TestCase):
-    """Coverage for /api/file — the root-bounded file reader."""
-
-    @pytest.fixture(autouse=True)
-    def _setup_fixtures(self, redirect_cache_root, http_helpers) -> None:
-        self.cache_root = redirect_cache_root
-        self._http = http_helpers
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.tmp = TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.scan_root = Path(self.tmp.name) / "project"
-        self.scan_root.mkdir()
-
-        # Inside-root files
-        (self.scan_root / "hello.txt").write_text("hello world")
-        (self.scan_root / "image.png").write_bytes(b"\x89PNG\r\n\x1a\nfake")
-        sub = self.scan_root / "sub"
-        sub.mkdir()
-        (sub / "nested.md").write_text("# heading")
-
-        # An outside-root file the server must refuse to expose
-        self.outside = Path(self.tmp.name) / "secret.txt"
-        self.outside.write_text("you can't see me")
-
-        # Static dir is irrelevant to /api/file but required by start_server
-        static = Path(self.tmp.name) / "static"
-        static.mkdir()
-        (static / "index.html").write_text("ok")
-
-        self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
-        self.addCleanup(self.shutdown)
-        self.base = f"http://127.0.0.1:{self.port}"
-        # Prime the trust set directly — we're unit-testing /api/file, not
-        # the manifest path that normally registers the root.
-        server_mod._State.allowed_roots.add(self.scan_root.resolve())
-
-    def test_returns_text_with_correct_mime(self) -> None:
-        status, body, ctype = self._http.get(
-            self.base + f"/api/file?path={self.scan_root / 'hello.txt'}"
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertTrue(ctype.startswith("text/plain"))
-        self.assertEqual(body, b"hello world")
-
-    def test_returns_image_with_correct_mime(self) -> None:
-        status, body, ctype = self._http.get(
-            self.base + f"/api/file?path={self.scan_root / 'image.png'}"
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(ctype, "image/png")
-        self.assertTrue(body.startswith(b"\x89PNG"))
-
-    def test_nested_path_inside_root(self) -> None:
-        status, _, _ = self._http.get(
-            self.base + f"/api/file?path={self.scan_root / 'sub' / 'nested.md'}"
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-
-    def test_path_outside_root_forbidden(self) -> None:
-        status, body, _ = self._http.get(self.base + f"/api/file?path={self.outside}")
-        self.assertEqual(status, HTTPStatus.FORBIDDEN)
-        self.assertEqual(json.loads(body), {"error": "outside scan root"})
-
-    def test_missing_path_param(self) -> None:
-        status, _, _ = self._http.get(self.base + "/api/file")
-        self.assertEqual(status, HTTPStatus.BAD_REQUEST)
-
-    def test_nonexistent_file(self) -> None:
-        status, _, _ = self._http.get(
-            self.base + f"/api/file?path={self.scan_root / 'nope.txt'}"
-        )
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_directory_is_not_a_file(self) -> None:
-        status, _, _ = self._http.get(self.base + f"/api/file?path={self.scan_root / 'sub'}")
-        self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_extensionless_textfile_returns_text(self) -> None:
-        # LICENSE, Makefile, Dockerfile, .gitignore — mimetypes can't help.
-        license_path = self.scan_root / "LICENSE"
-        license_path.write_text("MIT License\n\nCopyright (c) ...")
-        status, body, ctype = self._http.get(self.base + f"/api/file?path={license_path}")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertTrue(ctype.startswith("text/plain"))
-        self.assertIn(b"MIT License", body)
-
-    def test_shell_script_returns_text_not_octet_stream(self) -> None:
-        # mimetypes guesses .sh as 'application/x-sh' — neither media nor
-        # text. We want shell scripts (and friends) shown as code.
-        sh_path = self.scan_root / "build.sh"
-        sh_path.write_text("#!/bin/bash\necho hi\n")
-        status, body, ctype = self._http.get(self.base + f"/api/file?path={sh_path}")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertTrue(ctype.startswith("text/plain"))
-        self.assertIn(b"echo hi", body)
-
-    def test_aggressive_text_rendering_for_unknown_binaries(self) -> None:
-        # Even files that look binary get served as text/plain so the
-        # frontend renders the bytes IDE-style. (Truly-binary content
-        # decodes with replacement chars in the browser; that's fine.)
-        bin_path = self.scan_root / "blob.dat"
-        bin_path.write_bytes(b"\x00\x01\x02\x03" * 200)
-        status, _, ctype = self._http.get(self.base + f"/api/file?path={bin_path}")
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertTrue(ctype.startswith("text/plain"))
-
-    def test_file_api_text_gzipped(self) -> None:
-        # A text file (>256 bytes) requested with Accept-Encoding: gzip
-        # comes back compressed.
-        big_text = self.scan_root / "big.md"
-        big_text.write_text("# heading\n\n" + ("hello world\n" * 100))
-        status, body, ctype, enc = self._http.get_with_headers(
-            self.base + f"/api/file?path={big_text}",
-            {"Accept-Encoding": "gzip"},
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(enc, "gzip")
-        self.assertTrue(ctype.startswith("text/"))
-        decoded = gzip.decompress(body)
-        self.assertIn(b"hello world", decoded)
-
-    def test_file_api_image_not_gzipped(self) -> None:
-        # Already-compressed media bypasses gzip even when client offers it.
-        # Use a >256-byte fake PNG so the size threshold isn't doing the work.
-        png_path = self.scan_root / "big-image.png"
-        png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 500)
-        status, body, ctype, enc = self._http.get_with_headers(
-            self.base + f"/api/file?path={png_path}",
-            {"Accept-Encoding": "gzip"},
-        )
-        self.assertEqual(status, HTTPStatus.OK)
-        self.assertEqual(enc, "")
-        self.assertEqual(ctype, "image/png")
-        # Body is the raw "PNG" bytes — not gzipped.
-        self.assertTrue(body.startswith(b"\x89PNG"))
 
 
 class ClassifySourceTests(unittest.TestCase):
@@ -621,8 +371,7 @@ class DisplayRootTests(unittest.TestCase):
             url = f"file://{remote}"
             with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
                 status, events = self._http.request_stream(
-                    self.server_port,
-                    f"/api/manifest?src={url}&branch=feature",
+                    self.server_port, f"/api/manifest?src={url}&branch=feature",
                 )
             self.assertEqual(status, 200)
             final = next(e for e in events if e["phase"] == "final")["manifest"]
@@ -1040,75 +789,6 @@ class ManifestStreamTests(unittest.TestCase):
             self.assertEqual(resp.headers.get("Content-Encoding"), "gzip")
             self.assertIsNone(resp.headers.get("Content-Length"))
             resp.read()  # drain
-
-
-class ManifestCacheDeleteTests(unittest.TestCase):
-    """DELETE /api/manifest/cache wipes every cached manifest for a
-    given source. Used by the frontend's recents-remove flow."""
-
-    @pytest.fixture(autouse=True)
-    def _setup_fixtures(
-        self, redirect_cache_root, init_git_repo, http_helpers,
-    ) -> None:
-        self.cache_root = redirect_cache_root
-        self._init_git_repo = init_git_repo
-        self._http = http_helpers
-
-    def setUp(self) -> None:
-        super().setUp()
-        self.server, self.server_port, self.shutdown = start_server(port=0)
-        self.addCleanup(self.shutdown)
-
-    def test_clears_cache_for_local_source(self) -> None:
-        with TemporaryDirectory() as td:
-            self._init_git_repo(Path(td))
-            (Path(td) / "a.py").write_text("x = 1\n")
-            # Warm the cache by hitting /api/manifest once.
-            self._http.request_stream(self.server_port, f"/api/manifest?src={td}")
-            manifests_dir = self.cache_root / "manifests"
-            self.assertEqual(len(list(manifests_dir.iterdir())), 1)
-
-            # DELETE the cache for this source.
-            url = (
-                f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
-                f"?src={td}"
-            )
-            status, body = self._http.delete(url)
-            self.assertEqual(status, 200)
-            self.assertEqual(body, {"deleted": 1})
-            self.assertEqual(list(manifests_dir.iterdir()), [])
-
-    def test_missing_src_returns_400(self) -> None:
-        url = f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
-        status, body = self._http.delete(url)
-        self.assertEqual(status, 400)
-        self.assertIn("missing", body["error"])
-
-    def test_invalid_src_returns_400(self) -> None:
-        url = (
-            f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
-            f"?src=neither-a-path-nor-a-url"
-        )
-        status, body = self._http.delete(url)
-        self.assertEqual(status, 400)
-        self.assertIn("unrecognized", body["error"])
-
-    def test_no_cache_entries_returns_zero(self) -> None:
-        # Path was never scanned — DELETE is a no-op success.
-        with TemporaryDirectory() as td:
-            url = (
-                f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
-                f"?src={td}"
-            )
-            status, body = self._http.delete(url)
-            self.assertEqual(status, 200)
-            self.assertEqual(body, {"deleted": 0})
-
-    def test_unknown_delete_route_returns_404(self) -> None:
-        url = f"http://127.0.0.1:{self.server_port}/api/nope"
-        status, body = self._http.delete(url)
-        self.assertEqual(status, 404)
-        self.assertIn("unknown api route", body["error"])
 
 
 class GitOnlyLocalPathTests(unittest.TestCase):
