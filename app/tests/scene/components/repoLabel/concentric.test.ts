@@ -61,4 +61,19 @@ describe('createConcentricStyle()', () => {
     expect(disposeCount).toBe(2);
     style = null;
   });
+
+  it('setDimensions scales both meshes by the same factor', () => {
+    const tex = createRepoNameTexture('codecity');
+    style = createConcentricStyle(tex.texture);
+    style.setDimensions({ cityRadius: 160, beamLength: 18 });
+    const outer = style.group.children[0] as THREE.Mesh;
+    const inner = style.group.children[1] as THREE.Mesh;
+    // 0.5 * 160 / 8 = 10
+    expect(outer.scale.x).toBeCloseTo(10);
+    expect(outer.scale.y).toBeCloseTo(10);
+    expect(outer.scale.z).toBeCloseTo(10);
+    expect(inner.scale.x).toBeCloseTo(10);
+    expect(inner.scale.y).toBeCloseTo(10);
+    expect(inner.scale.z).toBeCloseTo(10);
+  });
 });

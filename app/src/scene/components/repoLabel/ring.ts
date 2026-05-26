@@ -8,7 +8,7 @@ import * as THREE from 'three';
 
 import vertSrc from './ringText.vert.glsl?raw';
 import fragSrc from './ringText.frag.glsl?raw';
-import type { RepoLabelStyleInstance } from './styleInstance.js';
+import type { RepoLabelDimensions, RepoLabelStyleInstance } from './styleInstance.js';
 
 const RING_RADIUS = 8;
 const TUBE_RADIUS = 0.6;
@@ -18,6 +18,10 @@ const TUBULAR_SEGMENTS = 128;
 // full revolution every 25 seconds — slow enough to read, fast enough
 // to feel alive.
 const BASE_SPIN_SPEED = 0.04;
+
+// Ring world radius as a fraction of cityRadius (half of city's horizontal extent).
+// 0.5 → ring diameter equals city width. Tuned for the codecity scene scale.
+const RADIUS_AS_CITY_FRAC = 0.5;
 
 export function createRingStyle(texture: THREE.Texture): RepoLabelStyleInstance {
   const group = new THREE.Group();
@@ -57,10 +61,17 @@ export function createRingStyle(texture: THREE.Texture): RepoLabelStyleInstance 
     material.uniforms.uOpacity.value = opacity;
   }
 
+  function setDimensions(dimensions: RepoLabelDimensions): void {
+    // Scale the torus uniformly so its world radius = RADIUS_AS_CITY_FRAC * cityRadius.
+    // RING_RADIUS is the base geometry radius (8 world units).
+    const scale = (RADIUS_AS_CITY_FRAC * dimensions.cityRadius) / RING_RADIUS;
+    mesh.scale.setScalar(scale);
+  }
+
   function dispose(): void {
     geometry.dispose();
     material.dispose();
   }
 
-  return { group, tick, setOpacity, dispose };
+  return { group, tick, setOpacity, setDimensions, dispose };
 }

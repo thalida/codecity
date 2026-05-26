@@ -9,7 +9,7 @@
 //   const label = createRepoLabel();
 //   scene.add(label.group);              // once, at world boot
 //   label.setRepoName(manifest.tree.name);
-//   label.setAnchor(gemWorldPos, cityHeight);
+//   label.setAnchor(gemWorldPos, cityHeight, cityRadius);
 //   label.tick(dt, camera);              // every frame
 //   label.refresh();                     // on applyTheme() hot-reload
 //   label.dispose();                     // on world teardown
@@ -23,12 +23,12 @@ import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './t
 import { createRingStyle } from './ring.js';
 import { createHologramStyle } from './hologram.js';
 import { createConcentricStyle } from './concentric.js';
-import type { RepoLabelStyleInstance } from './styleInstance.js';
+import type { RepoLabelDimensions, RepoLabelStyleInstance } from './styleInstance.js';
 
 export interface RepoLabel {
   group: THREE.Group;
   setRepoName(name: string): void;
-  setAnchor(anchor: THREE.Vector3, cityHeight: number): void;
+  setAnchor(anchor: THREE.Vector3, cityHeight: number, cityRadius: number): void;
   tick(dtSeconds: number, camera: THREE.Camera): void;
   refresh(): void;
   dispose(): void;
@@ -64,6 +64,14 @@ export function createRepoLabel(): RepoLabel {
   let anchorX = 0;
   let anchorZ = 0;
   let anchorBaseY = 0;
+  let currentCityRadius = 0;
+
+  function _currentDimensions(): RepoLabelDimensions {
+    return {
+      cityRadius: currentCityRadius,
+      beamLength: REPO_LABEL.get().HEIGHT_ABOVE_CITY,
+    };
+  }
 
   function _swapStyle(target: RepoLabelStyle): void {
     if (!textTex) return;
@@ -73,6 +81,7 @@ export function createRepoLabel(): RepoLabel {
       active = null;
     }
     active = buildStyle(target, textTex);
+    active.setDimensions(_currentDimensions());
     applyRenderOrder(active.group);
     group.add(active.group);
     currentStyle = target;
@@ -103,11 +112,13 @@ export function createRepoLabel(): RepoLabel {
     _applyTransform();
   }
 
-  function setAnchor(anchor: THREE.Vector3, cityHeight: number): void {
+  function setAnchor(anchor: THREE.Vector3, cityHeight: number, cityRadius: number): void {
     anchorX = anchor.x;
     anchorZ = anchor.z;
     anchorBaseY = Math.max(cityHeight, anchor.y);
+    currentCityRadius = cityRadius;
     _applyTransform();
+    active?.setDimensions(_currentDimensions());
   }
 
   function tick(dtSeconds: number, camera: THREE.Camera): void {
@@ -126,6 +137,7 @@ export function createRepoLabel(): RepoLabel {
       active.setOpacity(cfg.OPACITY);
     }
     _applyTransform();
+    active?.setDimensions(_currentDimensions());
   }
 
   function dispose(): void {

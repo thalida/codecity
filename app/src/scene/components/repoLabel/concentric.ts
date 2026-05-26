@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import ringVertSrc from './ringText.vert.glsl?raw';
 import ringFragSrc from './ringText.frag.glsl?raw';
 import innerFragSrc from './innerRing.frag.glsl?raw';
-import type { RepoLabelStyleInstance } from './styleInstance.js';
+import type { RepoLabelDimensions, RepoLabelStyleInstance } from './styleInstance.js';
 
 const OUTER_RADIUS = 8;
 const OUTER_TUBE = 0.6;
@@ -27,6 +27,10 @@ const INNER_SPIN_RATE = 0.04 * 2.0 * Math.PI * 1.4;
 const INNER_PRECESSION_RATE = (3 * Math.PI) / 180;
 // Initial Z tilt of the inner ring.
 const INNER_INITIAL_TILT = (25 * Math.PI) / 180;
+
+// Outer ring world radius as a fraction of cityRadius (half of city's
+// horizontal extent). 0.5 → ring diameter equals city width.
+const RADIUS_AS_CITY_FRAC = 0.5;
 
 export function createConcentricStyle(texture: THREE.Texture): RepoLabelStyleInstance {
   const group = new THREE.Group();
@@ -88,6 +92,14 @@ export function createConcentricStyle(texture: THREE.Texture): RepoLabelStyleIns
     innerMat.uniforms.uOpacity.value = opacity;
   }
 
+  function setDimensions(dimensions: RepoLabelDimensions): void {
+    // Scale both meshes uniformly so outer world radius = RADIUS_AS_CITY_FRAC * cityRadius.
+    // OUTER_RADIUS is the base geometry radius (8 world units).
+    const scale = (RADIUS_AS_CITY_FRAC * dimensions.cityRadius) / OUTER_RADIUS;
+    outer.scale.setScalar(scale);
+    inner.scale.setScalar(scale);
+  }
+
   function dispose(): void {
     outerGeom.dispose();
     outerMat.dispose();
@@ -95,5 +107,5 @@ export function createConcentricStyle(texture: THREE.Texture): RepoLabelStyleIns
     innerMat.dispose();
   }
 
-  return { group, tick, setOpacity, dispose };
+  return { group, tick, setOpacity, setDimensions, dispose };
 }

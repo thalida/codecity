@@ -70,4 +70,15 @@ describe('createRingStyle()', () => {
     expect(disposed).toBe(true);
     style = null;
   });
+
+  it('setDimensions scales the torus mesh', () => {
+    const tex = createRepoNameTexture('codecity');
+    style = createRingStyle(tex.texture);
+    style.setDimensions({ cityRadius: 200, beamLength: 18 });
+    const mesh = style.group.children[0] as THREE.Mesh;
+    // 0.5 * 200 / 8 = 12.5
+    expect(mesh.scale.x).toBeCloseTo(12.5);
+    expect(mesh.scale.y).toBeCloseTo(12.5);
+    expect(mesh.scale.z).toBeCloseTo(12.5);
+  });
 });

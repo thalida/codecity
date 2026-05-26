@@ -74,10 +74,19 @@ describe('createRepoLabel()', () => {
   it('setAnchor positions the group at (anchor.x, max(cityHeight, anchor.y) + HEIGHT_ABOVE_CITY, anchor.z)', () => {
     label!.setRepoName('codecity');
     REPO_LABEL.setKey('HEIGHT_ABOVE_CITY', 20);
-    label!.setAnchor(new THREE.Vector3(10, 0, 30), 40);
+    label!.setAnchor(new THREE.Vector3(10, 0, 30), 40, 200);
     expect(label!.group.position.x).toBeCloseTo(10);
     expect(label!.group.position.y).toBeCloseTo(60);
     expect(label!.group.position.z).toBeCloseTo(30);
+  });
+
+  it('setAnchor propagates setDimensions to the active style', () => {
+    label!.setRepoName('codecity');
+    label!.setAnchor(new THREE.Vector3(0, 0, 0), 0, 200);
+    const styleGroup = label!.group.children[0];
+    const mesh = styleGroup.children[0] as THREE.Mesh;
+    // Ring style: scale = 0.5 * 200 / 8 = 12.5
+    expect(mesh.scale.x).toBeCloseTo(12.5);
   });
 
   it('setRepoName called twice does NOT dispose the canvas texture', () => {

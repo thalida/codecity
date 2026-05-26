@@ -1149,13 +1149,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // City's vertical extent — feeds into worldBounds so small-but-tall
     // repos still get an airy floor buffer relative to building height.
     const cityHeight = bbox ? bbox.max.y - bbox.min.y : 0;
+    const cityRadius = bbox
+      ? Math.max(bbox.max.x - bbox.min.x, bbox.max.z - bbox.min.z) / 2
+      : 50;
 
     // Floating repo-name label — anchor over the gem, lifted to clear
     // the city silhouette. Pulls the repo name from the manifest's
     // root tree node. refresh() pulls the current STYLE/OPACITY/
     // HEIGHT_ABOVE_CITY config values.
     _repoLabel.setRepoName(manifest.tree.name);
-    _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3(), cityHeight);
+    _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3(), cityHeight, cityRadius);
     _repoLabel.refresh();
 
     // Floor is sized from the scene's bbox + buffer. Falls back to a

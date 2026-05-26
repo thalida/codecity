@@ -15,12 +15,17 @@ import * as THREE from 'three';
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
-import type { RepoLabelStyleInstance } from './styleInstance.js';
+import type { RepoLabelDimensions, RepoLabelStyleInstance } from './styleInstance.js';
 
-const BEAM_HEIGHT = 14;      // world units; beam rises from -BEAM_HEIGHT to 0
-                              // relative to the style group's local origin.
+// Beam base geometry height — 1 unit. mesh.scale.y multiplies this so
+// the beam's world height equals the cached beamLength.
+const BEAM_BASE_HEIGHT = 1;
 const BEAM_RADIUS = 0.12;
 const PANEL_HEIGHT = 4;       // world units; PlaneGeometry height.
+// Panel world width as a fraction of cityRadius (= horizontal half-extent).
+// 0.5 → panel covers ~25% of city width (since base PANEL_HEIGHT × textureAspect
+// is the panel's base width, which gets scaled).
+const RADIUS_AS_CITY_FRAC = 0.5;
 
 // _faceCameraYLocked rotates `obj` so its +Z faces the camera in the XZ
 // plane while staying vertical (no tilt).
@@ -43,7 +48,7 @@ export function createHologramStyle(
   group.name = 'repoLabel:hologram';
 
   // ---- Beam ----
-  const beamGeom = new THREE.CylinderGeometry(BEAM_RADIUS, BEAM_RADIUS, BEAM_HEIGHT, 16, 1, true);
+  const beamGeom = new THREE.CylinderGeometry(BEAM_RADIUS, BEAM_RADIUS, BEAM_BASE_HEIGHT, 16, 1, true);
   const beamMat = new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: beamFragSrc,
@@ -54,9 +59,7 @@ export function createHologramStyle(
     uniforms: { uOpacity: { value: 1.0 } },
   });
   const beam = new THREE.Mesh(beamGeom, beamMat);
-  // Cylinder is built around the origin; shift it so its top is at y=0
-  // (the panel sits at the group origin) and its base extends downward.
-  beam.position.y = -BEAM_HEIGHT / 2;
+  // Default position centers the beam at the origin; setDimensions adjusts.
   group.add(beam);
 
   // ---- Text panel ----
@@ -87,6 +90,22 @@ export function createHologramStyle(
     panelMat.uniforms.uOpacity.value = opacity;
   }
 
+  function setDimensions(dimensions: RepoLabelDimensions): void {
+    // Panel scale: target panel world width = RADIUS_AS_CITY_FRAC * cityRadius.
+    // Base panel width = PANEL_HEIGHT * textureAspect.
+    const panelBaseWidth = PANEL_HEIGHT * textureAspect;
+    const panelScale = (RADIUS_AS_CITY_FRAC * dimensions.cityRadius) / panelBaseWidth;
+    panel.scale.setScalar(panelScale);
+
+    // Beam scale: Y = beamLength (so world Y span = beamLength), X/Z = panelScale
+    // so the beam thickness reads proportional to the panel.
+    beam.scale.set(panelScale, dimensions.beamLength, panelScale);
+    // Beam center sits beamLength/2 below the group origin so the top
+    // hits the origin (where the panel is) and the base reaches the
+    // anchor base point.
+    beam.position.y = -dimensions.beamLength / 2;
+  }
+
   function dispose(): void {
     beamGeom.dispose();
     beamMat.dispose();
@@ -94,5 +113,5 @@ export function createHologramStyle(
     panelMat.dispose();
   }
 
-  return { group, tick, setOpacity, dispose };
+  return { group, tick, setOpacity, setDimensions, dispose };
 }

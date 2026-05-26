@@ -67,4 +67,34 @@ describe('createHologramStyle()', () => {
     expect(disposeCount).toBe(2);
     style = null;
   });
+
+  it('setDimensions scales panel, sets beam scale.y to beamLength, and centers beam', () => {
+    const tex = createRepoNameTexture('codecity');
+    style = createHologramStyle(tex.texture, tex.aspect);
+    const beamLength = 18;
+    const cityRadius = 200;
+    style.setDimensions({ cityRadius, beamLength });
+
+    const beam = style.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
+    ) as THREE.Mesh;
+    const panel = style.group.children.find(
+      (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
+    ) as THREE.Mesh;
+
+    // Panel scale: 0.5 * 200 / (4 * tex.aspect)
+    const panelBaseWidth = 4 * tex.aspect;
+    const expectedPanelScale = (0.5 * cityRadius) / panelBaseWidth;
+    expect(panel.scale.x).toBeCloseTo(expectedPanelScale);
+    expect(panel.scale.y).toBeCloseTo(expectedPanelScale);
+    expect(panel.scale.z).toBeCloseTo(expectedPanelScale);
+
+    // Beam: Y scale = beamLength, X/Z = panelScale
+    expect(beam.scale.y).toBeCloseTo(beamLength);
+    expect(beam.scale.x).toBeCloseTo(expectedPanelScale);
+    expect(beam.scale.z).toBeCloseTo(expectedPanelScale);
+
+    // Beam centered beamLength/2 below origin
+    expect(beam.position.y).toBeCloseTo(-beamLength / 2);
+  });
 });
