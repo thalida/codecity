@@ -6,11 +6,9 @@ import gzip
 import http.client
 import io
 import json
-import os
 import socket
 import threading
 import unittest
-import urllib.error
 import urllib.parse
 import urllib.request
 import zlib
@@ -18,6 +16,8 @@ from http import HTTPStatus
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest import mock
+
+import pytest
 
 from api import clone as clone_mod
 from api import server as server_mod
@@ -27,115 +27,24 @@ from api.server import (
     _stream_events,
     start_server,
 )
-from api.tests.test_clone import _make_fake_remote
+
+# CODECITY_QUIET=1, the cache-root redirect, _init_git_repo,
+# _make_fake_remote, and the HTTP request helpers all live in
+# api/tests/conftest.py now. Each test class below pulls in only the
+# fixtures it uses via a small ``_setup_fixtures`` autouse method.
 
 
-class _CacheRedirectMixin:
-    """Mixin that redirects api.cache.CACHE_ROOT to a per-test
-    tempdir so server-side calls into scan_tree() / signature_tree()
-    don't pollute the user's actual ~/.cache/codecity/ during tests."""
+class ServerTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(
+        self, redirect_cache_root, init_git_repo, http_helpers,
+    ) -> None:
+        self.cache_root = redirect_cache_root
+        self._init_git_repo = init_git_repo
+        self._http = http_helpers
 
     def setUp(self) -> None:
-        super().setUp()  # cooperative chaining
-        from api import cache as cache_mod
-        self._cache_tmp = TemporaryDirectory()
-        self.addCleanup(self._cache_tmp.cleanup)
-        self._original_cache_root = cache_mod.CACHE_ROOT
-        cache_mod.CACHE_ROOT = Path(self._cache_tmp.name)
-        self.addCleanup(self._restore_cache_root)
-
-    def _restore_cache_root(self) -> None:
-        from api import cache as cache_mod
-        cache_mod.CACHE_ROOT = self._original_cache_root
-
-
-# Silence scan progress logs.
-os.environ["CODECITY_QUIET"] = "1"
-
-
-def _init_git_repo(path: Path, *, bare: bool = False) -> None:
-    """Initialize ``path`` as a git repo.
-
-    Default is a working tree (what scan endpoints now require). Pass
-    ``bare=True`` for a bare-repo test fixture. No commits are made —
-    an empty working tree is still a valid working tree per
-    ``git rev-parse --is-inside-work-tree``.
-    """
-    import subprocess
-    args = ["git", "init", "-q"]
-    if bare:
-        args.append("--bare")
-    args.append(str(path))
-    subprocess.run(args, check=True)
-
-
-def _get(url: str) -> tuple[int, bytes, str]:
-    """Issue a GET; return (status, body, content_type)."""
-    try:
-        resp = urllib.request.urlopen(url)
-    except urllib.error.HTTPError as e:
-        return e.code, e.read(), e.headers.get("Content-Type", "")
-    return resp.status, resp.read(), resp.headers.get("Content-Type", "")
-
-
-def _request(port: int, path: str) -> tuple[int, dict]:
-    """Issue a GET to the local server at *port*; return (status, parsed_json_body).
-
-    path should start with '/' (e.g. '/api/manifest?src=…').
-    Error responses (4xx/5xx) are parsed from the HTTPError body."""
-    url = f"http://127.0.0.1:{port}{path}"
-    try:
-        resp = urllib.request.urlopen(url)
-        return resp.status, json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read())
-
-
-def _request_stream(port: int, path: str) -> tuple[int, list[dict]]:
-    """Issue a GET expecting an NDJSON streaming response. Returns
-    (status, list_of_parsed_events). Error responses (4xx/5xx) are
-    returned as a single-element list with the parsed JSON body."""
-    url = f"http://127.0.0.1:{port}{path}"
-    req = urllib.request.Request(url, headers={"Accept-Encoding": "gzip"})
-    try:
-        resp = urllib.request.urlopen(req)
-    except urllib.error.HTTPError as e:
-        return e.code, [json.loads(e.read())]
-    body = resp.read()
-    if resp.headers.get("Content-Encoding") == "gzip":
-        body = gzip.decompress(body)
-    events = [json.loads(line) for line in body.splitlines() if line]
-    return resp.status, events
-
-
-def _get_with_headers(
-    url: str, headers: dict[str, str],
-) -> tuple[int, bytes, str, str]:
-    """Issue a GET with custom request headers; return
-    (status, body, content_type, content_encoding).
-
-    The body is returned as-is (raw bytes). Tests that requested gzip
-    are responsible for calling gzip.decompress themselves — that's the
-    whole point of the verification."""
-    req = urllib.request.Request(url, headers=headers)
-    try:
-        resp = urllib.request.urlopen(req)
-    except urllib.error.HTTPError as e:
-        return (
-            e.code, e.read(),
-            e.headers.get("Content-Type", ""),
-            e.headers.get("Content-Encoding", ""),
-        )
-    return (
-        resp.status, resp.read(),
-        resp.headers.get("Content-Type", ""),
-        resp.headers.get("Content-Encoding", ""),
-    )
-
-
-class ServerTests(_CacheRedirectMixin, unittest.TestCase):
-    def setUp(self) -> None:
-        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
+        super().setUp()
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         static = Path(self.tmp.name) / "static"
@@ -149,7 +58,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         # target to be inside a git working tree.
         self.project = Path(self.tmp.name) / "project"
         self.project.mkdir()
-        _init_git_repo(self.project)
+        self._init_git_repo(self.project)
         (self.project / "README.md").write_text("# demo\n")
 
         self.server, self.port, self.shutdown = start_server(port=0, static_dir=static)
@@ -157,14 +66,14 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.base = f"http://127.0.0.1:{self.port}"
 
     def test_health_route(self) -> None:
-        status, body, ctype = _get(self.base + "/api/health")
+        status, body, ctype = self._http.get(self.base + "/api/health")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertIn("application/json", ctype)
         self.assertEqual(json.loads(body), {"ok": True})
 
     def test_manifest_route_scans_query_path(self) -> None:
         q = urllib.parse.urlencode({"src": str(self.project)})
-        status, events = _request_stream(self.port, f"/api/manifest?{q}")
+        status, events = self._http.request_stream(self.port, f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.OK)
         final = next(e for e in events if e["phase"] == "final")
         payload = final["manifest"]
@@ -174,21 +83,21 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertIn(self.project.resolve(), server_mod._State.allowed_roots)
 
     def test_manifest_missing_query_returns_400(self) -> None:
-        status, body, _ = _get(self.base + "/api/manifest")
+        status, body, _ = self._http.get(self.base + "/api/manifest")
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
         self.assertIn("missing", json.loads(body)["error"])
 
     def test_manifest_nonexistent_path_returns_404(self) -> None:
         q = urllib.parse.urlencode({"src": str(self.project / "nope")})
-        status, _, _ = _get(self.base + f"/api/manifest?{q}")
+        status, _, _ = self._http.get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_signature_route_matches_manifest_signature(self) -> None:
         # The contract powering the cheap-poll: the signature endpoint
         # returns the same digest the full manifest would have produced.
         q = urllib.parse.urlencode({"src": str(self.project)})
-        m_status, m_events = _request_stream(self.port, f"/api/manifest?{q}")
-        s_status, s_body, s_ctype = _get(self.base + f"/api/manifest/signature?{q}")
+        m_status, m_events = self._http.request_stream(self.port, f"/api/manifest?{q}")
+        s_status, s_body, s_ctype = self._http.get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(m_status, HTTPStatus.OK)
         self.assertEqual(s_status, HTTPStatus.OK)
         self.assertIn("application/json", s_ctype)
@@ -200,22 +109,22 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertNotIn("repo", sig)
 
     def test_signature_route_missing_query_returns_400(self) -> None:
-        status, _, _ = _get(self.base + "/api/manifest/signature")
+        status, _, _ = self._http.get(self.base + "/api/manifest/signature")
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
 
     def test_signature_route_nonexistent_path_returns_404(self) -> None:
         q = urllib.parse.urlencode({"src": str(self.project / "nope")})
-        status, _, _ = _get(self.base + f"/api/manifest/signature?{q}")
+        status, _, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_root_serves_index_html(self) -> None:
-        status, body, ctype = _get(self.base + "/")
+        status, body, ctype = self._http.get(self.base + "/")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertIn("text/html", ctype)
         self.assertIn(b"<body>hi</body>", body)
 
     def test_static_asset_with_correct_mime(self) -> None:
-        status, body, ctype = _get(self.base + "/assets/main.js")
+        status, body, ctype = self._http.get(self.base + "/assets/main.js")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(
             ctype.startswith("text/javascript")
@@ -224,13 +133,13 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(body, b"console.log('ok')")
 
     def test_unknown_api_route_returns_404_json(self) -> None:
-        status, body, ctype = _get(self.base + "/api/nope")
+        status, body, ctype = self._http.get(self.base + "/api/nope")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
         self.assertIn("application/json", ctype)
         self.assertEqual(json.loads(body), {"error": "unknown api route"})
 
     def test_missing_static_returns_404(self) -> None:
-        status, _, _ = _get(self.base + "/does-not-exist.html")
+        status, _, _ = self._http.get(self.base + "/does-not-exist.html")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_path_traversal_rejected(self) -> None:
@@ -267,7 +176,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         (self.project / "untracked.txt").write_text("hidden by default")
 
         q = urllib.parse.urlencode({"src": str(self.project)})
-        _, events_default = _request_stream(self.port, f"/api/manifest?{q}")
+        _, events_default = self._http.request_stream(self.port, f"/api/manifest?{q}")
         final_default = next(
             e for e in events_default if e["phase"] == "final"
         )["manifest"]
@@ -277,7 +186,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         q_all = urllib.parse.urlencode(
             {"src": str(self.project), "include_all": "true"}
         )
-        _, events_all = _request_stream(self.port, f"/api/manifest?{q_all}")
+        _, events_all = self._http.request_stream(self.port, f"/api/manifest?{q_all}")
         final_all = next(e for e in events_all if e["phase"] == "final")["manifest"]
         names_all = [c["name"] for c in final_all["tree"]["children"]]
         self.assertIn("untracked.txt", names_all)
@@ -307,13 +216,13 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         (self.project / "untracked.txt").write_text("hidden by default")
 
         q = urllib.parse.urlencode({"src": str(self.project)})
-        _, body_default, _ = _get(self.base + f"/api/manifest/signature?{q}")
+        _, body_default, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
         sig_default = json.loads(body_default)["signature"]
 
         q_all = urllib.parse.urlencode(
             {"src": str(self.project), "include_all": "true"}
         )
-        _, body_all, _ = _get(self.base + f"/api/manifest/signature?{q_all}")
+        _, body_all, _ = self._http.get(self.base + f"/api/manifest/signature?{q_all}")
         sig_all = json.loads(body_all)["signature"]
 
         self.assertNotEqual(sig_default, sig_all)
@@ -362,7 +271,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         q = urllib.parse.urlencode({
             "src": str(self.project), "include_all": "true",
         })
-        _, events = _request_stream(self.port, f"/api/manifest?{q}")
+        _, events = self._http.request_stream(self.port, f"/api/manifest?{q}")
         final = next(e for e in events if e["phase"] == "final")["manifest"]
         names = [c["name"] for c in final["tree"]["children"]]
         self.assertNotIn("node_modules", names)
@@ -381,7 +290,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         # Client advertises gzip; server compresses the NDJSON stream;
         # decompressed body parses line-by-line as JSON events.
         q = urllib.parse.urlencode({"src": str(self.project)})
-        status, body, ctype, enc = _get_with_headers(
+        status, body, ctype, enc = self._http.get_with_headers(
             self.base + f"/api/manifest?{q}",
             {"Accept-Encoding": "gzip"},
         )
@@ -397,7 +306,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         # No Accept-Encoding header at all -> no Content-Encoding,
         # body parses directly as NDJSON.
         q = urllib.parse.urlencode({"src": str(self.project)})
-        status, body, ctype, enc = _get_with_headers(
+        status, body, ctype, enc = self._http.get_with_headers(
             self.base + f"/api/manifest?{q}", {},
         )
         self.assertEqual(status, HTTPStatus.OK)
@@ -410,7 +319,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def test_manifest_response_uncompressed_when_gzip_not_in_accept(self) -> None:
         # Client supports brotli but not gzip -> no compression.
         q = urllib.parse.urlencode({"src": str(self.project)})
-        status, body, _, enc = _get_with_headers(
+        status, body, _, enc = self._http.get_with_headers(
             self.base + f"/api/manifest?{q}",
             {"Accept-Encoding": "br"},
         )
@@ -423,7 +332,7 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
     def test_health_response_below_threshold_uncompressed(self) -> None:
         # /api/health body is ~15 bytes — below the 256-byte threshold.
         # Even with gzip in Accept-Encoding, response is not compressed.
-        status, body, _, enc = _get_with_headers(
+        status, body, _, enc = self._http.get_with_headers(
             self.base + "/api/health",
             {"Accept-Encoding": "gzip"},
         )
@@ -432,11 +341,16 @@ class ServerTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(json.loads(body), {"ok": True})
 
 
-class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
+class FileApiTests(unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
 
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(self, redirect_cache_root, http_helpers) -> None:
+        self.cache_root = redirect_cache_root
+        self._http = http_helpers
+
     def setUp(self) -> None:
-        super().setUp()  # runs _CacheRedirectMixin.setUp -> redirects CACHE_ROOT
+        super().setUp()
         self.tmp = TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.scan_root = Path(self.tmp.name) / "project"
@@ -466,7 +380,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         server_mod._State.allowed_roots.add(self.scan_root.resolve())
 
     def test_returns_text_with_correct_mime(self) -> None:
-        status, body, ctype = _get(
+        status, body, ctype = self._http.get(
             self.base + f"/api/file?path={self.scan_root / 'hello.txt'}"
         )
         self.assertEqual(status, HTTPStatus.OK)
@@ -474,7 +388,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(body, b"hello world")
 
     def test_returns_image_with_correct_mime(self) -> None:
-        status, body, ctype = _get(
+        status, body, ctype = self._http.get(
             self.base + f"/api/file?path={self.scan_root / 'image.png'}"
         )
         self.assertEqual(status, HTTPStatus.OK)
@@ -482,35 +396,35 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertTrue(body.startswith(b"\x89PNG"))
 
     def test_nested_path_inside_root(self) -> None:
-        status, _, _ = _get(
+        status, _, _ = self._http.get(
             self.base + f"/api/file?path={self.scan_root / 'sub' / 'nested.md'}"
         )
         self.assertEqual(status, HTTPStatus.OK)
 
     def test_path_outside_root_forbidden(self) -> None:
-        status, body, _ = _get(self.base + f"/api/file?path={self.outside}")
+        status, body, _ = self._http.get(self.base + f"/api/file?path={self.outside}")
         self.assertEqual(status, HTTPStatus.FORBIDDEN)
         self.assertEqual(json.loads(body), {"error": "outside scan root"})
 
     def test_missing_path_param(self) -> None:
-        status, _, _ = _get(self.base + "/api/file")
+        status, _, _ = self._http.get(self.base + "/api/file")
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
 
     def test_nonexistent_file(self) -> None:
-        status, _, _ = _get(
+        status, _, _ = self._http.get(
             self.base + f"/api/file?path={self.scan_root / 'nope.txt'}"
         )
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_directory_is_not_a_file(self) -> None:
-        status, _, _ = _get(self.base + f"/api/file?path={self.scan_root / 'sub'}")
+        status, _, _ = self._http.get(self.base + f"/api/file?path={self.scan_root / 'sub'}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
     def test_extensionless_textfile_returns_text(self) -> None:
         # LICENSE, Makefile, Dockerfile, .gitignore — mimetypes can't help.
         license_path = self.scan_root / "LICENSE"
         license_path.write_text("MIT License\n\nCopyright (c) ...")
-        status, body, ctype = _get(self.base + f"/api/file?path={license_path}")
+        status, body, ctype = self._http.get(self.base + f"/api/file?path={license_path}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(ctype.startswith("text/plain"))
         self.assertIn(b"MIT License", body)
@@ -520,7 +434,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         # text. We want shell scripts (and friends) shown as code.
         sh_path = self.scan_root / "build.sh"
         sh_path.write_text("#!/bin/bash\necho hi\n")
-        status, body, ctype = _get(self.base + f"/api/file?path={sh_path}")
+        status, body, ctype = self._http.get(self.base + f"/api/file?path={sh_path}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(ctype.startswith("text/plain"))
         self.assertIn(b"echo hi", body)
@@ -531,7 +445,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         # decodes with replacement chars in the browser; that's fine.)
         bin_path = self.scan_root / "blob.dat"
         bin_path.write_bytes(b"\x00\x01\x02\x03" * 200)
-        status, _, ctype = _get(self.base + f"/api/file?path={bin_path}")
+        status, _, ctype = self._http.get(self.base + f"/api/file?path={bin_path}")
         self.assertEqual(status, HTTPStatus.OK)
         self.assertTrue(ctype.startswith("text/plain"))
 
@@ -540,7 +454,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         # comes back compressed.
         big_text = self.scan_root / "big.md"
         big_text.write_text("# heading\n\n" + ("hello world\n" * 100))
-        status, body, ctype, enc = _get_with_headers(
+        status, body, ctype, enc = self._http.get_with_headers(
             self.base + f"/api/file?path={big_text}",
             {"Accept-Encoding": "gzip"},
         )
@@ -555,7 +469,7 @@ class FileApiTests(_CacheRedirectMixin, unittest.TestCase):
         # Use a >256-byte fake PNG so the size threshold isn't doing the work.
         png_path = self.scan_root / "big-image.png"
         png_path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 500)
-        status, body, ctype, enc = _get_with_headers(
+        status, body, ctype, enc = self._http.get_with_headers(
             self.base + f"/api/file?path={png_path}",
             {"Accept-Encoding": "gzip"},
         )
@@ -597,15 +511,20 @@ class ClassifySourceTests(unittest.TestCase):
 class ResolveScanTargetTests(unittest.TestCase):
     """Behavior tests via the HTTP layer, since _resolve_scan_target is internal."""
 
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(self, init_git_repo, http_helpers) -> None:
+        self._init_git_repo = init_git_repo
+        self._http = http_helpers
+
     def setUp(self) -> None:
         self.server, self.server_port, self.shutdown = start_server(port=0)
         self.addCleanup(self.shutdown)
 
     def test_local_path_ok(self) -> None:
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
             self.assertEqual(status, 200)
@@ -616,9 +535,9 @@ class ResolveScanTargetTests(unittest.TestCase):
 
     def test_local_path_with_branch_silently_ignored(self) -> None:
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&branch=main",
             )
             self.assertEqual(status, 200)
@@ -627,24 +546,24 @@ class ResolveScanTargetTests(unittest.TestCase):
             self.assertNotIn("display_root", final)
 
     def test_invalid_source(self) -> None:
-        status, body = _request(self.server_port, "/api/manifest?src=garbage")
+        status, body = self._http.request(self.server_port, "/api/manifest?src=garbage")
         self.assertEqual(status, 400)
         self.assertIn("unrecognized source", body.get("error", "").lower())
 
     def test_missing_src(self) -> None:
-        status, body = _request(self.server_port, "/api/manifest")
+        status, body = self._http.request(self.server_port, "/api/manifest")
         self.assertEqual(status, 400)
         self.assertIn("'src'", body.get("error", ""))
 
     def test_old_path_param_rejected(self) -> None:
         # ?path= is no longer recognized — server should 400 missing 'src'.
         with TemporaryDirectory() as td:
-            status, body = _request(self.server_port, f"/api/manifest?path={td}")
+            status, body = self._http.request(self.server_port, f"/api/manifest?path={td}")
             self.assertEqual(status, 400)
             self.assertIn("'src'", body.get("error", ""))
 
     def test_nonexistent_path(self) -> None:
-        status, body = _request(self.server_port, "/api/manifest?src=/this/does/not/exist/xyzzy")
+        status, body = self._http.request(self.server_port, "/api/manifest?src=/this/does/not/exist/xyzzy")
         self.assertEqual(status, 404)
         self.assertIn("path not found", body.get("error", ""))
 
@@ -652,21 +571,29 @@ class ResolveScanTargetTests(unittest.TestCase):
         with TemporaryDirectory() as td:
             f = Path(td) / "afile.txt"
             f.write_text("hi")
-            status, body = _request(self.server_port, f"/api/manifest?src={f}")
+            status, body = self._http.request(self.server_port, f"/api/manifest?src={f}")
             self.assertEqual(status, 400)
             self.assertIn("not a directory", body.get("error", ""))
 
 
 class DisplayRootTests(unittest.TestCase):
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(
+        self, init_git_repo, make_fake_remote, http_helpers,
+    ) -> None:
+        self._init_git_repo = init_git_repo
+        self._make_fake_remote = make_fake_remote
+        self._http = http_helpers
+
     def setUp(self) -> None:
         self.server, self.server_port, self.shutdown = start_server(port=0)
         self.addCleanup(self.shutdown)
 
     def test_local_src_no_display_root(self) -> None:
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("\n")
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
             self.assertEqual(status, 200)
@@ -676,12 +603,12 @@ class DisplayRootTests(unittest.TestCase):
     def test_git_url_sets_display_root(self) -> None:
         # Use a local bare repo so we don't hit the network.
         with TemporaryDirectory() as td:
-            remote, _ = _make_fake_remote(Path(td))
+            remote, _ = self._make_fake_remote(Path(td))
             # Use a file:// URL so _classify_source returns 'git'.
             url = f"file://{remote}"
             # Monkey-patch CACHE_ROOT so we don't pollute ~/.cache.
             with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
-                status, events = _request_stream(
+                status, events = self._http.request_stream(
                     self.server_port, f"/api/manifest?src={url}",
                 )
             self.assertEqual(status, 200)
@@ -690,10 +617,10 @@ class DisplayRootTests(unittest.TestCase):
 
     def test_git_url_with_branch_appends_at_branch(self) -> None:
         with TemporaryDirectory() as td:
-            remote, _ = _make_fake_remote(Path(td))
+            remote, _ = self._make_fake_remote(Path(td))
             url = f"file://{remote}"
             with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
-                status, events = _request_stream(
+                status, events = self._http.request_stream(
                     self.server_port,
                     f"/api/manifest?src={url}&branch=feature",
                 )
@@ -922,9 +849,17 @@ class DisconnectWatchdogTests(unittest.TestCase):
         self.assertFalse(t.is_alive())
 
 
-class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
+class ManifestStreamTests(unittest.TestCase):
     """End-to-end /api/manifest tests for the NDJSON streaming
     behavior and the disk-cache lifecycle."""
+
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(
+        self, redirect_cache_root, init_git_repo, http_helpers,
+    ) -> None:
+        self.cache_root = redirect_cache_root
+        self._init_git_repo = init_git_repo
+        self._http = http_helpers
 
     def setUp(self) -> None:
         super().setUp()
@@ -937,14 +872,14 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         # tests that need them to appear under the default
         # (tracked-only) scan should commit them explicitly. Tests that
         # only assert on event ordering / headers don't care.
-        _init_git_repo(Path(td))
+        self._init_git_repo(Path(td))
         (Path(td) / "a.py").write_text("x = 1\n")
         (Path(td) / "b.py").write_text("y = 2\ny = 3\n")
 
     def test_cold_cache_emits_skeleton_then_final(self) -> None:
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, 200)
@@ -959,9 +894,9 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             # Warm the cache.
-            _request_stream(self.server_port, f"/api/manifest?src={td}")
+            self._http.request_stream(self.server_port, f"/api/manifest?src={td}")
             # Second hit should be a single-final response.
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, 200)
@@ -973,9 +908,9 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
         with TemporaryDirectory() as td:
             self._make_tiny_repo(td)
             # Warm the cache first.
-            _request_stream(self.server_port, f"/api/manifest?src={td}")
+            self._http.request_stream(self.server_port, f"/api/manifest?src={td}")
             # no_cache=true should NOT serve from cache.
-            _, events = _request_stream(
+            _, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&no_cache=true",
             )
             manifest_events = [e for e in events if "manifest" in e]
@@ -986,12 +921,12 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             # the save — the cache should remain absent after this
             # request.
             import shutil
-            shutil.rmtree(self._cache_tmp.name, ignore_errors=True)
-            Path(self._cache_tmp.name).mkdir(parents=True, exist_ok=True)
-            _request_stream(
+            shutil.rmtree(self.cache_root, ignore_errors=True)
+            self.cache_root.mkdir(parents=True, exist_ok=True)
+            self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&no_cache=true",
             )
-            manifests_dir = Path(self._cache_tmp.name) / "manifests"
+            manifests_dir = self.cache_root / "manifests"
             if manifests_dir.exists():
                 self.assertEqual(
                     list(manifests_dir.iterdir()), [],
@@ -1021,11 +956,11 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
                 ["git", "-C", td, "commit", "-q", "-m", "init"], check=True,
             )
             # Warm with include_all=false (b.py excluded).
-            _request_stream(
+            self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&include_all=false",
             )
             # include_all=true must re-scan (skeleton+final), not single-final.
-            _, events = _request_stream(
+            _, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}&include_all=true",
             )
             manifest_events = [e for e in events if "manifest" in e]
@@ -1047,7 +982,7 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
                 ["git", "-C", td, "commit", "-q", "-m", "init"],
             ):
                 subprocess.run(cmd, check=True)
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
         manifest_events = [e for e in events if "manifest" in e]
@@ -1085,7 +1020,7 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             # the mid-stream-error path specifically.
             with patch("api.scan._populate_file_metadata") as mock_pop:
                 mock_pop.side_effect = RuntimeError("disk on fire")
-                status, events = _request_stream(
+                status, events = self._http.request_stream(
                     self.server_port, f"/api/manifest?src={td}",
                 )
         self.assertEqual(status, 200)
@@ -1107,19 +1042,17 @@ class ManifestStreamTests(_CacheRedirectMixin, unittest.TestCase):
             resp.read()  # drain
 
 
-def _delete(url: str) -> tuple[int, dict]:
-    """Issue a DELETE; return (status, parsed_json_body)."""
-    req = urllib.request.Request(url, method="DELETE")
-    try:
-        resp = urllib.request.urlopen(req)
-        return resp.status, json.loads(resp.read())
-    except urllib.error.HTTPError as e:
-        return e.code, json.loads(e.read())
-
-
-class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
+class ManifestCacheDeleteTests(unittest.TestCase):
     """DELETE /api/manifest/cache wipes every cached manifest for a
     given source. Used by the frontend's recents-remove flow."""
+
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(
+        self, redirect_cache_root, init_git_repo, http_helpers,
+    ) -> None:
+        self.cache_root = redirect_cache_root
+        self._init_git_repo = init_git_repo
+        self._http = http_helpers
 
     def setUp(self) -> None:
         super().setUp()
@@ -1128,11 +1061,11 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
 
     def test_clears_cache_for_local_source(self) -> None:
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             (Path(td) / "a.py").write_text("x = 1\n")
             # Warm the cache by hitting /api/manifest once.
-            _request_stream(self.server_port, f"/api/manifest?src={td}")
-            manifests_dir = Path(self._cache_tmp.name) / "manifests"
+            self._http.request_stream(self.server_port, f"/api/manifest?src={td}")
+            manifests_dir = self.cache_root / "manifests"
             self.assertEqual(len(list(manifests_dir.iterdir())), 1)
 
             # DELETE the cache for this source.
@@ -1140,14 +1073,14 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
                 f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
                 f"?src={td}"
             )
-            status, body = _delete(url)
+            status, body = self._http.delete(url)
             self.assertEqual(status, 200)
             self.assertEqual(body, {"deleted": 1})
             self.assertEqual(list(manifests_dir.iterdir()), [])
 
     def test_missing_src_returns_400(self) -> None:
         url = f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
-        status, body = _delete(url)
+        status, body = self._http.delete(url)
         self.assertEqual(status, 400)
         self.assertIn("missing", body["error"])
 
@@ -1156,7 +1089,7 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
             f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
             f"?src=neither-a-path-nor-a-url"
         )
-        status, body = _delete(url)
+        status, body = self._http.delete(url)
         self.assertEqual(status, 400)
         self.assertIn("unrecognized", body["error"])
 
@@ -1167,22 +1100,30 @@ class ManifestCacheDeleteTests(_CacheRedirectMixin, unittest.TestCase):
                 f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
                 f"?src={td}"
             )
-            status, body = _delete(url)
+            status, body = self._http.delete(url)
             self.assertEqual(status, 200)
             self.assertEqual(body, {"deleted": 0})
 
     def test_unknown_delete_route_returns_404(self) -> None:
         url = f"http://127.0.0.1:{self.server_port}/api/nope"
-        status, body = _delete(url)
+        status, body = self._http.delete(url)
         self.assertEqual(status, 404)
         self.assertIn("unknown api route", body["error"])
 
 
-class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
+class GitOnlyLocalPathTests(unittest.TestCase):
     """Per task 11c: codecity is git-aware, so local scan targets must be
     inside a git working tree. Non-git dirs and bare repos are rejected
     with a 400 + helpful message; git URLs are unaffected (the clone IS
     a working tree); cache-delete bypasses the check (purely hygienic)."""
+
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(
+        self, redirect_cache_root, init_git_repo, http_helpers,
+    ) -> None:
+        self.cache_root = redirect_cache_root
+        self._init_git_repo = init_git_repo
+        self._http = http_helpers
 
     def setUp(self) -> None:
         super().setUp()
@@ -1193,9 +1134,9 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
     def test_local_path_in_git_repo_accepted(self) -> None:
         """A path that IS a git working tree streams a manifest (200)."""
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, HTTPStatus.OK)
@@ -1206,7 +1147,7 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
         """A plain directory (no git) → 400 with the helpful message."""
         with TemporaryDirectory() as td:
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, body = _request(
+            status, body = self._http.request(
                 self.server_port, f"/api/manifest?src={td}",
             )
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
@@ -1216,8 +1157,8 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
         """A bare git repo has no working tree, so it must be rejected."""
         with TemporaryDirectory() as parent:
             bare = Path(parent) / "bare.git"
-            _init_git_repo(bare, bare=True)
-            status, body = _request(
+            self._init_git_repo(bare, bare=True)
+            status, body = self._http.request(
                 self.server_port, f"/api/manifest?src={bare}",
             )
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
@@ -1226,11 +1167,11 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
     def test_local_subdir_of_git_repo_accepted(self) -> None:
         """Subdirs inherit the working-tree property — must be accepted."""
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             sub = Path(td) / "src"
             sub.mkdir()
             (sub / "x.py").write_text("print('hi')\n")
-            status, events = _request_stream(
+            status, events = self._http.request_stream(
                 self.server_port, f"/api/manifest?src={sub}",
             )
         self.assertEqual(status, HTTPStatus.OK)
@@ -1240,7 +1181,7 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
         """_resolve_scan_target also gates the signature endpoint."""
         with TemporaryDirectory() as td:
             (Path(td) / "x.py").write_text("print('hi')\n")
-            status, body = _request(
+            status, body = self._http.request(
                 self.server_port, f"/api/manifest/signature?src={td}",
             )
         self.assertEqual(status, HTTPStatus.BAD_REQUEST)
@@ -1256,7 +1197,7 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
                 f"http://127.0.0.1:{self.server_port}/api/manifest/cache"
                 f"?src={td}"
             )
-            status, body = _delete(url)
+            status, body = self._http.delete(url)
         self.assertEqual(status, HTTPStatus.OK)
         # Zero entries (nothing was cached), but the operation itself
         # succeeded — that's the contract.
@@ -1266,16 +1207,20 @@ class GitOnlyLocalPathTests(_CacheRedirectMixin, unittest.TestCase):
 class IsGitWorkingTreeHelperTests(unittest.TestCase):
     """Direct unit tests for the helper that the server endpoints call."""
 
+    @pytest.fixture(autouse=True)
+    def _setup_fixtures(self, init_git_repo) -> None:
+        self._init_git_repo = init_git_repo
+
     def test_returns_true_for_working_tree(self) -> None:
         from api.server import _is_git_working_tree
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             self.assertTrue(_is_git_working_tree(Path(td)))
 
     def test_returns_true_for_subdir_of_working_tree(self) -> None:
         from api.server import _is_git_working_tree
         with TemporaryDirectory() as td:
-            _init_git_repo(Path(td))
+            self._init_git_repo(Path(td))
             sub = Path(td) / "nested"
             sub.mkdir()
             self.assertTrue(_is_git_working_tree(sub))
@@ -1289,7 +1234,7 @@ class IsGitWorkingTreeHelperTests(unittest.TestCase):
         from api.server import _is_git_working_tree
         with TemporaryDirectory() as parent:
             bare = Path(parent) / "bare.git"
-            _init_git_repo(bare, bare=True)
+            self._init_git_repo(bare, bare=True)
             self.assertFalse(_is_git_working_tree(bare))
 
 
