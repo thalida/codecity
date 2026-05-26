@@ -2,11 +2,14 @@
 //
 // Samples the monochrome text canvas with RGB-split UV offsets, modulates
 // alpha with horizontal scanlines, and adds occasional glitch jitter on
-// vUv.x (every 3–5 seconds, ~80ms duration).
+// vUv.x (every 3–5 seconds, ~80ms duration). The whole result is tinted
+// by uTint; white preserves the chromatic-aberration look, other colors
+// fold the aberration into the chosen hue.
 
 varying vec2 vUv;
 
 uniform sampler2D uMap;
+uniform vec3 uTint;
 uniform float uTime;
 uniform float uOpacity;
 
@@ -30,7 +33,7 @@ void main() {
   // Scanlines — narrow horizontal stripes modulate alpha by ±15%.
   float scan = 0.85 + 0.15 * sin(vUv.y * 60.0 + uTime * 4.0);
 
-  vec3 color = vec3(aR, aG, aB);
+  vec3 color = vec3(aR, aG, aB) * uTint;
   float alpha = max(max(aR, aG), aB) * scan;
   gl_FragColor = vec4(color, alpha * uOpacity);
 }

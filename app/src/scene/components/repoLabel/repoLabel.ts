@@ -16,10 +16,10 @@
 //   panel width  = FONT_SIZE × textureAspect (text-content-driven,
 //                  so long repo names get proportionally wider panels
 //                  rather than squished text)
-//   beam length  = REPO_LABEL.HEIGHT world units (spans the gap from
-//                  the floor up to the panel's bottom — 0 means the
-//                  panel sits flush with the floor and the beam is
-//                  invisible)
+//   beam length  = max(0, REPO_LABEL.HEIGHT - BEAM_FOOT_INSIDE_GEM)
+//                  (spans the gap from BEAM_FOOT_INSIDE_GEM above the
+//                  floor up to the panel's bottom — 0 means the panel
+//                  sits flush with the floor and the beam is invisible)
 
 import * as THREE from 'three';
 
@@ -35,11 +35,19 @@ import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './t
 // when the user grows the label — keeps the beam reading as a real
 // column of light, not a hairline.
 const BEAM_RADIUS_FRAC = 0.04;
-// Beam base geometry (radius 1, height 1). mesh.scale.x/z multiplies
-// the radius to FONT_SIZE × BEAM_RADIUS_FRAC; mesh.scale.y multiplies
-// the height to REPO_LABEL.HEIGHT.
-const BEAM_BASE_RADIUS = 1;
+// Beam taper: top radius / bottom radius. Larger = more flare toward
+// the panel. 3.0 reads as a clear "energy-cone-broadening-into-the-label" look.
+const BEAM_TAPER_RATIO = 3.0;
+// Beam base geometry — bottom radius 1, top radius = BEAM_TAPER_RATIO.
+// mesh.scale.x/z multiplies these so world bottom radius =
+// FONT_SIZE × BEAM_RADIUS_FRAC.
+const BEAM_BASE_RADIUS_BOTTOM = 1;
+const BEAM_BASE_RADIUS_TOP = BEAM_BASE_RADIUS_BOTTOM * BEAM_TAPER_RATIO;
 const BEAM_BASE_HEIGHT = 1;
+// Beam bottom Y offset from the anchor (= gem world position). The
+// beam ends this far ABOVE the floor so it appears to emerge from
+// INSIDE the gem rather than penetrate the ground.
+const BEAM_FOOT_INSIDE_GEM = 10;
 // Panel base height (1 unit); the mesh's scale.y multiplies this so its
 // world height equals REPO_LABEL.FONT_SIZE. Width is also scaled so
 // width = FONT_SIZE × textureAspect.
@@ -93,13 +101,14 @@ export function createRepoLabel(): RepoLabel {
     group.visible = cfg.ENABLED;
 
     if (beamMesh) {
-      // Beam reaches from panel bottom (local y = -halfFont) DOWN
-      // to the floor (local y = -halfFont - HEIGHT). Length = HEIGHT.
-      // Radius scales with FONT_SIZE so the beam reads proportional
-      // to the label it carries.
       const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
-      beamMesh.scale.set(beamRadius, cfg.HEIGHT, beamRadius);
-      beamMesh.position.y = -halfFont - cfg.HEIGHT / 2;
+      // Beam length is HEIGHT minus the foot inset (so the beam ends
+      // inside the gem rather than at the floor).
+      const beamLength = Math.max(0, cfg.HEIGHT - BEAM_FOOT_INSIDE_GEM);
+      beamMesh.scale.set(beamRadius, beamLength, beamRadius);
+      // Beam top sits at panel bottom (-halfFont); beam bottom sits at
+      // -halfFont - beamLength. Center is the midpoint.
+      beamMesh.position.y = -halfFont - beamLength / 2;
     }
 
     if (panelMesh) {
@@ -114,6 +123,12 @@ export function createRepoLabel(): RepoLabel {
     const opacity = REPO_LABEL.get().OPACITY;
     if (panelMat) panelMat.uniforms.uOpacity.value = opacity;
     if (beamMat) beamMat.uniforms.uOpacity.value = opacity;
+  }
+
+  function _applyColors(): void {
+    const cfg = REPO_LABEL.get();
+    if (beamMat) (beamMat.uniforms.uColor.value as THREE.Color).set(cfg.BEAM_COLOR);
+    if (panelMat) (panelMat.uniforms.uTint.value as THREE.Color).set(cfg.TEXT_COLOR);
   }
 
   // _buildMeshes constructs the panel + beam from the current texture
@@ -140,8 +155,8 @@ export function createRepoLabel(): RepoLabel {
 
     // ---- Beam ----
     const beamGeom = new THREE.CylinderGeometry(
-      BEAM_BASE_RADIUS,
-      BEAM_BASE_RADIUS,
+      BEAM_BASE_RADIUS_TOP,
+      BEAM_BASE_RADIUS_BOTTOM,
       BEAM_BASE_HEIGHT,
       16,
       1,
@@ -154,7 +169,11 @@ export function createRepoLabel(): RepoLabel {
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.DoubleSide,
-      uniforms: { uOpacity: { value: 1.0 } },
+      uniforms: {
+        uColor: { value: new THREE.Color(REPO_LABEL.get().BEAM_COLOR) },
+        uTime: { value: 0 },
+        uOpacity: { value: 1.0 },
+      },
     });
     beamMesh = new THREE.Mesh(beamGeom, beamMat);
     beamMesh.renderOrder = RENDER_ORDERS.REPO_LABEL;
@@ -173,6 +192,7 @@ export function createRepoLabel(): RepoLabel {
       uniforms: {
         uMap: { value: textTex.texture },
         uTime: { value: 0 },
+        uTint: { value: new THREE.Color(REPO_LABEL.get().TEXT_COLOR) },
         uOpacity: { value: 1.0 },
       },
     });
@@ -181,6 +201,7 @@ export function createRepoLabel(): RepoLabel {
     group.add(panelMesh);
 
     _applyOpacity();
+    _applyColors();
     _applyTransform();
   }
 
@@ -211,12 +232,15 @@ export function createRepoLabel(): RepoLabel {
     if (!panelMesh || !panelMat) return;
     const cfg = REPO_LABEL.get();
     if (!cfg.ENABLED) return;
-    panelMat.uniforms.uTime.value += dtSeconds * cfg.ANIMATION_SPEED;
+    const dtScaled = dtSeconds * cfg.ANIMATION_SPEED;
+    panelMat.uniforms.uTime.value += dtScaled;
+    if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
     _faceCameraYLocked(panelMesh, camera);
   }
 
   function refresh(): void {
     _applyOpacity();
+    _applyColors();
     _applyTransform();
   }
 

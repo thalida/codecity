@@ -18,6 +18,12 @@
 //                     panels instead of squished text.
 //   ANIMATION_SPEED — multiplier on glitch / pulse rates.
 //   OPACITY         — 0..1, master opacity applied to all materials.
+//   BEAM_COLOR      — hex color for the light beam rising from the gem.
+//                     Defaults to cyan (#33ffff).
+//   TEXT_COLOR      — hex tint applied to the holographic text panel.
+//                     White (#ffffff) preserves the chromatic-aberration
+//                     look; other colors fold the aberration into the
+//                     chosen hue.
 
 import { map } from 'nanostores';
 
@@ -27,6 +33,8 @@ export interface RepoLabelConfig {
   FONT_SIZE: number;
   ANIMATION_SPEED: number;
   OPACITY: number;
+  BEAM_COLOR: string;
+  TEXT_COLOR: string;
 }
 
 export const REPO_LABEL = map<RepoLabelConfig>({
@@ -43,4 +51,6 @@ export const REPO_LABEL = map<RepoLabelConfig>({
   FONT_SIZE: 96,
   ANIMATION_SPEED: 1.0,
   OPACITY: 0.9,
+  BEAM_COLOR: '#33ffff',
+  TEXT_COLOR: '#ffffff',
 });

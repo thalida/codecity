@@ -1,28 +1,34 @@
 // holoBeam.frag.glsl — Vertical light column rising from the gem to
-// the label. Alpha is brightest at the gem (cylinder base) and fades
-// out toward the panel (cylinder top). Color is cyan with a magenta
-// tint at the cylinder's outer rim.
-//
-// three.js CylinderGeometry maps v=0 to the TOP of the cylinder and
-// v=1 to the bottom, so we use vUv.y directly (no `1.0 -`) to put the
-// bright end at the gem.
+// the label. Alpha is brightest at the gem (vUv.y = 0) and fades out
+// toward the panel (vUv.y = 1). A periodic "energy pulse" — a band
+// of extra brightness traveling upward — adds rhythm to the column.
 
 varying vec2 vUv;
 
+uniform vec3 uColor;
+uniform float uTime;
 uniform float uOpacity;
 
 void main() {
-  // Vertical fade: bright at the gem (v=1 in CylinderGeometry's UV),
-  // fading to invisible at the panel end (v=0).
-  float vFade = vUv.y;
-  float a = vFade * 0.85;
+  // Vertical fade: bright at the gem (v=0), fading toward the panel (v=1).
+  float vFade = 1.0 - vUv.y;
+  float baseAlpha = vFade * 0.85;
 
-  // Side tint — vUv.x runs around the cylinder; tint magenta near
-  // the seam where the U coordinate hits 0/1.
-  float rim = abs(vUv.x - 0.5) * 2.0;
-  vec3 cyan = vec3(0.2, 1.0, 1.0);
-  vec3 magenta = vec3(1.0, 0.2, 0.9);
-  vec3 color = mix(cyan, magenta, rim * 0.5);
+  // Energy pulse: a narrow band of extra brightness that travels
+  // upward at ~0.5 units of beam height per second (at ANIMATION_SPEED=1).
+  // The pulse position cycles through [0, 1); when it equals vUv.y the
+  // local fragment is at the peak of the pulse.
+  float pulsePos = fract(uTime * 0.5);
+  float pulseDist = abs(vUv.y - pulsePos);
+  // Wrap distance so the pulse looks continuous across the seam.
+  pulseDist = min(pulseDist, 1.0 - pulseDist);
+  // Narrow Gaussian peak.
+  float pulse = exp(-pulseDist * pulseDist * 80.0);
+  // Pulse fades along with the base gradient so it's not visible at
+  // the panel end where the beam has otherwise faded out.
+  pulse *= vFade;
 
-  gl_FragColor = vec4(color, a * uOpacity);
+  float a = (baseAlpha + pulse * 0.6) * uOpacity;
+
+  gl_FragColor = vec4(uColor, a);
 }

@@ -469,6 +469,12 @@ function _buildSceneSection(): HTMLElement {
       _slider('Opacity', REPO_LABEL, 'OPACITY', 0, 1, 0.05, {
         tip: 'Master opacity. 0 invisible, 1 fully painted.',
       }),
+      _color('Beam color', REPO_LABEL, 'BEAM_COLOR', {
+        tip: 'Color of the light beam rising from the gem.',
+      }),
+      _color('Text color', REPO_LABEL, 'TEXT_COLOR', {
+        tip: 'Tint applied to the holographic text. White preserves the chromatic-aberration look; other colors fold the aberration into the chosen hue.',
+      }),
     ])
   );
 

@@ -9,6 +9,8 @@ describe('REPO_LABEL config store', () => {
       FONT_SIZE: 96,
       ANIMATION_SPEED: 1.0,
       OPACITY: 0.9,
+      BEAM_COLOR: '#33ffff',
+      TEXT_COLOR: '#ffffff',
     });
   });
 
@@ -19,6 +21,8 @@ describe('REPO_LABEL config store', () => {
       FONT_SIZE: 96,
       ANIMATION_SPEED: 1.0,
       OPACITY: 0.9,
+      BEAM_COLOR: '#33ffff',
+      TEXT_COLOR: '#ffffff',
     });
   });
 });

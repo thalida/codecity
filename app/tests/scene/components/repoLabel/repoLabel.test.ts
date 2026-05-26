@@ -11,6 +11,8 @@ function resetStore() {
     FONT_SIZE: 96,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,
+    BEAM_COLOR: '#33ffff',
+    TEXT_COLOR: '#ffffff',
   });
 }
 
@@ -60,11 +62,12 @@ describe('createRepoLabel()', () => {
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
-    expect(beam.scale.y).toBeCloseTo(250);
+    // beamLength = max(0, HEIGHT - BEAM_FOOT_INSIDE_GEM) = max(0, 250 - 10) = 240
+    expect(beam.scale.y).toBeCloseTo(240);
     // Beam top sits at panel bottom (local y = -FONT_SIZE/2 = -50);
-    // beam bottom sits at panel bottom - HEIGHT = -300. Center of beam
-    // is therefore at (-50 + -300) / 2 = -175.
-    expect(beam.position.y).toBeCloseTo(-175);
+    // beam bottom sits at panel bottom - beamLength = -50 - 240 = -290.
+    // Center of beam is therefore at (-50 + -290) / 2 = -170.
+    expect(beam.position.y).toBeCloseTo(-170);
   });
 
   it('panel scale tracks FONT_SIZE × textureAspect', () => {
@@ -140,6 +143,7 @@ describe('createRepoLabel()', () => {
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
+    // beamLength = max(0, 0 - 10) = 0
     expect(beam.scale.y).toBeCloseTo(0);
   });
 
