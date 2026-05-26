@@ -1,20 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { getWorldBounds } from '@/scene/layout/worldBounds.js';
 import { WORLD } from '@/config/world/world.js';
-import type { CityBbox } from '@/types';
-
-function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-    width: maxX - minX,
-    depth: maxY - minY,
-  };
-}
+import { bbox } from '../../_helpers/cityFixtures';
 
 // All formulas below assume the default GROUND_BUFFER_PERCENT of 30 and
 // MIN_BUFFER floor of 800. We pin both via beforeEach so the test stays

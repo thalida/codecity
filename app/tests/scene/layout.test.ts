@@ -18,6 +18,7 @@ import {
   assertTreeRespecting,
   assertTJunctionsValid,
 } from '../_helpers/layoutAsserts';
+import { mkFile, mkDir } from '../_helpers/cityFixtures';
 
 const TEST_TIERS: StreetTier[] = [
   { min_descendants: 0, width: 10 },
@@ -815,39 +816,6 @@ describe('_collectRects', () => {
 });
 
 describe('layout invariants (current packer baseline)', () => {
-  function mkFile(name: string) {
-    return {
-      name,
-      type: NodeKind.File,
-      path: name,
-      extension: '.ts',
-      size: 500,
-      lines: 20,
-      created: '2024-01-01T00:00:00Z',
-      modified: '2024-01-01T00:00:00Z',
-    };
-  }
-  function mkDir(name: string, children: any[]) {
-    // Re-prefix every descendant's `path` so the test fixture mirrors a real
-    // manifest (file paths are dir-prefixed, e.g. 'big/aa.ts'). Without this,
-    // mkFile children carry only their bare name and tests that filter by
-    // path prefix to identify a subdir's descendants find nothing.
-    const prefixed = children.map((c) => {
-      const oldPath = c.path || c.name;
-      return { ...c, path: `${name}/${oldPath}` };
-    });
-    return {
-      name,
-      type: NodeKind.Directory,
-      path: name,
-      children_count: prefixed.length,
-      descendants_count:
-        prefixed.length + prefixed.filter((c) => c.type === NodeKind.Directory).length,
-      descendants_size: 1000,
-      children: prefixed,
-    };
-  }
-
   it('TEST_TREE has no overlapping rectangles', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     expect(() => assertNoOverlap(layout)).not.toThrow();

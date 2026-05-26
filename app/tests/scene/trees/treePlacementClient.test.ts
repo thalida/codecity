@@ -3,31 +3,8 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createTreePlacementClient } from '@/scene/components/trees/treePlacementClient.js';
-import type { CityBbox, CityLayout } from '@/types';
-
-function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
-  return {
-    minX,
-    minY,
-    maxX,
-    maxY,
-    cx: (minX + maxX) / 2,
-    cy: (minY + maxY) / 2,
-    width: maxX - minX,
-    depth: maxY - minY,
-  };
-}
-
-function emptyLayout(bb: CityBbox): CityLayout {
-  return {
-    buildings: [],
-    streets: [],
-    paths: [],
-    lineStats: { min: 0, max: 0 },
-    byteStats: { min: 0, max: 0 },
-    bbox: bb,
-  };
-}
+import type { CityLayout } from '@/types';
+import { bbox, emptyLayout } from '../../_helpers/cityFixtures';
 
 describe('treePlacementClient (sync fallback path)', () => {
   const originalWorker = globalThis.Worker;
