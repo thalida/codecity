@@ -15,13 +15,14 @@ import { FadeDetail } from '@/types';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// PATH_LENGTH is the gap perpendicular to the street (between the building
-// wall and the adjacent sidewalk) — an absolute world distance shared by
-// every building. PATH_WIDTH_FRAC is a per-building fraction of that
-// building's own width: a 40-unit building with frac 0.4 gets a 16-unit-
-// wide path, while a 6-unit building gets a 2.4-unit path. The door is
-// sized off the same per-building path width so "walk out the door, onto
-// the path" reads visually no matter how big the building is.
+// PATH_LENGTH is the gap perpendicular to the street between the
+// building wall and the street edge ("distance from road"). Same for
+// every building.
+//
+// PATH_WIDTH_FRAC is the door width as a fraction of the building's
+// own width — bigger buildings get proportionally wider doors. The
+// legacy name is preserved to avoid churn; semantically it is now
+// only "door width as fraction of building width".
 export interface BuildingDimensionsConfig {
   MIN_FLOORS: number;
   MAX_FLOORS: number;
@@ -38,8 +39,8 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   FLOOR_HEIGHT: 16, // scene units per floor
   MIN_WIDTH: 8,
   MAX_WIDTH: 96,
-  PATH_LENGTH: 8, // connector strip length (building wall → sidewalk)
-  PATH_WIDTH_FRAC: 0.5, // per-building: pathWidth = building.w × this; also drives door width
+  PATH_LENGTH: 8, // distance from building wall to street edge
+  PATH_WIDTH_FRAC: 0.5, // door width = building.w × this
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────

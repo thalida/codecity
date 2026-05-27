@@ -50,7 +50,6 @@ describe('treePlacementClient (sync fallback path)', () => {
     const layout: CityLayout = {
       buildings: [],
       streets: [],
-      paths: [],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
       bbox: {

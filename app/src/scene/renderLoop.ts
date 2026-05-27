@@ -197,8 +197,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
-  // based on the current picker.selection / picker.hover state. Building
-  // connector strips for the same dir follow the same tint.
+  // based on the current picker.selection / picker.hover state.
   function _refreshSidewalkTints(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
@@ -215,16 +214,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       }
       const swColor = expected ?? sw.userData.origColor;
       sw.material.color.setHex(swColor);
-      const swDir = sw.userData.street?.dir;
-      const connectors = swDir ? world.getPathConnectorsByDir(swDir.path) : null;
-      if (connectors) {
-        for (const pm of connectors) {
-          if (pm.userData.origColor == null) {
-            pm.userData.origColor = pm.material.color.getHex();
-          }
-          pm.material.color.setHex(swColor);
-        }
-      }
     }
   }
 

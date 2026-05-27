@@ -64,7 +64,7 @@ describe('_formatStemDiagnostic', () => {
       minY: -1,
       maxX: 18,
       maxY: 1,
-      kind: WorldRectKind.Path,
+      kind: WorldRectKind.Building,
       ref: { file: { path: 'src/foo.ts', name: 'foo.ts' } } as never,
     };
     const trace: StemPlacementTrace = {
@@ -88,7 +88,7 @@ describe('_formatStemDiagnostic', () => {
     const flat = lines.join('\n');
     expect(flat).toContain('JUMPED');
     expect(flat).toContain('sub');
-    expect(flat).toMatch(/path\b/);
+    expect(flat).toContain('building');
     expect(flat).toContain('src/foo.ts');
   });
 

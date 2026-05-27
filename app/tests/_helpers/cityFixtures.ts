@@ -53,7 +53,6 @@ export function emptyLayout(bb: CityBbox): CityLayout {
   return {
     buildings: [],
     streets: [],
-    paths: [],
     lineStats: { min: 0, max: 0 },
     byteStats: { min: 0, max: 0 },
     bbox: bb,

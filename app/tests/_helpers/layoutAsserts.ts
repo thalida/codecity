@@ -5,7 +5,7 @@
 import { __test } from '@/scene/layout/layout.js';
 import type { Rect } from '@/scene/layout/layout.js';
 import { StreetAxis } from '@/types';
-import type { CityLayout, Street, Building, BuildingPath } from '@/types';
+import type { CityLayout, Street, Building } from '@/types';
 
 function _rectFromStreet(s: Street): Rect {
   if (s.orientation === StreetAxis.X) {
@@ -16,10 +16,6 @@ function _rectFromStreet(s: Street): Rect {
 
 function _rectFromBuilding(b: Building): Rect {
   return { x: b.x, y: b.y, w: b.w, d: b.d };
-}
-
-function _rectFromPath(p: BuildingPath): Rect {
-  return { x: p.x, y: p.y, w: p.w, d: p.d };
 }
 
 // True iff a and b strictly intersect; touching edges (zero overlap) returns false.
@@ -63,13 +59,11 @@ function _isJoinPair(a: Street, b: Street): boolean {
 export function assertNoOverlap(layout: CityLayout): void {
   type Tagged =
     | { rect: Rect; kind: 'street'; ref: Street }
-    | { rect: Rect; kind: 'building'; ref: Building }
-    | { rect: Rect; kind: 'path'; ref: BuildingPath };
+    | { rect: Rect; kind: 'building'; ref: Building };
   const all: Tagged[] = [];
   for (const s of layout.streets) all.push({ rect: _rectFromStreet(s), kind: 'street', ref: s });
   for (const b of layout.buildings)
     all.push({ rect: _rectFromBuilding(b), kind: 'building', ref: b });
-  for (const p of layout.paths) all.push({ rect: _rectFromPath(p), kind: 'path', ref: p });
 
   for (let i = 0; i < all.length; i++) {
     for (let j = i + 1; j < all.length; j++) {

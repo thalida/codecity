@@ -47,7 +47,6 @@ import type { WorldRect } from './layout/worldOccupancy.js';
 import { createRootGem } from './components/gem/gem.js';
 import { createStreetMesh } from './components/streets/streets.js';
 import { createStreetLabels } from './components/streets/streetLabels.js';
-import { createPathMesh } from './components/streets/streetPath.js';
 import { createSky } from './components/sky/sky.js';
 import type { Sky } from './components/sky/sky.js';
 import { createRepoLabel } from './components/repoLabel/repoLabel.js';
@@ -68,7 +67,6 @@ import {
   getModifiedAge,
   getDateRanges,
 } from './components/buildings/buildingColor.js';
-import { parentDirPath } from './utils/path.js';
 import { SKY } from '@/config/components/sky.js';
 import {
   ASPHALT,
@@ -102,7 +100,6 @@ import type {
 interface PrevState {
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
-  pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   asphaltMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   rootGem: THREE.Group | null;
   manifest: Manifest | null;
@@ -220,8 +217,8 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
 }
 
 function _obstacleLabel(o: WorldRect): string {
-  // WorldRect.ref is loosely typed (Building | Street | BuildingPath); try
-  // common shapes without forcing tight coupling.
+  // WorldRect.ref is loosely typed (Building | Street); try common
+  // shapes without forcing tight coupling.
   const r = o.ref as {
     file?: { path?: string; name?: string };
     label?: string;
@@ -244,28 +241,14 @@ export const __test = {
   _formatStemDiagnostic,
 };
 
-/**
- * Options for _buildWorld.
- *
- * skipBuildings — skip per-building scene work that is vestigial in cell
- * mode: per-building path-connector meshes (one per layout.paths entry).
- * Streets, sidewalks, street labels, the root gem, and asphalt are
- * always built regardless of this flag. The cell-rendering path sets
- * skipBuildings: true so a large repo doesn't pay for ~N_buildings path
- * meshes Three.js would otherwise frustum-cull every frame.
- */
-interface BuildCityOpts {
-  skipBuildings?: boolean;
-}
-
-// _buildWorld(layout, opts) — one-shot scene builder.
+// _buildWorld(layout) — one-shot scene builder.
 //
-// Composes the streets / street labels / connector paths / root gem
-// component factories into a fresh THREE.Scene and returns the lookup
-// tables createWorld needs to wire interaction + post-processing.
+// Composes the streets / street labels / root gem component factories
+// into a fresh THREE.Scene and returns the lookup tables createWorld
+// needs to wire interaction + post-processing.
 // Per-cell instanced building/label/adPanel meshes are NOT built here —
 // scene/layout/cellAssembly.ts handles those once the layout is in hand.
-function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
+function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
@@ -313,23 +296,6 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
     }
   }
 
-  // Per-building path-connector strips (door → sidewalk).
-  //
-  // Skipped when opts.skipBuildings is true (cell-rendering path): for
-  // a large repo this is one mesh per building (~100k for Linux), which
-  // would dominate scene.children and cause a multi-second stall in the
-  // scene.add() loop. Cell mode has no per-building interactivity that
-  // requires the connectors.
-  const pathMeshes: FlatMesh[] = [];
-  if (!opts.skipBuildings) {
-    const paths = layout.paths || [];
-    for (const path of paths) {
-      const pm = createPathMesh(path, 0);
-      scene.add(pm);
-      pathMeshes.push(pm);
-    }
-  }
-
   // Bounding box of the whole city (in scene coords). Caller uses it
   // to frame the camera. Empty fallback prevents NaN at boot when the
   // layout has zero meshes.
@@ -348,7 +314,6 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
     buildingMeshes,
     streetPickables,
     streetLabels,
-    pathMeshes,
     asphaltMeshes,
     rootGem,
     rootGemBody,
@@ -438,7 +403,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
-  let pathMeshes: FlatMesh[] = [];
   let asphaltMeshes: FlatMesh[] = [];
   let rootGem: THREE.Group | null = null;
   // rootGem children expose `.material.{color,opacity}` directly to the
@@ -462,7 +426,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     string,
     { mesh: THREE.Mesh; building: Building; instanceId: number }
   > = {};
-  let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Cell-rendering state — owns the InstancedMesh-per-cell scene root.
   let _cellRoot: THREE.Group | null = null;
@@ -502,7 +465,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // output is baked into buildWorld meshes:
   //   - SCENE_COLORS  : FOG_* keys baked into building shader uniforms
   //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
-  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
+  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk materials
   //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
   //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
   //                     baked into gem geometry and position
@@ -627,7 +590,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     for (const m of streetPickables) _removeAndDispose(m);
     for (const m of streetLabels) _removeAndDispose(m);
-    for (const m of pathMeshes) _removeAndDispose(m);
     for (const m of asphaltMeshes) _removeAndDispose(m);
     if (rootGem) {
       if (rootGem.parent) rootGem.parent.remove(rootGem);
@@ -665,14 +627,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       }
     }
 
-    pathMeshesByDirPath = {};
-    for (const pm of pathMeshes) {
-      const pmFile = pm.userData.file;
-      const pmDir = pmFile?.path != null ? parentDirPath(pmFile.path) : null;
-      if (pmDir == null) continue;
-      if (!pathMeshesByDirPath[pmDir]) pathMeshesByDirPath[pmDir] = [];
-      pathMeshesByDirPath[pmDir].push(pm);
-    }
   }
 
   function _computeRootStreetAndGem() {
@@ -854,7 +808,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     const prev: PrevState = {
       streetPickables,
       streetLabels,
-      pathMeshes,
       asphaltMeshes,
       rootGem,
       manifest,
@@ -1033,23 +986,17 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _buildingIndex = cellOut.index;
       _instancedAdPanels = cellOut.adPanels;
 
-      // Also build the streets/paths/gem sub-scene from buildWorld so
+      // Also build the streets/gem sub-scene from buildWorld so
       // sidewalks, asphalt, and the root gem still appear. The cell path
       // replaces buildings; non-building scene elements are still needed.
-      //
-      // skipBuildings: true — omits per-building path-connector meshes
-      // (one mesh per layout.paths entry, ~N_buildings total). For a large
-      // repo those meshes dominate cellBuilt.scene.children and cause a
-      // multi-second stall in the scene.add() loop below.
-      // Cell mode has no per-building interactivity that needs connectors.
-      const cellBuilt = _buildWorld(newLayout, { skipBuildings: true });
+      const cellBuilt = _buildWorld(newLayout);
       bbox = cellBuilt.bbox;
-      // buildWorld was called with skipBuildings: true, so the returned
-      // bbox covers streets/paths/gem only — NOT buildings (rendered
-      // separately via the cell-based instanced renderer). Expand the bbox
-      // to include each building's XZ footprint + Y height so downstream
-      // consumers (sceneBbox sizing, camera framing in cameraRig, fly-mode
-      // bounds in flyControls) get the FULL visible city.
+      // The bbox returned by buildWorld covers streets/gem only — NOT
+      // buildings (rendered separately via the cell-based instanced
+      // renderer). Expand the bbox to include each building's XZ footprint
+      // + Y height so downstream consumers (sceneBbox sizing, camera
+      // framing in cameraRig, fly-mode bounds in flyControls) get the
+      // FULL visible city.
       for (const b of newLayout.buildings) {
         bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
         bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
@@ -1070,7 +1017,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
       streetPickables = cellBuilt.streetPickables || [];
       streetLabels = cellBuilt.streetLabels || [];
-      pathMeshes = cellBuilt.pathMeshes || [];
       asphaltMeshes = cellBuilt.asphaltMeshes || [];
       rootGem = cellBuilt.rootGem || null;
       rootGemBody = cellBuilt.rootGemBody || null;
@@ -1335,7 +1281,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         return;
       }
       const overlaps = findLayoutOverlaps(layout);
-      const totalRects = layout.streets.length + layout.buildings.length + layout.paths.length;
+      const totalRects = layout.streets.length + layout.buildings.length;
       const report = _formatCollisionReport(overlaps, totalRects);
       if (report.level === 'info') {
         console.info(report.summary);
@@ -1406,9 +1352,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getStreetLabels() {
       return streetLabels;
     },
-    getPathMeshes() {
-      return pathMeshes;
-    },
     getAsphaltMeshes() {
       return asphaltMeshes;
     },
@@ -1451,10 +1394,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getStreetByDir(p: string) {
       return streetsByDirPath[p] || null;
     },
-    getPathConnectorsByDir(p: string) {
-      return pathMeshesByDirPath[p] || [];
-    },
-
     // Bulk-map accessors. Treat the returned objects as read-only —
     // their identities are stable within an applyManifest call but
     // get replaced wholesale on the next one. Exposed because some
@@ -1469,9 +1408,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     getStreetsByDirMap() {
       return streetsByDirPath;
-    },
-    getPathConnectorsMap() {
-      return pathMeshesByDirPath;
     },
 
     // Cell-mode accessors for picker + other consumers.

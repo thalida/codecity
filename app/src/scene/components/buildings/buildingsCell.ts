@@ -251,6 +251,8 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
 
   // --- Door width ---
   // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_FRAC_OF_PATH
+  // (PATH_WIDTH_FRAC is the door-width fraction; DOOR_WIDTH_FRAC_OF_PATH
+  // is the inner trim of door vs panel. Legacy names preserved.)
   // Mirrors createBuildingMesh and buildBuildingInstanceBuffer.
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
   iDoorWidthAttr.setX(slot, b.w * pathWidthFrac * doorWidthFracOfPath);

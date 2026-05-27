@@ -740,11 +740,11 @@ function _buildBuildingsSection(): HTMLElement {
       _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
         tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
       }),
-      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
+      _number('Distance from road', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+        tip: 'Gap between the building wall and the street edge. Same for every building.',
       }),
-      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
+      _slider('Door width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
+        tip: "Door width as a fraction of the building's own width — bigger buildings get proportionally wider doors.",
       }),
     ])
   );
