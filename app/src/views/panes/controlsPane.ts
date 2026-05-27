@@ -54,7 +54,7 @@ import { SKY, SKY_STARS } from '@/config/components/sky.js';
 import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
-import { TREES } from '@/config/components/trees.js';
+import { TREES, TREE_OUTLINE } from '@/config/components/trees.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -576,6 +576,21 @@ function _buildTreesSection(): HTMLElement {
       }),
       _slider('High-tier facets', TREES, 'TREE_FACETS_HIGH', 3, 32, 1, {
         tip: 'Radial segment count for the largest-commit tier. Highest tier has the fewest tree instances so this is the cheapest knob to push high.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('trees-outlines', 'Outlines', () => [
+      _number('Linewidth', TREE_OUTLINE, 'WIDTH', 1, 10, 1, {
+        tip: 'Pixel thickness shared by hover and selected canopy outlines.',
+      }),
+      _color('Hover color', TREE_OUTLINE, 'HOVER_COLOR', {
+        tip: 'Outline color when a tree is hovered (not selected).',
+      }),
+      _slider('Hover opacity', TREE_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
+      _slider('Selected opacity', TREE_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
+        tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
       }),
     ])
   );
