@@ -141,7 +141,7 @@ export function setupLiveUpdates(
 
   // nanostores .subscribe() fires the callback synchronously with the
   // current value the instant it is called.  We arm both subscriptions
-  // AFTER registering them — same pattern as attachHotReload — so those
+  // AFTER registering them — same pattern as attachCommitReactions — so those
   // initial synthetic fires are suppressed.  Runtime changes (user toggles
   // LIVE_UPDATES.ENABLED, or a file save mutates SCAN_FILTERS) happen
   // after `armed = true` and behave normally.

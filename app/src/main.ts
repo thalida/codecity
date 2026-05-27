@@ -9,7 +9,7 @@ import { REBUILD_STATUS } from './store/liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './store/persist.js';
 import { SYNTAX_THEME } from './config/prefs/syntaxTheme.js';
 import { sourceKey, CURRENT_SOURCE_KEY } from './store/sourceContext.js';
-import { attachHotReload } from './store/configHotReload.js';
+import { attachCommitReactions } from './store/configCommitReactions.js';
 import { setupLiveUpdates } from './store/liveUpdates.js';
 import { DOM_IDS } from './constants';
 import { NodeKind } from './types';
@@ -138,7 +138,7 @@ if (_canvas) {
               );
             }
             handle = await startRenderLoop(_canvas, m);
-            attachHotReload({
+            attachCommitReactions({
               world: handle.world,
               applyTheme: handle.applyTheme,
             });
@@ -164,7 +164,7 @@ if (_canvas) {
         // handle to work against.
         if (handle === null) {
           handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
-          attachHotReload({
+          attachCommitReactions({
             world: handle.world,
             applyTheme: handle.applyTheme,
           });
@@ -178,7 +178,7 @@ if (_canvas) {
       }
     } else {
       handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);
-      attachHotReload({
+      attachCommitReactions({
         world: handle.world,
         applyTheme: handle.applyTheme,
       });

@@ -527,7 +527,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   animate();
 
   // Expose world, applyTheme, and coordinator to the boot block so
-  // setupLiveUpdates can swap in fresh manifests, attachHotReload can
+  // setupLiveUpdates can swap in fresh manifests, attachCommitReactions can
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
   return { world, applyTheme, coordinator };
