@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
 import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
+import { RENDER_ORDERS } from '@/constants';
 import { mediaKindOf, MediaKind } from './adPanels.js';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray.js';
 import type { Building } from '@/types/index.js';
@@ -164,20 +165,25 @@ export class InstancedAdPanels {
     // bounded (≤1024 in typical usage) so always-draw is cheap and
     // correct.
     this.mesh.frustumCulled = false;
-    // Force ad panels to render AFTER buildings in the transparent pass.
-    // Both buildings and ad-panels are transparent: true, so they sort by
-    // distance to camera. The ad-panel mesh's bounding sphere lives at
+    // Force ad panels to render AFTER buildings AND street labels in the
+    // transparent pass. Buildings, street labels and ad panels are all
+    // transparent: true, so they sort by renderOrder first and distance
+    // to camera second. The ad-panel mesh's bounding sphere lives at
     // world origin (we never set mesh.position — instance transforms
     // live in instanceMatrix), so it sorts as if it's at (0,0,0). For
     // any building far from origin (i.e., everywhere in practice), the
     // panel mesh appears FARTHER from the camera than the cell building
-    // mesh, so back-to-front sort renders ad panels FIRST. Then the
-    // building (with depthWrite:true) overwrites those panel pixels —
-    // making panels invisible on the camera-facing walls. renderOrder
-    // bumps the panel mesh into a later sort bucket so it always draws
-    // on top; polygonOffset on the material then keeps the panel
-    // correctly anchored to its wall.
-    this.mesh.renderOrder = 1;
+    // mesh, so back-to-front sort would render ad panels FIRST. Then
+    // the building (with depthWrite:true) would overwrite those panel
+    // pixels — making panels invisible on the camera-facing walls.
+    // renderOrder bumps the panel mesh into a later sort bucket so it
+    // always draws on top; polygonOffset on the material then keeps
+    // the panel correctly anchored to its wall. AD_PANEL must also
+    // out-rank STREET_LABEL — both have depthWrite:false, and the
+    // panel hangs out past its wall by AD_OFFSET, so without the bump
+    // the road-name plane wins the painter sort and bleeds through the
+    // panel's overhang.
+    this.mesh.renderOrder = RENDER_ORDERS.AD_PANEL;
 
     // Pre-allocate per-instance attribute arrays.
     this._iLayerIndex = new Float32Array(slotCount); // 1 float per slot
