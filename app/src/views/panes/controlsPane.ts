@@ -396,9 +396,6 @@ function _buildSceneSection(): HTMLElement {
       _slider('Density', SKY_STARS, 'DENSITY', 0, 0.02, 0.0005, {
         tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
       }),
-      _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
-        tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
-      }),
       _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
         tip: 'When off, stars render at fixed brightness (no animation).',
       }),

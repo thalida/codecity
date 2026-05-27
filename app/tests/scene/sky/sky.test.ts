@@ -17,7 +17,6 @@ function resetStores() {
   SKY_STARS.set({
     ENABLED: true,
     DENSITY: 0.0075,
-    BRIGHTNESS: 1.2,
     TWINKLE_ENABLED: true,
     TWINKLE_SPEED: 0.5,
     TWINKLE_AMPLITUDE: 1.0,
@@ -68,11 +67,11 @@ describe('createSky()', () => {
   });
 
   it('refresh() pushes fresh config values into uniforms', () => {
-    SKY_STARS.setKey('BRIGHTNESS', 2.7);
+    SKY_STARS.setKey('DENSITY', 0.01);
     SKY.setKey('COLOR', '#ffffff');
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
-    expect(mat.uniforms.uStarBrightness.value).toBeCloseTo(2.7);
+    expect(mat.uniforms.uStarDensity.value).toBeCloseTo(0.01);
     const sky_ = mat.uniforms.uSkyColor.value as THREE.Color;
     expect(sky_.r).toBeCloseTo(1);
     expect(sky_.g).toBeCloseTo(1);
