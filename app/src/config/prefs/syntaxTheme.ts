@@ -45,3 +45,8 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
 // wins when cascade order is equal and these are the same specificity).
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
 export const SYNTAX_THEME = atom<string>(SYNTAX_THEME_DEFAULT);
+
+// Theme-picker writes directly to this atom (no draft layer — the CSS
+// link swaps instantly). stageResetAll() reads this flag and resets
+// directly too, so "Reset all" doesn't leave behind a phantom draft.
+(SYNTAX_THEME as unknown as { _skipDrafts?: boolean })._skipDrafts = true;
