@@ -8,6 +8,7 @@ import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,
 } from '@/scene/components/adPanels/adPanelTextureArray.js';
+import { BLOOM } from '@/config/index.js';
 import { BuildingOrient, NodeKind } from '@/types/index.js';
 import type { Building } from '@/types/index.js';
 
@@ -261,5 +262,15 @@ describe('AdPanelTextureArray storage', () => {
     // many pages are actually in use — the shader's uPanelArrays uniform
     // is declared at MAX_PAGES and every slot needs a bound sampler.
     expect(arr.shaderTextures.length).toBe(8);
+  });
+});
+
+describe('InstancedAdPanels emission refresh', () => {
+  it('refresh() pushes BLOOM.AD_EMISSION into uEmissionBoost uniform', () => {
+    const ads = new InstancedAdPanels(4);
+    BLOOM.setKey('AD_EMISSION', 2.5);
+    ads.refresh();
+    const mat = ads.mesh.material as unknown as { uniforms: { uEmissionBoost: { value: number } } };
+    expect(mat.uniforms.uEmissionBoost.value).toBeCloseTo(2.5);
   });
 });

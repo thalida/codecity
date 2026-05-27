@@ -281,6 +281,11 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // manifest applies; guard with optional chain.
     world.getCityFootprint()?.refresh();
 
+    // Ad panels — pushes fresh BLOOM.AD_EMISSION into uEmissionBoost so
+    // the emission slider hot-updates without a manifest rebuild. Null
+    // until the first manifest with media files applies.
+    world.getAdPanels()?.refresh();
+
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = world.getRootGemEdges();
     const rootGemBody = world.getRootGemBody();

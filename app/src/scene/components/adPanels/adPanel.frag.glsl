@@ -32,6 +32,7 @@ precision highp sampler2DArray;
 
 uniform sampler2DArray uPanelArrays[AD_PANEL_MAX_PAGES];
 uniform float uPageSize;
+uniform float uEmissionBoost;
 
 in vec2 vUv;
 in highp float vLayerIndex;
@@ -66,5 +67,5 @@ void main() {
   // Selection-cascade body fade — multiplied in last so it dims the
   // panel by the same factor as its building body (see buildingFader).
   finalAlpha *= vBuildingFade;
-  fragColor = vec4(finalColor, finalAlpha);
+  fragColor = vec4(finalColor * uEmissionBoost, finalAlpha);
 }
