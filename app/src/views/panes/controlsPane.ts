@@ -223,8 +223,7 @@ function _buildShortcutsSection(): HTMLElement {
     'Quick reference for cursor actions and keyboard shortcuts.'
   );
   section.appendChild(
-    _subgroup(
-      'General',
+    _collapsibleSubgroup('keyboard-general', 'General', () => [
       _buildShortcutsList([
         { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
         {
@@ -236,30 +235,28 @@ function _buildShortcutsSection(): HTMLElement {
         null,
         { mouse: 'Click', action: 'Select building / street / gem' },
         { mouse: 'Double-click', action: 'Focus camera on the target' },
-      ])
-    )
+      ]),
+    ])
   );
   section.appendChild(
-    _subgroup(
-      'Orbit mode',
+    _collapsibleSubgroup('keyboard-orbit-mode', 'Orbit mode', () => [
       _buildShortcutsList([
         { mouse: 'Left drag', action: 'Orbit' },
         { mouse: 'Right drag', action: 'Pan' },
         { mouse: 'Middle drag', action: 'Dolly (zoom)' },
         { mouse: 'Scroll', action: 'Zoom toward cursor' },
-      ])
-    )
+      ]),
+    ])
   );
   section.appendChild(
-    _subgroup(
-      'Fly mode',
+    _collapsibleSubgroup('keyboard-fly-mode', 'Fly mode', () => [
       _buildShortcutsList([
         { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
         { kbd: ['Q', 'E'], action: 'Drop / rise' },
         { kbd: ['Shift'], action: 'Boost (hold)' },
         { mouse: 'Left / right drag', action: 'Look around' },
-      ])
-    )
+      ]),
+    ])
   );
 
   // Fly-mode tuning — collapsible so the always-visible shortcut cheat
@@ -1523,6 +1520,7 @@ function _collapsibleSubgroup(
     const rowResets = details.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
     if (rowResets.length === 0) {
       groupReset.style.display = 'none';
+      groupReset.disabled = true;
       return;
     }
     groupReset.style.display = '';
