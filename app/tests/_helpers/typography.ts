@@ -25,5 +25,4 @@ export const TYPOGRAPHY: LabelTypographyConfig = {
   SPACING_MULT: 3.5,
   SPACING_FLOOR: 200,
   ELEVATION: 0,
-  FLIP_HYSTERESIS: 0.15,
 };

@@ -571,7 +571,10 @@ function _orientLabelsForCamera(
   // Without this, near-top-down camera positions (where rightX/rightZ are
   // near zero) cause floating-point jitter from OrbitControls' damping to
   // flip labels back and forth every frame.
-  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
+  // Camera-orbit dead zone before the street label flips to match the
+  // new viewing angle. Was previously tunable; the default proved
+  // universally good and the control was removed (2026-05-26).
+  const THRESH = 0.15;
 
   for (const lbl of labels) {
     const street = lbl.userData.street;

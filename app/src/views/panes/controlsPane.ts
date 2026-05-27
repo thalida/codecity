@@ -737,9 +737,6 @@ function _buildStreetsSection(): HTMLElement {
       _color('Fill', LABEL_TYPOGRAPHY, 'FILL', {
         tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
       }),
-      _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
-        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down. 0.5 is half the natural 0–1 dot-product range — beyond this the dead zone is so wide labels spend most of the orbit upside-down.',
-      }),
       _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
         tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory. 512 fits the largest street-label canvas at maximum zoom; below 32 labels are illegible.',
       }),

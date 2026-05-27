@@ -42,8 +42,6 @@ export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
 // Names painted along each road. COLORS (FILL, STROKE) are applied on Save
 // via applyTheme() but the label TEXTURE is regenerated on change. SIZING / FONT changes
 // are rebuild-required since the canvas dims depend on them.
-//   FLIP_HYSTERESIS is applied on Save via applyTheme(): it's the camera-orbit dead zone
-//   before labels rotate 180° to stay readable.
 //   MIN_SCALE caps how aggressively a too-long label can be shrunk to fit
 //   its street before we fall back to truncating with an ellipsis.
 export interface LabelTypographyConfig {
@@ -59,7 +57,6 @@ export interface LabelTypographyConfig {
   SPACING_MULT: number;
   SPACING_FLOOR: number;
   ELEVATION: number;
-  FLIP_HYSTERESIS: number;
 }
 
 export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
@@ -75,7 +72,6 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   SPACING_MULT: 8.0, // repeat spacing = label width × this
   SPACING_FLOOR: 256, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
-  FLIP_HYSTERESIS: 0.15, // dead zone before camera-orbit flip
 });
 
 // ─── Neon path line (gem → selection) ──────────────────────────────────────
