@@ -468,7 +468,7 @@ function _buildIslandSection(): HTMLElement {
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days lean toward TREE_COLOR_SOLO_DAY; busy days lean toward TREE_COLOR_BUSY_DAY. All commits on the same date share a color.'
+    'One tree per commit — height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).'
   );
 
   section.appendChild(
