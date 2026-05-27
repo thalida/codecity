@@ -148,11 +148,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
 export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
   const cfg = TREES.get();
   const segments =
-    detail === 0
-      ? cfg.TREE_FACETS_LOW
-      : detail === 1
-        ? cfg.TREE_FACETS_MID
-        : cfg.TREE_FACETS_HIGH;
+    detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
   const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
   // Default 1° threshold keeps any edge whose adjacent face normals differ
   // by >1° — for the canopy this means ring boundaries (profile slope

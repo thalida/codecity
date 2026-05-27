@@ -173,7 +173,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     const rb = RAINBOW.get();
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
-      const hue = ((t + i / _selSegCount) % 1 + 1) % 1;
+      const hue = (((t + i / _selSegCount) % 1) + 1) % 1;
       _tmpHsl.setHSL(hue, rb.SATURATION, rb.LIGHTNESS);
       const k = i * 6;
       _selColorBuf[k] = _tmpHsl.r;

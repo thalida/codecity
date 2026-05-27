@@ -214,9 +214,7 @@ describe('Trees commit lookups', () => {
 });
 
 it('buildCanopyEdges returns non-empty EdgesGeometry for each detail level', async () => {
-  const { buildCanopyEdges } = await import(
-    '@/scene/components/trees/treeRenderer.js'
-  );
+  const { buildCanopyEdges } = await import('@/scene/components/trees/treeRenderer.js');
   for (const detail of [0, 1, 2] as const) {
     const geom = buildCanopyEdges(detail);
     expect(geom).toBeInstanceOf(THREE.EdgesGeometry);
