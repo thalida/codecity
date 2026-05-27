@@ -79,14 +79,14 @@ Each file becomes a building. Visual properties map directly to data:
 | Saturation | File age (created)    | Vivid = newer file, faded = older file                             |
 | Lightness  | Last modified date    | Bright = recently changed, dim = long untouched                    |
 
-Tweak any of these live from the in-app Controls pane (left sidebar → gear icon).
+Tweak any of these from the in-app Controls pane (left sidebar → gear icon). Changes apply when you click Save.
 
-## Live updates and hot-reload
+## Live updates and config commits
 
-The city re-renders **in place** as you edit:
+The city re-renders **in place** in two situations:
 
 - **Filesystem changes** — when **Updates → Live updates** is on (default), the frontend polls `/api/manifest` on a user-tunable interval (clamped to 1–60 s); when the tree's mtime/size signature changes, new buildings grow in and shifted siblings slide to make room.
-- **Config tweaks** — every slider, color, and toggle in the Controls pane is hot-reloadable.
+- **Config tweaks** — every slider, color, and toggle in the Controls pane writes to a draft layer. Clicking **Save** flushes the drafts into the live config and recomputes the affected meshes (rebuild) or refreshes their materials (no-rebuild). Discard reverts the pending drafts.
 
 ## Requirements
 
