@@ -1,11 +1,11 @@
 // Shared test fixtures for city scene tests. Replaces inline copies of
-// bbox()/emptyLayout()/mkFile()/mkDir() and the trees/buildings/bushes
+// bbox()/emptyLayout()/mkFile()/mkDir() and the trees/buildings
 // config resets that had begun to drift between callers (audit 2026-05-25).
 // Task 8 migrates the consumers; this file only adds the helpers.
 //
 // Audit reality vs. plan:
 //   - bbox()         : 4 byte-identical inline copies (treePlacement,
-//                      treePlacementClient, bushPlacement, worldBounds).
+//                      treePlacementClient, worldBounds, and one more).
 //   - emptyLayout()  : 3 byte-identical inline copies (same files minus
 //                      worldBounds).
 //   - mkFile/mkDir   : 4 inline copies across layoutPacker.test.ts,
@@ -19,10 +19,8 @@
 //                      layout.test.ts (1233) stay local in Task 8.
 //   - resets         : plan named these `resetTreesConfig` /
 //                      `resetBuildingsConfig` but actual call sites use
-//                      `resetTrees` / `resetBuildings` (treePlacement) and
-//                      a combined `resetConfig` (bushPlacement). We export
-//                      three small functions; bushPlacement can compose
-//                      all three in Task 8.
+//                      `resetTrees` / `resetBuildings` (treePlacement).
+//                      We export two small functions in Task 8.
 //
 // The mkFile/mkDir helpers return `any` on purpose: the inline versions
 // all do, because the real FileNode/DirNode interfaces require fields
@@ -35,7 +33,6 @@ import { NodeKind } from '@/types';
 import type { CityBbox, CityLayout } from '@/types';
 import { TREES } from '@/config/components/trees.js';
 import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import { BUSHES } from '@/config/components/bushes.js';
 
 /** Builds a CityBbox from extents, deriving cx/cy/width/depth. */
 export function bbox(minX: number, minY: number, maxX: number, maxY: number): CityBbox {
@@ -144,12 +141,3 @@ export function resetBuildingsConfig(): void {
   });
 }
 
-/** Resets the BUSHES config map to deterministic test defaults. */
-export function resetBushesConfig(): void {
-  BUSHES.set({
-    BUSHES_ENABLED: true,
-    BUSH_RADIUS_FRAC_OF_TREE: 0.4,
-    BUSH_NEON_COLORS: ['#00ff88', '#ff2bd6', '#b400ff', '#00d9ff', '#ffd400'],
-    BUSH_EMISSION_BOOST: 1.5,
-  });
-}

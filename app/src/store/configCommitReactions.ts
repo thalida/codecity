@@ -59,10 +59,6 @@ import {
   // Cyberpunk Valley — trees (structural in TREES → rebuild):
   TREES,
 
-  // Cyberpunk Valley — bushes (structural in BUSHES → rebuild;
-  // BUSH_* colors → material-only via bushes.refresh()):
-  BUSHES,
-
   // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
   // matrices → rebuild; COLOR/ENABLED → material-only via footprint.refresh()):
   FOOTPRINT,
@@ -174,10 +170,6 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // refresh via trees.refresh(); structural keys (height range,
     // shape toggles, shading strength, inset, footprint) get narrow
     // listenKeys subscriptions below.
-    // BUSHES is intentionally NOT here as a whole-store subscription:
-    // only BUSHES_ENABLED is structural, and we gate it via listenKeys
-    // below. Color + emission keys live in materialOnlyStores and refresh
-    // via bushes.refresh().
     //
     // FOOTPRINT is intentionally NOT here as a whole-store subscription:
     // only HALO_WIDTH is structural, and we gate it via listenKeys below.
@@ -220,10 +212,6 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // per-instance colors and material color; the structural keys are
     // gated to scheduleRebuild via listenKeys below.
     TREES,
-    // BUSHES: color arrays + emission boost. bushRenderer.refresh() pushes
-    // these into per-instance color buffers + ShaderMaterial uniforms —
-    // no rebuild, no re-placement.
-    BUSHES,
     // FOOTPRINT.COLOR + FOOTPRINT.ENABLED are pushed via
     // footprint.refresh() inside applyTheme() — no rebuild required.
     // FOOTPRINT.HALO_WIDTH gets a narrow listenKeys subscription below so
@@ -256,11 +244,6 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   // subscription above; gating the rebuild on HALO_WIDTH alone avoids a
   // wasted rebuild on every color drag.
   unsubs.push(listenKeys(FOOTPRINT, ['HALO_WIDTH'], scheduleRebuild));
-  // Toggling BUSHES_ENABLED changes whether the bush placement pass
-  // runs, so it needs a rebuild — not just a visibility flip via
-  // bushes.refresh(). TREES_ENABLED only flips mesh.visible (trees are
-  // always placed; rendering is toggled independently).
-  unsubs.push(listenKeys(BUSHES, ['BUSHES_ENABLED'], scheduleRebuild));
   // TREES structural keys: every one of these either changes geometry
   // (height range, shading strength) or per-shape allocation (shape
   // toggles) or the placement pass (inset, footprint). All require a

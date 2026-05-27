@@ -55,7 +55,6 @@ import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
 import { TREES } from '@/config/components/trees.js';
-import { BUSHES } from '@/config/components/bushes.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -164,10 +163,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
-  // Trees + Bushes sit after Gem (the world's anchor) so the panel
+  // Trees sit after Gem (the world's anchor) so the panel
   // reads structural → decorative top-to-bottom.
   body.appendChild(_buildTreesSection());
-  body.appendChild(_buildBushesSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -617,33 +615,6 @@ function _buildTreesSection(): HTMLElement {
           tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
         }
       ),
-    ])
-  );
-
-  return section;
-}
-
-// ─── Bushes (Cyberpunk Valley) ─────────────────────────────────────────────
-// Decorative scatter — emissive icosahedra that push into HDR bloom.
-function _buildBushesSection(): HTMLElement {
-  const section = _section(
-    'Bushes',
-    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.'
-  );
-
-  section.appendChild(
-    _subgroup('Visibility', [
-      _toggle('Bushes enabled', BUSHES, 'BUSHES_ENABLED', {
-        tip: 'Master toggle. Enabling triggers a placement rebuild; disabling hides the mesh without a rebuild.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Colors', [
-      _slider('Emission boost', BUSHES, 'BUSH_EMISSION_BOOST', 0.5, 5, 0.1, {
-        tip: 'Multiplier applied to bush colors before the HDR bloom pass. Values above 1.0 push into bloom; below 1.0 dims them toward matte.',
-      }),
     ])
   );
 

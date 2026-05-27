@@ -56,9 +56,6 @@ import { createTrees } from './components/trees/trees.js';
 import type { Trees } from './components/trees/trees.js';
 import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
 import type { TreePlacementClient } from './components/trees/treePlacementClient.js';
-import { createBushes } from './components/bushes/bushes.js';
-import type { Bushes } from './components/bushes/bushes.js';
-import { placeBushes } from './components/bushes/bushPlacement.js';
 import { createIsland } from './components/island/islandMesh.js';
 import type { Island } from './components/island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
@@ -84,7 +81,6 @@ import {
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
-import { BUSHES } from '@/config/components/bushes.js';
 import { REBUILD_STATUS } from '@/store/liveStatus.js';
 import type {
   Building,
@@ -405,11 +401,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // fallback in test envs). One instance per world; disposed when
   // the world is disposed.
   const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
-
-  // Cyberpunk Valley bushes — REBUILT per applyManifest (only when
-  // BUSHES.BUSHES_ENABLED is true). Decorative scatter independent of
-  // commits.
-  let _bushes: Bushes | null = null;
 
   // Cyberpunk Valley city footprint — REBUILT per applyManifest.
   // One InstancedMesh of inflated layout rects that composes into a
@@ -1107,21 +1098,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
-    // City is now in the scene. Decoration pass (trees, bushes, future
-    // mesa bounds, etc.) is deferred to the next animation frame so the
+    // City is now in the scene. Decoration pass (trees, future mesa
+    // bounds, etc.) is deferred to the next animation frame so the
     // city paints + becomes interactive BEFORE the placement scan +
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
     const treesEnabled = TREES.get().TREES_ENABLED;
-    const bushesEnabled = BUSHES.get().BUSHES_ENABLED;
     if (_trees) {
       _trees.dispose();
       _trees = null;
-    }
-    if (_bushes) {
-      _bushes.dispose();
-      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1173,7 +1159,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       scene.add(_cityFootprint.group);
     }
 
-    if ((treesEnabled || bushesEnabled) && bbox && sceneBbox) {
+    if (treesEnabled && bbox && sceneBbox) {
       // Snapshot what the deferred pass needs so a later applyManifest
       // bumping _currentGeneration doesn't race with this build.
       const generationAtDefer = myGeneration;
@@ -1190,40 +1176,27 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       await new Promise<void>((r) => setTimeout(r, 0));
       if (generationAtDefer !== _currentGeneration) return;
 
-      if (treesEnabled) {
-        // Off-thread tree placement via the worker. The supersede protocol
-        // rejects this promise with "superseded" if another applyManifest
-        // fires while placement is in-flight.
-        let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
-        try {
-          treePlacements = await _treePlacementClient.compute(
-            layoutAtDefer,
-            foliageBbox,
-            commitCountAtDefer,
-            cityHeightAtDefer
-          );
-        } catch (err) {
-          if (err instanceof Error && err.message === 'superseded') return;
-          throw err;
-        }
-        if (generationAtDefer !== _currentGeneration) return;
-
-        _trees = createTrees(treePlacements, manifest.commits ?? null);
-        scene.add(_trees.group);
+      // Off-thread tree placement via the worker. The supersede protocol
+      // rejects this promise with "superseded" if another applyManifest
+      // fires while placement is in-flight.
+      let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
+      try {
+        treePlacements = await _treePlacementClient.compute(
+          layoutAtDefer,
+          foliageBbox,
+          commitCountAtDefer,
+          cityHeightAtDefer
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
       }
+      if (generationAtDefer !== _currentGeneration) return;
 
-      if (bushesEnabled) {
-        // Bush placement is synchronous (fast, no worker needed).
-        if (generationAtDefer !== _currentGeneration) return;
-        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, {
-          cityHeight: cityHeightAtDefer,
-        });
-        if (generationAtDefer !== _currentGeneration) return;
-        _bushes = createBushes(bushPlacements);
-        scene.add(_bushes.group);
-      }
+      _trees = createTrees(treePlacements, manifest.commits ?? null);
+      scene.add(_trees.group);
 
-      // Re-notify listeners now that async decoration (trees, bushes) is
+      // Re-notify listeners now that async decoration (trees) is
       // fully attached to the scene. The first onChange fired before this
       // deferred block ran, so world.getTrees() returned null at that
       // point — the picker's _refreshPickables() therefore had no tree
@@ -1231,10 +1204,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // other subscriber) a chance to re-refresh with the live tree group.
       // We pass an empty diff because only foliage changed; no building or
       // street geometry was added since the first emit.
-      // Only fire when foliage was actually placed — if both trees and
-      // bushes are null (disabled, zero commits, etc.) the first emit
-      // already captured the complete state and a second one is wasteful.
-      if (_trees !== null || _bushes !== null) {
+      // Only fire when trees were actually placed — if trees are null
+      // (disabled, zero commits, etc.) the first emit already captured
+      // the complete state and a second one is wasteful.
+      if (_trees !== null) {
         _emit(changeCbs, {
           entering: { buildings: [], streets: [] },
           exiting: { buildings: [], streets: [] },
@@ -1254,10 +1227,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     if (_trees) {
       _trees.dispose();
       _trees = null;
-    }
-    if (_bushes) {
-      _bushes.dispose();
-      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1327,15 +1296,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getTrees(): Trees | null {
       return _trees;
-    },
-
-    /**
-     * Cyberpunk Valley bushes reference. Rebuilt per applyManifest
-     * (only when BUSHES.BUSHES_ENABLED is true). Returns null when
-     * bushes are disabled or not yet placed.
-     */
-    getBushes(): Bushes | null {
-      return _bushes;
     },
 
     /**

@@ -276,11 +276,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
 
-    // Cyberpunk Valley bushes — pushes fresh BUSH_NEON_COLORS + emission
-    // boost into per-instance color buffers + ShaderMaterial uniforms.
-    // Null until the first manifest applies (or when BUSHES_ENABLED is off).
-    world.getBushes()?.refresh();
-
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
     // onto the slab material / group visibility. Null until the first
     // manifest applies; guard with optional chain.
