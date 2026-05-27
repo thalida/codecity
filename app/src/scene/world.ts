@@ -469,7 +469,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
   //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
   //                     baked into gem geometry and position
-  //   - GEM_FACE_PALETTE: vertex colors baked into gem octahedron BufferAttribute
+  //   - GEM_FACE_PALETTE: vertex colors baked into gem polyhedron BufferAttribute
   //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
   //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
   // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.

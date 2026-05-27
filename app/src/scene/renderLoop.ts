@@ -466,17 +466,21 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       if (inner || outer) {
         if (glowCfg.ANIMATE_COLORS) {
           const palette = GEM_FACE_PALETTE.get();
+          const hexes = [
+            palette.FACE_1,
+            palette.FACE_2,
+            palette.FACE_3,
+            palette.FACE_4,
+            palette.FACE_5,
+            palette.FACE_6,
+            palette.FACE_7,
+            palette.FACE_8,
+          ];
           const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
           if (inner)
-            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
+            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
           if (outer)
-            _setPaletteColor(
-              (outer.material as THREE.SpriteMaterial).color,
-              palette,
-              t,
-              period,
-              0.5
-            );
+            _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
         } else {
           const edge = GEM_APPEARANCE.get().EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
@@ -527,7 +531,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 // "ahead-of-each-other" cadences without allocating new Colors.
 function _setPaletteColor(
   out: THREE.Color,
-  palette: ReadonlyArray<readonly [number, number, number]>,
+  palette: ReadonlyArray<string>,
   t: number,
   period: number,
   offset: number
@@ -539,9 +543,9 @@ function _setPaletteColor(
   const a = Math.floor(idxf) % n;
   const b = (a + 1) % n;
   const f = idxf - Math.floor(idxf);
-  const A = palette[a];
-  const B = palette[b];
-  out.setRGB(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f);
+  const A = new THREE.Color(palette[a]);
+  const B = new THREE.Color(palette[b]);
+  out.setRGB(A.r + (B.r - A.r) * f, A.g + (B.g - A.g) * f, A.b + (B.b - A.b) * f);
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the

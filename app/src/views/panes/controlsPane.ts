@@ -34,6 +34,7 @@ import {
   BUILDING_AGING,
   // Gem
   GEM_SIZING,
+  GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_GLOW,
   GEM_ANIMATION,
@@ -940,19 +941,26 @@ function _buildGemSection(): HTMLElement {
   const section = _section('Root gem', 'The floating spinning octahedron above the root street.');
 
   section.appendChild(
-    _collapsibleSubgroup('gem-sizing', 'Sizing + plaza', () => [
+    _collapsibleSubgroup('gem-size-shape', 'Size & shape', () => [
       _slider('Radius × street width', GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, {
         tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
       }),
       _number('Min radius', GEM_SIZING, 'MIN_RADIUS', 1, 50, 1, {
         tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes; above 50 it dwarfs the root plaza.',
       }),
-      _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
-        tip: 'Extra vertical lift above the road, on top of the gem radius. Above 2× the gem radius it floats clearly off the ground into the void.',
-      }),
-      _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
-        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
-      }),
+      _select(
+        'Sides',
+        GEM_SIZING,
+        'SIDES',
+        [
+          { value: '4', label: '4' },
+          { value: '8', label: '8' },
+          { value: '20', label: '20' },
+        ],
+        {
+          tip: 'Polyhedron face count. 4 = tetrahedron, 8 = octahedron, 20 = icosahedron. Per-face colors cycle through the Face colors palette.',
+        }
+      ),
     ])
   );
 
@@ -964,6 +972,19 @@ function _buildGemSection(): HTMLElement {
       _slider('Body opacity', GEM_APPEARANCE, 'BODY_OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Gem transparency. Low = jewel-like; high = plastic.',
       }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('gem-face-colors', 'Face colors', () => [
+      _color('Face 1', GEM_FACE_PALETTE, 'FACE_1', {}),
+      _color('Face 2', GEM_FACE_PALETTE, 'FACE_2', {}),
+      _color('Face 3', GEM_FACE_PALETTE, 'FACE_3', {}),
+      _color('Face 4', GEM_FACE_PALETTE, 'FACE_4', {}),
+      _color('Face 5', GEM_FACE_PALETTE, 'FACE_5', {}),
+      _color('Face 6', GEM_FACE_PALETTE, 'FACE_6', {}),
+      _color('Face 7', GEM_FACE_PALETTE, 'FACE_7', {}),
+      _color('Face 8', GEM_FACE_PALETTE, 'FACE_8', {}),
     ])
   );
 
