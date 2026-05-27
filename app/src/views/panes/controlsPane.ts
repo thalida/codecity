@@ -1096,7 +1096,7 @@ function _buildEffectsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Rainbow (selected outline + path line)', [
+    _collapsibleSubgroup('effects-rainbow', 'Rainbow (selected outline + path line)', () => [
       _slider('Speed', RAINBOW, 'SPEED', 0, 0.005, 0.0001, {
         tip: 'Hue cycles per millisecond. The shared rainbow chases around the selected building outline AND the gem→selection path line.',
       }),
@@ -1106,7 +1106,7 @@ function _buildEffectsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Bloom (HDR neon glow)', [
+    _collapsibleSubgroup('effects-bloom', 'Bloom (HDR neon glow)', () => [
       _toggle('Enabled', BLOOM, 'ENABLED', {
         tip: 'Off → bloom pass bypassed AND windows/gem stay LDR — approximates the pre-HDR "flat" look for side-by-side comparison. Other knobs stay in config.',
       }),
