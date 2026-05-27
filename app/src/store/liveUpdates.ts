@@ -157,9 +157,10 @@ export function setupLiveUpdates(
   // honour the current ENABLED value here.
   if (LIVE_UPDATES.get().ENABLED) start();
 
-  // Toggling SHOW_ALL_FILES ALWAYS triggers a refresh, regardless of
-  // whether live polling is enabled — the user explicitly asked for a
-  // different scan and should see it immediately.
+  // SCAN_FILTERS changes trigger a refresh regardless of whether live
+  // polling is enabled — e.g. toggling NO_CACHE and immediately re-fetching.
+  // Task 12 will move NO_CACHE to the open-project modal and remove this
+  // subscription entirely.
   let _scanFiltersArmed = false;
   SCAN_FILTERS.subscribe(() => {
     if (!_scanFiltersArmed) return;

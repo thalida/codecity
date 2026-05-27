@@ -4,7 +4,7 @@ import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
 
 describe('buildApiUrl', () => {
   beforeEach(() => {
-    SCAN_FILTERS.set({ SHOW_ALL_FILES: false, NO_CACHE: false });
+    SCAN_FILTERS.set({ NO_CACHE: false });
   });
 
   it('forwards src param when present', () => {
@@ -26,12 +26,6 @@ describe('buildApiUrl', () => {
     const u = buildApiUrl('/api/manifest', '', 'http://127.0.0.1:8765');
     expect(u).not.toContain('src=');
     expect(u).not.toContain('branch=');
-  });
-
-  it('appends include_all=true when SHOW_ALL_FILES is on', () => {
-    SCAN_FILTERS.setKey('SHOW_ALL_FILES', true);
-    const u = buildApiUrl('/api/manifest', '?src=/foo', 'http://127.0.0.1:8765');
-    expect(u).toContain('include_all=true');
   });
 
   it('appends no_cache=true when NO_CACHE is on', () => {

@@ -190,10 +190,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
 }
 
 // ─── Scan & Updates ────────────────────────────────────────────────────────
-// What the scanner picks up + when to re-scan. SHOW_ALL_FILES bypasses
-// the tracked-files-only filter (default OFF — current behavior); live
-// updates polls /api/manifest/signature on a clamped [1s, 60s] interval
-// so an over-eager value can't ddos the local server.
+// What the scanner picks up + when to re-scan. Live updates polls
+// /api/manifest/signature on a clamped [1s, 60s] interval so an
+// over-eager value can't ddos the local server.
 function _buildUpdatesSection(): HTMLElement {
   const section = _section(
     'Scan & Updates',
@@ -201,9 +200,6 @@ function _buildUpdatesSection(): HTMLElement {
   );
   section.appendChild(
     _subgroup('Filters', [
-      _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
-        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
-      }),
       _toggle('Bypass disk caches', SCAN_FILTERS, 'NO_CACHE', {
         tip: 'Re-scan every file and re-walk git history on each fetch. Slower; only useful when debugging cache staleness.',
       }),

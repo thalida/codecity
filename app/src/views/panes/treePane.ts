@@ -297,9 +297,9 @@ export function buildTreePane(
   let currentHoveredLi: HTMLLIElement | null = null;
 
   // Rebuild the tree DOM from a fresh manifest. Used after applyManifest
-  // swaps in a new tree (e.g. SHOW_ALL_FILES toggle, live-update poll
-  // picking up new files). Without this the sidebar shows the snapshot
-  // captured at init and silently drifts from the city.
+  // swaps in a new tree (e.g. live-update poll picking up new files).
+  // Without this the sidebar shows the snapshot captured at init and
+  // silently drifts from the city.
   function setManifest(m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown }): void {
     while (listEl.firstChild) listEl.removeChild(listEl.firstChild);
     for (const k of Object.keys(ctx.byPath)) delete ctx.byPath[k];

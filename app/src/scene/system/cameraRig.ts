@@ -108,9 +108,9 @@ export function createCameraRig({
   // refresh initialCamPos/initialTarget + controls.maxDistance + the
   // OrbitControls saveState snapshot. Does NOT move the user's camera.
   // Called on first frame and after every manifest swap so reset() always
-  // snaps to a pose that fits the current city — without this, toggling
-  // SHOW_ALL_FILES off after zooming way out left R targeting the OLD
-  // (large-city) framing while the camera was far outside the new bbox.
+  // snaps to a pose that fits the current city — without this, a manifest
+  // swap after zooming way out could leave R targeting the OLD (large-city)
+  // framing while the camera was far outside the new bbox.
   function _captureFraming(): boolean {
     const bbox = world.getBbox();
     if (!bbox || bbox.isEmpty()) return false;
@@ -307,10 +307,10 @@ export function createCameraRig({
     // any residual sphericalDelta / panOffset / scale from the user's last
     // interaction — visible as the camera drifting back toward the
     // pre-reset pose, especially when the framed pose is far from where
-    // the user was (e.g. R after toggling SHOW_ALL_FILES on, going from a
-    // close-up small world to a far-out big world). Disabling damping
-    // during the snap consumes those deltas in one frame at full strength,
-    // then we re-enable damping for normal use.
+    // the user was (e.g. R after a manifest swap going from a close-up
+    // small world to a far-out big world). Disabling damping during the
+    // snap consumes those deltas in one frame at full strength, then we
+    // re-enable damping for normal use.
     const wasDamping = controls.enableDamping;
     controls.enableDamping = false;
     camera.position.copy(initialCamPos);

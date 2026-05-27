@@ -6,9 +6,9 @@ import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
 
 /**
  * Build the URL for a server endpoint, forwarding the page's `src` (and
- * optional `branch`) params plus SCAN_FILTERS toggles (`include_all`,
- * `no_cache`). When no `src` is present, returns the endpoint URL without
- * any source params — boot uses this to detect "no source picked yet".
+ * optional `branch`) params plus SCAN_FILTERS toggles (`no_cache`). When
+ * no `src` is present, returns the endpoint URL without any source params —
+ * boot uses this to detect "no source picked yet".
  */
 export function buildApiUrl(endpoint: string, pageSearch: string, origin: string): string {
   const qp = new URLSearchParams(pageSearch);
@@ -21,9 +21,6 @@ export function buildApiUrl(endpoint: string, pageSearch: string, origin: string
     if (qp.has('git_window')) u.searchParams.set('git_window', qp.get('git_window')!);
   }
   const filters = SCAN_FILTERS.get();
-  if (filters.SHOW_ALL_FILES) {
-    u.searchParams.set('include_all', 'true');
-  }
   if (filters.NO_CACHE) {
     u.searchParams.set('no_cache', 'true');
   }
