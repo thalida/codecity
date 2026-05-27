@@ -1488,9 +1488,74 @@ function _collapsibleSubgroup(
   labelSpan.className = 'theme-subgroup-label-text';
   labelSpan.textContent = name;
   summary.appendChild(labelSpan);
+
+  // Group-level reset — stages defaults for every row inside this subgroup
+  // (recursive — nested subgroups' rows are included). Uses the per-row
+  // `.theme-row-reset` buttons as the registry, same approach as the
+  // section-level reset in _section(). Hidden when no descendant row has a
+  // reset (e.g. shortcut-list subgroups). Disabled when every descendant
+  // row is already at its default.
+  const groupReset = document.createElement('button');
+  groupReset.type = 'button';
+  groupReset.className = 'controls-subgroup-reset';
+  groupReset.title = `Reset all values in ${name} to defaults`;
+  groupReset.setAttribute('aria-label', 'Reset group to defaults');
+  groupReset.appendChild(makeLucideIcon('rotate-ccw'));
+  groupReset.addEventListener('click', (e) => {
+    // Without preventDefault + stopPropagation the <summary> click would
+    // toggle the <details> open state. The user clicked reset, not the
+    // group header.
+    e.preventDefault();
+    e.stopPropagation();
+    if (groupReset.disabled) return;
+    const rowResets = details.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    rowResets.forEach((b) => {
+      if (!b.disabled) b.click();
+    });
+  });
+  summary.appendChild(groupReset);
+
   details.appendChild(summary);
 
   for (const row of buildRows()) details.appendChild(row);
+
+  function _doRefreshGroupReset() {
+    const rowResets = details.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    if (rowResets.length === 0) {
+      groupReset.style.display = 'none';
+      return;
+    }
+    groupReset.style.display = '';
+    // Enabled = at least one row's reset is enabled (i.e., that row differs
+    // from default).
+    groupReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
+  }
+
+  // Queue the actual refresh into a microtask so it runs AFTER every per-row
+  // reset has already updated its own `disabled` state for the same store /
+  // draft event. Same ordering trick the section-level reset uses.
+  let _scheduled = false;
+  function refreshGroupReset() {
+    if (_scheduled) return;
+    _scheduled = true;
+    queueMicrotask(() => {
+      _scheduled = false;
+      _doRefreshGroupReset();
+    });
+  }
+
+  // Initial refresh: per-row reset buttons have already called their own
+  // synchronous refresh() (inside _makeResetButton), so we can read their
+  // `disabled` state directly. Call _doRefreshGroupReset() synchronously
+  // here rather than queuing a microtask — this avoids the button starting
+  // as enabled (the browser default) in environments that don't flush
+  // microtasks before the caller inspects the DOM (e.g. unit tests).
+  _doRefreshGroupReset();
+  // Subsequent refreshes still use the microtask scheduler so this button
+  // reads per-row state AFTER those buttons have processed the same event.
+  subscribeDrafts(refreshGroupReset);
+  onAnyChange(refreshGroupReset);
+
   return details;
 }
 
