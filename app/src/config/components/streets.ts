@@ -69,13 +69,13 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
 // current selection. Rainbow color cycle is shared with the selected building
 // outline — see RAINBOW in config/effects.js.
 export interface PathLineConfig {
-  LINEWIDTH_PCT: number; // 1–50, default 10 — % of smallest street tier width
+  LINEWIDTH_PCT: number; // 1–50, default 15 — % of smallest street tier width
   ELEVATION: number;
   OPACITY: number;
 }
 
 export const PATH_LINE = map<PathLineConfig>({
-  LINEWIDTH_PCT: 10,
+  LINEWIDTH_PCT: 15,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
 });
