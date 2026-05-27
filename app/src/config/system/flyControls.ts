@@ -17,14 +17,10 @@ export interface FlyControlsConfig {
   MOUSE_SENSITIVITY: number; // Radians per pixel of pointer-lock movement
   PITCH_CLAMP_DEG: number; // Prevent gimbal lock
   ALTITUDE_FLOOR: number; // Min y position (prevents going under ground)
-
-  // Fly-default pose
-  FLY_DEFAULT_GEM_OFFSET_MULT: number; // Distance behind gem = gemRadius × this
-  FLY_DEFAULT_ALTITUDE_FRAC: number; // Height = maxBuildingHeight × this
 }
 
 export const FLY_CONTROLS = map<FlyControlsConfig>({
-  BASE_SPEED_BBOX_FRAC: 0.15,
+  BASE_SPEED_BBOX_FRAC: 0.25,
   BASE_SPEED_MIN: 5,
   BASE_SPEED_MAX: 200,
 
@@ -33,10 +29,4 @@ export const FLY_CONTROLS = map<FlyControlsConfig>({
   MOUSE_SENSITIVITY: 0.002,
   PITCH_CLAMP_DEG: 85,
   ALTITUDE_FLOOR: 0.5,
-
-  FLY_DEFAULT_GEM_OFFSET_MULT: 2,
-  // Multiplies the city's tallest-building height to determine how far
-  // above the gem the R-reset camera lands. resetToDefault floors this
-  // at 40 units so even tiny repos still get an overview camera.
-  FLY_DEFAULT_ALTITUDE_FRAC: 0.5,
 });

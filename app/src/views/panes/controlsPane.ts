@@ -293,22 +293,6 @@ function _buildShortcutsSection(): HTMLElement {
           tip: 'Minimum world-Y position — prevents flying below the ground plane.',
         }),
       ]),
-      _collapsibleSubgroup('fly-mode-entry-pose', 'Entry pose (on fly-mode enter)', () => [
-        _number(
-          'Gem offset multiplier',
-          FLY_CONTROLS,
-          'FLY_DEFAULT_GEM_OFFSET_MULT',
-          0.5,
-          10,
-          0.1,
-          {
-            tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
-          }
-        ),
-        _slider('Altitude fraction', FLY_CONTROLS, 'FLY_DEFAULT_ALTITUDE_FRAC', 0.05, 2, 0.05, {
-          tip: 'Starting height as a fraction of the tallest building. 0.3 = eye-level with a mid-rise; 1.0 = rooftop height of the tallest building.',
-        }),
-      ]),
     ])
   );
 
