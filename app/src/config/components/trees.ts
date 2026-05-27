@@ -139,3 +139,22 @@ export const TREES = map<TreesConfig>({
   TREE_AGE_SATURATION_MIN: 50,
   TREE_AGE_SATURATION_MAX: 100,
 });
+
+// ─── Hover / select wireframe outlines ─────────────────────────────────────
+// Two persistent LineSegments2 meshes (hover + selected) snap to the active
+// tree's transform per frame — see scene/effects/treeOutlineRenderer.ts.
+// One shared WIDTH for both; hover/selected differentiate via color (white for
+// hover, animated rainbow for selected via RAINBOW). Mirrors BUILDING_OUTLINE.
+export interface TreeOutlineConfig {
+  WIDTH: number;
+  HOVER_COLOR: string;
+  HOVER_OPACITY: number;
+  SELECTED_OPACITY: number;
+}
+
+export const TREE_OUTLINE = map<TreeOutlineConfig>({
+  WIDTH: 3,
+  HOVER_COLOR: '#ffffff',
+  HOVER_OPACITY: 0.5,
+  SELECTED_OPACITY: 1.0,
+});
