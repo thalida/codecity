@@ -1052,7 +1052,7 @@ function _buildGemSection(): HTMLElement {
       _toggle('Enabled', REPO_LABEL, 'ENABLED', {
         tip: 'Master toggle for the floating holographic repo-name label.',
       }),
-      _number('Height % of max building', REPO_LABEL, 'HEIGHT_PCT', 0, 200, 1, {
+      _slider('Height % of max building', REPO_LABEL, 'HEIGHT_PCT', 0, 200, 1, {
         tip: 'Panel bottom position as a percent of the tallest possible building (MAX_FLOORS × FLOOR_HEIGHT). 0 = island floor; 100 = level with the tallest possible building; 200 = double that.',
       }),
       _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
