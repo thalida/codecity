@@ -626,7 +626,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         }
       }
     }
-
   }
 
   function _computeRootStreetAndGem() {

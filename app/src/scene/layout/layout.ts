@@ -124,10 +124,7 @@ function _bboxOfRects(rects: Rect[]): Rect {
 // for occupancy testing. A Street with orientation X has its long side on
 // x and its short side on y; orientation Y is the inverse. Buildings
 // already use { x, y, w, d } directly.
-function _collectRects(layout: {
-  streets?: Street[];
-  buildings?: Building[];
-}): Rect[] {
+function _collectRects(layout: { streets?: Street[]; buildings?: Building[] }): Rect[] {
   const out: Rect[] = [];
   if (layout.streets) {
     for (let i = 0; i < layout.streets.length; i++) {
@@ -933,9 +930,7 @@ function _layoutDir(
       }
       // Child-local rects: building. Used by placeChild for variant
       // evaluation (collision testing against occupancy).
-      const childRects: Rect[] = [
-        { x: bx, y: by, w: bw, d: bd },
-      ];
+      const childRects: Rect[] = [{ x: bx, y: by, w: bw, d: bd }];
 
       // Pick the best (side, mirror, stem) variant.
       const variants: VariantTrace[] = [];
