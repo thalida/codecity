@@ -772,7 +772,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Building size', [
+    _collapsibleSubgroup('buildings-size', 'Building size', () => [
       _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
         tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
       }),
@@ -876,7 +876,7 @@ function _buildBuildingsSection(): HTMLElement {
   // HTMLElement, so subgroups work as children with no helper changes.
   section.appendChild(
     _collapsibleSubgroup('facade', 'Facade', () => [
-      _subgroup('Geometry', [
+      _collapsibleSubgroup('facade-geometry', 'Geometry', () => [
         _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
           tip: "Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor's window band — the facade reads as horizontal banding instead of windowed.",
         }),
@@ -905,7 +905,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Door width as a fraction of the building path width. Rebuild required.',
         }),
       ]),
-      _subgroup('Contrast (HSL lightness Δ)', [
+      _collapsibleSubgroup('facade-contrast', 'Contrast (HSL lightness Δ)', () => [
         _slider('Floor slab', FACADE_DETAIL, 'SLAB_LIGHTNESS_DELTA', -100, 100, 1, {
           tip: 'Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens).',
         }),
@@ -916,7 +916,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Lightness offset for the roof border strip (negative darkens).',
         }),
       ]),
-      _subgroup('Window lighting', [
+      _collapsibleSubgroup('facade-window-lighting', 'Window lighting', () => [
         _slider('Unlit pane lightness Δ', WINDOW_LIGHTING, 'UNLIT_LIGHTNESS_DELTA', -20, 20, 1, {
           tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
         }),
@@ -940,7 +940,7 @@ function _buildBuildingsSection(): HTMLElement {
   // Default-closed; small, niche group of weathering knobs.
   section.appendChild(
     _collapsibleSubgroup('aging', 'Aging', () => [
-      _subgroup('Grime streaks', [
+      _collapsibleSubgroup('aging-grime', 'Grime streaks', () => [
         _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
           tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
         }),
@@ -951,7 +951,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
         }),
       ]),
-      _subgroup('Tilt', [
+      _collapsibleSubgroup('aging-tilt', 'Tilt', () => [
         _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
           tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
         }),
@@ -975,7 +975,7 @@ function _buildBuildingsSection(): HTMLElement {
   ];
   section.appendChild(
     _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
-      _subgroup('Default tier — siblings of selection', [
+      _collapsibleSubgroup('selection-fade-default', 'Default tier — siblings of selection', () => [
         _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
           tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
         }),
@@ -989,13 +989,13 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
         }),
       ]),
-      _subgroup('Level 1 — one hop from selection', [
+      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — one hop from selection', () => [
         _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _subgroup('Level 2+ — cousins, deeper subtrees', [
+      _collapsibleSubgroup('selection-fade-level-2-plus', 'Level 2+ — cousins, deeper subtrees', () => [
         _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
