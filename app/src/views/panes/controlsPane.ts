@@ -654,29 +654,17 @@ function _buildStreetsSection(): HTMLElement {
   // Street labels
   section.appendChild(
     _collapsibleSubgroup('streets-labels', 'Street labels', () => [
-      _color('Fill', LABEL_TYPOGRAPHY, 'FILL', {
-        tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
+      _color('Text color', LABEL_TYPOGRAPHY, 'FILL', {
+        tip: 'Text color of the names painted on each road.',
       }),
-      _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
-        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory. 512 fits the largest street-label canvas at maximum zoom; below 32 labels are illegible.',
+      _color('Outline color', LABEL_TYPOGRAPHY, 'STROKE', {
+        tip: 'Outline color of the label text — typically darker than the fill so the label reads against any asphalt color.',
       }),
-      _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
-        tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
+      _slider('Outline width', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
+        tip: 'Text outline thickness, as a fraction of the rendered character height. Above 0.5 the stroke overwhelms the glyph fill.',
       }),
-      _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
-        tip: 'Text outline thickness, as a fraction of the font size. 0.5 is half the natural 0–1 fraction range — above this the stroke overwhelms the glyph fill.',
-      }),
-      _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
-        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels. Labels above 2× the street width clip into adjacent rows.',
-      }),
-      _slider('Min fit scale', LABEL_TYPOGRAPHY, 'MIN_SCALE', 0.1, 1, 0.05, {
-        tip: 'Floor for shrink-to-fit when a name is too long for its street. Labels shrink uniformly down to this fraction of natural height; below it they truncate with an ellipsis. 1 = never shrink (always truncate); 0.1 = shrink aggressively before truncating.',
-      }),
-      _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
-        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width. Below 0.5 labels overlap themselves; above 10 the street reads as unlabeled.',
-      }),
-      _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
-        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up). Beyond ~1000 world units the spacing forces labels off the visible street.',
+      _slider('Label size', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
+        tip: 'Label height as a fraction of the street width. Wider streets get bigger labels. Above 2× the street width labels clip into adjacent rows.',
       }),
     ])
   );

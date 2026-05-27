@@ -36,6 +36,12 @@ export interface LabelAtlasResult {
 // Module-level constants (same values as in the original labels.ts)
 // ---------------------------------------------------------------------------
 
+// Hardcoded label typography constants — previously in LabelTypographyConfig
+// but removed from the config type because they have no visible effect at
+// normal viewing distances and only affect internal texture dimensions.
+const LABEL_FONT_SIZE_PX = 192; // source canvas font size
+const LABEL_CANVAS_PADDING_FRAC = 0.25; // padding around glyphs as a fraction of LABEL_FONT_SIZE_PX
+
 // WebGL2 guarantees MAX_TEXTURE_SIZE >= 2048; virtually all desktop GPUs
 // support 8192. We pack labels into multiple pages of this size so a single
 // codebase can have arbitrarily many distinct directory names.
@@ -103,13 +109,13 @@ export function buildLabelAtlas(
 
   // Step 1: measure each text.
   const measureCtx = document.createElement('canvas').getContext('2d')!;
-  const fontSpec = `${typography.FONT_WEIGHT} ${typography.FONT_SIZE_PX}px ${typography.FONT_FAMILY}`;
+  const fontSpec = `${typography.FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${typography.FONT_FAMILY}`;
   measureCtx.font = fontSpec;
-  const paddingPx = Math.round(typography.FONT_SIZE_PX * typography.CANVAS_PADDING_FRAC);
-  const strokeWidthPx = Math.round(typography.FONT_SIZE_PX * typography.STROKE_WIDTH_FRAC);
+  const paddingPx = Math.round(LABEL_FONT_SIZE_PX * LABEL_CANVAS_PADDING_FRAC);
+  const strokeWidthPx = Math.round(LABEL_FONT_SIZE_PX * typography.STROKE_WIDTH_FRAC);
   const items = uniqueTexts.map((text) => {
     const w = Math.ceil(measureCtx.measureText(text).width) + paddingPx * 2;
-    const h = typography.FONT_SIZE_PX + paddingPx * 2;
+    const h = LABEL_FONT_SIZE_PX + paddingPx * 2;
     return { text, w, h };
   });
 

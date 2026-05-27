@@ -157,8 +157,8 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // Slider changes only take effect on the next applyManifest →
     // rebuild required.
     AD_PANEL,
-    // LABEL_TYPOGRAPHY: all keys (font-size / padding / stroke / fill / etc.)
-    // trigger a full applyManifest() rebuild. The old per-texture
+    // LABEL_TYPOGRAPHY: all keys (text/outline color, outline width, label
+    // size) trigger a full applyManifest() rebuild. The old per-texture
     // regenerateLabelTexture hot-path is removed (Task 20); for v1, a
     // full rebuild on label-typography change is acceptable — Save on
     // label-typography change is rare.

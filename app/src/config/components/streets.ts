@@ -40,22 +40,17 @@ export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
 
 // ─── Street label typography ──────────────────────────────────────────────
 // Names painted along each road. COLORS (FILL, STROKE) are applied on Save
-// via applyTheme() but the label TEXTURE is regenerated on change. SIZING / FONT changes
-// are rebuild-required since the canvas dims depend on them.
-//   MIN_SCALE caps how aggressively a too-long label can be shrunk to fit
-//   its street before we fall back to truncating with an ellipsis.
+// via applyTheme() but the label TEXTURE is regenerated on change. FONT /
+// HEIGHT changes are rebuild-required since the canvas dims depend on them.
+// FONT_SIZE_PX, CANVAS_PADDING_FRAC, MIN_SCALE, SPACING_MULT, SPACING_FLOOR
+// are hardcoded in the consuming modules (streetLabels.ts, labelAtlas.ts).
 export interface LabelTypographyConfig {
   FILL: string;
   STROKE: string;
   FONT_FAMILY: string;
   FONT_WEIGHT: number;
-  FONT_SIZE_PX: number;
-  CANVAS_PADDING_FRAC: number; // padding around glyphs as fraction of FONT_SIZE_PX (default 0.25 = 48px at 192px font)
   STROKE_WIDTH_FRAC: number; // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
   HEIGHT_FRAC: number;
-  MIN_SCALE: number;
-  SPACING_MULT: number;
-  SPACING_FLOOR: number;
   ELEVATION: number;
 }
 
@@ -64,13 +59,8 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
   FONT_WEIGHT: 700,
-  FONT_SIZE_PX: 192,
-  CANVAS_PADDING_FRAC: 0.25,
   STROKE_WIDTH_FRAC: 0.2,
   HEIGHT_FRAC: 0.5, // label plane height = street width × this
-  MIN_SCALE: 0.5, // floor for fit-shrink (fraction of natural height); below this, truncate with …
-  SPACING_MULT: 8.0, // repeat spacing = label width × this
-  SPACING_FLOOR: 256, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
 });
 
