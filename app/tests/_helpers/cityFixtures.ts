@@ -140,4 +140,3 @@ export function resetBuildingsConfig(): void {
     PATH_WIDTH_FRAC: 0.5,
   });
 }
-
