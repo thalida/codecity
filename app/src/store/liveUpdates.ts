@@ -13,7 +13,7 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
-import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX, SCAN_FILTERS } from '@/config/index.js';
+import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/store/liveStatus.js';
 import { streamManifest } from '@/utils/manifestStream.js';
 import { manifestUrl, signatureUrl } from '@/utils/url.js';
@@ -140,11 +140,10 @@ export function setupLiveUpdates(
   setRefreshManifest(refreshFromToggle);
 
   // nanostores .subscribe() fires the callback synchronously with the
-  // current value the instant it is called.  We arm both subscriptions
-  // AFTER registering them — same pattern as attachCommitReactions — so those
-  // initial synthetic fires are suppressed.  Runtime changes (user toggles
-  // LIVE_UPDATES.ENABLED, or a file save mutates SCAN_FILTERS) happen
-  // after `armed = true` and behave normally.
+  // current value the instant it is called.  We arm the subscription
+  // AFTER registering it — same pattern as attachCommitReactions — so the
+  // initial synthetic fire is suppressed.  Runtime changes (user toggles
+  // LIVE_UPDATES.ENABLED) happen after `armed = true` and behave normally.
   let _liveUpdatesArmed = false;
   LIVE_UPDATES.subscribe((val) => {
     if (!_liveUpdatesArmed) return;
@@ -156,17 +155,6 @@ export function setupLiveUpdates(
   // The subscribe's initial fire was suppressed above, so we explicitly
   // honour the current ENABLED value here.
   if (LIVE_UPDATES.get().ENABLED) start();
-
-  // SCAN_FILTERS changes trigger a refresh regardless of whether live
-  // polling is enabled — e.g. toggling NO_CACHE and immediately re-fetching.
-  // Task 12 will move NO_CACHE to the open-project modal and remove this
-  // subscription entirely.
-  let _scanFiltersArmed = false;
-  SCAN_FILTERS.subscribe(() => {
-    if (!_scanFiltersArmed) return;
-    refreshFromToggle();
-  });
-  _scanFiltersArmed = true;
 
   return {
     setSignature(sig: string) {

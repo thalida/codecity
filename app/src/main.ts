@@ -51,16 +51,19 @@ const EMPTY_MANIFEST: Manifest = {
   commits: null,
 };
 
+// One-shot flag: set by the source-picker onSubmit when the user ticked
+// "Skip cache (fresh scan)". Consumed by the FIRST applyNewSource() call
+// that follows, then cleared — subsequent live-update polls are unaffected.
+let _pendingSkipCache = false;
+
 // Boot. Guarded by a canvas check so unit tests can import this module
 // without triggering any DOM/network side effects.
 const _canvas = document.getElementById(DOM_IDS.CANVAS) as HTMLCanvasElement | null;
 if (_canvas) {
   (async function boot() {
     // Hydrate every config store from localStorage BEFORE the initial
-    // manifest fetch so SCAN_FILTERS.SHOW_ALL_FILES (which feeds
-    // manifestUrl) reflects the user's persisted toggle from a prior
-    // session — otherwise the first paint ignores the saved value and
-    // only corrects itself on the next poll.
+    // manifest fetch so user-persisted config values are applied before
+    // the first paint.
     attachPersistence(Config);
 
     // Apply the persisted (or default) syntax theme immediately after
@@ -213,6 +216,12 @@ if (_canvas) {
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
         if (payload.gitWindow) url.searchParams.set('git_window', payload.gitWindow);
+        // Consume the one-shot skip-cache flag set by the source picker.
+        // Only this first fetch uses it; the poll loop is unaffected.
+        if (_pendingSkipCache) {
+          url.searchParams.set('no_cache', 'true');
+          _pendingSkipCache = false;
+        }
 
         let manifest: Manifest | null = null;
         for await (const event of streamManifest(url.toString())) {
@@ -304,6 +313,7 @@ if (_canvas) {
 
     const picker = createSourcePicker({
       onSubmit: (payload) => {
+        _pendingSkipCache = !!payload.skipCache;
         picker.close();
         applyNewSource(payload);
       },

@@ -1,16 +1,24 @@
-// url.ts — Build API URLs from the page's query params + current store
-// state. Pure function so it's directly unit-testable; main.ts wraps it
-// with the live `window.location.*` values for runtime callers.
+// url.ts — Build API URLs from the page's query params. Pure function so
+// it's directly unit-testable; main.ts wraps it with the live
+// `window.location.*` values for runtime callers.
 
-import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
+export interface BuildApiUrlOpts {
+  noCache?: boolean;
+}
 
 /**
  * Build the URL for a server endpoint, forwarding the page's `src` (and
- * optional `branch`) params plus SCAN_FILTERS toggles (`no_cache`). When
- * no `src` is present, returns the endpoint URL without any source params —
+ * optional `branch` / `git_window`) params. When `opts.noCache` is true,
+ * appends `no_cache=true` to force a fresh scan on this request. When no
+ * `src` is present, returns the endpoint URL without any source params —
  * boot uses this to detect "no source picked yet".
  */
-export function buildApiUrl(endpoint: string, pageSearch: string, origin: string): string {
+export function buildApiUrl(
+  endpoint: string,
+  pageSearch: string,
+  origin: string,
+  opts: BuildApiUrlOpts = {}
+): string {
   const qp = new URLSearchParams(pageSearch);
   const u = new URL(endpoint, origin);
   if (qp.has('src')) {
@@ -20,8 +28,7 @@ export function buildApiUrl(endpoint: string, pageSearch: string, origin: string
     // endpoint is a no-op anyway, so don't bother forwarding it.
     if (qp.has('git_window')) u.searchParams.set('git_window', qp.get('git_window')!);
   }
-  const filters = SCAN_FILTERS.get();
-  if (filters.NO_CACHE) {
+  if (opts.noCache) {
     u.searchParams.set('no_cache', 'true');
   }
   return u.toString();
@@ -32,8 +39,8 @@ export function buildApiUrl(endpoint: string, pageSearch: string, origin: string
 // the live-update poll loop share the same construction path. Pure helper
 // stays separately testable via buildApiUrl.
 
-export function manifestUrl(): string {
-  return buildApiUrl('/api/manifest', window.location.search, window.location.origin);
+export function manifestUrl(opts: BuildApiUrlOpts = {}): string {
+  return buildApiUrl('/api/manifest', window.location.search, window.location.origin, opts);
 }
 
 export function signatureUrl(): string {

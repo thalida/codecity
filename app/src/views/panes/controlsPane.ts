@@ -42,7 +42,6 @@ import {
   BLOOM,
   // Live updates
   LIVE_UPDATES,
-  SCAN_FILTERS,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -195,13 +194,6 @@ function _buildUpdatesSection(): HTMLElement {
   const section = _section(
     'Scan & Updates',
     'What the scanner picks up, and how it stays in sync.'
-  );
-  section.appendChild(
-    _subgroup('Filters', [
-      _toggle('Bypass disk caches', SCAN_FILTERS, 'NO_CACHE', {
-        tip: 'Re-scan every file and re-walk git history on each fetch. Slower; only useful when debugging cache staleness.',
-      }),
-    ])
   );
   section.appendChild(
     _subgroup('Live updates', [

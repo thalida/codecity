@@ -42,7 +42,6 @@ export * from './system/tooltip.js';
 
 // ── App-level user preferences ────────────────────────────────────────
 export * from './prefs/liveUpdates.js';
-export * from './prefs/scanFilters.js';
 export * from './prefs/syntaxTheme.js';
 
 // ── World (background + sizing) ───────────────────────────────────────
