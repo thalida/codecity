@@ -1012,7 +1012,7 @@ function _buildGemSection(): HTMLElement {
   const section = _section('Root gem', 'The floating spinning octahedron above the root street.');
 
   section.appendChild(
-    _subgroup('Sizing + plaza', [
+    _collapsibleSubgroup('gem-sizing', 'Sizing + plaza', () => [
       _slider('Radius × street width', GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, {
         tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
       }),
@@ -1029,7 +1029,7 @@ function _buildGemSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Appearance', [
+    _collapsibleSubgroup('gem-appearance', 'Appearance', () => [
       _color('Edge color', GEM_APPEARANCE, 'EDGE_COLOR', {
         tip: 'Neutral separator line drawn around each gem face.',
       }),
@@ -1040,7 +1040,7 @@ function _buildGemSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Glow halo', [
+    _collapsibleSubgroup('gem-glow', 'Glow halo', () => [
       _toggle('Enabled', GEM_GLOW, 'ENABLED', {
         tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
       }),
@@ -1066,7 +1066,7 @@ function _buildGemSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Animation', [
+    _collapsibleSubgroup('gem-animation', 'Animation', () => [
       _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {
         tip: 'Radians per second. Above 3 rad/sec the gem looks frantic.',
       }),
