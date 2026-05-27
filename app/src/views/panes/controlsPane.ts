@@ -669,37 +669,24 @@ function _buildStreetsSection(): HTMLElement {
     ])
   );
 
-  // Selection path line — the neon line tracing gem → current selection
-  // through the road network. Color cycle is shared with the building
-  // outline; tweak Effects > Rainbow.
+  // Path lines — the neon selection line (gem → current selection, rainbow
+  // color cycle) and the faded hover-preview line (gem → hovered target,
+  // solid color). Both lines share a single width slider. Hover preview is
+  // always on; it is suppressed automatically when the hovered target IS the
+  // current selection.
   section.appendChild(
-    _collapsibleSubgroup('streets-selection-path', 'Selection path line', () => [
-      _slider('Linewidth %', PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
-        tip: 'Rainbow line thickness as a % of the narrowest street width. 10% is the default; 50% fills the narrowest lane.',
+    _collapsibleSubgroup('streets-path-lines', 'Path lines', () => [
+      _slider('Line width %', PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
+        tip: 'Shared thickness for both the rainbow selection line and the hover-preview line, as a % of the narrowest street tier width.',
       }),
-      _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
+      _slider('Selection opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+        tip: 'Selection-line transparency. 0 = invisible; 1 = solid.',
       }),
-    ])
-  );
-
-  // Hover preview path line — the faded "what would happen if I clicked"
-  // version of the selection line, drawn while the cursor is over a
-  // building or street. Suppressed when the hovered target IS the
-  // current selection (would just overlap the rainbow line).
-  section.appendChild(
-    _collapsibleSubgroup('streets-hover-path', 'Hover preview path line', () => [
-      _toggle('Enabled', HOVER_PATH_LINE, 'ENABLED', {
-        tip: 'Show a draft preview line from the gem to whatever the cursor is currently over.',
+      _color('Hover preview color', HOVER_PATH_LINE, 'COLOR', {
+        tip: 'Solid color of the hover-preview line. Faded white by default so it reads as a draft, not the committed selection.',
       }),
-      _color('Color', HOVER_PATH_LINE, 'COLOR', {
-        tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
-      }),
-      _slider('Linewidth %', HOVER_PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
-        tip: 'Preview line thickness as a % of the narrowest street width. 10% is the default; 50% fills the narrowest lane.',
-      }),
-      _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
+      _slider('Hover preview opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+        tip: 'Hover-preview transparency. 0 = invisible; 1 = solid.',
       }),
     ])
   );

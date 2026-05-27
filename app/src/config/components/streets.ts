@@ -82,21 +82,19 @@ export const PATH_LINE = map<PathLineConfig>({
 
 // ─── Hover preview path line (gem → hovered target) ───────────────────────
 // A draft / "what would happen if I clicked here" version of PATH_LINE,
-// drawn while the cursor is over a hovered building or street. Solid
-// color (not rainbow) and faded so it reads as a preview, not the
-// committed selection. Suppressed when hover matches the current
-// selection (would just overlap the rainbow line).
+// drawn while the cursor is over a hovered building or street. Always
+// on (cannot be disabled). Solid color (not rainbow) and faded so it
+// reads as a preview, not the committed selection. Shares line width
+// with PATH_LINE so both lines move together when the slider changes.
+// Suppressed when hover matches the current selection (would just
+// overlap the rainbow line).
 export interface HoverPathLineConfig {
-  ENABLED: boolean;
-  LINEWIDTH_PCT: number; // 1–50, default 10 — % of smallest street tier width
   COLOR: string;
   OPACITY: number;
   ELEVATION: number;
 }
 
 export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
-  ENABLED: true,
-  LINEWIDTH_PCT: 10,
   COLOR: '#ffffff',
   OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top

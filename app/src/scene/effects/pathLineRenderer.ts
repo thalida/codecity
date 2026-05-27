@@ -69,10 +69,10 @@ export function createPathLineRenderer({
   const _pathHsl = new THREE.Color();
 
   // ── Hover preview path line (single solid color, faded) ────────────
-  const _hpl = HOVER_PATH_LINE.get();
+  // Width is shared with the selection line — reads PATH_LINE.LINEWIDTH_PCT.
   const hoverPathLineMat = new LineMaterial({
-    color: _hpl.COLOR,
-    linewidth: computePathLinewidthPixels(_hpl.LINEWIDTH_PCT),
+    color: HOVER_PATH_LINE.get().COLOR,
+    linewidth: computePathLinewidthPixels(PATH_LINE.get().LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -146,7 +146,7 @@ export function createPathLineRenderer({
       hoverPathLine.visible = false;
       hoverPathLineMat.opacity = 0;
     }
-    if (!cfg.ENABLED || !gemPos || !hov) return hide();
+    if (!gemPos || !hov) return hide();
     if (hov.kind === NodeKind.Gem) return hide();
     if (_isHoverSameAsSelection()) return hide();
     const pts = computePathPoints(hov, { x: gemPos.x, z: gemPos.z }, world.getStreetsByDirMap());
@@ -206,7 +206,7 @@ export function createPathLineRenderer({
     if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
     const hpl = HOVER_PATH_LINE.get();
     hoverPathLineMat.color.set(hpl.COLOR);
-    hoverPathLineMat.linewidth = computePathLinewidthPixels(hpl.LINEWIDTH_PCT);
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(PATH_LINE.get().LINEWIDTH_PCT);
     _updateHoverPathLine();
   }
 
