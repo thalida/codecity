@@ -25,9 +25,6 @@ export const SKY = map<SkyConfig>({
 export interface SkyStarsConfig {
   ENABLED: boolean;
   DENSITY: number;
-  TWINKLE_ENABLED: boolean;
-  TWINKLE_SPEED: number;
-  TWINKLE_AMPLITUDE: number;
 }
 
 export const SKY_STARS = map<SkyStarsConfig>({
@@ -40,7 +37,4 @@ export const SKY_STARS = map<SkyStarsConfig>({
   // small circular sub-cell dots (see SIZE) so the per-cell scale
   // can stay coarse without making each star huge.
   DENSITY: 0.0075,
-  TWINKLE_ENABLED: true,
-  TWINKLE_SPEED: 0.5,
-  TWINKLE_AMPLITUDE: 1.0,
 });

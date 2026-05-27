@@ -17,9 +17,6 @@ function resetStores() {
   SKY_STARS.set({
     ENABLED: true,
     DENSITY: 0.0075,
-    TWINKLE_ENABLED: true,
-    TWINKLE_SPEED: 0.5,
-    TWINKLE_AMPLITUDE: 1.0,
   });
 }
 

@@ -396,15 +396,6 @@ function _buildSceneSection(): HTMLElement {
       _slider('Density', SKY_STARS, 'DENSITY', 0, 0.02, 0.0005, {
         tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
       }),
-      _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
-        tip: 'When off, stars render at fixed brightness (no animation).',
-      }),
-      _slider('Twinkle speed', SKY_STARS, 'TWINKLE_SPEED', 0, 3, 0.05, {
-        tip: 'Multiplier on uTime in the per-star sine. Higher = faster twinkle.',
-      }),
-      _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
-        tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
-      }),
     ])
   );
 

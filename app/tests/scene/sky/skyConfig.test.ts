@@ -18,8 +18,5 @@ describe('SKY_STARS', () => {
     const v = SKY_STARS.get();
     expect(v.ENABLED).toBe(true);
     expect(v.DENSITY).toBeCloseTo(0.0075);
-    expect(v.TWINKLE_ENABLED).toBe(true);
-    expect(v.TWINKLE_SPEED).toBe(0.5);
-    expect(v.TWINKLE_AMPLITUDE).toBe(1.0);
   });
 });

@@ -48,6 +48,11 @@ const ICOSAHEDRON_DETAIL = 3;
 const STAR_SIZE = 0.15;
 // Per-star intensity added on top of the sky color.
 const STAR_BRIGHTNESS = 1.2;
+// Twinkle: 1.0 = on (float uniform, not bool), speed multiplier on
+// uTime, and amplitude (0 = no flicker, 1 = fully on/off).
+const TWINKLE_ENABLED = 1.0;
+const TWINKLE_SPEED = 0.5;
+const TWINKLE_AMPLITUDE = 1.0;
 
 export interface Sky {
   mesh: THREE.Mesh;
@@ -104,9 +109,9 @@ export function createSky(): Sky {
       uStarDensity: { value: stars.DENSITY },
       uStarSize: { value: STAR_SIZE },
       uStarBrightness: { value: STAR_BRIGHTNESS },
-      uTwinkleEnabled: { value: stars.TWINKLE_ENABLED ? 1.0 : 0.0 },
-      uTwinkleSpeed: { value: stars.TWINKLE_SPEED },
-      uTwinkleAmplitude: { value: stars.TWINKLE_AMPLITUDE },
+      uTwinkleEnabled: { value: TWINKLE_ENABLED },
+      uTwinkleSpeed: { value: TWINKLE_SPEED },
+      uTwinkleAmplitude: { value: TWINKLE_AMPLITUDE },
     },
   });
   setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, sky.COLOR);
@@ -124,9 +129,6 @@ export function createSky(): Sky {
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;
-    material.uniforms.uTwinkleEnabled.value = s.TWINKLE_ENABLED ? 1.0 : 0.0;
-    material.uniforms.uTwinkleSpeed.value = s.TWINKLE_SPEED;
-    material.uniforms.uTwinkleAmplitude.value = s.TWINKLE_AMPLITUDE;
   }
 
   function tick(dtSeconds: number): void {
