@@ -31,15 +31,15 @@ describe('buildLabelAtlas', () => {
   });
 
   it('paginates when one page would overflow', () => {
-    // Generate enough labels to force at least 2 pages. Each label is
-    // 64+32 = 96px tall; ATLAS_HEIGHT_MAX is 8192, so ~85 rows fit per page.
-    // Labels are 22-25 chars total (`'x'.repeat(20)` + `-${i}` for i=0..N-1).
-    // jsdom's measureText returns ~32px per char at 64px font → average
-    // ~770px wide. Atlas page is ~8192px wide → ~10 per row × 85 rows =
-    // ~850 capacity per page. 1100 was confirmed empirically to force >1
-    // page; the arithmetic above is approximate (jsdom rendering can shift)
-    // so don't trust it blindly if tweaking.
-    const wide = Array.from({ length: 1100 }, (_, i) => `${'x'.repeat(20)}-${i}`);
+    // Generate enough labels to force >1 page but stay well under MAX_PAGES
+    // (16) so no truncation/overflow kicks in. Atlas uses hardcoded
+    // FONT_SIZE_PX = 192 and CANVAS_PADDING_FRAC = 0.25, so each label is
+    // 192 + 2×48 = 288px tall. ATLAS_HEIGHT_MAX is 8192 → ~28 rows per page.
+    // Labels are 22-25 chars wide; jsdom measureText at 192px ≈ 2.3k px/row →
+    // ~3 per row × 28 rows = ~84 capacity per page. 200 labels force ~3 pages,
+    // comfortably below the MAX_PAGES × per-page ceiling (~1344). Empirical
+    // arithmetic — if jsdom canvas measurement shifts in CI, recalibrate.
+    const wide = Array.from({ length: 200 }, (_, i) => `${'x'.repeat(20)}-${i}`);
     const result = buildLabelAtlas(wide, TYPOGRAPHY);
     expect(result.pages.length).toBeGreaterThan(1);
     // Every label must have a rect on a real page.
