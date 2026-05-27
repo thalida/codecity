@@ -103,7 +103,9 @@ describe('subgroup group reset button', () => {
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
     let foundHidden = false;
     for (const sg of subgroups) {
-      const resetBtn = sg.querySelector<HTMLButtonElement>(':scope > summary > .controls-subgroup-reset');
+      const resetBtn = sg.querySelector<HTMLButtonElement>(
+        ':scope > summary > .controls-subgroup-reset'
+      );
       if (resetBtn && resetBtn.style.display === 'none') {
         foundHidden = true;
         break;
@@ -119,7 +121,9 @@ describe('subgroup group reset button', () => {
     const { pane } = buildControlsPane();
     const subgroup = pane.querySelector<HTMLDetailsElement>('details.theme-subgroup-collapsible');
     expect(subgroup).not.toBeNull();
-    const resetBtn = subgroup!.querySelector<HTMLButtonElement>(':scope > summary > .controls-subgroup-reset');
+    const resetBtn = subgroup!.querySelector<HTMLButtonElement>(
+      ':scope > summary > .controls-subgroup-reset'
+    );
     expect(resetBtn).not.toBeNull();
     // No drafts have been staged → no row differs from default → group reset is disabled.
     expect(resetBtn!.disabled).toBe(true);

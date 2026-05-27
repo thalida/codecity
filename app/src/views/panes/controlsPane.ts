@@ -995,12 +995,16 @@ function _buildBuildingsSection(): HTMLElement {
         _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _collapsibleSubgroup('selection-fade-level-2-plus', 'Level 2+ — cousins, deeper subtrees', () => [
-        _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
-        _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
-        _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-        _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
-      ]),
+      _collapsibleSubgroup(
+        'selection-fade-level-2-plus',
+        'Level 2+ — cousins, deeper subtrees',
+        () => [
+          _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
+          _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
+          _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+          _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+        ]
+      ),
     ])
   );
 
