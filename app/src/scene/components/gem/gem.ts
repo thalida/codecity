@@ -18,7 +18,7 @@ import type { Street } from '@/types';
 
 // Procedural glow texture: a single-channel radial gradient drawn on a
 // canvas, used as the alpha map for the gem's sprite halo. Cached at
-// module scope so a second gem build (live-reload manifest swap) reuses
+// module scope so a second gem build (manifest swap on rebuild) reuses
 // the same GPU texture rather than allocating a fresh one each time.
 //
 // Returns null when the host environment can't build a real gradient
@@ -208,7 +208,7 @@ export function createRootGem(street: Street): THREE.Group {
   // shifts depending on whether the glow sprites are also children.
   gem.userData.body = body;
   gem.userData.edges = edges;
-  // Glow sprite refs for hot-reload (applyTheme) and per-frame color
+  // Glow sprite refs for applyTheme() on Save and per-frame color
   // cycling. Either may be null when the host can't build a gradient
   // texture (jsdom test env).
   gem.userData.innerGlowSprite = innerGlowSprite;

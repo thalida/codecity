@@ -3,7 +3,7 @@
 // Owns the singleton ShaderMaterial used by every cell's detail mesh
 // (scene/instanced/buildingsCell.ts attaches per-cell instance buffers to a
 // new InstancedMesh that references this material). Also owns the icon
-// atlas reference and the refresh hook that re-applies live-tunable
+// atlas reference and the refresh hook that re-applies Save-committed
 // uniforms on config-store changes.
 
 import * as THREE from 'three';
@@ -38,7 +38,7 @@ import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
 
 // Lazy singleton material — created once and reused across all cells.
-// applyManifest can be called multiple times (hot-reload); the singleton
+// applyManifest can be called multiple times (e.g. on Save-triggered rebuild); the singleton
 // pattern ensures we don't accumulate materials on each rebuild.
 let _sharedMaterial: THREE.ShaderMaterial | null = null;
 
@@ -80,7 +80,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
     transparent: true,
     uniforms: {
       // Hidden-tier wireframe thickness in screen-pixels. Updated by
-      // refreshBuildingMaterial() on hot-reload.
+      // refreshBuildingMaterial() on Save via applyTheme().
       uOutlineWidth: { value: BUILDING_OUTLINE.get().WIDTH },
       // Atlas of file-type icons; sampled per-instance via iIconUV for
       // the roof face. Null until the atlas builds — the shader gates
@@ -129,7 +129,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // Procedural facade geometry (FACADE_GEOMETRY store). Seeded from
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
-      // hot-reload. Only the shader-side keys appear here — the JS-side
+      // Save via applyTheme(). Only the shader-side keys appear here — the JS-side
       // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
       // bake into per-instance attributes in buildBuildingInstanceBuffer above.
       uSlabHeightFrac: { value: FACADE_GEOMETRY.get().SLAB_HEIGHT_FRAC },

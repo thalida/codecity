@@ -1,12 +1,12 @@
 // config/street.js — Everything visual + layout-y about a street: asphalt,
 // sidewalks, road labels, the neon path line, and how streets are sized +
-// packed (tiers + gaps). Asphalt color + sidewalk variants are hot-reloadable;
-// label typography + tiers + gaps are rebuild-required.
+// packed (tiers + gaps). Asphalt color + sidewalk variants are applied on Save
+// via applyTheme(); label typography + tiers + gaps are rebuild-required.
 
 import { atom, map } from 'nanostores';
 
 // ─── Asphalt (the inner stripe of every street) ──────────────────────────
-// COLOR is hot-reloadable. Width and length are derived: width = street
+// COLOR is applied on Save via applyTheme(). Width and length are derived: width = street
 // width × WIDTH_FRAC; length is whatever keeps the asphalt cap circle
 // concentric with the sidewalk cap circle (length - 2 × sidewalkStrip).
 // Both are designer constants — not surfaced as UI controls because they
@@ -23,7 +23,7 @@ export const ASPHALT = map<AsphaltConfig>({
 
 // ─── Sidewalk tints ────────────────────────────────────────────────────────
 // DEFAULT is the resting tint; HOVER / SELECTED are state-driven recolors
-// (cursor, current selection). All hot-reloadable. Lineage from the root
+// (cursor, current selection). All applied on Save via applyTheme(). Lineage from the root
 // gem to the current selection is shown only by the neon path line — no
 // sidewalk recolor for path streets.
 export interface SidewalkColorsConfig {
@@ -39,10 +39,10 @@ export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
 });
 
 // ─── Street label typography ──────────────────────────────────────────────
-// Names painted along each road. COLORS (FILL, STROKE) are hot-reloadable
-// but the label TEXTURE is regenerated on change. SIZING / FONT changes
+// Names painted along each road. COLORS (FILL, STROKE) are applied on Save
+// via applyTheme() but the label TEXTURE is regenerated on change. SIZING / FONT changes
 // are rebuild-required since the canvas dims depend on them.
-//   FLIP_HYSTERESIS is hot-reloadable: it's the camera-orbit dead zone
+//   FLIP_HYSTERESIS is applied on Save via applyTheme(): it's the camera-orbit dead zone
 //   before labels rotate 180° to stay readable.
 //   MIN_SCALE caps how aggressively a too-long label can be shrunk to fit
 //   its street before we fall back to truncating with an ellipsis.

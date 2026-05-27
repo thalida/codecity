@@ -1295,7 +1295,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     /**
      * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
-     * can call sky.refresh() on hot-reload and the render loop can call
+     * can call sky.refresh() on Save (via applyTheme()) and the render loop can call
      * sky.tick(dtSeconds) each frame.
      */
     getSky(): Sky {
@@ -1304,7 +1304,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     /**
      * Floating repo-name label reference. Exposed so main.ts's
-     * applyTheme() can call repoLabel.refresh() on hot-reload and the
+     * applyTheme() can call repoLabel.refresh() on Save and the
      * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
      */
     getRepoLabel(): RepoLabel {
@@ -1314,7 +1314,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley floating island reference. The island is
      * world-anchored at the gem; this is exposed for applyTheme()
-     * (hot-reload refresh) and any future external access.
+     * (applyTheme() on Save) and any future external access.
      */
     getIsland(): Island {
       return _island;

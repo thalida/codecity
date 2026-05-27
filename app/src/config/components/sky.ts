@@ -1,6 +1,6 @@
 // config/sky.ts — Cyberpunk Valley sky configuration. Two nanostore
 // map()s drive the procedural sky shader's uniforms via the
-// hot-reloadable `applyTheme()` path.
+// `applyTheme()` path — applied on Save (see configCommitReactions.ts).
 //
 //   SKY       — flat backdrop. COLOR fills the entire sphere — the
 //                world floor mesh handles real ground, so past its

@@ -8,11 +8,11 @@
 //   label.setRepoName(manifest.tree.name);
 //   label.setAnchor(gemWorldPos);
 //   label.tick(dt, camera);              // every frame
-//   label.refresh();                     // on applyTheme() hot-reload
+//   label.refresh();                     // on applyTheme() — called on Save
 //   label.dispose();                     // on world teardown
 //
 // Sizing:
-//   panel height = REPO_LABEL.FONT_SIZE world units (live-tunable)
+//   panel height = REPO_LABEL.FONT_SIZE world units (applied on Save)
 //   panel width  = FONT_SIZE × textureAspect (text-content-driven,
 //                  so long repo names get proportionally wider panels
 //                  rather than squished text)

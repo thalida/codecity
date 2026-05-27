@@ -37,7 +37,7 @@ flat varying vec4 vIconUV;
 flat varying float vModifiedAge; // 0=most recently modified, 1=longest-untouched. Drives lit-window count + HDR emission via recencyCurve.
 
 // Hidden-tier wireframe thickness in screen-pixels. Sourced from
-// BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on hot-reload.
+// BUILDING_OUTLINE.WIDTH; refreshed via refreshBuildingMaterial() on Save via applyTheme().
 uniform float uOutlineWidth;
 
 // File-icon atlas + UV size of one slot in atlas-UV units. Sampled in

@@ -1318,7 +1318,7 @@ function _buildDebugSection(
 // ─── Sticky bottom action bar ──────────────────────────────────────────────
 // Three-button bar: Reset all (left) | Discard · Save (right).
 // Widgets write to the draft layer; Save commits to stores (triggering
-// the existing persist + hot-reload subscriptions). Discard drops pending
+// the existing persist + commit-reaction subscriptions). Discard drops pending
 // drafts without touching stores. Reset all stages every overridden value
 // back to its default — user still must Save to apply.
 function _buildActionsSection(): HTMLElement {

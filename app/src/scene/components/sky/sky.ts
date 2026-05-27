@@ -5,7 +5,7 @@
 // entire sphere (the world floor mesh handles real ground), plus a
 // hashed star field across the full sphere with sine twinkle. Every
 // dial lives in two nanostore configs (SKY, SKY_STARS) and is
-// hot-reloadable via the existing applyTheme() path — sky.refresh()
+// applied on Save via the existing applyTheme() path — sky.refresh()
 // pulls fresh values into uniforms with no rebuild.
 //
 // Lifecycle (matches the other createX factories under app/scene/):
@@ -13,7 +13,7 @@
 //   const sky = createSky();
 //   scene.add(sky.mesh);          // once, at world boot
 //   sky.tick(elapsedSeconds);     // each frame, before render
-//   sky.refresh();                // on every applyTheme() hot-reload
+//   sky.refresh();                // on every applyTheme() — called on Save
 //   sky.dispose();                // on world teardown
 //
 // Render order: RENDER_ORDERS.SKY (-1000), depthWrite:false,

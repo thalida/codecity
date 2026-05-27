@@ -7,7 +7,7 @@
 //   const placements = placeBushes(layout, bbox, { cityHeight });
 //   const bushes = createBushes(placements);
 //   scene.add(bushes.group);
-//   bushes.refresh();   // on applyTheme() hot-reload
+//   bushes.refresh();   // on applyTheme() — called on Save
 //   bushes.dispose();   // on rebuild / scene teardown
 
 import { createBushRenderer, type Bushes } from './bushRenderer.js';

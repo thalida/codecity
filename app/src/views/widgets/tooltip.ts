@@ -10,7 +10,7 @@ import { DOM_IDS } from '@/constants';
 let _el: HTMLElement | null = null;
 
 function _ensure(): HTMLElement {
-  // Re-create if the element was removed (test teardown, hot-reload, etc.)
+  // Re-create if the element was removed (test teardown, HMR, etc.)
   if (_el && _el.isConnected) return _el;
   _el = document.createElement('div');
   _el.id = DOM_IDS.HOVER_TOOLTIP;

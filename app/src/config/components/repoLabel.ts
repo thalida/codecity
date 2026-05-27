@@ -1,6 +1,6 @@
 // config/components/repoLabel.ts — Floating repo-name label configuration.
 // One nanostore drives the createRepoLabel() factory's transform uniforms
-// via the hot-reloadable applyTheme() path.
+// via applyTheme() on Save — see configCommitReactions.ts.
 //
 //   ENABLED         — master visibility toggle. Hides the group without
 //                     disposing geometry.

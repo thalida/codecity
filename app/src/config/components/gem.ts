@@ -1,6 +1,6 @@
 // config/gem.js — Root-of-repo gem: sizing (rebuild-required), face palette
-// (hot-reloadable via vertex color buffer rewrite), edge color (hot-reloadable),
-// and animation tuning (hot-reloadable, read fresh per frame).
+// (applied on Save via vertex color buffer rewrite), edge color (applied on Save via applyTheme()),
+// and animation tuning (applied on Save via applyTheme(); read fresh per frame).
 
 import { map, atom } from 'nanostores';
 // (atom kept for GEM_FACE_PALETTE — the others moved into the GEM_APPEARANCE
@@ -29,7 +29,7 @@ export const GEM_SIZING = map<GemSizingConfig>({
 // ─── Face palette ──────────────────────────────────────────────────────────
 // 8 vivid faces in a prismatic palette, spaced around the color wheel so
 // no face blends with nearby building colors. Each entry is [r, g, b] in
-// 0–1 range. Hot-reloadable.
+// 0–1 range. Applied on Save via applyTheme().
 /** RGB triple in 0–1 range. */
 export type RgbTriple = [number, number, number];
 
@@ -47,7 +47,7 @@ export const GEM_FACE_PALETTE = atom<RgbTriple[]>([
 // ─── Appearance ────────────────────────────────────────────────────────────
 // Edge color = neutral separator line drawn around the faces. Body opacity
 // keeps the gem semi-transparent so the colored faces have a jewel-like
-// quality (fully opaque feels like a plastic toy). Both hot-reloadable.
+// quality (fully opaque feels like a plastic toy). Both applied on Save via applyTheme().
 export interface GemAppearanceConfig {
   EDGE_COLOR: string;
   BODY_OPACITY: number;
@@ -62,7 +62,7 @@ export const GEM_APPEARANCE = map<GemAppearanceConfig>({
 // Two billboarded sprite layers behind the gem, each painted with a
 // soft radial-gradient alpha and additively blended. Sizes are
 // multiples of the gem radius so the halo scales with the gem itself.
-// All live/hot-reloadable.
+// All applied on Save via applyTheme().
 export interface GemGlowConfig {
   ENABLED: boolean;
   INNER_SCALE: number;

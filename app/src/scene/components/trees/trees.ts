@@ -7,7 +7,7 @@
 //   const placements = await placementClient.compute(layout, bbox, commitCount, cityHeight);
 //   const trees = createTrees(placements, manifest.commits);
 //   scene.add(trees.group);
-//   trees.refresh();   // on applyTheme() hot-reload
+//   trees.refresh();   // on applyTheme() — called on Save
 //   trees.dispose();   // on rebuild / scene teardown
 
 import { createTreeRenderer, type Trees } from './treeRenderer.js';

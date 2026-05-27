@@ -160,7 +160,7 @@ if (_canvas) {
       } catch (err) {
         initialError = err instanceof Error ? err.message : String(err);
         // If we never constructed a renderer, do it with EMPTY now so the
-        // rest of main.ts (picker, hot reload, live updates) has a valid
+        // rest of main.ts (picker, Save-commit reactions) has a valid
         // handle to work against.
         if (handle === null) {
           handle = await startRenderLoop(_canvas, EMPTY_MANIFEST);

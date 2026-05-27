@@ -1,7 +1,7 @@
 // config/drafts.ts — in-memory draft layer between the controls panel
 // and the real nanostores. Widgets read getEffective() and write
 // setDraft(); the Save button calls commit() to flush every draft into
-// its store (which triggers the existing persist + hot-reload
+// its store (which triggers the existing persist + commit-reaction
 // subscriptions). Discard clears drafts without touching stores. Page
 // reload drops drafts (in-memory only — the standard "unsaved changes"
 // pattern).

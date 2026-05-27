@@ -2,7 +2,7 @@
 // palette, outline, and selection-driven fade tiers.
 //
 // DIMENSIONS + PALETTE changes are rebuild-required (regenerate per-building
-// geometry / facade textures). OUTLINE + FADE are hot-reloadable.
+// geometry / facade textures). OUTLINE + FADE are applied on Save via applyTheme().
 
 import { map } from 'nanostores';
 import { FadeDetail } from '@/types';
@@ -236,7 +236,7 @@ export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
 //           for the oldest building. Direction is hashed per-instance
 //           so the lean is stable but city-wide varied.
 //
-// Both are hot-reloadable; refreshBuildingMaterial pushes the values
+// Both are applied on Save via applyTheme(); refreshBuildingMaterial pushes the values
 // into the building shader's uniforms.
 export interface BuildingAgingConfig {
   GRIME_ENABLED: boolean;
@@ -274,7 +274,7 @@ export const BUILDING_AGING = map<BuildingAgingConfig>({
 // (full detail, default body + outline opacity) regardless of which tier
 // it would otherwise sit in — hover acts as a "preview the selection" state.
 //
-// All hot-reloadable.
+// All applied on Save via applyTheme().
 export interface BuildingFadeConfig {
   DEFAULT_DETAIL: FadeDetail;
   DEFAULT_OUTLINE: boolean;
