@@ -8,11 +8,13 @@
 //   label.setRepoName(manifest.tree.name);
 //   label.setAnchor(gemWorldPos);
 //   label.tick(dt, camera);              // every frame
-//   label.refresh();                     // on applyTheme() hot-reload
+//   label.refresh();                     // on applyTheme() — called on Save
 //   label.dispose();                     // on world teardown
 //
 // Sizing:
-//   panel height = REPO_LABEL.FONT_SIZE world units (live-tunable)
+//   panel height = REPO_LABEL.FONT_SIZE world units (applied on Save)
+//   panel bottom = REPO_LABEL.HEIGHT_PCT % of max building height above
+//                  the anchor (HEIGHT_PCT is the primary positioning key)
 //   panel width  = FONT_SIZE × textureAspect (text-content-driven,
 //                  so long repo names get proportionally wider panels
 //                  rather than squished text)
@@ -26,6 +28,7 @@
 
 import * as THREE from 'three';
 
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
 import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { RENDER_ORDERS } from '@/constants';
 
@@ -100,7 +103,7 @@ export function createRepoLabel(): RepoLabel {
   let beamMat: THREE.ShaderMaterial | null = null;
 
   // Anchor state — the floor-level point the label rises from (the gem's
-  // base x/z). Cached so refresh() can re-apply HEIGHT / FONT_SIZE
+  // base x/z). Cached so refresh() can re-apply HEIGHT_PCT / FONT_SIZE
   // changes without the caller having to pass the anchor again.
   let anchorX = 0;
   let anchorY = 0;
@@ -114,7 +117,7 @@ export function createRepoLabel(): RepoLabel {
   // _updateBeamGeometry recomputes the beam's scale + position so its
   // top sits at the panel bottom and its bottom sits at the gem's
   // current world Y (or, if no gem is set, at the fallback inset above
-  // the anchor). Called from _applyTransform (for HEIGHT / FONT_SIZE
+  // the anchor). Called from _applyTransform (for HEIGHT_PCT / FONT_SIZE
   // changes) AND from tick() each frame (so the beam follows the gem's
   // bob animation).
   function _updateBeamGeometry(): void {
@@ -123,8 +126,12 @@ export function createRepoLabel(): RepoLabel {
     const halfFont = cfg.FONT_SIZE / 2;
     const beamRadius = cfg.FONT_SIZE * BEAM_RADIUS_FRAC;
 
-    const groupWorldY = anchorY + cfg.HEIGHT + halfFont;
-    const beamTopWorld = anchorY + cfg.HEIGHT; // = panel bottom
+    const dims = BUILDING_DIMENSIONS.get();
+    const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
+    const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
+
+    const groupWorldY = anchorY + heightWorld + halfFont;
+    const beamTopWorld = anchorY + heightWorld; // = panel bottom
     const beamBottomWorld = gemRef ? gemRef.position.y : anchorY + BEAM_FOOT_FALLBACK;
     const beamLength = Math.max(0, beamTopWorld - beamBottomWorld);
 
@@ -138,9 +145,12 @@ export function createRepoLabel(): RepoLabel {
   function _applyTransform(): void {
     const cfg = REPO_LABEL.get();
     const halfFont = cfg.FONT_SIZE / 2;
-    // Group origin = panel center. Panel bottom = HEIGHT above the
-    // anchor (floor). So panel center = anchor.y + HEIGHT + halfFont.
-    group.position.set(anchorX, anchorY + cfg.HEIGHT + halfFont, anchorZ);
+    const dims = BUILDING_DIMENSIONS.get();
+    const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
+    const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
+    // Group origin = panel center. Panel bottom = heightWorld above the
+    // anchor (floor). So panel center = anchor.y + heightWorld + halfFont.
+    group.position.set(anchorX, anchorY + heightWorld + halfFont, anchorZ);
     group.visible = cfg.ENABLED;
 
     if (panelMesh) {

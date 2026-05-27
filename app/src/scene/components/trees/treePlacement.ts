@@ -33,7 +33,7 @@ import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry.
 import { islandSeedFromBounds } from '../island/islandMesh.js';
 import { StreetAxis } from '@/types';
 import { gemAnchorXZ } from '../../utils/gemAnchor.js';
-import type { Building, BuildingPath, CityBbox, CityLayout, Street } from '@/types';
+import type { Building, CityBbox, CityLayout, Street } from '@/types';
 import type { IslandGeometryConfig } from '@/config/components/island.js';
 
 interface Rect {
@@ -104,15 +104,6 @@ function bboxOfBuilding(b: Building): Rect {
   };
 }
 
-function bboxOfPath(p: BuildingPath): Rect {
-  return {
-    minX: p.x - p.w / 2,
-    minY: p.y - p.d / 2,
-    maxX: p.x + p.w / 2,
-    maxY: p.y + p.d / 2,
-  };
-}
-
 function bboxOfStreet(s: Street): Rect {
   const halfLen = s.length / 2;
   const halfWid = s.width / 2;
@@ -173,7 +164,6 @@ export function placeTrees(
   });
   for (const b of layout.buildings) rects.push(inflate(bboxOfBuilding(b)));
   for (const s of layout.streets) rects.push(inflate(bboxOfStreet(s)));
-  for (const p of layout.paths) rects.push(inflate(bboxOfPath(p)));
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 

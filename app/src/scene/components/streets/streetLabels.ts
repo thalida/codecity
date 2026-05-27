@@ -8,7 +8,7 @@
 // Fit policy: labels would otherwise size purely from street width and
 // the text's aspect ratio, so a long directory name on a narrow/short
 // street overflows past the road ends. We shrink uniformly to fit, and
-// once we'd have to go below MIN_SCALE we truncate the text with an
+// once we'd have to go below LABEL_MIN_SCALE we truncate the text with an
 // ellipsis instead — readability over geometric correctness.
 //
 // Each returned Group wraps one label plane and exposes its orientation
@@ -20,6 +20,15 @@ import { ASPHALT, LABEL_TYPOGRAPHY } from '@/config/components/streets.js';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';
+
+// Hardcoded label constants — these were previously in LABEL_TYPOGRAPHY but
+// have no visible effect at normal viewing distances, so they are baked in
+// here rather than exposed as UI controls.
+const LABEL_FONT_SIZE_PX = 192; // source canvas font size; only affects texture sharpness, not world-space label size
+const LABEL_CANVAS_PADDING_FRAC = 0.25; // padding around glyphs as a fraction of LABEL_FONT_SIZE_PX
+const LABEL_MIN_SCALE = 0.5; // floor for fit-shrink before truncation with ellipsis
+const LABEL_SPACING_MULT = 8.0; // repeat spacing = label width × this
+const LABEL_SPACING_FLOOR = 256; // …or this floor (world units), whichever is larger
 
 // Label canvas drawing internals — must stay 'center'/'middle' for the
 // centered draw math, and label texture filtering anisotropy.
@@ -36,12 +45,12 @@ function _buildLabelTexture(
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
   const label = LABEL_TYPOGRAPHY.get();
-  const fontSpec = `${label.FONT_WEIGHT} ${label.FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
+  const fontSpec = `${label.FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
-  const paddingPx = Math.round(label.FONT_SIZE_PX * label.CANVAS_PADDING_FRAC);
-  const strokeWidthPx = Math.round(label.FONT_SIZE_PX * label.STROKE_WIDTH_FRAC);
-  const canvasH = label.FONT_SIZE_PX + paddingPx * 2;
+  const paddingPx = Math.round(LABEL_FONT_SIZE_PX * LABEL_CANVAS_PADDING_FRAC);
+  const strokeWidthPx = Math.round(LABEL_FONT_SIZE_PX * label.STROKE_WIDTH_FRAC);
+  const canvasH = LABEL_FONT_SIZE_PX + paddingPx * 2;
 
   let renderText = text;
   if (maxAspect !== undefined) {
@@ -116,7 +125,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
 
   // Natural sizing: height scales with street width, width follows from the
   // text's aspect ratio. Then fit to usableLength: shrink uniformly down to
-  // MIN_SCALE; below that, truncate with an ellipsis instead.
+  // LABEL_MIN_SCALE; below that, truncate with an ellipsis instead.
   const naturalHeight = street.width * label.HEIGHT_FRAC;
   let info = _buildLabelTexture(text);
   let worldH = naturalHeight;
@@ -124,7 +133,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
 
   if (worldW > usableLength) {
     const scaleToFit = usableLength / worldW;
-    const minScale = Math.max(0, Math.min(1, label.MIN_SCALE));
+    const minScale = Math.max(0, Math.min(1, LABEL_MIN_SCALE));
     if (scaleToFit >= minScale) {
       worldH = naturalHeight * scaleToFit;
       worldW = usableLength;
@@ -144,7 +153,7 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   // names ("codecity") don't pile up on wide streets while short names
   // ("src") still repeat often enough to always have one near the viewport.
   // A minimum floor keeps tiny labels from repeating every few units.
-  const spacing = Math.max(worldW * label.SPACING_MULT, label.SPACING_FLOOR);
+  const spacing = Math.max(worldW * LABEL_SPACING_MULT, LABEL_SPACING_FLOOR);
   const count = Math.max(1, Math.floor(street.length / spacing));
 
   const labels: THREE.Group[] = [];

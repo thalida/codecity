@@ -44,6 +44,9 @@ export interface SourcePayload {
   // dropdown below exposes a handful of presets but the field is
   // otherwise free-form if a caller wants to set it programmatically.
   gitWindow?: string;
+  /** When true, this open forces a fresh scan (server-side ?no_cache=1).
+   *  Not persisted — re-opening from a recent uses cached scan by default. */
+  skipCache?: boolean;
 }
 
 // Presets shown in the git tab's "History window" dropdown. The label
@@ -171,6 +174,17 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
               </select>
               <div class="modal-field-help">
                 Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
+              </div>
+            </div>
+
+            <div class="modal-field">
+              <label>
+                <input data-field="skip_cache" type="checkbox">
+                Skip cache (fresh scan)
+              </label>
+              <div class="modal-field-help">
+                Forces a full rescan, bypassing the file-stat and git-history
+                caches for this open. Slower but always accurate.
               </div>
             </div>
 
@@ -320,7 +334,10 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
     let gitWindow: string | undefined;
     const v = (root!.querySelector('[data-field="git_window"]') as HTMLSelectElement | null)?.value;
     if (v && v !== DEFAULT_GIT_WINDOW) gitWindow = v;
-    opts.onSubmit({ src, branch, gitWindow });
+    const skipCache = !!(
+      root!.querySelector('[data-field="skip_cache"]') as HTMLInputElement | null
+    )?.checked;
+    opts.onSubmit({ src, branch, gitWindow, skipCache: skipCache || undefined });
   }
 
   function focusActiveInput(): void {

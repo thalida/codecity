@@ -1,4 +1,4 @@
-// gem.ts — The root gem. A floating, slowly-spinning octahedron with
+// gem.ts — The root gem. A floating, slowly-spinning polyhedron with
 // per-face vertex colors and a two-layer additive sprite halo.
 //
 // One gem per scene: it marks the layout's root street as the "you are
@@ -18,7 +18,7 @@ import type { Street } from '@/types';
 
 // Procedural glow texture: a single-channel radial gradient drawn on a
 // canvas, used as the alpha map for the gem's sprite halo. Cached at
-// module scope so a second gem build (live-reload manifest swap) reuses
+// module scope so a second gem build (manifest swap on rebuild) reuses
 // the same GPU texture rather than allocating a fresh one each time.
 //
 // Returns null when the host environment can't build a real gradient
@@ -87,12 +87,43 @@ export function createRootGem(street: Street): THREE.Group {
   const gemX = anchor.x;
   const gemZ = anchor.y;
 
-  // ---- Gem: per-face colored octahedron -------------------------------------
-  const geo = new THREE.OctahedronGeometry(radius, 0);
-  const faces = GEM_FACE_PALETTE.get();
-  const colorAttr = new Float32Array(geo.attributes.position.count * 3);
-  for (let f = 0; f < faces.length; f++) {
-    const fc = faces[f];
+  // ---- Gem: per-face colored polyhedron -------------------------------------
+  const sides = GEM_SIZING.get().SIDES;
+  let geo: THREE.BufferGeometry;
+  switch (sides) {
+    case '4':
+      geo = new THREE.TetrahedronGeometry(radius, 0);
+      break;
+    case '20':
+      geo = new THREE.IcosahedronGeometry(radius, 0);
+      break;
+    case '8':
+    default:
+      geo = new THREE.OctahedronGeometry(radius, 0);
+      break;
+  }
+
+  const palette = GEM_FACE_PALETTE.get();
+  const paletteHexes = [
+    palette.FACE_1,
+    palette.FACE_2,
+    palette.FACE_3,
+    palette.FACE_4,
+    palette.FACE_5,
+    palette.FACE_6,
+    palette.FACE_7,
+    palette.FACE_8,
+  ];
+  const faceColors = paletteHexes.map((hex) => {
+    const c = new THREE.Color(hex);
+    return [c.r, c.g, c.b] as [number, number, number];
+  });
+
+  const vertexCount = geo.attributes.position.count;
+  const faceCount = vertexCount / 3; // each triangle = 3 vertices
+  const colorAttr = new Float32Array(vertexCount * 3);
+  for (let f = 0; f < faceCount; f++) {
+    const fc = faceColors[f % faceColors.length];
     for (let v = 0; v < 3; v++) {
       const idx = (f * 3 + v) * 3;
       colorAttr[idx] = fc[0];
@@ -208,7 +239,7 @@ export function createRootGem(street: Street): THREE.Group {
   // shifts depending on whether the glow sprites are also children.
   gem.userData.body = body;
   gem.userData.edges = edges;
-  // Glow sprite refs for hot-reload (applyTheme) and per-frame color
+  // Glow sprite refs for applyTheme() on Save and per-frame color
   // cycling. Either may be null when the host can't build a gradient
   // texture (jsdom test env).
   gem.userData.innerGlowSprite = innerGlowSprite;

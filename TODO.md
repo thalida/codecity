@@ -35,6 +35,7 @@
 - [x] fix alignment in file tree
 - [x] don't select when rotating the world
 - [x] media billboards as buildings w/ ads (width by file size and height by dimensions? duration?) same age / window considerations
+- [ ] Make Save commits cheaper for layout-affecting controls (currently every Save invalidates the layout cache → full worker recompute). Combined with the layoutV4 perf cost below, a Save on a Linux-kernel-scale repo blocks ~80s. Possible directions: debounce on commit, threshold-skip when N_files > X, or a partial-rebuild path.
 
 ## Agent Prompts ToDos
 
@@ -46,4 +47,6 @@ The cell-rendering branch (feat/large-repo-rendering) reduced Linux load time fr
 Suspect O(N²) loops in street collision detection or building rasterization (layoutV4 is ~920 lines with hierarchical street/stem placement). Don't touch the OUTPUT (positions, dimensions) — keep the algorithm's results bit-identical against the existing snapshot tests in app/tests/scene/layoutV4.test.ts and app/tests/scene/layoutV4-trace.test.ts. Only change implementation. The layout cache wrapper in app/scene/layoutClient.ts is fine as-is.
 
 Start by adding a single perf log inside layoutV4.ts that breaks down time per phase (tree walk / street placement / collision check / building dimension assignment / etc.) so we know what's actually slow before changing anything. Then bring me the perf breakdown and a proposed approach before refactoring.
+
+Note: the controls-cleanup PR (#39) made this path hotter — Save commits on layout-affecting Controls now force-invalidate the layout cache (commit 5abea57), so every Save on a large repo pays the full recompute cost. The fix was correct (Saves used to do nothing for these stores), but the perf bottleneck below is now user-facing on Save, not just on initial load.
 ```

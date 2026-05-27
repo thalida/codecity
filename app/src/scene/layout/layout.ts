@@ -17,7 +17,7 @@
 import { STREET_TIERS, BUILDING_DIMENSIONS, STREET_LAYOUT, GEM_SIZING } from '@/config/index.js';
 import type { StreetTier } from '@/config/components/streets.js';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
-import type { Building, BuildingPath, CityLayout, RangeStat, Street } from '@/types';
+import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path.js';
 import { isMediaFile } from '../components/adPanels/adPanels.js';
 import { WorldOccupancy, WorldRectKind } from './worldOccupancy.js';
@@ -120,15 +120,11 @@ function _bboxOfRects(rects: Rect[]): Rect {
 
 // _collectRects(layout) -> Rect[]
 //
-// Flatten a partial layout (streets + buildings + paths) into a single
-// rect list for occupancy testing. A Street with orientation X has its
-// long side on x and its short side on y; orientation Y is the inverse.
-// Buildings and paths already use { x, y, w, d } directly.
-function _collectRects(layout: {
-  streets?: Street[];
-  buildings?: Building[];
-  paths?: BuildingPath[];
-}): Rect[] {
+// Flatten a partial layout (streets + buildings) into a single rect list
+// for occupancy testing. A Street with orientation X has its long side on
+// x and its short side on y; orientation Y is the inverse. Buildings
+// already use { x, y, w, d } directly.
+function _collectRects(layout: { streets?: Street[]; buildings?: Building[] }): Rect[] {
   const out: Rect[] = [];
   if (layout.streets) {
     for (let i = 0; i < layout.streets.length; i++) {
@@ -144,12 +140,6 @@ function _collectRects(layout: {
     for (let i = 0; i < layout.buildings.length; i++) {
       const b = layout.buildings[i];
       out.push({ x: b.x, y: b.y, w: b.w, d: b.d });
-    }
-  }
-  if (layout.paths) {
-    for (let i = 0; i < layout.paths.length; i++) {
-      const p = layout.paths[i];
-      out.push({ x: p.x, y: p.y, w: p.w, d: p.d });
     }
   }
   return out;
@@ -667,14 +657,13 @@ export function translateRectsToWorld(
 }
 
 // SubtreeResult — what each _layoutDir call accumulates in its local frame.
-// Streets, buildings, and paths use the existing CityLayout shape (kind+ref
-// payload preserved). alongReach is the join-strip half-width the parent
-// street physically has to cover at the parent boundary.
+// Streets and buildings use the existing CityLayout shape (kind+ref payload
+// preserved). alongReach is the join-strip half-width the parent street
+// physically has to cover at the parent boundary.
 interface SubtreeResult {
   alongReach: number;
   streets: Street[];
   buildings: Building[];
-  paths: BuildingPath[];
 }
 
 // DirReaches — estimated final road length (alongReach) and perpendicular
@@ -716,14 +705,14 @@ export function estimateDirReaches(
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.get();
-  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
   const gemSizing = GEM_SIZING.get();
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
 
   // Padding chain — mirrors _layoutDir exactly so the estimate matches the
   // real placement's bounds.
   const myStreetWidth = _streetWidthForDir(dir);
-  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
@@ -762,7 +751,7 @@ export function estimateDirReaches(
     if (child.type === NodeKind.File) {
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       alongContrib = dim.w;
-      perpContrib = myStreetWidth / 2 + bldgPathLength + dim.d;
+      perpContrib = myStreetWidth / 2 + distFromRoad + dim.d;
     } else {
       const sub = estimateDirReaches(child as DirLike, lineStats, byteStats, myStreetWidth, cache);
       // A perpendicular subdir occupies 2*subdir.perpReach in the parent's
@@ -832,12 +821,11 @@ function _layoutDir(
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.get();
-  const bldgPathLength = bldgDims.PATH_LENGTH;
-  const pathWidthFrac = bldgDims.PATH_WIDTH_FRAC;
+  const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
 
   // ----- Padding chain -----
   const myStreetWidth = _streetWidthForDir(dir);
-  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
@@ -927,7 +915,7 @@ function _layoutDir(
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       const along = dim.w;
       const perpDepth = dim.d;
-      const perpCenter = myStreetWidth / 2 + bldgPathLength + perpDepth / 2;
+      const perpCenter = myStreetWidth / 2 + distFromRoad + perpDepth / 2;
       let bx: number, by: number, bw: number, bd: number;
       if (orientation === StreetAxis.X) {
         bx = 0;
@@ -940,25 +928,9 @@ function _layoutDir(
         bw = perpDepth;
         bd = along;
       }
-      let px: number, py: number, pw: number, pd: number;
-      if (orientation === StreetAxis.X) {
-        px = 0;
-        py = myStreetWidth / 2 + bldgPathLength / 2;
-        pw = bw * pathWidthFrac;
-        pd = bldgPathLength;
-      } else {
-        px = myStreetWidth / 2 + bldgPathLength / 2;
-        py = 0;
-        pw = bldgPathLength;
-        pd = bd * pathWidthFrac;
-      }
-
-      // Child-local rects: building + path. Used by placeChild for variant
+      // Child-local rects: building. Used by placeChild for variant
       // evaluation (collision testing against occupancy).
-      const childRects: Rect[] = [
-        { x: bx, y: by, w: bw, d: bd },
-        { x: px, y: py, w: pw, d: pd },
-      ];
+      const childRects: Rect[] = [{ x: bx, y: by, w: bw, d: bd }];
 
       // Pick the best (side, mirror, stem) variant.
       const variants: VariantTrace[] = [];
@@ -1002,15 +974,12 @@ function _layoutDir(
       // Translate child-local rects to world frame using chosen flips + stem.
       const { flipX, flipY } = computeFlips(orientation, placed.side, placed.mirror);
       const buildingLocal = applyFlips({ x: bx, y: by, w: bw, d: bd }, flipX, flipY);
-      const pathLocal = applyFlips({ x: px, y: py, w: pw, d: pd }, flipX, flipY);
 
       const stemAlong = placed.stem;
       const buildingWorldX =
         buildingLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
       const buildingWorldY =
         buildingLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
-      const pathWorldX = pathLocal.x + originX + (orientation === StreetAxis.X ? stemAlong : 0);
-      const pathWorldY = pathLocal.y + originY + (orientation === StreetAxis.Y ? stemAlong : 0);
 
       // Door orientation: side 0 maps to the flipped perp position
       // (flipY=true for X-orient, flipX=true for Y-orient); the door points
@@ -1021,11 +990,11 @@ function _layoutDir(
       } else {
         orient = placed.side === 0 ? BuildingOrient.East : BuildingOrient.West;
       }
-      // For mirror-invariant rect lists (files always are — paths and
-      // buildings are centered on the stem along the parent's along axis),
-      // placeChild will never pick mirror=true (the tiebreak prefers
-      // non-mirror), so this branch is a no-op in practice. Kept defensively
-      // in case a future caller passes a non-symmetric file rect.
+      // For mirror-invariant rect lists (files always are — buildings are
+      // centered on the stem along the parent's along axis), placeChild will
+      // never pick mirror=true (the tiebreak prefers non-mirror), so this
+      // branch is a no-op in practice. Kept defensively in case a future
+      // caller passes a non-symmetric file rect.
       if (placed.mirror) orient = _mirrorOrient(orient, flipX, flipY);
 
       const buildingRect: Building = {
@@ -1039,16 +1008,8 @@ function _layoutDir(
         color: null as unknown as string,
         orient,
       };
-      const pathRect: BuildingPath = {
-        x: pathWorldX,
-        y: pathWorldY,
-        w: pathLocal.w,
-        d: pathLocal.d,
-        file: child as unknown as BuildingPath['file'],
-      };
 
       result.buildings.push(buildingRect);
-      result.paths.push(pathRect);
       const buildingWorldRect: WorldRect = {
         minX: buildingWorldX - buildingLocal.w / 2,
         minY: buildingWorldY - buildingLocal.d / 2,
@@ -1058,15 +1019,6 @@ function _layoutDir(
         ref: buildingRect,
       };
       occupancy.insert(buildingWorldRect);
-      const pathWorldRect: WorldRect = {
-        minX: pathWorldX - pathLocal.w / 2,
-        minY: pathWorldY - pathLocal.d / 2,
-        maxX: pathWorldX + pathLocal.w / 2,
-        maxY: pathWorldY + pathLocal.d / 2,
-        kind: WorldRectKind.Path,
-        ref: pathRect,
-      };
-      occupancy.insert(pathWorldRect);
 
       priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + along / 2;
@@ -1078,7 +1030,6 @@ function _layoutDir(
         alongReach: subStreetWidth / 2,
         streets: [],
         buildings: [],
-        paths: [],
       };
       const localOccupancy = new WorldOccupancy();
       // Pass THIS dir's pre-computed final alongReach as the child's
@@ -1113,9 +1064,6 @@ function _layoutDir(
       }
       for (const b of childResult.buildings) {
         childRects.push({ x: b.x, y: b.y, w: b.w, d: b.d });
-      }
-      for (const p of childResult.paths) {
-        childRects.push({ x: p.x, y: p.y, w: p.w, d: p.d });
       }
 
       // Pick variant against the parent's occupancy.
@@ -1211,25 +1159,6 @@ function _layoutDir(
         };
         occupancy.insert(buildingWorldRect);
       }
-      for (const p of childResult.paths) {
-        const worldPath: BuildingPath = {
-          x: (flipX ? -p.x : p.x) + subAnchorX,
-          y: (flipY ? -p.y : p.y) + subAnchorY,
-          w: p.w,
-          d: p.d,
-          file: p.file,
-        };
-        result.paths.push(worldPath);
-        const pathWorldRect: WorldRect = {
-          minX: worldPath.x - p.w / 2,
-          minY: worldPath.y - p.d / 2,
-          maxX: worldPath.x + p.w / 2,
-          maxY: worldPath.y + p.d / 2,
-          kind: WorldRectKind.Path,
-          ref: worldPath,
-        };
-        occupancy.insert(pathWorldRect);
-      }
 
       priorStems[placed.side] = placed.stem;
       const boundaryHigh = placed.stem + childResult.alongReach;
@@ -1269,7 +1198,7 @@ function _layoutDir(
 }
 
 // -----------------------------------------------------------------------------
-// layoutCity(manifest) -> { streets, buildings, paths, lineStats, byteStats }
+// layoutCity(manifest) -> { streets, buildings, lineStats, byteStats }
 //
 // Top-level layout function. Walks the directory tree and produces a STREET
 // NETWORK in world coordinates: each directory becomes a street, files line
@@ -1281,7 +1210,6 @@ function _layoutDir(
 // Return shape:
 //   streets:   [{ x, y, length, width, orientation, label, dir }]
 //   buildings: [{ x, y, w, d, h, color, file, orient, hitBox: { x, y, w, h } }]
-//   paths:     [{ x, y, w, d }]
 //   lineStats / byteStats: per-project ranges used by getBuildingDimensions.
 //
 // `color` starts as null — the renderer must call getBuildingColor before drawing.
@@ -1308,7 +1236,6 @@ function _layoutCityInternal(
   const result: CityLayout = {
     streets: [],
     buildings: [],
-    paths: [],
     lineStats: { min: 1, max: 1 },
     byteStats: { min: 1, max: 1 },
   };
@@ -1322,7 +1249,6 @@ function _layoutCityInternal(
     alongReach: 0,
     streets: result.streets,
     buildings: result.buildings,
-    paths: result.paths,
   };
   // Bottom-up pre-pass: each dir's alongReach (final road length) is needed
   // when its children seed their phantoms with the exact parent body extent.
@@ -1500,8 +1426,8 @@ function _isStreetJoinPair(a: Street, b: Street): boolean {
 }
 
 // Layout overlap categories use the same kind values as WorldRect
-// (street / building / path), so reuse WorldRectKind instead of
-// defining a parallel union that could drift.
+// (street / building), so reuse WorldRectKind instead of defining a
+// parallel union that could drift.
 export type LayoutOverlapCategory = 't-junction' | 'unexpected';
 
 export interface LayoutOverlap {
@@ -1535,12 +1461,10 @@ function _intersectRect(a: Rect, b: Rect): Rect {
 export function findLayoutOverlaps(layout: {
   streets: Street[];
   buildings: Building[];
-  paths: BuildingPath[];
 }): LayoutOverlap[] {
   type Tagged =
     | { kind: WorldRectKind.Street; rect: Rect; label: string; ref: Street }
-    | { kind: WorldRectKind.Building; rect: Rect; label: string; ref: Building }
-    | { kind: WorldRectKind.Path; rect: Rect; label: string; ref: BuildingPath };
+    | { kind: WorldRectKind.Building; rect: Rect; label: string; ref: Building };
   const all: Tagged[] = [];
   for (const s of layout.streets) {
     const rect: Rect =
@@ -1560,14 +1484,6 @@ export function findLayoutOverlaps(layout: {
       rect: { x: b.x, y: b.y, w: b.w, d: b.d },
       label: b.file?.path ?? b.file?.name ?? '?',
       ref: b,
-    });
-  }
-  for (const p of layout.paths) {
-    all.push({
-      kind: WorldRectKind.Path,
-      rect: { x: p.x, y: p.y, w: p.w, d: p.d },
-      label: p.file?.path ?? p.file?.name ?? '?',
-      ref: p,
     });
   }
 

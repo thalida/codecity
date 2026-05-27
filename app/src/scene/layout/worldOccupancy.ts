@@ -4,7 +4,7 @@
 // frame.
 
 import RBush from 'rbush';
-import type { Building, BuildingPath, Street } from '@/types';
+import type { Building, Street } from '@/types';
 
 // Touches at edges (zero-area overlap) are NOT reported as overlap.
 const OVERLAP_EPS = 1e-9;
@@ -14,7 +14,6 @@ const OVERLAP_EPS = 1e-9;
 export enum WorldRectKind {
   Building = 'building',
   Street = 'street',
-  Path = 'path',
 }
 
 export interface WorldRect {
@@ -25,7 +24,7 @@ export interface WorldRect {
   maxY: number;
   // Payload — what kind of thing is this, what does it belong to.
   kind: WorldRectKind;
-  ref: Building | Street | BuildingPath;
+  ref: Building | Street;
 }
 
 export class WorldOccupancy {

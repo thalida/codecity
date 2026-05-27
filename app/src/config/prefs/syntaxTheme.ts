@@ -14,16 +14,29 @@ export interface SyntaxThemeOption {
 // Curated DARK theme list. All filenames verified against
 // node_modules/highlight.js/styles/ (highlight.js 11.11.1). Light themes
 // are intentionally not offered — codecity's UI is a dark theme and bright
-// code panels clash visually.
+// code panels clash visually. Alphabetized by display label.
 export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
-  { value: 'atom-one-dark', label: 'One Dark' },
-  { value: 'github-dark', label: 'GitHub Dark' },
-  { value: 'monokai', label: 'Monokai' },
-  { value: 'base16/dracula', label: 'Dracula' },
-  { value: 'nord', label: 'Nord' },
-  { value: 'night-owl', label: 'Night Owl' },
-  { value: 'tokyo-night-dark', label: 'Tokyo Night' },
   { value: 'a11y-dark', label: 'A11y Dark' },
+  { value: 'agate', label: 'Agate' },
+  { value: 'androidstudio', label: 'Android Studio' },
+  { value: 'cybertopia-cherry', label: 'Cybertopia Cherry' },
+  { value: 'cybertopia-icecap', label: 'Cybertopia Icecap' },
+  { value: 'base16/dracula', label: 'Dracula' },
+  { value: 'github-dark', label: 'GitHub Dark' },
+  { value: 'ir-black', label: 'IR Black' },
+  { value: 'monokai', label: 'Monokai' },
+  { value: 'monokai-sublime', label: 'Monokai Sublime' },
+  { value: 'night-owl', label: 'Night Owl' },
+  { value: 'nord', label: 'Nord' },
+  { value: 'obsidian', label: 'Obsidian' },
+  { value: 'atom-one-dark', label: 'One Dark' },
+  { value: 'rose-pine', label: 'Rosé Pine' },
+  { value: 'rose-pine-moon', label: 'Rosé Pine Moon' },
+  { value: 'shades-of-purple', label: 'Shades of Purple' },
+  { value: 'base16/solarized-dark', label: 'Solarized Dark' },
+  { value: 'stackoverflow-dark', label: 'Stack Overflow Dark' },
+  { value: 'tokyo-night-dark', label: 'Tokyo Night' },
+  { value: 'vs2015', label: 'VS 2015' },
 ];
 
 // Default matches the hand-rolled theme that was previously hardcoded in
@@ -32,3 +45,8 @@ export const SYNTAX_THEME_OPTIONS: SyntaxThemeOption[] = [
 // wins when cascade order is equal and these are the same specificity).
 export const SYNTAX_THEME_DEFAULT = 'atom-one-dark';
 export const SYNTAX_THEME = atom<string>(SYNTAX_THEME_DEFAULT);
+
+// Theme-picker writes directly to this atom (no draft layer — the CSS
+// link swaps instantly). stageResetAll() reads this flag and resets
+// directly too, so "Reset all" doesn't leave behind a phantom draft.
+(SYNTAX_THEME as unknown as { _skipDrafts?: boolean })._skipDrafts = true;

@@ -47,7 +47,6 @@ import type { WorldRect } from './layout/worldOccupancy.js';
 import { createRootGem } from './components/gem/gem.js';
 import { createStreetMesh } from './components/streets/streets.js';
 import { createStreetLabels } from './components/streets/streetLabels.js';
-import { createPathMesh } from './components/streets/streetPath.js';
 import { createSky } from './components/sky/sky.js';
 import type { Sky } from './components/sky/sky.js';
 import { createRepoLabel } from './components/repoLabel/repoLabel.js';
@@ -56,9 +55,6 @@ import { createTrees } from './components/trees/trees.js';
 import type { Trees } from './components/trees/trees.js';
 import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
 import type { TreePlacementClient } from './components/trees/treePlacementClient.js';
-import { createBushes } from './components/bushes/bushes.js';
-import type { Bushes } from './components/bushes/bushes.js';
-import { placeBushes } from './components/bushes/bushPlacement.js';
 import { createIsland } from './components/island/islandMesh.js';
 import type { Island } from './components/island/islandMesh.js';
 import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
@@ -71,7 +67,7 @@ import {
   getModifiedAge,
   getDateRanges,
 } from './components/buildings/buildingColor.js';
-import { parentDirPath } from './utils/path.js';
+import { SKY } from '@/config/components/sky.js';
 import {
   ASPHALT,
   GEM_APPEARANCE,
@@ -83,7 +79,6 @@ import {
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/config/index.js';
-import { BUSHES } from '@/config/components/bushes.js';
 import { REBUILD_STATUS } from '@/store/liveStatus.js';
 import type {
   Building,
@@ -105,7 +100,6 @@ import type {
 interface PrevState {
   streetPickables: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   streetLabels: THREE.Group[];
-  pathMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   asphaltMeshes: THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial>[];
   rootGem: THREE.Group | null;
   manifest: Manifest | null;
@@ -223,8 +217,8 @@ function _formatStemDiagnostic(trace: StemPlacementTrace): string[] {
 }
 
 function _obstacleLabel(o: WorldRect): string {
-  // WorldRect.ref is loosely typed (Building | Street | BuildingPath); try
-  // common shapes without forcing tight coupling.
+  // WorldRect.ref is loosely typed (Building | Street); try common
+  // shapes without forcing tight coupling.
   const r = o.ref as {
     file?: { path?: string; name?: string };
     label?: string;
@@ -247,32 +241,18 @@ export const __test = {
   _formatStemDiagnostic,
 };
 
-/**
- * Options for _buildWorld.
- *
- * skipBuildings — skip per-building scene work that is vestigial in cell
- * mode: per-building path-connector meshes (one per layout.paths entry).
- * Streets, sidewalks, street labels, the root gem, and asphalt are
- * always built regardless of this flag. The cell-rendering path sets
- * skipBuildings: true so a large repo doesn't pay for ~N_buildings path
- * meshes Three.js would otherwise frustum-cull every frame.
- */
-interface BuildCityOpts {
-  skipBuildings?: boolean;
-}
-
-// _buildWorld(layout, opts) — one-shot scene builder.
+// _buildWorld(layout) — one-shot scene builder.
 //
-// Composes the streets / street labels / connector paths / root gem
-// component factories into a fresh THREE.Scene and returns the lookup
-// tables createWorld needs to wire interaction + post-processing.
+// Composes the streets / street labels / root gem component factories
+// into a fresh THREE.Scene and returns the lookup tables createWorld
+// needs to wire interaction + post-processing.
 // Per-cell instanced building/label/adPanel meshes are NOT built here —
 // scene/layout/cellAssembly.ts handles those once the layout is in hand.
-function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
+function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+  scene.background = new THREE.Color(SKY.get().COLOR);
 
   // Streets + their labels
   const streets = layout.streets || [];
@@ -316,23 +296,6 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
     }
   }
 
-  // Per-building path-connector strips (door → sidewalk).
-  //
-  // Skipped when opts.skipBuildings is true (cell-rendering path): for
-  // a large repo this is one mesh per building (~100k for Linux), which
-  // would dominate scene.children and cause a multi-second stall in the
-  // scene.add() loop. Cell mode has no per-building interactivity that
-  // requires the connectors.
-  const pathMeshes: FlatMesh[] = [];
-  if (!opts.skipBuildings) {
-    const paths = layout.paths || [];
-    for (const path of paths) {
-      const pm = createPathMesh(path, 0);
-      scene.add(pm);
-      pathMeshes.push(pm);
-    }
-  }
-
   // Bounding box of the whole city (in scene coords). Caller uses it
   // to frame the camera. Empty fallback prevents NaN at boot when the
   // layout has zero meshes.
@@ -351,7 +314,6 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
     buildingMeshes,
     streetPickables,
     streetLabels,
-    pathMeshes,
     asphaltMeshes,
     rootGem,
     rootGemBody,
@@ -372,14 +334,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+  scene.background = new THREE.Color(SKY.get().COLOR);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the world. Not rebuilt per applyManifest
-  // (the sky is wallpaper, independent of the manifest tree). When
-  // SKY.ENABLED is false the mesh.visible flag is cleared
-  // by sky.refresh() and scene.background's GROUND color shows
-  // through as the fallback.
+  // (the sky is wallpaper, independent of the manifest tree). Always
+  // rendered — the icosphere is never hidden.
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
@@ -406,11 +366,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // fallback in test envs). One instance per world; disposed when
   // the world is disposed.
   const _treePlacementClient: TreePlacementClient = createTreePlacementClient();
-
-  // Cyberpunk Valley bushes — REBUILT per applyManifest (only when
-  // BUSHES.BUSHES_ENABLED is true). Decorative scatter independent of
-  // commits.
-  let _bushes: Bushes | null = null;
 
   // Cyberpunk Valley city footprint — REBUILT per applyManifest.
   // One InstancedMesh of inflated layout rects that composes into a
@@ -448,7 +403,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   let streetPickables: FlatMesh[] = [];
   let streetLabels: THREE.Group[] = [];
-  let pathMeshes: FlatMesh[] = [];
   let asphaltMeshes: FlatMesh[] = [];
   let rootGem: THREE.Group | null = null;
   // rootGem children expose `.material.{color,opacity}` directly to the
@@ -472,7 +426,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     string,
     { mesh: THREE.Mesh; building: Building; instanceId: number }
   > = {};
-  let pathMeshesByDirPath: Record<string, FlatMesh[]> = {};
 
   // Cell-rendering state — owns the InstancedMesh-per-cell scene root.
   let _cellRoot: THREE.Group | null = null;
@@ -510,13 +463,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // computeScenicConfigHash collects the current values of every store whose
   // output is baked into buildWorld meshes:
-  //   - SCENE_COLORS  : scene background (GROUND); baked into scene.background
+  //   - SCENE_COLORS  : FOG_* keys baked into building shader uniforms
   //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
-  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
+  //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk materials
   //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
   //   - GEM_SIZING    : RADIUS_AS_STREET_FRAC / MIN_RADIUS / HOVER_LIFT_FRAC
   //                     baked into gem geometry and position
-  //   - GEM_FACE_PALETTE: vertex colors baked into gem octahedron BufferAttribute
+  //   - GEM_FACE_PALETTE: vertex colors baked into gem polyhedron BufferAttribute
   //   - GEM_APPEARANCE: EDGE_COLOR + BODY_OPACITY baked into gem materials
   //   - GEM_GLOW      : all keys baked into gem sprite materials + scales
   // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
@@ -637,7 +590,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     for (const m of streetPickables) _removeAndDispose(m);
     for (const m of streetLabels) _removeAndDispose(m);
-    for (const m of pathMeshes) _removeAndDispose(m);
     for (const m of asphaltMeshes) _removeAndDispose(m);
     if (rootGem) {
       if (rootGem.parent) rootGem.parent.remove(rootGem);
@@ -673,15 +625,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
           };
         }
       }
-    }
-
-    pathMeshesByDirPath = {};
-    for (const pm of pathMeshes) {
-      const pmFile = pm.userData.file;
-      const pmDir = pmFile?.path != null ? parentDirPath(pmFile.path) : null;
-      if (pmDir == null) continue;
-      if (!pathMeshesByDirPath[pmDir]) pathMeshesByDirPath[pmDir] = [];
-      pathMeshesByDirPath[pmDir].push(pm);
     }
   }
 
@@ -864,7 +807,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     const prev: PrevState = {
       streetPickables,
       streetLabels,
-      pathMeshes,
       asphaltMeshes,
       rootGem,
       manifest,
@@ -1043,23 +985,17 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _buildingIndex = cellOut.index;
       _instancedAdPanels = cellOut.adPanels;
 
-      // Also build the streets/paths/gem sub-scene from buildWorld so
+      // Also build the streets/gem sub-scene from buildWorld so
       // sidewalks, asphalt, and the root gem still appear. The cell path
       // replaces buildings; non-building scene elements are still needed.
-      //
-      // skipBuildings: true — omits per-building path-connector meshes
-      // (one mesh per layout.paths entry, ~N_buildings total). For a large
-      // repo those meshes dominate cellBuilt.scene.children and cause a
-      // multi-second stall in the scene.add() loop below.
-      // Cell mode has no per-building interactivity that needs connectors.
-      const cellBuilt = _buildWorld(newLayout, { skipBuildings: true });
+      const cellBuilt = _buildWorld(newLayout);
       bbox = cellBuilt.bbox;
-      // buildWorld was called with skipBuildings: true, so the returned
-      // bbox covers streets/paths/gem only — NOT buildings (rendered
-      // separately via the cell-based instanced renderer). Expand the bbox
-      // to include each building's XZ footprint + Y height so downstream
-      // consumers (sceneBbox sizing, camera framing in cameraRig, fly-mode
-      // bounds in flyControls) get the FULL visible city.
+      // The bbox returned by buildWorld covers streets/gem only — NOT
+      // buildings (rendered separately via the cell-based instanced
+      // renderer). Expand the bbox to include each building's XZ footprint
+      // + Y height so downstream consumers (sceneBbox sizing, camera
+      // framing in cameraRig, fly-mode bounds in flyControls) get the
+      // FULL visible city.
       for (const b of newLayout.buildings) {
         bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
         bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));
@@ -1080,14 +1016,13 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
       streetPickables = cellBuilt.streetPickables || [];
       streetLabels = cellBuilt.streetLabels || [];
-      pathMeshes = cellBuilt.pathMeshes || [];
       asphaltMeshes = cellBuilt.asphaltMeshes || [];
       rootGem = cellBuilt.rootGem || null;
       rootGemBody = cellBuilt.rootGemBody || null;
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+      scene.background = new THREE.Color(SKY.get().COLOR);
 
       // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:
@@ -1108,21 +1043,16 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     _buildLookups();
     _computeRootStreetAndGem();
 
-    // City is now in the scene. Decoration pass (trees, bushes, future
-    // mesa bounds, etc.) is deferred to the next animation frame so the
+    // City is now in the scene. Decoration pass (trees, future mesa
+    // bounds, etc.) is deferred to the next animation frame so the
     // city paints + becomes interactive BEFORE the placement scan +
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
     const treesEnabled = TREES.get().TREES_ENABLED;
-    const bushesEnabled = BUSHES.get().BUSHES_ENABLED;
     if (_trees) {
       _trees.dispose();
       _trees = null;
-    }
-    if (_bushes) {
-      _bushes.dispose();
-      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1152,8 +1082,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     // Floating repo-name label — anchored at the gem position (the
     // floor-level root marker). The label's elevation is governed by
-    // REPO_LABEL.HEIGHT, not by city silhouette: 0 → label flush with
-    // the floor; larger → label rises with a visible beam.
+    // REPO_LABEL.HEIGHT_PCT, not by city silhouette: 0 → label flush
+    // with the floor; larger → label rises with a visible beam.
     _repoLabel.setRepoName(manifest.tree.name);
     _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
     // Hand the live gem to the label so its beam foot tracks the
@@ -1174,7 +1104,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       scene.add(_cityFootprint.group);
     }
 
-    if ((treesEnabled || bushesEnabled) && bbox && sceneBbox) {
+    if (treesEnabled && bbox && sceneBbox) {
       // Snapshot what the deferred pass needs so a later applyManifest
       // bumping _currentGeneration doesn't race with this build.
       const generationAtDefer = myGeneration;
@@ -1191,40 +1121,27 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       await new Promise<void>((r) => setTimeout(r, 0));
       if (generationAtDefer !== _currentGeneration) return;
 
-      if (treesEnabled) {
-        // Off-thread tree placement via the worker. The supersede protocol
-        // rejects this promise with "superseded" if another applyManifest
-        // fires while placement is in-flight.
-        let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
-        try {
-          treePlacements = await _treePlacementClient.compute(
-            layoutAtDefer,
-            foliageBbox,
-            commitCountAtDefer,
-            cityHeightAtDefer
-          );
-        } catch (err) {
-          if (err instanceof Error && err.message === 'superseded') return;
-          throw err;
-        }
-        if (generationAtDefer !== _currentGeneration) return;
-
-        _trees = createTrees(treePlacements, manifest.commits ?? null);
-        scene.add(_trees.group);
+      // Off-thread tree placement via the worker. The supersede protocol
+      // rejects this promise with "superseded" if another applyManifest
+      // fires while placement is in-flight.
+      let treePlacements: import('./components/trees/treePlacement.js').TreePlacement[];
+      try {
+        treePlacements = await _treePlacementClient.compute(
+          layoutAtDefer,
+          foliageBbox,
+          commitCountAtDefer,
+          cityHeightAtDefer
+        );
+      } catch (err) {
+        if (err instanceof Error && err.message === 'superseded') return;
+        throw err;
       }
+      if (generationAtDefer !== _currentGeneration) return;
 
-      if (bushesEnabled) {
-        // Bush placement is synchronous (fast, no worker needed).
-        if (generationAtDefer !== _currentGeneration) return;
-        const bushPlacements = placeBushes(layoutAtDefer, foliageBbox, {
-          cityHeight: cityHeightAtDefer,
-        });
-        if (generationAtDefer !== _currentGeneration) return;
-        _bushes = createBushes(bushPlacements);
-        scene.add(_bushes.group);
-      }
+      _trees = createTrees(treePlacements, manifest.commits ?? null);
+      scene.add(_trees.group);
 
-      // Re-notify listeners now that async decoration (trees, bushes) is
+      // Re-notify listeners now that async decoration (trees) is
       // fully attached to the scene. The first onChange fired before this
       // deferred block ran, so world.getTrees() returned null at that
       // point — the picker's _refreshPickables() therefore had no tree
@@ -1232,10 +1149,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // other subscriber) a chance to re-refresh with the live tree group.
       // We pass an empty diff because only foliage changed; no building or
       // street geometry was added since the first emit.
-      // Only fire when foliage was actually placed — if both trees and
-      // bushes are null (disabled, zero commits, etc.) the first emit
-      // already captured the complete state and a second one is wasteful.
-      if (_trees !== null || _bushes !== null) {
+      // Only fire when trees were actually placed — if trees are null
+      // (disabled, zero commits, etc.) the first emit already captured
+      // the complete state and a second one is wasteful.
+      if (_trees !== null) {
         _emit(changeCbs, {
           entering: { buildings: [], streets: [] },
           exiting: { buildings: [], streets: [] },
@@ -1255,10 +1172,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     if (_trees) {
       _trees.dispose();
       _trees = null;
-    }
-    if (_bushes) {
-      _bushes.dispose();
-      _bushes = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1284,6 +1197,21 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     }
   }
 
+  // Narrow cache-clear used by configCommitReactions before each Save-driven
+  // applyManifest. The manifest itself doesn't change on a config-only Save,
+  // so without this call applyManifest hits the layout cache and reuseLayout
+  // returns identical positions — Save would have no visible effect for
+  // layout-affecting configs (building dims, street widths, street layout,
+  // gem sizing, label typography). Live-update polls go through a separate
+  // path that never triggers scheduleRebuild, so the cache still helps there.
+  // Narrower than resetCache(): only nulls the layout cache; leaves scenic
+  // state + ad panels alone (those are correctly handled by applyManifest's
+  // own scenic-hash invalidation).
+  function invalidateLayoutCache(): void {
+    _cachedLayoutTreeSig = null;
+    _cachedLayout = null;
+  }
+
   return {
     scene,
     applyManifest,
@@ -1292,10 +1220,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     onChange,
     disposeMesh,
     resetCache,
+    invalidateLayoutCache,
 
     /**
      * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()
-     * can call sky.refresh() on hot-reload and the render loop can call
+     * can call sky.refresh() on Save (via applyTheme()) and the render loop can call
      * sky.tick(dtSeconds) each frame.
      */
     getSky(): Sky {
@@ -1304,7 +1233,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     /**
      * Floating repo-name label reference. Exposed so main.ts's
-     * applyTheme() can call repoLabel.refresh() on hot-reload and the
+     * applyTheme() can call repoLabel.refresh() on Save and the
      * render loop can call repoLabel.tick(dtSeconds, camera) each frame.
      */
     getRepoLabel(): RepoLabel {
@@ -1314,7 +1243,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     /**
      * Cyberpunk Valley floating island reference. The island is
      * world-anchored at the gem; this is exposed for applyTheme()
-     * (hot-reload refresh) and any future external access.
+     * (applyTheme() on Save) and any future external access.
      */
     getIsland(): Island {
       return _island;
@@ -1328,15 +1257,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getTrees(): Trees | null {
       return _trees;
-    },
-
-    /**
-     * Cyberpunk Valley bushes reference. Rebuilt per applyManifest
-     * (only when BUSHES.BUSHES_ENABLED is true). Returns null when
-     * bushes are disabled or not yet placed.
-     */
-    getBushes(): Bushes | null {
-      return _bushes;
     },
 
     /**
@@ -1360,7 +1280,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         return;
       }
       const overlaps = findLayoutOverlaps(layout);
-      const totalRects = layout.streets.length + layout.buildings.length + layout.paths.length;
+      const totalRects = layout.streets.length + layout.buildings.length;
       const report = _formatCollisionReport(overlaps, totalRects);
       if (report.level === 'info') {
         console.info(report.summary);
@@ -1431,9 +1351,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getStreetLabels() {
       return streetLabels;
     },
-    getPathMeshes() {
-      return pathMeshes;
-    },
     getAsphaltMeshes() {
       return asphaltMeshes;
     },
@@ -1476,10 +1393,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getStreetByDir(p: string) {
       return streetsByDirPath[p] || null;
     },
-    getPathConnectorsByDir(p: string) {
-      return pathMeshesByDirPath[p] || [];
-    },
-
     // Bulk-map accessors. Treat the returned objects as read-only —
     // their identities are stable within an applyManifest call but
     // get replaced wholesale on the next one. Exposed because some
@@ -1494,9 +1407,6 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     },
     getStreetsByDirMap() {
       return streetsByDirPath;
-    },
-    getPathConnectorsMap() {
-      return pathMeshesByDirPath;
     },
 
     // Cell-mode accessors for picker + other consumers.

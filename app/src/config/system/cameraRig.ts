@@ -1,7 +1,7 @@
 // config/system/cameraRig.ts — Camera lens, orbit/zoom controls, and
 // per-action focus framing. Read by scene/system/cameraRig.ts at scene
 // init (perspective + controls — rebuild-required) and per-gesture
-// (animation — hot-reloadable).
+// (animation — applied on Save via applyTheme() — see configCommitReactions.ts).
 //
 // Animation timing for focus actions (durations, easing) lives in
 // system/animator.ts and is shared across every camera tween via

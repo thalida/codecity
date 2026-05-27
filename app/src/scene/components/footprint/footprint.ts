@@ -30,7 +30,7 @@ import * as THREE from 'three';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { RENDER_ORDERS } from '@/constants';
 import { StreetAxis } from '@/types';
-import type { Building, BuildingPath, CityLayout, Street } from '@/types';
+import type { Building, CityLayout, Street } from '@/types';
 
 export interface CityFootprint {
   group: THREE.Group;
@@ -47,10 +47,6 @@ interface Rect {
 
 function rectOfBuilding(b: Building): Rect {
   return { cx: b.x, cz: b.y, w: b.w, d: b.d };
-}
-
-function rectOfPath(p: BuildingPath): Rect {
-  return { cx: p.x, cz: p.y, w: p.w, d: p.d };
 }
 
 function rectOfStreet(s: Street): Rect {
@@ -120,7 +116,6 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
   const rects: Rect[] = [];
   for (const b of layout.buildings) rects.push(rectOfBuilding(b));
   for (const s of layout.streets) rects.push(rectOfStreet(s));
-  for (const p of layout.paths) rects.push(rectOfPath(p));
 
   const geometry = new THREE.PlaneGeometry(1, 1);
   geometry.rotateX(-Math.PI / 2);

@@ -1,8 +1,8 @@
 // sky.test.ts — verifies the createSky() factory builds the icosphere
 // mesh with the documented render-order / depth / side flags, that
 // refresh() pushes fresh config values into uniforms (the
-// hot-reloadable path), that tick() advances uTime, that ENABLED=false
-// hides the mesh, and that dispose() releases GPU resources.
+// hot-reloadable path), that tick() advances uTime, and that
+// dispose() releases GPU resources.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -12,17 +12,11 @@ import { RENDER_ORDERS } from '@/constants';
 
 function resetStores() {
   SKY.set({
-    ENABLED: true,
     COLOR: '#010005',
   });
   SKY_STARS.set({
     ENABLED: true,
     DENSITY: 0.0075,
-    SIZE: 0.15,
-    BRIGHTNESS: 1.2,
-    TWINKLE_ENABLED: true,
-    TWINKLE_SPEED: 0.5,
-    TWINKLE_AMPLITUDE: 1.0,
   });
 }
 
@@ -70,24 +64,15 @@ describe('createSky()', () => {
   });
 
   it('refresh() pushes fresh config values into uniforms', () => {
-    SKY_STARS.setKey('BRIGHTNESS', 2.7);
+    SKY_STARS.setKey('DENSITY', 0.01);
     SKY.setKey('COLOR', '#ffffff');
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
-    expect(mat.uniforms.uStarBrightness.value).toBeCloseTo(2.7);
+    expect(mat.uniforms.uStarDensity.value).toBeCloseTo(0.01);
     const sky_ = mat.uniforms.uSkyColor.value as THREE.Color;
     expect(sky_.r).toBeCloseTo(1);
     expect(sky_.g).toBeCloseTo(1);
     expect(sky_.b).toBeCloseTo(1);
-  });
-
-  it('refresh() hides the mesh when SKY.ENABLED is false', () => {
-    SKY.setKey('ENABLED', false);
-    sky.refresh();
-    expect(sky.mesh.visible).toBe(false);
-    SKY.setKey('ENABLED', true);
-    sky.refresh();
-    expect(sky.mesh.visible).toBe(true);
   });
 
   it('tick() advances the uTime uniform', () => {

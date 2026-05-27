@@ -16,7 +16,7 @@
 // page reload is an implicit discard.
 
 import {
-  // Scene (sky + ground haze)
+  // Scene (ground haze / fog)
   SCENE_COLORS,
   // Streets
   ASPHALT,
@@ -34,6 +34,7 @@ import {
   BUILDING_AGING,
   // Gem
   GEM_SIZING,
+  GEM_FACE_PALETTE,
   GEM_APPEARANCE,
   GEM_GLOW,
   GEM_ANIMATION,
@@ -42,7 +43,6 @@ import {
   BLOOM,
   // Live updates
   LIVE_UPDATES,
-  SCAN_FILTERS,
   // File preview
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
@@ -55,7 +55,6 @@ import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
 import { TREES } from '@/config/components/trees.js';
-import { BUSHES } from '@/config/components/bushes.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -164,10 +163,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   body.appendChild(_buildBuildingsSection());
   body.appendChild(_buildStreetsSection());
   body.appendChild(_buildGemSection());
-  // Trees + Bushes sit after Gem (the world's anchor) so the panel
+  // Trees sit after Gem (the world's anchor) so the panel
   // reads structural → decorative top-to-bottom.
   body.appendChild(_buildTreesSection());
-  body.appendChild(_buildBushesSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -190,24 +188,13 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
 }
 
 // ─── Scan & Updates ────────────────────────────────────────────────────────
-// What the scanner picks up + when to re-scan. SHOW_ALL_FILES bypasses
-// the tracked-files-only filter (default OFF — current behavior); live
-// updates polls /api/manifest/signature on a clamped [1s, 60s] interval
-// so an over-eager value can't ddos the local server.
+// What the scanner picks up + when to re-scan. Live updates polls
+// /api/manifest/signature on a clamped [1s, 60s] interval so an
+// over-eager value can't ddos the local server.
 function _buildUpdatesSection(): HTMLElement {
   const section = _section(
     'Scan & Updates',
     'What the scanner picks up, and how it stays in sync.'
-  );
-  section.appendChild(
-    _subgroup('Filters', [
-      _toggle('Show all files', SCAN_FILTERS, 'SHOW_ALL_FILES', {
-        tip: 'When on, untracked and gitignored files (node_modules/, build artifacts, drafts) are included. No effect outside a git repo. Saving re-fetches the manifest.',
-      }),
-      _toggle('Bypass disk caches', SCAN_FILTERS, 'NO_CACHE', {
-        tip: 'Re-scan every file and re-walk git history on each fetch. Slower; only useful when debugging cache staleness.',
-      }),
-    ])
   );
   section.appendChild(
     _subgroup('Live updates', [
@@ -237,8 +224,7 @@ function _buildShortcutsSection(): HTMLElement {
     'Quick reference for cursor actions and keyboard shortcuts.'
   );
   section.appendChild(
-    _subgroup(
-      'General',
+    _collapsibleSubgroup('keyboard-general', 'General', () => [
       _buildShortcutsList([
         { kbd: [KEY_BINDINGS.RESET_VIEW.label], action: 'Reset the camera view' },
         {
@@ -250,30 +236,28 @@ function _buildShortcutsSection(): HTMLElement {
         null,
         { mouse: 'Click', action: 'Select building / street / gem' },
         { mouse: 'Double-click', action: 'Focus camera on the target' },
-      ])
-    )
+      ]),
+    ])
   );
   section.appendChild(
-    _subgroup(
-      'Orbit mode',
+    _collapsibleSubgroup('keyboard-orbit-mode', 'Orbit mode', () => [
       _buildShortcutsList([
         { mouse: 'Left drag', action: 'Orbit' },
         { mouse: 'Right drag', action: 'Pan' },
         { mouse: 'Middle drag', action: 'Dolly (zoom)' },
         { mouse: 'Scroll', action: 'Zoom toward cursor' },
-      ])
-    )
+      ]),
+    ])
   );
   section.appendChild(
-    _subgroup(
-      'Fly mode',
+    _collapsibleSubgroup('keyboard-fly-mode', 'Fly mode', () => [
       _buildShortcutsList([
         { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
         { kbd: ['Q', 'E'], action: 'Drop / rise' },
         { kbd: ['Shift'], action: 'Boost (hold)' },
         { mouse: 'Left / right drag', action: 'Look around' },
-      ])
-    )
+      ]),
+    ])
   );
 
   // Fly-mode tuning — collapsible so the always-visible shortcut cheat
@@ -282,7 +266,7 @@ function _buildShortcutsSection(): HTMLElement {
   // page reloads (same draft layer as every other tunable in this pane).
   section.appendChild(
     _collapsibleSubgroup('fly-mode-settings', 'Fly mode settings', () => [
-      _subgroup('Speed', [
+      _collapsibleSubgroup('fly-mode-speed', 'Speed', () => [
         _number('Base speed (bbox fraction)', FLY_CONTROLS, 'BASE_SPEED_BBOX_FRAC', 0.01, 1, 0.01, {
           tip: 'Base camera speed as a fraction of the world bounding-box radius. Scales automatically with city size.',
         }),
@@ -296,7 +280,7 @@ function _buildShortcutsSection(): HTMLElement {
           tip: 'Speed multiplier applied while Shift is held. 1 = no boost; 4 = four times faster.',
         }),
       ]),
-      _subgroup('Feel', [
+      _collapsibleSubgroup('fly-mode-feel', 'Feel', () => [
         _slider('Mouse sensitivity', FLY_CONTROLS, 'MOUSE_SENSITIVITY', 0.0005, 0.01, 0.0001, {
           tip: 'Radians of view rotation per pixel of pointer-lock movement. Lower = slower, more precise; higher = faster.',
         }),
@@ -308,22 +292,6 @@ function _buildShortcutsSection(): HTMLElement {
         }),
         _number('Altitude floor', FLY_CONTROLS, 'ALTITUDE_FLOOR', 0, 50, 0.1, {
           tip: 'Minimum world-Y position — prevents flying below the ground plane.',
-        }),
-      ]),
-      _subgroup('Entry pose (on fly-mode enter)', [
-        _number(
-          'Gem offset multiplier',
-          FLY_CONTROLS,
-          'FLY_DEFAULT_GEM_OFFSET_MULT',
-          0.5,
-          10,
-          0.1,
-          {
-            tip: 'Starting distance behind the gem expressed as a multiple of the gem radius.',
-          }
-        ),
-        _slider('Altitude fraction', FLY_CONTROLS, 'FLY_DEFAULT_ALTITUDE_FRAC', 0.05, 2, 0.05, {
-          tip: 'Starting height as a fraction of the tallest building. 0.3 = eye-level with a mid-rise; 1.0 = rooftop height of the tallest building.',
         }),
       ]),
     ])
@@ -377,10 +345,7 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 //   Stars        — hashed star field + twinkle (lives inside the sky shader)
 //   Ground haze  — atmospheric fog mix on the building shader
 //   Sun lighting — directional sun (azimuth, elevation, ambient, contrast)
-// Each is a collapsible subgroup so the section stays scannable. The
-// old SCENE_COLORS.GROUND row is folded into Sky as the disabled-fallback
-// color (it only shows when SKY.ENABLED is off — SKY's own colors paint
-// the sphere otherwise).
+// Each is a collapsible subgroup so the section stays scannable.
 function _buildSceneSection(): HTMLElement {
   const section = _section(
     'Scene',
@@ -389,14 +354,8 @@ function _buildSceneSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('scene-sky', 'Sky', () => [
-      _toggle('Enabled', SKY, 'ENABLED', {
-        tip: 'Master toggle. When off the sky sphere is hidden and the Fallback color below paints the void.',
-      }),
       _color('Sky color', SKY, 'COLOR', {
         tip: 'Solid color painted across the entire sphere. Past the world floor edge the camera sees this color directly, so the plane reads as floating in space.',
-      }),
-      _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
-        tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
       }),
     ])
   );
@@ -408,21 +367,6 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Density', SKY_STARS, 'DENSITY', 0, 0.02, 0.0005, {
         tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
-      }),
-      _slider('Size', SKY_STARS, 'SIZE', 0.02, 0.5, 0.01, {
-        tip: 'Star spot radius as a fraction of the cell. 0.15 default. Larger = chunkier stars; smaller = sharper pinpoints (may sub-pixel at distance).',
-      }),
-      _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
-        tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
-      }),
-      _toggle('Twinkle enabled', SKY_STARS, 'TWINKLE_ENABLED', {
-        tip: 'When off, stars render at fixed brightness (no animation).',
-      }),
-      _slider('Twinkle speed', SKY_STARS, 'TWINKLE_SPEED', 0, 3, 0.05, {
-        tip: 'Multiplier on uTime in the per-star sine. Higher = faster twinkle.',
-      }),
-      _slider('Twinkle amplitude', SKY_STARS, 'TWINKLE_AMPLITUDE', 0, 1, 0.01, {
-        tip: '0 = no twinkle (stars stay fixed); 1 = stars flicker fully on/off.',
       }),
     ])
   );
@@ -448,32 +392,6 @@ function _buildSceneSection(): HTMLElement {
       }),
       _slider('Falloff height ×', SCENE_COLORS, 'FOG_HEIGHT_FRAC', 0, 1, 0.05, {
         tip: 'Half-fall-off height as a fraction of the tallest possible building (BUILDING_DIMENSIONS.MAX_FLOORS × FLOOR_HEIGHT). Auto-scales with the building config so the mist sits in the same relative band of the skyline. 0.25 = mist fades by mid-height of short buildings; 0.5 = halfway up the tallest.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('scene-repo-label', 'Repo label', () => [
-      _toggle('Enabled', REPO_LABEL, 'ENABLED', {
-        tip: 'Master toggle for the floating holographic repo-name label.',
-      }),
-      _slider('Height', REPO_LABEL, 'HEIGHT', 0, 2500, 5, {
-        tip: "Panel bottom's elevation above the floor, in world units. 0 = flush with the floor (no beam). Larger lifts the panel and grows the beam underneath. Default 1305 ≈ 0.85 × the tallest possible building — sits inside the silhouette band of an extreme-tall city but above any typical one.",
-      }),
-      _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
-        tip: "Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don't squish.",
-      }),
-      _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
-        tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
-      }),
-      _slider('Opacity', REPO_LABEL, 'OPACITY', 0, 1, 0.05, {
-        tip: 'Master opacity. 0 invisible, 1 fully painted.',
-      }),
-      _color('Beam color', REPO_LABEL, 'BEAM_COLOR', {
-        tip: 'Color of the light beam rising from the gem.',
-      }),
-      _color('Text color', REPO_LABEL, 'TEXT_COLOR', {
-        tip: 'Tint applied to the holographic text. White preserves the chromatic-aberration look; other colors fold the aberration into the chosen hue.',
       }),
     ])
   );
@@ -550,11 +468,11 @@ function _buildIslandSection(): HTMLElement {
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'Commit-driven trees — one canopy per commit. Height tracks commit age (older = taller). Width tracks commit size (more files = wider). Color tracks COMMITS-PER-DAY — solo-commit days lean toward TREE_COLOR_SOLO_DAY; busy days lean toward TREE_COLOR_BUSY_DAY. All commits on the same date share a color.'
+    'One tree per commit — height tracks age, width + facets track file count, color tracks commits-per-day (same-day commits share a color).'
   );
 
   section.appendChild(
-    _subgroup('Visibility', [
+    _collapsibleSubgroup('trees-visibility', 'Visibility', () => [
       _toggle('Trees enabled', TREES, 'TREES_ENABLED', {
         tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
       }),
@@ -562,7 +480,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Placement', [
+    _collapsibleSubgroup('trees-placement', 'Placement', () => [
       _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
         tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
       }),
@@ -573,7 +491,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Color by commits-per-day', [
+    _collapsibleSubgroup('trees-color-by-commits', 'Color by commits-per-day', () => [
       _color('Busy-day color', TREES, 'TREE_COLOR_BUSY_DAY', {
         tip: 'Color for commits on a busy day — many commits sharing the same date. Live.',
       }),
@@ -590,7 +508,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Age desaturation', [
+    _collapsibleSubgroup('trees-age-desaturation', 'Age desaturation', () => [
       _toggle('Age desaturation enabled', TREES, 'TREE_AGE_DESAT_ENABLED', {
         tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
       }),
@@ -610,7 +528,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Height by age', [
+    _collapsibleSubgroup('trees-height-by-age', 'Height by age', () => [
       _slider('Min height', TREES, 'TREE_MIN_HEIGHT', 4, 400, 4, {
         tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',
       }),
@@ -627,7 +545,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Width by files', [
+    _collapsibleSubgroup('trees-width-by-files', 'Width by files', () => [
       _slider('Min canopy width', TREES, 'TREE_MIN_WIDTH', 2, 400, 2, {
         tip: 'Canopy diameter (world units) of commits with the fewest files changed. Independent of building dimensions. Rebuild on change.',
       }),
@@ -648,29 +566,16 @@ function _buildTreesSection(): HTMLElement {
     ])
   );
 
-  return section;
-}
-
-// ─── Bushes (Cyberpunk Valley) ─────────────────────────────────────────────
-// Decorative scatter — emissive icosahedra that push into HDR bloom.
-function _buildBushesSection(): HTMLElement {
-  const section = _section(
-    'Bushes',
-    'Decorative emissive bushes — icosahedra that bloom via HDR. Not commit-driven; density-scattered across the world floor.'
-  );
-
   section.appendChild(
-    _subgroup('Visibility', [
-      _toggle('Bushes enabled', BUSHES, 'BUSHES_ENABLED', {
-        tip: 'Master toggle. Enabling triggers a placement rebuild; disabling hides the mesh without a rebuild.',
+    _collapsibleSubgroup('trees-facets-by-files', 'Facets by files', () => [
+      _slider('Low-tier facets', TREES, 'TREE_FACETS_LOW', 3, 24, 1, {
+        tip: 'Radial segment count for trees in the smallest-commit tier. 3 = triangular prism (chunkiest); higher = smoother. Lowest tier holds the largest tree count so this is the perf-sensitive knob.',
       }),
-    ])
-  );
-
-  section.appendChild(
-    _subgroup('Colors', [
-      _slider('Emission boost', BUSHES, 'BUSH_EMISSION_BOOST', 0.5, 5, 0.1, {
-        tip: 'Multiplier applied to bush colors before the HDR bloom pass. Values above 1.0 push into bloom; below 1.0 dims them toward matte.',
+      _slider('Mid-tier facets', TREES, 'TREE_FACETS_MID', 3, 24, 1, {
+        tip: 'Radial segment count for the middle-commit tier.',
+      }),
+      _slider('High-tier facets', TREES, 'TREE_FACETS_HIGH', 3, 32, 1, {
+        tip: 'Radial segment count for the largest-commit tier. Highest tier has the fewest tree instances so this is the cheapest knob to push high.',
       }),
     ])
   );
@@ -695,10 +600,12 @@ function _buildStreetsSection(): HTMLElement {
   // any specific road class without touching the others.
   const tierDefaults = STREET_TIERS.get();
   const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
-  section.appendChild(_subgroup('Street width tiers', tierRows));
+  section.appendChild(
+    _collapsibleSubgroup('streets-width-tiers', 'Street width tiers', () => tierRows)
+  );
 
   section.appendChild(
-    _subgroup('Street spacing', [
+    _collapsibleSubgroup('streets-spacing', 'Street spacing', () => [
       _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
         tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
@@ -714,7 +621,7 @@ function _buildStreetsSection(): HTMLElement {
   // Asphalt — color only. Width is a designer-level geometry knob; length
   // is derived to keep the cap circles concentric.
   section.appendChild(
-    _subgroup('Asphalt', [
+    _collapsibleSubgroup('streets-asphalt', 'Asphalt', () => [
       _color('Color', ASPHALT, 'COLOR', {
         tip: 'Color of the inner road stripe. Live.',
       }),
@@ -727,7 +634,7 @@ function _buildStreetsSection(): HTMLElement {
   // bleed seamlessly into the slab. HALO_WIDTH change triggers a rebuild
   // (matrix data); COLOR + ENABLED are hot.
   section.appendChild(
-    _subgroup('City footprint', [
+    _collapsibleSubgroup('streets-city-footprint', 'City footprint', () => [
       _toggle('Enabled', FOOTPRINT, 'ENABLED', {
         tip: 'When off, the slab is hidden (still built; group.visible = false) and tree/bush placement no longer rejects candidates inside the halo.',
       }),
@@ -746,7 +653,7 @@ function _buildStreetsSection(): HTMLElement {
   // Sidewalks. (No "Path" tint — the lineage from gem→selection is shown
   // by the rainbow neon line alone, see "Selection path line" below.)
   section.appendChild(
-    _subgroup('Sidewalk colors', [
+    _collapsibleSubgroup('streets-sidewalk-colors', 'Sidewalk colors', () => [
       _color('Default', SIDEWALK_COLORS, 'DEFAULT', {
         tip: 'Resting tint on every sidewalk.',
       }),
@@ -761,68 +668,40 @@ function _buildStreetsSection(): HTMLElement {
 
   // Street labels
   section.appendChild(
-    _subgroup('Street labels', [
-      _color('Fill', LABEL_TYPOGRAPHY, 'FILL', {
-        tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
+    _collapsibleSubgroup('streets-labels', 'Street labels', () => [
+      _color('Text color', LABEL_TYPOGRAPHY, 'FILL', {
+        tip: 'Text color of the names painted on each road.',
       }),
-      _slider('Camera-flip dead zone', LABEL_TYPOGRAPHY, 'FLIP_HYSTERESIS', 0, 0.5, 0.01, {
-        tip: 'How far the camera must rotate before labels flip 180° to stay readable. Higher = less flicker, more time spent reading upside-down. 0.5 is half the natural 0–1 dot-product range — beyond this the dead zone is so wide labels spend most of the orbit upside-down.',
+      _color('Outline color', LABEL_TYPOGRAPHY, 'STROKE', {
+        tip: 'Outline color of the label text — typically darker than the fill so the label reads against any asphalt color.',
       }),
-      _number('Font size (px)', LABEL_TYPOGRAPHY, 'FONT_SIZE_PX', 32, 512, 8, {
-        tip: 'Source canvas font size. Higher = sharper close-zoom, larger texture memory. 512 fits the largest street-label canvas at maximum zoom; below 32 labels are illegible.',
+      _slider('Outline width', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
+        tip: 'Text outline thickness, as a fraction of the rendered character height. Above 0.5 the stroke overwhelms the glyph fill.',
       }),
-      _slider('Padding × font', LABEL_TYPOGRAPHY, 'CANVAS_PADDING_FRAC', 0, 1, 0.01, {
-        tip: 'Padding around glyphs on the label canvas, as a fraction of the font size.',
-      }),
-      _slider('Stroke × font', LABEL_TYPOGRAPHY, 'STROKE_WIDTH_FRAC', 0, 0.5, 0.01, {
-        tip: 'Text outline thickness, as a fraction of the font size. 0.5 is half the natural 0–1 fraction range — above this the stroke overwhelms the glyph fill.',
-      }),
-      _slider('Height × street width', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
-        tip: 'Label plane height in world units, as a fraction of the street width. Wider streets get bigger labels. Labels above 2× the street width clip into adjacent rows.',
-      }),
-      _slider('Min fit scale', LABEL_TYPOGRAPHY, 'MIN_SCALE', 0.1, 1, 0.05, {
-        tip: 'Floor for shrink-to-fit when a name is too long for its street. Labels shrink uniformly down to this fraction of natural height; below it they truncate with an ellipsis. 1 = never shrink (always truncate); 0.1 = shrink aggressively before truncating.',
-      }),
-      _slider('Repeat × label width', LABEL_TYPOGRAPHY, 'SPACING_MULT', 0.5, 10, 0.1, {
-        tip: 'Distance between label repeats along a long street, expressed as a multiple of the label width. Below 0.5 labels overlap themselves; above 10 the street reads as unlabeled.',
-      }),
-      _number('Repeat floor', LABEL_TYPOGRAPHY, 'SPACING_FLOOR', 0, 1000, 10, {
-        tip: 'Minimum repeat distance in world units (so tiny labels do not pile up). Beyond ~1000 world units the spacing forces labels off the visible street.',
+      _slider('Label size', LABEL_TYPOGRAPHY, 'HEIGHT_FRAC', 0, 2, 0.05, {
+        tip: 'Label height as a fraction of the street width. Wider streets get bigger labels. Above 2× the street width labels clip into adjacent rows.',
       }),
     ])
   );
 
-  // Selection path line — the neon line tracing gem → current selection
-  // through the road network. Color cycle is shared with the building
-  // outline; tweak Effects > Rainbow.
+  // Path lines — the neon selection line (gem → current selection, rainbow
+  // color cycle) and the faded hover-preview line (gem → hovered target,
+  // solid color). Both lines share a single width slider. Hover preview is
+  // always on; it is suppressed automatically when the hovered target IS the
+  // current selection.
   section.appendChild(
-    _subgroup('Selection path line', [
-      _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the rainbow line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
+    _collapsibleSubgroup('streets-path-lines', 'Path lines', () => [
+      _slider('Line width %', PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
+        tip: 'Shared thickness for both the rainbow selection line and the hover-preview line, as a % of the narrowest street tier width.',
       }),
-      _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
+      _slider('Selection opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+        tip: 'Selection-line transparency. 0 = invisible; 1 = solid.',
       }),
-    ])
-  );
-
-  // Hover preview path line — the faded "what would happen if I clicked"
-  // version of the selection line, drawn while the cursor is over a
-  // building or street. Suppressed when the hovered target IS the
-  // current selection (would just overlap the rainbow line).
-  section.appendChild(
-    _subgroup('Hover preview path line', [
-      _toggle('Enabled', HOVER_PATH_LINE, 'ENABLED', {
-        tip: 'Show a draft preview line from the gem to whatever the cursor is currently over.',
+      _color('Hover preview color', HOVER_PATH_LINE, 'COLOR', {
+        tip: 'Solid color of the hover-preview line. Faded white by default so it reads as a draft, not the committed selection.',
       }),
-      _color('Color', HOVER_PATH_LINE, 'COLOR', {
-        tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
-      }),
-      _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the preview line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
-      }),
-      _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
-        tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
+      _slider('Hover preview opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
+        tip: 'Hover-preview transparency. 0 = invisible; 1 = solid.',
       }),
     ])
   );
@@ -841,7 +720,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Building size', [
+    _collapsibleSubgroup('buildings-layout', 'Building layout', () => [
       _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
         tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
       }),
@@ -851,11 +730,8 @@ function _buildBuildingsSection(): HTMLElement {
       _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
         tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
       }),
-      _number('Building path length', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
-        tip: "Distance from the building's wall to the adjacent sidewalk. The path connector strip bridges this gap. Above 50 world units the path dominates the building footprint and the sidewalk reads as a courtyard.",
-      }),
-      _slider('Building path width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Width of the path connector strip, as a fraction of the building's own width — so big buildings get proportionally wider paths. Door is sized to ~80% of this same per-building path width.",
+      _number('Distance from road', BUILDING_DIMENSIONS, 'DISTANCE_FROM_ROAD', 0, 50, 1, {
+        tip: 'Gap between the building wall and the street edge. Same for every building.',
       }),
     ])
   );
@@ -921,31 +797,14 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
-  section.appendChild(
-    _collapsibleSubgroup('buildings-ads', 'Ad panels (media files)', () => [
-      _slider('Side margin × width', AD_PANEL, 'AD_SIDE_MARGIN_FRAC', 0, 0.4, 0.01, {
-        tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
-      }),
-      _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
-        tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
-      }),
-      _slider('Front-face offset', AD_PANEL, 'AD_OFFSET', 0, 0.2, 0.005, {
-        tip: 'How far in front of the building face the ad plane sits — small z-offset to avoid z-fighting with the wall. Above 0.2 the ad noticeably floats away from the building.',
-      }),
-      _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
-        tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
-      }),
-    ])
-  );
-
-  // Facade parent — geometry, contrast, and window lighting share the
+  // Facade parent — geometry, contrast, window lighting, and ad panels share the
   // "what the building's surface looks like" mental model, so we collapse
   // them under one default-closed parent. Each child stays a regular
   // _subgroup; _collapsibleSubgroup's `buildRows` already accepts any
   // HTMLElement, so subgroups work as children with no helper changes.
   section.appendChild(
     _collapsibleSubgroup('facade', 'Facade', () => [
-      _subgroup('Geometry', [
+      _collapsibleSubgroup('facade-geometry', 'Geometry', () => [
         _slider('Slab thickness × floor', FACADE_GEOMETRY, 'SLAB_HEIGHT_FRAC', 0, 0.4, 0.01, {
           tip: "Floor-slab strip height as a fraction of one floor. Above 0.4 the slab eats more than the floor's window band — the facade reads as horizontal banding instead of windowed.",
         }),
@@ -970,11 +829,11 @@ function _buildBuildingsSection(): HTMLElement {
         _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
           tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows.',
         }),
-        _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
-          tip: 'Door width as a fraction of the building path width. Rebuild required.',
+        _slider('Door width', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC', 0, 1, 0.05, {
+          tip: "Door width as a fraction of the building's own width. Bigger buildings get proportionally wider doors. Rebuild required.",
         }),
       ]),
-      _subgroup('Contrast (HSL lightness Δ)', [
+      _collapsibleSubgroup('facade-contrast', 'Contrast (HSL lightness Δ)', () => [
         _slider('Floor slab', FACADE_DETAIL, 'SLAB_LIGHTNESS_DELTA', -100, 100, 1, {
           tip: 'Lightness offset for the floor-slab strip, in HSL percentage points (negative darkens).',
         }),
@@ -985,7 +844,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Lightness offset for the roof border strip (negative darkens).',
         }),
       ]),
-      _subgroup('Window lighting', [
+      _collapsibleSubgroup('facade-window-lighting', 'Window lighting', () => [
         _slider('Unlit pane lightness Δ', WINDOW_LIGHTING, 'UNLIT_LIGHTNESS_DELTA', -20, 20, 1, {
           tip: 'HSL lightness offset applied to unlit panes (relative to the building hue).',
         }),
@@ -1002,6 +861,17 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
         }),
       ]),
+      _collapsibleSubgroup('facade-ad-panels', 'Ad panels (media files)', () => [
+        _slider('Side margin × width', AD_PANEL, 'AD_SIDE_MARGIN_FRAC', 0, 0.4, 0.01, {
+          tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
+        }),
+        _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
+          tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
+        }),
+        _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
+          tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
+        }),
+      ]),
     ])
   );
 
@@ -1009,7 +879,7 @@ function _buildBuildingsSection(): HTMLElement {
   // Default-closed; small, niche group of weathering knobs.
   section.appendChild(
     _collapsibleSubgroup('aging', 'Aging', () => [
-      _subgroup('Grime streaks', [
+      _collapsibleSubgroup('aging-grime', 'Grime streaks', () => [
         _toggle('Enabled', BUILDING_AGING, 'GRIME_ENABLED', {
           tip: 'Vertical streaks of darker color falling from the top of each face on aged buildings. Off → clean facades regardless of age.',
         }),
@@ -1020,7 +890,7 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Fraction of vertical bands the oldest building shows as streaky. Lower = sparser streaks; higher = nearly every band weathers.',
         }),
       ]),
-      _subgroup('Tilt', [
+      _collapsibleSubgroup('aging-tilt', 'Tilt', () => [
         _toggle('Enabled', BUILDING_AGING, 'TILT_ENABLED', {
           tip: 'Small lean around the base, proportional to createdAge. Each building leans in a stable hashed direction. Off → all buildings stand perfectly upright.',
         }),
@@ -1044,7 +914,7 @@ function _buildBuildingsSection(): HTMLElement {
   ];
   section.appendChild(
     _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
-      _subgroup('Default tier — siblings of selection', [
+      _collapsibleSubgroup('selection-fade-default', 'Default tier — siblings of selection', () => [
         _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
           tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
         }),
@@ -1058,18 +928,22 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
         }),
       ]),
-      _subgroup('Level 1 — one hop from selection', [
+      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — one hop from selection', () => [
         _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _subgroup('Level 2+ — cousins, deeper subtrees', [
-        _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
-        _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
-        _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-        _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
-      ]),
+      _collapsibleSubgroup(
+        'selection-fade-level-2-plus',
+        'Level 2+ — cousins, deeper subtrees',
+        () => [
+          _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
+          _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
+          _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+          _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+        ]
+      ),
     ])
   );
 
@@ -1081,24 +955,31 @@ function _buildGemSection(): HTMLElement {
   const section = _section('Root gem', 'The floating spinning octahedron above the root street.');
 
   section.appendChild(
-    _subgroup('Sizing + plaza', [
+    _collapsibleSubgroup('gem-size-shape', 'Size & shape', () => [
       _slider('Radius × street width', GEM_SIZING, 'RADIUS_AS_STREET_FRAC', 0.05, 1, 0.05, {
         tip: 'Gem radius relative to the root street width. Bigger gems demand more empty plaza space.',
       }),
       _number('Min radius', GEM_SIZING, 'MIN_RADIUS', 1, 50, 1, {
         tip: 'Floor for narrow root streets so the gem stays visible. Below 1 the gem vanishes; above 50 it dwarfs the root plaza.',
       }),
-      _slider('Hover lift × street width', GEM_SIZING, 'HOVER_LIFT_FRAC', 0, 2, 0.05, {
-        tip: 'Extra vertical lift above the road, on top of the gem radius. Above 2× the gem radius it floats clearly off the ground into the void.',
-      }),
-      _slider('Plaza × gem width', GEM_SIZING, 'CLEARANCE_AS_GEM_WIDTH_FRAC', 0, 5, 0.1, {
-        tip: "Dead-space pad past the gem at the root street's origin end, expressed as a multiple of the gem's diameter. 2 = plaza is two gem-widths long. Above 5× gem-width the plaza dominates the visible root street.",
-      }),
+      _select(
+        'Sides',
+        GEM_SIZING,
+        'SIDES',
+        [
+          { value: '4', label: '4' },
+          { value: '8', label: '8' },
+          { value: '20', label: '20' },
+        ],
+        {
+          tip: 'Polyhedron face count. 4 = tetrahedron, 8 = octahedron, 20 = icosahedron. Per-face colors cycle through the Face colors palette.',
+        }
+      ),
     ])
   );
 
   section.appendChild(
-    _subgroup('Appearance', [
+    _collapsibleSubgroup('gem-appearance', 'Appearance', () => [
       _color('Edge color', GEM_APPEARANCE, 'EDGE_COLOR', {
         tip: 'Neutral separator line drawn around each gem face.',
       }),
@@ -1109,7 +990,20 @@ function _buildGemSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Glow halo', [
+    _collapsibleSubgroup('gem-face-colors', 'Face colors', () => [
+      _color('Face 1', GEM_FACE_PALETTE, 'FACE_1', {}),
+      _color('Face 2', GEM_FACE_PALETTE, 'FACE_2', {}),
+      _color('Face 3', GEM_FACE_PALETTE, 'FACE_3', {}),
+      _color('Face 4', GEM_FACE_PALETTE, 'FACE_4', {}),
+      _color('Face 5', GEM_FACE_PALETTE, 'FACE_5', {}),
+      _color('Face 6', GEM_FACE_PALETTE, 'FACE_6', {}),
+      _color('Face 7', GEM_FACE_PALETTE, 'FACE_7', {}),
+      _color('Face 8', GEM_FACE_PALETTE, 'FACE_8', {}),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('gem-glow', 'Glow halo', () => [
       _toggle('Enabled', GEM_GLOW, 'ENABLED', {
         tip: 'Two billboarded sprites behind the gem painted with a soft radial-gradient — creates a fuzzy neon halo.',
       }),
@@ -1135,7 +1029,7 @@ function _buildGemSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Animation', [
+    _collapsibleSubgroup('gem-animation', 'Animation', () => [
       _slider('Rotation speed', GEM_ANIMATION, 'ROTATION_SPEED', 0, 3, 0.05, {
         tip: 'Radians per second. Above 3 rad/sec the gem looks frantic.',
       }),
@@ -1154,6 +1048,32 @@ function _buildGemSection(): HTMLElement {
     ])
   );
 
+  section.appendChild(
+    _collapsibleSubgroup('gem-repo-label', 'Repo label', () => [
+      _toggle('Enabled', REPO_LABEL, 'ENABLED', {
+        tip: 'Master toggle for the floating holographic repo-name label.',
+      }),
+      _slider('Height % of max building', REPO_LABEL, 'HEIGHT_PCT', 0, 200, 1, {
+        tip: 'Panel bottom position as a percent of the tallest possible building (MAX_FLOORS × FLOOR_HEIGHT). 0 = island floor; 100 = level with the tallest possible building; 200 = double that.',
+      }),
+      _slider('Font size', REPO_LABEL, 'FONT_SIZE', 10, 300, 1, {
+        tip: "Panel (= text) height in world units. Default 96 matches BUILDING_DIMENSIONS.MAX_WIDTH — the label reads as roughly the same scale as the biggest possible single building. Width scales with text length so long names don't squish.",
+      }),
+      _slider('Animation speed', REPO_LABEL, 'ANIMATION_SPEED', 0, 4, 0.05, {
+        tip: 'Multiplier on the holographic scanline / glitch rate. 0 freezes the label; 4 reads as frantic.',
+      }),
+      _slider('Opacity', REPO_LABEL, 'OPACITY', 0, 1, 0.05, {
+        tip: 'Master opacity. 0 invisible, 1 fully painted.',
+      }),
+      _color('Beam color', REPO_LABEL, 'BEAM_COLOR', {
+        tip: 'Color of the light beam rising from the gem.',
+      }),
+      _color('Text color', REPO_LABEL, 'TEXT_COLOR', {
+        tip: 'Tint applied to the holographic text. White preserves the chromatic-aberration look; other colors fold the aberration into the chosen hue.',
+      }),
+    ])
+  );
+
   return section;
 }
 
@@ -1165,7 +1085,7 @@ function _buildEffectsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Rainbow (selected outline + path line)', [
+    _collapsibleSubgroup('effects-rainbow', 'Rainbow (selected outline + path line)', () => [
       _slider('Speed', RAINBOW, 'SPEED', 0, 0.005, 0.0001, {
         tip: 'Hue cycles per millisecond. The shared rainbow chases around the selected building outline AND the gem→selection path line.',
       }),
@@ -1175,7 +1095,7 @@ function _buildEffectsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Bloom (HDR neon glow)', [
+    _collapsibleSubgroup('effects-bloom', 'Bloom (HDR neon glow)', () => [
       _toggle('Enabled', BLOOM, 'ENABLED', {
         tip: 'Off → bloom pass bypassed AND windows/gem stay LDR — approximates the pre-HDR "flat" look for side-by-side comparison. Other knobs stay in config.',
       }),
@@ -1318,7 +1238,7 @@ function _buildDebugSection(
 // ─── Sticky bottom action bar ──────────────────────────────────────────────
 // Three-button bar: Reset all (left) | Discard · Save (right).
 // Widgets write to the draft layer; Save commits to stores (triggering
-// the existing persist + hot-reload subscriptions). Discard drops pending
+// the existing persist + commit-reaction subscriptions). Discard drops pending
 // drafts without touching stores. Reset all stages every overridden value
 // back to its default — user still must Save to apply.
 function _buildActionsSection(): HTMLElement {
@@ -1556,9 +1476,75 @@ function _collapsibleSubgroup(
   labelSpan.className = 'theme-subgroup-label-text';
   labelSpan.textContent = name;
   summary.appendChild(labelSpan);
+
+  // Group-level reset — stages defaults for every row inside this subgroup
+  // (recursive — nested subgroups' rows are included). Uses the per-row
+  // `.theme-row-reset` buttons as the registry, same approach as the
+  // section-level reset in _section(). Hidden when no descendant row has a
+  // reset (e.g. shortcut-list subgroups). Disabled when every descendant
+  // row is already at its default.
+  const groupReset = document.createElement('button');
+  groupReset.type = 'button';
+  groupReset.className = 'controls-subgroup-reset';
+  groupReset.title = `Reset all values in ${name} to defaults`;
+  groupReset.setAttribute('aria-label', 'Reset group to defaults');
+  groupReset.appendChild(makeLucideIcon('rotate-ccw'));
+  groupReset.addEventListener('click', (e) => {
+    // Without preventDefault + stopPropagation the <summary> click would
+    // toggle the <details> open state. The user clicked reset, not the
+    // group header.
+    e.preventDefault();
+    e.stopPropagation();
+    if (groupReset.disabled) return;
+    const rowResets = details.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    rowResets.forEach((b) => {
+      if (!b.disabled) b.click();
+    });
+  });
+  summary.appendChild(groupReset);
+
   details.appendChild(summary);
 
   for (const row of buildRows()) details.appendChild(row);
+
+  function _doRefreshGroupReset() {
+    const rowResets = details.querySelectorAll<HTMLButtonElement>('.theme-row-reset');
+    if (rowResets.length === 0) {
+      groupReset.style.display = 'none';
+      groupReset.disabled = true;
+      return;
+    }
+    groupReset.style.display = '';
+    // Enabled = at least one row's reset is enabled (i.e., that row differs
+    // from default).
+    groupReset.disabled = !Array.from(rowResets).some((b) => !b.disabled);
+  }
+
+  // Queue the actual refresh into a microtask so it runs AFTER every per-row
+  // reset has already updated its own `disabled` state for the same store /
+  // draft event. Same ordering trick the section-level reset uses.
+  let _scheduled = false;
+  function refreshGroupReset() {
+    if (_scheduled) return;
+    _scheduled = true;
+    queueMicrotask(() => {
+      _scheduled = false;
+      _doRefreshGroupReset();
+    });
+  }
+
+  // Initial refresh: per-row reset buttons have already called their own
+  // synchronous refresh() (inside _makeResetButton), so we can read their
+  // `disabled` state directly. Call _doRefreshGroupReset() synchronously
+  // here rather than queuing a microtask — this avoids the button starting
+  // as enabled (the browser default) in environments that don't flush
+  // microtasks before the caller inspects the DOM (e.g. unit tests).
+  _doRefreshGroupReset();
+  // Subsequent refreshes still use the microtask scheduler so this button
+  // reads per-row state AFTER those buttons have processed the same event.
+  subscribeDrafts(refreshGroupReset);
+  onAnyChange(refreshGroupReset);
+
   return details;
 }
 

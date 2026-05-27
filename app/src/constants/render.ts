@@ -22,7 +22,6 @@ export const RENDER_ORDERS = {
   // sidewalks / asphalt / paths composite cleanly on top of it.
   CITY_FOOTPRINT: -250,
   SIDEWALK: 1, // baseline ground layer
-  PATH_CONNECTOR: 2, // building→street walkways
   ASPHALT: 3, // street stripe (drawn over sidewalks)
   PATH_LINE: 4, // neon gem→selection line
   HOVER_OUTLINE: 5, // building hover wireframe
@@ -39,8 +38,7 @@ export const RENDER_ORDERS = {
   // reads cleanly against any silhouette. Additive blending; depth
   // test still on so distant city geometry never punches a hole in it.
   REPO_LABEL: 9,
-  // Foliage (matte tree canopies + trunks + emissive bushes) draws
-  // after the city. Depth-tested normally so buildings occlude foliage
-  // that's behind them.
+  // Foliage (matte tree canopies + trunks) draws after the city.
+  // Depth-tested normally so buildings occlude foliage that's behind them.
   PARK_FOLIAGE: 10,
 } as const;

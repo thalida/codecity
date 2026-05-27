@@ -20,13 +20,10 @@ export const WORLD = map<WorldConfig>({
   GROUND_BUFFER_PERCENT: 0,
 });
 
-// ─── Scene background + atmospheric fog ────────────────────────────────────
-// GROUND is the renderer's clear color: what you see at the horizon when
-// the city doesn't fill the viewport, and what you see through transparent
-// faces of buildings. Picking this to match the sky's lower band keeps
-// the horizon line invisible. FOG_* drives the per-fragment height-fade
-// applied by buildings' fragment shader (see lighting/fogChunk.ts) — a
-// soft mist at street level that fades to clear at building tops.
+// ─── Atmospheric fog ───────────────────────────────────────────────────────
+// FOG_* drives the per-fragment height-fade applied by buildings'
+// fragment shader (see lighting/fogChunk.ts) — a soft mist at street
+// level that fades to clear at building tops.
 //
 // FOG_HEIGHT_FRAC — fraction of MAX_BUILDING_HEIGHT at which mist falls
 //                   off. Project-relative anchor so a Linux-scale tower
@@ -35,7 +32,6 @@ export const WORLD = map<WorldConfig>({
 //                   fades by mid-height of short buildings; 0.5 →
 //                   halfway up the tallest.
 export interface SceneColorsConfig {
-  GROUND: string;
   FOG_ENABLED: boolean;
   FOG_COLOR: string;
   FOG_INTENSITY: number;
@@ -46,7 +42,6 @@ export interface SceneColorsConfig {
 // mix() then returns the original color unchanged). Other knobs stay
 // in config so flipping ENABLED back restores the haze.
 export const SCENE_COLORS = map<SceneColorsConfig>({
-  GROUND: '#0a0e1c',
   FOG_ENABLED: true,
   FOG_COLOR: '#0f0821',
   FOG_INTENSITY: 0.8,

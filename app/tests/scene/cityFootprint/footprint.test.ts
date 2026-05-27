@@ -24,7 +24,6 @@ function singleBuildingLayout(): CityLayout {
       } as never,
     ],
     streets: [],
-    paths: [],
     lineStats: { min: 0, max: 0 },
     byteStats: { min: 0, max: 0 },
     bbox: { minX: -10, minY: -10, maxX: 10, maxY: 10, cx: 0, cy: 0, width: 20, depth: 20 },
@@ -58,7 +57,6 @@ describe('createCityFootprint', () => {
           name: 'main',
         } as never,
       ],
-      paths: [{ x: 0, y: 50, w: 8, d: 8 } as never],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
       bbox: { minX: -100, minY: -100, maxX: 200, maxY: 100, cx: 50, cy: 0, width: 300, depth: 200 },
@@ -66,7 +64,7 @@ describe('createCityFootprint', () => {
     const fp = createCityFootprint(layout);
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     expect(mesh).toBeInstanceOf(THREE.InstancedMesh);
-    expect(mesh.count).toBe(3);
+    expect(mesh.count).toBe(2);
   });
 
   it('attaches a per-instance aHalfExtent attribute carrying inflated half-extents', () => {
@@ -84,7 +82,6 @@ describe('createCityFootprint', () => {
         } as never,
       ],
       streets: [],
-      paths: [],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
       bbox: { minX: -10, minY: -20, maxX: 10, maxY: 20, cx: 0, cy: 0, width: 20, depth: 40 },

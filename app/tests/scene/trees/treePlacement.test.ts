@@ -29,7 +29,6 @@ describe('placeTrees (commit-driven)', () => {
     const layout: CityLayout = {
       buildings: [],
       streets: [],
-      paths: [],
       lineStats: { min: 0, max: 0 },
       byteStats: { min: 0, max: 0 },
     };

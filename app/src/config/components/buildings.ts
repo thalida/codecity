@@ -2,7 +2,7 @@
 // palette, outline, and selection-driven fade tiers.
 //
 // DIMENSIONS + PALETTE changes are rebuild-required (regenerate per-building
-// geometry / facade textures). OUTLINE + FADE are hot-reloadable.
+// geometry / facade textures). OUTLINE + FADE are applied on Save via applyTheme().
 
 import { map } from 'nanostores';
 import { FadeDetail } from '@/types';
@@ -15,21 +15,15 @@ import { FadeDetail } from '@/types';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// PATH_LENGTH is the gap perpendicular to the street (between the building
-// wall and the adjacent sidewalk) — an absolute world distance shared by
-// every building. PATH_WIDTH_FRAC is a per-building fraction of that
-// building's own width: a 40-unit building with frac 0.4 gets a 16-unit-
-// wide path, while a 6-unit building gets a 2.4-unit path. The door is
-// sized off the same per-building path width so "walk out the door, onto
-// the path" reads visually no matter how big the building is.
+// DISTANCE_FROM_ROAD is the gap perpendicular to the street between the
+// building wall and the street edge. Same for every building.
 export interface BuildingDimensionsConfig {
   MIN_FLOORS: number;
   MAX_FLOORS: number;
   FLOOR_HEIGHT: number;
   MIN_WIDTH: number;
   MAX_WIDTH: number;
-  PATH_LENGTH: number;
-  PATH_WIDTH_FRAC: number;
+  DISTANCE_FROM_ROAD: number;
 }
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
@@ -38,8 +32,7 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   FLOOR_HEIGHT: 16, // scene units per floor
   MIN_WIDTH: 8,
   MAX_WIDTH: 96,
-  PATH_LENGTH: 8, // connector strip length (building wall → sidewalk)
-  PATH_WIDTH_FRAC: 0.5, // per-building: pathWidth = building.w × this; also drives door width
+  DISTANCE_FROM_ROAD: 8, // distance from building wall to street edge
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────
@@ -236,7 +229,7 @@ export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
 //           for the oldest building. Direction is hashed per-instance
 //           so the lean is stable but city-wide varied.
 //
-// Both are hot-reloadable; refreshBuildingMaterial pushes the values
+// Both are applied on Save via applyTheme(); refreshBuildingMaterial pushes the values
 // into the building shader's uniforms.
 export interface BuildingAgingConfig {
   GRIME_ENABLED: boolean;
@@ -274,7 +267,7 @@ export const BUILDING_AGING = map<BuildingAgingConfig>({
 // (full detail, default body + outline opacity) regardless of which tier
 // it would otherwise sit in — hover acts as a "preview the selection" state.
 //
-// All hot-reloadable.
+// All applied on Save via applyTheme().
 export interface BuildingFadeConfig {
   DEFAULT_DETAIL: FadeDetail;
   DEFAULT_OUTLINE: boolean;

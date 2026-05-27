@@ -20,6 +20,9 @@ function resetStores() {
     TREE_MAX_HEIGHT: 144,
     TREE_MIN_WIDTH: 32,
     TREE_MAX_WIDTH: 128,
+    TREE_FACETS_LOW: 5,
+    TREE_FACETS_MID: 8,
+    TREE_FACETS_HIGH: 12,
     TRUNK_HEIGHT_FRAC: 0.25,
     TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
     CANOPY_TRUNK_OVERLAP_FRAC: 0.7,
@@ -38,8 +41,7 @@ function resetStores() {
     FLOOR_HEIGHT: 16,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
-    PATH_LENGTH: 8,
-    PATH_WIDTH_FRAC: 0.5,
+    DISTANCE_FROM_ROAD: 8,
   });
 }
 

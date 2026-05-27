@@ -368,11 +368,10 @@ describe('computeLineStats', () => {
 
 // ---- layoutCity ----
 describe('layoutCity', () => {
-  it('returns { streets, buildings, paths } arrays', () => {
+  it('returns { streets, buildings } arrays', () => {
     const layout = layoutCity({ tree: TEST_TREE });
     expect(Array.isArray(layout.streets)).toBe(true);
     expect(Array.isArray(layout.buildings)).toBe(true);
-    expect(Array.isArray(layout.paths)).toBe(true);
   });
 
   it('has at least 1 street', () => {
@@ -774,13 +773,7 @@ describe('_collectRects', () => {
     });
     expect(rects).toEqual([{ x: 1, y: 2, w: 3, d: 4 }]);
   });
-  it('passes path rects through unchanged', () => {
-    const rects = _collectRects({
-      paths: [{ x: 1, y: 2, w: 3, d: 4, file: {} as any }],
-    });
-    expect(rects).toEqual([{ x: 1, y: 2, w: 3, d: 4 }]);
-  });
-  it('combines streets, buildings, and paths in that order', () => {
+  it('combines streets and buildings in that order', () => {
     const rects = _collectRects({
       streets: [
         {
@@ -806,12 +799,10 @@ describe('_collectRects', () => {
           orient: BuildingOrient.South,
         },
       ],
-      paths: [{ x: 2, y: 2, w: 2, d: 2, file: {} as any }],
     });
-    expect(rects.length).toBe(3);
+    expect(rects.length).toBe(2);
     expect(rects[0].w).toBe(10); // street
     expect(rects[1].w).toBe(1); // building
-    expect(rects[2].w).toBe(2); // path
   });
 });
 

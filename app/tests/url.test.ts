@@ -1,12 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { buildApiUrl } from '@/utils/url.js';
-import { SCAN_FILTERS } from '@/config/prefs/scanFilters.js';
 
 describe('buildApiUrl', () => {
-  beforeEach(() => {
-    SCAN_FILTERS.set({ SHOW_ALL_FILES: false, NO_CACHE: false });
-  });
-
   it('forwards src param when present', () => {
     const u = buildApiUrl('/api/manifest', '?src=/foo/bar', 'http://127.0.0.1:8765');
     expect(u).toContain('src=%2Ffoo%2Fbar');
@@ -28,15 +23,19 @@ describe('buildApiUrl', () => {
     expect(u).not.toContain('branch=');
   });
 
-  it('appends include_all=true when SHOW_ALL_FILES is on', () => {
-    SCAN_FILTERS.setKey('SHOW_ALL_FILES', true);
-    const u = buildApiUrl('/api/manifest', '?src=/foo', 'http://127.0.0.1:8765');
-    expect(u).toContain('include_all=true');
+  it('appends no_cache=true when noCache is true', () => {
+    const url = buildApiUrl('/api/manifest', '?src=foo', 'http://localhost', {
+      noCache: true,
+    });
+    expect(url).toContain('no_cache=true');
   });
 
-  it('appends no_cache=true when NO_CACHE is on', () => {
-    SCAN_FILTERS.setKey('NO_CACHE', true);
-    const u = buildApiUrl('/api/manifest', '?src=/foo', 'http://127.0.0.1:8765');
-    expect(u).toContain('no_cache=true');
+  it('omits no_cache when noCache is false or undefined', () => {
+    const url = buildApiUrl('/api/manifest', '?src=foo', 'http://localhost');
+    expect(url).not.toContain('no_cache');
+    const url2 = buildApiUrl('/api/manifest', '?src=foo', 'http://localhost', {
+      noCache: false,
+    });
+    expect(url2).not.toContain('no_cache');
   });
 });

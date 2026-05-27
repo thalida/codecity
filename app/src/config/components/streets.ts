@@ -1,12 +1,12 @@
 // config/street.js — Everything visual + layout-y about a street: asphalt,
 // sidewalks, road labels, the neon path line, and how streets are sized +
-// packed (tiers + gaps). Asphalt color + sidewalk variants are hot-reloadable;
-// label typography + tiers + gaps are rebuild-required.
+// packed (tiers + gaps). Asphalt color + sidewalk variants are applied on Save
+// via applyTheme(); label typography + tiers + gaps are rebuild-required.
 
 import { atom, map } from 'nanostores';
 
 // ─── Asphalt (the inner stripe of every street) ──────────────────────────
-// COLOR is hot-reloadable. Width and length are derived: width = street
+// COLOR is applied on Save via applyTheme(). Width and length are derived: width = street
 // width × WIDTH_FRAC; length is whatever keeps the asphalt cap circle
 // concentric with the sidewalk cap circle (length - 2 × sidewalkStrip).
 // Both are designer constants — not surfaced as UI controls because they
@@ -23,7 +23,7 @@ export const ASPHALT = map<AsphaltConfig>({
 
 // ─── Sidewalk tints ────────────────────────────────────────────────────────
 // DEFAULT is the resting tint; HOVER / SELECTED are state-driven recolors
-// (cursor, current selection). All hot-reloadable. Lineage from the root
+// (cursor, current selection). All applied on Save via applyTheme(). Lineage from the root
 // gem to the current selection is shown only by the neon path line — no
 // sidewalk recolor for path streets.
 export interface SidewalkColorsConfig {
@@ -39,27 +39,19 @@ export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
 });
 
 // ─── Street label typography ──────────────────────────────────────────────
-// Names painted along each road. COLORS (FILL, STROKE) are hot-reloadable
-// but the label TEXTURE is regenerated on change. SIZING / FONT changes
-// are rebuild-required since the canvas dims depend on them.
-//   FLIP_HYSTERESIS is hot-reloadable: it's the camera-orbit dead zone
-//   before labels rotate 180° to stay readable.
-//   MIN_SCALE caps how aggressively a too-long label can be shrunk to fit
-//   its street before we fall back to truncating with an ellipsis.
+// Names painted along each road. COLORS (FILL, STROKE) are applied on Save
+// via applyTheme() but the label TEXTURE is regenerated on change. FONT /
+// HEIGHT changes are rebuild-required since the canvas dims depend on them.
+// FONT_SIZE_PX, CANVAS_PADDING_FRAC, MIN_SCALE, SPACING_MULT, SPACING_FLOOR
+// are hardcoded in the consuming modules (streetLabels.ts, labelAtlas.ts).
 export interface LabelTypographyConfig {
   FILL: string;
   STROKE: string;
   FONT_FAMILY: string;
   FONT_WEIGHT: number;
-  FONT_SIZE_PX: number;
-  CANVAS_PADDING_FRAC: number; // padding around glyphs as fraction of FONT_SIZE_PX (default 0.25 = 48px at 192px font)
   STROKE_WIDTH_FRAC: number; // outline stroke width as fraction of FONT_SIZE_PX (default 1/6 ≈ 32px at 192px font)
   HEIGHT_FRAC: number;
-  MIN_SCALE: number;
-  SPACING_MULT: number;
-  SPACING_FLOOR: number;
   ELEVATION: number;
-  FLIP_HYSTERESIS: number;
 }
 
 export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
@@ -67,15 +59,9 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
   FONT_WEIGHT: 700,
-  FONT_SIZE_PX: 192,
-  CANVAS_PADDING_FRAC: 0.25,
   STROKE_WIDTH_FRAC: 0.2,
   HEIGHT_FRAC: 0.5, // label plane height = street width × this
-  MIN_SCALE: 0.5, // floor for fit-shrink (fraction of natural height); below this, truncate with …
-  SPACING_MULT: 8.0, // repeat spacing = label width × this
-  SPACING_FLOOR: 256, // …or this floor (world units), whichever is larger
   ELEVATION: 0, // lift above asphalt (rarely tweaked; not in UI)
-  FLIP_HYSTERESIS: 0.15, // dead zone before camera-orbit flip
 });
 
 // ─── Neon path line (gem → selection) ──────────────────────────────────────
@@ -83,34 +69,32 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
 // current selection. Rainbow color cycle is shared with the selected building
 // outline — see RAINBOW in config/effects.js.
 export interface PathLineConfig {
-  LINEWIDTH: number;
+  LINEWIDTH_PCT: number; // 1–50, default 15 — % of smallest street tier width
   ELEVATION: number;
   OPACITY: number;
 }
 
 export const PATH_LINE = map<PathLineConfig>({
-  LINEWIDTH: 8,
+  LINEWIDTH_PCT: 15,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
 });
 
 // ─── Hover preview path line (gem → hovered target) ───────────────────────
 // A draft / "what would happen if I clicked here" version of PATH_LINE,
-// drawn while the cursor is over a hovered building or street. Solid
-// color (not rainbow) and faded so it reads as a preview, not the
-// committed selection. Suppressed when hover matches the current
-// selection (would just overlap the rainbow line).
+// drawn while the cursor is over a hovered building or street. Always
+// on (cannot be disabled). Solid color (not rainbow) and faded so it
+// reads as a preview, not the committed selection. Shares line width
+// with PATH_LINE so both lines move together when the slider changes.
+// Suppressed when hover matches the current selection (would just
+// overlap the rainbow line).
 export interface HoverPathLineConfig {
-  ENABLED: boolean;
-  LINEWIDTH: number;
   COLOR: string;
   OPACITY: number;
   ELEVATION: number;
 }
 
 export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
-  ENABLED: true,
-  LINEWIDTH: 8,
   COLOR: '#ffffff',
   OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top

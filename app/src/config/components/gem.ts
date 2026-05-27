@@ -1,10 +1,8 @@
 // config/gem.js — Root-of-repo gem: sizing (rebuild-required), face palette
-// (hot-reloadable via vertex color buffer rewrite), edge color (hot-reloadable),
-// and animation tuning (hot-reloadable, read fresh per frame).
+// (applied on Save via vertex color buffer rewrite), edge color (applied on Save via applyTheme()),
+// and animation tuning (applied on Save via applyTheme(); read fresh per frame).
 
-import { map, atom } from 'nanostores';
-// (atom kept for GEM_FACE_PALETTE — the others moved into the GEM_APPEARANCE
-// map below.)
+import { map } from 'nanostores';
 
 // ─── Sizing + landing zone ────────────────────────────────────────────────
 // Layout reserves dead space around the gem based on these — changing any
@@ -14,6 +12,9 @@ export interface GemSizingConfig {
   MIN_RADIUS: number;
   HOVER_LIFT_FRAC: number;
   CLEARANCE_AS_GEM_WIDTH_FRAC: number;
+  // Polyhedron family: '4' = tetrahedron, '8' = octahedron, '20' = icosahedron.
+  // Stored as string because _select stores strings.
+  SIDES: string;
 }
 
 export const GEM_SIZING = map<GemSizingConfig>({
@@ -24,30 +25,40 @@ export const GEM_SIZING = map<GemSizingConfig>({
   // expressed as a multiple of the gem's diameter so the plaza always
   // scales with the gem rather than living in absolute world units.
   CLEARANCE_AS_GEM_WIDTH_FRAC: 1.0,
+  SIDES: '8', // default octahedron
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────
-// 8 vivid faces in a prismatic palette, spaced around the color wheel so
-// no face blends with nearby building colors. Each entry is [r, g, b] in
-// 0–1 range. Hot-reloadable.
-/** RGB triple in 0–1 range. */
-export type RgbTriple = [number, number, number];
+// 8 vivid hex colors used to tint the gem's faces. The renderer cycles
+// through this list with `faces[i % 8]`, so it works for shapes with
+// fewer faces (tetrahedron uses the first 4) and more (icosahedron's
+// 20 faces cycle through twice + 4). Applied on Save via applyTheme().
+export interface GemFacePaletteConfig {
+  FACE_1: string;
+  FACE_2: string;
+  FACE_3: string;
+  FACE_4: string;
+  FACE_5: string;
+  FACE_6: string;
+  FACE_7: string;
+  FACE_8: string;
+}
 
-export const GEM_FACE_PALETTE = atom<RgbTriple[]>([
-  [1.0, 0.2, 0.55], // hot pink
-  [0.15, 0.9, 1.0], // cyan
-  [0.75, 1.0, 0.2], // chartreuse
-  [0.6, 0.25, 1.0], // violet
-  [1.0, 0.55, 0.1], // orange
-  [1.0, 0.2, 0.9], // magenta
-  [0.15, 1.0, 0.75], // aqua
-  [0.4, 1.0, 0.3], // lime
-]);
+export const GEM_FACE_PALETTE = map<GemFacePaletteConfig>({
+  FACE_1: '#ff338c', // hot pink (was [1.0, 0.2, 0.55])
+  FACE_2: '#26e5ff', // cyan (was [0.15, 0.9, 1.0])
+  FACE_3: '#bfff33', // chartreuse (was [0.75, 1.0, 0.2])
+  FACE_4: '#9940ff', // violet (was [0.6, 0.25, 1.0])
+  FACE_5: '#ff8c19', // orange (was [1.0, 0.55, 0.1])
+  FACE_6: '#ff33e5', // magenta (was [1.0, 0.2, 0.9])
+  FACE_7: '#26ffbf', // aqua (was [0.15, 1.0, 0.75])
+  FACE_8: '#66ff4d', // lime (was [0.4, 1.0, 0.3])
+});
 
 // ─── Appearance ────────────────────────────────────────────────────────────
 // Edge color = neutral separator line drawn around the faces. Body opacity
 // keeps the gem semi-transparent so the colored faces have a jewel-like
-// quality (fully opaque feels like a plastic toy). Both hot-reloadable.
+// quality (fully opaque feels like a plastic toy). Both applied on Save via applyTheme().
 export interface GemAppearanceConfig {
   EDGE_COLOR: string;
   BODY_OPACITY: number;
@@ -62,7 +73,7 @@ export const GEM_APPEARANCE = map<GemAppearanceConfig>({
 // Two billboarded sprite layers behind the gem, each painted with a
 // soft radial-gradient alpha and additively blended. Sizes are
 // multiples of the gem radius so the halo scales with the gem itself.
-// All live/hot-reloadable.
+// All applied on Save via applyTheme().
 export interface GemGlowConfig {
   ENABLED: boolean;
   INNER_SCALE: number;

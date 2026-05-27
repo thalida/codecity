@@ -21,7 +21,7 @@ export interface Island {
   group: THREE.Group;
   /** Rebuild geometry and reposition group to fit the given bounds. */
   setBounds(bounds: WorldBounds): void;
-  /** Pull fresh values from config stores; called on hot-reload. */
+  /** Pull fresh values from config stores; called on Save via applyTheme(). */
   refresh(): void;
   /** Per-frame tick: no-op for the island (hemispheric lighting is static). */
   tick(): void;

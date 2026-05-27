@@ -42,7 +42,6 @@ export * from './system/tooltip.js';
 
 // ── App-level user preferences ────────────────────────────────────────
 export * from './prefs/liveUpdates.js';
-export * from './prefs/scanFilters.js';
 export * from './prefs/syntaxTheme.js';
 
 // ── World (background + sizing) ───────────────────────────────────────
@@ -59,7 +58,6 @@ export * from './components/gem.js';
 export * from './components/island.js';
 export * from './components/footprint.js';
 export * from './components/trees.js';
-export * from './components/bushes.js';
 export * from './components/repoLabel.js';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────

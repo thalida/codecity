@@ -75,7 +75,7 @@ export function createPostFx(
       bloom.setSize(w, h);
     },
     // Pull fresh BLOOM config values into the bloom pass. Called from
-    // applyTheme() on hot-reload so the in-UI knobs take effect
+    // applyTheme() on Save so the in-UI knobs take effect
     // without rebuilding the renderer. When ENABLED is off, the pass
     // is bypassed entirely (EffectComposer skips disabled passes) so
     // the render path approximates the pre-HDR "flat" look — paired

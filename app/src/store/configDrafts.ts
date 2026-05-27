@@ -1,7 +1,7 @@
 // config/drafts.ts — in-memory draft layer between the controls panel
 // and the real nanostores. Widgets read getEffective() and write
 // setDraft(); the Save button calls commit() to flush every draft into
-// its store (which triggers the existing persist + hot-reload
+// its store (which triggers the existing persist + commit-reaction
 // subscriptions). Discard clears drafts without touching stores. Page
 // reload drops drafts (in-memory only — the standard "unsaved changes"
 // pattern).
@@ -93,6 +93,17 @@ export function stageReset(store: MapLikeStore, key: DraftKey): void {
 export function stageResetAll(): void {
   let touched = false;
   forEachRegisteredStore((_name, store, defaults) => {
+    // Direct-write stores (e.g. SYNTAX_THEME) bypass the draft layer on
+    // user input — the widget writes straight to the atom for instant
+    // visual feedback. Reset all must do the same, otherwise it leaves
+    // a phantom draft that the user has to Save to clear.
+    if ((store as { _skipDrafts?: boolean })._skipDrafts) {
+      const s = store as MapLikeStore;
+      if (!_equal(s.get(), defaults) && typeof s.set === 'function') {
+        s.set(defaults);
+      }
+      return;
+    }
     if (
       defaults &&
       typeof defaults === 'object' &&

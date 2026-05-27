@@ -9,7 +9,6 @@ import { SKY, SKY_STARS } from '@/config/components/sky.js';
 describe('SKY', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY.get();
-    expect(v.ENABLED).toBe(true);
     expect(v.COLOR).toBe('#010005');
   });
 });
@@ -19,10 +18,5 @@ describe('SKY_STARS', () => {
     const v = SKY_STARS.get();
     expect(v.ENABLED).toBe(true);
     expect(v.DENSITY).toBeCloseTo(0.0075);
-    expect(v.SIZE).toBeCloseTo(0.15);
-    expect(v.BRIGHTNESS).toBe(1.2);
-    expect(v.TWINKLE_ENABLED).toBe(true);
-    expect(v.TWINKLE_SPEED).toBe(0.5);
-    expect(v.TWINKLE_AMPLITUDE).toBe(1.0);
   });
 });

@@ -20,7 +20,7 @@ import { atom } from 'nanostores';
  *   'rebuilding' — applyManifest is constructing the city (streets,
  *                  buildings, gem).
  *   'decorating' — the city is already in the scene; the deferred
- *                  decoration pass (trees, bushes, future mesa bounds, etc.)
+ *                  decoration pass (trees, future mesa bounds, etc.)
  *                  is still in flight. Only emitted when at least one
  *                  decoration layer is enabled.
  */

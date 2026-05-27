@@ -492,7 +492,7 @@ export function createFlyControls(opts: FlyControlsOpts) {
       // the look line — comfortably in the lower portion of the frame
       // but with enough sky above to see the road's perspective.
       const maxBldgH = bbox ? Math.max(1, bbox.max.y) : 10;
-      const aboveGem = Math.max(40, maxBldgH * cfg.FLY_DEFAULT_ALTITUDE_FRAC);
+      const aboveGem = Math.max(40, maxBldgH * 0.5); // 0.5 promoted from config; floors at 40 for tiny repos
       const altitude = gem.y + aboveGem;
       const backOffset = aboveGem * 2.5;
 

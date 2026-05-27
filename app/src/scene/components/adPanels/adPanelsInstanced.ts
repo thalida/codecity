@@ -21,6 +21,12 @@ import type { Building } from '@/types/index.js';
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
 import adPanelFragSrc from './adPanel.frag.glsl?raw';
 
+// World-unit z-offset from the building's front face. depthWrite:false on
+// the panel material means polygonOffset has no effect, so this is the only
+// thing keeping the panel quad from co-planar z-fighting with the building
+// face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
+const AD_FRONT_FACE_OFFSET = 1.5;
+
 // ---------------------------------------------------------------------------
 // Face layout helpers — ported from adPanels.ts (orientToYRotation).
 // 4 faces per building; each face is one InstancedMesh slot.
@@ -84,9 +90,12 @@ export class InstancedAdPanels {
   // panel fades down in lockstep with its underlying building body when
   // the selection cascade demotes that building to NEAR / FAR tier.
   private readonly _iBuildingFade: Float32Array;
-  // Resolved error tint (AD_ERROR_COLOR × adEmission), cached so
-  // markBuildingErrored doesn't have to redo the color math per call.
+  // Plain AD_ERROR_COLOR (no emission bake) — emission is applied uniformly
+  // via uEmissionBoost in the shader. Cached so markBuildingErrored doesn't
+  // have to reparse the hex string on every error call.
   private readonly _errorColor!: THREE.Color;
+  // Shader material reference — held so refresh() can update uniforms live.
+  private readonly _material!: THREE.ShaderMaterial;
   // file.path → 4 panel slot indices for that building. Populated by
   // registerMediaBuilding and consumed by applyBuildingFades so the
   // fader doesn't need to know the slot layout.
@@ -104,16 +113,15 @@ export class InstancedAdPanels {
     const geo = new THREE.PlaneGeometry(1, 1);
 
     // Material — GLSL3 required for sampler2DArray.
-    const bloomCfg = BLOOM.get();
-    const adEmission = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
     const adCfg = AD_PANEL.get();
-    const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR).multiplyScalar(adEmission);
+    const placeholderColor = new THREE.Color(adCfg.AD_PLACEHOLDER_COLOR);
     // Cached for markBuildingErrored — recolors a panel slot's iColor
-    // when its image load/decode/upload fails permanently. Same emission
-    // multiply as the placeholder so the two states sit at comparable
-    // brightness levels and the only visual difference is hue.
-    this._errorColor = new THREE.Color(adCfg.AD_ERROR_COLOR).multiplyScalar(adEmission);
+    // when its image load/decode/upload fails permanently. Stored without
+    // emission multiply; uEmissionBoost in the shader applies uniformly to
+    // both placeholder and error colors so brightness stays consistent.
+    this._errorColor = new THREE.Color(adCfg.AD_ERROR_COLOR);
 
+    const bloomCfg = BLOOM.get();
     const mat = new THREE.ShaderMaterial({
       glslVersion: THREE.GLSL3,
       // AD_PANEL_MAX_PAGES injected as a shader #define so the
@@ -131,6 +139,11 @@ export class InstancedAdPanels {
         // Layers per page (hardware MAX_ARRAY_TEXTURE_LAYERS). The
         // shader uses it to split iLayerIndex into (page, localLayer).
         uPageSize: { value: this._texArray.pageSize },
+        // Emission boost — multiplied onto the final fragment color so
+        // both placeholder/error colors and loaded textures share the
+        // same emission scaling. Initialised from BLOOM config; updated
+        // live via refresh() when the user moves the AD_EMISSION slider.
+        uEmissionBoost: { value: bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0 },
       },
       vertexShader: adPanelVertSrc,
       fragmentShader: adPanelFragSrc,
@@ -150,6 +163,7 @@ export class InstancedAdPanels {
       polygonOffsetUnits: -4,
     });
 
+    this._material = mat;
     this.mesh = new THREE.InstancedMesh(geo, mat, slotCount);
     this.mesh.count = 0; // grow as panels are registered
     this.mesh.userData.meshKind = 'adPanel';
@@ -180,7 +194,7 @@ export class InstancedAdPanels {
     // always draws on top; polygonOffset on the material then keeps
     // the panel correctly anchored to its wall. AD_PANEL must also
     // out-rank STREET_LABEL — both have depthWrite:false, and the
-    // panel hangs out past its wall by AD_OFFSET, so without the bump
+    // panel hangs out past its wall by AD_FRONT_FACE_OFFSET, so without the bump
     // the road-name plane wins the painter sort and bleeds through the
     // panel's overhang.
     this.mesh.renderOrder = RENDER_ORDERS.AD_PANEL;
@@ -267,7 +281,10 @@ export class InstancedAdPanels {
 
       const halfExtent =
         orient === BuildingOrient.South || orient === BuildingOrient.North ? dHalf : wHalf;
-      const zOffset = halfExtent + cfg.AD_OFFSET;
+      // Z-offset from the building face. depthWrite:false means the panel
+      // would z-fight with the wall at coplanar; this lifts it off. Promoted
+      // from a config key (was AD_PANEL.AD_OFFSET).
+      const zOffset = halfExtent + AD_FRONT_FACE_OFFSET;
       const worldX = b.x + sin * zOffset;
       const worldZ = b.y + cos * zOffset;
 
@@ -406,6 +423,16 @@ export class InstancedAdPanels {
     }
     const geo = this.mesh.geometry as THREE.BufferGeometry;
     (geo.getAttribute('iColor') as THREE.InstancedBufferAttribute).needsUpdate = true;
+  }
+
+  /**
+   * Hot-reload emission from the current BLOOM config. Called by
+   * applyTheme() whenever the user changes the AD_EMISSION slider so
+   * the uniform updates without a full scene rebuild.
+   */
+  refresh(): void {
+    const bloomCfg = BLOOM.get();
+    this._material.uniforms.uEmissionBoost.value = bloomCfg.ENABLED ? bloomCfg.AD_EMISSION : 1.0;
   }
 
   dispose(): void {

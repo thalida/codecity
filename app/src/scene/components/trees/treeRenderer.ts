@@ -76,28 +76,15 @@ export interface Trees {
  *  hover/selection toward black or white so contrast is guaranteed. */
 const INVERSE_MIN_LUMINANCE_DELTA = 0.4;
 
-/** Subdivision levels of the icosahedron canopy.
- *  detail 0 → 20 faces (very faceted),
- *  detail 1 → 80 faces,
- *  detail 2 → 320 faces (smoothest, still reads as low-poly). */
+/** Three subdivision tiers for the LatheGeometry canopy. File count
+ *  drives which tier each tree lands in. Segment counts live in TREES
+ *  config (TREE_FACETS_LOW / MID / HIGH) so they're user-tunable. */
 const DETAIL_LEVELS = [0, 1, 2] as const;
 type DetailLevel = (typeof DETAIL_LEVELS)[number];
 
 function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
-
-/** Radial segment count per detail level. Tuned by eye against the
- *  Linux fixture (~30k trees) so the lowest tier reads as a recognisable
- *  tree silhouette while still being visibly chunky (5 sides → pentagonal
- *  prism look), and the highest tier holds up under close zoom (12 sides
- *  → smooth round-edged dome). Not exposed in the Settings UI — the
- *  perf budget at each tier is calibrated against these counts. */
-const DETAIL_SEGMENTS: Record<DetailLevel, number> = {
-  0: 5, // distance tier — coarsest, max instance count
-  1: 8, // mid tier — balanced
-  2: 12, // hero tier — closest distance, fewest instances
-};
 
 /** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
  *  geometry at the given subdivision detail.
@@ -146,7 +133,9 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
     new THREE.Vector2(0, 1.0), // apex
   ];
   const profile = CANOPY_PROFILE;
-  const segments = DETAIL_SEGMENTS[detail];
+  const cfg = TREES.get();
+  const segments =
+    detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
   const geom = new THREE.LatheGeometry(profile, segments);
   // Non-indexed + flat normals so the baked per-vertex shading reads
   // as discrete facets (each face shaded uniformly).

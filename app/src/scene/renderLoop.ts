@@ -7,7 +7,6 @@
 import * as THREE from 'three';
 
 import {
-  SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
@@ -21,6 +20,7 @@ import {
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
+import { SKY } from '@/config/components/sky.js';
 import { createWorld } from './world.js';
 import { refreshBuildingMaterial } from './components/buildings/buildings.js';
 import { createCameraRig } from './system/cameraRig.js';
@@ -197,8 +197,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
 
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
-  // based on the current picker.selection / picker.hover state. Building
-  // connector strips for the same dir follow the same tint.
+  // based on the current picker.selection / picker.hover state.
   function _refreshSidewalkTints(): void {
     const sel = picker.selection.get();
     const hov = picker.hover.get();
@@ -215,16 +214,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       }
       const swColor = expected ?? sw.userData.origColor;
       sw.material.color.setHex(swColor);
-      const swDir = sw.userData.street?.dir;
-      const connectors = swDir ? world.getPathConnectorsByDir(swDir.path) : null;
-      if (connectors) {
-        for (const pm of connectors) {
-          if (pm.userData.origColor == null) {
-            pm.userData.origColor = pm.material.color.getHex();
-          }
-          pm.material.color.setHex(swColor);
-        }
-      }
     }
   }
 
@@ -236,7 +225,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // don't need anything here.
   function applyTheme(): void {
     const sidewalk = SIDEWALK_COLORS.get();
-    const sceneCol = SCENE_COLORS.get();
 
     SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
@@ -253,15 +241,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       mesh.material.color.setHex(asphaltHex);
     }
 
-    scene.background = new THREE.Color(sceneCol.GROUND);
+    scene.background = new THREE.Color(SKY.get().COLOR);
 
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
     // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
-    // ground color, star density, twinkle params) and flips
-    // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
+    // star density, twinkle params). Hot-reloaded via the
     // hotStores route in app/config/hotReload.ts.
     world.getSky().refresh();
     // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
@@ -278,15 +265,15 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
 
-    // Cyberpunk Valley bushes — pushes fresh BUSH_NEON_COLORS + emission
-    // boost into per-instance color buffers + ShaderMaterial uniforms.
-    // Null until the first manifest applies (or when BUSHES_ENABLED is off).
-    world.getBushes()?.refresh();
-
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
     // onto the slab material / group visibility. Null until the first
     // manifest applies; guard with optional chain.
     world.getCityFootprint()?.refresh();
+
+    // Ad panels — pushes fresh BLOOM.AD_EMISSION into uEmissionBoost so
+    // the emission slider hot-updates without a manifest rebuild. Null
+    // until the first manifest with media files applies.
+    world.getAdPanels()?.refresh();
 
     const gemAppearance = GEM_APPEARANCE.get();
     const rootGemEdges = world.getRootGemEdges();
@@ -306,6 +293,41 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         rootGemBody.material.transparent = wantTransparent;
         rootGemBody.material.needsUpdate = true;
       }
+    }
+    // Per-face colors live on the gem body's geometry as a BufferAttribute,
+    // baked at construction. Rewrite it in place on Save so palette tweaks
+    // take effect without a full applyManifest rebuild.
+    if (rootGemBody?.geometry?.attributes.color) {
+      const palette = GEM_FACE_PALETTE.get();
+      const paletteHexes = [
+        palette.FACE_1,
+        palette.FACE_2,
+        palette.FACE_3,
+        palette.FACE_4,
+        palette.FACE_5,
+        palette.FACE_6,
+        palette.FACE_7,
+        palette.FACE_8,
+      ];
+      const faceColors = paletteHexes.map((hex) => {
+        const c = new THREE.Color(hex);
+        return [c.r, c.g, c.b] as [number, number, number];
+      });
+      const geo = rootGemBody.geometry;
+      const colorAttr = geo.attributes.color as THREE.BufferAttribute;
+      const vertexCount = geo.attributes.position.count;
+      const faceCount = vertexCount / 3;
+      const arr = colorAttr.array as Float32Array;
+      for (let f = 0; f < faceCount; f++) {
+        const fc = faceColors[f % faceColors.length];
+        for (let v = 0; v < 3; v++) {
+          const idx = (f * 3 + v) * 3;
+          arr[idx] = fc[0];
+          arr[idx + 1] = fc[1];
+          arr[idx + 2] = fc[2];
+        }
+      }
+      colorAttr.needsUpdate = true;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
       const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
@@ -479,17 +501,21 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       if (inner || outer) {
         if (glowCfg.ANIMATE_COLORS) {
           const palette = GEM_FACE_PALETTE.get();
+          const hexes = [
+            palette.FACE_1,
+            palette.FACE_2,
+            palette.FACE_3,
+            palette.FACE_4,
+            palette.FACE_5,
+            palette.FACE_6,
+            palette.FACE_7,
+            palette.FACE_8,
+          ];
           const period = Math.max(0.001, glowCfg.CYCLE_PERIOD_SECONDS);
           if (inner)
-            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, palette, t, period, 0);
+            _setPaletteColor((inner.material as THREE.SpriteMaterial).color, hexes, t, period, 0);
           if (outer)
-            _setPaletteColor(
-              (outer.material as THREE.SpriteMaterial).color,
-              palette,
-              t,
-              period,
-              0.5
-            );
+            _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
         } else {
           const edge = GEM_APPEARANCE.get().EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
@@ -527,7 +553,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   animate();
 
   // Expose world, applyTheme, and coordinator to the boot block so
-  // setupLiveUpdates can swap in fresh manifests, attachHotReload can
+  // setupLiveUpdates can swap in fresh manifests, attachCommitReactions can
   // dispatch material refreshes, and applyNewSource can update the header
   // branch pill + repo link after a mid-session source switch.
   return { world, applyTheme, coordinator };
@@ -540,7 +566,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
 // "ahead-of-each-other" cadences without allocating new Colors.
 function _setPaletteColor(
   out: THREE.Color,
-  palette: ReadonlyArray<readonly [number, number, number]>,
+  palette: ReadonlyArray<string>,
   t: number,
   period: number,
   offset: number
@@ -552,9 +578,9 @@ function _setPaletteColor(
   const a = Math.floor(idxf) % n;
   const b = (a + 1) % n;
   const f = idxf - Math.floor(idxf);
-  const A = palette[a];
-  const B = palette[b];
-  out.setRGB(A[0] + (B[0] - A[0]) * f, A[1] + (B[1] - A[1]) * f, A[2] + (B[2] - A[2]) * f);
+  const A = new THREE.Color(palette[a]);
+  const B = new THREE.Color(palette[b]);
+  out.setRGB(A.r + (B.r - A.r) * f, A.g + (B.g - A.g) * f, A.b + (B.b - A.b) * f);
 }
 
 // Keep flat street labels readable at any orbit. Flip decision comes from the
@@ -573,7 +599,10 @@ function _orientLabelsForCamera(
   // Without this, near-top-down camera positions (where rightX/rightZ are
   // near zero) cause floating-point jitter from OrbitControls' damping to
   // flip labels back and forth every frame.
-  const THRESH = LABEL_TYPOGRAPHY.get().FLIP_HYSTERESIS;
+  // Camera-orbit dead zone before the street label flips to match the
+  // new viewing angle. Was previously tunable; the default proved
+  // universally good and the control was removed (2026-05-26).
+  const THRESH = 0.15;
 
   for (const lbl of labels) {
     const street = lbl.userData.street;

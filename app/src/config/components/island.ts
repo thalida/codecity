@@ -4,7 +4,7 @@
 // GROUND_ENABLED, ENABLED). Sizing config (GROUND_BUFFER_PERCENT)
 // stays in WORLD since it pairs with worldBounds.
 //
-// All fields hot-reloadable via .listen() in islandMesh.applyConfig().
+// All fields applied on Save via applyTheme() — islandMesh.applyConfig() pulls fresh values.
 
 import { map } from 'nanostores';
 

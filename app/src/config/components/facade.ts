@@ -11,7 +11,7 @@
 //   • FACADE_GEOMETRY shader-side keys (*_FRAC) + entire FACADE_DETAIL +
 //     entire WINDOW_LIGHTING → refreshBuildingMaterial() (uniforms; cheap).
 //   • FACADE_GEOMETRY JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL,
-//     DOOR_WIDTH_FRAC_OF_PATH) → scheduleRebuild() because they bake into
+//     DOOR_WIDTH_FRAC) → scheduleRebuild() because they bake into
 //     per-instance attributes at manifest-apply time.
 //
 // Consumers do NOT clamp values from these stores — the UI is the gate
@@ -32,7 +32,7 @@ export interface FacadeGeometryConfig {
   // JS-DRIVEN (per-instance attributes baked at build time → rebuild)
   WINDOW_COLS_MAX: number; // 1-10 integer — max window columns per face
   WIDTH_PER_WINDOW_COL: number; // 1-32 — world-unit width allotted per window column (cols = floor(width / this))
-  DOOR_WIDTH_FRAC_OF_PATH: number; // 0-1 — door width as fraction of path width
+  DOOR_WIDTH_FRAC: number; // 0-1 — door width as a fraction of the building's own width
 }
 
 export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
@@ -44,7 +44,7 @@ export const FACADE_GEOMETRY = map<FacadeGeometryConfig>({
   ROOF_BORDER_FRAC: 0.05,
   WINDOW_COLS_MAX: 8,
   WIDTH_PER_WINDOW_COL: 12,
-  DOOR_WIDTH_FRAC_OF_PATH: 0.75,
+  DOOR_WIDTH_FRAC: 0.4,
 });
 
 // HSL lightness deltas applied via shadeColor() / shadeAndShiftHue() in the
