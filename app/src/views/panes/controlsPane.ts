@@ -818,9 +818,6 @@ function _buildBuildingsSection(): HTMLElement {
       _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
         tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
       }),
-      _slider('Front-face offset', AD_PANEL, 'AD_OFFSET', 0, 0.2, 0.005, {
-        tip: 'How far in front of the building face the ad plane sits — small z-offset to avoid z-fighting with the wall. Above 0.2 the ad noticeably floats away from the building.',
-      }),
       _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
         tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
       }),

@@ -21,6 +21,12 @@ import type { Building } from '@/types/index.js';
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
 import adPanelFragSrc from './adPanel.frag.glsl?raw';
 
+// World-unit z-offset from the building's front face. depthWrite:false on
+// the panel material means polygonOffset has no effect, so this is the only
+// thing keeping the panel quad from co-planar z-fighting with the building
+// face. Tuned to clear typical 8–96 unit-wide buildings at oblique angles.
+const AD_FRONT_FACE_OFFSET = 1.5;
+
 // ---------------------------------------------------------------------------
 // Face layout helpers — ported from adPanels.ts (orientToYRotation).
 // 4 faces per building; each face is one InstancedMesh slot.
@@ -188,7 +194,7 @@ export class InstancedAdPanels {
     // always draws on top; polygonOffset on the material then keeps
     // the panel correctly anchored to its wall. AD_PANEL must also
     // out-rank STREET_LABEL — both have depthWrite:false, and the
-    // panel hangs out past its wall by AD_OFFSET, so without the bump
+    // panel hangs out past its wall by AD_FRONT_FACE_OFFSET, so without the bump
     // the road-name plane wins the painter sort and bleeds through the
     // panel's overhang.
     this.mesh.renderOrder = RENDER_ORDERS.AD_PANEL;
@@ -275,7 +281,10 @@ export class InstancedAdPanels {
 
       const halfExtent =
         orient === BuildingOrient.South || orient === BuildingOrient.North ? dHalf : wHalf;
-      const zOffset = halfExtent + cfg.AD_OFFSET;
+      // Z-offset from the building face. depthWrite:false means the panel
+      // would z-fight with the wall at coplanar; this lifts it off. Promoted
+      // from a config key (was AD_PANEL.AD_OFFSET).
+      const zOffset = halfExtent + AD_FRONT_FACE_OFFSET;
       const worldX = b.x + sin * zOffset;
       const worldZ = b.y + cos * zOffset;
 
