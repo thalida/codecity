@@ -513,7 +513,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Visibility', [
+    _collapsibleSubgroup('trees-visibility', 'Visibility', () => [
       _toggle('Trees enabled', TREES, 'TREES_ENABLED', {
         tip: 'Master toggle. When off, all tree canopies + trunks are hidden (mesh.visible flip — no rebuild).',
       }),
@@ -521,7 +521,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Placement', [
+    _collapsibleSubgroup('trees-placement', 'Placement', () => [
       _slider('Edge inset (% of plane)', TREES, 'EDGE_INSET_PERCENT', 0, 50, 1, {
         tip: 'Trees stop short of the plane edge by this fraction of the SHORTER axis. Rebuild on change.',
       }),
@@ -532,7 +532,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Color by commits-per-day', [
+    _collapsibleSubgroup('trees-color-by-commits', 'Color by commits-per-day', () => [
       _color('Busy-day color', TREES, 'TREE_COLOR_BUSY_DAY', {
         tip: 'Color for commits on a busy day — many commits sharing the same date. Live.',
       }),
@@ -549,7 +549,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Age desaturation', [
+    _collapsibleSubgroup('trees-age-desaturation', 'Age desaturation', () => [
       _toggle('Age desaturation enabled', TREES, 'TREE_AGE_DESAT_ENABLED', {
         tip: 'When on, older commits fade toward gray — newest commits keep full color, oldest are washed out. Live.',
       }),
@@ -569,7 +569,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Height by age', [
+    _collapsibleSubgroup('trees-height-by-age', 'Height by age', () => [
       _slider('Min height', TREES, 'TREE_MIN_HEIGHT', 4, 400, 4, {
         tip: 'Height (world units) of the newest commit. Older commits grow taller toward Max. Independent of building dimensions. Rebuild on change.',
       }),
@@ -586,7 +586,7 @@ function _buildTreesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _subgroup('Width by files', [
+    _collapsibleSubgroup('trees-width-by-files', 'Width by files', () => [
       _slider('Min canopy width', TREES, 'TREE_MIN_WIDTH', 2, 400, 2, {
         tip: 'Canopy diameter (world units) of commits with the fewest files changed. Independent of building dimensions. Rebuild on change.',
       }),
