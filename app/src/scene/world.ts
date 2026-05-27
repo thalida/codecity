@@ -1252,6 +1252,21 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     }
   }
 
+  // Narrow cache-clear used by configCommitReactions before each Save-driven
+  // applyManifest. The manifest itself doesn't change on a config-only Save,
+  // so without this call applyManifest hits the layout cache and reuseLayout
+  // returns identical positions — Save would have no visible effect for
+  // layout-affecting configs (building dims, street widths, street layout,
+  // gem sizing, label typography). Live-update polls go through a separate
+  // path that never triggers scheduleRebuild, so the cache still helps there.
+  // Narrower than resetCache(): only nulls the layout cache; leaves scenic
+  // state + ad panels alone (those are correctly handled by applyManifest's
+  // own scenic-hash invalidation).
+  function invalidateLayoutCache(): void {
+    _cachedLayoutTreeSig = null;
+    _cachedLayout = null;
+  }
+
   return {
     scene,
     applyManifest,
@@ -1260,6 +1275,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     onChange,
     disposeMesh,
     resetCache,
+    invalidateLayoutCache,
 
     /**
      * Cyberpunk Valley sky reference. Exposed so main.ts's applyTheme()

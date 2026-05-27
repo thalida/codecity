@@ -84,6 +84,7 @@ interface CommitReactionsOpts {
   world: {
     getManifest(): unknown;
     applyManifest(m: unknown): Promise<void>;
+    invalidateLayoutCache(): void;
   };
   applyTheme: () => void;
 }
@@ -101,6 +102,13 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     if (!armed) return;
     REBUILD_STATUS.set('rebuilding');
     try {
+      // Config changes that hit this path always invalidate the layout
+      // cache: the manifest didn't change but a layout-affecting config
+      // value did, so reuseLayoutFrom would skip the recompute and the
+      // change would have no visible effect (building dims, street widths,
+      // street layout, gem sizing, label typography). Live-update polls
+      // never trigger scheduleRebuild so they keep using the cache.
+      world.invalidateLayoutCache();
       const manifest = world.getManifest();
       if (manifest) {
         await world.applyManifest(manifest);
