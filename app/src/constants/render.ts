@@ -22,7 +22,6 @@ export const RENDER_ORDERS = {
   // sidewalks / asphalt / paths composite cleanly on top of it.
   CITY_FOOTPRINT: -250,
   SIDEWALK: 1, // baseline ground layer
-  PATH_CONNECTOR: 2, // building→street walkways
   ASPHALT: 3, // street stripe (drawn over sidewalks)
   PATH_LINE: 4, // neon gem→selection line
   HOVER_OUTLINE: 5, // building hover wireframe

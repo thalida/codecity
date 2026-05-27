@@ -705,14 +705,14 @@ export function estimateDirReaches(
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.get();
-  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
   const gemSizing = GEM_SIZING.get();
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
 
   // Padding chain — mirrors _layoutDir exactly so the estimate matches the
   // real placement's bounds.
   const myStreetWidth = _streetWidthForDir(dir);
-  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
@@ -751,7 +751,7 @@ export function estimateDirReaches(
     if (child.type === NodeKind.File) {
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       alongContrib = dim.w;
-      perpContrib = myStreetWidth / 2 + bldgPathLength + dim.d;
+      perpContrib = myStreetWidth / 2 + distFromRoad + dim.d;
     } else {
       const sub = estimateDirReaches(child as DirLike, lineStats, byteStats, myStreetWidth, cache);
       // A perpendicular subdir occupies 2*subdir.perpReach in the parent's
@@ -821,11 +821,11 @@ function _layoutDir(
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
   const bldgDims = BUILDING_DIMENSIONS.get();
-  const bldgPathLength = bldgDims.PATH_LENGTH;
+  const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
 
   // ----- Padding chain -----
   const myStreetWidth = _streetWidthForDir(dir);
-  const openEndPad = myStreetWidth / 2 + bldgPathLength;
+  const openEndPad = myStreetWidth / 2 + distFromRoad;
   const joinEndBaseline = parentStreetWidth ? parentStreetWidth / 2 + parentJoinPad : rootEndPad;
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
@@ -915,7 +915,7 @@ function _layoutDir(
       const dim = getBuildingDimensions(child as FileLike, lineStats, byteStats);
       const along = dim.w;
       const perpDepth = dim.d;
-      const perpCenter = myStreetWidth / 2 + bldgPathLength + perpDepth / 2;
+      const perpCenter = myStreetWidth / 2 + distFromRoad + perpDepth / 2;
       let bx: number, by: number, bw: number, bd: number;
       if (orientation === StreetAxis.X) {
         bx = 0;

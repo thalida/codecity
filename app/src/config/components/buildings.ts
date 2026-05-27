@@ -15,16 +15,15 @@ import { FadeDetail } from '@/types';
 // "size ceiling" anchor that punishes small repos with thin buildings or
 // crushes large repos to all-the-same width.
 //
-// PATH_LENGTH is the gap perpendicular to the street between the
-// building wall and the street edge ("distance from road"). Same for
-// every building.
+// DISTANCE_FROM_ROAD is the gap perpendicular to the street between the
+// building wall and the street edge. Same for every building.
 export interface BuildingDimensionsConfig {
   MIN_FLOORS: number;
   MAX_FLOORS: number;
   FLOOR_HEIGHT: number;
   MIN_WIDTH: number;
   MAX_WIDTH: number;
-  PATH_LENGTH: number;
+  DISTANCE_FROM_ROAD: number;
 }
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
@@ -33,7 +32,7 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   FLOOR_HEIGHT: 16, // scene units per floor
   MIN_WIDTH: 8,
   MAX_WIDTH: 96,
-  PATH_LENGTH: 8, // distance from building wall to street edge
+  DISTANCE_FROM_ROAD: 8, // distance from building wall to street edge
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────

@@ -38,7 +38,7 @@ function resetStores() {
     FLOOR_HEIGHT: 16,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
-    PATH_LENGTH: 8,
+    DISTANCE_FROM_ROAD: 8,
   });
 }
 

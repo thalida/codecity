@@ -740,7 +740,7 @@ function _buildBuildingsSection(): HTMLElement {
       _rangePair('Width range', BUILDING_DIMENSIONS, 'MIN_WIDTH', 'MAX_WIDTH', 1, 200, 1, {
         tip: "How wide a building's footprint is — represents the file's byte size. Smallest file lands at MIN width; largest at MAX. Log-interpolated across byte sizes. Footprints are square (depth = width).",
       }),
-      _number('Distance from road', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
+      _number('Distance from road', BUILDING_DIMENSIONS, 'DISTANCE_FROM_ROAD', 0, 50, 1, {
         tip: 'Gap between the building wall and the street edge. Same for every building.',
       }),
     ])
