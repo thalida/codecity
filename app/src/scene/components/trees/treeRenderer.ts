@@ -361,8 +361,7 @@ export function createTreeRenderer(
 
   // Base color cache: keyed by commit SHA, value is the hex color string
   // (e.g. "#5e8a3a") computed during bake. Populated below and rebuilt
-  // on every refresh(). colorForSha reads from here, not the instance
-  // buffer, so hover/select tints never bleed into the returned value.
+  // on every refresh(). colorForSha reads from here, not the instance buffer.
   const _baseColorBySha = new Map<string, string>();
 
   // O(1) index from sha → canopy instance. Populated in the bake loop
