@@ -18,11 +18,6 @@ import { FadeDetail } from '@/types';
 // PATH_LENGTH is the gap perpendicular to the street between the
 // building wall and the street edge ("distance from road"). Same for
 // every building.
-//
-// PATH_WIDTH_FRAC is the door width as a fraction of the building's
-// own width — bigger buildings get proportionally wider doors. The
-// legacy name is preserved to avoid churn; semantically it is now
-// only "door width as fraction of building width".
 export interface BuildingDimensionsConfig {
   MIN_FLOORS: number;
   MAX_FLOORS: number;
@@ -30,7 +25,6 @@ export interface BuildingDimensionsConfig {
   MIN_WIDTH: number;
   MAX_WIDTH: number;
   PATH_LENGTH: number;
-  PATH_WIDTH_FRAC: number;
 }
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
@@ -40,7 +34,6 @@ export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   MIN_WIDTH: 8,
   MAX_WIDTH: 96,
   PATH_LENGTH: 8, // distance from building wall to street edge
-  PATH_WIDTH_FRAC: 0.5, // door width = building.w × this
 });
 
 // ─── Color palette (HSL) ───────────────────────────────────────────────────

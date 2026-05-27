@@ -730,7 +730,7 @@ function _buildBuildingsSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('buildings-size', 'Building size', () => [
+    _collapsibleSubgroup('buildings-layout', 'Building layout', () => [
       _rangePair('Floors range', BUILDING_DIMENSIONS, 'MIN_FLOORS', 'MAX_FLOORS', 1, 200, 1, {
         tip: "How tall a building gets — represents the file's line count. Smallest file in the project lands at MIN floors; largest at MAX. Sqrt-interpolated across line counts.",
       }),
@@ -742,9 +742,6 @@ function _buildBuildingsSection(): HTMLElement {
       }),
       _number('Distance from road', BUILDING_DIMENSIONS, 'PATH_LENGTH', 0, 50, 1, {
         tip: 'Gap between the building wall and the street edge. Same for every building.',
-      }),
-      _slider('Door width', BUILDING_DIMENSIONS, 'PATH_WIDTH_FRAC', 0, 1, 0.05, {
-        tip: "Door width as a fraction of the building's own width — bigger buildings get proportionally wider doors.",
       }),
     ])
   );
@@ -810,21 +807,7 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
-  section.appendChild(
-    _collapsibleSubgroup('buildings-ads', 'Ad panels (media files)', () => [
-      _slider('Side margin × width', AD_PANEL, 'AD_SIDE_MARGIN_FRAC', 0, 0.4, 0.01, {
-        tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
-      }),
-      _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
-        tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
-      }),
-      _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
-        tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
-      }),
-    ])
-  );
-
-  // Facade parent — geometry, contrast, and window lighting share the
+  // Facade parent — geometry, contrast, window lighting, and ad panels share the
   // "what the building's surface looks like" mental model, so we collapse
   // them under one default-closed parent. Each child stays a regular
   // _subgroup; _collapsibleSubgroup's `buildRows` already accepts any
@@ -856,8 +839,8 @@ function _buildBuildingsSection(): HTMLElement {
         _number('Width per window col', FACADE_GEOMETRY, 'WIDTH_PER_WINDOW_COL', 1, 32, 1, {
           tip: 'World-unit width allotted per window column (cols = floor(buildingWidth / this)). Rebuild required. Above 32 world units per column, small buildings end up with zero windows.',
         }),
-        _slider('Door width × path', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC_OF_PATH', 0, 1, 0.01, {
-          tip: 'Door width as a fraction of the building path width. Rebuild required.',
+        _slider('Door width', FACADE_GEOMETRY, 'DOOR_WIDTH_FRAC', 0, 1, 0.05, {
+          tip: "Door width as a fraction of the building's own width. Bigger buildings get proportionally wider doors. Rebuild required.",
         }),
       ]),
       _collapsibleSubgroup('facade-contrast', 'Contrast (HSL lightness Δ)', () => [
@@ -886,6 +869,17 @@ function _buildBuildingsSection(): HTMLElement {
         }),
         _color('Old building glow', WINDOW_LIGHTING, 'DIM_GLOW_COLOR', {
           tip: 'Warm-amber tint that lit panes drift toward as the file ages (created-date axis, not last-modified).',
+        }),
+      ]),
+      _collapsibleSubgroup('facade-ad-panels', 'Ad panels (media files)', () => [
+        _slider('Side margin × width', AD_PANEL, 'AD_SIDE_MARGIN_FRAC', 0, 0.4, 0.01, {
+          tip: 'Horizontal margin on each side of the building width — controls how much building wall is visible to the left and right of the ad. Above 0.4 the margins consume more than 80% of the face and the ad becomes a sliver.',
+        }),
+        _slider('Bottom offset × floors', AD_PANEL, 'AD_BOTTOM_OFFSET_FLOORS', 0, 3, 0.1, {
+          tip: 'Ad bottom edge sits this many floor heights above the ground — guarantees the door (0.75 of a floor tall) stays uncovered. 1.0 leaves a clean strip; raise it to lift the ad higher on the building.',
+        }),
+        _color('Placeholder color', AD_PANEL, 'AD_PLACEHOLDER_COLOR', {
+          tip: 'Color shown on the ad plane while the texture is loading (or if the load fails).',
         }),
       ]),
     ])

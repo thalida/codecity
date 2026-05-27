@@ -10,7 +10,7 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { BUILDING_DIMENSIONS, FACADE_GEOMETRY } from '@/config/index.js';
+import { FACADE_GEOMETRY } from '@/config/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
@@ -210,11 +210,10 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (mirrors buildBuildingInstanceBuffer) ---
-  const pathWidthFrac = BUILDING_DIMENSIONS.get().PATH_WIDTH_FRAC;
   const facade = FACADE_GEOMETRY.get();
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
-  const doorWidthFracOfPath = facade.DOOR_WIDTH_FRAC_OF_PATH;
+  const doorWidthFrac = facade.DOOR_WIDTH_FRAC;
 
   // --- Transform matrix ---
   // Layout (x, y) → scene (x, z); building.h is scene-Y.
@@ -250,12 +249,10 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   iOrientAttr.setX(slot, orientToIndex(b.orient));
 
   // --- Door width ---
-  // doorWorldWidth = building.w × PATH_WIDTH_FRAC × DOOR_WIDTH_FRAC_OF_PATH
-  // (PATH_WIDTH_FRAC is the door-width fraction; DOOR_WIDTH_FRAC_OF_PATH
-  // is the inner trim of door vs panel. Legacy names preserved.)
+  // doorWorldWidth = building.w × DOOR_WIDTH_FRAC
   // Mirrors createBuildingMesh and buildBuildingInstanceBuffer.
   const iDoorWidthAttr = mesh.geometry.getAttribute('iDoorWidth') as THREE.InstancedBufferAttribute;
-  iDoorWidthAttr.setX(slot, b.w * pathWidthFrac * doorWidthFracOfPath);
+  iDoorWidthAttr.setX(slot, b.w * doorWidthFrac);
 
   // --- Fade (opacity defaults to 1.0; silhouette + outlineOpacity default to 0) ---
   const iFadeAttr = mesh.geometry.getAttribute('iFade') as THREE.InstancedBufferAttribute;

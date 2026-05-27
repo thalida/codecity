@@ -136,6 +136,5 @@ export function resetBuildingsConfig(): void {
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
     PATH_LENGTH: 8,
-    PATH_WIDTH_FRAC: 0.5,
   });
 }

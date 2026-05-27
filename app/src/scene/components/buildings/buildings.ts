@@ -130,7 +130,7 @@ function getBuildingMaterial(): THREE.ShaderMaterial {
       // the current store snapshot so the first frame renders with the
       // configured values; refreshBuildingMaterial() pushes updates on
       // Save via applyTheme(). Only the shader-side keys appear here — the JS-side
-      // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH)
+      // keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC)
       // bake into per-instance attributes in buildBuildingInstanceBuffer above.
       uSlabHeightFrac: { value: FACADE_GEOMETRY.get().SLAB_HEIGHT_FRAC },
       uWindowWidthFrac: { value: FACADE_GEOMETRY.get().WINDOW_WIDTH_FRAC },
@@ -217,7 +217,7 @@ export function refreshBuildingMaterial(): void {
   _sharedMaterial.uniforms.uAmbient.value = lighting.AMBIENT;
   _sharedMaterial.uniforms.uSunContrast.value = lighting.SUN_CONTRAST;
   // Procedural facade geometry (FACADE_GEOMETRY store) — shader-side keys.
-  // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC_OF_PATH) require a full
+  // The JS-side keys (WINDOW_COLS_MAX, WIDTH_PER_WINDOW_COL, DOOR_WIDTH_FRAC) require a full
   // rebuild because they bake into per-instance attributes; hotReload.ts
   // routes the whole store through scheduleRebuild so the uniforms here
   // are kept fresh on the next rebuild without separate plumbing.

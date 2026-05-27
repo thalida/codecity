@@ -164,7 +164,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // label-typography change is rare.
     LABEL_TYPOGRAPHY,
     // FACADE_GEOMETRY: WINDOW_COLS_MAX / WIDTH_PER_WINDOW_COL /
-    // DOOR_WIDTH_FRAC_OF_PATH bake into per-instance attributes
+    // DOOR_WIDTH_FRAC bake into per-instance attributes
     // (buf.cols / buf.doorWidth), so a change requires re-running
     // buildBuildingInstanceBuffer via applyManifest. The shader-side
     // keys (SLAB/WINDOW/DOOR/ROOF_*_FRAC) are also pushed via the
