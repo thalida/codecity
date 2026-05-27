@@ -13,7 +13,21 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PATH_LINE, HOVER_PATH_LINE, RAINBOW } from '@/config/index.js';
+import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/config/index.js';
+
+/**
+ * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
+ * by multiplying the smallest street tier width by pct/100.
+ *
+ * LineMaterial with worldUnits:false interprets linewidth in screen pixels,
+ * so this keeps lines proportional to the narrowest street at any zoom.
+ */
+export function computePathLinewidthPixels(pct: number): number {
+  const tiers = STREET_TIERS.get();
+  if (!tiers.length) return pct / 100; // degenerate fallback
+  const minWidth = Math.min(...tiers.map((t) => t.width));
+  return minWidth * (pct / 100);
+}
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
 import { computePathPoints } from '@/scene/utils/path.js';
@@ -35,7 +49,7 @@ export function createPathLineRenderer({
   const _pl = PATH_LINE.get();
   const pathLineMat = new LineMaterial({
     vertexColors: true,
-    linewidth: _pl.LINEWIDTH,
+    linewidth: computePathLinewidthPixels(_pl.LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -58,7 +72,7 @@ export function createPathLineRenderer({
   const _hpl = HOVER_PATH_LINE.get();
   const hoverPathLineMat = new LineMaterial({
     color: _hpl.COLOR,
-    linewidth: _hpl.LINEWIDTH,
+    linewidth: computePathLinewidthPixels(_hpl.LINEWIDTH_PCT),
     transparent: true,
     opacity: 0.0,
     depthTest: true,
@@ -188,11 +202,11 @@ export function createPathLineRenderer({
 
   function refreshMaterials(): void {
     const pl = PATH_LINE.get();
-    pathLineMat.linewidth = pl.LINEWIDTH;
+    pathLineMat.linewidth = computePathLinewidthPixels(pl.LINEWIDTH_PCT);
     if (pathLine.visible) pathLineMat.opacity = pl.OPACITY;
     const hpl = HOVER_PATH_LINE.get();
     hoverPathLineMat.color.set(hpl.COLOR);
-    hoverPathLineMat.linewidth = hpl.LINEWIDTH;
+    hoverPathLineMat.linewidth = computePathLinewidthPixels(hpl.LINEWIDTH_PCT);
     _updateHoverPathLine();
   }
 

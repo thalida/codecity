@@ -79,13 +79,13 @@ export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
 // current selection. Rainbow color cycle is shared with the selected building
 // outline — see RAINBOW in config/effects.js.
 export interface PathLineConfig {
-  LINEWIDTH: number;
+  LINEWIDTH_PCT: number; // 1–50, default 10 — % of smallest street tier width
   ELEVATION: number;
   OPACITY: number;
 }
 
 export const PATH_LINE = map<PathLineConfig>({
-  LINEWIDTH: 8,
+  LINEWIDTH_PCT: 10,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
 });
@@ -98,7 +98,7 @@ export const PATH_LINE = map<PathLineConfig>({
 // selection (would just overlap the rainbow line).
 export interface HoverPathLineConfig {
   ENABLED: boolean;
-  LINEWIDTH: number;
+  LINEWIDTH_PCT: number; // 1–50, default 10 — % of smallest street tier width
   COLOR: string;
   OPACITY: number;
   ELEVATION: number;
@@ -106,7 +106,7 @@ export interface HoverPathLineConfig {
 
 export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
   ENABLED: true,
-  LINEWIDTH: 8,
+  LINEWIDTH_PCT: 10,
   COLOR: '#ffffff',
   OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top

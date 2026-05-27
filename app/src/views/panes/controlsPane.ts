@@ -729,8 +729,8 @@ function _buildStreetsSection(): HTMLElement {
   // outline; tweak Effects > Rainbow.
   section.appendChild(
     _subgroup('Selection path line', [
-      _number('Linewidth', PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the rainbow line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
+      _slider('Linewidth %', PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
+        tip: 'Rainbow line thickness as a % of the narrowest street width. 10% is the default; 50% fills the narrowest lane.',
       }),
       _slider('Opacity', PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Path-line transparency. 0 = invisible; 1 = solid.',
@@ -750,8 +750,8 @@ function _buildStreetsSection(): HTMLElement {
       _color('Color', HOVER_PATH_LINE, 'COLOR', {
         tip: 'Solid color of the preview line. Faded white by default so it reads as a draft, not the committed rainbow line.',
       }),
-      _number('Linewidth', HOVER_PATH_LINE, 'LINEWIDTH', 1, 20, 1, {
-        tip: 'Pixel thickness of the preview line. Above 20 pixels the line dominates the visible street; below 1 it vanishes at typical zoom.',
+      _slider('Linewidth %', HOVER_PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
+        tip: 'Preview line thickness as a % of the narrowest street width. 10% is the default; 50% fills the narrowest lane.',
       }),
       _slider('Opacity', HOVER_PATH_LINE, 'OPACITY', 0.0, 1.0, 0.05, {
         tip: 'Preview-line transparency. 0 = invisible; 1 = solid.',
