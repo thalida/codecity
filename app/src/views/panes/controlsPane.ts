@@ -627,10 +627,12 @@ function _buildStreetsSection(): HTMLElement {
   // any specific road class without touching the others.
   const tierDefaults = STREET_TIERS.get();
   const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
-  section.appendChild(_subgroup('Street width tiers', tierRows));
+  section.appendChild(
+    _collapsibleSubgroup('streets-width-tiers', 'Street width tiers', () => tierRows)
+  );
 
   section.appendChild(
-    _subgroup('Street spacing', [
+    _collapsibleSubgroup('streets-spacing', 'Street spacing', () => [
       _number('Sibling gap', STREET_LAYOUT, 'CHILD_GAP', 0, 50, 1, {
         tip: 'Distance between sibling children (file or subdir) packed along a street. 50 world units is roughly two MAX_WIDTH building footprints — beyond this streets balloon noticeably.',
       }),
@@ -646,7 +648,7 @@ function _buildStreetsSection(): HTMLElement {
   // Asphalt — color only. Width is a designer-level geometry knob; length
   // is derived to keep the cap circles concentric.
   section.appendChild(
-    _subgroup('Asphalt', [
+    _collapsibleSubgroup('streets-asphalt', 'Asphalt', () => [
       _color('Color', ASPHALT, 'COLOR', {
         tip: 'Color of the inner road stripe. Live.',
       }),
@@ -659,7 +661,7 @@ function _buildStreetsSection(): HTMLElement {
   // bleed seamlessly into the slab. HALO_WIDTH change triggers a rebuild
   // (matrix data); COLOR + ENABLED are hot.
   section.appendChild(
-    _subgroup('City footprint', [
+    _collapsibleSubgroup('streets-city-footprint', 'City footprint', () => [
       _toggle('Enabled', FOOTPRINT, 'ENABLED', {
         tip: 'When off, the slab is hidden (still built; group.visible = false) and tree/bush placement no longer rejects candidates inside the halo.',
       }),
@@ -678,7 +680,7 @@ function _buildStreetsSection(): HTMLElement {
   // Sidewalks. (No "Path" tint — the lineage from gem→selection is shown
   // by the rainbow neon line alone, see "Selection path line" below.)
   section.appendChild(
-    _subgroup('Sidewalk colors', [
+    _collapsibleSubgroup('streets-sidewalk-colors', 'Sidewalk colors', () => [
       _color('Default', SIDEWALK_COLORS, 'DEFAULT', {
         tip: 'Resting tint on every sidewalk.',
       }),
@@ -693,7 +695,7 @@ function _buildStreetsSection(): HTMLElement {
 
   // Street labels
   section.appendChild(
-    _subgroup('Street labels', [
+    _collapsibleSubgroup('streets-labels', 'Street labels', () => [
       _color('Fill', LABEL_TYPOGRAPHY, 'FILL', {
         tip: 'Text color of the names painted on each road. Live (label textures regenerate on the fly when this changes).',
       }),
@@ -725,7 +727,7 @@ function _buildStreetsSection(): HTMLElement {
   // through the road network. Color cycle is shared with the building
   // outline; tweak Effects > Rainbow.
   section.appendChild(
-    _subgroup('Selection path line', [
+    _collapsibleSubgroup('streets-selection-path', 'Selection path line', () => [
       _slider('Linewidth %', PATH_LINE, 'LINEWIDTH_PCT', 1, 50, 1, {
         tip: 'Rainbow line thickness as a % of the narrowest street width. 10% is the default; 50% fills the narrowest lane.',
       }),
@@ -740,7 +742,7 @@ function _buildStreetsSection(): HTMLElement {
   // building or street. Suppressed when the hovered target IS the
   // current selection (would just overlap the rainbow line).
   section.appendChild(
-    _subgroup('Hover preview path line', [
+    _collapsibleSubgroup('streets-hover-path', 'Hover preview path line', () => [
       _toggle('Enabled', HOVER_PATH_LINE, 'ENABLED', {
         tip: 'Show a draft preview line from the gem to whatever the cursor is currently over.',
       }),
