@@ -5,20 +5,18 @@
 //   SKY       — flat backdrop. COLOR fills the entire sphere — the
 //                world floor mesh handles real ground, so past its
 //                edge the camera sees the sky color directly and the
-//                plane reads as floating in space. When ENABLED is
-//                false the icosphere is hidden entirely.
+//                plane reads as floating in space. The icosphere is
+//                always rendered.
 //   SKY_STARS — hashed point-star field rendered across the full
 //                sphere (including below the horizon line).
 
 import { map } from 'nanostores';
 
 export interface SkyConfig {
-  ENABLED: boolean;
   COLOR: string;
 }
 
 export const SKY = map<SkyConfig>({
-  ENABLED: true,
   // Near-black with a faint plum cast — reads as deep space, not pure
   // black, so HDR-bloomed buildings and stars retain contrast.
   COLOR: '#010005',

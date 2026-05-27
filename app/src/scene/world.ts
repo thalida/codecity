@@ -72,6 +72,7 @@ import {
   getDateRanges,
 } from './components/buildings/buildingColor.js';
 import { parentDirPath } from './utils/path.js';
+import { SKY } from '@/config/components/sky.js';
 import {
   ASPHALT,
   GEM_APPEARANCE,
@@ -272,7 +273,7 @@ function _buildWorld(layout: CityLayout, opts: BuildCityOpts = {}) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+  scene.background = new THREE.Color(SKY.get().COLOR);
 
   // Streets + their labels
   const streets = layout.streets || [];
@@ -372,14 +373,12 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+  scene.background = new THREE.Color(SKY.get().COLOR);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the world. Not rebuilt per applyManifest
-  // (the sky is wallpaper, independent of the manifest tree). When
-  // SKY.ENABLED is false the mesh.visible flag is cleared
-  // by sky.refresh() and scene.background's GROUND color shows
-  // through as the fallback.
+  // (the sky is wallpaper, independent of the manifest tree). Always
+  // rendered — the icosphere is never hidden.
   const _sky: Sky = createSky();
   scene.add(_sky.mesh);
 
@@ -510,7 +509,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // computeScenicConfigHash collects the current values of every store whose
   // output is baked into buildWorld meshes:
-  //   - SCENE_COLORS  : scene background (GROUND); baked into scene.background
+  //   - SCENE_COLORS  : FOG_* keys baked into building shader uniforms
   //   - ASPHALT       : COLOR + WIDTH_FRAC baked into asphalt geometry/material
   //   - SIDEWALK_COLORS: DEFAULT baked into sidewalk + path-connector materials
   //   - LABEL_TYPOGRAPHY: all keys baked into label canvas textures + geometry
@@ -1087,7 +1086,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SCENE_COLORS.get().GROUND);
+      scene.background = new THREE.Color(SKY.get().COLOR);
 
       // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:

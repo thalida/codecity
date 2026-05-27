@@ -107,7 +107,6 @@ export function createSky(): Sky {
   mesh.renderOrder = RENDER_ORDERS.SKY;
   mesh.frustumCulled = false;
   mesh.userData.cyberpunkValley = 'sky';
-  mesh.visible = sky.ENABLED;
 
   function refresh(): void {
     const k = SKY.get();
@@ -122,8 +121,6 @@ export function createSky(): Sky {
     material.uniforms.uTwinkleEnabled.value = s.TWINKLE_ENABLED ? 1.0 : 0.0;
     material.uniforms.uTwinkleSpeed.value = s.TWINKLE_SPEED;
     material.uniforms.uTwinkleAmplitude.value = s.TWINKLE_AMPLITUDE;
-
-    mesh.visible = k.ENABLED;
   }
 
   function tick(dtSeconds: number): void {

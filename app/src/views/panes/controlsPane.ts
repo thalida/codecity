@@ -16,7 +16,7 @@
 // page reload is an implicit discard.
 
 import {
-  // Scene (sky + ground haze)
+  // Scene (ground haze / fog)
   SCENE_COLORS,
   // Streets
   ASPHALT,
@@ -373,10 +373,7 @@ function _buildShortcutsList(items: Array<ShortcutItem | null>): HTMLDListElemen
 //   Stars        — hashed star field + twinkle (lives inside the sky shader)
 //   Ground haze  — atmospheric fog mix on the building shader
 //   Sun lighting — directional sun (azimuth, elevation, ambient, contrast)
-// Each is a collapsible subgroup so the section stays scannable. The
-// old SCENE_COLORS.GROUND row is folded into Sky as the disabled-fallback
-// color (it only shows when SKY.ENABLED is off — SKY's own colors paint
-// the sphere otherwise).
+// Each is a collapsible subgroup so the section stays scannable.
 function _buildSceneSection(): HTMLElement {
   const section = _section(
     'Scene',
@@ -385,14 +382,8 @@ function _buildSceneSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('scene-sky', 'Sky', () => [
-      _toggle('Enabled', SKY, 'ENABLED', {
-        tip: 'Master toggle. When off the sky sphere is hidden and the Fallback color below paints the void.',
-      }),
       _color('Sky color', SKY, 'COLOR', {
         tip: 'Solid color painted across the entire sphere. Past the world floor edge the camera sees this color directly, so the plane reads as floating in space.',
-      }),
-      _color('Fallback (sky off)', SCENE_COLORS, 'GROUND', {
-        tip: 'Only visible when Sky → Enabled is off. The flat scene background color the WebGL clear paints behind everything.',
       }),
     ])
   );

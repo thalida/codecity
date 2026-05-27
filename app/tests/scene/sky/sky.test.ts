@@ -1,8 +1,8 @@
 // sky.test.ts — verifies the createSky() factory builds the icosphere
 // mesh with the documented render-order / depth / side flags, that
 // refresh() pushes fresh config values into uniforms (the
-// hot-reloadable path), that tick() advances uTime, that ENABLED=false
-// hides the mesh, and that dispose() releases GPU resources.
+// hot-reloadable path), that tick() advances uTime, and that
+// dispose() releases GPU resources.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -12,7 +12,6 @@ import { RENDER_ORDERS } from '@/constants';
 
 function resetStores() {
   SKY.set({
-    ENABLED: true,
     COLOR: '#010005',
   });
   SKY_STARS.set({
@@ -79,15 +78,6 @@ describe('createSky()', () => {
     expect(sky_.r).toBeCloseTo(1);
     expect(sky_.g).toBeCloseTo(1);
     expect(sky_.b).toBeCloseTo(1);
-  });
-
-  it('refresh() hides the mesh when SKY.ENABLED is false', () => {
-    SKY.setKey('ENABLED', false);
-    sky.refresh();
-    expect(sky.mesh.visible).toBe(false);
-    SKY.setKey('ENABLED', true);
-    sky.refresh();
-    expect(sky.mesh.visible).toBe(true);
   });
 
   it('tick() advances the uTime uniform', () => {

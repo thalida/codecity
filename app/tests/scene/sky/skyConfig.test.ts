@@ -9,7 +9,6 @@ import { SKY, SKY_STARS } from '@/config/components/sky.js';
 describe('SKY', () => {
   it('has the expected keys + defaults', () => {
     const v = SKY.get();
-    expect(v.ENABLED).toBe(true);
     expect(v.COLOR).toBe('#010005');
   });
 });

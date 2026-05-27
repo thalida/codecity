@@ -7,7 +7,6 @@
 import * as THREE from 'three';
 
 import {
-  SCENE_COLORS,
   ASPHALT,
   SIDEWALK_COLORS,
   LABEL_TYPOGRAPHY,
@@ -21,6 +20,7 @@ import {
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
+import { SKY } from '@/config/components/sky.js';
 import { createWorld } from './world.js';
 import { refreshBuildingMaterial } from './components/buildings/buildings.js';
 import { createCameraRig } from './system/cameraRig.js';
@@ -236,7 +236,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // don't need anything here.
   function applyTheme(): void {
     const sidewalk = SIDEWALK_COLORS.get();
-    const sceneCol = SCENE_COLORS.get();
 
     SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
@@ -253,15 +252,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       mesh.material.color.setHex(asphaltHex);
     }
 
-    scene.background = new THREE.Color(sceneCol.GROUND);
+    scene.background = new THREE.Color(SKY.get().COLOR);
 
     outlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
     // Cyberpunk Valley sky — pulls fresh SKY_* uniforms (sky color,
-    // ground color, star density, twinkle params) and flips
-    // mesh.visible on the master ENABLED toggle. Hot-reloaded via the
+    // star density, twinkle params). Hot-reloaded via the
     // hotStores route in app/config/hotReload.ts.
     world.getSky().refresh();
     // Floating repo-name label — pulls fresh STYLE/ENABLED/OPACITY/
