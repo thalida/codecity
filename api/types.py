@@ -26,8 +26,9 @@ class NodeKind:
 
 
 class GitMeta(TypedDict):
-    """Git history dates for a file. ISO 8601 strings; null when the
-    file isn't tracked or the field couldn't be derived."""
+    """Git history dates for a file. ISO 8601 strings; null when no
+    commit touching the file fell inside the active git_window (so
+    create/modify timestamps were never observed)."""
 
     created: str | None
     modified: str | None
@@ -48,7 +49,7 @@ class FileNode(TypedDict):
     binary: bool
     created: str
     modified: str
-    git: GitMeta | None
+    git: GitMeta
     # Optional pixel dimensions for recognized media files (png/jpg/svg/
     # mp4/etc.). Either both keys appear together or neither does. Layout
     # uses these to size the building's silhouette; absence triggers a
@@ -81,7 +82,7 @@ class RepoInfo(TypedDict):
     """Repo-level git metadata surfaced in the footer (branch, remote
     link, dirty marker, last commit). All fields nullable because a
     fresh repo with no commits yet has no HEAD; a repo with no remote
-    has no URL. None for non-git roots — see Manifest.repo."""
+    has no URL."""
 
     branch: str | None
     remote_url: str | None
@@ -112,8 +113,8 @@ class Manifest(TypedDict):
     signature: str
     tree_signature: str
     tree: DirNode
-    repo: RepoInfo | None
-    commits: list[CommitEntry] | None
+    repo: RepoInfo
+    commits: list[CommitEntry]
     display_root: NotRequired[str]
 
 
@@ -212,6 +213,13 @@ class ScanCancelledError(Exception):
     The server's disconnect watchdog sets the event, the scanner
     polls it at every phase boundary, and the server's outer try/
     except catches this so cancellation isn't surfaced as a 5xx."""
+
+
+class NotAGitRepoError(ValueError):
+    """Raised by scan_tree / signature_tree when handed a root that
+    isn't a git working tree. The server enforces git-only at the HTTP
+    boundary; this is defense-in-depth so direct callers get a clean
+    failure instead of an empty or partial manifest."""
 
 
 class CloneError(RuntimeError):

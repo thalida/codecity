@@ -40,6 +40,23 @@ def _final_manifest(root: str, **kwargs) -> Manifest:
     assert final is not None, "scan_tree must yield a final event"
     return final
 
+
+def _init_repo(root: Path) -> None:
+    """Initialize ``root`` as a git working tree with user.name/email set.
+
+    scan_tree / signature_tree reject non-git roots, so every tempdir
+    test in this file builds the smallest possible repo before scanning.
+    """
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.email", "t@t"], check=True)
+    subprocess.run(["git", "-C", str(root), "config", "user.name", "t"], check=True)
+
+
+def _commit_all(root: Path, message: str = "x") -> None:
+    """Stage every file under ``root`` and create a commit."""
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(["git", "-C", str(root), "commit", "-q", "-m", message], check=True)
+
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures"
 _CANONICAL_FIXTURE = FIXTURES_DIR / "sample-repo"
 
@@ -227,223 +244,127 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             untracked.unlink(missing_ok=True)
 
 
-    def test_include_all_returns_untracked_files(self):
-        # Default scan: untracked file is hidden (existing behavior).
-        # include_all=True: untracked file appears in the tree.
-        untracked = FIXTURE / "untracked-include-all.txt"
-        untracked.write_text("hello include_all")
-        try:
-            m_default = _final_manifest(str(FIXTURE))
-            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
-            self.assertNotIn("untracked-include-all.txt", names_default)
-
-            m_all = _final_manifest(str(FIXTURE), include_all=True)
-            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
-            self.assertIn("untracked-include-all.txt", names_all)
-
-            # Untracked file has no git history.
-            for node in _walk_files(m_all["tree"]):
-                if node["name"] == "untracked-include-all.txt":
-                    self.assertIsNotNone(node["git"])
-                    self.assertIsNone(node["git"]["created"])
-                    self.assertIsNone(node["git"]["modified"])
-                    return
-            self.fail("untracked-include-all.txt not found in include_all manifest")
-        finally:
-            untracked.unlink(missing_ok=True)
-
-    def test_include_all_returns_gitignored_files(self):
-        # Default scan: gitignored file is hidden (existing behavior).
-        # include_all=True: gitignored file appears in the tree.
-        # The fixture's .gitignore must list the path for git ls-files
-        # to drop it; we restore it after.
-        gitignore_path = FIXTURE / ".gitignore"
-        original_gitignore = gitignore_path.read_text() if gitignore_path.exists() else ""
-        ignored_file = FIXTURE / "ignored-include-all.txt"
-        ignored_file.write_text("hidden by .gitignore")
-        try:
-            gitignore_path.write_text(
-                original_gitignore + "\nignored-include-all.txt\n"
-            )
-
-            m_default = _final_manifest(str(FIXTURE))
-            names_default = [n["name"] for n in _walk_files(m_default["tree"])]
-            self.assertNotIn("ignored-include-all.txt", names_default)
-
-            m_all = _final_manifest(str(FIXTURE), include_all=True)
-            names_all = [n["name"] for n in _walk_files(m_all["tree"])]
-            self.assertIn("ignored-include-all.txt", names_all)
-        finally:
-            ignored_file.unlink(missing_ok=True)
-            if original_gitignore:
-                gitignore_path.write_text(original_gitignore)
-            else:
-                gitignore_path.unlink(missing_ok=True)
-
-    def test_include_all_no_op_outside_git_repo(self):
-        # In a non-git directory, the tracked-files filter never engages,
-        # so include_all should be a no-op (signature + tree shape match).
-        with tempfile.TemporaryDirectory() as tmp:
-            (Path(tmp) / "a.txt").write_text("a")
-            (Path(tmp) / "b.txt").write_text("b")
-            m_default = _final_manifest(tmp)
-            m_all = _final_manifest(tmp, include_all=True)
-            self.assertEqual(m_default["signature"], m_all["signature"])
-            self.assertEqual(
-                m_default["tree"]["descendants_file_count"],
-                m_all["tree"]["descendants_file_count"],
-            )
-
-    def test_git_dir_still_excluded_with_include_all(self):
-        # .git/ is excluded independent of the tracked-files filter.
-        m = _final_manifest(str(FIXTURE), include_all=True)
-        names = [n["name"] for n in _walk_dirs(m["tree"])]
-        self.assertNotIn(".git", names)
-
-    def test_skip_list_excludes_node_modules_under_include_all(self):
-        # node_modules/ must NOT appear with include_all=True. ALWAYS_SKIP
-        # is hardcoded; there's no runtime escape hatch.
-        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
-        nm_dir.mkdir(parents=True, exist_ok=True)
-        nm_file = nm_dir / "index.js"
-        nm_file.write_text("module.exports = {};")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
-            names = [n["name"] for n in _walk_dirs(m["tree"])]
-            self.assertNotIn("node_modules", names)
-        finally:
-            nm_file.unlink(missing_ok=True)
-            nm_dir.rmdir()
-            (FIXTURE / "node_modules").rmdir()
-
     def test_codecityignore_name_excludes_directory(self):
         # A bare name in .codecityignore matches any dir/file with that
         # name anywhere in the tree.
-        target_dir = FIXTURE / "noisy-fixture"
-        target_dir.mkdir(exist_ok=True)
-        (target_dir / "data.txt").write_text("noise")
-        ignore_file = FIXTURE / ".codecityignore"
-        ignore_file.write_text("# project-specific\nnoisy-fixture\n")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "keep.txt").write_text("k")
+            target_dir = root / "noisy-fixture"
+            target_dir.mkdir()
+            (target_dir / "data.txt").write_text("noise")
+            _commit_all(root)
+            (root / ".codecityignore").write_text(
+                "# project-specific\nnoisy-fixture\n"
+            )
+            m = _final_manifest(str(root))
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("noisy-fixture", names)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (target_dir / "data.txt").unlink(missing_ok=True)
-            target_dir.rmdir()
 
     def test_codecityignore_path_excludes_specific_path_only(self):
         # A line containing '/' is anchored to the scan root. A dir at
         # a different relative path with the same final segment is NOT
         # excluded.
-        target_a = FIXTURE / "stash" / "legacy"
-        target_b = FIXTURE / "legacy"  # same name, different path
-        target_a.mkdir(parents=True, exist_ok=True)
-        target_b.mkdir(exist_ok=True)
-        (target_a / "x.txt").write_text("a")
-        (target_b / "x.txt").write_text("b")
-        ignore_file = FIXTURE / ".codecityignore"
-        ignore_file.write_text("stash/legacy\n")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            target_a = root / "stash" / "legacy"
+            target_b = root / "legacy"  # same name, different path
+            target_a.mkdir(parents=True)
+            target_b.mkdir()
+            (target_a / "x.txt").write_text("a")
+            (target_b / "x.txt").write_text("b")
+            _commit_all(root)
+            (root / ".codecityignore").write_text("stash/legacy\n")
+            m = _final_manifest(str(root))
             paths = [n["path"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("stash/legacy", paths)
             # The other "legacy" at a different path stays visible.
             self.assertIn("legacy", paths)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (target_a / "x.txt").unlink(missing_ok=True)
-            target_a.rmdir()
-            (FIXTURE / "stash").rmdir()
-            (target_b / "x.txt").unlink(missing_ok=True)
-            target_b.rmdir()
 
     def test_codecityignore_missing_is_ok(self):
         # No file -> no error, scan proceeds normally.
-        ignore_file = FIXTURE / ".codecityignore"
-        self.assertFalse(ignore_file.exists())  # sanity
-        m = _final_manifest(str(FIXTURE), include_all=True)
-        self.assertGreater(m["tree"]["descendants_file_count"], 0)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "a.txt").write_text("a")
+            _commit_all(root)
+            self.assertFalse((root / ".codecityignore").exists())  # sanity
+            m = _final_manifest(str(root))
+            self.assertGreater(m["tree"]["descendants_file_count"], 0)
 
     def test_codecityignore_comments_and_blanks(self):
         # Comments and blank lines are silently dropped.
-        target = FIXTURE / "noisy-comment-test"
-        target.mkdir(exist_ok=True)
-        (target / "x.txt").write_text("x")
-        ignore_file = FIXTURE / ".codecityignore"
-        ignore_file.write_text(
-            "# leading comment\n"
-            "\n"
-            "noisy-comment-test\n"
-            "   \n"  # blank-with-whitespace
-            "# trailing comment\n"
-        )
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            target = root / "noisy-comment-test"
+            target.mkdir()
+            (target / "x.txt").write_text("x")
+            _commit_all(root)
+            (root / ".codecityignore").write_text(
+                "# leading comment\n"
+                "\n"
+                "noisy-comment-test\n"
+                "   \n"  # blank-with-whitespace
+                "# trailing comment\n"
+            )
+            m = _final_manifest(str(root))
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn("noisy-comment-test", names)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (target / "x.txt").unlink(missing_ok=True)
-            target.rmdir()
 
     def test_codecityignore_negation_unignores_always_skip(self):
-        # `!node_modules` overrides ALWAYS_SKIP, so the dir surfaces
-        # under include_all=True.
-        nm_dir = FIXTURE / "node_modules" / "fake-pkg"
-        nm_dir.mkdir(parents=True, exist_ok=True)
-        (nm_dir / "index.js").write_text("module.exports = {};")
-        ignore_file = FIXTURE / ".codecityignore"
-        ignore_file.write_text("!node_modules\n")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        # `!node_modules` overrides ALWAYS_SKIP, so the dir surfaces.
+        # node_modules is normally gitignored; here we force it into the
+        # repo so the ALWAYS_SKIP rule is the only thing hiding it.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            nm_dir = root / "node_modules" / "fake-pkg"
+            nm_dir.mkdir(parents=True)
+            (nm_dir / "index.js").write_text("module.exports = {};")
+            _commit_all(root)
+            (root / ".codecityignore").write_text("!node_modules\n")
+            m = _final_manifest(str(root))
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertIn("node_modules", names)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (nm_dir / "index.js").unlink(missing_ok=True)
-            nm_dir.rmdir()
-            (FIXTURE / "node_modules").rmdir()
 
     def test_codecityignore_negation_path_anchored(self):
         # `!stash/legacy` un-ignores only that exact path. Another dir
-        # named `legacy` at a different rel-path stays affected by any
-        # other ignore rule (here: nothing else, so it's visible too).
-        target_a = FIXTURE / "stash" / "legacy"
-        target_b = FIXTURE / "elsewhere" / "legacy"
-        target_a.mkdir(parents=True, exist_ok=True)
-        target_b.mkdir(parents=True, exist_ok=True)
-        (target_a / "x.txt").write_text("a")
-        (target_b / "x.txt").write_text("b")
-        ignore_file = FIXTURE / ".codecityignore"
-        # Ignore both names at the bare level, then un-ignore one path.
-        ignore_file.write_text("legacy\n!stash/legacy\n")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        # named `legacy` at a different rel-path stays excluded by the
+        # bare `legacy` rule.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            target_a = root / "stash" / "legacy"
+            target_b = root / "elsewhere" / "legacy"
+            target_a.mkdir(parents=True)
+            target_b.mkdir(parents=True)
+            (target_a / "x.txt").write_text("a")
+            (target_b / "x.txt").write_text("b")
+            _commit_all(root)
+            # Ignore both names at the bare level, then un-ignore one path.
+            (root / ".codecityignore").write_text("legacy\n!stash/legacy\n")
+            m = _final_manifest(str(root))
             paths = [n["path"] for n in _walk_dirs(m["tree"])]
             self.assertIn("stash/legacy", paths)
             self.assertNotIn("elsewhere/legacy", paths)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (target_a / "x.txt").unlink(missing_ok=True)
-            target_a.rmdir()
-            (FIXTURE / "stash").rmdir()
-            (target_b / "x.txt").unlink(missing_ok=True)
-            target_b.rmdir()
-            (FIXTURE / "elsewhere").rmdir()
 
     def test_codecityignore_negation_does_not_unignore_git_dir(self):
         # `!.git` is silently ignored — walking the object database is
-        # always disallowed regardless of user config.
-        ignore_file = FIXTURE / ".codecityignore"
-        ignore_file.write_text("!.git\n")
-        try:
-            m = _final_manifest(str(FIXTURE), include_all=True)
+        # always disallowed regardless of user config. _init_repo gives
+        # us a real .git/ directory; the hardcoded `name == ".git"`
+        # check should drop it even with the negation in place.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            (root / "keep.txt").write_text("k")
+            _commit_all(root)
+            (root / ".codecityignore").write_text("!.git\n")
+            m = _final_manifest(str(root))
             names = [n["name"] for n in _walk_dirs(m["tree"])]
             self.assertNotIn(".git", names)
-        finally:
-            ignore_file.unlink(missing_ok=True)
 
     def test_scan_tree_emits_commits_list(self):
         m = _final_manifest(str(FIXTURE), use_cache=False, git_window="30.years.ago")
@@ -453,12 +374,15 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
         dates = [c["date"] for c in m["commits"]]
         self.assertEqual(dates, sorted(dates))
 
-    def test_scan_tree_non_git_emits_null_commits(self):
-        """Non-git root: commits is null, not an empty list."""
+    def test_scan_tree_rejects_non_git_root(self):
+        """scan_tree must raise NotAGitRepoError on a non-git directory.
+        Server enforces this at the HTTP boundary; the scanner check is
+        defense-in-depth so direct callers fail fast."""
+        from api.scan import NotAGitRepoError
         with tempfile.TemporaryDirectory() as td:
             Path(td, "a.txt").write_text("hello")
-            m = _final_manifest(td, use_cache=False)
-        self.assertIsNone(m["commits"])
+            with self.assertRaises(NotAGitRepoError):
+                _final_manifest(td, use_cache=False)
 
 
 class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
@@ -502,50 +426,31 @@ class SignatureTreeTests(_CacheRedirectMixin, unittest.TestCase):
             )
             new_file.unlink(missing_ok=True)
 
-    def test_include_all_signature_matches_full_scan(self):
-        # Parity contract still holds in include_all mode.
-        m = _final_manifest(str(FIXTURE), include_all=True)
-        s = signature_tree(str(FIXTURE), include_all=True)
-        self.assertEqual(s["signature"], m["signature"])
-
-    def test_include_all_signature_differs_from_default(self):
-        # Adding files that only show up under include_all must change
-        # the signature relative to the default scan, otherwise the
-        # frontend would never re-render after the toggle flips.
-        untracked = FIXTURE / "sig-temp-include-all.txt"
-        untracked.write_text("payload")
-        try:
-            default_sig = signature_tree(str(FIXTURE))["signature"]
-            all_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
-            self.assertNotEqual(default_sig, all_sig)
-        finally:
-            untracked.unlink(missing_ok=True)
-
     def test_signature_honors_codecityignore(self):
         # Parity contract: editing .codecityignore must shift the
         # signature returned by signature_tree (so the live-update poll
         # actually triggers a reload), and that signature must match
         # scan_tree's output for the same root.
-        target = FIXTURE / "sig-noise-fixture"
-        target.mkdir(exist_ok=True)
-        (target / "x.txt").write_text("x")
-        ignore_file = FIXTURE / ".codecityignore"
-        try:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _init_repo(root)
+            target = root / "sig-noise-fixture"
+            target.mkdir()
+            (target / "x.txt").write_text("x")
+            _commit_all(root)
+            ignore_file = root / ".codecityignore"
+
             # Without ignore file, target is visible.
-            before_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
-            before_full = _final_manifest(str(FIXTURE), include_all=True)["signature"]
+            before_sig = signature_tree(str(root))["signature"]
+            before_full = _final_manifest(str(root))["signature"]
             self.assertEqual(before_sig, before_full)
 
             # Add ignore entry, both signatures must shift in lockstep.
             ignore_file.write_text("sig-noise-fixture\n")
-            after_sig = signature_tree(str(FIXTURE), include_all=True)["signature"]
-            after_full = _final_manifest(str(FIXTURE), include_all=True)["signature"]
+            after_sig = signature_tree(str(root))["signature"]
+            after_full = _final_manifest(str(root))["signature"]
             self.assertEqual(after_sig, after_full)
             self.assertNotEqual(before_sig, after_sig)
-        finally:
-            ignore_file.unlink(missing_ok=True)
-            (target / "x.txt").unlink(missing_ok=True)
-            target.rmdir()
 
 
 class LineCountCapTests(unittest.TestCase):
@@ -1018,8 +923,11 @@ class TreeSignatureTests(unittest.TestCase):
         manifest events for the same scan — the whole point of this feature."""
         from api.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
-            (Path(td) / "hello.py").write_text("x = 1\n")
-            (Path(td) / "world.py").write_text("y = 2\n")
+            root = Path(td)
+            _init_repo(root)
+            (root / "hello.py").write_text("x = 1\n")
+            (root / "world.py").write_text("y = 2\n")
+            _commit_all(root)
             events = list(scan_tree(td))
         self.assertEqual(len(events), 2)
         skeleton_sig = events[0]["manifest"]["tree_signature"]
@@ -1032,7 +940,10 @@ class TreeSignatureTests(unittest.TestCase):
         differs — i.e., between skeleton and final phases."""
         from api.scan import scan_tree
         with tempfile.TemporaryDirectory() as td:
-            (Path(td) / "a.py").write_text("x = 1\n" * 100)
+            root = Path(td)
+            _init_repo(root)
+            (root / "a.py").write_text("x = 1\n" * 100)
+            _commit_all(root)
             events = list(scan_tree(td))
         skeleton = events[0]["manifest"]
         final = events[1]["manifest"]
@@ -1043,9 +954,12 @@ class TreeSignatureTests(unittest.TestCase):
 
 class ScanTreeStreamingTests(unittest.TestCase):
     def _make_tiny_repo(self, tmpdir: str) -> str:
-        # Two files, no git init — keeps the test fast.
-        (Path(tmpdir) / "a.py").write_text("x = 1\ny = 2\n")
-        (Path(tmpdir) / "b.py").write_text("z = 3\n")
+        # Two files in a fresh git repo. scan_tree requires git.
+        root = Path(tmpdir)
+        _init_repo(root)
+        (root / "a.py").write_text("x = 1\ny = 2\n")
+        (root / "b.py").write_text("z = 3\n")
+        _commit_all(root)
         return tmpdir
 
     def test_yields_skeleton_then_final(self) -> None:
@@ -1088,11 +1002,14 @@ class ScanTreeStreamingTests(unittest.TestCase):
         import threading
         from api.scan import scan_tree, ScanCancelledError
         with TemporaryDirectory() as td:
+            root = Path(td)
+            _init_repo(root)
             # Make enough files that the pool has work to do AFTER the
             # skeleton emits, so the event-set-after-skeleton case
             # genuinely interrupts metadata population.
             for i in range(20):
-                (Path(td) / f"f{i}.py").write_text("x = 1\n" * 50)
+                (root / f"f{i}.py").write_text("x = 1\n" * 50)
+            _commit_all(root)
             ev = threading.Event()
             gen = scan_tree(td, cancel_event=ev)
             skeleton = next(gen)
@@ -1107,6 +1024,7 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
         import struct, zlib
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
+            _init_repo(tmp_path)
             png = tmp_path / "pic.png"
             # Minimal 50x30 PNG.
             def chunk(tag, data):
@@ -1121,6 +1039,7 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
             idat = chunk(b"IDAT", zlib.compress(raw))
             iend = chunk(b"IEND", b"")
             png.write_bytes(sig + ihdr + idat + iend)
+            _commit_all(tmp_path)
 
             manifest = _final_manifest(str(tmp_path))
             files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
@@ -1140,7 +1059,9 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
     def test_scan_omits_media_dims_for_non_media(self):
         with TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
+            _init_repo(tmp_path)
             (tmp_path / "code.py").write_text("print('hi')\n")
+            _commit_all(tmp_path)
             manifest = _final_manifest(str(tmp_path))
             files = [c for c in manifest["tree"]["children"] if c["type"] == "file"]
             self.assertEqual(len(files), 1)

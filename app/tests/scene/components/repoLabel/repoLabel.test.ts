@@ -3,7 +3,11 @@ import * as THREE from 'three';
 import { createRepoLabel } from '@/scene/components/repoLabel/repoLabel.js';
 import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { RENDER_ORDERS } from '@/constants';
+import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 
+// Positioning math below assumes BUILDING_DIMENSIONS.MAX_FLOORS=96,
+// FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
+// the assertions stay stable when production defaults change.
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
@@ -14,6 +18,7 @@ function resetStore() {
     BEAM_COLOR: '#bfb3ff',
     TEXT_COLOR: '#ffffff',
   });
+  resetBuildingsConfig();
 }
 
 describe('createRepoLabel()', () => {

@@ -28,7 +28,7 @@ export interface BuildingDimensionsConfig {
 
 export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
   MIN_FLOORS: 2,
-  MAX_FLOORS: 96,
+  MAX_FLOORS: 64,
   FLOOR_HEIGHT: 16, // scene units per floor
   MIN_WIDTH: 8,
   MAX_WIDTH: 96,

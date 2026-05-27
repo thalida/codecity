@@ -43,6 +43,7 @@
 - [ ] Update Readme
 - [ ] on focus / select look straight down at the building
 - [ ] add meta data about the world
+- [ ] add enable local env variable
 
 ## Agent Prompts ToDos
 

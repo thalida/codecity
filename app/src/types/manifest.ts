@@ -16,7 +16,11 @@ export enum NodeKind {
   Commit = 'commit',
 }
 
-/** Git metadata for a file. ISO 8601 timestamps; null if untracked. */
+/**
+ * Git metadata for a file. ISO 8601 timestamps; null when no commit
+ * touching the file fell inside the active git_window (so the scanner
+ * never observed a create/modify date).
+ */
 export interface GitMeta {
   created: string | null;
   modified: string | null;
@@ -33,7 +37,7 @@ export interface FileNode {
   binary: boolean;
   created: string;
   modified: string;
-  git: GitMeta | null;
+  git: GitMeta;
   /**
    * Optional pixel dimensions for recognized media files (png/jpg/svg/
    * mp4/etc.). Either both keys appear together or neither does. Layout
@@ -66,7 +70,6 @@ export type TreeNode = FileNode | DirNode;
  * Repo-level git metadata surfaced in the footer (branch, remote link,
  * dirty marker, last commit). All fields nullable because a fresh repo
  * with no commits yet has no HEAD; a repo with no remote has no URL.
- * `null` for non-git roots — see `Manifest.repo`.
  */
 export interface RepoInfo {
   branch: string | null;
@@ -109,10 +112,10 @@ export interface Manifest {
    *  shape hasn't changed. */
   tree_signature: string;
   tree: DirNode;
-  repo: RepoInfo | null;
-  /** Per-commit metadata, oldest-first. null for non-git roots; []
-   *  for git roots with zero commits in the window. */
-  commits: CommitEntry[] | null;
+  repo: RepoInfo;
+  /** Per-commit metadata, oldest-first. `[]` when the repo has zero
+   *  commits in the active git_window. */
+  commits: CommitEntry[];
 }
 
 /**

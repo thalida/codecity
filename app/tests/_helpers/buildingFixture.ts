@@ -27,7 +27,7 @@ const DEFAULT_FILE: FileNode = {
   binary: false,
   created: '',
   modified: '',
-  git: null,
+  git: { created: null, modified: null },
 };
 
 /**

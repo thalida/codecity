@@ -26,7 +26,7 @@ const TREE = {
           binary: false,
           created: '',
           modified: '',
-          git: null,
+          git: { created: null, modified: null },
         },
         {
           name: 'main.ts',
@@ -39,7 +39,7 @@ const TREE = {
           binary: false,
           created: '',
           modified: '',
-          git: null,
+          git: { created: null, modified: null },
         },
       ],
     },
@@ -54,7 +54,7 @@ const TREE = {
       binary: false,
       created: '',
       modified: '',
-      git: null,
+      git: { created: null, modified: null },
     },
     {
       name: 'logo.png',
@@ -67,7 +67,7 @@ const TREE = {
       binary: true,
       created: '',
       modified: '',
-      git: null,
+      git: { created: null, modified: null },
     },
     {
       // Has '.', 'p', 'n', 'g' chars in order but no contiguous ".png":
@@ -83,7 +83,7 @@ const TREE = {
       binary: false,
       created: '',
       modified: '',
-      git: null,
+      git: { created: null, modified: null },
     },
   ],
 };
@@ -234,7 +234,7 @@ describe('buildSearchPane', () => {
             binary: false,
             created: '',
             modified: '',
-            git: null,
+            git: { created: null, modified: null },
           },
         ],
       },

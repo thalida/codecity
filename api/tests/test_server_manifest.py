@@ -35,7 +35,7 @@ from api.server import (
 
 class ManifestRouteTests(unittest.TestCase):
     """Coverage for /api/manifest at the HTTP layer — query handling,
-    include_all/no_cache parsing, gzip negotiation, error codes."""
+    no_cache parsing, gzip negotiation, error codes."""
 
     @pytest.fixture(autouse=True)
     def _setup_fixtures(
@@ -85,96 +85,6 @@ class ManifestRouteTests(unittest.TestCase):
         q = urllib.parse.urlencode({"src": str(self.project / "nope")})
         status, _, _ = self._http.get(self.base + f"/api/manifest?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
-
-    def test_manifest_route_honors_include_all(self) -> None:
-        # Add an untracked file by initializing the project as a git repo
-        # and committing only README.md — anything else is "untracked",
-        # which the default scan filters out.
-        import subprocess
-        subprocess.run(
-            ["git", "-C", str(self.project), "init", "-q"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.name", "t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "add", "README.md"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
-            check=True,
-        )
-        (self.project / "untracked.txt").write_text("hidden by default")
-
-        q = urllib.parse.urlencode({"src": str(self.project)})
-        _, events_default = self._http.request_stream(self.port, f"/api/manifest?{q}")
-        final_default = next(
-            e for e in events_default if e["phase"] == "final"
-        )["manifest"]
-        names_default = [c["name"] for c in final_default["tree"]["children"]]
-        self.assertNotIn("untracked.txt", names_default)
-
-        q_all = urllib.parse.urlencode(
-            {"src": str(self.project), "include_all": "true"}
-        )
-        _, events_all = self._http.request_stream(self.port, f"/api/manifest?{q_all}")
-        final_all = next(e for e in events_all if e["phase"] == "final")["manifest"]
-        names_all = [c["name"] for c in final_all["tree"]["children"]]
-        self.assertIn("untracked.txt", names_all)
-
-    def test_include_all_truthy_parsing(self) -> None:
-        # Accept 'true' (any case) and '1' as truthy; everything else
-        # (including absent) is false.
-        from api.server import _parse_include_all
-        self.assertTrue(_parse_include_all("include_all=true"))
-        self.assertTrue(_parse_include_all("include_all=TRUE"))
-        self.assertTrue(_parse_include_all("include_all=1"))
-        self.assertFalse(_parse_include_all("include_all=false"))
-        self.assertFalse(_parse_include_all("include_all=0"))
-        self.assertFalse(_parse_include_all("include_all=yes"))  # strict
-        self.assertFalse(_parse_include_all(""))
-        self.assertFalse(_parse_include_all("path=/tmp"))
-
-    def test_manifest_route_excludes_skip_list_under_include_all(self) -> None:
-        # Init a git repo, create node_modules/, commit ONLY README.
-        # node_modules is untracked, so it would appear with include_all
-        # if not for ALWAYS_SKIP. The skip list is always applied —
-        # there's no runtime escape hatch.
-        import subprocess
-        subprocess.run(
-            ["git", "-C", str(self.project), "init", "-q"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.name", "t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "add", "README.md"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
-            check=True,
-        )
-        nm = self.project / "node_modules"
-        nm.mkdir()
-        (nm / "x.js").write_text("x")
-
-        q = urllib.parse.urlencode({
-            "src": str(self.project), "include_all": "true",
-        })
-        _, events = self._http.request_stream(self.port, f"/api/manifest?{q}")
-        final = next(e for e in events if e["phase"] == "final")["manifest"]
-        names = [c["name"] for c in final["tree"]["children"]]
-        self.assertNotIn("node_modules", names)
 
     def test_no_cache_query_param_truthy_parsing(self) -> None:
         from api.server import _parse_no_cache
@@ -681,42 +591,6 @@ class ManifestStreamTests(unittest.TestCase):
                     list(manifests_dir.iterdir()), [],
                     "no_cache=true must not write to the manifest cache",
                 )
-
-    def test_include_all_uses_different_cache_key(self) -> None:
-        # The signature naturally differs between include_all=true/false
-        # because the tracked-file set differs. Verify that warming one
-        # variant does NOT serve the other from cache.
-        import subprocess
-        with TemporaryDirectory() as td:
-            self._make_tiny_repo(td)
-            # Init a git repo and commit only a.py — b.py is untracked,
-            # so include_all=false hides it and include_all=true shows
-            # it. That divergence means the signatures (and cache keys)
-            # for the two variants must differ.
-            subprocess.run(["git", "-C", td, "init", "-q"], check=True)
-            subprocess.run(
-                ["git", "-C", td, "config", "user.email", "t@t"], check=True,
-            )
-            subprocess.run(
-                ["git", "-C", td, "config", "user.name", "t"], check=True,
-            )
-            subprocess.run(["git", "-C", td, "add", "a.py"], check=True)
-            subprocess.run(
-                ["git", "-C", td, "commit", "-q", "-m", "init"], check=True,
-            )
-            # Warm with include_all=false (b.py excluded).
-            self._http.request_stream(
-                self.server_port, f"/api/manifest?src={td}&include_all=false",
-            )
-            # include_all=true must re-scan (skeleton+final), not single-final.
-            _, events = self._http.request_stream(
-                self.server_port, f"/api/manifest?src={td}&include_all=true",
-            )
-            manifest_events = [e for e in events if "manifest" in e]
-            self.assertEqual(
-                len(manifest_events), 2,
-                "include_all=true must not be served from include_all=false cache",
-            )
 
     def test_skeleton_has_placeholder_lines(self) -> None:
         import subprocess

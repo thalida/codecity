@@ -70,7 +70,7 @@ function buildingForLabel(name: string, slotId: number) {
       binary: false,
       created: '2024-01-01T00:00:00Z',
       modified: '2024-01-01T00:00:00Z',
-      git: null,
+      git: { created: null, modified: null },
     },
   });
 }

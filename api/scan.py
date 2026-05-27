@@ -38,6 +38,7 @@ from .types import (
     GitMeta,
     Manifest,
     NodeKind,
+    NotAGitRepoError,
     RepoInfo,
     ScanCancelledError,
     ScanStreamEvent,
@@ -45,7 +46,13 @@ from .types import (
 )
 
 
-__all__ = ["ScanCancelledError", "scan_tree", "signature_tree", "compute_tree_signature"]
+__all__ = [
+    "NotAGitRepoError",
+    "ScanCancelledError",
+    "compute_tree_signature",
+    "scan_tree",
+    "signature_tree",
+]
 
 
 def _check_cancel(event: "threading.Event | None") -> None:
@@ -446,20 +453,24 @@ def _collect_repo_info(root: Path) -> RepoInfo:
 
 # ── Skip list ────────────────────────────────────────────────────────────────
 
-# Directory names that get skipped even when include_all=True. Keeps
-# `Show all files` mode usable on a typical project — without this list
-# enabling include_all pulls in node_modules/, .venv/, etc. and the
-# city becomes useless noise.
+# Names (directories or files) that get skipped on every scan. Most of
+# these are already filtered out by the tracked-files filter (they're
+# gitignored), but listing them here keeps explicitly-tracked noise
+# (e.g. someone who committed node_modules/ or a generated lockfile)
+# from blowing up the city.
 #
 # We deliberately do NOT include generic names like "dist", "build", "out".
 # Those collide with legitimate source directories in real projects (CMake
 # build configs, audio "out" stems, hand-written `dist/` source trees).
 # Framework-specific build dirs (.next, .nuxt, etc.) are unambiguous and
-# stay in the list.
+# stay in the list. Lockfile names are listed verbatim — they're all
+# unambiguous and auto-generated, and including them blows out the city
+# with thousand-line files that aren't really code.
 #
 # Per-project additions go in `<scan-root>/.codecityignore` (see
 # _load_codecityignore). The skip list is always applied — there's no
-# runtime escape hatch beyond editing this file or .codecityignore.
+# runtime escape hatch beyond editing this file or .codecityignore
+# (e.g. `!package-lock.json` to surface a specific lockfile).
 ALWAYS_SKIP: frozenset[str] = frozenset({
     ".git", ".hg", ".svn",                          # VCS
     "node_modules",                                 # JS
@@ -470,6 +481,18 @@ ALWAYS_SKIP: frozenset[str] = frozenset({
     ".tox", ".coverage", "htmlcov",                 # test/coverage
     ".idea", ".vscode",                             # IDE state
     ".DS_Store",                                    # macOS junk
+    # Lockfiles — auto-generated, line-heavy, not meaningful as "code".
+    "package-lock.json", "yarn.lock", "pnpm-lock.yaml",     # JS
+    "bun.lock", "bun.lockb",                                # Bun
+    "deno.lock",                                            # Deno
+    "Cargo.lock",                                           # Rust
+    "poetry.lock", "uv.lock", "Pipfile.lock",               # Python
+    "composer.lock",                                        # PHP
+    "Gemfile.lock",                                         # Ruby
+    "mix.lock",                                             # Elixir
+    "Podfile.lock",                                         # CocoaPods
+    "flake.lock",                                           # Nix
+    "Gopkg.lock", "go.sum",                                 # Go
 })
 
 
@@ -548,7 +571,7 @@ def _should_skip(
     2. Negation: any name in ``unignore_names`` or ``rel_path`` in
        ``unignore_paths`` (from .codecityignore lines beginning with
        ``!``) overrides ALWAYS_SKIP and the ignore lists below.
-    3. ``ALWAYS_SKIP`` (hardcoded global noise dirs).
+    3. ``ALWAYS_SKIP`` (hardcoded global noise names — dirs + lockfiles).
     4. ``ignore_names`` / ``ignore_paths`` (from .codecityignore).
     """
     if name == ".git":
@@ -601,7 +624,6 @@ def _hash_git_window(sig: Any, git_window: str | None) -> None:
 def _file_node(
     entry: os.DirEntry[str],
     rel_path: str,
-    is_git_repo: bool,
     git_created: dict[str, str],
     git_modified: dict[str, str],
     sig: Any,
@@ -613,12 +635,13 @@ def _file_node(
     abs_path = entry.path
     size, created, modified, mtime = _stat_fields(entry)
 
-    git_block: GitMeta | None = None
-    if is_git_repo:
-        git_block = {
-            "created": git_created.get(rel_path) or None,
-            "modified": git_modified.get(rel_path) or None,
-        }
+    # Every scanned file is git-tracked (scan_tree rejects non-git roots),
+    # but a tracked file may still have no entry in git_created/git_modified
+    # if no commit touching it fell inside the git_window.
+    git_block: GitMeta = {
+        "created": git_created.get(rel_path) or None,
+        "modified": git_modified.get(rel_path) or None,
+    }
 
     _hash_file_entry(sig, rel_path, size, mtime)
 
@@ -738,7 +761,7 @@ def _populate_file_metadata(
 
     if use_cache:
         # Union-merge: start from the loaded cache (preserves entries
-        # for files not visited this scan, e.g. when include_all flips)
+        # for files not visited this scan, e.g. when .codecityignore flips)
         # and overwrite with current values for everything we did visit.
         for node in nodes:
             entry: FileEntry = {
@@ -823,11 +846,9 @@ def _build_tree(
     abs_dir: str,
     rel_dir: str,
     *,
-    is_git_repo: bool,
     git_created: dict[str, str],
     git_modified: dict[str, str],
     tracked_files: set[str],
-    include_all: bool,
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -855,15 +876,15 @@ def _build_tree(
             ):
                 continue
 
-            # In a git repo, skip anything not tracked (covers .gitignore +
-            # uncommitted additions) unless include_all is on. Outside a
-            # repo, the tracked set is empty so the branch is a no-op.
-            if is_git_repo and not include_all and entry_rel not in tracked_files:
+            # Skip anything not tracked (covers .gitignore + uncommitted
+            # additions). scan_tree rejects non-git roots upstream, so
+            # tracked_files is always meaningful here.
+            if entry_rel not in tracked_files:
                 continue
 
             if entry.is_file(follow_symlinks=False):
                 node = _file_node(
-                    entry, entry_rel, is_git_repo, git_created, git_modified, sig
+                    entry, entry_rel, git_created, git_modified, sig
                 )
                 top.files.append(node)
                 top.descendants_count += 1
@@ -938,7 +959,7 @@ def compute_tree_signature(tree_root: dict) -> str:
 
 def _wrap_manifest(
     root_abs: str, tree: DirNode, sig: Any, tree_signature: str,
-    repo_info: RepoInfo | None, commits: list[CommitEntry] | None,
+    repo_info: RepoInfo, commits: list[CommitEntry],
 ) -> Manifest:
     """Build a Manifest envelope around an already-built tree.
 
@@ -971,52 +992,39 @@ def _force_skeleton_placeholders(node: DirNode | FileNode) -> None:
 def scan_tree(
     root: str,
     *,
-    include_all: bool = False,
     use_cache: bool = True,
     cancel_event: "threading.Event | None" = None,
     git_window: str | None = None,
 ) -> Iterator["ScanStreamEvent"]:
-    """Scan a directory and yield manifest events.
+    """Scan a git working tree and yield manifest events.
 
     Yields a "skeleton" event after the tree walk (placeholder file
     metadata so the UI can paint immediately), then a "final" event
     after per-file metadata is populated.
 
-    With ``include_all=False`` (default), in a git repo the scanner walks
-    only paths in ``git ls-files`` — gitignored and untracked files are
-    hidden. With ``include_all=True``, the tracked-files filter is
-    skipped entirely; every file under ``root`` is emitted EXCEPT
-    those in ALWAYS_SKIP (``node_modules``, ``.venv``, ``.git``, etc.)
-    or matched by the optional ``<root>/.codecityignore`` file.
+    The scanner walks only paths in ``git ls-files`` — gitignored and
+    untracked files are hidden. Raises ``NotAGitRepoError`` if ``root``
+    isn't inside a git working tree. The server enforces this at the
+    HTTP boundary; the check here is defense-in-depth.
 
-    Outside a git repo, ``include_all`` has no effect — the tracked set
-    is empty either way.
-
-    The skip list is always applied. Per-project additions go in
-    ``<root>/.codecityignore`` (one literal name per line, or relative
-    paths containing ``/``)."""
+    The skip list (ALWAYS_SKIP plus the optional ``<root>/.codecityignore``)
+    is always applied on top of the tracked-files filter — handy for
+    hiding committed noise like ``node_modules/`` or vendor bundles.
+    Per-project additions go in ``<root>/.codecityignore`` (one literal
+    name per line, or relative paths containing ``/``)."""
     root_abs = str(Path(root).resolve())
     _log(f"resolving {root_abs}")
 
+    if not _is_git_repo(Path(root_abs)):
+        raise NotAGitRepoError(root_abs)
+
     _check_cancel(cancel_event)  # before _collect_git_metadata
 
-    git_created: dict[str, str] = {}
-    git_modified: dict[str, str] = {}
-    tracked_files: set[str] = set()
-    commits_list: list[CommitEntry] | None = None
-    is_git_repo = _is_git_repo(Path(root_abs))
-    repo_info: RepoInfo | None = None
-
-    if is_git_repo:
-        _log("git repo detected — collecting metadata…")
-        git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
-            Path(root_abs), use_cache=use_cache, git_window=git_window,
-        )
-        # commits_list flows into Manifest.commits below.
-        repo_info = _collect_repo_info(Path(root_abs))
-    else:
-        _log("not a git repo — filesystem dates only")
-        commits_list = None  # non-git → null in the manifest
+    _log("collecting git metadata…")
+    git_created, git_modified, tracked_files, commits_list = _collect_git_metadata(
+        Path(root_abs), use_cache=use_cache, git_window=git_window,
+    )
+    repo_info = _collect_repo_info(Path(root_abs))
 
     _check_cancel(cancel_event)  # after git metadata, before tree walk
 
@@ -1030,9 +1038,8 @@ def scan_tree(
     _hash_git_window(sig, git_window)
     tree = _build_tree(
         root_abs, ".",
-        is_git_repo=is_git_repo,
         git_created=git_created, git_modified=git_modified,
-        tracked_files=tracked_files, include_all=include_all,
+        tracked_files=tracked_files,
         ignore_names=ignore_names, ignore_paths=ignore_paths,
         unignore_names=unignore_names, unignore_paths=unignore_paths,
         sig=sig,
@@ -1103,9 +1110,7 @@ def _walk_for_signature(
     abs_dir: str,
     rel_dir: str,
     *,
-    is_git_repo: bool,
     tracked_files: set[str],
-    include_all: bool,
     ignore_names: frozenset[str],
     ignore_paths: frozenset[str],
     unignore_names: frozenset[str],
@@ -1132,7 +1137,7 @@ def _walk_for_signature(
             unignore_names=unignore_names, unignore_paths=unignore_paths,
         ):
             continue
-        if is_git_repo and not include_all and entry_rel not in tracked_files:
+        if entry_rel not in tracked_files:
             continue
         if entry.is_file(follow_symlinks=False):
             size, _created, _modified, mtime = _stat_fields(entry)
@@ -1140,9 +1145,7 @@ def _walk_for_signature(
         elif entry.is_dir(follow_symlinks=False):
             _walk_for_signature(
                 entry.path, entry_rel,
-                is_git_repo=is_git_repo,
                 tracked_files=tracked_files,
-                include_all=include_all,
                 ignore_names=ignore_names,
                 ignore_paths=ignore_paths,
                 unignore_names=unignore_names,
@@ -1154,11 +1157,10 @@ def _walk_for_signature(
 def signature_tree(
     root: str,
     *,
-    include_all: bool = False,
     use_cache: bool = True,
     git_window: str | None = None,
 ) -> SignatureResponse:
-    """Cheap fingerprint of the tree — equivalent to scan_tree(root, include_all=…)['signature']
+    """Cheap fingerprint of the tree — equivalent to scan_tree(root)['signature']
     but without building the full manifest.
 
     Walks the tree once with os.scandir, hashing (rel_path, size, mtime)
@@ -1166,9 +1168,6 @@ def signature_tree(
     file content reads and the two `git log` walks scan_tree uses for
     per-file created/modified history; both are cost-dominant on a big
     repo and don't feed the signature anyway.
-
-    With ``include_all=True``, skips the tracked-files lookup as well —
-    the filter isn't applied so we don't need to compute it.
 
     Honors the same skip list and ``<root>/.codecityignore`` file as
     scan_tree, so signatures stay in lockstep.
@@ -1185,16 +1184,11 @@ def signature_tree(
     """
     root_abs = str(Path(root).resolve())
     root_path = Path(root_abs)
-    is_git_repo = _is_git_repo(root_path)
-    tracked_files: set[str] = set()
-    repo_info: RepoInfo | None = None
+    if not _is_git_repo(root_path):
+        raise NotAGitRepoError(root_abs)
 
-    if is_git_repo:
-        # Tracked set is only used by the filter; skip the git call when
-        # include_all bypasses the filter.
-        if not include_all:
-            tracked_files = _collect_tracked_set(root_path)
-        repo_info = _collect_repo_info(root_path)
+    tracked_files = _collect_tracked_set(root_path)
+    repo_info = _collect_repo_info(root_path)
 
     ignore_names, ignore_paths, unignore_names, unignore_paths = (
         _load_codecityignore(root_path)
@@ -1204,17 +1198,14 @@ def signature_tree(
     _hash_git_window(sig, git_window)
     _walk_for_signature(
         root_abs, ".",
-        is_git_repo=is_git_repo,
         tracked_files=tracked_files,
-        include_all=include_all,
         ignore_names=ignore_names,
         ignore_paths=ignore_paths,
         unignore_names=unignore_names,
         unignore_paths=unignore_paths,
         sig=sig,
     )
-    if repo_info is not None:
-        _hash_repo_info(sig, repo_info)
+    _hash_repo_info(sig, repo_info)
 
     return {
         "root": root_abs,

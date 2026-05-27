@@ -39,7 +39,7 @@ function fakeMediaBuilding(overrides: Partial<Building> = {}): Building {
       binary: true,
       created: '',
       modified: '',
-      git: null,
+      git: { created: null, modified: null },
     },
   } as Building;
 }
@@ -77,7 +77,7 @@ describe('InstancedAdPanels', () => {
         binary: true,
         created: '',
         modified: '',
-        git: null,
+        git: { created: null, modified: null },
       },
     });
     const b2 = fakeMediaBuilding({
@@ -92,7 +92,7 @@ describe('InstancedAdPanels', () => {
         binary: true,
         created: '',
         modified: '',
-        git: null,
+        git: { created: null, modified: null },
       },
     });
 
@@ -122,7 +122,7 @@ describe('InstancedAdPanels', () => {
           binary: true,
           created: '',
           modified: '',
-          git: null,
+          git: { created: null, modified: null },
         },
       });
       const reg = ads.registerMediaBuilding(b);
@@ -142,7 +142,7 @@ describe('InstancedAdPanels', () => {
         binary: true,
         created: '',
         modified: '',
-        git: null,
+        git: { created: null, modified: null },
       },
     });
     const reg = ads.registerMediaBuilding(overflow);
@@ -163,7 +163,7 @@ describe('InstancedAdPanels', () => {
         binary: false,
         created: '',
         modified: '',
-        git: null,
+        git: { created: null, modified: null },
       },
     });
 
@@ -192,7 +192,7 @@ describe('InstancedAdPanels', () => {
           binary: true,
           created: '',
           modified: '',
-          git: null,
+          git: { created: null, modified: null },
         },
       })
     );

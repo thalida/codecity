@@ -19,7 +19,7 @@ function fileFor(path: string): FileNode {
     binary: false,
     created: '',
     modified: '',
-    git: null,
+    git: { created: null, modified: null },
   };
 }
 

@@ -68,42 +68,5 @@ class SignatureRouteTests(unittest.TestCase):
         status, _, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
         self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
-    def test_signature_route_honors_include_all(self) -> None:
-        # Reuses the project setup from the previous test — set up inline
-        # so this test runs independently if the order changes.
-        import subprocess
-        subprocess.run(
-            ["git", "-C", str(self.project), "init", "-q"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.email", "t@t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "config", "user.name", "t"],
-            check=True,
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "add", "README.md"], check=True
-        )
-        subprocess.run(
-            ["git", "-C", str(self.project), "commit", "-q", "-m", "init"],
-            check=True,
-        )
-        (self.project / "untracked.txt").write_text("hidden by default")
-
-        q = urllib.parse.urlencode({"src": str(self.project)})
-        _, body_default, _ = self._http.get(self.base + f"/api/manifest/signature?{q}")
-        sig_default = json.loads(body_default)["signature"]
-
-        q_all = urllib.parse.urlencode(
-            {"src": str(self.project), "include_all": "true"}
-        )
-        _, body_all, _ = self._http.get(self.base + f"/api/manifest/signature?{q_all}")
-        sig_all = json.loads(body_all)["signature"]
-
-        self.assertNotEqual(sig_default, sig_all)
-
-
 if __name__ == "__main__":
     unittest.main()

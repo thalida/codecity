@@ -55,7 +55,12 @@ _GIT_HISTORY_CACHE_VERSION = 8
 # to git-history output (e.g. a new field on FileNode). Git-history
 # shape changes don't need a bump here — they auto-invalidate through
 # _MANIFEST_CACHE_VERSION's composite below.
-_MANIFEST_SCHEMA_VERSION = 1
+#
+# v2: scanner dropped the include_all option and added lockfiles to
+# ALWAYS_SKIP. Cached manifests that observed lockfiles (or that came
+# from include_all=true scans) would no longer match a fresh scan;
+# bumping forces every repo to re-cache and drops the orphans.
+_MANIFEST_SCHEMA_VERSION = 2
 # Composite cache version: invalidates when EITHER the manifest
 # schema OR the git-history cache shape changes. Stored as a string
 # in the cache file's `version` field; the loader's equality check

@@ -47,8 +47,14 @@ const EMPTY_MANIFEST: Manifest = {
     descendants_dir_count: 0,
     descendants_size: 0,
   },
-  repo: null,
-  commits: null,
+  repo: {
+    branch: null,
+    remote_url: null,
+    head_sha: null,
+    head_subject: null,
+    dirty: false,
+  },
+  commits: [],
 };
 
 // One-shot flag: set by the source-picker onSubmit when the user ticked

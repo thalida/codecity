@@ -331,17 +331,10 @@ def _start_disconnect_watchdog(
     return t
 
 
-def _parse_include_all(query: str) -> bool:
-    """Parse ?include_all=… as a boolean. Strict: only 'true' (any case)
-    and '1' count as on; absent or anything else is off. Used by both
-    /api/manifest and /api/manifest/signature."""
-    raw = parse_qs(query).get("include_all", [""])[0].strip().lower()
-    return raw in ("true", "1")
-
-
 def _parse_no_cache(query: str) -> bool:
-    """Parse ?no_cache=… as a boolean. Same strict semantics as
-    _parse_include_all. Maps to scan_tree(use_cache=not <this>)."""
+    """Parse ?no_cache=… as a boolean. Strict: only 'true' (any case)
+    and '1' count as on; absent or anything else is off. Maps to
+    scan_tree(use_cache=not <this>)."""
     raw = parse_qs(query).get("no_cache", [""])[0].strip().lower()
     return raw in ("true", "1")
 
@@ -488,7 +481,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             )
             return
 
-    include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
     git_window = _parse_git_window(query)
 
@@ -541,7 +533,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         try:
             sig_response = signature_tree(
                 str(scan_target),
-                include_all=include_all,
                 use_cache=use_cache,
                 git_window=git_window,
             )
@@ -566,7 +557,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         try:
             for event in scan_tree(
                 str(scan_target),
-                include_all=include_all,
                 use_cache=use_cache,
                 cancel_event=cancel_event,
                 git_window=git_window,
@@ -673,7 +663,6 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     if resolved is None:
         return
     scan_target, _raw_src, _raw_branch, _kind = resolved
-    include_all = _parse_include_all(query)
     use_cache = not _parse_no_cache(query)
     # Pass git_window through so the live-update poll's signature matches
     # the cached manifest's (which is now window-keyed).
@@ -682,7 +671,6 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
     try:
         sig = signature_tree(
             str(scan_target),
-            include_all=include_all,
             use_cache=use_cache,
             git_window=git_window,
         )
