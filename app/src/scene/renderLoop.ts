@@ -294,6 +294,41 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         rootGemBody.material.needsUpdate = true;
       }
     }
+    // Per-face colors live on the gem body's geometry as a BufferAttribute,
+    // baked at construction. Rewrite it in place on Save so palette tweaks
+    // take effect without a full applyManifest rebuild.
+    if (rootGemBody?.geometry?.attributes.color) {
+      const palette = GEM_FACE_PALETTE.get();
+      const paletteHexes = [
+        palette.FACE_1,
+        palette.FACE_2,
+        palette.FACE_3,
+        palette.FACE_4,
+        palette.FACE_5,
+        palette.FACE_6,
+        palette.FACE_7,
+        palette.FACE_8,
+      ];
+      const faceColors = paletteHexes.map((hex) => {
+        const c = new THREE.Color(hex);
+        return [c.r, c.g, c.b] as [number, number, number];
+      });
+      const geo = rootGemBody.geometry;
+      const colorAttr = geo.attributes.color as THREE.BufferAttribute;
+      const vertexCount = geo.attributes.position.count;
+      const faceCount = vertexCount / 3;
+      const arr = colorAttr.array as Float32Array;
+      for (let f = 0; f < faceCount; f++) {
+        const fc = faceColors[f % faceColors.length];
+        for (let v = 0; v < 3; v++) {
+          const idx = (f * 3 + v) * 3;
+          arr[idx] = fc[0];
+          arr[idx + 1] = fc[1];
+          arr[idx + 2] = fc[2];
+        }
+      }
+      colorAttr.needsUpdate = true;
+    }
     if (rootGem && rootGem.userData.streetWidth != null) {
       const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
