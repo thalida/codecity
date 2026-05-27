@@ -60,6 +60,10 @@ import {
   // Cyberpunk Valley — trees (structural in TREES → rebuild):
   TREES,
 
+  // Cyberpunk Valley — tree hover/select outlines (material-only via
+  // treeOutlineRenderer.refreshMaterials() inside applyTheme()):
+  TREE_OUTLINE,
+
   // Cyberpunk Valley — footprint (HALO_WIDTH bakes into instance
   // matrices → rebuild; COLOR/ENABLED → material-only via footprint.refresh()):
   FOOTPRINT,
@@ -239,6 +243,10 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // mesh swap inside refresh(); the others update uniforms or the
     // group transform directly. No applyManifest rebuild needed.
     REPO_LABEL,
+    // TREE_OUTLINE — WIDTH, HOVER_COLOR, HOVER_OPACITY, SELECTED_OPACITY
+    // all push through treeOutlineRenderer.refreshMaterials() inside
+    // applyTheme(). No rebuild needed.
+    TREE_OUTLINE,
   ];
 
   const unsubs: Array<() => void> = [];
