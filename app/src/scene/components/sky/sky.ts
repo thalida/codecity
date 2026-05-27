@@ -41,6 +41,12 @@ const RADIUS_FAR_FRAC = 0.95;
 // stage anyway.
 const ICOSAHEDRON_DETAIL = 3;
 
+// Hardcoded star appearance values (removed from user-tunable controls).
+// Star spot radius as a fraction of the cell — 0.15 = each star
+// occupies a circle ~15% of the cell's width, with a smoothstep
+// antialiased edge.
+const STAR_SIZE = 0.15;
+
 export interface Sky {
   mesh: THREE.Mesh;
   /** Pull fresh SKY_* config values into the material uniforms. */
@@ -94,7 +100,7 @@ export function createSky(): Sky {
 
       uStarsEnabled: { value: stars.ENABLED ? 1.0 : 0.0 },
       uStarDensity: { value: stars.DENSITY },
-      uStarSize: { value: stars.SIZE },
+      uStarSize: { value: STAR_SIZE },
       uStarBrightness: { value: stars.BRIGHTNESS },
       uTwinkleEnabled: { value: stars.TWINKLE_ENABLED ? 1.0 : 0.0 },
       uTwinkleSpeed: { value: stars.TWINKLE_SPEED },
@@ -116,7 +122,6 @@ export function createSky(): Sky {
 
     material.uniforms.uStarsEnabled.value = s.ENABLED ? 1.0 : 0.0;
     material.uniforms.uStarDensity.value = s.DENSITY;
-    material.uniforms.uStarSize.value = s.SIZE;
     material.uniforms.uStarBrightness.value = s.BRIGHTNESS;
     material.uniforms.uTwinkleEnabled.value = s.TWINKLE_ENABLED ? 1.0 : 0.0;
     material.uniforms.uTwinkleSpeed.value = s.TWINKLE_SPEED;

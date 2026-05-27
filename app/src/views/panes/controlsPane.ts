@@ -396,9 +396,6 @@ function _buildSceneSection(): HTMLElement {
       _slider('Density', SKY_STARS, 'DENSITY', 0, 0.02, 0.0005, {
         tip: 'Hash-threshold for star presence — higher density paints MORE stars. Above ~0.01 the sky reads as a noise field.',
       }),
-      _slider('Size', SKY_STARS, 'SIZE', 0.02, 0.5, 0.01, {
-        tip: 'Star spot radius as a fraction of the cell. 0.15 default. Larger = chunkier stars; smaller = sharper pinpoints (may sub-pixel at distance).',
-      }),
       _slider('Brightness', SKY_STARS, 'BRIGHTNESS', 0, 3, 0.05, {
         tip: 'Per-star intensity added on top of the sky color. Above ~2.0 stars push into HDR and bloom.',
       }),
