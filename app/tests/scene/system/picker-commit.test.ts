@@ -40,8 +40,6 @@ interface FakeTrees {
   } | null;
   getInstanceTransform: (sha: string, out: THREE.Matrix4) => boolean;
   colorForSha: (sha: string) => string | null;
-  setHoverSha: (sha: string | null) => void;
-  setSelectionSha: (sha: string | null) => void;
 }
 
 function makeFakeTrees(
@@ -71,8 +69,6 @@ function makeFakeTrees(
       const idx = commits.findIndex((c) => c.sha === sha);
       return idx === -1 ? null : '#abcdef';
     },
-    setHoverSha(_sha) {},
-    setSelectionSha(_sha) {},
   };
 }
 
