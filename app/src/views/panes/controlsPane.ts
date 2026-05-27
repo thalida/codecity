@@ -265,7 +265,7 @@ function _buildShortcutsSection(): HTMLElement {
   // page reloads (same draft layer as every other tunable in this pane).
   section.appendChild(
     _collapsibleSubgroup('fly-mode-settings', 'Fly mode settings', () => [
-      _subgroup('Speed', [
+      _collapsibleSubgroup('fly-mode-speed', 'Speed', () => [
         _number('Base speed (bbox fraction)', FLY_CONTROLS, 'BASE_SPEED_BBOX_FRAC', 0.01, 1, 0.01, {
           tip: 'Base camera speed as a fraction of the world bounding-box radius. Scales automatically with city size.',
         }),
@@ -279,7 +279,7 @@ function _buildShortcutsSection(): HTMLElement {
           tip: 'Speed multiplier applied while Shift is held. 1 = no boost; 4 = four times faster.',
         }),
       ]),
-      _subgroup('Feel', [
+      _collapsibleSubgroup('fly-mode-feel', 'Feel', () => [
         _slider('Mouse sensitivity', FLY_CONTROLS, 'MOUSE_SENSITIVITY', 0.0005, 0.01, 0.0001, {
           tip: 'Radians of view rotation per pixel of pointer-lock movement. Lower = slower, more precise; higher = faster.',
         }),
@@ -293,7 +293,7 @@ function _buildShortcutsSection(): HTMLElement {
           tip: 'Minimum world-Y position — prevents flying below the ground plane.',
         }),
       ]),
-      _subgroup('Entry pose (on fly-mode enter)', [
+      _collapsibleSubgroup('fly-mode-entry-pose', 'Entry pose (on fly-mode enter)', () => [
         _number(
           'Gem offset multiplier',
           FLY_CONTROLS,
