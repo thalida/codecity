@@ -468,7 +468,7 @@ function _buildIslandSection(): HTMLElement {
 function _buildTreesSection(): HTMLElement {
   const section = _section(
     'Trees',
-    'One tree per commit — height tracks age, width tracks file count, color tracks commits-per-day (same-day commits share a color).'
+    'One tree per commit — height tracks age, width + facets track file count, color tracks commits-per-day (same-day commits share a color).'
   );
 
   section.appendChild(
