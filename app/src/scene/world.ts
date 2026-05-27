@@ -1137,8 +1137,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
     // Floating repo-name label — anchored at the gem position (the
     // floor-level root marker). The label's elevation is governed by
-    // REPO_LABEL.HEIGHT, not by city silhouette: 0 → label flush with
-    // the floor; larger → label rises with a visible beam.
+    // REPO_LABEL.HEIGHT_PCT, not by city silhouette: 0 → label flush
+    // with the floor; larger → label rises with a visible beam.
     _repoLabel.setRepoName(manifest.tree.name);
     _repoLabel.setAnchor(gemWorldPos ?? new THREE.Vector3());
     // Hand the live gem to the label so its beam foot tracks the

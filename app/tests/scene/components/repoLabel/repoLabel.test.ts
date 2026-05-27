@@ -7,7 +7,7 @@ import { RENDER_ORDERS } from '@/constants';
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
-    HEIGHT: 1305,
+    HEIGHT_PCT: 85,
     FONT_SIZE: 128,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,
@@ -54,20 +54,22 @@ describe('createRepoLabel()', () => {
     }
   });
 
-  it('beam length tracks REPO_LABEL.HEIGHT', () => {
+  it('beam length tracks REPO_LABEL.HEIGHT_PCT', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT', 250);
+    // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
+    REPO_LABEL.setKey('HEIGHT_PCT', 50);
     REPO_LABEL.setKey('FONT_SIZE', 100);
     label!.refresh();
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
-    // beamLength = max(0, HEIGHT - BEAM_FOOT_INSIDE_GEM) = max(0, 250 - 10) = 240
-    expect(beam.scale.y).toBeCloseTo(240);
-    // Beam top sits at panel bottom (local y = -FONT_SIZE/2 = -50);
-    // beam bottom sits at panel bottom - beamLength = -50 - 240 = -290.
-    // Center of beam is therefore at (-50 + -290) / 2 = -170.
-    expect(beam.position.y).toBeCloseTo(-170);
+    // beamLength = max(0, heightWorld - BEAM_FOOT_FALLBACK) = max(0, 768 - 10) = 758
+    expect(beam.scale.y).toBeCloseTo(758);
+    // groupWorldY = 768 + 50 = 818 (panel center)
+    // beamTopWorld = 768, beamBottomWorld = 10
+    // beamCenterWorld = (768 + 10) / 2 = 389
+    // beam.position.y = 389 - 818 = -429
+    expect(beam.position.y).toBeCloseTo(-429);
   });
 
   it('panel scale tracks FONT_SIZE × textureAspect', () => {
@@ -120,21 +122,22 @@ describe('createRepoLabel()', () => {
     expect(label!.group.visible).toBe(false);
   });
 
-  it('setAnchor positions the group at anchor.x/z and lifts y by HEIGHT + FONT_SIZE/2', () => {
+  it('setAnchor positions the group at anchor.x/z and lifts y by heightWorld + FONT_SIZE/2', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT', 100);
+    // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
+    REPO_LABEL.setKey('HEIGHT_PCT', 50);
     REPO_LABEL.setKey('FONT_SIZE', 80);
     label!.refresh();
     label!.setAnchor(new THREE.Vector3(10, 0, 30));
     expect(label!.group.position.x).toBeCloseTo(10);
-    // anchor.y (0) + HEIGHT (100) + FONT_SIZE/2 (40) = 140
-    expect(label!.group.position.y).toBeCloseTo(140);
+    // anchor.y (0) + heightWorld (768) + FONT_SIZE/2 (40) = 808
+    expect(label!.group.position.y).toBeCloseTo(808);
     expect(label!.group.position.z).toBeCloseTo(30);
   });
 
-  it('HEIGHT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
+  it('HEIGHT_PCT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT', 0);
+    REPO_LABEL.setKey('HEIGHT_PCT', 0);
     REPO_LABEL.setKey('FONT_SIZE', 100);
     label!.refresh();
     label!.setAnchor(new THREE.Vector3(0, 0, 0));
@@ -173,7 +176,8 @@ describe('createRepoLabel()', () => {
 
   it("setGem makes the beam track the gem's live world Y (hover + bob)", () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT', 300);
+    // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
+    REPO_LABEL.setKey('HEIGHT_PCT', 50);
     REPO_LABEL.setKey('FONT_SIZE', 100);
     label!.refresh();
     // Stand-in for the gem — a THREE.Object3D with a settable position.y.
@@ -185,18 +189,19 @@ describe('createRepoLabel()', () => {
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
-    // beamLength = panelBottom (300) - gem (25) = 275
-    expect(beam.scale.y).toBeCloseTo(275);
+    // beamLength = panelBottom (768) - gem (25) = 743
+    expect(beam.scale.y).toBeCloseTo(743);
     // Simulate a frame of bob — gem moves up.
     fakeGem.position.y = 35;
     label!.tick(0.016, new THREE.PerspectiveCamera());
-    // beamLength = 300 - 35 = 265
-    expect(beam.scale.y).toBeCloseTo(265);
+    // beamLength = 768 - 35 = 733
+    expect(beam.scale.y).toBeCloseTo(733);
   });
 
   it('setGem(null) falls back to the constant inset above the anchor', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT', 100);
+    // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
+    REPO_LABEL.setKey('HEIGHT_PCT', 50);
     REPO_LABEL.setKey('FONT_SIZE', 60);
     label!.refresh();
     const fakeGem = new THREE.Object3D();
@@ -207,7 +212,7 @@ describe('createRepoLabel()', () => {
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
     ) as THREE.Mesh;
     // Fallback: beam foot at anchor.y (0) + 10 (BEAM_FOOT_FALLBACK).
-    // beamLength = 100 - 10 = 90.
-    expect(beam.scale.y).toBeCloseTo(90);
+    // beamLength = 768 - 10 = 758.
+    expect(beam.scale.y).toBeCloseTo(758);
   });
 });

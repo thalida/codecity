@@ -6,7 +6,7 @@ import { REPO_LABEL } from '@/config/components/repoLabel.js';
 function resetStore() {
   REPO_LABEL.set({
     ENABLED: true,
-    HEIGHT: 1305,
+    HEIGHT_PCT: 85,
     FONT_SIZE: 128,
     ANIMATION_SPEED: 1.0,
     OPACITY: 0.9,
@@ -15,9 +15,11 @@ function resetStore() {
   });
 }
 
-// group.position.y = anchor.y + HEIGHT + FONT_SIZE / 2
-// (panel center floats HEIGHT + FONT_SIZE/2 above the floor; panel
-// bottom sits at HEIGHT above the floor)
+// group.position.y = anchor.y + heightWorld + FONT_SIZE / 2
+// where heightWorld = MAX_FLOORS × FLOOR_HEIGHT × HEIGHT_PCT / 100
+//                   = 96 × 16 × HEIGHT_PCT / 100 = 1536 × HEIGHT_PCT / 100
+// (panel center floats heightWorld + FONT_SIZE/2 above the floor; panel
+// bottom sits at heightWorld above the floor)
 
 describe('RepoLabel positioning', () => {
   let label: ReturnType<typeof createRepoLabel>;
@@ -28,42 +30,43 @@ describe('RepoLabel positioning', () => {
   });
   afterEach(() => label.dispose());
 
-  it('default config places panel center at anchor.y + HEIGHT + FONT_SIZE/2', () => {
+  it('default config places panel center at anchor.y + heightWorld + FONT_SIZE/2', () => {
     label.setAnchor(new THREE.Vector3(10, 0, 20));
-    // 0 + 1305 + 128/2 = 1369
+    // heightWorld = 1536 × 85/100 = 1305.6; panel center = 0 + 1305.6 + 64 = 1369.6
     expect(label.group.position.x).toBeCloseTo(10);
-    expect(label.group.position.y).toBeCloseTo(1369);
+    expect(label.group.position.y).toBeCloseTo(1369.6);
     expect(label.group.position.z).toBeCloseTo(20);
   });
 
-  it('non-zero anchor.y is added to HEIGHT (label rises from the anchor, not from y=0)', () => {
+  it('non-zero anchor.y is added to heightWorld (label rises from the anchor, not from y=0)', () => {
     label.setAnchor(new THREE.Vector3(0, 40, 0));
-    // 40 + 1305 + 64 = 1409
-    expect(label.group.position.y).toBeCloseTo(1409);
+    // 40 + 1305.6 + 64 = 1409.6
+    expect(label.group.position.y).toBeCloseTo(1409.6);
   });
 
-  it('HEIGHT=0 places the panel bottom flush with the floor (= anchor.y)', () => {
-    REPO_LABEL.setKey('HEIGHT', 0);
+  it('HEIGHT_PCT=0 places the panel bottom flush with the floor (= anchor.y)', () => {
+    REPO_LABEL.setKey('HEIGHT_PCT', 0);
     label.refresh();
     label.setAnchor(new THREE.Vector3(0, 0, 0));
-    // 0 + 0 + 64 = 64 → panel bottom at 0
+    // heightWorld = 0; panel center = 0 + 0 + 64 = 64 → panel bottom at 0
     expect(label.group.position.y).toBeCloseTo(64);
   });
 
-  it('refresh() picks up new HEIGHT without a setAnchor call', () => {
+  it('refresh() picks up new HEIGHT_PCT without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
-    expect(label.group.position.y).toBeCloseTo(1369);
-    REPO_LABEL.setKey('HEIGHT', 500);
+    expect(label.group.position.y).toBeCloseTo(1369.6);
+    // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
+    REPO_LABEL.setKey('HEIGHT_PCT', 50);
     label.refresh();
-    // 0 + 500 + 64 = 564
-    expect(label.group.position.y).toBeCloseTo(564);
+    // 0 + 768 + 64 = 832
+    expect(label.group.position.y).toBeCloseTo(832);
   });
 
   it('refresh() picks up new FONT_SIZE without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     REPO_LABEL.setKey('FONT_SIZE', 200);
     label.refresh();
-    // 0 + 1305 + 100 = 1405
-    expect(label.group.position.y).toBeCloseTo(1405);
+    // 0 + 1305.6 + 100 = 1405.6
+    expect(label.group.position.y).toBeCloseTo(1405.6);
   });
 });

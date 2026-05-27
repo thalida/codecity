@@ -4,11 +4,13 @@
 //
 //   ENABLED         — master visibility toggle. Hides the group without
 //                     disposing geometry.
-//   HEIGHT          — world units the panel's bottom sits above the
-//                     floor (= the anchor's y, = the gem position).
-//                     0 → panel sits flush with the floor (no beam
-//                     visible). Larger → label rises, beam grows to span
-//                     the gap from floor up to panel bottom.
+//   HEIGHT_PCT      — percent of max allowed building height
+//                     (MAX_FLOORS × FLOOR_HEIGHT) at which the panel's
+//                     bottom sits above the floor. 0 = panel sits flush
+//                     with the island floor (no beam visible); 100 =
+//                     level with the tallest possible building; 200 =
+//                     double that. Default 85 ≈ inside the silhouette
+//                     band of an extreme-tall city.
 //   FONT_SIZE       — panel (= text) height in world units. Default
 //                     matches BUILDING_DIMENSIONS.MAX_WIDTH (96), so
 //                     the label reads as roughly the same scale as the
@@ -29,7 +31,7 @@ import { map } from 'nanostores';
 
 export interface RepoLabelConfig {
   ENABLED: boolean;
-  HEIGHT: number;
+  HEIGHT_PCT: number;
   FONT_SIZE: number;
   ANIMATION_SPEED: number;
   OPACITY: number;
@@ -39,12 +41,7 @@ export interface RepoLabelConfig {
 
 export const REPO_LABEL = map<RepoLabelConfig>({
   ENABLED: true,
-  // Default: 0.85 × the tallest possible building (BUILDING_DIMENSIONS
-  // MAX_FLOORS × FLOOR_HEIGHT = 96 × 16 = 1536; × 0.85 ≈ 1305).
-  // Sits the label inside the silhouette band of an extreme-tall city
-  // but clearly above any typical one. Tied to BUILDING_DIMENSIONS by
-  // design, not by import — update both if either drifts.
-  HEIGHT: 1305,
+  HEIGHT_PCT: 85,
   // Tuned by eye to feel like a substantial banner above the city
   // at default camera framing — roughly 1.3× BUILDING_DIMENSIONS.MAX_WIDTH
   // (96 × 1.33 ≈ 128) so the label scales bigger than the biggest
