@@ -308,4 +308,43 @@ describe('Trees commit lookups', () => {
     hit1.mesh.getColorAt(hit1.instanceId, tmp);
     expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001); // still selected-tinted
   });
+
+  it('getInstanceTransform writes the canopy instance matrix into the out param', () => {
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(3, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const hit = trees.findTreeBySha(commits[1].sha)!;
+    const expected = new THREE.Matrix4();
+    hit.mesh.getMatrixAt(hit.instanceId, expected);
+
+    const out = new THREE.Matrix4();
+    const ok = trees.getInstanceTransform(commits[1].sha, out);
+    expect(ok).toBe(true);
+    for (let i = 0; i < 16; i++) {
+      expect(out.elements[i]).toBeCloseTo(expected.elements[i], 5);
+    }
+  });
+
+  it('getInstanceTransform returns false for unknown sha', () => {
+    const commits = [commit(0)];
+    const placements = [placement(0, 0)];
+    const trees = createTreeRenderer(placements, commits);
+    const out = new THREE.Matrix4();
+    expect(trees.getInstanceTransform('f'.repeat(40), out)).toBe(false);
+  });
+});
+
+it('buildCanopyEdges returns non-empty EdgesGeometry for each detail level', async () => {
+  const { buildCanopyEdges } = await import(
+    '@/scene/components/trees/treeRenderer.js'
+  );
+  for (const detail of [0, 1, 2] as const) {
+    const geom = buildCanopyEdges(detail);
+    expect(geom).toBeInstanceOf(THREE.EdgesGeometry);
+    const positions = geom.getAttribute('position');
+    expect(positions).toBeDefined();
+    expect(positions.count).toBeGreaterThan(0);
+    geom.dispose();
+  }
 });

@@ -69,6 +69,11 @@ export interface Trees {
   /** Set which sha is currently selected (null clears). Repaints that
    *  tree's canopy with the same inverse treatment as hover. */
   setSelectionSha(sha: string | null): void;
+  /** Write the canopy instance matrix for `sha` into `out`. Returns true
+   *  when a tree was found, false otherwise. Used by treeOutlineRenderer
+   *  to snap the hover/selected outline mesh's transform to the active
+   *  tree without an extra Matrix4 allocation per frame. */
+  getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
 }
 
 /** Minimum sRGB luminance gap between base and inverse. If the raw RGB
@@ -85,6 +90,26 @@ type DetailLevel = (typeof DETAIL_LEVELS)[number];
 function setColorFromHex(target: THREE.Color, hex: string): void {
   target.setStyle(hex, THREE.LinearSRGBColorSpace);
 }
+
+/** Lathe control points for the canopy silhouette: hand-picked (radius, height)
+ *  pairs producing a low-poly Christmas-tree shape. Bottom→top. Both axes
+ *  normalized to [0,1] so a single profile drives any detail tier. Shared by
+ *  `buildCanopyGeometry` (the rendered canopy) and `buildCanopyEdges` (the
+ *  outline wireframe) — keep these two in sync. */
+const CANOPY_PROFILE: readonly THREE.Vector2[] = [
+  new THREE.Vector2(0, 0),
+  new THREE.Vector2(0.85, 0),
+  new THREE.Vector2(1.0, 0.1),
+  new THREE.Vector2(0.95, 0.25),
+  new THREE.Vector2(0.82, 0.42),
+  new THREE.Vector2(0.66, 0.58),
+  new THREE.Vector2(0.5, 0.72),
+  new THREE.Vector2(0.36, 0.82),
+  new THREE.Vector2(0.24, 0.89),
+  new THREE.Vector2(0.14, 0.94),
+  new THREE.Vector2(0.06, 0.98),
+  new THREE.Vector2(0, 1.0),
+];
 
 /** Build a unit-height (Y ∈ [0,1]), unit-radius teardrop canopy
  *  geometry at the given subdivision detail.
@@ -111,28 +136,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   //     A lathe profile must converge to a point on the axis, but
   //     dense vertical samples near the apex make the silhouette read
   //     as a smooth dome rather than a sharp spike.
-  // CANOPY_PROFILE: control points (radius, height) for the lathe.
-  // Hand-picked by eye to produce a low-poly Christmas-tree silhouette
-  // — there's no formula, each point sculpts the curve in a chosen
-  // place. Both axes are normalized to [0,1] (radius 1 = world radius
-  // `r`, height 1 = world height `h`) so the renderer can scale a
-  // single shared geometry per detail level. Insertion order = bottom
-  // → top.
-  const CANOPY_PROFILE: THREE.Vector2[] = [
-    new THREE.Vector2(0, 0), // axis — caps the base
-    new THREE.Vector2(0.85, 0), // bottom rim (slightly inset)
-    new THREE.Vector2(1.0, 0.1), // widest, just above the base
-    new THREE.Vector2(0.95, 0.25),
-    new THREE.Vector2(0.82, 0.42),
-    new THREE.Vector2(0.66, 0.58),
-    new THREE.Vector2(0.5, 0.72),
-    new THREE.Vector2(0.36, 0.82),
-    new THREE.Vector2(0.24, 0.89), // upper shoulder
-    new THREE.Vector2(0.14, 0.94), // dense samples
-    new THREE.Vector2(0.06, 0.98), // near-apex
-    new THREE.Vector2(0, 1.0), // apex
-  ];
-  const profile = CANOPY_PROFILE;
+  const profile = CANOPY_PROFILE as THREE.Vector2[];
   const cfg = TREES.get();
   const segments =
     detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
@@ -143,6 +147,31 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   geom.dispose();
   flat.computeVertexNormals();
   return flat;
+}
+
+/** Build a clean wireframe `EdgesGeometry` for the canopy silhouette at
+ *  the given detail level. Uses the SAME profile + segment count as
+ *  `buildCanopyGeometry`, but on the indexed lathe (no `toNonIndexed`)
+ *  so adjacent triangles share vertex normals — that lets `EdgesGeometry`
+ *  collapse coplanar interior edges and emit only the ring boundaries.
+ *
+ *  Consumed by `scene/effects/treeOutlineRenderer.ts`. */
+export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
+  const cfg = TREES.get();
+  const segments =
+    detail === 0
+      ? cfg.TREE_FACETS_LOW
+      : detail === 1
+        ? cfg.TREE_FACETS_MID
+        : cfg.TREE_FACETS_HIGH;
+  const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
+  // Default 1° threshold keeps any edge whose adjacent face normals differ
+  // by >1° — for the canopy this means ring boundaries (profile slope
+  // changes) plus the lathe's wrap seam. The result reads as a wireframe
+  // silhouette covering both the outer outline and a few interior facet rings.
+  const edges = new THREE.EdgesGeometry(lathe, 1);
+  lathe.dispose();
+  return edges;
 }
 
 /** Bake per-vertex color attribute on a unit-height canopy geometry.
@@ -501,6 +530,13 @@ export function createTreeRenderer(
     return _treeIndexBySha.get(sha) ?? null;
   }
 
+  function getInstanceTransform(sha: string, out: THREE.Matrix4): boolean {
+    const idx = _treeIndexBySha.get(sha);
+    if (!idx) return false;
+    idx.mesh.getMatrixAt(idx.instanceId, out);
+    return true;
+  }
+
   function colorForSha(sha: string): string | null {
     return _baseColorBySha.get(sha) ?? null;
   }
@@ -595,6 +631,7 @@ export function createTreeRenderer(
     dispose,
     commitForInstance,
     findTreeBySha,
+    getInstanceTransform,
     colorForSha,
     setHoverSha,
     setSelectionSha,
