@@ -566,6 +566,20 @@ function _buildTreesSection(): HTMLElement {
     ])
   );
 
+  section.appendChild(
+    _collapsibleSubgroup('trees-facets-by-files', 'Facets by files', () => [
+      _number('Low-tier facets', TREES, 'TREE_FACETS_LOW', 3, 24, 1, {
+        tip: 'Radial segment count for trees in the smallest-commit tier. 3 = triangular prism (chunkiest); higher = smoother. Lowest tier holds the largest tree count so this is the perf-sensitive knob.',
+      }),
+      _number('Mid-tier facets', TREES, 'TREE_FACETS_MID', 3, 24, 1, {
+        tip: 'Radial segment count for the middle-commit tier.',
+      }),
+      _number('High-tier facets', TREES, 'TREE_FACETS_HIGH', 3, 32, 1, {
+        tip: 'Radial segment count for the largest-commit tier. Highest tier has the fewest tree instances so this is the cheapest knob to push high.',
+      }),
+    ])
+  );
+
   return section;
 }
 

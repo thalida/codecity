@@ -53,6 +53,18 @@ export interface TreesConfig {
   /** Largest canopy diameter (commit with most files) in world units. */
   TREE_MAX_WIDTH: number;
 
+  /** Radial segment count for the lowest-detail canopy tier (smallest
+   *  commits by file count). LatheGeometry uses this as its segment
+   *  count; 3 = triangular prism, higher = smoother silhouette. */
+  TREE_FACETS_LOW: number;
+
+  /** Radial segment count for the mid-detail canopy tier. */
+  TREE_FACETS_MID: number;
+
+  /** Radial segment count for the highest-detail canopy tier
+   *  (largest commits by file count). */
+  TREE_FACETS_HIGH: number;
+
   /** Trunk height as a fraction of canopy height. */
   TRUNK_HEIGHT_FRAC: number;
 
@@ -107,6 +119,10 @@ export const TREES = map<TreesConfig>({
 
   TREE_MIN_WIDTH: 32,
   TREE_MAX_WIDTH: 64,
+
+  TREE_FACETS_LOW: 5,
+  TREE_FACETS_MID: 8,
+  TREE_FACETS_HIGH: 12,
 
   TRUNK_HEIGHT_FRAC: 0.35,
   TRUNK_RADIUS_FRAC_OF_CANOPY: 0.15,
