@@ -127,6 +127,7 @@ export function resetTreesConfig(): void {
     TREE_AGE_DESAT_ENABLED: false,
     TREE_AGE_SATURATION_MIN: 20,
     TREE_AGE_SATURATION_MAX: 100,
+    TREE_WIDTH_AGE_FLOOR: 1.0,
   });
 }
 

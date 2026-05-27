@@ -34,6 +34,7 @@ function resetStores() {
     TREE_AGE_DESAT_ENABLED: false,
     TREE_AGE_SATURATION_MIN: 20,
     TREE_AGE_SATURATION_MAX: 100,
+    TREE_WIDTH_AGE_FLOOR: 1.0,
   });
   BUILDING_DIMENSIONS.set({
     MIN_FLOORS: 2,
@@ -210,6 +211,111 @@ describe('Trees commit lookups', () => {
     const trees = createTreeRenderer(placements, commits);
     const out = new THREE.Matrix4();
     expect(trees.getInstanceTransform('f'.repeat(40), out)).toBe(false);
+  });
+
+  it('TREE_WIDTH_AGE_FLOOR = 1.0 preserves file-driven canopy width unchanged', () => {
+    // Two commits, same file count, different ages. With floor=1.0 the
+    // attenuation is constant 1, so both trees should have the same
+    // canopy XZ scale.
+    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 1.0);
+    const commits = [commit(0), commit(1)];
+    // Force same file count so file-driven radius matches.
+    commits[0].files = 5;
+    commits[1].files = 5;
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const hit0 = trees.findTreeBySha(commits[0].sha)!;
+    const hit1 = trees.findTreeBySha(commits[1].sha)!;
+    const m0 = new THREE.Matrix4();
+    const m1 = new THREE.Matrix4();
+    hit0.mesh.getMatrixAt(hit0.instanceId, m0);
+    hit1.mesh.getMatrixAt(hit1.instanceId, m1);
+    const s0 = new THREE.Vector3();
+    const s1 = new THREE.Vector3();
+    m0.decompose(new THREE.Vector3(), new THREE.Quaternion(), s0);
+    m1.decompose(new THREE.Vector3(), new THREE.Quaternion(), s1);
+
+    expect(s0.x).toBeCloseTo(s1.x, 3);
+    expect(s0.z).toBeCloseTo(s1.z, 3);
+  });
+
+  it('TREE_WIDTH_AGE_FLOOR = 0.5 halves the shortest tree canopy width', () => {
+    // Three commits, same file count. With ageT mapping oldest→0, newest→1,
+    // the renderer assigns commits[2] (newest) min height (heightRatio=0)
+    // → attenuation = 0.5; commits[0] (oldest) max height (heightRatio=1)
+    // → attenuation = 1.
+    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.5);
+    const commits = [commit(0), commit(1), commit(2)];
+    for (const c of commits) c.files = 5;
+    const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
+    const trees = createTreeRenderer(placements, commits);
+
+    // Find the oldest (commits[0]) and newest (commits[2]) trees.
+    const oldHit = trees.findTreeBySha(commits[0].sha)!;
+    const newHit = trees.findTreeBySha(commits[2].sha)!;
+    const mOld = new THREE.Matrix4();
+    const mNew = new THREE.Matrix4();
+    oldHit.mesh.getMatrixAt(oldHit.instanceId, mOld);
+    newHit.mesh.getMatrixAt(newHit.instanceId, mNew);
+    const sOld = new THREE.Vector3();
+    const sNew = new THREE.Vector3();
+    mOld.decompose(new THREE.Vector3(), new THREE.Quaternion(), sOld);
+    mNew.decompose(new THREE.Vector3(), new THREE.Quaternion(), sNew);
+
+    // Newest tree width should be ~50% of oldest tree width.
+    expect(sNew.x).toBeCloseTo(sOld.x * 0.5, 2);
+    expect(sNew.z).toBeCloseTo(sOld.z * 0.5, 2);
+  });
+
+  it('TREE_WIDTH_AGE_FLOOR = 0.0 produces near-zero width on shortest tree', () => {
+    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.0);
+    const commits = [commit(0), commit(1), commit(2)];
+    for (const c of commits) c.files = 5;
+    const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const oldHit = trees.findTreeBySha(commits[0].sha)!;
+    const newHit = trees.findTreeBySha(commits[2].sha)!;
+    const mOld = new THREE.Matrix4();
+    const mNew = new THREE.Matrix4();
+    oldHit.mesh.getMatrixAt(oldHit.instanceId, mOld);
+    newHit.mesh.getMatrixAt(newHit.instanceId, mNew);
+    const sOld = new THREE.Vector3();
+    const sNew = new THREE.Vector3();
+    mOld.decompose(new THREE.Vector3(), new THREE.Quaternion(), sOld);
+    mNew.decompose(new THREE.Vector3(), new THREE.Quaternion(), sNew);
+
+    // Newest tree should be at least 10× narrower than oldest.
+    expect(sNew.x * 10).toBeLessThan(sOld.x);
+    expect(sNew.z * 10).toBeLessThan(sOld.z);
+  });
+
+  it('degenerate height range (min == max) does not produce NaN canopy matrices', () => {
+    // When TREE_MIN_HEIGHT == TREE_MAX_HEIGHT, the heightRatio computation
+    // would divide by zero without a clamp. Verify the renderer constructs
+    // and all canopy instance matrix elements stay finite.
+    TREES.setKey('TREE_MIN_HEIGHT', 32);
+    TREES.setKey('TREE_MAX_HEIGHT', 32);
+    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.5);
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(0, 0), placement(1, 1)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const canopies = trees.group.children.filter((c) =>
+      c.name.startsWith('tree-canopy-')
+    ) as THREE.InstancedMesh[];
+    expect(canopies.length).toBeGreaterThan(0);
+
+    const m = new THREE.Matrix4();
+    for (const canopy of canopies) {
+      for (let k = 0; k < canopy.count; k++) {
+        canopy.getMatrixAt(k, m);
+        for (let i = 0; i < 16; i++) {
+          expect(Number.isFinite(m.elements[i])).toBe(true);
+        }
+      }
+    }
   });
 });
 
