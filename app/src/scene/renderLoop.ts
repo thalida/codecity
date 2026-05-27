@@ -30,6 +30,7 @@ import { createPicker } from './system/picker.js';
 import { createInputHandlers } from './system/inputHandlers.js';
 import { createBuildingFader } from './effects/buildingFader.js';
 import { createOutlineRenderer } from './effects/outlineRenderer.js';
+import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer.js';
 import { createGhostRenderer } from './effects/ghostRenderer.js';
 import { createPathLineRenderer } from './effects/pathLineRenderer.js';
 import { createCoordinator } from '../coordinator.js';
@@ -161,6 +162,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     world,
     picker,
   });
+  const treeOutlineRenderer = createTreeOutlineRenderer({
+    canvas,
+    scene,
+    picker,
+    getTrees: () => world.getTrees(),
+  });
   const ghostRenderer = createGhostRenderer({ scene, world, picker });
   const pathLineRenderer = createPathLineRenderer({
     canvas,
@@ -244,6 +251,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     scene.background = new THREE.Color(SKY.get().COLOR);
 
     outlineRenderer.refreshMaterials();
+    treeOutlineRenderer.refreshMaterials();
     pathLineRenderer.refreshMaterials();
     refreshBuildingMaterial();
     postFx.refresh();
@@ -384,6 +392,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       const ch = canvas.clientHeight;
       postFx.setSize(cw, ch);
       outlineRenderer.onResize();
+      treeOutlineRenderer.onResize();
       pathLineRenderer.onResize();
       // Synchronous paint to avoid a single-frame blank/cleared canvas
       // between the resize and the next animate() tick. The render path
@@ -429,6 +438,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         camera.updateProjectionMatrix();
         postFx.setSize(cw, ch);
         outlineRenderer.onResize();
+        treeOutlineRenderer.onResize();
         pathLineRenderer.onResize();
       }
     }
@@ -467,6 +477,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     }
     fader.update(0); // body opacity per fade tier
     outlineRenderer.update(0); // hover/selected outline transforms + rainbow chase
+    treeOutlineRenderer.update(0); // tree hover/selected outline transforms + rainbow chase
     ghostRenderer.update(0); // hover ghost transform
     pathLineRenderer.update(0); // selection path line rainbow chase
     // Street labels are world-space text on the asphalt — orient toward

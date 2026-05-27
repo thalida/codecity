@@ -175,27 +175,6 @@ describe('Trees commit lookups', () => {
     expect(color).toMatch(/^#[0-9a-f]{6}$/);
   });
 
-  it('colorForSha returns the base color even when the tree is hovered', () => {
-    const commits = [commit(0), commit(1)];
-    const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits);
-
-    const base = trees.colorForSha(commits[1].sha);
-    expect(base).toMatch(/^#[0-9a-f]{6}$/);
-
-    trees.setHoverSha(commits[1].sha);
-    const duringHover = trees.colorForSha(commits[1].sha);
-    expect(duringHover).toBe(base);
-
-    trees.setSelectionSha(commits[1].sha);
-    const duringSelect = trees.colorForSha(commits[1].sha);
-    expect(duringSelect).toBe(base);
-
-    trees.setHoverSha(null);
-    trees.setSelectionSha(null);
-    expect(trees.colorForSha(commits[1].sha)).toBe(base);
-  });
-
   it('colorForSha returns null for an unknown sha', () => {
     const commits = [commit(0)];
     const placements = [placement(0, 0)];
@@ -208,104 +187,40 @@ describe('Trees commit lookups', () => {
     expect(trees.colorForSha('a'.repeat(40))).toBeNull();
   });
 
-  it('setHoverSha tints the canopy instance with a contrasting inverse color', () => {
+  it('getInstanceTransform writes the canopy instance matrix into the out param', () => {
     const commits = [commit(0), commit(1)];
-    const placements = [placement(0, 0), placement(1, 1)];
+    const placements = [placement(0, 0), placement(3, 1)];
     const trees = createTreeRenderer(placements, commits);
 
-    const tmp = new THREE.Color();
     const hit = trees.findTreeBySha(commits[1].sha)!;
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    const baseR = tmp.r;
-    const baseG = tmp.g;
-    const baseB = tmp.b;
+    const expected = new THREE.Matrix4();
+    hit.mesh.getMatrixAt(hit.instanceId, expected);
 
-    trees.setHoverSha(commits[1].sha);
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    // The new tinting algorithm (PR 5c1ad90) paints the canopy with the
-    // sRGB inverse of its base color (with a contrast-pull when the raw
-    // inverse is too close to the base in luminance). The tinted color
-    // may be either brighter or darker than baseline depending on the
-    // base color, so just assert a meaningful color change in any
-    // channel rather than a directional brightness shift.
-    const channelDelta =
-      Math.abs(tmp.r - baseR) + Math.abs(tmp.g - baseG) + Math.abs(tmp.b - baseB);
-    expect(channelDelta).toBeGreaterThan(0.1);
+    const out = new THREE.Matrix4();
+    const ok = trees.getInstanceTransform(commits[1].sha, out);
+    expect(ok).toBe(true);
+    for (let i = 0; i < 16; i++) {
+      expect(out.elements[i]).toBeCloseTo(expected.elements[i], 5);
+    }
   });
 
-  it('setHoverSha(null) restores the baseline color', () => {
-    const commits = [commit(0), commit(1)];
-    const placements = [placement(0, 0), placement(1, 1)];
+  it('getInstanceTransform returns false for unknown sha', () => {
+    const commits = [commit(0)];
+    const placements = [placement(0, 0)];
     const trees = createTreeRenderer(placements, commits);
-
-    const tmp = new THREE.Color();
-    const hit = trees.findTreeBySha(commits[1].sha)!;
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    const baseR = tmp.r;
-
-    trees.setHoverSha(commits[1].sha);
-    trees.setHoverSha(null);
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    expect(Math.abs(tmp.r - baseR)).toBeLessThan(0.001);
+    const out = new THREE.Matrix4();
+    expect(trees.getInstanceTransform('f'.repeat(40), out)).toBe(false);
   });
+});
 
-  it('setSelectionSha paints the canopy with the same tint as setHoverSha', () => {
-    const commits = [commit(0), commit(1)];
-    const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits);
-
-    const tmp = new THREE.Color();
-    const hit = trees.findTreeBySha(commits[1].sha)!;
-
-    trees.setHoverSha(commits[1].sha);
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    const hoverR = tmp.r;
-    const hoverG = tmp.g;
-    const hoverB = tmp.b;
-
-    trees.setHoverSha(null);
-    trees.setSelectionSha(commits[1].sha);
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    // PR 5c1ad90: hover and selection share one paint (the contrasting
-    // inverse). Priority semantics (selection wins over hover) are still
-    // exercised by the dedicated tests below.
-    expect(Math.abs(tmp.r - hoverR)).toBeLessThan(0.001);
-    expect(Math.abs(tmp.g - hoverG)).toBeLessThan(0.001);
-    expect(Math.abs(tmp.b - hoverB)).toBeLessThan(0.001);
-  });
-
-  it('selection wins over hover when both apply to the same tree', () => {
-    const commits = [commit(0), commit(1)];
-    const placements = [placement(0, 0), placement(1, 1)];
-    const trees = createTreeRenderer(placements, commits);
-
-    const tmp = new THREE.Color();
-    const hit = trees.findTreeBySha(commits[1].sha)!;
-
-    trees.setSelectionSha(commits[1].sha);
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    const selectedR = tmp.r;
-
-    trees.setHoverSha(commits[1].sha); // hover same tree
-    hit.mesh.getColorAt(hit.instanceId, tmp);
-    expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001);
-  });
-
-  it('moving hover from selected tree to another reverts the previous to selected', () => {
-    const commits = [commit(0), commit(1), commit(2)];
-    const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
-    const trees = createTreeRenderer(placements, commits);
-
-    const tmp = new THREE.Color();
-    const hit1 = trees.findTreeBySha(commits[1].sha)!;
-
-    trees.setSelectionSha(commits[1].sha);
-    hit1.mesh.getColorAt(hit1.instanceId, tmp);
-    const selectedR = tmp.r;
-
-    trees.setHoverSha(commits[1].sha); // hover === selected, no change
-    trees.setHoverSha(commits[2].sha); // hover moves to a different tree
-    hit1.mesh.getColorAt(hit1.instanceId, tmp);
-    expect(Math.abs(tmp.r - selectedR)).toBeLessThan(0.001); // still selected-tinted
-  });
+it('buildCanopyEdges returns non-empty EdgesGeometry for each detail level', async () => {
+  const { buildCanopyEdges } = await import('@/scene/components/trees/treeRenderer.js');
+  for (const detail of [0, 1, 2] as const) {
+    const geom = buildCanopyEdges(detail);
+    expect(geom).toBeInstanceOf(THREE.EdgesGeometry);
+    const positions = geom.getAttribute('position');
+    expect(positions).toBeDefined();
+    expect(positions.count).toBeGreaterThan(0);
+    geom.dispose();
+  }
 });

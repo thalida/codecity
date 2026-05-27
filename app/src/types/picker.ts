@@ -80,8 +80,7 @@ export interface PickerWorld {
       instanceId: number;
       commit: CommitEntry;
     } | null;
+    getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
     colorForSha(sha: string): string | null;
-    setHoverSha(sha: string | null): void;
-    setSelectionSha(sha: string | null): void;
   } | null;
 }
