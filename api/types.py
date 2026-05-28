@@ -97,11 +97,15 @@ class CommitEntry(TypedDict):
     placement (closest-to-gem). Date is day-precision for compact
     payload + future age signal. files = count of A/M/D/T/U rows in
     the commit's --name-status block. sha is the full 40-char hex;
-    the UI displays the first 7."""
+    the UI displays the first 7. author is the git %an value (no
+    email — privacy). subject is git %s — the first line of the
+    commit message only; body is fetched lazily via /api/commit."""
 
     date: str   # "YYYY-MM-DD"
     files: int
     sha: str
+    author: str
+    subject: str
 
 
 class Manifest(TypedDict):
