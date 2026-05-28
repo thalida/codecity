@@ -28,10 +28,13 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   // orbital radius. Thin annulus (inner 0.98, outer 1.02) so the ring
   // reads as a circle outline rather than a flat disc.
   const geometry = new THREE.RingGeometry(0.98, 1.02, 64);
-  // RingGeometry's normal faces +Z by default. Rotate -π/2 around X so
-  // it lies flat in the XZ plane (facing +Y). Then per-instance tilt
-  // around X composes on top.
-  geometry.rotateX(-Math.PI / 2);
+  // RingGeometry's default parameterization is (cos θ, sin θ, 0) in the
+  // XY plane. We want (cos θ, 0, sin θ) so the ring matches the
+  // firefly's orbital path: x = R*cos(angle), z = R*sin(angle) at zero
+  // tilt. That requires +π/2 around X — the −π/2 version is mirrored
+  // and tilts the opposite way under per-instance rotation, which
+  // makes the ring trace a different arc than the firefly follows.
+  geometry.rotateX(Math.PI / 2);
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
