@@ -42,6 +42,8 @@ export interface FireflyPlacement {
   rgb: [number, number, number];
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
+  /** Index of the commit (in manifest.commits) this orb belongs to. */
+  commitIndex: number;
 }
 
 /** Tiny deterministic PRNG seeded by a string. Mulberry32 on top of FNV-1a. */
@@ -163,6 +165,7 @@ export function placeFireflies(
         colorHex: color.hex,
         rgb: color.rgb,
         scale: authorScale.get(commit.author) ?? 1.0,
+        commitIndex: p.commitIndex,
       });
     }
   }

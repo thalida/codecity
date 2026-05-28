@@ -16,6 +16,8 @@ import type { FireflyPlacement } from './firefliesPlacement.js';
 export interface FireflyRenderer {
   group: THREE.Group;
   setTime(seconds: number): void;
+  setHoveredCommit(commitIndex: number | null): void;
+  setSelectedCommit(commitIndex: number | null): void;
   refresh(): void;
   dispose(): void;
 }
@@ -28,10 +30,15 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     return {
       group,
       setTime() {},
+      setHoveredCommit() {},
+      setSelectedCommit() {},
       refresh() {},
       dispose() {},
     };
   }
+
+  const HOVER_BOOST = 1.4;
+  const SELECT_BOOST = 2.0;
 
   const cfg = FIREFLIES.get();
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
@@ -41,16 +48,19 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const pulsePhaseArray = new Float32Array(orbs.length);
   const orbitRadiusArray = new Float32Array(orbs.length);
   const orbitStartAngleArray = new Float32Array(orbs.length);
+  const commitIndexArray = new Float32Array(orbs.length);
   for (let i = 0; i < orbs.length; i++) {
     phaseArray[i] = orbs[i].phase;
     pulsePhaseArray[i] = orbs[i].pulsePhase;
     orbitRadiusArray[i] = orbs[i].orbitRadius;
     orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
+    commitIndexArray[i] = orbs[i].commitIndex;
   }
   geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
   geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
   geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
   geometry.setAttribute('aOrbitStartAngle', new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1));
+  geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
 
   const uTime = { value: 0 };
   const uBobAmp = { value: cfg.BOB_AMPLITUDE };
@@ -60,6 +70,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const uOrbitSpeed = { value: cfg.ORBIT_SPEED };
   const uEmission = { value: cfg.EMISSION_STRENGTH };
   const uFlicker = { value: cfg.FLICKER_AMOUNT };
+  const uHoveredCommit = { value: -1.0 };
+  const uSelectedCommit = { value: -1.0 };
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -82,6 +94,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.uniforms.uOrbitSpeed = uOrbitSpeed;
     shader.uniforms.uEmission = uEmission;
     shader.uniforms.uFlicker = uFlicker;
+    shader.uniforms.uHoveredCommit = uHoveredCommit;
+    shader.uniforms.uSelectedCommit = uSelectedCommit;
 
     // VERTEX: declare per-instance attributes + uniforms, compute orbit + bob, output pulse varying.
     shader.vertexShader = shader.vertexShader.replace(
@@ -91,13 +105,15 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        attribute float aPulsePhase;
        attribute float aOrbitRadius;
        attribute float aOrbitStartAngle;
+       attribute float aCommitIndex;
        uniform float uTime;
        uniform float uBobAmp;
        uniform float uBobSpeed;
        uniform float uPulseAmp;
        uniform float uPulseSpeed;
        uniform float uOrbitSpeed;
-       varying float vPulse;`,
+       varying float vPulse;
+       varying float vCommitIndex;`,
     );
 
     // Apply orbital offset in XZ and bob in Y after <begin_vertex> sets
@@ -111,18 +127,22 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        transformed.x += aOrbitRadius * cos(orbitAngle);
        transformed.z += aOrbitRadius * sin(orbitAngle);
        transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
-       vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);`,
+       vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);
+       vCommitIndex = aCommitIndex;`,
     );
 
     // FRAGMENT: declare varying + uniforms, then multiply final color by
-    // the composed brightness pipeline: vPulse × flicker × emission.
+    // the composed brightness pipeline: vPulse × flicker × emission × boost.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <common>',
       `#include <common>
        varying float vPulse;
+       varying float vCommitIndex;
        uniform float uTime;
        uniform float uEmission;
-       uniform float uFlicker;`,
+       uniform float uFlicker;
+       uniform float uHoveredCommit;
+       uniform float uSelectedCommit;`,
     );
     // Multiply the final output color by the composed brightness signal.
     // Three.js's built-in MeshBasicMaterial sets `gl_FragColor` near the
@@ -137,7 +157,14 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        // but varies wildly with time.
        float flickerNoise = fract(sin(uTime * 17.0 + vPulse * 13.0) * 43758.5453);
        float flicker = mix(1.0, flickerNoise, uFlicker);
-       gl_FragColor.rgb *= vPulse * flicker * uEmission;`,
+       // Hover / select boost. Select beats hover when both match.
+       float boost = 1.0;
+       if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
+         boost = ${SELECT_BOOST.toFixed(2)};
+       } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
+         boost = ${HOVER_BOOST.toFixed(2)};
+       }
+       gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;`,
     );
   };
 
@@ -172,6 +199,12 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     group,
     setTime(seconds: number) {
       uTime.value = seconds;
+    },
+    setHoveredCommit(commitIndex: number | null) {
+      uHoveredCommit.value = commitIndex ?? -1;
+    },
+    setSelectedCommit(commitIndex: number | null) {
+      uSelectedCommit.value = commitIndex ?? -1;
     },
     refresh() {
       const next = FIREFLIES.get();

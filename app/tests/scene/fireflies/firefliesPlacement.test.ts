@@ -152,6 +152,18 @@ describe('placeFireflies', () => {
     }
   });
 
+  it('emits the source commitIndex on each FireflyPlacement', () => {
+    FIREFLIES.setKey('ORBS_PER_TREE', 1);
+    try {
+      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS);
+      expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
+      expect(orbs[0].commitIndex).toBe(0);
+      expect(orbs[1].commitIndex).toBe(1);
+    } finally {
+      FIREFLIES.setKey('ORBS_PER_TREE', 3);
+    }
+  });
+
   it('all orbs from the same author share the same scale', () => {
     // Use a fixture with 2 commits from the same author.
     const sameAuthor = [

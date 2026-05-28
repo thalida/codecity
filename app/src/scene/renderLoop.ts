@@ -392,6 +392,29 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     _refreshSidewalkTints();
   });
 
+  // Firefly hover / select boost. Always re-fetches world.getFireflies() so
+  // the subscription stays valid across world rebuilds — the new renderer
+  // starts with uniforms at -1 (no highlight), and the next subscription
+  // fire will push the current hover/selection into it.
+  picker.hover.subscribe((h) => {
+    const fireflies = world.getFireflies();
+    if (!fireflies) return;
+    if (h && h.kind === NodeKind.Commit) {
+      fireflies.setHoveredCommit(h.commit.sha);
+    } else {
+      fireflies.setHoveredCommit(null);
+    }
+  });
+  picker.selection.subscribe((sel) => {
+    const fireflies = world.getFireflies();
+    if (!fireflies) return;
+    if (sel && sel.kind === NodeKind.Commit) {
+      fireflies.setSelectedCommit(sel.commit.sha);
+    } else {
+      fireflies.setSelectedCommit(null);
+    }
+  });
+
   // -- 8. Render loop --------------------------------------------------------
   const startTime = performance.now();
   // Wall-clock time of the previous sky tick (seconds since startTime).

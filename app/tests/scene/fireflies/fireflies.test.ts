@@ -46,6 +46,25 @@ describe('createFireflies', () => {
     f.dispose();
   });
 
+  it('exposes setHoveredCommit and setSelectedCommit methods', () => {
+    const f = createFireflies(PLACEMENTS, COMMITS);
+    expect(typeof f.setHoveredCommit).toBe('function');
+    expect(typeof f.setSelectedCommit).toBe('function');
+    // No-throw on null + valid SHA.
+    expect(() => f.setHoveredCommit(null)).not.toThrow();
+    expect(() => f.setHoveredCommit(COMMITS[0].sha)).not.toThrow();
+    expect(() => f.setSelectedCommit(null)).not.toThrow();
+    expect(() => f.setSelectedCommit(COMMITS[0].sha)).not.toThrow();
+    f.dispose();
+  });
+
+  it("empty renderer's setHoveredCommit and setSelectedCommit are no-ops", () => {
+    const f = createFireflies([], COMMITS);
+    expect(() => f.setHoveredCommit('abc')).not.toThrow();
+    expect(() => f.setSelectedCommit('abc')).not.toThrow();
+    f.dispose();
+  });
+
   it('returns an empty group when FIREFLIES_ENABLED is false', () => {
     const orig = FIREFLIES.get().FIREFLIES_ENABLED;
     FIREFLIES.setKey('FIREFLIES_ENABLED', false);
