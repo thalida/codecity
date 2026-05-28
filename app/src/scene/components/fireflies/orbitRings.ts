@@ -1,18 +1,18 @@
-// scene/fireflies/orbitRings.ts — subtle white ring around each tree
+// scene/fireflies/orbitRings.ts — subtle ring around each tree
 // at the height + tilt of its firefly orbit. Renders a single
 // InstancedMesh of RingGeometry; each instance's matrix encodes the
 // tree-center translation, tilt rotation, and orbit-radius scale.
 //
-//   refresh():   no-op for v1 (no tunable uniforms yet).
+//   refresh():   hot-reload color + opacity from current config.
 //   dispose():   clean up.
 
 import * as THREE from 'three';
+import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
-
-const RING_OPACITY = 0.18;
 
 export interface OrbitRings {
   group: THREE.Group;
+  refresh(): void;
   dispose(): void;
 }
 
@@ -20,8 +20,14 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   const group = new THREE.Group();
   group.name = 'firefly-orbit-rings';
 
-  if (orbs.length === 0) {
-    return { group, dispose() {} };
+  const cfg = FIREFLIES.get();
+
+  if (!cfg.ORBIT_RING_ENABLED || orbs.length === 0) {
+    return {
+      group,
+      refresh() {},
+      dispose() {},
+    };
   }
 
   // Unit-radius ring; per-instance scale brings it to the orb's actual
@@ -37,9 +43,9 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   geometry.rotateX(Math.PI / 2);
 
   const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: new THREE.Color(cfg.ORBIT_RING_COLOR),
     transparent: true,
-    opacity: RING_OPACITY,
+    opacity: cfg.ORBIT_RING_OPACITY,
     depthWrite: false,
     side: THREE.DoubleSide,
     toneMapped: false,
@@ -53,12 +59,10 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     const o = orbs[i];
     dummy.position.set(o.treeX, o.height, o.treeZ);
     dummy.rotation.set(o.orbitTilt, 0, 0);
-    // The firefly's instance matrix uses dummy.scale.setScalar(o.scale),
-    // which scales the orbital offset computed in the vertex shader as
-    // well — so the firefly's effective world-space orbital radius is
-    // o.scale × o.orbitRadius. Apply both factors here so the ring
-    // matches the actual path the firefly traces.
-    dummy.scale.setScalar(o.orbitRadius * o.scale);
+    // orbitRadius is the world-space target. The ring's instance matrix has
+    // no relationship to the firefly's per-author scale; scale by orbitRadius
+    // directly to size the unit ring to world units.
+    dummy.scale.setScalar(o.orbitRadius);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
   }
@@ -68,6 +72,15 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
 
   return {
     group,
+    refresh() {
+      const next = FIREFLIES.get();
+      material.color.set(next.ORBIT_RING_COLOR);
+      material.opacity = next.ORBIT_RING_OPACITY;
+      // Visibility flip: hide the entire group when ENABLED is false.
+      // Rebuilding on toggle is handled by the structural rebuild path
+      // in configCommitReactions; this is purely a fast-path.
+      group.visible = next.ORBIT_RING_ENABLED;
+    },
     dispose() {
       geometry.dispose();
       material.dispose();

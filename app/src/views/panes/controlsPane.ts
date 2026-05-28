@@ -609,6 +609,20 @@ function _buildFirefliesSection(): HTMLElement {
     ])
   );
 
+  section.appendChild(
+    _collapsibleSubgroup('fireflies-orbit-ring', 'Orbit ring', () => [
+      _toggle('Show orbit ring', FIREFLIES, 'ORBIT_RING_ENABLED', {
+        tip: "Draws a subtle ring around each tree showing the firefly's orbital path.",
+      }),
+      _color('Ring color', FIREFLIES, 'ORBIT_RING_COLOR', {
+        tip: 'Hex color of the orbit ring.',
+      }),
+      _slider('Ring opacity', FIREFLIES, 'ORBIT_RING_OPACITY', 0, 1, 0.05, {
+        tip: '0 = invisible, 1 = fully opaque.',
+      }),
+    ])
+  );
+
   return section;
 }
 

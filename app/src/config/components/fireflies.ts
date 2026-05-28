@@ -5,6 +5,8 @@
 // modulation (additive output color × (1 + pulseAmp * sin(...))).
 // v4 adds emission (HDR bloom), flicker (high-frequency brightness noise),
 // and per-author commit-count scaling (always on; tune spread via SCALE_MIN/MAX).
+// v5 adds orbit-ring controls (ORBIT_RING_ENABLED, ORBIT_RING_COLOR,
+// ORBIT_RING_OPACITY) and decouples orbit radius from per-author scale.
 
 import { map } from 'nanostores';
 
@@ -31,6 +33,12 @@ export interface FirefliesConfig {
   SCALE_MIN: number;
   /** Scale multiplier for the author with the most commits. */
   SCALE_MAX: number;
+  /** Show / hide the subtle orbit ring around each tree. */
+  ORBIT_RING_ENABLED: boolean;
+  /** Orbit ring color, hex string (e.g. '#ffffff'). */
+  ORBIT_RING_COLOR: string;
+  /** Orbit ring opacity, 0..1. */
+  ORBIT_RING_OPACITY: number;
 }
 
 export const FIREFLIES = map<FirefliesConfig>({
@@ -45,4 +53,7 @@ export const FIREFLIES = map<FirefliesConfig>({
   FLICKER_AMOUNT: 0.75,
   SCALE_MIN: 0.5,
   SCALE_MAX: 2.5,
+  ORBIT_RING_ENABLED: true,
+  ORBIT_RING_COLOR: '#ffffff',
+  ORBIT_RING_OPACITY: 0.18,
 });

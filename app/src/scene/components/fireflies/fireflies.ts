@@ -79,6 +79,7 @@ export function createFireflies(
     },
     refresh() {
       renderer.refresh();
+      rings.refresh();
     },
     dispose() {
       rings.dispose();

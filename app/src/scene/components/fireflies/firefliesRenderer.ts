@@ -51,7 +51,13 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   for (let i = 0; i < orbs.length; i++) {
     phaseArray[i] = orbs[i].phase;
     pulsePhaseArray[i] = orbs[i].pulsePhase;
-    orbitRadiusArray[i] = orbs[i].orbitRadius;
+    // orbitRadius is the world-space target radius. The instance matrix
+    // has scale = o.scale (sizing the icosphere), and that same scale
+    // multiplies the orbital offset in the vertex shader. Pre-divide here
+    // so the result cancels out: instanceScale × (orbitRadius / instanceScale)
+    // = orbitRadius in world space, regardless of per-author scale.
+    const safeScale = orbs[i].scale > 0 ? orbs[i].scale : 1.0;
+    orbitRadiusArray[i] = orbs[i].orbitRadius / safeScale;
     orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
     orbitTiltArray[i] = orbs[i].orbitTilt;
     commitIndexArray[i] = orbs[i].commitIndex;

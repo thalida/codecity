@@ -86,4 +86,43 @@ describe('createFireflies', () => {
       FIREFLIES.setKey('FIREFLIES_ENABLED', orig);
     }
   });
+
+  it('refresh() updates the ring material color + opacity', () => {
+    const orig = {
+      color: FIREFLIES.get().ORBIT_RING_COLOR,
+      opacity: FIREFLIES.get().ORBIT_RING_OPACITY,
+    };
+    FIREFLIES.setKey('ORBIT_RING_COLOR', '#00ff00');
+    FIREFLIES.setKey('ORBIT_RING_OPACITY', 0.5);
+    try {
+      const f = createFireflies(PLACEMENTS, COMMITS);
+      f.refresh();
+      // Find the orbit-ring group inside the parent group.
+      const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+      expect(ringGroup).toBeDefined();
+      const ringMesh = ringGroup!.children[0] as THREE.InstancedMesh;
+      const mat = ringMesh.material as THREE.MeshBasicMaterial;
+      expect(mat.color.getHexString()).toBe('00ff00');
+      expect(mat.opacity).toBe(0.5);
+      f.dispose();
+    } finally {
+      FIREFLIES.setKey('ORBIT_RING_COLOR', orig.color);
+      FIREFLIES.setKey('ORBIT_RING_OPACITY', orig.opacity);
+    }
+  });
+
+  it('orbit ring is absent when ORBIT_RING_ENABLED is false', () => {
+    const orig = FIREFLIES.get().ORBIT_RING_ENABLED;
+    FIREFLIES.setKey('ORBIT_RING_ENABLED', false);
+    try {
+      const f = createFireflies(PLACEMENTS, COMMITS);
+      const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+      // The group exists but has no mesh children when disabled.
+      expect(ringGroup).toBeDefined();
+      expect(ringGroup!.children.length).toBe(0);
+      f.dispose();
+    } finally {
+      FIREFLIES.setKey('ORBIT_RING_ENABLED', orig);
+    }
+  });
 });
