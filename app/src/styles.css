@@ -3009,10 +3009,15 @@ canvas {
 .commit-meta {
   display: flex;
   align-items: baseline;
-  gap: 0; /* text nodes provide the spacing via " · " */
+  gap: var(--cc-space-3); /* 6px breathing room around the · separator */
   color: var(--cc-text-muted);
   font-size: var(--cc-font-lg); /* 12px */
   flex-wrap: wrap;
+}
+
+/* Decorative middle-dot between meta items. aria-hidden — purely visual. */
+.commit-meta-sep {
+  color: var(--cc-text-ghost);
 }
 
 /* Inline span; title attribute holds the full ISO date for hover tooltip. */

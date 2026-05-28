@@ -152,7 +152,11 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     ageEl.title = commit.date;
     metaEl.appendChild(ageEl);
 
-    metaEl.appendChild(document.createTextNode(' · '));
+    const sepEl = document.createElement('span');
+    sepEl.className = 'commit-meta-sep';
+    sepEl.setAttribute('aria-hidden', 'true');
+    sepEl.textContent = '·';
+    metaEl.appendChild(sepEl);
 
     const filesEl = document.createElement('span');
     filesEl.className = 'commit-files';
