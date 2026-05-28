@@ -427,6 +427,17 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
         color: _color,
       });
     }
+    const _selForDir = picker.selection.get();
+    if (_selForDir && _selForDir.kind === NodeKind.Directory) {
+      // Live-update poll may have swapped the DirNode under us — re-resolve
+      // the directory by path from the freshly applied manifest and push the
+      // refreshed node into the street pane so counts + extension breakdown
+      // stay in sync.
+      const refreshed = world.getStreetByDir(_selForDir.dir.path);
+      // Prefer the fresh DirNode if available, fall back to stale selection.
+      const dir = refreshed?.dir ?? _selForDir.dir;
+      streetPane.api.setDirectory(dir);
+    }
   });
 
   function dispose() {
