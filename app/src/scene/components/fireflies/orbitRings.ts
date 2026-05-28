@@ -1,14 +1,19 @@
 // scene/fireflies/orbitRings.ts — subtle ring around each tree at the
-// height + tilt of its firefly orbit. Renders as a single Line2 (pixel
-// line width via LineMaterial) so the ring thickness is constant
-// regardless of orbital radius or camera distance.
+// height + tilt of its firefly orbit. Each ring is one Line2 (continuous
+// polyline) so the segment joints don't show as visible "dots" — a
+// LineSegments2-based approach renders rounded caps at every joint
+// where two segments meet, producing a dotted appearance. Line2 only
+// caps the start and end of the polyline.
 //
-//   refresh():  hot-reload color + opacity from current config.
-//   dispose():  clean up geometry + material.
+// One Line2 per orb. All share a single LineMaterial so refresh()
+// updates color/opacity/linewidth in one place.
+//
+//   refresh():  hot-reload color + opacity + thickness from current config.
+//   dispose():  clean up geometries (per-orb) + the shared material.
 
 import * as THREE from 'three';
-import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
-import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
+import { Line2 } from 'three/addons/lines/Line2.js';
+import { LineGeometry } from 'three/addons/lines/LineGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
@@ -38,43 +43,8 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     };
   }
 
-  // Build the positions array — each orb contributes SEGMENTS_PER_RING
-  // line segments forming a circle in its tilted orbital plane.
-  // LineSegmentsGeometry expects pairs of (x0,y0,z0, x1,y1,z1) per segment.
-  const floatsPerOrb = SEGMENTS_PER_RING * 2 * 3;
-  const positions = new Float32Array(orbs.length * floatsPerOrb);
-
-  for (let i = 0; i < orbs.length; i++) {
-    const o = orbs[i];
-    const r = o.orbitRadius;
-    const ct = Math.cos(o.orbitTilt);
-    const st = Math.sin(o.orbitTilt);
-    const base = i * floatsPerOrb;
-    for (let s = 0; s < SEGMENTS_PER_RING; s++) {
-      const a0 = (s / SEGMENTS_PER_RING) * Math.PI * 2;
-      const a1 = ((s + 1) / SEGMENTS_PER_RING) * Math.PI * 2;
-      const x0 = r * Math.cos(a0);
-      const z0raw = r * Math.sin(a0);
-      const x1 = r * Math.cos(a1);
-      const z1raw = r * Math.sin(a1);
-      // Apply per-orb tilt around X (matches firefly vertex shader).
-      const y0 = -st * z0raw;
-      const z0 = ct * z0raw;
-      const y1 = -st * z1raw;
-      const z1 = ct * z1raw;
-      const off = base + s * 6;
-      positions[off + 0] = o.treeX + x0;
-      positions[off + 1] = o.height + y0;
-      positions[off + 2] = o.treeZ + z0;
-      positions[off + 3] = o.treeX + x1;
-      positions[off + 4] = o.height + y1;
-      positions[off + 5] = o.treeZ + z1;
-    }
-  }
-
-  const geometry = new LineSegmentsGeometry();
-  geometry.setPositions(positions as unknown as number[]); // setPositions accepts ArrayLike<number>
-
+  // Shared material — one for all rings; refresh() updates this single
+  // instance and every Line2 picks up the change.
   const material = new LineMaterial({
     color: new THREE.Color(cfg.ORBIT_RING_COLOR).getHex(),
     linewidth: cfg.ORBIT_RING_THICKNESS,
@@ -83,17 +53,41 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     depthWrite: false,
     worldUnits: false, // pixel-space line width
   });
-  // resolution will be updated via onResize(); set a sane default so
-  // the initial render isn't broken before onResize fires.
+  // Resolution updated via onResize(); set a sane default so the initial
+  // render isn't broken before onResize fires.
   material.resolution.set(window.innerWidth || 1, window.innerHeight || 1);
 
-  const mesh = new LineSegments2(geometry, material);
-  mesh.frustumCulled = false;
-  // computeLineDistances enables dashed lines if ever desired; not needed
-  // for a solid line but the call is cheap and matches the addon idiom.
-  mesh.computeLineDistances();
+  // Per-orb: build a closed polyline (first point repeated at end) and
+  // attach a Line2 to the group. Sharing the material across all rings
+  // keeps draw-state changes minimal.
+  const pointCount = SEGMENTS_PER_RING + 1; // +1 closes the loop
+  const geometries: LineGeometry[] = [];
+  for (let i = 0; i < orbs.length; i++) {
+    const o = orbs[i];
+    const r = o.orbitRadius;
+    const ct = Math.cos(o.orbitTilt);
+    const st = Math.sin(o.orbitTilt);
+    const points = new Float32Array(pointCount * 3);
+    for (let s = 0; s <= SEGMENTS_PER_RING; s++) {
+      const a = (s / SEGMENTS_PER_RING) * Math.PI * 2;
+      const x = r * Math.cos(a);
+      const zRaw = r * Math.sin(a);
+      // Apply per-orb tilt around X (matches firefly vertex shader).
+      const y = -st * zRaw;
+      const z = ct * zRaw;
+      points[s * 3 + 0] = o.treeX + x;
+      points[s * 3 + 1] = o.height + y;
+      points[s * 3 + 2] = o.treeZ + z;
+    }
+    const geometry = new LineGeometry();
+    geometry.setPositions(points as unknown as number[]);
+    geometries.push(geometry);
 
-  group.add(mesh);
+    const ring = new Line2(geometry, material);
+    ring.frustumCulled = false;
+    ring.computeLineDistances();
+    group.add(ring);
+  }
 
   return {
     group,
@@ -108,9 +102,9 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
       material.resolution.set(width, height);
     },
     dispose() {
-      geometry.dispose();
+      for (const g of geometries) g.dispose();
       material.dispose();
-      group.remove(mesh);
+      group.clear();
     },
   };
 }
