@@ -2907,10 +2907,12 @@ canvas {
 }
 
 /* ── Commit pane (right sidebar) ────────────────────────────────────────
-   Shown when a tree is selected in the city. Layout: pane-header from
-   buildPaneHeader + .commit-body scrollable area with sha / date / age /
-   open-on-origin link. Follows the same pane-body padding pattern as
-   other right-sidebar panes. */
+   Shown when a tree is selected in the city. Layout:
+     - pane-header (from buildPaneHeader) — title becomes "Commit <sha>"
+       with an inline open-on-origin link; close × at far right.
+     - .commit-body — scrollable area: author row, message block (subject
+       + lazy-fetched body), footer meta row (age · files), same-day row.
+   Follows the same pane-body padding pattern as other right-sidebar panes. */
 
 .commit-body {
   padding: var(--cc-space-7); /* 16px */
@@ -2919,57 +2921,16 @@ canvas {
   gap: var(--cc-space-4); /* 8px */
 }
 
+/* Short SHA rendered inline inside the pane-header title. */
 .commit-sha {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-2xl); /* 18px — prominent primary identifier */
+  font-size: var(--cc-font-lg); /* inherits title size */
   font-weight: 600;
   color: var(--cc-text-primary);
-  line-height: 1.3;
 }
 
-.commit-files {
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-}
-
-.commit-when {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-}
-
-.commit-when-sep {
-  opacity: 0.5;
-}
-
-.commit-same-day {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-}
-
-.commit-swatch {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-/* SHA row: SHA and open-on-origin link sit adjacent (no gap-filling). */
-.commit-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--cc-space-4); /* 8px */
-}
-
-/* .commit-open inherits the .btn-icon + .btn-icon--link shell (24×24,
-   icon-only, muted color, hover overlay) — matches the app-header repo link. */
+/* Open-on-origin link sits inline next to the SHA inside the title.
+   Inherits .btn-icon + .btn-icon--link (24×24, muted, hover overlay). */
 .commit-open {
   flex-shrink: 0;
 }
@@ -3000,35 +2961,31 @@ canvas {
   color: var(--cc-text-secondary);
 }
 
-.commit-subject {
+/* Message block: subject + lazy-fetched body, displayed as a single unit. */
+.commit-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3); /* 6px */
+}
+
+.commit-message-subject {
   font-size: var(--cc-font-lg); /* 12px */
-  color: var(--cc-text-muted);
-  margin-bottom: var(--cc-space-4); /* 8px */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  color: var(--cc-text-secondary);
+  font-weight: 500;
+  white-space: normal; /* wrap freely — no ellipsization */
+  line-height: 1.5;
 }
 
-.commit-expand {
+.commit-message-loading {
   font-size: var(--cc-font-md); /* 11px */
-  background: transparent;
-  border: 1px solid currentColor;
-  color: inherit;
-  padding: var(--cc-space-px) var(--cc-space-4); /* 1px 8px */
-  cursor: pointer;
-  margin-bottom: var(--cc-space-6); /* 12px */
-  opacity: 0.7;
-}
-
-.commit-expand:hover {
-  opacity: 1;
+  opacity: 0.6;
+  color: var(--cc-text-muted);
 }
 
 .commit-message-body {
   font-family: var(--cc-font-mono);
   font-size: var(--cc-font-md); /* 11px */
   white-space: pre-wrap;
-  margin: var(--cc-space-4) 0 var(--cc-space-6); /* 8px 0 12px */
   padding: var(--cc-space-4); /* 8px */
   background: var(--cc-overlay-bg-soft);
   border-radius: var(--cc-radius-sm);
@@ -3041,5 +2998,41 @@ canvas {
   font-size: var(--cc-font-md); /* 11px */
   color: var(--cc-text-muted);
   opacity: 0.7;
-  margin-bottom: var(--cc-space-6); /* 12px */
+}
+
+/* Footer line 1: "committed <relative age> · <N> file(s) changed" */
+.commit-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 0; /* text nodes provide the spacing via " · " */
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+  flex-wrap: wrap;
+}
+
+/* Inline span; title attribute holds the full ISO date for hover tooltip. */
+.commit-age {
+  color: var(--cc-text-muted);
+}
+
+/* Inline span inside .commit-meta. */
+.commit-files {
+  color: var(--cc-text-muted);
+}
+
+/* Footer line 2: swatch + "<Light|Avg|Busy> day — N commit(s) that day" */
+.commit-same-day {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.commit-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
 }

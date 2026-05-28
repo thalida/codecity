@@ -1,7 +1,9 @@
 // views/panes/commitPane.ts — right-sidebar pane shown when a tree
-// (commit) is selected in the city. Shows the short SHA, absolute date,
-// relative age, files changed, same-day commit count, and an "Open on
-// origin" link built from manifest.repo.remote_url + the full SHA.
+// (commit) is selected in the city. Shows the short SHA (in the pane
+// header title), author, full commit message (subject + lazy-fetched
+// body), relative age, files changed, same-day commit count with a
+// busyness label, and an "Open on origin" link built from
+// manifest.repo.remote_url + the full SHA.
 // When the repo has no remote, the link is replaced with a muted hint.
 //
 // A colored swatch matching the tree's render color is shown inline
@@ -36,11 +38,17 @@ export interface SetCommitOpts {
 
 const SHORT_SHA_LEN = 7;
 
+function _busynessLabel(count: number): 'Light' | 'Avg' | 'Busy' {
+  if (count >= 8) return 'Busy';
+  if (count >= 3) return 'Avg';
+  return 'Light';
+}
+
 export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const pane = document.createElement('div');
   pane.className = 'pane commit-pane';
 
-  const { el: header } = buildPaneHeader({
+  const { el: header, api: headerApi } = buildPaneHeader({
     title: 'Commit',
     onClose: opts.onClose,
   });
@@ -50,7 +58,14 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   body.className = 'pane-body commit-body';
   pane.appendChild(body);
 
+  // Tracks the currently-active message-body placeholder so a late fetch
+  // result from a previous commit doesn't clobber the current view. Each
+  // _renderCommit assigns a fresh placeholder; _renderEmpty nulls it.
+  let _currentPlaceholder: HTMLElement | null = null;
+
   function _renderEmpty(): void {
+    _currentPlaceholder = null;
+    headerApi.setTitle('Commit');
     body.replaceChildren();
     const box = document.createElement('div');
     box.className = 'empty-state empty-state--lg';
@@ -75,6 +90,29 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   ): void {
     body.replaceChildren();
 
+    // ── Pane header title: "Commit <short-sha>" + optional open link ────
+    const titleText = document.createTextNode('Commit ');
+    const shaEl = document.createElement('span');
+    shaEl.className = 'commit-sha';
+    shaEl.textContent = commit.sha.slice(0, SHORT_SHA_LEN);
+
+    const titleNodes: Node[] = [titleText, shaEl];
+
+    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
+    if (url) {
+      const link = document.createElement('a');
+      link.className = 'commit-open btn-icon btn-icon--link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = 'Open this commit on the origin remote';
+      link.setAttribute('aria-label', 'Open commit on origin');
+      link.appendChild(makeLucideIcon('external-link'));
+      titleNodes.push(link);
+    }
+
+    headerApi.setTitleChildren(titleNodes);
+
     // ── Author row ───────────────────────────────────────────────────
     const authorEl = document.createElement('div');
     authorEl.className = 'commit-author';
@@ -88,90 +126,72 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     authorEl.appendChild(authorName);
     body.appendChild(authorEl);
 
-    // ── Subject row (ellipsized via CSS to one line) ─────────────────
-    const subjectEl = document.createElement('div');
-    subjectEl.className = 'commit-subject';
-    subjectEl.textContent = commit.subject || '(no subject)';
-    subjectEl.title = commit.subject || '';
-    body.appendChild(subjectEl);
+    // ── Commit message block (subject + lazy-fetched body) ───────────
+    const messageEl = document.createElement('div');
+    messageEl.className = 'commit-message';
 
-    // ── "Show full message" expand button ────────────────────────────
-    const expandBtn = document.createElement('button');
-    expandBtn.className = 'commit-expand';
-    expandBtn.type = 'button';
-    expandBtn.textContent = 'Show full message';
-    expandBtn.addEventListener('click', () => {
-      expandBtn.disabled = true;
-      fetchCommitDetail(commit.sha).then(
-        (detail) => {
+    const subjectEl = document.createElement('div');
+    subjectEl.className = 'commit-message-subject';
+    subjectEl.textContent = commit.subject || '(no subject)';
+    messageEl.appendChild(subjectEl);
+
+    // Render a placeholder immediately, fire the fetch in parallel, and
+    // swap the placeholder for the body (or error) once it resolves.
+    // The closure-based identity check guards against race: if another
+    // commit is selected while this fetch is in flight, _currentPlaceholder
+    // points at a different element and we silently drop the late result.
+    const placeholder = document.createElement('div');
+    placeholder.className = 'commit-message-loading';
+    placeholder.textContent = 'Loading message…';
+    messageEl.appendChild(placeholder);
+    _currentPlaceholder = placeholder;
+
+    fetchCommitDetail(commit.sha).then(
+      (detail) => {
+        if (placeholder !== _currentPlaceholder) return;
+        if (detail.body && detail.body.trim()) {
           const msgBodyEl = document.createElement('pre');
           msgBodyEl.className = 'commit-message-body';
-          msgBodyEl.textContent = detail.body || '(no message body)';
-          expandBtn.replaceWith(msgBodyEl);
-        },
-        (err) => {
-          const errEl = document.createElement('div');
-          errEl.className = 'commit-message-error';
-          errEl.textContent = `Failed to load full message: ${err.message ?? err}`;
-          expandBtn.replaceWith(errEl);
+          msgBodyEl.textContent = detail.body;
+          placeholder.replaceWith(msgBodyEl);
+        } else {
+          // One-liner commit: no body to show, just remove the placeholder.
+          placeholder.remove();
         }
-      );
-    });
-    body.appendChild(expandBtn);
+        _currentPlaceholder = null;
+      },
+      (err) => {
+        if (placeholder !== _currentPlaceholder) return;
+        const errEl = document.createElement('div');
+        errEl.className = 'commit-message-error';
+        errEl.textContent = `Failed to load full message: ${err.message ?? err}`;
+        placeholder.replaceWith(errEl);
+        _currentPlaceholder = null;
+      }
+    );
 
-    // ── SHA row (SHA on left, open-on-origin link on right) ──────────
-    const headerRow = document.createElement('div');
-    headerRow.className = 'commit-row';
+    body.appendChild(messageEl);
 
-    const shaEl = document.createElement('span');
-    shaEl.className = 'commit-sha';
-    shaEl.textContent = commit.sha.slice(0, SHORT_SHA_LEN);
-    headerRow.appendChild(shaEl);
-
-    // Right-side: subtle open-on-origin link (icon-only, matches app-header repo link style)
-    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
-    if (url) {
-      const link = document.createElement('a');
-      link.className = 'commit-open btn-icon btn-icon--link';
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.title = 'Open this commit on the origin remote';
-      link.setAttribute('aria-label', 'Open commit on origin');
-      link.appendChild(makeLucideIcon('external-link'));
-      headerRow.appendChild(link);
-    }
-
-    body.appendChild(headerRow);
-
-    // ── Date + age (side-by-side, age first) ─────────────────────────
-    const whenEl = document.createElement('div');
-    whenEl.className = 'commit-when';
+    // ── Footer line 1: relative age · files changed ──────────────────
+    const metaEl = document.createElement('div');
+    metaEl.className = 'commit-meta';
 
     const ageEl = document.createElement('span');
     ageEl.className = 'commit-age';
-    ageEl.textContent = formatRelativeAge(commit.date, now);
-    whenEl.appendChild(ageEl);
+    ageEl.textContent = `committed ${formatRelativeAge(commit.date, now)}`;
+    ageEl.title = commit.date;
+    metaEl.appendChild(ageEl);
 
-    const sepEl = document.createElement('span');
-    sepEl.className = 'commit-when-sep';
-    sepEl.textContent = '·';
-    whenEl.appendChild(sepEl);
+    metaEl.appendChild(document.createTextNode(' · '));
 
-    const dateEl = document.createElement('span');
-    dateEl.className = 'commit-date';
-    dateEl.textContent = commit.date;
-    whenEl.appendChild(dateEl);
-
-    body.appendChild(whenEl);
-
-    // ── Files changed ────────────────────────────────────────────────
-    const filesEl = document.createElement('div');
+    const filesEl = document.createElement('span');
     filesEl.className = 'commit-files';
     filesEl.textContent = `${commit.files} file${commit.files === 1 ? '' : 's'} changed`;
-    body.appendChild(filesEl);
+    metaEl.appendChild(filesEl);
 
-    // ── Same-day count (with optional color swatch) ──────────────────
+    body.appendChild(metaEl);
+
+    // ── Footer line 2: busyness label + same-day count ───────────────
     if (sameDayTotal !== undefined && sameDayTotal > 0) {
       const sameDayEl = document.createElement('div');
       sameDayEl.className = 'commit-same-day';
@@ -181,10 +201,11 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
         swatch.style.backgroundColor = color;
         sameDayEl.appendChild(swatch);
       }
-      const text = document.createTextNode(
-        sameDayTotal === 1 ? 'only commit that day' : `${sameDayTotal} commits that day`
+      const label = _busynessLabel(sameDayTotal);
+      const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
+      sameDayEl.appendChild(
+        document.createTextNode(`${label} day — ${sameDayTotal} ${commitWord} that day`)
       );
-      sameDayEl.appendChild(text);
       body.appendChild(sameDayEl);
     }
 
