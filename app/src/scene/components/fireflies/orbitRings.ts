@@ -1,24 +1,15 @@
 // scene/fireflies/orbitRings.ts — subtle ring around each tree at the
 // height + tilt of its firefly orbit.
 //
-// Renders each ring as a TubeGeometry around a circular CurvePath in
-// the firefly's tilted orbital plane. The tube has a CONSTANT world-
-// unit radius across all rings (independent of orbital radius), so
-// every ring is the same physical thickness. Continuous mesh — no
-// per-segment shader, no rounded caps, no dot artifacts at joints.
+// All rings are merged into ONE BufferGeometry / ONE Mesh (one draw call)
+// with a per-vertex RGBA color attribute. Hover and select states write
+// directly into the colour buffer for the affected ring's vertex range —
+// no material swap, no extra draw calls.
 //
-// Three materials are maintained:
-//   defaultMaterial  — dim, low-opacity resting state.
-//   hoverMaterial    — bright white (configurable), fully opaque.
-//   selectedMaterial — gold (configurable), fully opaque. Beats hover.
-//
-// A meshByCommit map lets setHoveredCommit / setSelectedCommit swap the
-// material on the one affected mesh without touching any other.
-//
-//   setHoveredCommit(idx):  swap ring material for the hovered tree.
-//   setSelectedCommit(idx): swap ring material for the selected tree.
-//   refresh():  hot-reload color + opacity from current config.
-//   dispose():  clean up geometries (per-orb) + all three materials.
+//   setHoveredCommit(idx):  update the colour attribute for the hovered ring.
+//   setSelectedCommit(idx): update the colour attribute for the selected ring.
+//   refresh():  rewrite all vertex ranges with the current config colours.
+//   dispose():  clean up the merged geometry + material.
 
 import * as THREE from 'three';
 import { FIREFLIES } from '@/config/components/fireflies.js';
@@ -50,6 +41,13 @@ class TiltedCirclePath extends THREE.Curve<THREE.Vector3> {
   }
 }
 
+interface RingRange {
+  /** First vertex index in the merged colour array. */
+  vertexStart: number;
+  /** Number of vertices for this ring. */
+  vertexCount: number;
+}
+
 export interface OrbitRings {
   group: THREE.Group;
   /** Highlight the ring for the given commitIndex as hovered. Pass null to clear. */
@@ -79,37 +77,16 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     };
   }
 
-  // Shared material props (other than color/opacity).
-  const sharedProps = {
-    transparent: true,
-    depthWrite: false,
-    side: THREE.DoubleSide,
-    toneMapped: false,
-  } as const;
+  // Build each per-orb TubeGeometry, then merge their position/normal/index
+  // attributes into a single BufferGeometry. Track per-ring vertex ranges.
+  const rangeByCommit = new Map<number, RingRange>();
+  const positionArrays: Float32Array[] = [];
+  const normalArrays: Float32Array[] = [];
+  const indexArrays: Uint32Array[] = [];
+  let totalVerts = 0;
+  let totalIndices = 0;
+  const perGeometries: THREE.TubeGeometry[] = [];
 
-  const defaultMaterial = new THREE.MeshBasicMaterial({
-    ...sharedProps,
-    color: new THREE.Color(cfg.ORBIT_RING_COLOR),
-    opacity: cfg.ORBIT_RING_OPACITY,
-  });
-
-  const hoverMaterial = new THREE.MeshBasicMaterial({
-    ...sharedProps,
-    color: new THREE.Color(cfg.ORBIT_RING_HOVER_COLOR),
-    opacity: 1.0,
-  });
-
-  const selectedMaterial = new THREE.MeshBasicMaterial({
-    ...sharedProps,
-    color: new THREE.Color(cfg.ORBIT_RING_SELECTED_COLOR),
-    opacity: 1.0,
-  });
-
-  // commitIndex → mesh lookup so hover/select swaps are O(1).
-  const meshByCommit = new Map<number, THREE.Mesh>();
-
-  const tubeRadius = cfg.ORBIT_RING_THICKNESS;
-  const geometries: THREE.BufferGeometry[] = [];
   for (let i = 0; i < orbs.length; i++) {
     const o = orbs[i];
     const path = new TiltedCirclePath(
@@ -117,78 +94,169 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
       o.orbitRadius,
       o.orbitTilt
     );
-    const geometry = new THREE.TubeGeometry(
+    const tube = new THREE.TubeGeometry(
       path,
       TUBULAR_SEGMENTS,
-      tubeRadius,
+      cfg.ORBIT_RING_THICKNESS,
       RADIAL_SEGMENTS,
       true // closed
     );
-    geometries.push(geometry);
+    perGeometries.push(tube);
 
-    const mesh = new THREE.Mesh(geometry, defaultMaterial);
-    mesh.frustumCulled = false;
-    group.add(mesh);
+    const posAttr = tube.getAttribute('position');
+    const nrmAttr = tube.getAttribute('normal');
+    const idxAttr = tube.getIndex();
+    if (!posAttr || !nrmAttr || !idxAttr) continue;
+    const vertCount = posAttr.count;
+    const indCount = idxAttr.count;
 
-    meshByCommit.set(o.commitIndex, mesh);
+    const posCopy = new Float32Array(posAttr.array as ArrayLike<number>).slice();
+    const nrmCopy = new Float32Array(nrmAttr.array as ArrayLike<number>).slice();
+    const idxCopy = new Uint32Array(indCount);
+    const srcIdx = idxAttr.array as ArrayLike<number>;
+    for (let k = 0; k < indCount; k++) idxCopy[k] = (srcIdx[k] as number) + totalVerts;
+
+    positionArrays.push(posCopy);
+    normalArrays.push(nrmCopy);
+    indexArrays.push(idxCopy);
+
+    rangeByCommit.set(o.commitIndex, { vertexStart: totalVerts, vertexCount: vertCount });
+    totalVerts += vertCount;
+    totalIndices += indCount;
   }
 
-  // Track which mesh is currently in each highlight state.
-  let currentHoveredMesh: THREE.Mesh | null = null;
-  let currentSelectedMesh: THREE.Mesh | null = null;
+  // Allocate combined buffers.
+  const combinedPos = new Float32Array(totalVerts * 3);
+  const combinedNrm = new Float32Array(totalVerts * 3);
+  const combinedIdx = new Uint32Array(totalIndices);
+  const combinedColor = new Float32Array(totalVerts * 4);
+  let vOffset = 0;
+  let iOffset = 0;
+  for (let i = 0; i < positionArrays.length; i++) {
+    combinedPos.set(positionArrays[i], vOffset * 3);
+    combinedNrm.set(normalArrays[i], vOffset * 3);
+    combinedIdx.set(indexArrays[i], iOffset);
+    vOffset += positionArrays[i].length / 3;
+    iOffset += indexArrays[i].length;
+  }
+
+  // Fill the colour attribute with the default RGBA for every vertex.
+  const defaultColor = new THREE.Color(cfg.ORBIT_RING_COLOR);
+  for (let v = 0; v < totalVerts; v++) {
+    combinedColor[v * 4 + 0] = defaultColor.r;
+    combinedColor[v * 4 + 1] = defaultColor.g;
+    combinedColor[v * 4 + 2] = defaultColor.b;
+    combinedColor[v * 4 + 3] = cfg.ORBIT_RING_OPACITY;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(combinedPos, 3));
+  geometry.setAttribute('normal', new THREE.BufferAttribute(combinedNrm, 3));
+  const colorAttr = new THREE.BufferAttribute(combinedColor, 4);
+  colorAttr.setUsage(THREE.DynamicDrawUsage);
+  geometry.setAttribute('color', colorAttr);
+  geometry.setIndex(new THREE.BufferAttribute(combinedIdx, 1));
+
+  // Free intermediate per-tube geometries — their data is now in combined arrays.
+  for (const g of perGeometries) g.dispose();
+
+  const material = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+    // Per-vertex alpha is carried in the colour attribute (itemSize 4).
+    // The material opacity is fixed at 1 so the alpha channel from the
+    // colour buffer is used directly by the renderer.
+    opacity: 1.0,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.frustumCulled = false;
+  mesh.name = 'firefly-orbit-rings-merged';
+  group.add(mesh);
+
+  // Track hover / selected commit indices for refresh() and state transitions.
+  let currentHoveredCommit: number | null = null;
+  let currentSelectedCommit: number | null = null;
+
+  function writeRangeRGBA(range: RingRange, r: number, g: number, b: number, a: number): void {
+    for (let v = 0; v < range.vertexCount; v++) {
+      const i = (range.vertexStart + v) * 4;
+      combinedColor[i + 0] = r;
+      combinedColor[i + 1] = g;
+      combinedColor[i + 2] = b;
+      combinedColor[i + 3] = a;
+    }
+    colorAttr.needsUpdate = true;
+  }
+
+  function applyDefaultTo(range: RingRange): void {
+    const c = new THREE.Color(FIREFLIES.get().ORBIT_RING_COLOR);
+    writeRangeRGBA(range, c.r, c.g, c.b, FIREFLIES.get().ORBIT_RING_OPACITY);
+  }
+
+  function applyHoverTo(range: RingRange): void {
+    const c = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    writeRangeRGBA(range, c.r, c.g, c.b, 1.0);
+  }
+
+  function applySelectedTo(range: RingRange): void {
+    const c = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
+    writeRangeRGBA(range, c.r, c.g, c.b, 1.0);
+  }
 
   return {
     group,
 
     setHoveredCommit(commitIndex: number | null) {
-      const newMesh = commitIndex !== null ? (meshByCommit.get(commitIndex) ?? null) : null;
-
-      // Restore the previously hovered mesh if it has changed.
-      if (currentHoveredMesh !== null && currentHoveredMesh !== newMesh) {
-        // Only restore to default if it is not the currently selected mesh.
-        if (currentHoveredMesh !== currentSelectedMesh) {
-          currentHoveredMesh.material = defaultMaterial;
+      // Restore previous hover (if not selected).
+      if (currentHoveredCommit !== null && currentHoveredCommit !== commitIndex) {
+        const prevRange = rangeByCommit.get(currentHoveredCommit);
+        if (prevRange && currentHoveredCommit !== currentSelectedCommit) {
+          applyDefaultTo(prevRange);
         }
       }
-
-      currentHoveredMesh = newMesh;
-
-      if (newMesh !== null) {
-        // Selected wins — don't downgrade a selected ring to hover.
-        if (newMesh !== currentSelectedMesh) {
-          newMesh.material = hoverMaterial;
-        }
+      currentHoveredCommit = commitIndex;
+      if (commitIndex !== null && commitIndex !== currentSelectedCommit) {
+        const range = rangeByCommit.get(commitIndex);
+        if (range) applyHoverTo(range);
       }
     },
 
     setSelectedCommit(commitIndex: number | null) {
-      const newMesh = commitIndex !== null ? (meshByCommit.get(commitIndex) ?? null) : null;
-
-      // Restore the previously selected mesh.
-      if (currentSelectedMesh !== null && currentSelectedMesh !== newMesh) {
-        // Restore to hover material if still hovered, otherwise default.
-        currentSelectedMesh.material =
-          currentSelectedMesh === currentHoveredMesh ? hoverMaterial : defaultMaterial;
+      if (currentSelectedCommit !== null && currentSelectedCommit !== commitIndex) {
+        const prevRange = rangeByCommit.get(currentSelectedCommit);
+        if (prevRange) {
+          if (currentSelectedCommit === currentHoveredCommit) {
+            applyHoverTo(prevRange);
+          } else {
+            applyDefaultTo(prevRange);
+          }
+        }
       }
-
-      currentSelectedMesh = newMesh;
-
-      if (newMesh !== null) {
-        newMesh.material = selectedMaterial;
+      currentSelectedCommit = commitIndex;
+      if (commitIndex !== null) {
+        const range = rangeByCommit.get(commitIndex);
+        if (range) applySelectedTo(range);
       }
     },
 
     refresh() {
       const next = FIREFLIES.get();
-      defaultMaterial.color.set(next.ORBIT_RING_COLOR);
-      defaultMaterial.opacity = next.ORBIT_RING_OPACITY;
-      hoverMaterial.color.set(next.ORBIT_RING_HOVER_COLOR);
-      selectedMaterial.color.set(next.ORBIT_RING_SELECTED_COLOR);
-      // hover/selected opacity stays at 1.0 (not user-configurable for v1).
       group.visible = next.ORBIT_RING_ENABLED;
-      // Note: ORBIT_RING_THICKNESS changes require a rebuild (tube
-      // radius is baked into geometry). The structural-rebuild path in
-      // configCommitReactions handles that.
+      // Rewrite ALL ranges with the current default colour/opacity, then
+      // re-apply hover + selected so they keep their highlight colours.
+      for (const [commit, range] of rangeByCommit.entries()) {
+        if (commit === currentSelectedCommit) {
+          applySelectedTo(range);
+        } else if (commit === currentHoveredCommit) {
+          applyHoverTo(range);
+        } else {
+          applyDefaultTo(range);
+        }
+      }
     },
 
     onResize() {
@@ -196,10 +264,8 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     },
 
     dispose() {
-      for (const g of geometries) g.dispose();
-      defaultMaterial.dispose();
-      hoverMaterial.dispose();
-      selectedMaterial.dispose();
+      geometry.dispose();
+      material.dispose();
       group.clear();
     },
   };
