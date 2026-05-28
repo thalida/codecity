@@ -53,6 +53,7 @@ import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
 import { WORLD } from '@/config/world/world.js';
 import { TREES, TREE_OUTLINE } from '@/config/components/trees.js';
+import { FIREFLIES } from '@/config/components/fireflies.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -162,6 +163,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // Trees sit after Gem (the world's anchor) so the panel
   // reads structural → decorative top-to-bottom.
   body.appendChild(_buildTreesSection());
+  // Fireflies sit immediately after Trees — they orbit each commit-tree and
+  // share the same decorative layer.
+  body.appendChild(_buildFirefliesSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -536,6 +540,26 @@ function _buildTreesSection(): HTMLElement {
       _slider('Hover opacity', TREE_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
       _slider('Selected opacity', TREE_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
         tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
+      }),
+    ])
+  );
+
+  return section;
+}
+
+// ─── Fireflies ─────────────────────────────────────────────────────────────
+// Glowing orbs that orbit each commit-tree, tinted per-author. They share
+// the same decorative layer as Trees and are placed/removed on rebuild.
+function _buildFirefliesSection(): HTMLElement {
+  const section = _section(
+    'Fireflies',
+    'Glowing motes that orbit each commit-tree, colored per author.'
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('fireflies-visibility', 'Visibility', () => [
+      _toggle('Fireflies enabled', FIREFLIES, 'FIREFLIES_ENABLED', {
+        tip: 'Master toggle. When off, no firefly orbs are placed or rendered. Rebuild on change.',
       }),
     ])
   );
