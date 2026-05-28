@@ -36,21 +36,28 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const cfg = FIREFLIES.get();
   const geometry = new THREE.IcosahedronGeometry(cfg.FIREFLY_RADIUS, 0);
 
-  // Per-instance bob phase (existing) + per-instance pulse phase (new).
+  // Per-instance bob phase (existing) + per-instance pulse phase + orbit params (new).
   const phaseArray = new Float32Array(orbs.length);
   const pulsePhaseArray = new Float32Array(orbs.length);
+  const orbitRadiusArray = new Float32Array(orbs.length);
+  const orbitStartAngleArray = new Float32Array(orbs.length);
   for (let i = 0; i < orbs.length; i++) {
     phaseArray[i] = orbs[i].phase;
     pulsePhaseArray[i] = orbs[i].pulsePhase;
+    orbitRadiusArray[i] = orbs[i].orbitRadius;
+    orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
   }
   geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
   geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
+  geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
+  geometry.setAttribute('aOrbitStartAngle', new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1));
 
   const uTime = { value: 0 };
   const uBobAmp = { value: cfg.BOB_AMPLITUDE };
   const uBobSpeed = { value: cfg.BOB_SPEED };
   const uPulseAmp = { value: cfg.PULSE_AMPLITUDE };
   const uPulseSpeed = { value: cfg.PULSE_SPEED };
+  const uOrbitSpeed = { value: cfg.ORBIT_SPEED };
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -70,30 +77,35 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.uniforms.uBobSpeed = uBobSpeed;
     shader.uniforms.uPulseAmp = uPulseAmp;
     shader.uniforms.uPulseSpeed = uPulseSpeed;
+    shader.uniforms.uOrbitSpeed = uOrbitSpeed;
 
-    // VERTEX: declare per-instance attributes + uniforms, compute bob, output pulse varying.
+    // VERTEX: declare per-instance attributes + uniforms, compute orbit + bob, output pulse varying.
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
       `#include <common>
        attribute float aPhase;
        attribute float aPulsePhase;
+       attribute float aOrbitRadius;
+       attribute float aOrbitStartAngle;
        uniform float uTime;
        uniform float uBobAmp;
        uniform float uBobSpeed;
        uniform float uPulseAmp;
        uniform float uPulseSpeed;
+       uniform float uOrbitSpeed;
        varying float vPulse;`,
     );
 
-    // Bob the y-component of the instance translation after <begin_vertex>
-    // sets `transformed = position`, but before the model-view projection.
-    // This moves each orb vertically in its local (instance) space, which
-    // (combined with the instance matrix's translation) produces a smooth
-    // world-space vertical bob.
-    // Also compute the brightness pulse varying for this orb.
+    // Apply orbital offset in XZ and bob in Y after <begin_vertex> sets
+    // `transformed = position`, but before model-view projection.
+    // The instance matrix translates to the tree center; the shader adds the
+    // time-varying orbital offset so the CPU never re-writes instance matrices.
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
+       float orbitAngle = aOrbitStartAngle + uTime * uOrbitSpeed;
+       transformed.x += aOrbitRadius * cos(orbitAngle);
+       transformed.z += aOrbitRadius * sin(orbitAngle);
        transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
        vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);`,
     );
@@ -127,7 +139,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const color = new THREE.Color();
   for (let i = 0; i < orbs.length; i++) {
     const o = orbs[i];
-    dummy.position.set(o.x, o.height, o.z);
+    dummy.position.set(o.treeX, o.height, o.treeZ);
     dummy.scale.setScalar(1);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
@@ -153,6 +165,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;
       uPulseSpeed.value = next.PULSE_SPEED;
+      uOrbitSpeed.value = next.ORBIT_SPEED;
     },
     dispose() {
       geometry.dispose();

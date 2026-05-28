@@ -14,6 +14,8 @@ export interface FirefliesConfig {
   FIREFLY_RADIUS: number;
   /** Number of orbs spawned per commit-tree. Total orbs = ORBS_PER_TREE × commits. */
   ORBS_PER_TREE: number;
+  /** Orbital speed around the tree's vertical axis, radians/sec. 0 = no orbit. */
+  ORBIT_SPEED: number;
   /** Vertical bob amplitude in world units. */
   BOB_AMPLITUDE: number;
   /** Vertical bob speed in radians/sec. */
@@ -26,8 +28,9 @@ export interface FirefliesConfig {
 
 export const FIREFLIES = map<FirefliesConfig>({
   FIREFLIES_ENABLED: true,
-  FIREFLY_RADIUS: 0.3,
-  ORBS_PER_TREE: 3,
+  FIREFLY_RADIUS: 1.0,
+  ORBS_PER_TREE: 1,
+  ORBIT_SPEED: 0.3,
   BOB_AMPLITUDE: 0.5,
   BOB_SPEED: 1.1,
   PULSE_AMPLITUDE: 0.6,

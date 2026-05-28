@@ -34,7 +34,7 @@ describe('placeFireflies', () => {
     expect(a).toEqual(b);
   });
 
-  it('returns different offsets for different commit SHAs', () => {
+  it('returns different orbital params for different commit SHAs', () => {
     const a = placeFireflies([placement(0, 0, 0)], COMMITS);
     const altCommits: CommitEntry[] = [
       { ...COMMITS[0], sha: 'c'.repeat(40) },
@@ -43,7 +43,11 @@ describe('placeFireflies', () => {
     const b = placeFireflies([placement(0, 0, 0)], altCommits);
     let anyDifferent = false;
     for (let i = 0; i < a.length; i++) {
-      if (a[i].x !== b[i].x || a[i].height !== b[i].height || a[i].z !== b[i].z) {
+      if (
+        a[i].orbitStartAngle !== b[i].orbitStartAngle ||
+        a[i].orbitRadius !== b[i].orbitRadius ||
+        a[i].height !== b[i].height
+      ) {
         anyDifferent = true; break;
       }
     }
@@ -55,18 +59,19 @@ describe('placeFireflies', () => {
     // commits + TREES config. With two commits (files=1 and files=2) the
     // derived canopy radius is near the config midpoint (~24 world units)
     // and height is near TREE_MIN/MAX midpoint (~36 world units).
-    // Use loose bounds: radius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
+    // Use loose bounds: orbitRadius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
     // height ≤ TREE_MAX_HEIGHT * 1.4.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
     const MAX_HEIGHT_BOUND = 64 * 1.4;        // ~89.6
     const p = placement(0, 100, 200);
     const orbs = placeFireflies([p], COMMITS);
     for (const o of orbs) {
-      const dx = o.x - p.x;
-      const dz = o.z - p.y;
-      const dist = Math.sqrt(dx * dx + dz * dz);
-      expect(dist).toBeGreaterThanOrEqual(0);
-      expect(dist).toBeLessThanOrEqual(MAX_RADIUS_BOUND);
+      // Tree center must equal the tree placement coordinates.
+      expect(o.treeX).toBe(p.x);
+      expect(o.treeZ).toBe(p.y);
+      // Orbital radius bounds the XZ spread around the tree center.
+      expect(o.orbitRadius).toBeGreaterThanOrEqual(0);
+      expect(o.orbitRadius).toBeLessThanOrEqual(MAX_RADIUS_BOUND);
       expect(o.height).toBeGreaterThanOrEqual(0);
       expect(o.height).toBeLessThanOrEqual(MAX_HEIGHT_BOUND);
     }
@@ -93,6 +98,14 @@ describe('placeFireflies', () => {
     for (const o of orbs) {
       expect(o.phase).toBeGreaterThanOrEqual(0);
       expect(o.phase).toBeLessThan(Math.PI * 2);
+    }
+  });
+
+  it('assigns an orbitStartAngle in [0, 2π) per orb', () => {
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    for (const o of orbs) {
+      expect(o.orbitStartAngle).toBeGreaterThanOrEqual(0);
+      expect(o.orbitStartAngle).toBeLessThan(Math.PI * 2);
     }
   });
 

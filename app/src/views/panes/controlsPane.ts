@@ -576,7 +576,10 @@ function _buildFirefliesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('fireflies-bob', 'Bob (vertical drift)', () => [
+    _collapsibleSubgroup('fireflies-motion', 'Motion', () => [
+      _slider('Orbit speed', FIREFLIES, 'ORBIT_SPEED', 0, 3.0, 0.05, {
+        tip: 'How fast each firefly orbits its tree, radians/sec. 0 = stationary.',
+      }),
       _slider('Bob amplitude', FIREFLIES, 'BOB_AMPLITUDE', 0, 2.0, 0.05, {
         tip: 'How far each orb drifts up and down in world units. 0 = no vertical movement.',
       }),
