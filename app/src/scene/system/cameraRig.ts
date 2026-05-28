@@ -13,6 +13,8 @@
 //   rig.recenterTo(worldPoint)            // dblclick on empty space
 //   rig.focusBuilding(mesh, building)     // F or dblclick on a building
 //   rig.focusStreet(street, hitPoint)     // dblclick on a street
+//   rig.focusGem()                        // dblclick on the gem
+//   rig.focusTree(sha)                    // F or dblclick on a tree (commit)
 //   rig.dispose()
 //
 // First-frame framing is one-shot by construction: frameToBbox is not on
@@ -352,7 +354,11 @@ export function createCameraRig({
     const effD = Math.max(fitD, fitH * Math.cos(elevRad));
     const distW = effW / 2 / Math.tan(halfH);
     const distD = effD / 2 / Math.tan(halfV);
-    const dist = Math.max(distW, distD) * TOP_DOWN_PADDING_MULT;
+    // Clamp against the OrbitControls dolly floor so small targets (a
+    // sub-unit radius tree, an empty street) don't put the camera inside
+    // the geometry — _animateCamera writes camera.position directly,
+    // bypassing the dolly clamp that would normally apply at zoom time.
+    const dist = Math.max(distW * TOP_DOWN_PADDING_MULT, distD * TOP_DOWN_PADDING_MULT, controls.minDistance);
 
     // Azimuth: preserve current horizontal direction from target → camera.
     // If the camera is too close to nadir, fall back to the root-street axis.
@@ -361,6 +367,9 @@ export function createCameraRig({
     let dirX = cur.x;
     let dirZ = cur.z;
     const horizLenSq = dirX * dirX + dirZ * dirZ;
+    // 1e-4 = (1 cm)^2 in world units — if the camera's horizontal offset
+    // from the target is sub-centimeter, treat it as nadir and fall back
+    // to the root-street axis so the azimuth doesn't NaN out.
     if (horizLenSq < 1e-4) {
       const root = world.getRootStreet();
       if (root && root.orientation === StreetAxis.X) {
