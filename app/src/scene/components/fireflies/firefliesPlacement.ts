@@ -10,6 +10,7 @@
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import { TREES } from '@/config/components/trees.js';
+import { FIREFLIES } from '@/config/components/fireflies.js';
 import {
   computeAgeRange,
   computeSizeRange,
@@ -18,7 +19,7 @@ import {
 } from '@/scene/components/trees/treeEncoding.js';
 import { colorForAuthor } from './authorColor.js';
 
-export const ORBS_PER_TREE = 3;
+// (no more const ORBS_PER_TREE export; controlled via FIREFLIES.get().ORBS_PER_TREE)
 
 export interface FireflyPlacement {
   /** World X (matches tree.x). */
@@ -29,6 +30,8 @@ export interface FireflyPlacement {
   z: number;
   /** Per-instance phase offset for the bob animation, in [0, 2π). */
   phase: number;
+  /** Phase offset for the brightness-pulse shader animation, in [0, 2π). */
+  pulsePhase: number;
   /** Color hex string for the orb. Same across all orbs of a given author. */
   colorHex: string;
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. */
@@ -58,6 +61,8 @@ export function placeFireflies(
   commits: CommitEntry[] | null,
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
+
+  const orbsPerTree = Math.max(0, Math.floor(FIREFLIES.get().ORBS_PER_TREE));
 
   const cfg = TREES.get();
   const minHeight = cfg.TREE_MIN_HEIGHT;
@@ -114,17 +119,20 @@ export function placeFireflies(
     const trunkRadius = trunkRadiusFrac * canopyRadius;
     const color = colorForAuthor(commit.author);
 
-    for (let i = 0; i < ORBS_PER_TREE; i++) {
+    for (let i = 0; i < orbsPerTree; i++) {
       const rng = seededRng(`${commit.sha}:${i}`);
+      const pulseRng = seededRng(`${commit.sha}:p:${i}`);  // independent stream
       const angle = rng() * Math.PI * 2;
       const radius = trunkRadius + rng() * canopyRadius * 1.2;
       const orbHeight = rng() * (height * 1.3);
       const phase = rng() * Math.PI * 2;
+      const pulsePhase = pulseRng() * Math.PI * 2;
       out.push({
         x: p.x + Math.cos(angle) * radius,
         z: p.y + Math.sin(angle) * radius,
         height: orbHeight,
         phase,
+        pulsePhase,
         colorHex: color.hex,
         rgb: color.rgb,
       });

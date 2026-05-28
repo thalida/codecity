@@ -4,19 +4,19 @@
 // CPU never re-writes 750k matrices per frame.
 //
 //   setTime(seconds): drive the uTime uniform from the render loop.
+//   refresh():        hot-reload animation uniforms from current config
+//                     (radius + orb count require a full rebuild).
 //   dispose():        clean up geometry + material + attribute buffers.
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/constants';
+import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
-
-const ORB_RADIUS = 0.12;      // world units; small mote
-const BOB_AMPLITUDE = 0.18;   // half tree-trunk-width
-const BOB_SPEED = 1.1;        // radians per second
 
 export interface FireflyRenderer {
   group: THREE.Group;
   setTime(seconds: number): void;
+  refresh(): void;
   dispose(): void;
 }
 
@@ -28,21 +28,29 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     return {
       group,
       setTime() {},
+      refresh() {},
       dispose() {},
     };
   }
 
-  const geometry = new THREE.IcosahedronGeometry(ORB_RADIUS, 0);
+  const cfg = FIREFLIES.get();
+  const geometry = new THREE.IcosahedronGeometry(cfg.FIREFLY_RADIUS, 0);
 
-  // Per-instance phase attribute (one float per orb).
+  // Per-instance bob phase (existing) + per-instance pulse phase (new).
   const phaseArray = new Float32Array(orbs.length);
-  for (let i = 0; i < orbs.length; i++) phaseArray[i] = orbs[i].phase;
-  geometry.setAttribute(
-    'aPhase',
-    new THREE.InstancedBufferAttribute(phaseArray, 1),
-  );
+  const pulsePhaseArray = new Float32Array(orbs.length);
+  for (let i = 0; i < orbs.length; i++) {
+    phaseArray[i] = orbs[i].phase;
+    pulsePhaseArray[i] = orbs[i].pulsePhase;
+  }
+  geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
+  geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
 
   const uTime = { value: 0 };
+  const uBobAmp = { value: cfg.BOB_AMPLITUDE };
+  const uBobSpeed = { value: cfg.BOB_SPEED };
+  const uPulseAmp = { value: cfg.PULSE_AMPLITUDE };
+  const uPulseSpeed = { value: cfg.PULSE_SPEED };
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -58,17 +66,23 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   // but a future major upgrade could rename them — revisit on bump.
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uTime;
-    shader.uniforms.uAmp = { value: BOB_AMPLITUDE };
-    shader.uniforms.uSpeed = { value: BOB_SPEED };
+    shader.uniforms.uBobAmp = uBobAmp;
+    shader.uniforms.uBobSpeed = uBobSpeed;
+    shader.uniforms.uPulseAmp = uPulseAmp;
+    shader.uniforms.uPulseSpeed = uPulseSpeed;
 
-    // Inject the per-instance phase attribute declaration after <common>.
+    // VERTEX: declare per-instance attributes + uniforms, compute bob, output pulse varying.
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
       `#include <common>
        attribute float aPhase;
+       attribute float aPulsePhase;
        uniform float uTime;
-       uniform float uAmp;
-       uniform float uSpeed;`,
+       uniform float uBobAmp;
+       uniform float uBobSpeed;
+       uniform float uPulseAmp;
+       uniform float uPulseSpeed;
+       varying float vPulse;`,
     );
 
     // Bob the y-component of the instance translation after <begin_vertex>
@@ -76,10 +90,28 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     // This moves each orb vertically in its local (instance) space, which
     // (combined with the instance matrix's translation) produces a smooth
     // world-space vertical bob.
+    // Also compute the brightness pulse varying for this orb.
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
-       transformed.y += sin(uTime * uSpeed + aPhase) * uAmp;`,
+       transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
+       vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);`,
+    );
+
+    // FRAGMENT: declare varying + multiply final color by vPulse.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <common>',
+      `#include <common>
+       varying float vPulse;`,
+    );
+    // Multiply the final output color by the pulse factor. Three.js's
+    // built-in MeshBasicMaterial sets `gl_FragColor` near the end of main();
+    // safely patch by replacing the <output_fragment> include with one that
+    // applies the pulse after the include's own assignment.
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <output_fragment>',
+      `#include <output_fragment>
+       gl_FragColor.rgb *= vPulse;`,
     );
   };
 
@@ -114,6 +146,13 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     group,
     setTime(seconds: number) {
       uTime.value = seconds;
+    },
+    refresh() {
+      const next = FIREFLIES.get();
+      uBobAmp.value = next.BOB_AMPLITUDE;
+      uBobSpeed.value = next.BOB_SPEED;
+      uPulseAmp.value = next.PULSE_AMPLITUDE;
+      uPulseSpeed.value = next.PULSE_SPEED;
     },
     dispose() {
       geometry.dispose();

@@ -1,9 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { placeFireflies } from '@/scene/components/fireflies/firefliesPlacement.js';
+import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-
-const ORBS_PER_TREE = 3;
 
 const COMMITS: CommitEntry[] = [
   { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'one' },
@@ -17,7 +16,12 @@ function placement(commitIndex: number, x: number, z: number): TreePlacement {
 }
 
 describe('placeFireflies', () => {
+  beforeEach(() => {
+    FIREFLIES.setKey('ORBS_PER_TREE', 3);
+  });
+
   it('returns ORBS_PER_TREE orbs per tree placement', () => {
+    const ORBS_PER_TREE = FIREFLIES.get().ORBS_PER_TREE;
     const placements = [placement(0, 10, 5), placement(1, -3, 8)];
     const orbs = placeFireflies(placements, COMMITS);
     expect(orbs.length).toBe(placements.length * ORBS_PER_TREE);
@@ -89,6 +93,26 @@ describe('placeFireflies', () => {
     for (const o of orbs) {
       expect(o.phase).toBeGreaterThanOrEqual(0);
       expect(o.phase).toBeLessThan(Math.PI * 2);
+    }
+  });
+
+  it('honors ORBS_PER_TREE config value', () => {
+    FIREFLIES.setKey('ORBS_PER_TREE', 5);
+    try {
+      const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+      expect(orbs.length).toBe(5);
+    } finally {
+      FIREFLIES.setKey('ORBS_PER_TREE', 3);
+    }
+  });
+
+  it('assigns a pulse phase in [0, 2π) per orb, independent of bob phase', () => {
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    for (const o of orbs) {
+      expect(o.pulsePhase).toBeGreaterThanOrEqual(0);
+      expect(o.pulsePhase).toBeLessThan(Math.PI * 2);
+      // Independent stream → unlikely to equal bob phase.
+      expect(o.pulsePhase).not.toBe(o.phase);
     }
   });
 });
