@@ -1403,8 +1403,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      *  enclosing cube extent. Returns null pre-manifest (no gem yet). */
     getGemDims(): { width: number; height: number; depth: number } | null {
       if (!rootGem) return null;
-      const radius = (rootGem.userData?.gem?.userData?.radius as number | undefined) ??
-                     (rootGem.userData?.radius as number | undefined);
+      const radius = rootGem.userData?.radius as number | undefined;
       if (typeof radius !== 'number' || radius <= 0) return null;
       const d = radius * 2;
       return { width: d, height: d, depth: d };
