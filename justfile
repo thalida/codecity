@@ -112,7 +112,11 @@ install-hooks:
 # which builds the multi-arch image, signs it, smoke-tests, and creates the
 # GitHub Release. VERSION must look like v1.2.3 or v1.2.3-alpha-4 / v1.2.3-rc.1.
 # Refuses to tag unless: on main, working tree clean, in sync with origin/main,
-# and the tag doesn't already exist locally or on origin.
+# and the tag doesn't already exist on origin. If the local tag already exists
+# at HEAD (resumable state from a prior push failure — e.g. pre-push hook
+# failed after `git tag -a` succeeded), pushes it without re-tagging. If push
+# fails after this run created the tag, the local tag is rolled back so the
+# recipe can be retried cleanly.
 release VERSION:
     @set -e ; \
      VERSION="{{VERSION}}" ; \
@@ -132,16 +136,29 @@ release VERSION:
      if [ "$LOCAL" != "$REMOTE" ]; then \
          echo "[just] error: local main ($LOCAL) is not in sync with origin/main ($REMOTE); pull/push first" >&2 ; exit 1 ; \
      fi ; \
-     if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then \
-         echo "[just] error: tag $VERSION already exists locally" >&2 ; exit 1 ; \
-     fi ; \
      if git ls-remote --exit-code --tags origin "refs/tags/$VERSION" >/dev/null 2>&1; then \
          echo "[just] error: tag $VERSION already exists on origin" >&2 ; exit 1 ; \
      fi ; \
-     echo "[just] tagging $VERSION at $LOCAL" ; \
-     git tag -a "$VERSION" -m "Release $VERSION" ; \
+     CREATED_TAG=no ; \
+     if git rev-parse --verify --quiet "refs/tags/$VERSION" >/dev/null; then \
+         TAG_COMMIT=$(git rev-parse "refs/tags/$VERSION^{commit}") ; \
+         if [ "$TAG_COMMIT" != "$LOCAL" ]; then \
+             echo "[just] error: local tag $VERSION points to $TAG_COMMIT, not current main ($LOCAL); 'git tag -d $VERSION' and retry" >&2 ; exit 1 ; \
+         fi ; \
+         echo "[just] tag $VERSION already exists locally at $LOCAL — resuming push" ; \
+     else \
+         echo "[just] tagging $VERSION at $LOCAL" ; \
+         git tag -a "$VERSION" -m "Release $VERSION" ; \
+         CREATED_TAG=yes ; \
+     fi ; \
      echo "[just] pushing $VERSION to origin" ; \
-     git push origin "$VERSION" ; \
+     if ! git push origin "$VERSION"; then \
+         if [ "$CREATED_TAG" = "yes" ]; then \
+             echo "[just] push failed; rolling back local tag $VERSION" >&2 ; \
+             git tag -d "$VERSION" >/dev/null ; \
+         fi ; \
+         exit 1 ; \
+     fi ; \
      REPO=$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo "<owner>/<repo>") ; \
      echo "[just] released — watch: https://github.com/$REPO/actions/workflows/release.yml"
 

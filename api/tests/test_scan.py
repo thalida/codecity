@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import fcntl
+import hashlib
 import os
 import shutil
 import subprocess
@@ -94,28 +95,46 @@ def _ensure_fixture() -> None:
     exclusive file lock and gate the skip-decision on a sentinel
     file that's only written after setup.sh completes successfully —
     `.git` existence alone is not enough.
+
+    The sentinel records the sha256 of setup.sh, not just existence.
+    Any change to setup.sh (new commits, new files, renamed authors)
+    invalidates the on-disk fixture and forces a rebuild. Without this,
+    an older fixture from before a setup.sh edit silently survives and
+    causes assertion failures that look like product bugs.
     """
     sentinel = FIXTURES_DIR / ".sample-repo-ready"
     lockfile_path = FIXTURES_DIR / ".sample-repo-setup.lock"
+    setup_script = FIXTURES_DIR / "setup.sh"
+    setup_hash = hashlib.sha256(setup_script.read_bytes()).hexdigest()
     lockfile_path.touch(exist_ok=True)
     with open(lockfile_path) as fp:
         fcntl.flock(fp.fileno(), fcntl.LOCK_EX)
         try:
-            if not sentinel.is_file():
+            recorded = sentinel.read_text().strip() if sentinel.is_file() else ""
+            if recorded != setup_hash:
                 # Wipe any partial state from an interrupted prior run
                 # so setup.sh's `rm -rf` isn't the only safety net.
                 if _CANONICAL_FIXTURE.exists():
                     shutil.rmtree(_CANONICAL_FIXTURE)
-                subprocess.check_call(["bash", str(FIXTURES_DIR / "setup.sh")])
-                sentinel.touch()
+                subprocess.check_call(["bash", str(setup_script)])
+                sentinel.write_text(setup_hash)
         finally:
             fcntl.flock(fp.fileno(), fcntl.LOCK_UN)
-    # Per-worker copy: safe outside the lock because the sentinel now
-    # guards future setup.sh runs (nothing else can mutate the canonical)
-    # and each worker writes to its own unique FIXTURE path.
-    if FIXTURE != _CANONICAL_FIXTURE and not (FIXTURE / ".git").is_dir():
-        FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)
+    # Per-worker copy: safe outside the lock because the canonical sentinel
+    # now guards future setup.sh runs (nothing else can mutate the canonical)
+    # and each worker writes to its own unique FIXTURE path. The per-worker
+    # marker tracks the same setup.sh hash so an edit between pytest runs
+    # invalidates stale worker copies too (without this, .git-exists alone
+    # would silently reuse a copy made from the prior setup.sh).
+    if FIXTURE != _CANONICAL_FIXTURE:
+        worker_marker = FIXTURE.parent / ".sample-repo-ready"
+        recorded = worker_marker.read_text().strip() if worker_marker.is_file() else ""
+        if recorded != setup_hash or not (FIXTURE / ".git").is_dir():
+            if FIXTURE.exists():
+                shutil.rmtree(FIXTURE)
+            FIXTURE.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(_CANONICAL_FIXTURE, FIXTURE)
+            worker_marker.write_text(setup_hash)
 
 
 class _CacheRedirectMixin:
