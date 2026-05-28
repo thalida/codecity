@@ -15,12 +15,19 @@ import { fitSegments } from '../widgets/pathTruncate.js';
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
 
-interface HeaderSelection {
-  path: string;
-  fullPath?: string;
-  extension?: string;
-  isDir?: boolean;
-}
+export type HeaderSelection =
+  | {
+      kind: 'file' | 'dir';
+      path: string;
+      fullPath?: string;
+      extension?: string;
+      isDir?: boolean;
+    }
+  | {
+      kind: 'commit';
+      sha: string;
+      author: string;
+    };
 
 interface InitAppHeaderOpts {
   /** project name shown in the project button on the left */
@@ -123,49 +130,69 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   function setSelection(sel: HeaderSelection | null): void {
     lastSelection = sel;
     titleEl!.replaceChildren();
-    const hasSel = !!(sel?.path && sel.path !== rootPath);
-
-    if (!hasSel) {
-      // Empty title — project button on the left carries the project identity.
+    if (!sel) {
       return;
     }
 
-    // Focus button — fires F-key equivalent (focus camera on selection).
-    // Sits LEFT of the extension badge so the order reads
-    // [focus] [ext tag] [path] [copy].
+    // Focus button — shared across all kinds.
     if (onFocus) {
       const focusBtn = document.createElement('button');
       focusBtn.type = 'button';
       focusBtn.className = 'btn-icon btn-icon--no-drag';
-      focusBtn.title = 'Focus camera on selection (F)';
-      focusBtn.setAttribute('aria-label', 'Focus camera on selection');
+      const tooltip =
+        sel.kind === 'commit'
+          ? 'Focus camera on commit (F)'
+          : 'Focus camera on selection (F)';
+      focusBtn.title = tooltip;
+      focusBtn.setAttribute('aria-label', tooltip);
       focusBtn.appendChild(makeLucideIcon('focus'));
       focusBtn.addEventListener('click', () => onFocus());
       titleEl!.appendChild(focusBtn);
     }
 
+    if (sel.kind === 'commit') {
+      // "Commit <short-sha> · <author>" with copy-full-sha button.
+      const label = document.createTextNode('Commit ');
+      titleEl!.appendChild(label);
+      const shaEl = document.createElement('span');
+      shaEl.className = 'app-header-commit-sha';
+      shaEl.textContent = sel.sha.slice(0, 7);
+      titleEl!.appendChild(shaEl);
+      const authorEl = document.createElement('span');
+      authorEl.className = 'app-header-commit-author';
+      authorEl.textContent = ` · ${sel.author || '(unknown)'}`;
+      titleEl!.appendChild(authorEl);
+      titleEl!.appendChild(_makeCopyButton(sel.sha));
+      _crumbsEl = null;
+      _segEls = [];
+      _sepEls = [];
+      return;
+    }
+
+    // file | dir branch — unchanged from previous implementation.
+    const hasSel = !!(sel.path && sel.path !== rootPath);
+    if (!hasSel) return;
+
     // Chip mirrors the leaf: file-ext when a file is selected, dir badge
     // for any directory selection. Palette + asphalt are read fresh from
     // the stores so the badge follows live config edits.
-    const isFileSel = sel && !sel.isDir;
+    const isFileSel = !sel.isDir;
     const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
     const asphaltColor = ASPHALT.get().COLOR;
     titleEl!.appendChild(
       makeExtensionBadge(
-        isFileSel ? (sel!.extension ?? null) : null,
+        isFileSel ? (sel.extension ?? null) : null,
         !isFileSel,
         huePalette,
-        asphaltColor
-      )
+        asphaltColor,
+      ),
     );
 
     const crumbs = document.createElement('div');
     crumbs.className = 'app-header-crumbs';
-    crumbs.title = sel ? `${_rootLabel}/${sel.path}` : _rootLabel;
+    crumbs.title = `${_rootLabel}/${sel.path}`;
 
-    // Path segments — the root is in the project button, so we start
-    // directly with the selection's path segments.
-    const segs = sel!.path.split('/').filter(Boolean);
+    const segs = sel.path.split('/').filter(Boolean);
     const segmentEls: HTMLElement[] = [];
     const separatorEls: HTMLElement[] = [];
     let acc = '';
@@ -184,11 +211,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       crumbs.appendChild(segEl);
     }
     titleEl!.appendChild(crumbs);
+    titleEl!.appendChild(_makeCopyButton(sel.fullPath || sel.path));
 
-    // Copy button copies the absolute filesystem path.
-    titleEl!.appendChild(_makeCopyButton(sel!.fullPath || sel!.path));
-
-    // Cache refs for ResizeObserver and run initial fit.
     _crumbsEl = crumbs;
     _segEls = segmentEls;
     _sepEls = separatorEls;
