@@ -2979,3 +2979,67 @@ canvas {
   font-size: var(--cc-font-lg); /* 12px */
   font-style: italic;
 }
+
+.commit-author {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  margin-bottom: var(--cc-space-2); /* 4px */
+}
+
+.commit-author-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.commit-author-name {
+  font-size: var(--cc-font-xl); /* 14px */
+  font-weight: 500;
+  color: var(--cc-text-secondary);
+}
+
+.commit-subject {
+  font-size: var(--cc-font-lg); /* 12px */
+  color: var(--cc-text-muted);
+  margin-bottom: var(--cc-space-4); /* 8px */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.commit-expand {
+  font-size: var(--cc-font-md); /* 11px */
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  padding: var(--cc-space-px) var(--cc-space-4); /* 1px 8px */
+  cursor: pointer;
+  margin-bottom: var(--cc-space-6); /* 12px */
+  opacity: 0.7;
+}
+
+.commit-expand:hover {
+  opacity: 1;
+}
+
+.commit-message-body {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md); /* 11px */
+  white-space: pre-wrap;
+  margin: var(--cc-space-4) 0 var(--cc-space-6); /* 8px 0 12px */
+  padding: var(--cc-space-4); /* 8px */
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 4px;
+  max-height: 240px;
+  overflow: auto;
+  color: var(--cc-text-muted);
+}
+
+.commit-message-error {
+  font-size: var(--cc-font-md); /* 11px */
+  color: var(--cc-text-muted);
+  opacity: 0.7;
+  margin-bottom: var(--cc-space-6); /* 12px */
+}

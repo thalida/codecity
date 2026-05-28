@@ -17,6 +17,8 @@ import { makeLucideIcon } from '@/views/widgets/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { commitUrl } from './commitUrl.js';
 import { formatRelativeAge } from '@/views/widgets/formatRelativeAge.js';
+import { fetchCommitDetail } from './commitFetch.js';
+import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
 
 interface BuildCommitPaneOpts {
   onClose?: () => void;
@@ -72,6 +74,50 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     now: Date
   ): void {
     body.replaceChildren();
+
+    // ── Author row ───────────────────────────────────────────────────
+    const authorEl = document.createElement('div');
+    authorEl.className = 'commit-author';
+    const dotEl = document.createElement('span');
+    dotEl.className = 'commit-author-dot';
+    dotEl.style.backgroundColor = colorForAuthor(commit.author).hex;
+    authorEl.appendChild(dotEl);
+    const authorName = document.createElement('span');
+    authorName.className = 'commit-author-name';
+    authorName.textContent = commit.author || '(unknown)';
+    authorEl.appendChild(authorName);
+    body.appendChild(authorEl);
+
+    // ── Subject row (ellipsized via CSS to one line) ─────────────────
+    const subjectEl = document.createElement('div');
+    subjectEl.className = 'commit-subject';
+    subjectEl.textContent = commit.subject || '(no subject)';
+    subjectEl.title = commit.subject || '';
+    body.appendChild(subjectEl);
+
+    // ── "Show full message" expand button ────────────────────────────
+    const expandBtn = document.createElement('button');
+    expandBtn.className = 'commit-expand';
+    expandBtn.type = 'button';
+    expandBtn.textContent = 'Show full message';
+    expandBtn.addEventListener('click', () => {
+      expandBtn.disabled = true;
+      fetchCommitDetail(commit.sha).then(
+        (detail) => {
+          const msgBodyEl = document.createElement('pre');
+          msgBodyEl.className = 'commit-message-body';
+          msgBodyEl.textContent = detail.body || '(no message body)';
+          expandBtn.replaceWith(msgBodyEl);
+        },
+        (err) => {
+          const errEl = document.createElement('div');
+          errEl.className = 'commit-message-error';
+          errEl.textContent = `Failed to load full message: ${err.message ?? err}`;
+          expandBtn.replaceWith(errEl);
+        }
+      );
+    });
+    body.appendChild(expandBtn);
 
     // ── SHA row (SHA on left, open-on-origin link on right) ──────────
     const headerRow = document.createElement('div');
