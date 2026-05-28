@@ -617,6 +617,9 @@ function _buildFirefliesSection(): HTMLElement {
       _slider('Ring opacity', FIREFLIES, 'ORBIT_RING_OPACITY', 0, 1, 0.05, {
         tip: '0 = invisible, 1 = fully opaque.',
       }),
+      _slider('Ring thickness', FIREFLIES, 'ORBIT_RING_THICKNESS', 0.02, 0.5, 0.01, {
+        tip: 'Tube radius of the orbit ring in world units. Rebuilds geometry on change.',
+      }),
       _color('Hover color', FIREFLIES, 'ORBIT_RING_HOVER_COLOR', {
         tip: 'Ring color when the corresponding tree is hovered.',
       }),

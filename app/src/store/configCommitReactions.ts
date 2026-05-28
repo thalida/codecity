@@ -326,14 +326,15 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   // call time; SCALE_MIN/MAX bake into per-instance data;
   // ORBIT_RING_ENABLED takes the empty-stub path in createOrbitRings when false
   // (drops the merged mesh entirely), so toggling it also needs a full rebuild.
-  // All four require a full applyManifest rebuild. The remaining keys
-  // (animation, brightness, ORBIT_RING_COLOR, ORBIT_RING_OPACITY) fall through
-  // to the materialOnlyStores subscription above and are hot-applied via
-  // fireflies.refresh() → rings.refresh().
+  // ORBIT_RING_THICKNESS bakes into TubeGeometry tube radius — refresh()
+  // only rewrites RGBA, so thickness changes require regenerating geometry.
+  // The remaining keys (animation, brightness, ORBIT_RING_COLOR,
+  // ORBIT_RING_OPACITY) fall through to the materialOnlyStores subscription
+  // above and are hot-applied via fireflies.refresh() → rings.refresh().
   unsubs.push(
     listenKeys(
       FIREFLIES,
-      ['FIREFLIES_ENABLED', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED'],
+      ['FIREFLIES_ENABLED', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED', 'ORBIT_RING_THICKNESS'],
       scheduleRebuild
     )
   );

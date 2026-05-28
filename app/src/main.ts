@@ -158,6 +158,7 @@ if (_canvas) {
             // b.file to the fresh FileNode from the new manifest so colors,
             // ages, and dimensions compute from real metadata on the cache-hit
             // fast path.
+            _applyDisplayLabel(m);
             await handle.world.applyManifest(m);
           }
           initialManifest = m;
