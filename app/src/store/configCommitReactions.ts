@@ -287,6 +287,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
         'EDGE_INSET_PERCENT',
         'TREE_DENSITY_FALLOFF',
         'SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH',
+        'TREE_WIDTH_AGE_FLOOR',
       ],
       scheduleRebuild
     )
