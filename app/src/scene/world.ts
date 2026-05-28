@@ -1395,6 +1395,20 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getGemWorldPos() {
       return gemWorldPos;
     },
+    getTreeBoundsBySha(sha: string) {
+      return _trees?.getTreeBoundsBySha(sha) ?? null;
+    },
+    /** Width / height / depth of the gem's axis-aligned bounding cube.
+     *  Reads `gem.userData.radius` (set by createRootGem) and returns the
+     *  enclosing cube extent. Returns null pre-manifest (no gem yet). */
+    getGemDims(): { width: number; height: number; depth: number } | null {
+      if (!rootGem) return null;
+      const radius = (rootGem.userData?.gem?.userData?.radius as number | undefined) ??
+                     (rootGem.userData?.radius as number | undefined);
+      if (typeof radius !== 'number' || radius <= 0) return null;
+      const d = radius * 2;
+      return { width: d, height: d, depth: d };
+    },
 
     // Outline/ghost arrays — empty stubs returned so existing callers
     // (outlineRenderer.refreshMaterials, outlineRenderer.onResize) iterate
