@@ -3046,3 +3046,111 @@ canvas {
   border-radius: 50%;
   flex-shrink: 0;
 }
+
+/* ── Street pane (right sidebar) ────────────────────────────────────────
+   Shown when a directory (road) is selected. Mirrors commit-pane layout:
+     - pane-header (from buildPaneHeader) — title is the directory leaf
+     - .street-body — scrollable area with path row, two-column counts,
+       and a "By extension" breakdown matching commit-meta typography. */
+
+.street-body {
+  padding: var(--cc-space-7); /* 16px */
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-6); /* 12px */
+}
+
+/* Folder icon + path text, like .commit-author's icon + text row. */
+.street-path {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  color: var(--cc-text-secondary);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.street-path-text {
+  font-family: var(--cc-font-mono);
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+/* Two-column count grid: Direct | Descendants. */
+.street-counts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--cc-space-6); /* 12px */
+}
+
+.street-counts-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-2); /* 4px */
+  min-width: 0;
+}
+
+/* Column heading — muted, same character as .commit-meta-sep. */
+.street-counts-h,
+.street-ext-h {
+  font-size: var(--cc-font-md); /* 11px */
+  text-transform: uppercase;
+  letter-spacing: var(--cc-track-label);
+  color: var(--cc-text-ghost);
+  font-weight: var(--cc-fw-bold);
+}
+
+.street-counts-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--cc-space-3);
+  font-size: var(--cc-font-lg); /* 12px */
+}
+
+.street-counts-k {
+  color: var(--cc-text-muted);
+}
+
+.street-counts-v {
+  color: var(--cc-text-secondary);
+  font-weight: 500;
+}
+
+/* "By extension" list — one row per file extension, badge + label +
+   count + sep + size, sized to match .commit-meta typography. */
+.street-ext-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3); /* 6px */
+}
+
+.street-ext-row {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+  min-width: 0;
+}
+
+.street-ext-label {
+  font-family: var(--cc-font-mono);
+  color: var(--cc-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.street-ext-count,
+.street-ext-size {
+  color: var(--cc-text-muted);
+  flex-shrink: 0;
+}
+
+.street-ext-sep {
+  color: var(--cc-text-ghost);
+  flex-shrink: 0;
+}
