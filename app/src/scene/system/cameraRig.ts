@@ -28,17 +28,12 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import {
   CAMERA_PERSPECTIVE,
   CAMERA_CONTROLS,
-  CAMERA_ANIMATION,
   ANIMATION_TIMING,
 } from '@/config/index.js';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
-import { BuildingOrient, StreetAxis } from '@/types';
+import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
 import type { createWorld } from '../world.js';
-
-const SIGHTLINE_STEP_DEG = 20;
-const SIGHTLINE_MAX_ATTEMPTS = 5;
-const SIGHTLINE_FAR_OFFSET = 0.5;
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
  *  cities (small footprint, one big building) end up with a tiny
@@ -58,6 +53,12 @@ const MIN_MAX_DISTANCE = 8000;
 const RECENTER_RATIO = 0.7;
 const BUILDING_FOCUS_RATIO = 1.2;
 const STREET_FOCUS_RATIO = 1.2;
+
+// Top-down focus framing (replaces door-facing + altitude-floor logic).
+// 80° elevation gives the user a near-overhead read while still showing
+// enough side-faces for 3D depth. Stays under controls.maxPolarAngle.
+const TOP_DOWN_ELEVATION_DEG = 80;
+const TOP_DOWN_PADDING_MULT = 1.15;
 
 export function createCameraRig({
   canvas,
@@ -99,10 +100,6 @@ export function createCameraRig({
   // Animation cancellation token. Each new focus/reset animation bumps
   // this; in-flight rAF steps abort if their token doesn't match.
   let camAnimToken = 0;
-
-  // Reusable scratch for sight-line raycasting.
-  const _xrayRay = new THREE.Raycaster();
-  const _xrayDir = new THREE.Vector3();
 
   // Compute the canonical "framed" pose for the current world bbox and
   // refresh initialCamPos/initialTarget + controls.maxDistance + the
@@ -335,141 +332,96 @@ export function createCameraRig({
     );
   }
 
-  function _isSightClear(camPos: THREE.Vector3, target: THREE.Vector3, focused: Building): boolean {
-    _xrayDir.subVectors(target, camPos).normalize();
-    _xrayRay.set(camPos, _xrayDir);
-    _xrayRay.far = camPos.distanceTo(target) - SIGHTLINE_FAR_OFFSET;
-    // Raycast against every cell's detail InstancedMesh. Three.js
-    // handles InstancedMesh natively: hits carry `.instanceId` (the
-    // slot) and we identify the cell via `object.userData.cellId`.
-    const hits = _xrayRay.intersectObjects(world.getBuildingPickables(), false);
-    for (let i = 0; i < hits.length; i++) {
-      const hit = hits[i];
-      // Skip the focused building itself — its own faces always block its
-      // own sightline. Match on (cellId, slotId).
-      const hitCellId = hit.object.userData.cellId;
-      if (hitCellId === focused.cellId && hit.instanceId === focused.slotId) continue;
-      return false;
-    }
-    return true;
-  }
+  const _scratchDir = new THREE.Vector3();
 
-  // Frame the building's door face head-on. Pivot is the building
-  // centroid so subsequent orbit circles around the building. Tries
-  // increasing elevations until the sightline is unobstructed.
-  function focusBuilding(mesh: THREE.Object3D, b: Building): void {
-    camera.up.set(0, 1, 0);
-    const camAnim = CAMERA_ANIMATION.get();
-    let doorDX = 0,
-      doorDZ = 0,
-      faceW: number;
-    if (b.orient === BuildingOrient.South) {
-      doorDZ = 1;
-      faceW = b.w;
-    } else if (b.orient === BuildingOrient.North) {
-      doorDZ = -1;
-      faceW = b.w;
-    } else if (b.orient === BuildingOrient.East) {
-      doorDX = 1;
-      faceW = b.d;
-    } else if (b.orient === BuildingOrient.West) {
-      doorDX = -1;
-      faceW = b.d;
-    } else {
-      doorDZ = 1;
-      faceW = b.w;
-    }
-    const faceH = b.h;
-
+  function _focusTopDown(
+    center: THREE.Vector3,
+    fitW: number,
+    fitD: number,
+    fitH: number,
+    durationRatio: number,
+  ): void {
+    const elevRad = (TOP_DOWN_ELEVATION_DEG * Math.PI) / 180;
     const halfV = (camera.fov * Math.PI) / 180 / 2;
     const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    const distForH = faceH / 2 / Math.tan(halfV);
-    const distForW = faceW / 2 / Math.tan(halfH);
-    const dist =
-      Math.max(distForH, distForW) * camAnim.BUILDING_FOCUS_DISTANCE_MULT +
-      camAnim.BUILDING_FOCUS_DISTANCE_OFFSET;
 
-    const halfDepth =
-      b.orient === BuildingOrient.East || b.orient === BuildingOrient.West ? b.w / 2 : b.d / 2;
-    const newTarget = new THREE.Vector3(b.x, b.h / 2, b.y);
+    // At 80° elevation, a vertical span of fitH projects onto the screen-
+    // vertical axis as fitH·cos(elev). Take the larger of the projected
+    // height and the depth span as the effective vertical extent.
+    const effW = fitW;
+    const effD = Math.max(fitD, fitH * Math.cos(elevRad));
+    const distW = effW / 2 / Math.tan(halfH);
+    const distD = effD / 2 / Math.tan(halfV);
+    const dist = Math.max(distW, distD) * TOP_DOWN_PADDING_MULT;
 
-    let newCamPos: THREE.Vector3 | null = null;
-    for (let attempt = 0; attempt < SIGHTLINE_MAX_ATTEMPTS; attempt++) {
-      const elev = (attempt * SIGHTLINE_STEP_DEG * Math.PI) / 180;
-      const horiz = dist * Math.cos(elev);
-      const vert = b.h / 2 + dist * Math.sin(elev);
-      const candidate = new THREE.Vector3(
-        b.x + doorDX * (halfDepth + horiz),
-        vert,
-        b.y + doorDZ * (halfDepth + horiz)
-      );
-      if (_isSightClear(candidate, newTarget, b)) {
-        newCamPos = candidate;
-        break;
+    // Azimuth: preserve current horizontal direction from target → camera.
+    // If the camera is too close to nadir, fall back to the root-street axis.
+    const cur = _scratchDir.subVectors(camera.position, controls.target);
+    cur.y = 0;
+    let dirX = cur.x;
+    let dirZ = cur.z;
+    const horizLenSq = dirX * dirX + dirZ * dirZ;
+    if (horizLenSq < 1e-4) {
+      const root = world.getRootStreet();
+      if (root && root.orientation === StreetAxis.X) {
+        dirX = -1; dirZ = 0;
+      } else {
+        dirX = 0; dirZ = -1;
       }
-      newCamPos = candidate;
+    } else {
+      const inv = 1 / Math.sqrt(horizLenSq);
+      dirX *= inv;
+      dirZ *= inv;
     }
 
-    if (newCamPos) {
-      _animateCamera(
-        newTarget,
-        newCamPos,
-        ANIMATION_TIMING.get().BASE_DURATION_MS * BUILDING_FOCUS_RATIO
-      );
-    }
+    const cosE = Math.cos(elevRad);
+    const sinE = Math.sin(elevRad);
+    const newCamPos = new THREE.Vector3(
+      center.x + dirX * dist * cosE,
+      center.y + dist * sinE,
+      center.z + dirZ * dist * cosE,
+    );
+
+    camera.up.set(0, 1, 0);
+    _animateCamera(
+      center.clone(),
+      newCamPos,
+      ANIMATION_TIMING.get().BASE_DURATION_MS * durationRatio,
+    );
   }
 
-  // Orient camera so the street runs left-right across the screen and
-  // zoom in to a navigable distance. See main.js's original block for
-  // the full geometric reasoning — kept verbatim here.
+  function focusBuilding(_mesh: THREE.Object3D, b: Building): void {
+    const center = new THREE.Vector3(b.x, b.h / 2, b.y);
+    _focusTopDown(center, b.w, b.d, b.h, BUILDING_FOCUS_RATIO);
+  }
+
   function focusStreet(s: Street, hitPoint: THREE.Vector3 | null): void {
-    let tx = s.x,
-      tz = s.y;
+    let tx = s.x;
+    let tz = s.y;
     if (hitPoint) {
       if (s.orientation === StreetAxis.X) tx = hitPoint.x;
       else tz = hitPoint.z;
     }
-    const newTarget = new THREE.Vector3(tx, 0, tz);
+    const center = new THREE.Vector3(tx, 0, tz);
+    const fitW = s.orientation === StreetAxis.X ? s.length : s.width;
+    const fitD = s.orientation === StreetAxis.X ? s.width : s.length;
+    _focusTopDown(center, fitW, fitD, 0, STREET_FOCUS_RATIO);
+  }
 
-    let offX = 0,
-      offZ = 0;
-    if (s.orientation === StreetAxis.X) {
-      offZ = 1;
-    } else {
-      offX = 1;
-    }
-    camera.up.set(0, 1, 0);
+  function focusGem(): void {
+    const gemPos = world.getGemWorldPos();
+    const dims = world.getGemDims();
+    if (!gemPos || !dims) return;
+    const center = new THREE.Vector3(gemPos.x, gemPos.y, gemPos.z);
+    _focusTopDown(center, dims.width, dims.depth, dims.height, BUILDING_FOCUS_RATIO);
+  }
 
-    // Camera altitude clears every building. (The previous version also
-    // multiplied each building's height by its mesh.scale.y to factor in
-    // entry/exit tweens — that doesn't apply in cell mode because the
-    // scale.y tween rides on the per-instance matrix inside the cell's
-    // InstancedMesh, not on a per-building scene-graph mesh. A tween-
-    // expanded building can briefly poke above this baseline; in practice
-    // the tweens settle within ~200ms, well before the street-focus
-    // camera animation completes.)
-    const maxBldgH = world.getMaxBuildingHeight();
-
-    const camAnim = CAMERA_ANIMATION.get();
-    const halfV = (camera.fov * Math.PI) / 180 / 2;
-    const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
-    const distForLength = (s.length * camAnim.STREET_FOCUS_LENGTH_FRAC) / 2 / Math.tan(halfH);
-    const distForWidth = (s.width * camAnim.STREET_FOCUS_WIDTH_MULT) / 2 / Math.tan(halfV);
-    const altitude = Math.max(
-      distForLength,
-      distForWidth,
-      maxBldgH * camAnim.STREET_FOCUS_ALTITUDE_BLDG_MULT + camAnim.STREET_FOCUS_ALTITUDE_FLOOR
-    );
-
-    const elev = (camAnim.STREET_FOCUS_ELEVATION_DEG * Math.PI) / 180;
-    const horizDist = altitude / Math.tan(elev);
-
-    const newCamPos = new THREE.Vector3(tx + offX * horizDist, altitude, tz + offZ * horizDist);
-    _animateCamera(
-      newTarget,
-      newCamPos,
-      ANIMATION_TIMING.get().BASE_DURATION_MS * STREET_FOCUS_RATIO
-    );
+  function focusTree(sha: string): void {
+    const b = world.getTreeBoundsBySha(sha);
+    if (!b) return;
+    const center = new THREE.Vector3(b.x, b.height / 2, b.z);
+    const span = b.radius * 2;
+    _focusTopDown(center, span, span, b.height, BUILDING_FOCUS_RATIO);
   }
 
   function dispose() {
@@ -484,6 +436,8 @@ export function createCameraRig({
     recenterTo,
     focusBuilding,
     focusStreet,
+    focusGem,
+    focusTree,
     dispose,
   };
 }
