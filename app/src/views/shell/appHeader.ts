@@ -3,7 +3,6 @@
 //   project button (icon + label + @branch pill) → opens source picker
 //   repo link icon (if git url)
 //   #app-title slot: chip + path breadcrumb + copy button   — center
-//   fly-mode toggle button   — far right
 //
 // When no path is selected (or only the root), #app-title is empty.
 
@@ -41,8 +40,6 @@ interface InitAppHeaderOpts {
    *  mirrors pressing F on the canvas. Caller looks at the current selection
    *  and calls rig.focusBuilding / rig.focusStreet as appropriate. */
   onFocus?: () => void;
-  /** Fires when the user clicks the fly-mode toggle button. */
-  onToggleFly?: () => void;
   /** Branch name when the loaded source is a git URL with an explicit branch. */
   branch?: string;
   /** Original src URL when the loaded source is a git URL — used to render the open-repo link next to the project button. */
@@ -55,7 +52,6 @@ interface InitAppHeaderOpts {
  *   project button (icon + label + @branch pill)
  *   repo link icon (if git url)
  *   #app-title slot (chip + path segments + copy) — empty at root
- *   fly-mode toggle button   — far right
  *
  * The path-badge subscribes to BUILDING_PALETTE + ASPHALT so changing an
  * extension hue or the asphalt color in Controls live-repaints the badge.
@@ -68,7 +64,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     onSwitchSource,
     onResetView,
     onFocus,
-    onToggleFly,
   } = opts;
 
   const titleEl = document.getElementById('app-title');
@@ -76,7 +71,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     return {
       setSelection(_sel: HeaderSelection | null) {},
       setSourceInfo(_rootLabel?: string, _branch?: string, _sourceUrl?: string) {},
-      setFlyActive(_active: boolean) {},
     };
   }
 
@@ -339,42 +333,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     titleEl.parentElement?.prepend(btn);
   }
 
-  // Fly-mode toggle button — appended (not prepended) to the header parent
-  // so it lands at the right edge via flexbox. The icon swaps with the
-  // mode: compass when orbiting (you're navigating around the city),
-  // plane when flying (you're navigating through it). The active state
-  // mirrors flyControls.isActive() and is updated via setFlyActive()
-  // (called from coordinator on every onActiveChange) so V-key toggles
-  // stay in sync with the button.
-  let _flyBtn: HTMLButtonElement | null = null;
-  if (onToggleFly) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'btn-icon btn-icon--no-drag';
-    btn.title = 'Enter fly mode (V)';
-    btn.setAttribute('aria-label', 'Toggle fly mode');
-    btn.appendChild(makeLucideIcon('compass'));
-    btn.dataset.appHeaderInjected = '1';
-    btn.addEventListener('click', () => {
-      // Blur immediately so the button doesn't retain keyboard focus.
-      // A focused button intercepts Space/Enter (activating itself and
-      // toggling fly mode back off) and shows a focus ring that's noisy
-      // during a fly-mode session.
-      btn.blur();
-      onToggleFly();
-    });
-    titleEl.parentElement?.appendChild(btn);
-    _flyBtn = btn;
-  }
-
-  function setFlyActive(active: boolean): void {
-    if (!_flyBtn) return;
-    _flyBtn.classList.toggle('is-active', active);
-    _flyBtn.title = active ? 'Exit fly mode (V)' : 'Enter fly mode (V)';
-    // Swap the icon: plane while flying, compass while orbiting.
-    _flyBtn.replaceChildren(makeLucideIcon(active ? 'plane' : 'compass'));
-  }
-
   // Live config: re-render the cached selection whenever a store that
   // feeds the badge changes. Nanostores fire .subscribe() synchronously
   // with the current value at hook-up time; we drop that first call so
@@ -390,7 +348,6 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   return {
     setSelection,
     setSourceInfo,
-    setFlyActive,
   };
 }
 

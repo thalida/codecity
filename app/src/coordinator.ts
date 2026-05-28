@@ -31,15 +31,13 @@ import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createWorld } from './scene/world.js';
 import type { createPicker } from './scene/system/picker.js';
 import type { createCameraRig } from './scene/system/cameraRig.js';
-import type { createFlyControls } from './scene/system/flyControls.js';
 
 interface CoordinatorOpts {
   world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
-  flyControls: ReturnType<typeof createFlyControls>;
-  /** Mode-aware reset for the camera. Forwarded to the header gem button so
-   *  it stays consistent with the R key and the in-scene gem click. */
+  /** Reset for the camera. Forwarded to the header gem button so it stays
+   *  consistent with the R key and the in-scene gem click. */
   resetView: () => void;
   applyTheme: () => void;
 }
@@ -48,7 +46,6 @@ export function createCoordinator({
   world,
   picker,
   rig,
-  flyControls,
   resetView,
   applyTheme,
 }: CoordinatorOpts) {
@@ -104,7 +101,7 @@ export function createCoordinator({
     }
   }
 
-  // ── App header (refresh / project chip / breadcrumb / fly toggle) ──
+  // ── App header (refresh / project chip / breadcrumb) ──────────────
   const rootNode: DirNode | null = world.getRoot();
   const _initManifest = world.getManifest();
   // Derive the friendly label for the header breadcrumb and document title.
@@ -146,23 +143,10 @@ export function createCoordinator({
         rig.focusStreet(sel.street, null);
       }
     },
-    onToggleFly() {
-      if (flyControls.isActive()) {
-        flyControls.disable();
-      } else {
-        flyControls.enable();
-      }
-    },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,
   });
   appHeader.setSelection(null);
-
-  // Sync the header's fly-toggle button visual state when V-key (or pointer-
-  // lock revoke) toggles fly mode.
-  const _flyActiveUnsubHeader = flyControls.onActiveChange((active: boolean) => {
-    appHeader.setFlyActive(active);
-  });
 
   // ── App footer ─────────────────────────────────────────────────────
   const appFooter = initAppFooter({});
@@ -428,7 +412,6 @@ export function createCoordinator({
     if (typeof _statusUnsub === 'function') _statusUnsub();
     if (typeof _errorUnsub === 'function') _errorUnsub();
     if (typeof _stampUnsub === 'function') _stampUnsub();
-    if (typeof _flyActiveUnsubHeader === 'function') _flyActiveUnsubHeader();
     window.clearInterval(_tickHandle);
   }
 

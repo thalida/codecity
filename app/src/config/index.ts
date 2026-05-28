@@ -3,7 +3,7 @@
 // Configs are grouped on disk by where they're consumed, with file
 // names mirroring the consumer:
 //   config/system/      ↔ scene/system/  (camera, input, animator,
-//                                          tooltip, fly mode)
+//                                          tooltip)
 //   config/components/  ↔ scene/components/  (one file per component)
 //   config/effects/     ↔ scene/effects/  (cross-cutting effect tunables)
 //   config/world/       — world sizing + scene background
@@ -33,9 +33,8 @@
 // CDN URL, activity-bar tab list, etc.) live OUTSIDE this barrel —
 // see src/constants/ or inlined private consts in their consumer.
 
-// ── System (camera, input, animation, fly, tooltip) ──────────────────
+// ── System (camera, input, animation, tooltip) ───────────────────────
 export * from './system/cameraRig.js';
-export * from './system/flyControls.js';
 export * from './system/animator.js';
 export * from './system/inputHandlers.js';
 export * from './system/tooltip.js';

@@ -235,16 +235,22 @@ export function createCameraRig({
     controls.target.copy(initialTarget);
 
     // Re-frame on every manifest swap so R always fits the current city.
+    // Also snap to the default pose whenever the source itself changed:
+    // we MUST wait until the new world's manifest is in place (onChange
+    // fires inside applyManifest), because CURRENT_SOURCE_KEY can be
+    // updated before applyManifest runs (see applyNewSource in main.ts —
+    // SOURCE_KEY.set lands BEFORE the final applyManifest call). Running
+    // reset() on the SOURCE_KEY subscribe directly would snap to the
+    // previous repo's stale initialCamPos.
     if (!_rebuildSubscribed) {
+      let _lastSourceKey = CURRENT_SOURCE_KEY.get();
       world.onChange(() => {
         _captureFraming();
-      });
-      // Reset to bbox framing when the user switches source mid-session.
-      let _lastSourceKey = CURRENT_SOURCE_KEY.get();
-      CURRENT_SOURCE_KEY.subscribe((newKey) => {
-        if (newKey === null || newKey === _lastSourceKey) return;
-        _lastSourceKey = newKey;
-        controls.reset();
+        const cur = CURRENT_SOURCE_KEY.get();
+        if (cur !== null && cur !== _lastSourceKey) {
+          _lastSourceKey = cur;
+          reset();
+        }
       });
       _rebuildSubscribed = true;
     }
@@ -255,12 +261,6 @@ export function createCameraRig({
     if (firstFrame) {
       if (_frameToBbox()) firstFrame = false;
     }
-    // When disabled (fly mode), skip the per-frame update entirely.
-    // OrbitControls.update() unconditionally calls camera.lookAt(target)
-    // regardless of the `enabled` flag — in fly mode that fights
-    // flyControls' yaw/pitch by pulling the camera toward the stale
-    // orbit target every frame.
-    if (!controls.enabled) return;
     controls.update();
   }
 

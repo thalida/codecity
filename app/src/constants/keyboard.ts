@@ -20,8 +20,6 @@ export const KEY_BINDINGS: Record<string, KeyBinding> = {
   RESET_VIEW: { label: 'R', keys: ['r', 'R', 'Home'] },
   /** Focus camera on the current selection. */
   FOCUS_SELECTION: { label: 'F', keys: ['f', 'F'] },
-  /** Toggle fly mode (V) — first-person WASD camera. */
-  TOGGLE_FLY_MODE: { label: 'V', keys: ['v', 'V'] },
   /** Close the sidebar / clear selection. */
   CLEAR_SELECTION: { label: 'Esc', keys: ['Escape'] },
 };

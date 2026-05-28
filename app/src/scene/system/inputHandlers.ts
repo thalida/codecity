@@ -17,13 +17,11 @@ import type { PickTarget } from '@/types';
 import { formatRelativeAge } from '@/views/widgets/formatRelativeAge.js';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
-import type { createFlyControls } from './flyControls.js';
 
 export function createInputHandlers({
   canvas,
   picker,
   rig,
-  flyControls,
   renderer,
   camera,
   showTooltip,
@@ -35,15 +33,13 @@ export function createInputHandlers({
   canvas: HTMLCanvasElement;
   picker: ReturnType<typeof createPicker>;
   rig: ReturnType<typeof createCameraRig>;
-  flyControls: ReturnType<typeof createFlyControls>;
   renderer: THREE.WebGLRenderer;
   camera: THREE.PerspectiveCamera;
   showTooltip: (text: string, x: number, y: number) => void;
   hideTooltip: () => void;
   onResize: () => void;
-  /** Reset-view action triggered by R / gem-click. In orbit mode this
-   *  resets the camera; in fly mode it routes to flyControls.resetToDefault().
-   *  Does NOT rebuild the manifest — a page reload is required for that. */
+  /** Reset-view action triggered by R / gem-click. Does NOT rebuild the
+   *  manifest — a page reload is required for that. */
   onResetView: () => void;
   /** Resolve the current root directory name for hover-tooltip prefixing.
    * Called lazily on each hover so it stays in sync after manifest reloads. */
@@ -135,12 +131,10 @@ export function createInputHandlers({
 
   function _processHoverRaf() {
     _hoverRafId = 0;
-    // Suppress hover while camera is moving — orbit drag (start/end events)
-    // OR fly-mode look-drag (left/right click held in fly mode). The
-    // outline/fader cascade is visually noisy while the camera rotates,
+    // Suppress hover while camera is moving — orbit drag (start/end events).
+    // The outline/fader cascade is visually noisy while the camera rotates,
     // so we just skip the raycast until the drag ends.
     if (_cameraMoving) return;
-    if (flyControls.isLooking()) return;
     const e = _hoverLastEvt;
     if (!e) return;
     const hit = picker.pickAt(e.clientX, e.clientY);
@@ -188,9 +182,7 @@ export function createInputHandlers({
     }
     if (hit.object.userData.type === NodeKind.Gem) {
       picker.setSelection(null);
-      // Gem click = reset view, same as the R key and the header gem
-      // button. The mode-aware reset (orbit reset vs fly-mode
-      // resetToDefault) is decided inside onResetView.
+      // Gem click = reset view, same as the R key and the header gem button.
       onResetView();
       return;
     }
@@ -291,25 +283,11 @@ export function createInputHandlers({
     const tag = (targetEl && targetEl.tagName) || '';
     if (TEXT_INPUT_TAGS.includes(tag) || (targetEl && targetEl.isContentEditable)) return;
 
-    if (KEY_BINDINGS.TOGGLE_FLY_MODE.keys.includes(ev.key)) {
-      ev.preventDefault();
-      if (flyControls.isActive()) {
-        flyControls.disable();
-      } else {
-        flyControls.enable();
-      }
-      return;
-    }
-
     if (KEY_BINDINGS.CLEAR_SELECTION.keys.includes(ev.key)) {
-      // Same behaviour in both modes: clear selection. In fly mode the
-      // browser also releases pointer lock on Esc, which auto-exits fly
-      // mode via the pointerlockchange handler — no special branch needed.
       picker.setSelection(null);
       picker.setHover(null);
     } else if (KEY_BINDINGS.RESET_VIEW.keys.includes(ev.key)) {
-      // Same behaviour in both modes: reset to current-mode default. No
-      // manifest rebuild — reload the page for that.
+      // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
       const sel = picker.selection.get();

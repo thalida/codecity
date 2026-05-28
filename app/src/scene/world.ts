@@ -994,8 +994,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // buildings (rendered separately via the cell-based instanced
       // renderer). Expand the bbox to include each building's XZ footprint
       // + Y height so downstream consumers (sceneBbox sizing, camera
-      // framing in cameraRig, fly-mode bounds in flyControls) get the
-      // FULL visible city.
+      // framing in cameraRig) get the FULL visible city.
       for (const b of newLayout.buildings) {
         bbox.expandByPoint(new THREE.Vector3(b.x - b.w / 2, 0, b.y - b.d / 2));
         bbox.expandByPoint(new THREE.Vector3(b.x + b.w / 2, b.h, b.y + b.d / 2));

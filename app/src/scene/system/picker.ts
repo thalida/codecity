@@ -347,19 +347,6 @@ export function createPicker({
     return null;
   }
 
-  // pickAtCenter() — raycast straight forward from the camera at screen
-  // center. Used by fly mode where the pointer is locked and the
-  // implicit target is the camera's forward direction. Same pickables
-  // list as pickAt() and same tie-break logic.
-  function pickAtCenter(): THREE.Intersection<THREE.Object3D> | null {
-    // Pointer at NDC (0, 0) = screen center.
-    pointer.x = 0;
-    pointer.y = 0;
-    raycaster.setFromCamera(pointer, camera);
-    const hits = raycaster.intersectObjects(pickables, false);
-    return _resolveTieBreak(hits);
-  }
-
   function dispose() {
     if (typeof _unsubResolve === 'function') _unsubResolve();
   }
@@ -372,7 +359,6 @@ export function createPicker({
     setSelection,
     selectByPath,
     pickAt,
-    pickAtCenter,
     interpretHit,
     dispose,
   };

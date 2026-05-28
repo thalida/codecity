@@ -47,8 +47,6 @@ import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
-  // Fly mode
-  FLY_CONTROLS,
 } from '@/config/index.js';
 import { SKY, SKY_STARS } from '@/config/components/sky.js';
 import { REPO_LABEL } from '@/config/components/repoLabel.js';
@@ -139,8 +137,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // Sections are organized by render scope, then interaction:
   //   Keyboard & mouse → Scan & Updates → Scene → Layout →
   //   Buildings → Streets → Root gem → Effects → File Preview → Debug.
-  // (Fly mode tuning lives inside Keyboard & mouse as a collapsible
-  // subgroup next to the fly-mode shortcuts cheat sheet.)
   //
   // (Camera tween timing / easing — BASE_DURATION_MS, EASING_POWER — is
   // intentionally NOT exposed to users. The defaults are tuned for the
@@ -232,67 +228,13 @@ function _buildShortcutsSection(): HTMLElement {
           action: 'Focus camera on the current selection',
         },
         { kbd: [KEY_BINDINGS.CLEAR_SELECTION.label], action: 'Clear selection' },
-        { kbd: [KEY_BINDINGS.TOGGLE_FLY_MODE.label], action: 'Toggle fly mode' },
         null,
         { mouse: 'Click', action: 'Select building / street / gem' },
         { mouse: 'Double-click', action: 'Focus camera on the target' },
-      ]),
-    ])
-  );
-  section.appendChild(
-    _collapsibleSubgroup('keyboard-orbit-mode', 'Orbit mode', () => [
-      _buildShortcutsList([
         { mouse: 'Left drag', action: 'Orbit' },
         { mouse: 'Right drag', action: 'Pan' },
         { mouse: 'Middle drag', action: 'Dolly (zoom)' },
         { mouse: 'Scroll', action: 'Zoom toward cursor' },
-      ]),
-    ])
-  );
-  section.appendChild(
-    _collapsibleSubgroup('keyboard-fly-mode', 'Fly mode', () => [
-      _buildShortcutsList([
-        { kbd: ['W', 'A', 'S', 'D'], action: 'Forward / strafe' },
-        { kbd: ['Q', 'E'], action: 'Drop / rise' },
-        { kbd: ['Shift'], action: 'Boost (hold)' },
-        { mouse: 'Left / right drag', action: 'Look around' },
-      ]),
-    ])
-  );
-
-  // Fly-mode tuning — collapsible so the always-visible shortcut cheat
-  // sheet above stays compact. All values are read fresh per frame so
-  // edits take effect immediately; Save still required to persist across
-  // page reloads (same draft layer as every other tunable in this pane).
-  section.appendChild(
-    _collapsibleSubgroup('fly-mode-settings', 'Fly mode settings', () => [
-      _collapsibleSubgroup('fly-mode-speed', 'Speed', () => [
-        _number('Base speed (bbox fraction)', FLY_CONTROLS, 'BASE_SPEED_BBOX_FRAC', 0.01, 1, 0.01, {
-          tip: 'Base camera speed as a fraction of the world bounding-box radius. Scales automatically with city size.',
-        }),
-        _number('Base speed (min)', FLY_CONTROLS, 'BASE_SPEED_MIN', 0.1, 100, 0.5, {
-          tip: 'Minimum base speed in world units/sec — floor so the camera never crawls to a halt in tiny repos.',
-        }),
-        _number('Base speed (max)', FLY_CONTROLS, 'BASE_SPEED_MAX', 1, 2000, 5, {
-          tip: 'Maximum base speed in world units/sec — cap so the camera does not rocket through large repos.',
-        }),
-        _number('Boost multiplier', FLY_CONTROLS, 'BOOST_MULT', 1, 20, 0.5, {
-          tip: 'Speed multiplier applied while Shift is held. 1 = no boost; 4 = four times faster.',
-        }),
-      ]),
-      _collapsibleSubgroup('fly-mode-feel', 'Feel', () => [
-        _slider('Mouse sensitivity', FLY_CONTROLS, 'MOUSE_SENSITIVITY', 0.0005, 0.01, 0.0001, {
-          tip: 'Radians of view rotation per pixel of pointer-lock movement. Lower = slower, more precise; higher = faster.',
-        }),
-        _slider('Pitch clamp (deg)', FLY_CONTROLS, 'PITCH_CLAMP_DEG', 30, 89, 1, {
-          tip: 'Maximum up/down look angle in degrees. Prevents gimbal-lock at 90°.',
-        }),
-        _number('Accel ramp (ms)', FLY_CONTROLS, 'ACCEL_RAMP_MS', 0, 1000, 10, {
-          tip: 'Time in milliseconds to reach full speed from rest (and to coast to a stop). 0 = instant; higher = floaty.',
-        }),
-        _number('Altitude floor', FLY_CONTROLS, 'ALTITUDE_FLOOR', 0, 50, 0.1, {
-          tip: 'Minimum world-Y position — prevents flying below the ground plane.',
-        }),
       ]),
     ])
   );

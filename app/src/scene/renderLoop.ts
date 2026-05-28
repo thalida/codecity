@@ -24,7 +24,6 @@ import { SKY } from '@/config/components/sky.js';
 import { createWorld } from './world.js';
 import { refreshBuildingMaterial } from './components/buildings/buildings.js';
 import { createCameraRig } from './system/cameraRig.js';
-import { createFlyControls } from './system/flyControls.js';
 import { createAnimator } from './system/animator.js';
 import { createPicker } from './system/picker.js';
 import { createInputHandlers } from './system/inputHandlers.js';
@@ -105,27 +104,10 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // global ref); only used by tests/visual/setup.ts.
   (window as Window & { __rig?: typeof rig }).__rig = rig;
 
-  // Fly mode — first-person WASD camera. Inactive at boot; toggled by V key
-  // and by the header button (wired in Tasks 10-13). Shares the same camera
-  // as the rig; while active, OrbitControls is disabled.
-  const flyControls = createFlyControls({
-    camera,
-    canvas,
-    rig,
-    world,
-  });
-
-  // Single mode-aware reset shared by every entry point: R key, header gem
-  // button, in-scene gem click/dblclick. In orbit mode resets the rig; in
-  // fly mode returns the fly camera to its default pose. Does NOT rebuild
-  // the city manifest — a page reload is required for that.
-  function resetView(): void {
-    if (flyControls.isActive()) {
-      flyControls.resetToDefault();
-    } else {
-      rig.reset();
-    }
-  }
+  // Reset shared by every entry point: R key, header gem button, in-scene
+  // gem click/dblclick. Does NOT rebuild the city manifest — a page reload
+  // is required for that.
+  const resetView = rig.reset;
 
   // -- 4b. Post-processing -----------------------------------------------------
   // UnrealBloomPass on top of the main render so emissive windows actually
@@ -189,7 +171,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     world,
     picker,
     rig,
-    flyControls,
     resetView,
     applyTheme,
   });
@@ -382,7 +363,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     canvas,
     picker,
     rig,
-    flyControls,
     renderer,
     camera,
     showTooltip,
@@ -443,7 +423,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       }
     }
     rig.update(0); // first-call: bbox-frames camera
-    flyControls.update(16); // fly-mode integration; no-op when inactive
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
     // below project mesh positions and need fresh world matrices.
