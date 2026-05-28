@@ -40,6 +40,8 @@ export interface FireflyPlacement {
   colorHex: string;
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. */
   rgb: [number, number, number];
+  /** Per-instance scale derived from author commit count. 1.0 when SCALE_BY_COMMITS is off. */
+  scale: number;
 }
 
 /** Tiny deterministic PRNG seeded by a string. Mulberry32 on top of FNV-1a. */
@@ -66,7 +68,30 @@ export function placeFireflies(
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
-  const orbsPerTree = Math.max(0, Math.floor(FIREFLIES.get().ORBS_PER_TREE));
+  const fireflyConfig = FIREFLIES.get();
+  const orbsPerTree = Math.max(0, Math.floor(fireflyConfig.ORBS_PER_TREE));
+
+  // Tally commits per author and compute per-author scale.
+  const counts = new Map<string, number>();
+  for (const c of commits) {
+    counts.set(c.author, (counts.get(c.author) ?? 0) + 1);
+  }
+  let minCount = Infinity;
+  let maxCount = -Infinity;
+  for (const n of counts.values()) {
+    if (n < minCount) minCount = n;
+    if (n > maxCount) maxCount = n;
+  }
+  const authorScale = new Map<string, number>();
+  const range = Math.max(1, maxCount - minCount); // guard division-by-zero
+  for (const [author, n] of counts) {
+    if (!fireflyConfig.SCALE_BY_COMMITS) {
+      authorScale.set(author, 1.0);
+    } else {
+      const t = (n - minCount) / range;
+      authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
+    }
+  }
 
   const cfg = TREES.get();
   const minHeight = cfg.TREE_MIN_HEIGHT;
@@ -141,6 +166,7 @@ export function placeFireflies(
         pulsePhase,
         colorHex: color.hex,
         rgb: color.rgb,
+        scale: authorScale.get(commit.author) ?? 1.0,
       });
     }
   }

@@ -4,6 +4,8 @@
 // the orb's actual diameter is 2×ORB_RADIUS. BOB is the y-axis sinusoid
 // the shader applies to displace each orb; PULSE is a brightness
 // modulation (additive output color × (1 + pulseAmp * sin(...))).
+// v4 adds emission (HDR bloom), flicker (high-frequency brightness noise),
+// and per-author commit-count scaling.
 
 import { map } from 'nanostores';
 
@@ -24,6 +26,16 @@ export interface FirefliesConfig {
   PULSE_AMPLITUDE: number;
   /** Brightness pulse speed in radians/sec. */
   PULSE_SPEED: number;
+  /** Base brightness multiplier. >1 pushes output into HDR for the bloom pass to catch. */
+  EMISSION_STRENGTH: number;
+  /** Pseudo-random high-frequency brightness noise on top of the pulse. 0 = smooth pulse, 1 = jittery. */
+  FLICKER_AMOUNT: number;
+  /** When true, each author's orbs scale by [SCALE_MIN..SCALE_MAX] mapped from their commit count. */
+  SCALE_BY_COMMITS: boolean;
+  /** Scale multiplier for the author with the fewest commits. */
+  SCALE_MIN: number;
+  /** Scale multiplier for the author with the most commits. */
+  SCALE_MAX: number;
 }
 
 export const FIREFLIES = map<FirefliesConfig>({
@@ -35,4 +47,9 @@ export const FIREFLIES = map<FirefliesConfig>({
   BOB_SPEED: 1.1,
   PULSE_AMPLITUDE: 0.6,
   PULSE_SPEED: 1.5,
+  EMISSION_STRENGTH: 2.5,
+  FLICKER_AMOUNT: 0.3,
+  SCALE_BY_COMMITS: true,
+  SCALE_MIN: 0.5,
+  SCALE_MAX: 2.5,
 });

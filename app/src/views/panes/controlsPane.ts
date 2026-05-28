@@ -570,11 +570,20 @@ function _buildFirefliesSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('fireflies-size', 'Size', () => [
-      _slider('Orb radius', FIREFLIES, 'FIREFLY_RADIUS', 0.05, 1.5, 0.05, {
-        tip: 'Sphere radius in world units. The visible diameter is 2× this value. Rebuild on change.',
+      _slider('Orb radius', FIREFLIES, 'FIREFLY_RADIUS', 0.05, 3.0, 0.05, {
+        tip: 'Sphere radius in world units. Multiplied by per-author scale if "Scale by commits" is on. Rebuild on change.',
       }),
       _slider('Orbs per commit', FIREFLIES, 'ORBS_PER_TREE', 0, 10, 1, {
-        tip: 'Number of orbs spawned around each commit-tree. Total orb count = this × number of commits. Rebuild on change.',
+        tip: 'Number of orbs spawned around each commit-tree. Rebuild on change.',
+      }),
+      _toggle('Scale by commits', FIREFLIES, 'SCALE_BY_COMMITS', {
+        tip: 'When on, authors with more commits get bigger fireflies. Rebuild on change.',
+      }),
+      _slider('Scale min', FIREFLIES, 'SCALE_MIN', 0.1, 2.0, 0.05, {
+        tip: 'Multiplier for the author with the fewest commits. Rebuild on change.',
+      }),
+      _slider('Scale max', FIREFLIES, 'SCALE_MAX', 0.5, 5.0, 0.05, {
+        tip: 'Multiplier for the author with the most commits. Rebuild on change.',
       }),
     ])
   );
@@ -594,12 +603,18 @@ function _buildFirefliesSection(): HTMLElement {
   );
 
   section.appendChild(
-    _collapsibleSubgroup('fireflies-pulse', 'Brightness pulse', () => [
+    _collapsibleSubgroup('fireflies-pulse', 'Brightness', () => [
+      _slider('Emission strength', FIREFLIES, 'EMISSION_STRENGTH', 0, 5.0, 0.1, {
+        tip: 'Base brightness multiplier. >1 makes orbs glow (bloom). Lower = subtler.',
+      }),
       _slider('Pulse amplitude', FIREFLIES, 'PULSE_AMPLITUDE', 0, 1.0, 0.05, {
-        tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% brightness modulation.',
+        tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% modulation.',
       }),
       _slider('Pulse speed', FIREFLIES, 'PULSE_SPEED', 0, 5.0, 0.1, {
-        tip: 'How fast the brightness pulses in radians/sec. Higher = faster flickering.',
+        tip: 'How fast the pulse oscillates, radians/sec.',
+      }),
+      _slider('Flicker', FIREFLIES, 'FLICKER_AMOUNT', 0, 1.0, 0.05, {
+        tip: 'Random brightness jitter on top of the pulse. 0 = smooth, 1 = jittery.',
       }),
     ])
   );

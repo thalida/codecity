@@ -128,4 +128,60 @@ describe('placeFireflies', () => {
       expect(o.pulsePhase).not.toBe(o.phase);
     }
   });
+
+  it('scale-by-commits assigns larger scale to authors with more commits', () => {
+    // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
+    const commits = [
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Bob',   subject: 'b1' },
+      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), author: 'Bob',   subject: 'b2' },
+    ];
+    // Use 1 orb per tree so orbs map 1:1 to placements for easy indexing.
+    FIREFLIES.setKey('ORBS_PER_TREE', 1);
+    FIREFLIES.setKey('SCALE_BY_COMMITS', true);
+    try {
+      const orbs = placeFireflies(
+        [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
+        commits,
+      );
+      // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
+      const aliceOrb = orbs[0];
+      const bobOrb = orbs[1];
+      expect(bobOrb.scale).toBeGreaterThan(aliceOrb.scale);
+    } finally {
+      FIREFLIES.setKey('ORBS_PER_TREE', 3);
+      FIREFLIES.setKey('SCALE_BY_COMMITS', true);
+    }
+  });
+
+  it('SCALE_BY_COMMITS=false yields scale=1 for all orbs', () => {
+    FIREFLIES.setKey('SCALE_BY_COMMITS', false);
+    try {
+      const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+      for (const o of orbs) {
+        expect(o.scale).toBe(1.0);
+      }
+    } finally {
+      FIREFLIES.setKey('SCALE_BY_COMMITS', true);
+    }
+  });
+
+  it('all orbs from the same author share the same scale', () => {
+    // Use a fixture with 2 commits from the same author.
+    const sameAuthor = [
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a1' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Alice', subject: 'a2' },
+    ];
+    FIREFLIES.setKey('ORBS_PER_TREE', 1);
+    FIREFLIES.setKey('SCALE_BY_COMMITS', true);
+    try {
+      const orbs = placeFireflies(
+        [placement(0, 0, 0), placement(1, 10, 0)],
+        sameAuthor,
+      );
+      expect(orbs[0].scale).toBe(orbs[1].scale);
+    } finally {
+      FIREFLIES.setKey('ORBS_PER_TREE', 3);
+    }
+  });
 });

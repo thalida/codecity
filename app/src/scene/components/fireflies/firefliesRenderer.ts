@@ -58,6 +58,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const uPulseAmp = { value: cfg.PULSE_AMPLITUDE };
   const uPulseSpeed = { value: cfg.PULSE_SPEED };
   const uOrbitSpeed = { value: cfg.ORBIT_SPEED };
+  const uEmission = { value: cfg.EMISSION_STRENGTH };
+  const uFlicker = { value: cfg.FLICKER_AMOUNT };
 
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
@@ -78,6 +80,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.uniforms.uPulseAmp = uPulseAmp;
     shader.uniforms.uPulseSpeed = uPulseSpeed;
     shader.uniforms.uOrbitSpeed = uOrbitSpeed;
+    shader.uniforms.uEmission = uEmission;
+    shader.uniforms.uFlicker = uFlicker;
 
     // VERTEX: declare per-instance attributes + uniforms, compute orbit + bob, output pulse varying.
     shader.vertexShader = shader.vertexShader.replace(
@@ -110,20 +114,30 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);`,
     );
 
-    // FRAGMENT: declare varying + multiply final color by vPulse.
+    // FRAGMENT: declare varying + uniforms, then multiply final color by
+    // the composed brightness pipeline: vPulse × flicker × emission.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <common>',
       `#include <common>
-       varying float vPulse;`,
+       varying float vPulse;
+       uniform float uTime;
+       uniform float uEmission;
+       uniform float uFlicker;`,
     );
-    // Multiply the final output color by the pulse factor. Three.js's
-    // built-in MeshBasicMaterial sets `gl_FragColor` near the end of main();
-    // safely patch by replacing the <output_fragment> include with one that
-    // applies the pulse after the include's own assignment.
+    // Multiply the final output color by the composed brightness signal.
+    // Three.js's built-in MeshBasicMaterial sets `gl_FragColor` near the
+    // end of main(); safely patch by replacing the <output_fragment>
+    // include with one that applies the chain after the include's own
+    // assignment.
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <output_fragment>',
       `#include <output_fragment>
-       gl_FragColor.rgb *= vPulse;`,
+       // Flicker: high-frequency pseudo-random brightness noise, layered on
+       // top of the smooth pulse. Hash-based so it's deterministic per fragment
+       // but varies wildly with time.
+       float flickerNoise = fract(sin(uTime * 17.0 + vPulse * 13.0) * 43758.5453);
+       float flicker = mix(1.0, flickerNoise, uFlicker);
+       gl_FragColor.rgb *= vPulse * flicker * uEmission;`,
     );
   };
 
@@ -140,7 +154,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   for (let i = 0; i < orbs.length; i++) {
     const o = orbs[i];
     dummy.position.set(o.treeX, o.height, o.treeZ);
-    dummy.scale.setScalar(1);
+    dummy.scale.setScalar(o.scale);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
     // rgb values from FireflyPlacement are already linear-RGB (0..1).
@@ -166,6 +180,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uPulseAmp.value = next.PULSE_AMPLITUDE;
       uPulseSpeed.value = next.PULSE_SPEED;
       uOrbitSpeed.value = next.ORBIT_SPEED;
+      uEmission.value = next.EMISSION_STRENGTH;
+      uFlicker.value = next.FLICKER_AMOUNT;
     },
     dispose() {
       geometry.dispose();
