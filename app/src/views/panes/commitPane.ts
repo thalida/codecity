@@ -58,13 +58,16 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   body.className = 'pane-body commit-body';
   pane.appendChild(body);
 
-  // Tracks the currently-active message-body placeholder so a late fetch
-  // result from a previous commit doesn't clobber the current view. Each
-  // _renderCommit assigns a fresh placeholder; _renderEmpty nulls it.
-  let _currentPlaceholder: HTMLElement | null = null;
+  // SHA-based race guard: tracks the most recently requested commit sha so
+  // late fetch results from a previous commit are silently dropped.
+  let _currentSha: string | null = null;
+
+  // Body cache: sha → fetched body text (empty string is a valid cached value).
+  // Lives on the pane instance; never invalidated (commits are immutable).
+  const _bodyCache = new Map<string, string>();
 
   function _renderEmpty(): void {
-    _currentPlaceholder = null;
+    _currentSha = null;
     headerApi.setTitle('Commit');
     body.replaceChildren();
     const box = document.createElement('div');
@@ -81,37 +84,31 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     body.appendChild(box);
   }
 
-  function _renderCommit(
+  function _renderLoading(): void {
+    body.replaceChildren();
+    const loading = document.createElement('div');
+    loading.className = 'commit-loading';
+    loading.textContent = 'Loading commit…';
+    body.appendChild(loading);
+  }
+
+  function _renderError(err: unknown): void {
+    body.replaceChildren();
+    const errEl = document.createElement('div');
+    errEl.className = 'commit-message-error';
+    errEl.textContent = `Failed to load commit: ${err instanceof Error ? err.message : String(err)}`;
+    body.appendChild(errEl);
+  }
+
+  function _renderFullContent(
     commit: CommitEntry,
     remoteUrl: string | null,
     sameDayTotal: number,
     color: string | undefined,
-    now: Date
+    now: Date,
+    bodyText: string
   ): void {
     body.replaceChildren();
-
-    // ── Pane header title: "Commit <short-sha>" + optional open link ────
-    const titleText = document.createTextNode('Commit ');
-    const shaEl = document.createElement('span');
-    shaEl.className = 'commit-sha';
-    shaEl.textContent = commit.sha.slice(0, SHORT_SHA_LEN);
-
-    const titleNodes: Node[] = [titleText, shaEl];
-
-    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
-    if (url) {
-      const link = document.createElement('a');
-      link.className = 'commit-open btn-icon btn-icon--link';
-      link.href = url;
-      link.target = '_blank';
-      link.rel = 'noopener noreferrer';
-      link.title = 'Open this commit on the origin remote';
-      link.setAttribute('aria-label', 'Open commit on origin');
-      link.appendChild(makeLucideIcon('external-link'));
-      titleNodes.push(link);
-    }
-
-    headerApi.setTitleChildren(titleNodes);
 
     // ── Author row ───────────────────────────────────────────────────
     const authorEl = document.createElement('div');
@@ -126,7 +123,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     authorEl.appendChild(authorName);
     body.appendChild(authorEl);
 
-    // ── Commit message block (subject + lazy-fetched body) ───────────
+    // ── Commit message block (subject + body if non-empty) ───────────
     const messageEl = document.createElement('div');
     messageEl.className = 'commit-message';
 
@@ -135,40 +132,13 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     subjectEl.textContent = commit.subject || '(no subject)';
     messageEl.appendChild(subjectEl);
 
-    // Render a placeholder immediately, fire the fetch in parallel, and
-    // swap the placeholder for the body (or error) once it resolves.
-    // The closure-based identity check guards against race: if another
-    // commit is selected while this fetch is in flight, _currentPlaceholder
-    // points at a different element and we silently drop the late result.
-    const placeholder = document.createElement('div');
-    placeholder.className = 'commit-message-loading';
-    placeholder.textContent = 'Loading message…';
-    messageEl.appendChild(placeholder);
-    _currentPlaceholder = placeholder;
-
-    fetchCommitDetail(commit.sha).then(
-      (detail) => {
-        if (placeholder !== _currentPlaceholder) return;
-        if (detail.body && detail.body.trim()) {
-          const msgBodyEl = document.createElement('pre');
-          msgBodyEl.className = 'commit-message-body';
-          msgBodyEl.textContent = detail.body;
-          placeholder.replaceWith(msgBodyEl);
-        } else {
-          // One-liner commit: no body to show, just remove the placeholder.
-          placeholder.remove();
-        }
-        _currentPlaceholder = null;
-      },
-      (err) => {
-        if (placeholder !== _currentPlaceholder) return;
-        const errEl = document.createElement('div');
-        errEl.className = 'commit-message-error';
-        errEl.textContent = `Failed to load full message: ${err.message ?? err}`;
-        placeholder.replaceWith(errEl);
-        _currentPlaceholder = null;
-      }
-    );
+    const trimmed = bodyText.trim();
+    if (trimmed) {
+      const msgBodyEl = document.createElement('pre');
+      msgBodyEl.className = 'commit-message-body';
+      msgBodyEl.textContent = bodyText;
+      messageEl.appendChild(msgBodyEl);
+    }
 
     body.appendChild(messageEl);
 
@@ -216,6 +186,61 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       note.textContent = 'No remote configured';
       body.appendChild(note);
     }
+  }
+
+  function _renderCommit(
+    commit: CommitEntry,
+    remoteUrl: string | null,
+    sameDayTotal: number,
+    color: string | undefined,
+    now: Date
+  ): void {
+    _currentSha = commit.sha;
+
+    // Update the pane header title to "Commit <short-sha>" + optional open
+    // link. This happens immediately, even during loading, so the user sees
+    // what they clicked on right away.
+    const titleNodes: Node[] = [document.createTextNode('Commit ')];
+    const shaEl = document.createElement('span');
+    shaEl.className = 'commit-sha';
+    shaEl.textContent = commit.sha.slice(0, SHORT_SHA_LEN);
+    titleNodes.push(shaEl);
+    const url = remoteUrl ? commitUrl(remoteUrl, commit.sha) : null;
+    if (url) {
+      const link = document.createElement('a');
+      link.className = 'commit-open btn-icon btn-icon--link';
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.title = 'Open this commit on the origin remote';
+      link.setAttribute('aria-label', 'Open commit on origin');
+      link.appendChild(makeLucideIcon('external-link'));
+      titleNodes.push(link);
+    }
+    headerApi.setTitleChildren(titleNodes);
+
+    // Cache hit → render immediately, no loading state.
+    const cached = _bodyCache.get(commit.sha);
+    if (cached !== undefined) {
+      _renderFullContent(commit, remoteUrl, sameDayTotal, color, now, cached);
+      return;
+    }
+
+    // Cache miss → pane-wide loading state, then render on resolve.
+    _renderLoading();
+    const fetchSha = commit.sha;
+    fetchCommitDetail(fetchSha).then(
+      (detail) => {
+        const bodyText = detail.body ?? '';
+        _bodyCache.set(fetchSha, bodyText);
+        if (_currentSha !== fetchSha) return;
+        _renderFullContent(commit, remoteUrl, sameDayTotal, color, now, bodyText);
+      },
+      (err) => {
+        if (_currentSha !== fetchSha) return;
+        _renderError(err);
+      }
+    );
   }
 
   function setCommit(commit: CommitEntry | null, opts: SetCommitOpts = {}): void {

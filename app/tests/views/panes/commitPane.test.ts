@@ -15,7 +15,22 @@ const COMMIT: CommitEntry = {
 };
 
 describe('buildCommitPane', () => {
-  beforeEach(resetDom);
+  beforeEach(() => {
+    resetDom();
+    // Default: every fetch resolves to an empty body so existing tests don't
+    // hang in loading state. Individual tests can override globalThis.fetch.
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          sha: '',
+          author: '',
+          date: '',
+          subject: '',
+          body: '',
+        }),
+        { status: 200 }
+      )) as unknown as typeof fetch;
+  });
 
   it('returns a .pane wrapper with a pane-header titled "Commit"', () => {
     const { pane } = buildCommitPane({});
@@ -30,44 +45,53 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('renders short SHA, age, files changed, and an open-on-origin link', () => {
+  it('renders short SHA, age, files changed, and an open-on-origin link', async () => {
     const { pane, api } = buildCommitPane({});
     const now = new Date('2026-05-24T12:00:00Z');
     api.setCommit(COMMIT, { remoteUrl: 'https://github.com/org/repo', now });
 
-    // SHA is inside the pane header title
+    // SHA is inside the pane header title (set synchronously even during loading)
     expect(pane.querySelector('.text-pane-title .commit-sha')!.textContent).toBe('a1b2c3d');
 
-    // Age is inside .commit-meta
-    expect(pane.querySelector('.commit-age')!.textContent).toContain('2 months ago');
-
-    // Files is inside .commit-meta
-    expect(pane.querySelector('.commit-files')!.textContent).toBe('4 files changed');
-
-    // Open link is in the pane header title
+    // Open link is in the pane header title (also set synchronously)
     const link = pane.querySelector('.text-pane-title .commit-open') as HTMLAnchorElement;
     expect(link).not.toBeNull();
     expect(link.href).toBe(`https://github.com/org/repo/commit/${COMMIT.sha}`);
     expect(link.target).toBe('_blank');
     expect(link.rel).toContain('noopener');
     expect(link.rel).toContain('noreferrer');
+
+    // Wait for fetch to resolve so the rest of the content renders.
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Age is inside .commit-meta
+    expect(pane.querySelector('.commit-age')!.textContent).toContain('2 months ago');
+
+    // Files is inside .commit-meta
+    expect(pane.querySelector('.commit-files')!.textContent).toBe('4 files changed');
   });
 
-  it('uses singular "1 file changed" when files is 1', () => {
+  it('uses singular "1 file changed" when files is 1', async () => {
     const { pane, api } = buildCommitPane({});
     const oneFile: CommitEntry = { ...COMMIT, files: 1 };
     api.setCommit(oneFile, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-meta .commit-files')!.textContent).toBe('1 file changed');
   });
 
-  it('hides the open link and shows a no-remote hint when remoteUrl is null', () => {
+  it('hides the open link and shows a no-remote hint when remoteUrl is null', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { remoteUrl: null, now: new Date('2026-05-24T12:00:00Z') });
+    // Open link check is synchronous (set in header before fetch).
     expect(pane.querySelector('.text-pane-title .commit-open')).toBeNull();
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-no-remote')).not.toBeNull();
   });
 
-  it('setCommit(null) returns to the empty state', () => {
+  it('setCommit(null) returns to the empty state', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       remoteUrl: 'https://github.com/org/repo',
@@ -91,9 +115,11 @@ describe('buildCommitPane', () => {
 
   // ── Age / date ────────────────────────────────────────────────────────────
 
-  it("shows the full ISO date in the age span's title attribute", () => {
+  it("shows the full ISO date in the age span's title attribute", async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     const ageEl = pane.querySelector('.commit-age') as HTMLElement;
     expect(ageEl).not.toBeNull();
     expect(ageEl.title).toBe(COMMIT.date);
@@ -101,38 +127,46 @@ describe('buildCommitPane', () => {
 
   // ── Same-day count ────────────────────────────────────────────────────────
 
-  it('shows "N commits that day" when sameDayTotal > 1', () => {
+  it('shows "N commits that day" when sameDayTotal > 1', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     const sameDayEl = pane.querySelector('.commit-same-day');
     expect(sameDayEl).not.toBeNull();
     expect(sameDayEl!.textContent).toMatch(/\d+ commits that day/);
   });
 
-  it('shows "1 commit that day" (singular) when sameDayTotal === 1', () => {
+  it('shows "1 commit that day" (singular) when sameDayTotal === 1', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 1, now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     const sameDayEl = pane.querySelector('.commit-same-day');
     expect(sameDayEl).not.toBeNull();
     expect(sameDayEl!.textContent).toMatch(/1 commit that day/);
   });
 
-  it('omits .commit-same-day when sameDayTotal is not provided', () => {
+  it('omits .commit-same-day when sameDayTotal is not provided', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(pane.querySelector('.commit-same-day')).toBeNull();
   });
 
-  it('shows a colored swatch inside .commit-same-day when color is provided', () => {
+  it('shows a colored swatch inside .commit-same-day when color is provided', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       color: '#5e8a3a',
       sameDayTotal: 3,
       now: new Date('2026-05-24T12:00:00Z'),
     });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     // Swatch lives inside .commit-same-day, NOT in the pane header.
     const swatch = pane.querySelector('.commit-same-day > .commit-swatch') as HTMLElement;
@@ -143,17 +177,21 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.pane-header .commit-swatch')).toBeNull();
   });
 
-  it('omits .commit-swatch when color is undefined', () => {
+  it('omits .commit-swatch when color is undefined', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(pane.querySelector('.commit-swatch')).toBeNull();
   });
 
-  it('omits .commit-swatch when sameDayTotal is undefined or 0', () => {
+  it('omits .commit-swatch when sameDayTotal is undefined or 0', async () => {
     const { pane, api } = buildCommitPane({});
     // sameDayTotal undefined
     api.setCommit(COMMIT, { color: '#5e8a3a', now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-swatch')).toBeNull();
 
     // sameDayTotal === 0
@@ -162,38 +200,46 @@ describe('buildCommitPane', () => {
       sameDayTotal: 0,
       now: new Date('2026-05-24T12:00:00Z'),
     });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-swatch')).toBeNull();
   });
 
   // ── Busyness label ────────────────────────────────────────────────────────
 
-  it('labels sameDayTotal=1 as a Light day', () => {
+  it('labels sameDayTotal=1 as a Light day', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 1,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-same-day')!.textContent).toMatch(/Light day/);
   });
 
-  it('labels sameDayTotal=5 as an Avg day', () => {
+  it('labels sameDayTotal=5 as an Avg day', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 5,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-same-day')!.textContent).toMatch(/Avg day/);
   });
 
-  it('labels sameDayTotal=20 as a Busy day', () => {
+  it('labels sameDayTotal=20 as a Busy day', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, {
       sameDayTotal: 20,
       color: '#abc',
       now: new Date('2026-05-24T12:00:00Z'),
     });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     expect(pane.querySelector('.commit-same-day')!.textContent).toMatch(/Busy day/);
   });
 
@@ -202,6 +248,7 @@ describe('buildCommitPane', () => {
   it('sets the pane header title to "Commit <short-sha>"', () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // Title is set synchronously before the fetch.
     const title = pane.querySelector('.text-pane-title') as HTMLElement;
     expect(title.textContent).toContain('Commit');
     expect(title.querySelector('.commit-sha')!.textContent).toBe(COMMIT.sha.slice(0, 7));
@@ -221,6 +268,8 @@ describe('buildCommitPane', () => {
     const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
     const authorEl = pane.querySelector('.commit-author');
     expect(authorEl).not.toBeNull();
@@ -240,9 +289,11 @@ describe('buildCommitPane', () => {
 
   // ── Message block ─────────────────────────────────────────────────────────
 
-  it('renders the commit subject inside .commit-message-subject (full text, not ellipsized)', () => {
+  it('renders the commit subject inside .commit-message-subject (full text, not ellipsized)', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
     const subjectEl = pane.querySelector('.commit-message-subject') as HTMLElement;
     expect(subjectEl).not.toBeNull();
     expect(subjectEl.textContent).toBe(COMMIT.subject);
@@ -250,8 +301,48 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-subject')).toBeNull();
   });
 
-  it('auto-fetches the full message body when a commit is set', async () => {
-    const origFetch = globalThis.fetch;
+  // ── Pane-wide loading state ───────────────────────────────────────────────
+
+  it('shows a pane-wide loading state until the fetch resolves', async () => {
+    let resolveFn!: (resp: Response) => void;
+    const pending = new Promise<Response>((r) => {
+      resolveFn = r;
+    });
+    globalThis.fetch = (async () => pending) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+
+    // Loading shows; the rest of the content is hidden.
+    expect(pane.querySelector('.commit-loading')).not.toBeNull();
+    expect(pane.querySelector('.commit-author')).toBeNull();
+    expect(pane.querySelector('.commit-message')).toBeNull();
+    expect(pane.querySelector('.commit-meta')).toBeNull();
+
+    // Resolve the fetch.
+    resolveFn(
+      new Response(
+        JSON.stringify({
+          sha: COMMIT.sha,
+          author: COMMIT.author,
+          date: COMMIT.date,
+          subject: COMMIT.subject,
+          body: 'a body',
+        }),
+        { status: 200 }
+      )
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Loading gone, content visible.
+    expect(pane.querySelector('.commit-loading')).toBeNull();
+    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    expect(pane.querySelector('.commit-message-body')!.textContent).toBe('a body');
+  });
+
+  // ── Body cache ────────────────────────────────────────────────────────────
+
+  it('caches the body so a second select of the same commit skips the fetch', async () => {
     const fetchSpy = vi.fn(
       async () =>
         new Response(
@@ -260,58 +351,65 @@ describe('buildCommitPane', () => {
             author: COMMIT.author,
             date: COMMIT.date,
             subject: COMMIT.subject,
-            body: 'Body line one.\nBody line two.',
+            body: 'cached body',
           }),
           { status: 200 }
         )
     );
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    expect(pane.querySelector('.commit-message-body')!.textContent).toBe('cached body');
 
-    try {
-      const { pane, api } = buildCommitPane({});
-      api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-
-      // Loading placeholder is in the DOM before the fetch resolves.
-      expect(pane.querySelector('.commit-message-loading')).not.toBeNull();
-      expect(pane.querySelector('.commit-expand')).toBeNull();
-
-      // Wait a tick for the fetch promise to settle.
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
-
-      const msgBody = pane.querySelector('.commit-message-body') as HTMLElement;
-      expect(msgBody).not.toBeNull();
-      expect(msgBody.textContent).toContain('Body line one.');
-      expect(msgBody.textContent).toContain('Body line two.');
-      expect(pane.querySelector('.commit-message-loading')).toBeNull();
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      expect(fetchSpy).toHaveBeenCalledWith(`/api/commit?sha=${encodeURIComponent(COMMIT.sha)}`);
-    } finally {
-      globalThis.fetch = origFetch;
-    }
+    // Re-select the same commit. Should render immediately from cache, no new fetch.
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // No loading state — render is synchronous from cache.
+    expect(pane.querySelector('.commit-loading')).toBeNull();
+    expect(pane.querySelector('.commit-message-body')!.textContent).toBe('cached body');
+    expect(fetchSpy).toHaveBeenCalledTimes(1); // still 1, no new fetch
   });
 
-  it('shows an error inline when the body fetch fails', async () => {
-    const origFetch = globalThis.fetch;
+  it('omits the body <pre> when the fetched body is empty', async () => {
+    globalThis.fetch = (async () =>
+      new Response(
+        JSON.stringify({
+          sha: COMMIT.sha,
+          author: COMMIT.author,
+          date: COMMIT.date,
+          subject: COMMIT.subject,
+          body: '', // empty body
+        }),
+        { status: 200 }
+      )) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    // Subject is present.
+    expect(pane.querySelector('.commit-message-subject')).not.toBeNull();
+    // Body is NOT present.
+    expect(pane.querySelector('.commit-message-body')).toBeNull();
+  });
+
+  it('shows an error at body level when the body fetch fails', async () => {
     globalThis.fetch = (async () =>
       new Response('boom', { status: 500 })) as unknown as typeof fetch;
-    try {
-      const { pane, api } = buildCommitPane({});
-      api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-      // Auto-fetch fires on setCommit; no click needed.
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
-      const err = pane.querySelector('.commit-message-error') as HTMLElement;
-      expect(err).not.toBeNull();
-      expect(err.textContent).toMatch(/failed/i);
-    } finally {
-      globalThis.fetch = origFetch;
-    }
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // Auto-fetch fires on setCommit; no click needed.
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const err = pane.querySelector('.commit-message-error') as HTMLElement;
+    expect(err).not.toBeNull();
+    expect(err.textContent).toMatch(/failed/i);
   });
 
   it('drops a late fetch result when the pane has moved to a different commit', async () => {
     // Fetch for the first commit hangs, then resolves AFTER the second
-    // commit's render has replaced the placeholder. The late result must
+    // commit's render has replaced the body. The late result must
     // NOT clobber the second commit's body.
     let resolveFirst!: (resp: Response) => void;
     const firstFetchPromise = new Promise<Response>((r) => {
@@ -322,7 +420,6 @@ describe('buildCommitPane', () => {
       sha: 'b'.repeat(40),
       subject: 'second commit',
     };
-    const origFetch = globalThis.fetch;
     globalThis.fetch = (async (url: string) => {
       if (url.includes(COMMIT.sha)) return firstFetchPromise;
       return new Response(
@@ -337,41 +434,36 @@ describe('buildCommitPane', () => {
       );
     }) as unknown as typeof fetch;
 
-    try {
-      const { pane, api } = buildCommitPane({});
-      // First commit — placeholder rendered, fetch in flight.
-      api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-      // Second commit — re-renders the body region. First fetch's
-      // placeholder is now detached.
-      api.setCommit(SECOND_COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
+    const { pane, api } = buildCommitPane({});
+    // First commit — loading state, fetch in flight.
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // Second commit — re-renders loading. First fetch's sha no longer current.
+    api.setCommit(SECOND_COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
-      // Second commit's body is showing.
-      const msgBody = pane.querySelector('.commit-message-body') as HTMLElement;
-      expect(msgBody.textContent).toContain('second body');
+    // Second commit's body is showing.
+    const msgBody = pane.querySelector('.commit-message-body') as HTMLElement;
+    expect(msgBody.textContent).toContain('second body');
 
-      // Now the first fetch finally resolves. It should be silently dropped.
-      resolveFirst(
-        new Response(
-          JSON.stringify({
-            sha: COMMIT.sha,
-            author: COMMIT.author,
-            date: COMMIT.date,
-            subject: COMMIT.subject,
-            body: 'first body (LATE)',
-          }),
-          { status: 200 }
-        )
-      );
-      await new Promise((r) => setTimeout(r, 0));
-      await new Promise((r) => setTimeout(r, 0));
+    // Now the first fetch finally resolves. It should be silently dropped.
+    resolveFirst(
+      new Response(
+        JSON.stringify({
+          sha: COMMIT.sha,
+          author: COMMIT.author,
+          date: COMMIT.date,
+          subject: COMMIT.subject,
+          body: 'first body (LATE)',
+        }),
+        { status: 200 }
+      )
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
 
-      // Second commit's body is still showing, not clobbered.
-      expect(pane.querySelector('.commit-message-body')!.textContent).toContain('second body');
-      expect(pane.querySelector('.commit-message-body')!.textContent).not.toContain('LATE');
-    } finally {
-      globalThis.fetch = origFetch;
-    }
+    // Second commit's body is still showing, not clobbered.
+    expect(pane.querySelector('.commit-message-body')!.textContent).toContain('second body');
+    expect(pane.querySelector('.commit-message-body')!.textContent).not.toContain('LATE');
   });
 });
