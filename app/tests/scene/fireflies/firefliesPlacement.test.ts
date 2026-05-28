@@ -39,7 +39,7 @@ describe('placeFireflies', () => {
     const b = placeFireflies([placement(0, 0, 0)], altCommits);
     let anyDifferent = false;
     for (let i = 0; i < a.length; i++) {
-      if (a[i].x !== b[i].x || a[i].y !== b[i].y || a[i].z !== b[i].z) {
+      if (a[i].x !== b[i].x || a[i].height !== b[i].height || a[i].z !== b[i].z) {
         anyDifferent = true; break;
       }
     }

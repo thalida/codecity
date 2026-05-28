@@ -69,6 +69,11 @@ export function placeFireflies(
   const ageRange = computeAgeRange(commits);
   const sizeRange = computeSizeRange(commits);
 
+  // NOTE: treeHeight and treeRadius below mirror perTreeHeight / perTreeRadius in
+  // scene/components/trees/treeRenderer.ts. Keep in sync — if the renderer's size
+  // formulas change, this module must change too, otherwise fireflies drift away
+  // from their trees.
+
   /** Canopy height for tree at index i, mirroring treeRenderer's perTreeHeight. */
   function treeHeight(commitIndex: number): number {
     const commit = commits[commitIndex];
