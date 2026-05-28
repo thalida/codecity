@@ -6,7 +6,7 @@ import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 
 const COMMITS: CommitEntry[] = [
   { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'one' },
-  { date: '2026-01-02', files: 2, sha: 'b'.repeat(40), author: 'Bob',   subject: 'two' },
+  { date: '2026-01-02', files: 2, sha: 'b'.repeat(40), author: 'Bob', subject: 'two' },
 ];
 
 // TreePlacement has { x, y, seed, commitIndex } — no height/radius fields.
@@ -36,10 +36,7 @@ describe('placeFireflies', () => {
 
   it('returns different orbital params for different commit SHAs', () => {
     const a = placeFireflies([placement(0, 0, 0)], COMMITS);
-    const altCommits: CommitEntry[] = [
-      { ...COMMITS[0], sha: 'c'.repeat(40) },
-      COMMITS[1],
-    ];
+    const altCommits: CommitEntry[] = [{ ...COMMITS[0], sha: 'c'.repeat(40) }, COMMITS[1]];
     const b = placeFireflies([placement(0, 0, 0)], altCommits);
     let anyDifferent = false;
     for (let i = 0; i < a.length; i++) {
@@ -48,7 +45,8 @@ describe('placeFireflies', () => {
         a[i].orbitRadius !== b[i].orbitRadius ||
         a[i].height !== b[i].height
       ) {
-        anyDifferent = true; break;
+        anyDifferent = true;
+        break;
       }
     }
     expect(anyDifferent).toBe(true);
@@ -62,7 +60,7 @@ describe('placeFireflies', () => {
     // Use loose bounds: orbitRadius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
     // height ≤ TREE_MAX_HEIGHT * 1.4.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
-    const MAX_HEIGHT_BOUND = 64 * 1.4;        // ~89.6
+    const MAX_HEIGHT_BOUND = 64 * 1.4; // ~89.6
     const p = placement(0, 100, 200);
     const orbs = placeFireflies([p], COMMITS);
     for (const o of orbs) {
@@ -78,9 +76,7 @@ describe('placeFireflies', () => {
   });
 
   it('emits authorColor per-orb from the commit author', async () => {
-    const { colorForAuthor } = await import(
-      '@/scene/components/fireflies/authorColor.js'
-    );
+    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
     const expected = colorForAuthor(COMMITS[0].author).hex;
     for (const o of orbs) {
@@ -133,15 +129,15 @@ describe('placeFireflies', () => {
     // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
     const commits = [
       { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Bob',   subject: 'b1' },
-      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), author: 'Bob',   subject: 'b2' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Bob', subject: 'b1' },
+      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), author: 'Bob', subject: 'b2' },
     ];
     // Use 1 orb per tree so orbs map 1:1 to placements for easy indexing.
     FIREFLIES.setKey('ORBS_PER_TREE', 1);
     try {
       const orbs = placeFireflies(
         [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
-        commits,
+        commits
       );
       // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
       const aliceOrb = orbs[0];
@@ -172,10 +168,7 @@ describe('placeFireflies', () => {
     ];
     FIREFLIES.setKey('ORBS_PER_TREE', 1);
     try {
-      const orbs = placeFireflies(
-        [placement(0, 0, 0), placement(1, 10, 0)],
-        sameAuthor,
-      );
+      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
       expect(orbs[0].scale).toBe(orbs[1].scale);
     } finally {
       FIREFLIES.setKey('ORBS_PER_TREE', 3);
@@ -192,10 +185,7 @@ describe('placeFireflies', () => {
     ];
     FIREFLIES.setKey('ORBS_PER_TREE', 1);
     try {
-      const orbs = placeFireflies(
-        [placement(0, 0, 0), placement(1, 10, 0)],
-        soloAuthor,
-      );
+      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
       const scaleMax = FIREFLIES.get().SCALE_MAX;
       expect(orbs[0].scale).toBe(scaleMax);
       expect(orbs[1].scale).toBe(scaleMax);

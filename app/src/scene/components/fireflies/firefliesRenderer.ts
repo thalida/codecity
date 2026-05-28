@@ -57,7 +57,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
   geometry.setAttribute('aPulsePhase', new THREE.InstancedBufferAttribute(pulsePhaseArray, 1));
   geometry.setAttribute('aOrbitRadius', new THREE.InstancedBufferAttribute(orbitRadiusArray, 1));
-  geometry.setAttribute('aOrbitStartAngle', new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1));
+  geometry.setAttribute(
+    'aOrbitStartAngle',
+    new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1)
+  );
   geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
 
   const uTime = { value: 0 };

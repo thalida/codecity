@@ -86,13 +86,46 @@ describe('ageT()', () => {
 
   it('returns 0.5 when the range has zero span', () => {
     const zero: AgeRange = { oldest: 0, newest: 0, span: 0 };
-    expect(ageT({ date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Test Author', subject: 'test commit' }, zero)).toBe(0.5);
+    expect(
+      ageT(
+        {
+          date: '2026-01-01',
+          files: 1,
+          sha: 'a'.repeat(40),
+          author: 'Test Author',
+          subject: 'test commit',
+        },
+        zero
+      )
+    ).toBe(0.5);
   });
 
   it('clamps out-of-range dates to [0,1]', () => {
     const range = computeAgeRange(commits);
-    expect(ageT({ date: '2025-01-01', files: 1, sha: 'a'.repeat(40), author: 'Test Author', subject: 'test commit' }, range)).toBe(0);
-    expect(ageT({ date: '2027-01-01', files: 1, sha: 'a'.repeat(40), author: 'Test Author', subject: 'test commit' }, range)).toBe(1);
+    expect(
+      ageT(
+        {
+          date: '2025-01-01',
+          files: 1,
+          sha: 'a'.repeat(40),
+          author: 'Test Author',
+          subject: 'test commit',
+        },
+        range
+      )
+    ).toBe(0);
+    expect(
+      ageT(
+        {
+          date: '2027-01-01',
+          files: 1,
+          sha: 'a'.repeat(40),
+          author: 'Test Author',
+          subject: 'test commit',
+        },
+        range
+      )
+    ).toBe(1);
   });
 });
 
@@ -109,7 +142,18 @@ describe('sizeT()', () => {
 
   it('returns 0.5 when the range has zero span', () => {
     const zero: SizeRange = { min: 0, max: 0, span: 0 };
-    expect(sizeT({ date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Test Author', subject: 'test commit' }, zero)).toBe(0.5);
+    expect(
+      sizeT(
+        {
+          date: '2026-01-01',
+          files: 1,
+          sha: 'a'.repeat(40),
+          author: 'Test Author',
+          subject: 'test commit',
+        },
+        zero
+      )
+    ).toBe(0.5);
   });
 });
 

@@ -12,8 +12,8 @@ const L = 0.78; // OKLCH lightness
 const C = 0.18; // OKLCH chroma
 
 export interface AuthorColor {
-  hex: string;            // "#rrggbb"
-  hue: number;            // degrees [0, 360)
+  hex: string; // "#rrggbb"
+  hue: number; // degrees [0, 360)
   rgb: [number, number, number]; // linear-light, 0..1 each
 }
 
@@ -39,7 +39,7 @@ function oklchToLinearRgb(l: number, c: number, hueDeg: number): [number, number
   // Inverse of OKLab → LMS: cube-root in forward; cube in inverse.
   const l_ = l + 0.3963377774 * a + 0.2158037573 * b;
   const m_ = l - 0.1055613458 * a - 0.0638541728 * b;
-  const s_ = l - 0.0894841775 * a - 1.2914855480 * b;
+  const s_ = l - 0.0894841775 * a - 1.291485548 * b;
 
   const lm = l_ * l_ * l_;
   const mm = m_ * m_ * m_;
@@ -48,13 +48,9 @@ function oklchToLinearRgb(l: number, c: number, hueDeg: number): [number, number
   // LMS → linear sRGB
   const r = +4.0767416621 * lm - 3.3077115913 * mm + 0.2309699292 * sm;
   const g = -1.2684380046 * lm + 2.6097574011 * mm - 0.3413193965 * sm;
-  const b2 = -0.0041960863 * lm - 0.7034186147 * mm + 1.7076147010 * sm;
+  const b2 = -0.0041960863 * lm - 0.7034186147 * mm + 1.707614701 * sm;
 
-  return [
-    Math.max(0, Math.min(1, r)),
-    Math.max(0, Math.min(1, g)),
-    Math.max(0, Math.min(1, b2)),
-  ];
+  return [Math.max(0, Math.min(1, r)), Math.max(0, Math.min(1, g)), Math.max(0, Math.min(1, b2))];
 }
 
 /** Linear sRGB (0..1) → gamma-corrected sRGB → "#rrggbb". */

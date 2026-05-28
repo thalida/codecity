@@ -66,7 +66,7 @@ function seededRng(seed: string): () => number {
 
 export function placeFireflies(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null,
+  commits: CommitEntry[] | null
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
@@ -98,7 +98,10 @@ export function placeFireflies(
     const range = maxCount - minCount;
     for (const [author, n] of counts) {
       const t = (n - minCount) / range;
-      authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
+      authorScale.set(
+        author,
+        fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN)
+      );
     }
   }
 
@@ -159,7 +162,7 @@ export function placeFireflies(
 
     for (let i = 0; i < orbsPerTree; i++) {
       const rng = seededRng(`${commit.sha}:${i}`);
-      const pulseRng = seededRng(`${commit.sha}:p:${i}`);  // independent stream
+      const pulseRng = seededRng(`${commit.sha}:p:${i}`); // independent stream
       const orbitStartAngle = rng() * Math.PI * 2;
       const orbitRadius = trunkRadius + rng() * canopyRadius * 1.2;
       const orbHeight = rng() * (height * 1.3);

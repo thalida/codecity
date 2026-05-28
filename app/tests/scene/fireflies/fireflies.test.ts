@@ -9,9 +9,7 @@ const COMMITS: CommitEntry[] = [
   { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a' },
 ];
 
-const PLACEMENTS: TreePlacement[] = [
-  { x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement,
-];
+const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
 describe('createFireflies', () => {
   it('returns a group containing one InstancedMesh when commits is non-empty', () => {

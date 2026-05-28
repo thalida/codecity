@@ -24,7 +24,7 @@ export interface Fireflies {
 
 export function createFireflies(
   placements: TreePlacement[],
-  commits: CommitEntry[] | null,
+  commits: CommitEntry[] | null
 ): Fireflies {
   // Master config gate. When disabled, return an empty renderer so the
   // caller's group is still safe to add/dispose.

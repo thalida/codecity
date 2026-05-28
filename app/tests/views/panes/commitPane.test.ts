@@ -168,9 +168,7 @@ describe('buildCommitPane', () => {
   });
 
   it('renders the author row with a colored dot matching the author', async () => {
-    const { colorForAuthor } = await import(
-      '@/scene/components/fireflies/authorColor.js'
-    );
+    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
 
@@ -203,11 +201,18 @@ describe('buildCommitPane', () => {
   it('shows the "Show full message" button by default, fetches once on click', async () => {
     // Stub fetch.
     const origFetch = globalThis.fetch;
-    const fetchSpy = vi.fn(async () =>
-      new Response(JSON.stringify({
-        sha: COMMIT.sha, author: COMMIT.author, date: COMMIT.date,
-        subject: COMMIT.subject, body: 'Body line one.\nBody line two.',
-      }), { status: 200 })
+    const fetchSpy = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            sha: COMMIT.sha,
+            author: COMMIT.author,
+            date: COMMIT.date,
+            subject: COMMIT.subject,
+            body: 'Body line one.\nBody line two.',
+          }),
+          { status: 200 }
+        )
     );
     globalThis.fetch = fetchSpy as unknown as typeof fetch;
 
@@ -235,7 +240,8 @@ describe('buildCommitPane', () => {
 
   it('shows an error inline when the body fetch fails', async () => {
     const origFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response('boom', { status: 500 })) as unknown as typeof fetch;
+    globalThis.fetch = (async () =>
+      new Response('boom', { status: 500 })) as unknown as typeof fetch;
     try {
       const { pane, api } = buildCommitPane({});
       api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
