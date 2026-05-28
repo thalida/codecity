@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createCommitterSoil } from '@/scene/components/committerSoil/committerSoil.js';
 import { COMMITTER_SOIL } from '@/config/components/committerSoil.js';
+import { TREES } from '@/config/components/trees.js';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 
@@ -48,6 +49,18 @@ describe('createCommitterSoil', () => {
       s.dispose();
     } finally {
       COMMITTER_SOIL.setKey('COMMITTER_SOIL_ENABLED', orig);
+    }
+  });
+
+  it('returns an empty group when TREES_ENABLED is false (soil follows trees)', () => {
+    const orig = TREES.get().TREES_ENABLED;
+    TREES.setKey('TREES_ENABLED', false);
+    try {
+      const s = createCommitterSoil(PLACEMENTS, COMMITS);
+      expect(s.group.children.length).toBe(0);
+      s.dispose();
+    } finally {
+      TREES.setKey('TREES_ENABLED', orig);
     }
   });
 });

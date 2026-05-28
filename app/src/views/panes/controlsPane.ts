@@ -167,9 +167,6 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // Fireflies sit immediately after Trees — they orbit each commit-tree and
   // share the same decorative layer.
   body.appendChild(_buildFirefliesSection());
-  // Committer soil sits after Fireflies — same author-color signal,
-  // flat ground disc instead of a 3D orb.
-  body.appendChild(_buildCommitterSoilSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -548,6 +545,20 @@ function _buildTreesSection(): HTMLElement {
     ])
   );
 
+  section.appendChild(
+    _collapsibleSubgroup('soil-visibility', 'Committer soil', () => [
+      _toggle('Committer soil enabled', COMMITTER_SOIL, 'COMMITTER_SOIL_ENABLED', {
+        tip: 'Colored disc on the ground under each commit-tree, tinted per committer. Only visible when trees are enabled.',
+      }),
+      _slider('Ring × trunk radius', COMMITTER_SOIL, 'SOIL_RADIUS_MULTIPLIER', 1.0, 5.0, 0.05, {
+        tip: "Ring radius as a multiple of each tree's trunk radius. 1.0 = same as trunk; default 1.5. Rebuild on change.",
+      }),
+      _slider('Opacity', COMMITTER_SOIL, 'SOIL_OPACITY', 0, 1, 0.05, {
+        tip: '0 = invisible, 1 = fully opaque. Lower = blends more with ground.',
+      }),
+    ])
+  );
+
   return section;
 }
 
@@ -615,36 +626,6 @@ function _buildFirefliesSection(): HTMLElement {
       }),
       _slider('Flicker', FIREFLIES, 'FLICKER_AMOUNT', 0, 1.0, 0.05, {
         tip: 'Random brightness jitter on top of the pulse. 0 = smooth, 1 = jittery.',
-      }),
-    ])
-  );
-
-  return section;
-}
-
-// ─── Committer soil ────────────────────────────────────────────────────────
-// Flat colored disc on the ground under each commit-tree, tinted per author.
-function _buildCommitterSoilSection(): HTMLElement {
-  const section = _section(
-    'Committer soil',
-    'Colored disc on the ground under each commit-tree, tinted per committer.'
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('soil-visibility', 'Visibility', () => [
-      _toggle('Committer soil enabled', COMMITTER_SOIL, 'COMMITTER_SOIL_ENABLED', {
-        tip: 'Master toggle. When off, no rings are placed. Rebuild on change.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('soil-appearance', 'Appearance', () => [
-      _slider('Ring × trunk radius', COMMITTER_SOIL, 'SOIL_RADIUS_MULTIPLIER', 1.0, 5.0, 0.05, {
-        tip: 'Ring radius as a multiple of each tree\'s trunk radius. 1.0 = same as trunk, 1.5 = default, 5.0 = wide aura. Rebuild on change.',
-      }),
-      _slider('Opacity', COMMITTER_SOIL, 'SOIL_OPACITY', 0, 1, 0.05, {
-        tip: '0 = invisible, 1 = fully opaque. Lower = blends more with ground.',
       }),
     ])
   );
