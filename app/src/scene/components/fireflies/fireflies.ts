@@ -65,20 +65,14 @@ export function createFireflies(
       renderer.setTime(seconds);
     },
     setHoveredCommit(sha: string | null) {
-      if (sha === null) {
-        renderer.setHoveredCommit(null);
-      } else {
-        const idx = shaToIndex.get(sha);
-        renderer.setHoveredCommit(idx !== undefined ? idx : null);
-      }
+      const idx = sha === null ? null : (shaToIndex.get(sha) ?? null);
+      renderer.setHoveredCommit(idx);
+      rings.setHoveredCommit(idx);
     },
     setSelectedCommit(sha: string | null) {
-      if (sha === null) {
-        renderer.setSelectedCommit(null);
-      } else {
-        const idx = shaToIndex.get(sha);
-        renderer.setSelectedCommit(idx !== undefined ? idx : null);
-      }
+      const idx = sha === null ? null : (shaToIndex.get(sha) ?? null);
+      renderer.setSelectedCommit(idx);
+      rings.setSelectedCommit(idx);
     },
     onResize(width: number, height: number) {
       rings.onResize(width, height);

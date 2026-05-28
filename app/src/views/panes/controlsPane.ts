@@ -620,6 +620,12 @@ function _buildFirefliesSection(): HTMLElement {
       _slider('Ring opacity', FIREFLIES, 'ORBIT_RING_OPACITY', 0, 1, 0.05, {
         tip: '0 = invisible, 1 = fully opaque.',
       }),
+      _color('Hover color', FIREFLIES, 'ORBIT_RING_HOVER_COLOR', {
+        tip: 'Ring color when the corresponding tree is hovered.',
+      }),
+      _color('Selected color', FIREFLIES, 'ORBIT_RING_SELECTED_COLOR', {
+        tip: 'Ring color when the corresponding tree is selected.',
+      }),
     ])
   );
 

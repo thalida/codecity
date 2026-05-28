@@ -12,16 +12,18 @@ const COMMITS: CommitEntry[] = [
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
 describe('createFireflies', () => {
-  it('returns a group containing one InstancedMesh (orbs) and one LineLoop (rings) when commits is non-empty', () => {
+  it('returns a group containing one InstancedMesh (orbs) and one Mesh (rings) when commits is non-empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     expect(f.group).toBeInstanceOf(THREE.Group);
     // The parent group has two child Groups (rings + renderer).
-    // Rings group contains one LineLoop; renderer group contains one InstancedMesh.
+    // Rings group contains one Mesh (tube); renderer group contains one InstancedMesh.
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
-    const lineLoops = allDescendants.filter((c) => c instanceof THREE.LineLoop);
+    const tubeMeshes = allDescendants.filter(
+      (c) => c instanceof THREE.Mesh && !(c instanceof THREE.InstancedMesh)
+    );
     expect(instancedMeshes.length).toBe(1);
-    expect(lineLoops.length).toBe(1);
+    expect(tubeMeshes.length).toBe(1);
     f.dispose();
   });
 
@@ -43,14 +45,16 @@ describe('createFireflies', () => {
     f.dispose();
   });
 
-  it('dispose() removes all descendant InstancedMeshes and LineLoops', () => {
+  it('dispose() removes all descendant InstancedMeshes and tube Meshes', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.dispose();
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
-    const lineLoops = allDescendants.filter((c) => c instanceof THREE.LineLoop);
+    const tubeMeshes = allDescendants.filter(
+      (c) => c instanceof THREE.Mesh && !(c instanceof THREE.InstancedMesh)
+    );
     expect(instancedMeshes.length).toBe(0);
-    expect(lineLoops.length).toBe(0);
+    expect(tubeMeshes.length).toBe(0);
   });
 
   it('setTime(t) is a no-op when the group is empty (no instances)', () => {
@@ -103,8 +107,8 @@ describe('createFireflies', () => {
       // Find the orbit-ring group inside the parent group.
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
       expect(ringGroup).toBeDefined();
-      const ringMesh = ringGroup!.children[0] as THREE.LineLoop;
-      const mat = ringMesh.material as THREE.LineBasicMaterial;
+      const ringMesh = ringGroup!.children[0] as THREE.Mesh;
+      const mat = ringMesh.material as THREE.MeshBasicMaterial;
       expect(mat.color.getHexString()).toBe('00ff00');
       expect(mat.opacity).toBe(0.5);
       f.dispose();
@@ -127,5 +131,52 @@ describe('createFireflies', () => {
     } finally {
       FIREFLIES.setKey('ORBIT_RING_ENABLED', orig);
     }
+  });
+
+  it('setHoveredCommit swaps the ring material to the hover material', () => {
+    const f = createFireflies(PLACEMENTS, COMMITS);
+    f.setHoveredCommit(COMMITS[0].sha);
+    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
+    const mat = ringMesh.material as THREE.MeshBasicMaterial;
+    // Hover material uses ORBIT_RING_HOVER_COLOR and opacity 1.0.
+    expect(mat.opacity).toBe(1);
+    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    f.dispose();
+  });
+
+  it('setSelectedCommit beats setHoveredCommit when both target the same ring', () => {
+    const f = createFireflies(PLACEMENTS, COMMITS);
+    f.setHoveredCommit(COMMITS[0].sha);
+    f.setSelectedCommit(COMMITS[0].sha);
+    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
+    const mat = ringMesh.material as THREE.MeshBasicMaterial;
+    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
+    f.dispose();
+  });
+
+  it('clearing selection restores hover material when still hovered', () => {
+    const f = createFireflies(PLACEMENTS, COMMITS);
+    f.setHoveredCommit(COMMITS[0].sha);
+    f.setSelectedCommit(COMMITS[0].sha);
+    f.setSelectedCommit(null);
+    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
+    const mat = ringMesh.material as THREE.MeshBasicMaterial;
+    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    f.dispose();
+  });
+
+  it('clearing hover restores default material when not selected', () => {
+    const f = createFireflies(PLACEMENTS, COMMITS);
+    f.setHoveredCommit(COMMITS[0].sha);
+    f.setHoveredCommit(null);
+    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
+    const mat = ringMesh.material as THREE.MeshBasicMaterial;
+    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_COLOR);
+    expect(mat.opacity).toBe(FIREFLIES.get().ORBIT_RING_OPACITY);
+    f.dispose();
   });
 });
