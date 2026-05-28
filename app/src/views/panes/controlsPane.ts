@@ -640,8 +640,8 @@ function _buildCommitterSoilSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('soil-appearance', 'Appearance', () => [
-      _slider('Ring radius', COMMITTER_SOIL, 'SOIL_RADIUS', 0.5, 5.0, 0.1, {
-        tip: 'Disc radius in world units. Rebuild on change.',
+      _slider('Ring × trunk radius', COMMITTER_SOIL, 'SOIL_RADIUS_MULTIPLIER', 1.0, 5.0, 0.05, {
+        tip: 'Ring radius as a multiple of each tree\'s trunk radius. 1.0 = same as trunk, 1.5 = default, 5.0 = wide aura. Rebuild on change.',
       }),
       _slider('Opacity', COMMITTER_SOIL, 'SOIL_OPACITY', 0, 1, 0.05, {
         tip: '0 = invisible, 1 = fully opaque. Lower = blends more with ground.',

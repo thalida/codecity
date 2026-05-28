@@ -24,12 +24,12 @@ export function createSoilRenderer(rings: SoilPlacement[]): SoilRenderer {
     return { group, refresh() {}, dispose() {} };
   }
 
-  const cfg = COMMITTER_SOIL.get();
-  const geometry = new THREE.CircleGeometry(cfg.SOIL_RADIUS, 32);
+  const geometry = new THREE.CircleGeometry(1.0, 32);
   // CircleGeometry faces +Z by default. Rotate -π/2 about X so it lies
   // flat (facing +Y) on the ground.
   geometry.rotateX(-Math.PI / 2);
 
+  const cfg = COMMITTER_SOIL.get();
   const material = new THREE.MeshBasicMaterial({
     color: 0xffffff,
     transparent: true,
@@ -54,7 +54,7 @@ export function createSoilRenderer(rings: SoilPlacement[]): SoilRenderer {
   for (let i = 0; i < rings.length; i++) {
     const r = rings[i];
     dummy.position.set(r.treeX, GROUND_LIFT, r.treeZ);
-    dummy.scale.setScalar(1);
+    dummy.scale.setScalar(r.radius);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
     color.setRGB(r.rgb[0], r.rgb[1], r.rgb[2], THREE.LinearSRGBColorSpace);
@@ -70,8 +70,8 @@ export function createSoilRenderer(rings: SoilPlacement[]): SoilRenderer {
     refresh() {
       const next = COMMITTER_SOIL.get();
       material.opacity = next.SOIL_OPACITY;
-      // SOIL_RADIUS changes require a geometry rebuild and go through
-      // the rebuild path; not handled here.
+      // SOIL_RADIUS_MULTIPLIER changes require a placement + geometry rebuild
+      // and go through the rebuild path; not handled here.
     },
     dispose() {
       geometry.dispose();

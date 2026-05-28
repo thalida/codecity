@@ -41,4 +41,26 @@ describe('placeSoil', () => {
     const rings = placeSoil([placement(0, 0, 0)], COMMITS);
     expect(rings[0].colorHex).toBe(colorForAuthor('Alice').hex);
   });
+
+  it('ring radius scales with the SOIL_RADIUS_MULTIPLIER config', async () => {
+    const { COMMITTER_SOIL } = await import('@/config/components/committerSoil.js');
+    const rings1x = (() => {
+      COMMITTER_SOIL.setKey('SOIL_RADIUS_MULTIPLIER', 1.0);
+      return placeSoil([placement(0, 0, 0)], COMMITS);
+    })();
+    const rings3x = (() => {
+      COMMITTER_SOIL.setKey('SOIL_RADIUS_MULTIPLIER', 3.0);
+      return placeSoil([placement(0, 0, 0)], COMMITS);
+    })();
+    COMMITTER_SOIL.setKey('SOIL_RADIUS_MULTIPLIER', 1.5); // reset to default
+    expect(rings1x[0].radius).toBeGreaterThan(0);
+    expect(rings3x[0].radius).toBeCloseTo(rings1x[0].radius * 3, 5);
+  });
+
+  it('ring radius is positive (= trunk radius × multiplier, both positive)', () => {
+    const rings = placeSoil([placement(0, 0, 0)], COMMITS);
+    for (const r of rings) {
+      expect(r.radius).toBeGreaterThan(0);
+    }
+  });
 });
