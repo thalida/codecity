@@ -105,6 +105,14 @@ describe('placeFireflies', () => {
     }
   });
 
+  it('assigns an orbitTilt in [-π/6, π/6] per orb', () => {
+    const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
+    for (const o of orbs) {
+      expect(o.orbitTilt).toBeGreaterThanOrEqual(-Math.PI / 6);
+      expect(o.orbitTilt).toBeLessThanOrEqual(Math.PI / 6);
+    }
+  });
+
   it('honors ORBS_PER_TREE config value', () => {
     FIREFLIES.setKey('ORBS_PER_TREE', 5);
     try {

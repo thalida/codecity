@@ -8,6 +8,7 @@ attribute float aPhase;
 attribute float aPulsePhase;
 attribute float aOrbitRadius;
 attribute float aOrbitStartAngle;
+attribute float aOrbitTilt;
 attribute float aCommitIndex;
 
 // Uniforms
@@ -28,8 +29,15 @@ void main() {
   // Compute orbital + bob displacement in instance-local space.
   vec3 transformed = position;
   float orbitAngle = aOrbitStartAngle + uTime * uOrbitSpeed;
-  transformed.x += aOrbitRadius * cos(orbitAngle);
-  transformed.z += aOrbitRadius * sin(orbitAngle);
+  // Orbital offset in the orb's local frame, then rotated around X by
+  // aOrbitTilt so the orbital plane is no longer perfectly horizontal.
+  float orbX = aOrbitRadius * cos(orbitAngle);
+  float orbZ = aOrbitRadius * sin(orbitAngle);
+  float ct = cos(aOrbitTilt);
+  float st = sin(aOrbitTilt);
+  transformed.x += orbX;
+  transformed.y += -st * orbZ;  // tilt pushes some motion into Y
+  transformed.z += ct * orbZ;
   transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
 
   // Apply per-instance transform (Three.js auto-declares instanceMatrix

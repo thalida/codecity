@@ -32,6 +32,8 @@ export interface FireflyPlacement {
   orbitRadius: number;
   /** Initial angle [0, 2π) of the orbit. */
   orbitStartAngle: number;
+  /** Tilt of the orbital plane around the X axis, in radians. Range ±π/6. */
+  orbitTilt: number;
   /** Per-instance phase offset for the bob animation, in [0, 2π). */
   phase: number;
   /** Phase offset for the brightness-pulse shader animation, in [0, 2π). */
@@ -110,7 +112,6 @@ export function placeFireflies(
   const maxHeight = cfg.TREE_MAX_HEIGHT;
   const minRadius = cfg.TREE_MIN_WIDTH / 2;
   const maxRadius = cfg.TREE_MAX_WIDTH / 2;
-  const trunkRadiusFrac = cfg.TRUNK_RADIUS_FRAC_OF_CANOPY;
 
   const ageRange = computeAgeRange(commits);
   const sizeRange = computeSizeRange(commits);
@@ -157,16 +158,19 @@ export function placeFireflies(
 
     const canopyRadius = treeRadius(p.commitIndex);
     const height = treeHeight(p.commitIndex);
-    const trunkRadius = trunkRadiusFrac * canopyRadius;
     const color = colorForAuthor(commit.author);
 
     for (let i = 0; i < orbsPerTree; i++) {
       const rng = seededRng(`${commit.sha}:${i}`);
       const pulseRng = seededRng(`${commit.sha}:p:${i}`); // independent stream
       const orbitStartAngle = rng() * Math.PI * 2;
-      const orbitRadius = trunkRadius + rng() * canopyRadius * 1.2;
+      // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
+      const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);
       const orbHeight = rng() * (height * 1.3);
       const phase = rng() * Math.PI * 2;
+      // Tilt the orbital plane up to ±30° (= ±π/6) for visual variety.
+      // Most trees end up nearly horizontal; some tilt noticeably.
+      const orbitTilt = (rng() - 0.5) * (Math.PI / 3);
       const pulsePhase = pulseRng() * Math.PI * 2;
       out.push({
         treeX: p.x,
@@ -174,6 +178,7 @@ export function placeFireflies(
         height: orbHeight,
         orbitRadius,
         orbitStartAngle,
+        orbitTilt,
         phase,
         pulsePhase,
         colorHex: color.hex,

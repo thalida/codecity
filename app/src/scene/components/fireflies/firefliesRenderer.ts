@@ -46,12 +46,14 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const pulsePhaseArray = new Float32Array(orbs.length);
   const orbitRadiusArray = new Float32Array(orbs.length);
   const orbitStartAngleArray = new Float32Array(orbs.length);
+  const orbitTiltArray = new Float32Array(orbs.length);
   const commitIndexArray = new Float32Array(orbs.length);
   for (let i = 0; i < orbs.length; i++) {
     phaseArray[i] = orbs[i].phase;
     pulsePhaseArray[i] = orbs[i].pulsePhase;
     orbitRadiusArray[i] = orbs[i].orbitRadius;
     orbitStartAngleArray[i] = orbs[i].orbitStartAngle;
+    orbitTiltArray[i] = orbs[i].orbitTilt;
     commitIndexArray[i] = orbs[i].commitIndex;
   }
   geometry.setAttribute('aPhase', new THREE.InstancedBufferAttribute(phaseArray, 1));
@@ -61,6 +63,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     'aOrbitStartAngle',
     new THREE.InstancedBufferAttribute(orbitStartAngleArray, 1)
   );
+  geometry.setAttribute('aOrbitTilt', new THREE.InstancedBufferAttribute(orbitTiltArray, 1));
   geometry.setAttribute('aCommitIndex', new THREE.InstancedBufferAttribute(commitIndexArray, 1));
 
   const uTime = { value: 0 };

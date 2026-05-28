@@ -12,30 +12,42 @@ const COMMITS: CommitEntry[] = [
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
 describe('createFireflies', () => {
-  it('returns a group containing one InstancedMesh when commits is non-empty', () => {
+  it('returns a group containing two InstancedMeshes (rings + orbs) when commits is non-empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     expect(f.group).toBeInstanceOf(THREE.Group);
-    const meshes = f.group.children.filter((c) => c instanceof THREE.InstancedMesh);
-    expect(meshes.length).toBe(1);
+    // The parent group has two child Groups (rings + renderer); each contains one InstancedMesh.
+    const meshes = f.group.children
+      .flatMap((c) => c.children)
+      .filter((c) => c instanceof THREE.InstancedMesh);
+    expect(meshes.length).toBe(2);
     f.dispose();
   });
 
-  it('returns an empty group when commits is null', () => {
+  it('returns a group with no descendant InstancedMeshes when commits is null', () => {
     const f = createFireflies(PLACEMENTS, null);
-    expect(f.group.children.length).toBe(0);
+    const meshes = f.group.children
+      .flatMap((c) => c.children)
+      .filter((c) => c instanceof THREE.InstancedMesh);
+    expect(meshes.length).toBe(0);
     f.dispose();
   });
 
-  it('returns an empty group when placements is empty', () => {
+  it('returns a group with no descendant InstancedMeshes when placements is empty', () => {
     const f = createFireflies([], COMMITS);
-    expect(f.group.children.length).toBe(0);
+    const meshes = f.group.children
+      .flatMap((c) => c.children)
+      .filter((c) => c instanceof THREE.InstancedMesh);
+    expect(meshes.length).toBe(0);
     f.dispose();
   });
 
-  it('dispose() empties the group', () => {
+  it('dispose() removes all descendant InstancedMeshes', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.dispose();
-    expect(f.group.children.length).toBe(0);
+    const meshes = f.group.children
+      .flatMap((c) => c.children)
+      .filter((c) => c instanceof THREE.InstancedMesh);
+    expect(meshes.length).toBe(0);
   });
 
   it('setTime(t) is a no-op when the group is empty (no instances)', () => {

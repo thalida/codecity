@@ -2,8 +2,10 @@
 // Thin pass-through from TreePlacement[] + commits to a renderer
 // lifecycle handle. Mirrors trees/trees.ts.
 
+import * as THREE from 'three';
 import { placeFireflies, type FireflyPlacement } from './firefliesPlacement.js';
 import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer.js';
+import { createOrbitRings } from './orbitRings.js';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import type { CommitEntry } from '@/types';
 import { FIREFLIES } from '@/config/components/fireflies.js';
@@ -26,12 +28,15 @@ export function createFireflies(
   placements: TreePlacement[],
   commits: CommitEntry[] | null
 ): Fireflies {
-  // Master config gate. When disabled, return an empty renderer so the
+  const parent = new THREE.Group();
+  parent.name = 'fireflies-system';
+
+  // Master config gate. When disabled, return an empty parent group so the
   // caller's group is still safe to add/dispose.
   if (!FIREFLIES.get().FIREFLIES_ENABLED) {
     const stub = createFireflyRenderer([]);
     return {
-      group: stub.group,
+      group: parent,
       setTime: stub.setTime.bind(stub),
       setHoveredCommit() {},
       setSelectedCommit() {},
@@ -40,14 +45,19 @@ export function createFireflies(
     };
   }
   const orbs: FireflyPlacement[] = placeFireflies(placements, commits ?? []);
+  const rings = createOrbitRings(orbs);
   const renderer = createFireflyRenderer(orbs);
+
+  // Rings render first so orbs (additive) composite on top.
+  parent.add(rings.group);
+  parent.add(renderer.group);
 
   // Build sha → commitIndex map once at construction time.
   const shaToIndex = new Map<string, number>();
   (commits ?? []).forEach((c, i) => shaToIndex.set(c.sha, i));
 
   return {
-    group: renderer.group,
+    group: parent,
     setTime(seconds: number) {
       renderer.setTime(seconds);
     },
@@ -71,6 +81,7 @@ export function createFireflies(
       renderer.refresh();
     },
     dispose() {
+      rings.dispose();
       renderer.dispose();
     },
   };
