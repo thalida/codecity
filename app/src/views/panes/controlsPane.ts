@@ -564,6 +564,39 @@ function _buildFirefliesSection(): HTMLElement {
     ])
   );
 
+  section.appendChild(
+    _collapsibleSubgroup('fireflies-size', 'Size', () => [
+      _slider('Orb radius', FIREFLIES, 'FIREFLY_RADIUS', 0.05, 1.5, 0.05, {
+        tip: 'Sphere radius in world units. The visible diameter is 2× this value. Rebuild on change.',
+      }),
+      _slider('Orbs per commit', FIREFLIES, 'ORBS_PER_TREE', 0, 10, 1, {
+        tip: 'Number of orbs spawned around each commit-tree. Total orb count = this × number of commits. Rebuild on change.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('fireflies-bob', 'Bob (vertical drift)', () => [
+      _slider('Bob amplitude', FIREFLIES, 'BOB_AMPLITUDE', 0, 2.0, 0.05, {
+        tip: 'How far each orb drifts up and down in world units. 0 = no vertical movement. Live.',
+      }),
+      _slider('Bob speed', FIREFLIES, 'BOB_SPEED', 0, 5.0, 0.1, {
+        tip: 'How fast the vertical bob oscillates in radians/sec. Higher = faster bobbing. Live.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('fireflies-pulse', 'Brightness pulse', () => [
+      _slider('Pulse amplitude', FIREFLIES, 'PULSE_AMPLITUDE', 0, 1.0, 0.05, {
+        tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% brightness modulation. Live.',
+      }),
+      _slider('Pulse speed', FIREFLIES, 'PULSE_SPEED', 0, 5.0, 0.1, {
+        tip: 'How fast the brightness pulses in radians/sec. Higher = faster flickering. Live.',
+      }),
+    ])
+  );
+
   return section;
 }
 
