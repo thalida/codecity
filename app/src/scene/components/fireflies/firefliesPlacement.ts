@@ -1,6 +1,6 @@
 // scene/fireflies/firefliesPlacement.ts — given a TreePlacement[]
-// and the manifest commit list, emit 3 firefly orbs per tree.
-// Positions are deterministic (seeded by commit SHA + orb index) so
+// and the manifest commit list, emit exactly 1 firefly orb per tree.
+// Position is deterministic (seeded by commit SHA + orb index) so
 // world rebuilds don't re-randomize the orb field.
 //
 // TreePlacement has { x, y, seed, commitIndex } — no height or radius.
@@ -73,7 +73,7 @@ export function placeFireflies(
   if (!commits || commits.length === 0) return [];
 
   const fireflyConfig = FIREFLIES.get();
-  const orbsPerTree = Math.max(0, Math.floor(fireflyConfig.ORBS_PER_TREE));
+  const ORBS_PER_TREE = 1;
 
   // Tally commits per author and compute per-author scale.
   const counts = new Map<string, number>();
@@ -160,7 +160,7 @@ export function placeFireflies(
     const height = treeHeight(p.commitIndex);
     const color = colorForAuthor(commit.author);
 
-    for (let i = 0; i < orbsPerTree; i++) {
+    for (let i = 0; i < ORBS_PER_TREE; i++) {
       const rng = seededRng(`${commit.sha}:${i}`);
       const pulseRng = seededRng(`${commit.sha}:p:${i}`); // independent stream
       const orbitStartAngle = rng() * Math.PI * 2;

@@ -11,12 +11,29 @@ const COMMITS: CommitEntry[] = [
 
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
+/** Read the RGBA of vertex 0 from the merged ring mesh's colour attribute. */
+function getRingVertex0RGBA(ringGroup: THREE.Object3D): {
+  r: number;
+  g: number;
+  b: number;
+  a: number;
+} {
+  const ringMesh = ringGroup.children[0] as THREE.Mesh;
+  const colorAttr = ringMesh.geometry.getAttribute('color') as THREE.BufferAttribute;
+  return {
+    r: colorAttr.getX(0),
+    g: colorAttr.getY(0),
+    b: colorAttr.getZ(0),
+    a: colorAttr.getW(0),
+  };
+}
+
 describe('createFireflies', () => {
   it('returns a group containing one InstancedMesh (orbs) and one Mesh (rings) when commits is non-empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     expect(f.group).toBeInstanceOf(THREE.Group);
     // The parent group has two child Groups (rings + renderer).
-    // Rings group contains one Mesh (tube); renderer group contains one InstancedMesh.
+    // Rings group contains exactly ONE merged Mesh; renderer group contains one InstancedMesh.
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
     const tubeMeshes = allDescendants.filter(
@@ -94,7 +111,7 @@ describe('createFireflies', () => {
     }
   });
 
-  it('refresh() updates the ring material color + opacity', () => {
+  it('refresh() updates the ring vertex colour + opacity', () => {
     const orig = {
       color: FIREFLIES.get().ORBIT_RING_COLOR,
       opacity: FIREFLIES.get().ORBIT_RING_OPACITY,
@@ -104,13 +121,14 @@ describe('createFireflies', () => {
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       f.refresh();
-      // Find the orbit-ring group inside the parent group.
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
       expect(ringGroup).toBeDefined();
-      const ringMesh = ringGroup!.children[0] as THREE.Mesh;
-      const mat = ringMesh.material as THREE.MeshBasicMaterial;
-      expect(mat.color.getHexString()).toBe('00ff00');
-      expect(mat.opacity).toBe(0.5);
+      const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+      const expected = new THREE.Color('#00ff00');
+      expect(r).toBeCloseTo(expected.r, 4);
+      expect(g).toBeCloseTo(expected.g, 4);
+      expect(b).toBeCloseTo(expected.b, 4);
+      expect(a).toBeCloseTo(0.5, 4);
       f.dispose();
     } finally {
       FIREFLIES.setKey('ORBIT_RING_COLOR', orig.color);
@@ -133,15 +151,16 @@ describe('createFireflies', () => {
     }
   });
 
-  it('setHoveredCommit swaps the ring material to the hover material', () => {
+  it('setHoveredCommit writes the hover colour into the vertex buffer', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
-    const mat = ringMesh.material as THREE.MeshBasicMaterial;
-    // Hover material uses ORBIT_RING_HOVER_COLOR and opacity 1.0.
-    expect(mat.opacity).toBe(1);
-    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    expect(r).toBeCloseTo(expected.r, 4);
+    expect(g).toBeCloseTo(expected.g, 4);
+    expect(b).toBeCloseTo(expected.b, 4);
+    expect(a).toBe(1.0);
     f.dispose();
   });
 
@@ -150,33 +169,41 @@ describe('createFireflies', () => {
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
-    const mat = ringMesh.material as THREE.MeshBasicMaterial;
-    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
+    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
+    expect(r).toBeCloseTo(expected.r, 4);
+    expect(g).toBeCloseTo(expected.g, 4);
+    expect(b).toBeCloseTo(expected.b, 4);
+    expect(a).toBe(1.0);
     f.dispose();
   });
 
-  it('clearing selection restores hover material when still hovered', () => {
+  it('clearing selection restores hover colour when still hovered', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     f.setSelectedCommit(null);
     const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
-    const mat = ringMesh.material as THREE.MeshBasicMaterial;
-    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
+    expect(r).toBeCloseTo(expected.r, 4);
+    expect(g).toBeCloseTo(expected.g, 4);
+    expect(b).toBeCloseTo(expected.b, 4);
+    expect(a).toBe(1.0);
     f.dispose();
   });
 
-  it('clearing hover restores default material when not selected', () => {
+  it('clearing hover restores default colour when not selected', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setHoveredCommit(null);
     const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const ringMesh = ringGroup!.children[0] as THREE.Mesh;
-    const mat = ringMesh.material as THREE.MeshBasicMaterial;
-    expect(`#${mat.color.getHexString()}`).toBe(FIREFLIES.get().ORBIT_RING_COLOR);
-    expect(mat.opacity).toBe(FIREFLIES.get().ORBIT_RING_OPACITY);
+    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_COLOR);
+    expect(r).toBeCloseTo(expected.r, 4);
+    expect(g).toBeCloseTo(expected.g, 4);
+    expect(b).toBeCloseTo(expected.b, 4);
+    expect(a).toBeCloseTo(FIREFLIES.get().ORBIT_RING_OPACITY, 4);
     f.dispose();
   });
 });

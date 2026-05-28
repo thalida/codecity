@@ -14,8 +14,6 @@ import { map } from 'nanostores';
 export interface FirefliesConfig {
   /** Master toggle — when false no fireflies are placed or rendered. */
   FIREFLIES_ENABLED: boolean;
-  /** Number of orbs spawned per commit-tree. Total orbs = ORBS_PER_TREE × commits. */
-  ORBS_PER_TREE: number;
   /** Orbital speed around the tree's vertical axis, radians/sec. 0 = no orbit. */
   ORBIT_SPEED: number;
   /** Vertical bob amplitude in world units. */
@@ -50,7 +48,6 @@ export interface FirefliesConfig {
 
 export const FIREFLIES = map<FirefliesConfig>({
   FIREFLIES_ENABLED: true,
-  ORBS_PER_TREE: 1,
   ORBIT_SPEED: 0.3,
   BOB_AMPLITUDE: 0.5,
   BOB_SPEED: 1.1,

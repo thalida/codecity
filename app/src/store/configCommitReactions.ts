@@ -258,7 +258,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // (BOB_AMPLITUDE, BOB_SPEED, PULSE_AMPLITUDE, PULSE_SPEED, ORBIT_SPEED,
     // EMISSION_STRENGTH, FLICKER_AMOUNT) are pure uniforms pushed via
     // fireflies.refresh() inside applyTheme(). Structural keys
-    // (FIREFLIES_ENABLED, ORBS_PER_TREE, SCALE_MIN, SCALE_MAX) get a narrow
+    // (FIREFLIES_ENABLED, SCALE_MIN, SCALE_MAX) get a narrow
     // listenKeys subscription below that triggers a full rebuild.
     FIREFLIES,
   ];
@@ -323,17 +323,17 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     )
   );
   // FIREFLIES structural keys: ENABLED gates orb creation at createFireflies()
-  // call time; ORBS_PER_TREE and SCALE_MIN/MAX bake into per-instance data;
+  // call time; SCALE_MIN/MAX bake into per-instance data;
   // ORBIT_RING_ENABLED takes the empty-stub path in createOrbitRings when false
-  // (drops the InstancedMesh entirely), so toggling it also needs a full rebuild.
-  // All five require a full applyManifest rebuild. The remaining keys
+  // (drops the merged mesh entirely), so toggling it also needs a full rebuild.
+  // All four require a full applyManifest rebuild. The remaining keys
   // (animation, brightness, ORBIT_RING_COLOR, ORBIT_RING_OPACITY) fall through
   // to the materialOnlyStores subscription above and are hot-applied via
   // fireflies.refresh() → rings.refresh().
   unsubs.push(
     listenKeys(
       FIREFLIES,
-      ['FIREFLIES_ENABLED', 'ORBS_PER_TREE', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED'],
+      ['FIREFLIES_ENABLED', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED'],
       scheduleRebuild
     )
   );

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { placeFireflies } from '@/scene/components/fireflies/firefliesPlacement.js';
 import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { CommitEntry } from '@/types';
@@ -16,15 +16,10 @@ function placement(commitIndex: number, x: number, z: number): TreePlacement {
 }
 
 describe('placeFireflies', () => {
-  beforeEach(() => {
-    FIREFLIES.setKey('ORBS_PER_TREE', 3);
-  });
-
-  it('returns ORBS_PER_TREE orbs per tree placement', () => {
-    const ORBS_PER_TREE = FIREFLIES.get().ORBS_PER_TREE;
+  it('returns exactly 1 orb per tree placement', () => {
     const placements = [placement(0, 10, 5), placement(1, -3, 8)];
     const orbs = placeFireflies(placements, COMMITS);
-    expect(orbs.length).toBe(placements.length * ORBS_PER_TREE);
+    expect(orbs.length).toBe(placements.length);
   });
 
   it('is deterministic for the same input', () => {
@@ -56,11 +51,11 @@ describe('placeFireflies', () => {
     // TreePlacement has no height/radius. placeFireflies derives them from
     // commits + TREES config. With two commits (files=1 and files=2) the
     // derived canopy radius is near the config midpoint (~24 world units)
-    // and height is near TREE_MIN/MAX midpoint (~36 world units).
+    // and height is near TREE_MIN/MAX midpoint (~52 world units with new 96 max).
     // Use loose bounds: orbitRadius ≤ TREE_MAX_WIDTH / 2 * 1.5 and
     // height ≤ TREE_MAX_HEIGHT * 1.4.
     const MAX_RADIUS_BOUND = (64 / 2) * 1.5; // 48
-    const MAX_HEIGHT_BOUND = 64 * 1.4; // ~89.6
+    const MAX_HEIGHT_BOUND = 96 * 1.4; // ~134.4
     const p = placement(0, 100, 200);
     const orbs = placeFireflies([p], COMMITS);
     for (const o of orbs) {
@@ -113,16 +108,6 @@ describe('placeFireflies', () => {
     }
   });
 
-  it('honors ORBS_PER_TREE config value', () => {
-    FIREFLIES.setKey('ORBS_PER_TREE', 5);
-    try {
-      const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
-      expect(orbs.length).toBe(5);
-    } finally {
-      FIREFLIES.setKey('ORBS_PER_TREE', 3);
-    }
-  });
-
   it('assigns a pulse phase in [0, 2π) per orb, independent of bob phase', () => {
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
     for (const o of orbs) {
@@ -140,32 +125,22 @@ describe('placeFireflies', () => {
       { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Bob', subject: 'b1' },
       { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), author: 'Bob', subject: 'b2' },
     ];
-    // Use 1 orb per tree so orbs map 1:1 to placements for easy indexing.
-    FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    try {
-      const orbs = placeFireflies(
-        [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
-        commits
-      );
-      // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
-      const aliceOrb = orbs[0];
-      const bobOrb = orbs[1];
-      expect(bobOrb.scale).toBeGreaterThan(aliceOrb.scale);
-    } finally {
-      FIREFLIES.setKey('ORBS_PER_TREE', 3);
-    }
+    // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
+    const orbs = placeFireflies(
+      [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
+      commits
+    );
+    // orbs[0] = Alice (1 commit = SCALE_MIN); orbs[1] = Bob (2 commits = SCALE_MAX).
+    const aliceOrb = orbs[0];
+    const bobOrb = orbs[1];
+    expect(bobOrb.scale).toBeGreaterThan(aliceOrb.scale);
   });
 
   it('emits the source commitIndex on each FireflyPlacement', () => {
-    FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    try {
-      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS);
-      expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
-      expect(orbs[0].commitIndex).toBe(0);
-      expect(orbs[1].commitIndex).toBe(1);
-    } finally {
-      FIREFLIES.setKey('ORBS_PER_TREE', 3);
-    }
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], COMMITS);
+    expect(orbs.every((o) => typeof o.commitIndex === 'number')).toBe(true);
+    expect(orbs[0].commitIndex).toBe(0);
+    expect(orbs[1].commitIndex).toBe(1);
   });
 
   it('all orbs from the same author share the same scale', () => {
@@ -174,13 +149,8 @@ describe('placeFireflies', () => {
       { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a1' },
       { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Alice', subject: 'a2' },
     ];
-    FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    try {
-      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
-      expect(orbs[0].scale).toBe(orbs[1].scale);
-    } finally {
-      FIREFLIES.setKey('ORBS_PER_TREE', 3);
-    }
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
+    expect(orbs[0].scale).toBe(orbs[1].scale);
   });
 
   it('single-author repo: all orbs scale to SCALE_MAX (degenerate distribution)', () => {
@@ -191,14 +161,9 @@ describe('placeFireflies', () => {
       { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Solo', subject: 'a' },
       { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Solo', subject: 'b' },
     ];
-    FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    try {
-      const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
-      const scaleMax = FIREFLIES.get().SCALE_MAX;
-      expect(orbs[0].scale).toBe(scaleMax);
-      expect(orbs[1].scale).toBe(scaleMax);
-    } finally {
-      FIREFLIES.setKey('ORBS_PER_TREE', 3);
-    }
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
+    const scaleMax = FIREFLIES.get().SCALE_MAX;
+    expect(orbs[0].scale).toBe(scaleMax);
+    expect(orbs[1].scale).toBe(scaleMax);
   });
 });
