@@ -367,10 +367,10 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     _updateFooterFromState();
 
     // Right sidebar pane choice mirrors selection kind. File → preview,
-    // Commit → commit pane, Directory → street pane, anything else closes.
+    // Commit → commit pane, anything else closes.
+    // PROBE DISABLED: Directory → street pane routing disabled for isolation.
     if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
     else if (sel && sel.kind === NodeKind.Commit) sidebarPane = 'commit';
-    else if (sel && sel.kind === NodeKind.Directory) sidebarPane = 'street';
     else sidebarPane = null;
 
     _renderSidebar();
@@ -426,6 +426,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
         color: _color,
       });
     }
+    /* PROBE DISABLED: world.onChange directory-refresh block removed for isolation.
     const _selForDir = picker.selection.get();
     if (_selForDir && _selForDir.kind === NodeKind.Directory) {
       // Live-update poll may have swapped the DirNode under us — re-resolve
@@ -437,6 +438,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       const dir = refreshed?.dir ?? _selForDir.dir;
       streetPane.api.setDirectory(dir);
     }
+    PROBE DISABLED */
   });
 
   function dispose() {
