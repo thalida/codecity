@@ -163,7 +163,12 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <output_fragment>',
       `#include <output_fragment>
-       float flickerNoise = fract(sin(uTime * 17.0 + vPulse * 13.0) * 43758.5453);
+       // Flicker: hold each random value for ~1/8 second (8 Hz step rate)
+       // so the brain reads it as flicker rather than integrating to a
+       // steady average (which happens above ~30 Hz). vCommitIndex seeds
+       // the per-orb sequence so different orbs blink out of phase.
+       float noiseStep = floor(uTime * 8.0);
+       float flickerNoise = fract(sin(noiseStep * 17.0 + vCommitIndex * 13.0) * 43758.5453);
        float flicker = mix(1.0, flickerNoise, uFlicker);
 
        bool isSelected = (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5);
