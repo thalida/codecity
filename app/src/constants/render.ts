@@ -38,11 +38,6 @@ export const RENDER_ORDERS = {
   // reads cleanly against any silhouette. Additive blending; depth
   // test still on so distant city geometry never punches a hole in it.
   REPO_LABEL: 9,
-  // Committer soil — flat alpha-blended disc on the ground beneath each
-  // commit-tree, tinted per author. Renders after streets/outlines so it
-  // sits visually on the ground plane, and before foliage so tree canopies
-  // layer on top of the ring.
-  COMMITTER_SOIL: 9,
   // Foliage (matte tree canopies + trunks) draws after the city.
   // Depth-tested normally so buildings occlude foliage that's behind them.
   PARK_FOLIAGE: 10,

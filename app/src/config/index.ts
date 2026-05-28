@@ -58,7 +58,6 @@ export * from './components/island.js';
 export * from './components/footprint.js';
 export * from './components/trees.js';
 export * from './components/fireflies.js';
-export * from './components/committerSoil.js';
 export * from './components/repoLabel.js';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────

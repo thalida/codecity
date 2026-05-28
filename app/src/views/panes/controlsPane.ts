@@ -54,7 +54,6 @@ import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js
 import { WORLD } from '@/config/world/world.js';
 import { TREES, TREE_OUTLINE } from '@/config/components/trees.js';
 import { FIREFLIES } from '@/config/components/fireflies.js';
-import { COMMITTER_SOIL } from '@/config/components/committerSoil.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -541,20 +540,6 @@ function _buildTreesSection(): HTMLElement {
       _slider('Hover opacity', TREE_OUTLINE, 'HOVER_OPACITY', 0, 1, 0.05, {}),
       _slider('Selected opacity', TREE_OUTLINE, 'SELECTED_OPACITY', 0, 1, 0.05, {
         tip: 'Selected outline uses an animated rainbow color — see Effects > Rainbow.',
-      }),
-    ])
-  );
-
-  section.appendChild(
-    _collapsibleSubgroup('soil-visibility', 'Committer soil', () => [
-      _toggle('Committer soil enabled', COMMITTER_SOIL, 'COMMITTER_SOIL_ENABLED', {
-        tip: 'Colored disc on the ground under each commit-tree, tinted per committer. Only visible when trees are enabled.',
-      }),
-      _slider('Ring × trunk radius', COMMITTER_SOIL, 'SOIL_RADIUS_MULTIPLIER', 1.0, 5.0, 0.05, {
-        tip: "Ring radius as a multiple of each tree's trunk radius. 1.0 = same as trunk; default 1.5. Rebuild on change.",
-      }),
-      _slider('Opacity', COMMITTER_SOIL, 'SOIL_OPACITY', 0, 1, 0.05, {
-        tip: '0 = invisible, 1 = fully opaque. Lower = blends more with ground.',
       }),
     ])
   );

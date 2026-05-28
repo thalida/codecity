@@ -84,12 +84,6 @@ import {
   // full rebuild — there is no refresh() hot-path):
   FIREFLIES,
 } from '@/config/components/fireflies.js';
-import {
-  // Cyberpunk Valley — committer soil (structural: any change requires
-  // re-laying the disc instances — no live refresh of radius; opacity is
-  // handled in refresh() but for v1 we rebuild on any config change):
-  COMMITTER_SOIL,
-} from '@/config/components/committerSoil.js';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 // applyTheme() is synchronous and finishes within microseconds, so without
@@ -204,10 +198,6 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // call time — there is no refresh() hot-path, so toggling ENABLED
     // requires a full rebuild to take effect.
     FIREFLIES,
-    // COMMITTER_SOIL: any change requires re-laying the disc instances (no
-    // live refresh of radius; opacity is handled in refresh() but for v1 we
-    // rebuild on any config change).
-    COMMITTER_SOIL,
   ];
 
   const materialOnlyStores = [
