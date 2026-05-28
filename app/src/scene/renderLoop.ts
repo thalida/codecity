@@ -422,6 +422,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         pathLineRenderer.onResize();
       }
     }
+    // Drive firefly bob — single uniform update for all orb instances.
+    {
+      const fireflies = world.getFireflies?.();
+      if (fireflies) {
+        fireflies.setTime((performance.now() - startTime) / 1000);
+      }
+    }
     rig.update(0); // first-call: bbox-frames camera
     // Per-frame world-matrix refresh. controls.update() moves the camera
     // but matrixWorldInverse is stale until renderer.render runs; modules
