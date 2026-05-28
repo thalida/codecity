@@ -14,7 +14,6 @@ import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
 
 const SEGMENTS_PER_RING = 64;
-const RING_LINEWIDTH = 1.5; // pixels
 
 export interface OrbitRings {
   group: THREE.Group;
@@ -78,7 +77,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
 
   const material = new LineMaterial({
     color: new THREE.Color(cfg.ORBIT_RING_COLOR).getHex(),
-    linewidth: RING_LINEWIDTH,
+    linewidth: cfg.ORBIT_RING_THICKNESS,
     transparent: true,
     opacity: cfg.ORBIT_RING_OPACITY,
     depthWrite: false,
@@ -102,6 +101,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
       const next = FIREFLIES.get();
       material.color.set(next.ORBIT_RING_COLOR);
       material.opacity = next.ORBIT_RING_OPACITY;
+      material.linewidth = next.ORBIT_RING_THICKNESS;
       group.visible = next.ORBIT_RING_ENABLED;
     },
     onResize(width: number, height: number) {

@@ -39,6 +39,8 @@ export interface FirefliesConfig {
   ORBIT_RING_COLOR: string;
   /** Orbit ring opacity, 0..1. */
   ORBIT_RING_OPACITY: number;
+  /** Orbit ring line thickness in pixels (constant across orbital radii). */
+  ORBIT_RING_THICKNESS: number;
 }
 
 export const FIREFLIES = map<FirefliesConfig>({
@@ -56,4 +58,5 @@ export const FIREFLIES = map<FirefliesConfig>({
   ORBIT_RING_ENABLED: true,
   ORBIT_RING_COLOR: '#ffffff',
   ORBIT_RING_OPACITY: 0.18,
+  ORBIT_RING_THICKNESS: 1.5,
 });
