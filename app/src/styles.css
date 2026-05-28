@@ -2990,7 +2990,7 @@ canvas {
 .commit-author-dot {
   width: 10px;
   height: 10px;
-  border-radius: 50%;
+  border-radius: var(--cc-radius-circle);
   flex-shrink: 0;
 }
 
@@ -3030,8 +3030,8 @@ canvas {
   white-space: pre-wrap;
   margin: var(--cc-space-4) 0 var(--cc-space-6); /* 8px 0 12px */
   padding: var(--cc-space-4); /* 8px */
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 4px;
+  background: var(--cc-overlay-bg-soft);
+  border-radius: var(--cc-radius-sm);
   max-height: 240px;
   overflow: auto;
   color: var(--cc-text-muted);
