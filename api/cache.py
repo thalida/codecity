@@ -50,7 +50,9 @@ _FILE_CACHE_VERSION = 1
 # Bumped to 8: scanner switched from `-c` to
 # `--diff-merges=first-parent` so CLEAN merges (no conflicts) also
 # report their actual file count. Pre-v8 entries undercount merges.
-_GIT_HISTORY_CACHE_VERSION = 8
+# Bumped to 9: CommitEntry gained author + subject fields. Pre-v9
+# entries are missing those fields and would break manifest consumers.
+_GIT_HISTORY_CACHE_VERSION = 9
 # Bumped only when the manifest shape changes for reasons UNRELATED
 # to git-history output (e.g. a new field on FileNode). Git-history
 # shape changes don't need a bump here — they auto-invalidate through
