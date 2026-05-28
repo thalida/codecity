@@ -581,9 +581,6 @@ function _buildFirefliesSection(): HTMLElement {
 
   section.appendChild(
     _collapsibleSubgroup('fireflies-size', 'Size', () => [
-      _slider('Orb radius', FIREFLIES, 'FIREFLY_RADIUS', 0.05, 3.0, 0.05, {
-        tip: 'Sphere radius in world units. Multiplied by per-author scale if "Scale by commits" is on. Rebuild on change.',
-      }),
       _slider('Orbs per commit', FIREFLIES, 'ORBS_PER_TREE', 0, 10, 1, {
         tip: 'Number of orbs spawned around each commit-tree. Rebuild on change.',
       }),

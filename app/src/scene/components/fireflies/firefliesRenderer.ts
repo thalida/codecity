@@ -34,7 +34,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   }
 
   const cfg = FIREFLIES.get();
-  const geometry = new THREE.IcosahedronGeometry(cfg.FIREFLY_RADIUS, 0);
+  const geometry = new THREE.IcosahedronGeometry(1.0, 0);
 
   // Per-instance bob phase (existing) + per-instance pulse phase + orbit params (new).
   const phaseArray = new Float32Array(orbs.length);

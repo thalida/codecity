@@ -1,7 +1,6 @@
 // config/fireflies.ts — committer-fireflies tunables.
 //
-// v2 exposes the size + animation knobs. ORB_RADIUS is in world units;
-// the orb's actual diameter is 2×ORB_RADIUS. BOB is the y-axis sinusoid
+// v2 exposes the size + animation knobs. BOB is the y-axis sinusoid
 // the shader applies to displace each orb; PULSE is a brightness
 // modulation (additive output color × (1 + pulseAmp * sin(...))).
 // v4 adds emission (HDR bloom), flicker (high-frequency brightness noise),
@@ -12,8 +11,6 @@ import { map } from 'nanostores';
 export interface FirefliesConfig {
   /** Master toggle — when false no fireflies are placed or rendered. */
   FIREFLIES_ENABLED: boolean;
-  /** Sphere radius in world units. v1 default was 0.12 (invisible at city scale). */
-  FIREFLY_RADIUS: number;
   /** Number of orbs spawned per commit-tree. Total orbs = ORBS_PER_TREE × commits. */
   ORBS_PER_TREE: number;
   /** Orbital speed around the tree's vertical axis, radians/sec. 0 = no orbit. */
@@ -40,7 +37,6 @@ export interface FirefliesConfig {
 
 export const FIREFLIES = map<FirefliesConfig>({
   FIREFLIES_ENABLED: true,
-  FIREFLY_RADIUS: 1.0,
   ORBS_PER_TREE: 1,
   ORBIT_SPEED: 0.3,
   BOB_AMPLITUDE: 0.5,
