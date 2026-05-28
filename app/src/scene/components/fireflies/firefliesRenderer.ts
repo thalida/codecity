@@ -37,8 +37,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     };
   }
 
-  const HOVER_BOOST = 1.4;
-  const SELECT_BOOST = 2.0;
+  const HOVER_BRIGHTNESS_BOOST = 3.0;
+  const SELECT_BRIGHTNESS_BOOST = 6.0;
+  const HOVER_SCALE_BOOST = 1.6;
+  const SELECT_SCALE_BOOST = 2.2;
 
   const cfg = FIREFLIES.get();
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
@@ -112,6 +114,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        uniform float uPulseAmp;
        uniform float uPulseSpeed;
        uniform float uOrbitSpeed;
+       uniform float uHoveredCommit;
+       uniform float uSelectedCommit;
        varying float vPulse;
        varying float vCommitIndex;`,
     );
@@ -123,10 +127,26 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
+       // Hover / select size boost. Multiplies the local icosphere position
+       // before the orbit/bob displacement. The instance matrix scale (per-
+       // author commit-count scaling) still composes on top of this.
+       float scaleBoost = 1.0;
+       if (uSelectedCommit >= 0.0 && abs(aCommitIndex - uSelectedCommit) < 0.5) {
+         scaleBoost = ${SELECT_SCALE_BOOST.toFixed(2)};
+       } else if (uHoveredCommit >= 0.0 && abs(aCommitIndex - uHoveredCommit) < 0.5) {
+         scaleBoost = ${HOVER_SCALE_BOOST.toFixed(2)};
+       }
+       transformed *= scaleBoost;
+
+       // Orbital XZ displacement around the tree's vertical axis.
        float orbitAngle = aOrbitStartAngle + uTime * uOrbitSpeed;
        transformed.x += aOrbitRadius * cos(orbitAngle);
        transformed.z += aOrbitRadius * sin(orbitAngle);
+
+       // Vertical bob.
        transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
+
+       // Pulse phase passed to the fragment shader.
        vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);
        vCommitIndex = aCommitIndex;`,
     );
@@ -160,9 +180,9 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        // Hover / select boost. Select beats hover when both match.
        float boost = 1.0;
        if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
-         boost = ${SELECT_BOOST.toFixed(2)};
+         boost = ${SELECT_BRIGHTNESS_BOOST.toFixed(2)};
        } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
-         boost = ${HOVER_BOOST.toFixed(2)};
+         boost = ${HOVER_BRIGHTNESS_BOOST.toFixed(2)};
        }
        gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;`,
     );
