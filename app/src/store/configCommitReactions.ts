@@ -78,6 +78,12 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
 } from '@/config/components/island.js';
+import {
+  // Cyberpunk Valley — fireflies (structural: visibility is determined at
+  // creation time by reading FIREFLIES_ENABLED, so any change requires a
+  // full rebuild — there is no refresh() hot-path):
+  FIREFLIES,
+} from '@/config/components/fireflies.js';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 // applyTheme() is synchronous and finishes within microseconds, so without
@@ -187,6 +193,11 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // FOOTPRINT is intentionally NOT here as a whole-store subscription:
     // only HALO_WIDTH is structural, and we gate it via listenKeys below.
     // COLOR + ENABLED live in materialOnlyStores and refresh via footprint.refresh().
+    //
+    // FIREFLIES: FIREFLIES_ENABLED gates orb creation at createFireflies()
+    // call time — there is no refresh() hot-path, so toggling ENABLED
+    // requires a full rebuild to take effect.
+    FIREFLIES,
   ];
 
   const materialOnlyStores = [
