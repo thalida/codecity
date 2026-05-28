@@ -187,11 +187,12 @@ export function createRootGem(street: Street): THREE.Group {
         opacity: glowCfg.INNER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        // Halo is a soft additive glow — render it without depth test so
-        // it doesn't get sliced off when an opaque surface (island top,
-        // city footprint) silhouettes in front of the gem at low camera
-        // angles. The cutoff was visible as a sharp diagonal in screenshots.
-        depthTest: false,
+        // Depth test ON: the halo must be occluded by opaque foreground
+        // surfaces (trees, buildings) instead of bleeding through them.
+        // A prior version had this off so the glow wouldn't be sliced by
+        // the island top at low camera angles, but the trade — gem glow
+        // visible THROUGH tree canopies — is the more obvious artifact.
+        depthTest: true,
       })
     );
     innerGlowSprite.scale.set(radius * glowCfg.INNER_SCALE, radius * glowCfg.INNER_SCALE, 1);
@@ -208,11 +209,12 @@ export function createRootGem(street: Street): THREE.Group {
         opacity: glowCfg.OUTER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        // Halo is a soft additive glow — render it without depth test so
-        // it doesn't get sliced off when an opaque surface (island top,
-        // city footprint) silhouettes in front of the gem at low camera
-        // angles. The cutoff was visible as a sharp diagonal in screenshots.
-        depthTest: false,
+        // Depth test ON: the halo must be occluded by opaque foreground
+        // surfaces (trees, buildings) instead of bleeding through them.
+        // A prior version had this off so the glow wouldn't be sliced by
+        // the island top at low camera angles, but the trade — gem glow
+        // visible THROUGH tree canopies — is the more obvious artifact.
+        depthTest: true,
       })
     );
     outerGlowSprite.scale.set(radius * glowCfg.OUTER_SCALE, radius * glowCfg.OUTER_SCALE, 1);
