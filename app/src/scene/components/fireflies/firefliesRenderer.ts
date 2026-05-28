@@ -39,8 +39,6 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
   const HOVER_BRIGHTNESS_BOOST = 3.0;
   const SELECT_BRIGHTNESS_BOOST = 6.0;
-  const HOVER_SCALE_BOOST = 1.6;
-  const SELECT_SCALE_BOOST = 2.2;
 
   const cfg = FIREFLIES.get();
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
@@ -117,7 +115,8 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        uniform float uHoveredCommit;
        uniform float uSelectedCommit;
        varying float vPulse;
-       varying float vCommitIndex;`,
+       varying float vCommitIndex;
+       varying vec3 vWorldNormal;`,
     );
 
     // Apply orbital offset in XZ and bob in Y after <begin_vertex> sets
@@ -127,17 +126,6 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.vertexShader = shader.vertexShader.replace(
       '#include <begin_vertex>',
       `#include <begin_vertex>
-       // Hover / select size boost. Multiplies the local icosphere position
-       // before the orbit/bob displacement. The instance matrix scale (per-
-       // author commit-count scaling) still composes on top of this.
-       float scaleBoost = 1.0;
-       if (uSelectedCommit >= 0.0 && abs(aCommitIndex - uSelectedCommit) < 0.5) {
-         scaleBoost = ${SELECT_SCALE_BOOST.toFixed(2)};
-       } else if (uHoveredCommit >= 0.0 && abs(aCommitIndex - uHoveredCommit) < 0.5) {
-         scaleBoost = ${HOVER_SCALE_BOOST.toFixed(2)};
-       }
-       transformed *= scaleBoost;
-
        // Orbital XZ displacement around the tree's vertical axis.
        float orbitAngle = aOrbitStartAngle + uTime * uOrbitSpeed;
        transformed.x += aOrbitRadius * cos(orbitAngle);
@@ -148,7 +136,9 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
        // Pulse phase passed to the fragment shader.
        vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);
-       vCommitIndex = aCommitIndex;`,
+       vCommitIndex = aCommitIndex;
+       // View-space normal for the rim outline effect.
+       vWorldNormal = normalize(normalMatrix * normal);`,
     );
 
     // FRAGMENT: declare varying + uniforms, then multiply final color by
@@ -158,6 +148,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       `#include <common>
        varying float vPulse;
        varying float vCommitIndex;
+       varying vec3 vWorldNormal;
        uniform float uTime;
        uniform float uEmission;
        uniform float uFlicker;
@@ -177,14 +168,26 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
        // but varies wildly with time.
        float flickerNoise = fract(sin(uTime * 17.0 + vPulse * 13.0) * 43758.5453);
        float flicker = mix(1.0, flickerNoise, uFlicker);
-       // Hover / select boost. Select beats hover when both match.
+
+       // Highlight detection — select beats hover when both match.
        float boost = 1.0;
+       float rimStrength = 0.0;  // 0 = no rim outline
        if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
          boost = ${SELECT_BRIGHTNESS_BOOST.toFixed(2)};
+         rimStrength = 3.0;  // strong rim for selection
        } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
          boost = ${HOVER_BRIGHTNESS_BOOST.toFixed(2)};
+         rimStrength = 1.5;  // subtler rim for hover
        }
-       gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;`,
+
+       // Rim outline — silhouette edges glow brighter.
+       // view-space normal.z = component pointing toward camera (1 = facing, 0 = edge).
+       float rim = 1.0 - abs(vWorldNormal.z);
+       rim = pow(rim, 2.0);  // sharpen toward the silhouette
+
+       gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;
+       // Add rim glow on top (additive — punches above bloom threshold).
+       gl_FragColor.rgb += rim * rimStrength;`,
     );
   };
 
@@ -228,6 +231,16 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     },
     refresh() {
       const next = FIREFLIES.get();
+      // TODO: remove after diagnosis
+      console.log('[fireflies] renderer.refresh()', {
+        bob: next.BOB_AMPLITUDE,
+        bobSpeed: next.BOB_SPEED,
+        pulse: next.PULSE_AMPLITUDE,
+        pulseSpeed: next.PULSE_SPEED,
+        orbit: next.ORBIT_SPEED,
+        emission: next.EMISSION_STRENGTH,
+        flicker: next.FLICKER_AMOUNT,
+      });
       uBobAmp.value = next.BOB_AMPLITUDE;
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;
