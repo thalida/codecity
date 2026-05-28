@@ -54,6 +54,7 @@ import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js
 import { WORLD } from '@/config/world/world.js';
 import { TREES, TREE_OUTLINE } from '@/config/components/trees.js';
 import { FIREFLIES } from '@/config/components/fireflies.js';
+import { COMMITTER_SOIL } from '@/config/components/committerSoil.js';
 import { FOOTPRINT } from '@/config/components/footprint.js';
 import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
 import { AD_PANEL } from '@/config/components/adPanels.js';
@@ -166,6 +167,9 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   // Fireflies sit immediately after Trees — they orbit each commit-tree and
   // share the same decorative layer.
   body.appendChild(_buildFirefliesSection());
+  // Committer soil sits after Fireflies — same author-color signal,
+  // flat ground disc instead of a 3D orb.
+  body.appendChild(_buildCommitterSoilSection());
   body.appendChild(_buildEffectsSection());
   body.appendChild(_buildFilePreviewSection());
   if (
@@ -596,6 +600,36 @@ function _buildFirefliesSection(): HTMLElement {
       }),
       _slider('Pulse speed', FIREFLIES, 'PULSE_SPEED', 0, 5.0, 0.1, {
         tip: 'How fast the brightness pulses in radians/sec. Higher = faster flickering.',
+      }),
+    ])
+  );
+
+  return section;
+}
+
+// ─── Committer soil ────────────────────────────────────────────────────────
+// Flat colored disc on the ground under each commit-tree, tinted per author.
+function _buildCommitterSoilSection(): HTMLElement {
+  const section = _section(
+    'Committer soil',
+    'Colored disc on the ground under each commit-tree, tinted per committer.'
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('soil-visibility', 'Visibility', () => [
+      _toggle('Committer soil enabled', COMMITTER_SOIL, 'COMMITTER_SOIL_ENABLED', {
+        tip: 'Master toggle. When off, no rings are placed. Rebuild on change.',
+      }),
+    ])
+  );
+
+  section.appendChild(
+    _collapsibleSubgroup('soil-appearance', 'Appearance', () => [
+      _slider('Ring radius', COMMITTER_SOIL, 'SOIL_RADIUS', 0.5, 5.0, 0.1, {
+        tip: 'Disc radius in world units. Rebuild on change.',
+      }),
+      _slider('Opacity', COMMITTER_SOIL, 'SOIL_OPACITY', 0, 1, 0.05, {
+        tip: '0 = invisible, 1 = fully opaque. Lower = blends more with ground.',
       }),
     ])
   );
