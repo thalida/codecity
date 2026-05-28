@@ -346,18 +346,16 @@ export function createCameraRig({
     const halfV = (camera.fov * Math.PI) / 180 / 2;
     const halfH = Math.atan(Math.tan(halfV) * camera.aspect);
 
-    // At 80° elevation, a vertical span of fitH projects onto the screen-
-    // vertical axis as fitH·cos(elev). Take the larger of the projected
-    // height and the depth span as the effective vertical extent.
-    const effW = fitW;
-    const effD = Math.max(fitD, fitH * Math.cos(elevRad));
-    const distW = effW / 2 / Math.tan(halfH);
-    const distD = effD / 2 / Math.tan(halfV);
-    // Clamp against the OrbitControls dolly floor so small targets (a
-    // sub-unit radius tree, an empty street) don't put the camera inside
-    // the geometry — _animateCamera writes camera.position directly,
-    // bypassing the dolly clamp that would normally apply at zoom time.
-    const dist = Math.max(distW * TOP_DOWN_PADDING_MULT, distD * TOP_DOWN_PADDING_MULT, controls.minDistance);
+    // Fit the target's bounding sphere. R encloses every span the target
+    // can present to the camera regardless of azimuth — for a tall building
+    // this prevents the camera landing inside the geometry when looking
+    // nearly-overhead at the b.h/2 centroid.
+    const R = 0.5 * Math.sqrt(fitW * fitW + fitD * fitD + fitH * fitH);
+    const halfFov = Math.min(halfV, halfH);
+    const dist = Math.max(
+      (R / Math.sin(halfFov)) * TOP_DOWN_PADDING_MULT,
+      controls.minDistance,
+    );
 
     // Azimuth: preserve current horizontal direction from target → camera.
     // If the camera is too close to nadir, fall back to the root-street axis.
