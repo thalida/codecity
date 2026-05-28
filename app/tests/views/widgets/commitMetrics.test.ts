@@ -3,7 +3,7 @@ import { sameDayCommitCount } from '@/views/widgets/commitMetrics.js';
 import type { CommitEntry } from '@/types';
 
 function commit(date: string, sha: string, files = 1): CommitEntry {
-  return { date, sha, files };
+  return { date, sha, files, author: 'Test Author', subject: 'test commit' };
 }
 
 describe('sameDayCommitCount', () => {

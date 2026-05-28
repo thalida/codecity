@@ -31,7 +31,7 @@ function fakeTrees(activeSha: string, matrix: THREE.Matrix4) {
       return {
         mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
         instanceId: 0,
-        commit: { sha, date: '2026-05-27', files: 1 },
+        commit: { sha, date: '2026-05-27', files: 1, author: 'Test Author', subject: 'test commit' },
       };
     },
   };
@@ -48,7 +48,7 @@ function commitTarget(sha: string): PickTarget {
     kind: NodeKind.Commit,
     mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
     instanceId: 0,
-    commit: { sha, date: '2026-05-27', files: 1 },
+    commit: { sha, date: '2026-05-27', files: 1, author: 'Test Author', subject: 'test commit' },
   };
 }
 
