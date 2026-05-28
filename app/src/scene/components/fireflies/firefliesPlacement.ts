@@ -85,10 +85,21 @@ export function placeFireflies(
     if (n > maxCount) maxCount = n;
   }
   const authorScale = new Map<string, number>();
-  const range = Math.max(1, maxCount - minCount); // guard division-by-zero
-  for (const [author, n] of counts) {
-    const t = (n - minCount) / range;
-    authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
+  // Degenerate case: every author has the same count (most commonly: only
+  // one author, or all authors tied). There's no meaningful ranking, so
+  // everyone gets SCALE_MAX — the lone/tied contributor is the "top" of
+  // a distribution of one. Otherwise, lerp [minCount..maxCount] →
+  // [SCALE_MIN..SCALE_MAX].
+  if (maxCount === minCount) {
+    for (const author of counts.keys()) {
+      authorScale.set(author, fireflyConfig.SCALE_MAX);
+    }
+  } else {
+    const range = maxCount - minCount;
+    for (const [author, n] of counts) {
+      const t = (n - minCount) / range;
+      authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
+    }
   }
 
   const cfg = TREES.get();

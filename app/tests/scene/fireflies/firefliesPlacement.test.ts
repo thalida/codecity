@@ -181,4 +181,26 @@ describe('placeFireflies', () => {
       FIREFLIES.setKey('ORBS_PER_TREE', 3);
     }
   });
+
+  it('single-author repo: all orbs scale to SCALE_MAX (degenerate distribution)', () => {
+    // When every author has the same commit count (single author or tied
+    // distribution), there's no meaningful ranking — render everyone at
+    // SCALE_MAX rather than collapsing to SCALE_MIN.
+    const soloAuthor = [
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Solo', subject: 'a' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Solo', subject: 'b' },
+    ];
+    FIREFLIES.setKey('ORBS_PER_TREE', 1);
+    try {
+      const orbs = placeFireflies(
+        [placement(0, 0, 0), placement(1, 10, 0)],
+        soloAuthor,
+      );
+      const scaleMax = FIREFLIES.get().SCALE_MAX;
+      expect(orbs[0].scale).toBe(scaleMax);
+      expect(orbs[1].scale).toBe(scaleMax);
+    } finally {
+      FIREFLIES.setKey('ORBS_PER_TREE', 3);
+    }
+  });
 });
