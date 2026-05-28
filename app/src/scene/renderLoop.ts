@@ -380,6 +380,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       outlineRenderer.onResize();
       treeOutlineRenderer.onResize();
       pathLineRenderer.onResize();
+      world.getFireflies()?.onResize(cw, ch);
       // Synchronous paint to avoid a single-frame blank/cleared canvas
       // between the resize and the next animate() tick. The render path
       // must match animate() so bloom shows immediately on the new size.
@@ -449,6 +450,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         outlineRenderer.onResize();
         treeOutlineRenderer.onResize();
         pathLineRenderer.onResize();
+        world.getFireflies()?.onResize(cw, ch);
       }
     }
     // Drive firefly bob — single uniform update for all orb instances.

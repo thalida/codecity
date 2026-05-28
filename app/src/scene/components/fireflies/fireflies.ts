@@ -20,6 +20,8 @@ export interface Fireflies {
   setHoveredCommit(sha: string | null): void;
   /** Select-highlight fireflies for the commit with this sha. Pass null to clear. */
   setSelectedCommit(sha: string | null): void;
+  /** Update LineMaterial resolution uniform on canvas resize. */
+  onResize(width: number, height: number): void;
   refresh: FireflyRenderer['refresh'];
   dispose: FireflyRenderer['dispose'];
 }
@@ -40,6 +42,7 @@ export function createFireflies(
       setTime: stub.setTime.bind(stub),
       setHoveredCommit() {},
       setSelectedCommit() {},
+      onResize() {},
       refresh: stub.refresh.bind(stub),
       dispose: stub.dispose.bind(stub),
     };
@@ -76,6 +79,9 @@ export function createFireflies(
         const idx = shaToIndex.get(sha);
         renderer.setSelectedCommit(idx !== undefined ? idx : null);
       }
+    },
+    onResize(width: number, height: number) {
+      rings.onResize(width, height);
     },
     refresh() {
       renderer.refresh();

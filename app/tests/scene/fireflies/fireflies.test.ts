@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
+import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
+import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 import { createFireflies } from '@/scene/components/fireflies/fireflies.js';
 import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { CommitEntry } from '@/types';
@@ -12,14 +14,16 @@ const COMMITS: CommitEntry[] = [
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
 describe('createFireflies', () => {
-  it('returns a group containing two InstancedMeshes (rings + orbs) when commits is non-empty', () => {
+  it('returns a group containing one InstancedMesh (orbs) and one LineSegments2 (rings) when commits is non-empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     expect(f.group).toBeInstanceOf(THREE.Group);
-    // The parent group has two child Groups (rings + renderer); each contains one InstancedMesh.
-    const meshes = f.group.children
-      .flatMap((c) => c.children)
-      .filter((c) => c instanceof THREE.InstancedMesh);
-    expect(meshes.length).toBe(2);
+    // The parent group has two child Groups (rings + renderer).
+    // Rings group contains one LineSegments2; renderer group contains one InstancedMesh.
+    const allDescendants = f.group.children.flatMap((c) => c.children);
+    const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
+    const lineSegments2 = allDescendants.filter((c) => c instanceof LineSegments2);
+    expect(instancedMeshes.length).toBe(1);
+    expect(lineSegments2.length).toBe(1);
     f.dispose();
   });
 
@@ -41,13 +45,14 @@ describe('createFireflies', () => {
     f.dispose();
   });
 
-  it('dispose() removes all descendant InstancedMeshes', () => {
+  it('dispose() removes all descendant InstancedMeshes and LineSegments2', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.dispose();
-    const meshes = f.group.children
-      .flatMap((c) => c.children)
-      .filter((c) => c instanceof THREE.InstancedMesh);
-    expect(meshes.length).toBe(0);
+    const allDescendants = f.group.children.flatMap((c) => c.children);
+    const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
+    const lineSegments2 = allDescendants.filter((c) => c instanceof LineSegments2);
+    expect(instancedMeshes.length).toBe(0);
+    expect(lineSegments2.length).toBe(0);
   });
 
   it('setTime(t) is a no-op when the group is empty (no instances)', () => {
@@ -100,8 +105,8 @@ describe('createFireflies', () => {
       // Find the orbit-ring group inside the parent group.
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
       expect(ringGroup).toBeDefined();
-      const ringMesh = ringGroup!.children[0] as THREE.InstancedMesh;
-      const mat = ringMesh.material as THREE.MeshBasicMaterial;
+      const ringMesh = ringGroup!.children[0] as LineSegments2;
+      const mat = ringMesh.material as LineMaterial;
       expect(mat.color.getHexString()).toBe('00ff00');
       expect(mat.opacity).toBe(0.5);
       f.dispose();
