@@ -563,6 +563,9 @@ function _buildTreesSection(): HTMLElement {
           tip: 'Trunk XZ radius as a fraction of canopy radius. Wider canopies get thicker trunks proportionally. Rebuild on change.',
         }
       ),
+      _slider('Age shrink floor', TREES, 'TREE_WIDTH_AGE_FLOOR', 0, 1, 0.05, {
+        tip: 'Multiplier on file-driven canopy width at the SHORTEST (newest) tree. 1 = no shrink; 0.5 = half-width saplings; 0 = strict height-proportional. Tallest trees always render at full width. Rebuild on change.',
+      }),
     ])
   );
 

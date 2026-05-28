@@ -106,6 +106,12 @@ export interface TreesConfig {
   /** Fraction of base saturation retained at the NEWEST commit's age
    *  (percent, 0-100). 100 = colors at full strength. */
   TREE_AGE_SATURATION_MAX: number;
+
+  /** Floor that file-driven canopy width is multiplied by at the
+   *  SHORTEST (newest) tree. Width at tallest = full file-driven nominal;
+   *  width at shortest = floor × nominal. 1.0 = no shrink; 0.5 = 50% at
+   *  shortest; 0.0 = strict proportional (sapling-thin). */
+  TREE_WIDTH_AGE_FLOOR: number;
 }
 
 export const TREES = map<TreesConfig>({
@@ -138,6 +144,7 @@ export const TREES = map<TreesConfig>({
   TREE_AGE_DESAT_ENABLED: false,
   TREE_AGE_SATURATION_MIN: 50,
   TREE_AGE_SATURATION_MAX: 100,
+  TREE_WIDTH_AGE_FLOOR: 0.5,
 });
 
 // ─── Hover / select wireframe outlines ─────────────────────────────────────

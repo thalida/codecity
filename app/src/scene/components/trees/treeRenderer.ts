@@ -259,12 +259,24 @@ export function createTreeRenderer(
   }
 
   // WIDTH (canopy XZ radius) is driven by FILES: more files = wider.
+  // Attenuated by AGE via TREE_WIDTH_AGE_FLOOR so short young trees
+  // don't render adult-wide (a brand-new commit touching many files
+  // would otherwise be a squat lollipop). floor=1.0 disables the
+  // attenuation (byte-identical to pre-feature rendering).
   function perTreeRadius(i: number): number {
+    let baseRadius: number;
     if (commits && placements[i].commitIndex >= 0 && placements[i].commitIndex < commits.length) {
       const t = sizeT(commits[placements[i].commitIndex], sizeRange);
-      return minRadius + t * (maxRadius - minRadius);
+      baseRadius = minRadius + t * (maxRadius - minRadius);
+    } else {
+      baseRadius = (minRadius + maxRadius) * 0.5;
     }
-    return (minRadius + maxRadius) * 0.5;
+    // Clamp height range to avoid divide-by-zero when min == max.
+    const heightRange = Math.max(0.001, maxHeight - minHeight);
+    const heightRatio = (perTreeHeight(i) - minHeight) / heightRange;
+    const floor = Math.max(0, Math.min(1, cfg.TREE_WIDTH_AGE_FLOOR));
+    const ageAttenuation = floor + (1 - floor) * heightRatio;
+    return baseRadius * ageAttenuation;
   }
 
   // FACETS are driven by FILES too: bigger commits get more subdivisions.
