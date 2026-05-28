@@ -2,3 +2,4 @@ node_modules
 ../api/static
 package-lock.json
 coverage
+dist
