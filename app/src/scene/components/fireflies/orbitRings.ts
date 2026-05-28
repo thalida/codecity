@@ -53,7 +53,12 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     const o = orbs[i];
     dummy.position.set(o.treeX, o.height, o.treeZ);
     dummy.rotation.set(o.orbitTilt, 0, 0);
-    dummy.scale.setScalar(o.orbitRadius);
+    // The firefly's instance matrix uses dummy.scale.setScalar(o.scale),
+    // which scales the orbital offset computed in the vertex shader as
+    // well — so the firefly's effective world-space orbital radius is
+    // o.scale × o.orbitRadius. Apply both factors here so the ring
+    // matches the actual path the firefly traces.
+    dummy.scale.setScalar(o.orbitRadius * o.scale);
     dummy.updateMatrix();
     mesh.setMatrixAt(i, dummy.matrix);
   }
