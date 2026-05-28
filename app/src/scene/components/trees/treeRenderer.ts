@@ -68,6 +68,17 @@ export interface Trees {
    *  to snap the hover/selected outline mesh's transform to the active
    *  tree without an extra Matrix4 allocation per frame. */
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
+  /** Look up a tree's world position and dimensions by commit SHA.
+   *  Returns null for an unknown sha, or when commits is null. The (x, z)
+   *  are the tree's XZ position; y is the base (always 0). height is the
+   *  trunk-top to canopy-top distance; radius is the canopy XZ radius. */
+  getTreeBoundsBySha(sha: string): {
+    x: number;
+    y: number;
+    z: number;
+    height: number;
+    radius: number;
+  } | null;
 }
 
 /** Three subdivision tiers for the LatheGeometry canopy. File count
@@ -531,6 +542,30 @@ export function createTreeRenderer(
     return _baseColorBySha.get(sha) ?? null;
   }
 
+  function getTreeBoundsBySha(sha: string): {
+    x: number;
+    y: number;
+    z: number;
+    height: number;
+    radius: number;
+  } | null {
+    if (!commits) return null;
+    const hit = _treeIndexBySha.get(sha);
+    if (!hit) return null;
+    // Find the source placement index: the meshRecord's placementOrder
+    // array maps slot → placement index. Read it directly.
+    const placementIdx = (hit.mesh.userData.placementOrder as number[])[hit.instanceId];
+    if (placementIdx == null) return null;
+    const p = placements[placementIdx];
+    return {
+      x: p.x,
+      y: 0,
+      z: p.y,
+      height: perTreeHeight(placementIdx),
+      radius: perTreeRadius(placementIdx),
+    };
+  }
+
   return {
     group,
     refresh,
@@ -539,5 +574,6 @@ export function createTreeRenderer(
     findTreeBySha,
     getInstanceTransform,
     colorForSha,
+    getTreeBoundsBySha,
   };
 }
