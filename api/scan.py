@@ -245,7 +245,7 @@ def _collect_git_dates_windowed(
     _log(f"  starting git log walk (--since={window or 'ALL'})…")
     # See _run_git docstring for why -c safe.directory=* is needed.
     log_argv = ["git", "-c", "safe.directory=*", "-C", str(root), "log",
-                "--format=COMMIT:%aI%x09%H",
+                "--format=COMMIT:%aI%x09%H%x09%an%x09%s",
                 "--name-status",
                 "--no-renames",
                 "--diff-merges=first-parent"]
@@ -267,6 +267,8 @@ def _collect_git_dates_windowed(
     commits_newest_first: list[CommitEntry] = []
     current_date_iso = ""
     current_sha = ""
+    current_author = ""
+    current_subject = ""
     current_files = 0
     commits = 0
     heartbeat_every = 25_000
@@ -286,12 +288,19 @@ def _collect_git_dates_windowed(
                         "date": current_date_iso[:10],
                         "files": current_files,
                         "sha": current_sha,
+                        "author": current_author,
+                        "subject": current_subject,
                     })
                 rest = line[len("COMMIT:"):]
-                # %aI%x09%H → "<iso-date>\t<sha40>"
-                date_part, _, sha_part = rest.partition("\t")
-                current_date_iso = date_part
-                current_sha = sha_part
+                # %aI%x09%H%x09%an%x09%s → "<iso-date>\t<sha40>\t<author>\t<subject>"
+                # Subject is the last field and can contain tabs that git
+                # doesn't escape; split with maxsplit=3 so any tabs IN the
+                # subject stay inside the subject.
+                parts = rest.split("\t", 3)
+                current_date_iso = parts[0] if len(parts) > 0 else ""
+                current_sha = parts[1] if len(parts) > 1 else ""
+                current_author = parts[2] if len(parts) > 2 else ""
+                current_subject = parts[3] if len(parts) > 3 else ""
                 current_files = 0
                 commits += 1
                 if commits % heartbeat_every == 0:
@@ -319,6 +328,8 @@ def _collect_git_dates_windowed(
                 "date": current_date_iso[:10],
                 "files": current_files,
                 "sha": current_sha,
+                "author": current_author,
+                "subject": current_subject,
             })
     finally:
         proc.wait()

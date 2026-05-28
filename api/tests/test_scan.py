@@ -196,9 +196,9 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
-        self.assertEqual(tree["descendants_file_count"], 9)
+        self.assertEqual(tree["descendants_file_count"], 10)
         self.assertEqual(tree["descendants_dir_count"], 4)
-        self.assertEqual(tree["descendants_count"], 13)
+        self.assertEqual(tree["descendants_count"], 14)
         self.assertGreater(tree["descendants_size"], 0)
 
     def test_signature_present_and_stable(self):
@@ -559,10 +559,30 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(dates, sorted(dates),
                          f"commits should be oldest-first, got {dates}")
         for c in commits:
-            self.assertEqual(set(c.keys()), {"date", "files", "sha"})
+            self.assertEqual(
+                set(c.keys()),
+                {"date", "files", "sha", "author", "subject"},
+            )
             self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
+            self.assertIsInstance(c["author"], str)
+            self.assertGreater(len(c["author"]), 0)
+            self.assertIsInstance(c["subject"], str)
+            # Subject must NOT contain a newline — git %s is first line only.
+            self.assertNotIn("\n", c["subject"])
+
+    def test_collect_git_metadata_captures_second_author_and_subject_only(self):
+        """The fixture's last commit is from a different author with a
+        multi-line message. Subject must be the first line only; author
+        must be the second author's name (not the bot)."""
+        from api.scan import _collect_git_metadata
+        _c, _m, _t, commits = _collect_git_metadata(
+            FIXTURE, use_cache=False, git_window="30.years.ago",
+        )
+        last = commits[-1]
+        self.assertEqual(last["author"], "Other Fixture Person")
+        self.assertEqual(last["subject"], "docs: add CONTRIBUTORS")
 
     def test_collect_git_metadata_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the
