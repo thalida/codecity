@@ -78,6 +78,12 @@ import {
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
 } from '@/config/components/island.js';
+import {
+  // Cyberpunk Valley — fireflies (structural: visibility is determined at
+  // creation time by reading FIREFLIES_ENABLED, so any change requires a
+  // full rebuild — there is no refresh() hot-path):
+  FIREFLIES,
+} from '@/config/components/fireflies.js';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 // applyTheme() is synchronous and finishes within microseconds, so without
@@ -187,6 +193,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // FOOTPRINT is intentionally NOT here as a whole-store subscription:
     // only HALO_WIDTH is structural, and we gate it via listenKeys below.
     // COLOR + ENABLED live in materialOnlyStores and refresh via footprint.refresh().
+    //
   ];
 
   const materialOnlyStores = [
@@ -247,6 +254,13 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // all push through treeOutlineRenderer.refreshMaterials() inside
     // applyTheme(). No rebuild needed.
     TREE_OUTLINE,
+    // FIREFLIES — split-routed (mirrors TREES): animation/brightness keys
+    // (BOB_AMPLITUDE, BOB_SPEED, PULSE_AMPLITUDE, PULSE_SPEED, ORBIT_SPEED,
+    // EMISSION_STRENGTH, FLICKER_AMOUNT) are pure uniforms pushed via
+    // fireflies.refresh() inside applyTheme(). Structural keys
+    // (FIREFLIES_ENABLED, ORBS_PER_TREE, SCALE_MIN, SCALE_MAX) get a narrow
+    // listenKeys subscription below that triggers a full rebuild.
+    FIREFLIES,
   ];
 
   const unsubs: Array<() => void> = [];
@@ -305,6 +319,21 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     listenKeys(
       ISLAND_GEOMETRY,
       ['SIDES', 'IRREGULARITY', 'TIERS', 'DEPTH', 'ROUNDNESS', 'GRASS_THICKNESS'],
+      scheduleRebuild
+    )
+  );
+  // FIREFLIES structural keys: ENABLED gates orb creation at createFireflies()
+  // call time; ORBS_PER_TREE and SCALE_MIN/MAX bake into per-instance data;
+  // ORBIT_RING_ENABLED takes the empty-stub path in createOrbitRings when false
+  // (drops the InstancedMesh entirely), so toggling it also needs a full rebuild.
+  // All five require a full applyManifest rebuild. The remaining keys
+  // (animation, brightness, ORBIT_RING_COLOR, ORBIT_RING_OPACITY) fall through
+  // to the materialOnlyStores subscription above and are hot-applied via
+  // fireflies.refresh() → rings.refresh().
+  unsubs.push(
+    listenKeys(
+      FIREFLIES,
+      ['FIREFLIES_ENABLED', 'ORBS_PER_TREE', 'SCALE_MIN', 'SCALE_MAX', 'ORBIT_RING_ENABLED'],
       scheduleRebuild
     )
   );

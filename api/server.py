@@ -61,6 +61,7 @@ from api.scan import (
 )
 from api.types import (
     CacheClearResponse,
+    CommitDetailResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -189,6 +190,7 @@ JsonBody = (
     | FileTooLargeResponse
     | HealthResponse
     | CacheClearResponse
+    | CommitDetailResponse
 )
 
 
@@ -412,6 +414,65 @@ def _resolve_scan_target(
         )
         return None
     return scan_target, raw_src, None, "local"
+
+
+_COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
+
+
+def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
+    """GET /api/commit?sha=<sha>. Returns {sha, author, date, subject, body}
+    for a commit inside any registered scan root. Validates the sha shape
+    locally before shelling out to ``git show``.
+
+    Multi-root resolution: tries each allowed scan root in turn and
+    returns the first hit. Most deployments have one root; for the rare
+    multi-root case this picks the first repo that contains the sha.
+
+    No email in the response. ``git show`` is the only git call here — no
+    diff is fetched.
+    """
+    params = parse_qs(query)
+    sha = (params.get("sha") or [""])[0].strip()
+    if not _COMMIT_SHA_RE.match(sha):
+        _send_json(handler, HTTPStatus.BAD_REQUEST,
+                   {"error": "invalid or missing sha"})
+        return
+
+    with _State.allowed_roots_lock:
+        roots_snapshot = set(_State.allowed_roots)
+
+    if not roots_snapshot:
+        _send_json(handler, HTTPStatus.NOT_FOUND,
+                   {"error": "no scan root registered yet — fetch /api/manifest first"})
+        return
+
+    fmt = "%H%x00%an%x00%aI%x00%s%x00%b"
+    for root in roots_snapshot:
+        try:
+            out = subprocess.check_output(
+                ["git", "-c", "safe.directory=*", "-C", str(root),
+                 "show", "-s", f"--format={fmt}", sha],
+                stderr=subprocess.DEVNULL,
+                text=True,
+            )
+        except subprocess.CalledProcessError:
+            continue
+        parts = out.rstrip("\n").split("\x00", 4)
+        if len(parts) < 5:
+            continue
+        full_sha, author, iso_date, subject, body = parts
+        response: CommitDetailResponse = {
+            "sha": full_sha,
+            "author": author,
+            "date": iso_date[:10],
+            "subject": subject,
+            "body": body,
+        }
+        _send_json(handler, HTTPStatus.OK, response)
+        return
+
+    _send_json(handler, HTTPStatus.NOT_FOUND,
+               {"error": "sha not found in any registered scan root"})
 
 
 def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
@@ -820,6 +881,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/file":
             _serve_file_api(self, parsed.query)
+            return
+
+        if path == "/api/commit":
+            _serve_commit_detail(self, parsed.query)
             return
 
         if path.startswith("/api/"):

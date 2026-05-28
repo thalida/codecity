@@ -53,6 +53,8 @@ import { createRepoLabel } from './components/repoLabel/repoLabel.js';
 import type { RepoLabel } from './components/repoLabel/repoLabel.js';
 import { createTrees } from './components/trees/trees.js';
 import type { Trees } from './components/trees/trees.js';
+import { createFireflies } from './components/fireflies/fireflies.js';
+import type { Fireflies } from './components/fireflies/fireflies.js';
 import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
 import type { TreePlacementClient } from './components/trees/treePlacementClient.js';
 import { createIsland } from './components/island/islandMesh.js';
@@ -361,6 +363,10 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // Cyberpunk Valley trees — REBUILT per applyManifest. One tree per
   // commit, placed commit-driven across the world floor.
   let _trees: Trees | null = null;
+
+  // Cyberpunk Valley fireflies — REBUILT per applyManifest. One orb
+  // cluster per tree (commit), driven by GPU shader bob animation.
+  let _fireflies: Fireflies | null = null;
 
   // Tree placement client — owns the off-thread worker (or its sync
   // fallback in test envs). One instance per world; disposed when
@@ -1053,6 +1059,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       _trees.dispose();
       _trees = null;
     }
+    if (_fireflies) {
+      scene.remove(_fireflies.group);
+      _fireflies.dispose();
+      _fireflies = null;
+    }
     if (_cityFootprint) {
       _cityFootprint.dispose();
       _cityFootprint = null;
@@ -1139,6 +1150,8 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
       _trees = createTrees(treePlacements, manifest.commits ?? null);
       scene.add(_trees.group);
+      _fireflies = createFireflies(treePlacements, manifest.commits ?? null);
+      scene.add(_fireflies.group);
 
       // Re-notify listeners now that async decoration (trees) is
       // fully attached to the scene. The first onChange fired before this
@@ -1171,6 +1184,11 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     if (_trees) {
       _trees.dispose();
       _trees = null;
+    }
+    if (_fireflies) {
+      scene.remove(_fireflies.group);
+      _fireflies.dispose();
+      _fireflies = null;
     }
     if (_cityFootprint) {
       _cityFootprint.dispose();
@@ -1256,6 +1274,15 @@ export function createWorld(_canvas: HTMLCanvasElement) {
      */
     getTrees(): Trees | null {
       return _trees;
+    },
+
+    /**
+     * Cyberpunk Valley fireflies reference. Rebuilt per applyManifest,
+     * so this returns null until the first manifest has been applied.
+     * The render loop calls setTime() each frame to drive the bob shader.
+     */
+    getFireflies(): Fireflies | null {
+      return _fireflies;
     },
 
     /**

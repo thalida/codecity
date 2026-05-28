@@ -2907,10 +2907,12 @@ canvas {
 }
 
 /* ── Commit pane (right sidebar) ────────────────────────────────────────
-   Shown when a tree is selected in the city. Layout: pane-header from
-   buildPaneHeader + .commit-body scrollable area with sha / date / age /
-   open-on-origin link. Follows the same pane-body padding pattern as
-   other right-sidebar panes. */
+   Shown when a tree is selected in the city. Layout:
+     - pane-header (from buildPaneHeader) — title becomes "Commit <sha>"
+       with an inline open-on-origin link; close × at far right.
+     - .commit-body — scrollable area: author row, message block (subject
+       + lazy-fetched body), footer meta row (age · files), same-day row.
+   Follows the same pane-body padding pattern as other right-sidebar panes. */
 
 .commit-body {
   padding: var(--cc-space-7); /* 16px */
@@ -2919,31 +2921,116 @@ canvas {
   gap: var(--cc-space-4); /* 8px */
 }
 
+/* Short SHA rendered inline inside the pane-header title. */
 .commit-sha {
   font-family: var(--cc-font-mono);
-  font-size: var(--cc-font-2xl); /* 18px — prominent primary identifier */
+  font-size: var(--cc-font-lg); /* inherits title size */
   font-weight: 600;
   color: var(--cc-text-primary);
-  line-height: 1.3;
 }
 
+/* Open-on-origin link sits inline next to the SHA inside the title.
+   Inherits .btn-icon + .btn-icon--link (24×24, muted, hover overlay). */
+.commit-open {
+  flex-shrink: 0;
+}
+
+.commit-no-remote {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+  font-style: italic;
+}
+
+.commit-author {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-3); /* 6px */
+  margin-bottom: var(--cc-space-2); /* 4px */
+}
+
+.commit-author-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--cc-radius-circle);
+  flex-shrink: 0;
+}
+
+.commit-author-name {
+  font-size: var(--cc-font-xl); /* 14px */
+  font-weight: 500;
+  color: var(--cc-text-secondary);
+}
+
+/* Message block: subject + lazy-fetched body, displayed as a single unit. */
+.commit-message {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cc-space-3); /* 6px */
+}
+
+.commit-message-subject {
+  font-size: var(--cc-font-lg); /* 12px */
+  color: var(--cc-text-secondary);
+  font-weight: 500;
+  white-space: normal; /* wrap freely — no ellipsization */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+/* Pane-wide loading state shown while the commit body fetch is in flight. */
+.commit-loading {
+  font-size: var(--cc-font-md);
+  color: var(--cc-text-muted);
+  opacity: 0.7;
+  padding: var(--cc-space-4) var(--cc-space-4);
+  text-align: center;
+}
+
+.commit-message-body {
+  font-family: var(--cc-font-mono);
+  font-size: var(--cc-font-md); /* 11px */
+  white-space: pre-wrap;
+  padding: var(--cc-space-4); /* 8px */
+  background: var(--cc-overlay-bg-soft);
+  border-radius: var(--cc-radius-sm);
+  max-height: 240px;
+  overflow: auto;
+  color: var(--cc-text-muted);
+}
+
+.commit-message-error {
+  font-size: var(--cc-font-md); /* 11px */
+  color: var(--cc-text-muted);
+  opacity: 0.7;
+}
+
+/* Footer line 1: "committed <relative age> · <N> file(s) changed" */
+.commit-meta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--cc-space-3); /* 6px breathing room around the · separator */
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-lg); /* 12px */
+  flex-wrap: wrap;
+}
+
+/* Decorative middle-dot between meta items. aria-hidden — purely visual. */
+.commit-meta-sep {
+  color: var(--cc-text-ghost);
+}
+
+/* Inline span; title attribute holds the full ISO date for hover tooltip. */
+.commit-age {
+  color: var(--cc-text-muted);
+}
+
+/* Inline span inside .commit-meta. */
 .commit-files {
   color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
 }
 
-.commit-when {
-  display: flex;
-  gap: 6px;
-  align-items: baseline;
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-}
-
-.commit-when-sep {
-  opacity: 0.5;
-}
-
+/* Footer line 2: swatch + "<Light|Avg|Busy> day — N commit(s) that day" */
 .commit-same-day {
   display: flex;
   align-items: center;
@@ -2958,24 +3045,4 @@ canvas {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
-}
-
-/* SHA row: SHA and open-on-origin link sit adjacent (no gap-filling). */
-.commit-row {
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: var(--cc-space-4); /* 8px */
-}
-
-/* .commit-open inherits the .btn-icon + .btn-icon--link shell (24×24,
-   icon-only, muted color, hover overlay) — matches the app-header repo link. */
-.commit-open {
-  flex-shrink: 0;
-}
-
-.commit-no-remote {
-  color: var(--cc-text-muted);
-  font-size: var(--cc-font-lg); /* 12px */
-  font-style: italic;
 }

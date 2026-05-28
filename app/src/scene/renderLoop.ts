@@ -253,6 +253,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // Cyberpunk Valley trees — pushes fresh TREE_GREENS + TREE_TRUNK_COLOR
     // into per-instance color buffers. Null until the first manifest applies.
     world.getTrees()?.refresh();
+    // Cyberpunk Valley fireflies — pushes fresh BOB/PULSE/EMISSION/FLICKER/
+    // ORBIT_SPEED uniforms into the shader. Null until the first manifest
+    // applies; guard with optional chain. Structural keys (ENABLED,
+    // ORBS_PER_TREE, SCALE_MIN/MAX) take the rebuild path via
+    // configCommitReactions.
+    world.getFireflies()?.refresh();
 
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
     // onto the slab material / group visibility. Null until the first
@@ -374,6 +380,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       outlineRenderer.onResize();
       treeOutlineRenderer.onResize();
       pathLineRenderer.onResize();
+      world.getFireflies()?.onResize(cw, ch);
       // Synchronous paint to avoid a single-frame blank/cleared canvas
       // between the resize and the next animate() tick. The render path
       // must match animate() so bloom shows immediately on the new size.
@@ -390,6 +397,29 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   });
   picker.hover.subscribe(() => {
     _refreshSidewalkTints();
+  });
+
+  // Firefly hover / select boost. Always re-fetches world.getFireflies() so
+  // the subscription stays valid across world rebuilds — the new renderer
+  // starts with uniforms at -1 (no highlight), and the next subscription
+  // fire will push the current hover/selection into it.
+  picker.hover.subscribe((h) => {
+    const fireflies = world.getFireflies();
+    if (!fireflies) return;
+    if (h && h.kind === NodeKind.Commit) {
+      fireflies.setHoveredCommit(h.commit.sha);
+    } else {
+      fireflies.setHoveredCommit(null);
+    }
+  });
+  picker.selection.subscribe((sel) => {
+    const fireflies = world.getFireflies();
+    if (!fireflies) return;
+    if (sel && sel.kind === NodeKind.Commit) {
+      fireflies.setSelectedCommit(sel.commit.sha);
+    } else {
+      fireflies.setSelectedCommit(null);
+    }
   });
 
   // -- 8. Render loop --------------------------------------------------------
@@ -420,6 +450,14 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         outlineRenderer.onResize();
         treeOutlineRenderer.onResize();
         pathLineRenderer.onResize();
+        world.getFireflies()?.onResize(cw, ch);
+      }
+    }
+    // Drive firefly bob — single uniform update for all orb instances.
+    {
+      const fireflies = world.getFireflies();
+      if (fireflies) {
+        fireflies.setTime((performance.now() - startTime) / 1000);
       }
     }
     rig.update(0); // first-call: bbox-frames camera

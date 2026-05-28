@@ -27,6 +27,8 @@ function commit(i: number): CommitEntry {
     date: `2026-03-${String(i + 1).padStart(2, '0')}`,
     files: i + 1,
     sha: `${i.toString(16).padStart(8, '0')}${'0'.repeat(32)}`,
+    author: `Author ${i}`,
+    subject: `commit ${i}`,
   };
 }
 

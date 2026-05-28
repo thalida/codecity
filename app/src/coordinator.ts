@@ -42,13 +42,7 @@ interface CoordinatorOpts {
   applyTheme: () => void;
 }
 
-export function createCoordinator({
-  world,
-  picker,
-  rig,
-  resetView,
-  applyTheme,
-}: CoordinatorOpts) {
+export function createCoordinator({ world, picker, rig, resetView, applyTheme }: CoordinatorOpts) {
   // Right-sidebar pane choice. Selection drives which pane is mounted:
   //   File → filePreview
   //   Commit → commitPane

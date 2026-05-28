@@ -97,11 +97,15 @@ class CommitEntry(TypedDict):
     placement (closest-to-gem). Date is day-precision for compact
     payload + future age signal. files = count of A/M/D/T/U rows in
     the commit's --name-status block. sha is the full 40-char hex;
-    the UI displays the first 7."""
+    the UI displays the first 7. author is the git %an value (no
+    email — privacy). subject is git %s — the first line of the
+    commit message only; body is fetched lazily via /api/commit."""
 
     date: str   # "YYYY-MM-DD"
     files: int
     sha: str
+    author: str
+    subject: str
 
 
 class Manifest(TypedDict):
@@ -159,6 +163,18 @@ class HealthResponse(TypedDict):
     """/api/health body."""
 
     ok: bool
+
+
+class CommitDetailResponse(TypedDict):
+    """Body of GET /api/commit?sha=<sha>. Returns the commit's author
+    name (no email), day-precision date, single-line subject, and full
+    multi-line body — pulled live from `git show -s` on each request."""
+
+    sha: str
+    author: str
+    date: str       # "YYYY-MM-DD"
+    subject: str
+    body: str
 
 
 class ScanStreamEvent(TypedDict):

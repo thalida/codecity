@@ -160,8 +160,8 @@ export interface TreeOutlineConfig {
 }
 
 export const TREE_OUTLINE = map<TreeOutlineConfig>({
-  WIDTH: 3,
+  WIDTH: 1,
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.5,
-  SELECTED_OPACITY: 1.0,
+  SELECTED_OPACITY: 0.75,
 });

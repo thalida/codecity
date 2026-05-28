@@ -346,6 +346,34 @@ GIT_AUTHOR_DATE="2024-03-22T14:30:00+00:00" \
 GIT_COMMITTER_DATE="2024-03-22T14:30:00+00:00" \
   git -C "$REPO_DIR" commit -q -m "feat: add source files, tests, and logo"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMMIT N+1 — Second author with a multi-line message
+# Adds a `CONTRIBUTORS.md` so the diff has exactly one file.
+# Used by scanner tests that verify the `author` and `subject` fields.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+write_file "CONTRIBUTORS.md" <<'EOF'
+# Contributors
+
+- Test Fixture Bot
+- Other Fixture Person
+EOF
+
+git -C "$REPO_DIR" add CONTRIBUTORS.md
+GIT_AUTHOR_DATE="2024-04-05T11:00:00+00:00" \
+GIT_COMMITTER_DATE="2024-04-05T11:00:00+00:00" \
+GIT_AUTHOR_NAME="Other Fixture Person" \
+GIT_AUTHOR_EMAIL="other-fixture@codecity.test" \
+GIT_COMMITTER_NAME="Other Fixture Person" \
+GIT_COMMITTER_EMAIL="other-fixture@codecity.test" \
+git -C "$REPO_DIR" commit -q -m "docs: add CONTRIBUTORS
+
+This is the body. It has multiple
+lines and a blank line above to test
+that the scanner's subject capture
+stops at the first newline.
+"
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "sample-repo created at: $REPO_DIR"
 echo ""
