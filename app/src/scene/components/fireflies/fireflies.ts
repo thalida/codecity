@@ -52,22 +52,18 @@ export function createFireflies(
       renderer.setTime(seconds);
     },
     setHoveredCommit(sha: string | null) {
-      console.log('[fireflies] orchestrator.setHoveredCommit', sha, 'mapSize:', shaToIndex.size);  // TODO: remove after diagnosis
       if (sha === null) {
         renderer.setHoveredCommit(null);
       } else {
         const idx = shaToIndex.get(sha);
-        console.log('[fireflies] sha resolved to index:', idx);  // TODO: remove after diagnosis
         renderer.setHoveredCommit(idx !== undefined ? idx : null);
       }
     },
     setSelectedCommit(sha: string | null) {
-      console.log('[fireflies] orchestrator.setSelectedCommit', sha, 'mapSize:', shaToIndex.size);  // TODO: remove after diagnosis
       if (sha === null) {
         renderer.setSelectedCommit(null);
       } else {
         const idx = shaToIndex.get(sha);
-        console.log('[fireflies] sha resolved to index:', idx);  // TODO: remove after diagnosis
         renderer.setSelectedCommit(idx !== undefined ? idx : null);
       }
     },
