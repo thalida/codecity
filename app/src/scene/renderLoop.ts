@@ -424,7 +424,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     }
     // Drive firefly bob — single uniform update for all orb instances.
     {
-      const fireflies = world.getFireflies?.();
+      const fireflies = world.getFireflies();
       if (fireflies) {
         fireflies.setTime((performance.now() - startTime) / 1000);
       }
