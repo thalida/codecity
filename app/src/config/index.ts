@@ -57,6 +57,7 @@ export * from './components/gem.js';
 export * from './components/island.js';
 export * from './components/footprint.js';
 export * from './components/trees.js';
+export * from './components/fireflies.js';
 export * from './components/repoLabel.js';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────
