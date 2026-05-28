@@ -578,10 +578,10 @@ function _buildFirefliesSection(): HTMLElement {
   section.appendChild(
     _collapsibleSubgroup('fireflies-bob', 'Bob (vertical drift)', () => [
       _slider('Bob amplitude', FIREFLIES, 'BOB_AMPLITUDE', 0, 2.0, 0.05, {
-        tip: 'How far each orb drifts up and down in world units. 0 = no vertical movement. Live.',
+        tip: 'How far each orb drifts up and down in world units. 0 = no vertical movement.',
       }),
       _slider('Bob speed', FIREFLIES, 'BOB_SPEED', 0, 5.0, 0.1, {
-        tip: 'How fast the vertical bob oscillates in radians/sec. Higher = faster bobbing. Live.',
+        tip: 'How fast the vertical bob oscillates in radians/sec. Higher = faster bobbing.',
       }),
     ])
   );
@@ -589,10 +589,10 @@ function _buildFirefliesSection(): HTMLElement {
   section.appendChild(
     _collapsibleSubgroup('fireflies-pulse', 'Brightness pulse', () => [
       _slider('Pulse amplitude', FIREFLIES, 'PULSE_AMPLITUDE', 0, 1.0, 0.05, {
-        tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% brightness modulation. Live.',
+        tip: 'Brightness swing. 0 = steady glow, 1 = full ±100% brightness modulation.',
       }),
       _slider('Pulse speed', FIREFLIES, 'PULSE_SPEED', 0, 5.0, 0.1, {
-        tip: 'How fast the brightness pulses in radians/sec. Higher = faster flickering. Live.',
+        tip: 'How fast the brightness pulses in radians/sec. Higher = faster flickering.',
       }),
     ])
   );
