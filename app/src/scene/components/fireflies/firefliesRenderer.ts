@@ -52,6 +52,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     toneMapped: false,
   });
 
+  // Shader injection patches the built-in MeshBasicMaterial vertex
+  // shader's '<common>' and '<begin_vertex>' chunks. These chunk
+  // names are part of three.js's stable glsl chunk API (since r80+),
+  // but a future major upgrade could rename them — revisit on bump.
   material.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = uTime;
     shader.uniforms.uAmp = { value: BOB_AMPLITUDE };
@@ -81,6 +85,9 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
 
   const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
   mesh.name = 'fireflies-orbs';
+  // Culling is disabled because the shader-side y-bob shifts vertices
+  // outside the mesh's bounding sphere, which would otherwise cause
+  // three.js to cull instances mid-bob.
   mesh.frustumCulled = false;
   mesh.renderOrder = RENDER_ORDERS.FIREFLIES;
 
@@ -112,6 +119,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       geometry.dispose();
       material.dispose();
       group.remove(mesh);
+      mesh.dispose();
     },
   };
 }
