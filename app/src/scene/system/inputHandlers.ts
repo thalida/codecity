@@ -201,7 +201,7 @@ export function createInputHandlers({
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
-      onResetView();
+      rig.focusGem();
       return;
     }
     // Route through picker.interpretHit so InstancedMesh hits resolve to a
@@ -215,6 +215,10 @@ export function createInputHandlers({
     }
     if (target?.kind === NodeKind.Directory) {
       rig.focusStreet(target.street, hit.point);
+      return;
+    }
+    if (target?.kind === NodeKind.Commit) {
+      rig.focusTree(target.commit.sha);
       return;
     }
     rig.recenterTo(new THREE.Vector3(hit.point.x, 0, hit.point.z));
@@ -296,7 +300,10 @@ export function createInputHandlers({
         rig.focusBuilding(sel.mesh, sel.data);
       } else if (sel.kind === NodeKind.Directory) {
         rig.focusStreet(sel.street, null);
+      } else if (sel.kind === NodeKind.Commit) {
+        rig.focusTree(sel.commit.sha);
       }
+      // Gem isn't selectable, so no Gem branch — gem focus is via dblclick.
     }
   });
 
