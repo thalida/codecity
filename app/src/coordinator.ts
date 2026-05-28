@@ -111,8 +111,20 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     }
     if (sidebarPane === 'street') {
       showRightSidebar(streetPane.pane);
-      if (sel && sel.kind === NodeKind.Directory) streetPane.api.setDirectory(sel.dir);
-      else streetPane.api.setDirectory(null);
+      // Defer the heavy DOM mutation past the current event-loop task —
+      // setDirectory walks the descendant subtree and builds rows for every
+      // extension, which is enough work that running it synchronously
+      // during the pointerup that triggered this render confused canvas
+      // pointer state and broke subsequent hover/click. setTimeout(0)
+      // yields the task so the pointer event lifecycle completes first.
+      const _sel = sel;
+      setTimeout(() => {
+        if (_sel && _sel.kind === NodeKind.Directory) {
+          streetPane.api.setDirectory(_sel.dir);
+        } else {
+          streetPane.api.setDirectory(null);
+        }
+      }, 0);
       return;
     }
   }
