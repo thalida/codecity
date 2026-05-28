@@ -23,6 +23,7 @@ export interface FireflyRenderer {
 }
 
 export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer {
+  console.log('[fireflies] createFireflyRenderer called, orbs.length:', orbs.length, 'timestamp:', Date.now());
   const group = new THREE.Group();
   group.name = 'fireflies';
 
@@ -86,6 +87,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   // names are part of three.js's stable glsl chunk API (since r80+),
   // but a future major upgrade could rename them — revisit on bump.
   material.onBeforeCompile = (shader) => {
+    console.log('[fireflies] onBeforeCompile FIRED — compiling NEW shader');
     shader.uniforms.uTime = uTime;
     shader.uniforms.uBobAmp = uBobAmp;
     shader.uniforms.uBobSpeed = uBobSpeed;
@@ -163,43 +165,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <output_fragment>',
       `#include <output_fragment>
-       // Flicker: hold each random value for ~1/8 second (8 Hz step rate)
-       // so the brain reads it as flicker rather than integrating to a
-       // steady average (which happens above ~30 Hz). vCommitIndex seeds
-       // the per-orb sequence so different orbs blink out of phase.
-       float noiseStep = floor(uTime * 8.0);
-       float flickerNoise = fract(sin(noiseStep * 17.0 + vCommitIndex * 13.0) * 43758.5453);
-       float flicker = mix(1.0, flickerNoise, uFlicker);
-
-       bool isSelected = (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5);
-       bool isHovered  = (uHoveredCommit  >= 0.0 && abs(vCommitIndex - uHoveredCommit)  < 0.5);
-
-       // DIAGNOSTIC — restore rim+boost after confirming wiring
-       if (isSelected) {
-         // DIAGNOSTIC — magenta override so the highlight is unmissable.
-         gl_FragColor.rgb = vec3(8.0, 0.0, 8.0);
-       } else if (isHovered) {
-         // DIAGNOSTIC — cyan override.
-         gl_FragColor.rgb = vec3(0.0, 8.0, 8.0);
-       } else {
-         // Normal rendering — brightness pipeline.
-         // Restore rim+boost here when wiring is confirmed:
-         //   float boost = 1.0;
-         //   float rimStrength = 0.0;
-         //   if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
-         //     boost = ${SELECT_BRIGHTNESS_BOOST.toFixed(2)};
-         //     rimStrength = 3.0;
-         //   } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
-         //     boost = ${HOVER_BRIGHTNESS_BOOST.toFixed(2)};
-         //     rimStrength = 1.5;
-         //   }
-         //   float rim = 1.0 - abs(vWorldNormal.z);
-         //   rim = pow(rim, 2.0);
-         //   gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;
-         //   gl_FragColor.rgb += rim * rimStrength;
-         gl_FragColor.rgb *= vPulse * flicker * uEmission;
-       }`,
+       // DIAGNOSTIC — ALL orbs solid yellow, no exceptions.
+       gl_FragColor = vec4(8.0, 8.0, 0.0, 1.0);`,
     );
+    console.log('[fireflies] FINAL FRAGMENT SHADER:\n', shader.fragmentShader);
   };
 
   const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
