@@ -48,4 +48,8 @@ export const RENDER_ORDERS = {
   // rainbow on top.
   HOVER_TREE_OUTLINE: 11,
   SELECTED_TREE_OUTLINE: 12,
+  // Firefly orbs — additive-blended motes that hover above tree canopies.
+  // Drawn after foliage/outlines so they composite over the tree silhouettes,
+  // but below any HUD labels.
+  FIREFLIES: 20,
 } as const;
