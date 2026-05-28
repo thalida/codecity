@@ -297,7 +297,7 @@ def _collect_git_dates_windowed(
                 # doesn't escape; split with maxsplit=3 so any tabs IN the
                 # subject stay inside the subject.
                 parts = rest.split("\t", 3)
-                current_date_iso = parts[0] if len(parts) > 0 else ""
+                current_date_iso = parts[0]
                 current_sha = parts[1] if len(parts) > 1 else ""
                 current_author = parts[2] if len(parts) > 2 else ""
                 current_subject = parts[3] if len(parts) > 3 else ""

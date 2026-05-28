@@ -196,8 +196,10 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
+        # +1 for CONTRIBUTORS.md added by the second-author fixture commit
         self.assertEqual(tree["descendants_file_count"], 10)
         self.assertEqual(tree["descendants_dir_count"], 4)
+        # +1 for CONTRIBUTORS.md in the descendants_count (files + dirs)
         self.assertEqual(tree["descendants_count"], 14)
         self.assertGreater(tree["descendants_size"], 0)
 
