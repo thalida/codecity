@@ -24,6 +24,9 @@ import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
 
 interface BuildCommitPaneOpts {
   onClose?: () => void;
+  /** Called when the user clicks the focus button in the pane header.
+   *  Equivalent of pressing F on the canvas with the current commit selected. */
+  onFocus?: (commit: CommitEntry) => void;
 }
 
 export interface SetCommitOpts {
@@ -51,6 +54,12 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   const { el: header, api: headerApi } = buildPaneHeader({
     title: 'Commit',
     onClose: opts.onClose,
+    onFocus: opts.onFocus
+      ? () => {
+          if (_currentCommit) opts.onFocus!(_currentCommit);
+        }
+      : undefined,
+    focusTitle: 'Focus the camera on this commit (F)',
   });
   pane.appendChild(header);
 
@@ -61,6 +70,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   // SHA-based race guard: tracks the most recently requested commit sha so
   // late fetch results from a previous commit are silently dropped.
   let _currentSha: string | null = null;
+  let _currentCommit: CommitEntry | null = null;
 
   // Body cache: sha → fetched body text (empty string is a valid cached value).
   // Lives on the pane instance; never invalidated (commits are immutable).
@@ -68,6 +78,8 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
   function _renderEmpty(): void {
     _currentSha = null;
+    _currentCommit = null;
+    headerApi.setFocusEnabled(false);
     headerApi.setTitle('Commit');
     body.replaceChildren();
     const box = document.createElement('div');
@@ -200,6 +212,8 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     now: Date
   ): void {
     _currentSha = commit.sha;
+    _currentCommit = commit;
+    headerApi.setFocusEnabled(true);
 
     // Update the pane header title to "Commit <short-sha>" + optional open
     // link. This happens immediately, even during loading, so the user sees

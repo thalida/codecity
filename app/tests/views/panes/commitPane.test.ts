@@ -407,6 +407,27 @@ describe('buildCommitPane', () => {
     expect(err.textContent).toMatch(/failed/i);
   });
 
+  it('passes onFocus through to the pane header and fires with the current commit', () => {
+    const onFocus = vi.fn();
+    const { pane, api } = buildCommitPane({ onFocus });
+    api.setCommit(COMMIT, { remoteUrl: null });
+    const focusBtn = pane.querySelector('.pane-header .btn-icon[aria-label="Focus the camera on this commit (F)"]') as HTMLButtonElement | null
+      ?? pane.querySelector('.pane-header .btn-icon') as HTMLButtonElement | null;
+    expect(focusBtn).not.toBeNull();
+    focusBtn!.click();
+    expect(onFocus).toHaveBeenCalledTimes(1);
+    expect(onFocus).toHaveBeenCalledWith(COMMIT);
+  });
+
+  it('focus button is disabled in the empty state', () => {
+    const onFocus = vi.fn();
+    const { pane, api } = buildCommitPane({ onFocus });
+    api.setCommit(null);
+    const focusBtn = pane.querySelector('.pane-header button') as HTMLButtonElement | null;
+    expect(focusBtn).not.toBeNull();
+    expect(focusBtn!.disabled).toBe(true);
+  });
+
   it('drops a late fetch result when the pane has moved to a different commit', async () => {
     // Fetch for the first commit hangs, then resolves AFTER the second
     // commit's render has replaced the body. The late result must
