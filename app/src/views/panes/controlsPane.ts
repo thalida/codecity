@@ -620,9 +620,6 @@ function _buildFirefliesSection(): HTMLElement {
       _slider('Ring opacity', FIREFLIES, 'ORBIT_RING_OPACITY', 0, 1, 0.05, {
         tip: '0 = invisible, 1 = fully opaque.',
       }),
-      _slider('Ring thickness', FIREFLIES, 'ORBIT_RING_THICKNESS', 0.5, 8, 0.25, {
-        tip: 'Line width in pixels. Constant regardless of orbital radius or camera distance.',
-      }),
     ])
   );
 
