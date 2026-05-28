@@ -163,31 +163,37 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     shader.fragmentShader = shader.fragmentShader.replace(
       '#include <output_fragment>',
       `#include <output_fragment>
-       // Flicker: high-frequency pseudo-random brightness noise, layered on
-       // top of the smooth pulse. Hash-based so it's deterministic per fragment
-       // but varies wildly with time.
        float flickerNoise = fract(sin(uTime * 17.0 + vPulse * 13.0) * 43758.5453);
        float flicker = mix(1.0, flickerNoise, uFlicker);
 
-       // Highlight detection — select beats hover when both match.
-       float boost = 1.0;
-       float rimStrength = 0.0;  // 0 = no rim outline
-       if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
-         boost = ${SELECT_BRIGHTNESS_BOOST.toFixed(2)};
-         rimStrength = 3.0;  // strong rim for selection
-       } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
-         boost = ${HOVER_BRIGHTNESS_BOOST.toFixed(2)};
-         rimStrength = 1.5;  // subtler rim for hover
-       }
+       bool isSelected = (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5);
+       bool isHovered  = (uHoveredCommit  >= 0.0 && abs(vCommitIndex - uHoveredCommit)  < 0.5);
 
-       // Rim outline — silhouette edges glow brighter.
-       // view-space normal.z = component pointing toward camera (1 = facing, 0 = edge).
-       float rim = 1.0 - abs(vWorldNormal.z);
-       rim = pow(rim, 2.0);  // sharpen toward the silhouette
-
-       gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;
-       // Add rim glow on top (additive — punches above bloom threshold).
-       gl_FragColor.rgb += rim * rimStrength;`,
+       // DIAGNOSTIC — restore rim+boost after confirming wiring
+       if (isSelected) {
+         // DIAGNOSTIC — magenta override so the highlight is unmissable.
+         gl_FragColor.rgb = vec3(8.0, 0.0, 8.0);
+       } else if (isHovered) {
+         // DIAGNOSTIC — cyan override.
+         gl_FragColor.rgb = vec3(0.0, 8.0, 8.0);
+       } else {
+         // Normal rendering — brightness pipeline.
+         // Restore rim+boost here when wiring is confirmed:
+         //   float boost = 1.0;
+         //   float rimStrength = 0.0;
+         //   if (uSelectedCommit >= 0.0 && abs(vCommitIndex - uSelectedCommit) < 0.5) {
+         //     boost = ${SELECT_BRIGHTNESS_BOOST.toFixed(2)};
+         //     rimStrength = 3.0;
+         //   } else if (uHoveredCommit >= 0.0 && abs(vCommitIndex - uHoveredCommit) < 0.5) {
+         //     boost = ${HOVER_BRIGHTNESS_BOOST.toFixed(2)};
+         //     rimStrength = 1.5;
+         //   }
+         //   float rim = 1.0 - abs(vWorldNormal.z);
+         //   rim = pow(rim, 2.0);
+         //   gl_FragColor.rgb *= vPulse * flicker * uEmission * boost;
+         //   gl_FragColor.rgb += rim * rimStrength;
+         gl_FragColor.rgb *= vPulse * flicker * uEmission;
+       }`,
     );
   };
 
@@ -224,9 +230,11 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uTime.value = seconds;
     },
     setHoveredCommit(commitIndex: number | null) {
+      console.log('[fireflies] renderer.setHoveredCommit', commitIndex);  // TODO: remove after diagnosis
       uHoveredCommit.value = commitIndex ?? -1;
     },
     setSelectedCommit(commitIndex: number | null) {
+      console.log('[fireflies] renderer.setSelectedCommit', commitIndex);  // TODO: remove after diagnosis
       uSelectedCommit.value = commitIndex ?? -1;
     },
     refresh() {

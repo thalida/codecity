@@ -403,8 +403,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // starts with uniforms at -1 (no highlight), and the next subscription
   // fire will push the current hover/selection into it.
   picker.hover.subscribe((h) => {
+    console.log('[picker] hover fired, kind:', h?.kind);  // TODO: remove after diagnosis
     const fireflies = world.getFireflies();
-    if (!fireflies) return;
+    if (!fireflies) {
+      console.log('[picker] hover: no fireflies handle');  // TODO: remove after diagnosis
+      return;
+    }
     if (h && h.kind === NodeKind.Commit) {
       fireflies.setHoveredCommit(h.commit.sha);
     } else {
@@ -412,8 +416,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     }
   });
   picker.selection.subscribe((sel) => {
+    console.log('[picker] selection fired, kind:', sel?.kind);  // TODO: remove after diagnosis
     const fireflies = world.getFireflies();
-    if (!fireflies) return;
+    if (!fireflies) {
+      console.log('[picker] selection: no fireflies handle');  // TODO: remove after diagnosis
+      return;
+    }
     if (sel && sel.kind === NodeKind.Commit) {
       fireflies.setSelectedCommit(sel.commit.sha);
     } else {
