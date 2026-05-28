@@ -1,5 +1,5 @@
 // scene/fireflies/firefliesRenderer.ts — one InstancedMesh of
-// additive-blended icospheres. Per-instance color + phase. The bob
+// additive-blended smooth icospheres. Per-instance color + phase. The bob
 // animation lives in the vertex shader (via onBeforeCompile) so the
 // CPU never re-writes 750k matrices per frame.
 //
@@ -34,7 +34,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   }
 
   const cfg = FIREFLIES.get();
-  const geometry = new THREE.IcosahedronGeometry(1.0, 0);
+  const geometry = new THREE.IcosahedronGeometry(1.0, 2);
 
   // Per-instance bob phase (existing) + per-instance pulse phase + orbit params (new).
   const phaseArray = new Float32Array(orbs.length);

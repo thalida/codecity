@@ -40,7 +40,7 @@ export interface FireflyPlacement {
   colorHex: string;
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. */
   rgb: [number, number, number];
-  /** Per-instance scale derived from author commit count. 1.0 when SCALE_BY_COMMITS is off. */
+  /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
 }
 
@@ -85,12 +85,8 @@ export function placeFireflies(
   const authorScale = new Map<string, number>();
   const range = Math.max(1, maxCount - minCount); // guard division-by-zero
   for (const [author, n] of counts) {
-    if (!fireflyConfig.SCALE_BY_COMMITS) {
-      authorScale.set(author, 1.0);
-    } else {
-      const t = (n - minCount) / range;
-      authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
-    }
+    const t = (n - minCount) / range;
+    authorScale.set(author, fireflyConfig.SCALE_MIN + t * (fireflyConfig.SCALE_MAX - fireflyConfig.SCALE_MIN));
   }
 
   const cfg = TREES.get();

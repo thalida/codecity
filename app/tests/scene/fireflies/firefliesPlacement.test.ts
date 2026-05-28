@@ -138,7 +138,6 @@ describe('placeFireflies', () => {
     ];
     // Use 1 orb per tree so orbs map 1:1 to placements for easy indexing.
     FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    FIREFLIES.setKey('SCALE_BY_COMMITS', true);
     try {
       const orbs = placeFireflies(
         [placement(0, 0, 0), placement(1, 10, 0), placement(2, 20, 0)],
@@ -150,19 +149,6 @@ describe('placeFireflies', () => {
       expect(bobOrb.scale).toBeGreaterThan(aliceOrb.scale);
     } finally {
       FIREFLIES.setKey('ORBS_PER_TREE', 3);
-      FIREFLIES.setKey('SCALE_BY_COMMITS', true);
-    }
-  });
-
-  it('SCALE_BY_COMMITS=false yields scale=1 for all orbs', () => {
-    FIREFLIES.setKey('SCALE_BY_COMMITS', false);
-    try {
-      const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
-      for (const o of orbs) {
-        expect(o.scale).toBe(1.0);
-      }
-    } finally {
-      FIREFLIES.setKey('SCALE_BY_COMMITS', true);
     }
   });
 
@@ -173,7 +159,6 @@ describe('placeFireflies', () => {
       { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Alice', subject: 'a2' },
     ];
     FIREFLIES.setKey('ORBS_PER_TREE', 1);
-    FIREFLIES.setKey('SCALE_BY_COMMITS', true);
     try {
       const orbs = placeFireflies(
         [placement(0, 0, 0), placement(1, 10, 0)],

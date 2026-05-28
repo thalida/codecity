@@ -4,7 +4,7 @@
 // the shader applies to displace each orb; PULSE is a brightness
 // modulation (additive output color × (1 + pulseAmp * sin(...))).
 // v4 adds emission (HDR bloom), flicker (high-frequency brightness noise),
-// and per-author commit-count scaling.
+// and per-author commit-count scaling (always on; tune spread via SCALE_MIN/MAX).
 
 import { map } from 'nanostores';
 
@@ -27,8 +27,6 @@ export interface FirefliesConfig {
   EMISSION_STRENGTH: number;
   /** Pseudo-random high-frequency brightness noise on top of the pulse. 0 = smooth pulse, 1 = jittery. */
   FLICKER_AMOUNT: number;
-  /** When true, each author's orbs scale by [SCALE_MIN..SCALE_MAX] mapped from their commit count. */
-  SCALE_BY_COMMITS: boolean;
   /** Scale multiplier for the author with the fewest commits. */
   SCALE_MIN: number;
   /** Scale multiplier for the author with the most commits. */
@@ -45,7 +43,6 @@ export const FIREFLIES = map<FirefliesConfig>({
   PULSE_SPEED: 1.5,
   EMISSION_STRENGTH: 2.5,
   FLICKER_AMOUNT: 0.3,
-  SCALE_BY_COMMITS: true,
   SCALE_MIN: 0.5,
   SCALE_MAX: 2.5,
 });

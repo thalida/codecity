@@ -584,9 +584,6 @@ function _buildFirefliesSection(): HTMLElement {
       _slider('Orbs per commit', FIREFLIES, 'ORBS_PER_TREE', 0, 10, 1, {
         tip: 'Number of orbs spawned around each commit-tree. Rebuild on change.',
       }),
-      _toggle('Scale by commits', FIREFLIES, 'SCALE_BY_COMMITS', {
-        tip: 'When on, authors with more commits get bigger fireflies. Rebuild on change.',
-      }),
       _slider('Scale min', FIREFLIES, 'SCALE_MIN', 0.1, 2.0, 0.05, {
         tip: 'Multiplier for the author with the fewest commits. Rebuild on change.',
       }),
