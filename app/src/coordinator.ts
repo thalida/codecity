@@ -22,6 +22,7 @@ import { showLeftSidebar } from './views/shell/leftSidebar.js';
 import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
 import { buildCommitPane } from './views/panes/commitPane.js';
+import { buildStreetPane } from './views/panes/streetPane.js';
 import { sameDayCommitCount } from './views/widgets/commitMetrics.js';
 import { labelFromDisplayRoot } from './views/widgets/displayLabel.js';
 import { LIVE_UPDATES } from './config/index.js';
@@ -47,7 +48,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
   //   File → filePreview
   //   Commit → commitPane
   //   anything else → sidebar closed
-  type SidebarPane = 'file' | 'commit' | null;
+  type SidebarPane = 'file' | 'commit' | 'street' | null;
   let sidebarPane: SidebarPane = null;
 
   const filePreview = buildFilePreviewPane({
@@ -65,6 +66,20 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     onClose() {
       sidebarPane = null;
       _renderSidebar();
+    },
+    onFocus(c) {
+      rig.focusTree(c.sha);
+    },
+  });
+
+  const streetPane = buildStreetPane({
+    onClose() {
+      sidebarPane = null;
+      _renderSidebar();
+    },
+    onFocus(d) {
+      const st = world.getStreetByDir(d.path);
+      if (st) rig.focusStreet(st, null);
     },
   });
 
@@ -92,6 +107,13 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       } else {
         commitPane.api.setCommit(null);
       }
+      return;
+    }
+    if (sidebarPane === 'street') {
+      showRightSidebar(streetPane.pane);
+      if (sel && sel.kind === NodeKind.Directory) streetPane.api.setDirectory(sel.dir);
+      else streetPane.api.setDirectory(null);
+      return;
     }
   }
 
@@ -131,11 +153,10 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     onFocus() {
       const sel = picker.selection.get();
       if (!sel) return;
-      if (sel.kind === NodeKind.File) {
-        rig.focusBuilding(sel.mesh, sel.data);
-      } else if (sel.kind === NodeKind.Directory) {
-        rig.focusStreet(sel.street, null);
-      }
+      if (sel.kind === NodeKind.File) rig.focusBuilding(sel.mesh, sel.data);
+      else if (sel.kind === NodeKind.Directory) rig.focusStreet(sel.street, null);
+      else if (sel.kind === NodeKind.Commit) rig.focusTree(sel.commit.sha);
+      else if (sel.kind === NodeKind.Gem) rig.focusGem();
     },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,
@@ -315,32 +336,42 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     }
 
     // Breadcrumb tail
-    const node: FileNode | DirNode | null = sel
-      ? sel.kind === NodeKind.File
-        ? sel.file
-        : sel.kind === NodeKind.Directory
-          ? sel.dir
-          : null
-      : null;
-    appHeader.setSelection(
-      node && sel
-        ? {
-            path: node.path || node.fullPath || node.name || '',
-            fullPath: node.fullPath || '',
-            extension: 'extension' in node ? node.extension || '' : '',
-            isDir: sel.kind === NodeKind.Directory,
-          }
-        : null
-    );
+    if (sel?.kind === NodeKind.Commit) {
+      appHeader.setSelection({
+        kind: 'commit',
+        sha: sel.commit.sha,
+        author: sel.commit.author,
+      });
+    } else if (sel?.kind === NodeKind.File) {
+      const node = sel.file;
+      appHeader.setSelection({
+        kind: 'file',
+        path: node.path || node.fullPath || node.name || '',
+        fullPath: node.fullPath || '',
+        extension: node.extension || '',
+        isDir: false,
+      });
+    } else if (sel?.kind === NodeKind.Directory) {
+      const node = sel.dir;
+      appHeader.setSelection({
+        kind: 'dir',
+        path: node.path || node.fullPath || node.name || '',
+        fullPath: node.fullPath || '',
+        isDir: true,
+      });
+    } else {
+      appHeader.setSelection(null);
+    }
 
     // Footer: if nothing is hovered, mirror the new selection; if a
     // hover is active the hover subscriber already owns the footer.
     _updateFooterFromState();
 
     // Right sidebar pane choice mirrors selection kind. File → preview,
-    // Commit → commit pane, anything else closes the sidebar.
+    // Commit → commit pane, Directory → street pane, anything else closes.
     if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
     else if (sel && sel.kind === NodeKind.Commit) sidebarPane = 'commit';
+    else if (sel && sel.kind === NodeKind.Directory) sidebarPane = 'street';
     else sidebarPane = null;
 
     _renderSidebar();
