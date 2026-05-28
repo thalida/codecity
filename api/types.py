@@ -165,6 +165,18 @@ class HealthResponse(TypedDict):
     ok: bool
 
 
+class CommitDetailResponse(TypedDict):
+    """Body of GET /api/commit?sha=<sha>. Returns the commit's author
+    name (no email), day-precision date, single-line subject, and full
+    multi-line body — pulled live from `git show -s` on each request."""
+
+    sha: str
+    author: str
+    date: str       # "YYYY-MM-DD"
+    subject: str
+    body: str
+
+
 class ScanStreamEvent(TypedDict):
     """One NDJSON event emitted by scan_tree_streaming.
 

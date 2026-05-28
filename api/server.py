@@ -61,6 +61,7 @@ from api.scan import (
 )
 from api.types import (
     CacheClearResponse,
+    CommitDetailResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -189,6 +190,7 @@ JsonBody = (
     | FileTooLargeResponse
     | HealthResponse
     | CacheClearResponse
+    | CommitDetailResponse
 )
 
 
@@ -459,13 +461,14 @@ def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
         if len(parts) < 5:
             continue
         full_sha, author, iso_date, subject, body = parts
-        _send_json(handler, HTTPStatus.OK, {
+        response: CommitDetailResponse = {
             "sha": full_sha,
             "author": author,
             "date": iso_date[:10],
             "subject": subject,
             "body": body,
-        })
+        }
+        _send_json(handler, HTTPStatus.OK, response)
         return
 
     _send_json(handler, HTTPStatus.NOT_FOUND,
