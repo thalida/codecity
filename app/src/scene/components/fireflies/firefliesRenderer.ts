@@ -1,7 +1,6 @@
 // scene/fireflies/firefliesRenderer.ts — one InstancedMesh of
 // additive-blended smooth icospheres. Per-instance color + phase. The bob
-// animation lives in the vertex shader (via onBeforeCompile) so the
-// CPU never re-writes 750k matrices per frame.
+// animation lives in the vertex shader so the CPU never re-writes matrices.
 //
 //   setTime(seconds): drive the uTime uniform from the render loop.
 //   refresh():        hot-reload animation uniforms from current config
@@ -12,6 +11,8 @@ import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/constants';
 import { FIREFLIES } from '@/config/components/fireflies.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
+import vertexShader from './fireflies.vert.glsl?raw';
+import fragmentShader from './fireflies.frag.glsl?raw';
 
 export interface FireflyRenderer {
   group: THREE.Group;
@@ -23,7 +24,6 @@ export interface FireflyRenderer {
 }
 
 export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer {
-  console.log('[fireflies] createFireflyRenderer called, orbs.length:', orbs.length, 'timestamp:', Date.now());
   const group = new THREE.Group();
   group.name = 'fireflies';
 
@@ -38,13 +38,10 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     };
   }
 
-  const HOVER_BRIGHTNESS_BOOST = 3.0;
-  const SELECT_BRIGHTNESS_BOOST = 6.0;
-
   const cfg = FIREFLIES.get();
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
 
-  // Per-instance bob phase (existing) + per-instance pulse phase + orbit params (new).
+  // Per-instance bob phase + pulse phase + orbit params.
   const phaseArray = new Float32Array(orbs.length);
   const pulsePhaseArray = new Float32Array(orbs.length);
   const orbitRadiusArray = new Float32Array(orbs.length);
@@ -74,102 +71,27 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
   const uHoveredCommit = { value: -1.0 };
   const uSelectedCommit = { value: -1.0 };
 
-  const material = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms: {
+      uTime,
+      uBobAmp,
+      uBobSpeed,
+      uPulseAmp,
+      uPulseSpeed,
+      uOrbitSpeed,
+      uEmission,
+      uFlicker,
+      uHoveredCommit,
+      uSelectedCommit,
+    },
     transparent: true,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     toneMapped: false,
+    vertexColors: true,
   });
-
-  // Shader injection patches the built-in MeshBasicMaterial vertex
-  // shader's '<common>' and '<begin_vertex>' chunks. These chunk
-  // names are part of three.js's stable glsl chunk API (since r80+),
-  // but a future major upgrade could rename them — revisit on bump.
-  material.onBeforeCompile = (shader) => {
-    console.log('[fireflies] onBeforeCompile FIRED — compiling NEW shader');
-    shader.uniforms.uTime = uTime;
-    shader.uniforms.uBobAmp = uBobAmp;
-    shader.uniforms.uBobSpeed = uBobSpeed;
-    shader.uniforms.uPulseAmp = uPulseAmp;
-    shader.uniforms.uPulseSpeed = uPulseSpeed;
-    shader.uniforms.uOrbitSpeed = uOrbitSpeed;
-    shader.uniforms.uEmission = uEmission;
-    shader.uniforms.uFlicker = uFlicker;
-    shader.uniforms.uHoveredCommit = uHoveredCommit;
-    shader.uniforms.uSelectedCommit = uSelectedCommit;
-
-    // VERTEX: declare per-instance attributes + uniforms, compute orbit + bob, output pulse varying.
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <common>',
-      `#include <common>
-       attribute float aPhase;
-       attribute float aPulsePhase;
-       attribute float aOrbitRadius;
-       attribute float aOrbitStartAngle;
-       attribute float aCommitIndex;
-       uniform float uTime;
-       uniform float uBobAmp;
-       uniform float uBobSpeed;
-       uniform float uPulseAmp;
-       uniform float uPulseSpeed;
-       uniform float uOrbitSpeed;
-       uniform float uHoveredCommit;
-       uniform float uSelectedCommit;
-       varying float vPulse;
-       varying float vCommitIndex;
-       varying vec3 vWorldNormal;`,
-    );
-
-    // Apply orbital offset in XZ and bob in Y after <begin_vertex> sets
-    // `transformed = position`, but before model-view projection.
-    // The instance matrix translates to the tree center; the shader adds the
-    // time-varying orbital offset so the CPU never re-writes instance matrices.
-    shader.vertexShader = shader.vertexShader.replace(
-      '#include <begin_vertex>',
-      `#include <begin_vertex>
-       // Orbital XZ displacement around the tree's vertical axis.
-       float orbitAngle = aOrbitStartAngle + uTime * uOrbitSpeed;
-       transformed.x += aOrbitRadius * cos(orbitAngle);
-       transformed.z += aOrbitRadius * sin(orbitAngle);
-
-       // Vertical bob.
-       transformed.y += sin(uTime * uBobSpeed + aPhase) * uBobAmp;
-
-       // Pulse phase passed to the fragment shader.
-       vPulse = 1.0 + uPulseAmp * sin(uTime * uPulseSpeed + aPulsePhase);
-       vCommitIndex = aCommitIndex;
-       // View-space normal for the rim outline effect.
-       vWorldNormal = normalize(normalMatrix * normal);`,
-    );
-
-    // FRAGMENT: declare varying + uniforms, then multiply final color by
-    // the composed brightness pipeline: vPulse × flicker × emission × boost.
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <common>',
-      `#include <common>
-       varying float vPulse;
-       varying float vCommitIndex;
-       varying vec3 vWorldNormal;
-       uniform float uTime;
-       uniform float uEmission;
-       uniform float uFlicker;
-       uniform float uHoveredCommit;
-       uniform float uSelectedCommit;`,
-    );
-    // Multiply the final output color by the composed brightness signal.
-    // Three.js's built-in MeshBasicMaterial sets `gl_FragColor` near the
-    // end of main(); safely patch by replacing the <output_fragment>
-    // include with one that applies the chain after the include's own
-    // assignment.
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <output_fragment>',
-      `#include <output_fragment>
-       // DIAGNOSTIC — ALL orbs solid yellow, no exceptions.
-       gl_FragColor = vec4(8.0, 8.0, 0.0, 1.0);`,
-    );
-    console.log('[fireflies] FINAL FRAGMENT SHADER:\n', shader.fragmentShader);
-  };
 
   const mesh = new THREE.InstancedMesh(geometry, material, orbs.length);
   mesh.name = 'fireflies-orbs';
@@ -204,25 +126,13 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uTime.value = seconds;
     },
     setHoveredCommit(commitIndex: number | null) {
-      console.log('[fireflies] renderer.setHoveredCommit', commitIndex);  // TODO: remove after diagnosis
       uHoveredCommit.value = commitIndex ?? -1;
     },
     setSelectedCommit(commitIndex: number | null) {
-      console.log('[fireflies] renderer.setSelectedCommit', commitIndex);  // TODO: remove after diagnosis
       uSelectedCommit.value = commitIndex ?? -1;
     },
     refresh() {
       const next = FIREFLIES.get();
-      // TODO: remove after diagnosis
-      console.log('[fireflies] renderer.refresh()', {
-        bob: next.BOB_AMPLITUDE,
-        bobSpeed: next.BOB_SPEED,
-        pulse: next.PULSE_AMPLITUDE,
-        pulseSpeed: next.PULSE_SPEED,
-        orbit: next.ORBIT_SPEED,
-        emission: next.EMISSION_STRENGTH,
-        flicker: next.FLICKER_AMOUNT,
-      });
       uBobAmp.value = next.BOB_AMPLITUDE;
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;
