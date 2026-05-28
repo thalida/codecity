@@ -12,7 +12,7 @@ default:
 # under key 'vite'), uses a worktree-derived compose project name (so containers
 # + volumes don't collide), and prints a subdomain URL so browser storage is
 # isolated per worktree. Auto-re-picks if the saved port becomes occupied.
-dev mount='':
+dev mount='': install-hooks
     @PORT=$(python3 bin/pick-port.py vite) ; \
      SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      COMPOSE_ARGS="-f docker-compose.dev.yml" ; \
@@ -101,8 +101,11 @@ setup: install-hooks
 # Install repo-local git hooks. Run once after cloning.
 # `core.hooksPath` is per-clone (not committed), so this bootstrap is required.
 install-hooks:
-    git config core.hooksPath bin/git-hooks
-    @echo "[just] git core.hooksPath set to bin/git-hooks/"
+    @CURRENT=$(git config --get core.hooksPath || echo "") ; \
+     if [ "$CURRENT" != "bin/git-hooks" ]; then \
+         git config core.hooksPath bin/git-hooks ; \
+         echo "[just] git core.hooksPath set to bin/git-hooks/" ; \
+     fi
 
 # ── Release ──────────────────────────────────────────────────────
 # Tag + push a release. Pushing a `v*` tag triggers .github/workflows/release.yml
