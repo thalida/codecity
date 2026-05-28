@@ -156,7 +156,6 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       if (sel.kind === NodeKind.File) rig.focusBuilding(sel.mesh, sel.data);
       else if (sel.kind === NodeKind.Directory) rig.focusStreet(sel.street, null);
       else if (sel.kind === NodeKind.Commit) rig.focusTree(sel.commit.sha);
-      else if (sel.kind === NodeKind.Gem) rig.focusGem();
     },
     branch: _initBranch,
     sourceUrl: _initIsGitUrl ? _initSrc : undefined,

@@ -31,7 +31,6 @@ function _baseWorld() {
     getBuildingPickables: () => [] as THREE.Object3D[],
     getMaxBuildingHeight: () => 200,
     getTreeBoundsBySha: (_sha: string) => null as { x: number; y: number; z: number; height: number; radius: number } | null,
-    getGemDims: () => ({ width: 40, height: 40, depth: 40 }),
   };
 }
 
@@ -121,27 +120,6 @@ describe('cameraRig top-down focus', () => {
         expect(target.x).toBeCloseTo(s.x, 1);
         expect(target.y).toBeCloseTo(0, 1);
         expect(target.z).toBeCloseTo(s.y, 1);
-        const elev = elevationDeg(rig.camera.position, target);
-        expect(elev).toBeGreaterThan(75);
-        expect(elev).toBeLessThan(85);
-        resolve();
-      }
-      requestAnimationFrame(tick);
-    });
-  });
-
-  it('focusGem lands the camera at ~80° elevation on the gem position', () => {
-    const canvas = makeCanvas();
-    const rig = createCameraRig({ canvas, world: makeStubWorld() as any });
-    rig.update(16);
-    rig.focusGem();
-    return new Promise<void>((resolve) => {
-      let frames = 0;
-      function tick() {
-        if (frames++ < 60) { requestAnimationFrame(tick); return; }
-        const target = rig.controls.target;
-        expect(target.x).toBeCloseTo(0, 1);
-        expect(target.z).toBeCloseTo(0, 1);
         const elev = elevationDeg(rig.camera.position, target);
         expect(elev).toBeGreaterThan(75);
         expect(elev).toBeLessThan(85);

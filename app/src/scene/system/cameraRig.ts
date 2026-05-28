@@ -13,7 +13,6 @@
 //   rig.recenterTo(worldPoint)            // dblclick on empty space
 //   rig.focusBuilding(mesh, building)     // F or dblclick on a building
 //   rig.focusStreet(street, hitPoint)     // dblclick on a street
-//   rig.focusGem()                        // dblclick on the gem
 //   rig.focusTree(sha)                    // F or dblclick on a tree (commit)
 //   rig.dispose()
 //
@@ -417,14 +416,6 @@ export function createCameraRig({
     _focusTopDown(center, fitW, fitD, 0, STREET_FOCUS_RATIO);
   }
 
-  function focusGem(): void {
-    const gemPos = world.getGemWorldPos();
-    const dims = world.getGemDims();
-    if (!gemPos || !dims) return;
-    const center = new THREE.Vector3(gemPos.x, gemPos.y, gemPos.z);
-    _focusTopDown(center, dims.width, dims.depth, dims.height, BUILDING_FOCUS_RATIO);
-  }
-
   function focusTree(sha: string): void {
     const b = world.getTreeBoundsBySha(sha);
     if (!b) return;
@@ -445,7 +436,6 @@ export function createCameraRig({
     recenterTo,
     focusBuilding,
     focusStreet,
-    focusGem,
     focusTree,
     dispose,
   };

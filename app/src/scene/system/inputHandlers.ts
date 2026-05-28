@@ -201,7 +201,7 @@ export function createInputHandlers({
     if (!hit) return;
     const ud = hit.object.userData;
     if (ud.type === NodeKind.Gem) {
-      rig.focusGem();
+      onResetView();
       return;
     }
     // Route through picker.interpretHit so InstancedMesh hits resolve to a
