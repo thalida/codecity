@@ -140,8 +140,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
 
   /** The hover mesh should be visible iff hover is set AND distinct from selected. */
   function reconcileHoverMesh(): void {
-    const shouldShow =
-      hover.commitIndex !== null && hover.commitIndex !== selected.commitIndex;
+    const shouldShow = hover.commitIndex !== null && hover.commitIndex !== selected.commitIndex;
 
     if (!shouldShow) {
       disposeSlotMesh(hover);

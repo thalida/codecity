@@ -29,16 +29,10 @@ function makePlacement(commitIndex: number): FireflyPlacement {
   };
 }
 
-const PLACEMENTS: FireflyPlacement[] = [
-  makePlacement(0),
-  makePlacement(1),
-  makePlacement(2),
-];
+const PLACEMENTS: FireflyPlacement[] = [makePlacement(0), makePlacement(1), makePlacement(2)];
 
 function meshesIn(rings: ReturnType<typeof createOrbitRings>): THREE.Mesh[] {
-  return rings.group.children.filter(
-    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
-  );
+  return rings.group.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
 }
 
 function colorOf(mesh: THREE.Mesh): THREE.Color {
@@ -195,9 +189,7 @@ describe('createOrbitRings — lazy pool', () => {
     //      would fail here regardless of timing noise.
     //   2. Performance: a single hover after a 100k-placement factory
     //      must still feel instant.
-    const big: FireflyPlacement[] = Array.from({ length: 100_000 }, (_, i) =>
-      makePlacement(i)
-    );
+    const big: FireflyPlacement[] = Array.from({ length: 100_000 }, (_, i) => makePlacement(i));
     const rings = createOrbitRings(big);
     expect(meshesIn(rings).length).toBe(0);
 

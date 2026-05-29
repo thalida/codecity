@@ -14,9 +14,7 @@ const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as 
 function ringMeshes(f: ReturnType<typeof createFireflies>): THREE.Mesh[] {
   const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
   if (!ringGroup) return [];
-  return ringGroup.children.filter(
-    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
-  );
+  return ringGroup.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
 }
 
 function meshColor(mesh: THREE.Mesh): THREE.Color {
