@@ -36,11 +36,11 @@
 - [x] don't select when rotating the world
 - [x] media billboards as buildings w/ ads (width by file size and height by dimensions? duration?) same age / window considerations
 - [ ] Make Save commits cheaper for layout-affecting controls (currently every Save invalidates the layout cache → full worker recompute). Combined with the layoutV4 perf cost below, a Save on a Linux-kernel-scale repo blocks ~80s. Possible directions: debounce on commit, threshold-skip when N_files > X, or a partial-rebuild path.
-- [ ] Favicon & Meta
+- [x] Favicon & Meta
 - [-] Cache Invalidation
 - [ ] CodeCity Guide
 - [ ] CodeCity Docs
-- [ ] Update Readme
+- [x] Update Readme
 - [x] on focus / select look straight down at the building
 - [ ] add meta data about the world
 - [ ] add enable local env variable
