@@ -59,7 +59,7 @@ const STREET_FOCUS_RATIO = 1.2;
 // 80° elevation gives the user a near-overhead read while still showing
 // enough side-faces for 3D depth. Stays under controls.maxPolarAngle.
 const TOP_DOWN_ELEVATION_DEG = 80;
-const TOP_DOWN_PADDING_MULT = 1.8;
+const TOP_DOWN_PADDING_MULT = 2.8;
 
 export function createCameraRig({
   canvas,
