@@ -26,7 +26,7 @@ Use a unique `*.localhost` subdomain per project (e.g. <http://myproj.localhost:
 - **Height** — line count (sqrt-interp across the floor range).
 - **Width & depth** — byte size (log-interp, square footprint).
 - **Hue** — file extension.
-- **Saturation** — created date (older → desaturated).
+- **Saturation** — last-modified (recent → vivid).
 - **Lightness** — last-modified (recent → bright).
 - **Facade** — windows, door, roof border, floor slabs.
 - **Windows** — lit-pane density and glow track recency. Newer files glow brighter.
@@ -57,7 +57,7 @@ Orbit their tree.
 
 ### Gem — the "you are here" beacon
 
-Floats above the root street's origin cap. Size scales with the root street's width. Rotates, bobs, and cycles its glow color.
+Floats above the root street's origin-end cap. Size scales with the root street's width. Rotates, bobs, and cycles its glow color.
 
 ## Scanning
 
@@ -66,10 +66,11 @@ codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untra
 Some directories and files are always skipped, even when tracked. Full list in `api/scan.py` (`ALWAYS_SKIP`). Highlights:
 
 - VCS: `.git`, `.hg`, `.svn`
-- JS: `node_modules`, lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, …)
-- Python: `.venv`, `venv`, `__pycache__`, `poetry.lock`, `uv.lock`, `Pipfile.lock`
+- JS: `node_modules`, lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, …)
+- Python: `.venv`, `venv`, `env`, `__pycache__`, `poetry.lock`, `uv.lock`, `Pipfile.lock`
+- Rust: `target`, `.cargo`, `Cargo.lock`
 - Framework caches: `.next`, `.nuxt`, `.svelte-kit`
-- Test / coverage: `.pytest_cache`, `.mypy_cache`, `.tox`, `.coverage`, `htmlcov`
+- Test / coverage: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.coverage`, `htmlcov`
 - IDE / OS: `.idea`, `.vscode`, `.DS_Store`
 
 ### `.codecityignore`
@@ -89,7 +90,7 @@ tests/fixtures/large-repo
 
 - No `/` → matches a name anywhere in the tree.
 - Has `/` → anchored to the scan root.
-- `!` prefix un-ignores. `!.git` is silently rejected; the object database is never walked.
+- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked.
 - `#` lines are comments.
 
 ## Local directories
