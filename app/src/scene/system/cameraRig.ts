@@ -58,11 +58,18 @@ const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
 // y-component of the start framing direction vector (before normalization).
-// 1.0 → ~45° camera elevation above the root street's long axis. The
-// height-fit distance formula in _captureFraming depends on this exact
-// value, so it is referenced both there and at the dir construction site
-// instead of being duplicated.
+// Combined with FRAMING_DIR_LATERAL below: with lateral=0.3, y=1.0 gives
+// ~43.7° elevation. The height-fit distance formula in _captureFraming
+// depends on these values, so they are referenced both there and at the
+// dir construction site instead of being duplicated.
 const FRAMING_DIR_Y = 1.0;
+
+// Lateral component on the framing direction vector — perpendicular to
+// the root street's long axis. Adds an isometric-style off-axis tilt so
+// the camera doesn't look straight down the road; both sides of the
+// street read in 3D instead of stacking face-on. 0.3 → ~15° lateral
+// angle from the street axis.
+const FRAMING_DIR_LATERAL = 0.3;
 
 // Headroom above the tallest building's roof when fitting the start
 // framing. 1.15 = distance is 15% greater than the minimum at which the
@@ -208,7 +215,11 @@ export function createCameraRig({
     // getMaxBuildingHeight() = 0, so heightDist collapses to 0 and the
     // width branch wins.
     const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
-    const elevRad = Math.atan(FRAMING_DIR_Y);
+    // Elevation angle accounts for both Y and lateral components: the
+    // horizontal magnitude is sqrt(1 + lateral²), not 1. Without this,
+    // adding lateral offset would silently over-tighten the height fit.
+    const horizMag = Math.sqrt(1 + FRAMING_DIR_LATERAL * FRAMING_DIR_LATERAL);
+    const elevRad = Math.atan(FRAMING_DIR_Y / horizMag);
     const heightDist =
       (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) / Math.sin(halfFov);
     const framingDist = Math.max(widthDist, heightDist);
@@ -216,19 +227,18 @@ export function createCameraRig({
     // Default framing: place the camera BEHIND the gem along the root
     // street's long axis (the street extends in +X for X-oriented or +Z
     // for Y-oriented; the gem sits at the low end — see
-    // engine.ts:createRootGem) at a low cinematic elevation. This gives
-    // a "looking down the main road into the city" view instead of the
-    // previous top-down (-1, 1, 1) oblique. FRAMING_DIR_Y (1.0) → 45°
-    // elevation; an isometric-style oblique that reads the full city
-    // footprint and skyline together. The same constant feeds the
-    // heightDist formula above. Fallback (no gem) keeps the old
-    // high-oblique direction for completeness.
+    // engine.ts:createRootGem) at a moderate elevation with a slight
+    // lateral offset so the view reads as 3D oblique rather than face-on
+    // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
+    // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
+    // street axis. Both constants feed the heightDist formula above.
+    // Fallback (no gem) keeps the old high-oblique direction.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
         rootStreet.orientation === StreetAxis.X
-          ? new THREE.Vector3(-1, FRAMING_DIR_Y, 0).normalize()
-          : new THREE.Vector3(0, FRAMING_DIR_Y, -1).normalize();
+          ? new THREE.Vector3(-1, FRAMING_DIR_Y, FRAMING_DIR_LATERAL).normalize()
+          : new THREE.Vector3(FRAMING_DIR_LATERAL, FRAMING_DIR_Y, -1).normalize();
     } else {
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
