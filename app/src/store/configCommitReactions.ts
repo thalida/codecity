@@ -328,9 +328,9 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   // (drops the merged mesh entirely), so toggling it also needs a full rebuild.
   // ORBIT_RING_THICKNESS bakes into TubeGeometry tube radius — refresh()
   // only rewrites RGBA, so thickness changes require regenerating geometry.
-  // The remaining keys (animation, brightness, ORBIT_RING_COLOR,
-  // ORBIT_RING_OPACITY) fall through to the materialOnlyStores subscription
-  // above and are hot-applied via fireflies.refresh() → rings.refresh().
+  // The remaining keys (animation, brightness) fall through to the
+  // materialOnlyStores subscription above and are hot-applied via
+  // fireflies.refresh() → rings.refresh().
   unsubs.push(
     listenKeys(
       FIREFLIES,
