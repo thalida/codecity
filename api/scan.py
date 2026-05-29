@@ -831,7 +831,7 @@ class _Heartbeat:
     the every-100-files log line above). Server-side this becomes one
     ``scanning`` NDJSON event per call."""
 
-    __slots__ = ("seen", "_on_progress", "_last_emit")
+    __slots__ = ("seen", "_on_progress", "_last_emit", "_last_emitted_count")
 
     def __init__(
         self,
@@ -840,6 +840,7 @@ class _Heartbeat:
         self.seen = 0
         self._on_progress = on_progress
         self._last_emit = 0.0
+        self._last_emitted_count = -1  # -1 = never emitted
 
     def tick(self) -> None:
         self.seen += 1
@@ -852,6 +853,17 @@ class _Heartbeat:
             return
         self._on_progress(self.seen)
         self._last_emit = now
+        self._last_emitted_count = self.seen
+
+    def flush(self) -> None:
+        """Emit the final count if it hasn't been emitted yet. Called
+        when the walk finishes so the UI sees the true file total even
+        if the last few ticks were throttled."""
+        if self._on_progress is None:
+            return
+        if self.seen != self._last_emitted_count:
+            self._on_progress(self.seen)
+            self._last_emitted_count = self.seen
 
 
 class _DirFrame:
@@ -1093,6 +1105,7 @@ def scan_tree(
         sig=sig,
         heartbeat=heartbeat,
     )
+    heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
     # Compute tree_signature once after the tree is built. This is

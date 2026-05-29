@@ -487,5 +487,71 @@ def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
     assert on_progress.call_count <= 7, "throttle should not let every line through unbounded"
 
 
+def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
+    """Regression: when the throttle suppresses the terminal percent of
+    a stage (e.g. 100%), the user gets stuck at whatever value last
+    passed the throttle. The fix flushes the latest seen payload on
+    stage change AND at end-of-stream. Verify the user always sees
+    100% as the final payload for each stage."""
+    from unittest.mock import MagicMock
+    from api import clone as clone_mod
+
+    # Many rapid progress lines per stage; the throttle will block
+    # most of them. Without the flush fix, "Receiving 100%" gets
+    # silently dropped because it lands within 250ms of the previous
+    # emit, leaving the UI frozen at e.g. 66%.
+    fake_stderr = (
+        b"Cloning into '/tmp/foo'...\n"
+        b"Counting objects:  10%\n"
+        b"Counting objects:  50%\n"
+        b"Counting objects:  75%\n"
+        b"Counting objects: 100%\n"
+        b"Receiving objects:   1%\n"
+        b"Receiving objects:  33%\n"
+        b"Receiving objects:  66%\n"
+        b"Receiving objects:  99%\n"
+        b"Receiving objects: 100%\n"
+        b"Resolving deltas:   1%\n"
+        b"Resolving deltas:  50%\n"
+        b"Resolving deltas:  99%\n"
+        b"Resolving deltas: 100%\n"
+    )
+
+    class FakeProc:
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.stdout = io.BytesIO(b"")
+            self.stderr = io.BytesIO(fake_stderr)
+
+        def wait(self) -> int:
+            return 0
+
+    cache = tmp_path / "cache"
+    on_progress = MagicMock()
+    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+        with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
+            clone_mod.ensure_clone(
+                "https://example.com/foo.git", None, on_progress=on_progress
+            )
+
+    # Collect per-stage the highest percent ever emitted.
+    per_stage_max: dict[str, int] = {}
+    for call in on_progress.call_args_list:
+        stage, percent = call.args[0]
+        per_stage_max[stage] = max(per_stage_max.get(stage, 0), percent)
+
+    # Every stage we sent must have ended with 100% reaching the UI.
+    assert per_stage_max.get("counting") == 100, (
+        f"counting should reach 100%; per-stage max: {per_stage_max}"
+    )
+    assert per_stage_max.get("receiving") == 100, (
+        f"receiving should reach 100%; per-stage max: {per_stage_max}"
+    )
+    assert per_stage_max.get("resolving") == 100, (
+        f"resolving should reach 100%; per-stage max: {per_stage_max}"
+    )
+
+
 if __name__ == "__main__":
     unittest.main()

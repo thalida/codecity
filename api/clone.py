@@ -226,8 +226,16 @@ def _run_git_streaming(
     # a payload through when the stage changes (so the client sees the
     # transition from 'counting' → 'receiving' → 'resolving' even if
     # the throttle window hasn't elapsed).
+    #
+    # We also track the LAST SEEN payload (regardless of whether it was
+    # emitted). On stage change and at end-of-stream we flush the most
+    # recent seen value if it wasn't emitted — otherwise the terminal
+    # percent of each stage (typically 100%) gets silently dropped when
+    # it arrives within 250ms of the previous emit, freezing the UI at
+    # whatever value happened to pass the throttle.
     last_progress_at = [0.0]
-    last_progress_payload: list[tuple[str, int] | None] = [None]
+    last_emitted_payload: list[tuple[str, int] | None] = [None]
+    last_seen_payload: list[tuple[str, int] | None] = [None]
     proc_done = threading.Event()
 
     def _maybe_emit_progress(line: str) -> None:
@@ -237,13 +245,32 @@ def _run_git_streaming(
         if parsed is None:
             return
         now = time.monotonic()
-        prev = last_progress_payload[0]
+        prev = last_emitted_payload[0]
         same_stage = prev is not None and prev[0] == parsed[0]
+        # Stage change: flush the previous stage's terminal value first
+        # so the UI sees e.g. "resolving 100%" before "receiving 1%".
+        if not same_stage and prev is not None:
+            last_seen = last_seen_payload[0]
+            if last_seen is not None and last_seen != prev:
+                on_progress(last_seen)
+                last_emitted_payload[0] = last_seen
+        last_seen_payload[0] = parsed
         if same_stage and now - last_progress_at[0] < CLONE_PROGRESS_THROTTLE_S:
             return
         on_progress(parsed)
         last_progress_at[0] = now
-        last_progress_payload[0] = parsed
+        last_emitted_payload[0] = parsed
+
+    def _flush_progress() -> None:
+        """Emit the most recently seen payload if it wasn't emitted.
+        Called at end-of-stream so the terminal value (e.g. 100%) reaches
+        the UI even when the throttle suppressed it."""
+        if on_progress is None:
+            return
+        last_seen = last_seen_payload[0]
+        if last_seen is not None and last_seen != last_emitted_payload[0]:
+            on_progress(last_seen)
+            last_emitted_payload[0] = last_seen
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None
@@ -275,6 +302,7 @@ def _run_git_streaming(
                 _log(line)
                 last_output_at[0] = time.monotonic()
                 _maybe_emit_progress(line)
+        _flush_progress()
 
     def _drain_stdout() -> None:
         assert proc.stdout is not None
