@@ -107,15 +107,6 @@ export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
     body.replaceChildren();
 
     // Path row
-    const pathRow = document.createElement('div');
-    pathRow.className = 'street-path';
-    pathRow.appendChild(makeLucideIcon('folder'));
-    const pathText = document.createElement('span');
-    pathText.className = 'street-path-text';
-    pathText.textContent = d.path || d.name || '';
-    pathRow.appendChild(pathText);
-    body.appendChild(pathRow);
-
     // Counts block
     const counts = document.createElement('div');
     counts.className = 'street-counts';
@@ -155,7 +146,6 @@ export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
       makeCol('Descendants', [
         [String(d.descendants_file_count ?? 0), 'files'],
         [String(d.descendants_dir_count ?? 0), 'dirs'],
-        [formatBytes(d.descendants_size ?? 0), 'size'],
       ]),
     );
     body.appendChild(counts);

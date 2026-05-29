@@ -52,12 +52,11 @@ describe('buildStreetPane', () => {
     expect(pane.querySelector('.empty-state')).not.toBeNull();
   });
 
-  it('setDirectory(d) renders direct + descendant counts and the path', () => {
+  it('setDirectory(d) renders direct + descendant counts', () => {
     const { pane, api } = buildStreetPane({});
     const d = dir('src', [f('a.ts', '.ts', 100), f('b.md', '.md', 50)]);
     d.descendants_file_count = 4;
     d.descendants_dir_count = 1;
-    d.descendants_size = 1234;
     d.children = [
       f('a.ts', '.ts', 100),
       f('b.md', '.md', 50),
@@ -67,13 +66,11 @@ describe('buildStreetPane', () => {
     api.setDirectory(d);
 
     const body = pane.querySelector('.pane-body, .street-body') as HTMLElement;
-    expect(body.textContent).toContain('src');
     // Direct counts
     expect(body.textContent).toMatch(/2.*files/i);
     expect(body.textContent).toMatch(/1.*dirs?/i);
     // Descendant counts
     expect(body.textContent).toMatch(/4.*files/i);
-    expect(body.textContent).toContain('1.2 KB'); // 1234 bytes ≈ 1.2 KB
   });
 
   it('lists every extension in the descendant subtree sorted by count desc', () => {
