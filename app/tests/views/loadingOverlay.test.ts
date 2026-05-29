@@ -30,12 +30,11 @@ describe('loadingOverlay', () => {
     expect(root.style.display).toBe('none');
   });
 
-  it('show is idempotent and updates title on second call', () => {
+  it('show rebuilds the DOM on second call (no duplicate cards)', () => {
     const o = createLoadingOverlay();
     o.show({ kind: 'local', label: 'A' });
     o.show({ kind: 'local', label: 'B' });
-    expect(root.textContent).toContain('Loading B');
-    expect(root.textContent).not.toContain('Loading A');
+    expect(root.querySelectorAll('.loading-card').length).toBe(1);
   });
 
   // ── New stepped-progress tests ───────────────────────────────────────────
@@ -43,7 +42,9 @@ describe('loadingOverlay', () => {
   it('renders the right steps for git', () => {
     const o = createLoadingOverlay();
     o.show({ kind: 'git', label: 'owner/repo' });
-    expect(root.textContent).toContain('Loading owner/repo');
+    // Title shows the current step (not the project name — that lives in
+    // the pending-label header set separately via setPendingLabel).
+    expect(root.textContent).toContain('Resolving source');
     expect(root.querySelector('[data-step="resolving"]')).toBeTruthy();
     expect(root.querySelector('[data-step="cloning"]')).toBeTruthy();
     expect(root.querySelector('[data-step="scanning"]')).toBeTruthy();
