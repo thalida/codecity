@@ -67,6 +67,7 @@ from api.types import (
     FileTooLargeResponse,
     HealthResponse,
     Manifest,
+    ScanStreamEvent,
     SignatureResponse,
 )
 
@@ -209,7 +210,7 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
 
 def _stream_events(
     handler: BaseHTTPRequestHandler,
-    events: Iterable[dict[str, Any]],
+    events: Iterable[ScanStreamEvent | dict[str, Any]],
     cancel_event: threading.Event,
 ) -> None:
     """Stream NDJSON events over a chunked HTTP response.
@@ -566,7 +567,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     else:
         display_root = raw_src
 
-    def _events() -> Iterable[dict[str, Any]]:
+    def _events() -> Iterable[ScanStreamEvent | dict[str, Any]]:
         # Git sources: emit cloning, run ensure_clone, then continue.
         # Errors during the clone become NDJSON error events because the
         # response has already begun streaming by the time this runs.
@@ -675,7 +676,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         # those. Same queue/thread pattern as the cloning phase: the
         # worker pushes both kinds of events into one queue, the
         # generator drains and yields in arrival order.
-        scan_q: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        scan_q: queue.Queue[ScanStreamEvent | dict[str, Any] | None] = queue.Queue()
         scan_error: list[BaseException] = []
 
         def _on_scan_progress(files_scanned: int) -> None:
@@ -711,7 +712,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
                     m = _stamp_display_root(ev["manifest"])
                     if ev["phase"] == "final":
                         state["final_manifest"] = m
-                yield ev  # type: ignore[misc]
+                yield ev
         finally:
             scan_thread.join()
 
