@@ -12,7 +12,7 @@ default:
 # under key 'vite'), uses a worktree-derived compose project name (so containers
 # + volumes don't collide), and prints a subdomain URL so browser storage is
 # isolated per worktree. Auto-re-picks if the saved port becomes occupied.
-dev mount='': install-hooks
+dev mount='': install-hooks setup
     @PORT=$(python3 bin/pick-port.py vite) ; \
      SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      COMPOSE_ARGS="-f docker-compose.dev.yml" ; \

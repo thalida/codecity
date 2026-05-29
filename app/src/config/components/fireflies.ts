@@ -8,6 +8,9 @@
 // v5 adds orbit-ring controls (ORBIT_RING_ENABLED, ORBIT_RING_COLOR,
 // ORBIT_RING_OPACITY) and decouples orbit radius from per-author scale.
 // v6 adds hover/selected highlight colors for orbit rings.
+// v7 replaces the merged-mesh ring with a lazy 2-slot pool — rings
+// render only for the hovered/selected commit, so ORBIT_RING_COLOR
+// and ORBIT_RING_OPACITY (the rest-state color/alpha) were dropped.
 
 import { map } from 'nanostores';
 
@@ -34,10 +37,6 @@ export interface FirefliesConfig {
   SCALE_MAX: number;
   /** Show / hide the subtle orbit ring around each tree. */
   ORBIT_RING_ENABLED: boolean;
-  /** Orbit ring color, hex string (e.g. '#ffffff'). */
-  ORBIT_RING_COLOR: string;
-  /** Orbit ring opacity, 0..1. */
-  ORBIT_RING_OPACITY: number;
   /** Tube radius of the orbit ring in world units (constant across rings). */
   ORBIT_RING_THICKNESS: number;
   /** Orbit ring color when the corresponding tree is hovered, hex string. */
@@ -58,8 +57,6 @@ export const FIREFLIES = map<FirefliesConfig>({
   SCALE_MIN: 0.5,
   SCALE_MAX: 2.5,
   ORBIT_RING_ENABLED: true,
-  ORBIT_RING_COLOR: '#808080',
-  ORBIT_RING_OPACITY: 0.05,
   ORBIT_RING_THICKNESS: 0.15,
   ORBIT_RING_HOVER_COLOR: '#c8c8c8',
   ORBIT_RING_SELECTED_COLOR: '#ffd700',

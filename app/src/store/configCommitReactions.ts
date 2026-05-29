@@ -324,13 +324,14 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   );
   // FIREFLIES structural keys: ENABLED gates orb creation at createFireflies()
   // call time; SCALE_MIN/MAX bake into per-instance data;
-  // ORBIT_RING_ENABLED takes the empty-stub path in createOrbitRings when false
-  // (drops the merged mesh entirely), so toggling it also needs a full rebuild.
+  // ORBIT_RING_ENABLED takes the no-op interface path in createOrbitRings
+  // when false, so toggling it also needs a full rebuild.
   // ORBIT_RING_THICKNESS bakes into TubeGeometry tube radius — refresh()
-  // only rewrites RGBA, so thickness changes require regenerating geometry.
-  // The remaining keys (animation, brightness, ORBIT_RING_COLOR,
-  // ORBIT_RING_OPACITY) fall through to the materialOnlyStores subscription
-  // above and are hot-applied via fireflies.refresh() → rings.refresh().
+  // only updates material colors, so thickness changes require regenerating
+  // the geometry on the next hover/select swap.
+  // The remaining keys (animation, brightness) fall through to the
+  // materialOnlyStores subscription above and are hot-applied via
+  // fireflies.refresh() → rings.refresh().
   unsubs.push(
     listenKeys(
       FIREFLIES,
