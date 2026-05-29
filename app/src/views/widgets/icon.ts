@@ -31,28 +31,25 @@ export function makeLucideIcon(name: string, opts: IconOpts = {}): HTMLSpanEleme
 }
 
 interface GemIconOpts extends IconOpts {
-  /** Render the monochrome outline variant (mask-image, follows currentColor).
-   *  Use this when the gem appears inline with text (e.g. tree rows). The
-   *  default (false) renders the full multicolor SVG via background-image. */
+  /** Render the grayscale-filled variant for quieter contexts (e.g. tree
+   *  rows) where the multicolor palette would compete with row text. Same
+   *  octahedron geometry, just neutral fills instead of palette colors. */
   simple?: boolean;
 }
 
 /**
- * The codecity gem icon. Default = full multicolor (same SVG as the favicon,
- * loaded from /gem.svg). Simple variant = monochrome outline, /gem-simple.svg,
- * painted with currentColor like any other lucide-icon.
+ * The codecity gem icon, painted as a background-image SVG so the per-face
+ * fills render directly. Default = full multicolor (/gem.svg, same source
+ * as the favicon). Simple = grayscale variant (/gem-simple.svg) for inline
+ * use in trees/lists.
  */
 export function makeGemIcon(opts: GemIconOpts = {}): HTMLSpanElement {
   const span = document.createElement('span');
+  span.className = `gem-icon${opts.class ? ` ${opts.class}` : ''}`;
   span.setAttribute('aria-hidden', 'true');
   if (opts.title) span.title = opts.title;
   if (opts.simple) {
-    span.className = `lucide-icon${opts.class ? ` ${opts.class}` : ''}`;
-    const url = 'url(/gem-simple.svg)';
-    span.style.maskImage = url;
-    span.style.webkitMaskImage = url;
-  } else {
-    span.className = `gem-icon${opts.class ? ` ${opts.class}` : ''}`;
+    span.style.backgroundImage = 'url(/gem-simple.svg)';
   }
   return span;
 }

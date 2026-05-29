@@ -2050,10 +2050,10 @@ canvas {
   display: none;
 }
 
-/* Root glyph — codecity gem (simple monochrome variant) rendered via
- * mask-image so it picks up currentColor (matches the row's label color;
- * no brand tint). Sized to match the 14px Material file/folder icons
- * used on every other row so the icon column stays a consistent width. */
+/* Root glyph — codecity gem in its grayscale variant. Quieter than the
+ * full multicolor gem so it doesn't compete with row text. Sized to match
+ * the 14px Material file/folder icons used on every other row so the icon
+ * column stays a consistent width. */
 .tree-root-glyph {
   width: 12px;
   height: 12px;
