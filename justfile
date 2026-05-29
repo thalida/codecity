@@ -59,6 +59,17 @@ shell:
     @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml run --rm api sh
 
+# Recover from a corrupt dev app container (symptom: `sh: 1: npm: not found`
+# on `just dev` startup). Docker Desktop can leave the app container in a
+# state where the entrypoint shell can't see /usr/local/bin/npm despite the
+# image being intact — recreating the container fresh restores the PATH.
+# Removes just the app container (api + cache volume are preserved) and
+# re-runs dev. Accepts the same optional `mount` arg as `dev`.
+reset-dev mount='':
+    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     docker compose -p codecity-$SLUG -f docker-compose.dev.yml rm -fs app
+    @just dev "{{mount}}"
+
 # ── Tests ────────────────────────────────────────────────────────
 test: test-api test-app
 
