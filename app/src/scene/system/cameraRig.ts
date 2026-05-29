@@ -58,11 +58,11 @@ const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
 // y-component of the start framing direction vector (before normalization).
-// 0.5 → ~27° camera elevation above the root street's long axis. The
+// 1.0 → ~45° camera elevation above the root street's long axis. The
 // height-fit distance formula in _captureFraming depends on this exact
 // value, so it is referenced both there and at the dir construction site
 // instead of being duplicated.
-const FRAMING_DIR_Y = 0.5;
+const FRAMING_DIR_Y = 1.0;
 
 // Headroom above the tallest building's roof when fitting the start
 // framing. 1.15 = distance is 15% greater than the minimum at which the
@@ -220,12 +220,11 @@ export function createCameraRig({
     // for Y-oriented; the gem sits at the low end — see
     // engine.ts:createRootGem) at a low cinematic elevation. This gives
     // a "looking down the main road into the city" view instead of the
-    // previous top-down (-1, 1, 1) oblique. FRAMING_DIR_Y (0.5) → ~27°
-    // elevation; high enough to take in the skyline without the camera
-    // hugging the horizon, low enough that the horizon-glow band still
-    // reads behind the buildings. The same constant feeds the heightDist
-    // formula above. Fallback (no gem) keeps the old high-oblique
-    // direction for completeness.
+    // previous top-down (-1, 1, 1) oblique. FRAMING_DIR_Y (1.0) → 45°
+    // elevation; an isometric-style oblique that reads the full city
+    // footprint and skyline together. The same constant feeds the
+    // heightDist formula above. Fallback (no gem) keeps the old
+    // high-oblique direction for completeness.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
