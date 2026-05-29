@@ -29,16 +29,17 @@ interface TierResult {
   outlineOpacity: number;
 }
 
-function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
-  if (!file || !file.path || !dir || dir.path == null) return Infinity;
+// True when `file`'s parent directory is exactly `dir.path` OR a path-prefix
+// descendant of it (i.e. file sits inside dir's subtree at any depth). The
+// trailing slash in the startsWith check guards against false positives:
+// "src-utils" must NOT count as a descendant of "src".
+function _isInSubtree(file: FileNode | null, dir: DirNode): boolean {
+  if (!file || !file.path || !dir || dir.path == null) return false;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
-  if (parent === dir.path) return 0;
-  const ap = parent === '.' || parent === '' ? [] : parent.split('/');
-  const dp = dir.path === '.' || dir.path === '' ? [] : dir.path.split('/');
-  let lca = 0;
-  while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
-  return ap.length - lca + (dp.length - lca);
+  if (parent === dir.path) return true;
+  if (dir.path === '.' || dir.path === '') return true;
+  return parent.startsWith(`${dir.path}/`);
 }
 
 export function createBuildingFader({
@@ -111,16 +112,7 @@ export function createBuildingFader({
     }
 
     if (dirTarget) {
-      const dist = _dirTreeDistance(file, dirTarget);
-      if (dist === 0) {
-        return {
-          detail: fadeCfg.DEFAULT_DETAIL,
-          bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
-          outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
-          outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
-        };
-      }
-      if (dist === 1) {
+      if (_isInSubtree(file, dirTarget)) {
         return {
           detail: fadeCfg.NEAR_DETAIL,
           bodyOpacity: fadeCfg.NEAR_BODY_OPACITY,
