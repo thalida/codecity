@@ -251,9 +251,12 @@ export const BUILDING_AGING = map<BuildingAgingConfig>({
 // When something is selected, every other building is categorized by its
 // directory-tree distance from the selection and rendered per the matching
 // tier's style:
-//   DEFAULT — distance 0 (selection's siblings; also the no-selection state)
-//   NEAR    — distance 1 (one hop along the directory spine)
-//   FAR     — distance ≥2 (cousins, deeper subtrees, unrelated branches)
+//   DEFAULT — applies to the selected/hovered building itself and to every
+//             building when nothing is selected (idle state).
+//   Level 1 — same dir as the selection (or the dir's direct files).
+//   Level 2 — one directory deeper than the selection.
+//   Level 3 — deeper descendants (two or more directories below).
+//   Level 4 — outside the selection's subtree entirely.
 //
 // Each tier picks how a building looks via four independent knobs:
 //   *_DETAIL          — 'full' (textured walls + windows + doors)
@@ -273,32 +276,53 @@ export interface BuildingFadeConfig {
   DEFAULT_OUTLINE: boolean;
   DEFAULT_BODY_OPACITY: number;
   DEFAULT_OUTLINE_OPACITY: number;
-  NEAR_DETAIL: FadeDetail;
-  NEAR_OUTLINE: boolean;
-  NEAR_BODY_OPACITY: number;
-  NEAR_OUTLINE_OPACITY: number;
-  FAR_DETAIL: FadeDetail;
-  FAR_OUTLINE: boolean;
-  FAR_BODY_OPACITY: number;
-  FAR_OUTLINE_OPACITY: number;
+  LEVEL1_DETAIL: FadeDetail;
+  LEVEL1_OUTLINE: boolean;
+  LEVEL1_BODY_OPACITY: number;
+  LEVEL1_OUTLINE_OPACITY: number;
+  LEVEL2_DETAIL: FadeDetail;
+  LEVEL2_OUTLINE: boolean;
+  LEVEL2_BODY_OPACITY: number;
+  LEVEL2_OUTLINE_OPACITY: number;
+  LEVEL3_DETAIL: FadeDetail;
+  LEVEL3_OUTLINE: boolean;
+  LEVEL3_BODY_OPACITY: number;
+  LEVEL3_OUTLINE_OPACITY: number;
+  LEVEL4_DETAIL: FadeDetail;
+  LEVEL4_OUTLINE: boolean;
+  LEVEL4_BODY_OPACITY: number;
+  LEVEL4_OUTLINE_OPACITY: number;
 }
 
 export const BUILDING_FADE = map<BuildingFadeConfig>({
-  // Default tier — siblings of selection, and the no-selection resting state.
+  // Default tier — applies to the selected/hovered building itself
+  // and to every building when nothing is selected (idle state).
   DEFAULT_DETAIL: FadeDetail.Full,
   DEFAULT_OUTLINE: false,
   DEFAULT_BODY_OPACITY: 1.0,
   DEFAULT_OUTLINE_OPACITY: 1.0,
 
-  // Level 1 — one hop from selection along the directory spine.
-  NEAR_DETAIL: FadeDetail.Silhouette,
-  NEAR_OUTLINE: true,
-  NEAR_BODY_OPACITY: 0.75,
-  NEAR_OUTLINE_OPACITY: 0.75,
+  // Level 1 — same dir as the selection (or the dir's direct files).
+  LEVEL1_DETAIL: FadeDetail.Silhouette,
+  LEVEL1_OUTLINE: true,
+  LEVEL1_BODY_OPACITY: 0.75,
+  LEVEL1_OUTLINE_OPACITY: 0.75,
 
-  // Level 2+ — anything farther.
-  FAR_DETAIL: FadeDetail.Silhouette,
-  FAR_OUTLINE: true,
-  FAR_BODY_OPACITY: 0.1,
-  FAR_OUTLINE_OPACITY: 0.5,
+  // Level 2 — one directory deeper than the selection.
+  LEVEL2_DETAIL: FadeDetail.Silhouette,
+  LEVEL2_OUTLINE: true,
+  LEVEL2_BODY_OPACITY: 0.1,
+  LEVEL2_OUTLINE_OPACITY: 0.5,
+
+  // Level 3 — deeper descendants (two or more directories below).
+  LEVEL3_DETAIL: FadeDetail.Silhouette,
+  LEVEL3_OUTLINE: true,
+  LEVEL3_BODY_OPACITY: 0.1,
+  LEVEL3_OUTLINE_OPACITY: 0.5,
+
+  // Level 4 — outside the selection's subtree entirely.
+  LEVEL4_DETAIL: FadeDetail.Hidden,
+  LEVEL4_OUTLINE: true,
+  LEVEL4_BODY_OPACITY: 0.1,
+  LEVEL4_OUTLINE_OPACITY: 0.5,
 });

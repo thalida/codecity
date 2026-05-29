@@ -29,17 +29,22 @@ interface TierResult {
   outlineOpacity: number;
 }
 
-// True when `file`'s parent directory is exactly `dir.path` OR a path-prefix
-// descendant of it (i.e. file sits inside dir's subtree at any depth). The
-// trailing slash in the startsWith check guards against false positives:
-// "src-utils" must NOT count as a descendant of "src".
-function _isInSubtree(file: FileNode | null, dir: DirNode): boolean {
-  if (!file || !file.path || !dir || dir.path == null) return false;
+// Tier level for a building relative to the directory target.
+// Returns 1 when the file sits in the same dir as the target, 2 when its
+// parent dir is a direct sub-dir of the target, 3 for deeper descendants,
+// and 4 when the file is outside the target's subtree entirely. The
+// trailing-slash guard in the startsWith check prevents "src-utils" from
+// being treated as a descendant of "src".
+function _tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
+  if (!file?.path || !dir || dir.path == null) return 4;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
-  if (parent === dir.path) return true;
-  if (dir.path === '.' || dir.path === '') return true;
-  return parent.startsWith(`${dir.path}/`);
+  if (parent === dir.path) return 1;
+  const isRoot = dir.path === '.' || dir.path === '';
+  if (!isRoot && !parent.startsWith(`${dir.path}/`)) return 4;
+  const rel = isRoot ? parent : parent.slice(dir.path.length + 1);
+  const depthBelow = rel.split('/').length;
+  return depthBelow === 1 ? 2 : 3;
 }
 
 export function createBuildingFader({
@@ -101,30 +106,45 @@ export function createBuildingFader({
     }
 
     if (bldgTargetFile && file.path === bldgTargetFile.path) {
-      // Selected building: always full body, no per-building outline
-      // (the dedicated selectedOutline mesh from outlineRenderer handles it).
       return {
-        detail: FadeDetail.Full,
-        bodyOpacity: 1.0,
-        outlineEnabled: false,
-        outlineOpacity: 0,
+        detail: fadeCfg.DEFAULT_DETAIL,
+        bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
+        outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
+        outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
       };
     }
 
     if (dirTarget) {
-      if (_isInSubtree(file, dirTarget)) {
+      const lvl = _tierLevelFor(file, dirTarget);
+      if (lvl === 1) {
         return {
-          detail: fadeCfg.NEAR_DETAIL,
-          bodyOpacity: fadeCfg.NEAR_BODY_OPACITY,
-          outlineEnabled: fadeCfg.NEAR_OUTLINE,
-          outlineOpacity: fadeCfg.NEAR_OUTLINE_OPACITY,
+          detail: fadeCfg.LEVEL1_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL1_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL1_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL1_OUTLINE_OPACITY,
+        };
+      }
+      if (lvl === 2) {
+        return {
+          detail: fadeCfg.LEVEL2_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL2_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL2_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL2_OUTLINE_OPACITY,
+        };
+      }
+      if (lvl === 3) {
+        return {
+          detail: fadeCfg.LEVEL3_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL3_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL3_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL3_OUTLINE_OPACITY,
         };
       }
       return {
-        detail: fadeCfg.FAR_DETAIL,
-        bodyOpacity: fadeCfg.FAR_BODY_OPACITY,
-        outlineEnabled: fadeCfg.FAR_OUTLINE,
-        outlineOpacity: fadeCfg.FAR_OUTLINE_OPACITY,
+        detail: fadeCfg.LEVEL4_DETAIL,
+        bodyOpacity: fadeCfg.LEVEL4_BODY_OPACITY,
+        outlineEnabled: fadeCfg.LEVEL4_OUTLINE,
+        outlineOpacity: fadeCfg.LEVEL4_OUTLINE_OPACITY,
       };
     }
 

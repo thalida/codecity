@@ -88,7 +88,7 @@ export class InstancedAdPanels {
   private readonly _iTextureFade: Float32Array;
   // Per-instance opacity multiplier, driven by buildingFader so an ad
   // panel fades down in lockstep with its underlying building body when
-  // the selection cascade demotes that building to NEAR / FAR tier.
+  // the selection cascade demotes that building to Level 1-4 tiers.
   private readonly _iBuildingFade: Float32Array;
   // Plain AD_ERROR_COLOR (no emission bake) — emission is applied uniformly
   // via uEmissionBoost in the shader. Cached so markBuildingErrored doesn't
@@ -381,7 +381,7 @@ export class InstancedAdPanels {
    * Push a per-building opacity multiplier onto every ad panel for which
    * `getFade` returns a value. Used by buildingFader so an ad panel fades
    * to the same opacity as its underlying building body during a selection
-   * cascade — a NEAR-tier building's panel drops to NEAR_BODY_OPACITY in
+   * cascade — a Level-1 building's panel drops to LEVEL1_BODY_OPACITY in
    * lockstep, not full brightness.
    *
    * `getFade(path)` returning `null` (or undefined) leaves that building's

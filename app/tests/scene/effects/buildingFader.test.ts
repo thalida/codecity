@@ -1,7 +1,7 @@
-// buildingFader.test.ts — verifies the in-subtree cascade: every building
-// under the selected/hovered directory's subtree gets the NEAR tier;
-// everything outside gets FAR. Selected and hovered buildings themselves
-// keep their dedicated "brightest" tiers.
+// buildingFader.test.ts — verifies the 5-tier depth-based cascade.
+// Default tier covers selected, hovered, and idle buildings; the four
+// numbered levels cover same-dir (L1), one-deeper (L2), deeper (L3),
+// and outside-subtree (L4).
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
@@ -112,6 +112,9 @@ function makeFader(opts: {
   return { fader, readFor };
 }
 
+/** Set distinctive opacity values per tier so each assertion pins down
+ *  exactly one tier without ambiguity. Detail mode is the same so
+ *  silhouette isn't a confounder; outline disabled across the board. */
 function setKnownFade() {
   BUILDING_FADE.set({
     ..._originalFade,
@@ -119,18 +122,26 @@ function setKnownFade() {
     DEFAULT_BODY_OPACITY: 1.0,
     DEFAULT_OUTLINE: false,
     DEFAULT_OUTLINE_OPACITY: 0.0,
-    NEAR_DETAIL: FadeDetail.Full,
-    NEAR_BODY_OPACITY: 0.7,
-    NEAR_OUTLINE: false,
-    NEAR_OUTLINE_OPACITY: 0.0,
-    FAR_DETAIL: FadeDetail.Silhouette,
-    FAR_BODY_OPACITY: 0.2,
-    FAR_OUTLINE: false,
-    FAR_OUTLINE_OPACITY: 0.0,
+    LEVEL1_DETAIL: FadeDetail.Full,
+    LEVEL1_BODY_OPACITY: 0.8,
+    LEVEL1_OUTLINE: false,
+    LEVEL1_OUTLINE_OPACITY: 0.0,
+    LEVEL2_DETAIL: FadeDetail.Full,
+    LEVEL2_BODY_OPACITY: 0.6,
+    LEVEL2_OUTLINE: false,
+    LEVEL2_OUTLINE_OPACITY: 0.0,
+    LEVEL3_DETAIL: FadeDetail.Full,
+    LEVEL3_BODY_OPACITY: 0.4,
+    LEVEL3_OUTLINE: false,
+    LEVEL3_OUTLINE_OPACITY: 0.0,
+    LEVEL4_DETAIL: FadeDetail.Full,
+    LEVEL4_BODY_OPACITY: 0.2,
+    LEVEL4_OUTLINE: false,
+    LEVEL4_OUTLINE_OPACITY: 0.0,
   });
 }
 
-describe('buildingFader subtree cascade', () => {
+describe('buildingFader 5-tier cascade', () => {
   beforeEach(setKnownFade);
 
   it('no target → every building gets DEFAULT (1.0 opacity)', () => {
@@ -145,15 +156,25 @@ describe('buildingFader subtree cascade', () => {
     expect(readFor('src/b.ts')!.opacity).toBeCloseTo(1.0);
   });
 
-  it('selected building → siblings NEAR, cousins FAR, selected itself Full', () => {
-    const a = makeFile('src/a.ts');
-    const b = makeFile('src/b.ts');
-    const c = makeFile('lib/c.ts');
+  it('selected file → self DEFAULT, sibling L1, one-deeper L2, deeper L3, outside L4', () => {
+    const a = makeFile('src/foo/a.ts');
+    const b = makeFile('src/foo/b.ts');
+    const c = makeFile('src/foo/bar/c.ts');
+    const d = makeFile('src/foo/bar/baz/d.ts');
+    const e = makeFile('src/lib/e.ts');
+    const r = makeFile('README.md');
     const selBuilding = makeBuilding(a);
-    const streetByDir = new Map([['src', { dir: makeDir('src') }]]);
+    const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
     const { readFor } = makeFader({
-      buildings: [selBuilding, makeBuilding(b), makeBuilding(c)],
+      buildings: [
+        selBuilding,
+        makeBuilding(b),
+        makeBuilding(c),
+        makeBuilding(d),
+        makeBuilding(e),
+        makeBuilding(r),
+      ],
       selection: {
         kind: NodeKind.File,
         mesh: new THREE.Object3D() as unknown as THREE.Mesh,
@@ -163,38 +184,32 @@ describe('buildingFader subtree cascade', () => {
       streetByDir,
     });
 
-    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(1.0);
-    expect(readFor('src/b.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('lib/c.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/foo/a.ts')!.opacity).toBeCloseTo(1.0);
+    expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
+    expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
+    expect(readFor('src/foo/bar/baz/d.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('README.md')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('selected building → descendants of the parent dir also NEAR', () => {
-    const a = makeFile('src/a.ts');
-    const nested = makeFile('src/sub/nested.ts');
-    const selBuilding = makeBuilding(a);
-    const streetByDir = new Map([['src', { dir: makeDir('src') }]]);
+  it('selected dir → direct files L1, one-deeper L2, deeper L3, outside L4', () => {
+    const a = makeFile('src/foo/a.ts');
+    const b = makeFile('src/foo/b.ts');
+    const c = makeFile('src/foo/bar/c.ts');
+    const d = makeFile('src/foo/bar/baz/d.ts');
+    const e = makeFile('src/lib/e.ts');
+    const r = makeFile('README.md');
+    const dir = makeDir('src/foo');
 
     const { readFor } = makeFader({
-      buildings: [selBuilding, makeBuilding(nested)],
-      selection: {
-        kind: NodeKind.File,
-        mesh: new THREE.Object3D() as unknown as THREE.Mesh,
-        data: selBuilding,
-        file: a,
-      } as unknown as PickTarget,
-      streetByDir,
-    });
-    expect(readFor('src/sub/nested.ts')!.opacity).toBeCloseTo(0.7);
-  });
-
-  it('selected dir → direct children + nested grandchildren NEAR, others FAR', () => {
-    const a = makeFile('src/a.ts');
-    const nested = makeFile('src/sub/n.ts');
-    const other = makeFile('lib/x.ts');
-    const dir = makeDir('src');
-
-    const { readFor } = makeFader({
-      buildings: [makeBuilding(a), makeBuilding(nested), makeBuilding(other)],
+      buildings: [
+        makeBuilding(a),
+        makeBuilding(b),
+        makeBuilding(c),
+        makeBuilding(d),
+        makeBuilding(e),
+        makeBuilding(r),
+      ],
       selection: {
         kind: NodeKind.Directory,
         sidewalk: new THREE.Object3D() as unknown as THREE.Mesh,
@@ -203,20 +218,29 @@ describe('buildingFader subtree cascade', () => {
       } as unknown as PickTarget,
     });
 
-    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('src/sub/n.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('lib/x.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/foo/a.ts')!.opacity).toBeCloseTo(0.8);
+    expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
+    expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
+    expect(readFor('src/foo/bar/baz/d.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('README.md')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('hovered building → siblings NEAR, hovered itself DEFAULT', () => {
-    const a = makeFile('src/a.ts');
-    const b = makeFile('src/b.ts');
-    const c = makeFile('lib/c.ts');
+  it('hovered file → hover-self DEFAULT, sibling L1, deeper L2, outside L4', () => {
+    const a = makeFile('src/foo/a.ts');
+    const b = makeFile('src/foo/b.ts');
+    const c = makeFile('src/foo/bar/c.ts');
+    const e = makeFile('src/lib/e.ts');
     const hovBuilding = makeBuilding(a);
-    const streetByDir = new Map([['src', { dir: makeDir('src') }]]);
+    const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
     const { readFor } = makeFader({
-      buildings: [hovBuilding, makeBuilding(b), makeBuilding(c)],
+      buildings: [
+        hovBuilding,
+        makeBuilding(b),
+        makeBuilding(c),
+        makeBuilding(e),
+      ],
       hover: {
         kind: NodeKind.File,
         mesh: new THREE.Object3D() as unknown as THREE.Mesh,
@@ -226,19 +250,21 @@ describe('buildingFader subtree cascade', () => {
       streetByDir,
     });
 
-    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(1.0);
-    expect(readFor('src/b.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('lib/c.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/foo/a.ts')!.opacity).toBeCloseTo(1.0);
+    expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
+    expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('root selection (dir.path = ".") → every building NEAR', () => {
-    const a = makeFile('src/a.ts');
-    const b = makeFile('lib/b.ts');
-    const c = makeFile('README.md');
+  it('root selection → root-level files L1, top-level sub-dir files L2, deeper L3, no L4 reachable', () => {
+    const r = makeFile('README.md');
+    const x = makeFile('src/x.ts');
+    const y = makeFile('src/foo/y.ts');
+    const z = makeFile('src/foo/bar/z.ts');
     const rootDir = makeDir('.');
 
     const { readFor } = makeFader({
-      buildings: [makeBuilding(a), makeBuilding(b), makeBuilding(c)],
+      buildings: [makeBuilding(r), makeBuilding(x), makeBuilding(y), makeBuilding(z)],
       selection: {
         kind: NodeKind.Directory,
         sidewalk: new THREE.Object3D() as unknown as THREE.Mesh,
@@ -247,19 +273,19 @@ describe('buildingFader subtree cascade', () => {
       } as unknown as PickTarget,
     });
 
-    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('lib/b.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('README.md')!.opacity).toBeCloseTo(0.7);
+    expect(readFor('README.md')!.opacity).toBeCloseTo(0.8);
+    expect(readFor('src/x.ts')!.opacity).toBeCloseTo(0.6);
+    expect(readFor('src/foo/y.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('src/foo/bar/z.ts')!.opacity).toBeCloseTo(0.4);
   });
 
-  it('prefix-precision: "src-utils" is NOT a descendant of "src"', () => {
-    const inside = makeFile('src/a.ts');
-    const sibling = makeFile('src/b.ts');
+  it('prefix-precision: "src-utils" is NOT inside "src" subtree', () => {
+    const a = makeFile('src/a.ts');
     const lookAlike = makeFile('src-utils/x.ts');
     const dir = makeDir('src');
 
     const { readFor } = makeFader({
-      buildings: [makeBuilding(inside), makeBuilding(sibling), makeBuilding(lookAlike)],
+      buildings: [makeBuilding(a), makeBuilding(lookAlike)],
       selection: {
         kind: NodeKind.Directory,
         sidewalk: new THREE.Object3D() as unknown as THREE.Mesh,
@@ -268,8 +294,28 @@ describe('buildingFader subtree cascade', () => {
       } as unknown as PickTarget,
     });
 
-    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.7);
-    expect(readFor('src/b.ts')!.opacity).toBeCloseTo(0.7);
+    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.8);
     expect(readFor('src-utils/x.ts')!.opacity).toBeCloseTo(0.2);
+  });
+
+  it('selected file honors DEFAULT config (no hardcoded constants)', () => {
+    BUILDING_FADE.setKey('DEFAULT_BODY_OPACITY', 0.5);
+
+    const a = makeFile('src/a.ts');
+    const selBuilding = makeBuilding(a);
+    const streetByDir = new Map([['src', { dir: makeDir('src') }]]);
+
+    const { readFor } = makeFader({
+      buildings: [selBuilding],
+      selection: {
+        kind: NodeKind.File,
+        mesh: new THREE.Object3D() as unknown as THREE.Mesh,
+        data: selBuilding,
+        file: a,
+      } as unknown as PickTarget,
+      streetByDir,
+    });
+
+    expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.5);
   });
 });
