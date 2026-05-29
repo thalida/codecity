@@ -667,30 +667,65 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             yield {"phase": "final", "manifest": cached}
             return
 
-        # Cache miss — stream live scan.
+        # Cache miss — stream live scan. scan_tree is synchronous and
+        # also yields its own events (skeleton + final); we want the
+        # heartbeat-driven scanning progress events to interleave with
+        # those. Same queue/thread pattern as the cloning phase: the
+        # worker pushes both kinds of events into one queue, the
+        # generator drains and yields in arrival order.
+        scan_q: queue.Queue[dict[str, Any] | None] = queue.Queue()
+        scan_error: list[BaseException] = []
+
+        def _on_scan_progress(files_scanned: int) -> None:
+            scan_q.put({
+                "phase": "scanning",
+                "display_root": display_root,
+                "files_scanned": files_scanned,
+            })
+
+        def _run_scan() -> None:
+            try:
+                for ev in scan_tree(
+                    str(scan_target),
+                    use_cache=use_cache,
+                    cancel_event=cancel_event,
+                    git_window=git_window,
+                    on_scan_progress=_on_scan_progress,
+                ):
+                    scan_q.put(ev)  # skeleton + final flow through the same queue
+            except BaseException as e:  # pylint: disable=broad-except
+                scan_error.append(e)
+            finally:
+                scan_q.put(None)  # sentinel
+
+        scan_thread = threading.Thread(target=_run_scan, daemon=True)
+        scan_thread.start()
         try:
-            for event in scan_tree(
-                str(scan_target),
-                use_cache=use_cache,
-                cancel_event=cancel_event,
-                git_window=git_window,
-            ):
-                m = _stamp_display_root(event["manifest"])
-                if event["phase"] == "final":
-                    state["final_manifest"] = m
-                yield event  # type: ignore[misc]
-        except ScanCancelledError:
-            # Cancellation isn't an error to surface to the client —
-            # they disconnected, so there's nobody to read a message.
-            # Re-raise so the outer try skips the cache write and logs
-            # the disconnect.
-            raise
-        except Exception as e:  # pylint: disable=broad-except
+            while True:
+                ev = scan_q.get()
+                if ev is None:
+                    break
+                if ev.get("phase") in ("skeleton", "final"):
+                    m = _stamp_display_root(ev["manifest"])
+                    if ev["phase"] == "final":
+                        state["final_manifest"] = m
+                yield ev  # type: ignore[misc]
+        finally:
+            scan_thread.join()
+
+        if scan_error:
+            err = scan_error[0]
+            if isinstance(err, ScanCancelledError):
+                # Cancellation isn't an error to surface to the client —
+                # they disconnected, so there's nobody to read a message.
+                # Re-raise so the outer try skips the cache write and logs
+                # the disconnect.
+                raise err
             # Unexpected mid-stream failure (e.g., disk read error
             # during _populate_file_metadata). Emit one final error
             # event so the client sees a clear message instead of a
             # truncated stream / parse error.
-            yield {"phase": "error", "error": f"scan failed: {e}"}
+            yield {"phase": "error", "error": f"scan failed: {err}"}
 
     try:
         _stream_events(handler, _events(), cancel_event)

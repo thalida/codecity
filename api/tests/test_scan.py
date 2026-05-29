@@ -1244,5 +1244,27 @@ class MediaDimsInScanTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("media_height", files[0])
 
 
+def test_heartbeat_calls_progress_callback_throttled():
+    """The heartbeat should fire the callback at most once per ~250ms
+    even if tick() is called rapidly."""
+    import time
+    from unittest.mock import MagicMock
+    from api.scan import _Heartbeat
+
+    cb = MagicMock()
+    hb = _Heartbeat(on_progress=cb)
+
+    for _ in range(1000):
+        hb.tick()
+
+    initial_count = cb.call_count
+    assert initial_count >= 1, "expected at least one callback during the rapid ticks"
+    assert initial_count < 50, f"expected throttling to keep count low, got {initial_count}"
+
+    time.sleep(0.3)
+    hb.tick()
+    assert cb.call_count > initial_count, "expected a new callback after throttle window"
+
+
 if __name__ == "__main__":
     unittest.main()
