@@ -13,6 +13,12 @@
 //                                    (resolving for git, scanning for local)
 //   setStep(step)                  — advance to a step in response to a
 //                                    server-emitted phase event
+//   setPendingLabel(label | null)  — mount/replace/remove a project-label
+//                                    header above the spinner. Called from
+//                                    main.ts when the first stream event
+//                                    carries the server-resolved
+//                                    display_root, so the overlay shows
+//                                    "owner/repo" before any manifest exists.
 //   hide()                         — dismiss overlay
 
 export type LoadingStep =
@@ -36,6 +42,7 @@ export interface LoadingOverlayShowOpts {
 export interface LoadingOverlay {
   show(opts: LoadingOverlayShowOpts): void;
   setStep(step: LoadingStep): void;
+  setPendingLabel(label: string | null): void;
   hide(): void;
 }
 
@@ -67,6 +74,7 @@ export function createLoadingOverlay(): LoadingOverlay {
     return {
       show: () => {},
       setStep: () => {},
+      setPendingLabel: () => {},
       hide: () => {},
     };
   }
@@ -152,6 +160,28 @@ export function createLoadingOverlay(): LoadingOverlay {
 
     setStep(step: LoadingStep) {
       _applyStep(step);
+    },
+
+    setPendingLabel(label: string | null) {
+      // Mounts the header into the loading-card so it sits above the
+      // spinner. If show() hasn't run yet there's no card to inject
+      // into — silently noop in that case; the next show() will rebuild
+      // the DOM and any subsequent setPendingLabel call will find a card.
+      const card = root.querySelector('.loading-card');
+      if (!card) return;
+      const existing = card.querySelector('.loading-overlay__pending-label');
+      if (label === null) {
+        existing?.remove();
+        return;
+      }
+      if (existing) {
+        existing.textContent = label;
+        return;
+      }
+      const header = document.createElement('div');
+      header.className = 'loading-overlay__pending-label';
+      header.textContent = label;
+      card.insertBefore(header, card.firstChild);
     },
 
     hide() {

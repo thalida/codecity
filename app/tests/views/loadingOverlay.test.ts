@@ -90,4 +90,24 @@ describe('loadingOverlay', () => {
       'pending'
     );
   });
+
+  // ── Pending-label header (Task 7) ───────────────────────────────────────
+
+  it('renders the pending label as a header when setPendingLabel is called', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setPendingLabel('owner/repo');
+    const header = root.querySelector('.loading-overlay__pending-label');
+    expect(header).not.toBeNull();
+    expect(header!.textContent).toContain('owner/repo');
+  });
+
+  it('hides the pending label when setPendingLabel is called with null', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setPendingLabel('owner/repo');
+    o.setPendingLabel(null);
+    const header = root.querySelector('.loading-overlay__pending-label');
+    expect(header).toBeNull();
+  });
 });

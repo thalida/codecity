@@ -2847,6 +2847,17 @@ canvas {
 .text-card-title.is-loading {
   text-align: center;
 }
+/* Server-emitted project label rendered above the spinner from the moment
+ * the first phase event lands — before any manifest exists. Once `final`
+ * arrives, the (pending) suffix in document.title goes away; the overlay
+ * itself is hidden in main.ts's finally block, so this header is only
+ * visible during clone/scan. */
+.loading-overlay__pending-label {
+  font-size: var(--cc-font-lg);
+  font-weight: 600;
+  color: var(--cc-text-base);
+  text-align: center;
+}
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);

@@ -136,11 +136,13 @@ if (_canvas) {
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
           // First event carrying display_root (cloning for git, scanning
-          // for local) — set the pending document title before the
-          // manifest lands so the tab shows the project name during
-          // clone/scan instead of the static page title.
+          // for local) — set the pending document title AND the overlay
+          // header before the manifest lands, so both the tab and the
+          // loading card show the project name during clone/scan instead
+          // of just the static page title / generic spinner copy.
           if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
             applyPendingTitle(event.display_root);
+            loadingOverlay.setPendingLabel(labelFromUrl(event.display_root));
             _pendingTitleSet = true;
           }
           // Lifecycle markers (cloning/scanning) carry no manifest —
@@ -262,11 +264,13 @@ if (_canvas) {
         for await (const event of streamManifest(url.toString())) {
           if (event.phase === 'error') throw new Error(event.error);
           // First event carrying display_root (cloning for git, scanning
-          // for local) — set the pending document title before the
-          // manifest lands so the tab shows the new project name during
-          // clone/scan after a source-switch.
+          // for local) — set the pending document title AND the overlay
+          // header before the manifest lands, so both the tab and the
+          // loading card show the new project name during clone/scan
+          // after a source-switch.
           if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
             applyPendingTitle(event.display_root);
+            loadingOverlay.setPendingLabel(labelFromUrl(event.display_root));
             _pendingTitleSet = true;
           }
           // Lifecycle markers (cloning/scanning) carry no manifest —
