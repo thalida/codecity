@@ -54,13 +54,14 @@ describe('buildLabelAtlas', () => {
     'truncates labels when atlas overflows MAX_PAGES instead of throwing',
     { timeout: 30_000 },
     () => {
-      // MAX_PAGES is 16; one page holds many thousand short labels at
-      // default font, so generating ~3k wide labels forces overflow.
-      // (The original spec used 50 000 × 80-char labels — same semantic
-      // overflow scenario; we use 3 000 × 30-char labels to keep jsdom
-      // canvas measurement below a 30s budget while still exercising the
-      // overflow path.)
-      const labels = Array.from({ length: 3_000 }, (_, i) => `label_${'x'.repeat(30)}_${i}`);
+      // Make labels much wider than the pagination test (50+ chars) so each
+      // takes a whole row instead of sharing one — capacity drops from
+      // ~84/page to ~28/page, so ~448 labels fill MAX_PAGES = 16 and the
+      // remainder hits the truncation/overflow path. Far fewer labels mean
+      // far fewer jsdom measureText calls upfront, keeping the test ~7s
+      // (was ~34s at 3000 × 30-char). Confirmed empirically: 594 placed,
+      // 6 overflow-truncated.
+      const labels = Array.from({ length: 600 }, (_, i) => `${'x'.repeat(50)}_${i}`);
       expect(() => buildLabelAtlas(labels, TYPOGRAPHY)).not.toThrow();
     }
   );
