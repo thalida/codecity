@@ -28,6 +28,7 @@ import gzip
 import json
 import mimetypes
 import os
+import queue
 import re
 import select
 import socket as _socket
@@ -571,15 +572,57 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         # response has already begun streaming by the time this runs.
         if kind == "git":
             yield {"phase": "cloning", "display_root": display_root}
-            try:
-                with _State.clone_lock:
-                    scan_target = ensure_clone(raw_src, raw_branch)
-            except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
-                yield {"phase": "error", "error": str(e)}
+            # ensure_clone is synchronous, but we want its progress
+            # callbacks to stream out as additional `cloning` events.
+            # Run it on a worker thread that pushes events into a queue;
+            # the generator drains the queue until a sentinel arrives,
+            # then collects the result (or re-raises any exception).
+            clone_q: queue.Queue[dict[str, Any] | None] = queue.Queue()
+            clone_result: dict[str, Any] = {"target": None, "error": None}
+
+            def _on_clone_progress(payload: tuple[str, int]) -> None:
+                stage, percent = payload
+                clone_q.put({
+                    "phase": "cloning",
+                    "display_root": display_root,
+                    "stage": stage,
+                    "percent": percent,
+                })
+
+            def _run_clone() -> None:
+                try:
+                    with _State.clone_lock:
+                        clone_result["target"] = ensure_clone(
+                            raw_src, raw_branch, on_progress=_on_clone_progress
+                        )
+                except Exception as e:  # pylint: disable=broad-except
+                    clone_result["error"] = e
+                finally:
+                    clone_q.put(None)  # sentinel
+
+            clone_thread = threading.Thread(target=_run_clone, daemon=True)
+            clone_thread.start()
+            while True:
+                ev = clone_q.get()
+                if ev is None:
+                    break
+                yield ev
+            clone_thread.join()
+
+            err = clone_result["error"]
+            if isinstance(err, (BranchNotFoundError, RepoNotFoundError, HostUnreachableError)):
+                yield {"phase": "error", "error": str(err)}
                 return
-            except CloneError as e:
-                yield {"phase": "error", "error": str(e)}
+            if isinstance(err, CloneError):
+                yield {"phase": "error", "error": str(err)}
                 return
+            if err is not None:
+                # Unexpected exception type — surface as an error event so
+                # the client sees a clean message instead of a truncated
+                # stream, and re-raise so the outer try/except logs it.
+                yield {"phase": "error", "error": str(err)}
+                return
+            scan_target = clone_result["target"]
         else:
             assert local_target is not None
             scan_target = local_target
