@@ -2055,8 +2055,8 @@ canvas {
  * the 14px Material file/folder icons used on every other row so the icon
  * column stays a consistent width. */
 .tree-root-glyph {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   margin-right: var(--cc-space-2);
   vertical-align: middle;
 }
