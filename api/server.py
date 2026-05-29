@@ -602,12 +602,14 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
             clone_thread = threading.Thread(target=_run_clone, daemon=True)
             clone_thread.start()
-            while True:
-                ev = clone_q.get()
-                if ev is None:
-                    break
-                yield ev
-            clone_thread.join()
+            try:
+                while True:
+                    ev = clone_q.get()
+                    if ev is None:
+                        break
+                    yield ev
+            finally:
+                clone_thread.join()
 
             err = clone_result["error"]
             if isinstance(err, (BranchNotFoundError, RepoNotFoundError, HostUnreachableError)):
@@ -693,7 +695,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
                     on_scan_progress=_on_scan_progress,
                 ):
                     scan_q.put(ev)  # skeleton + final flow through the same queue
-            except BaseException as e:  # pylint: disable=broad-except
+            except Exception as e:  # pylint: disable=broad-except
                 scan_error.append(e)
             finally:
                 scan_q.put(None)  # sentinel
