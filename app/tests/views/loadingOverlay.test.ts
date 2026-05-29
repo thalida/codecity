@@ -97,7 +97,7 @@ describe('loadingOverlay', () => {
     const o = createLoadingOverlay();
     o.show({ kind: 'git', label: 'owner/repo' });
     o.setPendingLabel('owner/repo');
-    const header = root.querySelector('.loading-overlay__pending-label');
+    const header = root.querySelector('.loading-pending-label');
     expect(header).not.toBeNull();
     expect(header!.textContent).toContain('owner/repo');
   });
@@ -107,7 +107,7 @@ describe('loadingOverlay', () => {
     o.show({ kind: 'git', label: 'owner/repo' });
     o.setPendingLabel('owner/repo');
     o.setPendingLabel(null);
-    const header = root.querySelector('.loading-overlay__pending-label');
+    const header = root.querySelector('.loading-pending-label');
     expect(header).toBeNull();
   });
 });

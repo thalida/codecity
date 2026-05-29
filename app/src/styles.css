@@ -2852,7 +2852,7 @@ canvas {
  * arrives, the (pending) suffix in document.title goes away; the overlay
  * itself is hidden in main.ts's finally block, so this header is only
  * visible during clone/scan. */
-.loading-overlay__pending-label {
+.loading-pending-label {
   font-size: var(--cc-font-lg);
   font-weight: 600;
   color: var(--cc-text-base);

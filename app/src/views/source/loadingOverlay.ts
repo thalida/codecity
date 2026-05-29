@@ -169,7 +169,7 @@ export function createLoadingOverlay(): LoadingOverlay {
       // the DOM and any subsequent setPendingLabel call will find a card.
       const card = root.querySelector('.loading-card');
       if (!card) return;
-      const existing = card.querySelector('.loading-overlay__pending-label');
+      const existing = card.querySelector('.loading-pending-label');
       if (label === null) {
         existing?.remove();
         return;
@@ -179,7 +179,7 @@ export function createLoadingOverlay(): LoadingOverlay {
         return;
       }
       const header = document.createElement('div');
-      header.className = 'loading-overlay__pending-label';
+      header.className = 'loading-pending-label';
       header.textContent = label;
       card.insertBefore(header, card.firstChild);
     },

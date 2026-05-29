@@ -550,9 +550,7 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     def _stamp_display_root(m: "Manifest") -> "Manifest":
         if kind == "git":
-            m["display_root"] = (
-                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
-            )
+            m["display_root"] = display_root
         return m
 
     # Captured by the closure below so we can decide whether to write
