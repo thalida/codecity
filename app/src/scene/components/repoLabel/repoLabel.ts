@@ -1,6 +1,7 @@
 // scene/components/repoLabel/repoLabel.ts — Floating holographic
 // repo-name label. One group at the scene root, holding a vertical
-// light beam from the floor + a Y-locked-billboard text panel.
+// light beam from the floor + a camera-facing billboard text panel
+// (full 3-axis billboard — pitches with camera elevation, not just yaw).
 //
 // Lifecycle (matches sky / island):
 //   const label = createRepoLabel();
@@ -79,17 +80,24 @@ export interface RepoLabel {
   dispose(): void;
 }
 
-// _faceCameraYLocked rotates `obj` so its +Z faces the camera in the XZ
-// plane while staying vertical (no tilt).
-function _faceCameraYLocked(obj: THREE.Object3D, camera: THREE.Camera): void {
+// _faceCamera rotates `obj` so its +Z front face points at the camera,
+// pitching up/down as the camera's elevation changes (a full billboard,
+// not just yaw-locked). Local +Y stays aligned with world up so text
+// remains upright regardless of azimuth or tilt.
+const _LABEL_WORLD_UP = new THREE.Vector3(0, 1, 0);
+const _scratchObjPos = new THREE.Vector3();
+const _scratchCamPos = new THREE.Vector3();
+const _scratchMat = new THREE.Matrix4();
+function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   obj.updateMatrixWorld(true);
-  const objPos = new THREE.Vector3();
-  obj.getWorldPosition(objPos);
-  const camPos = new THREE.Vector3();
-  camera.getWorldPosition(camPos);
-  const dx = camPos.x - objPos.x;
-  const dz = camPos.z - objPos.z;
-  obj.rotation.set(0, Math.atan2(dx, dz), 0);
+  obj.getWorldPosition(_scratchObjPos);
+  camera.getWorldPosition(_scratchCamPos);
+  // Matrix4.lookAt(eye, target, up) builds a basis where local +Z points
+  // from target toward eye — i.e. out the panel's front face toward the
+  // camera. The world-up arg keeps +Y aligned with world up so text
+  // doesn't roll when the camera orbits sideways.
+  _scratchMat.lookAt(_scratchCamPos, _scratchObjPos, _LABEL_WORLD_UP);
+  obj.quaternion.setFromRotationMatrix(_scratchMat);
 }
 
 export function createRepoLabel(): RepoLabel {
@@ -293,7 +301,7 @@ export function createRepoLabel(): RepoLabel {
     const dtScaled = dtSeconds * cfg.ANIMATION_SPEED;
     panelMat.uniforms.uTime.value += dtScaled;
     if (beamMat) beamMat.uniforms.uTime.value += dtScaled;
-    _faceCameraYLocked(panelMesh, camera);
+    _faceCamera(panelMesh, camera);
     // Track the gem's per-frame bob — the renderLoop mutates
     // gemRef.position.y each frame (sin-wave around its baseY), so the
     // beam's foot follows the gem live.
