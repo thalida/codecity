@@ -618,10 +618,10 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
                 return
             if err is not None:
                 # Unexpected exception type — surface as an error event so
-                # the client sees a clean message instead of a truncated
-                # stream, and re-raise so the outer try/except logs it.
+                # the client sees a clean message, then re-raise so the
+                # outer handler logs it server-side.
                 yield {"phase": "error", "error": str(err)}
-                return
+                raise err
             scan_target = clone_result["target"]
         else:
             assert local_target is not None
