@@ -193,8 +193,7 @@ export function createCameraRig({
     // Distance from width: the existing "city neighborhood readable on
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
-    const widthDist =
-      (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
     // Distance from tallest building: ensures the roof would fit the
     // vertical FOV even though the tallest building can sit anywhere in
     // the city — without this the camera frames width only and tall
@@ -211,8 +210,7 @@ export function createCameraRig({
     const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
     const elevRad = Math.atan(FRAMING_DIR_Y);
     const heightDist =
-      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) /
-      Math.sin(halfFov);
+      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) / Math.sin(halfFov);
     const framingDist = Math.max(widthDist, heightDist);
 
     // Default framing: place the camera BEHIND the gem along the root
