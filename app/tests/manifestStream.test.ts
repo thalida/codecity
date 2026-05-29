@@ -62,9 +62,7 @@ describe('streamManifest', () => {
 
   it('parses display_root from a cloning event', async () => {
     const fetchMock = async () =>
-      mockResponse([
-        '{"phase":"cloning","display_root":"https://example.com/foo.git"}\n',
-      ]);
+      mockResponse(['{"phase":"cloning","display_root":"https://example.com/foo.git"}\n']);
     const events = [];
     for await (const ev of streamManifest('http://x', fetchMock as typeof fetch)) {
       events.push(ev);
