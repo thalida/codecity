@@ -44,7 +44,7 @@
 - [x] on focus / select look straight down at the building
 - [ ] add meta data about the world
 - [ ] add enable local env variable
-- [ ] fix start position to include tallest building
+- [x] fix start position to include tallest building
 
 ## Agent Prompts ToDos
 

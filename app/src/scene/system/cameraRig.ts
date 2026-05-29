@@ -57,6 +57,12 @@ const STREET_FOCUS_RATIO = 1.2;
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
+// Headroom above the tallest building's roof when sizing the initial
+// framing radius. 1.15 leaves ~15% of the vertical FOV as sky above the
+// tallest spire so the horizon-glow band stays visible instead of the
+// roof sitting flush against the top edge of the frame.
+const TALLEST_BUILDING_HEADROOM_MULT = 1.15;
+
 export function createCameraRig({
   canvas,
   world,
@@ -165,13 +171,23 @@ export function createCameraRig({
     let framingRadius: number;
     if (gemPos && rootStreet) {
       framingCenter = new THREE.Vector3(gemPos.x, 0, gemPos.z);
-      // Frame off the root street's WIDTH, not its length. Length is a
-      // proxy for "how much stuff is in the project" — for a big repo the
-      // root street is enormously long and framing on it is the same as
-      // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
-      // so width × 10 reliably fits the gem + the road's first stretch
-      // regardless of project size.
-      framingRadius = rootStreet.width * 15;
+      // Frame off the root street's WIDTH (not its length) AND the tallest
+      // building's height, whichever produces the larger radius.
+      //   Width: length is a proxy for "how much stuff is in the project" —
+      //   for a big repo the root street is enormously long and framing on
+      //   it is the same as framing the whole world. Width is bounded by
+      //   STREET_TIERS (≈10–52), so width × 15 reliably fits the gem + the
+      //   road's first stretch regardless of project size.
+      //   Height: framingCenter sits at y=0, so a sphere of radius R fits
+      //   any point with |y| ≤ R. Without the height branch, tall buildings
+      //   pierce the top of the frame on cities where one big file dwarfs
+      //   the root street's width. getMaxBuildingHeight() returns 0 for
+      //   empty cities, so the Math.max safely degrades to width-only.
+      const tallestH = world.getMaxBuildingHeight();
+      framingRadius = Math.max(
+        rootStreet.width * 15,
+        tallestH * TALLEST_BUILDING_HEADROOM_MULT,
+      );
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
