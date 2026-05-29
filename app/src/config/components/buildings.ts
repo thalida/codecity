@@ -311,7 +311,7 @@ export const BUILDING_FADE = map<BuildingFadeConfig>({
   // Level 2 — one directory deeper than the selection.
   LEVEL2_DETAIL: FadeDetail.Silhouette,
   LEVEL2_OUTLINE: true,
-  LEVEL2_BODY_OPACITY: 0.5,
+  LEVEL2_BODY_OPACITY: 0.75,
   LEVEL2_OUTLINE_OPACITY: 0.5,
 
   // Level 3 — deeper descendants (two or more directories below).
