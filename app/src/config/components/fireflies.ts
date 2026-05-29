@@ -5,10 +5,12 @@
 // modulation (additive output color × (1 + pulseAmp * sin(...))).
 // v4 adds emission (HDR bloom), flicker (high-frequency brightness noise),
 // and per-author commit-count scaling (always on; tune spread via SCALE_MIN/MAX).
-// v5 adds orbit-ring controls (ORBIT_RING_ENABLED, ORBIT_RING_HOVER_COLOR,
-// ORBIT_RING_SELECTED_COLOR, ORBIT_RING_THICKNESS) for the lazy ring pool;
-// rings render only for the hovered/selected commit, no rest-state color.
+// v5 adds orbit-ring controls (ORBIT_RING_ENABLED, ORBIT_RING_COLOR,
+// ORBIT_RING_OPACITY) and decouples orbit radius from per-author scale.
 // v6 adds hover/selected highlight colors for orbit rings.
+// v7 replaces the merged-mesh ring with a lazy 2-slot pool — rings
+// render only for the hovered/selected commit, so ORBIT_RING_COLOR
+// and ORBIT_RING_OPACITY (the rest-state color/alpha) were dropped.
 
 import { map } from 'nanostores';
 
