@@ -27,8 +27,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/config/index.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
@@ -61,9 +59,7 @@ const TOP_DOWN_PADDING_MULT = 2.8;
 
 // y-component of the start framing direction vector (before normalization).
 // Combined with FRAMING_DIR_LATERAL below: with lateral=0.3, y=1.0 gives
-// ~43.7° elevation. The height-fit distance formula in _captureFraming
-// depends on these values, so they are referenced both there and at the
-// dir construction site instead of being duplicated.
+// ~43.7° elevation.
 const FRAMING_DIR_Y = 1.0;
 
 // Lateral component on the framing direction vector — perpendicular to
@@ -203,41 +199,41 @@ export function createCameraRig({
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
     const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-    // Distance from tallest building: ensures the roof would fit the
-    // vertical FOV even though the tallest building can sit anywhere in
-    // the city — without this the camera frames width only and tall
-    // buildings near the gem pierce the top of the frame. Geometry: the
-    // framing target sits at y=0; the camera sits at elevation `elev`
-    // along (-cos(elev), sin(elev), 0) × D from the target (see dir
-    // construction below). A point H above the target projects to
-    // screen-y = cos(elev) × H / (D − sin(elev) × H); setting that ≤
-    // tan(halfFov) and solving gives D = H × cos(elev − halfFov) /
-    // sin(halfFov) for a flush fit. HEADROOM_MULT scales D up so the
-    // roof clears the top edge with sky above it. Empty cities get
-    // getMaxBuildingHeight() = 0, so heightDist collapses to 0 and the
-    // width branch wins.
-    // Tallest visible vertical extent above the framing target:
-    //   - getMaxBuildingHeight(): real buildings (b.h in the layout)
-    //   - label panel top: the floating repo-name panel sits at
-    //     MAX_FLOORS × FLOOR_HEIGHT × HEIGHT_PCT/100 above the anchor,
-    //     plus FONT_SIZE for the panel's own height. On small repos
-    //     the label often exceeds the tallest building, and the holo-
-    //     beam connecting it to the gem extends to the panel's top —
-    //     framing on building height alone clipped the beam off the
-    //     top of the screen.
-    const dims = BUILDING_DIMENSIONS.get();
-    const labelCfg = REPO_LABEL.get();
-    const labelTopY =
-      dims.MAX_FLOORS * dims.FLOOR_HEIGHT * (labelCfg.HEIGHT_PCT / 100) + labelCfg.FONT_SIZE;
-    const tallestH = gemPos && rootStreet ? Math.max(world.getMaxBuildingHeight(), labelTopY) : 0;
-    // Elevation angle accounts for both Y and lateral components: the
-    // horizontal magnitude is sqrt(1 + lateral²), not 1. Without this,
-    // adding lateral offset would silently over-tighten the height fit.
-    const horizMag = Math.sqrt(1 + FRAMING_DIR_LATERAL * FRAMING_DIR_LATERAL);
-    const elevRad = Math.atan(FRAMING_DIR_Y / horizMag);
-    const heightDist =
-      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) / Math.sin(halfFov);
-    const framingDist = Math.max(widthDist, heightDist);
+    // Distance to fit the world bbox's farthest corner inside the vertical
+    // FOV, treating the gem as the sphere center. An earlier formula tried
+    // to compute the height-fit distance for a building AT the framing
+    // target, but the camera looks DOWN at the city, so the optical axis
+    // dips below world Y=0 at depth — tall buildings deep behind the gem
+    // project ABOVE the optical axis on screen and pierce the top of the
+    // frame even when the "building at target" math said they'd fit. A
+    // sphere fit centered at the gem covers every point in the bbox
+    // regardless of azimuth or tilt: any point inside the sphere subtends
+    // ≤ asin(R/D) from the optical axis, so setting D = R/sin(halfFov)
+    // guarantees ≤ halfFov, i.e. the point fits the vertical FOV.
+    // HEADROOM_MULT scales the distance up so the roof clears the top
+    // edge with sky above it. INITIAL_DISTANCE_MULT is deliberately NOT
+    // applied here — it tightens widthDist where some overshoot is fine,
+    // but this fit must actually fit.
+    let worldFitDist = 0;
+    if (gemPos && rootStreet) {
+      const gemX = framingCenter.x;
+      const gemZ = framingCenter.z;
+      let maxR2 = 0;
+      for (const x of [bbox.min.x, bbox.max.x]) {
+        for (const y of [bbox.min.y, bbox.max.y]) {
+          for (const z of [bbox.min.z, bbox.max.z]) {
+            const dx = x - gemX;
+            const dy = y; // framingCenter.y is 0
+            const dz = z - gemZ;
+            const r2 = dx * dx + dy * dy + dz * dz;
+            if (r2 > maxR2) maxR2 = r2;
+          }
+        }
+      }
+      const radiusFromGem = Math.sqrt(maxR2);
+      worldFitDist = (radiusFromGem * TALLEST_BUILDING_HEADROOM_MULT) / Math.sin(halfFov);
+    }
+    const framingDist = Math.max(widthDist, worldFitDist);
 
     // Default framing: place the camera BEHIND the gem along the root
     // street's long axis (the street extends in +X for X-oriented or +Z
@@ -246,8 +242,7 @@ export function createCameraRig({
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
     // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
-    // street axis. Both constants feed the heightDist formula above.
-    // Fallback (no gem) keeps the old high-oblique direction.
+    // street axis. Fallback (no gem) keeps the old high-oblique direction.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
