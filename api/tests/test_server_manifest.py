@@ -287,6 +287,34 @@ class DisplayRootTests(unittest.TestCase):
             final = next(e for e in events if e["phase"] == "final")["manifest"]
             self.assertEqual(final.get("display_root"), f"{url}@feature")
 
+    def test_cloning_event_includes_display_root(self) -> None:
+        # The first cloning event must carry display_root so the client
+        # can show "{label} (pending)" before clone/scan even starts.
+        with TemporaryDirectory() as td:
+            remote, _ = self._make_fake_remote(Path(td))
+            url = f"file://{remote}"
+            with mock.patch.object(clone_mod, "CACHE_ROOT", Path(td) / "cache"):
+                status, events = self._http.request_stream(
+                    self.server_port, f"/api/manifest?src={url}",
+                )
+            self.assertEqual(status, 200)
+            self.assertEqual(events[0]["phase"], "cloning")
+            self.assertEqual(events[0].get("display_root"), url)
+
+    def test_scanning_event_includes_display_root(self) -> None:
+        # Local sources skip cloning; their first event is `scanning`,
+        # which must also carry display_root (the raw local path the
+        # caller passed in — the same value the final manifest omits).
+        with TemporaryDirectory() as td:
+            self._init_git_repo(Path(td))
+            (Path(td) / "x.py").write_text("\n")
+            status, events = self._http.request_stream(
+                self.server_port, f"/api/manifest?src={td}",
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(events[0]["phase"], "scanning")
+            self.assertEqual(events[0].get("display_root"), td)
+
 
 class ClientDisconnectTests(unittest.TestCase):
     """Browsers routinely close the TCP socket mid-response — tab reload,

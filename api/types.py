@@ -189,6 +189,26 @@ class ScanStreamEvent(TypedDict):
     manifest: Manifest
 
 
+class ScanCloningEvent(TypedDict):
+    """First event for git sources — emitted before ensure_clone runs
+    so the client can show a "{label} (pending)" header while the
+    network clone is in flight. `display_root` mirrors what the final
+    manifest will carry (URL, or URL@branch when branch is set)."""
+
+    phase: Literal["cloning"]
+    display_root: NotRequired[str]
+
+
+class ScanScanningEvent(TypedDict):
+    """First event for local sources (and the second event for git
+    sources, after the clone settles). `display_root` carries the
+    raw source string so the client can label the pending project
+    before any manifest exists."""
+
+    phase: Literal["scanning"]
+    display_root: NotRequired[str]
+
+
 class ScanErrorEvent(TypedDict):
     """Emitted only if a scan fails AFTER the response body has started
     streaming. Errors before the first byte use the standard 500-JSON

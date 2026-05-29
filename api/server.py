@@ -559,12 +559,20 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
     # the manifest cache after _stream_events returns.
     state: dict[str, Any] = {"final_manifest": None, "scan_target": None, "sig": None}
 
+    # Display label for the in-flight scan. Hoisted above the first
+    # yield so the cloning/scanning event can carry it — the client
+    # uses this to set "{label} (pending)" before any manifest exists.
+    if kind == "git":
+        display_root = f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+    else:
+        display_root = raw_src
+
     def _events() -> Iterable[dict[str, Any]]:
         # Git sources: emit cloning, run ensure_clone, then continue.
         # Errors during the clone become NDJSON error events because the
         # response has already begun streaming by the time this runs.
         if kind == "git":
-            yield {"phase": "cloning"}
+            yield {"phase": "cloning", "display_root": display_root}
             try:
                 with _State.clone_lock:
                     scan_target = ensure_clone(raw_src, raw_branch)
@@ -585,7 +593,11 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         with _State.allowed_roots_lock:
             _State.allowed_roots.add(scan_target.resolve())
 
-        yield {"phase": "scanning"}
+        # For git sources this is the second event (after `cloning`);
+        # for local sources it's the first. Either way, display_root
+        # rides along so the client can show the pending label
+        # immediately for local sources too.
+        yield {"phase": "scanning", "display_root": display_root}
 
         # Cheap signature probe — same call the live-poll endpoint uses.
         # git_window MUST flow in here too: it feeds the signature, and
