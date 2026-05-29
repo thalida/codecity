@@ -303,26 +303,26 @@ export const BUILDING_FADE = map<BuildingFadeConfig>({
   DEFAULT_OUTLINE_OPACITY: 1.0,
 
   // Level 1 — same dir as the selection (or the dir's direct files).
-  LEVEL1_DETAIL: FadeDetail.Silhouette,
-  LEVEL1_OUTLINE: true,
-  LEVEL1_BODY_OPACITY: 0.75,
-  LEVEL1_OUTLINE_OPACITY: 0.75,
+  LEVEL1_DETAIL: FadeDetail.Full,
+  LEVEL1_OUTLINE: false,
+  LEVEL1_BODY_OPACITY: 1.0,
+  LEVEL1_OUTLINE_OPACITY: 1.0,
 
   // Level 2 — one directory deeper than the selection.
   LEVEL2_DETAIL: FadeDetail.Silhouette,
   LEVEL2_OUTLINE: true,
-  LEVEL2_BODY_OPACITY: 0.1,
+  LEVEL2_BODY_OPACITY: 0.5,
   LEVEL2_OUTLINE_OPACITY: 0.5,
 
   // Level 3 — deeper descendants (two or more directories below).
   LEVEL3_DETAIL: FadeDetail.Silhouette,
   LEVEL3_OUTLINE: true,
-  LEVEL3_BODY_OPACITY: 0.1,
+  LEVEL3_BODY_OPACITY: 0.25,
   LEVEL3_OUTLINE_OPACITY: 0.5,
 
   // Level 4 — outside the selection's subtree entirely.
-  LEVEL4_DETAIL: FadeDetail.Hidden,
+  LEVEL4_DETAIL: FadeDetail.Silhouette,
   LEVEL4_OUTLINE: true,
-  LEVEL4_BODY_OPACITY: 0.1,
+  LEVEL4_BODY_OPACITY: 0.05,
   LEVEL4_OUTLINE_OPACITY: 0.5,
 });
