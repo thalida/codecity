@@ -2847,6 +2847,17 @@ canvas {
 .text-card-title.is-loading {
   text-align: center;
 }
+/* Server-emitted project label rendered above the spinner from the moment
+ * the first phase event lands — before any manifest exists. Once `final`
+ * arrives, the (pending) suffix in document.title goes away; the overlay
+ * itself is hidden in main.ts's finally block, so this header is only
+ * visible during clone/scan. */
+.loading-pending-label {
+  font-size: var(--cc-font-lg);
+  font-weight: 600;
+  color: var(--cc-text-base);
+  text-align: center;
+}
 .loading-steps {
   list-style: none;
   margin: var(--cc-space-0);
@@ -2892,6 +2903,15 @@ canvas {
   content: '✓';
   color: var(--cc-success-dark);
   font-size: var(--cc-font-sm);
+}
+/* Trailing progress text appended via setStepTail (clone %, scanned file
+ * count). Muted compared to the step label so it reads as secondary info
+ * — present on the active step only in practice, since setStep advances
+ * forward and main.ts wipes the tail on phase transitions. */
+.loading-step-tail {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-md);
+  font-variant-numeric: tabular-nums;
 }
 /* Header icon buttons — switch-source (far left) + refresh (far right).
  * Both use the same styling as the old footer reset-view button so they

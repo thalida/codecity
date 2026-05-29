@@ -18,10 +18,11 @@ import os
 import subprocess
 import sys
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Callable, Iterator
 
 from .cache import (
     cache_load_files,
@@ -812,21 +813,57 @@ def _iter_file_nodes(tree: DirNode) -> Iterator[FileNode]:
             yield from _iter_file_nodes(child)  # type: ignore[arg-type]
 
 
+# Match clone.py: 250ms is short enough to feel live, long enough to
+# coalesce the high-frequency tick() calls during a fast tree walk
+# (where tick() fires once per file — easily thousands/sec on warm
+# fs cache).
+SCAN_PROGRESS_THROTTLE_S = 0.25
+
+
 class _Heartbeat:
     """Per-scan file-count tracker. Was a module-level global; that race-
     bombed under ThreadingHTTPServer because two concurrent /api/manifest
     requests would share + mutate the same counter, garbling progress
-    output and corrupting the running tally."""
+    output and corrupting the running tally.
 
-    __slots__ = ("seen",)
+    If ``on_progress`` is supplied, the heartbeat calls it with the
+    current ``seen`` count at most once per ~250ms (independently of
+    the every-100-files log line above). Server-side this becomes one
+    ``scanning`` NDJSON event per call."""
 
-    def __init__(self) -> None:
+    __slots__ = ("seen", "_on_progress", "_last_emit", "_last_emitted_count")
+
+    def __init__(
+        self,
+        on_progress: Callable[[int], None] | None = None,
+    ) -> None:
         self.seen = 0
+        self._on_progress = on_progress
+        self._last_emit = 0.0
+        self._last_emitted_count = -1  # -1 = never emitted
 
     def tick(self) -> None:
         self.seen += 1
         if self.seen % 100 == 0:
             _log(f"  walked {self.seen} files so far…")
+        if self._on_progress is None:
+            return
+        now = time.monotonic()
+        if now - self._last_emit < SCAN_PROGRESS_THROTTLE_S:
+            return
+        self._on_progress(self.seen)
+        self._last_emit = now
+        self._last_emitted_count = self.seen
+
+    def flush(self) -> None:
+        """Emit the final count if it hasn't been emitted yet. Called
+        when the walk finishes so the UI sees the true file total even
+        if the last few ticks were throttled."""
+        if self._on_progress is None:
+            return
+        if self.seen != self._last_emitted_count:
+            self._on_progress(self.seen)
+            self._last_emitted_count = self.seen
 
 
 class _DirFrame:
@@ -1017,6 +1054,7 @@ def scan_tree(
     use_cache: bool = True,
     cancel_event: "threading.Event | None" = None,
     git_window: str | None = None,
+    on_scan_progress: Callable[[int], None] | None = None,
 ) -> Iterator["ScanStreamEvent"]:
     """Scan a git working tree and yield manifest events.
 
@@ -1054,7 +1092,7 @@ def scan_tree(
         _load_codecityignore(Path(root_abs))
     )
 
-    heartbeat = _Heartbeat()
+    heartbeat = _Heartbeat(on_progress=on_scan_progress)
     _log("walking tree…")
     sig = hashlib.blake2b(digest_size=16)
     _hash_git_window(sig, git_window)
@@ -1067,6 +1105,7 @@ def scan_tree(
         sig=sig,
         heartbeat=heartbeat,
     )
+    heartbeat.flush()  # ensure UI sees the true final count, not whatever the throttle last allowed through
     _log(f"walked {heartbeat.seen} files; emitting skeleton")
 
     # Compute tree_signature once after the tree is built. This is

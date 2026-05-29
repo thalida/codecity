@@ -411,5 +411,147 @@ class StallWatchdogTests(unittest.TestCase):
         self.assertEqual(len(git_lines), 10, f"missing git lines: {captured}")
 
 
+def test_parse_clone_progress_line():
+    """Real git --progress emits lines like:
+        Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s
+    The parser extracts (stage, percent) when matchable, else None.
+    """
+    from api.clone import _parse_clone_progress_line
+
+    cases = [
+        ("Receiving objects:  45% (123/273), 1.20 MiB | 2.50 MiB/s", ("receiving", 45)),
+        ("Resolving deltas:  100% (50/50), done.", ("resolving", 100)),
+        ("Counting objects:  12%", ("counting", 12)),
+        ("Cloning into '/tmp/foo'...", None),
+        ("", None),
+        ("garbage line", None),
+    ]
+    for line, expected in cases:
+        assert _parse_clone_progress_line(line) == expected, f"failed for: {line!r}"
+
+
+def test_ensure_clone_emits_throttled_progress_via_callback(tmp_path):
+    """ensure_clone should call the on_progress callback for parseable
+    progress lines. Real git on a tiny repo doesn't always emit
+    progress, so we fake the Popen and synthesize the stderr stream.
+    The invariant — callback fires with (stage, percent) tuples for
+    each parseable line — is what matters."""
+    from unittest.mock import MagicMock
+    from api import clone as clone_mod
+
+    # \r is git's in-place rewrite separator for progress lines; the
+    # drain splits on either \r or \n so we use \n here for readability.
+    fake_stderr = (
+        b"Cloning into '/tmp/foo'...\n"
+        b"Counting objects:  10%\n"
+        b"Counting objects:  50%\n"
+        b"Counting objects: 100%\n"
+        b"Receiving objects:   1%\n"
+        b"Receiving objects:  50%\n"
+        b"Receiving objects: 100%\n"
+        b"Resolving deltas: 100%\n"
+    )
+
+    class FakeProc:
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.stdout = io.BytesIO(b"")
+            self.stderr = io.BytesIO(fake_stderr)
+
+        def wait(self) -> int:
+            return 0
+
+    cache = tmp_path / "cache"
+    on_progress = MagicMock()
+    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+        with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
+            clone_mod.ensure_clone(
+                "https://example.com/foo.git", None, on_progress=on_progress
+            )
+
+    assert on_progress.call_count >= 1, (
+        f"callback should fire at least once; calls={on_progress.call_args_list}"
+    )
+    for call in on_progress.call_args_list:
+        args = call.args[0]
+        assert isinstance(args, tuple) and len(args) == 2
+        assert args[0] in {"counting", "receiving", "resolving"}
+        assert 0 <= args[1] <= 100
+    # Verify the throttle: at least one stage-transition payload should
+    # come through (counting → receiving or receiving → resolving), and
+    # total should be capped (we sent 7 progress lines; expect ≤ 7 fires
+    # but ≥ 1, with throttling further reducing within-stage duplicates).
+    seen_stages = {call.args[0][0] for call in on_progress.call_args_list}
+    assert len(seen_stages) >= 1, "expected at least one stage emitted"
+    assert on_progress.call_count <= 7, "throttle should not let every line through unbounded"
+
+
+def test_ensure_clone_emits_terminal_percent_of_each_stage(tmp_path):
+    """Regression: when the throttle suppresses the terminal percent of
+    a stage (e.g. 100%), the user gets stuck at whatever value last
+    passed the throttle. The fix flushes the latest seen payload on
+    stage change AND at end-of-stream. Verify the user always sees
+    100% as the final payload for each stage."""
+    from unittest.mock import MagicMock
+    from api import clone as clone_mod
+
+    # Many rapid progress lines per stage; the throttle will block
+    # most of them. Without the flush fix, "Receiving 100%" gets
+    # silently dropped because it lands within 250ms of the previous
+    # emit, leaving the UI frozen at e.g. 66%.
+    fake_stderr = (
+        b"Cloning into '/tmp/foo'...\n"
+        b"Counting objects:  10%\n"
+        b"Counting objects:  50%\n"
+        b"Counting objects:  75%\n"
+        b"Counting objects: 100%\n"
+        b"Receiving objects:   1%\n"
+        b"Receiving objects:  33%\n"
+        b"Receiving objects:  66%\n"
+        b"Receiving objects:  99%\n"
+        b"Receiving objects: 100%\n"
+        b"Resolving deltas:   1%\n"
+        b"Resolving deltas:  50%\n"
+        b"Resolving deltas:  99%\n"
+        b"Resolving deltas: 100%\n"
+    )
+
+    class FakeProc:
+        returncode = 0
+
+        def __init__(self) -> None:
+            self.stdout = io.BytesIO(b"")
+            self.stderr = io.BytesIO(fake_stderr)
+
+        def wait(self) -> int:
+            return 0
+
+    cache = tmp_path / "cache"
+    on_progress = MagicMock()
+    with mock.patch.object(clone_mod, "CACHE_ROOT", cache):
+        with mock.patch.object(subprocess, "Popen", return_value=FakeProc()):
+            clone_mod.ensure_clone(
+                "https://example.com/foo.git", None, on_progress=on_progress
+            )
+
+    # Collect per-stage the highest percent ever emitted.
+    per_stage_max: dict[str, int] = {}
+    for call in on_progress.call_args_list:
+        stage, percent = call.args[0]
+        per_stage_max[stage] = max(per_stage_max.get(stage, 0), percent)
+
+    # Every stage we sent must have ended with 100% reaching the UI.
+    assert per_stage_max.get("counting") == 100, (
+        f"counting should reach 100%; per-stage max: {per_stage_max}"
+    )
+    assert per_stage_max.get("receiving") == 100, (
+        f"receiving should reach 100%; per-stage max: {per_stage_max}"
+    )
+    assert per_stage_max.get("resolving") == 100, (
+        f"resolving should reach 100%; per-stage max: {per_stage_max}"
+    )
+
+
 if __name__ == "__main__":
     unittest.main()

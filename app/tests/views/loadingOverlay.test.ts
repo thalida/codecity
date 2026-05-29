@@ -90,4 +90,54 @@ describe('loadingOverlay', () => {
       'pending'
     );
   });
+
+  // ── Pending-label header (Task 7) ───────────────────────────────────────
+
+  it('renders the pending label as a header when setPendingLabel is called', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setPendingLabel('owner/repo');
+    const header = root.querySelector('.loading-pending-label');
+    expect(header).not.toBeNull();
+    expect(header!.textContent).toContain('owner/repo');
+  });
+
+  it('hides the pending label when setPendingLabel is called with null', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setPendingLabel('owner/repo');
+    o.setPendingLabel(null);
+    const header = root.querySelector('.loading-pending-label');
+    expect(header).toBeNull();
+  });
+
+  // ── Step-tail render (Task 11) ──────────────────────────────────────────
+
+  it('renders a tail string next to a step row', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '45% (receiving)');
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).toContain('45%');
+    expect(cloningRow?.textContent).toContain('receiving');
+  });
+
+  it('replaces an existing tail string with a new one', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '10%');
+    o.setStepTail('cloning', '80%');
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).toContain('80%');
+    expect(cloningRow?.textContent).not.toContain('10%');
+  });
+
+  it('clears the tail when setStepTail is called with null', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '45%');
+    o.setStepTail('cloning', null);
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).not.toContain('45%');
+  });
 });

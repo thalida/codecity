@@ -59,4 +59,20 @@ describe('streamManifest', () => {
       }
     }).rejects.toThrow('boom');
   });
+
+  it('parses display_root from a cloning event', async () => {
+    const fetchMock = async () =>
+      mockResponse(['{"phase":"cloning","display_root":"https://example.com/foo.git"}\n']);
+    const events = [];
+    for await (const ev of streamManifest('http://x', fetchMock as typeof fetch)) {
+      events.push(ev);
+    }
+    expect(events).toHaveLength(1);
+    const ev = events[0];
+    expect(ev.phase).toBe('cloning');
+    // Discriminator narrow — display_root must be on the cloning variant
+    // of ScanStreamEvent, not accessed via a cast that would hide drift.
+    if (ev.phase !== 'cloning') throw new Error('expected cloning');
+    expect(ev.display_root).toBe('https://example.com/foo.git');
+  });
 });

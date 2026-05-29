@@ -28,6 +28,7 @@ import gzip
 import json
 import mimetypes
 import os
+import queue
 import re
 import select
 import socket as _socket
@@ -66,6 +67,7 @@ from api.types import (
     FileTooLargeResponse,
     HealthResponse,
     Manifest,
+    ScanStreamEvent,
     SignatureResponse,
 )
 
@@ -208,7 +210,7 @@ def _send_json(handler: BaseHTTPRequestHandler, status: int, body: JsonBody) -> 
 
 def _stream_events(
     handler: BaseHTTPRequestHandler,
-    events: Iterable[dict[str, Any]],
+    events: Iterable[ScanStreamEvent | dict[str, Any]],
     cancel_event: threading.Event,
 ) -> None:
     """Stream NDJSON events over a chunked HTTP response.
@@ -550,30 +552,80 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     def _stamp_display_root(m: "Manifest") -> "Manifest":
         if kind == "git":
-            m["display_root"] = (
-                f"{raw_src}@{raw_branch}" if raw_branch else raw_src
-            )
+            m["display_root"] = display_root
         return m
 
     # Captured by the closure below so we can decide whether to write
     # the manifest cache after _stream_events returns.
     state: dict[str, Any] = {"final_manifest": None, "scan_target": None, "sig": None}
 
-    def _events() -> Iterable[dict[str, Any]]:
+    # Display label for the in-flight scan. Hoisted above the first
+    # yield so the cloning/scanning event can carry it — the client
+    # uses this to set "{label} (pending)" before any manifest exists.
+    if kind == "git":
+        display_root = f"{raw_src}@{raw_branch}" if raw_branch else raw_src
+    else:
+        display_root = raw_src
+
+    def _events() -> Iterable[ScanStreamEvent | dict[str, Any]]:
         # Git sources: emit cloning, run ensure_clone, then continue.
         # Errors during the clone become NDJSON error events because the
         # response has already begun streaming by the time this runs.
         if kind == "git":
-            yield {"phase": "cloning"}
+            yield {"phase": "cloning", "display_root": display_root}
+            # ensure_clone is synchronous, but we want its progress
+            # callbacks to stream out as additional `cloning` events.
+            # Run it on a worker thread that pushes events into a queue;
+            # the generator drains the queue until a sentinel arrives,
+            # then collects the result (or re-raises any exception).
+            clone_q: queue.Queue[dict[str, Any] | None] = queue.Queue()
+            clone_result: dict[str, Any] = {"target": None, "error": None}
+
+            def _on_clone_progress(payload: tuple[str, int]) -> None:
+                stage, percent = payload
+                clone_q.put({
+                    "phase": "cloning",
+                    "display_root": display_root,
+                    "stage": stage,
+                    "percent": percent,
+                })
+
+            def _run_clone() -> None:
+                try:
+                    with _State.clone_lock:
+                        clone_result["target"] = ensure_clone(
+                            raw_src, raw_branch, on_progress=_on_clone_progress
+                        )
+                except Exception as e:  # pylint: disable=broad-except
+                    clone_result["error"] = e
+                finally:
+                    clone_q.put(None)  # sentinel
+
+            clone_thread = threading.Thread(target=_run_clone, daemon=True)
+            clone_thread.start()
             try:
-                with _State.clone_lock:
-                    scan_target = ensure_clone(raw_src, raw_branch)
-            except (BranchNotFoundError, RepoNotFoundError, HostUnreachableError) as e:
-                yield {"phase": "error", "error": str(e)}
+                while True:
+                    ev = clone_q.get()
+                    if ev is None:
+                        break
+                    yield ev
+            finally:
+                clone_thread.join()
+
+            err = clone_result["error"]
+            if isinstance(err, (BranchNotFoundError, RepoNotFoundError, HostUnreachableError)):
+                yield {"phase": "error", "error": str(err)}
                 return
-            except CloneError as e:
-                yield {"phase": "error", "error": str(e)}
+            if isinstance(err, CloneError):
+                yield {"phase": "error", "error": str(err)}
                 return
+            if err is not None:
+                # Unexpected exception type — surface as an error event so
+                # the client sees a clean message, then re-raise so the
+                # outer handler logs it server-side.
+                yield {"phase": "error", "error": str(err)}
+                raise err
+            scan_target = clone_result["target"]
         else:
             assert local_target is not None
             scan_target = local_target
@@ -585,7 +637,11 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         with _State.allowed_roots_lock:
             _State.allowed_roots.add(scan_target.resolve())
 
-        yield {"phase": "scanning"}
+        # For git sources this is the second event (after `cloning`);
+        # for local sources it's the first. Either way, display_root
+        # rides along so the client can show the pending label
+        # immediately for local sources too.
+        yield {"phase": "scanning", "display_root": display_root}
 
         # Cheap signature probe — same call the live-poll endpoint uses.
         # git_window MUST flow in here too: it feeds the signature, and
@@ -614,30 +670,65 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             yield {"phase": "final", "manifest": cached}
             return
 
-        # Cache miss — stream live scan.
+        # Cache miss — stream live scan. scan_tree is synchronous and
+        # also yields its own events (skeleton + final); we want the
+        # heartbeat-driven scanning progress events to interleave with
+        # those. Same queue/thread pattern as the cloning phase: the
+        # worker pushes both kinds of events into one queue, the
+        # generator drains and yields in arrival order.
+        scan_q: queue.Queue[ScanStreamEvent | dict[str, Any] | None] = queue.Queue()
+        scan_error: list[BaseException] = []
+
+        def _on_scan_progress(files_scanned: int) -> None:
+            scan_q.put({
+                "phase": "scanning",
+                "display_root": display_root,
+                "files_scanned": files_scanned,
+            })
+
+        def _run_scan() -> None:
+            try:
+                for ev in scan_tree(
+                    str(scan_target),
+                    use_cache=use_cache,
+                    cancel_event=cancel_event,
+                    git_window=git_window,
+                    on_scan_progress=_on_scan_progress,
+                ):
+                    scan_q.put(ev)  # skeleton + final flow through the same queue
+            except Exception as e:  # pylint: disable=broad-except
+                scan_error.append(e)
+            finally:
+                scan_q.put(None)  # sentinel
+
+        scan_thread = threading.Thread(target=_run_scan, daemon=True)
+        scan_thread.start()
         try:
-            for event in scan_tree(
-                str(scan_target),
-                use_cache=use_cache,
-                cancel_event=cancel_event,
-                git_window=git_window,
-            ):
-                m = _stamp_display_root(event["manifest"])
-                if event["phase"] == "final":
-                    state["final_manifest"] = m
-                yield event  # type: ignore[misc]
-        except ScanCancelledError:
-            # Cancellation isn't an error to surface to the client —
-            # they disconnected, so there's nobody to read a message.
-            # Re-raise so the outer try skips the cache write and logs
-            # the disconnect.
-            raise
-        except Exception as e:  # pylint: disable=broad-except
+            while True:
+                ev = scan_q.get()
+                if ev is None:
+                    break
+                if ev.get("phase") in ("skeleton", "final"):
+                    m = _stamp_display_root(ev["manifest"])
+                    if ev["phase"] == "final":
+                        state["final_manifest"] = m
+                yield ev
+        finally:
+            scan_thread.join()
+
+        if scan_error:
+            err = scan_error[0]
+            if isinstance(err, ScanCancelledError):
+                # Cancellation isn't an error to surface to the client —
+                # they disconnected, so there's nobody to read a message.
+                # Re-raise so the outer try skips the cache write and logs
+                # the disconnect.
+                raise err
             # Unexpected mid-stream failure (e.g., disk read error
             # during _populate_file_metadata). Emit one final error
             # event so the client sees a clear message instead of a
             # truncated stream / parse error.
-            yield {"phase": "error", "error": f"scan failed: {e}"}
+            yield {"phase": "error", "error": f"scan failed: {err}"}
 
     try:
         _stream_events(handler, _events(), cancel_event)

@@ -27,6 +27,24 @@ import { createLoadingOverlay } from './views/source/loadingOverlay.js';
 import { streamManifest } from './utils/manifestStream.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
+import { labelFromUrl } from './views/widgets/displayLabel.js';
+
+/**
+ * Set document.title to "{label} (pending) — codecity" from a server-emitted
+ * `display_root`. Called from the source-applying loop on the FIRST stream
+ * event that carries display_root — before any manifest exists — so the tab
+ * title shows the project being loaded instead of the static page title.
+ *
+ * Once the final manifest lands, coordinator.ts's title-swap (using
+ * labelFromManifest) takes over and the "(pending)" suffix disappears.
+ *
+ * Exported so the corresponding unit test can drive it without booting
+ * the renderer.
+ */
+export function applyPendingTitle(displayRoot: string): void {
+  const label = labelFromUrl(displayRoot);
+  document.title = label ? `${label} (pending) — codecity` : 'codecity';
+}
 
 const EMPTY_MANIFEST: Manifest = {
   root: '',
@@ -114,19 +132,46 @@ if (_canvas) {
         branch: _bootBranch,
       });
       try {
+        let _pendingTitleSet = false;
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // First event carrying display_root (cloning for git, scanning
+          // for local) — set the pending document title AND the overlay
+          // header before the manifest lands, so both the tab and the
+          // loading card show the project name during clone/scan instead
+          // of just the static page title / generic spinner copy.
+          if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
+            applyPendingTitle(event.display_root);
+            loadingOverlay.setPendingLabel(labelFromUrl(event.display_root));
+            _pendingTitleSet = true;
+          }
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue. The first manifest-
           // bearing event (skeleton or final) does the bootstrap below.
           if (event.phase === 'cloning' || event.phase === 'scanning') {
             loadingOverlay.setStep(event.phase);
+            // Subsequent same-phase events carry running progress —
+            // render it as a tail on the active step row. Spec: ~250ms
+            // throttle is server-side; client just paints what arrives.
+            if (event.phase === 'cloning' && event.percent !== undefined) {
+              const stage = event.stage ? ` (${event.stage})` : '';
+              loadingOverlay.setStepTail('cloning', `${event.percent}%${stage}`);
+            } else if (event.phase === 'scanning' && event.files_scanned !== undefined) {
+              loadingOverlay.setStepTail(
+                'scanning',
+                `${event.files_scanned.toLocaleString()} files`
+              );
+            }
             continue;
           }
           const m = event.manifest;
           // Advance the overlay step BEFORE the (synchronous-looking) work
           // begins so the user sees the phase update before the city paints
-          // behind the semi-transparent backdrop.
+          // behind the semi-transparent backdrop. Clear any lingering
+          // tails from the now-completed phases so the step rows look
+          // clean as they collapse into the "done" state.
+          loadingOverlay.setStepTail('cloning', null);
+          loadingOverlay.setStepTail('scanning', null);
           loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
           if (handle === null) {
             // First manifest event — skeleton on cold cache, or final on
@@ -231,17 +276,43 @@ if (_canvas) {
         }
 
         let manifest: Manifest | null = null;
+        let _pendingTitleSet = false;
         for await (const event of streamManifest(url.toString())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // First event carrying display_root (cloning for git, scanning
+          // for local) — set the pending document title AND the overlay
+          // header before the manifest lands, so both the tab and the
+          // loading card show the new project name during clone/scan
+          // after a source-switch.
+          if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
+            applyPendingTitle(event.display_root);
+            loadingOverlay.setPendingLabel(labelFromUrl(event.display_root));
+            _pendingTitleSet = true;
+          }
           // Lifecycle markers (cloning/scanning) carry no manifest —
-          // advance the overlay step and continue.
+          // advance the overlay step and continue. Progress fields
+          // (percent / files_scanned) render as a tail on the active
+          // step row; main flow is unchanged.
           if (event.phase === 'cloning' || event.phase === 'scanning') {
             loadingOverlay.setStep(event.phase);
+            if (event.phase === 'cloning' && event.percent !== undefined) {
+              const stage = event.stage ? ` (${event.stage})` : '';
+              loadingOverlay.setStepTail('cloning', `${event.percent}%${stage}`);
+            } else if (event.phase === 'scanning' && event.files_scanned !== undefined) {
+              loadingOverlay.setStepTail(
+                'scanning',
+                `${event.files_scanned.toLocaleString()} files`
+              );
+            }
             continue;
           }
           // Skeleton step covers the placeholder paint while the server
           // resolves per-file metadata; building step covers the final
           // tween. Overlay stays up through both — hidden only in finally.
+          // Clear lingering progress tails so the now-done step rows
+          // look clean.
+          loadingOverlay.setStepTail('cloning', null);
+          loadingOverlay.setStepTail('scanning', null);
           loadingOverlay.setStep(event.phase === 'skeleton' ? 'skeleton' : 'building');
           if (event.phase === 'skeleton') {
             // Apply the skeleton so the new city paints behind the overlay

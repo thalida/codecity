@@ -25,6 +25,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from typing import Callable
 
 from api.types import (
     BranchNotFoundError,
@@ -52,6 +53,32 @@ CACHE_ROOT = (
     Path(os.environ.get("CODECITY_CACHE_ROOT") or Path.home() / ".cache" / "codecity")
     / "clones"
 )
+
+
+# Progress events arrive from git stderr as fast as one per few-percent
+# step. Throttle the user-facing callback so the NDJSON stream isn't
+# flooded with redundant payloads (the server forwards every callback
+# fire as one event). 250ms is short enough to feel live, long enough
+# to coalesce the ~1% steps git emits for big clones.
+CLONE_PROGRESS_THROTTLE_S = 0.25
+
+
+_CLONE_PROGRESS_RE = re.compile(
+    r"^(Receiving|Resolving|Counting) (?:objects|deltas):\s*(\d+)%"
+)
+
+
+def _parse_clone_progress_line(line: str) -> tuple[str, int] | None:
+    """Parse one line of ``git clone --progress`` stderr output.
+
+    Returns ``(stage, percent)`` for matchable progress lines, else None.
+    Stage is lowercase: ``'receiving' | 'resolving' | 'counting'``."""
+    m = _CLONE_PROGRESS_RE.match(line.strip())
+    if m is None:
+        return None
+    stage = m.group(1).lower()
+    percent = int(m.group(2))
+    return stage, percent
 
 
 _BRANCH_NOT_FOUND_PATTERNS = (
@@ -150,6 +177,7 @@ def _run_git_streaming(
     *args: str,
     cwd: Path | None = None,
     progress_dir: Path | None = None,
+    on_progress: Callable[[tuple[str, int]], None] | None = None,
 ) -> str:
     """Run git and forward stderr to ``_log`` line-by-line as it arrives.
 
@@ -192,7 +220,57 @@ def _run_git_streaming(
     # Wall-clock of the last stderr line we forwarded. The watchdog
     # treats anything older than _STALL_HEARTBEAT_SECS as a stall.
     last_output_at = [time.monotonic()]
+    # Throttle state for on_progress: when the last callback fired and
+    # the last (stage, percent) tuple emitted. We coalesce identical
+    # back-to-back payloads within the throttle window, but ALWAYS let
+    # a payload through when the stage changes (so the client sees the
+    # transition from 'counting' → 'receiving' → 'resolving' even if
+    # the throttle window hasn't elapsed).
+    #
+    # We also track the LAST SEEN payload (regardless of whether it was
+    # emitted). On stage change and at end-of-stream we flush the most
+    # recent seen value if it wasn't emitted — otherwise the terminal
+    # percent of each stage (typically 100%) gets silently dropped when
+    # it arrives within 250ms of the previous emit, freezing the UI at
+    # whatever value happened to pass the throttle.
+    last_progress_at = [0.0]
+    last_emitted_payload: list[tuple[str, int] | None] = [None]
+    last_seen_payload: list[tuple[str, int] | None] = [None]
     proc_done = threading.Event()
+
+    def _maybe_emit_progress(line: str) -> None:
+        if on_progress is None:
+            return
+        parsed = _parse_clone_progress_line(line)
+        if parsed is None:
+            return
+        now = time.monotonic()
+        prev = last_emitted_payload[0]
+        same_stage = prev is not None and prev[0] == parsed[0]
+        # Stage change: flush the previous stage's terminal value first
+        # so the UI sees e.g. "resolving 100%" before "receiving 1%".
+        if not same_stage and prev is not None:
+            last_seen = last_seen_payload[0]
+            if last_seen is not None and last_seen != prev:
+                on_progress(last_seen)
+                last_emitted_payload[0] = last_seen
+        last_seen_payload[0] = parsed
+        if same_stage and now - last_progress_at[0] < CLONE_PROGRESS_THROTTLE_S:
+            return
+        on_progress(parsed)
+        last_progress_at[0] = now
+        last_emitted_payload[0] = parsed
+
+    def _flush_progress() -> None:
+        """Emit the most recently seen payload if it wasn't emitted.
+        Called at end-of-stream so the terminal value (e.g. 100%) reaches
+        the UI even when the throttle suppressed it."""
+        if on_progress is None:
+            return
+        last_seen = last_seen_payload[0]
+        if last_seen is not None and last_seen != last_emitted_payload[0]:
+            on_progress(last_seen)
+            last_emitted_payload[0] = last_seen
 
     def _drain_stderr() -> None:
         assert proc.stderr is not None
@@ -213,6 +291,7 @@ def _run_git_streaming(
                         captured_stderr.append(line)
                         _log(line)
                         last_output_at[0] = time.monotonic()
+                        _maybe_emit_progress(line)
                     start = i + 1
             if start:
                 del buf[:start]
@@ -222,6 +301,8 @@ def _run_git_streaming(
                 captured_stderr.append(line)
                 _log(line)
                 last_output_at[0] = time.monotonic()
+                _maybe_emit_progress(line)
+        _flush_progress()
 
     def _drain_stdout() -> None:
         assert proc.stdout is not None
@@ -297,9 +378,18 @@ def _resolve_default_branch(repo: Path) -> str:
     return out.rsplit("/", 1)[-1] if out else "HEAD"
 
 
-def ensure_clone(url: str, branch: str | None = None) -> Path:
+def ensure_clone(
+    url: str,
+    branch: str | None = None,
+    *,
+    on_progress: Callable[[tuple[str, int]], None] | None = None,
+) -> Path:
     """Clone ``url`` (optionally pinned to ``branch``) into the local cache,
     or fetch+reset if it already exists. Returns the local repo path.
+
+    ``on_progress``, if set, is invoked with ``(stage, percent)`` tuples
+    parsed from ``git --progress`` stderr, throttled to ~250ms.
+    Server-side this becomes one ``cloning`` NDJSON event per call.
 
     Raises one of:
       - BranchNotFoundError — requested branch absent on remote
@@ -315,6 +405,7 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
             _run_git_streaming(
                 "fetch", "--prune", "--progress", "origin",
                 cwd=target, progress_dir=pack_dir,
+                on_progress=on_progress,
             )
             ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
             _log(f"resetting to {ref}")
@@ -344,7 +435,7 @@ def ensure_clone(url: str, branch: str | None = None) -> Path:
         args += ["--branch", branch]
     args += ["--", url, str(target)]
     try:
-        _run_git_streaming(*args, progress_dir=pack_dir)
+        _run_git_streaming(*args, progress_dir=pack_dir, on_progress=on_progress)
         _log("clone complete")
     except CloneError as e:
         # First-clone failure: nuke the partial directory before re-raising,

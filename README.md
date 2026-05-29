@@ -1,10 +1,10 @@
-# CodeCity
+# codecity
 
-CodeCity visualizes a codebase as an isometric 3D city. Point it at a git repository and it walks the tree, collects file metadata + git history, then opens the city in your browser. Directories become streets, files become buildings; shape and color encode size, line count, language, and how recently the code changed.
+Visualize any codebase as an isometric 3D city. Point it at a git repo and it walks the tree, collects file + git metadata, and renders a city in your browser. Directories become streets, files become buildings.
 
 ## Quick start
 
-Requires: Docker.
+You need Docker.
 
 ```sh
 docker run --rm --init --pull=always \
@@ -13,21 +13,89 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Then open <http://localhost:8080/> and paste a git URL into the source picker. CodeCity clones it into its cache and renders the city.
+Open <http://localhost:8080/> and paste a git URL into the source picker.
 
-Out of the box, CodeCity works with **git URLs only**. To render a local repo, see [Advanced: rendering local directories](#advanced-rendering-local-directories) below.
+`--pull=always` keeps you on the latest image; drop it to pin to your cached copy. Wipe the cache with `docker volume rm codecity-cache`. Port in use? `-p 8081:8080`.
 
-> Tip: any `*.localhost` subdomain works (e.g. <http://codecity.localhost:8080/>). Use a unique subdomain per project to keep your source-picker recents (browser localStorage) isolated.
+Use a unique `*.localhost` subdomain per project (e.g. <http://myproj.localhost:8080/>) to keep source-picker recents isolated in localStorage.
 
-Cache lives in the Docker volume `codecity-cache`. To wipe: `docker volume rm codecity-cache`. Port conflict? Use a different host port: `-p 8081:8080`.
+## What gets rendered
 
-The `--pull=always` flag makes Docker check for a newer image on every run, so you always get the latest CodeCity. To pin to your cached version (offline, or to avoid the network hit), drop the flag and pull explicitly when you want updates: `docker pull ghcr.io/thalida/codecity:latest`.
+### Buildings — one per file
 
-## Advanced: rendering local directories
+- **Height** — line count (sqrt-interp across the floor range).
+- **Width & depth** — byte size (log-interp, square footprint).
+- **Hue** — file extension.
+- **Saturation** — last-modified (recent → vivid).
+- **Lightness** — last-modified (recent → bright).
+- **Facade** — windows, door, roof border, floor slabs.
+- **Windows** — lit-pane density and glow track recency. Newer files glow brighter.
+- **Aging** — older files get grime streaks and a slight lean.
+- **Media files** (images, video) render an ad-panel face on the front above the door.
 
-To render a local git repo, mount it into the container at the same absolute path. The source picker will show the host path and resolve correctly inside the container.
+### Streets — one per directory
 
-**Recommended — mount your code/repos directory only:**
+- **Width tier** — descendant count (step function).
+- **Length** — packed siblings + spacing.
+- Sidewalk + asphalt slabs with the directory name painted on the asphalt.
+
+### Trees — one per commit
+
+- **Placement** — scattered across the world floor. Oldest commit closest to the gem, newest at the edges.
+- **Height** — commit age (older = taller).
+- **Canopy width + facet detail** — files changed in that commit.
+- **Color** — commits-per-day (solo-day vs busy-day color blend).
+- Age desaturation (optional) fades the oldest commits toward gray.
+
+### Fireflies — one orb per commit
+
+Orbit their tree.
+
+- **Color** — per author. Each committer gets their own hue.
+- **Scale** — that author's total commit count.
+- **Motion** — orbit + bob + brightness pulse + flicker.
+
+### Gem — the "you are here" beacon
+
+Floats above the root street's origin-end cap. Size scales with the root street's width. Rotates, bobs, and cycles its glow color.
+
+## Scanning
+
+codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, author, date) feed the visuals above.
+
+Some directories and files are always skipped, even when tracked. Full list in `api/scan.py` (`ALWAYS_SKIP`). Highlights:
+
+- VCS: `.git`, `.hg`, `.svn`
+- JS: `node_modules`, lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `bun.lock`, `bun.lockb`, …)
+- Python: `.venv`, `venv`, `env`, `__pycache__`, `poetry.lock`, `uv.lock`, `Pipfile.lock`
+- Rust: `target`, `.cargo`, `Cargo.lock`
+- Framework caches: `.next`, `.nuxt`, `.svelte-kit`
+- Test / coverage: `.pytest_cache`, `.mypy_cache`, `.ruff_cache`, `.tox`, `.coverage`, `htmlcov`
+- IDE / OS: `.idea`, `.vscode`, `.DS_Store`
+
+### `.codecityignore`
+
+Drop a `.codecityignore` file at the scan root for per-project ignores. One pattern per line.
+
+```gitignore
+# Skip anywhere named "fixtures"
+fixtures
+
+# Skip a specific path (relative to scan root)
+tests/fixtures/large-repo
+
+# Un-ignore a default skip (! prefix overrides ALWAYS_SKIP)
+!package-lock.json
+```
+
+- No `/` → matches a name anywhere in the tree.
+- Has `/` → anchored to the scan root.
+- `!` prefix un-ignores either form (`!name` or `!path/to/thing`). `!.git` is silently rejected; the object database is never walked.
+- `#` lines are comments.
+
+## Local directories
+
+To render a local git repo, mount it into the container at the same absolute path:
 
 ```sh
 docker run --rm --init --pull=always \
@@ -37,116 +105,58 @@ docker run --rm --init --pull=always \
     ghcr.io/thalida/codecity
 ```
 
-Replace `$HOME/Documents/Repos` with wherever you keep code. Use multiple `-v` flags to mount multiple directories.
+Use multiple `-v` flags for multiple directories. codecity only renders git working trees — `git init` first if you want to render a non-git directory.
 
-**Full `$HOME` mount — browse anywhere under your home:**
+## Controls
 
-```sh
-docker run --rm --init --pull=always \
-    -v "$HOME:$HOME:ro" \
-    -v codecity-cache:/cache \
-    -p 8080:8080 \
-    ghcr.io/thalida/codecity
-```
+Click the gear in the left sidebar to open the Controls pane. Tweaks stage as drafts; click Save to apply.
 
-> On macOS, Docker Desktop will show a one-time warning about sharing your home directory. Click OK (or "Don't show again"). Trade-off: the container can read everything under `$HOME`. Bind-mount performance on a huge home dir can be slow.
+What you can tune:
 
-### Local-directory requirements
+- **Live updates** — off by default. Turn on to re-render the city when files change on disk; poll interval is configurable (1–60 s).
+- **Buildings** — floor and width ranges, per-extension hue map, palette ranges, facade detail, aging, and the selection-fade cascade that dims unrelated buildings when one is selected.
+- **Streets** — width tiers, spacing, colors, label typography.
+- **Trees** — density falloff, height/width ranges, color encoding, age desaturation, facet detail.
+- **Fireflies** — visibility, scale range, motion, orbit ring.
+- **Scene** — sky color and stars.
+- **Gem** — sizing and materials.
+- **File preview** — syntax highlight theme.
 
-CodeCity only renders **git working trees**. Any local path you mount must be inside a git repo (the path itself, or any of its parents, must contain `.git/`). Non-git directories — and bare repos (no working tree) — are rejected with a clear error. If you want to visualize a non-git directory, `git init` it first; or use a git URL to clone into CodeCity's cache.
-
-### Mount syntax caveats
-
-- The trailing `:ro` flag in `-v <src>:<dst>:ro` can be silently dropped if your path contains characters Docker parses ambiguously. If you see unexpected writes or want stricter syntax, use the long form: `--mount type=bind,source=<src>,target=<dst>,readonly`.
-- Git worktrees (created with `git worktree add`) have a `.git` *file* pointing at the parent repo's `.git/worktrees/<name>/`. To render a worktree, mount the parent repo too (or mount its `.git` dir alongside) so the in-container git can resolve the link.
-
-## How it works
-
-- **Scan** — Python walks the tree on every `/api/manifest` request, gathering stat + git metadata in memory.
-- **Serve** — The container's Python HTTP server (port 8080) computes a fresh manifest per request and streams individual files at `/api/file?path=…` for the in-app preview.
-- **Render** — Your browser loads the bundled three.js renderer from the same server. Nothing leaves your machine.
-
-## Building visual encoding
-
-Each file becomes a building. Visual properties map directly to data:
-
-| Property   | Source                | Meaning                                                            |
-| ---------- | --------------------- | ------------------------------------------------------------------ |
-| Height     | Line count            | Taller = more lines of code                                        |
-| Width      | File size (bytes)     | Wider = larger file on disk                                        |
-| Depth      | Blend of height/width | `lerp(width, height, 0.5)`                                         |
-| Hue        | File extension        | Language family (blue = JS/TS, orange = Python, green = CSS, etc.) |
-| Saturation | File age (created)    | Vivid = newer file, faded = older file                             |
-| Lightness  | Last modified date    | Bright = recently changed, dim = long untouched                    |
-
-Tweak any of these from the in-app Controls pane (left sidebar → gear icon). Changes apply when you click Save.
-
-## Live updates and config commits
-
-The city re-renders **in place** in two situations:
-
-- **Filesystem changes** — when **Updates → Live updates** is on (default), the frontend polls `/api/manifest` on a user-tunable interval (clamped to 1–60 s); when the tree's mtime/size signature changes, new buildings grow in and shifted siblings slide to make room.
-- **Config tweaks** — every slider, color, and toggle in the Controls pane writes to a draft layer. Clicking **Save** flushes the drafts into the live config and recomputes the affected meshes (rebuild) or refreshes their materials (no-rebuild). Discard reverts the pending drafts.
+Plus a keyboard + mouse cheat sheet.
 
 ## Requirements
 
 - Docker (Docker Desktop on macOS/Windows; engine + WSL on Windows; docker on Linux)
-- A modern browser (Chrome, Safari, Firefox, Edge — anything with WebGL2 support)
+- A modern browser with WebGL2 (Chrome, Safari, Firefox, Edge)
 
 ## Development
 
-Requires: Docker, just (optional but recommended), python3 (for the worktree-aware `just dev` port helper).
+You need Docker, just, and python3.
 
 ```sh
 git clone https://github.com/thalida/codecity.git
 cd codecity
-just install-hooks                # one-time: enable pre-push quality gate (lint + prettier + tests)
-just dev                          # http://<worktree-slug>.localhost:<port>/  (Vite HMR + Python API)
-just test                         # pytest + vitest in containers (230 + 1940 tests)
-just build                        # build the local image
-just run                          # run the local image like an end user
+just install-hooks   # pre-push: lint + prettier + tests
+just dev             # http://<worktree-slug>.localhost:<port>/
+just test            # pytest + vitest in containers
+just build           # build the local image
+just run             # run the local image like an end user
 ```
 
-Both `just dev` and `just run` accept an optional path arg to mount a local git repo for visualization: `just dev ~/Documents/Repos/myproj`. Without an arg, codecity is git-URL-only (matches the production `docker run` quickstart).
+`just dev` and `just run` accept a path arg to mount a local repo: `just dev ~/Documents/Repos/myproj`. Without an arg, codecity is git-URL-only.
 
-The pre-push hook runs pytest, vitest, eslint, prettier --check, and typecheck before any `git push` to origin. Bypass with `git push --no-verify` if you need to push WIP. Docker must be running (used for pytest + vitest).
-
-### Multiple worktrees
-
-`just dev` is worktree-aware. Each worktree:
-
-- Gets a unique compose project name (derived from the worktree dir name), so containers and named volumes don't collide.
-- Picks a free host port for Vite on first run, persists to `.local/worktree-ports.json` (gitignored, per-worktree) so the URL is stable across restarts.
-- Opens at `http://<worktree-slug>.localhost:<port>/` — the subdomain isolates browser storage per worktree.
-- Has its own isolated cache volume (compose-scoped; cold cache per worktree by design).
-
-You can run `just dev` in multiple worktrees simultaneously — each gets a different port automatically and they don't interfere.
-
-### Layout
-
-```text
-codecity/
-  api/                 # Python HTTP server (scan, cache, clone, serve)
-  app/                 # Vite frontend (TypeScript + three.js)
-  Dockerfile           # multi-stage build (node:24-bookworm-slim → python:3.13-slim)
-  docker-compose.dev.yml      # contributor dev mode (HMR + auto-reload)
-  docker-compose.test.yml     # contributor test runners
-  pyproject.toml + uv.lock    # python deps + hatch-vcs versioning
-  justfile             # build / dev / test / shell / clean
-```
+The pre-push hook runs pytest, vitest, eslint, prettier, and typecheck before pushing to origin. Bypass with `git push --no-verify` if needed. Docker must be running.
 
 ## Release
-
-Cut a release from `main`:
 
 ```sh
 git tag v0.2.0
 git push --tags
 ```
 
-GitHub Actions builds a multi-arch image (linux/amd64 + linux/arm64), pushes to `ghcr.io/thalida/codecity` with all tag aliases (`v0.2.0`, `v0.2`, `v0`, `latest`, `sha-…`), signs with cosign keyless via OIDC, smoke-tests the published image via `/api/health`, and creates a GitHub Release.
+GitHub Actions builds a multi-arch image (linux/amd64 + linux/arm64), pushes to `ghcr.io/thalida/codecity` with all tag aliases, signs with cosign keyless via OIDC, smoke-tests via `/api/health`, and creates a GitHub Release.
 
-To verify image signatures:
+Verify image signatures:
 
 ```sh
 cosign verify \
