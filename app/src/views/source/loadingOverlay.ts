@@ -210,7 +210,7 @@ export function createLoadingOverlay(): LoadingOverlay {
         tailEl.className = 'loading-step-tail';
         row.appendChild(tailEl);
       }
-      tailEl.textContent = ' ' + tail;
+      tailEl.textContent = ` ${tail}`;
     },
 
     hide() {
