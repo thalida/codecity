@@ -2904,6 +2904,15 @@ canvas {
   color: var(--cc-success-dark);
   font-size: var(--cc-font-sm);
 }
+/* Trailing progress text appended via setStepTail (clone %, scanned file
+ * count). Muted compared to the step label so it reads as secondary info
+ * — present on the active step only in practice, since setStep advances
+ * forward and main.ts wipes the tail on phase transitions. */
+.loading-step-tail {
+  color: var(--cc-text-muted);
+  font-size: var(--cc-font-md);
+  font-variant-numeric: tabular-nums;
+}
 /* Header icon buttons — switch-source (far left) + refresh (far right).
  * Both use the same styling as the old footer reset-view button so they
  * read as the same affordance: fixed 22×22 square, muted blue-grey,

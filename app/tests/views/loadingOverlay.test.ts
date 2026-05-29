@@ -110,4 +110,34 @@ describe('loadingOverlay', () => {
     const header = root.querySelector('.loading-pending-label');
     expect(header).toBeNull();
   });
+
+  // ── Step-tail render (Task 11) ──────────────────────────────────────────
+
+  it('renders a tail string next to a step row', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '45% (receiving)');
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).toContain('45%');
+    expect(cloningRow?.textContent).toContain('receiving');
+  });
+
+  it('replaces an existing tail string with a new one', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '10%');
+    o.setStepTail('cloning', '80%');
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).toContain('80%');
+    expect(cloningRow?.textContent).not.toContain('10%');
+  });
+
+  it('clears the tail when setStepTail is called with null', () => {
+    const o = createLoadingOverlay();
+    o.show({ kind: 'git', label: 'owner/repo' });
+    o.setStepTail('cloning', '45%');
+    o.setStepTail('cloning', null);
+    const cloningRow = root.querySelector('[data-step="cloning"]');
+    expect(cloningRow?.textContent).not.toContain('45%');
+  });
 });

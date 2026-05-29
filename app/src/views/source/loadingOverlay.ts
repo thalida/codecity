@@ -19,6 +19,12 @@
 //                                    carries the server-resolved
 //                                    display_root, so the overlay shows
 //                                    "owner/repo" before any manifest exists.
+//   setStepTail(step, tail | null) — append a per-step tail string (e.g.
+//                                    "45% (receiving)" while cloning, or
+//                                    "1,234 files" while scanning). Driven
+//                                    from main.ts when the stream emits
+//                                    cloning/scanning events with progress
+//                                    fields. Passing null removes the tail.
 //   hide()                         — dismiss overlay
 
 export type LoadingStep =
@@ -43,6 +49,7 @@ export interface LoadingOverlay {
   show(opts: LoadingOverlayShowOpts): void;
   setStep(step: LoadingStep): void;
   setPendingLabel(label: string | null): void;
+  setStepTail(step: LoadingStep, tail: string | null): void;
   hide(): void;
 }
 
@@ -75,6 +82,7 @@ export function createLoadingOverlay(): LoadingOverlay {
       show: () => {},
       setStep: () => {},
       setPendingLabel: () => {},
+      setStepTail: () => {},
       hide: () => {},
     };
   }
@@ -182,6 +190,27 @@ export function createLoadingOverlay(): LoadingOverlay {
       header.className = 'loading-pending-label';
       header.textContent = label;
       card.insertBefore(header, card.firstChild);
+    },
+
+    setStepTail(step: LoadingStep, tail: string | null) {
+      // Append (or replace, or remove) a small trailing string on a
+      // step row — used for live progress like "45% (receiving)" while
+      // cloning and "1,234 files" while scanning. The tail lives in a
+      // dedicated <span> so the step label stays untouched and a single
+      // remove() restores the original DOM.
+      const row = _stepEls[step];
+      if (!row) return;
+      let tailEl = row.querySelector('.loading-step-tail');
+      if (tail === null) {
+        tailEl?.remove();
+        return;
+      }
+      if (!tailEl) {
+        tailEl = document.createElement('span');
+        tailEl.className = 'loading-step-tail';
+        row.appendChild(tailEl);
+      }
+      tailEl.textContent = ' ' + tail;
     },
 
     hide() {
