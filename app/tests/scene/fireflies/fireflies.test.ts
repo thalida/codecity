@@ -11,36 +11,32 @@ const COMMITS: CommitEntry[] = [
 
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
 
-/** Read the RGBA of vertex 0 from the merged ring mesh's colour attribute. */
-function getRingVertex0RGBA(ringGroup: THREE.Object3D): {
-  r: number;
-  g: number;
-  b: number;
-  a: number;
-} {
-  const ringMesh = ringGroup.children[0] as THREE.Mesh;
-  const colorAttr = ringMesh.geometry.getAttribute('color') as THREE.BufferAttribute;
-  return {
-    r: colorAttr.getX(0),
-    g: colorAttr.getY(0),
-    b: colorAttr.getZ(0),
-    a: colorAttr.getW(0),
-  };
+function ringMeshes(f: ReturnType<typeof createFireflies>): THREE.Mesh[] {
+  const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
+  if (!ringGroup) return [];
+  return ringGroup.children.filter(
+    (c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true
+  );
+}
+
+function meshColor(mesh: THREE.Mesh): THREE.Color {
+  return (mesh.material as THREE.MeshBasicMaterial).color;
 }
 
 describe('createFireflies', () => {
-  it('returns a group containing one InstancedMesh (orbs) and one Mesh (rings) when commits is non-empty', () => {
+  it('returns a group containing one InstancedMesh (orbs) and an empty ring group when commits is non-empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     expect(f.group).toBeInstanceOf(THREE.Group);
     // The parent group has two child Groups (rings + renderer).
-    // Rings group contains exactly ONE merged Mesh; renderer group contains one InstancedMesh.
+    // The ring group is lazy: it starts empty and only spawns meshes on
+    // hover/select. The renderer group contains one InstancedMesh.
     const allDescendants = f.group.children.flatMap((c) => c.children);
     const instancedMeshes = allDescendants.filter((c) => c instanceof THREE.InstancedMesh);
     const tubeMeshes = allDescendants.filter(
       (c) => c instanceof THREE.Mesh && !(c instanceof THREE.InstancedMesh)
     );
     expect(instancedMeshes.length).toBe(1);
-    expect(tubeMeshes.length).toBe(1);
+    expect(tubeMeshes.length).toBe(0);
     f.dispose();
   });
 
@@ -111,31 +107,6 @@ describe('createFireflies', () => {
     }
   });
 
-  it('refresh() updates the ring vertex colour + opacity', () => {
-    const orig = {
-      color: FIREFLIES.get().ORBIT_RING_COLOR,
-      opacity: FIREFLIES.get().ORBIT_RING_OPACITY,
-    };
-    FIREFLIES.setKey('ORBIT_RING_COLOR', '#00ff00');
-    FIREFLIES.setKey('ORBIT_RING_OPACITY', 0.5);
-    try {
-      const f = createFireflies(PLACEMENTS, COMMITS);
-      f.refresh();
-      const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-      expect(ringGroup).toBeDefined();
-      const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
-      const expected = new THREE.Color('#00ff00');
-      expect(r).toBeCloseTo(expected.r, 4);
-      expect(g).toBeCloseTo(expected.g, 4);
-      expect(b).toBeCloseTo(expected.b, 4);
-      expect(a).toBeCloseTo(0.5, 4);
-      f.dispose();
-    } finally {
-      FIREFLIES.setKey('ORBIT_RING_COLOR', orig.color);
-      FIREFLIES.setKey('ORBIT_RING_OPACITY', orig.opacity);
-    }
-  });
-
   it('orbit ring is absent when ORBIT_RING_ENABLED is false', () => {
     const orig = FIREFLIES.get().ORBIT_RING_ENABLED;
     FIREFLIES.setKey('ORBIT_RING_ENABLED', false);
@@ -151,59 +122,47 @@ describe('createFireflies', () => {
     }
   });
 
-  it('setHoveredCommit writes the hover colour into the vertex buffer', () => {
+  it('setHoveredCommit shows one ring mesh with the hover color', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
-    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const ms = ringMeshes(f);
+    expect(ms.length).toBe(1);
     const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    expect(r).toBeCloseTo(expected.r, 4);
-    expect(g).toBeCloseTo(expected.g, 4);
-    expect(b).toBeCloseTo(expected.b, 4);
-    expect(a).toBe(1.0);
+    const got = meshColor(ms[0]);
+    expect(got.r).toBeCloseTo(expected.r, 4);
+    expect(got.g).toBeCloseTo(expected.g, 4);
+    expect(got.b).toBeCloseTo(expected.b, 4);
     f.dispose();
   });
 
-  it('setSelectedCommit beats setHoveredCommit when both target the same ring', () => {
+  it('selected and hovered on the same commit shows only the selected mesh', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
-    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const ms = ringMeshes(f);
+    expect(ms.length).toBe(1);
     const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
-    expect(r).toBeCloseTo(expected.r, 4);
-    expect(g).toBeCloseTo(expected.g, 4);
-    expect(b).toBeCloseTo(expected.b, 4);
-    expect(a).toBe(1.0);
+    expect(meshColor(ms[0]).r).toBeCloseTo(expected.r, 4);
     f.dispose();
   });
 
-  it('clearing selection restores hover colour when still hovered', () => {
+  it('deselecting while still hovered restores the hover ring', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     f.setSelectedCommit(null);
-    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
+    const ms = ringMeshes(f);
+    expect(ms.length).toBe(1);
     const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    expect(r).toBeCloseTo(expected.r, 4);
-    expect(g).toBeCloseTo(expected.g, 4);
-    expect(b).toBeCloseTo(expected.b, 4);
-    expect(a).toBe(1.0);
+    expect(meshColor(ms[0]).r).toBeCloseTo(expected.r, 4);
     f.dispose();
   });
 
-  it('clearing hover restores default colour when not selected', () => {
+  it('clearing hover with no selection leaves the ring group empty', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setHoveredCommit(null);
-    const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
-    const { r, g, b, a } = getRingVertex0RGBA(ringGroup!);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_COLOR);
-    expect(r).toBeCloseTo(expected.r, 4);
-    expect(g).toBeCloseTo(expected.g, 4);
-    expect(b).toBeCloseTo(expected.b, 4);
-    expect(a).toBeCloseTo(FIREFLIES.get().ORBIT_RING_OPACITY, 4);
+    expect(ringMeshes(f).length).toBe(0);
     f.dispose();
   });
 });
