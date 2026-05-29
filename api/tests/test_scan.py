@@ -680,6 +680,140 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 f"clean merge files count should be >= 1; got {commits[-1]['files']}")
 
 
+class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
+    """The git-log streamer must survive two failure modes seen on real
+    repos like torvalds/linux:
+
+      A. Commit metadata that isn't valid UTF-8 (old Linux-kernel commits
+         have raw Latin-1 bytes in author names — e.g. byte 0xe9 for 'é').
+         Strict UTF-8 decoding raises UnicodeDecodeError mid-stream.
+      B. Any exception escaping the parse loop must not deadlock the
+         finally cleanup. ``proc.wait()`` on a child whose stdout pipe
+         is full (we stopped reading) blocks forever — git can't exit
+         until the pipe drains, and python won't drain because it's
+         in wait(). Cleanup must kill the child before waiting.
+    """
+
+    def test_non_utf8_author_bytes_do_not_crash(self):
+        """Failure mode A: a commit with non-UTF-8 author metadata must
+        parse without raising. Bytes are replaced, not crashed-on."""
+        from api.scan import _collect_git_metadata
+        with TemporaryDirectory() as td:
+            td_path = Path(td)
+            _init_repo(td_path)
+            (td_path / "f.txt").write_text("x\n")
+            subprocess.run(["git", "-C", td, "add", "-A"], check=True)
+            # Build the commit object by hand so a raw 0xe9 byte
+            # (Latin-1 'é', invalid standalone UTF-8) survives into the
+            # author line. Passing it via GIT_AUTHOR_NAME doesn't work —
+            # git silently re-encodes env strings to valid UTF-8.
+            tree_sha = subprocess.run(
+                ["git", "-C", td, "write-tree"],
+                capture_output=True, text=True, check=True,
+            ).stdout.strip()
+            commit_body = (
+                f"tree {tree_sha}\n".encode("ascii")
+                + b"author Fran\xe9ois <f@example.com> 1577836800 +0000\n"
+                + b"committer Fran\xe9ois <f@example.com> 1577836800 +0000\n"
+                + b"\nmsg\n"
+            )
+            sha = subprocess.run(
+                ["git", "-C", td, "hash-object", "-t", "commit",
+                 "-w", "--stdin"],
+                input=commit_body, capture_output=True, check=True,
+            ).stdout.decode().strip()
+            subprocess.run(
+                ["git", "-C", td, "update-ref", "HEAD", sha], check=True,
+            )
+
+            # Run in a thread with a deadline so a regression that
+            # deadlocks the finally clause fails loudly instead of
+            # hanging the pytest worker forever.
+            import threading
+            result: dict[str, object] = {}
+            def go() -> None:
+                try:
+                    _c, _m, _t, commits = _collect_git_metadata(
+                        td_path, use_cache=False,
+                    )
+                    result["commits"] = commits
+                except BaseException as e:  # pragma: no cover - defensive
+                    result["error"] = e
+            t = threading.Thread(target=go, daemon=True)
+            t.start()
+            t.join(timeout=30)
+            self.assertFalse(
+                t.is_alive(),
+                "scan deadlocked on non-UTF-8 metadata (likely "
+                "finally: proc.wait() with a full stdout pipe)",
+            )
+            self.assertNotIn(
+                "error", result,
+                f"scan raised on non-UTF-8 metadata: {result.get('error')!r}",
+            )
+            commits = result["commits"]
+            assert isinstance(commits, list)
+            self.assertEqual(len(commits), 1)
+            author = commits[0]["author"]
+            self.assertIn("Fran", author)
+            self.assertIn("ois", author)
+
+    def test_parse_loop_exception_kills_subprocess_before_waiting(self):
+        """Failure mode B: when the parse loop raises, cleanup must
+        ``proc.kill()`` before ``proc.wait()``. Otherwise wait() blocks
+        forever on any git child that still has buffered output."""
+        from unittest.mock import patch
+        from api.scan import _collect_git_dates_windowed
+
+        class _FakeStdout:
+            """Yields one valid line, then raises — mimics the moment
+            TextIOWrapper hits an invalid byte mid-stream."""
+            def __init__(self) -> None:
+                self._emitted = False
+            def __iter__(self): return self
+            def __next__(self) -> str:
+                if not self._emitted:
+                    self._emitted = True
+                    return (
+                        "COMMIT:2020-01-01T00:00:00+00:00\t"
+                        + "a" * 40
+                        + "\tAuthor\tsubj\n"
+                    )
+                raise UnicodeDecodeError(
+                    "utf-8", b"\xe9", 0, 1, "simulated mid-stream failure",
+                )
+
+        class _FakeProc:
+            """``wait()`` asserts ``kill()`` ran first — the real bug is
+            that wait() on an unread-pipe child deadlocks, and the only
+            way to avoid that is to kill the child first."""
+            def __init__(self) -> None:
+                self.stdout = _FakeStdout()
+                self.killed = False
+                self.waited = False
+                self.returncode: int | None = None
+            def poll(self) -> int | None:
+                return self.returncode
+            def kill(self) -> None:
+                self.killed = True
+                self.returncode = -9
+            def wait(self, timeout: float | None = None) -> int:
+                if not self.killed:
+                    raise AssertionError(
+                        "proc.wait() called without proc.kill() first — "
+                        "this deadlocks on real git when stdout pipe is full"
+                    )
+                self.waited = True
+                return self.returncode or 0
+
+        fake = _FakeProc()
+        with patch("api.scan.subprocess.Popen", return_value=fake):
+            with self.assertRaises(UnicodeDecodeError):
+                _collect_git_dates_windowed(Path("/tmp/does-not-matter"))
+        self.assertTrue(fake.killed, "cleanup must call proc.kill()")
+        self.assertTrue(fake.waited, "cleanup must call proc.wait() after kill")
+
+
 class GitHistoryCacheTests(_CacheRedirectMixin, unittest.TestCase):
     """When HEAD hasn't moved, _collect_git_metadata should hit the
     persistent cache and skip the two `git log` walks entirely."""

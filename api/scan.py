@@ -257,6 +257,13 @@ def _collect_git_dates_windowed(
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
             text=True,
+            # Old commits (e.g. torvalds/linux) carry Latin-1 author/subject
+            # bytes that aren't valid UTF-8. Default strict decoding raises
+            # mid-stream, exits this loop, and the finally below then
+            # deadlocks on proc.wait() because git still has output to
+            # write. Replace decode errors so the walk completes.
+            encoding="utf-8",
+            errors="replace",
             bufsize=1,
         )
     except FileNotFoundError:
@@ -274,8 +281,10 @@ def _collect_git_dates_windowed(
     heartbeat_every = 25_000
     assert proc.stdout is not None
     # try/finally so an exception escaping the parse loop (MemoryError,
-    # KeyboardInterrupt, decode error) doesn't leave the git subprocess
-    # running as a zombie.
+    # KeyboardInterrupt, etc.) doesn't leave the git subprocess running
+    # as a zombie. Must kill before wait — if git is mid-write with a
+    # full stdout pipe (we stopped reading), wait() alone deadlocks
+    # because git can't exit until the pipe drains.
     try:
         for line in proc.stdout:
             line = line.rstrip("\n")
@@ -332,6 +341,8 @@ def _collect_git_dates_windowed(
                 "subject": current_subject,
             })
     finally:
+        if proc.poll() is None:
+            proc.kill()
         proc.wait()
     _log(
         f"  done — {commits:,} commits in window, "
