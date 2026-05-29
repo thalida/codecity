@@ -193,20 +193,29 @@ class ScanCloningEvent(TypedDict):
     """First event for git sources — emitted before ensure_clone runs
     so the client can show a "{label} (pending)" header while the
     network clone is in flight. `display_root` mirrors what the final
-    manifest will carry (URL, or URL@branch when branch is set)."""
+    manifest will carry (URL, or URL@branch when branch is set).
+
+    Subsequent cloning events carry `stage`/`percent` parsed from
+    `git clone --progress` stderr (throttled to ~250ms in api.clone)."""
 
     phase: Literal["cloning"]
     display_root: NotRequired[str]
+    stage: NotRequired[Literal["receiving", "resolving", "counting"]]
+    percent: NotRequired[int]  # 0..100
 
 
 class ScanScanningEvent(TypedDict):
     """First event for local sources (and the second event for git
     sources, after the clone settles). `display_root` carries the
     raw source string so the client can label the pending project
-    before any manifest exists."""
+    before any manifest exists.
+
+    Subsequent scanning events carry `files_scanned` from the
+    scanner's heartbeat callback (throttled to ~250ms in api.scan)."""
 
     phase: Literal["scanning"]
     display_root: NotRequired[str]
+    files_scanned: NotRequired[int]
 
 
 class ScanErrorEvent(TypedDict):

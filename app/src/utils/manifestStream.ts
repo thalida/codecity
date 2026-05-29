@@ -21,8 +21,13 @@ import type { Manifest } from '@/types/manifest';
 // One variant per discriminant value so TS narrows cleanly through
 // `if (event.phase === 'cloning' || event.phase === 'scanning')` etc.
 export type ScanStreamEvent =
-  | { phase: 'cloning'; display_root?: string }
-  | { phase: 'scanning'; display_root?: string }
+  | {
+      phase: 'cloning';
+      display_root?: string;
+      stage?: 'receiving' | 'resolving' | 'counting';
+      percent?: number;
+    }
+  | { phase: 'scanning'; display_root?: string; files_scanned?: number }
   | { phase: 'skeleton'; manifest: Manifest }
   | { phase: 'final'; manifest: Manifest }
   | { phase: 'error'; error: string };
