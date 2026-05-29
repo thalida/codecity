@@ -156,13 +156,22 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/b.ts')!.opacity).toBeCloseTo(1.0);
   });
 
-  it('selected file → self DEFAULT, sibling L1, one-deeper L2, deeper L3, outside L4', () => {
+  it('selected file → symmetric LCA distance: same dir L1, 1 hop L2, 2 hops L3, 3+ hops L4', () => {
+    // dirTarget = src/foo. Distances from src/foo:
+    //   src/foo/a.ts   = 0 (self, but rendered as Default)
+    //   src/foo/b.ts   = 0 → L1
+    //   src/foo/bar/c.ts = 1 down → L2
+    //   src/foo/bar/baz/d.ts = 2 down → L3
+    //   src/lib/e.ts   = 1 up + 1 down → L3
+    //   README.md      = 2 up → L3
+    //   far/deep/x.ts  = 2 up + 2 down = 4 → L4
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
     const c = makeFile('src/foo/bar/c.ts');
     const d = makeFile('src/foo/bar/baz/d.ts');
     const e = makeFile('src/lib/e.ts');
     const r = makeFile('README.md');
+    const far = makeFile('other/deep/x.ts');
     const selBuilding = makeBuilding(a);
     const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
@@ -174,6 +183,7 @@ describe('buildingFader 5-tier cascade', () => {
         makeBuilding(d),
         makeBuilding(e),
         makeBuilding(r),
+        makeBuilding(far),
       ],
       selection: {
         kind: NodeKind.File,
@@ -188,17 +198,20 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
     expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
     expect(readFor('src/foo/bar/baz/d.ts')!.opacity).toBeCloseTo(0.4);
-    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
-    expect(readFor('README.md')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('README.md')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('selected dir → direct files L1, one-deeper L2, deeper L3, outside L4', () => {
+  it('selected dir → symmetric distance: direct files L1, 1 hop L2, 2 hops L3', () => {
+    // dirTarget = src/foo. Same distance math as the file-selection case.
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
     const c = makeFile('src/foo/bar/c.ts');
     const d = makeFile('src/foo/bar/baz/d.ts');
     const e = makeFile('src/lib/e.ts');
     const r = makeFile('README.md');
+    const far = makeFile('other/deep/x.ts');
     const dir = makeDir('src/foo');
 
     const { readFor } = makeFader({
@@ -209,6 +222,7 @@ describe('buildingFader 5-tier cascade', () => {
         makeBuilding(d),
         makeBuilding(e),
         makeBuilding(r),
+        makeBuilding(far),
       ],
       selection: {
         kind: NodeKind.Directory,
@@ -222,15 +236,17 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
     expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
     expect(readFor('src/foo/bar/baz/d.ts')!.opacity).toBeCloseTo(0.4);
-    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
-    expect(readFor('README.md')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('README.md')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('hovered file → hover-self DEFAULT, sibling L1, deeper L2, outside L4', () => {
+  it('hovered file → hover-self DEFAULT, sibling L1, 1 hop L2, 2 hops L3, 3+ hops L4', () => {
     const a = makeFile('src/foo/a.ts');
     const b = makeFile('src/foo/b.ts');
     const c = makeFile('src/foo/bar/c.ts');
     const e = makeFile('src/lib/e.ts');
+    const far = makeFile('other/deep/x.ts');
     const hovBuilding = makeBuilding(a);
     const streetByDir = new Map([['src/foo', { dir: makeDir('src/foo') }]]);
 
@@ -240,6 +256,7 @@ describe('buildingFader 5-tier cascade', () => {
         makeBuilding(b),
         makeBuilding(c),
         makeBuilding(e),
+        makeBuilding(far),
       ],
       hover: {
         kind: NodeKind.File,
@@ -253,10 +270,16 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('src/foo/a.ts')!.opacity).toBeCloseTo(1.0);
     expect(readFor('src/foo/b.ts')!.opacity).toBeCloseTo(0.8);
     expect(readFor('src/foo/bar/c.ts')!.opacity).toBeCloseTo(0.6);
-    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src/lib/e.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('other/deep/x.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('root selection → root-level files L1, top-level sub-dir files L2, deeper L3, no L4 reachable', () => {
+  it('root selection → distance is depth from root', () => {
+    // dirTarget = root. dp=[], so distance equals depth of each file's parent.
+    //   README.md (parent='.')         distance 0 → L1
+    //   src/x.ts (parent='src')        distance 1 → L2
+    //   src/foo/y.ts                   distance 2 → L3
+    //   src/foo/bar/z.ts               distance 3 → L4
     const r = makeFile('README.md');
     const x = makeFile('src/x.ts');
     const y = makeFile('src/foo/y.ts');
@@ -276,10 +299,15 @@ describe('buildingFader 5-tier cascade', () => {
     expect(readFor('README.md')!.opacity).toBeCloseTo(0.8);
     expect(readFor('src/x.ts')!.opacity).toBeCloseTo(0.6);
     expect(readFor('src/foo/y.ts')!.opacity).toBeCloseTo(0.4);
-    expect(readFor('src/foo/bar/z.ts')!.opacity).toBeCloseTo(0.4);
+    expect(readFor('src/foo/bar/z.ts')!.opacity).toBeCloseTo(0.2);
   });
 
-  it('prefix-precision: "src-utils" is NOT inside "src" subtree', () => {
+  it('prefix-precision: "src-utils" is NOT confused with a child of "src"', () => {
+    // dirTarget = src. src/a.ts shares dir → L1 (distance 0).
+    // src-utils/x.ts: parent='src-utils', LCA with 'src' = root, so
+    // distance = 1 (up) + 1 (down) = 2 → L3, NOT L2. Without the
+    // segment-aware split, a naive prefix check would treat 'src-utils'
+    // as a child of 'src' and place it at L2.
     const a = makeFile('src/a.ts');
     const lookAlike = makeFile('src-utils/x.ts');
     const dir = makeDir('src');
@@ -295,7 +323,7 @@ describe('buildingFader 5-tier cascade', () => {
     });
 
     expect(readFor('src/a.ts')!.opacity).toBeCloseTo(0.8);
-    expect(readFor('src-utils/x.ts')!.opacity).toBeCloseTo(0.2);
+    expect(readFor('src-utils/x.ts')!.opacity).toBeCloseTo(0.4); // L3, not L2
   });
 
   it('selected file honors DEFAULT config (no hardcoded constants)', () => {

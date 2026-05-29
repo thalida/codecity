@@ -29,22 +29,25 @@ interface TierResult {
   outlineOpacity: number;
 }
 
-// Tier level for a building relative to the directory target.
-// Returns 1 when the file sits in the same dir as the target, 2 when its
-// parent dir is a direct sub-dir of the target, 3 for deeper descendants,
-// and 4 when the file is outside the target's subtree entirely. The
-// trailing-slash guard in the startsWith check prevents "src-utils" from
-// being treated as a descendant of "src".
+// Tier level for a building relative to the directory target, measured
+// as the symmetric directory-tree distance: hops up to the lowest common
+// ancestor plus hops back down. distance 0 = same dir (L1); 1 = one hop
+// in either direction (L2); 2 = two hops (L3); 3+ = far (L4). Going up
+// matters the same as going down so a file in `src/lib/` and a file in
+// `src/foo/bar/` are equally "near" a selection in `src/foo/`.
 function _tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
   if (!file?.path || !dir || dir.path == null) return 4;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
-  if (parent === dir.path) return 1;
-  const isRoot = dir.path === '.' || dir.path === '';
-  if (!isRoot && !parent.startsWith(`${dir.path}/`)) return 4;
-  const rel = isRoot ? parent : parent.slice(dir.path.length + 1);
-  const depthBelow = rel.split('/').length;
-  return depthBelow === 1 ? 2 : 3;
+  const ap = parent === '.' || parent === '' ? [] : parent.split('/');
+  const dp = dir.path === '.' || dir.path === '' ? [] : dir.path.split('/');
+  let lca = 0;
+  while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
+  const distance = ap.length - lca + (dp.length - lca);
+  if (distance === 0) return 1;
+  if (distance === 1) return 2;
+  if (distance === 2) return 3;
+  return 4;
 }
 
 export function createBuildingFader({

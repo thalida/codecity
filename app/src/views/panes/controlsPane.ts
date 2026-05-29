@@ -977,25 +977,25 @@ function _buildBuildingsSection(): HTMLElement {
           tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
         }),
       ]),
-      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — same level as selection', () => [
+      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — same dir as selection', () => [
         _select('Detail', BUILDING_FADE, 'LEVEL1_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'LEVEL1_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'LEVEL1_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'LEVEL1_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _collapsibleSubgroup('selection-fade-level-2', 'Level 2 — one level deeper', () => [
+      _collapsibleSubgroup('selection-fade-level-2', 'Level 2 — one dir away (up or down)', () => [
         _select('Detail', BUILDING_FADE, 'LEVEL2_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'LEVEL2_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'LEVEL2_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'LEVEL2_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _collapsibleSubgroup('selection-fade-level-3', 'Level 3 — deeper still', () => [
+      _collapsibleSubgroup('selection-fade-level-3', 'Level 3 — two dirs away', () => [
         _select('Detail', BUILDING_FADE, 'LEVEL3_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'LEVEL3_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'LEVEL3_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
         _slider('Outline opacity', BUILDING_FADE, 'LEVEL3_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
       ]),
-      _collapsibleSubgroup('selection-fade-level-4', 'Level 4 — outside the subtree', () => [
+      _collapsibleSubgroup('selection-fade-level-4', 'Level 4 — three or more dirs away', () => [
         _select('Detail', BUILDING_FADE, 'LEVEL4_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'LEVEL4_OUTLINE', {}),
         _slider('Body opacity', BUILDING_FADE, 'LEVEL4_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
