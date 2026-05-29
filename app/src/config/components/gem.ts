@@ -45,14 +45,14 @@ export interface GemFacePaletteConfig {
 }
 
 export const GEM_FACE_PALETTE = map<GemFacePaletteConfig>({
-  FACE_1: '#ff338c', // hot pink (was [1.0, 0.2, 0.55])
-  FACE_2: '#26e5ff', // cyan (was [0.15, 0.9, 1.0])
-  FACE_3: '#bfff33', // chartreuse (was [0.75, 1.0, 0.2])
-  FACE_4: '#9940ff', // violet (was [0.6, 0.25, 1.0])
-  FACE_5: '#ff8c19', // orange (was [1.0, 0.55, 0.1])
-  FACE_6: '#ff33e5', // magenta (was [1.0, 0.2, 0.9])
-  FACE_7: '#26ffbf', // aqua (was [0.15, 1.0, 0.75])
-  FACE_8: '#66ff4d', // lime (was [0.4, 1.0, 0.3])
+  FACE_1: '#ff99c5', // pastel pink
+  FACE_2: '#ffc999', // pastel peach
+  FACE_3: '#fffc99', // pastel yellow
+  FACE_4: '#a5ff99', // pastel green
+  FACE_5: '#99fffd', // pastel cyan
+  FACE_6: '#99d3ff', // pastel sky
+  FACE_7: '#beb3ff', // pastel lavender
+  FACE_8: '#f099ff', // pastel orchid
 });
 
 // ─── Appearance ────────────────────────────────────────────────────────────
@@ -65,7 +65,7 @@ export interface GemAppearanceConfig {
 }
 
 export const GEM_APPEARANCE = map<GemAppearanceConfig>({
-  EDGE_COLOR: '#7a7fff',
+  EDGE_COLOR: '#ffffff',
   BODY_OPACITY: 0.75,
 });
 
