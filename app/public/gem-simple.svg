@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
   <polygon points="2,12 12,2 12,12" fill="#fff"/>
   <polygon points="22,12 12,22 12,12" fill="#fff"/>
+  <polygon points="12,2 22,12 12,22 2,12" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"/>
 </svg>
