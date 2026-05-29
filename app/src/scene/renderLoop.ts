@@ -36,7 +36,7 @@ import { createCoordinator } from '../coordinator.js';
 import { showTooltip, hideTooltip } from '../views/widgets/tooltip.js';
 import { createPostFx } from './system/postFx.js';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray.js';
-import { labelFromDisplayRoot } from '../views/widgets/displayLabel.js';
+import { labelFromManifest } from '../views/widgets/displayLabel.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
 // so that every downstream consumer (root street label, file tree root row,
@@ -45,11 +45,7 @@ import { labelFromDisplayRoot } from '../views/widgets/displayLabel.js';
 // client-side mutation is the single point of policy. Must be called BEFORE
 // applyManifest so the scene is built with the correct name from the start.
 export function _applyDisplayLabel(manifest: Manifest): void {
-  const friendly = labelFromDisplayRoot(
-    manifest.display_root,
-    manifest.repo?.remote_url,
-    manifest.tree?.name ?? ''
-  );
+  const friendly = labelFromManifest(manifest);
   if (manifest.tree && friendly) {
     manifest.tree.name = friendly;
   }

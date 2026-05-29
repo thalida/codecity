@@ -27,6 +27,24 @@ import { createLoadingOverlay } from './views/source/loadingOverlay.js';
 import { streamManifest } from './utils/manifestStream.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
+import { labelFromUrl } from './views/widgets/displayLabel.js';
+
+/**
+ * Set document.title to "{label} (pending) — codecity" from a server-emitted
+ * `display_root`. Called from the source-applying loop on the FIRST stream
+ * event that carries display_root — before any manifest exists — so the tab
+ * title shows the project being loaded instead of the static page title.
+ *
+ * Once the final manifest lands, coordinator.ts's title-swap (using
+ * labelFromManifest) takes over and the "(pending)" suffix disappears.
+ *
+ * Exported so the corresponding unit test can drive it without booting
+ * the renderer.
+ */
+export function applyPendingTitle(displayRoot: string): void {
+  const label = labelFromUrl(displayRoot);
+  document.title = label ? `${label} (pending) — codecity` : 'codecity';
+}
 
 const EMPTY_MANIFEST: Manifest = {
   root: '',
@@ -114,8 +132,17 @@ if (_canvas) {
         branch: _bootBranch,
       });
       try {
+        let _pendingTitleSet = false;
         for await (const event of streamManifest(manifestUrl())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // First event carrying display_root (cloning for git, scanning
+          // for local) — set the pending document title before the
+          // manifest lands so the tab shows the project name during
+          // clone/scan instead of the static page title.
+          if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
+            applyPendingTitle(event.display_root);
+            _pendingTitleSet = true;
+          }
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue. The first manifest-
           // bearing event (skeleton or final) does the bootstrap below.
@@ -231,8 +258,17 @@ if (_canvas) {
         }
 
         let manifest: Manifest | null = null;
+        let _pendingTitleSet = false;
         for await (const event of streamManifest(url.toString())) {
           if (event.phase === 'error') throw new Error(event.error);
+          // First event carrying display_root (cloning for git, scanning
+          // for local) — set the pending document title before the
+          // manifest lands so the tab shows the new project name during
+          // clone/scan after a source-switch.
+          if (!_pendingTitleSet && 'display_root' in event && event.display_root) {
+            applyPendingTitle(event.display_root);
+            _pendingTitleSet = true;
+          }
           // Lifecycle markers (cloning/scanning) carry no manifest —
           // advance the overlay step and continue.
           if (event.phase === 'cloning' || event.phase === 'scanning') {
