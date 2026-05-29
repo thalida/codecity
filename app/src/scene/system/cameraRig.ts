@@ -27,6 +27,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/config/index.js';
+import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
+import { REPO_LABEL } from '@/config/components/repoLabel.js';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
@@ -214,7 +216,20 @@ export function createCameraRig({
     // roof clears the top edge with sky above it. Empty cities get
     // getMaxBuildingHeight() = 0, so heightDist collapses to 0 and the
     // width branch wins.
-    const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
+    // Tallest visible vertical extent above the framing target:
+    //   - getMaxBuildingHeight(): real buildings (b.h in the layout)
+    //   - label panel top: the floating repo-name panel sits at
+    //     MAX_FLOORS × FLOOR_HEIGHT × HEIGHT_PCT/100 above the anchor,
+    //     plus FONT_SIZE for the panel's own height. On small repos
+    //     the label often exceeds the tallest building, and the holo-
+    //     beam connecting it to the gem extends to the panel's top —
+    //     framing on building height alone clipped the beam off the
+    //     top of the screen.
+    const dims = BUILDING_DIMENSIONS.get();
+    const labelCfg = REPO_LABEL.get();
+    const labelTopY =
+      dims.MAX_FLOORS * dims.FLOOR_HEIGHT * (labelCfg.HEIGHT_PCT / 100) + labelCfg.FONT_SIZE;
+    const tallestH = gemPos && rootStreet ? Math.max(world.getMaxBuildingHeight(), labelTopY) : 0;
     // Elevation angle accounts for both Y and lateral components: the
     // horizontal magnitude is sqrt(1 + lateral²), not 1. Without this,
     // adding lateral offset would silently over-tighten the height fit.
