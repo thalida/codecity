@@ -293,6 +293,37 @@ describe('Trees commit lookups', () => {
     expect(sNew.z * 10).toBeLessThan(sOld.z);
   });
 
+  it('getTreeBoundsBySha returns position + dims for a known sha', () => {
+    resetStores();
+    const commits = [commit(0), commit(1), commit(2)];
+    const placements = [placement(5, 0), placement(11, 1), placement(17, 2)];
+    const trees = createTreeRenderer(placements, commits);
+
+    const bounds = trees.getTreeBoundsBySha(commits[1].sha);
+    expect(bounds).not.toBeNull();
+    // Placement seed=11 lands the tree at (110, 110) in XZ.
+    expect(bounds!.x).toBeCloseTo(110, 3);
+    expect(bounds!.z).toBeCloseTo(110, 3);
+    expect(bounds!.y).toBe(0);
+    expect(bounds!.height).toBeGreaterThan(0);
+    expect(bounds!.radius).toBeGreaterThan(0);
+  });
+
+  it('getTreeBoundsBySha returns null for an unknown sha', () => {
+    resetStores();
+    const commits = [commit(0), commit(1)];
+    const placements = [placement(3, 0), placement(7, 1)];
+    const trees = createTreeRenderer(placements, commits);
+    expect(trees.getTreeBoundsBySha('f'.repeat(40))).toBeNull();
+  });
+
+  it('getTreeBoundsBySha returns null when commits is null', () => {
+    resetStores();
+    const placements = [placement(3, 0)];
+    const trees = createTreeRenderer(placements, null);
+    expect(trees.getTreeBoundsBySha('a'.repeat(40))).toBeNull();
+  });
+
   it('degenerate height range (min == max) does not produce NaN canopy matrices', () => {
     // When TREE_MIN_HEIGHT == TREE_MAX_HEIGHT, the heightRatio computation
     // would divide by zero without a clamp. Verify the renderer constructs

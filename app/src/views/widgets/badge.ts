@@ -51,7 +51,7 @@ export function makeExtensionBadge(
     return chip;
   }
   chip.textContent = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
-  const hue = getHue(extension ?? null, huePalette);
+  const hue = getHue(extension ?? '', huePalette);
   chip.style.setProperty('--badge-hue', String(hue));
   chip.style.color = _pickContrastingText(
     _hslToRgb(hue, FILE_BADGE_SATURATION, FILE_BADGE_LIGHTNESS)

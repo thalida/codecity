@@ -950,12 +950,12 @@ function _buildBuildingsSection(): HTMLElement {
     ])
   );
 
-  // Selection fade parent — per-tier style. Each tier (Default =
-  // siblings of selection / Level 1 = one hop / Level 2+ = far) gets
-  // four controls: detail (full / silhouette / hidden), outline on/off,
-  // and separate body + outline opacity sliders. Hover renders a
-  // building using the Default tier's settings — no separate hover-floor
-  // knob. Default-closed; 3 children, niche.
+  // Selection fade parent — five tier styles driven by depth from the
+  // selection target. Default tier applies to the selected/hovered
+  // building itself + the no-selection idle state. Levels 1-4 cascade
+  // outward by directory depth. Each tier exposes detail (full /
+  // silhouette / hidden), outline on/off, and separate body + outline
+  // opacity sliders.
   const DETAIL_OPTIONS = [
     { value: FadeDetail.Full, label: 'Full' },
     { value: FadeDetail.Silhouette, label: 'Silhouette' },
@@ -963,36 +963,48 @@ function _buildBuildingsSection(): HTMLElement {
   ];
   section.appendChild(
     _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
-      _collapsibleSubgroup('selection-fade-default', 'Default tier — siblings of selection', () => [
-        _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
-          tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
-        }),
-        _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
-          tip: 'Show the wireframe edge overlay.',
-        }),
-        _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
-          tip: 'Opacity for the body / silhouette layer.',
-        }),
-        _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-          tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
-        }),
-      ]),
-      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — one hop from selection', () => [
-        _select('Detail', BUILDING_FADE, 'NEAR_DETAIL', DETAIL_OPTIONS, {}),
-        _toggle('Outline', BUILDING_FADE, 'NEAR_OUTLINE', {}),
-        _slider('Body opacity', BUILDING_FADE, 'NEAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-        _slider('Outline opacity', BUILDING_FADE, 'NEAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
-      ]),
       _collapsibleSubgroup(
-        'selection-fade-level-2-plus',
-        'Level 2+ — cousins, deeper subtrees',
+        'selection-fade-default',
+        'Default tier — selected, hovered, or idle',
         () => [
-          _select('Detail', BUILDING_FADE, 'FAR_DETAIL', DETAIL_OPTIONS, {}),
-          _toggle('Outline', BUILDING_FADE, 'FAR_OUTLINE', {}),
-          _slider('Body opacity', BUILDING_FADE, 'FAR_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
-          _slider('Outline opacity', BUILDING_FADE, 'FAR_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+          _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
+            tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
+          }),
+          _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
+            tip: 'Show the wireframe edge overlay.',
+          }),
+          _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
+            tip: 'Opacity for the body / silhouette layer.',
+          }),
+          _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
+            tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
+          }),
         ]
       ),
+      _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — same dir as selection', () => [
+        _select('Detail', BUILDING_FADE, 'LEVEL1_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'LEVEL1_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'LEVEL1_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'LEVEL1_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
+      _collapsibleSubgroup('selection-fade-level-2', 'Level 2 — one dir away (up or down)', () => [
+        _select('Detail', BUILDING_FADE, 'LEVEL2_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'LEVEL2_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'LEVEL2_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'LEVEL2_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
+      _collapsibleSubgroup('selection-fade-level-3', 'Level 3 — two dirs away', () => [
+        _select('Detail', BUILDING_FADE, 'LEVEL3_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'LEVEL3_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'LEVEL3_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'LEVEL3_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
+      _collapsibleSubgroup('selection-fade-level-4', 'Level 4 — three or more dirs away', () => [
+        _select('Detail', BUILDING_FADE, 'LEVEL4_DETAIL', DETAIL_OPTIONS, {}),
+        _toggle('Outline', BUILDING_FADE, 'LEVEL4_OUTLINE', {}),
+        _slider('Body opacity', BUILDING_FADE, 'LEVEL4_BODY_OPACITY', 0.0, 1.0, 0.05, {}),
+        _slider('Outline opacity', BUILDING_FADE, 'LEVEL4_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {}),
+      ]),
     ])
   );
 

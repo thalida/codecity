@@ -217,6 +217,10 @@ export function createInputHandlers({
       rig.focusStreet(target.street, hit.point);
       return;
     }
+    if (target?.kind === NodeKind.Commit) {
+      rig.focusTree(target.commit.sha);
+      return;
+    }
     rig.recenterTo(new THREE.Vector3(hit.point.x, 0, hit.point.z));
   }
 
@@ -296,7 +300,10 @@ export function createInputHandlers({
         rig.focusBuilding(sel.mesh, sel.data);
       } else if (sel.kind === NodeKind.Directory) {
         rig.focusStreet(sel.street, null);
+      } else if (sel.kind === NodeKind.Commit) {
+        rig.focusTree(sel.commit.sha);
       }
+      // Gem isn't selectable, so no Gem branch — gem focus is via dblclick.
     }
   });
 
@@ -334,15 +341,29 @@ export function createInputHandlers({
     rig.controls.removeEventListener('end', _cameraEndHandler);
   });
 
+  // _resize is wrapped in rAF so the ResizeObserver callback yields before
+  // calling renderer.setSize (which writes to canvas width/height, which
+  // can re-fire ResizeObserver). Without the rAF, opening the right
+  // sidebar's CSS-transitioned width change can produce a sustained chain
+  // of resize callbacks tall enough to starve subsequent canvas pointer
+  // events — the symptom is hover/click going dead after the FIRST road
+  // click, since the directory pane's heavier setDirectory work raises
+  // the cost of each callback enough to push the chain into pathological
+  // territory.
+  let _resizeRafId = 0;
   function _resize() {
-    const cw = canvas.clientWidth;
-    const ch = canvas.clientHeight;
-    renderer.setSize(cw, ch, false);
-    camera.aspect = cw / Math.max(1, ch);
-    camera.updateProjectionMatrix();
-    // onResize owns the synchronous paint so the post-FX pipeline (bloom)
-    // shows on the new size without a blank/cleared frame in between.
-    if (typeof onResize === 'function') onResize();
+    if (_resizeRafId) return;
+    _resizeRafId = requestAnimationFrame(() => {
+      _resizeRafId = 0;
+      const cw = canvas.clientWidth;
+      const ch = canvas.clientHeight;
+      renderer.setSize(cw, ch, false);
+      camera.aspect = cw / Math.max(1, ch);
+      camera.updateProjectionMatrix();
+      // onResize owns the synchronous paint so the post-FX pipeline (bloom)
+      // shows on the new size without a blank/cleared frame in between.
+      if (typeof onResize === 'function') onResize();
+    });
   }
   _on(window, 'resize', _resize);
 
@@ -369,6 +390,7 @@ export function createInputHandlers({
     _disposers = [];
     if (_hoverRafId) cancelAnimationFrame(_hoverRafId);
     if (_hoverCommitId) clearTimeout(_hoverCommitId);
+    if (_resizeRafId) cancelAnimationFrame(_resizeRafId);
   }
 
   return { dispose };

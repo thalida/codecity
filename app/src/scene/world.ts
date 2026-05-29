@@ -1395,6 +1395,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getGemWorldPos() {
       return gemWorldPos;
     },
+    getTreeBoundsBySha(sha: string) {
+      return _trees?.getTreeBoundsBySha(sha) ?? null;
+    },
 
     // Outline/ghost arrays — empty stubs returned so existing callers
     // (outlineRenderer.refreshMaterials, outlineRenderer.onResize) iterate

@@ -52,6 +52,12 @@ export function buildPaneHeader(opts: BuildPaneHeaderOpts) {
     focusBtn.setAttribute('aria-label', tooltip);
     focusBtn.appendChild(makeLucideIcon('focus'));
     focusBtn.addEventListener('click', () => {
+      // Drop focus from the button so subsequent F/Escape keystrokes
+      // fall through to the document-level keydown handler that drives
+      // canvas selection/focus. Without this the button stays focused
+      // after a click, but :focus traps Enter/Space and steals the next
+      // keyboard interaction from the canvas.
+      focusBtn.blur();
       opts.onFocus!();
     });
     // Prepend so the button is the leftmost element. setPrefixEl (called

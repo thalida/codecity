@@ -29,16 +29,25 @@ interface TierResult {
   outlineOpacity: number;
 }
 
-function _dirTreeDistance(file: FileNode | null, dir: DirNode): number {
-  if (!file || !file.path || !dir || dir.path == null) return Infinity;
+// Tier level for a building relative to the directory target, measured
+// as the symmetric directory-tree distance: hops up to the lowest common
+// ancestor plus hops back down. distance 0 = same dir (L1); 1 = one hop
+// in either direction (L2); 2 = two hops (L3); 3+ = far (L4). Going up
+// matters the same as going down so a file in `src/lib/` and a file in
+// `src/foo/bar/` are equally "near" a selection in `src/foo/`.
+function _tierLevelFor(file: FileNode | null, dir: DirNode): 1 | 2 | 3 | 4 {
+  if (!file?.path || !dir || dir.path == null) return 4;
   let parent = parentDirPath(file.path);
   if (parent == null) parent = '.';
-  if (parent === dir.path) return 0;
   const ap = parent === '.' || parent === '' ? [] : parent.split('/');
   const dp = dir.path === '.' || dir.path === '' ? [] : dir.path.split('/');
   let lca = 0;
   while (lca < ap.length && lca < dp.length && ap[lca] === dp[lca]) lca++;
-  return ap.length - lca + (dp.length - lca);
+  const distance = ap.length - lca + (dp.length - lca);
+  if (distance === 0) return 1;
+  if (distance === 1) return 2;
+  if (distance === 2) return 3;
+  return 4;
 }
 
 export function createBuildingFader({
@@ -100,39 +109,45 @@ export function createBuildingFader({
     }
 
     if (bldgTargetFile && file.path === bldgTargetFile.path) {
-      // Selected building: always full body, no per-building outline
-      // (the dedicated selectedOutline mesh from outlineRenderer handles it).
       return {
-        detail: FadeDetail.Full,
-        bodyOpacity: 1.0,
-        outlineEnabled: false,
-        outlineOpacity: 0,
+        detail: fadeCfg.DEFAULT_DETAIL,
+        bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
+        outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
+        outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
       };
     }
 
     if (dirTarget) {
-      const dist = _dirTreeDistance(file, dirTarget);
-      if (dist === 0) {
+      const lvl = _tierLevelFor(file, dirTarget);
+      if (lvl === 1) {
         return {
-          detail: fadeCfg.DEFAULT_DETAIL,
-          bodyOpacity: fadeCfg.DEFAULT_BODY_OPACITY,
-          outlineEnabled: fadeCfg.DEFAULT_OUTLINE,
-          outlineOpacity: fadeCfg.DEFAULT_OUTLINE_OPACITY,
+          detail: fadeCfg.LEVEL1_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL1_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL1_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL1_OUTLINE_OPACITY,
         };
       }
-      if (dist === 1) {
+      if (lvl === 2) {
         return {
-          detail: fadeCfg.NEAR_DETAIL,
-          bodyOpacity: fadeCfg.NEAR_BODY_OPACITY,
-          outlineEnabled: fadeCfg.NEAR_OUTLINE,
-          outlineOpacity: fadeCfg.NEAR_OUTLINE_OPACITY,
+          detail: fadeCfg.LEVEL2_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL2_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL2_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL2_OUTLINE_OPACITY,
+        };
+      }
+      if (lvl === 3) {
+        return {
+          detail: fadeCfg.LEVEL3_DETAIL,
+          bodyOpacity: fadeCfg.LEVEL3_BODY_OPACITY,
+          outlineEnabled: fadeCfg.LEVEL3_OUTLINE,
+          outlineOpacity: fadeCfg.LEVEL3_OUTLINE_OPACITY,
         };
       }
       return {
-        detail: fadeCfg.FAR_DETAIL,
-        bodyOpacity: fadeCfg.FAR_BODY_OPACITY,
-        outlineEnabled: fadeCfg.FAR_OUTLINE,
-        outlineOpacity: fadeCfg.FAR_OUTLINE_OPACITY,
+        detail: fadeCfg.LEVEL4_DETAIL,
+        bodyOpacity: fadeCfg.LEVEL4_BODY_OPACITY,
+        outlineEnabled: fadeCfg.LEVEL4_OUTLINE,
+        outlineOpacity: fadeCfg.LEVEL4_OUTLINE_OPACITY,
       };
     }
 
