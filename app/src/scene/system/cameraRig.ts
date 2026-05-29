@@ -57,10 +57,17 @@ const STREET_FOCUS_RATIO = 1.2;
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
-// Headroom above the tallest building's roof when sizing the initial
-// framing radius. 1.15 leaves ~15% of the vertical FOV as sky above the
-// tallest spire so the horizon-glow band stays visible instead of the
-// roof sitting flush against the top edge of the frame.
+// y-component of the start framing direction vector (before normalization).
+// 0.5 → ~27° camera elevation above the root street's long axis. The
+// height-fit distance formula in _captureFraming depends on this exact
+// value, so it is referenced both there and at the dir construction site
+// instead of being duplicated.
+const FRAMING_DIR_Y = 0.5;
+
+// Headroom above the tallest building's roof when fitting the start
+// framing. 1.15 = distance is 15% greater than the minimum at which the
+// roof would sit flush against the top edge of the vertical FOV, so the
+// horizon-glow band stays visible above the tallest spire.
 const TALLEST_BUILDING_HEADROOM_MULT = 1.15;
 
 export function createCameraRig({
@@ -171,46 +178,60 @@ export function createCameraRig({
     let framingRadius: number;
     if (gemPos && rootStreet) {
       framingCenter = new THREE.Vector3(gemPos.x, 0, gemPos.z);
-      // Frame off the root street's WIDTH (not its length) AND the tallest
-      // building's height, whichever produces the larger radius.
-      //   Width: length is a proxy for "how much stuff is in the project" —
-      //   for a big repo the root street is enormously long and framing on
-      //   it is the same as framing the whole world. Width is bounded by
-      //   STREET_TIERS (≈10–52), so width × 15 reliably fits the gem + the
-      //   road's first stretch regardless of project size.
-      //   Height: framingCenter sits at y=0, so a sphere of radius R fits
-      //   any point with |y| ≤ R. Without the height branch, tall buildings
-      //   pierce the top of the frame on cities where one big file dwarfs
-      //   the root street's width. getMaxBuildingHeight() returns 0 for
-      //   empty cities, so the Math.max safely degrades to width-only.
-      const tallestH = world.getMaxBuildingHeight();
-      framingRadius = Math.max(
-        rootStreet.width * 15,
-        tallestH * TALLEST_BUILDING_HEADROOM_MULT,
-      );
+      // Frame off the root street's WIDTH, not its length. Length is a
+      // proxy for "how much stuff is in the project" — for a big repo the
+      // root street is enormously long and framing on it is the same as
+      // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
+      // so width × 15 reliably fits the gem + the road's first stretch
+      // regardless of project size.
+      framingRadius = rootStreet.width * 15;
     } else {
       // No gem (empty manifest, pre-build) — fall back to whole-world.
       framingCenter = worldGroundCenter;
       framingRadius = worldRadius;
     }
-    const framingDist =
+    // Distance from width: the existing "city neighborhood readable on
+    // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
+    // intentionally; tuned for the typical city shape.
+    const widthDist =
       (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    // Distance from tallest building: ensures the roof would fit the
+    // vertical FOV even though the tallest building can sit anywhere in
+    // the city — without this the camera frames width only and tall
+    // buildings near the gem pierce the top of the frame. Geometry: the
+    // framing target sits at y=0; the camera sits at elevation `elev`
+    // along (-cos(elev), sin(elev), 0) × D from the target (see dir
+    // construction below). A point H above the target projects to
+    // screen-y = cos(elev) × H / (D − sin(elev) × H); setting that ≤
+    // tan(halfFov) and solving gives D = H × cos(elev − halfFov) /
+    // sin(halfFov) for a flush fit. HEADROOM_MULT scales D up so the
+    // roof clears the top edge with sky above it. Empty cities get
+    // getMaxBuildingHeight() = 0, so heightDist collapses to 0 and the
+    // width branch wins.
+    const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
+    const elevRad = Math.atan(FRAMING_DIR_Y);
+    const heightDist =
+      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) /
+      Math.sin(halfFov);
+    const framingDist = Math.max(widthDist, heightDist);
 
     // Default framing: place the camera BEHIND the gem along the root
     // street's long axis (the street extends in +X for X-oriented or +Z
     // for Y-oriented; the gem sits at the low end — see
     // engine.ts:createRootGem) at a low cinematic elevation. This gives
     // a "looking down the main road into the city" view instead of the
-    // previous top-down (-1, 1, 1) oblique. y=0.25 → ~14° elevation;
-    // wide enough to see the whole skyline, low enough that the
-    // horizon-glow band is visible above the buildings. Fallback
-    // (no gem) keeps the old high-oblique direction for completeness.
+    // previous top-down (-1, 1, 1) oblique. FRAMING_DIR_Y (0.5) → ~27°
+    // elevation; high enough to take in the skyline without the camera
+    // hugging the horizon, low enough that the horizon-glow band still
+    // reads behind the buildings. The same constant feeds the heightDist
+    // formula above. Fallback (no gem) keeps the old high-oblique
+    // direction for completeness.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
         rootStreet.orientation === StreetAxis.X
-          ? new THREE.Vector3(-1, 0.25, 0).normalize()
-          : new THREE.Vector3(0, 0.25, -1).normalize();
+          ? new THREE.Vector3(-1, FRAMING_DIR_Y, 0).normalize()
+          : new THREE.Vector3(0, FRAMING_DIR_Y, -1).normalize();
     } else {
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
