@@ -95,8 +95,9 @@ describe('buildStreetPane', () => {
     const { pane, api } = buildStreetPane({ onFocus });
     const d = dir('lib', [f('x.ts', '.ts', 100)]);
     api.setDirectory(d);
-    const btn = pane.querySelector('.pane-header button[aria-label*="Focus"]') as HTMLButtonElement
-      ?? pane.querySelector('.pane-header button') as HTMLButtonElement;
+    const btn =
+      (pane.querySelector('.pane-header button[aria-label*="Focus"]') as HTMLButtonElement) ??
+      (pane.querySelector('.pane-header button') as HTMLButtonElement);
     btn!.click();
     expect(onFocus).toHaveBeenCalledTimes(1);
     expect(onFocus).toHaveBeenCalledWith(d);

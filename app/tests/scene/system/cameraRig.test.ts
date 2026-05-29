@@ -12,25 +12,24 @@ function makeStubWorld(overrides: Partial<ReturnType<typeof _baseWorld>> = {}) {
 }
 
 function _baseWorld() {
-  const bbox = new THREE.Box3(
-    new THREE.Vector3(-500, 0, -500),
-    new THREE.Vector3(500, 200, 500),
-  );
+  const bbox = new THREE.Box3(new THREE.Vector3(-500, 0, -500), new THREE.Vector3(500, 200, 500));
   return {
     getBbox: () => bbox,
     getGemWorldPos: () => new THREE.Vector3(0, 0, 0),
-    getRootStreet: () => ({
-      x: 0,
-      y: 0,
-      width: 40,
-      length: 1000,
-      orientation: StreetAxis.X,
-      dir: null,
-    }) as unknown as Street,
+    getRootStreet: () =>
+      ({
+        x: 0,
+        y: 0,
+        width: 40,
+        length: 1000,
+        orientation: StreetAxis.X,
+        dir: null,
+      }) as unknown as Street,
     onChange: () => () => {},
     getBuildingPickables: () => [] as THREE.Object3D[],
     getMaxBuildingHeight: () => 200,
-    getTreeBoundsBySha: (_sha: string) => null as { x: number; y: number; z: number; height: number; radius: number } | null,
+    getTreeBoundsBySha: (_sha: string) =>
+      null as { x: number; y: number; z: number; height: number; radius: number } | null,
   };
 }
 
@@ -115,7 +114,10 @@ describe('cameraRig top-down focus', () => {
     return new Promise<void>((resolve) => {
       let frames = 0;
       function tick() {
-        if (frames++ < 60) { requestAnimationFrame(tick); return; }
+        if (frames++ < 60) {
+          requestAnimationFrame(tick);
+          return;
+        }
         const target = rig.controls.target;
         expect(target.x).toBeCloseTo(s.x, 1);
         expect(target.y).toBeCloseTo(0, 1);
@@ -141,7 +143,10 @@ describe('cameraRig top-down focus', () => {
     return new Promise<void>((resolve) => {
       let frames = 0;
       function tick() {
-        if (frames++ < 60) { requestAnimationFrame(tick); return; }
+        if (frames++ < 60) {
+          requestAnimationFrame(tick);
+          return;
+        }
         const target = rig.controls.target;
         expect(target.x).toBeCloseTo(250, 1);
         expect(target.y).toBeCloseTo(50, 1);

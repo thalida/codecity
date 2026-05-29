@@ -963,20 +963,24 @@ function _buildBuildingsSection(): HTMLElement {
   ];
   section.appendChild(
     _collapsibleSubgroup('selection-fade', 'Selection fade', () => [
-      _collapsibleSubgroup('selection-fade-default', 'Default tier — selected, hovered, or idle', () => [
-        _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
-          tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
-        }),
-        _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
-          tip: 'Show the wireframe edge overlay.',
-        }),
-        _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
-          tip: 'Opacity for the body / silhouette layer.',
-        }),
-        _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
-          tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
-        }),
-      ]),
+      _collapsibleSubgroup(
+        'selection-fade-default',
+        'Default tier — selected, hovered, or idle',
+        () => [
+          _select('Detail', BUILDING_FADE, 'DEFAULT_DETAIL', DETAIL_OPTIONS, {
+            tip: 'Full = textured walls + windows + doors. Silhouette = solid-color box. Hidden = body invisible (only outline can show).',
+          }),
+          _toggle('Outline', BUILDING_FADE, 'DEFAULT_OUTLINE', {
+            tip: 'Show the wireframe edge overlay.',
+          }),
+          _slider('Body opacity', BUILDING_FADE, 'DEFAULT_BODY_OPACITY', 0.0, 1.0, 0.05, {
+            tip: 'Opacity for the body / silhouette layer.',
+          }),
+          _slider('Outline opacity', BUILDING_FADE, 'DEFAULT_OUTLINE_OPACITY', 0.0, 1.0, 0.05, {
+            tip: 'Opacity for the wireframe outline layer (only visible if Outline is on).',
+          }),
+        ]
+      ),
       _collapsibleSubgroup('selection-fade-level-1', 'Level 1 — same dir as selection', () => [
         _select('Detail', BUILDING_FADE, 'LEVEL1_DETAIL', DETAIL_OPTIONS, {}),
         _toggle('Outline', BUILDING_FADE, 'LEVEL1_OUTLINE', {}),

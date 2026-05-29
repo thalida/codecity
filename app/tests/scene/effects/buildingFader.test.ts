@@ -73,7 +73,7 @@ function makeFader(opts: {
 }) {
   const iFadeAttr = new THREE.InstancedBufferAttribute(
     new Float32Array(opts.buildings.length * 3),
-    3,
+    3
   );
   const detailMesh = {
     geometry: { getAttribute: (_: string) => iFadeAttr },

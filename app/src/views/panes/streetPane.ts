@@ -1,7 +1,7 @@
 // views/panes/streetPane.ts — right-sidebar pane shown when a directory
-// (road) is selected in the city. Shows the dir path, direct + descendant
-// children counts + total size, and a sorted breakdown of every file
-// extension in the descendant subtree.
+// (road) is selected in the city. Shows direct + descendant child
+// counts and a sorted breakdown of every file extension in the
+// descendant subtree.
 //
 // API matches commitPane's shape (build once, push selection via
 // setDirectory) so the coordinator can swap panes in the right sidebar
@@ -102,11 +102,13 @@ export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
   function _renderDir(d: DirNode): void {
     _activeDir = d;
     headerApi.setFocusEnabled(true);
-    const leaf = (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) || d.name || 'Road';
+    const leaf =
+      (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) ||
+      d.name ||
+      'Road';
     headerApi.setTitle(leaf);
     body.replaceChildren();
 
-    // Path row
     // Counts block
     const counts = document.createElement('div');
     counts.className = 'street-counts';
@@ -140,13 +142,13 @@ export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
       makeCol('Direct', [
         [String(d.children_file_count ?? 0), 'files'],
         [String(d.children_dir_count ?? 0), 'dirs'],
-      ]),
+      ])
     );
     counts.appendChild(
       makeCol('Descendants', [
         [String(d.descendants_file_count ?? 0), 'files'],
         [String(d.descendants_dir_count ?? 0), 'dirs'],
-      ]),
+      ])
     );
     body.appendChild(counts);
 

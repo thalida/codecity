@@ -140,9 +140,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       focusBtn.type = 'button';
       focusBtn.className = 'btn-icon btn-icon--no-drag';
       const tooltip =
-        sel.kind === 'commit'
-          ? 'Focus camera on commit (F)'
-          : 'Focus camera on selection (F)';
+        sel.kind === 'commit' ? 'Focus camera on commit (F)' : 'Focus camera on selection (F)';
       focusBtn.title = tooltip;
       focusBtn.setAttribute('aria-label', tooltip);
       focusBtn.appendChild(makeLucideIcon('focus'));
@@ -184,8 +182,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         isFileSel ? (sel.extension ?? null) : null,
         !isFileSel,
         huePalette,
-        asphaltColor,
-      ),
+        asphaltColor
+      )
     );
 
     const crumbs = document.createElement('div');

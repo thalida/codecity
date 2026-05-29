@@ -26,11 +26,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import {
-  CAMERA_PERSPECTIVE,
-  CAMERA_CONTROLS,
-  ANIMATION_TIMING,
-} from '@/config/index.js';
+import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/config/index.js';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
@@ -340,7 +336,7 @@ export function createCameraRig({
     fitW: number,
     fitD: number,
     fitH: number,
-    durationRatio: number,
+    durationRatio: number
   ): void {
     const elevRad = (TOP_DOWN_ELEVATION_DEG * Math.PI) / 180;
     const halfV = (camera.fov * Math.PI) / 180 / 2;
@@ -352,10 +348,7 @@ export function createCameraRig({
     // nearly-overhead at the b.h/2 centroid.
     const R = 0.5 * Math.sqrt(fitW * fitW + fitD * fitD + fitH * fitH);
     const halfFov = Math.min(halfV, halfH);
-    const dist = Math.max(
-      (R / Math.sin(halfFov)) * TOP_DOWN_PADDING_MULT,
-      controls.minDistance,
-    );
+    const dist = Math.max((R / Math.sin(halfFov)) * TOP_DOWN_PADDING_MULT, controls.minDistance);
 
     // Azimuth: preserve current horizontal direction from target → camera.
     // If the camera is too close to nadir, fall back to the root-street axis.
@@ -370,9 +363,11 @@ export function createCameraRig({
     if (horizLenSq < 1e-4) {
       const root = world.getRootStreet();
       if (root && root.orientation === StreetAxis.X) {
-        dirX = -1; dirZ = 0;
+        dirX = -1;
+        dirZ = 0;
       } else {
-        dirX = 0; dirZ = -1;
+        dirX = 0;
+        dirZ = -1;
       }
     } else {
       const inv = 1 / Math.sqrt(horizLenSq);
@@ -385,14 +380,14 @@ export function createCameraRig({
     const newCamPos = new THREE.Vector3(
       center.x + dirX * dist * cosE,
       center.y + dist * sinE,
-      center.z + dirZ * dist * cosE,
+      center.z + dirZ * dist * cosE
     );
 
     camera.up.set(0, 1, 0);
     _animateCamera(
       center.clone(),
       newCamPos,
-      ANIMATION_TIMING.get().BASE_DURATION_MS * durationRatio,
+      ANIMATION_TIMING.get().BASE_DURATION_MS * durationRatio
     );
   }
 

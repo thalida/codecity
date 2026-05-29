@@ -411,8 +411,11 @@ describe('buildCommitPane', () => {
     const onFocus = vi.fn();
     const { pane, api } = buildCommitPane({ onFocus });
     api.setCommit(COMMIT, { remoteUrl: null });
-    const focusBtn = pane.querySelector('.pane-header .btn-icon[aria-label="Focus the camera on this commit (F)"]') as HTMLButtonElement | null
-      ?? pane.querySelector('.pane-header .btn-icon') as HTMLButtonElement | null;
+    const focusBtn =
+      (pane.querySelector(
+        '.pane-header .btn-icon[aria-label="Focus the camera on this commit (F)"]'
+      ) as HTMLButtonElement | null) ??
+      (pane.querySelector('.pane-header .btn-icon') as HTMLButtonElement | null);
     expect(focusBtn).not.toBeNull();
     focusBtn!.click();
     expect(onFocus).toHaveBeenCalledTimes(1);
