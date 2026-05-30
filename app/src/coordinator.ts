@@ -194,14 +194,14 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       errorMessage: LAST_REBUILD_ERROR.value,
     });
   }
-  _refreshStatus();
-  const _liveCfgUnsub = effect(() => { void LIVE_UPDATES.value; _refreshStatus(); });
-  const _statusUnsub = effect(() => { void REBUILD_STATUS.value; _refreshStatus(); });
-  // _errorUnsub catches updated error messages even when REBUILD_STATUS
-  // is already 'error' (e.g. two failing polls in a row with different
-  // messages) — the tooltip needs to refresh on every message change.
-  const _errorUnsub = effect(() => { void LAST_REBUILD_ERROR.value; _refreshStatus(); });
-  const _stampUnsub = effect(() => { void LAST_UPDATED_AT.value; _refreshStatus(); });
+  // Single effect: auto-tracks every signal _refreshStatus reads
+  // (LIVE_UPDATES, REBUILD_STATUS, LAST_UPDATED_AT, LAST_REBUILD_ERROR)
+  // and re-fires once per change to any of them. The previous shape
+  // had four separate effects each pretending to track one signal via
+  // `void X.value;` — but because the shared _refreshStatus body reads
+  // all four, each effect actually tracked all four. The result was
+  // _refreshStatus running 4x per change. One effect is correct.
+  const _statusUnsub = effect(_refreshStatus);
   // Re-render every second so the relative timestamp ("5s ago" → "6s
   // ago") advances smoothly while idle.
   const _tickHandle = window.setInterval(_refreshStatus, 1000);
@@ -328,11 +328,18 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
   }
 
   // Footer follows hover when present, falls back to selection when
-  // hover ends.  Both subscriptions call this shared updater so the
+  // hover ends. Both subscriptions call this shared updater so the
   // displayed info is always consistent with whichever atom changed last.
+  //
+  // .peek() instead of .value: each caller is already inside an effect()
+  // that tracks the signal it cares about (_hovUnsub tracks hover,
+  // _selUnsub tracks selection). If this function tracked both, every
+  // hover would also re-fire the selection effect, which calls
+  // _renderSidebar() — that's a noticeable right-sidebar flicker on
+  // every hover. .peek() reads the current value without subscribing.
   function _updateFooterFromState(): void {
-    const hov = picker.hover.value;
-    const sel = picker.selection.value;
+    const hov = picker.hover.peek();
+    const sel = picker.selection.peek();
     _setFooterForTarget(hov ?? sel);
   }
 
@@ -450,10 +457,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     if (typeof _selUnsub === 'function') _selUnsub();
     if (typeof _hovUnsub === 'function') _hovUnsub();
     if (typeof _changeUnsub === 'function') _changeUnsub();
-    if (typeof _liveCfgUnsub === 'function') _liveCfgUnsub();
     if (typeof _statusUnsub === 'function') _statusUnsub();
-    if (typeof _errorUnsub === 'function') _errorUnsub();
-    if (typeof _stampUnsub === 'function') _stampUnsub();
     window.clearInterval(_tickHandle);
   }
 
