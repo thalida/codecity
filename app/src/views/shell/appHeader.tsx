@@ -16,6 +16,10 @@ import { LucideIcon, GemIcon } from '../components/icon';
 import { ExtensionBadge } from '../components/badge';
 import { toHttpsRepoUrl } from '@/utils/sources';
 import { fitSegments } from '../components/pathTruncate';
+import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { SOURCE_INFO } from '@/state/runtime/sourceInfo';
+import { openSourcePicker } from '@/state/runtime/uiState';
+import { NodeKind } from '@/types';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
@@ -342,8 +346,81 @@ function HeaderLeft({
 }
 
 // ── Full AppHeader component ─────────────────────────────────────────────────
+// Self-reading: derives all display state from runtime signals so no props
+// need to be threaded from App.tsx. Only callbacks (actions) are props.
 
-interface AppHeaderProps {
+export interface AppHeaderProps {
+  /** Fires when the user clicks a breadcrumb segment. */
+  onSegmentClick?: ((path: string) => void) | null;
+  /** Fires when the user clicks the project chip to switch source. */
+  onSwitchSource?: () => void;
+  /** Fires when the user clicks the reset-view (gem) button. */
+  onResetView?: () => void;
+  /** Fires when the user clicks the focus button next to the selected path. */
+  onFocus?: () => void;
+}
+
+export function AppHeader({
+  onSegmentClick,
+  onSwitchSource,
+  onResetView,
+  onFocus,
+}: AppHeaderProps = {}) {
+  // Source info from runtime signal — label, branch, sourceUrl
+  const si = SOURCE_INFO.value;
+
+  // Derive selection from picker signal (auto-tracked in render)
+  const handle = SCENE_HANDLE.value;
+  const pickerSel = handle?.picker.selection.value ?? null;
+  const rootNode = handle?.world.getRoot() ?? null;
+  const rootPath = rootNode?.path ?? '';
+
+  let sel: HeaderSelection | null = null;
+  if (pickerSel?.kind === NodeKind.Commit) {
+    sel = { kind: 'commit', sha: pickerSel.commit.sha, authors: pickerSel.commit.authors };
+  } else if (pickerSel?.kind === NodeKind.File) {
+    const node = pickerSel.file;
+    sel = {
+      kind: 'file',
+      path: node.path || node.fullPath || node.name || '',
+      fullPath: node.fullPath || '',
+      extension: node.extension || '',
+      isDir: false,
+    };
+  } else if (pickerSel?.kind === NodeKind.Directory) {
+    const node = pickerSel.dir;
+    sel = {
+      kind: 'dir',
+      path: node.path || node.fullPath || node.name || '',
+      fullPath: node.fullPath || '',
+      isDir: true,
+    };
+  }
+
+  return (
+    <>
+      <HeaderLeft
+        rootLabel={si.label}
+        branch={si.branch}
+        sourceUrl={si.sourceUrl}
+        onResetView={onResetView}
+        onSwitchSource={onSwitchSource ?? (() => openSourcePicker({ dismissible: true }))}
+      />
+      <HeaderTitle
+        sel={sel}
+        rootLabel={si.label}
+        rootPath={rootPath}
+        onSegmentClick={onSegmentClick}
+        onFocus={onFocus}
+      />
+    </>
+  );
+}
+
+// ── Props-driven AppHeader (used by the backward-compat shim) ────────────────
+// Kept so the shim below can pass explicit state without depending on signals.
+
+interface _AppHeaderPropsLegacy {
   state: ReadonlySignal<AppHeaderState>;
   onSegmentClick?: ((path: string) => void) | null;
   onSwitchSource?: () => void;
@@ -351,13 +428,13 @@ interface AppHeaderProps {
   onFocus?: () => void;
 }
 
-export function AppHeader({
+function _AppHeaderLegacy({
   state,
   onSegmentClick,
   onSwitchSource,
   onResetView,
   onFocus,
-}: AppHeaderProps) {
+}: _AppHeaderPropsLegacy) {
   const s = state.value;
   return (
     <>
@@ -428,24 +505,24 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
   // Mount HeaderLeft into leftEl
   render(
-    <HeaderLeft
-      rootLabel={state.value.rootLabel}
-      branch={state.value.branch}
-      sourceUrl={state.value.sourceUrl}
+    <_AppHeaderLegacy
+      state={state}
       onResetView={onResetView}
       onSwitchSource={onSwitchSource}
+      onSegmentClick={onSegmentClick}
+      onFocus={onFocus}
     />,
     leftEl
   );
 
   function _rerenderLeft(): void {
     render(
-      <HeaderLeft
-        rootLabel={state.value.rootLabel}
-        branch={state.value.branch}
-        sourceUrl={state.value.sourceUrl}
+      <_AppHeaderLegacy
+        state={state}
         onResetView={onResetView}
         onSwitchSource={onSwitchSource}
+        onSegmentClick={onSegmentClick}
+        onFocus={onFocus}
       />,
       leftEl
     );
