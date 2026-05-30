@@ -195,7 +195,9 @@ export function createSourcePicker(opts: {
                   `
                   ).join('')}
                 </select>
-                <div class="modal-field-help">Shorter = faster load.</div>
+                <div class="modal-field-help">
+                  How far back to walk git history. Shorter = faster load, fewer trees, less accurate file ages.
+                </div>
               </div>
 
               <div class="modal-field">
