@@ -166,6 +166,7 @@ export function placeFireflies(
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
       const color = colorForAuthor(author);
       const orbitStartAngle = rng() * Math.PI * 2;
+      // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
       const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);
       const orbHeight = rng() * (height * 1.3);
       const phase = rng() * Math.PI * 2;

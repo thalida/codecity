@@ -16,7 +16,7 @@ function placement(commitIndex: number, x: number, z: number): TreePlacement {
 }
 
 describe('placeFireflies', () => {
-  it('returns exactly 1 orb per tree placement', () => {
+  it('single-author commits emit exactly 1 orb per tree (regression)', () => {
     const placements = [placement(0, 10, 5), placement(1, -3, 8)];
     const orbs = placeFireflies(placements, COMMITS);
     expect(orbs.length).toBe(placements.length);
@@ -222,9 +222,9 @@ describe('placeFireflies', () => {
   });
 
   it('counts co-authorship toward each author\'s tally', () => {
-    // Alice authors 1 solo commit; Bob co-authors that commit AND has
-    // his own solo commit. Tally: Alice=1, Bob=2. After scale lerp,
-    // Bob's orbs should scale larger than Alice's.
+    // Commit 0 is co-authored by Alice and Bob; commit 1 is Bob solo.
+    // Tally: Alice=1, Bob=2. After scale lerp, Bob's orbs should scale
+    // larger than Alice's.
     const commits: CommitEntry[] = [
       {
         date: '2026-01-01',

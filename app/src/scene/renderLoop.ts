@@ -252,8 +252,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // Cyberpunk Valley fireflies — pushes fresh BOB/PULSE/EMISSION/FLICKER/
     // ORBIT_SPEED uniforms into the shader. Null until the first manifest
     // applies; guard with optional chain. Structural keys (ENABLED,
-    // ORBS_PER_TREE, SCALE_MIN/MAX) take the rebuild path via
-    // configCommitReactions.
+    // SCALE_MIN/MAX) take the rebuild path via configCommitReactions.
     world.getFireflies()?.refresh();
 
     // Cyberpunk Valley city footprint — pushes fresh COLOR + ENABLED
