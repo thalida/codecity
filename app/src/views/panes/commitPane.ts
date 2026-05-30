@@ -122,18 +122,20 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   ): void {
     body.replaceChildren();
 
-    // ── Author row ───────────────────────────────────────────────────
-    const authorEl = document.createElement('div');
-    authorEl.className = 'commit-author';
-    const dotEl = document.createElement('span');
-    dotEl.className = 'commit-author-dot';
-    dotEl.style.backgroundColor = colorForAuthor(commit.authors[0]).hex;
-    authorEl.appendChild(dotEl);
-    const authorName = document.createElement('span');
-    authorName.className = 'commit-author-name';
-    authorName.textContent = commit.authors[0] || '(unknown)';
-    authorEl.appendChild(authorName);
-    body.appendChild(authorEl);
+    // ── Author rows (one per distinct author; primary first) ─────────
+    for (const author of commit.authors) {
+      const row = document.createElement('div');
+      row.className = 'commit-author';
+      const dotEl = document.createElement('span');
+      dotEl.className = 'commit-author-dot';
+      dotEl.style.backgroundColor = colorForAuthor(author).hex;
+      row.appendChild(dotEl);
+      const authorName = document.createElement('span');
+      authorName.className = 'commit-author-name';
+      authorName.textContent = author || '(unknown)';
+      row.appendChild(authorName);
+      body.appendChild(row);
+    }
 
     // ── Commit message block (subject + body if non-empty) ───────────
     const messageEl = document.createElement('div');

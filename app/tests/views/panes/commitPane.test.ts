@@ -287,6 +287,50 @@ describe('buildCommitPane', () => {
     expect(typeof colorForAuthor(COMMIT.authors[0]).hex).toBe('string');
   });
 
+  it('renders one .commit-author row for a single-author commit (regression)', async () => {
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    const rows = pane.querySelectorAll('.commit-author');
+    expect(rows.length).toBe(1);
+    expect(rows[0].querySelector('.commit-author-name')!.textContent).toBe('Alice Author');
+  });
+
+  it('renders one .commit-author row per author for a multi-author commit', async () => {
+    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
+    const multi: CommitEntry = {
+      date: '2026-03-12',
+      files: 4,
+      sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
+      authors: ['Alice Author', 'Bob Builder', 'Carol Coder'],
+      subject: 'feat: team effort',
+    };
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(multi, { now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const rows = pane.querySelectorAll('.commit-author');
+    expect(rows.length).toBe(3);
+
+    const names = Array.from(rows).map((r) =>
+      r.querySelector('.commit-author-name')!.textContent
+    );
+    expect(names).toEqual(['Alice Author', 'Bob Builder', 'Carol Coder']);
+
+    // Each dot uses the per-author color.
+    const dots = pane.querySelectorAll('.commit-author-dot') as NodeListOf<HTMLElement>;
+    expect(dots.length).toBe(3);
+    // jsdom returns inline backgroundColor as rgb(...) — compare via
+    // the hex round-trip by setting a probe element.
+    const probe = document.createElement('div');
+    multi.authors.forEach((author, i) => {
+      probe.style.backgroundColor = colorForAuthor(author).hex;
+      expect(dots[i].style.backgroundColor).toBe(probe.style.backgroundColor);
+    });
+  });
+
   // ── Message block ─────────────────────────────────────────────────────────
 
   it('renders the commit subject inside .commit-message-subject (full text, not ellipsized)', async () => {
