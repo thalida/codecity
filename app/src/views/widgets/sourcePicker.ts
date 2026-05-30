@@ -1,4 +1,4 @@
-// sourcePicker.ts — Modal for picking the active source (local path or
+// views/widgets/sourcePicker.ts — Modal for picking the active source (local path or
 // git URL). Owns its own DOM, mounted into #source-picker-root. Recents
 // are pulled from sourceRecents.ts each time the modal renders.
 
