@@ -51,7 +51,7 @@
 - [x] forge-aware repo link: external-link button deep-links to the active branch on github / gitlab / bitbucket / codeberg / forgejo / gitea / sr.ht
 - [x] drop the history-window picker option + the whole `git_window` / `CODECITY_GIT_WINDOW` plumbing
 - [ ] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
-- [ ] per-author fireflies + co-author support — today each commit places 1 firefly (`ORBS_PER_TREE = 1`) and `commit.author` is a single string. Change so each distinct author of a commit gets their own firefly on that commit's tree, the api parses `Co-authored-by:` trailers, and the sidebar commit pane lists every author. Detailed prompt below.
+- [x] per-author fireflies + co-author support — today each commit places 1 firefly (`ORBS_PER_TREE = 1`) and `commit.author` is a single string. Change so each distinct author of a commit gets their own firefly on that commit's tree, the api parses `Co-authored-by:` trailers, and the sidebar commit pane lists every author. Detailed prompt below.
 - [ ] commit-info side pane perf — selecting a tree currently shows "Loading commit…" for a noticeable beat before the commit details render. Profile what's happening on the server + client (commit fetch endpoint, JSON parse, sidebar render) and tighten it; pre-fetching on hover or caching the last N commits client-side are likely directions.
 
 ## Agent Prompts ToDos

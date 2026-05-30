@@ -153,7 +153,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     }
 
     if (sel.kind === 'commit') {
-      // "Commit <short-sha> · <author>" with copy-full-sha button.
+      // "Commit <short-sha> · <primary>[ (+N)]" with copy-full-sha button.
       const label = document.createTextNode('Commit ');
       titleEl!.appendChild(label);
       const shaEl = document.createElement('span');
