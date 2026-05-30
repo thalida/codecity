@@ -189,13 +189,9 @@ export function createSourcePicker(opts: {
         const classes = ['recent-row'];
         if (isActive) classes.push('recent-row--active');
         if (isDisabled) classes.push('recent-row--disabled');
-        // Sub-line: source URL, then branch when present (with a
-        // "(default)" hint when the branch was inferred from the
-        // repo's HEAD rather than typed by the user). Join with " · ".
+        // Sub-line: source URL, then branch when present. Join with " · ".
         const subParts = [r.src];
-        if (r.branch) {
-          subParts.push(r.branchIsDefault ? `${r.branch} (default)` : r.branch);
-        }
+        if (r.branch) subParts.push(r.branch);
         const subLine = subParts.map(escapeHtml).join(' · ');
         return `
       <div class="recent-item">
