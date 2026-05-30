@@ -29,8 +29,8 @@
 
 import * as THREE from 'three';
 
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import { REPO_LABEL } from '@/config/components/repoLabel.js';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
+import { REPO_LABEL } from '@/state/settings/components/repoLabel.js';
 import { RENDER_ORDERS } from '@/constants';
 
 import vertSrc from './holoQuad.vert.glsl?raw';

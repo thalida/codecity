@@ -12,7 +12,7 @@
 
 import * as THREE from 'three';
 import { BuildingOrient } from '@/types/index.js';
-import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
+import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index.js';
 import { RENDER_ORDERS } from '@/constants';
 import { mediaKindOf, MediaKind } from './adPanels.js';
 import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray.js';

@@ -12,7 +12,7 @@ import type { DirNode, FileNode, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { makeExtensionBadge } from '@/views/components/badge.js';
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
+import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 
 interface BuildStreetPaneOpts {
   onClose?: () => void;

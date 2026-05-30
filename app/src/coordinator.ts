@@ -25,7 +25,7 @@ import { buildCommitPane } from './views/panes/commitPane.js';
 import { buildStreetPane } from './views/panes/streetPane.js';
 import { sameDayCommitCount } from './utils/commitMetrics.js';
 import { labelFromManifest } from './utils/sources.js';
-import { LIVE_UPDATES } from './config/index.js';
+import { LIVE_UPDATES } from './state/settings/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './store/liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';

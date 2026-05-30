@@ -4,10 +4,10 @@
 
 import './styles.css';
 
-import * as Config from './config/index.js';
+import * as Config from './state/settings/index.js';
 import { REBUILD_STATUS } from './store/liveStatus.js';
 import { attachPersistence, persistAtomPerSource } from './store/persist.js';
-import { SYNTAX_THEME } from './config/prefs/syntaxTheme.js';
+import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme.js';
 import { sourceKey, CURRENT_SOURCE_KEY } from './store/sourceContext.js';
 import { attachCommitReactions } from './store/configCommitReactions.js';
 import { setupLiveUpdates } from './store/liveUpdates.js';

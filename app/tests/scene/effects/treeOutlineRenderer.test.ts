@@ -7,8 +7,8 @@ import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer.js';
-import { TREE_OUTLINE } from '@/config/components/trees.js';
-import { RAINBOW } from '@/config/effects/effects.js';
+import { TREE_OUTLINE } from '@/state/settings/components/trees.js';
+import { RAINBOW } from '@/state/settings/effects/effects.js';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types/picker.js';
 

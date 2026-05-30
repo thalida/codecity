@@ -17,7 +17,7 @@
 // renders.
 
 import type { CityBbox } from '@/types';
-import { WORLD } from '@/config/world/world.js';
+import { WORLD } from '@/state/settings/world/world.js';
 
 /** Fallback half-extent when no bbox is available (pre-layout,
  *  non-git smoke tests). Keeps the floor visible at the origin. */

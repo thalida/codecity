@@ -14,8 +14,13 @@
 // querying a WorldOccupancy structure for the smallest stem offset that
 // keeps the new geometry from intersecting anything already placed.
 
-import { STREET_TIERS, BUILDING_DIMENSIONS, STREET_LAYOUT, GEM_SIZING } from '@/config/index.js';
-import type { StreetTier } from '@/config/components/streets.js';
+import {
+  STREET_TIERS,
+  BUILDING_DIMENSIONS,
+  STREET_LAYOUT,
+  GEM_SIZING,
+} from '@/state/settings/index.js';
+import type { StreetTier } from '@/state/settings/components/streets.js';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
 import { parentDirPath } from '../utils/path.js';

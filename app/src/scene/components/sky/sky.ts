@@ -22,8 +22,8 @@
 // then composites everything on top.
 
 import * as THREE from 'three';
-import { SKY, SKY_STARS } from '@/config/components/sky.js';
-import { CAMERA_PERSPECTIVE } from '@/config/system/cameraRig.js';
+import { SKY, SKY_STARS } from '@/state/settings/components/sky.js';
+import { CAMERA_PERSPECTIVE } from '@/state/settings/system/cameraRig.js';
 import { RENDER_ORDERS } from '@/constants';
 
 import skyVertSrc from './sky.vert.glsl?raw';

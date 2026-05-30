@@ -10,7 +10,7 @@
 // views/shell/rightSidebar.js.
 
 import hljs from 'highlight.js/lib/common';
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
+import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon.js';

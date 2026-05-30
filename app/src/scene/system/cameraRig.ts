@@ -26,7 +26,7 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/config/index.js';
+import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index.js';
 import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';

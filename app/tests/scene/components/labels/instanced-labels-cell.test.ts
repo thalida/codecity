@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/config/index.js';
+import { LABEL_TYPOGRAPHY } from '@/state/settings/index.js';
 import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
 import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
 import type { CellTile } from '@/scene/layout/cellTile.js';

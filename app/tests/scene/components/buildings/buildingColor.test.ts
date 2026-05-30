@@ -7,8 +7,8 @@ import {
   getBuildingColor,
   getModifiedAge,
 } from '@/scene/components/buildings/buildingColor.js';
-import { BUILDING_PALETTE } from '@/config/index.js';
-import type { BuildingPaletteConfig } from '@/config/components/buildings.js';
+import { BUILDING_PALETTE } from '@/state/settings/index.js';
+import type { BuildingPaletteConfig } from '@/state/settings/components/buildings.js';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';
 

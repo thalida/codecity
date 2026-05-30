@@ -15,7 +15,7 @@
 // The fader writes iFade on each CellTile.detailMesh (vec3 layout).
 
 import * as THREE from 'three';
-import { BUILDING_FADE } from '@/config/index.js';
+import { BUILDING_FADE } from '@/state/settings/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/utils/path.js';

@@ -8,10 +8,10 @@ import {
   __test,
 } from '@/scene/layout/layout.js';
 import type { Rect } from '@/scene/layout/layout.js';
-import { BUILDING_DIMENSIONS } from '@/config/index.js';
+import { BUILDING_DIMENSIONS } from '@/state/settings/index.js';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { BuildingDimensionsConfig } from '@/config/components/buildings.js';
-import type { StreetTier } from '@/config/components/streets.js';
+import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings.js';
+import type { StreetTier } from '@/state/settings/components/streets.js';
 import {
   assertNoOverlap,
   assertStemOrder,

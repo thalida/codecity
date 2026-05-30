@@ -8,7 +8,7 @@ import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer
 import { createOrbitRings } from './orbitRings.js';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 import type { CommitEntry } from '@/types';
-import { FIREFLIES } from '@/config/components/fireflies.js';
+import { FIREFLIES } from '@/state/settings/components/fireflies.js';
 
 /** Public handle returned by createFireflies. Extends the renderer with
  *  sha-based hover/select methods so callers don't need to manage the

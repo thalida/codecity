@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { createTreeRenderer } from '@/scene/components/trees/treeRenderer.js';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-import { TREES } from '@/config/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
+import { TREES } from '@/state/settings/components/trees.js';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
 import type { CommitEntry } from '@/types';
 
 function resetStores() {

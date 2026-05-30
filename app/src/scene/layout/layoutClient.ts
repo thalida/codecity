@@ -15,7 +15,12 @@
 // dimensions) is recomputed from the new manifest. This is the cheap
 // path for skeleton→final transitions and live updates.
 
-import { STREET_LAYOUT, BUILDING_DIMENSIONS, GEM_SIZING, STREET_TIERS } from '@/config/index.js';
+import {
+  STREET_LAYOUT,
+  BUILDING_DIMENSIONS,
+  GEM_SIZING,
+  STREET_TIERS,
+} from '@/state/settings/index.js';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 

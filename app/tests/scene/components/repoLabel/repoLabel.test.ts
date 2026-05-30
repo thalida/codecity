@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { createRepoLabel } from '@/scene/components/repoLabel/repoLabel.js';
-import { REPO_LABEL } from '@/config/components/repoLabel.js';
+import { REPO_LABEL } from '@/state/settings/components/repoLabel.js';
 import { RENDER_ORDERS } from '@/constants';
 import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 

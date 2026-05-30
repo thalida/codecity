@@ -4,7 +4,12 @@
 // result back. Pure compute, no DOM or THREE.* references.
 
 import { layoutCity } from './layout.js';
-import { STREET_LAYOUT, BUILDING_DIMENSIONS, GEM_SIZING, STREET_TIERS } from '@/config/index.js';
+import {
+  STREET_LAYOUT,
+  BUILDING_DIMENSIONS,
+  GEM_SIZING,
+  STREET_TIERS,
+} from '@/state/settings/index.js';
 import type { Manifest } from '@/types';
 import type { CityLayout } from '@/types';
 

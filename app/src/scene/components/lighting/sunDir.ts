@@ -16,7 +16,7 @@
 //     one-shot bakes like tree vertex shading).
 
 import * as THREE from 'three';
-import { LIGHTING } from '@/config/components/lighting.js';
+import { LIGHTING } from '@/state/settings/components/lighting.js';
 
 export function writeSunDir(out: THREE.Vector3): void {
   const lighting = LIGHTING.get();

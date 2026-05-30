@@ -28,7 +28,7 @@
 // cannot conflict by construction.
 
 import * as THREE from 'three';
-import { ANIMATION_TIMING } from '@/config/index.js';
+import { ANIMATION_TIMING } from '@/state/settings/index.js';
 import type { Building, WorldDiff } from '@/types';
 import type { createWorld } from '../world.js';
 

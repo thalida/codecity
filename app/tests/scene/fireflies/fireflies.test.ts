@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createFireflies } from '@/scene/components/fireflies/fireflies.js';
-import { FIREFLIES } from '@/config/components/fireflies.js';
+import { FIREFLIES } from '@/state/settings/components/fireflies.js';
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 

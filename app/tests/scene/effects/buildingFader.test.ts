@@ -7,7 +7,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { createBuildingFader } from '@/scene/effects/buildingFader.js';
-import { BUILDING_FADE } from '@/config/index.js';
+import { BUILDING_FADE } from '@/state/settings/index.js';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, DirNode, FileNode, PickTarget, Street } from '@/types';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import { buildControlsPane } from '@/views/panes/controlsPane.js';
 import { attachPersistence } from '@/store/persist.js';
-import * as Config from '@/config/index.js';
+import * as Config from '@/state/settings/index.js';
 
 describe('buildControlsPane', () => {
   it('returns a pane with the Settings header + Keyboard & mouse section first', () => {

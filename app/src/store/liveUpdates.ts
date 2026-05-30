@@ -13,7 +13,7 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
-import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/config/index.js';
+import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/store/liveStatus.js';
 import { streamManifest } from '@/api/manifest.js';
 import { manifestUrl, signatureUrl } from '@/api/urls.js';

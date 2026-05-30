@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { createIsland } from '@/scene/components/island/islandMesh.js';
-import { ISLAND_GEOMETRY } from '@/config/components/island.js';
+import { ISLAND_GEOMETRY } from '@/state/settings/components/island.js';
 import { RENDER_ORDERS } from '@/constants';
 
 describe('createIsland', () => {

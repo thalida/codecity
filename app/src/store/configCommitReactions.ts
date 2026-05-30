@@ -71,19 +71,19 @@ import {
   // Cyberpunk Valley — floating repo-name label (all keys material-only
   // via repoLabel.refresh() inside applyTheme()):
   REPO_LABEL,
-} from '@/config/index.js';
+} from '@/state/settings/index.js';
 import {
   // Cyberpunk Valley — island geometry and materials
   // (all material-only via island.refresh() inside applyTheme()):
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from '@/config/components/island.js';
+} from '@/state/settings/components/island.js';
 import {
   // Cyberpunk Valley — fireflies (structural: visibility is determined at
   // creation time by reading FIREFLIES_ENABLED, so any change requires a
   // full rebuild — there is no refresh() hot-path):
   FIREFLIES,
-} from '@/config/components/fireflies.js';
+} from '@/state/settings/components/fireflies.js';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 // applyTheme() is synchronous and finishes within microseconds, so without

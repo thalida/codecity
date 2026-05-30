@@ -9,7 +9,7 @@
 //   island.dispose();
 
 import * as THREE from 'three';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island.js';
 import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds.js';
 import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry.js';
 import { createIslandMaterial } from './islandShader.js';

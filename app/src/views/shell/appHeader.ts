@@ -6,7 +6,7 @@
 //
 // When no path is selected (or only the root), #app-title is empty.
 
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
+import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { makeGemIcon, makeLucideIcon } from '../components/icon.js';
 import { makeExtensionBadge } from '../components/badge.js';
 import { toHttpsRepoUrl } from '@/utils/sources.js';

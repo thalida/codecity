@@ -10,8 +10,8 @@
 
 import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-import { TREES } from '@/config/components/trees.js';
-import { FIREFLIES } from '@/config/components/fireflies.js';
+import { TREES } from '@/state/settings/components/trees.js';
+import { FIREFLIES } from '@/state/settings/components/fireflies.js';
 import {
   computeAgeRange,
   computeSizeRange,

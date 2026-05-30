@@ -10,7 +10,7 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { FACADE_GEOMETRY } from '@/config/index.js';
+import { FACADE_GEOMETRY } from '@/state/settings/index.js';
 import { BuildingOrient } from '@/types/index.js';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';

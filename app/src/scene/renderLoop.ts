@@ -16,11 +16,11 @@ import {
   GEM_GLOW,
   GEM_SIZING,
   BLOOM,
-} from '../config/index.js';
+} from '../state/settings/index.js';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
-import { SKY } from '@/config/components/sky.js';
+import { SKY } from '@/state/settings/components/sky.js';
 import { createWorld } from './world.js';
 import { refreshBuildingMaterial } from './components/buildings/buildings.js';
 import { createCameraRig } from './system/cameraRig.js';
