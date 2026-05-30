@@ -17,7 +17,7 @@ import type { Manifest } from './types';
 
 import { PICKER_SELECTION_KEY } from './scene/system/picker.js';
 import { manifestUrl } from './api/urls.js';
-import { _srcKind, _deriveLabel } from './utils/source.js';
+import { srcKind, labelFromUrl } from './utils/sources.js';
 import { applyHljsTheme } from './utils/syntaxTheme.js';
 import { buildIconAtlas } from './scene/components/buildings/iconAtlas.js';
 import { setIconAtlas } from './scene/components/buildings/buildings.js';
@@ -27,7 +27,6 @@ import { createLoadingOverlay } from './views/source/loadingOverlay.js';
 import { streamManifest } from './api/manifest.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
-import { labelFromUrl } from './views/widgets/displayLabel.js';
 import { getServerConfig } from './api/config.js';
 
 /**
@@ -128,8 +127,8 @@ if (_canvas) {
       const _bootSrc = qp.get('src')!;
       const _bootBranch = qp.get('branch') ?? undefined;
       loadingOverlay.show({
-        kind: _srcKind(_bootSrc),
-        label: _deriveLabel(_bootSrc),
+        kind: srcKind(_bootSrc),
+        label: labelFromUrl(_bootSrc) ?? _bootSrc,
         branch: _bootBranch,
       });
       try {
@@ -260,8 +259,8 @@ if (_canvas) {
       handle.world.resetCache();
       const dismissibleOnError = _lastDismissible;
       loadingOverlay.show({
-        kind: _srcKind(payload.src),
-        label: _deriveLabel(payload.src),
+        kind: srcKind(payload.src),
+        label: labelFromUrl(payload.src) ?? payload.src,
         branch: payload.branch,
       });
       try {
@@ -327,7 +326,7 @@ if (_canvas) {
             // payload.
             handle.coordinator.setSourceInfo(
               payload.branch,
-              _srcKind(payload.src) === 'git' ? payload.src : undefined
+              srcKind(payload.src) === 'git' ? payload.src : undefined
             );
           }
           manifest = event.manifest;
@@ -383,7 +382,7 @@ if (_canvas) {
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
           resolvedBranch,
-          _srcKind(payload.src) === 'git' ? payload.src : undefined
+          srcKind(payload.src) === 'git' ? payload.src : undefined
         );
 
         _liveUpdates?.setSignature(manifest.signature);
@@ -391,7 +390,7 @@ if (_canvas) {
           src: payload.src,
           branch: resolvedBranch,
           branchIsDefault,
-          label: _deriveLabel(payload.src),
+          label: labelFromUrl(payload.src) ?? payload.src,
         });
 
         if (!liveUpdatesStarted) {

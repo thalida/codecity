@@ -9,7 +9,7 @@
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { makeGemIcon, makeLucideIcon } from '../widgets/icon.js';
 import { makeExtensionBadge } from '../widgets/badge.js';
-import { toHttpsRepoUrl } from '../widgets/displayLabel.js';
+import { toHttpsRepoUrl } from '@/utils/sources.js';
 import { fitSegments } from '../widgets/pathTruncate.js';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.

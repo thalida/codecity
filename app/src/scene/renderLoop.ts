@@ -36,7 +36,7 @@ import { createCoordinator } from '../coordinator.js';
 import { showTooltip, hideTooltip } from '../views/widgets/tooltip.js';
 import { createPostFx } from './system/postFx.js';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray.js';
-import { labelFromManifest } from '../views/widgets/displayLabel.js';
+import { labelFromManifest } from '@/utils/sources.js';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
 // so that every downstream consumer (root street label, file tree root row,

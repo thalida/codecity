@@ -1,19 +1,22 @@
-// views/widgets/displayLabel.ts — Shared helpers for deriving a short,
-// human-friendly project label.
+// utils/sources.ts — Source URL helpers: classification (git vs local),
+// canonicalisation (SSH → HTTPS), and label derivation (URL/path → human
+// label, manifest → label).
 //
-// Two entry points:
-//   - labelFromUrl     — pure URL/path → label transform. Used by
-//                        applyPendingTitle in main.ts, where we have a
-//                        bare display_root string from the first stream
-//                        event and NO manifest yet.
-//   - labelFromManifest — manifest-aware: prefers display_root, falls
-//                        back to repo.remote_url, then tree.name.
-//
-// Exported as a standalone module so coordinator.ts, main.ts, renderLoop.ts,
-// and any future callers share one implementation instead of duplicating
-// the URL/path parsing logic.
+// Public surface:
+//   - srcKind(src)           — 'git' | 'local' discriminator.
+//   - toHttpsRepoUrl(src)    — canonical https URL from any repo URL form.
+//   - labelFromUrl(src)      — pure URL/path → "owner/repo" or basename.
+//   - labelFromManifest(m)   — manifest-aware: display_root, remote_url,
+//                              or tree.name fallback.
 
 import type { Manifest } from '@/types/manifest';
+
+/** Classify a source string as a git URL or a local path. Git URLs are
+ *  recognised by either a scheme (https://, ssh://, etc.) or the
+ *  scp-style `user@host:path` form. Anything else is local. */
+export function srcKind(src: string): 'git' | 'local' {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
+}
 
 /**
  * Convert any recognisable repo URL form to an https:// URL.
