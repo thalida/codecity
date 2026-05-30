@@ -11,10 +11,16 @@
 // here — see views/panes/filePreviewPane.tsx.
 
 import { h } from 'preact';
-import { signal } from '@preact/signals';
+import { signal, effect } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
+import { NodeKind } from '@/types';
+import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { buildFilePreviewPane, humanLanguageFor } from '@/views/panes/filePreviewPane';
+import { buildCommitPane } from '@/views/panes/commitPane';
+import { buildStreetPane } from '@/views/panes/streetPane';
+import { sameDayCommitCount } from '@/utils/commit';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;
@@ -142,6 +148,147 @@ export function RightSidebar({ state, sidebarEl }: RightSidebarProps) {
 
   // No visual output — all changes are imperative DOM mutations on sidebarEl
   return null;
+}
+
+// ── Self-subscribing right sidebar reactions ──────────────────────────────────
+// Called from App.tsx instead of coordinator.ts. Builds the three panes once
+// then subscribes to SCENE_HANDLE + picker.selection to swap panes in response
+// to selection changes. Called on app boot; returns a dispose() that stops
+// the effects.
+
+export function mountRightSidebarReactions(): () => void {
+  type SidebarPane = 'file' | 'commit' | 'street' | null;
+  let sidebarPane: SidebarPane = null;
+
+  const filePreview = buildFilePreviewPane({
+    onClose() {
+      sidebarPane = null;
+      _renderSidebar();
+    },
+    onFocus(file) {
+      const handle = SCENE_HANDLE.peek();
+      if (!handle) return;
+      const b = handle.world.getBuildingByPath(file.path);
+      if (b) handle.rig.focusBuilding(b.mesh, b.building);
+    },
+  });
+
+  const commitPane = buildCommitPane({
+    onClose() {
+      sidebarPane = null;
+      _renderSidebar();
+    },
+    onFocus(c) {
+      const handle = SCENE_HANDLE.peek();
+      if (handle) handle.rig.focusTree(c.sha);
+    },
+  });
+
+  const streetPane = buildStreetPane({
+    onClose() {
+      sidebarPane = null;
+      _renderSidebar();
+    },
+    onFocus(d) {
+      const handle = SCENE_HANDLE.peek();
+      if (!handle) return;
+      const st = handle.world.getStreetByDir(d.path);
+      if (st) handle.rig.focusStreet(st, null);
+    },
+  });
+
+  function _renderSidebar(): void {
+    const handle = SCENE_HANDLE.peek();
+    const sel = handle?.picker.selection.peek() ?? null;
+    if (sidebarPane === null) {
+      hideRightSidebar();
+      return;
+    }
+    if (sidebarPane === 'file') {
+      showRightSidebar(filePreview.pane);
+      if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
+      else filePreview.api.setFile(null);
+      return;
+    }
+    if (sidebarPane === 'commit') {
+      showRightSidebar(commitPane.pane);
+      const world = handle?.world;
+      const m = world?.getManifest();
+      const remote = m?.repo?.remote_url ?? null;
+      if (sel && sel.kind === NodeKind.Commit) {
+        const commits = m?.commits ?? [];
+        const sameDayTotal = sameDayCommitCount(sel.commit, commits);
+        const color = world?.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
+        commitPane.api.setCommit(sel.commit, { remoteUrl: remote, sameDayTotal, color });
+      } else {
+        commitPane.api.setCommit(null);
+      }
+      return;
+    }
+    if (sidebarPane === 'street') {
+      showRightSidebar(streetPane.pane);
+      const _sel = sel;
+      setTimeout(() => {
+        if (_sel && _sel.kind === NodeKind.Directory) {
+          streetPane.api.setDirectory(_sel.dir);
+        } else {
+          streetPane.api.setDirectory(null);
+        }
+      }, 0);
+      return;
+    }
+  }
+
+  // Subscribe to selection changes. Reading SCENE_HANDLE.value establishes
+  // tracking so when the handle is first assigned (CenterPane mount) this
+  // effect runs and wires up the selection-based pane choice.
+  const _selUnsub = effect(() => {
+    const handle = SCENE_HANDLE.value;
+    if (!handle) {
+      sidebarPane = null;
+      hideRightSidebar();
+      return;
+    }
+    const sel = handle.picker.selection.value;
+    if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
+    else if (sel && sel.kind === NodeKind.Commit) sidebarPane = 'commit';
+    else if (sel && sel.kind === NodeKind.Directory) sidebarPane = 'street';
+    else sidebarPane = null;
+    _renderSidebar();
+  });
+
+  // Subscribe to world.onChange so panes stay fresh on live-update rebuilds.
+  const _worldUnsub = effect(() => {
+    const handle = SCENE_HANDLE.value;
+    if (!handle) return;
+    let _unsub: (() => void) | null = null;
+    _unsub = handle.world.onChange(() => {
+      const sel = handle.picker.selection.peek();
+      const m = handle.world.getManifest();
+      // Refresh commit pane data when manifest updates while a commit is selected.
+      if (sidebarPane === 'commit' && sel?.kind === NodeKind.Commit) {
+        const remote = m?.repo?.remote_url ?? null;
+        const commits = m?.commits ?? [];
+        const sameDayTotal = sameDayCommitCount(sel.commit, commits);
+        const color = handle.world.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
+        commitPane.api.setCommit(sel.commit, { remoteUrl: remote, sameDayTotal, color });
+      }
+      // Refresh street pane data when directory is selected and manifest updated.
+      if (sidebarPane === 'street' && sel?.kind === NodeKind.Directory) {
+        const refreshed = handle.world.getStreetByDir(sel.dir.path);
+        const dir = refreshed?.dir ?? sel.dir;
+        streetPane.api.setDirectory(dir);
+      }
+    });
+    return () => {
+      if (_unsub) _unsub();
+    };
+  });
+
+  return function dispose() {
+    if (typeof _selUnsub === 'function') _selUnsub();
+    if (typeof _worldUnsub === 'function') _worldUnsub();
+  };
 }
 
 // ── Backward-compat shims ─────────────────────────────────────────────────────

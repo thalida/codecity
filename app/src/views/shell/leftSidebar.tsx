@@ -6,16 +6,17 @@
 //   - drag-to-resize handle on the sidebar's right edge (also persisted)
 
 import { h } from 'preact';
-import { signal } from '@preact/signals';
+import { signal, effect } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { buildTreePane } from '@/views/panes/treePane';
 import { buildInfoPane } from '@/views/panes/infoPane';
 import { buildControlsPane } from '@/views/panes/controlsPane';
 import { buildSearchPane } from '@/views/panes/searchPane';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
-import { SidebarTab } from '@/types';
+import { SidebarTab, NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { loadFlag, saveFlag } from '@/state/runtime/localFlag';
+import { SCENE_HANDLE } from '@/state/runtime/scene';
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;
@@ -349,12 +350,76 @@ export function showLeftSidebar(
   container.appendChild(panel);
   container.appendChild(_buildResizeHandle(container));
 
+  // ── Signal-driven tree highlight + manifest refresh ────────────────────────
+  // Subscribe to SCENE_HANDLE so that once the scene mounts, picker changes
+  // drive tree highlights without the coordinator needing to wire them up.
+  // Using .peek() for the handle itself (we only want to react to picker
+  // selection/hover changes, not to scene remounts) would miss the initial
+  // handle assignment — so we read SCENE_HANDLE.value to establish tracking
+  // for the assignment, and read picker.selection/hover.value inside the
+  // same effect to track those fine-grained changes.
+  //
+  // Over-tracking note: reading both .selection.value and .hover.value in
+  // one effect means any hover change also fires the selection highlight
+  // path (and vice versa). That's intentional here — tree highlights for
+  // both selection and hover are computed from the same two signals and
+  // should stay in sync.
+  const _pathOf = (target: import('@/types').PickTarget | null): string | null => {
+    if (!target) return null;
+    if (target.kind === NodeKind.File) return target.file?.path ?? null;
+    if (target.kind === NodeKind.Directory) return target.dir?.path ?? null;
+    return null;
+  };
+
+  const _selUnsub = effect(() => {
+    const handle = SCENE_HANDLE.value;
+    if (!handle) {
+      treeBundle.api.setSelectedPath(null);
+      return;
+    }
+    const sel = handle.picker.selection.value;
+    treeBundle.api.setSelectedPath(_pathOf(sel));
+  });
+
+  const _hovUnsub = effect(() => {
+    const handle = SCENE_HANDLE.value;
+    if (!handle) {
+      treeBundle.api.setHoveredPath(null);
+      return;
+    }
+    const hov = handle.picker.hover.value;
+    treeBundle.api.setHoveredPath(_pathOf(hov));
+  });
+
+  const _manifestUnsub = effect(() => {
+    const handle = SCENE_HANDLE.value;
+    if (!handle) return;
+    // Subscribe to world onChange is not signal-based; we subscribe via the
+    // world.onChange() API and store the cleanup. This effect re-subscribes
+    // when SCENE_HANDLE changes (e.g. on a source switch that remounts CenterPane).
+    let _worldUnsub: (() => void) | null = null;
+    _worldUnsub = handle.world.onChange(() => {
+      const m = handle.world.getManifest();
+      if (infoBundle.api.setManifest) infoBundle.api.setManifest(m);
+      if (treeBundle.api.setManifest) treeBundle.api.setManifest(m);
+      if (searchBundle.api.setManifest) searchBundle.api.setManifest(m);
+    });
+    return () => {
+      if (_worldUnsub) _worldUnsub();
+    };
+  });
+
   return {
     setSelectedTreePath: treeBundle.api.setSelectedPath,
     setHoveredTreePath: treeBundle.api.setHoveredPath,
     setInfoManifest: infoBundle.api.setManifest,
     setTreeManifest: treeBundle.api.setManifest,
     setSearchManifest: searchBundle.api.setManifest,
+    dispose() {
+      if (typeof _selUnsub === 'function') _selUnsub();
+      if (typeof _hovUnsub === 'function') _hovUnsub();
+      if (typeof _manifestUnsub === 'function') _manifestUnsub();
+    },
   };
 }
 
