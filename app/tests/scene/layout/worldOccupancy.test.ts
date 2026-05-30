@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy';
 import { WorldOccupancy, type WorldRect } from '@/scene/layout/worldOccupancy';
 
 // Helper to build a WorldRect from {x, y, w, d} for terse tests.

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildFilePreviewPane } from '@/views/panes/filePreviewPane.js';
-import { showRightSidebar, hideRightSidebar } from '@/views/shell/rightSidebar.js';
+import { buildFilePreviewPane } from '@/views/panes/filePreviewPane';
+import { showRightSidebar, hideRightSidebar } from '@/views/shell/rightSidebar';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
 

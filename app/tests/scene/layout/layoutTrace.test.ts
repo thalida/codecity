@@ -1,11 +1,11 @@
 // layoutTrace.test.ts — exercise the optional `trace` params on
-import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy';
 // findSmallestValidStem, placeChild, and the layoutCityWithTrace entry.
 
 import { describe, it, expect } from 'vitest';
-import { findSmallestValidStem, placeChild, layoutCityWithTrace } from '@/scene/layout/layout.js';
-import type { VariantTrace } from '@/scene/layout/layout.js';
-import { WorldOccupancy } from '@/scene/layout/worldOccupancy.js';
+import { findSmallestValidStem, placeChild, layoutCityWithTrace } from '@/scene/layout/layout';
+import type { VariantTrace } from '@/scene/layout/layout';
+import { WorldOccupancy } from '@/scene/layout/worldOccupancy';
 import { StreetAxis, NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 

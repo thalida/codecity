@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { SpatialGrid } from '@/scene/layout/spatialGrid.js';
-import { buildCellStreetMesh, type SidewalkRect } from '@/scene/components/streets/streetTile.js';
+import { SpatialGrid } from '@/scene/layout/spatialGrid';
+import { buildCellStreetMesh, type SidewalkRect } from '@/scene/components/streets/streetTile';
 
 describe('streetTile', () => {
   it('merges rects whose centroid is inside the cell', () => {

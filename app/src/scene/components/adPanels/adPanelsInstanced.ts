@@ -11,12 +11,12 @@
 // require WebGL2.
 
 import * as THREE from 'three';
-import { BuildingOrient } from '@/types/index.js';
-import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/config/index.js';
+import { BuildingOrient } from '@/types/index';
+import { AD_PANEL, BLOOM, BUILDING_DIMENSIONS } from '@/state/settings/index';
 import { RENDER_ORDERS } from '@/constants';
-import { mediaKindOf, MediaKind } from './adPanels.js';
-import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray.js';
-import type { Building } from '@/types/index.js';
+import { mediaKindOf, MediaKind } from './adPanels';
+import { AdPanelTextureArray, MAX_PAGES as AD_PANEL_MAX_PAGES } from './adPanelTextureArray';
+import type { Building } from '@/types/index';
 
 import adPanelVertSrc from './adPanel.vert.glsl?raw';
 import adPanelFragSrc from './adPanel.frag.glsl?raw';

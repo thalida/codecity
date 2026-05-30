@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/scene/layout/spatialGrid.js';
+import { SpatialGrid, CELL_SIZE, MIN_CELL_SIZE } from '@/scene/layout/spatialGrid';
 
 describe('SpatialGrid', () => {
   it('computes grid dimensions from world bounds', () => {

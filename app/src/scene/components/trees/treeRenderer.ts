@@ -23,9 +23,9 @@
 // strength) goes through the rebuild path in hotReload.ts.
 
 import * as THREE from 'three';
-import { TREES } from '@/config/components/trees.js';
+import { TREES } from '@/state/settings/components/trees';
 import { RENDER_ORDERS } from '@/constants';
-import type { TreePlacement } from './treePlacement.js';
+import type { TreePlacement } from './treePlacement';
 import type { CommitEntry } from '@/types';
 import {
   computeAgeRange,
@@ -37,9 +37,9 @@ import {
   type AgeRange,
   type SizeRange,
   type DailyCounts,
-} from './treeEncoding.js';
-import { interpolateOklch } from '@/scene/utils/color/colors.js';
-import { sunDirFromLighting } from '@/scene/components/lighting/sunDir.js';
+} from './treeEncoding';
+import { interpolateOklch } from '@/scene/utils/color/colors';
+import { sunDirFromLighting } from '@/scene/components/lighting/sunDir';
 
 export interface Trees {
   group: THREE.Group;

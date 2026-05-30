@@ -11,9 +11,14 @@
 // just builds the static structure; mutation lives elsewhere.
 
 import * as THREE from 'three';
-import { GEM_SIZING, GEM_FACE_PALETTE, GEM_APPEARANCE, GEM_GLOW } from '@/config/components/gem.js';
+import {
+  GEM_SIZING,
+  GEM_FACE_PALETTE,
+  GEM_APPEARANCE,
+  GEM_GLOW,
+} from '@/state/settings/components/gem';
 import { NodeKind } from '@/types';
-import { gemAnchorXZ } from '../../utils/gemAnchor.js';
+import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Street } from '@/types';
 
 // Procedural glow texture: a single-channel radial gradient drawn on a

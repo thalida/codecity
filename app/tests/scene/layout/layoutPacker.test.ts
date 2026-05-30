@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy';
 import { StreetAxis } from '@/types';
 import {
   applyFlips,

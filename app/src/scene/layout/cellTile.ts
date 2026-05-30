@@ -9,9 +9,9 @@
 // is just the data carrier and the empty constructor.
 
 import * as THREE from 'three';
-import type { Building } from '@/types/index.js';
-import type { DirNode } from '@/types/manifest.js';
-import type { SpatialGrid } from './spatialGrid.js';
+import type { Building } from '@/types/index';
+import type { DirNode } from '@/types/manifest';
+import type { SpatialGrid } from './spatialGrid';
 
 export interface CellTile {
   cellId: number;

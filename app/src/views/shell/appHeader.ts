@@ -6,11 +6,11 @@
 //
 // When no path is selected (or only the root), #app-title is empty.
 
-import { ASPHALT, BUILDING_PALETTE } from '@/config';
-import { makeGemIcon, makeLucideIcon } from '../widgets/icon.js';
-import { makeExtensionBadge } from '../widgets/badge.js';
-import { toHttpsRepoUrl } from '../widgets/displayLabel.js';
-import { fitSegments } from '../widgets/pathTruncate.js';
+import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
+import { makeGemIcon, makeLucideIcon } from '../components/icon';
+import { makeExtensionBadge } from '../components/badge';
+import { toHttpsRepoUrl } from '@/utils/sources';
+import { fitSegments } from '../components/pathTruncate';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;

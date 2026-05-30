@@ -8,7 +8,7 @@
 // and the fireflies renderer (per-instance orb color). Same input =
 // same output across rebuilds and across consumers.
 
-import { oklchToLinearRgb, linearRgbToHex } from '@/scene/utils/color/colors.js';
+import { oklchToLinearRgb, linearRgbToHex } from '@/scene/utils/color/colors';
 
 // Base palette used for firefly orbs — saturated, mid-lightness.
 const ORB_L = 0.78;

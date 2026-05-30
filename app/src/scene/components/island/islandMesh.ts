@@ -9,10 +9,10 @@
 //   island.dispose();
 
 import * as THREE from 'three';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
-import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds.js';
-import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry.js';
-import { createIslandMaterial } from './islandShader.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { getWorldBounds, type WorldBounds } from '@/scene/layout/worldBounds';
+import { buildIslandGeometry, type IslandBuildParams } from './islandGeometry';
+import { createIslandMaterial } from './islandShader';
 import { RENDER_ORDERS } from '@/constants';
 
 const ISLAND_TOP_Y = -2.0; // Increased from -0.5 for z-fighting prevention (4x separation from city y=0)

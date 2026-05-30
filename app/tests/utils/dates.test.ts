@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatRelativeAge } from '@/utils/dates.js';
+import { formatRelativeAge } from '@/utils/dates';
 
 const NOW = new Date('2026-05-24T12:00:00Z');
 

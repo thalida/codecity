@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { buildLabelAtlas } from '@/scene/components/labels/labels.js';
-import { TYPOGRAPHY } from '../../../_helpers/typography.js';
+import { buildLabelAtlas } from '@/scene/components/labels/labels';
+import { TYPOGRAPHY } from '../../../_helpers/typography';
 
 describe('buildLabelAtlas', () => {
   it('returns at least one page + UV rect per text', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { initAppHeader } from '@/views/shell/appHeader.js';
+import { initAppHeader } from '@/views/shell/appHeader';
 
 function resetDom() {
   document.body.innerHTML = `

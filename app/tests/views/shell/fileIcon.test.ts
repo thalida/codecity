@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeFileIcon, makeFolderIcon } from '@/views/widgets/fileIcon.js';
+import { makeFileIcon, makeFolderIcon } from '@/views/components/fileIcon';
 
 // jsdom doesn't actually fetch the icon src — we just validate the
 // URL the helper picks. The `data-icon-name` data attribute on the

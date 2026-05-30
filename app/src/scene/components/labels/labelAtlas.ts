@@ -12,7 +12,7 @@
 // from the atlas (writeLabelToSlot will treat missing rects as
 // zero-scale, i.e. invisible). The renderer warns but does not crash.
 
-import type { LabelTypographyConfig } from '@/config/index.js';
+import type { LabelTypographyConfig } from '@/state/settings/index';
 
 // ---------------------------------------------------------------------------
 // Public types

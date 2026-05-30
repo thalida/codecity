@@ -1,0 +1,89 @@
+// utils/sources.ts — Source URL helpers: classification (git vs local),
+// canonicalisation (SSH → HTTPS), and label derivation (URL/path → human
+// label, manifest → label).
+//
+// Public surface:
+//   - srcKind(src)           — 'git' | 'local' discriminator.
+//   - toHttpsRepoUrl(src)    — canonical https URL from any repo URL form.
+//   - labelFromUrl(src)      — pure URL/path → "owner/repo" or basename.
+//   - labelFromManifest(m)   — manifest-aware: display_root, remote_url,
+//                              or tree.name fallback.
+
+import type { Manifest } from '@/types/manifest';
+
+/** Classify a source string as a git URL or a local path. Git URLs are
+ *  recognised by either a scheme (https://, ssh://, etc.) or the
+ *  scp-style `user@host:path` form. Anything else is local. */
+export function srcKind(src: string): 'git' | 'local' {
+  return /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src) ? 'git' : 'local';
+}
+
+/**
+ * Convert any recognisable repo URL form to an https:// URL.
+ *   https://… / http://… → returned as-is.
+ *   git@host:path.git    → https://host/path  (SSH → HTTPS)
+ *   anything else        → returned unchanged (best effort).
+ */
+export function toHttpsRepoUrl(src: string): string {
+  if (src.startsWith('https://') || src.startsWith('http://')) return src;
+  // SSH form: git@github.com:owner/repo.git
+  const sshMatch = /^[^@]+@([^:]+):(.+?)(?:\.git)?$/.exec(src);
+  if (sshMatch) {
+    const host = sshMatch[1];
+    const path = sshMatch[2];
+    return `https://${host}/${path}`;
+  }
+  return src;
+}
+
+/**
+ * Pure URL/path → label transform.
+ *
+ * For any URL form (http/https/ssh) we extract "owner/repo" from the last
+ * two path segments. For a local-path display root we return the basename.
+ * Returns null only when the input is empty/null/undefined — in that case
+ * callers should fall back to whatever else they have (tree.name, etc.).
+ *
+ * Strips an optional `@branch` suffix the server appends for git sources
+ * before parsing.
+ */
+export function labelFromUrl(src: string | null | undefined): string | null {
+  if (!src) return null;
+  // Strip optional @branch suffix before analysing the URL/path.
+  const noBranch = src.replace(/@[^@/]+$/, '');
+  // git URL: derive "owner/repo" from the last two path segments.
+  if (/:\/\//.test(noBranch) || /^[^@]+@[^:]+:/.test(noBranch)) {
+    const m = noBranch.match(/[/:]([^/]+)\/([^/]+?)(?:\.git)?$/);
+    if (m) return `${m[1]}/${m[2]}`;
+    return noBranch;
+  }
+  // Local path: basename.
+  const parts = noBranch.split(/[/\\]/).filter(Boolean);
+  return parts.length ? parts[parts.length - 1] : noBranch;
+}
+
+/**
+ * Derive a short, human-friendly label for a manifest.
+ *
+ * Source preference, in order:
+ *   1. `manifest.display_root` — set by the API for git-URL-synced sources
+ *      (carries an optional `@branch` suffix that is stripped before parsing).
+ *   2. `manifest.repo.remote_url` — set for any local repo whose working
+ *      tree has a remote configured, so that a local clone of
+ *      github.com/foo/bar still labels as "foo/bar" instead of the on-disk
+ *      basename.
+ *   3. `manifest.tree.name` — the raw tree name (basename) when no URL signal
+ *      is available (e.g. a local repo with no remote).
+ */
+export function labelFromManifest(m: Manifest | null | undefined): string | null {
+  if (!m) return null;
+  if (m.display_root) {
+    const fromDisplay = labelFromUrl(m.display_root);
+    if (fromDisplay) return fromDisplay;
+  }
+  if (m.repo?.remote_url) {
+    const fromRemote = labelFromUrl(m.repo.remote_url);
+    if (fromRemote) return fromRemote;
+  }
+  return m.tree?.name ?? null;
+}

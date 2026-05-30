@@ -4,12 +4,12 @@
 // runs the scan, posts back the TreePlacement[]. Pure compute, no
 // DOM, no three.js references.
 
-import { placeTrees, type TreePlacement } from './treePlacement.js';
-import { TREES } from '@/config/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import { FOOTPRINT } from '@/config/components/footprint.js';
-import { WORLD } from '@/config/world/world.js';
-import type { IslandGeometryConfig } from '@/config/components/island.js';
+import { placeTrees, type TreePlacement } from './treePlacement';
+import { TREES } from '@/state/settings/components/trees';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { WORLD } from '@/state/settings/world/world';
+import type { IslandGeometryConfig } from '@/state/settings/components/island';
 import type { CityBbox, CityLayout } from '@/types';
 
 type TreesValue = ReturnType<typeof TREES.get>;
@@ -17,7 +17,7 @@ type BuildingDimsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
 type FootprintValue = ReturnType<typeof FOOTPRINT.get>;
 type WorldValue = ReturnType<typeof WORLD.get>;
 
-import { MSG } from './treePlacementProtocol.js';
+import { MSG } from './treePlacementProtocol';
 
 interface PlaceRequest {
   type: typeof MSG.REQUEST;

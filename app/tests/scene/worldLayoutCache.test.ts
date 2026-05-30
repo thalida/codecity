@@ -17,8 +17,8 @@
 // `["invalidateLayoutCache", "applyManifest"]`. Post-fix: passes.
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { attachCommitReactions } from '@/store/configCommitReactions.js';
-import { STREET_LAYOUT } from '@/config/index.js';
+import { attachCommitReactions } from '@/state/reactions';
+import { STREET_LAYOUT } from '@/state/settings/index';
 
 describe('configCommitReactions invalidates layout cache before applyManifest', () => {
   let calls: string[];

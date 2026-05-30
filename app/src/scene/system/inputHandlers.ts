@@ -5,18 +5,18 @@
 //   const handlers = createInputHandlers({
 //     canvas, picker, rig, renderer, camera,
 //     onResize: function () { /* renderer-specific onResize work */ },
-//     showTooltip, hideTooltip,            // tooltip api (from views/widgets/tooltip.js)
+//     showTooltip, hideTooltip,            // tooltip api (from views/components/tooltip.js)
 //   });
 //   handlers.dispose();
 
 import * as THREE from 'three';
-import { INPUT_TIMING } from '@/config/index.js';
+import { INPUT_TIMING } from '@/state/settings/index';
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
-import { formatRelativeAge } from '@/utils/dates.js';
-import type { createPicker } from './picker.js';
-import type { createCameraRig } from './cameraRig.js';
+import { formatRelativeAge } from '@/utils/dates';
+import type { createPicker } from './picker';
+import type { createCameraRig } from './cameraRig';
 
 export function createInputHandlers({
   canvas,

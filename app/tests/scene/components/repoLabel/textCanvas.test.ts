@@ -4,7 +4,7 @@ import {
   createRepoNameTexture,
   measureForName,
   redrawRepoName,
-} from '@/scene/components/repoLabel/textCanvas.js';
+} from '@/scene/components/repoLabel/textCanvas';
 
 describe('repoLabel textCanvas', () => {
   it('createRepoNameTexture returns a CanvasTexture sized for the name', () => {

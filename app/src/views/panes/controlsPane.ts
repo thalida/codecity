@@ -47,18 +47,22 @@ import {
   SYNTAX_THEME,
   SYNTAX_THEME_DEFAULT,
   SYNTAX_THEME_OPTIONS,
-} from '@/config/index.js';
-import { SKY, SKY_STARS } from '@/config/components/sky.js';
-import { REPO_LABEL } from '@/config/components/repoLabel.js';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/config/components/island.js';
-import { WORLD } from '@/config/world/world.js';
-import { TREES, TREE_OUTLINE } from '@/config/components/trees.js';
-import { FIREFLIES } from '@/config/components/fireflies.js';
-import { FOOTPRINT } from '@/config/components/footprint.js';
-import { FACADE_GEOMETRY, FACADE_DETAIL, WINDOW_LIGHTING } from '@/config/components/facade.js';
-import { AD_PANEL } from '@/config/components/adPanels.js';
-import { ANIMATION_TIMING } from '@/config/system/animator.js';
-import { getDefault, forEachRegisteredStore, onAnyChange } from '@/store/persist.js';
+} from '@/state/settings/index';
+import { SKY, SKY_STARS } from '@/state/settings/components/sky';
+import { REPO_LABEL } from '@/state/settings/components/repoLabel';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
+import { WORLD } from '@/state/settings/world/world';
+import { TREES, TREE_OUTLINE } from '@/state/settings/components/trees';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
+import {
+  FACADE_GEOMETRY,
+  FACADE_DETAIL,
+  WINDOW_LIGHTING,
+} from '@/state/settings/components/facade';
+import { AD_PANEL } from '@/state/settings/components/adPanels';
+import { ANIMATION_TIMING } from '@/state/settings/system/animator';
+import { getDefault, forEachRegisteredStore, onAnyChange } from '@/state/persist';
 import {
   setDraft,
   getEffective,
@@ -68,11 +72,11 @@ import {
   discard as discardDrafts,
   isDirty as draftsAreDirty,
   subscribe as subscribeDrafts,
-} from '@/store/configDrafts.js';
+} from '@/state/drafts';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
-import { buildPaneHeader } from '@/views/shell/paneHeader.js';
+import { makeLucideIcon } from '@/views/components/icon';
+import { buildPaneHeader } from '@/views/components/paneHeader';
 
 // Structural store shape used by all the widget builders. Covers nanostores
 // `map<T>()` (with .setKey) and falls back to .set for atom-like stores.

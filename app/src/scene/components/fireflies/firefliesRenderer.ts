@@ -9,8 +9,8 @@
 
 import * as THREE from 'three';
 import { RENDER_ORDERS } from '@/constants';
-import { FIREFLIES } from '@/config/components/fireflies.js';
-import type { FireflyPlacement } from './firefliesPlacement.js';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
+import type { FireflyPlacement } from './firefliesPlacement';
 import vertexShader from './fireflies.vert.glsl?raw';
 import fragmentShader from './fireflies.frag.glsl?raw';
 

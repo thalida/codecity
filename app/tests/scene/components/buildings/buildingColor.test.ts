@@ -6,9 +6,9 @@ import {
   getDateRanges,
   getBuildingColor,
   getModifiedAge,
-} from '@/scene/components/buildings/buildingColor.js';
-import { BUILDING_PALETTE } from '@/config/index.js';
-import type { BuildingPaletteConfig } from '@/config/components/buildings.js';
+} from '@/scene/components/buildings/buildingColor';
+import { BUILDING_PALETTE } from '@/state/settings/index';
+import type { BuildingPaletteConfig } from '@/state/settings/components/buildings';
 import { NodeKind } from '@/types';
 import type { RangeStat } from '@/types';
 

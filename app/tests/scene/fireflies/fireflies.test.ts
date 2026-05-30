@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createFireflies } from '@/scene/components/fireflies/fireflies.js';
-import { FIREFLIES } from '@/config/components/fireflies.js';
+import { createFireflies } from '@/scene/components/fireflies/fireflies';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
 import type { CommitEntry } from '@/types';
-import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 
 const COMMITS: CommitEntry[] = [
   { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a' },

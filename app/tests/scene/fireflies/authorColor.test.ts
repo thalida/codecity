@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
+import { colorForAuthor } from '@/scene/components/fireflies/authorColor';
 
 describe('colorForAuthor', () => {
   it('returns the same hex for the same name across calls', () => {

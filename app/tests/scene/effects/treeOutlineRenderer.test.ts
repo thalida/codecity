@@ -6,11 +6,11 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
 import { atom } from 'nanostores';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
-import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer.js';
-import { TREE_OUTLINE } from '@/config/components/trees.js';
-import { RAINBOW } from '@/config/effects/effects.js';
+import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer';
+import { TREE_OUTLINE } from '@/state/settings/components/trees';
+import { RAINBOW } from '@/state/settings/effects/effects';
 import { NodeKind } from '@/types';
-import type { PickTarget } from '@/types/picker.js';
+import type { PickTarget } from '@/types/picker';
 
 function fakeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas');

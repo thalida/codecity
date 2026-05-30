@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import { createIslandMaterial } from '@/scene/components/island/islandShader.js';
+import { createIslandMaterial } from '@/scene/components/island/islandShader';
 
 describe('createIslandMaterial', () => {
   it('returns a ShaderMaterial with all required uniforms', () => {

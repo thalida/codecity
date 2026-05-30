@@ -3,14 +3,14 @@
 
 import { describe, it, expect } from 'vitest';
 import type * as THREE from 'three';
-import { InstancedAdPanels } from '@/scene/components/adPanels/adPanelsInstanced.js';
+import { InstancedAdPanels } from '@/scene/components/adPanels/adPanelsInstanced';
 import {
   AdPanelTextureArray,
   PANEL_TEX_SIZE,
-} from '@/scene/components/adPanels/adPanelTextureArray.js';
-import { BLOOM } from '@/config/index.js';
-import { BuildingOrient, NodeKind } from '@/types/index.js';
-import type { Building } from '@/types/index.js';
+} from '@/scene/components/adPanels/adPanelTextureArray';
+import { BLOOM } from '@/state/settings/index';
+import { BuildingOrient, NodeKind } from '@/types/index';
+import type { Building } from '@/types/index';
 
 // ---------------------------------------------------------------------------
 // Minimal Building fixture — only the fields read by registerMediaBuilding.

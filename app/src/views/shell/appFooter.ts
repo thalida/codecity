@@ -15,7 +15,7 @@
 // The refresh/reset-view button has moved to the header (far right).
 
 import { DateSource, NodeKind } from '@/types';
-import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates.js';
+import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
 
 interface FooterFileSelection {
   kind: NodeKind.File;

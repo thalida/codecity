@@ -9,14 +9,14 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRenderer.js';
-import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-import { TREES } from '@/config/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/config/components/buildings.js';
-import { LIGHTING } from '@/config/components/lighting.js';
+import { createTreeRenderer, type Trees } from '@/scene/components/trees/treeRenderer';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement';
+import { TREES } from '@/state/settings/components/trees';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { LIGHTING } from '@/state/settings/components/lighting';
 import { RENDER_ORDERS } from '@/constants';
 import type { CommitEntry } from '@/types';
-import { commits as buildCommits } from './_commitFixtures.js';
+import { commits as buildCommits } from './_commitFixtures';
 
 function resetStores() {
   TREES.set({

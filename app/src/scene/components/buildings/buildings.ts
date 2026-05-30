@@ -17,9 +17,9 @@ import {
   LIGHTING,
   SCENE_COLORS,
   WINDOW_LIGHTING,
-} from '@/config/index.js';
-import type { IconAtlas } from './iconAtlas.js';
-import { writeSunDir } from '@/scene/components/lighting/sunDir.js';
+} from '@/state/settings/index';
+import type { IconAtlas } from './iconAtlas';
+import { writeSunDir } from '@/scene/components/lighting/sunDir';
 
 // ---------------------------------------------------------------------------
 // Per-instance facade attributes (window column count + door width) are

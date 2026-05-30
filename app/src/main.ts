@@ -4,31 +4,30 @@
 
 import './styles.css';
 
-import * as Config from './config/index.js';
-import { REBUILD_STATUS } from './store/liveStatus.js';
-import { attachPersistence, persistAtomPerSource } from './store/persist.js';
-import { SYNTAX_THEME } from './config/prefs/syntaxTheme.js';
-import { sourceKey, CURRENT_SOURCE_KEY } from './store/sourceContext.js';
-import { attachCommitReactions } from './store/configCommitReactions.js';
-import { setupLiveUpdates } from './store/liveUpdates.js';
+import * as Config from './state/settings/index';
+import { REBUILD_STATUS } from './state/runtime/liveStatus';
+import { attachPersistence, persistAtomPerSource } from './state/persist';
+import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme';
+import { sourceKey, CURRENT_SOURCE_KEY } from './state/runtime/sourceContext';
+import { attachCommitReactions } from './state/reactions';
+import { setupLiveUpdates } from './state/runtime/liveUpdates';
 import { DOM_IDS } from './constants';
 import { NodeKind } from './types';
 import type { Manifest } from './types';
 
-import { PICKER_SELECTION_KEY } from './scene/system/picker.js';
-import { manifestUrl } from './utils/url.js';
-import { _srcKind, _deriveLabel } from './utils/source.js';
-import { applyHljsTheme } from './utils/syntaxTheme.js';
-import { buildIconAtlas } from './scene/components/buildings/iconAtlas.js';
-import { setIconAtlas } from './scene/components/buildings/buildings.js';
-import { setCellIconAtlas } from './scene/components/buildings/buildingsCell.js';
-import { createSourcePicker, type SourcePayload } from './views/source/sourcePicker.js';
-import { createLoadingOverlay } from './views/source/loadingOverlay.js';
-import { streamManifest } from './utils/manifestStream.js';
-import { pushRecent } from './views/source/sourceRecents.js';
-import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
-import { labelFromUrl } from './views/widgets/displayLabel.js';
-import { getServerConfig } from './utils/serverConfig.js';
+import { PICKER_SELECTION_KEY } from './scene/system/picker';
+import { manifestUrl } from './api/manifest';
+import { srcKind, labelFromUrl } from './utils/sources';
+import { applyHljsTheme } from './utils/syntaxTheme';
+import { buildIconAtlas } from './scene/components/buildings/iconAtlas';
+import { setIconAtlas } from './scene/components/buildings/buildings';
+import { setCellIconAtlas } from './scene/components/buildings/buildingsCell';
+import { createSourcePicker, type SourcePayload } from './views/components/sourcePicker';
+import { createLoadingOverlay } from './views/components/loadingOverlay';
+import { streamManifest } from './api/manifest';
+import { pushRecent } from './state/runtime/sourceRecents';
+import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop';
+import { getServerConfig } from './api/config';
 
 /**
  * Set document.title to "{label} (pending) — codecity" from a server-emitted
@@ -128,8 +127,8 @@ if (_canvas) {
       const _bootSrc = qp.get('src')!;
       const _bootBranch = qp.get('branch') ?? undefined;
       loadingOverlay.show({
-        kind: _srcKind(_bootSrc),
-        label: _deriveLabel(_bootSrc),
+        kind: srcKind(_bootSrc),
+        label: labelFromUrl(_bootSrc) ?? _bootSrc,
         branch: _bootBranch,
       });
       try {
@@ -260,8 +259,8 @@ if (_canvas) {
       handle.world.resetCache();
       const dismissibleOnError = _lastDismissible;
       loadingOverlay.show({
-        kind: _srcKind(payload.src),
-        label: _deriveLabel(payload.src),
+        kind: srcKind(payload.src),
+        label: labelFromUrl(payload.src) ?? payload.src,
         branch: payload.branch,
       });
       try {
@@ -327,7 +326,7 @@ if (_canvas) {
             // payload.
             handle.coordinator.setSourceInfo(
               payload.branch,
-              _srcKind(payload.src) === 'git' ? payload.src : undefined
+              srcKind(payload.src) === 'git' ? payload.src : undefined
             );
           }
           manifest = event.manifest;
@@ -383,7 +382,7 @@ if (_canvas) {
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
           resolvedBranch,
-          _srcKind(payload.src) === 'git' ? payload.src : undefined
+          srcKind(payload.src) === 'git' ? payload.src : undefined
         );
 
         _liveUpdates?.setSignature(manifest.signature);
@@ -391,7 +390,7 @@ if (_canvas) {
           src: payload.src,
           branch: resolvedBranch,
           branchIsDefault,
-          label: _deriveLabel(payload.src),
+          label: labelFromUrl(payload.src) ?? payload.src,
         });
 
         if (!liveUpdatesStarted) {

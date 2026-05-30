@@ -21,7 +21,7 @@
 // or an inverse-shear ray transform (picker).
 
 import * as THREE from 'three';
-import { BUILDING_AGING } from '@/config/components/buildings.js';
+import { BUILDING_AGING } from '@/state/settings/components/buildings';
 import type { Building } from '@/types';
 
 /**

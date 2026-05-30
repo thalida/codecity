@@ -1,11 +1,11 @@
 // world-collision.test.ts — _formatCollisionReport() partitions overlaps
-import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy';
 // into unexpected vs. t-junction, produces an info-level summary when clean,
 // and a warn-level summary + per-overlap detail block when dirty.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/world.js';
-import type { LayoutOverlap } from '@/scene/layout/layout.js';
+import { __test } from '@/scene/world';
+import type { LayoutOverlap } from '@/scene/layout/layout';
 
 const { _formatCollisionReport } = __test;
 

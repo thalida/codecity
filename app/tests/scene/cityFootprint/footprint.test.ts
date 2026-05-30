@@ -1,8 +1,8 @@
 // app/tests/scene/cityFootprint/footprint.test.ts
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { createCityFootprint } from '@/scene/components/footprint/footprint.js';
-import { FOOTPRINT } from '@/config/components/footprint.js';
+import { createCityFootprint } from '@/scene/components/footprint/footprint';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
 import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 

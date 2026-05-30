@@ -10,8 +10,8 @@
 //   trees.refresh();   // on applyTheme() — called on Save
 //   trees.dispose();   // on rebuild / scene teardown
 
-import { createTreeRenderer, type Trees } from './treeRenderer.js';
-import type { TreePlacement } from './treePlacement.js';
+import { createTreeRenderer, type Trees } from './treeRenderer';
+import type { TreePlacement } from './treePlacement';
 import type { CommitEntry } from '@/types';
 
 export function createTrees(placements: TreePlacement[], commits: CommitEntry[] | null): Trees {

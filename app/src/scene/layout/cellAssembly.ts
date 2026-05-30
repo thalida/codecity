@@ -7,19 +7,19 @@
 // the engine handles those fine even at Linux scale.
 
 import * as THREE from 'three';
-import { SpatialGrid, type WorldBounds } from './spatialGrid.js';
-import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile.js';
+import { SpatialGrid, type WorldBounds } from './spatialGrid';
+import { createEmptyCellTile, type CellTile, allocateSlot } from './cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
-} from '../components/buildings/buildingsCell.js';
+} from '../components/buildings/buildingsCell';
 import {
   InstancedAdPanels,
   asyncLoadMediaForBuilding,
-} from '../components/adPanels/adPanelsInstanced.js';
-import { isMediaFile } from '../components/adPanels/adPanels.js';
-import { BuildingIndex } from '../components/buildings/buildingIndex.js';
-import type { Building } from '@/types/index.js';
+} from '../components/adPanels/adPanelsInstanced';
+import { isMediaFile } from '../components/adPanels/adPanels';
+import { BuildingIndex } from '../components/buildings/buildingIndex';
+import type { Building } from '@/types/index';
 
 export interface CellAssemblyOutput {
   grid: SpatialGrid;

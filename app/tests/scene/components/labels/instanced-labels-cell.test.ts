@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/config/index.js';
-import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas.js';
-import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell.js';
-import type { CellTile } from '@/scene/layout/cellTile.js';
-import { NodeKind } from '@/types/index.js';
-import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../../../_helpers/typography.js';
+import { LABEL_TYPOGRAPHY } from '@/state/settings/index';
+import { buildLabelAtlas } from '@/scene/components/labels/labelAtlas';
+import { attachLabelMeshToCell, writeLabelToSlot } from '@/scene/components/labels/labelsCell';
+import type { CellTile } from '@/scene/layout/cellTile';
+import { NodeKind } from '@/types/index';
+import { TYPOGRAPHY as BASE_TYPOGRAPHY } from '../../../_helpers/typography';
 import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------
