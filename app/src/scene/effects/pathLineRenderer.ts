@@ -9,7 +9,7 @@
 // changes into the materials.
 
 import * as THREE from 'three';
-import { effect } from '@preact/signals';
+import { effect, untracked } from '@preact/signals';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
@@ -168,10 +168,20 @@ export function createPathLineRenderer({
   }
 
   // Reactive: rebuild geometry on selection / hover / world change.
+  //
+  // Two effects, each tracking only the signal it should re-run on.
+  // _updateHoverPathLine reads picker.hover.value + HOVER_PATH_LINE.value
+  // internally — if we called it directly inside the selection effect, the
+  // selection effect would also track hover/HOVER_PATH_LINE and fire on
+  // their changes (same anti-pattern as the coordinator over-tracking bug
+  // fixed in 924371c). untracked() lets the selection effect refresh the
+  // hover line on selection change (the hover line's "hide when hover ==
+  // selection" rule needs re-evaluation) WITHOUT becoming a hover/config
+  // subscriber.
   const _disposeSelectionEffect = effect(() => {
     void picker.selection.value;
     _updatePathLine();
-    _updateHoverPathLine();
+    untracked(_updateHoverPathLine);
   });
   const _disposeHoverEffect = effect(() => {
     void picker.hover.value;

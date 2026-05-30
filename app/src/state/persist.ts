@@ -324,7 +324,9 @@ export function persistAtomPerSource<T>(
     // whenever the signal was last mutated, so a redundant write here would
     // cause stale-subscriber cross-test pollution and isn't needed.
     if (lastKey !== null && nextKey !== null) {
-      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.value));
+      // .peek() not .value — this effect should only re-run on key change,
+      // not on store writes (which the write effect above already persists).
+      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.peek()));
     }
     // Hydrate signal from NEW slot.
     if (nextKey !== null) {
