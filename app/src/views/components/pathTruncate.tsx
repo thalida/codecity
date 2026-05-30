@@ -1,4 +1,4 @@
-// views/components/pathTruncate.ts — middle-truncation algorithm for path breadcrumbs.
+// views/components/pathTruncate.tsx — middle-truncation algorithm for path breadcrumbs.
 //
 // Exported by the module so both appHeader.ts and filePreviewPane.ts can share
 // the same logic without duplication.
@@ -7,6 +7,12 @@
 //   fitSegments(containerEl, segmentEls, separatorEls)
 //
 // Set up a ResizeObserver on the container's parent to re-run on layout changes.
+//
+// Note: pathTruncate is a pure DOM utility — it operates on existing DOM nodes
+// passed by callers rather than creating its own. There is no Preact component
+// wrapper here because the algorithm takes live HTMLElement refs and mutates
+// their style.display in place. Phase 3c/3d callers (appHeader, filePreviewPane)
+// will use this as a useEffect helper once they are ported to Preact.
 
 const ELLIPSIS_CLASS_HEADER = 'app-header-ellipsis';
 const ELLIPSIS_CLASS_FILE = 'file-path-ellipsis';
