@@ -137,6 +137,12 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
+_LOCAL_DISABLED_ERROR = (
+    "local repositories are disabled — restart codecity with "
+    "CODECITY_ALLOW_LOCAL_REPOS=1. "
+    "See https://github.com/thalida/codecity#local-directories"
+)
+
 
 # Bodies under this threshold skip compression — gzip's framing
 # overhead (~20 bytes header + trailer) exceeds the savings on small
@@ -403,6 +409,11 @@ def _resolve_scan_target(
             return None
 
     # kind == "local" — ignore any &branch=, scan the working tree in place
+    if not _local_repos_allowed():
+        _send_json(
+            handler, HTTPStatus.FORBIDDEN, {"error": _LOCAL_DISABLED_ERROR}
+        )
+        return None
     try:
         scan_target = Path(raw_src).resolve(strict=True)
     except (OSError, RuntimeError):
@@ -544,6 +555,13 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     local_target: Path | None = None
     if kind == "local":
+        if not _local_repos_allowed():
+            _send_json(
+                handler,
+                HTTPStatus.FORBIDDEN,
+                {"error": _LOCAL_DISABLED_ERROR},
+            )
+            return
         try:
             local_target = Path(raw_src).resolve(strict=True)
         except (OSError, RuntimeError):

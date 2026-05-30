@@ -39,11 +39,12 @@ class ManifestRouteTests(unittest.TestCase):
 
     @pytest.fixture(autouse=True)
     def _setup_fixtures(
-        self, redirect_cache_root, init_git_repo, http_helpers,
+        self, redirect_cache_root, init_git_repo, http_helpers, monkeypatch,
     ) -> None:
         self.cache_root = redirect_cache_root
         self._init_git_repo = init_git_repo
         self._http = http_helpers
+        self.monkeypatch = monkeypatch
 
     def setUp(self) -> None:
         super().setUp()
@@ -138,6 +139,26 @@ class ManifestRouteTests(unittest.TestCase):
         # Sanity: each line is valid JSON.
         events = [json.loads(line) for line in body.splitlines() if line]
         self.assertGreaterEqual(len(events), 1)
+
+    def test_manifest_local_src_403_when_disabled(self) -> None:
+        self.monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+        q = urllib.parse.urlencode({"src": str(self.project)})
+        status, body, _ = self._http.get(self.base + f"/api/manifest?{q}")
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        err = json.loads(body)["error"]
+        self.assertIn("local repositories are disabled", err)
+        self.assertIn("CODECITY_ALLOW_LOCAL_REPOS=1", err)
+
+    def test_manifest_local_src_succeeds_when_enabled(self) -> None:
+        self.monkeypatch.setenv("CODECITY_ALLOW_LOCAL_REPOS", "1")
+        q = urllib.parse.urlencode({"src": str(self.project)})
+        status, events = self._http.request_stream(
+            self.port, f"/api/manifest?{q}",
+        )
+        self.assertEqual(status, HTTPStatus.OK)
+        # 'final' phase event is the manifest body.
+        final = next(e for e in events if e["phase"] == "final")
+        self.assertEqual(final["manifest"]["tree"]["name"], "project")
 
 
 class ClassifySourceTests(unittest.TestCase):

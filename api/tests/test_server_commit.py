@@ -19,9 +19,10 @@ class TestServeCommitDetail(unittest.TestCase):
     """Coverage for /api/commit — full commit message detail endpoint."""
 
     @pytest.fixture(autouse=True)
-    def _setup_fixtures(self, redirect_cache_root, http_helpers) -> None:
+    def _setup_fixtures(self, redirect_cache_root, http_helpers, monkeypatch) -> None:
         self.cache_root = redirect_cache_root
         self._http = http_helpers
+        self.monkeypatch = monkeypatch
 
     def setUp(self) -> None:
         super().setUp()
@@ -74,6 +75,21 @@ class TestServeCommitDetail(unittest.TestCase):
         status, body = self._get_commit(short)
         self.assertEqual(status, 200)
         self.assertEqual(body["sha"], full_sha)
+
+    def test_commit_unaffected_by_local_gate_when_no_roots_registered(self) -> None:
+        """/api/commit looks up shas across already-registered scan roots.
+        The local-repo gate doesn't change /api/commit's behavior on its
+        own — this test guards against accidentally adding a stray
+        local-gate check on the commit path."""
+        from http import HTTPStatus
+
+        self.monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+        # No roots registered yet → expect 404 (no scan root) not 403.
+        # The local-repo gate is orthogonal to commit-detail lookup.
+        status, body, _ = self._http.get(
+            self.base + "/api/commit?sha=abcdef0123456789",
+        )
+        self.assertEqual(status, HTTPStatus.NOT_FOUND)
 
 
 if __name__ == "__main__":
