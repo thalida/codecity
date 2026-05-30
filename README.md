@@ -102,6 +102,7 @@ Use multiple `-v` flags for multiple directories. codecity only renders git work
 
 - **Color**: per author. Each committer gets their own hue.
 - **Scale**: that author's total commit count.
+- **Co-authored commits**: `Co-authored-by:` trailers parsed out of the commit message — each distinct contributor on a commit gets their own firefly orbiting that tree, in their own color.
 
 ### Gem: the root beacon
 
@@ -111,7 +112,7 @@ Floats above the root street's origin-end cap. Size scales with the root street'
 
 ## Scanning
 
-codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, author, date) feed the visuals above.
+codecity scans only **git-tracked** files (`git ls-files`). Gitignored and untracked paths are hidden automatically. Per-file git history (created + most-recent-modify dates) and per-commit metadata (file count, authors, date) feed the visuals above.
 
 Some directories and files are always skipped, even when tracked:
 
