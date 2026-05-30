@@ -1,4 +1,4 @@
-// views/panes/streetPane.ts — right-sidebar pane shown when a directory
+// views/panes/streetPane.tsx — right-sidebar pane shown when a directory
 // (road) is selected in the city. Shows direct + descendant child
 // counts and a sorted breakdown of every file extension in the
 // descendant subtree.
@@ -7,6 +7,10 @@
 // setDirectory) so the coordinator can swap panes in the right sidebar
 // without churn.
 
+import { h } from 'preact';
+import type { Signal } from '@preact/signals';
+import { signal } from '@preact/signals';
+import { render } from 'preact';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
@@ -57,6 +61,137 @@ function aggregateExtensions(d: DirNode): ExtensionStats[] {
   walk(d);
   return Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
 }
+
+// ── State shape for Preact component ─────────────────────────────────────────
+
+export interface StreetPaneState {
+  directory: DirNode | null;
+}
+
+export interface StreetPaneProps {
+  state: Signal<StreetPaneState>;
+  onClose?: () => void;
+  onFocus?: (dir: DirNode) => void;
+}
+
+// ── Preact component ─────────────────────────────────────────────────────────
+
+export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
+  const { directory: d } = state.value;
+  const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+  const asphaltColor = ASPHALT.value.COLOR;
+
+  if (!d) {
+    return (
+      <div class="pane street-pane">
+        <div class="pane-header">
+          <h3 class="text-pane-title">Road</h3>
+          {typeof onClose === 'function' && (
+            <button type="button" class="btn-icon btn-icon--text" title="Hide sidebar" aria-label="Hide sidebar" onClick={() => onClose()} />
+          )}
+        </div>
+        <div class="pane-body street-body">
+          <div class="empty-state empty-state--lg">
+            <p class="text-card-title">No road selected</p>
+            <p class="text-card-sub">Select a road in the city to inspect it here.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const leaf =
+    (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) ||
+    d.name ||
+    'Road';
+
+  const stats = aggregateExtensions(d);
+
+  return (
+    <div class="pane street-pane">
+      <div class="pane-header">
+        {typeof onFocus === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title="Focus the camera on this road (F)"
+            aria-label="Focus the camera on this road (F)"
+            onClick={() => onFocus(d)}
+          />
+        )}
+        <h3 class="text-pane-title">{leaf}</h3>
+        {typeof onClose === 'function' && (
+          <button type="button" class="btn-icon btn-icon--text" title="Hide sidebar" aria-label="Hide sidebar" onClick={() => onClose()} />
+        )}
+      </div>
+      <div class="pane-body street-body">
+        <div class="street-counts">
+          <div class="street-counts-col">
+            <div class="street-counts-h">Direct</div>
+            <div class="street-counts-row">
+              <span class="street-counts-v">{String(d.children_file_count ?? 0)}</span>
+              <span class="street-counts-k">files</span>
+            </div>
+            <div class="street-counts-row">
+              <span class="street-counts-v">{String(d.children_dir_count ?? 0)}</span>
+              <span class="street-counts-k">dirs</span>
+            </div>
+          </div>
+          <div class="street-counts-col">
+            <div class="street-counts-h">Descendants</div>
+            <div class="street-counts-row">
+              <span class="street-counts-v">{String(d.descendants_file_count ?? 0)}</span>
+              <span class="street-counts-k">files</span>
+            </div>
+            <div class="street-counts-row">
+              <span class="street-counts-v">{String(d.descendants_dir_count ?? 0)}</span>
+              <span class="street-counts-k">dirs</span>
+            </div>
+          </div>
+        </div>
+        {stats.length > 0 && (
+          <>
+            <div class="street-ext-h">By extension</div>
+            <div class="street-ext-list">
+              {stats.map((s) => (
+                <StreetExtRow
+                  key={s.ext}
+                  s={s}
+                  huePalette={huePalette}
+                  asphaltColor={asphaltColor}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StreetExtRow({
+  s,
+  huePalette,
+  asphaltColor,
+}: {
+  s: ExtensionStats;
+  huePalette: Record<string, number>;
+  asphaltColor: string;
+}) {
+  const badgeExt = s.ext === '(none)' ? null : s.ext;
+  const badgeEl = makeExtensionBadge(badgeExt, false, huePalette, asphaltColor);
+  return (
+    <div class="street-ext-row">
+      <span dangerouslySetInnerHTML={{ __html: badgeEl.outerHTML }} />
+      <span class="street-ext-label">{s.ext}</span>
+      <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
+      <span class="street-ext-sep" aria-hidden="true">·</span>
+      <span class="street-ext-size">{formatBytes(s.size)}</span>
+    </div>
+  );
+}
+
+// ── Backward-compat factory ───────────────────────────────────────────────────
 
 export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
   const pane = document.createElement('div');
@@ -161,8 +296,9 @@ export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
       body.appendChild(h);
       const list = document.createElement('div');
       list.className = 'street-ext-list';
-      const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
-      const asphaltColor = ASPHALT.get().COLOR;
+      // Use .value to read signals (Phase 3a migration)
+      const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+      const asphaltColor = ASPHALT.value.COLOR;
       for (const s of stats) {
         const row = document.createElement('div');
         row.className = 'street-ext-row';
