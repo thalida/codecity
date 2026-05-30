@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
-from api._env import env_bool
+from api.env import env_bool
 from api.clone import (
     CloneError,
     BranchNotFoundError,

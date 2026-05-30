@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
-from ._env import env_bool
+from .env import env_bool
 from .cache import (
     cache_load_files,
     cache_load_git_history,

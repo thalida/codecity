@@ -6,7 +6,7 @@ import unittest
 
 import pytest
 
-from api._env import env_bool
+from api.env import env_bool
 
 
 class EnvBoolTests(unittest.TestCase):

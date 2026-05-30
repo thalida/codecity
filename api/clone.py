@@ -27,7 +27,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
-from api._env import env_bool
+from api.env import env_bool
 from api.types import (
     BranchNotFoundError,
     CloneError,
