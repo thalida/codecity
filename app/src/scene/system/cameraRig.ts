@@ -233,7 +233,8 @@ export function createCameraRig({
     // breathing room above the roof (1.0 = spire flush against top edge).
     let heightDist = 0;
     const tallest = gemPos && rootStreet ? world.getTallestBuilding() : null;
-    if (tallest) {
+    const labelBounds = gemPos && rootStreet ? world.getRepoLabelBounds() : null;
+    if (tallest || labelBounds) {
       const sinElev = dir.y;
       const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
       const camUpX = camUpScale > 1e-6 ? (-dir.y * dir.x) / camUpScale : 0;
@@ -242,16 +243,35 @@ export function createCameraRig({
       const tanHalfFov = Math.tan(halfFov);
       const gemX = framingCenter.x;
       const gemZ = framingCenter.z;
+      const _fitPoint = (wx: number, wy: number, wz: number) => {
+        const px = wx - gemX;
+        const py = wy;
+        const pz = wz - gemZ;
+        const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
+        const pDotUp = px * camUpX + py * camUpY + pz * camUpZ;
+        const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
+        if (dNeeded > heightDist) heightDist = dNeeded;
+      };
       // 4 roof corners in world: (b.x ± b.w/2, b.h, b.y ± b.d/2).
-      for (const sx of [-0.5, 0.5]) {
-        for (const sz of [-0.5, 0.5]) {
-          const px = tallest.x + sx * tallest.w - gemX;
-          const py = tallest.h;
-          const pz = tallest.y + sz * tallest.d - gemZ;
-          const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
-          const pDotUp = px * camUpX + py * camUpY + pz * camUpZ;
-          const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
-          if (dNeeded > heightDist) heightDist = dNeeded;
+      if (tallest) {
+        for (const sx of [-0.5, 0.5]) {
+          for (const sz of [-0.5, 0.5]) {
+            _fitPoint(tallest.x + sx * tallest.w, tallest.h, tallest.y + sz * tallest.d);
+          }
+        }
+      }
+      // Include the floating repo-label panel so empty worlds (no
+      // buildings) still frame to show the label, and crowded worlds
+      // never crop it off the top edge. The panel billboards to face
+      // the camera, so its horizontal extent could rotate either way —
+      // sample the top corners along BOTH world axes to bound it.
+      if (labelBounds) {
+        const topY = labelBounds.centerY + labelBounds.halfHeight;
+        const r = labelBounds.halfWidth;
+        for (const [dx, dz] of [
+          [-r, 0], [r, 0], [0, -r], [0, r],
+        ]) {
+          _fitPoint(labelBounds.centerX + dx, topY, labelBounds.centerZ + dz);
         }
       }
       heightDist *= TALLEST_BUILDING_HEADROOM_MULT;
