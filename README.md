@@ -1,4 +1,4 @@
-# codecity
+# <img src="app/public/gem.svg" alt="" width="32" align="center" /> codecity
 
 Visualize any codebase as an isometric 3D city. Point it at a git repo and it walks the tree, collects file + git metadata, and renders a city in your browser. Directories become streets, files become buildings.
 

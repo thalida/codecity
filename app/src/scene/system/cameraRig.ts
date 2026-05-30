@@ -57,6 +57,24 @@ const STREET_FOCUS_RATIO = 1.2;
 const TOP_DOWN_ELEVATION_DEG = 80;
 const TOP_DOWN_PADDING_MULT = 2.8;
 
+// y-component of the start framing direction vector (before normalization).
+// Combined with FRAMING_DIR_LATERAL below: with lateral=0.3, y=1.0 gives
+// ~43.7° elevation.
+const FRAMING_DIR_Y = 1.0;
+
+// Lateral component on the framing direction vector — perpendicular to
+// the root street's long axis. Adds an isometric-style off-axis tilt so
+// the camera doesn't look straight down the road; both sides of the
+// street read in 3D instead of stacking face-on. 0.3 → ~15° lateral
+// angle from the street axis.
+const FRAMING_DIR_LATERAL = 0.3;
+
+// Headroom above the tallest building's roof when fitting the start
+// framing. 1.0 = spire flush at the top edge of the vertical FOV
+// (tightest geometric fit). 1.05 leaves ~5% of the vertical FOV as
+// sky above the tallest spire so the roof doesn't touch the very top.
+const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
+
 export function createCameraRig({
   canvas,
   world,
@@ -169,7 +187,7 @@ export function createCameraRig({
       // proxy for "how much stuff is in the project" — for a big repo the
       // root street is enormously long and framing on it is the same as
       // framing the whole world. Width is bounded by STREET_TIERS (≈10–52),
-      // so width × 10 reliably fits the gem + the road's first stretch
+      // so width × 15 reliably fits the gem + the road's first stretch
       // regardless of project size.
       framingRadius = rootStreet.width * 15;
     } else {
@@ -177,27 +195,69 @@ export function createCameraRig({
       framingCenter = worldGroundCenter;
       framingRadius = worldRadius;
     }
-    const framingDist =
-      (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-
-    // Default framing: place the camera BEHIND the gem along the root
-    // street's long axis (the street extends in +X for X-oriented or +Z
-    // for Y-oriented; the gem sits at the low end — see
-    // engine.ts:createRootGem) at a low cinematic elevation. This gives
-    // a "looking down the main road into the city" view instead of the
-    // previous top-down (-1, 1, 1) oblique. y=0.25 → ~14° elevation;
-    // wide enough to see the whole skyline, low enough that the
-    // horizon-glow band is visible above the buildings. Fallback
-    // (no gem) keeps the old high-oblique direction for completeness.
+    // Distance from width: the existing "city neighborhood readable on
+    // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
+    // intentionally; tuned for the typical city shape.
+    const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
+    // Default framing direction: place the camera BEHIND the gem along
+    // the root street's long axis (the street extends in +X for X-oriented
+    // or +Z for Y-oriented; the gem sits at the low end — see
+    // engine.ts:createRootGem) at a moderate elevation with a slight
+    // lateral offset so the view reads as 3D oblique rather than face-on
+    // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
+    // lateral mix; FRAMING_DIR_LATERAL (0.3) → ~15° azimuth off the
+    // street axis. Fallback (no gem) keeps the old high-oblique direction.
     let dir: THREE.Vector3;
     if (rootStreet) {
       dir =
         rootStreet.orientation === StreetAxis.X
-          ? new THREE.Vector3(-1, 0.25, 0).normalize()
-          : new THREE.Vector3(0, 0.25, -1).normalize();
+          ? new THREE.Vector3(-1, FRAMING_DIR_Y, FRAMING_DIR_LATERAL).normalize()
+          : new THREE.Vector3(FRAMING_DIR_LATERAL, FRAMING_DIR_Y, -1).normalize();
     } else {
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
+
+    // Height fit: project the tallest building's 4 roof corners through
+    // the camera math and find the minimum D such that they all sit
+    // within the vertical FOV. One building, 4 corners — no loop over
+    // the whole city.
+    //
+    // For a point p offset from the target, the camera at target + dir·D
+    // sees screen-y = (p · cam_up) / (D − p · dir), where cam_up is
+    // perpendicular to dir and aligned with world up. Setting
+    // |screen-y| ≤ tan(halfFov) and solving:
+    //
+    //   D ≥ |p · cam_up| / tan(halfFov) + p · dir
+    //
+    // Take the max across the 4 roof corners. HEADROOM scales D up for
+    // breathing room above the roof (1.0 = spire flush against top edge).
+    let heightDist = 0;
+    const tallest = gemPos && rootStreet ? world.getTallestBuilding() : null;
+    if (tallest) {
+      const sinElev = dir.y;
+      const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
+      const camUpX = camUpScale > 1e-6 ? (-dir.y * dir.x) / camUpScale : 0;
+      const camUpY = camUpScale > 1e-6 ? camUpScale : 1;
+      const camUpZ = camUpScale > 1e-6 ? (-dir.y * dir.z) / camUpScale : 0;
+      const tanHalfFov = Math.tan(halfFov);
+      const gemX = framingCenter.x;
+      const gemZ = framingCenter.z;
+      // 4 roof corners in world: (b.x ± b.w/2, b.h, b.y ± b.d/2).
+      for (const sx of [-0.5, 0.5]) {
+        for (const sz of [-0.5, 0.5]) {
+          const px = tallest.x + sx * tallest.w - gemX;
+          const py = tallest.h;
+          const pz = tallest.y + sz * tallest.d - gemZ;
+          const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
+          const pDotUp = px * camUpX + py * camUpY + pz * camUpZ;
+          const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
+          if (dNeeded > heightDist) heightDist = dNeeded;
+        }
+      }
+      heightDist *= TALLEST_BUILDING_HEADROOM_MULT;
+    }
+    const framingDist = Math.max(widthDist, heightDist);
+
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
 

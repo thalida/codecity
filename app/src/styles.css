@@ -735,35 +735,21 @@ h6 {
   opacity: 0.7;
 }
 
-/* .btn-icon--rainbow — paints the inner lucide-icon mask with a soft
-   pink → yellow → neon chartreuse → purple gradient instead of
-   currentColor. Pastel pink/yellow/purple anchors with a punchy
-   yellow-green in the middle for life. */
-.btn-icon--rainbow .lucide-icon {
-  /* Neon yellow → neon electric blue via OKLCH interpolation, with a
-     slowly rotating gradient angle so the gem reads as alive without
-     calling attention to itself. The @property declaration lets the
-     CSS engine tween the <angle> custom property (un-typed custom
-     props don't interpolate). */
-  background-image: linear-gradient(
-    in oklch var(--gem-angle, 180deg),
-    oklch(0.951 0.204 107.3) 0%,
-    /* neon yellow */ oklch(0.531 0.261 265) 100% /* neon electric blue */
-  );
-  animation: gem-shimmer 12s linear infinite;
-}
-@property --gem-angle {
-  syntax: '<angle>';
-  initial-value: 180deg;
-  inherits: false;
-}
-@keyframes gem-shimmer {
-  from {
-    --gem-angle: 0deg;
-  }
-  to {
-    --gem-angle: 360deg;
-  }
+/* .gem-icon — the codecity gem rendered as a full-color SVG background
+   image (not a CSS mask), so the per-face palette colors render directly
+   instead of being collapsed to currentColor. Same 1em sizing as
+   .lucide-icon so it slots into header buttons without throwing off
+   alignment. The .lucide-icon mask path is the simple monochrome variant;
+   see makeGemIcon() in views/widgets/icon.ts. */
+.gem-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.15em;
+  background-image: url(/gem.svg);
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -2064,13 +2050,13 @@ canvas {
   display: none;
 }
 
-/* Root glyph — Lucide gem rendered via mask-image so it picks up
- * currentColor (matches the row's label color; no brand tint). Sized
- * to match the 14px Material file/folder icons used on every other row
- * so the icon column stays a consistent width. */
+/* Root glyph — codecity gem in its grayscale variant. Quieter than the
+ * full multicolor gem so it doesn't compete with row text. Sized to match
+ * the 14px Material file/folder icons used on every other row so the icon
+ * column stays a consistent width. */
 .tree-root-glyph {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   margin-right: var(--cc-space-2);
   vertical-align: middle;
 }

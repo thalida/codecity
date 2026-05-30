@@ -5,7 +5,7 @@
 
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeGemIcon, makeLucideIcon } from '@/views/widgets/icon.js';
 import { makeFileIcon, makeFolderIcon } from '@/views/widgets/fileIcon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
@@ -75,10 +75,11 @@ function _buildItem(child: TreeNode, ctx: TreeCtx, isRoot = false): HTMLLIElemen
     row.appendChild(chevron);
     // Folder glyph sits between the chevron and the label so the row
     // reads "[state arrow] [folder icon] [name]". The root row gets the
-    // brand gem (mask-image, picks up currentColor — no brand colors);
+    // brand gem in its simple (monochrome outline) variant so it inherits
+    // the row's currentColor and visually matches the other tree icons;
     // other folders use the name-based Material Icon Theme glyph.
     if (isRoot) {
-      row.appendChild(makeLucideIcon('gem', { class: 'tree-root-glyph' }));
+      row.appendChild(makeGemIcon({ simple: true, class: 'tree-root-glyph' }));
     } else {
       row.appendChild(makeFolderIcon(child as DirNode));
     }

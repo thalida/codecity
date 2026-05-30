@@ -7,7 +7,7 @@
 // When no path is selected (or only the root), #app-title is empty.
 
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
-import { makeLucideIcon } from '../widgets/icon.js';
+import { makeGemIcon, makeLucideIcon } from '../widgets/icon.js';
 import { makeExtensionBadge } from '../widgets/badge.js';
 import { toHttpsRepoUrl } from '../widgets/displayLabel.js';
 import { fitSegments } from '../widgets/pathTruncate.js';
@@ -346,10 +346,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   if (onResetView) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.className = 'btn-icon btn-icon--no-drag btn-icon--rainbow';
+    btn.className = 'btn-icon btn-icon--no-drag';
     btn.title = 'Reset view (R)';
     btn.setAttribute('aria-label', 'Reset view');
-    btn.appendChild(makeLucideIcon('gem'));
+    btn.appendChild(makeGemIcon());
     btn.dataset.appHeaderInjected = '1';
     btn.addEventListener('click', () => onResetView());
     titleEl.parentElement?.prepend(btn);

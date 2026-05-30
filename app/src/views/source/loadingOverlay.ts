@@ -142,32 +142,41 @@ export function createLoadingOverlay(): LoadingOverlay {
     show({ kind, label, branch }: LoadingOverlayShowOpts) {
       _buildDOM();
 
-      // Set title.
-      if (_titleEl) {
-        _titleEl.textContent = branch
-          ? `Loading ${label} (branch ${branch})…`
-          : `Loading ${label}…`;
-      }
-
       // Hide git-only steps for local sources.
+      const initialStep: LoadingStep = kind === 'local' ? 'scanning' : 'resolving';
       if (kind === 'local') {
         const resolvingEl = _stepEls['resolving'];
         const cloningEl = _stepEls['cloning'];
         if (resolvingEl) resolvingEl.style.display = 'none';
         if (cloningEl) cloningEl.style.display = 'none';
-        _applyStep('scanning');
-      } else {
-        // Git sources: start at 'resolving'. The server emits 'cloning'
-        // immediately after receiving the request, so the next setStep
-        // call from main.ts moves us forward within milliseconds.
-        _applyStep('resolving');
       }
+      _applyStep(initialStep);
+
+      // Title shows the current step in sentence form ("Resolving source…",
+      // "Cloning…"), updated by setStep below. Previously it repeated the
+      // project name ("Loading <label>…") but that duplicated the
+      // pending-label header that setPendingLabel mounts directly above
+      // the spinner — same string twice. The step text is also more
+      // informative and updates as work progresses (a11y win for the
+      // aria-live title region). The `branch` field is shown once via
+      // a parenthetical on the initial title so the user can confirm
+      // which branch is being fetched before any stream events arrive.
+      if (_titleEl) {
+        const suffix = branch ? ` (branch ${branch})` : '';
+        _titleEl.textContent = `${STEP_LABELS[initialStep]}${suffix}…`;
+      }
+      // `label` is used by setPendingLabel callers from main.ts; we
+      // deliberately don't show it in the title here.
+      void label;
 
       root.style.display = 'block';
     },
 
     setStep(step: LoadingStep) {
       _applyStep(step);
+      if (_titleEl) {
+        _titleEl.textContent = `${STEP_LABELS[step]}…`;
+      }
     },
 
     setPendingLabel(label: string | null) {
