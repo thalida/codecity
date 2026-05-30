@@ -18,7 +18,7 @@ import {
   ageT,
   sizeT,
 } from '@/scene/components/trees/treeEncoding.js';
-import { colorForAuthor } from './authorColor.js';
+import { colorForAuthor, lightColorForAuthor } from './authorColor.js';
 
 export interface FireflyPlacement {
   /** Orbit center, world X. */
@@ -41,6 +41,12 @@ export interface FireflyPlacement {
   colorHex: string;
   /** Linear-RGB components (0..1) — for InstancedMesh setColorAt. */
   rgb: [number, number, number];
+  /** Pastel variant of `rgb` — same hue, higher lightness. Used by the
+   *  hover orbit-ring highlight so a hovered multi-author tree shows
+   *  one tinted ring per author. */
+  lightRgb: [number, number, number];
+  /** Pastel variant of `colorHex` for consumers that want a hex string. */
+  lightHex: string;
   /** Per-instance scale derived from author commit count, mapped to [SCALE_MIN..SCALE_MAX]. */
   scale: number;
   /** Index of the commit (in manifest.commits) this orb belongs to. */
@@ -165,6 +171,7 @@ export function placeFireflies(
       const rng = seededRng(`${commit.sha}:${author}`);
       const pulseRng = seededRng(`${commit.sha}:p:${author}`);
       const color = colorForAuthor(author);
+      const lightColor = lightColorForAuthor(author);
       const orbitStartAngle = rng() * Math.PI * 2;
       // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
       const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);
@@ -183,6 +190,8 @@ export function placeFireflies(
         pulsePhase,
         colorHex: color.hex,
         rgb: color.rgb,
+        lightRgb: lightColor.rgb,
+        lightHex: lightColor.hex,
         scale: authorScale.get(author) ?? 1.0,
         commitIndex: p.commitIndex,
       });

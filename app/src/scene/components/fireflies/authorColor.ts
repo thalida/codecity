@@ -8,8 +8,13 @@
 // and the fireflies renderer (per-instance orb color). Same input =
 // same output across rebuilds and across consumers.
 
-const L = 0.78; // OKLCH lightness
-const C = 0.18; // OKLCH chroma
+// Base palette used for firefly orbs — saturated, mid-lightness.
+const ORB_L = 0.78;
+const ORB_C = 0.18;
+// Pastel variant used for orbit-ring hover highlights — same hue,
+// pushed toward white. Lower chroma keeps high-L hues inside sRGB gamut.
+const LIGHT_L = 0.9;
+const LIGHT_C = 0.1;
 
 export interface AuthorColor {
   hex: string; // "#rrggbb"
@@ -63,9 +68,20 @@ function linearRgbToHex([r, g, b]: [number, number, number]): string {
   return `#${toHex(enc(r))}${toHex(enc(g))}${toHex(enc(b))}`;
 }
 
-export function colorForAuthor(name: string): AuthorColor {
+function authorColorAt(name: string, l: number, c: number): AuthorColor {
   const hash = fnv1a(name);
   const hue = hash % 360;
-  const rgb = oklchToLinearRgb(L, C, hue);
+  const rgb = oklchToLinearRgb(l, c, hue);
   return { hex: linearRgbToHex(rgb), hue, rgb };
+}
+
+export function colorForAuthor(name: string): AuthorColor {
+  return authorColorAt(name, ORB_L, ORB_C);
+}
+
+/** Pastel variant of `colorForAuthor` — same hue, higher lightness, lower
+ *  chroma. Used for the per-author orbit-ring hover highlight so each
+ *  hovered orb's ring picks up its author's identity in a softer tone. */
+export function lightColorForAuthor(name: string): AuthorColor {
+  return authorColorAt(name, LIGHT_L, LIGHT_C);
 }
