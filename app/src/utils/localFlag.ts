@@ -1,4 +1,4 @@
-// views/source/localFlag.ts — boolean flags persisted in localStorage.
+// utils/localFlag.ts — boolean flags persisted in localStorage.
 //
 // Storage convention: write '1' for on, REMOVE the key for off (so a
 // fresh / cleared install starts with every flag at its default and

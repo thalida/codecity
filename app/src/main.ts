@@ -25,7 +25,7 @@ import { setCellIconAtlas } from './scene/components/buildings/buildingsCell.js'
 import { createSourcePicker, type SourcePayload } from './views/source/sourcePicker.js';
 import { createLoadingOverlay } from './views/source/loadingOverlay.js';
 import { streamManifest } from './api/manifest.js';
-import { pushRecent } from './views/source/sourceRecents.js';
+import { pushRecent } from './utils/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
 import { getServerConfig } from './api/config.js';
 

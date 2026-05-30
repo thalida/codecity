@@ -1,4 +1,4 @@
-// sourceRecents.ts — Tiny localStorage-backed list of recently-opened
+// utils/sourceRecents.ts — Tiny localStorage-backed list of recently-opened
 // sources. Used by the source picker modal to show one-click reload rows.
 
 const KEY = 'codecity:recents';
