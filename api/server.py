@@ -477,7 +477,7 @@ def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
         full_sha, author, iso_date, subject, body = parts
         response: CommitDetailResponse = {
             "sha": full_sha,
-            "author": author,
+            "authors": [author],
             "date": iso_date[:10],
             "subject": subject,
             "body": body,

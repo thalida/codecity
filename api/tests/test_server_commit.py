@@ -58,7 +58,7 @@ class TestServeCommitDetail(unittest.TestCase):
         status, body = self._get_commit(sha)
         self.assertEqual(status, 200)
         self.assertEqual(body["sha"], sha)
-        self.assertEqual(body["author"], "Other Fixture Person")
+        self.assertEqual(body["authors"], ["Other Fixture Person"])
         self.assertEqual(body["date"], "2024-04-05")
         self.assertEqual(body["subject"], "docs: add CONTRIBUTORS")
         # Multi-line body from the fixture commit.

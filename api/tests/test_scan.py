@@ -582,13 +582,15 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         for c in commits:
             self.assertEqual(
                 set(c.keys()),
-                {"date", "files", "sha", "author", "subject"},
+                {"date", "files", "sha", "authors", "subject"},
             )
             self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
-            self.assertIsInstance(c["author"], str)
-            self.assertGreater(len(c["author"]), 0)
+            self.assertIsInstance(c["authors"], list)
+            self.assertGreater(len(c["authors"]), 0)
+            self.assertIsInstance(c["authors"][0], str)
+            self.assertGreater(len(c["authors"][0]), 0)
             self.assertIsInstance(c["subject"], str)
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
@@ -602,7 +604,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             FIXTURE, use_cache=False,
         )
         last = commits[-1]
-        self.assertEqual(last["author"], "Other Fixture Person")
+        self.assertEqual(last["authors"][0], "Other Fixture Person")
         self.assertEqual(last["subject"], "docs: add CONTRIBUTORS")
 
     def test_collect_git_metadata_counts_merge_files(self):
@@ -754,7 +756,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
             commits = result["commits"]
             assert isinstance(commits, list)
             self.assertEqual(len(commits), 1)
-            author = commits[0]["author"]
+            author = commits[0]["authors"][0]
             self.assertIn("Fran", author)
             self.assertIn("ois", author)
 

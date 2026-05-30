@@ -270,7 +270,7 @@ def _collect_git_dates(
                         "date": current_date_iso[:10],
                         "files": current_files,
                         "sha": current_sha,
-                        "author": current_author,
+                        "authors": [current_author],
                         "subject": current_subject,
                     })
                 rest = line[len("COMMIT:"):]
@@ -310,7 +310,7 @@ def _collect_git_dates(
                 "date": current_date_iso[:10],
                 "files": current_files,
                 "sha": current_sha,
-                "author": current_author,
+                "authors": [current_author],
                 "subject": current_subject,
             })
     finally:
