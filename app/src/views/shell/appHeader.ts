@@ -252,6 +252,14 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       if (_projectLabelEl) _projectLabelEl.textContent = _rootLabel;
     }
 
+    // First-time project load: create the button now that we have
+    // something to show. The button stays hidden on cold boot (when
+    // _rootLabel is empty) so the header doesn't have an empty chip
+    // dangling next to the gem.
+    if (!_projectBtn && _rootLabel) {
+      _createProjectButton();
+    }
+
     _branch = branch;
     if (_projectBtn) {
       if (_branchPillEl) {
@@ -298,8 +306,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   }
 
   // Project button — sits at the far left of the header row, prepended
-  // before the title/breadcrumb slot. Contains: icon + project label + branch pill.
-  {
+  // before the title/breadcrumb slot. Contains: icon + project label +
+  // branch pill. Created lazily so the header stays clean on cold boot
+  // (no project loaded → no empty chip dangling next to the gem).
+  function _createProjectButton(): void {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-chip';
@@ -330,13 +340,22 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     _projectBtn = btn;
     btn.dataset.appHeaderInjected = '1';
-    titleEl.parentElement?.prepend(btn);
+    // Anchor right before the title slot so the order is [gem][project]
+    // [(link)][title] regardless of how many far-left buttons (currently
+    // just the reset-view gem) live before the project chip.
+    titleEl!.parentElement?.insertBefore(btn, titleEl!);
 
     // Render the open-repo link IMMEDIATELY AFTER the project button if a
-    // git source URL was passed at init. _syncRepoLink relies on _projectBtn
-    // being inserted into the DOM (it positions the link via .nextSibling),
-    // so this call must happen after the prepend above.
+    // git source URL was set. _syncRepoLink relies on _projectBtn being
+    // inserted into the DOM (it positions the link via .nextSibling), so
+    // this call must happen after the insert above.
     _syncRepoLink();
+  }
+
+  // Only render the button at init if there's already a project loaded —
+  // otherwise wait for setSourceInfo() to fire on first manifest.
+  if (_rootLabel) {
+    _createProjectButton();
   }
 
   // Reset-view button — sits at the FAR LEFT of the header row, prepended
