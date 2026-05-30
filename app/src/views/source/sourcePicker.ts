@@ -87,7 +87,10 @@ export interface SourcePicker {
   close(): void;
 }
 
-export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void }): SourcePicker {
+export function createSourcePicker(opts: {
+  onSubmit: (s: SourcePayload) => void;
+  allowLocalRepos: boolean;
+}): SourcePicker {
   const root = document.getElementById('source-picker-root');
   if (!root) {
     return { open: () => {}, close: () => {} };
@@ -95,6 +98,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
 
   let dismissible = false;
   let activeTab: 'local' | 'git' = 'git';
+  const allowLocalRepos = opts.allowLocalRepos;
 
   function isGitLike(s: string): boolean {
     return /:\/\//.test(s) || /^[^@]+@[^:]+:/.test(s);
@@ -102,6 +106,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
 
   function deriveTabFromPrefill(p?: SourcePayload): 'local' | 'git' {
     if (!p) return 'git';
+    if (!allowLocalRepos) return 'git';
     return isGitLike(p.src) ? 'git' : 'local';
   }
 
@@ -152,11 +157,24 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
             </div>
 
             <div data-pane="local" style="display: ${activeTab === 'local' ? 'block' : 'none'};">
+              ${
+                allowLocalRepos
+                  ? `
               <div class="modal-field">
                 <label>Path</label>
                 <input data-field="path" type="text" autocomplete="off" spellcheck="false"
                   value="${activeTab === 'local' ? escapeAttr(prefillSrc) : ''}">
-              </div>
+              </div>`
+                  : `
+              <div class="modal-warning">
+                <strong>Local repositories are disabled</strong>
+                <p>codecity is running without <code>CODECITY_ALLOW_LOCAL_REPOS=1</code>.
+                Restart the container with the env var set and a read-only mount of the
+                directory you want to load.</p>
+                <p><a href="https://github.com/thalida/codecity#local-directories"
+                  target="_blank" rel="noopener">How to enable local repositories →</a></p>
+              </div>`
+              }
             </div>
 
             <!-- Shared across tabs: applies to ANY git repo, including
@@ -210,14 +228,24 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
     const rows = list
       .map((r) => {
         const isActive = r.src === currentSrc && (r.branch ?? '') === (currentBranch ?? '');
-        const icon = isGitLike(r.src) ? _hostingIconSvg(r.src) : '📁';
+        const isLocal = !isGitLike(r.src);
+        const isDisabled = isLocal && !allowLocalRepos;
+        const icon = isDisabled ? '⚠️' : isLocal ? '📁' : _hostingIconSvg(r.src);
+        const disabledTitle = isDisabled
+          ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
+          : '';
+        const classes = ['recent-row'];
+        if (isActive) classes.push('recent-row--active');
+        if (isDisabled) classes.push('recent-row--disabled');
         return `
       <div class="recent-item">
         <button type="button"
-                class="recent-row${isActive ? ' recent-row--active' : ''}"
+                class="${classes.join(' ')}"
+                ${disabledTitle ? `title="${escapeAttr(disabledTitle)}"` : ''}
                 data-src="${escapeAttr(r.src)}"
                 data-branch="${escapeAttr(r.branch ?? '')}"
-                data-git-window="${escapeAttr(r.gitWindow ?? '')}">
+                data-git-window="${escapeAttr(r.gitWindow ?? '')}"
+                data-disabled="${isDisabled ? '1' : ''}">
           <span class="recent-icon">${icon}</span>
           <div class="recent-row-body">
             <div class="recent-label">${escapeHtml(r.label)}</div>
@@ -273,6 +301,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
 
       row.addEventListener('click', () => {
         if (row.classList.contains('recent-row--active')) return;
+        if (row.dataset.disabled === '1') return;
         opts.onSubmit({ src, branch, gitWindow });
       });
 
@@ -319,7 +348,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
   function submitFromForm(): void {
     const src =
       activeTab === 'local'
-        ? (root!.querySelector('[data-field="path"]') as HTMLInputElement).value.trim()
+        ? (root!.querySelector('[data-field="path"]') as HTMLInputElement | null)?.value.trim() ?? ''
         : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
     if (!src) return;
     const branch =
