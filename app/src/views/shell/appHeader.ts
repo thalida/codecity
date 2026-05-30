@@ -81,12 +81,17 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     };
   }
 
+  // Far-left controls (gem, project chip, repo link) live in this wrapper
+  // so the header's grid layout can balance the left/right tracks and keep
+  // #app-title visually centered. Fall back to the header element itself
+  // if the wrapper isn't present (older shells / test fixtures).
+  const leftEl: HTMLElement =
+    document.getElementById('app-header-left') ?? titleEl.parentElement!;
+
   // Idempotency guard: if initAppHeader has run before, clear our
   // previously-injected buttons so we don't accumulate stacked copies
   // on error-path re-init (boot() catch path → startRenderLoop again).
-  titleEl.parentElement
-    ?.querySelectorAll('[data-app-header-injected]')
-    .forEach((el) => el.remove());
+  leftEl.querySelectorAll('[data-app-header-injected]').forEach((el) => el.remove());
 
   // Last selection cached so config-store subscriptions can re-render
   // with the same selection when the palette / asphalt color changes.
@@ -236,6 +241,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         a.appendChild(makeLucideIcon('external-link'));
         a.dataset.appHeaderInjected = '1';
         _repoLinkEl = a;
+        // Inserts directly after the project button, inside #app-header-left.
         _projectBtn.parentElement.insertBefore(_repoLinkEl, _projectBtn.nextSibling);
       }
       const baseUrl = toHttpsRepoUrl(_sourceUrl);
@@ -342,10 +348,9 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     _projectBtn = btn;
     btn.dataset.appHeaderInjected = '1';
-    // Anchor right before the title slot so the order is [gem][project]
-    // [(link)][title] regardless of how many far-left buttons (currently
-    // just the reset-view gem) live before the project chip.
-    titleEl!.parentElement?.insertBefore(btn, titleEl!);
+    // Appended to the left wrapper so the order is [gem][project][(link)],
+    // which keeps the gem (prepended below) as the first child.
+    leftEl.appendChild(btn);
 
     // Render the open-repo link IMMEDIATELY AFTER the project button if a
     // git source URL was set. _syncRepoLink relies on _projectBtn being
@@ -373,7 +378,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     btn.appendChild(makeGemIcon());
     btn.dataset.appHeaderInjected = '1';
     btn.addEventListener('click', () => onResetView());
-    titleEl.parentElement?.prepend(btn);
+    leftEl.prepend(btn);
   }
 
   // Live config: re-render the cached selection whenever a store that

@@ -800,9 +800,14 @@ body {
 
 #app-header {
   flex: 0 0 auto;
-  display: flex;
+  /* 3-column grid keeps #app-title visually centered in the viewport
+     regardless of how much content the left controls (gem, project chip,
+     repo link) occupy. The minmax(0, 1fr) tracks share the leftover space
+     equally, so the center column stays at true header-center. */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: var(--cc-space-2);
+  column-gap: var(--cc-space-2);
   height: 32px;
   padding: 0 var(--cc-space-4);
   background: var(--cc-bg-chrome);
@@ -814,8 +819,19 @@ body {
   user-select: none;
 }
 
+#app-header-left,
+#app-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+  min-width: 0;
+}
+
+#app-header-right {
+  justify-content: flex-end;
+}
+
 #app-title {
-  flex: 1 1 auto;
   display: flex;
   align-items: center;
   justify-content: center;
