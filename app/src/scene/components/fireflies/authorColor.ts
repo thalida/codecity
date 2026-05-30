@@ -11,10 +11,13 @@
 // Base palette used for firefly orbs — saturated, mid-lightness.
 const ORB_L = 0.78;
 const ORB_C = 0.18;
-// Pastel variant used for orbit-ring hover highlights — same hue,
-// pushed toward white. Lower chroma keeps high-L hues inside sRGB gamut.
-const LIGHT_L = 0.9;
-const LIGHT_C = 0.1;
+// Brighter variant used for orbit-ring hover highlights — same hue +
+// chroma as the orb (so the author's identity stays recognizable), only
+// the lightness lifts. Going too pastel (lower chroma, much higher L)
+// washes the ring toward white and loses the hue, which is exactly
+// the wrong signal for "this is author X's orbit".
+const LIGHT_L = 0.84;
+const LIGHT_C = 0.18;
 
 export interface AuthorColor {
   hex: string; // "#rrggbb"
