@@ -45,6 +45,8 @@
 - [ ] add meta data about the world
 - [x] add enable local env variable
 - [x] fix start position to include tallest building
+- [ ] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
+- [ ] one-time recents migration to scrub stale "detached HEAD" / "(no branch)" branch values from localStorage entries saved before the symbolic-ref fix. Today users can trash + re-add to clean up; a boot-time migration would do it automatically.
 
 ## Agent Prompts ToDos
 
