@@ -1,4 +1,4 @@
-// views/components/badge.ts — Shared builder for the small pill that shows
+// views/components/badge.tsx — Shared builder for the small pill that shows
 // "what kind of thing am I looking at": a file extension (color-coded
 // from the same hue palette the city uses) or a generic "dir" badge
 // (painted with the asphalt color). Used by both the floating header
@@ -10,7 +10,12 @@
 // WCAG relative-luminance formula: dark text on bright backgrounds,
 // light text on dark backgrounds. That keeps the label readable no
 // matter what colors the user picks in Controls.
+//
+// Preact component: ExtensionBadge.
+// Backward-compat factory: makeExtensionBadge (still used by panes/shell
+// until Phases 3c/3d port them).
 
+import { h } from 'preact';
 import { getHue } from '@/scene/components/buildings/buildingColor';
 
 const TEXT_DARK = '#0a0b10';
@@ -23,6 +28,46 @@ const FILE_BADGE_LIGHTNESS = 0.35;
 // WCAG-derived split point. Tuned a hair below 0.5 so neutral mid-tones
 // fall to the light-text side (matches the app's dark theme).
 const LUMINANCE_SPLIT = 0.45;
+
+// ── Props interface ─────────────────────────────────────────────────────────
+
+export interface ExtensionBadgeProps {
+  extension: string | null | undefined;
+  isDir: boolean;
+  huePalette: Record<string, number>;
+  asphaltColor: string;
+}
+
+// ── Preact component ────────────────────────────────────────────────────────
+
+export function ExtensionBadge({ extension, isDir, huePalette, asphaltColor }: ExtensionBadgeProps) {
+  if (isDir) {
+    return (
+      <span
+        class="path-badge is-dir"
+        style={{
+          backgroundColor: asphaltColor,
+          color: _pickContrastingText(_parseHex(asphaltColor)),
+        }}
+      >
+        dir
+      </span>
+    );
+  }
+  const label = (extension || '').replace(/^\./, '').slice(0, 4) || 'file';
+  const hue = getHue(extension ?? '', huePalette);
+  const color = _pickContrastingText(_hslToRgb(hue, FILE_BADGE_SATURATION, FILE_BADGE_LIGHTNESS));
+  return (
+    <span
+      class="path-badge"
+      style={{ '--badge-hue': String(hue), color } as Record<string, string>}
+    >
+      {label}
+    </span>
+  );
+}
+
+// ── Backward-compat factory (Phase 3c/3d will delete this) ─────────────────
 
 /**
  * Build a `<span class="path-badge">` with the right label and color.
@@ -58,6 +103,8 @@ export function makeExtensionBadge(
   );
   return chip;
 }
+
+// ── Private helpers ─────────────────────────────────────────────────────────
 
 function _pickContrastingText(rgb: [number, number, number] | null): string {
   if (!rgb) return TEXT_LIGHT;
