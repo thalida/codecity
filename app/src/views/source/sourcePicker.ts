@@ -195,9 +195,7 @@ export function createSourcePicker(opts: {
                   `
                   ).join('')}
                 </select>
-                <div class="modal-field-help">
-                  Shorter = faster load. Non-git paths ignore it.
-                </div>
+                <div class="modal-field-help">Shorter = faster load.</div>
               </div>
 
               <div class="modal-field">
@@ -205,9 +203,6 @@ export function createSourcePicker(opts: {
                   <input data-field="skip_cache" type="checkbox">
                   Skip cache (fresh scan)
                 </label>
-                <div class="modal-field-help">
-                  Slower but always accurate.
-                </div>
               </div>
 
               <div class="modal-actions">
