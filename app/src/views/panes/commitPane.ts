@@ -18,7 +18,7 @@ import type { CommitEntry } from '@/types';
 import { makeLucideIcon } from '@/views/widgets/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { commitUrl } from './commitUrl.js';
-import { formatRelativeAge } from '@/views/widgets/formatRelativeAge.js';
+import { formatRelativeAge, formatFullDate } from '@/utils/dates.js';
 import { fetchCommitDetail } from './commitFetch.js';
 import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
 
@@ -45,23 +45,6 @@ function _busynessLabel(count: number): 'Light' | 'Avg' | 'Busy' {
   if (count >= 8) return 'Busy';
   if (count >= 3) return 'Avg';
   return 'Light';
-}
-
-/** Format "YYYY-MM-DD" as a human-readable long date (e.g. "March 12, 2026").
- *  Parses components manually to avoid the UTC-midnight timezone shift that
- *  `new Date('YYYY-MM-DD')` causes. Falls back to the raw ISO string if the
- *  input can't be parsed cleanly. */
-function _formatFullDate(isoDate: string): string {
-  const parts = isoDate.split('-').map(Number);
-  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) {
-    return isoDate;
-  }
-  const [y, m, d] = parts;
-  return new Date(y, m - 1, d).toLocaleDateString(undefined, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
 }
 
 export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
@@ -226,12 +209,10 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       }
       const label = _busynessLabel(sameDayTotal);
       const commitWord = sameDayTotal === 1 ? 'commit' : 'commits';
-      sameDayEl.appendChild(
-        document.createTextNode(`${label} day: ${sameDayTotal} ${commitWord}`)
-      );
+      sameDayEl.appendChild(document.createTextNode(`${label} day: ${sameDayTotal} ${commitWord}`));
       // Hover tooltip carries the full date so the "that day" context isn't
       // lost. e.g. "24 commits on March 12, 2026".
-      sameDayEl.title = `${sameDayTotal} ${commitWord} on ${_formatFullDate(commit.date)}`;
+      sameDayEl.title = `${sameDayTotal} ${commitWord} on ${formatFullDate(commit.date)}`;
       body.appendChild(sameDayEl);
     }
 

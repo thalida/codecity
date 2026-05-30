@@ -181,7 +181,7 @@ describe('placeFireflies', () => {
     expect(orbs.length).toBe(3);
   });
 
-  it('colors each per-author orb with that author\'s color', async () => {
+  it("colors each per-author orb with that author's color", async () => {
     const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const multiAuthor: CommitEntry[] = [
       {
@@ -221,7 +221,7 @@ describe('placeFireflies', () => {
     expect(orbs[0].orbitStartAngle).not.toBe(orbs[2].orbitStartAngle);
   });
 
-  it('counts co-authorship toward each author\'s tally', () => {
+  it("counts co-authorship toward each author's tally", () => {
     // Commit 0 is co-authored by Alice and Bob; commit 1 is Bob solo.
     // Tally: Alice=1, Bob=2. After scale lerp, Bob's orbs should scale
     // larger than Alice's.

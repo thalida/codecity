@@ -14,7 +14,7 @@ import { INPUT_TIMING } from '@/config/index.js';
 import { KEY_BINDINGS, TEXT_INPUT_TAGS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { PickTarget } from '@/types';
-import { formatRelativeAge } from '@/views/widgets/formatRelativeAge.js';
+import { formatRelativeAge } from '@/utils/dates.js';
 import type { createPicker } from './picker.js';
 import type { createCameraRig } from './cameraRig.js';
 

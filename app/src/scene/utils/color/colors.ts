@@ -126,11 +126,7 @@ const _oklchScratch = { r: 0, g: 0, b: 0 };
 /** OKLCH (polar) → linear sRGB, each channel clamped to [0, 1]. Allocates
  *  a fresh 3-tuple per call — fine for palette generation (called once
  *  at module load) but not for per-frame hot paths. */
-export function oklchToLinearRgb(
-  l: number,
-  c: number,
-  hueDeg: number
-): [number, number, number] {
+export function oklchToLinearRgb(l: number, c: number, hueDeg: number): [number, number, number] {
   const h = (hueDeg * Math.PI) / 180;
   oklabToLinear(l, c * Math.cos(h), c * Math.sin(h), _oklchScratch);
   return [

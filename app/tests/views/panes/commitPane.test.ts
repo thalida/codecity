@@ -333,9 +333,7 @@ describe('buildCommitPane', () => {
     const rows = pane.querySelectorAll('.commit-author');
     expect(rows.length).toBe(3);
 
-    const names = Array.from(rows).map((r) =>
-      r.querySelector('.commit-author-name')!.textContent
-    );
+    const names = Array.from(rows).map((r) => r.querySelector('.commit-author-name')!.textContent);
     expect(names).toEqual(['Alice Author', 'Bob Builder', 'Carol Coder']);
 
     // Each dot uses the per-author color.
@@ -625,8 +623,7 @@ describe('buildCommitPane', () => {
     const body = pane.querySelector('.commit-body') as HTMLElement;
     const children = Array.from(body.children) as HTMLElement[];
     // Find first occurrence of each marker class.
-    const idx = (cls: string) =>
-      children.findIndex((c) => c.classList.contains(cls));
+    const idx = (cls: string) => children.findIndex((c) => c.classList.contains(cls));
     const iSubject = idx('commit-message-subject');
     const iAuthor = idx('commit-author');
     const iMeta = idx('commit-meta');
