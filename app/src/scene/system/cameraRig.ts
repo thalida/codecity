@@ -71,10 +71,9 @@ const FRAMING_DIR_LATERAL = 0.3;
 
 // Headroom above the tallest building's roof when fitting the start
 // framing. 1.0 = spire flush at the top edge of the vertical FOV
-// (tightest geometric fit). 1.1 leaves ~10% of the vertical FOV as
-// sky above the tallest spire so the horizon-glow band stays visible
-// and the roof doesn't touch the very top edge.
-const TALLEST_BUILDING_HEADROOM_MULT = 1.1;
+// (tightest geometric fit). 1.05 leaves ~5% of the vertical FOV as
+// sky above the tallest spire so the roof doesn't touch the very top.
+const TALLEST_BUILDING_HEADROOM_MULT = 1.05;
 
 export function createCameraRig({
   canvas,
