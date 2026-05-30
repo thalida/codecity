@@ -177,37 +177,43 @@ export function createSourcePicker(opts: {
               }
             </div>
 
-            <!-- Shared across tabs: applies to ANY git repo, including
-                 local paths pointing at a clone on disk. -->
-            <div class="modal-field">
-              <label>History window</label>
-              <select data-field="git_window">
-                ${GIT_WINDOW_OPTIONS.map(
-                  (o) => `
-                  <option value="${escapeAttr(o.value)}"${
-                    o.value === prefillWindow ? ' selected' : ''
-                  }>${escapeHtml(o.label)}</option>
-                `
-                ).join('')}
-              </select>
-              <div class="modal-field-help">
-                Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
+            <!-- Form fields (History window, Skip cache, Submit) apply to
+                 whatever's in the active pane. On the disabled-Local view
+                 there's nothing submittable, so this whole block is hidden
+                 — Recents stays so the user can still pick a git recent. -->
+            <div data-form-fields style="display: ${
+              !allowLocalRepos && activeTab === 'local' ? 'none' : ''
+            };">
+              <div class="modal-field">
+                <label>History window</label>
+                <select data-field="git_window">
+                  ${GIT_WINDOW_OPTIONS.map(
+                    (o) => `
+                    <option value="${escapeAttr(o.value)}"${
+                      o.value === prefillWindow ? ' selected' : ''
+                    }>${escapeHtml(o.label)}</option>
+                  `
+                  ).join('')}
+                </select>
+                <div class="modal-field-help">
+                  Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
+                </div>
               </div>
-            </div>
 
-            <div class="modal-field">
-              <label>
-                <input data-field="skip_cache" type="checkbox">
-                Skip cache (fresh scan)
-              </label>
-              <div class="modal-field-help">
-                Forces a full rescan, bypassing the file-stat and git-history
-                caches for this open. Slower but always accurate.
+              <div class="modal-field">
+                <label>
+                  <input data-field="skip_cache" type="checkbox">
+                  Skip cache (fresh scan)
+                </label>
+                <div class="modal-field-help">
+                  Forces a full rescan, bypassing the file-stat and git-history
+                  caches for this open. Slower but always accurate.
+                </div>
               </div>
-            </div>
 
-            <div class="modal-actions">
-              <button type="button" class="submit">Open project</button>
+              <div class="modal-actions">
+                <button type="button" class="submit">Open project</button>
+              </div>
             </div>
 
             ${renderRecents(currentSrc, currentBranch)}
@@ -278,6 +284,13 @@ export function createSourcePicker(opts: {
           activeTab === 'local' ? 'block' : 'none';
         (root!.querySelector('[data-pane="git"]') as HTMLElement).style.display =
           activeTab === 'git' ? 'block' : 'none';
+        // The form-fields block is hidden on the disabled-Local view —
+        // mirror that here so switching tabs keeps the modal coherent.
+        const formFields = root!.querySelector('[data-form-fields]') as HTMLElement | null;
+        if (formFields) {
+          formFields.style.display =
+            !allowLocalRepos && activeTab === 'local' ? 'none' : '';
+        }
         root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
           b.classList.toggle('active', b === btn);
         });
@@ -285,10 +298,10 @@ export function createSourcePicker(opts: {
       });
     });
 
-    // Submit
+    // Submit — only present when the form-fields block is rendered.
     root!
-      .querySelector<HTMLButtonElement>('button.submit')!
-      .addEventListener('click', submitFromForm);
+      .querySelector<HTMLButtonElement>('button.submit')
+      ?.addEventListener('click', submitFromForm);
 
     // Recent rows — the row button opens the recent; the sibling trash
     // button removes it. They live in a shared .recent-item container.

@@ -226,4 +226,33 @@ describe('sourcePicker', () => {
     expect(root.querySelectorAll('.recent-row').length).toBe(0);
     confirmSpy.mockRestore();
   });
+
+  it('disabled: form fields (history/skip/submit) are hidden on the Local pane', () => {
+    const p = createSourcePicker({ onSubmit: () => {}, allowLocalRepos: false });
+    p.open();
+    // Default opens on Git tab; switch to Local.
+    (root.querySelector('[data-tab="local"]') as HTMLButtonElement).click();
+    const formFields = root.querySelector('[data-form-fields]') as HTMLElement;
+    expect(formFields).toBeTruthy();
+    expect(formFields.style.display).toBe('none');
+  });
+
+  it('disabled: switching back to Git tab reveals the form fields again', () => {
+    const p = createSourcePicker({ onSubmit: () => {}, allowLocalRepos: false });
+    p.open();
+    (root.querySelector('[data-tab="local"]') as HTMLButtonElement).click();
+    (root.querySelector('[data-tab="git"]') as HTMLButtonElement).click();
+    const formFields = root.querySelector('[data-form-fields]') as HTMLElement;
+    expect(formFields.style.display).not.toBe('none');
+    // Submit button is back in the DOM and clickable.
+    expect(root.querySelector('button.submit')).toBeTruthy();
+  });
+
+  it('enabled: form fields render on the Local pane (regression guard)', () => {
+    const p = createSourcePicker({ onSubmit: () => {}, allowLocalRepos: true });
+    p.open();
+    (root.querySelector('[data-tab="local"]') as HTMLButtonElement).click();
+    const formFields = root.querySelector('[data-form-fields]') as HTMLElement;
+    expect(formFields.style.display).not.toBe('none');
+  });
 });

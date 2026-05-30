@@ -144,9 +144,7 @@ h6 {
   --cc-success-dark: oklch(0.681 0.123 157.3);
   --cc-success-bg: color-mix(in oklch, var(--cc-success) 10%, transparent);
   --cc-warning: oklch(0.837 0.164 84.4);
-  --cc-warning-dark: oklch(0.62 0.14 75);
   --cc-warning-bg: color-mix(in oklch, var(--cc-warning) 15%, transparent);
-  --cc-warning-border: color-mix(in oklch, var(--cc-warning) 45%, transparent);
   --cc-error: oklch(0.637 0.208 25.3);
   --cc-error-light: oklch(0.843 0.088 10.3);
   --cc-error-bg: color-mix(in oklch, var(--cc-error) 18%, transparent);
@@ -2709,10 +2707,13 @@ canvas {
   font-size: var(--cc-font-lg);
 }
 
+/* Inline notice for a non-blocking advisory state (e.g. "local repos
+   are disabled"). Quieter than .modal-error: subtle amber background
+   tint, no outline border, body text uses the normal high-contrast
+   color so it's readable. The amber accent lives in the title + link. */
 .modal-warning {
   background: var(--cc-warning-bg);
-  border: 1px solid var(--cc-warning-border);
-  color: var(--cc-warning-dark);
+  color: var(--cc-text-secondary);
   padding: var(--cc-space-4) var(--cc-space-5);
   border-radius: var(--cc-radius-md);
   margin: var(--cc-space-3) 0 var(--cc-space-6);
@@ -2723,18 +2724,20 @@ canvas {
   display: block;
   margin-bottom: var(--cc-space-2);
   font-weight: var(--cc-fw-semibold);
+  color: var(--cc-warning);
 }
 .modal-warning p {
   margin: var(--cc-space-2) 0;
 }
 .modal-warning code {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.08);
   padding: 0 var(--cc-space-2);
   border-radius: var(--cc-radius-sm);
   font-size: var(--cc-font-md);
+  color: var(--cc-text-primary);
 }
 .modal-warning a {
-  color: var(--cc-warning-dark);
+  color: var(--cc-warning);
   text-decoration: underline;
 }
 
