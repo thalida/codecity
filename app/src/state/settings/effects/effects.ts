@@ -3,7 +3,7 @@
 // all rainbows slower") doesn't require chasing the same values through
 // multiple per-target stores.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 // Chasing-rainbow effect used by BOTH the selected building's neon
 // outline and the gem→selection neon path line. Both consumers cycle hue
@@ -15,7 +15,7 @@ export interface RainbowConfig {
   LIGHTNESS: number;
 }
 
-export const RAINBOW = map<RainbowConfig>({
+export const RAINBOW = signal<RainbowConfig>({
   SPEED: 0.0005, // hue cycles per millisecond
   SATURATION: 1.0,
   LIGHTNESS: 0.5,
@@ -63,7 +63,7 @@ export interface BloomConfig {
 // color tint so bright pixels in the texture push past 1.0 in linear
 // space → bloom picks them up. 1.0 = LDR (no bloom); 2.5 = neon
 // storefront. Dark image pixels stay below threshold.
-export const BLOOM = map<BloomConfig>({
+export const BLOOM = signal<BloomConfig>({
   ENABLED: true,
   STRENGTH: 0.1,
   RADIUS: 1.0,

@@ -155,7 +155,7 @@ export function createInputHandlers({
       canvas.style.cursor = 'grab';
     }
 
-    if (_sameHover(newHover, picker.hover.get())) {
+    if (_sameHover(newHover, picker.hover.value)) {
       if (_hoverCommitId) {
         clearTimeout(_hoverCommitId);
         _hoverCommitId = 0;
@@ -170,8 +170,8 @@ export function createInputHandlers({
       _hoverCommitId = 0;
       const toCommit = _hoverPending;
       _hoverPending = null;
-      if (!_sameHover(toCommit, picker.hover.get())) picker.setHover(toCommit);
-    }, INPUT_TIMING.get().HOVER_COMMIT_MS);
+      if (!_sameHover(toCommit, picker.hover.value)) picker.setHover(toCommit);
+    }, INPUT_TIMING.value.HOVER_COMMIT_MS);
   }
 
   function _handlePick(clientX: number, clientY: number): void {
@@ -192,7 +192,7 @@ export function createInputHandlers({
     // no-op, double-click-to-focus would race with the per-click toggle and
     // leave the target deselected on the dblclick frame.
     const next = picker.interpretHit(hit);
-    if (_sameHover(next, picker.selection.get())) return;
+    if (_sameHover(next, picker.selection.value)) return;
     picker.setSelection(next);
   }
 
@@ -249,7 +249,7 @@ export function createInputHandlers({
     const dx = ev.clientX - downX;
     const dy = ev.clientY - downY;
     const dtime = Date.now() - downTime;
-    const input = INPUT_TIMING.get();
+    const input = INPUT_TIMING.value;
     const moveSq = input.CLICK_MOVE_THRESHOLD_PX * input.CLICK_MOVE_THRESHOLD_PX;
     if (dx * dx + dy * dy > moveSq) return;
     if (dtime > input.CLICK_TIME_THRESHOLD_MS) return;
@@ -294,7 +294,7 @@ export function createInputHandlers({
       // No manifest rebuild — reload the page for that.
       onResetView();
     } else if (KEY_BINDINGS.FOCUS_SELECTION.keys.includes(ev.key)) {
-      const sel = picker.selection.get();
+      const sel = picker.selection.value;
       if (!sel) return;
       if (sel.kind === NodeKind.File) {
         rig.focusBuilding(sel.mesh, sel.data);
@@ -326,7 +326,7 @@ export function createInputHandlers({
       _hoverCommitId = 0;
     }
     _hoverPending = null;
-    if (picker.hover.get()) picker.setHover(null);
+    if (picker.hover.value) picker.setHover(null);
     hideTooltip();
     canvas.style.cursor = 'grabbing';
   };

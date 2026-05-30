@@ -4,7 +4,7 @@
 // DIMENSIONS + PALETTE changes are rebuild-required (regenerate per-building
 // geometry / facade textures). OUTLINE + FADE are applied on Save via applyTheme().
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 import { FadeDetail } from '@/types';
 
 // ─── Dimensions ────────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ export interface BuildingDimensionsConfig {
   DISTANCE_FROM_ROAD: number;
 }
 
-export const BUILDING_DIMENSIONS = map<BuildingDimensionsConfig>({
+export const BUILDING_DIMENSIONS = signal<BuildingDimensionsConfig>({
   MIN_FLOORS: 2,
   MAX_FLOORS: 64,
   FLOOR_HEIGHT: 16, // scene units per floor
@@ -47,7 +47,7 @@ export interface BuildingPaletteConfig {
   HUE_EXT_MAP: Record<string, number>;
 }
 
-export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
+export const BUILDING_PALETTE = signal<BuildingPaletteConfig>({
   // Saturation + lightness both key off LAST-MODIFIED (see
   // getBuildingColor). Newest files hit SATURATION_MAX × LIGHTNESS_MAX
   // for the richest, most-saturated version of the hue; oldest fall
@@ -210,7 +210,7 @@ export interface BuildingOutlineConfig {
   SELECTED_OPACITY: number;
 }
 
-export const BUILDING_OUTLINE = map<BuildingOutlineConfig>({
+export const BUILDING_OUTLINE = signal<BuildingOutlineConfig>({
   WIDTH: 4, // shared by default + hover + selected
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.5,
@@ -239,7 +239,7 @@ export interface BuildingAgingConfig {
   TILT_DEGREES: number;
 }
 
-export const BUILDING_AGING = map<BuildingAgingConfig>({
+export const BUILDING_AGING = signal<BuildingAgingConfig>({
   GRIME_ENABLED: true,
   GRIME_INTENSITY: 0.75,
   GRIME_COVERAGE: 0.55,
@@ -294,7 +294,7 @@ export interface BuildingFadeConfig {
   LEVEL4_OUTLINE_OPACITY: number;
 }
 
-export const BUILDING_FADE = map<BuildingFadeConfig>({
+export const BUILDING_FADE = signal<BuildingFadeConfig>({
   // Default tier — applies to the selected/hovered building itself
   // and to every building when nothing is selected (idle state).
   DEFAULT_DETAIL: FadeDetail.Full,

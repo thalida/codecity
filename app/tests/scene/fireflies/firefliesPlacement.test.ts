@@ -162,7 +162,7 @@ describe('placeFireflies', () => {
       { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Solo'], subject: 'b' },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
-    const scaleMax = FIREFLIES.get().SCALE_MAX;
+    const scaleMax = FIREFLIES.value.SCALE_MAX;
     expect(orbs[0].scale).toBe(scaleMax);
     expect(orbs[1].scale).toBe(scaleMax);
   });

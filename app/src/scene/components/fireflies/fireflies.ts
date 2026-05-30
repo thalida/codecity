@@ -35,7 +35,7 @@ export function createFireflies(
 
   // Master config gate. When disabled, return an empty parent group so the
   // caller's group is still safe to add/dispose.
-  if (!FIREFLIES.get().FIREFLIES_ENABLED) {
+  if (!FIREFLIES.value.FIREFLIES_ENABLED) {
     const stub = createFireflyRenderer([]);
     return {
       group: parent,

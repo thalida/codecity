@@ -185,7 +185,7 @@ describe('writeLabelToSlot', () => {
     pos.setFromMatrixPosition(tmpM);
 
     // y should equal b.h + LABEL_TYPOGRAPHY.get().ELEVATION (runtime config, default = 0).
-    const configElevation = LABEL_TYPOGRAPHY.get().ELEVATION;
+    const configElevation = LABEL_TYPOGRAPHY.value.ELEVATION;
     expect(pos.y).toBeCloseTo(b.h + configElevation);
     expect(pos.x).toBeCloseTo(b.x);
     expect(pos.z).toBeCloseTo(b.y);

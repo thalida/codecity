@@ -82,7 +82,7 @@ export function createCameraRig({
   canvas: HTMLCanvasElement;
   world: ReturnType<typeof createWorld>;
 }) {
-  const perspective = CAMERA_PERSPECTIVE.get();
+  const perspective = CAMERA_PERSPECTIVE.value;
   const W = canvas.clientWidth;
   const H = canvas.clientHeight;
   const camera = new THREE.PerspectiveCamera(
@@ -92,7 +92,7 @@ export function createCameraRig({
     perspective.FAR
   );
 
-  const cameraControlsCfg = CAMERA_CONTROLS.get();
+  const cameraControlsCfg = CAMERA_CONTROLS.value;
   const controls = new OrbitControls(camera, canvas);
   controls.enableDamping = true;
   controls.dampingFactor = cameraControlsCfg.DAMPING_FACTOR;
@@ -168,7 +168,7 @@ export function createCameraRig({
     // (CAMERA_PERSPECTIVE.FAR × 0.95) so the sphere never gets clipped
     // at the corners of small-repo viewports.
     const dynamicFar = controls.maxDistance * 2 + worldRadius * 2;
-    const skySphereExtent = CAMERA_PERSPECTIVE.get().FAR * 0.95;
+    const skySphereExtent = CAMERA_PERSPECTIVE.value.FAR * 0.95;
     camera.far = Math.max(dynamicFar, skySphereExtent);
     camera.updateProjectionMatrix();
 
@@ -327,10 +327,10 @@ export function createCameraRig({
     // reset() on the SOURCE_KEY subscribe directly would snap to the
     // previous repo's stale initialCamPos.
     if (!_rebuildSubscribed) {
-      let _lastSourceKey = CURRENT_SOURCE_KEY.get();
+      let _lastSourceKey = CURRENT_SOURCE_KEY.value;
       world.onChange(() => {
         _captureFraming();
-        const cur = CURRENT_SOURCE_KEY.get();
+        const cur = CURRENT_SOURCE_KEY.value;
         if (cur !== null && cur !== _lastSourceKey) {
           _lastSourceKey = cur;
           reset();
@@ -357,7 +357,7 @@ export function createCameraRig({
     const startTarget = controls.target.clone();
     const startCamPos = camera.position.clone();
     const t0 = performance.now();
-    const easingPower = ANIMATION_TIMING.get().EASING_POWER;
+    const easingPower = ANIMATION_TIMING.value.EASING_POWER;
 
     function step() {
       if (camAnimToken !== token) return;
@@ -415,7 +415,7 @@ export function createCameraRig({
     _animateCamera(
       p.clone(),
       camera.position.clone().add(delta),
-      ANIMATION_TIMING.get().BASE_DURATION_MS * RECENTER_RATIO
+      ANIMATION_TIMING.value.BASE_DURATION_MS * RECENTER_RATIO
     );
   }
 
@@ -477,7 +477,7 @@ export function createCameraRig({
     _animateCamera(
       center.clone(),
       newCamPos,
-      ANIMATION_TIMING.get().BASE_DURATION_MS * durationRatio
+      ANIMATION_TIMING.value.BASE_DURATION_MS * durationRatio
     );
   }
 

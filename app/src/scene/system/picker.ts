@@ -1,17 +1,17 @@
 // scene/picker.ts — owns the raycaster + the hover and selection
-// state machine. State rides on nanostores atoms so consumers
+// state machine. State rides on @preact/signals so consumers
 // (outlineRenderer, pathLineRenderer, buildingFader, coordinator)
-// use the same `subscribe` / `get` idiom they already use for every
+// use the same `effect` / `.value` idiom they already use for every
 // config store.
 //
 // Public contract:
 //
 //   const picker = createPicker({ canvas, camera, world });
 //
-//   picker.hover                  // atom: null | hover target
-//   picker.selection              // atom: null | selection target
-//   picker.setHover(target)       // updates hover atom
-//   picker.setSelection(target)   // updates selection + derived selectionKey atoms
+//   picker.hover                  // signal: null | hover target
+//   picker.selection              // signal: null | selection target
+//   picker.setHover(target)       // updates hover signal
+//   picker.setSelection(target)   // updates selection + derived selectionKey signals
 //   picker.selectByPath(path)     // tree clicks, breadcrumb segment clicks
 //   picker.pickAt(x, y)           // raycast against living meshes; returns null | hit
 //   picker.interpretHit(hit)      // null | { kind, mesh|sidewalk, file|street|dir }
@@ -26,7 +26,7 @@
 //
 // Selection persistence
 // ---------------------
-// PICKER_SELECTION_KEY (exported, atom) holds the persistable form, a
+// PICKER_SELECTION_KEY (exported, signal) holds the persistable form, a
 // tagged union over the same three discriminators carried by selection:
 //   { kind: NodeKind.File,      path: string }
 //   { kind: NodeKind.Directory, path: string }
@@ -39,14 +39,14 @@
 // gone), so a rebuild that loses a node clears it from selection too.
 
 import * as THREE from 'three';
-import { atom } from 'nanostores';
+import { signal, effect } from '@preact/signals';
 import { NodeKind } from '@/types';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
 // Persisted across reloads. Exported so attachPersistence can pick it
 // up via the Config barrel re-export.
-export const PICKER_SELECTION_KEY = atom<PickerSelectionKey | null>(null);
+export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
 
 export function createPicker({
   canvas,
@@ -57,8 +57,8 @@ export function createPicker({
   camera: THREE.Camera;
   world: PickerWorld;
 }) {
-  const hover = atom<PickTarget | null>(null);
-  const selection = atom<PickTarget | null>(null);
+  const hover = signal<PickTarget | null>(null);
+  const selection = signal<PickTarget | null>(null);
 
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
@@ -97,28 +97,29 @@ export function createPicker({
   // ── Selection → key derivation ────────────────────────────────────
   // selection is the source of truth. Any time it changes, we recompute
   // PICKER_SELECTION_KEY so the persistence layer sees the new key.
-  // No code path writes to both atoms simultaneously.
+  // No code path writes to both signals simultaneously.
   //
-  // NOTE: nanostores subscribe() fires immediately with the current value.
+  // NOTE: effect() fires immediately with the current value.
   // We suppress the initial fire so we don't clobber a key that was
   // hydrated by attachPersistence before this picker was created.
   let _suspendKeyDerive = true;
-  selection.subscribe((sel) => {
+  const _disposeSelectionEffect = effect(() => {
+    const sel = selection.value;
     if (_suspendKeyDerive) return;
     if (!sel) {
-      PICKER_SELECTION_KEY.set(null);
+      PICKER_SELECTION_KEY.value = null;
       return;
     }
     if (sel.kind === NodeKind.File && sel.file?.path != null) {
-      PICKER_SELECTION_KEY.set({ kind: NodeKind.File, path: sel.file.path });
+      PICKER_SELECTION_KEY.value = { kind: NodeKind.File, path: sel.file.path };
       return;
     }
     if (sel.kind === NodeKind.Directory && sel.dir?.path != null) {
-      PICKER_SELECTION_KEY.set({ kind: NodeKind.Directory, path: sel.dir.path });
+      PICKER_SELECTION_KEY.value = { kind: NodeKind.Directory, path: sel.dir.path };
       return;
     }
     if (sel.kind === NodeKind.Commit && sel.commit?.sha) {
-      PICKER_SELECTION_KEY.set({ kind: NodeKind.Commit, sha: sel.commit.sha });
+      PICKER_SELECTION_KEY.value = { kind: NodeKind.Commit, sha: sel.commit.sha };
       return;
     }
   });
@@ -131,13 +132,13 @@ export function createPicker({
   // selected node survives across rebuilds when its path still exists,
   // and clears cleanly when it doesn't.
   function _resolveKeyToSelection() {
-    const key = PICKER_SELECTION_KEY.get();
+    const key = PICKER_SELECTION_KEY.value;
     _refreshPickables(); // also refresh pickables on every rebuild
 
     if (!key) {
       // Drop selection in case it referred to disposed meshes.
       _suspendKeyDerive = true;
-      selection.set(null);
+      selection.value = null;
       _suspendKeyDerive = false;
       return;
     }
@@ -145,16 +146,16 @@ export function createPicker({
       const b = world.getBuildingByPath(key.path);
       _suspendKeyDerive = true;
       if (b) {
-        selection.set({
+        selection.value = {
           kind: NodeKind.File,
           mesh: b.mesh,
           data: b.building,
           file: b.building.file,
           instanceId: b.instanceId,
-        });
+        };
       } else {
-        selection.set(null);
-        PICKER_SELECTION_KEY.set(null);
+        selection.value = null;
+        PICKER_SELECTION_KEY.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -164,15 +165,15 @@ export function createPicker({
       const st = world.getStreetByDir(key.path);
       _suspendKeyDerive = true;
       if (sw && st && st.dir) {
-        selection.set({
+        selection.value = {
           kind: NodeKind.Directory,
           sidewalk: sw,
           street: st,
           dir: st.dir,
-        });
+        };
       } else {
-        selection.set(null);
-        PICKER_SELECTION_KEY.set(null);
+        selection.value = null;
+        PICKER_SELECTION_KEY.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -186,15 +187,15 @@ export function createPicker({
       const hit = trees?.findTreeBySha(key.sha) ?? null;
       _suspendKeyDerive = true;
       if (hit) {
-        selection.set({
+        selection.value = {
           kind: NodeKind.Commit,
           mesh: hit.mesh,
           instanceId: hit.instanceId,
           commit: hit.commit,
-        });
+        };
       } else {
-        selection.set(null);
-        PICKER_SELECTION_KEY.set(null);
+        selection.value = null;
+        PICKER_SELECTION_KEY.value = null;
       }
       _suspendKeyDerive = false;
       return;
@@ -204,7 +205,7 @@ export function createPicker({
   // Hover always clears on rebuild — it's transient and would point at
   // a stale mesh otherwise.
   function _clearHoverOnRebuild() {
-    hover.set(null);
+    hover.value = null;
   }
 
   const _unsubResolve = world.onChange(() => {
@@ -217,11 +218,11 @@ export function createPicker({
 
   // ── Public setters ─────────────────────────────────────────────────
   function setHover(h: PickTarget | null): void {
-    hover.set(h);
+    hover.value = h;
   }
 
   function setSelection(sel: PickTarget | null): void {
-    selection.set(sel);
+    selection.value = sel;
   }
 
   // Resolve a path string (file or directory) to a live target and set
@@ -290,7 +291,7 @@ export function createPicker({
   }
 
   // interpretHit(hit) — reduce a raw raycast hit to a target object of
-  // the same shape held by hover / selection atoms. Returns null for
+  // the same shape held by hover / selection signals. Returns null for
   // hits that aren't selectable (e.g. street labels, which don't have
   // userData.type populated for picking).
   function interpretHit(hit: THREE.Intersection<THREE.Object3D> | null): PickTarget | null {
@@ -349,6 +350,7 @@ export function createPicker({
 
   function dispose() {
     if (typeof _unsubResolve === 'function') _unsubResolve();
+    _disposeSelectionEffect();
   }
 
   return {

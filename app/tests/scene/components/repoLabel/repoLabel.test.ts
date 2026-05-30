@@ -9,7 +9,7 @@ import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 // FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
 // the assertions stay stable when production defaults change.
 function resetStore() {
-  REPO_LABEL.set({
+  REPO_LABEL.value = {
     ENABLED: true,
     HEIGHT_PCT: 85,
     FONT_SIZE: 128,
@@ -17,7 +17,7 @@ function resetStore() {
     OPACITY: 0.9,
     BEAM_COLOR: '#bfb3ff',
     TEXT_COLOR: '#ffffff',
-  });
+  };
   resetBuildingsConfig();
 }
 
@@ -62,8 +62,8 @@ describe('createRepoLabel()', () => {
   it('beam length tracks REPO_LABEL.HEIGHT_PCT', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.setKey('HEIGHT_PCT', 50);
-    REPO_LABEL.setKey('FONT_SIZE', 100);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 100 };
     label!.refresh();
     const beam = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'CylinderGeometry'
@@ -79,7 +79,7 @@ describe('createRepoLabel()', () => {
 
   it('panel scale tracks FONT_SIZE × textureAspect', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('FONT_SIZE', 120);
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 120 };
     label!.refresh();
     const panel = label!.group.children.find(
       (c) => ((c as THREE.Mesh).geometry as { type?: string }).type === 'PlaneGeometry'
@@ -122,7 +122,7 @@ describe('createRepoLabel()', () => {
 
   it('refresh hides the group when ENABLED is false', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('ENABLED', false);
+    REPO_LABEL.value = { ...REPO_LABEL.value, ENABLED: false };
     label!.refresh();
     expect(label!.group.visible).toBe(false);
   });
@@ -130,8 +130,8 @@ describe('createRepoLabel()', () => {
   it('setAnchor positions the group at anchor.x/z and lifts y by heightWorld + FONT_SIZE/2', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.setKey('HEIGHT_PCT', 50);
-    REPO_LABEL.setKey('FONT_SIZE', 80);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 80 };
     label!.refresh();
     label!.setAnchor(new THREE.Vector3(10, 0, 30));
     expect(label!.group.position.x).toBeCloseTo(10);
@@ -142,8 +142,8 @@ describe('createRepoLabel()', () => {
 
   it('HEIGHT_PCT=0 puts the panel flush with the floor (panel bottom = anchor.y)', () => {
     label!.setRepoName('codecity');
-    REPO_LABEL.setKey('HEIGHT_PCT', 0);
-    REPO_LABEL.setKey('FONT_SIZE', 100);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 0 };
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 100 };
     label!.refresh();
     label!.setAnchor(new THREE.Vector3(0, 0, 0));
     // Panel center = 0 + 0 + 50 = 50 → panel bottom = 0 (floor). ✓
@@ -182,8 +182,8 @@ describe('createRepoLabel()', () => {
   it("setGem makes the beam track the gem's live world Y (hover + bob)", () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.setKey('HEIGHT_PCT', 50);
-    REPO_LABEL.setKey('FONT_SIZE', 100);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 100 };
     label!.refresh();
     // Stand-in for the gem — a THREE.Object3D with a settable position.y.
     // (In real use this is the gem THREE.Group; renderLoop mutates its
@@ -206,8 +206,8 @@ describe('createRepoLabel()', () => {
   it('setGem(null) falls back to the constant inset above the anchor', () => {
     label!.setRepoName('codecity');
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.setKey('HEIGHT_PCT', 50);
-    REPO_LABEL.setKey('FONT_SIZE', 60);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 60 };
     label!.refresh();
     const fakeGem = new THREE.Object3D();
     fakeGem.position.y = 50;

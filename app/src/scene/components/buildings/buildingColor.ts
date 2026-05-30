@@ -272,7 +272,7 @@ export function getBuildingColor(file: FileLike, dateRanges: DateRangeStrings): 
   // Prefer git dates, fall back to filesystem dates
   const modified = (file.git && file.git.modified) || file.modified || null;
 
-  const palette = BUILDING_PALETTE.get();
+  const palette = BUILDING_PALETTE.value;
   const h = getHue(file.extension || '', palette.HUE_EXT_MAP);
   // Saturation and lightness both key off LAST-MODIFIED, normalized
   // against the repo's MODIFIED-date range (modifiedMin/Max). This

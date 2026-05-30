@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { LIGHTING } from '@/state/settings/components/lighting';
 
 export function writeSunDir(out: THREE.Vector3): void {
-  const lighting = LIGHTING.get();
+  const lighting = LIGHTING.value;
   const az = (lighting.SUN_AZIMUTH_DEG * Math.PI) / 180;
   const el = (lighting.SUN_ELEVATION_DEG * Math.PI) / 180;
   const cosEl = Math.cos(el);

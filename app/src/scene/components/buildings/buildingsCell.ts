@@ -210,7 +210,7 @@ export function writeBuildingToSlot(cell: CellTile, b: Building): void {
   const mesh = cell.detailMesh;
 
   // --- Config snapshot (mirrors buildBuildingInstanceBuffer) ---
-  const facade = FACADE_GEOMETRY.get();
+  const facade = FACADE_GEOMETRY.value;
   const windowColsMax = facade.WINDOW_COLS_MAX;
   const widthPerWindowCol = facade.WIDTH_PER_WINDOW_COL;
   const doorWidthFrac = facade.DOOR_WIDTH_FRAC;

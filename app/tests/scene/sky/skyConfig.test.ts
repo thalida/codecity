@@ -9,14 +9,14 @@ import { SKY, SKY_STARS } from '@/state/settings/components/sky';
 
 describe('SKY', () => {
   it('exposes the expected keys with the right types', () => {
-    const v = SKY.get();
+    const v = SKY.value;
     expect(v.COLOR).toMatch(/^#[0-9a-f]{6}$/i);
   });
 });
 
 describe('SKY_STARS', () => {
   it('exposes the expected keys with the right types', () => {
-    const v = SKY_STARS.get();
+    const v = SKY_STARS.value;
     expect(typeof v.ENABLED).toBe('boolean');
     expect(typeof v.DENSITY).toBe('number');
   });

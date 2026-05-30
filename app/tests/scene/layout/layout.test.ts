@@ -40,17 +40,12 @@ const TEST_BUILDING_DIMS: Partial<BuildingDimensionsConfig> = {
 
 let _origBuildingDims: BuildingDimensionsConfig | null = null;
 beforeEach(() => {
-  _origBuildingDims = { ...BUILDING_DIMENSIONS.get() };
-  (Object.keys(TEST_BUILDING_DIMS) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
-    BUILDING_DIMENSIONS.setKey(k, TEST_BUILDING_DIMS[k]!);
-  });
+  _origBuildingDims = { ...BUILDING_DIMENSIONS.value };
+  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...TEST_BUILDING_DIMS };
 });
 afterEach(() => {
   if (!_origBuildingDims) return;
-  const dims = _origBuildingDims;
-  (Object.keys(dims) as Array<keyof BuildingDimensionsConfig>).forEach((k) => {
-    BUILDING_DIMENSIONS.setKey(k, dims[k]);
-  });
+  BUILDING_DIMENSIONS.value = _origBuildingDims;
 });
 
 const TEST_TREE = {
@@ -212,7 +207,7 @@ describe('getBuildingDimensions', () => {
   it('huge files cap at max_floors (no runaway towers)', () => {
     // Without an upper cap the tallest file would dwarf the rest of the
     // city. Verify the cap is still enforced.
-    BUILDING_DIMENSIONS.setKey('MAX_FLOORS', 5);
+    BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, MAX_FLOORS: 5 };
     const dim = getBuildingDimensions({ lines: 100000, size: 100000 }, { min: 1, max: 100000 });
     expect(dim.floors).toBeLessThanOrEqual(5);
   });

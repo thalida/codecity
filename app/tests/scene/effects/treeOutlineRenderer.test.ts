@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { atom } from 'nanostores';
+import { signal } from '@preact/signals';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { createTreeOutlineRenderer } from '@/scene/effects/treeOutlineRenderer';
 import { TREE_OUTLINE } from '@/state/settings/components/trees';
@@ -44,8 +44,8 @@ function fakeTrees(activeSha: string, matrix: THREE.Matrix4) {
 }
 
 function fakePicker() {
-  const hover = atom<PickTarget | null>(null);
-  const selection = atom<PickTarget | null>(null);
+  const hover = signal<PickTarget | null>(null);
+  const selection = signal<PickTarget | null>(null);
   return { hover, selection };
 }
 
@@ -60,13 +60,13 @@ function commitTarget(sha: string): PickTarget {
 
 describe('treeOutlineRenderer', () => {
   beforeEach(() => {
-    TREE_OUTLINE.set({
+    TREE_OUTLINE.value = {
       WIDTH: 3,
       HOVER_COLOR: '#ffffff',
       HOVER_OPACITY: 0.5,
       SELECTED_OPACITY: 1.0,
-    });
-    RAINBOW.set({ SPEED: 0.001, SATURATION: 1, LIGHTNESS: 0.5 });
+    };
+    RAINBOW.value = { SPEED: 0.001, SATURATION: 1, LIGHTNESS: 0.5 };
   });
 
   it('hover outline is hidden when picker.hover is null', () => {
@@ -95,7 +95,7 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', matrix),
     });
-    picker.hover.set(commitTarget('a'));
+    picker.hover.value = commitTarget('a');
     expect(r.hoverOutline.visible).toBe(true);
     for (let i = 0; i < 16; i++) {
       expect(r.hoverOutline.matrix.elements[i]).toBeCloseTo(matrix.elements[i], 5);
@@ -112,8 +112,8 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    picker.hover.set(commitTarget('a'));
-    picker.hover.set(null);
+    picker.hover.value = commitTarget('a');
+    picker.hover.value = null;
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
   });
@@ -128,9 +128,9 @@ describe('treeOutlineRenderer', () => {
       getTrees: () => fakeTrees('a', new THREE.Matrix4().makeTranslation(5, 0, 0)),
     });
     expect(r.selectedOutline.visible).toBe(false);
-    picker.selection.set(commitTarget('a'));
+    picker.selection.value = commitTarget('a');
     expect(r.selectedOutline.visible).toBe(true);
-    picker.selection.set(null);
+    picker.selection.value = null;
     expect(r.selectedOutline.visible).toBe(false);
     r.dispose();
   });
@@ -144,8 +144,8 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    picker.selection.set(commitTarget('a'));
-    picker.hover.set(commitTarget('a')); // same as selected
+    picker.selection.value = commitTarget('a');
+    picker.hover.value = commitTarget('a'); // same as selected
     expect(r.selectedOutline.visible).toBe(true);
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
@@ -160,12 +160,12 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    picker.hover.set({
+    picker.hover.value = {
       kind: NodeKind.File,
       mesh: new THREE.InstancedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial(), 1),
       data: {} as never,
       file: { path: 'foo' } as never,
-    });
+    };
     expect(r.hoverOutline.visible).toBe(false);
     r.dispose();
   });
@@ -179,12 +179,12 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    TREE_OUTLINE.set({
+    TREE_OUTLINE.value = {
       WIDTH: 7,
       HOVER_COLOR: '#ff00ff',
       HOVER_OPACITY: 0.25,
       SELECTED_OPACITY: 0.9,
-    });
+    };
     r.refreshMaterials();
     expect((r.hoverOutline.material as { linewidth: number }).linewidth).toBe(7);
     expect((r.hoverOutline.material as { opacity: number }).opacity).toBeCloseTo(0.25, 5);
@@ -202,7 +202,7 @@ describe('treeOutlineRenderer', () => {
       picker,
       getTrees: () => fakeTrees('a', new THREE.Matrix4()),
     });
-    picker.selection.set(commitTarget('a'));
+    picker.selection.value = commitTarget('a');
 
     // First frame: paint colors from the current time stamp.
     r.update(0);
@@ -260,7 +260,7 @@ describe('treeOutlineRenderer', () => {
     });
 
     const initialGeom = r.selectedOutline.geometry;
-    picker.selection.set(commitTarget('a'));
+    picker.selection.value = commitTarget('a');
 
     // After selecting a d2-tier tree, the outline geometry should differ
     // from the initial (d0) one.

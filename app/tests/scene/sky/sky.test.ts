@@ -11,13 +11,13 @@ import { SKY, SKY_STARS } from '@/state/settings/components/sky';
 import { RENDER_ORDERS } from '@/constants';
 
 function resetStores() {
-  SKY.set({
+  SKY.value = {
     COLOR: '#010005',
-  });
-  SKY_STARS.set({
+  };
+  SKY_STARS.value = {
     ENABLED: true,
     DENSITY: 0.0075,
-  });
+  };
 }
 
 describe('createSky()', () => {
@@ -64,8 +64,8 @@ describe('createSky()', () => {
   });
 
   it('refresh() pushes fresh config values into uniforms', () => {
-    SKY_STARS.setKey('DENSITY', 0.01);
-    SKY.setKey('COLOR', '#ffffff');
+    SKY_STARS.value = { ...SKY_STARS.value, DENSITY: 0.01 };
+    SKY.value = { ...SKY.value, COLOR: '#ffffff' };
     sky.refresh();
     const mat = sky.mesh.material as THREE.ShaderMaterial;
     expect(mat.uniforms.uStarDensity.value).toBeCloseTo(0.01);

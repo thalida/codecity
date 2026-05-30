@@ -37,7 +37,7 @@ export function createPostFx(
   scene: THREE.Scene,
   camera: THREE.PerspectiveCamera
 ): PostFx {
-  const bloomCfg = BLOOM.get();
+  const bloomCfg = BLOOM.value;
   // ACES tonemapping compresses HDR (>1.0) values back into display
   // [0,1] for the canvas. The wall colors written by the shader stay
   // in [0,1] so they're mostly unchanged; only the emissive windows
@@ -82,7 +82,7 @@ export function createPostFx(
     // with refreshBuildingMaterial clamping uWindowEmissionBoost to 0
     // so no shader output reaches HDR space.
     refresh: () => {
-      const cfg = BLOOM.get();
+      const cfg = BLOOM.value;
       bloom.enabled = cfg.ENABLED;
       bloom.strength = cfg.STRENGTH;
       bloom.radius = cfg.RADIUS;

@@ -10,23 +10,21 @@ import {
   GEM_SIZING,
   STREET_TIERS,
 } from '@/state/settings/index';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/components/streets';
+import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import type { GemSizingConfig } from '@/state/settings/components/gem';
 import type { Manifest } from '@/types';
 import type { CityLayout } from '@/types';
-
-type StreetLayoutValue = ReturnType<typeof STREET_LAYOUT.get>;
-type BuildingDimensionsValue = ReturnType<typeof BUILDING_DIMENSIONS.get>;
-type GemSizingValue = ReturnType<typeof GEM_SIZING.get>;
-type StreetTiersValue = ReturnType<typeof STREET_TIERS.get>;
 
 interface LayoutRequest {
   type: 'layout';
   id: number;
   manifest: Manifest;
   configSnapshot: {
-    streetLayout: StreetLayoutValue;
-    buildingDimensions: BuildingDimensionsValue;
-    gemSizing: GemSizingValue;
-    streetTiers: StreetTiersValue;
+    streetLayout: StreetLayoutConfig;
+    buildingDimensions: BuildingDimensionsConfig;
+    gemSizing: GemSizingConfig;
+    streetTiers: StreetTier[];
   };
 }
 
@@ -35,18 +33,10 @@ type LayoutResponse =
   | { type: 'layout-error'; id: number; message: string };
 
 function _applySnapshot(snap: LayoutRequest['configSnapshot']): void {
-  // map-shaped stores get setKey for each key; atom-shaped stores get
-  // a single set. STREET_TIERS is an atom (whole-array value).
-  for (const k of Object.keys(snap.streetLayout) as Array<keyof StreetLayoutValue>) {
-    STREET_LAYOUT.setKey(k, snap.streetLayout[k]);
-  }
-  for (const k of Object.keys(snap.buildingDimensions) as Array<keyof BuildingDimensionsValue>) {
-    BUILDING_DIMENSIONS.setKey(k, snap.buildingDimensions[k]);
-  }
-  for (const k of Object.keys(snap.gemSizing) as Array<keyof GemSizingValue>) {
-    GEM_SIZING.setKey(k, snap.gemSizing[k]);
-  }
-  STREET_TIERS.set(snap.streetTiers);
+  STREET_LAYOUT.value = { ...STREET_LAYOUT.value, ...snap.streetLayout };
+  BUILDING_DIMENSIONS.value = { ...BUILDING_DIMENSIONS.value, ...snap.buildingDimensions };
+  GEM_SIZING.value = { ...GEM_SIZING.value, ...snap.gemSizing };
+  STREET_TIERS.value = snap.streetTiers;
 }
 
 self.addEventListener('message', (event: MessageEvent<LayoutRequest>) => {

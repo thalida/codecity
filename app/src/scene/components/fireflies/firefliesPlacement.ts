@@ -77,7 +77,7 @@ export function placeFireflies(
 ): FireflyPlacement[] {
   if (!commits || commits.length === 0) return [];
 
-  const fireflyConfig = FIREFLIES.get();
+  const fireflyConfig = FIREFLIES.value;
 
   // Tally per-author commit count. A co-authored commit increments
   // each distinct author's count by 1 — co-authorship counts as full
@@ -115,7 +115,7 @@ export function placeFireflies(
     }
   }
 
-  const cfg = TREES.get();
+  const cfg = TREES.value;
   const minHeight = cfg.TREE_MIN_HEIGHT;
   const maxHeight = cfg.TREE_MAX_HEIGHT;
   const minRadius = cfg.TREE_MIN_WIDTH / 2;

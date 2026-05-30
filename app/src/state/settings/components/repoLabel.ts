@@ -27,7 +27,7 @@
 //                     look; other colors fold the aberration into the
 //                     chosen hue.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 export interface RepoLabelConfig {
   ENABLED: boolean;
@@ -39,7 +39,7 @@ export interface RepoLabelConfig {
   TEXT_COLOR: string;
 }
 
-export const REPO_LABEL = map<RepoLabelConfig>({
+export const REPO_LABEL = signal<RepoLabelConfig>({
   ENABLED: true,
   HEIGHT_PCT: 85,
   // Tuned by eye to feel like a substantial banner above the city

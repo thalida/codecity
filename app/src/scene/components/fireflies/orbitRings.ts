@@ -127,7 +127,7 @@ const _rainbowTmpColor = new THREE.Color();
 function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
   const geom = mesh.geometry as THREE.BufferGeometry;
   const buf = ensureColorBuffer(geom);
-  const rb = RAINBOW.get();
+  const rb = RAINBOW.value;
   // Match treeOutlineRenderer's convention: t = performance.now() * SPEED,
   // where SPEED is hue cycles per millisecond.
   const t = timeMs * rb.SPEED;
@@ -152,7 +152,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   const group = new THREE.Group();
   group.name = 'firefly-orbit-rings';
 
-  const cfg = FIREFLIES.get();
+  const cfg = FIREFLIES.value;
 
   if (!cfg.ORBIT_RING_ENABLED || orbs.length === 0) {
     return {
@@ -234,7 +234,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildHoverMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.get().ORBIT_RING_THICKNESS;
+    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       const mat = makeHoverMaterial(orb.lightRgb);
@@ -246,7 +246,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   function buildSelectedMeshes(slotOrbs: FireflyPlacement[]): void {
-    const thickness = FIREFLIES.get().ORBIT_RING_THICKNESS;
+    const thickness = FIREFLIES.value.ORBIT_RING_THICKNESS;
     for (const orb of slotOrbs) {
       const geom = buildTubeGeometry(orb, thickness);
       // Pre-allocate the color attribute so the renderer sees it on the
@@ -310,7 +310,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     },
 
     refresh() {
-      const next = FIREFLIES.get();
+      const next = FIREFLIES.value;
       group.visible = next.ORBIT_RING_ENABLED;
     },
 

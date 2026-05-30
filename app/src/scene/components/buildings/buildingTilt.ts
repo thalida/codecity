@@ -55,7 +55,7 @@ const ZERO_TILT: BuildingTilt = { tiltX: 0, tiltZ: 0 };
  * stable seed source), or when the building has no createdAge signal.
  */
 export function getBuildingTilt(b: Building): BuildingTilt {
-  const aging = BUILDING_AGING.get();
+  const aging = BUILDING_AGING.value;
   if (!aging.TILT_ENABLED) return ZERO_TILT;
   if (!b.file) return ZERO_TILT;
   const createdAge = b.createdAge ?? 0;
@@ -101,7 +101,7 @@ export function attachLeanAwareRaycast(mesh: THREE.InstancedMesh): void {
   mesh.raycast = function (raycaster, intersects) {
     if (!mesh.visible) return;
 
-    const aging = BUILDING_AGING.get();
+    const aging = BUILDING_AGING.value;
     const tiltMaxRad = aging.TILT_ENABLED ? (aging.TILT_DEGREES * Math.PI) / 180 : 0;
 
     const iIconUV = mesh.geometry.getAttribute('iIconUV') as

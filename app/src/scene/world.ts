@@ -254,7 +254,7 @@ function _buildWorld(layout: CityLayout) {
   // All visual values (street colors, sidewalk default, label fill/stroke,
   // gem edge color, etc.) come from the named exports of @/config.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.get().COLOR);
+  scene.background = new THREE.Color(SKY.value.COLOR);
 
   // Streets + their labels
   const streets = layout.streets || [];
@@ -336,7 +336,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
 
   // Persistent across applyManifest calls.
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(SKY.get().COLOR);
+  scene.background = new THREE.Color(SKY.value.COLOR);
 
   // Cyberpunk Valley sky — built ONCE here, lives at scene root for
   // the lifetime of the world. Not rebuilt per applyManifest
@@ -481,14 +481,14 @@ export function createWorld(_canvas: HTMLCanvasElement) {
   // PATH_LINE / HOVER_PATH_LINE are live Line2 meshes, not built by buildWorld.
   function computeScenicConfigHash(): string {
     return JSON.stringify({
-      sceneColors: SCENE_COLORS.get(),
-      asphalt: ASPHALT.get(),
-      sidewalkColors: SIDEWALK_COLORS.get(),
-      labelTypography: LABEL_TYPOGRAPHY.get(),
-      gemSizing: GEM_SIZING.get(),
-      gemFacePalette: GEM_FACE_PALETTE.get(),
-      gemAppearance: GEM_APPEARANCE.get(),
-      gemGlow: GEM_GLOW.get(),
+      sceneColors: SCENE_COLORS.value,
+      asphalt: ASPHALT.value,
+      sidewalkColors: SIDEWALK_COLORS.value,
+      labelTypography: LABEL_TYPOGRAPHY.value,
+      gemSizing: GEM_SIZING.value,
+      gemFacePalette: GEM_FACE_PALETTE.value,
+      gemAppearance: GEM_APPEARANCE.value,
+      gemGlow: GEM_GLOW.value,
     });
   }
 
@@ -1010,7 +1010,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       // rect is inflated by HALO_WIDTH for the footprint pass). Only
       // expand XZ — Y stays bounded by the actual building heights so
       // cityHeight calc isn't inflated.
-      const footprintCfg = FOOTPRINT.get();
+      const footprintCfg = FOOTPRINT.value;
       if (footprintCfg.ENABLED && footprintCfg.HALO_WIDTH > 0) {
         const halo = footprintCfg.HALO_WIDTH;
         bbox.min.x -= halo;
@@ -1027,7 +1027,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       rootGemEdges = cellBuilt.rootGemEdges || null;
 
       for (const child of [...cellBuilt.scene.children]) scene.add(child);
-      scene.background = new THREE.Color(SKY.get().COLOR);
+      scene.background = new THREE.Color(SKY.value.COLOR);
 
       // Remove per-building meshes that buildWorld emits — the cell
       // path replaces them with InstancedMesh cells. Keep streetLabels:
@@ -1054,7 +1054,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     // GPU upload blocks the main thread. For large repos this gap is
     // the difference between a snappy rebuild and a multi-hundred-ms
     // freeze.
-    const treesEnabled = TREES.get().TREES_ENABLED;
+    const treesEnabled = TREES.value.TREES_ENABLED;
     if (_trees) {
       _trees.dispose();
       _trees = null;
@@ -1123,7 +1123,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       const cityHeightAtDefer = cityHeight;
       const foliageBbox: CityBbox = sceneBbox;
 
-      REBUILD_STATUS.set('decorating');
+      REBUILD_STATUS.value = 'decorating';
       // rAF lets the browser START the next frame; setTimeout(0)
       // then yields the task so the browser can COMPLETE the paint
       // before foliage work begins.
@@ -1172,7 +1172,7 @@ export function createWorld(_canvas: HTMLCanvasElement) {
         });
       }
 
-      REBUILD_STATUS.set('idle');
+      REBUILD_STATUS.value = 'idle';
     }
   }
 

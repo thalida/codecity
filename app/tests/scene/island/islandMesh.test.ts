@@ -6,7 +6,7 @@ import { RENDER_ORDERS } from '@/constants';
 
 describe('createIsland', () => {
   beforeEach(() => {
-    ISLAND_GEOMETRY.set({
+    ISLAND_GEOMETRY.value = {
       ENABLED: true,
       SIDES: 12,
       IRREGULARITY: 0.18,
@@ -14,7 +14,7 @@ describe('createIsland', () => {
       DEPTH: 0.6,
       ROUNDNESS: 0.7,
       GRASS_THICKNESS: 0.025,
-    });
+    };
   });
 
   it('returns a Group with island mesh', () => {
@@ -44,11 +44,11 @@ describe('createIsland', () => {
   });
 
   it('hidden when GEOMETRY.ENABLED=false', () => {
-    ISLAND_GEOMETRY.setKey('ENABLED', false);
+    ISLAND_GEOMETRY.value = { ...ISLAND_GEOMETRY.value, ENABLED: false };
     const island = createIsland(null);
     expect(island.group.visible).toBe(false);
     island.dispose();
-    ISLAND_GEOMETRY.setKey('ENABLED', true);
+    ISLAND_GEOMETRY.value = { ...ISLAND_GEOMETRY.value, ENABLED: true };
   });
 
   it('uses RENDER_ORDERS.VALLEY_FLOOR for the island mesh', () => {

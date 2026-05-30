@@ -3,7 +3,7 @@
 // packed (tiers + gaps). Asphalt color + sidewalk variants are applied on Save
 // via applyTheme(); label typography + tiers + gaps are rebuild-required.
 
-import { atom, map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 // ─── Asphalt (the inner stripe of every street) ──────────────────────────
 // COLOR is applied on Save via applyTheme(). Width and length are derived: width = street
@@ -16,7 +16,7 @@ export interface AsphaltConfig {
   WIDTH_FRAC: number;
 }
 
-export const ASPHALT = map<AsphaltConfig>({
+export const ASPHALT = signal<AsphaltConfig>({
   COLOR: '#313544',
   WIDTH_FRAC: 0.6,
 });
@@ -32,7 +32,7 @@ export interface SidewalkColorsConfig {
   SELECTED: string;
 }
 
-export const SIDEWALK_COLORS = map<SidewalkColorsConfig>({
+export const SIDEWALK_COLORS = signal<SidewalkColorsConfig>({
   DEFAULT: '#4b5163',
   HOVER: '#6d6e74',
   SELECTED: '#ffffff',
@@ -54,7 +54,7 @@ export interface LabelTypographyConfig {
   ELEVATION: number;
 }
 
-export const LABEL_TYPOGRAPHY = map<LabelTypographyConfig>({
+export const LABEL_TYPOGRAPHY = signal<LabelTypographyConfig>({
   FILL: '#ffffff',
   STROKE: 'rgba(8, 9, 14, 0.95)',
   FONT_FAMILY: 'Inter, "SF Mono", sans-serif',
@@ -74,7 +74,7 @@ export interface PathLineConfig {
   OPACITY: number;
 }
 
-export const PATH_LINE = map<PathLineConfig>({
+export const PATH_LINE = signal<PathLineConfig>({
   LINEWIDTH_PCT: 15,
   ELEVATION: 0.3, // Y position above ground
   OPACITY: 0.95,
@@ -94,7 +94,7 @@ export interface HoverPathLineConfig {
   ELEVATION: number;
 }
 
-export const HOVER_PATH_LINE = map<HoverPathLineConfig>({
+export const HOVER_PATH_LINE = signal<HoverPathLineConfig>({
   COLOR: '#ffffff',
   OPACITY: 0.25,
   ELEVATION: 0.25, // sits just below PATH_LINE so the rainbow stays on top
@@ -110,7 +110,7 @@ export interface StreetTier {
   width: number;
 }
 
-export const STREET_TIERS = atom<StreetTier[]>([
+export const STREET_TIERS = signal<StreetTier[]>([
   { min_descendants: 0, width: 32 },
   { min_descendants: 4, width: 48 },
   { min_descendants: 8, width: 80 },
@@ -131,7 +131,7 @@ export interface StreetLayoutConfig {
   PARENT_JOIN_PAD: number;
 }
 
-export const STREET_LAYOUT = map<StreetLayoutConfig>({
+export const STREET_LAYOUT = signal<StreetLayoutConfig>({
   CHILD_GAP: 8,
   ROOT_END_PAD: 8,
   PARENT_JOIN_PAD: 8,

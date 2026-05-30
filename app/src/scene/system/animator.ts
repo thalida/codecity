@@ -108,7 +108,7 @@ export function createAnimator({ world }: { world: ReturnType<typeof createWorld
     // Snapshot the current building-transition duration once per diff —
     // every tween started by this _onChange shares the same MS, but a
     // later diff (after a Settings tweak) will pick up the new value.
-    const transitionMs = ANIMATION_TIMING.get().BUILDING_TRANSITION_MS;
+    const transitionMs = ANIMATION_TIMING.value.BUILDING_TRANSITION_MS;
     // Entering: grow in from near-zero scale. Y position starts at ~0
     // and rises to the final center (h/2) so the base stays grounded.
     for (const e of diff.entering.buildings) {

@@ -38,7 +38,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
     };
   }
 
-  const cfg = FIREFLIES.get();
+  const cfg = FIREFLIES.value;
   const geometry = new THREE.IcosahedronGeometry(1.0, 2);
 
   // Per-instance bob phase + pulse phase + orbit params.
@@ -144,7 +144,7 @@ export function createFireflyRenderer(orbs: FireflyPlacement[]): FireflyRenderer
       uSelectedCommit.value = commitIndex ?? -1;
     },
     refresh() {
-      const next = FIREFLIES.get();
+      const next = FIREFLIES.value;
       uBobAmp.value = next.BOB_AMPLITUDE;
       uBobSpeed.value = next.BOB_SPEED;
       uPulseAmp.value = next.PULSE_AMPLITUDE;

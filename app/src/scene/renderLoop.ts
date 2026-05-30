@@ -175,7 +175,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // the per-frame tint loop calls material.color.setHex() without
   // re-parsing every frame. applyTheme() refreshes these whenever the
   // Settings UI mutates SIDEWALK_COLORS.
-  const _swc0 = SIDEWALK_COLORS.get();
+  const _swc0 = SIDEWALK_COLORS.value;
   let SIDEWALK_HOVER_COLOR = new THREE.Color(_swc0.HOVER).getHex();
   let SIDEWALK_SELECTED_COLOR = new THREE.Color(_swc0.SELECTED).getHex();
   let SIDEWALK_DEFAULT_COLOR = new THREE.Color(_swc0.DEFAULT).getHex();
@@ -183,8 +183,8 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // _refreshSidewalkTints() — repaint every sidewalk's material.color
   // based on the current picker.selection / picker.hover state.
   function _refreshSidewalkTints(): void {
-    const sel = picker.selection.get();
-    const hov = picker.hover.get();
+    const sel = picker.selection.value;
+    const hov = picker.hover.value;
     const streetPickables = world.getStreetPickables();
     for (const sw of streetPickables) {
       if (sw.userData.origColor == null) {
@@ -208,7 +208,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // (BUILDING_FADE.*, HOVER.COMMIT_MS) are read fresh each frame and
   // don't need anything here.
   function applyTheme(): void {
-    const sidewalk = SIDEWALK_COLORS.get();
+    const sidewalk = SIDEWALK_COLORS.value;
 
     SIDEWALK_HOVER_COLOR = new THREE.Color(sidewalk.HOVER).getHex();
     SIDEWALK_SELECTED_COLOR = new THREE.Color(sidewalk.SELECTED).getHex();
@@ -219,13 +219,13 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     }
     _refreshSidewalkTints();
 
-    const asphaltHex = new THREE.Color(ASPHALT.get().COLOR).getHex();
+    const asphaltHex = new THREE.Color(ASPHALT.value.COLOR).getHex();
     const asphaltMeshes = world.getAsphaltMeshes();
     for (const mesh of asphaltMeshes) {
       mesh.material.color.setHex(asphaltHex);
     }
 
-    scene.background = new THREE.Color(SKY.get().COLOR);
+    scene.background = new THREE.Color(SKY.value.COLOR);
 
     outlineRenderer.refreshMaterials();
     treeOutlineRenderer.refreshMaterials();
@@ -265,7 +265,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // until the first manifest with media files applies.
     world.getAdPanels()?.refresh();
 
-    const gemAppearance = GEM_APPEARANCE.get();
+    const gemAppearance = GEM_APPEARANCE.value;
     const rootGemEdges = world.getRootGemEdges();
     const rootGemBody = world.getRootGemBody();
     const rootGem = world.getRootGem();
@@ -288,7 +288,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // baked at construction. Rewrite it in place on Save so palette tweaks
     // take effect without a full applyManifest rebuild.
     if (rootGemBody?.geometry?.attributes.color) {
-      const palette = GEM_FACE_PALETTE.get();
+      const palette = GEM_FACE_PALETTE.value;
       const paletteHexes = [
         palette.FACE_1,
         palette.FACE_2,
@@ -320,7 +320,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       colorAttr.needsUpdate = true;
     }
     if (rootGem && rootGem.userData.streetWidth != null) {
-      const hoverFrac = GEM_SIZING.get().HOVER_LIFT_FRAC;
+      const hoverFrac = GEM_SIZING.value.HOVER_LIFT_FRAC;
       rootGem.userData.baseY = rootGem.userData.radius + rootGem.userData.streetWidth * hoverFrac;
     }
 
@@ -328,7 +328,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     // is driven per-frame by the render loop (palette cycle), so we
     // don't touch it here.
     if (rootGem && rootGem.userData.radius != null) {
-      const glowCfg = GEM_GLOW.get();
+      const glowCfg = GEM_GLOW.value;
       const r = rootGem.userData.radius as number;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
@@ -344,7 +344,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       }
     }
 
-    const labelCfg = LABEL_TYPOGRAPHY.get();
+    const labelCfg = LABEL_TYPOGRAPHY.value;
     const streetLabels = world.getStreetLabels();
     for (const lg of streetLabels) {
       const origFrac = lg.userData.origHeightFrac;
@@ -497,7 +497,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
     _orientLabelsForCamera(world.getStreetLabels(), camera, labelRight);
     const rootGem = world.getRootGem();
     if (rootGem) {
-      const gemAnim = GEM_ANIMATION.get();
+      const gemAnim = GEM_ANIMATION.value;
       const t = (performance.now() - startTime) / 1000;
       rootGem.rotation.y = t * gemAnim.ROTATION_SPEED;
       // BOB_AMPLITUDE_FRAC is read live each frame so the slider
@@ -508,7 +508,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         Math.sin(t * gemAnim.BOB_FREQUENCY) *
           (rootGem.userData.radius * gemAnim.BOB_AMPLITUDE_FRAC);
       // Scale-up affordance on hover so the gem reads as clickable.
-      const hov = picker.hover.get();
+      const hov = picker.hover.value;
       const gemTargetScale = hov && hov.kind === NodeKind.Gem ? gemAnim.HOVER_SCALE : 1.0;
       const curS = rootGem.scale.x;
       const nextS = curS + (gemTargetScale - curS) * gemAnim.SCALE_LERP_SPEED;
@@ -518,12 +518,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
       // is on; otherwise fall back to the gem's EDGE_COLOR. Two halos
       // cycle on different phases so the gem reads with two colors at
       // any moment, blending as they cross.
-      const glowCfg = GEM_GLOW.get();
+      const glowCfg = GEM_GLOW.value;
       const inner = rootGem.userData.innerGlowSprite as THREE.Sprite | null;
       const outer = rootGem.userData.outerGlowSprite as THREE.Sprite | null;
       if (inner || outer) {
         if (glowCfg.ANIMATE_COLORS) {
-          const palette = GEM_FACE_PALETTE.get();
+          const palette = GEM_FACE_PALETTE.value;
           const hexes = [
             palette.FACE_1,
             palette.FACE_2,
@@ -540,7 +540,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
           if (outer)
             _setPaletteColor((outer.material as THREE.SpriteMaterial).color, hexes, t, period, 0.5);
         } else {
-          const edge = GEM_APPEARANCE.get().EDGE_COLOR;
+          const edge = GEM_APPEARANCE.value.EDGE_COLOR;
           if (inner) (inner.material as THREE.SpriteMaterial).color.set(edge);
           if (outer) (outer.material as THREE.SpriteMaterial).color.set(edge);
         }
@@ -550,7 +550,7 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
         // BLOOM.WINDOW_EMISSION. 1.0 = no bloom from gem; higher = more.
         // Gated on BLOOM.ENABLED so the "flat" comparison mode skips
         // the HDR push entirely.
-        const bloomCfg = BLOOM.get();
+        const bloomCfg = BLOOM.value;
         const gemEmission = bloomCfg.ENABLED ? bloomCfg.GEM_EMISSION : 1.0;
         if (gemEmission !== 1) {
           if (inner) (inner.material as THREE.SpriteMaterial).color.multiplyScalar(gemEmission);

@@ -15,7 +15,7 @@
 // rings now derive from each author's firefly color (lighter variant)
 // and selected rings render the shared RAINBOW chase used by tree outlines.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 export interface FirefliesConfig {
   /** Master toggle — when false no fireflies are placed or rendered. */
@@ -44,7 +44,7 @@ export interface FirefliesConfig {
   ORBIT_RING_THICKNESS: number;
 }
 
-export const FIREFLIES = map<FirefliesConfig>({
+export const FIREFLIES = signal<FirefliesConfig>({
   FIREFLIES_ENABLED: true,
   ORBIT_SPEED: 0.3,
   BOB_AMPLITUDE: 0.5,

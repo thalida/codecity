@@ -25,7 +25,7 @@
 //   - TRUNK: height = TRUNK_HEIGHT_FRAC × canopy height; radius =
 //     TRUNK_RADIUS_FRAC_OF_CANOPY × canopy radius.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 export interface TreesConfig {
   /** Master toggle — when false no trees are placed or rendered. */
@@ -114,7 +114,7 @@ export interface TreesConfig {
   TREE_WIDTH_AGE_FLOOR: number;
 }
 
-export const TREES = map<TreesConfig>({
+export const TREES = signal<TreesConfig>({
   TREES_ENABLED: true,
 
   EDGE_INSET_PERCENT: 1,
@@ -159,7 +159,7 @@ export interface TreeOutlineConfig {
   SELECTED_OPACITY: number;
 }
 
-export const TREE_OUTLINE = map<TreeOutlineConfig>({
+export const TREE_OUTLINE = signal<TreeOutlineConfig>({
   WIDTH: 1,
   HOVER_COLOR: '#ffffff',
   HOVER_OPACITY: 0.5,

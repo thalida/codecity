@@ -8,7 +8,7 @@ import { resetBuildingsConfig } from '../../../_helpers/cityFixtures';
 // FLOOR_HEIGHT=16 → maxBldgH = 1536. resetBuildingsConfig pins both so
 // the assertions stay stable when production defaults change.
 function resetStore() {
-  REPO_LABEL.set({
+  REPO_LABEL.value = {
     ENABLED: true,
     HEIGHT_PCT: 85,
     FONT_SIZE: 128,
@@ -16,7 +16,7 @@ function resetStore() {
     OPACITY: 0.9,
     BEAM_COLOR: '#bfb3ff',
     TEXT_COLOR: '#ffffff',
-  });
+  };
   resetBuildingsConfig();
 }
 
@@ -50,7 +50,7 @@ describe('RepoLabel positioning', () => {
   });
 
   it('HEIGHT_PCT=0 places the panel bottom flush with the floor (= anchor.y)', () => {
-    REPO_LABEL.setKey('HEIGHT_PCT', 0);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 0 };
     label.refresh();
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     // heightWorld = 0; panel center = 0 + 0 + 64 = 64 → panel bottom at 0
@@ -61,7 +61,7 @@ describe('RepoLabel positioning', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
     expect(label.group.position.y).toBeCloseTo(1369.6);
     // HEIGHT_PCT=50 → heightWorld = 1536 × 50/100 = 768
-    REPO_LABEL.setKey('HEIGHT_PCT', 50);
+    REPO_LABEL.value = { ...REPO_LABEL.value, HEIGHT_PCT: 50 };
     label.refresh();
     // 0 + 768 + 64 = 832
     expect(label.group.position.y).toBeCloseTo(832);
@@ -69,7 +69,7 @@ describe('RepoLabel positioning', () => {
 
   it('refresh() picks up new FONT_SIZE without a setAnchor call', () => {
     label.setAnchor(new THREE.Vector3(0, 0, 0));
-    REPO_LABEL.setKey('FONT_SIZE', 200);
+    REPO_LABEL.value = { ...REPO_LABEL.value, FONT_SIZE: 200 };
     label.refresh();
     // 0 + 1305.6 + 100 = 1405.6
     expect(label.group.position.y).toBeCloseTo(1405.6);

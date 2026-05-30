@@ -141,7 +141,7 @@ export function placeTrees(
   bboxOverride?: CityBbox,
   options: PlaceTreesOptions = { commitCount: 0 }
 ): TreePlacement[] {
-  const cfg = TREES.get();
+  const cfg = TREES.value;
   if (!cfg.TREES_ENABLED) return [];
 
   const bbox = bboxOverride ?? layout.bbox;
@@ -150,7 +150,7 @@ export function placeTrees(
   const treeTarget = Math.max(0, options.commitCount | 0);
   if (treeTarget === 0) return [];
 
-  const footprint = FOOTPRINT.get();
+  const footprint = FOOTPRINT.value;
   const halo = footprint.ENABLED ? Math.max(0, footprint.HALO_WIDTH) : 0;
 
   // Build rbush of every layout rect, inflated by the halo.
@@ -167,7 +167,7 @@ export function placeTrees(
   if (rects.length > 0) rtree.load(rects);
   const hasRects = rects.length > 0;
 
-  const dims = BUILDING_DIMENSIONS.get();
+  const dims = BUILDING_DIMENSIONS.value;
   const halfFoot = (cfg.SCATTER_FOOTPRINT_FRAC_OF_MAX_WIDTH * dims.MAX_WIDTH) / 2;
 
   const bounds = getWorldBounds(bbox, options.cityHeight ?? 0);
@@ -190,9 +190,9 @@ export function placeTrees(
   // only the smaller bounds rect, leaving the polygon's expanded edges
   // empty. Worst-case polygon vertex sits at halfWidth × baseScale ×
   // (1 + IRREGULARITY) (outward jitter), so sample to that extent.
-  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.get().SIDES;
+  const sides = options.islandGeoOverride?.SIDES ?? ISLAND_GEOMETRY.value.SIDES;
   const irregularity =
-    options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.get().IRREGULARITY;
+    options.islandGeoOverride?.IRREGULARITY ?? ISLAND_GEOMETRY.value.IRREGULARITY;
   // Irregularity is now reductive (vertices shrink inward), so the polygon's
   // max extent is bounded by the unjittered baseScale — no (1 + irregularity)
   // expansion factor needed.
@@ -230,7 +230,7 @@ export function placeTrees(
   // of IRREGULARITY (which makes edges sit at varying distances from origin).
   let islandPolygon: THREE.Vector3[] | null = null;
   if (options.islandGeoOverride !== null) {
-    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.get();
+    const islandGeo = options.islandGeoOverride ?? ISLAND_GEOMETRY.value;
     if (islandGeo.ENABLED) {
       const rawPolygon = buildTopPolygon({
         sides: islandGeo.SIDES,

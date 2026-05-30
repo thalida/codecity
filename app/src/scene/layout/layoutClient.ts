@@ -21,6 +21,9 @@ import {
   GEM_SIZING,
   STREET_TIERS,
 } from '@/state/settings/index';
+import type { StreetLayoutConfig, StreetTier } from '@/state/settings/components/streets';
+import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import type { GemSizingConfig } from '@/state/settings/components/gem';
 import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
@@ -30,10 +33,10 @@ interface PendingRequest {
 }
 
 interface ConfigSnapshot {
-  streetLayout: ReturnType<typeof STREET_LAYOUT.get>;
-  buildingDimensions: ReturnType<typeof BUILDING_DIMENSIONS.get>;
-  gemSizing: ReturnType<typeof GEM_SIZING.get>;
-  streetTiers: ReturnType<typeof STREET_TIERS.get>;
+  streetLayout: StreetLayoutConfig;
+  buildingDimensions: BuildingDimensionsConfig;
+  gemSizing: GemSizingConfig;
+  streetTiers: StreetTier[];
 }
 
 export interface LayoutComputeOpts {
@@ -114,10 +117,10 @@ function reuseLayout(prior: CityLayout, newManifest: Manifest): CityLayout {
 
 function _snapshot(): ConfigSnapshot {
   return {
-    streetLayout: STREET_LAYOUT.get(),
-    buildingDimensions: BUILDING_DIMENSIONS.get(),
-    gemSizing: GEM_SIZING.get(),
-    streetTiers: STREET_TIERS.get(),
+    streetLayout: STREET_LAYOUT.value,
+    buildingDimensions: BUILDING_DIMENSIONS.value,
+    gemSizing: GEM_SIZING.value,
+    streetTiers: STREET_TIERS.value,
   };
 }
 

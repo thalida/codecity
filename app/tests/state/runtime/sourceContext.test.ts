@@ -22,12 +22,12 @@ describe('sourceKey', () => {
 
 describe('CURRENT_SOURCE_KEY', () => {
   it('starts as null', () => {
-    expect(CURRENT_SOURCE_KEY.get()).toBeNull();
+    expect(CURRENT_SOURCE_KEY.value).toBeNull();
   });
 
   it('can be set and read', () => {
-    CURRENT_SOURCE_KEY.set('abc123');
-    expect(CURRENT_SOURCE_KEY.get()).toBe('abc123');
-    CURRENT_SOURCE_KEY.set(null);
+    CURRENT_SOURCE_KEY.value = 'abc123';
+    expect(CURRENT_SOURCE_KEY.value).toBe('abc123');
+    CURRENT_SOURCE_KEY.value = null;
   });
 });

@@ -62,7 +62,7 @@ export function getWorldBounds(
       halfDepth: FALLBACK_HALF_DIM,
     };
   }
-  const bufferFrac = WORLD.get().GROUND_BUFFER_PERCENT / 100;
+  const bufferFrac = WORLD.value.GROUND_BUFFER_PERCENT / 100;
   const characteristicSize = Math.max(bbox.width, bbox.depth, cityHeight);
   const buffer = characteristicSize * bufferFrac;
   return {

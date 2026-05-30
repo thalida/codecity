@@ -7,7 +7,7 @@ import { StreetAxis } from '@/types';
 import type { CityLayout } from '@/types';
 
 function resetFootprint() {
-  FOOTPRINT.set({ ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' });
+  FOOTPRINT.value = { ENABLED: true, HALO_WIDTH: 32, CORNER_RADIUS: 1.25, COLOR: '#0a0b0f' };
 }
 
 function singleBuildingLayout(): CityLayout {
@@ -68,7 +68,7 @@ describe('createCityFootprint', () => {
   });
 
   it('attaches a per-instance aHalfExtent attribute carrying inflated half-extents', () => {
-    FOOTPRINT.setKey('HALO_WIDTH', 50);
+    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 50 };
     const layout: CityLayout = {
       buildings: [
         {
@@ -96,7 +96,7 @@ describe('createCityFootprint', () => {
   });
 
   it('uses a ShaderMaterial whose uColor matches FOOTPRINT.COLOR', () => {
-    FOOTPRINT.setKey('COLOR', '#abcdef');
+    FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#abcdef' };
     const fp = createCityFootprint(singleBuildingLayout());
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
@@ -109,8 +109,8 @@ describe('createCityFootprint', () => {
   });
 
   it('uCornerRadius uniform is CORNER_RADIUS scaled by HALO_WIDTH', () => {
-    FOOTPRINT.setKey('HALO_WIDTH', 80);
-    FOOTPRINT.setKey('CORNER_RADIUS', 0.5);
+    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 80 };
+    FOOTPRINT.value = { ...FOOTPRINT.value, CORNER_RADIUS: 0.5 };
     const fp = createCityFootprint(singleBuildingLayout());
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;
@@ -118,16 +118,16 @@ describe('createCityFootprint', () => {
   });
 
   it('hides the group when FOOTPRINT.ENABLED is false', () => {
-    FOOTPRINT.setKey('ENABLED', false);
+    FOOTPRINT.value = { ...FOOTPRINT.value, ENABLED: false };
     const fp = createCityFootprint(singleBuildingLayout());
     expect(fp.group.visible).toBe(false);
   });
 
   it('refresh() picks up COLOR + CORNER_RADIUS + ENABLED changes without rebuild', () => {
     const fp = createCityFootprint(singleBuildingLayout());
-    FOOTPRINT.setKey('COLOR', '#112233');
-    FOOTPRINT.setKey('CORNER_RADIUS', 0.25); // 0.25 × 32 = 8 wu
-    FOOTPRINT.setKey('ENABLED', false);
+    FOOTPRINT.value = { ...FOOTPRINT.value, COLOR: '#112233' };
+    FOOTPRINT.value = { ...FOOTPRINT.value, CORNER_RADIUS: 0.25 }; // 0.25 × 32 = 8 wu
+    FOOTPRINT.value = { ...FOOTPRINT.value, ENABLED: false };
     fp.refresh();
     const mesh = fp.group.children[0] as THREE.InstancedMesh;
     const mat = mesh.material as THREE.ShaderMaterial;

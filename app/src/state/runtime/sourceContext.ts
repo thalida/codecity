@@ -4,7 +4,7 @@
 // subscribe to CURRENT_SOURCE_KEY to swap their localStorage slots when
 // the user picks a different source.
 
-import { atom } from 'nanostores';
+import { signal } from '@preact/signals';
 
 function djb2(s: string): string {
   let h = 5381;
@@ -30,4 +30,4 @@ export function sourceKey(src: string, branch?: string): string {
  * (modal-open / first boot). Set by main.ts boot and on every successful
  * modal submit.
  */
-export const CURRENT_SOURCE_KEY = atom<string | null>(null);
+export const CURRENT_SOURCE_KEY = signal<string | null>(null);

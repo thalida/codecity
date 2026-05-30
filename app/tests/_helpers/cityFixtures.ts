@@ -105,7 +105,7 @@ export function mkDir(name: string, children: any[]): any {
 
 /** Resets the TREES config map to deterministic test defaults. */
 export function resetTreesConfig(): void {
-  TREES.set({
+  TREES.value = {
     TREES_ENABLED: true,
     EDGE_INSET_PERCENT: 8,
     TREE_DENSITY_FALLOFF: 0,
@@ -128,17 +128,17 @@ export function resetTreesConfig(): void {
     TREE_AGE_SATURATION_MIN: 20,
     TREE_AGE_SATURATION_MAX: 100,
     TREE_WIDTH_AGE_FLOOR: 1.0,
-  });
+  };
 }
 
 /** Resets the BUILDING_DIMENSIONS config map to deterministic test defaults. */
 export function resetBuildingsConfig(): void {
-  BUILDING_DIMENSIONS.set({
+  BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
     FLOOR_HEIGHT: 16,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
     DISTANCE_FROM_ROAD: 8,
-  });
+  };
 }

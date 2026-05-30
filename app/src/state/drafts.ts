@@ -1,26 +1,24 @@
 // state/drafts.ts — in-memory draft layer between the controls panel
-// and the real nanostores. Widgets read getEffective() and write
+// and the real signals. Widgets read getEffective() and write
 // setDraft(); the Save button calls commit() to flush every draft into
-// its store (which triggers the existing persist + commit-reaction
-// subscriptions). Discard clears drafts without touching stores. Page
+// its signal (which triggers the existing persist + commit-reaction
+// effects). Discard clears drafts without touching signals. Page
 // reload drops drafts (in-memory only — the standard "unsaved changes"
 // pattern).
 //
-// Storage shape: Map<storeRef, Map<key | null, value>>. For atom stores
-// (no setKey), key = null and the inner map has at most one entry.
+// Storage shape: Map<storeRef, Map<key | null, value>>. For scalar-valued
+// signals (no sub-key), key = null and the inner map has at most one entry.
 
 import { forEachRegisteredStore, getDefault } from './persist';
 
-interface MapLikeStore {
-  get(): any;
-  set?(value: any): void;
-  setKey?(key: string, value: any): void;
-  subscribe(listener: (state: any) => void): () => void;
+interface SignalLike {
+  get value(): any;
+  set value(v: any);
 }
 
 type DraftKey = string | null;
 
-const _drafts: Map<MapLikeStore, Map<DraftKey, unknown>> = new Map();
+const _drafts: Map<SignalLike, Map<DraftKey, unknown>> = new Map();
 const _listeners: Array<() => void> = [];
 
 function _emit(): void {
@@ -50,13 +48,13 @@ function _clone<T>(v: T): T {
   }
 }
 
-function _committedValue(store: MapLikeStore, key: DraftKey): unknown {
-  const state = store.get();
+function _committedValue(store: SignalLike, key: DraftKey): unknown {
+  const state = store.value;
   if (key === null) return state;
   return state ? state[key] : undefined;
 }
 
-export function setDraft(store: MapLikeStore, key: DraftKey, value: unknown): void {
+export function setDraft(store: SignalLike, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (_equal(value, committed)) {
@@ -76,15 +74,15 @@ export function setDraft(store: MapLikeStore, key: DraftKey, value: unknown): vo
   _emit();
 }
 
-export function getEffective(store: MapLikeStore, key: DraftKey): unknown {
+export function getEffective(store: SignalLike, key: DraftKey): unknown {
   const perStore = _drafts.get(store);
   if (perStore && perStore.has(key)) return perStore.get(key);
   return _committedValue(store, key);
 }
 
-export function stageReset(store: MapLikeStore, key: DraftKey): void {
-  // For atom stores: getDefault(store) returns the whole default value.
-  // For map stores: getDefault(store, key) returns the keyed default.
+export function stageReset(store: SignalLike, key: DraftKey): void {
+  // For scalar signals: getDefault(store) returns the whole default value.
+  // For object-valued signals: getDefault(store, key) returns the keyed default.
   const def = key === null ? getDefault(store) : getDefault(store, key);
   if (def === undefined) return;
   setDraft(store, key, def);
@@ -93,34 +91,33 @@ export function stageReset(store: MapLikeStore, key: DraftKey): void {
 export function stageResetAll(): void {
   let touched = false;
   forEachRegisteredStore((_name, store, defaults) => {
-    // Direct-write stores (e.g. SYNTAX_THEME) bypass the draft layer on
-    // user input — the widget writes straight to the atom for instant
+    // Direct-write signals (e.g. SYNTAX_THEME) bypass the draft layer on
+    // user input — the widget writes straight to the signal for instant
     // visual feedback. Reset all must do the same, otherwise it leaves
     // a phantom draft that the user has to Save to clear.
     if ((store as { _skipDrafts?: boolean })._skipDrafts) {
-      const s = store as MapLikeStore;
-      if (!_equal(s.get(), defaults) && typeof s.set === 'function') {
-        s.set(defaults);
+      const s = store as SignalLike;
+      if (!_equal(s.value, defaults)) {
+        s.value = defaults;
       }
       return;
     }
     if (
       defaults &&
       typeof defaults === 'object' &&
-      !Array.isArray(defaults) &&
-      typeof (store as MapLikeStore).setKey === 'function'
+      !Array.isArray(defaults)
     ) {
-      // Map store: stage each sub-key whose effective value differs from default.
+      // Object-valued signal: stage each sub-key whose effective value differs from default.
       for (const k in defaults) {
         if (!Object.hasOwn(defaults, k)) continue;
-        if (_equal(getEffective(store as MapLikeStore, k), defaults[k])) continue;
-        _stageWithoutEmit(store as MapLikeStore, k, defaults[k]);
+        if (_equal(getEffective(store as SignalLike, k), defaults[k])) continue;
+        _stageWithoutEmit(store as SignalLike, k, defaults[k]);
         touched = true;
       }
     } else {
-      // Atom store (or array-shaped atom): stage whole default if effective differs.
-      if (!_equal(getEffective(store as MapLikeStore, null), defaults)) {
-        _stageWithoutEmit(store as MapLikeStore, null, defaults);
+      // Scalar / array signal: stage whole default if effective differs.
+      if (!_equal(getEffective(store as SignalLike, null), defaults)) {
+        _stageWithoutEmit(store as SignalLike, null, defaults);
         touched = true;
       }
     }
@@ -130,7 +127,7 @@ export function stageResetAll(): void {
 
 // Same write logic as setDraft but defers the _emit() call. Used by
 // stageResetAll so a single fan-out happens after the whole sweep.
-function _stageWithoutEmit(store: MapLikeStore, key: DraftKey, value: unknown): void {
+function _stageWithoutEmit(store: SignalLike, key: DraftKey, value: unknown): void {
   const committed = _committedValue(store, key);
   let perStore = _drafts.get(store);
   if (_equal(value, committed)) {
@@ -153,9 +150,9 @@ export function commit(): void {
     return;
   }
   // Snapshot the entries first; clearing _drafts before the writes makes
-  // any synchronous store.subscribe handler that re-reads getEffective
+  // any synchronous signal effect that re-reads getEffective
   // see the freshly-committed value instead of the lingering draft.
-  const entries: Array<[MapLikeStore, DraftKey, unknown]> = [];
+  const entries: Array<[SignalLike, DraftKey, unknown]> = [];
   for (const [store, perStore] of _drafts) {
     for (const [key, value] of perStore) {
       entries.push([store, key, value]);
@@ -164,9 +161,10 @@ export function commit(): void {
   _drafts.clear();
   for (const [store, key, value] of entries) {
     if (key === null) {
-      if (typeof store.set === 'function') store.set(value);
+      store.value = value;
     } else {
-      if (typeof store.setKey === 'function') store.setKey(key, value);
+      // Object-valued signal: merge the key in.
+      store.value = { ...store.value, [key]: value };
     }
   }
   _emit();

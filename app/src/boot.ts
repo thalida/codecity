@@ -105,7 +105,7 @@ export async function bootApp(): Promise<void> {
   {
     const qp = new URLSearchParams(window.location.search);
     if (qp.has('src')) {
-      CURRENT_SOURCE_KEY.set(sourceKey(qp.get('src')!, qp.get('branch') ?? undefined));
+      CURRENT_SOURCE_KEY.value = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
     }
   }
 
@@ -323,7 +323,7 @@ export async function bootApp(): Promise<void> {
       pageUrl.searchParams.delete('git_window');
       history.replaceState(null, '', pageUrl.toString());
 
-      CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
+      CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
 
       try {
         const _builtAtlas = await buildIconAtlas(manifest);

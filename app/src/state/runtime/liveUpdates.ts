@@ -13,6 +13,7 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
+import { effect } from '@preact/signals';
 import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/state/runtime/liveStatus';
 import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
@@ -49,7 +50,7 @@ export function setupLiveUpdates(
   // behaves identically. A non-2xx response or a JSON parse error
   // resolves to 'error' with the message captured in LAST_REBUILD_ERROR.
   async function refreshManifest(): Promise<void> {
-    REBUILD_STATUS.set('rebuilding');
+    REBUILD_STATUS.value = 'rebuilding';
     try {
       for await (const event of streamManifest(manifestUrl())) {
         if (event.phase === 'error') throw new Error(event.error);
@@ -66,11 +67,11 @@ export function setupLiveUpdates(
           await handle.world.applyManifest(m);
         }
       }
-      REBUILD_STATUS.set('idle');
-      LAST_REBUILD_ERROR.set(null);
+      REBUILD_STATUS.value = 'idle';
+      LAST_REBUILD_ERROR.value = null;
     } catch (err) {
-      REBUILD_STATUS.set('error');
-      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
+      REBUILD_STATUS.value = 'error';
+      LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
     }
   }
 
@@ -123,7 +124,7 @@ export function setupLiveUpdates(
 
   function start(): void {
     stop();
-    const seconds = _clampPollSeconds(LIVE_UPDATES.get().POLL_SECONDS);
+    const seconds = _clampPollSeconds(LIVE_UPDATES.value.POLL_SECONDS);
     timer = window.setInterval(tick, seconds * 1000);
   }
   function stop(): void {
@@ -138,22 +139,23 @@ export function setupLiveUpdates(
   // trigger the same fetch+apply chain without re-implementing it.
   setRefreshManifest(refreshFromToggle);
 
-  // nanostores .subscribe() fires the callback synchronously with the
-  // current value the instant it is called.  We arm the subscription
-  // AFTER registering it — same pattern as attachCommitReactions — so the
-  // initial synthetic fire is suppressed.  Runtime changes (user toggles
-  // LIVE_UPDATES.ENABLED) happen after `armed = true` and behave normally.
+  // effect() fires the callback synchronously with the current value
+  // the instant it is called. We arm the effect AFTER registering it —
+  // same pattern as attachCommitReactions — so the initial synthetic fire
+  // is suppressed. Runtime changes (user toggles LIVE_UPDATES.ENABLED)
+  // happen after `armed = true` and behave normally.
   let _liveUpdatesArmed = false;
-  LIVE_UPDATES.subscribe((val) => {
+  effect(() => {
+    const val = LIVE_UPDATES.value;
     if (!_liveUpdatesArmed) return;
     if (val.ENABLED) start();
     else stop();
   });
   _liveUpdatesArmed = true;
-  // Kick off the initial poll state now that the subscription is armed.
-  // The subscribe's initial fire was suppressed above, so we explicitly
+  // Kick off the initial poll state now that the effect is armed.
+  // The effect's initial fire was suppressed above, so we explicitly
   // honour the current ENABLED value here.
-  if (LIVE_UPDATES.get().ENABLED) start();
+  if (LIVE_UPDATES.value.ENABLED) start();
 
   return {
     setSignature(sig: string) {

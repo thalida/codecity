@@ -5,7 +5,7 @@ describe('ISLAND config defaults', () => {
   it('GEOMETRY exposes the expected keys with the right types', () => {
     // Asserting shape, not specific values — tuning the production
     // defaults shouldn't break this test.
-    const g = ISLAND_GEOMETRY.get();
+    const g = ISLAND_GEOMETRY.value;
     expect(typeof g.ENABLED).toBe('boolean');
     expect(typeof g.SIDES).toBe('number');
     expect(typeof g.IRREGULARITY).toBe('number');
@@ -16,7 +16,7 @@ describe('ISLAND config defaults', () => {
   });
 
   it('MATERIALS provides grass + rock + hemispheric lighting colors', () => {
-    const m = ISLAND_MATERIALS.get();
+    const m = ISLAND_MATERIALS.value;
     expect(m.GRASS_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.GRASS_SIDE_COLOR).toMatch(/^#[0-9a-f]{6}$/i);
     expect(m.ROCK_COLOR).toMatch(/^#[0-9a-f]{6}$/i);

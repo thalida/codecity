@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { map, atom } from 'nanostores';
+import { signal } from '@preact/signals';
 import {
   setDraft,
   getEffective,
@@ -19,8 +19,8 @@ interface FooConfig {
 }
 
 describe('drafts', () => {
-  let FOO: ReturnType<typeof map<FooConfig>>;
-  let BAR: ReturnType<typeof atom<number>>;
+  let FOO: ReturnType<typeof signal<FooConfig>>;
+  let BAR: ReturnType<typeof signal<number>>;
 
   beforeEach(() => {
     // Each test gets fresh stores + fresh draft state. Re-registering
@@ -28,8 +28,8 @@ describe('drafts', () => {
     // taken at persistStore time, before any setKey).
     localStorage.clear();
     _resetForTests();
-    FOO = map<FooConfig>({ COLOR: '#000000', COUNT: 1 });
-    BAR = atom<number>(10);
+    FOO = signal<FooConfig>({ COLOR: '#000000', COUNT: 1 });
+    BAR = signal<number>(10);
     persistStore('TEST_FOO', FOO);
     persistStore('TEST_BAR', BAR);
   });
@@ -43,7 +43,7 @@ describe('drafts', () => {
     it('returns pending value when draft set', () => {
       setDraft(FOO, 'COLOR', '#ff0000');
       expect(getEffective(FOO, 'COLOR')).toBe('#ff0000');
-      expect(FOO.get().COLOR).toBe('#000000'); // store untouched
+      expect(FOO.value.COLOR).toBe('#000000'); // store untouched
     });
 
     it('setDraft equal to committed value removes the draft', () => {
@@ -64,7 +64,7 @@ describe('drafts', () => {
     it('supports atom stores with key = null', () => {
       setDraft(BAR, null, 42);
       expect(getEffective(BAR, null)).toBe(42);
-      expect(BAR.get()).toBe(10);
+      expect(BAR.value).toBe(10);
     });
 
     it('treats falsy draft values as real drafts (uses Map.has, not falsy check)', () => {
@@ -108,10 +108,10 @@ describe('drafts', () => {
 
   describe('stageReset', () => {
     it('stages the registered default into the draft', () => {
-      FOO.setKey('COLOR', '#ff0000'); // committed override
+      FOO.value = { ...FOO.value, COLOR: '#ff0000' }; // committed override
       stageReset(FOO, 'COLOR');
       expect(getEffective(FOO, 'COLOR')).toBe('#000000');
-      expect(FOO.get().COLOR).toBe('#ff0000'); // store untouched
+      expect(FOO.value.COLOR).toBe('#ff0000'); // store untouched
       expect(isDirty()).toBe(true);
     });
 
@@ -125,18 +125,17 @@ describe('drafts', () => {
     });
 
     it('works on atom stores', () => {
-      BAR.set(99);
+      BAR.value = 99;
       stageReset(BAR, null);
       expect(getEffective(BAR, null)).toBe(10);
-      expect(BAR.get()).toBe(99);
+      expect(BAR.value).toBe(99);
     });
   });
 
   describe('stageResetAll', () => {
     it('stages defaults for every registered (store, key) with non-default effective value', () => {
-      FOO.setKey('COLOR', '#ff0000');
-      FOO.setKey('COUNT', 99);
-      BAR.set(42);
+      FOO.value = { ...FOO.value, COLOR: '#ff0000', COUNT: 99 };
+      BAR.value = 42;
       stageResetAll();
       expect(getEffective(FOO, 'COLOR')).toBe('#000000');
       expect(getEffective(FOO, 'COUNT')).toBe(1);
@@ -144,7 +143,7 @@ describe('drafts', () => {
     });
 
     it('is a no-op on the second call (idempotent)', () => {
-      FOO.setKey('COLOR', '#ff0000');
+      FOO.value = { ...FOO.value, COLOR: '#ff0000' };
       stageResetAll();
       let count = 0;
       const unsub = subscribe(() => {
@@ -159,7 +158,7 @@ describe('drafts', () => {
 
     it('skips entries where effective value already equals default', () => {
       // FOO is all default; only BAR is overridden.
-      BAR.set(42);
+      BAR.value = 42;
       stageResetAll();
       // Only BAR should have been staged.
       // We can't directly read the draft map, but we know isDirty must
@@ -168,7 +167,7 @@ describe('drafts', () => {
       expect(getEffective(BAR, null)).toBe(10);
       // Discard everything; nothing changes in committed stores.
       discard();
-      expect(BAR.get()).toBe(42);
+      expect(BAR.value).toBe(42);
     });
   });
 
@@ -177,14 +176,14 @@ describe('drafts', () => {
       setDraft(FOO, 'COLOR', '#ff0000');
       setDraft(FOO, 'COUNT', 7);
       commit();
-      expect(FOO.get()).toEqual({ COLOR: '#ff0000', COUNT: 7 });
+      expect(FOO.value).toEqual({ COLOR: '#ff0000', COUNT: 7 });
       expect(isDirty()).toBe(false);
     });
 
     it('applies atom-store drafts via set', () => {
       setDraft(BAR, null, 42);
       commit();
-      expect(BAR.get()).toBe(42);
+      expect(BAR.value).toBe(42);
       expect(isDirty()).toBe(false);
     });
 
@@ -199,18 +198,18 @@ describe('drafts', () => {
       let observedInsideSubscribe: unknown = null;
       setDraft(FOO, 'COLOR', '#ff0000');
       // Install subscriber AFTER setting the draft but BEFORE commit, so it
-      // only fires on the commit-driven setKey call. nanostores fires .subscribe
-      // synchronously with the current value at subscribe time too — so capture
-      // only the LAST value observed.
-      FOO.subscribe(() => {
+      // only fires on the commit-driven write. Signals fire subscribers
+      // synchronously — capture only the LAST value observed.
+      const unsub = FOO.subscribe(() => {
         observedInsideSubscribe = getEffective(FOO, 'COLOR');
       });
       commit();
+      unsub();
       // Inside the subscriber, getEffective must reflect the committed value
       // — the draft must already be cleared at that point.
       expect(observedInsideSubscribe).toBe('#ff0000');
       // And of course committed reads return it too.
-      expect(FOO.get().COLOR).toBe('#ff0000');
+      expect(FOO.value.COLOR).toBe('#ff0000');
     });
   });
 
@@ -221,8 +220,8 @@ describe('drafts', () => {
       discard();
       expect(getEffective(FOO, 'COLOR')).toBe('#000000');
       expect(getEffective(BAR, null)).toBe(10);
-      expect(FOO.get().COLOR).toBe('#000000');
-      expect(BAR.get()).toBe(10);
+      expect(FOO.value.COLOR).toBe('#000000');
+      expect(BAR.value).toBe(10);
       expect(isDirty()).toBe(false);
     });
   });

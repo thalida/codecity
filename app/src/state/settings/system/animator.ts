@@ -19,7 +19,7 @@
 // UI tweaks apply immediately without restart — there's no module-level
 // cache of any of these.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 export interface AnimationTimingConfig {
   BASE_DURATION_MS: number;
@@ -27,7 +27,7 @@ export interface AnimationTimingConfig {
   BUILDING_TRANSITION_MS: number;
 }
 
-export const ANIMATION_TIMING = map<AnimationTimingConfig>({
+export const ANIMATION_TIMING = signal<AnimationTimingConfig>({
   BASE_DURATION_MS: 500,
   EASING_POWER: 3,
   BUILDING_TRANSITION_MS: 375,

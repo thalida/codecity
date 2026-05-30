@@ -12,7 +12,7 @@ import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import type { CommitEntry } from '@/types';
 
 function resetStores() {
-  TREES.set({
+  TREES.value = {
     TREES_ENABLED: true,
     EDGE_INSET_PERCENT: 8,
     TREE_DENSITY_FALLOFF: 0,
@@ -35,15 +35,15 @@ function resetStores() {
     TREE_AGE_SATURATION_MIN: 20,
     TREE_AGE_SATURATION_MAX: 100,
     TREE_WIDTH_AGE_FLOOR: 1.0,
-  });
-  BUILDING_DIMENSIONS.set({
+  };
+  BUILDING_DIMENSIONS.value = {
     MIN_FLOORS: 2,
     MAX_FLOORS: 96,
     FLOOR_HEIGHT: 16,
     MIN_WIDTH: 8,
     MAX_WIDTH: 8,
     DISTANCE_FROM_ROAD: 8,
-  });
+  };
 }
 
 function placement(seed: number, commitIndex: number): TreePlacement {
@@ -219,7 +219,7 @@ describe('Trees commit lookups', () => {
     // Two commits, same file count, different ages. With floor=1.0 the
     // attenuation is constant 1, so both trees should have the same
     // canopy XZ scale.
-    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 1.0);
+    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 1.0 };
     const commits = [commit(0), commit(1)];
     // Force same file count so file-driven radius matches.
     commits[0].files = 5;
@@ -247,7 +247,7 @@ describe('Trees commit lookups', () => {
     // the renderer assigns commits[2] (newest) min height (heightRatio=0)
     // → attenuation = 0.5; commits[0] (oldest) max height (heightRatio=1)
     // → attenuation = 1.
-    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.5);
+    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.5 };
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
@@ -271,7 +271,7 @@ describe('Trees commit lookups', () => {
   });
 
   it('TREE_WIDTH_AGE_FLOOR = 0.0 produces near-zero width on shortest tree', () => {
-    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.0);
+    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.0 };
     const commits = [commit(0), commit(1), commit(2)];
     for (const c of commits) c.files = 5;
     const placements = [placement(0, 0), placement(1, 1), placement(2, 2)];
@@ -328,9 +328,9 @@ describe('Trees commit lookups', () => {
     // When TREE_MIN_HEIGHT == TREE_MAX_HEIGHT, the heightRatio computation
     // would divide by zero without a clamp. Verify the renderer constructs
     // and all canopy instance matrix elements stay finite.
-    TREES.setKey('TREE_MIN_HEIGHT', 32);
-    TREES.setKey('TREE_MAX_HEIGHT', 32);
-    TREES.setKey('TREE_WIDTH_AGE_FLOOR', 0.5);
+    TREES.value = { ...TREES.value, TREE_MIN_HEIGHT: 32 };
+    TREES.value = { ...TREES.value, TREE_MAX_HEIGHT: 32 };
+    TREES.value = { ...TREES.value, TREE_WIDTH_AGE_FLOOR: 0.5 };
     const commits = [commit(0), commit(1)];
     const placements = [placement(0, 0), placement(1, 1)];
     const trees = createTreeRenderer(placements, commits);

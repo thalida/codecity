@@ -15,7 +15,8 @@
 // Keep this module side-effect-free until `attachPersistence()` is called —
 // tests + non-browser environments shouldn't touch localStorage.
 
-import type { WritableAtom } from 'nanostores';
+import { effect, untracked } from '@preact/signals';
+import type { Signal } from '@preact/signals';
 import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
 import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 
@@ -23,7 +24,7 @@ import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 // "reset to default" UI restores to and what the diff-vs-default check uses.
 // `any` here is deliberate: each store has a different value shape and
 // the diff/reset code is generic across all of them. Tightening to a
-// `Record<string, MapStore | Atom>` would require carrying through generic
+// `Record<string, Signal>` would require carrying through generic
 // parameters that don't actually buy us anything at the boundary.
 const _DEFAULTS_BY_NAME: Record<string, any> = {};
 // Map from store reference → its registered name (so callers that already
@@ -95,44 +96,51 @@ function _clone<T>(v: T): T {
 }
 
 // Hydrate one store from localStorage if a value is persisted, then start
-// streaming future changes back. Plain consts (no `subscribe`) are silently
-// skipped so callers can sweep `import * as Config` blindly.
+// streaming future changes back. Plain consts (no signal .value accessor)
+// are silently skipped so callers can sweep `import * as Config` blindly.
 export function persistStore(name: string, store: any): void {
   if (typeof localStorage === 'undefined') return;
-  if (!store || typeof store.subscribe !== 'function') return;
+  // Only process signals (objects with a `.value` property and `.brand`).
+  // Non-signal exports (plain consts, functions, type re-exports) are skipped.
+  if (!store || typeof store !== 'object' || !('value' in store)) return;
 
   // Snapshot the original (pre-hydration) defaults. This is what reset
   // restores to and what the diff-vs-default check compares against.
-  const defaults = _clone(store.get());
+  const defaults = _clone(store.value);
   _DEFAULTS_BY_NAME[name] = defaults;
   _STORE_BY_NAME[name] = store;
   if (_NAME_BY_STORE) _NAME_BY_STORE.set(store, name);
 
   const saved = _safeGet(name);
-  const initialState = store.get();
+  const initialState = store.value;
+  // A signal is treated as a "map" (object with per-key diffs) when its value
+  // is a non-null, non-array plain object. Everything else (primitives,
+  // arrays) is treated as an "atom" (whole-value persistence).
   const isMap =
-    typeof store.setKey === 'function' &&
     initialState &&
     typeof initialState === 'object' &&
     !Array.isArray(initialState);
 
   if (isMap) {
-    // map() — saved is a partial diff; restore each saved key. Skip keys
-    // that aren't in the current defaults (a previous version of the app
-    // may have persisted a key that's since been removed; ignoring those
-    // entries lets the schema evolve without piling stale data into the
-    // live store).
+    // Object-typed signal — saved is a partial diff; restore each saved key.
+    // Skip keys that aren't in the current defaults (a previous version of
+    // the app may have persisted a key that's since been removed; ignoring
+    // those entries lets the schema evolve without piling stale data into
+    // the live store).
     if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
-      for (const k in saved) {
-        if (!Object.hasOwn(saved, k)) continue;
+      const merged: Record<string, unknown> = { ...initialState };
+      for (const k in saved as object) {
+        if (!Object.hasOwn(saved as object, k)) continue;
         if (!Object.hasOwn(defaults, k)) continue;
-        store.setKey(k, saved[k]);
+        merged[k] = (saved as Record<string, unknown>)[k];
       }
+      store.value = merged;
     }
     // On change, write the diff (only keys that exist in defaults AND
     // differ from them). Same skip-unknown-keys rule.
-    store.subscribe((state) => {
-      const diff = {};
+    effect(() => {
+      const state = store.value;
+      const diff: Record<string, unknown> = {};
       let any = false;
       for (const sk in state) {
         if (!Object.hasOwn(state, sk)) continue;
@@ -147,9 +155,10 @@ export function persistStore(name: string, store: any): void {
       _emitChange();
     });
   } else {
-    // atom() — single value. Saved replaces the whole thing.
-    if (saved !== null) store.set(saved);
-    store.subscribe((v) => {
+    // Primitive / array signal — single value. Saved replaces the whole thing.
+    if (saved !== null) store.value = saved;
+    effect(() => {
+      const v = store.value;
       if (_equal(v, defaults)) _safeRemove(name);
       else _safeSet(name, v);
       _emitChange();
@@ -168,8 +177,8 @@ export function attachPersistence(stores: Record<string, any>): void {
 }
 
 // getDefault(store, key) -> the originally-defined default for that key.
-//   For map() stores: pass the key name. Returns the keyed default.
-//   For atom() stores: omit `key`. Returns the whole default value.
+//   For object-valued signals: pass the key name. Returns the keyed default.
+//   For scalar signals: omit `key`. Returns the whole default value.
 // Returns undefined if the store wasn't registered via persistStore.
 export function getDefault(store: any, key?: string): any {
   if (!_NAME_BY_STORE) return undefined;
@@ -180,16 +189,16 @@ export function getDefault(store: any, key?: string): any {
   return d ? d[key] : undefined;
 }
 
-// resetKey(store, key) — restore a single key (map) or the whole atom to
-// its registered default. The store's subscribe handler installed above
+// resetKey(store, key) — restore a single key (object-valued signal) or the
+// whole signal to its registered default. The signal's effect installed above
 // then removes the localStorage entry if no keys differ anymore.
 export function resetKey(store: any, key?: string): void {
   const defaultVal = getDefault(store, key);
   if (defaultVal === undefined) return;
-  if (typeof store.setKey === 'function' && key !== undefined) {
-    store.setKey(key, defaultVal);
+  if (key !== undefined && store.value && typeof store.value === 'object' && !Array.isArray(store.value)) {
+    store.value = { ...store.value, [key]: defaultVal };
   } else {
-    store.set(defaultVal);
+    store.value = defaultVal;
   }
 }
 
@@ -227,29 +236,16 @@ export function onAnyChange(cb: () => void): () => void {
 // survive a Reset-all.
 //
 // Pushes defaults back into each store rather than just nuking localStorage:
-// the store's subscribe handler then drops the localStorage entry on its own,
-// AND consumers (live-poll loop, scene, controls UI) see the change live
-// instead of waiting for a page reload.
+// the store's effect installed above then drops the localStorage entry on
+// its own, AND consumers (live-poll loop, scene, controls UI) see the change
+// live instead of waiting for a page reload.
 export function clearPersistence(): void {
   for (const name in _DEFAULTS_BY_NAME) {
     if (!Object.hasOwn(_DEFAULTS_BY_NAME, name)) continue;
     const store = _STORE_BY_NAME[name];
     const defaults = _DEFAULTS_BY_NAME[name];
     if (!store) continue;
-    if (
-      typeof store.setKey === 'function' &&
-      defaults &&
-      typeof defaults === 'object' &&
-      !Array.isArray(defaults)
-    ) {
-      for (const k in defaults) {
-        if (Object.hasOwn(defaults, k)) {
-          store.setKey(k, _clone(defaults[k]));
-        }
-      }
-    } else {
-      store.set(_clone(defaults));
-    }
+    store.value = _clone(defaults);
   }
 }
 
@@ -276,68 +272,74 @@ function perSourceKey(sourceKey: string, baseName: string): string {
 }
 
 /**
- * Wire a writable atom to per-source localStorage persistence. The atom's
+ * Wire a writable signal to per-source localStorage persistence. The signal's
  * value is stored under `cc.source.<sourceKey>.<baseName>` and rehydrated
  * whenever CURRENT_SOURCE_KEY changes.
  *
- * - When CURRENT_SOURCE_KEY is null, the atom is not persisted (writes
- *   don't reach localStorage; reads return whatever the atom currently holds).
- * - On CURRENT_SOURCE_KEY change: the current atom value is saved to the
- *   OLD key, then the atom is set to whatever is stored under the NEW key
+ * - When CURRENT_SOURCE_KEY is null, the signal is not persisted (writes
+ *   don't reach localStorage; reads return whatever the signal currently holds).
+ * - On CURRENT_SOURCE_KEY change: the current signal value is saved to the
+ *   OLD key, then the signal is set to whatever is stored under the NEW key
  *   (or `defaultValue` if absent).
- * - Direct atom writes propagate to the active source key's slot.
+ * - Direct signal writes propagate to the active source key's slot.
  */
 export function persistAtomPerSource<T>(
   baseName: string,
-  store: WritableAtom<T>,
+  store: Signal<T>,
   defaultValue: T
 ): void {
-  let lastKey: string | null = CURRENT_SOURCE_KEY.get();
+  let lastKey: string | null = CURRENT_SOURCE_KEY.value;
 
   // Hydrate at attach time if a key is already set (e.g., URL had ?src=).
   if (lastKey !== null) {
     const raw = localStorage.getItem(perSourceKey(lastKey, baseName));
     if (raw !== null) {
       try {
-        store.set(JSON.parse(raw) as T);
+        store.value = JSON.parse(raw) as T;
       } catch {
-        store.set(defaultValue);
+        store.value = defaultValue;
       }
     } else {
-      store.set(defaultValue);
+      store.value = defaultValue;
     }
   }
 
-  store.subscribe((value) => {
-    const k = CURRENT_SOURCE_KEY.get();
+  // Write effect: only tracks `store.value`. Reads the current source key
+  // without tracking it (untracked) so that source-key transitions don't
+  // trigger a premature write that would overwrite the slot we're about to
+  // hydrate from in the key-change effect below.
+  effect(() => {
+    const value = store.value;
+    const k = untracked(() => CURRENT_SOURCE_KEY.value);
     if (k === null) return;
     localStorage.setItem(perSourceKey(k, baseName), JSON.stringify(value));
   });
 
-  CURRENT_SOURCE_KEY.subscribe((nextKey) => {
+  effect(() => {
+    const nextKey = CURRENT_SOURCE_KEY.value;
     if (nextKey === lastKey) return;
-    // Save current atom to OLD slot only when transitioning between two real
+    // Save current signal to OLD slot only when transitioning between two real
     // keys. On key→null (source unloaded) we skip the write: the
-    // store.subscribe handler above already persisted the latest value
-    // whenever the atom was last mutated, so a redundant write here would
+    // store effect above already persisted the latest value
+    // whenever the signal was last mutated, so a redundant write here would
     // cause stale-subscriber cross-test pollution and isn't needed.
     if (lastKey !== null && nextKey !== null) {
-      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.get()));
+      localStorage.setItem(perSourceKey(lastKey, baseName), JSON.stringify(store.value));
     }
-    // Hydrate atom from NEW slot.
+    // Hydrate signal from NEW slot.
     if (nextKey !== null) {
       const raw = localStorage.getItem(perSourceKey(nextKey, baseName));
       if (raw !== null) {
         try {
-          store.set(JSON.parse(raw) as T);
+          store.value = JSON.parse(raw) as T;
         } catch {
-          store.set(defaultValue);
+          store.value = defaultValue;
         }
       } else {
-        store.set(defaultValue);
+        store.value = defaultValue;
       }
     } else {
-      store.set(defaultValue);
+      store.value = defaultValue;
     }
     lastKey = nextKey;
   });

@@ -8,11 +8,11 @@
 
 import { placeTrees, type TreePlacement } from './treePlacement';
 import { MSG } from './treePlacementProtocol';
-import { TREES } from '@/state/settings/components/trees';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
-import { FOOTPRINT } from '@/state/settings/components/footprint';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
-import { WORLD } from '@/state/settings/world/world';
+import { TREES, type TreesConfig } from '@/state/settings/components/trees';
+import { BUILDING_DIMENSIONS, type BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import { FOOTPRINT, type FootprintConfig } from '@/state/settings/components/footprint';
+import { ISLAND_GEOMETRY, type IslandGeometryConfig } from '@/state/settings/components/island';
+import { WORLD, type WorldConfig } from '@/state/settings/world/world';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {
@@ -21,11 +21,11 @@ interface PendingRequest {
 }
 
 interface ConfigSnapshot {
-  trees: ReturnType<typeof TREES.get>;
-  buildingDims: ReturnType<typeof BUILDING_DIMENSIONS.get>;
-  footprint: ReturnType<typeof FOOTPRINT.get>;
-  islandGeo: ReturnType<typeof ISLAND_GEOMETRY.get>;
-  world: ReturnType<typeof WORLD.get>;
+  trees: TreesConfig;
+  buildingDims: BuildingDimensionsConfig;
+  footprint: FootprintConfig;
+  islandGeo: IslandGeometryConfig;
+  world: WorldConfig;
 }
 
 export interface TreePlacementClient {
@@ -40,11 +40,11 @@ export interface TreePlacementClient {
 
 function _snapshot(): ConfigSnapshot {
   return {
-    trees: TREES.get(),
-    buildingDims: BUILDING_DIMENSIONS.get(),
-    footprint: FOOTPRINT.get(),
-    islandGeo: ISLAND_GEOMETRY.get(),
-    world: WORLD.get(),
+    trees: TREES.value,
+    buildingDims: BUILDING_DIMENSIONS.value,
+    footprint: FOOTPRINT.value,
+    islandGeo: ISLAND_GEOMETRY.value,
+    world: WORLD.value,
   };
 }
 

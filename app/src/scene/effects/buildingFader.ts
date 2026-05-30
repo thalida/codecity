@@ -16,6 +16,7 @@
 
 import * as THREE from 'three';
 import { BUILDING_FADE } from '@/state/settings/index';
+import type { BuildingFadeConfig } from '@/state/settings/components/buildings';
 import { FadeDetail, NodeKind } from '@/types';
 import type { DirNode, FileNode, PickTarget } from '@/types';
 import { parentDirPath } from '@/scene/utils/path';
@@ -94,7 +95,7 @@ export function createBuildingFader({
     bldgTargetFile: FileNode | null,
     dirTarget: DirNode | null,
     hoverFile: FileNode | null,
-    fadeCfg: ReturnType<typeof BUILDING_FADE.get>
+    fadeCfg: BuildingFadeConfig
   ): TierResult {
     // Hover wins — its tier values overwrite any selection/dir-tree result
     // unconditionally, so check first and skip the more expensive
@@ -160,14 +161,14 @@ export function createBuildingFader({
   }
 
   function _sweepAll(): void {
-    const sel = picker.selection.get();
-    const hov = picker.hover.get();
+    const sel = picker.selection.value;
+    const hov = picker.hover.value;
 
     const bldgTargetFile = sel && sel.kind === NodeKind.File ? sel.file : null;
     const dirTarget = _resolveDirTarget(sel, hov);
     const hoverFile = hov && hov.kind === NodeKind.File ? hov.file : null;
 
-    const fadeCfg = BUILDING_FADE.get();
+    const fadeCfg = BUILDING_FADE.value;
 
     // Collected by the cell sweep, drained into the ad-panel sweep below
     // so a media building's ad panel dims by exactly the same factor as

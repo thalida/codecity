@@ -118,8 +118,8 @@ function _buildStadiumGeometry(
 // points back to the layout street so raycaster hits can recover the
 // directory this street represents.
 export function createStreetMesh(street: StreetWithJoin, yBase: number): THREE.Group {
-  const asphaltCfg = ASPHALT.get();
-  const sidewalkCfg = SIDEWALK_COLORS.get();
+  const asphaltCfg = ASPHALT.value;
+  const sidewalkCfg = SIDEWALK_COLORS.value;
   const group = new THREE.Group();
   const asphaltWidth = street.width * asphaltCfg.WIDTH_FRAC;
   // For concentric caps the asphalt must be shorter by exactly the sidewalk

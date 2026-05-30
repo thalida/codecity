@@ -3,7 +3,7 @@
 // building fragment shader. Persisted via attachPersistence(Config) at boot
 // and wired through refreshBuildingMaterial() on every change.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 // Sun direction expressed in spherical coordinates rather than a raw vec3
 // because users tweak "where the sun is" more naturally as
@@ -32,7 +32,7 @@ export interface LightingConfig {
   SUN_CONTRAST: number;
 }
 
-export const LIGHTING = map<LightingConfig>({
+export const LIGHTING = signal<LightingConfig>({
   SUN_AZIMUTH_DEG: 51,
   SUN_ELEVATION_DEG: 58,
   AMBIENT: 0.72,

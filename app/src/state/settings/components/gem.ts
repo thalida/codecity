@@ -2,7 +2,7 @@
 // (applied on Save via vertex color buffer rewrite), edge color (applied on Save via applyTheme()),
 // and animation tuning (applied on Save via applyTheme(); read fresh per frame).
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 import { oklchToHex } from '@/scene/utils/color/colors';
 
 // ─── Sizing + landing zone ────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export interface GemSizingConfig {
   SIDES: string;
 }
 
-export const GEM_SIZING = map<GemSizingConfig>({
+export const GEM_SIZING = signal<GemSizingConfig>({
   RADIUS_AS_STREET_FRAC: 0.5, // gem radius = root street width × this
   MIN_RADIUS: 8, // floor for narrow root streets
   HOVER_LIFT_FRAC: 0.5, // gem hovers above road = radius × this
@@ -61,7 +61,7 @@ const FACE_C = 0.22;
 const FACE_COUNT = 8;
 const faceHex = (i: number): string => oklchToHex(FACE_L, FACE_C, (i / FACE_COUNT) * 360);
 
-export const GEM_FACE_PALETTE = map<GemFacePaletteConfig>({
+export const GEM_FACE_PALETTE = signal<GemFacePaletteConfig>({
   FACE_1: faceHex(0),
   FACE_2: faceHex(1),
   FACE_3: faceHex(2),
@@ -81,7 +81,7 @@ export interface GemAppearanceConfig {
   BODY_OPACITY: number;
 }
 
-export const GEM_APPEARANCE = map<GemAppearanceConfig>({
+export const GEM_APPEARANCE = signal<GemAppearanceConfig>({
   EDGE_COLOR: '#ffffff',
   BODY_OPACITY: 0.75,
 });
@@ -101,7 +101,7 @@ export interface GemGlowConfig {
   CYCLE_PERIOD_SECONDS: number;
 }
 
-export const GEM_GLOW = map<GemGlowConfig>({
+export const GEM_GLOW = signal<GemGlowConfig>({
   ENABLED: true,
   INNER_SCALE: 4.0, // hot core, hugging the gem
   OUTER_SCALE: 15.0, // atmospheric falloff, large soft disk
@@ -121,7 +121,7 @@ export interface GemAnimationConfig {
   SCALE_LERP_SPEED: number;
 }
 
-export const GEM_ANIMATION = map<GemAnimationConfig>({
+export const GEM_ANIMATION = signal<GemAnimationConfig>({
   ROTATION_SPEED: 1.0, // radians/sec multiplier
   BOB_FREQUENCY: 1.0, // bob cycles/sec multiplier
   BOB_AMPLITUDE_FRAC: 0.5, // vertical bob distance = radius × this

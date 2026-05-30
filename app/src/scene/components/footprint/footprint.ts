@@ -96,7 +96,7 @@ void main() {
 `;
 
 export function createCityFootprint(layout: CityLayout): CityFootprint {
-  const cfg = FOOTPRINT.get();
+  const cfg = FOOTPRINT.value;
   const halo = Math.max(0, cfg.HALO_WIDTH);
 
   // Halo at zero (or negative — clamped to 0 above) means the footprint
@@ -172,7 +172,7 @@ export function createCityFootprint(layout: CityLayout): CityFootprint {
   group.add(mesh);
 
   function refresh(): void {
-    const c = FOOTPRINT.get();
+    const c = FOOTPRINT.value;
     setColorFromHex(material.uniforms.uColor.value as THREE.Color, c.COLOR);
     material.uniforms.uCornerRadius.value =
       Math.max(0, c.CORNER_RADIUS) * Math.max(0, c.HALO_WIDTH);

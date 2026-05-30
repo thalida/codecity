@@ -9,14 +9,14 @@
 // can't ddos the local server, and an absurdly large one can't disable
 // the feature in disguise.
 
-import { map } from 'nanostores';
+import { signal } from '@preact/signals';
 
 export interface LiveUpdatesConfig {
   ENABLED: boolean;
   POLL_SECONDS: number;
 }
 
-export const LIVE_UPDATES = map<LiveUpdatesConfig>({
+export const LIVE_UPDATES = signal<LiveUpdatesConfig>({
   ENABLED: false,
   POLL_SECONDS: 10,
 });

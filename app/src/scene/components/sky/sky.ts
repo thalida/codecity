@@ -80,12 +80,12 @@ export function createSky(): Sky {
   // camera FAR plane is itself a fixed user config (default 20000)
   // and changes only require a fresh boot, so this radius does not
   // need to track FAR live.
-  const radius = CAMERA_PERSPECTIVE.get().FAR * RADIUS_FAR_FRAC;
+  const radius = CAMERA_PERSPECTIVE.value.FAR * RADIUS_FAR_FRAC;
 
   const geometry = new THREE.IcosahedronGeometry(radius, ICOSAHEDRON_DETAIL);
 
-  const sky = SKY.get();
-  const stars = SKY_STARS.get();
+  const sky = SKY.value;
+  const stars = SKY_STARS.value;
 
   const material = new THREE.ShaderMaterial({
     vertexShader: skyVertSrc,
@@ -122,8 +122,8 @@ export function createSky(): Sky {
   mesh.userData.cyberpunkValley = 'sky';
 
   function refresh(): void {
-    const k = SKY.get();
-    const s = SKY_STARS.get();
+    const k = SKY.value;
+    const s = SKY_STARS.value;
 
     setColorFromHex(material.uniforms.uSkyColor.value as THREE.Color, k.COLOR);
 

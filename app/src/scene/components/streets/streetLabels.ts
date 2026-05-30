@@ -44,7 +44,7 @@ function _buildLabelTexture(
   // High source resolution so close-zoom doesn't reveal bilinear blur.
   // The world-space plane size is unchanged — we're just packing more
   // texels into the same footprint.
-  const label = LABEL_TYPOGRAPHY.get();
+  const label = LABEL_TYPOGRAPHY.value;
   const fontSpec = `${label.FONT_WEIGHT} ${LABEL_FONT_SIZE_PX}px ${label.FONT_FAMILY}`;
   const measure = document.createElement('canvas').getContext('2d')!;
   measure.font = fontSpec;
@@ -107,8 +107,8 @@ export function createStreetLabels(street: Street): THREE.Group[] {
   const text = street.label || '';
   if (!text) return [];
 
-  const label = LABEL_TYPOGRAPHY.get();
-  const asphaltCfg = ASPHALT.get();
+  const label = LABEL_TYPOGRAPHY.value;
+  const asphaltCfg = ASPHALT.value;
   const orders = RENDER_ORDERS;
 
   // Usable road length: the rectangular label sits along the flat middle of

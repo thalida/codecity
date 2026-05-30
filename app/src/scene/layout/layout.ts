@@ -163,7 +163,7 @@ interface ManifestLike {
 // the tier with the highest min_descendants that `count` meets. The last
 // tier (largest min_descendants) acts as the catch-all for big directories.
 export function getStreetWidth(count: number, tiers?: StreetTier[]): number {
-  const arr = tiers && tiers.length ? tiers : STREET_TIERS.get();
+  const arr = tiers && tiers.length ? tiers : STREET_TIERS.value;
   let chosen = arr[0].width;
   for (let i = 0; i < arr.length; i++) {
     if (count >= arr[i].min_descendants) chosen = arr[i].width;
@@ -233,7 +233,7 @@ export function getBuildingDimensions(
   lineStats?: RangeStat,
   byteStats?: RangeStat
 ): { w: number; d: number; h: number; floors: number } {
-  const dims = BUILDING_DIMENSIONS.get();
+  const dims = BUILDING_DIMENSIONS.value;
   const maxFloorsCap = dims.MAX_FLOORS != null ? dims.MAX_FLOORS : 30;
 
   // ---- Floors from line count (sqrt-normalized over project range) ----
@@ -705,13 +705,13 @@ export function estimateDirReaches(
   const cached = cache.get(dir);
   if (cached) return cached;
 
-  const streetLayout = STREET_LAYOUT.get();
+  const streetLayout = STREET_LAYOUT.value;
   const childGap = streetLayout.CHILD_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgDims = BUILDING_DIMENSIONS.value;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
-  const gemSizing = GEM_SIZING.get();
+  const gemSizing = GEM_SIZING.value;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
 
   // Padding chain — mirrors _layoutDir exactly so the estimate matches the
@@ -820,12 +820,12 @@ function _layoutDir(
    *  body exists. */
   parentFinalAlongReach?: number
 ): void {
-  // ----- Tunables (one .get() per call) -----
-  const streetLayout = STREET_LAYOUT.get();
+  // ----- Tunables (one .value per call) -----
+  const streetLayout = STREET_LAYOUT.value;
   const childGap = streetLayout.CHILD_GAP;
   const parentJoinPad = streetLayout.PARENT_JOIN_PAD;
   const rootEndPad = streetLayout.ROOT_END_PAD;
-  const bldgDims = BUILDING_DIMENSIONS.get();
+  const bldgDims = BUILDING_DIMENSIONS.value;
   const distFromRoad = bldgDims.DISTANCE_FROM_ROAD;
 
   // ----- Padding chain -----
@@ -835,7 +835,7 @@ function _layoutDir(
   const endPad = parentStreetWidth
     ? Math.max(joinEndBaseline, openEndPad)
     : Math.max(rootEndPad, openEndPad);
-  const gemSizing = GEM_SIZING.get();
+  const gemSizing = GEM_SIZING.value;
   const gemRadiusFrac = gemSizing.RADIUS_AS_STREET_FRAC;
   // Derive the plaza clearance from the gem's own diameter so the dead
   // space scales with the gem. Mirror the same MIN_RADIUS floor that
@@ -1293,7 +1293,7 @@ function _layoutCityInternal(
 // -----------------------------------------------------------------------------
 export function _streetWidthForDir(dir: DirLike | null | undefined): number {
   const count = (dir && (dir.descendants_count || dir.children_count)) || 0;
-  return getStreetWidth(count, STREET_TIERS.get());
+  return getStreetWidth(count, STREET_TIERS.value);
 }
 
 // -----------------------------------------------------------------------------

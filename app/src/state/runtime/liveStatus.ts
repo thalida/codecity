@@ -13,7 +13,7 @@
 // LAST_UPDATED_AT is written by the coordinator on every applied
 // manifest (initial paint + each successful poll that swapped state).
 
-import { atom } from 'nanostores';
+import { signal } from '@preact/signals';
 
 /**
  * State of the most recent (or current) world rebuild.
@@ -26,13 +26,13 @@ import { atom } from 'nanostores';
  */
 export type RebuildStatus = 'idle' | 'rebuilding' | 'decorating' | 'error';
 
-export const REBUILD_STATUS = atom<RebuildStatus>('idle');
+export const REBUILD_STATUS = signal<RebuildStatus>('idle');
 
 /** Error message from the most recent failed rebuild; null when idle/success. */
-export const LAST_REBUILD_ERROR = atom<string | null>(null);
+export const LAST_REBUILD_ERROR = signal<string | null>(null);
 
 /** Epoch millis of the most recent manifest apply (initial or via poll). */
-export const LAST_UPDATED_AT = atom<number>(0);
+export const LAST_UPDATED_AT = signal<number>(0);
 
 // ── Manual refresh action ────────────────────────────────────────────
 // The footer's refresh button (and any future "force re-sync" UI) goes

@@ -41,7 +41,7 @@ export function createOutlineRenderer({
   world: ReturnType<typeof createWorld>;
   picker: ReturnType<typeof createPicker>;
 }) {
-  const _bo = BUILDING_OUTLINE.get();
+  const _bo = BUILDING_OUTLINE.value;
 
   // ── Hover outline (single shared mesh, retransformed per frame) ─────
   const _unitEdgesGeo = new LineSegmentsGeometry();
@@ -171,7 +171,7 @@ export function createOutlineRenderer({
   }
 
   function _setSegHueGradient(segIdx: number, hueStart: number, hueEnd: number): void {
-    const rb = RAINBOW.get();
+    const rb = RAINBOW.value;
     const k = segIdx * 6;
     _tmpHsl.setHSL(((hueStart % 1) + 1) % 1, rb.SATURATION, rb.LIGHTNESS);
     _selectedColors[k] = _tmpHsl.r;
@@ -201,7 +201,7 @@ export function createOutlineRenderer({
   // block share the same mesh object, so reference comparison would wrongly
   // hide the hover outline for any two buildings in the same block.
   picker.hover.subscribe((h) => {
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (h && h.kind === NodeKind.File && h.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, h);
@@ -219,7 +219,7 @@ export function createOutlineRenderer({
     // instance AND advance the rainbow color chase. Bottom + top form
     // continuous 4-edge loops; verticals take a single hue from their
     // bottom corner so the loop chase stays seamless.
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.File) {
       _syncOutlineToTarget(selectedOutline, sel);
       // Rainbow chase around the cube. The 12 cube edges split into 3
@@ -231,7 +231,7 @@ export function createOutlineRenderer({
       //     the quartered cycle, hinting at where the bottom/top edges
       //     start and end so the rainbow reads as continuous around the
       //     entire silhouette
-      const t = performance.now() * RAINBOW.get().SPEED;
+      const t = performance.now() * RAINBOW.value.SPEED;
       const HUE_STEPS = 4; // edges per face → quartered hue cycle
       const HUE_STEP = 1 / HUE_STEPS;
       for (let i = 0; i < HUE_STEPS; i++) {
@@ -246,7 +246,7 @@ export function createOutlineRenderer({
     }
 
     // Hover: keep transform pinned in case the building is still animating.
-    const hov = picker.hover.get();
+    const hov = picker.hover.value;
     const selPath = sel?.kind === NodeKind.File ? sel.file?.path : null;
     if (hov && hov.kind === NodeKind.File && hov.file?.path !== selPath) {
       _syncOutlineToTarget(hoverOutline, hov);
@@ -256,7 +256,7 @@ export function createOutlineRenderer({
   // applyTheme() coordinator hook: push fresh BUILDING_OUTLINE values
   // into the two outline materials we own.
   function refreshMaterials(): void {
-    const outline = BUILDING_OUTLINE.get();
+    const outline = BUILDING_OUTLINE.value;
     hoverLineMat.color.set(outline.HOVER_COLOR);
     hoverLineMat.linewidth = outline.WIDTH;
     hoverLineMat.opacity = outline.HOVER_OPACITY;

@@ -5,12 +5,12 @@ import { LIGHTING } from '@/state/settings/components/lighting';
 
 describe('writeSunDir', () => {
   beforeEach(() => {
-    LIGHTING.set({
+    LIGHTING.value = {
       SUN_AZIMUTH_DEG: 51,
       SUN_ELEVATION_DEG: 58,
       AMBIENT: 0.72,
       SUN_CONTRAST: 0.5,
-    });
+    };
   });
 
   it('reproduces the legacy normalize(0.5, 1.0, 0.4) to within rounding', () => {
@@ -24,7 +24,7 @@ describe('writeSunDir', () => {
   });
 
   it('points straight up at elevation=90', () => {
-    LIGHTING.setKey('SUN_ELEVATION_DEG', 90);
+    LIGHTING.value = { ...LIGHTING.value, SUN_ELEVATION_DEG: 90 };
     const out = new THREE.Vector3();
     writeSunDir(out);
     expect(out.y).toBeCloseTo(1, 5);
@@ -33,12 +33,12 @@ describe('writeSunDir', () => {
   });
 
   it('azimuth=0 elevation=0 points along +Z (south)', () => {
-    LIGHTING.set({
+    LIGHTING.value = {
       SUN_AZIMUTH_DEG: 0,
       SUN_ELEVATION_DEG: 0,
       AMBIENT: 0.72,
       SUN_CONTRAST: 0.5,
-    });
+    };
     const out = new THREE.Vector3();
     writeSunDir(out);
     expect(out.x).toBeCloseTo(0, 5);
@@ -47,12 +47,12 @@ describe('writeSunDir', () => {
   });
 
   it('azimuth=90 elevation=0 points along +X (east)', () => {
-    LIGHTING.set({
+    LIGHTING.value = {
       SUN_AZIMUTH_DEG: 90,
       SUN_ELEVATION_DEG: 0,
       AMBIENT: 0.72,
       SUN_CONTRAST: 0.5,
-    });
+    };
     const out = new THREE.Vector3();
     writeSunDir(out);
     expect(out.x).toBeCloseTo(1, 5);
@@ -62,12 +62,12 @@ describe('writeSunDir', () => {
 
 describe('sunDirFromLighting', () => {
   beforeEach(() => {
-    LIGHTING.set({
+    LIGHTING.value = {
       SUN_AZIMUTH_DEG: 51,
       SUN_ELEVATION_DEG: 58,
       AMBIENT: 0.72,
       SUN_CONTRAST: 0.5,
-    });
+    };
   });
 
   it('returns a fresh unit Vector3 matching writeSunDir output', () => {

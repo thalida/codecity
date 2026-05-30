@@ -67,8 +67,8 @@ function _makeGlowTexture(): THREE.CanvasTexture | null {
 // size scales with the street's width (must match the radius the
 // layout reserves — see GEM_SIZING).
 export function createRootGem(street: Street): THREE.Group {
-  const sizing = GEM_SIZING.get();
-  const appearance = GEM_APPEARANCE.get();
+  const sizing = GEM_SIZING.value;
+  const appearance = GEM_APPEARANCE.value;
   const edgeColor = appearance.EDGE_COLOR;
   const group = new THREE.Group();
 
@@ -93,7 +93,7 @@ export function createRootGem(street: Street): THREE.Group {
   const gemZ = anchor.y;
 
   // ---- Gem: per-face colored polyhedron -------------------------------------
-  const sides = GEM_SIZING.get().SIDES;
+  const sides = GEM_SIZING.value.SIDES;
   let geo: THREE.BufferGeometry;
   switch (sides) {
     case '4':
@@ -108,7 +108,7 @@ export function createRootGem(street: Street): THREE.Group {
       break;
   }
 
-  const palette = GEM_FACE_PALETTE.get();
+  const palette = GEM_FACE_PALETTE.value;
   const paletteHexes = [
     palette.FACE_1,
     palette.FACE_2,
@@ -179,7 +179,7 @@ export function createRootGem(street: Street): THREE.Group {
   //
   // Skipped when _makeGlowTexture returns null (jsdom test env).
   const gem = new THREE.Group();
-  const glowCfg = GEM_GLOW.get();
+  const glowCfg = GEM_GLOW.value;
   const glowTex = _makeGlowTexture();
   let innerGlowSprite: THREE.Sprite | null = null;
   let outerGlowSprite: THREE.Sprite | null = null;

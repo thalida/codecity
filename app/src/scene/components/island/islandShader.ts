@@ -57,7 +57,7 @@ void main() {
 `;
 
 export function createIslandMaterial(): THREE.ShaderMaterial {
-  const mats = ISLAND_MATERIALS.get();
+  const mats = ISLAND_MATERIALS.value;
   return new THREE.ShaderMaterial({
     vertexShader: vertSrc,
     fragmentShader: fragSrc,

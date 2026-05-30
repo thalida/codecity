@@ -136,9 +136,9 @@ beforeEach(() => {
   canvas = document.createElement('canvas');
   canvas.width = 800;
   canvas.height = 600;
-  // Reset the module-level persistable atom between tests so a leftover
+  // Reset the module-level persistable signal between tests so a leftover
   // value from one test can't leak into the next.
-  PICKER_SELECTION_KEY.set(null);
+  PICKER_SELECTION_KEY.value = null;
 });
 
 // Helper: build a fake hit object for interpretHit. Real callers pass
@@ -148,11 +148,11 @@ function fakeHit(userData: Record<string, unknown>): THREE.Intersection<THREE.Ob
 }
 
 describe('createPicker', () => {
-  it('exposes hover, selection, selectionKey atoms + setters', () => {
+  it('exposes hover, selection, selectionKey signals + setters', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
-    expect(typeof p.hover.get).toBe('function');
-    expect(typeof p.selection.get).toBe('function');
+    expect('value' in p.hover).toBe(true);
+    expect('value' in p.selection).toBe(true);
     expect(p.selectionKey).toBe(PICKER_SELECTION_KEY);
     expect(typeof p.setHover).toBe('function');
     expect(typeof p.setSelection).toBe('function');
@@ -166,7 +166,7 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeFileTarget({ path: 'src/index.js' }));
-    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
+    expect(p.selectionKey.value).toEqual({ kind: NodeKind.File, path: 'src/index.js' });
     p.dispose();
   });
 
@@ -174,7 +174,7 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeDirTarget({ path: 'src/lib' }));
-    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
+    expect(p.selectionKey.value).toEqual({ kind: NodeKind.Directory, path: 'src/lib' });
     p.dispose();
   });
 
@@ -183,7 +183,7 @@ describe('createPicker', () => {
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setSelection(makeFileTarget({ path: 'a.js' }));
     p.setSelection(null);
-    expect(p.selectionKey.get()).toBeNull();
+    expect(p.selectionKey.value).toBeNull();
     p.dispose();
   });
 
@@ -192,12 +192,12 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: meshA }], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
-    const sel = p.selection.get();
+    const sel = p.selection.value;
     expect(sel?.kind).toBe(NodeKind.File);
     if (sel?.kind === NodeKind.File) {
       expect(sel.mesh).toBe(meshA);
     }
-    expect(p.selectionKey.get()).toEqual({ kind: NodeKind.File, path: 'a.js' });
+    expect(p.selectionKey.value).toEqual({ kind: NodeKind.File, path: 'a.js' });
     p.dispose();
   });
 
@@ -206,7 +206,7 @@ describe('createPicker', () => {
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
     p.selectByPath('does-not-exist.js');
-    const sel = p.selection.get();
+    const sel = p.selection.value;
     expect(sel).not.toBeNull();
     if (sel?.kind === NodeKind.File) {
       expect(sel.file.path).toBe('a.js');
@@ -218,14 +218,14 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: oldMesh }], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
-    const before = p.selection.get();
+    const before = p.selection.value;
     if (before?.kind === NodeKind.File) expect(before.mesh).toBe(oldMesh);
 
     // Simulate a rebuild — same path, new mesh.
     const newMesh = { id: 'new' };
     fakeScene.setSnapshot([{ path: 'a.js', mesh: newMesh }], []);
 
-    const after = p.selection.get();
+    const after = p.selection.value;
     if (after?.kind === NodeKind.File) expect(after.mesh).toBe(newMesh);
     p.dispose();
   });
@@ -234,12 +234,12 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.selectByPath('a.js');
-    expect(p.selection.get()).not.toBeNull();
+    expect(p.selection.value).not.toBeNull();
 
     fakeScene.setSnapshot([], []); // path no longer exists
 
-    expect(p.selection.get()).toBeNull();
-    expect(p.selectionKey.get()).toBeNull();
+    expect(p.selection.value).toBeNull();
+    expect(p.selectionKey.value).toBeNull();
     p.dispose();
   });
 
@@ -247,10 +247,10 @@ describe('createPicker', () => {
     const fakeScene = makeFakeWorld([{ path: 'a.js', mesh: {} }], []);
     const p = createPicker({ canvas, camera: FAKE_CAMERA, world: fakeScene });
     p.setHover(makeFileTarget({ mesh: { id: 'old' } }));
-    expect(p.hover.get()).not.toBeNull();
+    expect(p.hover.value).not.toBeNull();
 
     fakeScene.setSnapshot([{ path: 'a.js', mesh: { id: 'new' } }], []);
-    expect(p.hover.get()).toBeNull();
+    expect(p.hover.value).toBeNull();
     p.dispose();
   });
 

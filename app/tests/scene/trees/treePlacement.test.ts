@@ -19,7 +19,7 @@ describe('placeTrees (commit-driven)', () => {
   });
 
   it('returns empty when TREES_ENABLED is false', () => {
-    TREES.setKey('TREES_ENABLED', false);
+    TREES.value = { ...TREES.value, TREES_ENABLED: false };
     expect(
       placeTrees(emptyLayout(bbox(-100, -100, 100, 100)), undefined, { commitCount: 10 })
     ).toEqual([]);
@@ -91,7 +91,7 @@ describe('placeTrees (commit-driven)', () => {
 
   it('rejects candidates inside the FOOTPRINT halo around a layout rect', async () => {
     const { FOOTPRINT } = await import('@/state/settings/components/footprint.js');
-    FOOTPRINT.setKey('HALO_WIDTH', 100);
+    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 100 };
 
     const bb = bbox(-500, -500, 500, 500);
     const layout: CityLayout = {
@@ -116,7 +116,7 @@ describe('placeTrees (commit-driven)', () => {
       expect(dInf).toBeGreaterThan(110);
     }
 
-    FOOTPRINT.setKey('HALO_WIDTH', 32);
+    FOOTPRINT.value = { ...FOOTPRINT.value, HALO_WIDTH: 32 };
   });
 
   it('all placements have a defined commitIndex', () => {

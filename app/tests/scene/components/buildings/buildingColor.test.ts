@@ -26,21 +26,19 @@ const TEST_LIGHT_RANGE: RangeStat = { min: 25, max: 70 };
 
 let _origPalette: BuildingPaletteConfig | null = null;
 beforeEach(() => {
-  _origPalette = { ...BUILDING_PALETTE.get() };
-  BUILDING_PALETTE.setKey('HUE_EXT_MAP', TEST_HUE_EXT_MAP);
-  BUILDING_PALETTE.setKey('SATURATION_MIN', TEST_SAT_RANGE.min);
-  BUILDING_PALETTE.setKey('SATURATION_MAX', TEST_SAT_RANGE.max);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MIN', TEST_LIGHT_RANGE.min);
-  BUILDING_PALETTE.setKey('LIGHTNESS_MAX', TEST_LIGHT_RANGE.max);
+  _origPalette = { ...BUILDING_PALETTE.value };
+  BUILDING_PALETTE.value = {
+    ...BUILDING_PALETTE.value,
+    HUE_EXT_MAP: TEST_HUE_EXT_MAP,
+    SATURATION_MIN: TEST_SAT_RANGE.min,
+    SATURATION_MAX: TEST_SAT_RANGE.max,
+    LIGHTNESS_MIN: TEST_LIGHT_RANGE.min,
+    LIGHTNESS_MAX: TEST_LIGHT_RANGE.max,
+  };
 });
 afterEach(() => {
   if (!_origPalette) return;
-  const palette = _origPalette;
-  (Object.keys(palette) as Array<keyof BuildingPaletteConfig>).forEach((k) => {
-    // setKey is per-key typed; cast value to never to satisfy the union-of-fields
-    // dispatch (each key has its own value type and TS can't narrow both at once).
-    BUILDING_PALETTE.setKey(k, palette[k] as never);
-  });
+  BUILDING_PALETTE.value = _origPalette;
 });
 
 const TEST_TREE = {

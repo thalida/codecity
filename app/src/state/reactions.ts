@@ -4,8 +4,8 @@
 //
 // All widgets in the Controls pane write to the draft layer
 // (`configDrafts.setDraft`). Nothing touches the real store until Save
-// calls `configDrafts.commit()`, which fires every queued `setKey` in a
-// synchronous burst. Each `setKey` triggers any nanostore subscriber
+// calls `configDrafts.commit()`, which fires every queued `.value =` write
+// in a synchronous burst. Each write triggers any signal effect
 // registered below — that is the ONLY moment these reactions run.
 //
 //   rebuild-required → world.applyManifest(getManifest()) for a full
@@ -16,7 +16,8 @@
 // Adding a new config row is a one-line entry in the appropriate set
 // below — the reactions pick it up automatically.
 
-import { listenKeys } from 'nanostores';
+import { effect } from '@preact/signals';
+import type { Signal } from '@preact/signals';
 
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
 
@@ -100,18 +101,60 @@ interface CommitReactionsOpts {
   applyTheme: () => void;
 }
 
+/**
+ * Helper that mimics nanostores' listenKeys() — fires `cb` only when any of
+ * the listed keys in the object-valued signal change value, and skips the
+ * initial fire. Returns a disposer.
+ */
+function listenKeys<T extends object>(
+  store: Signal<T>,
+  keys: (keyof T)[],
+  cb: (value: T) => void
+): () => void {
+  let prev: Partial<T> = {};
+  for (const k of keys) {
+    prev[k] = store.value[k];
+  }
+  let armed = false;
+  const dispose = effect(() => {
+    const v = store.value;
+    // Read all watched keys to establish tracking.
+    const snapshots: Partial<T> = {};
+    for (const k of keys) {
+      snapshots[k] = v[k];
+    }
+    if (!armed) {
+      armed = true;
+      // Store initial snapshot but don't fire.
+      prev = snapshots;
+      return;
+    }
+    let changed = false;
+    for (const k of keys) {
+      if (snapshots[k] !== prev[k]) {
+        changed = true;
+        break;
+      }
+    }
+    if (changed) {
+      prev = snapshots;
+      cb(v);
+    }
+  });
+  return dispose;
+}
+
 export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts): () => void {
-  // nanostores `.subscribe()` fires synchronously with the current
-  // value when called. We wait until all subscriptions are wired
-  // before allowing reactions to run, so the initial fire doesn't
-  // trigger a wasteful rebuild.
+  // Signal effects fire synchronously with the current value when called.
+  // We wait until all subscriptions are wired before allowing reactions
+  // to run, so the initial fire doesn't trigger a wasteful rebuild.
   let armed = false;
 
   let hotIdleTimer: ReturnType<typeof setTimeout> | 0 = 0;
 
   async function scheduleRebuild() {
     if (!armed) return;
-    REBUILD_STATUS.set('rebuilding');
+    REBUILD_STATUS.value = 'rebuilding';
     try {
       // Config changes that hit this path always invalidate the layout
       // cache: the manifest didn't change but a layout-affecting config
@@ -124,23 +167,23 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
       if (manifest) {
         await world.applyManifest(manifest);
       }
-      REBUILD_STATUS.set('idle');
-      LAST_REBUILD_ERROR.set(null);
+      REBUILD_STATUS.value = 'idle';
+      LAST_REBUILD_ERROR.value = null;
     } catch (err) {
-      REBUILD_STATUS.set('error');
-      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
+      REBUILD_STATUS.value = 'error';
+      LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
     }
   }
 
   function refreshMaterials() {
     if (!armed) return;
     if (hotIdleTimer) clearTimeout(hotIdleTimer);
-    REBUILD_STATUS.set('rebuilding');
+    REBUILD_STATUS.value = 'rebuilding';
     try {
       applyTheme();
     } catch (err) {
-      REBUILD_STATUS.set('error');
-      LAST_REBUILD_ERROR.set(err instanceof Error ? err.message : String(err));
+      REBUILD_STATUS.value = 'error';
+      LAST_REBUILD_ERROR.value = err instanceof Error ? err.message : String(err);
       return;
     }
     // applyTheme is synchronous; hold the 'rebuilding' indicator on
@@ -149,15 +192,15 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     // own try/catch owns the final state in that case.
     hotIdleTimer = setTimeout(() => {
       hotIdleTimer = 0;
-      if (REBUILD_STATUS.get() === 'rebuilding') {
-        REBUILD_STATUS.set('idle');
-        LAST_REBUILD_ERROR.set(null);
-        LAST_UPDATED_AT.set(Date.now());
+      if (REBUILD_STATUS.value === 'rebuilding') {
+        REBUILD_STATUS.value = 'idle';
+        LAST_REBUILD_ERROR.value = null;
+        LAST_UPDATED_AT.value = Date.now();
       }
     }, HOT_REBUILD_MIN_DWELL_MS);
   }
 
-  const rebuildStores = [
+  const rebuildStores: Signal<any>[] = [
     BUILDING_DIMENSIONS,
     BUILDING_PALETTE,
     STREET_LAYOUT,
@@ -196,7 +239,7 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     //
   ];
 
-  const materialOnlyStores = [
+  const materialOnlyStores: Signal<any>[] = [
     SCENE_COLORS,
     SIDEWALK_COLORS,
     ASPHALT,
@@ -264,11 +307,24 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
   ];
 
   const unsubs: Array<() => void> = [];
+
+  // Wire whole-store reactions. effect() fires immediately with current
+  // value; we guard with `armed` until all effects are registered.
   for (const store of rebuildStores) {
-    unsubs.push(store.subscribe(scheduleRebuild));
+    unsubs.push(
+      effect(() => {
+        void store.value; // track this signal
+        scheduleRebuild();
+      })
+    );
   }
   for (const store of materialOnlyStores) {
-    unsubs.push(store.subscribe(refreshMaterials));
+    unsubs.push(
+      effect(() => {
+        void store.value; // track this signal
+        refreshMaterials();
+      })
+    );
   }
   // HALO_WIDTH bakes into per-instance Matrix4 data at createCityFootprint
   // time, so changing it requires a full applyManifest rebuild. The other

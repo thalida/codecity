@@ -90,20 +90,20 @@ describe('createFireflies', () => {
   });
 
   it('returns an empty group when FIREFLIES_ENABLED is false', () => {
-    const orig = FIREFLIES.get().FIREFLIES_ENABLED;
-    FIREFLIES.setKey('FIREFLIES_ENABLED', false);
+    const orig = FIREFLIES.value.FIREFLIES_ENABLED;
+    FIREFLIES.value = { ...FIREFLIES.value, FIREFLIES_ENABLED: false };
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       expect(f.group.children.length).toBe(0);
       f.dispose();
     } finally {
-      FIREFLIES.setKey('FIREFLIES_ENABLED', orig);
+      FIREFLIES.value = { ...FIREFLIES.value, FIREFLIES_ENABLED: orig };
     }
   });
 
   it('orbit ring is absent when ORBIT_RING_ENABLED is false', () => {
-    const orig = FIREFLIES.get().ORBIT_RING_ENABLED;
-    FIREFLIES.setKey('ORBIT_RING_ENABLED', false);
+    const orig = FIREFLIES.value.ORBIT_RING_ENABLED;
+    FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: false };
     try {
       const f = createFireflies(PLACEMENTS, COMMITS);
       const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
@@ -112,7 +112,7 @@ describe('createFireflies', () => {
       expect(ringGroup!.children.length).toBe(0);
       f.dispose();
     } finally {
-      FIREFLIES.setKey('ORBIT_RING_ENABLED', orig);
+      FIREFLIES.value = { ...FIREFLIES.value, ORBIT_RING_ENABLED: orig };
     }
   });
 

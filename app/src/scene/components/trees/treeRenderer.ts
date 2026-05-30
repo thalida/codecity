@@ -137,7 +137,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
   //     dense vertical samples near the apex make the silhouette read
   //     as a smooth dome rather than a sharp spike.
   const profile = CANOPY_PROFILE as THREE.Vector2[];
-  const cfg = TREES.get();
+  const cfg = TREES.value;
   const segments =
     detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
   const geom = new THREE.LatheGeometry(profile, segments);
@@ -157,7 +157,7 @@ function buildCanopyGeometry(detail: DetailLevel): THREE.BufferGeometry {
  *
  *  Consumed by `scene/effects/treeOutlineRenderer.ts`. */
 export function buildCanopyEdges(detail: DetailLevel): THREE.EdgesGeometry {
-  const cfg = TREES.get();
+  const cfg = TREES.value;
   const segments =
     detail === 0 ? cfg.TREE_FACETS_LOW : detail === 1 ? cfg.TREE_FACETS_MID : cfg.TREE_FACETS_HIGH;
   const lathe = new THREE.LatheGeometry(CANOPY_PROFILE as THREE.Vector2[], segments);
@@ -239,7 +239,7 @@ export function createTreeRenderer(
   placements: TreePlacement[],
   commits: CommitEntry[] | null
 ): Trees {
-  let cfg = TREES.get();
+  let cfg = TREES.value;
 
   // Height and width in absolute world units, independent of buildings.
   // Config exposes DIAMETER for width; convert to radius for the canopy.
@@ -475,7 +475,7 @@ export function createTreeRenderer(
   group.add(trunkMesh);
 
   function refresh(): void {
-    cfg = TREES.get();
+    cfg = TREES.value;
     group.visible = cfg.TREES_ENABLED;
     for (const rec of canopyRecords) rec.mesh.visible = cfg.TREES_ENABLED;
     trunkMesh.visible = cfg.TREES_ENABLED;

@@ -145,7 +145,7 @@ export function writeLabelToSlot(cell: CellTile, b: Building, atlas: LabelAtlasR
   if (!cell.labelMesh) return;
   const slot = b.slotId!;
   const mesh = cell.labelMesh;
-  const label = LABEL_TYPOGRAPHY.get();
+  const label = LABEL_TYPOGRAPHY.value;
 
   const text = b.file?.name ?? '';
   const rect = text ? atlas.rectByText.get(text) : undefined;

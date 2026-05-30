@@ -25,30 +25,31 @@ import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
 import { buildCanopyEdges } from '@/scene/components/trees/treeRenderer';
 import type { PickTarget } from '@/types/picker';
-import type { ReadableAtom } from 'nanostores';
+import type { ReadonlySignal } from '@preact/signals';
+import { effect } from '@preact/signals';
 
 interface TreesHandle {
   getInstanceTransform(sha: string, out: THREE.Matrix4): boolean;
   findTreeBySha(sha: string): { mesh: THREE.InstancedMesh; instanceId: number } | null;
 }
 
-/** Minimal picker surface consumed by this renderer (hover + selection atoms). */
-interface PickerAtoms {
-  hover: ReadableAtom<PickTarget | null>;
-  selection: ReadableAtom<PickTarget | null>;
+/** Minimal picker surface consumed by this renderer (hover + selection signals). */
+interface PickerSignals {
+  hover: ReadonlySignal<PickTarget | null>;
+  selection: ReadonlySignal<PickTarget | null>;
 }
 
 interface CreateArgs {
   canvas: HTMLCanvasElement;
   scene: THREE.Scene;
-  picker: PickerAtoms;
+  picker: PickerSignals;
   /** Late-bound: trees are built after this renderer is created. Returns
    *  null when no manifest has been applied yet. */
   getTrees: () => TreesHandle | null;
 }
 
 export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: CreateArgs) {
-  const _cfg = TREE_OUTLINE.get();
+  const _cfg = TREE_OUTLINE.value;
 
   // Build one EdgesGeometry per detail tier. The active outline mesh
   // points at whichever tier matches the active tree's mesh on snap.
@@ -125,14 +126,15 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   /** True iff hover and selection are the same tree (so hover should hide). */
   function _hoverIsSelected(): boolean {
-    const sel = picker.selection.get();
-    const hov = picker.hover.get();
+    const sel = picker.selection.value;
+    const hov = picker.hover.value;
     if (!sel || sel.kind !== NodeKind.Commit) return false;
     if (!hov || hov.kind !== NodeKind.Commit) return false;
     return sel.commit.sha === hov.commit.sha;
   }
 
-  picker.selection.subscribe((sel) => {
+  const _disposeSelectionEffect = effect(() => {
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.Commit) {
       const ok = _syncOutline(selectedOutline, sel.commit.sha);
       selectedOutline.visible = ok;
@@ -141,7 +143,8 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
     }
   });
 
-  picker.hover.subscribe((h) => {
+  const _disposeHoverEffect = effect(() => {
+    const h = picker.hover.value;
     if (h && h.kind === NodeKind.Commit && !_hoverIsSelected()) {
       const ok = _syncOutline(hoverOutline, h.commit.sha);
       hoverOutline.visible = ok;
@@ -170,7 +173,7 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
 
   function _writeRainbow(t: number): void {
     if (!_selColorBuf) return;
-    const rb = RAINBOW.get();
+    const rb = RAINBOW.value;
     // One hue per segment, rotating around the silhouette over time.
     for (let i = 0; i < _selSegCount; i++) {
       const hue = (((t + i / _selSegCount) % 1) + 1) % 1;
@@ -192,23 +195,23 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   function update(_dtMs: number): void {
     // Selected: re-snap transform (in case the tree's instance matrix
     // changed via a refresh / animation) and advance rainbow chase.
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     if (sel && sel.kind === NodeKind.Commit) {
       _syncOutline(selectedOutline, sel.commit.sha);
       _ensureColorBuffer(selectedOutline.geometry as LineSegmentsGeometry);
-      const t = performance.now() * RAINBOW.get().SPEED;
+      const t = performance.now() * RAINBOW.value.SPEED;
       _writeRainbow(t);
     }
 
     // Hover: re-snap in case the tree moved.
-    const hov = picker.hover.get();
+    const hov = picker.hover.value;
     if (hov && hov.kind === NodeKind.Commit && !_hoverIsSelected()) {
       _syncOutline(hoverOutline, hov.commit.sha);
     }
   }
 
   function refreshMaterials(): void {
-    const c = TREE_OUTLINE.get();
+    const c = TREE_OUTLINE.value;
     hoverLineMat.color.set(c.HOVER_COLOR);
     hoverLineMat.linewidth = c.WIDTH;
     hoverLineMat.opacity = c.HOVER_OPACITY;
@@ -224,6 +227,8 @@ export function createTreeOutlineRenderer({ canvas, scene, picker, getTrees }: C
   }
 
   function dispose(): void {
+    _disposeSelectionEffect();
+    _disposeHoverEffect();
     if (hoverOutline.parent) hoverOutline.parent.remove(hoverOutline);
     if (selectedOutline.parent) selectedOutline.parent.remove(selectedOutline);
     for (const g of _edgesByDetail) g.dispose();

@@ -5,16 +5,16 @@
 
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { atom } from 'nanostores';
+import { signal } from '@preact/signals';
 import { createBuildingFader } from '@/scene/effects/buildingFader';
 import { BUILDING_FADE } from '@/state/settings/index';
 import { FadeDetail, NodeKind } from '@/types';
 import type { Building, DirNode, FileNode, PickTarget, Street } from '@/types';
 
-const _originalFade = BUILDING_FADE.get();
+const _originalFade = BUILDING_FADE.value;
 
 afterEach(() => {
-  BUILDING_FADE.set(_originalFade);
+  BUILDING_FADE.value = _originalFade;
 });
 
 function makeFile(path: string): FileNode {
@@ -92,8 +92,8 @@ function makeFader(opts: {
   } as unknown as Parameters<typeof createBuildingFader>[0]['world'];
 
   const picker = {
-    selection: atom<PickTarget | null>(opts.selection ?? null),
-    hover: atom<PickTarget | null>(opts.hover ?? null),
+    selection: signal<PickTarget | null>(opts.selection ?? null),
+    hover: signal<PickTarget | null>(opts.hover ?? null),
   } as unknown as Parameters<typeof createBuildingFader>[0]['picker'];
 
   const fader = createBuildingFader({ world, picker });
@@ -116,7 +116,7 @@ function makeFader(opts: {
  *  exactly one tier without ambiguity. Detail mode is the same so
  *  silhouette isn't a confounder; outline disabled across the board. */
 function setKnownFade() {
-  BUILDING_FADE.set({
+  BUILDING_FADE.value = {
     ..._originalFade,
     DEFAULT_DETAIL: FadeDetail.Full,
     DEFAULT_BODY_OPACITY: 1.0,
@@ -138,7 +138,7 @@ function setKnownFade() {
     LEVEL4_BODY_OPACITY: 0.2,
     LEVEL4_OUTLINE: false,
     LEVEL4_OUTLINE_OPACITY: 0.0,
-  });
+  };
 }
 
 describe('buildingFader 5-tier cascade', () => {
@@ -327,7 +327,7 @@ describe('buildingFader 5-tier cascade', () => {
   });
 
   it('selected file honors DEFAULT config (no hardcoded constants)', () => {
-    BUILDING_FADE.setKey('DEFAULT_BODY_OPACITY', 0.5);
+    BUILDING_FADE.value = { ...BUILDING_FADE.value, DEFAULT_BODY_OPACITY: 0.5 };
 
     const a = makeFile('src/a.ts');
     const selBuilding = makeBuilding(a);

@@ -25,6 +25,7 @@ import { buildCommitPane } from './views/panes/commitPane';
 import { buildStreetPane } from './views/panes/streetPane';
 import { sameDayCommitCount } from './utils/commit';
 import { labelFromManifest } from './utils/sources';
+import { effect } from '@preact/signals';
 import { LIVE_UPDATES } from './state/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './state/runtime/liveStatus';
 import { DateSource, NodeKind } from './types';
@@ -88,7 +89,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       hideRightSidebar();
       return;
     }
-    const sel = picker.selection.get();
+    const sel = picker.selection.value;
     if (sidebarPane === 'file') {
       showRightSidebar(filePreview.pane);
       if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
@@ -159,7 +160,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     // canvas. Looks at the current picker selection and dispatches the
     // matching camera-rig call.
     onFocus() {
-      const sel = picker.selection.get();
+      const sel = picker.selection.value;
       if (!sel) return;
       if (sel.kind === NodeKind.File) rig.focusBuilding(sel.mesh, sel.data);
       else if (sel.kind === NodeKind.Directory) rig.focusStreet(sel.street, null);
@@ -183,24 +184,24 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
   // already happened in startRenderLoop — world.onChange won't fire
   // for that, so without this the footer would render "—" until the
   // first poll lands a fresh manifest.
-  if (initialManifest) LAST_UPDATED_AT.set(Date.now());
+  if (initialManifest) LAST_UPDATED_AT.value = Date.now();
 
   function _refreshStatus(): void {
     appFooter.setStatus({
-      liveEnabled: LIVE_UPDATES.get().ENABLED,
-      rebuildStatus: REBUILD_STATUS.get(),
-      lastUpdatedAt: LAST_UPDATED_AT.get(),
-      errorMessage: LAST_REBUILD_ERROR.get(),
+      liveEnabled: LIVE_UPDATES.value.ENABLED,
+      rebuildStatus: REBUILD_STATUS.value,
+      lastUpdatedAt: LAST_UPDATED_AT.value,
+      errorMessage: LAST_REBUILD_ERROR.value,
     });
   }
   _refreshStatus();
-  const _liveCfgUnsub = LIVE_UPDATES.subscribe(_refreshStatus);
-  const _statusUnsub = REBUILD_STATUS.subscribe(_refreshStatus);
+  const _liveCfgUnsub = effect(() => { void LIVE_UPDATES.value; _refreshStatus(); });
+  const _statusUnsub = effect(() => { void REBUILD_STATUS.value; _refreshStatus(); });
   // _errorUnsub catches updated error messages even when REBUILD_STATUS
   // is already 'error' (e.g. two failing polls in a row with different
   // messages) — the tooltip needs to refresh on every message change.
-  const _errorUnsub = LAST_REBUILD_ERROR.subscribe(_refreshStatus);
-  const _stampUnsub = LAST_UPDATED_AT.subscribe(_refreshStatus);
+  const _errorUnsub = effect(() => { void LAST_REBUILD_ERROR.value; _refreshStatus(); });
+  const _stampUnsub = effect(() => { void LAST_UPDATED_AT.value; _refreshStatus(); });
   // Re-render every second so the relative timestamp ("5s ago" → "6s
   // ago") advances smoothly while idle.
   const _tickHandle = window.setInterval(_refreshStatus, 1000);
@@ -330,13 +331,14 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
   // hover ends.  Both subscriptions call this shared updater so the
   // displayed info is always consistent with whichever atom changed last.
   function _updateFooterFromState(): void {
-    const hov = picker.hover.get();
-    const sel = picker.selection.get();
+    const hov = picker.hover.value;
+    const sel = picker.selection.value;
     _setFooterForTarget(hov ?? sel);
   }
 
   // ── picker → sidebar reactions ─────────────────────────────────────
-  const _selUnsub = picker.selection.subscribe((sel: PickTarget | null) => {
+  const _selUnsub = effect(() => {
+    const sel = picker.selection.value;
     // Tree highlight follows selection.
     if (leftSidebarApi.setSelectedTreePath) {
       leftSidebarApi.setSelectedTreePath(_pathOf(sel));
@@ -384,7 +386,8 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     _renderSidebar();
   });
 
-  const _hovUnsub = picker.hover.subscribe((h: PickTarget | null) => {
+  const _hovUnsub = effect(() => {
+    const h = picker.hover.value;
     if (leftSidebarApi.setHoveredTreePath) {
       leftSidebarApi.setHoveredTreePath(_pathOf(h));
     }
@@ -408,7 +411,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       const freshLabel = labelFromManifest(m) ?? m.tree?.name ?? '';
       document.title = freshLabel ? `${freshLabel} — codecity` : 'codecity';
     }
-    LAST_UPDATED_AT.set(Date.now());
+    LAST_UPDATED_AT.value = Date.now();
     if (leftSidebarApi.setInfoManifest) {
       leftSidebarApi.setInfoManifest(m);
     }
@@ -418,7 +421,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
     if (leftSidebarApi.setSearchManifest) {
       leftSidebarApi.setSearchManifest(m);
     }
-    const _selForCommit = picker.selection.get();
+    const _selForCommit = picker.selection.value;
     if (_selForCommit && _selForCommit.kind === NodeKind.Commit) {
       const _remote = m?.repo?.remote_url ?? null;
       const _commits = m?.commits ?? [];
@@ -430,7 +433,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
         color: _color,
       });
     }
-    const _selForDir = picker.selection.get();
+    const _selForDir = picker.selection.value;
     if (_selForDir && _selForDir.kind === NodeKind.Directory) {
       // Live-update poll may have swapped the DirNode under us — re-resolve
       // the directory by path from the freshly applied manifest and push the
