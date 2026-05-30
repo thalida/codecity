@@ -65,11 +65,14 @@ const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
 ];
 const DEFAULT_GIT_WINDOW = '';
 
-/** Map a raw `git_window` value back to its human-readable label, or
- *  return the raw value when nothing matches (the field accepts any
- *  free-form `git log --since=…` expression). */
+/** Map a raw `git_window` value back to its human-readable label.
+ *  Empty / undefined → "All history" (the server default — walks every
+ *  commit). Unknown free-form values → returned verbatim (the field
+ *  accepts any `git log --since=…` expression). */
 function gitWindowLabel(value: string | undefined | null): string {
-  if (!value) return '';
+  if (!value) {
+    return 'All history';
+  }
   const preset = GIT_WINDOW_OPTIONS.find((o) => o.value === value);
   if (!preset) return value;
   // Strip the "(default)" suffix so it doesn't leak into recent rows.
@@ -239,6 +242,15 @@ export function createSourcePicker(opts: {
         const classes = ['recent-row'];
         if (isActive) classes.push('recent-row--active');
         if (isDisabled) classes.push('recent-row--disabled');
+        // Build the sub-line by joining only the segments that have
+        // content. Previously we always appended " · <window-label>",
+        // which left a dangling " · " when the user kept the default
+        // (empty) window value.
+        const windowLabel = gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW);
+        const subParts = [r.src];
+        if (r.branch) subParts.push(r.branch);
+        if (windowLabel) subParts.push(windowLabel);
+        const subLine = subParts.map(escapeHtml).join(' · ');
         return `
       <div class="recent-item">
         <button type="button"
@@ -251,9 +263,7 @@ export function createSourcePicker(opts: {
           <span class="recent-icon">${icon}</span>
           <div class="recent-row-body">
             <div class="recent-label">${escapeHtml(r.label)}</div>
-            <div class="recent-sub">${escapeHtml(r.src)}${
-              r.branch ? ` · ${escapeHtml(r.branch)}` : ''
-            } · ${escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))}</div>
+            <div class="recent-sub">${subLine}</div>
           </div>
           ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}
         </button>
