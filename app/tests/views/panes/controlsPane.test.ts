@@ -4,10 +4,10 @@ import { attachPersistence } from '@/store/persist.js';
 import * as Config from '@/config/index.js';
 
 describe('buildControlsPane', () => {
-  it('returns a pane with the Controls header + Keyboard & mouse section first', () => {
+  it('returns a pane with the Settings header + Keyboard & mouse section first', () => {
     const { pane } = buildControlsPane({});
     expect(pane.classList.contains('controls-pane')).toBe(true);
-    expect(pane.querySelector<HTMLElement>('.text-pane-title')!.textContent).toBe('Controls');
+    expect(pane.querySelector<HTMLElement>('.text-pane-title')!.textContent).toBe('Settings');
     expect(
       pane.querySelector<HTMLElement>('.controls-section-summary .text-label')!.textContent
     ).toBe('Keyboard & mouse');

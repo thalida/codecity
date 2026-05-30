@@ -26,5 +26,5 @@ export const ACTIVITY_BAR_TABS: readonly ActivityBarTab[] = [
   { id: SidebarTab.Tree, icon: 'folder-tree.svg', title: 'Tree' },
   { id: SidebarTab.Search, icon: 'search.svg', title: 'Search' },
   { id: SidebarTab.Info, icon: 'info.svg', title: 'Info' },
-  { id: SidebarTab.Controls, icon: 'settings-2.svg', title: 'Controls', placement: 'bottom' },
+  { id: SidebarTab.Controls, icon: 'settings-2.svg', title: 'Settings', placement: 'bottom' },
 ] as const;

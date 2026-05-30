@@ -74,10 +74,12 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   // 2. Scale further by 1/cos(π/N) so the polygon's CHORD edges (which
   //    bow inward between vertices) still reach the ellipse boundary.
   //
-  // 3. Jitter SHRINKS inward (reductive). Vertices pull in by up to
-  //    (irregularity × baseRadius) for a natural craggy silhouette.
-  //    Keep irregularity modest — large values can pull vertices inside
-  //    the bounds rect, exposing city corners.
+  // 3. Jitter is ADDITIVE — vertices only push OUTWARD from the
+  //    minimum-bounding silhouette. Subtractive jitter (the previous
+  //    behavior) could pull vertices inside the bounds rect at higher
+  //    irregularity values, exposing city corners as buildings/streets
+  //    floating off the island edge into black space. With additive
+  //    jitter the bounds rect stays fully contained at any irregularity.
   const cornerCorrection = Math.SQRT2;
   const edgeCorrection = 1 / Math.cos(Math.PI / sides);
   const baseScale = cornerCorrection * edgeCorrection;
@@ -86,7 +88,7 @@ export function buildTopPolygon(params: IslandBuildParams): THREE.Vector3[] {
   const pts: THREE.Vector3[] = [];
   for (let i = 0; i < sides; i++) {
     const theta = (i / sides) * Math.PI * 2;
-    const jitter = 1 - irregularity * rand();
+    const jitter = 1 + irregularity * rand();
     pts.push(new THREE.Vector3(Math.cos(theta) * aX * jitter, 0, -Math.sin(theta) * aZ * jitter));
   }
   return pts;

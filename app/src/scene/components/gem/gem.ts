@@ -209,12 +209,14 @@ export function createRootGem(street: Street): THREE.Group {
         opacity: glowCfg.OUTER_OPACITY,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
-        // Depth test ON: the halo must be occluded by opaque foreground
-        // surfaces (trees, buildings) instead of bleeding through them.
-        // A prior version had this off so the glow wouldn't be sliced by
-        // the island top at low camera angles, but the trade — gem glow
-        // visible THROUGH tree canopies — is the more obvious artifact.
-        depthTest: true,
+        // Depth test OFF on the OUTER halo only: this big atmospheric
+        // sprite extends far enough that the island silhouette slices it
+        // in a harsh line at low camera angles when depth-tested. It's
+        // dim/diffuse enough that the canopy bleed-through (the reason
+        // depth-test is ON for the inner sprite) is barely visible here.
+        // The inner sprite keeps depthTest: true so the bright core still
+        // gets occluded behind buildings/trees correctly.
+        depthTest: false,
       })
     );
     outerGlowSprite.scale.set(radius * glowCfg.OUTER_SCALE, radius * glowCfg.OUTER_SCALE, 1);

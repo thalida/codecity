@@ -491,6 +491,15 @@ ALWAYS_SKIP: frozenset[str] = frozenset({
     "Podfile.lock",                                         # CocoaPods
     "flake.lock",                                           # Nix
     "Gopkg.lock", "go.sum",                                 # Go
+    # Vendored single-file amalgamations — one giant .c file (often
+    # 100k+ lines) that's the entire library inlined. Like lockfiles,
+    # they're boilerplate from upstream rather than meaningful "code" —
+    # one such file becomes a 250k-line skyscraper that dominates every
+    # height-based visual. Public headers (sqlite3.h, miniz.h, lua.h)
+    # are NOT skipped: they're moderate-size and may be authored code.
+    "sqlite3.c",                                            # SQLite amalgamation
+    "miniz.c",                                              # miniz amalgamation
+    "lua.c",                                                # Lua amalgamation
 })
 
 

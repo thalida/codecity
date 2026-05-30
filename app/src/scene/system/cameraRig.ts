@@ -252,11 +252,18 @@ export function createCameraRig({
         const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
         if (dNeeded > heightDist) heightDist = dNeeded;
       };
-      // 4 roof corners in world: (b.x ± b.w/2, b.h, b.y ± b.d/2).
+      // Position-independent height fit: use gem coords instead of the
+      // tallest building's real coords. The fit math adds p·dir, so a
+      // tall outlier 2000u from the gem would push the camera back
+      // ~2000u just to literally frame that one roof on screen — which
+      // is exactly the "starts zoomed all the way out to fit a far-away
+      // spire" bug. The default view just needs D large enough that a
+      // building of this HEIGHT could fit; the user pans/orbits to
+      // actually look at the outlier.
       if (tallest) {
         for (const sx of [-0.5, 0.5]) {
           for (const sz of [-0.5, 0.5]) {
-            _fitPoint(tallest.x + sx * tallest.w, tallest.h, tallest.y + sz * tallest.d);
+            _fitPoint(gemX + sx * tallest.w, tallest.h, gemZ + sz * tallest.d);
           }
         }
       }

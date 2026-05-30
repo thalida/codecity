@@ -129,7 +129,7 @@ export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPan
   const pane = document.createElement('div');
   pane.className = 'pane controls-pane';
 
-  const { el: header } = buildPaneHeader({ title: 'Controls', onClose: opts.onClose });
+  const { el: header } = buildPaneHeader({ title: 'Settings', onClose: opts.onClose });
   pane.appendChild(header);
 
   const body = document.createElement('div');
