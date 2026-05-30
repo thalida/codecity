@@ -85,8 +85,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   // so the header's grid layout can balance the left/right tracks and keep
   // #app-title visually centered. Fall back to the header element itself
   // if the wrapper isn't present (older shells / test fixtures).
-  const leftEl: HTMLElement =
-    document.getElementById('app-header-left') ?? titleEl.parentElement!;
+  const leftEl: HTMLElement = document.getElementById('app-header-left') ?? titleEl.parentElement!;
 
   // Idempotency guard: if initAppHeader has run before, clear our
   // previously-injected buttons so we don't accumulate stacked copies
