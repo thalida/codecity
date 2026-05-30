@@ -20,9 +20,9 @@ dev mount='': install-hooks setup
      if [ -n "{{mount}}" ]; then \
          ABS=$(realpath "{{mount}}") || exit 1 ; \
          mkdir -p .local ; \
-         printf 'services:\n  api:\n    volumes:\n      - "%s:%s:ro"\n' "$ABS" "$ABS" > .local/dev-mount.override.yml ; \
+         printf 'services:\n  api:\n    volumes:\n      - "%s:%s:ro"\n    environment:\n      - CODECITY_ALLOW_LOCAL_REPOS=1\n' "$ABS" "$ABS" > .local/dev-mount.override.yml ; \
          COMPOSE_ARGS="$COMPOSE_ARGS -f .local/dev-mount.override.yml" ; \
-         echo "[codecity-dev] mounted $ABS" ; \
+         echo "[codecity-dev] mounted $ABS (local repos enabled)" ; \
      fi ; \
      echo "[codecity-dev] http://$SLUG.localhost:$PORT/" ; \
      VITE_HOST_PORT=$PORT \
@@ -42,10 +42,12 @@ run mount='':
     @PORT=$(python3 bin/pick-port.py run) ; \
      SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      MOUNT_ARG="" ; \
+     LOCAL_ENV_ARG="" ; \
      if [ -n "{{mount}}" ]; then \
          ABS=$(realpath "{{mount}}") || exit 1 ; \
          MOUNT_ARG="-v $ABS:$ABS:ro" ; \
-         echo "[codecity] mounted $ABS" ; \
+         LOCAL_ENV_ARG="-e CODECITY_ALLOW_LOCAL_REPOS=1" ; \
+         echo "[codecity] mounted $ABS (local repos enabled)" ; \
      fi ; \
      echo "[codecity] http://$SLUG.localhost:$PORT/" ; \
      IMAGE_ID=$(docker build -q \
@@ -54,6 +56,7 @@ run mount='':
      docker run --rm --init \
          -v codecity-cache:/cache \
          $MOUNT_ARG \
+         $LOCAL_ENV_ARG \
          -p $PORT:8080 \
          $IMAGE_ID
 
