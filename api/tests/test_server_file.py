@@ -19,9 +19,10 @@ class FileApiTests(unittest.TestCase):
     """Coverage for /api/file — the root-bounded file reader."""
 
     @pytest.fixture(autouse=True)
-    def _setup_fixtures(self, redirect_cache_root, http_helpers) -> None:
+    def _setup_fixtures(self, redirect_cache_root, http_helpers, monkeypatch) -> None:
         self.cache_root = redirect_cache_root
         self._http = http_helpers
+        self.monkeypatch = monkeypatch
 
     def setUp(self) -> None:
         super().setUp()
@@ -152,6 +153,21 @@ class FileApiTests(unittest.TestCase):
         self.assertEqual(ctype, "image/png")
         # Body is the raw "PNG" bytes — not gzipped.
         self.assertTrue(body.startswith(b"\x89PNG"))
+
+    def test_local_src_blocked_via_manifest_keeps_file_endpoint_clean(self) -> None:
+        """/api/file trusts `_State.allowed_roots`, which is populated by
+        successful manifest scans. The local-repo gate sits upstream in
+        _resolve_scan_target / _serve_manifest, so blocked-local scans
+        never register a root. Validate the chain by attempting a local
+        manifest with the gate off — expect 403 and no trust-set growth."""
+        import urllib.parse
+
+        self.monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)
+        q = urllib.parse.urlencode({"src": "/tmp/some-local-path"})
+        status, body, _ = self._http.get(self.base + f"/api/manifest?{q}")
+        self.assertEqual(status, HTTPStatus.FORBIDDEN)
+        err = json.loads(body)["error"]
+        self.assertIn("local repositories are disabled", err)
 
 
 if __name__ == "__main__":

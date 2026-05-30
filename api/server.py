@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
+from api.env import env_bool
 from api.clone import (
     CloneError,
     BranchNotFoundError,
@@ -63,6 +64,7 @@ from api.scan import (
 from api.types import (
     CacheClearResponse,
     CommitDetailResponse,
+    ConfigResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -135,6 +137,12 @@ _NOT_GIT_ERROR = (
     "URL instead."
 )
 
+_LOCAL_DISABLED_ERROR = (
+    "local repositories are disabled — restart codecity with "
+    "CODECITY_ALLOW_LOCAL_REPOS=1. "
+    "See https://github.com/thalida/codecity#local-directories"
+)
+
 
 # Bodies under this threshold skip compression — gzip's framing
 # overhead (~20 bytes header + trailer) exceeds the savings on small
@@ -193,6 +201,7 @@ JsonBody = (
     | HealthResponse
     | CacheClearResponse
     | CommitDetailResponse
+    | ConfigResponse
 )
 
 
@@ -343,21 +352,6 @@ def _parse_no_cache(query: str) -> bool:
     return raw in ("true", "1")
 
 
-def _parse_git_window(query: str) -> str | None:
-    """Parse ?git_window=… as a `git log --since=…` expression.
-
-    Returns ``None`` (meaning "use server default / env var") when the
-    param is absent or empty. The string is forwarded verbatim to git;
-    git itself rejects malformed expressions, in which case the scan
-    surfaces a clean error via the existing manifest-stream error path.
-    Length-capped at 64 chars to keep an invalid input from blowing up
-    the subprocess argv."""
-    raw = parse_qs(query).get("git_window", [""])[0].strip()
-    if not raw:
-        return None
-    return raw[:64]
-
-
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
 ) -> tuple[Path, str, str | None, Literal["local", "git"]] | None:
@@ -400,6 +394,11 @@ def _resolve_scan_target(
             return None
 
     # kind == "local" — ignore any &branch=, scan the working tree in place
+    if not _local_repos_allowed():
+        _send_json(
+            handler, HTTPStatus.FORBIDDEN, {"error": _LOCAL_DISABLED_ERROR}
+        )
+        return None
     try:
         scan_target = Path(raw_src).resolve(strict=True)
     except (OSError, RuntimeError):
@@ -416,6 +415,19 @@ def _resolve_scan_target(
         )
         return None
     return scan_target, raw_src, None, "local"
+
+
+def _local_repos_allowed() -> bool:
+    """Return True if CODECITY_ALLOW_LOCAL_REPOS is set to a truthy
+    value. Read fresh on each call so tests can monkeypatch the env
+    var without restarting the server."""
+    return env_bool("CODECITY_ALLOW_LOCAL_REPOS")
+
+
+def _serve_config(handler: BaseHTTPRequestHandler) -> None:
+    """GET /api/config — server-side feature flags for the frontend."""
+    body: ConfigResponse = {"allowLocalRepos": _local_repos_allowed()}
+    _send_json(handler, HTTPStatus.OK, body)
 
 
 _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
@@ -528,6 +540,13 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
 
     local_target: Path | None = None
     if kind == "local":
+        if not _local_repos_allowed():
+            _send_json(
+                handler,
+                HTTPStatus.FORBIDDEN,
+                {"error": _LOCAL_DISABLED_ERROR},
+            )
+            return
         try:
             local_target = Path(raw_src).resolve(strict=True)
         except (OSError, RuntimeError):
@@ -545,7 +564,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             return
 
     use_cache = not _parse_no_cache(query)
-    git_window = _parse_git_window(query)
 
     cancel_event = threading.Event()
     watchdog = _start_disconnect_watchdog(handler, cancel_event)
@@ -644,14 +662,10 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         yield {"phase": "scanning", "display_root": display_root}
 
         # Cheap signature probe — same call the live-poll endpoint uses.
-        # git_window MUST flow in here too: it feeds the signature, and
-        # without it a window change would collide with a previously
-        # cached manifest under a different window.
         try:
             sig_response = signature_tree(
                 str(scan_target),
                 use_cache=use_cache,
-                git_window=git_window,
             )
         except Exception as e:  # pylint: disable=broad-except
             yield {"phase": "error", "error": f"scan failed: {e}"}
@@ -692,7 +706,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
                     str(scan_target),
                     use_cache=use_cache,
                     cancel_event=cancel_event,
-                    git_window=git_window,
                     on_scan_progress=_on_scan_progress,
                 ):
                     scan_q.put(ev)  # skeleton + final flow through the same queue
@@ -765,7 +778,13 @@ def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
     list — they're done with this source, so its disk cache should go
     too. Resolves git URLs to their clone-dir without actually cloning;
     resolves local paths non-strictly so cleanup still works for paths
-    that no longer exist on disk."""
+    that no longer exist on disk.
+
+    Note: this route is intentionally NOT gated by
+    `CODECITY_ALLOW_LOCAL_REPOS`. The gate exists to prevent fresh
+    scans of arbitrary host paths; cache cleanup only manipulates
+    files under ``CODECITY_CACHE_ROOT`` (a path derived from the
+    source, not the source itself) and is safe to leave open."""
     params = parse_qs(query)
     raw_src = params.get("src", [""])[0]
     raw_branch = params.get("branch", [""])[0] or None
@@ -799,7 +818,7 @@ def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
 def _log_quiet(msg: str) -> None:
     """Same env-gated logger as scan._log, duplicated here so server
     doesn't import a private from scan. CODECITY_QUIET=1 silences."""
-    if os.environ.get("CODECITY_QUIET") != "1":
+    if not env_bool("CODECITY_QUIET"):
         print(msg, file=sys.stderr, flush=True)
 
 
@@ -816,15 +835,11 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
         return
     scan_target, _raw_src, _raw_branch, _kind = resolved
     use_cache = not _parse_no_cache(query)
-    # Pass git_window through so the live-update poll's signature matches
-    # the cached manifest's (which is now window-keyed).
-    git_window = _parse_git_window(query)
 
     try:
         sig = signature_tree(
             str(scan_target),
             use_cache=use_cache,
-            git_window=git_window,
         )
     except Exception as e:  # pylint: disable=broad-except
         _send_json(
@@ -960,6 +975,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/health":
             _send_json(self, HTTPStatus.OK, {"ok": True})
+            return
+
+        if path == "/api/config":
+            _serve_config(self)
             return
 
         if path == "/api/manifest":

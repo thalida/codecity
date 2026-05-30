@@ -26,9 +26,8 @@ class NodeKind:
 
 
 class GitMeta(TypedDict):
-    """Git history dates for a file. ISO 8601 strings; null when no
-    commit touching the file fell inside the active git_window (so
-    create/modify timestamps were never observed)."""
+    """Git history dates for a file. ISO 8601 strings; null when the
+    scanner never observed a create/modify date (e.g. uncommitted)."""
 
     created: str | None
     modified: str | None
@@ -163,6 +162,13 @@ class HealthResponse(TypedDict):
     """/api/health body."""
 
     ok: bool
+
+
+class ConfigResponse(TypedDict):
+    """/api/config body. Read by the frontend at boot to learn
+    server-side feature flags."""
+
+    allowLocalRepos: bool
 
 
 class CommitDetailResponse(TypedDict):

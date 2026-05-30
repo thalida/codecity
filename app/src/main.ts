@@ -28,6 +28,7 @@ import { streamManifest } from './utils/manifestStream.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
 import { labelFromUrl } from './views/widgets/displayLabel.js';
+import { getServerConfig } from './utils/serverConfig.js';
 
 /**
  * Set document.title to "{label} (pending) — codecity" from a server-emitted
@@ -267,7 +268,6 @@ if (_canvas) {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
-        if (payload.gitWindow) url.searchParams.set('git_window', payload.gitWindow);
         // Consume the one-shot skip-cache flag set by the source picker.
         // Only this first fetch uses it; the poll loop is unaffected.
         if (_pendingSkipCache) {
@@ -340,8 +340,8 @@ if (_canvas) {
         pageUrl.searchParams.set('src', payload.src);
         if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
         else pageUrl.searchParams.delete('branch');
-        if (payload.gitWindow) pageUrl.searchParams.set('git_window', payload.gitWindow);
-        else pageUrl.searchParams.delete('git_window');
+        // Strip any stale git_window left over from older bookmarks.
+        pageUrl.searchParams.delete('git_window');
         history.replaceState(null, '', pageUrl.toString());
 
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
@@ -357,19 +357,40 @@ if (_canvas) {
         _applyDisplayLabel(manifest);
         await handle.world.applyManifest(manifest);
 
+        // If the user didn't explicitly request a branch, fall back to
+        // the manifest's resolved HEAD (the repo's default branch) so
+        // both the header pill and the recents row reflect what was
+        // actually loaded instead of leaving the branch blank.
+        //
+        // Defensive guard: the scanner labels a detached HEAD with
+        // strings like "detached HEAD" or "detached @ a1b2c3d". Those
+        // are display labels, NOT real branch names — passing them to
+        // a later `git clone --branch …` would fail. Only treat the
+        // manifest branch as a usable default when it looks like a
+        // normal ref (no spaces, no leading parens/"detached" prefix).
+        const manifestBranch = manifest.repo.branch;
+        const looksLikeRealBranch =
+          !!manifestBranch &&
+          !/\s/.test(manifestBranch) &&
+          !manifestBranch.startsWith('(') &&
+          !manifestBranch.startsWith('detached');
+        const resolvedBranch =
+          payload.branch ?? (looksLikeRealBranch ? manifestBranch! : undefined);
+        const branchIsDefault = !payload.branch && looksLikeRealBranch;
+
         // Update the header (project label, branch pill) + footer (repo link)
         // AFTER applyManifest so world.getManifest() inside the coordinator
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
-          payload.branch,
+          resolvedBranch,
           _srcKind(payload.src) === 'git' ? payload.src : undefined
         );
 
         _liveUpdates?.setSignature(manifest.signature);
         pushRecent({
           src: payload.src,
-          branch: payload.branch,
-          gitWindow: payload.gitWindow,
+          branch: resolvedBranch,
+          branchIsDefault,
           label: _deriveLabel(payload.src),
         });
 
@@ -389,7 +410,9 @@ if (_canvas) {
       }
     }
 
+    const serverConfig = await getServerConfig();
     const picker = createSourcePicker({
+      allowLocalRepos: serverConfig.allowLocalRepos,
       onSubmit: (payload) => {
         _pendingSkipCache = !!payload.skipCache;
         picker.close();
@@ -406,7 +429,6 @@ if (_canvas) {
         prefill: {
           src: qp.get('src')!,
           branch: qp.get('branch') ?? undefined,
-          gitWindow: qp.get('git_window') ?? undefined,
         },
         error: initialError,
       });
@@ -429,7 +451,6 @@ if (_canvas) {
           ? {
               src: cur.get('src')!,
               branch: cur.get('branch') ?? undefined,
-              gitWindow: cur.get('git_window') ?? undefined,
             }
           : undefined,
       });

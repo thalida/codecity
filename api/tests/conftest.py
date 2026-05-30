@@ -75,6 +75,27 @@ def quiet_logs() -> Iterator[None]:
             os.environ["CODECITY_QUIET"] = prev
 
 
+@pytest.fixture(autouse=True, scope="session")
+def allow_local_repos() -> Iterator[None]:
+    """Enable local-repo scanning for the full test suite.
+
+    The gate (CODECITY_ALLOW_LOCAL_REPOS) defaults to *off* in production
+    but nearly every test that exercises a local scan path needs it on.
+    Set it session-wide; tests that specifically test the *disabled* state
+    use ``monkeypatch.delenv("CODECITY_ALLOW_LOCAL_REPOS", raising=False)``
+    to override for their scope.
+    """
+    prev = os.environ.get("CODECITY_ALLOW_LOCAL_REPOS")
+    os.environ["CODECITY_ALLOW_LOCAL_REPOS"] = "1"
+    try:
+        yield
+    finally:
+        if prev is None:
+            os.environ.pop("CODECITY_ALLOW_LOCAL_REPOS", None)
+        else:
+            os.environ["CODECITY_ALLOW_LOCAL_REPOS"] = prev
+
+
 # ── Cache redirection ────────────────────────────────────────────────
 
 

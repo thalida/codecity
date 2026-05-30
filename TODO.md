@@ -43,8 +43,14 @@
 - [x] Update Readme
 - [x] on focus / select look straight down at the building
 - [ ] add meta data about the world
-- [ ] add enable local env variable
+- [x] add enable local env variable
 - [x] fix start position to include tallest building
+- [x] support empty git repos (unborn HEAD → empty world, not a cryptic git error)
+- [x] no-project-loaded UX: lazy-render header chip, collapse sidebar, explorer + info empty-state cards
+- [x] camera framing accounts for the floating repo-label panel (especially on empty worlds)
+- [x] forge-aware repo link: external-link button deep-links to the active branch on github / gitlab / bitbucket / codeberg / forgejo / gitea / sr.ht
+- [x] drop the history-window picker option + the whole `git_window` / `CODECITY_GIT_WINDOW` plumbing
+- [ ] mount-path detection / autocomplete — let the server expose which `-v` paths are mounted so the Local pane can autocomplete + validate. `CODECITY_LOCAL_PATHS` env (set by `just dev/run` alongside `-v`) with `/proc/self/mounts` fallback for raw `docker run` users. Sketched in the conditional-local-repos spec's Follow-up section.
 
 ## Agent Prompts ToDos
 

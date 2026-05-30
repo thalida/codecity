@@ -17,9 +17,8 @@ export enum NodeKind {
 }
 
 /**
- * Git metadata for a file. ISO 8601 timestamps; null when no commit
- * touching the file fell inside the active git_window (so the scanner
- * never observed a create/modify date).
+ * Git metadata for a file. ISO 8601 timestamps; null when the scanner
+ * never observed a create/modify date for the file (e.g. uncommitted).
  */
 export interface GitMeta {
   created: string | null;
@@ -121,7 +120,7 @@ export interface Manifest {
   tree: DirNode;
   repo: RepoInfo;
   /** Per-commit metadata, oldest-first. `[]` when the repo has zero
-   *  commits in the active git_window. */
+   *  commits. */
   commits: CommitEntry[];
 }
 

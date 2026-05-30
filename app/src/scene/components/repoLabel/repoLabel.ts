@@ -78,6 +78,23 @@ export interface RepoLabel {
   tick(dtSeconds: number, camera: THREE.Camera): void;
   refresh(): void;
   dispose(): void;
+  /**
+   * World position + size of the floating label panel. Returned in
+   * world units so the camera framing code can include the label as
+   * a "virtual roof corner" when sizing the start view — essential
+   * for empty worlds where there are no buildings to frame against,
+   * so the label would otherwise float off-screen.
+   *
+   * Returns null when the label is disabled or hasn't been positioned
+   * yet (no anchor set).
+   */
+  getPanelBounds(): {
+    centerX: number;
+    centerY: number;
+    centerZ: number;
+    halfWidth: number;
+    halfHeight: number;
+  } | null;
 }
 
 // _faceCamera rotates `obj` so its +Z front face points at the camera,
@@ -88,6 +105,7 @@ const _LABEL_WORLD_UP = new THREE.Vector3(0, 1, 0);
 const _scratchObjPos = new THREE.Vector3();
 const _scratchCamPos = new THREE.Vector3();
 const _scratchMat = new THREE.Matrix4();
+const _scratchPolarDir = new THREE.Vector3();
 function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   obj.updateMatrixWorld(true);
   obj.getWorldPosition(_scratchObjPos);
@@ -98,6 +116,26 @@ function _faceCamera(obj: THREE.Object3D, camera: THREE.Camera): void {
   // doesn't roll when the camera orbits sideways.
   _scratchMat.lookAt(_scratchCamPos, _scratchObjPos, _LABEL_WORLD_UP);
   obj.quaternion.setFromRotationMatrix(_scratchMat);
+}
+
+// Smoothstep [0,1] fade that goes to 0 as the camera approaches the
+// panel's vertical axis (i.e. looking straight down or up at it).
+// _faceCamera's lookAt(eye, target, [0,1,0]) basis is degenerate when
+// camera→panel is parallel to world-up — the panel texture smears
+// across the screen as a bright artifact, and the beam (a vertical
+// cylinder seen on-axis from above) has no meaningful silhouette either.
+// Hide both as we approach that pole.
+function _polarFade(camera: THREE.Camera, panelWorldPos: THREE.Vector3): number {
+  _scratchPolarDir.subVectors(camera.position, panelWorldPos);
+  const lenSq = _scratchPolarDir.lengthSq();
+  if (lenSq < 1e-8) return 0;
+  _scratchPolarDir.normalize();
+  // |dir.y| → 1 means viewing parallel to world-up.
+  const cosToVertical = Math.abs(_scratchPolarDir.y);
+  // smoothstep from 0.93 (~21° off vertical, still readable) to
+  // 0.995 (~5.7° off vertical, can't read it anyway).
+  const t = Math.min(1, Math.max(0, (cosToVertical - 0.93) / (0.995 - 0.93)));
+  return 1 - t * t * (3 - 2 * t);
 }
 
 export function createRepoLabel(): RepoLabel {
@@ -336,5 +374,41 @@ export function createRepoLabel(): RepoLabel {
     if (group.parent) group.parent.remove(group);
   }
 
-  return { group, setRepoName, setAnchor, setGem, tick, refresh, dispose };
+  function getPanelBounds(): {
+    centerX: number;
+    centerY: number;
+    centerZ: number;
+    halfWidth: number;
+    halfHeight: number;
+  } | null {
+    if (!panelMesh || !textTex) return null;
+    const cfg = REPO_LABEL.get();
+    if (!cfg.ENABLED) return null;
+    const halfFont = cfg.FONT_SIZE / 2;
+    const dims = BUILDING_DIMENSIONS.get();
+    const maxBldgH = dims.MAX_FLOORS * dims.FLOOR_HEIGHT;
+    const heightWorld = maxBldgH * (cfg.HEIGHT_PCT / 100);
+    // Mirror _applyTransform: panel center sits at anchor.y + heightWorld
+    // + halfFont; the group's x/z is the anchor's x/z.
+    const centerY = anchorY + heightWorld + halfFont;
+    const halfWidth = (cfg.FONT_SIZE * (textTex.aspect ?? 1)) / 2;
+    return {
+      centerX: anchorX,
+      centerY,
+      centerZ: anchorZ,
+      halfWidth,
+      halfHeight: halfFont,
+    };
+  }
+
+  return {
+    group,
+    setRepoName,
+    setAnchor,
+    setGem,
+    tick,
+    refresh,
+    dispose,
+    getPanelBounds,
+  };
 }

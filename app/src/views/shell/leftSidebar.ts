@@ -11,7 +11,7 @@ import { buildControlsPane } from '@/views/panes/controlsPane.js';
 import { buildSearchPane } from '@/views/panes/searchPane.js';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
 import { SidebarTab } from '@/types';
-import type { Manifest, TreeNode } from '@/types';
+import type { DirNode, Manifest, TreeNode } from '@/types';
 import { loadFlag, saveFlag } from '../source/localFlag.js';
 
 const SIDEBAR_MIN_WIDTH = 280;
@@ -129,7 +129,16 @@ export function showLeftSidebar(
 
   let activeTab: SidebarTab =
     opts.initialTab === SidebarTab.Controls ? SidebarTab.Controls : SidebarTab.Tree;
-  let collapsed = loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
+  // Empty-manifest cold boot: force the sidebar collapsed so the user
+  // isn't staring at an empty Explorer pane behind the picker modal.
+  // The persisted preference is restored automatically on the next
+  // mount once a project is loaded (showLeftSidebar is re-run by the
+  // boot path when applyManifest swaps in a real manifest).
+  const _treeRoot = ((manifest as { tree?: unknown }).tree || manifest) as TreeNode | DirNode;
+  const _manifestIsEmpty =
+    !('children' in _treeRoot) ||
+    (((_treeRoot as DirNode).children?.length ?? 0) === 0 && !_treeRoot.name);
+  let collapsed = _manifestIsEmpty ? true : loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
   const iconBtns: Record<string, HTMLButtonElement> = {};
 
   // The activity bar splits into a top group (tabs that stack from the

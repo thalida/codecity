@@ -1400,6 +1400,9 @@ export function createWorld(_canvas: HTMLCanvasElement) {
     getRootGem() {
       return rootGem;
     },
+    getRepoLabelBounds() {
+      return _repoLabel.getPanelBounds();
+    },
     getRootGemBody() {
       return rootGemBody;
     },

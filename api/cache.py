@@ -52,7 +52,9 @@ _FILE_CACHE_VERSION = 1
 # report their actual file count. Pre-v8 entries undercount merges.
 # Bumped to 9: CommitEntry gained author + subject fields. Pre-v9
 # entries are missing those fields and would break manifest consumers.
-_GIT_HISTORY_CACHE_VERSION = 9
+# Bumped to 10: dropped the per-entry `git_window` field — the scanner
+# no longer accepts a --since window and always walks full history.
+_GIT_HISTORY_CACHE_VERSION = 10
 # Bumped only when the manifest shape changes for reasons UNRELATED
 # to git-history output (e.g. a new field on FileNode). Git-history
 # shape changes don't need a bump here — they auto-invalidate through
@@ -192,9 +194,9 @@ def _git_history_cache_path(abs_root: Path) -> Path:
 
 
 def cache_load_git_history(
-    abs_root: Path, head_sha: str, git_window: str,
+    abs_root: Path, head_sha: str,
 ) -> tuple[dict[str, str], dict[str, str], list["CommitEntry"]] | None:
-    """Load git-history maps + commits if cached for this root, HEAD, AND window.
+    """Load git-history maps + commits if cached for this root + HEAD.
 
     Returns None on miss or any error."""
     path = _git_history_cache_path(abs_root)
@@ -207,8 +209,6 @@ def cache_load_git_history(
     if raw.get("version") != _GIT_HISTORY_CACHE_VERSION:
         return None
     if raw.get("head_sha") != head_sha:
-        return None
-    if raw.get("git_window") != git_window:
         return None
     created_raw = raw.get("created")
     modified_raw = raw.get("modified")
@@ -243,17 +243,15 @@ def cache_load_git_history(
 def cache_save_git_history(
     abs_root: Path,
     head_sha: str,
-    git_window: str,
     created: dict[str, str],
     modified: dict[str, str],
     commits: list["CommitEntry"],
 ) -> None:
-    """Atomically write the git-history cache for this root + HEAD + window."""
+    """Atomically write the git-history cache for this root + HEAD."""
     payload = {
         "version": _GIT_HISTORY_CACHE_VERSION,
         "root": str(abs_root),
         "head_sha": head_sha,
-        "git_window": git_window,
         "created": created,
         "modified": modified,
         "commits": commits,

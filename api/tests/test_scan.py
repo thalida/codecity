@@ -388,7 +388,7 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn(".git", names)
 
     def test_scan_tree_emits_commits_list(self):
-        m = _final_manifest(str(FIXTURE), use_cache=False, git_window="30.years.ago")
+        m = _final_manifest(str(FIXTURE), use_cache=False)
         self.assertIn("commits", m)
         self.assertIsInstance(m["commits"], list)
         self.assertGreater(len(m["commits"]), 0)
@@ -529,7 +529,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     def test_single_walk_invocation(self):
         # The combined --name-status walk replaces the previous two
         # parallel walks — _collect_git_metadata should now fire `git
-        # log` exactly once. _collect_git_dates_windowed streams output
+        # log` exactly once. _collect_git_dates streams output
         # via Popen; the short auxiliary commands (rev-parse, ls-files)
         # go through subprocess.run. Wrap both so we catch git log
         # regardless of which API the implementation chose.
@@ -571,7 +571,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     def test_collect_git_metadata_returns_commits_list(self):
         from api.scan import _collect_git_metadata
         _created, _modified, _tracked, commits = _collect_git_metadata(
-            FIXTURE, use_cache=False, git_window="30.years.ago",
+            FIXTURE, use_cache=False,
         )
         self.assertIsInstance(commits, list)
         self.assertGreater(len(commits), 0)
@@ -599,7 +599,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         must be the second author's name (not the bot)."""
         from api.scan import _collect_git_metadata
         _c, _m, _t, commits = _collect_git_metadata(
-            FIXTURE, use_cache=False, git_window="30.years.ago",
+            FIXTURE, use_cache=False,
         )
         last = commits[-1]
         self.assertEqual(last["author"], "Other Fixture Person")
@@ -637,7 +637,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             subprocess.run(["git", "-C", td, "add", "."], check=True)
             subprocess.run(["git", "-C", td, "commit", "-aq", "--no-edit"], check=True)
             _c, _m, _t, commits = _collect_git_metadata(
-                Path(td), use_cache=False, git_window="30.years.ago",
+                Path(td), use_cache=False,
             )
             # The merge commit (latest) MUST have files >= 1.
             # commits are oldest-first, so the merge is last.
@@ -671,7 +671,7 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
                 check=True,
             )
             _c, _m, _t, commits = _collect_git_metadata(
-                Path(td), use_cache=False, git_window="30.years.ago",
+                Path(td), use_cache=False,
             )
             # Merge is the most recent commit (oldest-first list, so [-1]).
             # Side branch added b.txt; the merge against the first parent
@@ -763,7 +763,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
         ``proc.kill()`` before ``proc.wait()``. Otherwise wait() blocks
         forever on any git child that still has buffered output."""
         from unittest.mock import patch
-        from api.scan import _collect_git_dates_windowed
+        from api.scan import _collect_git_dates
 
         class _FakeStdout:
             """Yields one valid line, then raises — mimics the moment
@@ -809,7 +809,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
         fake = _FakeProc()
         with patch("api.scan.subprocess.Popen", return_value=fake):
             with self.assertRaises(UnicodeDecodeError):
-                _collect_git_dates_windowed(Path("/tmp/does-not-matter"))
+                _collect_git_dates(Path("/tmp/does-not-matter"))
         self.assertTrue(fake.killed, "cleanup must call proc.kill()")
         self.assertTrue(fake.waited, "cleanup must call proc.wait() after kill")
 

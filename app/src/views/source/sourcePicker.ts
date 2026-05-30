@@ -38,42 +38,9 @@ function _hostingIconSvg(src: string): string {
 export interface SourcePayload {
   src: string;
   branch?: string;
-  // Per-source git-log history window. Forwarded to the server as the
-  // ?git_window= query param. Undefined or "" = walk all history
-  // (server default). Accepts any `git log --since=…` expression; the
-  // dropdown below exposes a handful of presets but the field is
-  // otherwise free-form if a caller wants to set it programmatically.
-  gitWindow?: string;
   /** When true, this open forces a fresh scan (server-side ?no_cache=1).
    *  Not persisted — re-opening from a recent uses cached scan by default. */
   skipCache?: boolean;
-}
-
-// Presets shown in the git tab's "History window" dropdown. The label
-// is what the user sees; the value is what we send to `git log --since`.
-// "All history" sends an empty string → server omits --since entirely.
-interface GitWindowOption {
-  label: string;
-  value: string;
-}
-const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
-  { label: '1 year ago', value: '1.years.ago' },
-  { label: '3 years ago', value: '3.years.ago' },
-  { label: '5 years ago', value: '5.years.ago' },
-  { label: '10 years ago', value: '10.years.ago' },
-  { label: 'All history (default)', value: '' },
-];
-const DEFAULT_GIT_WINDOW = '';
-
-/** Map a raw `git_window` value back to its human-readable label, or
- *  return the raw value when nothing matches (the field accepts any
- *  free-form `git log --since=…` expression). */
-function gitWindowLabel(value: string | undefined | null): string {
-  if (!value) return '';
-  const preset = GIT_WINDOW_OPTIONS.find((o) => o.value === value);
-  if (!preset) return value;
-  // Strip the "(default)" suffix so it doesn't leak into recent rows.
-  return preset.label.replace(/\s*\(default\)\s*$/i, '');
 }
 
 export interface OpenOpts {
@@ -87,7 +54,10 @@ export interface SourcePicker {
   close(): void;
 }
 
-export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void }): SourcePicker {
+export function createSourcePicker(opts: {
+  onSubmit: (s: SourcePayload) => void;
+  allowLocalRepos: boolean;
+}): SourcePicker {
   const root = document.getElementById('source-picker-root');
   if (!root) {
     return { open: () => {}, close: () => {} };
@@ -95,6 +65,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
 
   let dismissible = false;
   let activeTab: 'local' | 'git' = 'git';
+  const allowLocalRepos = opts.allowLocalRepos;
 
   function isGitLike(s: string): boolean {
     return /:\/\//.test(s) || /^[^@]+@[^:]+:/.test(s);
@@ -102,6 +73,7 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
 
   function deriveTabFromPrefill(p?: SourcePayload): 'local' | 'git' {
     if (!p) return 'git';
+    if (!allowLocalRepos) return 'git';
     return isGitLike(p.src) ? 'git' : 'local';
   }
 
@@ -110,7 +82,6 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
     activeTab = deriveTabFromPrefill(o.prefill);
     const prefillSrc = o.prefill?.src ?? '';
     const prefillBranch = o.prefill?.branch ?? '';
-    const prefillWindow = o.prefill?.gitWindow ?? DEFAULT_GIT_WINDOW;
 
     // Read current source from URL so we can mark the matching recent as active
     const urlParams = new URLSearchParams(window.location.search);
@@ -152,44 +123,43 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
             </div>
 
             <div data-pane="local" style="display: ${activeTab === 'local' ? 'block' : 'none'};">
+              ${
+                allowLocalRepos
+                  ? `
               <div class="modal-field">
                 <label>Path</label>
                 <input data-field="path" type="text" autocomplete="off" spellcheck="false"
                   value="${activeTab === 'local' ? escapeAttr(prefillSrc) : ''}">
-              </div>
+              </div>`
+                  : `
+              <div class="modal-warning">
+                <strong>Local repositories are disabled</strong>
+                <p>codecity is running without <code>CODECITY_ALLOW_LOCAL_REPOS=1</code>.
+                Restart the container with the env var set and a read-only mount of the
+                directory you want to load.</p>
+                <p><a href="https://github.com/thalida/codecity#local-directories"
+                  target="_blank" rel="noopener noreferrer">How to enable local repositories →</a></p>
+              </div>`
+              }
             </div>
 
-            <!-- Shared across tabs: applies to ANY git repo, including
-                 local paths pointing at a clone on disk. -->
-            <div class="modal-field">
-              <label>History window</label>
-              <select data-field="git_window">
-                ${GIT_WINDOW_OPTIONS.map(
-                  (o) => `
-                  <option value="${escapeAttr(o.value)}"${
-                    o.value === prefillWindow ? ' selected' : ''
-                  }>${escapeHtml(o.label)}</option>
-                `
-                ).join('')}
-              </select>
-              <div class="modal-field-help">
-                Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
+            <!-- Form fields (Skip cache, Submit) apply to whatever's in
+                 the active pane. On the disabled-Local view there's
+                 nothing submittable, so this whole block is hidden —
+                 Recents stays so the user can still pick a git recent. -->
+            <div data-form-fields style="display: ${
+              !allowLocalRepos && activeTab === 'local' ? 'none' : ''
+            };">
+              <div class="modal-field">
+                <label>
+                  <input data-field="skip_cache" type="checkbox">
+                  Skip cache (fresh scan)
+                </label>
               </div>
-            </div>
 
-            <div class="modal-field">
-              <label>
-                <input data-field="skip_cache" type="checkbox">
-                Skip cache (fresh scan)
-              </label>
-              <div class="modal-field-help">
-                Forces a full rescan, bypassing the file-stat and git-history
-                caches for this open. Slower but always accurate.
+              <div class="modal-actions">
+                <button type="button" class="submit">Open project</button>
               </div>
-            </div>
-
-            <div class="modal-actions">
-              <button type="button" class="submit">Open project</button>
             </div>
 
             ${renderRecents(currentSrc, currentBranch)}
@@ -210,20 +180,31 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
     const rows = list
       .map((r) => {
         const isActive = r.src === currentSrc && (r.branch ?? '') === (currentBranch ?? '');
-        const icon = isGitLike(r.src) ? _hostingIconSvg(r.src) : '📁';
+        const isLocal = !isGitLike(r.src);
+        const isDisabled = isLocal && !allowLocalRepos;
+        const icon = isDisabled ? '⚠️' : isLocal ? '📁' : _hostingIconSvg(r.src);
+        const disabledTitle = isDisabled
+          ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
+          : '';
+        const classes = ['recent-row'];
+        if (isActive) classes.push('recent-row--active');
+        if (isDisabled) classes.push('recent-row--disabled');
+        // Sub-line: source URL, then branch when present. Join with " · ".
+        const subParts = [r.src];
+        if (r.branch) subParts.push(r.branch);
+        const subLine = subParts.map(escapeHtml).join(' · ');
         return `
       <div class="recent-item">
         <button type="button"
-                class="recent-row${isActive ? ' recent-row--active' : ''}"
+                class="${classes.join(' ')}"
+                ${disabledTitle ? `title="${escapeAttr(disabledTitle)}"` : ''}
                 data-src="${escapeAttr(r.src)}"
                 data-branch="${escapeAttr(r.branch ?? '')}"
-                data-git-window="${escapeAttr(r.gitWindow ?? '')}">
+                data-disabled="${isDisabled ? '1' : ''}">
           <span class="recent-icon">${icon}</span>
           <div class="recent-row-body">
             <div class="recent-label">${escapeHtml(r.label)}</div>
-            <div class="recent-sub">${escapeHtml(r.src)}${
-              r.branch ? ` · ${escapeHtml(r.branch)}` : ''
-            } · ${escapeHtml(gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW))}</div>
+            <div class="recent-sub">${subLine}</div>
           </div>
           ${isActive ? '<span class="recent-row-badge">Active</span>' : ''}
         </button>
@@ -250,6 +231,12 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
           activeTab === 'local' ? 'block' : 'none';
         (root!.querySelector('[data-pane="git"]') as HTMLElement).style.display =
           activeTab === 'git' ? 'block' : 'none';
+        // The form-fields block is hidden on the disabled-Local view —
+        // mirror that here so switching tabs keeps the modal coherent.
+        const formFields = root!.querySelector('[data-form-fields]') as HTMLElement | null;
+        if (formFields) {
+          formFields.style.display = !allowLocalRepos && activeTab === 'local' ? 'none' : '';
+        }
         root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
           b.classList.toggle('active', b === btn);
         });
@@ -257,10 +244,10 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
       });
     });
 
-    // Submit
+    // Submit — only present when the form-fields block is rendered.
     root!
-      .querySelector<HTMLButtonElement>('button.submit')!
-      .addEventListener('click', submitFromForm);
+      .querySelector<HTMLButtonElement>('button.submit')
+      ?.addEventListener('click', submitFromForm);
 
     // Recent rows — the row button opens the recent; the sibling trash
     // button removes it. They live in a shared .recent-item container.
@@ -269,11 +256,11 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
       const removeBtn = item.querySelector<HTMLButtonElement>('[data-action="recent-remove"]');
       const src = row.dataset.src!;
       const branch = row.dataset.branch || undefined;
-      const gitWindow = row.dataset.gitWindow || undefined;
 
       row.addEventListener('click', () => {
         if (row.classList.contains('recent-row--active')) return;
-        opts.onSubmit({ src, branch, gitWindow });
+        if (row.dataset.disabled === '1') return;
+        opts.onSubmit({ src, branch });
       });
 
       removeBtn?.addEventListener('click', () => {
@@ -319,7 +306,8 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
   function submitFromForm(): void {
     const src =
       activeTab === 'local'
-        ? (root!.querySelector('[data-field="path"]') as HTMLInputElement).value.trim()
+        ? ((root!.querySelector('[data-field="path"]') as HTMLInputElement | null)?.value.trim() ??
+          '')
         : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
     if (!src) return;
     const branch =
@@ -327,17 +315,10 @@ export function createSourcePicker(opts: { onSubmit: (s: SourcePayload) => void 
         ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() ||
           undefined
         : undefined;
-    // History window applies to any git source — git URL OR a local
-    // path pointing at a git directory. Non-git local paths just
-    // ignore the param server-side. We still suppress the URL param
-    // when the user kept the default so the URL stays clean.
-    let gitWindow: string | undefined;
-    const v = (root!.querySelector('[data-field="git_window"]') as HTMLSelectElement | null)?.value;
-    if (v && v !== DEFAULT_GIT_WINDOW) gitWindow = v;
     const skipCache = !!(
       root!.querySelector('[data-field="skip_cache"]') as HTMLInputElement | null
     )?.checked;
-    opts.onSubmit({ src, branch, gitWindow, skipCache: skipCache || undefined });
+    opts.onSubmit({ src, branch, skipCache: skipCache || undefined });
   }
 
   function focusActiveInput(): void {

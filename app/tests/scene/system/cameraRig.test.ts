@@ -36,6 +36,14 @@ function _baseWorld() {
         d: number;
         h: number;
       } | null,
+    getRepoLabelBounds: () =>
+      null as {
+        centerX: number;
+        centerY: number;
+        centerZ: number;
+        halfWidth: number;
+        halfHeight: number;
+      } | null,
     getTreeBoundsBySha: (_sha: string) =>
       null as { x: number; y: number; z: number; height: number; radius: number } | null,
   };

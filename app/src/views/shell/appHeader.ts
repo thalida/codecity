@@ -238,8 +238,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         _repoLinkEl = a;
         _projectBtn.parentElement.insertBefore(_repoLinkEl, _projectBtn.nextSibling);
       }
-      _repoLinkEl.href = toHttpsRepoUrl(_sourceUrl);
-      _repoLinkEl.title = `Open repo: ${_sourceUrl}`;
+      const baseUrl = toHttpsRepoUrl(_sourceUrl);
+      const url = _branch ? _withBranchPath(baseUrl, _branch) : baseUrl;
+      _repoLinkEl.href = url;
+      _repoLinkEl.title = _branch ? `Open repo at @${_branch}` : `Open repo: ${_sourceUrl}`;
     } else if (_repoLinkEl) {
       _repoLinkEl.remove();
       _repoLinkEl = null;
@@ -250,6 +252,14 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     if (typeof rootLabel === 'string') {
       _rootLabel = rootLabel;
       if (_projectLabelEl) _projectLabelEl.textContent = _rootLabel;
+    }
+
+    // First-time project load: create the button now that we have
+    // something to show. The button stays hidden on cold boot (when
+    // _rootLabel is empty) so the header doesn't have an empty chip
+    // dangling next to the gem.
+    if (!_projectBtn && _rootLabel) {
+      _createProjectButton();
     }
 
     _branch = branch;
@@ -298,8 +308,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
   }
 
   // Project button — sits at the far left of the header row, prepended
-  // before the title/breadcrumb slot. Contains: icon + project label + branch pill.
-  {
+  // before the title/breadcrumb slot. Contains: icon + project label +
+  // branch pill. Created lazily so the header stays clean on cold boot
+  // (no project loaded → no empty chip dangling next to the gem).
+  function _createProjectButton(): void {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'btn-chip';
@@ -330,13 +342,22 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
 
     _projectBtn = btn;
     btn.dataset.appHeaderInjected = '1';
-    titleEl.parentElement?.prepend(btn);
+    // Anchor right before the title slot so the order is [gem][project]
+    // [(link)][title] regardless of how many far-left buttons (currently
+    // just the reset-view gem) live before the project chip.
+    titleEl!.parentElement?.insertBefore(btn, titleEl!);
 
     // Render the open-repo link IMMEDIATELY AFTER the project button if a
-    // git source URL was passed at init. _syncRepoLink relies on _projectBtn
-    // being inserted into the DOM (it positions the link via .nextSibling),
-    // so this call must happen after the prepend above.
+    // git source URL was set. _syncRepoLink relies on _projectBtn being
+    // inserted into the DOM (it positions the link via .nextSibling), so
+    // this call must happen after the insert above.
     _syncRepoLink();
+  }
+
+  // Only render the button at init if there's already a project loaded —
+  // otherwise wait for setSourceInfo() to fire on first manifest.
+  if (_rootLabel) {
+    _createProjectButton();
   }
 
   // Reset-view button — sits at the FAR LEFT of the header row, prepended
@@ -390,6 +411,38 @@ function _copy(text: string, btn: HTMLButtonElement): void {
     _legacyCopy(text);
     flash();
   }
+}
+
+/**
+ * Append a branch-tree path to a forge HTTPS URL so the external-link
+ * icon opens the branch instead of the repo root. Path conventions
+ * vary by forge:
+ *   github.com / sr.ht                       → /tree/<branch>
+ *   gitlab.com                               → /-/tree/<branch>
+ *   bitbucket.org                            → /src/<branch>
+ *   codeberg.org + Forgejo + Gitea hosts     → /src/branch/<branch>
+ *
+ * Self-hosted Forgejo / Gitea instances live on arbitrary hostnames;
+ * we match by the host containing "forgejo" or "gitea" as a best-effort
+ * shorthand (works for e.g. forgejo.example.com or git.gitea.io, but
+ * not for fully-renamed instances). When nothing matches, return the
+ * base URL — better to land on the repo than to ship a broken 404.
+ */
+function _withBranchPath(repoHttpsUrl: string, branch: string): string {
+  const ref = encodeURIComponent(branch);
+  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/branch/${ref}`;
+  }
+  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/tree/${ref}`;
+  }
+  if (/gitlab\.com/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/-/tree/${ref}`;
+  }
+  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/${ref}`;
+  }
+  return repoHttpsUrl;
 }
 
 function _legacyCopy(text: string): void {
