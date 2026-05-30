@@ -215,11 +215,12 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
-        # +1 for CONTRIBUTORS.md added by the second-author fixture commit
-        self.assertEqual(tree["descendants_file_count"], 10)
+        # +1 for CONTRIBUTORS.md (second-author commit) and +1 for
+        # MULTIAUTHOR.md (multi-author/co-authored commit).
+        self.assertEqual(tree["descendants_file_count"], 11)
         self.assertEqual(tree["descendants_dir_count"], 4)
-        # +1 for CONTRIBUTORS.md in the descendants_count (files + dirs)
-        self.assertEqual(tree["descendants_count"], 14)
+        # descendants_count = files + dirs.
+        self.assertEqual(tree["descendants_count"], 15)
         self.assertGreater(tree["descendants_size"], 0)
 
     def test_signature_present_and_stable(self):
@@ -596,16 +597,37 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
             self.assertNotIn("\n", c["subject"])
 
     def test_collect_git_metadata_captures_second_author_and_subject_only(self):
-        """The fixture's last commit is from a different author with a
-        multi-line message. Subject must be the first line only; author
+        """The fixture's "Other Fixture Person" commit is now the
+        second-to-last commit (the multi-author "feat: co-authored work"
+        commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
         from api.scan import _collect_git_metadata
         _c, _m, _t, commits = _collect_git_metadata(
             FIXTURE, use_cache=False,
         )
-        last = commits[-1]
-        self.assertEqual(last["authors"][0], "Other Fixture Person")
-        self.assertEqual(last["subject"], "docs: add CONTRIBUTORS")
+        # commits are oldest-first; the multi-author commit is now last
+        # and the Other Fixture Person commit is second-to-last.
+        other = commits[-2]
+        self.assertEqual(other["authors"][0], "Other Fixture Person")
+        self.assertEqual(other["subject"], "docs: add CONTRIBUTORS")
+
+    def test_co_authored_commit_returns_all_distinct_authors(self) -> None:
+        """The multi-author fixture commit lists two Co-authored-by trailers
+        plus a Signed-off-by (ignored) and a duplicate primary-author trailer
+        (deduped). authors should be [primary, pair, reviewer] in that order."""
+        # The multi-author commit is now the newest; the scanner emits
+        # oldest-first so it's last.
+        events = list(scan_tree(str(FIXTURE)))
+        final = next(e for e in events if e["phase"] == "final")
+        commits = final["manifest"]["commits"]
+        multi = commits[-1]
+        self.assertEqual(
+            multi["authors"],
+            ["Test Fixture Bot", "Pair Programmer", "Reviewer Person"],
+        )
+        # Subject of the multi-author commit (sanity check we're looking at
+        # the right one).
+        self.assertEqual(multi["subject"], "feat: co-authored work")
 
     def test_collect_git_metadata_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the

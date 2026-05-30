@@ -15,6 +15,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -194,6 +195,43 @@ def _is_git_repo(root: Path) -> bool:
     return _run_git(root, "rev-parse", "--git-dir").strip() != ""
 
 
+# Matches "Name <email>" — captures name (group 1) and email (group 2).
+# Name may be empty (e.g. "<bot@host>"); the helper falls back to email
+# in that case.
+_NAME_EMAIL = re.compile(r"^\s*(.*?)\s*<([^>]*)>\s*$")
+
+
+def _build_authors_list(primary: str, trailers_raw: str) -> list[str]:
+    """Combine primary author + Co-authored-by trailer values into a
+    deduped author list (primary at index 0).
+
+    `trailers_raw` is git's `%(trailers:key=Co-authored-by,valueonly,
+    separator=%x1f)` output: zero or more "Name <email>" entries
+    joined by `\\x1f`. Empty string when the commit has no
+    Co-authored-by trailers.
+
+    Per-commit dedup is on the name string only — matches the primary
+    author format (no email) and `colorForAuthor` keying. If a trailer
+    has only an email (`<bot@host>` with no name), the email content
+    (sans brackets) is used as the identity.
+    """
+    seen = {primary}
+    out: list[str] = [primary]
+    if not trailers_raw:
+        return out
+    for raw in trailers_raw.split("\x1f"):
+        m = _NAME_EMAIL.match(raw)
+        if m:
+            name = m.group(1) or m.group(2)
+        else:
+            name = raw.strip()
+        if not name or name in seen:
+            continue
+        seen.add(name)
+        out.append(name)
+    return out
+
+
 def _collect_git_dates(
     root: Path,
 ) -> tuple[dict[str, str], dict[str, str], list[CommitEntry]]:
@@ -220,7 +258,9 @@ def _collect_git_dates(
     _log("  starting git log walk (full history)…")
     # See _run_git docstring for why -c safe.directory=* is needed.
     log_argv = ["git", "-c", "safe.directory=*", "-C", str(root), "log",
-                "--format=COMMIT:%aI%x09%H%x09%an%x09%s",
+                "--format=COMMIT:%aI%x09%H%x09%an%x09"
+                          "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)"
+                          "%x09%s",
                 "--name-status",
                 "--no-renames",
                 "--diff-merges=first-parent"]
@@ -248,6 +288,7 @@ def _collect_git_dates(
     current_date_iso = ""
     current_sha = ""
     current_author = ""
+    current_trailers = ""
     current_subject = ""
     current_files = 0
     commits = 0
@@ -270,19 +311,18 @@ def _collect_git_dates(
                         "date": current_date_iso[:10],
                         "files": current_files,
                         "sha": current_sha,
-                        "authors": [current_author],
+                        "authors": _build_authors_list(current_author, current_trailers),
                         "subject": current_subject,
                     })
                 rest = line[len("COMMIT:"):]
-                # %aI%x09%H%x09%an%x09%s → "<iso-date>\t<sha40>\t<author>\t<subject>"
-                # Subject is the last field and can contain tabs that git
-                # doesn't escape; split with maxsplit=3 so any tabs IN the
-                # subject stay inside the subject.
-                parts = rest.split("\t", 3)
+                # %aI%x09%H%x09%an%x09<trailers>%x09%s — split with maxsplit=4
+                # so any tabs IN the subject stay inside the subject field.
+                parts = rest.split("\t", 4)
                 current_date_iso = parts[0]
                 current_sha = parts[1] if len(parts) > 1 else ""
                 current_author = parts[2] if len(parts) > 2 else ""
-                current_subject = parts[3] if len(parts) > 3 else ""
+                current_trailers = parts[3] if len(parts) > 3 else ""
+                current_subject = parts[4] if len(parts) > 4 else ""
                 current_files = 0
                 commits += 1
                 if commits % heartbeat_every == 0:
@@ -310,7 +350,7 @@ def _collect_git_dates(
                 "date": current_date_iso[:10],
                 "files": current_files,
                 "sha": current_sha,
-                "authors": [current_author],
+                "authors": _build_authors_list(current_author, current_trailers),
                 "subject": current_subject,
             })
     finally:
