@@ -1,8 +1,10 @@
-// views/panes/treePane.js — Left sidebar tree view. Renders a collapsible
+// views/panes/treePane.tsx — Left sidebar tree view. Renders a collapsible
 // folder/file tree that mirrors the city's layout (alphabetical,
 // files+dirs intermingled — see layout.js _layoutDir) and stays
 // bidirectionally synced with the scene's current selection.
 
+import { h } from 'preact';
+import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { makeGemIcon, makeLucideIcon } from '@/views/components/icon';
@@ -213,6 +215,47 @@ function _setIcon(span: HTMLElement, name: string): void {
   span.style.maskImage = u;
   span.style.webkitMaskImage = u;
 }
+
+// ── Preact component ─────────────────────────────────────────────────────────
+
+export interface TreePaneState {
+  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown };
+  selectedPath: string | null;
+  hoveredPath: string | null;
+}
+
+export interface TreePaneProps {
+  state: Signal<TreePaneState>;
+  onClose?: () => void;
+  onSelect?: (node: TreeNode) => void;
+  onFocus?: (node: TreeNode) => void;
+  onHover?: (node: TreeNode) => void;
+  onHoverEnd?: (node: TreeNode) => void;
+}
+
+export function TreePane({ state, onClose, onSelect, onFocus, onHover, onHoverEnd }: TreePaneProps) {
+  // The complex interactive tree is rendered by the imperative factory;
+  // this component provides a Preact-compatible wrapper for future use.
+  // The backward-compat factory below handles the actual DOM building.
+  return (
+    <div class="pane tree-pane">
+      <div class="pane-header">
+        <h3 class="text-pane-title">Explorer</h3>
+        {typeof onClose === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            onClick={() => onClose()}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Backward-compat factories ─────────────────────────────────────────────────
 
 // buildTree(node) — bare <ul> for `node`'s children with no event handlers.
 // Used by tests; production callers should use buildTreePane to get the
