@@ -1,4 +1,4 @@
-// utils/serverConfig.ts — One-shot fetch of /api/config, memoized.
+// api/config.ts — One-shot fetch of /api/config, memoized.
 //
 // Read once at boot in main.ts and passed into UI components that need
 // to know server-side feature flags (currently: whether local-repo

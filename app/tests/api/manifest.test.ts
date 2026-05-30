@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { streamManifest } from '@/utils/manifestStream';
+import { streamManifest } from '@/api/manifest';
 
 function mockResponse(
   chunks: string[],

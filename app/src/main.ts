@@ -16,7 +16,7 @@ import { NodeKind } from './types';
 import type { Manifest } from './types';
 
 import { PICKER_SELECTION_KEY } from './scene/system/picker.js';
-import { manifestUrl } from './utils/url.js';
+import { manifestUrl } from './api/urls.js';
 import { _srcKind, _deriveLabel } from './utils/source.js';
 import { applyHljsTheme } from './utils/syntaxTheme.js';
 import { buildIconAtlas } from './scene/components/buildings/iconAtlas.js';
@@ -24,11 +24,11 @@ import { setIconAtlas } from './scene/components/buildings/buildings.js';
 import { setCellIconAtlas } from './scene/components/buildings/buildingsCell.js';
 import { createSourcePicker, type SourcePayload } from './views/source/sourcePicker.js';
 import { createLoadingOverlay } from './views/source/loadingOverlay.js';
-import { streamManifest } from './utils/manifestStream.js';
+import { streamManifest } from './api/manifest.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
 import { labelFromUrl } from './views/widgets/displayLabel.js';
-import { getServerConfig } from './utils/serverConfig.js';
+import { getServerConfig } from './api/config.js';
 
 /**
  * Set document.title to "{label} (pending) — codecity" from a server-emitted

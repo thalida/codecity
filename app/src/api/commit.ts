@@ -1,4 +1,4 @@
-// views/panes/commitFetch.ts — lazy fetcher for the full commit
+// api/commit.ts — lazy fetcher for the full commit
 // message body. Called when the user clicks "Show full message" in
 // the commit pane. Author + subject are already in the manifest;
 // body comes from /api/commit on demand to keep the manifest small.

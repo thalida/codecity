@@ -15,8 +15,8 @@
 
 import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/config/index.js';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/store/liveStatus.js';
-import { streamManifest } from '@/utils/manifestStream.js';
-import { manifestUrl, signatureUrl } from '@/utils/url.js';
+import { streamManifest } from '@/api/manifest.js';
+import { manifestUrl, signatureUrl } from '@/api/urls.js';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop.js';
 
 function _clampPollSeconds(s: number | unknown): number {

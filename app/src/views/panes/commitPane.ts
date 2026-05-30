@@ -19,7 +19,7 @@ import { makeLucideIcon } from '@/views/widgets/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { commitUrl } from './commitUrl.js';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates.js';
-import { fetchCommitDetail } from './commitFetch.js';
+import { fetchCommitDetail } from '@/api/commit.js';
 import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
 
 interface BuildCommitPaneOpts {

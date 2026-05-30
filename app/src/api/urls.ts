@@ -1,4 +1,4 @@
-// url.ts — Build API URLs from the page's query params. Pure function so
+// api/urls.ts — Build API URLs from the page's query params. Pure function so
 // it's directly unit-testable; main.ts wraps it with the live
 // `window.location.*` values for runtime callers.
 

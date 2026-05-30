@@ -1,4 +1,4 @@
-// NDJSON streaming reader for /api/manifest responses. Each line is a
+// api/manifest.ts — NDJSON streaming reader for /api/manifest responses. Each line is a
 // single JSON event. The browser handles Content-Encoding: gzip
 // transparently, so we read decoded UTF-8 text directly.
 //
