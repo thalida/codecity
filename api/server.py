@@ -435,7 +435,7 @@ _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 
 
 def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """GET /api/commit?sha=<sha>. Returns {sha, author, date, subject, body}
+    """GET /api/commit?sha=<sha>. Returns {sha, authors, date, subject, body}
     for a commit inside any registered scan root. Validates the sha shape
     locally before shelling out to ``git show``.
 

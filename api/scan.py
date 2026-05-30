@@ -196,8 +196,9 @@ def _is_git_repo(root: Path) -> bool:
 
 
 # Matches "Name <email>" — captures name (group 1) and email (group 2).
-# Name may be empty (e.g. "<bot@host>"); the helper falls back to email
-# in that case.
+# Name may be empty (e.g. "<bot@host>"); the helper falls back to the
+# email's local-part (before the @) in that case so the public authors
+# list never leaks an address.
 _NAME_EMAIL = re.compile(r"^\s*(.*?)\s*<([^>]*)>\s*$")
 
 
@@ -212,8 +213,10 @@ def _build_authors_list(primary: str, trailers_raw: str) -> list[str]:
 
     Per-commit dedup is on the name string only — matches the primary
     author format (no email) and `colorForAuthor` keying. If a trailer
-    has only an email (`<bot@host>` with no name), the email content
-    (sans brackets) is used as the identity.
+    has only an email (`<bot@host>` with no name), the email's
+    local-part (the substring before `@`) is used as the identity so
+    the public authors list honors CommitEntry's "emails stripped"
+    guarantee.
     """
     seen = {primary}
     out: list[str] = [primary]
@@ -222,7 +225,11 @@ def _build_authors_list(primary: str, trailers_raw: str) -> list[str]:
     for raw in trailers_raw.split("\x1f"):
         m = _NAME_EMAIL.match(raw)
         if m:
-            name = m.group(1) or m.group(2)
+            name = m.group(1).strip()
+            if not name:
+                # Email-only trailer: keep only the local-part to avoid
+                # leaking the @domain into the public authors field.
+                name = m.group(2).strip().split("@", 1)[0]
         else:
             name = raw.strip()
         if not name or name in seen:

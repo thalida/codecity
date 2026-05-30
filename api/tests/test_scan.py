@@ -519,6 +519,64 @@ def _walk_dirs(node):
         yield from _walk_dirs(c)
 
 
+class BuildAuthorsListTests(unittest.TestCase):
+    """Direct coverage for the _build_authors_list helper.
+
+    Integration coverage exists via the multi-author fixture commit, but
+    that fixture doesn't exercise the email-only trailer path — the
+    privacy-critical branch where a Co-authored-by trailer has no name
+    (`<bot@host>`). These cases pin the contract: the public authors
+    list never contains an `@` or domain, per CommitEntry's docstring.
+    """
+
+    def test_no_trailers_returns_primary_only(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(_build_authors_list("Alice", ""), ["Alice"])
+
+    def test_two_name_bearing_trailers(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
+            ["Alice", "Bob", "Carol"],
+        )
+
+    def test_primary_dedup_against_trailer(self):
+        from api.scan import _build_authors_list
+        # Primary author repeated as a Co-authored-by trailer (cherry-
+        # pick artifact) is dropped — order preserves first-seen.
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
+            ["Alice", "Bob"],
+        )
+
+    def test_email_only_trailer_uses_local_part(self):
+        # Regression-protection for the privacy fix: an email-only
+        # trailer must not leak the @domain into the authors list.
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "<bot@example.com>"),
+            ["Alice", "bot"],
+        )
+
+    def test_bracketed_value_without_at_sign_kept_verbatim(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "<just-localpart>"),
+            ["Alice", "just-localpart"],
+        )
+
+    def test_empty_brackets_dropped(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(_build_authors_list("Alice", "<>"), ["Alice"])
+
+    def test_duplicate_co_author_deduped(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
+            ["Alice", "Bob"],
+        )
+
+
 class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     """The two git log walks (created + modified) are independent and
     should run concurrently."""
@@ -612,9 +670,11 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         self.assertEqual(other["subject"], "docs: add CONTRIBUTORS")
 
     def test_co_authored_commit_returns_all_distinct_authors(self) -> None:
-        """The multi-author fixture commit lists two Co-authored-by trailers
-        plus a Signed-off-by (ignored) and a duplicate primary-author trailer
-        (deduped). authors should be [primary, pair, reviewer] in that order."""
+        """The multi-author fixture commit lists three Co-authored-by trailers
+        (one email-only) plus a Signed-off-by (ignored) and a duplicate
+        primary-author trailer (deduped). authors should be [primary, pair,
+        reviewer, emailonly-bot] in that order — the email-only trailer is
+        kept as its local-part to avoid leaking the @domain."""
         # The multi-author commit is now the newest; the scanner emits
         # oldest-first so it's last.
         events = list(scan_tree(str(FIXTURE)))
@@ -623,7 +683,12 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         multi = commits[-1]
         self.assertEqual(
             multi["authors"],
-            ["Test Fixture Bot", "Pair Programmer", "Reviewer Person"],
+            [
+                "Test Fixture Bot",
+                "Pair Programmer",
+                "Reviewer Person",
+                "emailonly-bot",
+            ],
         )
         # Subject of the multi-author commit (sanity check we're looking at
         # the right one).

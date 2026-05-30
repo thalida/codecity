@@ -60,7 +60,12 @@ class TestServeCommitDetail(unittest.TestCase):
         self.assertEqual(body["sha"], sha)
         self.assertEqual(
             body["authors"],
-            ["Test Fixture Bot", "Pair Programmer", "Reviewer Person"],
+            [
+                "Test Fixture Bot",
+                "Pair Programmer",
+                "Reviewer Person",
+                "emailonly-bot",
+            ],
         )
         self.assertEqual(body["date"], "2024-05-15")
         self.assertEqual(body["subject"], "feat: co-authored work")
