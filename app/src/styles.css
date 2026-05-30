@@ -3024,8 +3024,14 @@ canvas {
 .commit-author {
   display: flex;
   align-items: center;
-  gap: var(--cc-space-3); /* 6px */
-  margin-bottom: var(--cc-space-2); /* 4px */
+  gap: var(--cc-space-3); /* 6px — inline gap between dot and name */
+}
+
+/* Tighten consecutive author rows. The parent .commit-body uses 8px flex
+   gap to separate sections (authors / meta / same-day / body); stacked
+   author rows look airy at the section gap and tighter at 4px. */
+.commit-author + .commit-author {
+  margin-top: calc(-1 * var(--cc-space-2)); /* -4px → 4px effective spacing */
 }
 
 .commit-author-dot {

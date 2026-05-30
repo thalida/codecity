@@ -180,7 +180,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
     const ageEl = document.createElement('span');
     ageEl.className = 'commit-age';
-    ageEl.textContent = `committed ${formatRelativeAge(commit.date, now)}`;
+    ageEl.textContent = formatRelativeAge(commit.date, now);
     ageEl.title = commit.date;
     metaEl.appendChild(ageEl);
 
