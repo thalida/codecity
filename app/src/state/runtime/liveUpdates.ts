@@ -1,4 +1,4 @@
-// liveUpdates.ts — Live-update poll loop. When LIVE_UPDATES.ENABLED flips
+// state/runtime/liveUpdates.ts — Live-update poll loop. When LIVE_UPDATES.ENABLED flips
 // on we start re-fetching the manifest at the user-configured interval;
 // when its signature changes vs. the last render, we hand the new manifest
 // to world.applyManifest, which rebuilds the city in place. Camera +
@@ -14,7 +14,11 @@
 // "rebuilding…" indicator only lights up when there's real work.
 
 import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/store/liveStatus.js';
+import {
+  REBUILD_STATUS,
+  LAST_REBUILD_ERROR,
+  setRefreshManifest,
+} from '@/state/runtime/liveStatus.js';
 import { streamManifest } from '@/api/manifest.js';
 import { manifestUrl, signatureUrl } from '@/api/urls.js';
 import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop.js';

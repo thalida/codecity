@@ -1,4 +1,4 @@
-// store/configCommitReactions.ts — every config store classified as either
+// state/reactions.ts — every settings store classified as either
 // "rebuild-required" or "material-only", and wired to the matching
 // reaction that fires once when the user clicks Save in the Controls pane.
 //
@@ -18,7 +18,7 @@
 
 import { listenKeys } from 'nanostores';
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/store/liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus.js';
 
 import {
   // Rebuild-required (affects layout or geometry):

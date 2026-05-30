@@ -1,4 +1,4 @@
-// config/persist.ts — Mirrors every config store to localStorage so the
+// state/persist.ts — Mirrors every settings store to localStorage so the
 // Settings UI's tweaks survive a page reload. localStorage holds ONLY values
 // that differ from the original defaults, so a fresh / cleared install starts
 // with no entries at all and resetting a value back to its default removes
@@ -17,7 +17,7 @@
 
 import type { WritableAtom } from 'nanostores';
 import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
-import { CURRENT_SOURCE_KEY } from '@/store/sourceContext.js';
+import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext.js';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
 // "reset to default" UI restores to and what the diff-vs-default check uses.

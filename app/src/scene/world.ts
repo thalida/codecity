@@ -81,7 +81,7 @@ import {
   SCENE_COLORS,
   SIDEWALK_COLORS,
 } from '@/state/settings/index.js';
-import { REBUILD_STATUS } from '@/store/liveStatus.js';
+import { REBUILD_STATUS } from '@/state/runtime/liveStatus.js';
 import type {
   Building,
   CityBbox,

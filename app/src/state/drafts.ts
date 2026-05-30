@@ -1,4 +1,4 @@
-// config/drafts.ts — in-memory draft layer between the controls panel
+// state/drafts.ts — in-memory draft layer between the controls panel
 // and the real nanostores. Widgets read getEffective() and write
 // setDraft(); the Save button calls commit() to flush every draft into
 // its store (which triggers the existing persist + commit-reaction

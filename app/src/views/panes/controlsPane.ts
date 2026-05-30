@@ -62,7 +62,7 @@ import {
 } from '@/state/settings/components/facade.js';
 import { AD_PANEL } from '@/state/settings/components/adPanels.js';
 import { ANIMATION_TIMING } from '@/state/settings/system/animator.js';
-import { getDefault, forEachRegisteredStore, onAnyChange } from '@/store/persist.js';
+import { getDefault, forEachRegisteredStore, onAnyChange } from '@/state/persist.js';
 import {
   setDraft,
   getEffective,
@@ -72,7 +72,7 @@ import {
   discard as discardDrafts,
   isDirty as draftsAreDirty,
   subscribe as subscribeDrafts,
-} from '@/store/configDrafts.js';
+} from '@/state/drafts.js';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon.js';

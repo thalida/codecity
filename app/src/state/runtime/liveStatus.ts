@@ -1,14 +1,14 @@
-// liveStatus.ts — transient runtime state for the world-rebuild signal.
-// Lives OUTSIDE app/config/ on purpose: these atoms are session-only
+// state/runtime/liveStatus.ts — transient runtime state for the world-rebuild signal.
+// Lives OUTSIDE state/settings/ on purpose: these atoms are session-only
 // and must NOT be persisted to localStorage. If REBUILD_STATUS were
-// re-exported from the config barrel, attachPersistence(Config) would
+// re-exported from the settings barrel, attachPersistence(Config) would
 // rehydrate `'rebuilding'` from a session that ended mid-fetch — and
 // the poll's status-gated logic would then strand the footer on
 // "rebuilding…" forever.
 //
 // Two writers, both feed the same atoms:
 //   - setupLiveUpdates() in main.ts — live-poll fetch + applyManifest
-//   - scheduleRebuild() in config/hotReload.ts — save-driven applyManifest
+//   - scheduleRebuild() in state/settings/hotReload.ts — save-driven applyManifest
 //
 // LAST_UPDATED_AT is written by the coordinator on every applied
 // manifest (initial paint + each successful poll that swapped state).

@@ -5,12 +5,12 @@
 import './styles.css';
 
 import * as Config from './state/settings/index.js';
-import { REBUILD_STATUS } from './store/liveStatus.js';
-import { attachPersistence, persistAtomPerSource } from './store/persist.js';
+import { REBUILD_STATUS } from './state/runtime/liveStatus.js';
+import { attachPersistence, persistAtomPerSource } from './state/persist.js';
 import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme.js';
-import { sourceKey, CURRENT_SOURCE_KEY } from './store/sourceContext.js';
-import { attachCommitReactions } from './store/configCommitReactions.js';
-import { setupLiveUpdates } from './store/liveUpdates.js';
+import { sourceKey, CURRENT_SOURCE_KEY } from './state/runtime/sourceContext.js';
+import { attachCommitReactions } from './state/reactions.js';
+import { setupLiveUpdates } from './state/runtime/liveUpdates.js';
 import { DOM_IDS } from './constants';
 import { NodeKind } from './types';
 import type { Manifest } from './types';

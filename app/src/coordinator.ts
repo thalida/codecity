@@ -26,7 +26,7 @@ import { buildStreetPane } from './views/panes/streetPane.js';
 import { sameDayCommitCount } from './utils/commitMetrics.js';
 import { labelFromManifest } from './utils/sources.js';
 import { LIVE_UPDATES } from './state/settings/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './store/liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './state/runtime/liveStatus.js';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
 import type { createWorld } from './scene/world.js';

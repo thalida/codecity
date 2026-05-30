@@ -1,4 +1,4 @@
-// sourceContext.ts — Stable short hash of a source identity (src + branch),
+// state/runtime/sourceContext.ts — Stable short hash of a source identity (src + branch),
 // plus a single nanostore atom that tracks which source is currently
 // loaded. Other modules (selection persistence, camera-pose persistence)
 // subscribe to CURRENT_SOURCE_KEY to swap their localStorage slots when
