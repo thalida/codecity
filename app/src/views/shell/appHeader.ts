@@ -182,8 +182,8 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     // for any directory selection. Palette + asphalt are read fresh from
     // the stores so the badge follows live config edits.
     const isFileSel = !sel.isDir;
-    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
-    const asphaltColor = ASPHALT.get().COLOR;
+    const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.value.COLOR;
     titleEl!.appendChild(
       makeExtensionBadge(
         isFileSel ? (sel.extension ?? null) : null,
