@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterator
 
+from ._env import env_bool
 from .cache import (
     cache_load_files,
     cache_load_git_history,
@@ -69,7 +70,7 @@ def _check_cancel(event: "threading.Event | None") -> None:
 
 
 def _log(msg: str) -> None:
-    if os.environ.get("CODECITY_QUIET") != "1":
+    if not env_bool("CODECITY_QUIET"):
         print(f"[scan] {msg}", file=sys.stderr, flush=True)
 
 

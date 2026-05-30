@@ -42,6 +42,7 @@ from pathlib import Path
 from typing import Any, Callable, Iterable, Literal
 from urllib.parse import parse_qs, urlparse
 
+from api._env import env_bool
 from api.clone import (
     CloneError,
     BranchNotFoundError,
@@ -799,7 +800,7 @@ def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
 def _log_quiet(msg: str) -> None:
     """Same env-gated logger as scan._log, duplicated here so server
     doesn't import a private from scan. CODECITY_QUIET=1 silences."""
-    if os.environ.get("CODECITY_QUIET") != "1":
+    if not env_bool("CODECITY_QUIET"):
         print(msg, file=sys.stderr, flush=True)
 
 
