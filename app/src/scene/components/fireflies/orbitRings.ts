@@ -1,15 +1,20 @@
 // scene/fireflies/orbitRings.ts — selection/hover ring around the tree
 // for the currently hovered + currently selected commits.
 //
-// New shape: two slots (hover + selected). Each slot owns one Mesh
-// built lazily when its commitIndex is non-null AND visible per the
-// reconciliation rule. Materials are allocated once per slot; only
-// geometry is rebuilt on commit-change.
+// Shape: two slots (hover + selected). Each slot owns N Meshes — one
+// per author orb on the active commit — built lazily when commitIndex
+// is non-null AND visible per the reconciliation rule. Multi-author
+// commits emit multiple per-author orbits (different orbitRadius /
+// orbitTilt per author); the slot renders one ring per orbit so a
+// hovered 3-co-author tree shows all three orbits, not just one.
+//
+// Materials are allocated once per slot; only geometry is rebuilt on
+// commit-change.
 //
 //   setHoveredCommit(idx):  update hover.commitIndex, reconcile.
 //   setSelectedCommit(idx): update selected slot (and reconcile hover).
 //   refresh():  reapply config colors to active slot materials.
-//   dispose():  drop both slot geometries + materials.
+//   dispose():  drop both slots' geometries + materials.
 
 import * as THREE from 'three';
 import { FIREFLIES } from '@/config/components/fireflies.js';
@@ -61,8 +66,10 @@ export interface OrbitRings {
 interface Slot {
   /** Logical state: what commit this slot tracks (independent of visibility). */
   commitIndex: number | null;
-  /** The currently-rendered mesh, or null if the slot has no visible ring. */
-  mesh: THREE.Mesh | null;
+  /** Currently-rendered meshes — one per author orb on the active commit.
+   *  Empty when the slot has no visible rings. Multi-author commits have
+   *  multiple distinct orbits, each rendered as its own ring. */
+  meshes: THREE.Mesh[];
   /** Pre-allocated material for this slot. Color is updated on refresh(). */
   material: THREE.MeshBasicMaterial;
 }
@@ -94,9 +101,16 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   // Build the placement lookup once. Pure pointer work — no geometry.
-  const placementByCommit = new Map<number, FireflyPlacement>();
+  // Multiple orbs share a commitIndex on multi-author commits (one orb
+  // per author), so the value is a list, not a single placement.
+  const placementsByCommit = new Map<number, FireflyPlacement[]>();
   for (const orb of orbs) {
-    placementByCommit.set(orb.commitIndex, orb);
+    let list = placementsByCommit.get(orb.commitIndex);
+    if (!list) {
+      list = [];
+      placementsByCommit.set(orb.commitIndex, list);
+    }
+    list.push(orb);
   }
 
   function makeSlotMaterial(color: string): THREE.MeshBasicMaterial {
@@ -113,58 +127,61 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
 
   const hover: Slot = {
     commitIndex: null,
-    mesh: null,
+    meshes: [],
     material: makeSlotMaterial(cfg.ORBIT_RING_HOVER_COLOR),
   };
   const selected: Slot = {
     commitIndex: null,
-    mesh: null,
+    meshes: [],
     material: makeSlotMaterial(cfg.ORBIT_RING_SELECTED_COLOR),
   };
 
-  function disposeSlotMesh(slot: Slot): void {
-    if (slot.mesh) {
-      group.remove(slot.mesh);
-      slot.mesh.geometry.dispose();
-      slot.mesh = null;
+  function disposeSlotMeshes(slot: Slot): void {
+    for (const mesh of slot.meshes) {
+      group.remove(mesh);
+      mesh.geometry.dispose();
+    }
+    slot.meshes = [];
+  }
+
+  function buildSlotMeshes(slot: Slot, slotOrbs: FireflyPlacement[]): void {
+    const thickness = FIREFLIES.get().ORBIT_RING_THICKNESS;
+    for (const orb of slotOrbs) {
+      const geom = buildTubeGeometry(orb, thickness);
+      const mesh = new THREE.Mesh(geom, slot.material);
+      mesh.frustumCulled = false;
+      slot.meshes.push(mesh);
+      group.add(mesh);
     }
   }
 
-  function buildSlotMesh(slot: Slot, orb: FireflyPlacement): void {
-    const geom = buildTubeGeometry(orb, FIREFLIES.get().ORBIT_RING_THICKNESS);
-    const mesh = new THREE.Mesh(geom, slot.material);
-    mesh.frustumCulled = false;
-    slot.mesh = mesh;
-    group.add(mesh);
-  }
-
-  /** The hover mesh should be visible iff hover is set AND distinct from selected. */
-  function reconcileHoverMesh(): void {
+  /** The hover meshes should be visible iff hover is set AND distinct from selected. */
+  function reconcileHoverMeshes(): void {
     const shouldShow = hover.commitIndex !== null && hover.commitIndex !== selected.commitIndex;
 
     if (!shouldShow) {
-      disposeSlotMesh(hover);
+      disposeSlotMeshes(hover);
       return;
     }
 
     // hover.commitIndex is non-null per shouldShow.
-    const orb = placementByCommit.get(hover.commitIndex);
-    if (!orb) {
-      disposeSlotMesh(hover);
+    const slotOrbs = placementsByCommit.get(hover.commitIndex);
+    if (!slotOrbs) {
+      disposeSlotMeshes(hover);
       return;
     }
-    disposeSlotMesh(hover);
-    buildSlotMesh(hover, orb);
+    disposeSlotMeshes(hover);
+    buildSlotMeshes(hover, slotOrbs);
   }
 
   function setSelectedSlot(idx: number | null): void {
     if (selected.commitIndex === idx) return;
     selected.commitIndex = idx;
-    disposeSlotMesh(selected);
+    disposeSlotMeshes(selected);
     if (idx === null) return;
-    const orb = placementByCommit.get(idx);
-    if (!orb) return;
-    buildSlotMesh(selected, orb);
+    const slotOrbs = placementsByCommit.get(idx);
+    if (!slotOrbs) return;
+    buildSlotMeshes(selected, slotOrbs);
   }
 
   return {
@@ -173,12 +190,12 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     setHoveredCommit(commitIndex: number | null) {
       if (hover.commitIndex === commitIndex) return;
       hover.commitIndex = commitIndex;
-      reconcileHoverMesh();
+      reconcileHoverMeshes();
     },
 
     setSelectedCommit(commitIndex: number | null) {
       setSelectedSlot(commitIndex);
-      reconcileHoverMesh();
+      reconcileHoverMeshes();
     },
 
     refresh() {
@@ -193,8 +210,8 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     onResize() {},
 
     dispose() {
-      disposeSlotMesh(hover);
-      disposeSlotMesh(selected);
+      disposeSlotMeshes(hover);
+      disposeSlotMeshes(selected);
       hover.material.dispose();
       selected.material.dispose();
       group.clear();

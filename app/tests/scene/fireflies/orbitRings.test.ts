@@ -182,6 +182,73 @@ describe('createOrbitRings — lazy pool', () => {
     expect(() => rings.dispose()).not.toThrow();
   });
 
+  // ── Multi-author commits (N orbs per commitIndex) ────────────────────
+
+  /** Three orbs at the same commitIndex, each with a distinct orbit shape —
+   *  mirrors what placeFireflies emits for a 3-co-author commit. */
+  function multiAuthorPlacements(commitIndex: number): FireflyPlacement[] {
+    return [
+      { ...makePlacement(commitIndex), orbitRadius: 2.0, orbitTilt: 0.1, orbitStartAngle: 0.0 },
+      { ...makePlacement(commitIndex), orbitRadius: 3.0, orbitTilt: 0.3, orbitStartAngle: 1.0 },
+      { ...makePlacement(commitIndex), orbitRadius: 4.0, orbitTilt: 0.5, orbitStartAngle: 2.0 },
+    ];
+  }
+
+  it('setHoveredCommit on a multi-author commit builds one ring mesh per author orb', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    // Three co-authors at commit 0 → three orbit rings.
+    expect(meshesIn(rings).length).toBe(3);
+    rings.dispose();
+  });
+
+  it('setSelectedCommit on a multi-author commit builds one ring mesh per author orb', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setSelectedCommit(0);
+    expect(meshesIn(rings).length).toBe(3);
+    rings.dispose();
+  });
+
+  it('hover + selected on different multi-author commits shows N + M rings', () => {
+    const placements = [...multiAuthorPlacements(0), ...multiAuthorPlacements(1)];
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0); // 3 hover rings
+    rings.setSelectedCommit(1); // 2 selected rings (different placements at idx 1)
+    // multiAuthorPlacements(1) emits 3 orbs too → 3 selected + 3 hover = 6.
+    expect(meshesIn(rings).length).toBe(6);
+    rings.dispose();
+  });
+
+  it('clearing hover on a multi-author commit disposes all of its rings', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    expect(meshesIn(rings).length).toBe(3);
+    rings.setHoveredCommit(null);
+    expect(meshesIn(rings).length).toBe(0);
+    rings.dispose();
+  });
+
+  it('multi-author ring geometries reflect each orb\'s distinct orbit params', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    const ms = meshesIn(rings);
+    expect(ms.length).toBe(3);
+    // Each tube geometry's bounding sphere radius is roughly proportional
+    // to its orbitRadius. Compute and dedupe — three distinct radii expected.
+    const radii = new Set<number>();
+    for (const m of ms) {
+      const geom = m.geometry as THREE.BufferGeometry;
+      geom.computeBoundingSphere();
+      radii.add(Math.round((geom.boundingSphere?.radius ?? 0) * 100));
+    }
+    expect(radii.size).toBe(3);
+    rings.dispose();
+  });
+
   it('factory does zero upfront geometry; setHoveredCommit stays fast at 100k placements', () => {
     // Two assertions cover the spec invariants:
     //   1. Structural: the factory must not build any ring meshes upfront.
