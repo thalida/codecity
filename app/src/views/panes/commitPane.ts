@@ -76,6 +76,17 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   // Lives on the pane instance; never invalidated (commits are immutable).
   const _bodyCache = new Map<string, string>();
 
+  /** Persistent reference to the body slot DOM element, so _setBodyState
+   *  can mutate it without searching the tree on every state change. Set
+   *  by _renderSkeleton; null when the empty state is showing. */
+  let _bodySlotEl: HTMLElement | null = null;
+
+  type BodyState =
+    | { kind: 'loading' }
+    | { kind: 'text'; body: string }
+    | { kind: 'error'; err: unknown }
+    | { kind: 'hidden' };
+
   function _renderEmpty(): void {
     _currentSha = null;
     _currentCommit = null;
@@ -96,17 +107,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     box.appendChild(sub);
     body.appendChild(box);
   }
-
-  /** Persistent reference to the body slot DOM element, so _setBodyState
-   *  can mutate it without searching the tree on every state change. Set
-   *  by _renderSkeleton; null when the empty state is showing. */
-  let _bodySlotEl: HTMLElement | null = null;
-
-  type BodyState =
-    | { kind: 'loading' }
-    | { kind: 'text'; body: string }
-    | { kind: 'error'; err: unknown }
-    | { kind: 'hidden' };
 
   function _setBodyState(state: BodyState): void {
     if (!_bodySlotEl) return;

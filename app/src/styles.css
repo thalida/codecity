@@ -3052,22 +3052,13 @@ canvas {
 
 /* Persistent wrapper for the lazy-fetched body. Swaps between Loading…
    text, the body <pre>, an error line, or display:none. The slot itself
-   is invisible — it only carries the loading/error modifiers. */
-.commit-message-body-slot {
-  /* Block participation only — no own background or padding. The inner
-     <pre>.commit-message-body brings its own styling when present. */
-}
-
+   carries no own styling — only the loading/error modifiers below. */
 .commit-message-body-slot--loading {
   font-size: var(--cc-font-md); /* 11px */
   color: var(--cc-text-muted);
   font-style: italic;
   opacity: 0.7;
   padding: var(--cc-space-3) 0;
-}
-
-.commit-message-body-slot--error {
-  /* Container for .commit-message-error; no extra styling needed. */
 }
 
 .commit-message-body {
@@ -3086,7 +3077,8 @@ canvas {
   opacity: 0.7;
 }
 
-/* Footer line 1: "committed <relative age> · <N> file(s) changed" */
+/* Meta line: "committed <relative age> · <N> file(s) changed".
+   Sits above the subject + body slot. */
 .commit-meta {
   display: flex;
   align-items: baseline;
@@ -3111,7 +3103,7 @@ canvas {
   color: var(--cc-text-muted);
 }
 
-/* Footer line 2: swatch + "<Light|Avg|Busy> day — N commit(s) that day" */
+/* Swatch + "<Light|Avg|Busy> day — N commit(s) that day". */
 .commit-same-day {
   display: flex;
   align-items: center;
