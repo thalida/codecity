@@ -127,11 +127,11 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     authorEl.className = 'commit-author';
     const dotEl = document.createElement('span');
     dotEl.className = 'commit-author-dot';
-    dotEl.style.backgroundColor = colorForAuthor(commit.author).hex;
+    dotEl.style.backgroundColor = colorForAuthor(commit.authors[0]).hex;
     authorEl.appendChild(dotEl);
     const authorName = document.createElement('span');
     authorName.className = 'commit-author-name';
-    authorName.textContent = commit.author || '(unknown)';
+    authorName.textContent = commit.authors[0] || '(unknown)';
     authorEl.appendChild(authorName);
     body.appendChild(authorEl);
 

@@ -78,7 +78,7 @@ export function placeFireflies(
   // Tally commits per author and compute per-author scale.
   const counts = new Map<string, number>();
   for (const c of commits) {
-    counts.set(c.author, (counts.get(c.author) ?? 0) + 1);
+    counts.set(c.authors[0], (counts.get(c.authors[0]) ?? 0) + 1);
   }
   let minCount = Infinity;
   let maxCount = -Infinity;
@@ -158,7 +158,7 @@ export function placeFireflies(
 
     const canopyRadius = treeRadius(p.commitIndex);
     const height = treeHeight(p.commitIndex);
-    const color = colorForAuthor(commit.author);
+    const color = colorForAuthor(commit.authors[0]);
 
     for (let i = 0; i < ORBS_PER_TREE; i++) {
       const rng = seededRng(`${commit.sha}:${i}`);
@@ -183,7 +183,7 @@ export function placeFireflies(
         pulsePhase,
         colorHex: color.hex,
         rgb: color.rgb,
-        scale: authorScale.get(commit.author) ?? 1.0,
+        scale: authorScale.get(commit.authors[0]) ?? 1.0,
         commitIndex: p.commitIndex,
       });
     }

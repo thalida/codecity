@@ -10,7 +10,7 @@ const COMMIT: CommitEntry = {
   date: '2026-03-12',
   files: 4,
   sha: 'a1b2c3d4567890abcdef1234567890abcdef1234',
-  author: 'Alice Author',
+  authors: ['Alice Author'],
   subject: 'fix(scan): handle empty repos cleanly',
 };
 
@@ -23,7 +23,7 @@ describe('buildCommitPane', () => {
       new Response(
         JSON.stringify({
           sha: '',
-          author: '',
+          authors: [''],
           date: '',
           subject: '',
           body: '',
@@ -284,7 +284,7 @@ describe('buildCommitPane', () => {
     // due to rgb-vs-hex normalization).
     expect(dot.style.backgroundColor).not.toBe('');
     // Sanity: dependency on colorForAuthor is real.
-    expect(typeof colorForAuthor(COMMIT.author).hex).toBe('string');
+    expect(typeof colorForAuthor(COMMIT.authors[0]).hex).toBe('string');
   });
 
   // ── Message block ─────────────────────────────────────────────────────────
@@ -323,7 +323,7 @@ describe('buildCommitPane', () => {
       new Response(
         JSON.stringify({
           sha: COMMIT.sha,
-          author: COMMIT.author,
+          authors: COMMIT.authors,
           date: COMMIT.date,
           subject: COMMIT.subject,
           body: 'a body',
@@ -348,7 +348,7 @@ describe('buildCommitPane', () => {
         new Response(
           JSON.stringify({
             sha: COMMIT.sha,
-            author: COMMIT.author,
+            authors: COMMIT.authors,
             date: COMMIT.date,
             subject: COMMIT.subject,
             body: 'cached body',
@@ -377,7 +377,7 @@ describe('buildCommitPane', () => {
       new Response(
         JSON.stringify({
           sha: COMMIT.sha,
-          author: COMMIT.author,
+          authors: COMMIT.authors,
           date: COMMIT.date,
           subject: COMMIT.subject,
           body: '', // empty body
@@ -449,7 +449,7 @@ describe('buildCommitPane', () => {
       return new Response(
         JSON.stringify({
           sha: SECOND_COMMIT.sha,
-          author: SECOND_COMMIT.author,
+          authors: SECOND_COMMIT.authors,
           date: SECOND_COMMIT.date,
           subject: SECOND_COMMIT.subject,
           body: 'second body',
@@ -475,7 +475,7 @@ describe('buildCommitPane', () => {
       new Response(
         JSON.stringify({
           sha: COMMIT.sha,
-          author: COMMIT.author,
+          authors: COMMIT.authors,
           date: COMMIT.date,
           subject: COMMIT.subject,
           body: 'first body (LATE)',

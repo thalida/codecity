@@ -5,8 +5,8 @@ import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 
 const COMMITS: CommitEntry[] = [
-  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'one' },
-  { date: '2026-01-02', files: 2, sha: 'b'.repeat(40), author: 'Bob', subject: 'two' },
+  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'one' },
+  { date: '2026-01-02', files: 2, sha: 'b'.repeat(40), authors: ['Bob'], subject: 'two' },
 ];
 
 // TreePlacement has { x, y, seed, commitIndex } — no height/radius fields.
@@ -73,7 +73,7 @@ describe('placeFireflies', () => {
   it('emits authorColor per-orb from the commit author', async () => {
     const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const orbs = placeFireflies([placement(0, 0, 0)], COMMITS);
-    const expected = colorForAuthor(COMMITS[0].author).hex;
+    const expected = colorForAuthor(COMMITS[0].authors[0]).hex;
     for (const o of orbs) {
       expect(o.colorHex).toBe(expected);
     }
@@ -121,9 +121,9 @@ describe('placeFireflies', () => {
   it('scale-by-commits assigns larger scale to authors with more commits', () => {
     // Alice has 1 commit (i=0); Bob has 2 commits (i=1, i=2).
     const commits = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Bob', subject: 'b1' },
-      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), author: 'Bob', subject: 'b2' },
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Bob'], subject: 'b1' },
+      { date: '2026-01-03', files: 1, sha: 'c'.repeat(40), authors: ['Bob'], subject: 'b2' },
     ];
     // 1 orb per tree: orbs map 1:1 to placements for easy indexing.
     const orbs = placeFireflies(
@@ -146,8 +146,8 @@ describe('placeFireflies', () => {
   it('all orbs from the same author share the same scale', () => {
     // Use a fixture with 2 commits from the same author.
     const sameAuthor = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a1' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Alice', subject: 'a2' },
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a1' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Alice'], subject: 'a2' },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], sameAuthor);
     expect(orbs[0].scale).toBe(orbs[1].scale);
@@ -158,8 +158,8 @@ describe('placeFireflies', () => {
     // distribution), there's no meaningful ranking — render everyone at
     // SCALE_MAX rather than collapsing to SCALE_MIN.
     const soloAuthor = [
-      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Solo', subject: 'a' },
-      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), author: 'Solo', subject: 'b' },
+      { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Solo'], subject: 'a' },
+      { date: '2026-01-02', files: 1, sha: 'b'.repeat(40), authors: ['Solo'], subject: 'b' },
     ];
     const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], soloAuthor);
     const scaleMax = FIREFLIES.get().SCALE_MAX;
