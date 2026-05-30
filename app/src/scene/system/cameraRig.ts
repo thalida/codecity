@@ -70,15 +70,10 @@ const FRAMING_DIR_Y = 1.0;
 const FRAMING_DIR_LATERAL = 0.3;
 
 // Headroom above the tallest building's roof when fitting the start
-// framing. The closed-form heightDist solves for a building AT the
-// framing target; this multiplier covers both (a) actual headroom
-// above the spire so the horizon-glow band stays visible, and (b)
-// the case where the tallest building sits some distance behind the
-// gem in the city — the camera looks down, so points deep behind the
-// target project a bit higher on screen than the at-target math
-// alone accounts for. 1.5 gives enough breathing room for both
-// without zooming way out.
-const TALLEST_BUILDING_HEADROOM_MULT = 1.5;
+// framing. 1.0 = tightest possible fit — the spire of a building at
+// the framing target sits exactly at the top edge of the vertical FOV.
+// Bump above 1.0 to add visible sky above the tallest roof.
+const TALLEST_BUILDING_HEADROOM_MULT = 1.0;
 
 export function createCameraRig({
   canvas,
