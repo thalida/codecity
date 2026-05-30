@@ -2694,6 +2694,13 @@ canvas {
   font-size: var(--cc-font-lg);
   color: var(--cc-text-muted);
 }
+/* Checkbox labels wrap a checkbox + text on one line — flex-center
+   so the box sits on the text baseline instead of riding above it. */
+.modal-field label:has(> input[type='checkbox']) {
+  display: flex;
+  align-items: center;
+  gap: var(--cc-space-2);
+}
 /* Visual style consolidated in the .modal-field input rule near the top
    of the file (next to .form-input). */
 
