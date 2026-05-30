@@ -28,6 +28,14 @@ function _baseWorld() {
     onChange: () => () => {},
     getBuildingPickables: () => [] as THREE.Object3D[],
     getMaxBuildingHeight: () => 200,
+    getTallestBuilding: () =>
+      ({ x: 100, y: 0, w: 30, d: 30, h: 200 }) as {
+        x: number;
+        y: number;
+        w: number;
+        d: number;
+        h: number;
+      } | null,
     getTreeBoundsBySha: (_sha: string) =>
       null as { x: number; y: number; z: number; height: number; radius: number } | null,
   };

@@ -1360,6 +1360,23 @@ export function createWorld(_canvas: HTMLCanvasElement) {
       return maxH;
     },
     /**
+     * Tallest building in the city, with its layout position + dimensions.
+     * Used by cameraRig to compute the exact start-framing distance
+     * needed to fit the building's roof corners at the top edge of the
+     * vertical FOV (4 corner projections, no loop over the whole city).
+     * `x` and `y` map to world X and Z; `h` is height along world Y.
+     */
+    getTallestBuilding(): { x: number; y: number; w: number; d: number; h: number } | null {
+      let tallest: Building | null = null;
+      for (const cell of _cells.values()) {
+        for (const b of cell.buildings) {
+          if (b && (!tallest || b.h > tallest.h)) tallest = b;
+        }
+      }
+      if (!tallest) return null;
+      return { x: tallest.x, y: tallest.y, w: tallest.w, d: tallest.d, h: tallest.h };
+    },
+    /**
      * Per-cell detail InstancedMeshes suitable for raycasting against.
      * Three.js raycasts InstancedMesh natively, returning hits with
      * `.instanceId` set. Used by cameraRig sightline tests.

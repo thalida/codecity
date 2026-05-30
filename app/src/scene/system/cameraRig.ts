@@ -217,27 +217,45 @@ export function createCameraRig({
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
 
-    // Closed-form height fit: given the tallest building H and the camera
-    // tilt Δ = elev − halfFov, the camera distance needed for a building
-    // of height H to fit the vertical FOV is D = H × cos(Δ) / sin(halfFov).
-    // Derived from the perspective projection of a point (0, H, 0) seen
-    // by a camera at distance D along a direction with elevation `elev`
-    // above horizontal; the building's top sits at the top edge of the
-    // vertical FOV when D equals that expression.
+    // Height fit: project the tallest building's 4 roof corners through
+    // the camera math and find the minimum D such that they all sit
+    // within the vertical FOV. One building, 4 corners — no loop over
+    // the whole city.
     //
-    // HEADROOM_MULT scales D up so the roof clears the top edge with
-    // breathing room AND absorbs the case where tall buildings sit some
-    // distance behind the framing target (those need slightly more D
-    // because the optical axis dips below ground at depth — a single
-    // multiplier covers it without per-building geometry).
+    // For a point p offset from the target, the camera at target + dir·D
+    // sees screen-y = (p · cam_up) / (D − p · dir), where cam_up is
+    // perpendicular to dir and aligned with world up. Setting
+    // |screen-y| ≤ tan(halfFov) and solving:
     //
-    // Empty manifest: getMaxBuildingHeight() returns 0 so heightDist
-    // collapses to 0 and the width branch wins.
-    const horizMag = Math.sqrt(1 + FRAMING_DIR_LATERAL * FRAMING_DIR_LATERAL);
-    const elevRad = Math.atan(FRAMING_DIR_Y / horizMag);
-    const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
-    const heightDist =
-      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) / Math.sin(halfFov);
+    //   D ≥ |p · cam_up| / tan(halfFov) + p · dir
+    //
+    // Take the max across the 4 roof corners. HEADROOM scales D up for
+    // breathing room above the roof (1.0 = spire flush against top edge).
+    let heightDist = 0;
+    const tallest = gemPos && rootStreet ? world.getTallestBuilding() : null;
+    if (tallest) {
+      const sinElev = dir.y;
+      const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
+      const camUpX = camUpScale > 1e-6 ? (-dir.y * dir.x) / camUpScale : 0;
+      const camUpY = camUpScale > 1e-6 ? camUpScale : 1;
+      const camUpZ = camUpScale > 1e-6 ? (-dir.y * dir.z) / camUpScale : 0;
+      const tanHalfFov = Math.tan(halfFov);
+      const gemX = framingCenter.x;
+      const gemZ = framingCenter.z;
+      // 4 roof corners in world: (b.x ± b.w/2, b.h, b.y ± b.d/2).
+      for (const sx of [-0.5, 0.5]) {
+        for (const sz of [-0.5, 0.5]) {
+          const px = tallest.x + sx * tallest.w - gemX;
+          const py = tallest.h;
+          const pz = tallest.y + sz * tallest.d - gemZ;
+          const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
+          const pDotUp = px * camUpX + py * camUpY + pz * camUpZ;
+          const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
+          if (dNeeded > heightDist) heightDist = dNeeded;
+        }
+      }
+      heightDist *= TALLEST_BUILDING_HEADROOM_MULT;
+    }
     const framingDist = Math.max(widthDist, heightDist);
 
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
