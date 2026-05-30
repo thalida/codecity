@@ -15,11 +15,16 @@
 // The refresh/reset-view button has moved to the header (far right).
 
 import { h } from 'preact';
-import { signal } from '@preact/signals';
+import { signal, useSignal } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
 import { render } from 'preact';
+import { useEffect } from 'preact/hooks';
 import { DateSource, NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
+import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { LIVE_UPDATES } from '@/state/settings/index';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
+import { humanLanguageFor } from '@/views/panes/filePreviewPane';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -218,11 +223,85 @@ function FooterSelectionSection({ selection }: FooterSelectionSectionProps) {
   );
 }
 
-interface AppFooterProps {
+// ── Self-reading AppFooter component ────────────────────────────────────────
+// Reads status signals and picker state directly; no props needed when
+// mounted from App.tsx. A 1-second tick signal drives the relative-age text.
+
+export function AppFooter() {
+  // 1-second tick so relative timestamps ("5s ago") advance smoothly.
+  // useSignal creates a component-local signal; writing it triggers a
+  // fine-grained re-render of only this component.
+  const tick = useSignal(0);
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      tick.value = tick.peek() + 1;
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  // Status — reads all four status signals (auto-tracked in render)
+  void tick.value; // ensure 1-second re-renders for relative timestamps
+  const status: FooterStatus = {
+    liveEnabled: LIVE_UPDATES.value.ENABLED,
+    rebuildStatus: REBUILD_STATUS.value,
+    lastUpdatedAt: LAST_UPDATED_AT.value,
+    errorMessage: LAST_REBUILD_ERROR.value,
+  };
+
+  // Selection — hover takes priority over selection (same rule as coordinator)
+  // Use .peek() on the SCENE_HANDLE signal for the picker refs themselves
+  // to avoid re-rendering AppFooter when the entire handle is swapped —
+  // only the .value reads of hover/selection should track.
+  const handle = SCENE_HANDLE.value;
+  const hov = handle?.picker.hover.value ?? null;
+  const sel = handle?.picker.selection.value ?? null;
+  const target = hov ?? sel;
+
+  let selection: FooterSelection | null = null;
+  if (target?.kind === NodeKind.File) {
+    const f = target.file;
+    const hasGit = !!(f.git && (f.git.created || f.git.modified));
+    selection = {
+      kind: NodeKind.File,
+      extension: f.extension || '',
+      language: humanLanguageFor(f),
+      lines: f.lines,
+      size: f.size || 0,
+      modified: (f.git && f.git.modified) || f.modified || null,
+      created: (f.git && f.git.created) || f.created || null,
+      dateSource: hasGit ? DateSource.Git : DateSource.Filesystem,
+    };
+  } else if (target?.kind === NodeKind.Directory) {
+    const d = target.dir;
+    selection = {
+      kind: NodeKind.Directory,
+      directFiles: d.children_file_count ?? 0,
+      totalFiles: d.descendants_file_count ?? 0,
+      directDirs: d.children_dir_count ?? 0,
+      totalDirs: d.descendants_dir_count ?? 0,
+      size: d.descendants_size ?? 0,
+    };
+  }
+
+  return (
+    <>
+      <div class="app-footer-section app-footer-left">
+        <FooterStatusSection status={status} />
+      </div>
+      <div class="app-footer-section app-footer-right">
+        <FooterSelectionSection selection={selection} />
+      </div>
+    </>
+  );
+}
+
+// ── Props-driven AppFooter (used by the backward-compat shim) ────────────────
+
+interface _AppFooterPropsLegacy {
   state: ReadonlySignal<AppFooterState>;
 }
 
-export function AppFooter({ state }: AppFooterProps) {
+function _AppFooterLegacy({ state }: _AppFooterPropsLegacy) {
   const s = state.value;
   return (
     <>
@@ -261,7 +340,7 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   if (!footer) return NOOP_API;
 
   const state = signal<AppFooterState>({ selection: null, status: null });
-  render(<AppFooter state={state} />, footer);
+  render(<_AppFooterLegacy state={state} />, footer);
 
   function setStatus(status: FooterStatus): void {
     state.value = { ...state.value, status };
