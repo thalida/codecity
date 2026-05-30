@@ -248,10 +248,11 @@ export function AppFooter() {
     errorMessage: LAST_REBUILD_ERROR.value,
   };
 
-  // Selection — hover takes priority over selection (same rule as coordinator)
-  // Use .peek() on the SCENE_HANDLE signal for the picker refs themselves
-  // to avoid re-rendering AppFooter when the entire handle is swapped —
-  // only the .value reads of hover/selection should track.
+  // Selection — hover takes priority over selection (same rule as coordinator).
+  // Reading SCENE_HANDLE.value establishes tracking so AppFooter re-renders
+  // when the scene first becomes available (CenterPane mount). Then
+  // picker.hover.value and picker.selection.value are tracked for fine-grained
+  // re-renders on each hover/select change.
   const handle = SCENE_HANDLE.value;
   const hov = handle?.picker.hover.value ?? null;
   const sel = handle?.picker.selection.value ?? null;
