@@ -2980,12 +2980,18 @@ canvas {
 }
 
 /* ── Commit pane (right sidebar) ────────────────────────────────────────
-   Shown when a tree is selected in the city. Layout:
+   Shown when a tree is selected in the city. Layout (top to bottom):
      - pane-header (from buildPaneHeader) — title becomes "Commit <sha>"
        with an inline open-on-origin link; close × at far right.
-     - .commit-body — scrollable area: author row, message block (subject
-       + lazy-fetched body), footer meta row (age · files), same-day row.
-   Follows the same pane-body padding pattern as other right-sidebar panes. */
+     - .commit-body — pane-body, scrolls vertically. Renders in this order:
+         .commit-author rows (one per distinct author, primary first)
+         .commit-meta (age · files)
+         .commit-same-day (busyness + N commits that day)
+         .commit-no-remote (when no remote configured)
+         .commit-message-subject (now the message block's title)
+         .commit-message-body-slot — mutable region holding the lazy body
+           (loading hint / <pre> body / error / hidden). The slot lives
+           at the bottom so body load doesn't shift content above it. */
 
 .commit-body {
   padding: var(--cc-space-7); /* 16px */
@@ -3034,30 +3040,34 @@ canvas {
   color: var(--cc-text-secondary);
 }
 
-/* Message block: subject + lazy-fetched body, displayed as a single unit. */
-.commit-message {
-  display: flex;
-  flex-direction: column;
-  gap: var(--cc-space-3); /* 6px */
-}
-
 .commit-message-subject {
-  font-size: var(--cc-font-lg); /* 12px */
-  color: var(--cc-text-secondary);
-  font-weight: 500;
+  font-size: var(--cc-font-xl); /* 14px — title-of-message-block weight */
+  color: var(--cc-text-primary);
+  font-weight: 600;
   white-space: normal; /* wrap freely — no ellipsization */
   overflow-wrap: anywhere;
   word-break: break-word;
-  line-height: 1.5;
+  line-height: 1.4;
 }
 
-/* Pane-wide loading state shown while the commit body fetch is in flight. */
-.commit-loading {
-  font-size: var(--cc-font-md);
+/* Persistent wrapper for the lazy-fetched body. Swaps between Loading…
+   text, the body <pre>, an error line, or display:none. The slot itself
+   is invisible — it only carries the loading/error modifiers. */
+.commit-message-body-slot {
+  /* Block participation only — no own background or padding. The inner
+     <pre>.commit-message-body brings its own styling when present. */
+}
+
+.commit-message-body-slot--loading {
+  font-size: var(--cc-font-md); /* 11px */
   color: var(--cc-text-muted);
+  font-style: italic;
   opacity: 0.7;
-  padding: var(--cc-space-4) var(--cc-space-4);
-  text-align: center;
+  padding: var(--cc-space-3) 0;
+}
+
+.commit-message-body-slot--error {
+  /* Container for .commit-message-error; no extra styling needed. */
 }
 
 .commit-message-body {
@@ -3067,8 +3077,6 @@ canvas {
   padding: var(--cc-space-4); /* 8px */
   background: var(--cc-overlay-bg-soft);
   border-radius: var(--cc-radius-sm);
-  max-height: 240px;
-  overflow: auto;
   color: var(--cc-text-muted);
 }
 

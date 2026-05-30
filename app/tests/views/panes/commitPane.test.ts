@@ -347,7 +347,7 @@ describe('buildCommitPane', () => {
 
   // ── Pane-wide loading state ───────────────────────────────────────────────
 
-  it('shows a pane-wide loading state until the fetch resolves', async () => {
+  it('body slot transitions Loading… → text when the fetch resolves', async () => {
     let resolveFn!: (resp: Response) => void;
     const pending = new Promise<Response>((r) => {
       resolveFn = r;
@@ -356,11 +356,13 @@ describe('buildCommitPane', () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
 
-    // Loading shows; the rest of the content is hidden.
-    expect(pane.querySelector('.commit-loading')).not.toBeNull();
-    expect(pane.querySelector('.commit-author')).toBeNull();
-    expect(pane.querySelector('.commit-message')).toBeNull();
-    expect(pane.querySelector('.commit-meta')).toBeNull();
+    // Skeleton is up immediately; body slot shows the loading hint.
+    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    expect(pane.querySelector('.commit-meta')).not.toBeNull();
+    expect(pane.querySelector('.commit-message-subject')).not.toBeNull();
+    const slot = pane.querySelector('.commit-message-body-slot')!;
+    expect(slot.classList.contains('commit-message-body-slot--loading')).toBe(true);
+    expect(slot.textContent?.trim()).toMatch(/Loading/);
 
     // Resolve the fetch.
     resolveFn(
@@ -378,9 +380,8 @@ describe('buildCommitPane', () => {
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
-    // Loading gone, content visible.
-    expect(pane.querySelector('.commit-loading')).toBeNull();
-    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    // Loading modifier gone; body <pre> is now in the slot.
+    expect(slot.classList.contains('commit-message-body-slot--loading')).toBe(false);
     expect(pane.querySelector('.commit-message-body')!.textContent).toBe('a body');
   });
 
@@ -408,15 +409,16 @@ describe('buildCommitPane', () => {
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(pane.querySelector('.commit-message-body')!.textContent).toBe('cached body');
 
-    // Re-select the same commit. Should render immediately from cache, no new fetch.
+    // Re-select the same commit. Body renders synchronously from cache —
+    // the slot must NOT enter a loading state.
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    // No loading state — render is synchronous from cache.
-    expect(pane.querySelector('.commit-loading')).toBeNull();
+    const slot = pane.querySelector('.commit-message-body-slot')!;
+    expect(slot.classList.contains('commit-message-body-slot--loading')).toBe(false);
     expect(pane.querySelector('.commit-message-body')!.textContent).toBe('cached body');
     expect(fetchSpy).toHaveBeenCalledTimes(1); // still 1, no new fetch
   });
 
-  it('omits the body <pre> when the fetched body is empty', async () => {
+  it('omits the body <pre> when the fetched body is empty and hides the slot', async () => {
     globalThis.fetch = (async () =>
       new Response(
         JSON.stringify({
@@ -434,8 +436,12 @@ describe('buildCommitPane', () => {
     await new Promise((r) => setTimeout(r, 0));
     // Subject is present.
     expect(pane.querySelector('.commit-message-subject')).not.toBeNull();
-    // Body is NOT present.
+    // Body <pre> is NOT present.
     expect(pane.querySelector('.commit-message-body')).toBeNull();
+    // Slot exists but is hidden via display:none.
+    const slot = pane.querySelector('.commit-message-body-slot') as HTMLElement;
+    expect(slot).not.toBeNull();
+    expect(slot.style.display).toBe('none');
   });
 
   it('shows an error at body level when the body fetch fails', async () => {
@@ -443,12 +449,21 @@ describe('buildCommitPane', () => {
       new Response('boom', { status: 500 })) as unknown as typeof fetch;
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
-    // Auto-fetch fires on setCommit; no click needed.
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
+
     const err = pane.querySelector('.commit-message-error') as HTMLElement;
     expect(err).not.toBeNull();
     expect(err.textContent).toMatch(/failed/i);
+
+    // Skeleton remains intact — error is scoped to the body slot.
+    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    expect(pane.querySelector('.commit-message-subject')).not.toBeNull();
+    expect(pane.querySelector('.commit-meta')).not.toBeNull();
+    // The error lives inside the body slot, not at the pane root.
+    const slot = pane.querySelector('.commit-message-body-slot')!;
+    expect(slot.contains(err)).toBe(true);
+    expect(slot.classList.contains('commit-message-body-slot--error')).toBe(true);
   });
 
   it('passes onFocus through to the pane header and fires with the current commit', () => {
@@ -533,5 +548,116 @@ describe('buildCommitPane', () => {
     // Second commit's body is still showing, not clobbered.
     expect(pane.querySelector('.commit-message-body')!.textContent).toContain('second body');
     expect(pane.querySelector('.commit-message-body')!.textContent).not.toContain('LATE');
+  });
+
+  // ── Skeleton-on-mount (perf + layout refactor) ────────────────────────────
+
+  it('renders authors synchronously on setCommit, BEFORE the fetch resolves', () => {
+    // Block the fetch indefinitely so the skeleton MUST appear without it.
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // No await — assertions run before any microtask drain.
+    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    expect(pane.querySelector('.commit-author-name')!.textContent).toBe('Alice Author');
+  });
+
+  it('renders meta (age + files) synchronously on setCommit', () => {
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    expect(pane.querySelector('.commit-age')!.textContent).toContain('2 months ago');
+    expect(pane.querySelector('.commit-files')!.textContent).toBe('4 files changed');
+  });
+
+  it('renders subject synchronously on setCommit', () => {
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    expect(pane.querySelector('.commit-message-subject')!.textContent).toBe(COMMIT.subject);
+  });
+
+  it('renders same-day badge synchronously when sameDayTotal > 0', () => {
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
+    expect(pane.querySelector('.commit-same-day')).not.toBeNull();
+  });
+
+  it('shows a body-slot loading indicator (NOT a pane-wide one) while fetching', () => {
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+    // The new slot wrapper exists with a loading modifier.
+    const slot = pane.querySelector('.commit-message-body-slot');
+    expect(slot).not.toBeNull();
+    expect(slot!.classList.contains('commit-message-body-slot--loading')).toBe(true);
+    // The old pane-wide loading class is gone.
+    expect(pane.querySelector('.commit-loading')).toBeNull();
+    // Skeleton content above is still visible (not blanked).
+    expect(pane.querySelector('.commit-author')).not.toBeNull();
+    expect(pane.querySelector('.commit-meta')).not.toBeNull();
+  });
+
+  it('DOM order is: authors → meta → same-day → subject → body slot', () => {
+    globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
+    const body = pane.querySelector('.commit-body') as HTMLElement;
+    const children = Array.from(body.children) as HTMLElement[];
+    // Find first occurrence of each marker class.
+    const idx = (cls: string) =>
+      children.findIndex((c) => c.classList.contains(cls));
+    const iAuthor = idx('commit-author');
+    const iMeta = idx('commit-meta');
+    const iSameDay = idx('commit-same-day');
+    const iSubject = idx('commit-message-subject');
+    const iBody = idx('commit-message-body-slot');
+    // Every section must be present and in the expected order.
+    expect(iAuthor).toBeGreaterThanOrEqual(0);
+    expect(iMeta).toBeGreaterThan(iAuthor);
+    expect(iSameDay).toBeGreaterThan(iMeta);
+    expect(iSubject).toBeGreaterThan(iSameDay);
+    expect(iBody).toBeGreaterThan(iSubject);
+  });
+
+  it('content above the body slot does not move when body resolves', async () => {
+    let resolveFn!: (r: Response) => void;
+    const pending = new Promise<Response>((r) => {
+      resolveFn = r;
+    });
+    globalThis.fetch = (async () => pending) as unknown as typeof fetch;
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { now: new Date('2026-05-24T12:00:00Z') });
+
+    // Snapshot the DOM positions of stable elements while body is loading.
+    const subjectBefore = pane.querySelector('.commit-message-subject')!;
+    const authorBefore = pane.querySelector('.commit-author')!;
+    const metaBefore = pane.querySelector('.commit-meta')!;
+
+    // Resolve the fetch with a multi-line body.
+    resolveFn(
+      new Response(
+        JSON.stringify({
+          sha: COMMIT.sha,
+          authors: COMMIT.authors,
+          date: COMMIT.date,
+          subject: COMMIT.subject,
+          body: 'line 1\nline 2\nline 3',
+        }),
+        { status: 200 }
+      )
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    // Same DOM nodes are still in the DOM (not replaced).
+    expect(pane.querySelector('.commit-message-subject')).toBe(subjectBefore);
+    expect(pane.querySelector('.commit-author')).toBe(authorBefore);
+    expect(pane.querySelector('.commit-meta')).toBe(metaBefore);
+
+    // And the body is now there.
+    const bodyEl = pane.querySelector('.commit-message-body') as HTMLElement;
+    expect(bodyEl.textContent).toContain('line 1');
   });
 });

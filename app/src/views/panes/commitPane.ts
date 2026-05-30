@@ -79,6 +79,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
   function _renderEmpty(): void {
     _currentSha = null;
     _currentCommit = null;
+    _bodySlotEl = null;
     headerApi.setFocusEnabled(false);
     headerApi.setTitle('Commit');
     body.replaceChildren();
@@ -96,31 +97,61 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     body.appendChild(box);
   }
 
-  function _renderLoading(): void {
-    body.replaceChildren();
-    const loading = document.createElement('div');
-    loading.className = 'commit-loading';
-    loading.textContent = 'Loading commit…';
-    body.appendChild(loading);
+  /** Persistent reference to the body slot DOM element, so _setBodyState
+   *  can mutate it without searching the tree on every state change. Set
+   *  by _renderSkeleton; null when the empty state is showing. */
+  let _bodySlotEl: HTMLElement | null = null;
+
+  type BodyState =
+    | { kind: 'loading' }
+    | { kind: 'text'; body: string }
+    | { kind: 'error'; err: unknown }
+    | { kind: 'hidden' };
+
+  function _setBodyState(state: BodyState): void {
+    if (!_bodySlotEl) return;
+    _bodySlotEl.replaceChildren();
+    _bodySlotEl.classList.remove(
+      'commit-message-body-slot--loading',
+      'commit-message-body-slot--error'
+    );
+    _bodySlotEl.style.display = '';
+
+    if (state.kind === 'loading') {
+      _bodySlotEl.classList.add('commit-message-body-slot--loading');
+      _bodySlotEl.textContent = 'Loading…';
+      return;
+    }
+    if (state.kind === 'text') {
+      const pre = document.createElement('pre');
+      pre.className = 'commit-message-body';
+      pre.textContent = state.body;
+      _bodySlotEl.appendChild(pre);
+      return;
+    }
+    if (state.kind === 'error') {
+      _bodySlotEl.classList.add('commit-message-body-slot--error');
+      const errEl = document.createElement('div');
+      errEl.className = 'commit-message-error';
+      errEl.textContent = `Failed to load message: ${
+        state.err instanceof Error ? state.err.message : String(state.err)
+      }`;
+      _bodySlotEl.appendChild(errEl);
+      return;
+    }
+    // hidden
+    _bodySlotEl.style.display = 'none';
   }
 
-  function _renderError(err: unknown): void {
-    body.replaceChildren();
-    const errEl = document.createElement('div');
-    errEl.className = 'commit-message-error';
-    errEl.textContent = `Failed to load commit: ${err instanceof Error ? err.message : String(err)}`;
-    body.appendChild(errEl);
-  }
-
-  function _renderFullContent(
+  function _renderSkeleton(
     commit: CommitEntry,
     remoteUrl: string | null,
     sameDayTotal: number,
     color: string | undefined,
-    now: Date,
-    bodyText: string
+    now: Date
   ): void {
     body.replaceChildren();
+    _bodySlotEl = null;
 
     // ── Author rows (one per distinct author; primary first) ─────────
     for (const author of commit.authors) {
@@ -137,26 +168,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       body.appendChild(row);
     }
 
-    // ── Commit message block (subject + body if non-empty) ───────────
-    const messageEl = document.createElement('div');
-    messageEl.className = 'commit-message';
-
-    const subjectEl = document.createElement('div');
-    subjectEl.className = 'commit-message-subject';
-    subjectEl.textContent = commit.subject || '(no subject)';
-    messageEl.appendChild(subjectEl);
-
-    const trimmed = bodyText.trim();
-    if (trimmed) {
-      const msgBodyEl = document.createElement('pre');
-      msgBodyEl.className = 'commit-message-body';
-      msgBodyEl.textContent = bodyText;
-      messageEl.appendChild(msgBodyEl);
-    }
-
-    body.appendChild(messageEl);
-
-    // ── Footer line 1: relative age · files changed ──────────────────
+    // ── Meta line 1: relative age · files changed ─────────────────────
     const metaEl = document.createElement('div');
     metaEl.className = 'commit-meta';
 
@@ -179,7 +191,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
 
     body.appendChild(metaEl);
 
-    // ── Footer line 2: busyness label + same-day count ───────────────
+    // ── Meta line 2: busyness label + same-day count ──────────────────
     if (sameDayTotal !== undefined && sameDayTotal > 0) {
       const sameDayEl = document.createElement('div');
       sameDayEl.className = 'commit-same-day';
@@ -197,13 +209,25 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       body.appendChild(sameDayEl);
     }
 
-    // ── No remote hint (only when no remote configured) ──────────────
+    // ── No-remote hint (only when no remote configured) ───────────────
     if (!remoteUrl) {
       const note = document.createElement('div');
       note.className = 'commit-no-remote';
       note.textContent = 'No remote configured';
       body.appendChild(note);
     }
+
+    // ── Subject (title of the message block at the bottom) ────────────
+    const subjectEl = document.createElement('div');
+    subjectEl.className = 'commit-message-subject';
+    subjectEl.textContent = commit.subject || '(no subject)';
+    body.appendChild(subjectEl);
+
+    // ── Body slot (mutable region for loading / text / error / hidden) ─
+    const bodySlot = document.createElement('div');
+    bodySlot.className = 'commit-message-body-slot';
+    body.appendChild(bodySlot);
+    _bodySlotEl = bodySlot;
   }
 
   function _renderCommit(
@@ -218,8 +242,7 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     headerApi.setFocusEnabled(true);
 
     // Update the pane header title to "Commit <short-sha>" + optional open
-    // link. This happens immediately, even during loading, so the user sees
-    // what they clicked on right away.
+    // link. Synchronous; user sees what they clicked on right away.
     const titleNodes: Node[] = [document.createTextNode('Commit ')];
     const shaEl = document.createElement('span');
     shaEl.className = 'commit-sha';
@@ -239,26 +262,32 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     }
     headerApi.setTitleChildren(titleNodes);
 
-    // Cache hit → render immediately, no loading state.
+    // Render the skeleton synchronously — every piece of metadata that
+    // lives in the manifest goes in immediately. Body slot starts as a
+    // loading placeholder.
+    _renderSkeleton(commit, remoteUrl, sameDayTotal, color, now);
+
+    // Cache hit → body slot resolves synchronously, in the same tick as
+    // the skeleton. No Loading… flicker.
     const cached = _bodyCache.get(commit.sha);
     if (cached !== undefined) {
-      _renderFullContent(commit, remoteUrl, sameDayTotal, color, now, cached);
+      _setBodyState(cached.trim() ? { kind: 'text', body: cached } : { kind: 'hidden' });
       return;
     }
 
-    // Cache miss → pane-wide loading state, then render on resolve.
-    _renderLoading();
+    // Cache miss → leave body slot in 'loading' (set by _renderSkeleton).
+    _setBodyState({ kind: 'loading' });
     const fetchSha = commit.sha;
     fetchCommitDetail(fetchSha).then(
       (detail) => {
         const bodyText = detail.body ?? '';
         _bodyCache.set(fetchSha, bodyText);
         if (_currentSha !== fetchSha) return;
-        _renderFullContent(commit, remoteUrl, sameDayTotal, color, now, bodyText);
+        _setBodyState(bodyText.trim() ? { kind: 'text', body: bodyText } : { kind: 'hidden' });
       },
       (err) => {
         if (_currentSha !== fetchSha) return;
-        _renderError(err);
+        _setBodyState({ kind: 'error', err });
       }
     );
   }
