@@ -127,26 +127,45 @@ describe('buildCommitPane', () => {
 
   // ── Same-day count ────────────────────────────────────────────────────────
 
-  it('shows "N commits that day" when sameDayTotal > 1', async () => {
+  it('shows "<label> day: N commits" when sameDayTotal > 1', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 5, now: new Date('2026-05-24T12:00:00Z') });
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
-    const sameDayEl = pane.querySelector('.commit-same-day');
+    const sameDayEl = pane.querySelector('.commit-same-day') as HTMLElement;
     expect(sameDayEl).not.toBeNull();
-    expect(sameDayEl!.textContent).toMatch(/\d+ commits that day/);
+    expect(sameDayEl.textContent).toMatch(/day:\s*\d+ commits$/);
+    // No "that day" suffix — the date moved into the tooltip.
+    expect(sameDayEl.textContent).not.toMatch(/that day/);
   });
 
-  it('shows "1 commit that day" (singular) when sameDayTotal === 1', async () => {
+  it('shows "<label> day: 1 commit" (singular) when sameDayTotal === 1', async () => {
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 1, now: new Date('2026-05-24T12:00:00Z') });
     await new Promise((r) => setTimeout(r, 0));
     await new Promise((r) => setTimeout(r, 0));
 
-    const sameDayEl = pane.querySelector('.commit-same-day');
+    const sameDayEl = pane.querySelector('.commit-same-day') as HTMLElement;
     expect(sameDayEl).not.toBeNull();
-    expect(sameDayEl!.textContent).toMatch(/1 commit that day/);
+    expect(sameDayEl.textContent).toMatch(/day:\s*1 commit$/);
+  });
+
+  it('exposes the full date as the same-day tooltip', async () => {
+    const { pane, api } = buildCommitPane({});
+    api.setCommit(COMMIT, { sameDayTotal: 24, now: new Date('2026-05-24T12:00:00Z') });
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+
+    const sameDayEl = pane.querySelector('.commit-same-day') as HTMLElement;
+    expect(sameDayEl.title).toMatch(/^24 commits on /);
+    // The COMMIT fixture is 2026-03-12 — assert the formatted date shows
+    // the right year, month name, and day. Locale-aware formatting may
+    // produce "March 12, 2026" or "12 March 2026" depending on the
+    // runner's locale; just check the salient parts are present.
+    expect(sameDayEl.title).toMatch(/March/);
+    expect(sameDayEl.title).toMatch(/12/);
+    expect(sameDayEl.title).toMatch(/2026/);
   });
 
   it('omits .commit-same-day when sameDayTotal is not provided', async () => {
