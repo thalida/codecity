@@ -196,7 +196,7 @@ export function createSourcePicker(opts: {
                   ).join('')}
                 </select>
                 <div class="modal-field-help">
-                  Bounds the per-file age scan + commit list. Shorter = faster initial load. Applies to both git URLs and local git directories; non-git paths ignore it.
+                  Shorter = faster load. Non-git paths ignore it.
                 </div>
               </div>
 
@@ -206,8 +206,7 @@ export function createSourcePicker(opts: {
                   Skip cache (fresh scan)
                 </label>
                 <div class="modal-field-help">
-                  Forces a full rescan, bypassing the file-stat and git-history
-                  caches for this open. Slower but always accurate.
+                  Slower but always accurate.
                 </div>
               </div>
 
