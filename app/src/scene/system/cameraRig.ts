@@ -70,10 +70,15 @@ const FRAMING_DIR_Y = 1.0;
 const FRAMING_DIR_LATERAL = 0.3;
 
 // Headroom above the tallest building's roof when fitting the start
-// framing. 1.15 = distance is 15% greater than the minimum at which the
-// roof would sit flush against the top edge of the vertical FOV, so the
-// horizon-glow band stays visible above the tallest spire.
-const TALLEST_BUILDING_HEADROOM_MULT = 1.15;
+// framing. The closed-form heightDist solves for a building AT the
+// framing target; this multiplier covers both (a) actual headroom
+// above the spire so the horizon-glow band stays visible, and (b)
+// the case where the tallest building sits some distance behind the
+// gem in the city — the camera looks down, so points deep behind the
+// target project a bit higher on screen than the at-target math
+// alone accounts for. 1.5 gives enough breathing room for both
+// without zooming way out.
+const TALLEST_BUILDING_HEADROOM_MULT = 1.5;
 
 export function createCameraRig({
   canvas,
@@ -217,54 +222,28 @@ export function createCameraRig({
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
 
-    // Tight bbox fit: for each of the 8 bbox corners, compute the minimum
-    // camera distance D such that the corner projects within the vertical
-    // FOV. Tight because we compute the EXACT screen-y per corner instead
-    // of a radial sphere bound — sphere fit at the gem was too generous
-    // (treats every direction as if it could pierce the top edge, even
-    // sideways/downward corners that never do).
+    // Closed-form height fit: given the tallest building H and the camera
+    // tilt Δ = elev − halfFov, the camera distance needed for a building
+    // of height H to fit the vertical FOV is D = H × cos(Δ) / sin(halfFov).
+    // Derived from the perspective projection of a point (0, H, 0) seen
+    // by a camera at distance D along a direction with elevation `elev`
+    // above horizontal; the building's top sits at the top edge of the
+    // vertical FOV when D equals that expression.
     //
-    // For a point p offset from the target, the camera at target + dir*D
-    // sees screen-y = (p · cam_up) / (D − p · dir), where cam_up is
-    // perpendicular to dir and aligned with world up (its components are
-    // (−dir.y·dir.x, 1−dir.y², −dir.y·dir.z) / sqrt(1−dir.y²)). Setting
-    // |screen-y| ≤ tan(halfFov) and solving gives:
+    // HEADROOM_MULT scales D up so the roof clears the top edge with
+    // breathing room AND absorbs the case where tall buildings sit some
+    // distance behind the framing target (those need slightly more D
+    // because the optical axis dips below ground at depth — a single
+    // multiplier covers it without per-building geometry).
     //
-    //   D ≥ |p · cam_up| / tan(halfFov) + p · dir
-    //
-    // Sweep the 8 bbox corners, take the max. HEADROOM_MULT adds the
-    // headroom margin. Empty bbox is guarded by getBbox().isEmpty() above.
-    let worldFitDist = 0;
-    if (gemPos && rootStreet) {
-      const sinElev = dir.y; // dir is normalized; dir.y = sin(elev)
-      const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
-      const camUp =
-        camUpScale > 1e-6
-          ? new THREE.Vector3(
-              (-dir.y * dir.x) / camUpScale,
-              camUpScale,
-              (-dir.y * dir.z) / camUpScale
-            )
-          : new THREE.Vector3(0, 1, 0); // dir is straight up/down — degenerate
-      const tanHalfFov = Math.tan(halfFov);
-      const gemX = framingCenter.x;
-      const gemZ = framingCenter.z;
-      for (const x of [bbox.min.x, bbox.max.x]) {
-        for (const y of [bbox.min.y, bbox.max.y]) {
-          for (const z of [bbox.min.z, bbox.max.z]) {
-            const px = x - gemX;
-            const py = y; // framingCenter.y is 0
-            const pz = z - gemZ;
-            const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
-            const pDotUp = px * camUp.x + py * camUp.y + pz * camUp.z;
-            const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
-            if (dNeeded > worldFitDist) worldFitDist = dNeeded;
-          }
-        }
-      }
-      worldFitDist *= TALLEST_BUILDING_HEADROOM_MULT;
-    }
-    const framingDist = Math.max(widthDist, worldFitDist);
+    // Empty manifest: getMaxBuildingHeight() returns 0 so heightDist
+    // collapses to 0 and the width branch wins.
+    const horizMag = Math.sqrt(1 + FRAMING_DIR_LATERAL * FRAMING_DIR_LATERAL);
+    const elevRad = Math.atan(FRAMING_DIR_Y / horizMag);
+    const tallestH = gemPos && rootStreet ? world.getMaxBuildingHeight() : 0;
+    const heightDist =
+      (tallestH * TALLEST_BUILDING_HEADROOM_MULT * Math.cos(elevRad - halfFov)) / Math.sin(halfFov);
+    const framingDist = Math.max(widthDist, heightDist);
 
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
