@@ -15,6 +15,8 @@
 // or world.applyManifest). Discard clears drafts without touching stores;
 // page reload is an implicit discard.
 
+import { h } from 'preact';
+import { useEffect, useRef } from 'preact/hooks';
 import {
   // Scene (ground haze / fog)
   SCENE_COLORS,
@@ -83,7 +85,7 @@ import { buildPaneHeader } from '@/views/components/paneHeader';
 // Typed `any` payload because each widget binds to a different store shape;
 // runtime behavior reads/writes via this minimal interface.
 interface MapLikeStore {
-  get(): any;
+  get value(): any;
   set?(value: any): void;
   setKey?(key: string, value: any): void;
   subscribe(listener: (state: any) => void): () => void;
@@ -128,6 +130,39 @@ interface ControlsPaneBundle {
    *  opens fresh — no state memory between opens. */
   resetCollapsed: () => void;
 }
+
+// ── Preact component ─────────────────────────────────────────────────────────
+// Thin wrapper that mounts the imperative factory DOM into a Preact tree.
+// The coordinator still calls buildControlsPane() directly; this component
+// is provided so the future App.tsx shell can include it in the JSX tree.
+
+export interface ControlsPaneProps {
+  onClose?: () => void;
+  onRunCollisionCheck?: () => void;
+  onRunStemDiagnostic?: () => void;
+}
+
+export function ControlsPane({ onClose, onRunCollisionCheck, onRunStemDiagnostic }: ControlsPaneProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const bundleRef = useRef<ControlsPaneBundle | null>(null);
+
+  useEffect(() => {
+    const bundle = buildControlsPane({ onClose, onRunCollisionCheck, onRunStemDiagnostic });
+    bundleRef.current = bundle;
+    if (containerRef.current) {
+      containerRef.current.appendChild(bundle.pane);
+    }
+    return () => {
+      if (containerRef.current && bundle.pane.parentNode === containerRef.current) {
+        containerRef.current.removeChild(bundle.pane);
+      }
+    };
+  }, []);
+
+  return <div ref={containerRef} class="controls-pane-host" />;
+}
+
+// ── Backward-compat factory ───────────────────────────────────────────────────
 
 export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
   const pane = document.createElement('div');
@@ -639,7 +674,7 @@ function _buildStreetsSection(): HTMLElement {
   // Width tiers — step-function mapping a directory's descendant count to
   // its street width. One slider per tier so the user can fatten or thin
   // any specific road class without touching the others.
-  const tierDefaults = STREET_TIERS.get();
+  const tierDefaults = STREET_TIERS.value;
   const tierRows = tierDefaults.map((tier, ti) => _tierWidthSlider(ti, tier.min_descendants));
   section.appendChild(
     _collapsibleSubgroup('streets-width-tiers', 'Street width tiers', () => tierRows)
@@ -1194,7 +1229,7 @@ function _buildFilePreviewSection(): HTMLElement {
   }
 
   sel.addEventListener('change', () => {
-    SYNTAX_THEME.set(sel.value);
+    SYNTAX_THEME.value = sel.value;
   });
 
   // Reset button — mirrors the rotate-ccw affordance other rows use, but
@@ -1211,14 +1246,14 @@ function _buildFilePreviewSection(): HTMLElement {
     if (resetBtn.disabled) return;
     e.preventDefault();
     e.stopPropagation();
-    SYNTAX_THEME.set(SYNTAX_THEME_DEFAULT);
+    SYNTAX_THEME.value = SYNTAX_THEME_DEFAULT;
   });
 
   // Sync <select> value AND reset-button disabled state with the atom
   // (covers initial hydration, external resets such as "Reset all", and
   // every user change via this same select).
   const refresh = () => {
-    const v = SYNTAX_THEME.get();
+    const v = SYNTAX_THEME.value;
     sel.value = v;
     resetBtn.disabled = v === SYNTAX_THEME_DEFAULT;
   };
@@ -1785,7 +1820,7 @@ function _slider(
   return _row(label, control, store, [key], opts);
 }
 
-// _nestedSlider — like _slider but the value lives at store.get()[parentKey][subKey].
+// _nestedSlider — like _slider but the value lives at store.value[parentKey][subKey].
 // Writes go through `setDraft(store, parentKey, { ...current, [subKey]: v })` so other
 // sub-keys are preserved. The row's reset icon resets just `subKey` back to its
 // registered default (not the whole map). Used for HUE_EXT_MAP per-extension rows.
