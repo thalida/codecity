@@ -773,7 +773,8 @@ body {
    row underneath, and a thin footer at the bottom. The 3-pane row is
    itself a flex row — left sidebar | center canvas | right sidebar.
    The center grows/shrinks instead of the sidebars overlaying it. */
-body {
+#app {
+  height: 100%;
   display: flex;
   flex-direction: column;
   align-items: stretch;
