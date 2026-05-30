@@ -166,4 +166,87 @@ describe('placeFireflies', () => {
     expect(orbs[0].scale).toBe(scaleMax);
     expect(orbs[1].scale).toBe(scaleMax);
   });
+
+  it('emits one orb per distinct author on a multi-author commit', () => {
+    const multiAuthor: CommitEntry[] = [
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice', 'Bob', 'Carol'],
+        subject: 'team work',
+      },
+    ];
+    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
+    expect(orbs.length).toBe(3);
+  });
+
+  it('colors each per-author orb with that author\'s color', async () => {
+    const { colorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
+    const multiAuthor: CommitEntry[] = [
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice', 'Bob', 'Carol'],
+        subject: 'team work',
+      },
+    ];
+    const orbs = placeFireflies([placement(0, 0, 0)], multiAuthor);
+    expect(orbs[0].colorHex).toBe(colorForAuthor('Alice').hex);
+    expect(orbs[1].colorHex).toBe(colorForAuthor('Bob').hex);
+    expect(orbs[2].colorHex).toBe(colorForAuthor('Carol').hex);
+  });
+
+  it('per-author orbs share orbit center but have distinct angles', () => {
+    const multiAuthor: CommitEntry[] = [
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice', 'Bob', 'Carol'],
+        subject: 'team work',
+      },
+    ];
+    const orbs = placeFireflies([placement(0, 100, 200)], multiAuthor);
+    // Same orbit center (tree position).
+    expect(orbs[0].treeX).toBe(100);
+    expect(orbs[1].treeX).toBe(100);
+    expect(orbs[2].treeX).toBe(100);
+    expect(orbs[0].treeZ).toBe(200);
+    // Distinct seeds → distinct orbit start angles (probability of any
+    // two coinciding under Mulberry32 is ~2^-32; effectively zero).
+    expect(orbs[0].orbitStartAngle).not.toBe(orbs[1].orbitStartAngle);
+    expect(orbs[1].orbitStartAngle).not.toBe(orbs[2].orbitStartAngle);
+    expect(orbs[0].orbitStartAngle).not.toBe(orbs[2].orbitStartAngle);
+  });
+
+  it('counts co-authorship toward each author\'s tally', () => {
+    // Alice authors 1 solo commit; Bob co-authors that commit AND has
+    // his own solo commit. Tally: Alice=1, Bob=2. After scale lerp,
+    // Bob's orbs should scale larger than Alice's.
+    const commits: CommitEntry[] = [
+      {
+        date: '2026-01-01',
+        files: 1,
+        sha: 'a'.repeat(40),
+        authors: ['Alice', 'Bob'],
+        subject: 'pair',
+      },
+      {
+        date: '2026-01-02',
+        files: 1,
+        sha: 'b'.repeat(40),
+        authors: ['Bob'],
+        subject: 'solo',
+      },
+    ];
+    const orbs = placeFireflies([placement(0, 0, 0), placement(1, 10, 0)], commits);
+    // orbs[0] = Alice from commit 0, orbs[1] = Bob from commit 0,
+    // orbs[2] = Bob from commit 1.
+    const aliceOrb = orbs[0];
+    const bobOrbs = [orbs[1], orbs[2]];
+    expect(bobOrbs[0].scale).toBeGreaterThan(aliceOrb.scale);
+    expect(bobOrbs[0].scale).toBe(bobOrbs[1].scale); // same author, same scale
+  });
 });

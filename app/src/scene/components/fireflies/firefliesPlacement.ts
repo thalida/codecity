@@ -1,6 +1,7 @@
 // scene/fireflies/firefliesPlacement.ts — given a TreePlacement[]
-// and the manifest commit list, emit exactly 1 firefly orb per tree.
-// Position is deterministic (seeded by commit SHA + orb index) so
+// and the manifest commit list, emit one firefly orb per distinct
+// author of each commit (primary + Co-authored-by trailers).
+// Position is deterministic (seeded by commit SHA + author name) so
 // world rebuilds don't re-randomize the orb field.
 //
 // TreePlacement has { x, y, seed, commitIndex } — no height or radius.
@@ -18,8 +19,6 @@ import {
   sizeT,
 } from '@/scene/components/trees/treeEncoding.js';
 import { colorForAuthor } from './authorColor.js';
-
-// (no more const ORBS_PER_TREE export; controlled via FIREFLIES.get().ORBS_PER_TREE)
 
 export interface FireflyPlacement {
   /** Orbit center, world X. */
@@ -73,12 +72,15 @@ export function placeFireflies(
   if (!commits || commits.length === 0) return [];
 
   const fireflyConfig = FIREFLIES.get();
-  const ORBS_PER_TREE = 1;
 
-  // Tally commits per author and compute per-author scale.
+  // Tally per-author commit count. A co-authored commit increments
+  // each distinct author's count by 1 — co-authorship counts as full
+  // credit toward firefly scale.
   const counts = new Map<string, number>();
   for (const c of commits) {
-    counts.set(c.authors[0], (counts.get(c.authors[0]) ?? 0) + 1);
+    for (const author of c.authors) {
+      counts.set(author, (counts.get(author) ?? 0) + 1);
+    }
   }
   let minCount = Infinity;
   let maxCount = -Infinity;
@@ -158,18 +160,15 @@ export function placeFireflies(
 
     const canopyRadius = treeRadius(p.commitIndex);
     const height = treeHeight(p.commitIndex);
-    const color = colorForAuthor(commit.authors[0]);
 
-    for (let i = 0; i < ORBS_PER_TREE; i++) {
-      const rng = seededRng(`${commit.sha}:${i}`);
-      const pulseRng = seededRng(`${commit.sha}:p:${i}`); // independent stream
+    for (const author of commit.authors) {
+      const rng = seededRng(`${commit.sha}:${author}`);
+      const pulseRng = seededRng(`${commit.sha}:p:${author}`);
+      const color = colorForAuthor(author);
       const orbitStartAngle = rng() * Math.PI * 2;
-      // Just outside the canopy — between 1.05× and 1.4× the canopy radius.
       const orbitRadius = canopyRadius * (1.05 + rng() * 0.35);
       const orbHeight = rng() * (height * 1.3);
       const phase = rng() * Math.PI * 2;
-      // Tilt the orbital plane up to ±30° (= ±π/6) for visual variety.
-      // Most trees end up nearly horizontal; some tilt noticeably.
       const orbitTilt = (rng() - 0.5) * (Math.PI / 3);
       const pulsePhase = pulseRng() * Math.PI * 2;
       out.push({
@@ -183,7 +182,7 @@ export function placeFireflies(
         pulsePhase,
         colorHex: color.hex,
         rgb: color.rgb,
-        scale: authorScale.get(commit.authors[0]) ?? 1.0,
+        scale: authorScale.get(author) ?? 1.0,
         commitIndex: p.commitIndex,
       });
     }
