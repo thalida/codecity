@@ -352,21 +352,6 @@ def _parse_no_cache(query: str) -> bool:
     return raw in ("true", "1")
 
 
-def _parse_git_window(query: str) -> str | None:
-    """Parse ?git_window=… as a `git log --since=…` expression.
-
-    Returns ``None`` (meaning "use server default / env var") when the
-    param is absent or empty. The string is forwarded verbatim to git;
-    git itself rejects malformed expressions, in which case the scan
-    surfaces a clean error via the existing manifest-stream error path.
-    Length-capped at 64 chars to keep an invalid input from blowing up
-    the subprocess argv."""
-    raw = parse_qs(query).get("git_window", [""])[0].strip()
-    if not raw:
-        return None
-    return raw[:64]
-
-
 def _resolve_scan_target(
     handler: BaseHTTPRequestHandler, query: str
 ) -> tuple[Path, str, str | None, Literal["local", "git"]] | None:
@@ -579,7 +564,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
             return
 
     use_cache = not _parse_no_cache(query)
-    git_window = _parse_git_window(query)
 
     cancel_event = threading.Event()
     watchdog = _start_disconnect_watchdog(handler, cancel_event)
@@ -678,14 +662,10 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
         yield {"phase": "scanning", "display_root": display_root}
 
         # Cheap signature probe — same call the live-poll endpoint uses.
-        # git_window MUST flow in here too: it feeds the signature, and
-        # without it a window change would collide with a previously
-        # cached manifest under a different window.
         try:
             sig_response = signature_tree(
                 str(scan_target),
                 use_cache=use_cache,
-                git_window=git_window,
             )
         except Exception as e:  # pylint: disable=broad-except
             yield {"phase": "error", "error": f"scan failed: {e}"}
@@ -726,7 +706,6 @@ def _serve_manifest(handler: BaseHTTPRequestHandler, query: str) -> None:
                     str(scan_target),
                     use_cache=use_cache,
                     cancel_event=cancel_event,
-                    git_window=git_window,
                     on_scan_progress=_on_scan_progress,
                 ):
                     scan_q.put(ev)  # skeleton + final flow through the same queue
@@ -856,15 +835,11 @@ def _serve_manifest_signature(handler: BaseHTTPRequestHandler, query: str) -> No
         return
     scan_target, _raw_src, _raw_branch, _kind = resolved
     use_cache = not _parse_no_cache(query)
-    # Pass git_window through so the live-update poll's signature matches
-    # the cached manifest's (which is now window-keyed).
-    git_window = _parse_git_window(query)
 
     try:
         sig = signature_tree(
             str(scan_target),
             use_cache=use_cache,
-            git_window=git_window,
         )
     except Exception as e:  # pylint: disable=broad-except
         _send_json(

@@ -268,7 +268,6 @@ if (_canvas) {
         const url = new URL('/api/manifest', window.location.origin);
         url.searchParams.set('src', payload.src);
         if (payload.branch) url.searchParams.set('branch', payload.branch);
-        if (payload.gitWindow) url.searchParams.set('git_window', payload.gitWindow);
         // Consume the one-shot skip-cache flag set by the source picker.
         // Only this first fetch uses it; the poll loop is unaffected.
         if (_pendingSkipCache) {
@@ -341,8 +340,8 @@ if (_canvas) {
         pageUrl.searchParams.set('src', payload.src);
         if (payload.branch) pageUrl.searchParams.set('branch', payload.branch);
         else pageUrl.searchParams.delete('branch');
-        if (payload.gitWindow) pageUrl.searchParams.set('git_window', payload.gitWindow);
-        else pageUrl.searchParams.delete('git_window');
+        // Strip any stale git_window left over from older bookmarks.
+        pageUrl.searchParams.delete('git_window');
         history.replaceState(null, '', pageUrl.toString());
 
         CURRENT_SOURCE_KEY.set(sourceKey(payload.src, payload.branch));
@@ -370,7 +369,6 @@ if (_canvas) {
         pushRecent({
           src: payload.src,
           branch: payload.branch,
-          gitWindow: payload.gitWindow,
           label: _deriveLabel(payload.src),
         });
 
@@ -409,7 +407,6 @@ if (_canvas) {
         prefill: {
           src: qp.get('src')!,
           branch: qp.get('branch') ?? undefined,
-          gitWindow: qp.get('git_window') ?? undefined,
         },
         error: initialError,
       });
@@ -432,7 +429,6 @@ if (_canvas) {
           ? {
               src: cur.get('src')!,
               branch: cur.get('branch') ?? undefined,
-              gitWindow: cur.get('git_window') ?? undefined,
             }
           : undefined,
       });

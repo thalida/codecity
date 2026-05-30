@@ -38,45 +38,9 @@ function _hostingIconSvg(src: string): string {
 export interface SourcePayload {
   src: string;
   branch?: string;
-  // Per-source git-log history window. Forwarded to the server as the
-  // ?git_window= query param. Undefined or "" = walk all history
-  // (server default). Accepts any `git log --since=…` expression; the
-  // dropdown below exposes a handful of presets but the field is
-  // otherwise free-form if a caller wants to set it programmatically.
-  gitWindow?: string;
   /** When true, this open forces a fresh scan (server-side ?no_cache=1).
    *  Not persisted — re-opening from a recent uses cached scan by default. */
   skipCache?: boolean;
-}
-
-// Presets shown in the git tab's "History window" dropdown. The label
-// is what the user sees; the value is what we send to `git log --since`.
-// "All history" sends an empty string → server omits --since entirely.
-interface GitWindowOption {
-  label: string;
-  value: string;
-}
-const GIT_WINDOW_OPTIONS: GitWindowOption[] = [
-  { label: '1 year ago', value: '1.years.ago' },
-  { label: '3 years ago', value: '3.years.ago' },
-  { label: '5 years ago', value: '5.years.ago' },
-  { label: '10 years ago', value: '10.years.ago' },
-  { label: 'All history (default)', value: '' },
-];
-const DEFAULT_GIT_WINDOW = '';
-
-/** Map a raw `git_window` value back to its human-readable label.
- *  Empty / undefined → "All history" (the server default — walks every
- *  commit). Unknown free-form values → returned verbatim (the field
- *  accepts any `git log --since=…` expression). */
-function gitWindowLabel(value: string | undefined | null): string {
-  if (!value) {
-    return 'All history';
-  }
-  const preset = GIT_WINDOW_OPTIONS.find((o) => o.value === value);
-  if (!preset) return value;
-  // Strip the "(default)" suffix so it doesn't leak into recent rows.
-  return preset.label.replace(/\s*\(default\)\s*$/i, '');
 }
 
 export interface OpenOpts {
@@ -118,7 +82,6 @@ export function createSourcePicker(opts: {
     activeTab = deriveTabFromPrefill(o.prefill);
     const prefillSrc = o.prefill?.src ?? '';
     const prefillBranch = o.prefill?.branch ?? '';
-    const prefillWindow = o.prefill?.gitWindow ?? DEFAULT_GIT_WINDOW;
 
     // Read current source from URL so we can mark the matching recent as active
     const urlParams = new URLSearchParams(window.location.search);
@@ -180,29 +143,13 @@ export function createSourcePicker(opts: {
               }
             </div>
 
-            <!-- Form fields (History window, Skip cache, Submit) apply to
-                 whatever's in the active pane. On the disabled-Local view
-                 there's nothing submittable, so this whole block is hidden
-                 — Recents stays so the user can still pick a git recent. -->
+            <!-- Form fields (Skip cache, Submit) apply to whatever's in
+                 the active pane. On the disabled-Local view there's
+                 nothing submittable, so this whole block is hidden —
+                 Recents stays so the user can still pick a git recent. -->
             <div data-form-fields style="display: ${
               !allowLocalRepos && activeTab === 'local' ? 'none' : ''
             };">
-              <div class="modal-field">
-                <label>History window</label>
-                <select data-field="git_window">
-                  ${GIT_WINDOW_OPTIONS.map(
-                    (o) => `
-                    <option value="${escapeAttr(o.value)}"${
-                      o.value === prefillWindow ? ' selected' : ''
-                    }>${escapeHtml(o.label)}</option>
-                  `
-                  ).join('')}
-                </select>
-                <div class="modal-field-help">
-                  How far back to walk git history. Shorter = faster load, fewer trees, less accurate file ages.
-                </div>
-              </div>
-
               <div class="modal-field">
                 <label>
                   <input data-field="skip_cache" type="checkbox">
@@ -242,14 +189,9 @@ export function createSourcePicker(opts: {
         const classes = ['recent-row'];
         if (isActive) classes.push('recent-row--active');
         if (isDisabled) classes.push('recent-row--disabled');
-        // Build the sub-line by joining only the segments that have
-        // content. Previously we always appended " · <window-label>",
-        // which left a dangling " · " when the user kept the default
-        // (empty) window value.
-        const windowLabel = gitWindowLabel(r.gitWindow ?? DEFAULT_GIT_WINDOW);
+        // Sub-line: source URL, then branch when present. Join with " · ".
         const subParts = [r.src];
         if (r.branch) subParts.push(r.branch);
-        if (windowLabel) subParts.push(windowLabel);
         const subLine = subParts.map(escapeHtml).join(' · ');
         return `
       <div class="recent-item">
@@ -258,7 +200,6 @@ export function createSourcePicker(opts: {
                 ${disabledTitle ? `title="${escapeAttr(disabledTitle)}"` : ''}
                 data-src="${escapeAttr(r.src)}"
                 data-branch="${escapeAttr(r.branch ?? '')}"
-                data-git-window="${escapeAttr(r.gitWindow ?? '')}"
                 data-disabled="${isDisabled ? '1' : ''}">
           <span class="recent-icon">${icon}</span>
           <div class="recent-row-body">
@@ -316,12 +257,11 @@ export function createSourcePicker(opts: {
       const removeBtn = item.querySelector<HTMLButtonElement>('[data-action="recent-remove"]');
       const src = row.dataset.src!;
       const branch = row.dataset.branch || undefined;
-      const gitWindow = row.dataset.gitWindow || undefined;
 
       row.addEventListener('click', () => {
         if (row.classList.contains('recent-row--active')) return;
         if (row.dataset.disabled === '1') return;
-        opts.onSubmit({ src, branch, gitWindow });
+        opts.onSubmit({ src, branch });
       });
 
       removeBtn?.addEventListener('click', () => {
@@ -376,17 +316,10 @@ export function createSourcePicker(opts: {
         ? (root!.querySelector('[data-field="branch"]') as HTMLInputElement).value.trim() ||
           undefined
         : undefined;
-    // History window applies to any git source — git URL OR a local
-    // path pointing at a git directory. Non-git local paths just
-    // ignore the param server-side. We still suppress the URL param
-    // when the user kept the default so the URL stays clean.
-    let gitWindow: string | undefined;
-    const v = (root!.querySelector('[data-field="git_window"]') as HTMLSelectElement | null)?.value;
-    if (v && v !== DEFAULT_GIT_WINDOW) gitWindow = v;
     const skipCache = !!(
       root!.querySelector('[data-field="skip_cache"]') as HTMLInputElement | null
     )?.checked;
-    opts.onSubmit({ src, branch, gitWindow, skipCache: skipCache || undefined });
+    opts.onSubmit({ src, branch, skipCache: skipCache || undefined });
   }
 
   function focusActiveInput(): void {

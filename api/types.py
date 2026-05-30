@@ -26,9 +26,8 @@ class NodeKind:
 
 
 class GitMeta(TypedDict):
-    """Git history dates for a file. ISO 8601 strings; null when no
-    commit touching the file fell inside the active git_window (so
-    create/modify timestamps were never observed)."""
+    """Git history dates for a file. ISO 8601 strings; null when the
+    scanner never observed a create/modify date (e.g. uncommitted)."""
 
     created: str | None
     modified: str | None
