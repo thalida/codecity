@@ -1,4 +1,4 @@
-// views/panes/filePreviewPane.js — body content for the right sidebar.
+// views/panes/filePreviewPane.tsx — body content for the right sidebar.
 // Renders a file preview (image, video, audio, pdf, or syntax-highlighted
 // code) for whatever file the coordinator pushes in via setFile(). Falls
 // back to an empty-state hint when no file is pushed (or when a directory
@@ -7,8 +7,12 @@
 // The pane element this builder returns is a `.editor-body` div ready to
 // be mounted into the right sidebar's slot. It owns nothing about the
 // sidebar shell (resize, open/close, persisted width) — that's
-// views/shell/rightSidebar.js.
+// views/shell/rightSidebar.ts.
 
+import { h } from 'preact';
+import type { Signal } from '@preact/signals';
+import { signal } from '@preact/signals';
+import { render } from 'preact';
 import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { PreviewKind } from '@/types';
@@ -109,7 +113,7 @@ const NAME_LANG: Record<string, string> = {
 };
 
 interface BuildFilePreviewPaneOpts {
-  /** Called when the user clicks the × in the pane header. Host should
+  /** Called when the user clicks the x in the pane header. Host should
    *  hide the sidebar AND update any shell-level visibility tracker so a
    *  subsequent re-open isn't suppressed. */
   onClose?: () => void;
@@ -121,13 +125,79 @@ interface BuildFilePreviewPaneOpts {
   onFocus?: (file: FileNode) => void;
 }
 
+// ── State shape for Preact component ─────────────────────────────────────────
+
+export interface FilePreviewPaneState {
+  file: FileNode | null;
+}
+
+export interface FilePreviewPaneProps {
+  state: Signal<FilePreviewPaneState>;
+  onClose?: () => void;
+  onFocus?: (file: FileNode) => void;
+}
+
+// ── Preact component ─────────────────────────────────────────────────────────
+
+export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProps) {
+  const { file } = state.value;
+  const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+  const asphaltColor = ASPHALT.value.COLOR;
+
+  const leaf = file
+    ? ((file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file')
+    : 'No file';
+
+  return (
+    <div class="pane">
+      <div class="pane-header">
+        {file && typeof onFocus === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title="Focus the camera on this file (F)"
+            aria-label="Focus the camera on this file (F)"
+            onClick={() => onFocus(file)}
+          />
+        )}
+        {file && (
+          <span
+            dangerouslySetInnerHTML={{
+              __html: makeExtensionBadge(file.extension ?? null, false, huePalette, asphaltColor).outerHTML,
+            }}
+          />
+        )}
+        <h3 class="text-pane-title is-mono" title={file?.path || undefined}>{leaf}</h3>
+        {typeof onClose === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            onClick={() => onClose()}
+          />
+        )}
+      </div>
+      <div class="pane editor-body">
+        {!file ? (
+          <div class="empty-state empty-state--lg">
+            <p class="text-card-title">Nothing to preview</p>
+            <p class="text-card-sub">Select a file in the city to inspect it here.</p>
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+// ── Backward-compat factory ───────────────────────────────────────────────────
 /**
  * Build a file-preview pane.
  *
  * Returns:
  *   pane — outer container `<div class="file-preview-pane">` to mount
  *     into the right sidebar slot. Contains a `.pane-header` (leaf
- *     filename + × close button) and a `.editor-body` that holds the
+ *     filename + x close button) and a `.editor-body` that holds the
  *     actual preview content.
  *   api.setFile(file | null) — push the file the pane should render. Pass
  *     null to show the "nothing to preview" empty state (used both for
@@ -163,8 +233,9 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
       headerApi.setPrefixEl(null);
       return;
     }
-    const huePalette = BUILDING_PALETTE.get().HUE_EXT_MAP || {};
-    const asphaltColor = ASPHALT.get().COLOR;
+    // Use .value to read signals (Phase 3a migration)
+    const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
+    const asphaltColor = ASPHALT.value.COLOR;
     headerApi.setPrefixEl(
       makeExtensionBadge(_activeFile.extension ?? null, false, huePalette, asphaltColor)
     );
@@ -245,7 +316,7 @@ export function humanLanguageFor(file: FileNode): string {
     if (file.extension) return file.extension.replace(/^\./, '').toUpperCase();
     return 'Plain Text';
   }
-  // Map hljs internal id → display name.
+  // Map hljs internal id -> display name.
   const labels: Record<string, string> = {
     javascript: 'JavaScript',
     typescript: 'TypeScript',
@@ -385,7 +456,7 @@ function _makePreviewSection(file: FileNode | null): HTMLElement | null {
       shell.replaceChildren(
         _makeStateMessage(
           'file-warning',
-          'Couldn’t load this file',
+          "Couldn't load this file",
           err && err.message ? err.message : 'Unknown error'
         )
       );
