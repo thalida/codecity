@@ -58,6 +58,7 @@ from api.cache import (
 from api.media import is_media
 from api.scan import (
     ScanCancelledError,
+    _build_authors_list,
     scan_tree,
     signature_tree,
 )
@@ -434,7 +435,7 @@ _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
 
 
 def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
-    """GET /api/commit?sha=<sha>. Returns {sha, author, date, subject, body}
+    """GET /api/commit?sha=<sha>. Returns {sha, authors, date, subject, body}
     for a commit inside any registered scan root. Validates the sha shape
     locally before shelling out to ``git show``.
 
@@ -460,7 +461,8 @@ def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
                    {"error": "no scan root registered yet — fetch /api/manifest first"})
         return
 
-    fmt = "%H%x00%an%x00%aI%x00%s%x00%b"
+    fmt = ("%H%x00%an%x00%aI%x00%s%x00"
+           "%(trailers:key=Co-authored-by,valueonly,separator=%x1f)%x00%b")
     for root in roots_snapshot:
         try:
             out = subprocess.check_output(
@@ -471,13 +473,13 @@ def _serve_commit_detail(handler: BaseHTTPRequestHandler, query: str) -> None:
             )
         except subprocess.CalledProcessError:
             continue
-        parts = out.rstrip("\n").split("\x00", 4)
-        if len(parts) < 5:
+        parts = out.rstrip("\n").split("\x00", 5)
+        if len(parts) < 6:
             continue
-        full_sha, author, iso_date, subject, body = parts
+        full_sha, author, iso_date, subject, trailers_raw, body = parts
         response: CommitDetailResponse = {
             "sha": full_sha,
-            "author": author,
+            "authors": _build_authors_list(author, trailers_raw),
             "date": iso_date[:10],
             "subject": subject,
             "body": body,

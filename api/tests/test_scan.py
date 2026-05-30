@@ -215,11 +215,12 @@ class ScanTreeIntegrationTests(_CacheRedirectMixin, unittest.TestCase):
     def test_counts_roll_up_correctly(self):
         m = _final_manifest(str(FIXTURE))
         tree = m["tree"]
-        # +1 for CONTRIBUTORS.md added by the second-author fixture commit
-        self.assertEqual(tree["descendants_file_count"], 10)
+        # +1 for CONTRIBUTORS.md (second-author commit) and +1 for
+        # MULTIAUTHOR.md (multi-author/co-authored commit).
+        self.assertEqual(tree["descendants_file_count"], 11)
         self.assertEqual(tree["descendants_dir_count"], 4)
-        # +1 for CONTRIBUTORS.md in the descendants_count (files + dirs)
-        self.assertEqual(tree["descendants_count"], 14)
+        # descendants_count = files + dirs.
+        self.assertEqual(tree["descendants_count"], 15)
         self.assertGreater(tree["descendants_size"], 0)
 
     def test_signature_present_and_stable(self):
@@ -518,6 +519,64 @@ def _walk_dirs(node):
         yield from _walk_dirs(c)
 
 
+class BuildAuthorsListTests(unittest.TestCase):
+    """Direct coverage for the _build_authors_list helper.
+
+    Integration coverage exists via the multi-author fixture commit, but
+    that fixture doesn't exercise the email-only trailer path — the
+    privacy-critical branch where a Co-authored-by trailer has no name
+    (`<bot@host>`). These cases pin the contract: the public authors
+    list never contains an `@` or domain, per CommitEntry's docstring.
+    """
+
+    def test_no_trailers_returns_primary_only(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(_build_authors_list("Alice", ""), ["Alice"])
+
+    def test_two_name_bearing_trailers(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fCarol <c@x>"),
+            ["Alice", "Bob", "Carol"],
+        )
+
+    def test_primary_dedup_against_trailer(self):
+        from api.scan import _build_authors_list
+        # Primary author repeated as a Co-authored-by trailer (cherry-
+        # pick artifact) is dropped — order preserves first-seen.
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fAlice <a@x>"),
+            ["Alice", "Bob"],
+        )
+
+    def test_email_only_trailer_uses_local_part(self):
+        # Regression-protection for the privacy fix: an email-only
+        # trailer must not leak the @domain into the authors list.
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "<bot@example.com>"),
+            ["Alice", "bot"],
+        )
+
+    def test_bracketed_value_without_at_sign_kept_verbatim(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "<just-localpart>"),
+            ["Alice", "just-localpart"],
+        )
+
+    def test_empty_brackets_dropped(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(_build_authors_list("Alice", "<>"), ["Alice"])
+
+    def test_duplicate_co_author_deduped(self):
+        from api.scan import _build_authors_list
+        self.assertEqual(
+            _build_authors_list("Alice", "Bob <b@x>\x1fBob <b@x>"),
+            ["Alice", "Bob"],
+        )
+
+
 class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
     """The two git log walks (created + modified) are independent and
     should run concurrently."""
@@ -582,28 +641,58 @@ class GitMetadataParallelTests(_CacheRedirectMixin, unittest.TestCase):
         for c in commits:
             self.assertEqual(
                 set(c.keys()),
-                {"date", "files", "sha", "author", "subject"},
+                {"date", "files", "sha", "authors", "subject"},
             )
             self.assertEqual(len(c["date"]), 10)  # YYYY-MM-DD
             self.assertGreaterEqual(c["files"], 1)
             self.assertRegex(c["sha"], r"^[0-9a-f]{40}$")
-            self.assertIsInstance(c["author"], str)
-            self.assertGreater(len(c["author"]), 0)
+            self.assertIsInstance(c["authors"], list)
+            self.assertGreater(len(c["authors"]), 0)
+            self.assertIsInstance(c["authors"][0], str)
+            self.assertGreater(len(c["authors"][0]), 0)
             self.assertIsInstance(c["subject"], str)
             # Subject must NOT contain a newline — git %s is first line only.
             self.assertNotIn("\n", c["subject"])
 
     def test_collect_git_metadata_captures_second_author_and_subject_only(self):
-        """The fixture's last commit is from a different author with a
-        multi-line message. Subject must be the first line only; author
+        """The fixture's "Other Fixture Person" commit is now the
+        second-to-last commit (the multi-author "feat: co-authored work"
+        commit is newest). Subject must be the first line only; author
         must be the second author's name (not the bot)."""
         from api.scan import _collect_git_metadata
         _c, _m, _t, commits = _collect_git_metadata(
             FIXTURE, use_cache=False,
         )
-        last = commits[-1]
-        self.assertEqual(last["author"], "Other Fixture Person")
-        self.assertEqual(last["subject"], "docs: add CONTRIBUTORS")
+        # commits are oldest-first; the multi-author commit is now last
+        # and the Other Fixture Person commit is second-to-last.
+        other = commits[-2]
+        self.assertEqual(other["authors"][0], "Other Fixture Person")
+        self.assertEqual(other["subject"], "docs: add CONTRIBUTORS")
+
+    def test_co_authored_commit_returns_all_distinct_authors(self) -> None:
+        """The multi-author fixture commit lists three Co-authored-by trailers
+        (one email-only) plus a Signed-off-by (ignored) and a duplicate
+        primary-author trailer (deduped). authors should be [primary, pair,
+        reviewer, emailonly-bot] in that order — the email-only trailer is
+        kept as its local-part to avoid leaking the @domain."""
+        # The multi-author commit is now the newest; the scanner emits
+        # oldest-first so it's last.
+        events = list(scan_tree(str(FIXTURE)))
+        final = next(e for e in events if e["phase"] == "final")
+        commits = final["manifest"]["commits"]
+        multi = commits[-1]
+        self.assertEqual(
+            multi["authors"],
+            [
+                "Test Fixture Bot",
+                "Pair Programmer",
+                "Reviewer Person",
+                "emailonly-bot",
+            ],
+        )
+        # Subject of the multi-author commit (sanity check we're looking at
+        # the right one).
+        self.assertEqual(multi["subject"], "feat: co-authored work")
 
     def test_collect_git_metadata_counts_merge_files(self):
         """A merge commit's combined-diff file count must be > 0, not the
@@ -754,7 +843,7 @@ class GitLogRobustnessTests(_CacheRedirectMixin, unittest.TestCase):
             commits = result["commits"]
             assert isinstance(commits, list)
             self.assertEqual(len(commits), 1)
-            author = commits[0]["author"]
+            author = commits[0]["authors"][0]
             self.assertIn("Fran", author)
             self.assertIn("ois", author)
 

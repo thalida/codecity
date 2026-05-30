@@ -1,7 +1,7 @@
 // colorInterp.test.ts — verifies the OKLCH interpolation helper.
 
 import { describe, it, expect } from 'vitest';
-import { interpolateOklch } from '@/scene/components/trees/colorInterp.js';
+import { interpolateOklch } from '@/scene/utils/color/colors.js';
 
 function rgb(r: number, g: number, b: number) {
   return { r, g, b };

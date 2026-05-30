@@ -614,12 +614,6 @@ function _buildFirefliesSection(): HTMLElement {
       _slider('Ring thickness', FIREFLIES, 'ORBIT_RING_THICKNESS', 0.02, 0.5, 0.01, {
         tip: 'Tube radius of the orbit ring in world units. Rebuilds geometry on change.',
       }),
-      _color('Hover color', FIREFLIES, 'ORBIT_RING_HOVER_COLOR', {
-        tip: 'Ring color when the corresponding tree is hovered.',
-      }),
-      _color('Selected color', FIREFLIES, 'ORBIT_RING_SELECTED_COLOR', {
-        tip: 'Ring color when the corresponding tree is selected.',
-      }),
     ])
   );
 

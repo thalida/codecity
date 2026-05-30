@@ -54,7 +54,10 @@ _FILE_CACHE_VERSION = 1
 # entries are missing those fields and would break manifest consumers.
 # Bumped to 10: dropped the per-entry `git_window` field — the scanner
 # no longer accepts a --since window and always walks full history.
-_GIT_HISTORY_CACHE_VERSION = 10
+# Bumped to 11: CommitEntry's `author: str` became `authors: list[str]`
+# (per-author fireflies + Co-authored-by trailer parsing). Pre-v11
+# entries have the wrong shape and would break manifest consumers.
+_GIT_HISTORY_CACHE_VERSION = 11
 # Bumped only when the manifest shape changes for reasons UNRELATED
 # to git-history output (e.g. a new field on FileNode). Git-history
 # shape changes don't need a bump here — they auto-invalidate through

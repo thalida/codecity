@@ -347,7 +347,7 @@ export function createCoordinator({ world, picker, rig, resetView, applyTheme }:
       appHeader.setSelection({
         kind: 'commit',
         sha: sel.commit.sha,
-        author: sel.commit.author,
+        authors: sel.commit.authors,
       });
     } else if (sel?.kind === NodeKind.File) {
       const node = sel.file;

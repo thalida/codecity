@@ -11,6 +11,9 @@
 // v7 replaces the merged-mesh ring with a lazy 2-slot pool — rings
 // render only for the hovered/selected commit, so ORBIT_RING_COLOR
 // and ORBIT_RING_OPACITY (the rest-state color/alpha) were dropped.
+// v8 drops ORBIT_RING_HOVER_COLOR and ORBIT_RING_SELECTED_COLOR — hover
+// rings now derive from each author's firefly color (lighter variant)
+// and selected rings render the shared RAINBOW chase used by tree outlines.
 
 import { map } from 'nanostores';
 
@@ -39,10 +42,6 @@ export interface FirefliesConfig {
   ORBIT_RING_ENABLED: boolean;
   /** Tube radius of the orbit ring in world units (constant across rings). */
   ORBIT_RING_THICKNESS: number;
-  /** Orbit ring color when the corresponding tree is hovered, hex string. */
-  ORBIT_RING_HOVER_COLOR: string;
-  /** Orbit ring color when the corresponding tree is selected, hex string. */
-  ORBIT_RING_SELECTED_COLOR: string;
 }
 
 export const FIREFLIES = map<FirefliesConfig>({
@@ -58,6 +57,4 @@ export const FIREFLIES = map<FirefliesConfig>({
   SCALE_MAX: 2.5,
   ORBIT_RING_ENABLED: true,
   ORBIT_RING_THICKNESS: 0.15,
-  ORBIT_RING_HOVER_COLOR: '#c8c8c8',
-  ORBIT_RING_SELECTED_COLOR: '#ffd700',
 });

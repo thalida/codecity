@@ -374,6 +374,38 @@ that the scanner's subject capture
 stops at the first newline.
 "
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# COMMIT 4 — Multi-author commit with Co-authored-by trailers
+# Used by per-author-fireflies tests. Includes a Signed-off-by trailer
+# (which the parser must IGNORE), three Co-authored-by trailers (one
+# email-only — privacy-fix regression-protection), and an extra trailer
+# where the primary author's name reappears (cherry-pick artifact — must
+# dedup).
+# ═══════════════════════════════════════════════════════════════════════════════
+
+write_file "MULTIAUTHOR.md" <<'EOF'
+# Multi-Author Test File
+
+Used by the per-author-fireflies tests as a tree placement target.
+EOF
+
+git -C "$REPO_DIR" add MULTIAUTHOR.md
+GIT_AUTHOR_DATE="2024-05-15T10:00:00+00:00" \
+GIT_COMMITTER_DATE="2024-05-15T10:00:00+00:00" \
+git -C "$REPO_DIR" commit -q -m "feat: co-authored work
+
+This commit was a team effort. Four trailers below — the parser
+should pick up all three Co-authored-by lines (stripping the @domain
+from the email-only one), ignore the Signed-off-by line, and dedup
+the duplicate primary-author entry.
+
+Signed-off-by: Test Fixture Bot <fixture-bot@codecity.test>
+Co-authored-by: Pair Programmer <pair@codecity.test>
+Co-authored-by: Reviewer Person <reviewer@codecity.test>
+Co-authored-by: <emailonly-bot@codecity.test>
+Co-authored-by: Test Fixture Bot <fixture-bot@codecity.test>
+"
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "sample-repo created at: $REPO_DIR"
 echo ""

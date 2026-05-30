@@ -5,7 +5,7 @@
 
 export interface CommitDetail {
   sha: string;
-  author: string;
+  authors: string[];
   date: string;
   subject: string;
   body: string;

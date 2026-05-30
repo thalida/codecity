@@ -50,22 +50,31 @@ class TestServeCommitDetail(unittest.TestCase):
                 self.assertEqual(status, 400)
                 self.assertIn("error", body)
 
-    def test_returns_author_subject_body_for_valid_sha(self) -> None:
-        # The fixture's last commit is by "Other Fixture Person".
+    def test_returns_authors_subject_body_for_valid_sha(self) -> None:
+        # The fixture's last commit is the multi-author "feat: co-authored work" one.
         sha = subprocess.check_output(
             ["git", "-C", str(FIXTURE), "rev-parse", "HEAD"], text=True,
         ).strip()
         status, body = self._get_commit(sha)
         self.assertEqual(status, 200)
         self.assertEqual(body["sha"], sha)
-        self.assertEqual(body["author"], "Other Fixture Person")
-        self.assertEqual(body["date"], "2024-04-05")
-        self.assertEqual(body["subject"], "docs: add CONTRIBUTORS")
-        # Multi-line body from the fixture commit.
-        self.assertIn("This is the body.", body["body"])
-        self.assertIn("multiple", body["body"])
-        # No email anywhere.
-        self.assertNotIn("@", json.dumps(body))
+        self.assertEqual(
+            body["authors"],
+            [
+                "Test Fixture Bot",
+                "Pair Programmer",
+                "Reviewer Person",
+                "emailonly-bot",
+            ],
+        )
+        self.assertEqual(body["date"], "2024-05-15")
+        self.assertEqual(body["subject"], "feat: co-authored work")
+        # Multi-line body
+        self.assertIn("team effort", body["body"])
+        # No email in the structured author list (privacy). The raw body
+        # may still contain the original trailer lines as written by git;
+        # only the parsed identities are sanitized.
+        self.assertNotIn("@", json.dumps(body["authors"]))
 
     def test_short_sha_resolves(self) -> None:
         full_sha = subprocess.check_output(

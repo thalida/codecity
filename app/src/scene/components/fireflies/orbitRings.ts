@@ -1,18 +1,31 @@
 // scene/fireflies/orbitRings.ts — selection/hover ring around the tree
 // for the currently hovered + currently selected commits.
 //
-// New shape: two slots (hover + selected). Each slot owns one Mesh
-// built lazily when its commitIndex is non-null AND visible per the
-// reconciliation rule. Materials are allocated once per slot; only
-// geometry is rebuilt on commit-change.
+// Shape: two slots (hover + selected). Each slot owns N Meshes — one
+// per author orb on the active commit — built lazily when commitIndex
+// is non-null AND visible per the reconciliation rule. Multi-author
+// commits emit multiple per-author orbits (different orbitRadius /
+// orbitTilt per author); the slot renders one ring per orbit so a
+// hovered 3-co-author tree shows all three orbits, not just one.
+//
+// Coloring:
+//   • Hover slot — each mesh gets its OWN MeshBasicMaterial colored as
+//     that orb's `lightRgb` (pastel of the author's firefly hue). A
+//     hovered 3-co-author tree shows three orbits in three pastel tints.
+//   • Selected slot — one shared MeshBasicMaterial with
+//     vertexColors: true. Each TubeGeometry carries a `color` attribute
+//     that update(timeMs) rewrites every frame to produce the shared
+//     RAINBOW chase used by the tree-canopy outline.
 //
 //   setHoveredCommit(idx):  update hover.commitIndex, reconcile.
 //   setSelectedCommit(idx): update selected slot (and reconcile hover).
-//   refresh():  reapply config colors to active slot materials.
-//   dispose():  drop both slot geometries + materials.
+//   update(timeMs):  advance the selected-slot rainbow chase.
+//   refresh():  re-read FIREFLIES.ORBIT_RING_ENABLED visibility.
+//   dispose():  drop both slots' geometries + materials.
 
 import * as THREE from 'three';
 import { FIREFLIES } from '@/config/components/fireflies.js';
+import { RAINBOW } from '@/config/effects/effects.js';
 import type { FireflyPlacement } from './firefliesPlacement.js';
 
 const TUBULAR_SEGMENTS = 96; // segments around the loop
@@ -47,10 +60,15 @@ export interface OrbitRings {
   /** Highlight the ring for the given commitIndex as selected. Pass null to clear. */
   setSelectedCommit(commitIndex: number | null): void;
   /**
-   * Reapply current config colors to active slot materials. Note:
-   * ORBIT_RING_THICKNESS is baked into geometry, so a thickness change
-   * only takes effect on the next slot rebuild (i.e. next hover/select
-   * change), not on this refresh() call.
+   * Advance the rainbow chase on selected rings. `timeMs` matches the
+   * tree-outline renderer's convention: `performance.now()` (milliseconds).
+   * Cheap no-op when no selected meshes exist.
+   */
+  update(timeMs: number): void;
+  /**
+   * Reapply current config to the active slots. Note: ORBIT_RING_THICKNESS
+   * is baked into geometry, so a thickness change only takes effect on
+   * the next slot rebuild. ORBIT_RING_ENABLED visibility is honored here.
    */
   refresh(): void;
   /** No-op for tube-based rings; kept for interface symmetry. */
@@ -58,12 +76,22 @@ export interface OrbitRings {
   dispose(): void;
 }
 
-interface Slot {
+interface HoverSlot {
   /** Logical state: what commit this slot tracks (independent of visibility). */
   commitIndex: number | null;
-  /** The currently-rendered mesh, or null if the slot has no visible ring. */
-  mesh: THREE.Mesh | null;
-  /** Pre-allocated material for this slot. Color is updated on refresh(). */
+  /** Currently-rendered meshes — one per author orb on the active commit.
+   *  Each mesh owns its own pastel-colored MeshBasicMaterial. */
+  meshes: THREE.Mesh[];
+}
+
+interface SelectedSlot {
+  commitIndex: number | null;
+  /** Currently-rendered meshes — one per author orb on the active commit.
+   *  All share a single vertexColors: true material; per-mesh color is in
+   *  the geometry's `color` attribute, rewritten every frame. */
+  meshes: THREE.Mesh[];
+  /** Shared material for all selected meshes — vertexColors: true so the
+   *  per-vertex rainbow buffer takes effect. */
   material: THREE.MeshBasicMaterial;
 }
 
@@ -74,6 +102,50 @@ function buildTubeGeometry(orb: FireflyPlacement, thickness: number): THREE.Tube
     orb.orbitTilt
   );
   return new THREE.TubeGeometry(path, TUBULAR_SEGMENTS, thickness, RADIAL_SEGMENTS, true);
+}
+
+/** Allocate a vertexCount × 3 `color` attribute on `geom` if it's missing.
+ *  Returns the underlying Float32Array so callers can mutate in place. */
+function ensureColorBuffer(geom: THREE.BufferGeometry): Float32Array {
+  let attr = geom.getAttribute('color') as THREE.BufferAttribute | undefined;
+  if (!attr) {
+    const vertexCount = (geom.getAttribute('position') as THREE.BufferAttribute).count;
+    const buf = new Float32Array(vertexCount * 3);
+    attr = new THREE.BufferAttribute(buf, 3);
+    geom.setAttribute('color', attr);
+  }
+  return attr.array as Float32Array;
+}
+
+const _rainbowTmpColor = new THREE.Color();
+
+/** Write the per-frame rainbow chase into a TubeGeometry's `color` buffer.
+ *  TubeGeometry vertex ordering is (tubularSegments + 1) × (radialSegments + 1),
+ *  indexed as `j * radialSlices + i` where j is the tubular slice and i
+ *  is the cross-section slice. All vertices on a given tubular slice share
+ *  the same hue so the chase rotates smoothly along the ring. */
+function writeRainbowToTube(mesh: THREE.Mesh, timeMs: number): void {
+  const geom = mesh.geometry as THREE.BufferGeometry;
+  const buf = ensureColorBuffer(geom);
+  const rb = RAINBOW.get();
+  // Match treeOutlineRenderer's convention: t = performance.now() * SPEED,
+  // where SPEED is hue cycles per millisecond.
+  const t = timeMs * rb.SPEED;
+  const tubularSlices = TUBULAR_SEGMENTS + 1;
+  const radialSlices = RADIAL_SEGMENTS + 1;
+  for (let j = 0; j < tubularSlices; j++) {
+    const hue = (((t + j / TUBULAR_SEGMENTS) % 1) + 1) % 1;
+    _rainbowTmpColor.setHSL(hue, rb.SATURATION, rb.LIGHTNESS);
+    for (let i = 0; i < radialSlices; i++) {
+      const vertexIdx = j * radialSlices + i;
+      const k = vertexIdx * 3;
+      buf[k] = _rainbowTmpColor.r;
+      buf[k + 1] = _rainbowTmpColor.g;
+      buf[k + 2] = _rainbowTmpColor.b;
+    }
+  }
+  const attr = geom.getAttribute('color') as THREE.BufferAttribute;
+  attr.needsUpdate = true;
 }
 
 export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
@@ -87,6 +159,7 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
       group,
       setHoveredCommit() {},
       setSelectedCommit() {},
+      update() {},
       refresh() {},
       onResize() {},
       dispose() {},
@@ -94,77 +167,125 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
   }
 
   // Build the placement lookup once. Pure pointer work — no geometry.
-  const placementByCommit = new Map<number, FireflyPlacement>();
+  // Multiple orbs share a commitIndex on multi-author commits (one orb
+  // per author), so the value is a list, not a single placement.
+  const placementsByCommit = new Map<number, FireflyPlacement[]>();
   for (const orb of orbs) {
-    placementByCommit.set(orb.commitIndex, orb);
+    let list = placementsByCommit.get(orb.commitIndex);
+    if (!list) {
+      list = [];
+      placementsByCommit.set(orb.commitIndex, list);
+    }
+    list.push(orb);
   }
 
-  function makeSlotMaterial(color: string): THREE.MeshBasicMaterial {
-    return new THREE.MeshBasicMaterial({
-      color,
-      // Match the firefly orbs' transparent pass; depthWrite: false keeps
-      // the ring from punching depth into the trees behind it.
+  /** Per-mesh material for hover rings — each tinted as that author's
+   *  pastel hue. Allocated and disposed lazily with the mesh. */
+  function makeHoverMaterial(lightRgb: [number, number, number]): THREE.MeshBasicMaterial {
+    const mat = new THREE.MeshBasicMaterial({
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
       toneMapped: false,
     });
+    // lightRgb is linear-RGB (0..1). Bypass three.js' working-color-space
+    // conversion so the OKLCH→linear math we did upstream isn't double-gamma'd.
+    mat.color.setRGB(lightRgb[0], lightRgb[1], lightRgb[2], THREE.LinearSRGBColorSpace);
+    return mat;
   }
 
-  const hover: Slot = {
+  /** Shared material for selected rings — vertexColors: true so the
+   *  per-vertex rainbow buffer drives the chase. */
+  const selectedMaterial = new THREE.MeshBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+
+  const hover: HoverSlot = {
     commitIndex: null,
-    mesh: null,
-    material: makeSlotMaterial(cfg.ORBIT_RING_HOVER_COLOR),
+    meshes: [],
   };
-  const selected: Slot = {
+  const selected: SelectedSlot = {
     commitIndex: null,
-    mesh: null,
-    material: makeSlotMaterial(cfg.ORBIT_RING_SELECTED_COLOR),
+    meshes: [],
+    material: selectedMaterial,
   };
 
-  function disposeSlotMesh(slot: Slot): void {
-    if (slot.mesh) {
-      group.remove(slot.mesh);
-      slot.mesh.geometry.dispose();
-      slot.mesh = null;
+  function disposeHoverMeshes(): void {
+    for (const mesh of hover.meshes) {
+      group.remove(mesh);
+      mesh.geometry.dispose();
+      // Each hover mesh owns its own material.
+      (mesh.material as THREE.MeshBasicMaterial).dispose();
+    }
+    hover.meshes = [];
+  }
+
+  function disposeSelectedMeshes(): void {
+    for (const mesh of selected.meshes) {
+      group.remove(mesh);
+      mesh.geometry.dispose();
+      // Selected meshes share `selectedMaterial` — don't dispose here.
+    }
+    selected.meshes = [];
+  }
+
+  function buildHoverMeshes(slotOrbs: FireflyPlacement[]): void {
+    const thickness = FIREFLIES.get().ORBIT_RING_THICKNESS;
+    for (const orb of slotOrbs) {
+      const geom = buildTubeGeometry(orb, thickness);
+      const mat = makeHoverMaterial(orb.lightRgb);
+      const mesh = new THREE.Mesh(geom, mat);
+      mesh.frustumCulled = false;
+      hover.meshes.push(mesh);
+      group.add(mesh);
     }
   }
 
-  function buildSlotMesh(slot: Slot, orb: FireflyPlacement): void {
-    const geom = buildTubeGeometry(orb, FIREFLIES.get().ORBIT_RING_THICKNESS);
-    const mesh = new THREE.Mesh(geom, slot.material);
-    mesh.frustumCulled = false;
-    slot.mesh = mesh;
-    group.add(mesh);
+  function buildSelectedMeshes(slotOrbs: FireflyPlacement[]): void {
+    const thickness = FIREFLIES.get().ORBIT_RING_THICKNESS;
+    for (const orb of slotOrbs) {
+      const geom = buildTubeGeometry(orb, thickness);
+      // Pre-allocate the color attribute so the renderer sees it on the
+      // very first frame; update() will populate it before the next render.
+      ensureColorBuffer(geom);
+      const mesh = new THREE.Mesh(geom, selected.material);
+      mesh.frustumCulled = false;
+      selected.meshes.push(mesh);
+      group.add(mesh);
+    }
   }
 
-  /** The hover mesh should be visible iff hover is set AND distinct from selected. */
-  function reconcileHoverMesh(): void {
+  /** The hover meshes should be visible iff hover is set AND distinct from selected. */
+  function reconcileHoverMeshes(): void {
     const shouldShow = hover.commitIndex !== null && hover.commitIndex !== selected.commitIndex;
 
     if (!shouldShow) {
-      disposeSlotMesh(hover);
+      disposeHoverMeshes();
       return;
     }
 
     // hover.commitIndex is non-null per shouldShow.
-    const orb = placementByCommit.get(hover.commitIndex);
-    if (!orb) {
-      disposeSlotMesh(hover);
+    const slotOrbs = placementsByCommit.get(hover.commitIndex!);
+    if (!slotOrbs) {
+      disposeHoverMeshes();
       return;
     }
-    disposeSlotMesh(hover);
-    buildSlotMesh(hover, orb);
+    disposeHoverMeshes();
+    buildHoverMeshes(slotOrbs);
   }
 
   function setSelectedSlot(idx: number | null): void {
     if (selected.commitIndex === idx) return;
     selected.commitIndex = idx;
-    disposeSlotMesh(selected);
+    disposeSelectedMeshes();
     if (idx === null) return;
-    const orb = placementByCommit.get(idx);
-    if (!orb) return;
-    buildSlotMesh(selected, orb);
+    const slotOrbs = placementsByCommit.get(idx);
+    if (!slotOrbs) return;
+    buildSelectedMeshes(slotOrbs);
   }
 
   return {
@@ -173,30 +294,32 @@ export function createOrbitRings(orbs: FireflyPlacement[]): OrbitRings {
     setHoveredCommit(commitIndex: number | null) {
       if (hover.commitIndex === commitIndex) return;
       hover.commitIndex = commitIndex;
-      reconcileHoverMesh();
+      reconcileHoverMeshes();
     },
 
     setSelectedCommit(commitIndex: number | null) {
       setSelectedSlot(commitIndex);
-      reconcileHoverMesh();
+      reconcileHoverMeshes();
+    },
+
+    update(timeMs: number) {
+      if (selected.meshes.length === 0) return;
+      for (const mesh of selected.meshes) {
+        writeRainbowToTube(mesh, timeMs);
+      }
     },
 
     refresh() {
       const next = FIREFLIES.get();
       group.visible = next.ORBIT_RING_ENABLED;
-      hover.material.color.set(next.ORBIT_RING_HOVER_COLOR);
-      selected.material.color.set(next.ORBIT_RING_SELECTED_COLOR);
-      hover.material.needsUpdate = true;
-      selected.material.needsUpdate = true;
     },
 
     onResize() {},
 
     dispose() {
-      disposeSlotMesh(hover);
-      disposeSlotMesh(selected);
-      hover.material.dispose();
-      selected.material.dispose();
+      disposeHoverMeshes();
+      disposeSelectedMeshes();
+      selectedMaterial.dispose();
       group.clear();
     },
   };

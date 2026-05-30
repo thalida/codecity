@@ -5,7 +5,7 @@ import {
   shadeColor,
   shadeAndShiftHue,
   shadeByRatio,
-} from '@/scene/utils/color/hsl.js';
+} from '@/scene/utils/color/colors.js';
 
 describe('hslToComponents', () => {
   it('parses a standard hsl() string', () => {

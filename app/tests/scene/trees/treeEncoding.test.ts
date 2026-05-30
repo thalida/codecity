@@ -92,7 +92,7 @@ describe('ageT()', () => {
           date: '2026-01-01',
           files: 1,
           sha: 'a'.repeat(40),
-          author: 'Test Author',
+          authors: ['Test Author'],
           subject: 'test commit',
         },
         zero
@@ -108,7 +108,7 @@ describe('ageT()', () => {
           date: '2025-01-01',
           files: 1,
           sha: 'a'.repeat(40),
-          author: 'Test Author',
+          authors: ['Test Author'],
           subject: 'test commit',
         },
         range
@@ -120,7 +120,7 @@ describe('ageT()', () => {
           date: '2027-01-01',
           files: 1,
           sha: 'a'.repeat(40),
-          author: 'Test Author',
+          authors: ['Test Author'],
           subject: 'test commit',
         },
         range
@@ -148,7 +148,7 @@ describe('sizeT()', () => {
           date: '2026-01-01',
           files: 1,
           sha: 'a'.repeat(40),
-          author: 'Test Author',
+          authors: ['Test Author'],
           subject: 'test commit',
         },
         zero

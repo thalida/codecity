@@ -63,6 +63,11 @@ export function createFireflies(
     group: parent,
     setTime(seconds: number) {
       renderer.setTime(seconds);
+      // Piggyback on the per-frame setTime tick to advance the orbit-ring
+      // rainbow chase on selected commits. rings.update wants milliseconds
+      // (matches treeOutlineRenderer's `performance.now() * RAINBOW.SPEED`
+      // convention); convert from the seconds the renderer was passed.
+      rings.update(seconds * 1000);
     },
     setHoveredCommit(sha: string | null) {
       const idx = sha === null ? null : (shaToIndex.get(sha) ?? null);

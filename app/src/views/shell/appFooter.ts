@@ -15,6 +15,7 @@
 // The refresh/reset-view button has moved to the header (far right).
 
 import { DateSource, NodeKind } from '@/types';
+import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates.js';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
@@ -109,7 +110,9 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
       // calls setStatus before LAST_UPDATED_AT is seeded. Production
       // boot seeds the stamp in coordinator.ts before this setter runs.
       detailText =
-        status.lastUpdatedAt > 0 ? _relativeTime(status.lastUpdatedAt, Date.now()) : 'ready';
+        status.lastUpdatedAt > 0
+          ? formatRelativeAgeShort(status.lastUpdatedAt, Date.now())
+          : 'ready';
     }
     statusEl.classList.add(buildModifier);
     statusEl.classList.add(status.liveEnabled ? 'is-live' : 'is-paused');
@@ -155,13 +158,13 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
       if (sel.lines != null) items.push(_item(`${sel.lines} lines`));
       if (sel.size != null) items.push(_item(_formatBytes(sel.size)));
       if (sel.modified) {
-        const relMod = `modified ${_relativeTime(new Date(sel.modified).getTime(), Date.now())}`;
-        const absMod = `modified ${_formatDate(sel.modified)}`;
+        const relMod = `modified ${formatRelativeAgeShort(new Date(sel.modified).getTime(), Date.now())}`;
+        const absMod = `modified ${formatShortDate(sel.modified)}`;
         items.push(_item(relMod, sel.dateSource, absMod));
       }
       if (sel.created) {
-        const relCre = `created ${_relativeTime(new Date(sel.created).getTime(), Date.now())}`;
-        const absCre = `created ${_formatDate(sel.created)}`;
+        const relCre = `created ${formatRelativeAgeShort(new Date(sel.created).getTime(), Date.now())}`;
+        const absCre = `created ${formatShortDate(sel.created)}`;
         items.push(_item(relCre, sel.dateSource, absCre));
       }
     } else if (sel.kind === NodeKind.Directory) {
@@ -179,23 +182,6 @@ export function initAppFooter(_opts: InitAppFooterOpts = {}) {
   }
 
   return { setSelection, setStatus };
-}
-
-const SEC_MS = 1000;
-const MIN_MS = 60 * SEC_MS;
-const HOUR_MS = 60 * MIN_MS;
-const DAY_MS = 24 * HOUR_MS;
-const MONTH_MS = 30 * DAY_MS;
-const YEAR_MS = 365 * DAY_MS;
-function _relativeTime(then: number, now: number): string {
-  const diff = Math.max(0, now - then);
-  if (diff < 5 * SEC_MS) return 'just now';
-  if (diff < MIN_MS) return `${Math.floor(diff / SEC_MS)}s ago`;
-  if (diff < HOUR_MS) return `${Math.floor(diff / MIN_MS)}m ago`;
-  if (diff < DAY_MS) return `${Math.floor(diff / HOUR_MS)}h ago`;
-  if (diff < MONTH_MS) return `${Math.floor(diff / DAY_MS)}d ago`;
-  if (diff < YEAR_MS) return `${Math.floor(diff / MONTH_MS)}mo ago`;
-  return `${Math.floor(diff / YEAR_MS)}y ago`;
 }
 
 function _makeSep(): HTMLSpanElement {
@@ -255,16 +241,4 @@ function _directoryCountItem(
     undefined,
     `${direct} direct · ${total} total in this subtree`
   );
-}
-
-const DATE_FORMAT_OPTIONS: Intl.DateTimeFormatOptions = {
-  year: 'numeric',
-  month: 'short',
-  day: 'numeric',
-};
-function _formatDate(isoString: string | null | undefined): string {
-  if (!isoString) return '—';
-  const d = new Date(isoString);
-  if (isNaN(d.getTime())) return isoString;
-  return d.toLocaleDateString('en-US', DATE_FORMAT_OPTIONS);
 }

@@ -3,6 +3,7 @@
 // and animation tuning (applied on Save via applyTheme(); read fresh per frame).
 
 import { map } from 'nanostores';
+import { oklchToHex } from '@/scene/utils/color/colors.js';
 
 // ─── Sizing + landing zone ────────────────────────────────────────────────
 // Layout reserves dead space around the gem based on these — changing any
@@ -29,10 +30,16 @@ export const GEM_SIZING = map<GemSizingConfig>({
 });
 
 // ─── Face palette ──────────────────────────────────────────────────────────
-// 8 vivid hex colors used to tint the gem's faces. The renderer cycles
-// through this list with `faces[i % 8]`, so it works for shapes with
-// fewer faces (tetrahedron uses the first 4) and more (icosahedron's
-// 20 faces cycle through twice + 4). Applied on Save via applyTheme().
+// 8 hex colors used to tint the gem's faces. The renderer cycles through
+// this list with `faces[i % 8]`, so it works for shapes with fewer faces
+// (tetrahedron uses the first 4) and more (icosahedron's 20 faces cycle
+// through twice + 4). Applied on Save via applyTheme().
+//
+// Defaults are generated as an OKLCH rainbow — fixed lightness + chroma
+// at 8 evenly-spaced hues. OKLCH is perceptually uniform, so each step
+// looks like an equal hue jump (HSL-based rainbows make yellow read
+// much brighter than blue at the same lightness, which gives uneven
+// tone transitions across the gem). User overrides via Controls.
 export interface GemFacePaletteConfig {
   FACE_1: string;
   FACE_2: string;
@@ -44,15 +51,25 @@ export interface GemFacePaletteConfig {
   FACE_8: string;
 }
 
+// OKLCH params for the default rainbow. Slightly more vibrant than the
+// firefly orb palette (orbs use L=0.78, C=0.18); the gem benefits from
+// higher chroma since each face is a large solid area, where the
+// fireflies are tiny moving dots whose color already gets boosted by
+// the additive bloom pass.
+const FACE_L = 0.75;
+const FACE_C = 0.22;
+const FACE_COUNT = 8;
+const faceHex = (i: number): string => oklchToHex(FACE_L, FACE_C, (i / FACE_COUNT) * 360);
+
 export const GEM_FACE_PALETTE = map<GemFacePaletteConfig>({
-  FACE_1: '#ff99c5', // pastel pink
-  FACE_2: '#ffc999', // pastel peach
-  FACE_3: '#fffc99', // pastel yellow
-  FACE_4: '#a5ff99', // pastel green
-  FACE_5: '#99fffd', // pastel cyan
-  FACE_6: '#99d3ff', // pastel sky
-  FACE_7: '#beb3ff', // pastel lavender
-  FACE_8: '#f099ff', // pastel orchid
+  FACE_1: faceHex(0),
+  FACE_2: faceHex(1),
+  FACE_3: faceHex(2),
+  FACE_4: faceHex(3),
+  FACE_5: faceHex(4),
+  FACE_6: faceHex(5),
+  FACE_7: faceHex(6),
+  FACE_8: faceHex(7),
 });
 
 // ─── Appearance ────────────────────────────────────────────────────────────

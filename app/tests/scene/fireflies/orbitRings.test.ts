@@ -8,7 +8,6 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { createOrbitRings } from '@/scene/components/fireflies/orbitRings.js';
 import type { FireflyPlacement } from '@/scene/components/fireflies/firefliesPlacement.js';
-import { FIREFLIES } from '@/config/components/fireflies.js';
 
 const RING_GROUP_NAME = 'firefly-orbit-rings';
 
@@ -24,6 +23,8 @@ function makePlacement(commitIndex: number): FireflyPlacement {
     pulsePhase: 0,
     colorHex: '#ffffff',
     rgb: [1, 1, 1],
+    lightRgb: [0.5, 0.5, 0.5],
+    lightHex: '#808080',
     scale: 1,
     commitIndex,
   };
@@ -33,11 +34,6 @@ const PLACEMENTS: FireflyPlacement[] = [makePlacement(0), makePlacement(1), make
 
 function meshesIn(rings: ReturnType<typeof createOrbitRings>): THREE.Mesh[] {
   return rings.group.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
-}
-
-function colorOf(mesh: THREE.Mesh): THREE.Color {
-  const mat = mesh.material as THREE.MeshBasicMaterial;
-  return mat.color;
 }
 
 describe('createOrbitRings — lazy pool', () => {
@@ -52,6 +48,7 @@ describe('createOrbitRings — lazy pool', () => {
     const rings = createOrbitRings([]);
     expect(() => rings.setHoveredCommit(0)).not.toThrow();
     expect(() => rings.setSelectedCommit(0)).not.toThrow();
+    expect(() => rings.update(0)).not.toThrow();
     expect(meshesIn(rings).length).toBe(0);
     rings.dispose();
   });
@@ -102,16 +99,13 @@ describe('createOrbitRings — lazy pool', () => {
     rings.dispose();
   });
 
-  it('setSelectedCommit(idx) builds a mesh with the selected color', () => {
+  it('setSelectedCommit(idx) builds a mesh whose material has vertexColors enabled', () => {
     const rings = createOrbitRings(PLACEMENTS);
     rings.setSelectedCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
-    const got = colorOf(ms[0]);
-    expect(got.r).toBeCloseTo(expected.r, 4);
-    expect(got.g).toBeCloseTo(expected.g, 4);
-    expect(got.b).toBeCloseTo(expected.b, 4);
+    const mat = ms[0].material as THREE.MeshBasicMaterial;
+    expect(mat.vertexColors).toBe(true);
     rings.dispose();
   });
 
@@ -121,22 +115,21 @@ describe('createOrbitRings — lazy pool', () => {
     rings.setSelectedCommit(0);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
-    expect(colorOf(ms[0]).r).toBeCloseTo(expected.r, 4);
+    const mat = ms[0].material as THREE.MeshBasicMaterial;
+    expect(mat.vertexColors).toBe(true);
     rings.dispose();
   });
 
-  it('hover + selected on different commits shows two meshes with distinct colors', () => {
+  it('hover + selected on different commits shows two meshes with distinct material strategies', () => {
     const rings = createOrbitRings(PLACEMENTS);
     rings.setHoveredCommit(0);
     rings.setSelectedCommit(1);
     const ms = meshesIn(rings);
     expect(ms.length).toBe(2);
-    const hoverColor = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    const selColor = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
-    const colors = ms.map((m) => colorOf(m).getHexString());
-    expect(colors).toContain(hoverColor.getHexString());
-    expect(colors).toContain(selColor.getHexString());
+    const vcFlags = ms.map((m) => (m.material as THREE.MeshBasicMaterial).vertexColors);
+    // Exactly one of each: hover (false) + selected (true).
+    expect(vcFlags.filter((v) => v === true).length).toBe(1);
+    expect(vcFlags.filter((v) => v === false).length).toBe(1);
     rings.dispose();
   });
 
@@ -151,25 +144,8 @@ describe('createOrbitRings — lazy pool', () => {
     // hover slot's mesh comes back.
     const ms = meshesIn(rings);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    expect(colorOf(ms[0]).r).toBeCloseTo(expected.r, 4);
-    rings.dispose();
-  });
-
-  it('refresh() updates the active slot materials when hover/selected colors change', () => {
-    const rings = createOrbitRings(PLACEMENTS);
-    rings.setHoveredCommit(0);
-    const orig = FIREFLIES.get().ORBIT_RING_HOVER_COLOR;
-    FIREFLIES.setKey('ORBIT_RING_HOVER_COLOR', '#00ff00');
-    try {
-      rings.refresh();
-      const expected = new THREE.Color('#00ff00');
-      expect(colorOf(meshesIn(rings)[0]).r).toBeCloseTo(expected.r, 4);
-      expect(colorOf(meshesIn(rings)[0]).g).toBeCloseTo(expected.g, 4);
-      expect(colorOf(meshesIn(rings)[0]).b).toBeCloseTo(expected.b, 4);
-    } finally {
-      FIREFLIES.setKey('ORBIT_RING_HOVER_COLOR', orig);
-    }
+    // The restored mesh is a hover mesh: vertexColors must be false.
+    expect((ms[0].material as THREE.MeshBasicMaterial).vertexColors).toBe(false);
     rings.dispose();
   });
 
@@ -180,6 +156,162 @@ describe('createOrbitRings — lazy pool', () => {
     rings.dispose();
     expect(meshesIn(rings).length).toBe(0);
     expect(() => rings.dispose()).not.toThrow();
+  });
+
+  // ── Color strategy (per-author hover, rainbow selected) ──────────────
+
+  it("hover ring uses each orb's lightRgb as material color", () => {
+    const placement: FireflyPlacement = {
+      ...makePlacement(0),
+      lightRgb: [0.9, 0.8, 0.7],
+      lightHex: '#e6ccb3',
+    };
+    const rings = createOrbitRings([placement]);
+    rings.setHoveredCommit(0);
+    const ms = meshesIn(rings);
+    expect(ms.length).toBe(1);
+    const mat = ms[0].material as THREE.MeshBasicMaterial;
+    expect(mat.color.r).toBeCloseTo(0.9, 3);
+    expect(mat.color.g).toBeCloseTo(0.8, 3);
+    expect(mat.color.b).toBeCloseTo(0.7, 3);
+    rings.dispose();
+  });
+
+  it("multi-author hover rings each use that author's lightRgb", () => {
+    // Three orbs at the same commitIndex with distinct lightRgb values.
+    const placements: FireflyPlacement[] = [0, 1, 2].map((i) => ({
+      ...makePlacement(0),
+      orbitRadius: 2 + i, // distinct geometry so they don't collapse
+      lightRgb: [i / 2, 1 - i / 2, 0.5] as [number, number, number],
+      lightHex: '#000000',
+    }));
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    const ms = meshesIn(rings);
+    expect(ms.length).toBe(3);
+    for (let i = 0; i < 3; i++) {
+      const mat = ms[i].material as THREE.MeshBasicMaterial;
+      expect(mat.color.r).toBeCloseTo(i / 2, 3);
+      expect(mat.color.g).toBeCloseTo(1 - i / 2, 3);
+      expect(mat.color.b).toBeCloseTo(0.5, 3);
+    }
+    rings.dispose();
+  });
+
+  it('selected ring material uses vertexColors and gets a color attribute', () => {
+    const rings = createOrbitRings(PLACEMENTS);
+    rings.setSelectedCommit(0);
+    rings.update(performance.now());
+    const ms = meshesIn(rings);
+    const mat = ms[0].material as THREE.MeshBasicMaterial;
+    expect(mat.vertexColors).toBe(true);
+    const colorAttr = (ms[0].geometry as THREE.BufferGeometry).getAttribute('color');
+    expect(colorAttr).toBeDefined();
+    expect(colorAttr.count).toBeGreaterThan(0);
+    rings.dispose();
+  });
+
+  it('update(t) advances rainbow chase on selected rings', () => {
+    const rings = createOrbitRings(PLACEMENTS);
+    rings.setSelectedCommit(0);
+    rings.update(0);
+    const attr1 = (meshesIn(rings)[0].geometry as THREE.BufferGeometry).getAttribute(
+      'color'
+    ) as THREE.BufferAttribute;
+    const buf1 = Float32Array.from(attr1.array as Float32Array);
+    // Advance by 1000ms. RAINBOW.SPEED is hue cycles per ms (default 0.0005),
+    // so a 1-second delta moves the chase by 0.5 cycles — guaranteed different
+    // from the t=0 sample.
+    rings.update(1000);
+    const attr2 = (meshesIn(rings)[0].geometry as THREE.BufferGeometry).getAttribute(
+      'color'
+    ) as THREE.BufferAttribute;
+    const buf2 = Float32Array.from(attr2.array as Float32Array);
+    let differs = false;
+    for (let i = 0; i < buf1.length; i++) {
+      if (buf1[i] !== buf2[i]) {
+        differs = true;
+        break;
+      }
+    }
+    expect(differs).toBe(true);
+    rings.dispose();
+  });
+
+  it('update() is a cheap no-op when nothing is selected', () => {
+    const rings = createOrbitRings(PLACEMENTS);
+    // Only hover; no selected meshes.
+    rings.setHoveredCommit(0);
+    expect(() => rings.update(0)).not.toThrow();
+    expect(() => rings.update(123456)).not.toThrow();
+    rings.dispose();
+  });
+
+  // ── Multi-author commits (N orbs per commitIndex) ────────────────────
+
+  /** Three orbs at the same commitIndex, each with a distinct orbit shape —
+   *  mirrors what placeFireflies emits for a 3-co-author commit. */
+  function multiAuthorPlacements(commitIndex: number): FireflyPlacement[] {
+    return [
+      { ...makePlacement(commitIndex), orbitRadius: 2.0, orbitTilt: 0.1, orbitStartAngle: 0.0 },
+      { ...makePlacement(commitIndex), orbitRadius: 3.0, orbitTilt: 0.3, orbitStartAngle: 1.0 },
+      { ...makePlacement(commitIndex), orbitRadius: 4.0, orbitTilt: 0.5, orbitStartAngle: 2.0 },
+    ];
+  }
+
+  it('setHoveredCommit on a multi-author commit builds one ring mesh per author orb', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    // Three co-authors at commit 0 → three orbit rings.
+    expect(meshesIn(rings).length).toBe(3);
+    rings.dispose();
+  });
+
+  it('setSelectedCommit on a multi-author commit builds one ring mesh per author orb', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setSelectedCommit(0);
+    expect(meshesIn(rings).length).toBe(3);
+    rings.dispose();
+  });
+
+  it('hover + selected on different multi-author commits shows N + M rings', () => {
+    const placements = [...multiAuthorPlacements(0), ...multiAuthorPlacements(1)];
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0); // 3 hover rings
+    rings.setSelectedCommit(1); // 2 selected rings (different placements at idx 1)
+    // multiAuthorPlacements(1) emits 3 orbs too → 3 selected + 3 hover = 6.
+    expect(meshesIn(rings).length).toBe(6);
+    rings.dispose();
+  });
+
+  it('clearing hover on a multi-author commit disposes all of its rings', () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    expect(meshesIn(rings).length).toBe(3);
+    rings.setHoveredCommit(null);
+    expect(meshesIn(rings).length).toBe(0);
+    rings.dispose();
+  });
+
+  it("multi-author ring geometries reflect each orb's distinct orbit params", () => {
+    const placements = multiAuthorPlacements(0);
+    const rings = createOrbitRings(placements);
+    rings.setHoveredCommit(0);
+    const ms = meshesIn(rings);
+    expect(ms.length).toBe(3);
+    // Each tube geometry's bounding sphere radius is roughly proportional
+    // to its orbitRadius. Compute and dedupe — three distinct radii expected.
+    const radii = new Set<number>();
+    for (const m of ms) {
+      const geom = m.geometry as THREE.BufferGeometry;
+      geom.computeBoundingSphere();
+      radii.add(Math.round((geom.boundingSphere?.radius ?? 0) * 100));
+    }
+    expect(radii.size).toBe(3);
+    rings.dispose();
   });
 
   it('factory does zero upfront geometry; setHoveredCommit stays fast at 100k placements', () => {

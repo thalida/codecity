@@ -38,7 +38,7 @@ import {
   type SizeRange,
   type DailyCounts,
 } from './treeEncoding.js';
-import { interpolateOklch } from './colorInterp.js';
+import { interpolateOklch } from '@/scene/utils/color/colors.js';
 import { sunDirFromLighting } from '@/scene/components/lighting/sunDir.js';
 
 export interface Trees {

@@ -26,7 +26,7 @@ export type HeaderSelection =
   | {
       kind: 'commit';
       sha: string;
-      author: string;
+      authors: string[];
     };
 
 interface InitAppHeaderOpts {
@@ -153,7 +153,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
     }
 
     if (sel.kind === 'commit') {
-      // "Commit <short-sha> · <author>" with copy-full-sha button.
+      // "Commit <short-sha> · <primary>[ (+N)]" with copy-full-sha button.
       const label = document.createTextNode('Commit ');
       titleEl!.appendChild(label);
       const shaEl = document.createElement('span');
@@ -162,7 +162,10 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       titleEl!.appendChild(shaEl);
       const authorEl = document.createElement('span');
       authorEl.className = 'app-header-commit-author';
-      authorEl.textContent = ` · ${sel.author || '(unknown)'}`;
+      const primary = sel.authors[0] || '(unknown)';
+      const coAuthorCount = Math.max(0, sel.authors.length - 1);
+      authorEl.textContent =
+        coAuthorCount > 0 ? ` · ${primary} (+${coAuthorCount})` : ` · ${primary}`;
       titleEl!.appendChild(authorEl);
       titleEl!.appendChild(_makeCopyButton(sel.sha));
       _crumbsEl = null;

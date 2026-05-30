@@ -84,18 +84,19 @@ export interface RepoInfo {
  * placement (the chronological-outward planting order). `date` is
  * day-precision (`YYYY-MM-DD`) — sufficient for the age signal, keeps
  * payload small. `files` = count of changed paths in the commit
- * (`A/M/D/T/U` rows from `git log --name-status`). `author` is the git
- * `%an` value (name only — no email); `subject` is `%s` (first line of
- * the commit message). Full message body is fetched lazily via
- * `/api/commit?sha=…`.
+ * (`A/M/D/T/U` rows from `git log --name-status`). `authors` is the
+ * deduped list of distinct contributors — primary (`%an`) at index 0,
+ * `Co-authored-by:` trailer names following. Emails stripped (privacy).
+ * `subject` is `%s` (first line of the commit message). Full message
+ * body is fetched lazily via `/api/commit?sha=…`.
  */
 export interface CommitEntry {
   date: string; // "YYYY-MM-DD"
   files: number;
   /** Full 40-char lowercase hex SHA. UI displays the first 7. */
   sha: string;
-  /** Author name (no email). */
-  author: string;
+  /** Authors of this commit, primary first. Always length ≥ 1. */
+  authors: string[];
   /** First line of the commit message. */
   subject: string;
 }

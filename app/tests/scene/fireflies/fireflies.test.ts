@@ -6,7 +6,7 @@ import type { CommitEntry } from '@/types';
 import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
 
 const COMMITS: CommitEntry[] = [
-  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), author: 'Alice', subject: 'a' },
+  { date: '2026-01-01', files: 1, sha: 'a'.repeat(40), authors: ['Alice'], subject: 'a' },
 ];
 
 const PLACEMENTS: TreePlacement[] = [{ x: 0, y: 0, commitIndex: 0, seed: 0 } as TreePlacement];
@@ -15,10 +15,6 @@ function ringMeshes(f: ReturnType<typeof createFireflies>): THREE.Mesh[] {
   const ringGroup = f.group.children.find((c) => c.name === 'firefly-orbit-rings');
   if (!ringGroup) return [];
   return ringGroup.children.filter((c): c is THREE.Mesh => (c as THREE.Mesh).isMesh === true);
-}
-
-function meshColor(mesh: THREE.Mesh): THREE.Color {
-  return (mesh.material as THREE.MeshBasicMaterial).color;
 }
 
 describe('createFireflies', () => {
@@ -120,27 +116,32 @@ describe('createFireflies', () => {
     }
   });
 
-  it('setHoveredCommit shows one ring mesh with the hover color', () => {
+  it("setHoveredCommit shows one ring mesh tinted with the author's pastel color", async () => {
+    const { lightColorForAuthor } = await import('@/scene/components/fireflies/authorColor.js');
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     const ms = ringMeshes(f);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    const got = meshColor(ms[0]);
-    expect(got.r).toBeCloseTo(expected.r, 4);
-    expect(got.g).toBeCloseTo(expected.g, 4);
-    expect(got.b).toBeCloseTo(expected.b, 4);
+    // Hover meshes carry per-mesh materials colored as the author's lightRgb,
+    // not a shared config color. vertexColors stays false on hover.
+    const mat = ms[0].material as THREE.MeshBasicMaterial;
+    expect(mat.vertexColors).toBe(false);
+    const expected = lightColorForAuthor(COMMITS[0].authors[0]).rgb;
+    expect(mat.color.r).toBeCloseTo(expected[0], 3);
+    expect(mat.color.g).toBeCloseTo(expected[1], 3);
+    expect(mat.color.b).toBeCloseTo(expected[2], 3);
     f.dispose();
   });
 
-  it('selected and hovered on the same commit shows only the selected mesh', () => {
+  it('selected and hovered on the same commit shows only the selected mesh (rainbow vertex colors)', () => {
     const f = createFireflies(PLACEMENTS, COMMITS);
     f.setHoveredCommit(COMMITS[0].sha);
     f.setSelectedCommit(COMMITS[0].sha);
     const ms = ringMeshes(f);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_SELECTED_COLOR);
-    expect(meshColor(ms[0]).r).toBeCloseTo(expected.r, 4);
+    // Selected uses the shared vertexColors: true material; the static
+    // `.color` field is unused for selected rings.
+    expect((ms[0].material as THREE.MeshBasicMaterial).vertexColors).toBe(true);
     f.dispose();
   });
 
@@ -151,8 +152,8 @@ describe('createFireflies', () => {
     f.setSelectedCommit(null);
     const ms = ringMeshes(f);
     expect(ms.length).toBe(1);
-    const expected = new THREE.Color(FIREFLIES.get().ORBIT_RING_HOVER_COLOR);
-    expect(meshColor(ms[0]).r).toBeCloseTo(expected.r, 4);
+    // The restored mesh is a hover mesh (per-mesh material, vertexColors off).
+    expect((ms[0].material as THREE.MeshBasicMaterial).vertexColors).toBe(false);
     f.dispose();
   });
 
