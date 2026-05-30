@@ -35,6 +35,8 @@ import type { Manifest } from './types';
 import { PICKER_SELECTION_KEY } from './scene/system/picker';
 import { manifestUrl } from './api/manifest';
 import { srcKind, labelFromUrl, labelFromManifest } from './utils/sources';
+import { applyPendingTitle } from './utils/pendingTitle';
+import { EMPTY_MANIFEST } from './utils/emptyManifest';
 import { applyHljsTheme } from './utils/syntaxTheme';
 import { buildIconAtlas } from './scene/components/buildings/iconAtlas';
 import { setIconAtlas } from './scene/components/buildings/buildings';
@@ -48,7 +50,8 @@ import { mountRightSidebarReactions } from './views/shell/rightSidebar';
 import type { SourcePayload } from './views/components/sourcePicker';
 import { SERVER_CONFIG } from './state/runtime/serverConfig';
 
-export { applyPendingTitle, EMPTY_MANIFEST } from './boot';
+export { applyPendingTitle } from './utils/pendingTitle';
+export { EMPTY_MANIFEST } from './utils/emptyManifest';
 
 /**
  * Run the full app boot sequence. Called from App.tsx's useEffect once the
@@ -390,36 +393,3 @@ export async function runAppLogic(): Promise<() => void> {
   };
 }
 
-function applyPendingTitle(displayRoot: string): void {
-  const label = labelFromUrl(displayRoot);
-  document.title = label ? `${label} (pending) — codecity` : 'codecity';
-}
-
-const EMPTY_MANIFEST: Manifest = {
-  root: '',
-  scanned_at: new Date().toISOString(),
-  signature: '',
-  tree_signature: '',
-  tree: {
-    name: '',
-    type: NodeKind.Directory,
-    path: '',
-    fullPath: '',
-    children: [],
-    children_count: 0,
-    children_file_count: 0,
-    children_dir_count: 0,
-    descendants_count: 0,
-    descendants_file_count: 0,
-    descendants_dir_count: 0,
-    descendants_size: 0,
-  },
-  repo: {
-    branch: null,
-    remote_url: null,
-    head_sha: null,
-    head_subject: null,
-    dirty: false,
-  },
-  commits: [],
-};

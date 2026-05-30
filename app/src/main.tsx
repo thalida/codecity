@@ -7,7 +7,8 @@ import './styles.css';
 import { App } from './views/shell/App';
 
 // Re-export so tests that import from '@/main' continue to resolve.
-export { applyPendingTitle, EMPTY_MANIFEST } from './boot';
+export { applyPendingTitle } from './utils/pendingTitle';
+export { EMPTY_MANIFEST } from './utils/emptyManifest';
 
 const mount = document.getElementById('app');
 if (mount) {
