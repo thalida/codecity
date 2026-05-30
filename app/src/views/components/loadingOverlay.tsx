@@ -1,4 +1,4 @@
-// views/components/loadingOverlay.ts — Centered spinner + stepped progress indicator shown
+// views/components/loadingOverlay.tsx — Centered spinner + stepped progress indicator shown
 // whenever a manifest is being fetched or applied. Reused for direct-boot
 // loads and modal submits so the user sees the same UI regardless of entry
 // point.
@@ -26,6 +26,14 @@
 //                                    cloning/scanning events with progress
 //                                    fields. Passing null removes the tail.
 //   hide()                         — dismiss overlay
+//
+// Preact component: LoadingOverlay (signal-driven; for future Phase 3c/3d use).
+// Backward-compat factory: createLoadingOverlay (imperative DOM; callers in
+// main.ts use this until Phase 3c ports them).
+
+import { h } from 'preact';
+import { signal } from '@preact/signals';
+import type { Signal } from '@preact/signals';
 
 export type LoadingStep =
   | 'resolving'
@@ -74,6 +82,76 @@ const STEP_LABELS: Record<LoadingStep, string> = {
   building: 'Building city',
   decorating: 'Adding decorations',
 };
+
+// ── Internal state shape (for Preact component) ─────────────────────────────
+
+export interface OverlayState {
+  visible: boolean;
+  kind: 'git' | 'local' | null;
+  branch: string | null;
+  activeStep: LoadingStep | null;
+  pendingLabel: string | null;
+  stepTails: Partial<Record<LoadingStep, string | null>>;
+}
+
+// ── Preact component ────────────────────────────────────────────────────────
+// Used by future Phase 3c/3d callers via <LoadingOverlay state={...} />.
+
+export interface LoadingOverlayProps {
+  state: Signal<OverlayState>;
+}
+
+export function LoadingOverlay({ state }: LoadingOverlayProps) {
+  const s = state.value;
+  if (!s.visible || !s.activeStep) return null;
+
+  const activeStep = s.activeStep;
+  const activeIdx = ALL_STEPS.indexOf(activeStep);
+
+  return (
+    <div class="loading-backdrop">
+      <div class="loading-card">
+        {s.pendingLabel && <div class="loading-pending-label">{s.pendingLabel}</div>}
+        <div class="loading-spinner" />
+        <div class="text-card-title is-loading" role="status" aria-live="polite">
+          {STEP_LABELS[activeStep]}
+          {s.branch ? ` (branch ${s.branch})` : ''}
+          {'…'}
+        </div>
+        <ol class="loading-steps">
+          {ALL_STEPS.map((step) => {
+            const isLocal = s.kind === 'local';
+            if (isLocal && (step === 'resolving' || step === 'cloning')) {
+              return (
+                <li key={step} data-step={step} data-state="pending" style={{ display: 'none' }}>
+                  {STEP_LABELS[step]}
+                </li>
+              );
+            }
+            const thisIdx = ALL_STEPS.indexOf(step);
+            let stepState: 'pending' | 'active' | 'done' = 'pending';
+            if (thisIdx < activeIdx) stepState = 'done';
+            else if (thisIdx === activeIdx) stepState = 'active';
+            const tail = s.stepTails[step];
+            return (
+              <li key={step} data-step={step} data-state={stepState}>
+                {STEP_LABELS[step]}
+                {tail != null && <span class="loading-step-tail"> {tail}</span>}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+// ── Backward-compat factory (Phase 3c/3d will delete this) ─────────────────
+//
+// Uses imperative DOM mutations (innerHTML + style manipulation) so the
+// synchronous test assertions in tests/views/components/loadingOverlay.test.ts
+// work without needing Preact's async render flush. The LoadingOverlay
+// component above is for future direct JSX usage.
 
 export function createLoadingOverlay(): LoadingOverlay {
   const root = document.getElementById('loading-overlay-root');
