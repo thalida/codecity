@@ -1,8 +1,14 @@
-// views/components/tooltip.js — Tiny floating label that follows the cursor
+// views/components/tooltip.tsx — Tiny floating label that follows the cursor
 // on hover. Shown when the user is hovering a building/street; hidden
 // otherwise. Inspired by Cities: Skylines / SimCity — every interactive
 // object has a brief name label so the city feels alive without forcing
 // a sidebar open.
+//
+// The imperative showTooltip/moveTooltip/hideTooltip API is kept for the
+// still-vanilla scene code (picker, inputHandlers) that calls it directly.
+// A Preact Tooltip component is not meaningful here because the tooltip is
+// driven by Three.js pointer events rather than React-tree state — the
+// imperative API IS the right interface for this component.
 
 import { TOOLTIP } from '@/state/settings/index';
 import { DOM_IDS } from '@/constants';
@@ -32,7 +38,7 @@ export function showTooltip(text: string, x: number, y: number): void {
 // on every pointermove.
 export function moveTooltip(x: number, y: number): void {
   if (!_el) return;
-  const cfg = TOOLTIP.get();
+  const cfg = TOOLTIP.value;
   const OFFSET = cfg.OFFSET_PX;
   const MARGIN = cfg.VIEWPORT_MARGIN_PX;
   const w = _el.offsetWidth;
