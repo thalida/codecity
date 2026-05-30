@@ -269,7 +269,10 @@ export function createCameraRig({
         const topY = labelBounds.centerY + labelBounds.halfHeight;
         const r = labelBounds.halfWidth;
         for (const [dx, dz] of [
-          [-r, 0], [r, 0], [0, -r], [0, r],
+          [-r, 0],
+          [r, 0],
+          [0, -r],
+          [0, r],
         ]) {
           _fitPoint(labelBounds.centerX + dx, topY, labelBounds.centerZ + dz);
         }

@@ -235,8 +235,7 @@ export function createSourcePicker(opts: {
         // mirror that here so switching tabs keeps the modal coherent.
         const formFields = root!.querySelector('[data-form-fields]') as HTMLElement | null;
         if (formFields) {
-          formFields.style.display =
-            !allowLocalRepos && activeTab === 'local' ? 'none' : '';
+          formFields.style.display = !allowLocalRepos && activeTab === 'local' ? 'none' : '';
         }
         root!.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach((b) => {
           b.classList.toggle('active', b === btn);

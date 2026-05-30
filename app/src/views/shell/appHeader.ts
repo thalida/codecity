@@ -241,9 +241,7 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
       const baseUrl = toHttpsRepoUrl(_sourceUrl);
       const url = _branch ? _withBranchPath(baseUrl, _branch) : baseUrl;
       _repoLinkEl.href = url;
-      _repoLinkEl.title = _branch
-        ? `Open repo at @${_branch}`
-        : `Open repo: ${_sourceUrl}`;
+      _repoLinkEl.title = _branch ? `Open repo at @${_branch}` : `Open repo: ${_sourceUrl}`;
     } else if (_repoLinkEl) {
       _repoLinkEl.remove();
       _repoLinkEl = null;

@@ -311,8 +311,7 @@ export function buildTreePane(
   // both the no-project state and the loaded-but-empty-repo state get
   // an empty-state card (with different copy).
   function _renderTree(tree: TreeNode): void {
-    const noChildren =
-      !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
+    const noChildren = !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
     if (noChildren) {
       if (tree.name) {
         empty.titleEl.textContent = 'Empty repository';

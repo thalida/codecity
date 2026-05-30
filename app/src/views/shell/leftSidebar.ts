@@ -134,15 +134,11 @@ export function showLeftSidebar(
   // The persisted preference is restored automatically on the next
   // mount once a project is loaded (showLeftSidebar is re-run by the
   // boot path when applyManifest swaps in a real manifest).
-  const _treeRoot = ((manifest as { tree?: unknown }).tree || manifest) as
-    | TreeNode
-    | DirNode;
+  const _treeRoot = ((manifest as { tree?: unknown }).tree || manifest) as TreeNode | DirNode;
   const _manifestIsEmpty =
     !('children' in _treeRoot) ||
     (((_treeRoot as DirNode).children?.length ?? 0) === 0 && !_treeRoot.name);
-  let collapsed = _manifestIsEmpty
-    ? true
-    : loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
+  let collapsed = _manifestIsEmpty ? true : loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
   const iconBtns: Record<string, HTMLButtonElement> = {};
 
   // The activity bar splits into a top group (tabs that stack from the

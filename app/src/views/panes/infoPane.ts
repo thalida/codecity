@@ -22,9 +22,7 @@ function _isEmptyManifest(
   m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
 ): boolean {
   if (!m) return true;
-  const tree = (('tree' in m && (m as Manifest).tree) || m) as
-    | TreeNode
-    | DirNode;
+  const tree = (('tree' in m && (m as Manifest).tree) || m) as TreeNode | DirNode;
   if (!tree.name) {
     if (!('children' in tree)) return true;
     return ((tree as DirNode).children?.length ?? 0) === 0;
