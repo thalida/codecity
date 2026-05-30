@@ -1,4 +1,4 @@
-// views/widgets/commitMetrics.ts — pure helpers for per-commit UI metrics
+// utils/commitMetrics.ts — pure helpers for per-commit UI metrics
 // used by the commit pane and (eventually) other views.
 
 import type { CommitEntry } from '@/types';

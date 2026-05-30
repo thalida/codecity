@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sameDayCommitCount } from '@/views/widgets/commitMetrics.js';
+import { sameDayCommitCount } from '@/utils/commitMetrics.js';
 import type { CommitEntry } from '@/types';
 
 function commit(date: string, sha: string, files = 1): CommitEntry {

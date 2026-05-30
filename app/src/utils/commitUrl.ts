@@ -1,4 +1,4 @@
-// views/panes/commitUrl.ts — build a browseable commit URL from the
+// utils/commitUrl.ts — build a browseable commit URL from the
 // normalized remote URL the scanner emits + a full SHA. Uses the
 // `/commit/{sha}` suffix that GitHub, GitLab, Bitbucket, Gitea,
 // Codeberg, and Forgejo all share. Hosts with a different convention
