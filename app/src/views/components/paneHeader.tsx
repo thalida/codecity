@@ -1,10 +1,78 @@
-// views/shell/paneHeader.ts — Shared header bar used by every pane
+// views/components/paneHeader.tsx — Shared header bar used by every pane
 // (Tree, Search, Info, Controls on the left sidebar; file-preview on
 // the right). Single source of truth for the `.pane-header` row +
 // `.text-pane-title` + `.pane-header-close` triplet, so the panes look
 // identical and adding a new pane is a one-call affair.
+//
+// Preact component: PaneHeader.
+// Backward-compat factory: buildPaneHeader (still used by panes until
+// Phases 3c/3d port them).
 
-import { makeLucideIcon } from '../components/icon';
+import { h } from 'preact';
+import { LucideIcon, makeLucideIcon } from '../components/icon';
+
+// ── Props interface ─────────────────────────────────────────────────────────
+
+export interface PaneHeaderProps {
+  /** Initial title text. */
+  title: string;
+  /** Render the title in monospace — used by panes whose title is a
+   *  filename / path identifier instead of a label. Defaults to false. */
+  mono?: boolean;
+  /** fn() when the user clicks the focus button. Omit to render no button. */
+  onFocus?: () => void;
+  /** Tooltip text on the focus button. Defaults to "Focus camera". */
+  focusTitle?: string;
+  /** fn() when the user clicks the × close button. Omit to render no button. */
+  onClose?: () => void;
+  /** Tooltip text on the × button. Defaults to "Hide sidebar". */
+  closeTitle?: string;
+  /** Optional prefix element rendered between focus button and title. */
+  prefixSlot?: h.JSX.Element | null;
+}
+
+// ── Preact component ────────────────────────────────────────────────────────
+
+export function PaneHeader({
+  title,
+  mono,
+  onFocus,
+  focusTitle = 'Focus camera',
+  onClose,
+  closeTitle = 'Hide sidebar',
+  prefixSlot,
+}: PaneHeaderProps) {
+  return (
+    <div class="pane-header">
+      {typeof onFocus === 'function' && (
+        <button
+          type="button"
+          class="btn-icon btn-icon--text"
+          title={focusTitle}
+          aria-label={focusTitle}
+          onClick={() => onFocus()}
+        >
+          <LucideIcon name="focus" />
+        </button>
+      )}
+      {prefixSlot ?? null}
+      <h3 class={`text-pane-title${mono ? ' is-mono' : ''}`}>{title}</h3>
+      {typeof onClose === 'function' && (
+        <button
+          type="button"
+          class="btn-icon btn-icon--text"
+          title={closeTitle}
+          aria-label={closeTitle}
+          onClick={() => onClose()}
+        >
+          <LucideIcon name="x" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Backward-compat factory (Phase 3c/3d will delete this) ─────────────────
 
 interface BuildPaneHeaderOpts {
   /** Initial title text. Update later via the returned api.setTitle. */
