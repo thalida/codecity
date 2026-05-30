@@ -199,45 +199,9 @@ export function createCameraRig({
     // screen" framing. INITIAL_DISTANCE_MULT (<1) tightens the sphere fit
     // intentionally; tuned for the typical city shape.
     const widthDist = (framingRadius / Math.sin(halfFov)) * cameraControlsCfg.INITIAL_DISTANCE_MULT;
-    // Distance to fit the world bbox's farthest corner inside the vertical
-    // FOV, treating the gem as the sphere center. An earlier formula tried
-    // to compute the height-fit distance for a building AT the framing
-    // target, but the camera looks DOWN at the city, so the optical axis
-    // dips below world Y=0 at depth — tall buildings deep behind the gem
-    // project ABOVE the optical axis on screen and pierce the top of the
-    // frame even when the "building at target" math said they'd fit. A
-    // sphere fit centered at the gem covers every point in the bbox
-    // regardless of azimuth or tilt: any point inside the sphere subtends
-    // ≤ asin(R/D) from the optical axis, so setting D = R/sin(halfFov)
-    // guarantees ≤ halfFov, i.e. the point fits the vertical FOV.
-    // HEADROOM_MULT scales the distance up so the roof clears the top
-    // edge with sky above it. INITIAL_DISTANCE_MULT is deliberately NOT
-    // applied here — it tightens widthDist where some overshoot is fine,
-    // but this fit must actually fit.
-    let worldFitDist = 0;
-    if (gemPos && rootStreet) {
-      const gemX = framingCenter.x;
-      const gemZ = framingCenter.z;
-      let maxR2 = 0;
-      for (const x of [bbox.min.x, bbox.max.x]) {
-        for (const y of [bbox.min.y, bbox.max.y]) {
-          for (const z of [bbox.min.z, bbox.max.z]) {
-            const dx = x - gemX;
-            const dy = y; // framingCenter.y is 0
-            const dz = z - gemZ;
-            const r2 = dx * dx + dy * dy + dz * dz;
-            if (r2 > maxR2) maxR2 = r2;
-          }
-        }
-      }
-      const radiusFromGem = Math.sqrt(maxR2);
-      worldFitDist = (radiusFromGem * TALLEST_BUILDING_HEADROOM_MULT) / Math.sin(halfFov);
-    }
-    const framingDist = Math.max(widthDist, worldFitDist);
-
-    // Default framing: place the camera BEHIND the gem along the root
-    // street's long axis (the street extends in +X for X-oriented or +Z
-    // for Y-oriented; the gem sits at the low end — see
+    // Default framing direction: place the camera BEHIND the gem along
+    // the root street's long axis (the street extends in +X for X-oriented
+    // or +Z for Y-oriented; the gem sits at the low end — see
     // engine.ts:createRootGem) at a moderate elevation with a slight
     // lateral offset so the view reads as 3D oblique rather than face-on
     // down the road. FRAMING_DIR_Y (1.0) → ~44° elevation after the
@@ -252,6 +216,56 @@ export function createCameraRig({
     } else {
       dir = new THREE.Vector3(-1, 1, 1).normalize();
     }
+
+    // Tight bbox fit: for each of the 8 bbox corners, compute the minimum
+    // camera distance D such that the corner projects within the vertical
+    // FOV. Tight because we compute the EXACT screen-y per corner instead
+    // of a radial sphere bound — sphere fit at the gem was too generous
+    // (treats every direction as if it could pierce the top edge, even
+    // sideways/downward corners that never do).
+    //
+    // For a point p offset from the target, the camera at target + dir*D
+    // sees screen-y = (p · cam_up) / (D − p · dir), where cam_up is
+    // perpendicular to dir and aligned with world up (its components are
+    // (−dir.y·dir.x, 1−dir.y², −dir.y·dir.z) / sqrt(1−dir.y²)). Setting
+    // |screen-y| ≤ tan(halfFov) and solving gives:
+    //
+    //   D ≥ |p · cam_up| / tan(halfFov) + p · dir
+    //
+    // Sweep the 8 bbox corners, take the max. HEADROOM_MULT adds the
+    // headroom margin. Empty bbox is guarded by getBbox().isEmpty() above.
+    let worldFitDist = 0;
+    if (gemPos && rootStreet) {
+      const sinElev = dir.y; // dir is normalized; dir.y = sin(elev)
+      const camUpScale = Math.sqrt(Math.max(0, 1 - sinElev * sinElev));
+      const camUp =
+        camUpScale > 1e-6
+          ? new THREE.Vector3(
+              (-dir.y * dir.x) / camUpScale,
+              camUpScale,
+              (-dir.y * dir.z) / camUpScale
+            )
+          : new THREE.Vector3(0, 1, 0); // dir is straight up/down — degenerate
+      const tanHalfFov = Math.tan(halfFov);
+      const gemX = framingCenter.x;
+      const gemZ = framingCenter.z;
+      for (const x of [bbox.min.x, bbox.max.x]) {
+        for (const y of [bbox.min.y, bbox.max.y]) {
+          for (const z of [bbox.min.z, bbox.max.z]) {
+            const px = x - gemX;
+            const py = y; // framingCenter.y is 0
+            const pz = z - gemZ;
+            const pDotDir = px * dir.x + py * dir.y + pz * dir.z;
+            const pDotUp = px * camUp.x + py * camUp.y + pz * camUp.z;
+            const dNeeded = Math.abs(pDotUp) / tanHalfFov + pDotDir;
+            if (dNeeded > worldFitDist) worldFitDist = dNeeded;
+          }
+        }
+      }
+      worldFitDist *= TALLEST_BUILDING_HEADROOM_MULT;
+    }
+    const framingDist = Math.max(widthDist, worldFitDist);
+
     initialCamPos = framingCenter.clone().add(dir.multiplyScalar(framingDist));
     initialTarget = framingCenter.clone();
 
