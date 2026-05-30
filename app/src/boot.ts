@@ -30,6 +30,8 @@ import { setIconAtlas } from './scene/components/buildings/buildings';
 import { setCellIconAtlas } from './scene/components/buildings/buildingsCell';
 import { createSourcePicker, type SourcePayload } from './views/components/sourcePicker';
 import { createLoadingOverlay } from './views/components/loadingOverlay';
+import { SOURCE_INFO } from './state/runtime/sourceInfo';
+import { labelFromManifest } from './utils/sources';
 import { streamManifest } from './api/manifest';
 import { pushRecent } from './state/runtime/sourceRecents';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop';
@@ -307,10 +309,11 @@ export async function bootApp(): Promise<void> {
         if (event.phase === 'skeleton') {
           _applyDisplayLabel(event.manifest);
           await handle!.world.applyManifest(event.manifest);
-          handle!.coordinator.setSourceInfo(
-            payload.branch,
-            srcKind(payload.src) === 'git' ? payload.src : undefined
-          );
+          SOURCE_INFO.value = {
+            label: labelFromManifest(event.manifest) ?? event.manifest.tree?.name ?? '',
+            branch: payload.branch,
+            sourceUrl: srcKind(payload.src) === 'git' ? payload.src : undefined,
+          };
         }
         manifest = event.manifest;
       }
@@ -346,10 +349,11 @@ export async function bootApp(): Promise<void> {
         payload.branch ?? (looksLikeRealBranch ? manifestBranch! : undefined);
       const branchIsDefault = !payload.branch && looksLikeRealBranch;
 
-      handle!.coordinator.setSourceInfo(
-        resolvedBranch,
-        srcKind(payload.src) === 'git' ? payload.src : undefined
-      );
+      SOURCE_INFO.value = {
+        label: labelFromManifest(manifest) ?? manifest.tree?.name ?? '',
+        branch: resolvedBranch,
+        sourceUrl: srcKind(payload.src) === 'git' ? payload.src : undefined,
+      };
 
       _liveUpdates?.setSignature(manifest.signature);
       pushRecent({

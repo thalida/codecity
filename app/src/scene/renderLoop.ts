@@ -32,7 +32,6 @@ import { createOutlineRenderer } from './effects/outlineRenderer';
 import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
 import { createGhostRenderer } from './effects/ghostRenderer';
 import { createPathLineRenderer } from './effects/pathLineRenderer';
-import { createCoordinator } from '../coordinator';
 import { showTooltip, hideTooltip } from '../views/components/tooltip';
 import { createPostFx } from './system/postFx';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray';
@@ -158,18 +157,6 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   // Animator owns mesh.scale + mesh.position (disjoint from buildingFader's
   // material.opacity), so they cannot conflict by construction.
   const animator = createAnimator({ world });
-
-  // -- 7. Sidebar coordinator (appHeader + appFooter + leftSidebar) ----------
-  // Owns the lifecycle of the three component panes and wires picker
-  // changes into their displays. Tree-row clicks/hovers/focus dispatches
-  // route back through picker + rig the same as canvas-driven actions.
-  const coordinator = createCoordinator({
-    world,
-    picker,
-    rig,
-    resetView,
-    applyTheme,
-  });
 
   // SIDEWALK_COLORS holds CSS strings; we pre-convert to numeric hex so
   // the per-frame tint loop calls material.color.setHex() without
@@ -575,11 +562,12 @@ export async function startRenderLoop(canvas: HTMLCanvasElement, manifest: Manif
   }
   animate();
 
-  // Expose world, applyTheme, and coordinator to the boot block so
-  // setupLiveUpdates can swap in fresh manifests, attachCommitReactions can
-  // dispatch material refreshes, and applyNewSource can update the header
-  // branch pill + repo link after a mid-session source switch.
-  return { world, applyTheme, coordinator };
+  // Expose world, applyTheme, picker, rig, and resetView to the boot
+  // block (App.tsx) so setupLiveUpdates can swap in fresh manifests,
+  // attachCommitReactions can dispatch material refreshes, and the
+  // shell components can read picker.selection / picker.hover via
+  // SCENE_HANDLE signal.
+  return { world, applyTheme, picker, rig, resetView };
 }
 
 // Cycle a THREE.Color in place through a palette of [r,g,b] triples,
