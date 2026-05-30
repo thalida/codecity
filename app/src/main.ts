@@ -28,6 +28,7 @@ import { streamManifest } from './utils/manifestStream.js';
 import { pushRecent } from './views/source/sourceRecents.js';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
 import { labelFromUrl } from './views/widgets/displayLabel.js';
+import { getServerConfig } from './utils/serverConfig.js';
 
 /**
  * Set document.title to "{label} (pending) — codecity" from a server-emitted
@@ -389,7 +390,9 @@ if (_canvas) {
       }
     }
 
+    const serverConfig = await getServerConfig();
     const picker = createSourcePicker({
+      allowLocalRepos: serverConfig.allowLocalRepos,
       onSubmit: (payload) => {
         _pendingSkipCache = !!payload.skipCache;
         picker.close();
