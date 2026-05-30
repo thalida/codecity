@@ -95,10 +95,11 @@ tests/fixtures/large-repo
 
 ## Local directories
 
-To render a local git repo, mount it into the container at the same absolute path:
+Local-repo support is **disabled by default**. To enable it, set `CODECITY_ALLOW_LOCAL_REPOS=1` *and* mount the directory read-only into the container at the same absolute path:
 
 ```sh
 docker run --rm --init --pull=always \
+    -e CODECITY_ALLOW_LOCAL_REPOS=1 \
     -v "$HOME/Documents/Repos:$HOME/Documents/Repos:ro" \
     -v codecity-cache:/cache \
     -p 8080:8080 \
@@ -106,6 +107,8 @@ docker run --rm --init --pull=always \
 ```
 
 Use multiple `-v` flags for multiple directories. codecity only renders git working trees — `git init` first if you want to render a non-git directory.
+
+`just dev <path>` and `just run <path>` set the env var for you when a mount path is passed, so you don't have to type both flags.
 
 ## Controls
 
