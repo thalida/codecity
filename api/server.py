@@ -799,7 +799,13 @@ def _delete_manifest_cache(handler: BaseHTTPRequestHandler, query: str) -> None:
     list — they're done with this source, so its disk cache should go
     too. Resolves git URLs to their clone-dir without actually cloning;
     resolves local paths non-strictly so cleanup still works for paths
-    that no longer exist on disk."""
+    that no longer exist on disk.
+
+    Note: this route is intentionally NOT gated by
+    `CODECITY_ALLOW_LOCAL_REPOS`. The gate exists to prevent fresh
+    scans of arbitrary host paths; cache cleanup only manipulates
+    files under ``CODECITY_CACHE_ROOT`` (a path derived from the
+    source, not the source itself) and is safe to leave open."""
     params = parse_qs(query)
     raw_src = params.get("src", [""])[0]
     raw_branch = params.get("branch", [""])[0] or None
