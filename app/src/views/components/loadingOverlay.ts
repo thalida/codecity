@@ -1,4 +1,4 @@
-// views/widgets/loadingOverlay.ts — Centered spinner + stepped progress indicator shown
+// views/components/loadingOverlay.ts — Centered spinner + stepped progress indicator shown
 // whenever a manifest is being fetched or applied. Reused for direct-boot
 // loads and modal submits so the user sees the same UI regardless of entry
 // point.

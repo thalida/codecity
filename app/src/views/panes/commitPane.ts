@@ -15,7 +15,7 @@
 // sidebar without churn.
 
 import type { CommitEntry } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 import { commitUrl } from '@/utils/commitUrl.js';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates.js';

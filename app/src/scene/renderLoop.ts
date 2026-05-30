@@ -33,7 +33,7 @@ import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer.js';
 import { createGhostRenderer } from './effects/ghostRenderer.js';
 import { createPathLineRenderer } from './effects/pathLineRenderer.js';
 import { createCoordinator } from '../coordinator.js';
-import { showTooltip, hideTooltip } from '../views/widgets/tooltip.js';
+import { showTooltip, hideTooltip } from '../views/components/tooltip.js';
 import { createPostFx } from './system/postFx.js';
 import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray.js';
 import { labelFromManifest } from '@/utils/sources.js';

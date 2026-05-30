@@ -1,4 +1,4 @@
-// views/widgets/tooltip.js — Tiny floating label that follows the cursor
+// views/components/tooltip.js — Tiny floating label that follows the cursor
 // on hover. Shown when the user is hovering a building/street; hidden
 // otherwise. Inspired by Cities: Skylines / SimCity — every interactive
 // object has a brief name label so the city feels alive without forcing

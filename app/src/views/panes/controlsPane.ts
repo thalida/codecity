@@ -71,7 +71,7 @@ import {
 } from '@/store/configDrafts.js';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 // Structural store shape used by all the widget builders. Covers nanostores

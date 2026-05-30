@@ -17,7 +17,7 @@ import buildingFragSrc from './building.frag.glsl?raw';
 import type { CellTile } from '../../layout/cellTile.js';
 import type { Building } from '@/types/index.js';
 import type { IconAtlas } from './iconAtlas.js';
-import { getFileIconName } from '@/views/widgets/fileIcon.js';
+import { getFileIconName } from '@/views/components/fileIcon.js';
 import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt.js';
 
 // ---------------------------------------------------------------------------

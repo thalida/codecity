@@ -7,7 +7,7 @@
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose

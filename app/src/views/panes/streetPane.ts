@@ -9,9 +9,9 @@
 
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
-import { makeExtensionBadge } from '@/views/widgets/badge.js';
+import { makeExtensionBadge } from '@/views/components/badge.js';
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 
 interface BuildStreetPaneOpts {

@@ -1,4 +1,4 @@
-// views/widgets/pathTruncate.ts — middle-truncation algorithm for path breadcrumbs.
+// views/components/pathTruncate.ts — middle-truncation algorithm for path breadcrumbs.
 //
 // Exported by the module so both appHeader.ts and filePreviewPane.ts can share
 // the same logic without duplication.

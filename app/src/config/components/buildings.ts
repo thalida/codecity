@@ -64,7 +64,7 @@ export const BUILDING_PALETTE = map<BuildingPaletteConfig>({
   // getLightness fall back to the midpoint of the range above so the
   // building reads as "average" rather than crushed to either extreme.)
   // Hue is picked to match the standout color of the file's icon in
-  // Material Icon Theme (see views/widgets/fileIcon.ts) — the COLOR you
+  // Material Icon Theme (see views/components/fileIcon.ts) — the COLOR you
   // see on the file's pill / icon glyph is the same hue the building
   // ramps off in the city. When an icon has multiple colors, we pick
   // the more distinctive one (e.g. Python is yellow+blue → yellow,

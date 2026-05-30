@@ -1,5 +1,5 @@
 // config/system/tooltip.ts — Tooltip placement. Consumed by
-// views/widgets/tooltip.ts.
+// views/components/tooltip.ts.
 
 import { map } from 'nanostores';
 

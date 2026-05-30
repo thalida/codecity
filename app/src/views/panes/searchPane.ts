@@ -17,7 +17,7 @@
 
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 const MAX_RESULTS = 50;

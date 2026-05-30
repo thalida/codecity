@@ -5,8 +5,8 @@
 
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { makeGemIcon, makeLucideIcon } from '@/views/widgets/icon.js';
-import { makeFileIcon, makeFolderIcon } from '@/views/widgets/fileIcon.js';
+import { makeGemIcon, makeLucideIcon } from '@/views/components/icon.js';
+import { makeFileIcon, makeFolderIcon } from '@/views/components/fileIcon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
 
 interface TreeCtx {

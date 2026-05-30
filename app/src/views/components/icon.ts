@@ -1,4 +1,4 @@
-// views/widgets/icon.ts — Tiny helpers for inline icons.
+// views/components/icon.ts — Tiny helpers for inline icons.
 //
 // makeLucideIcon  — generic Lucide icon painted via CSS mask so it picks
 //                   up currentColor (used by every monochrome glyph).

@@ -13,9 +13,9 @@ import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/config';
 import { PreviewKind } from '@/types';
 import type { FileNode } from '@/types';
-import { makeLucideIcon } from '@/views/widgets/icon.js';
+import { makeLucideIcon } from '@/views/components/icon.js';
 import { buildPaneHeader } from '@/views/shell/paneHeader.js';
-import { makeExtensionBadge } from '@/views/widgets/badge.js';
+import { makeExtensionBadge } from '@/views/components/badge.js';
 
 // Binary-unit thresholds for human-readable file size formatting.
 const BYTES_PER_KB = 1024;

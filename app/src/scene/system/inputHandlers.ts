@@ -5,7 +5,7 @@
 //   const handlers = createInputHandlers({
 //     canvas, picker, rig, renderer, camera,
 //     onResize: function () { /* renderer-specific onResize work */ },
-//     showTooltip, hideTooltip,            // tooltip api (from views/widgets/tooltip.js)
+//     showTooltip, hideTooltip,            // tooltip api (from views/components/tooltip.js)
 //   });
 //   handlers.dispose();
 
