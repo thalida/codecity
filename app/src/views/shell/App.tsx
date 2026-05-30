@@ -1,37 +1,167 @@
-// App.tsx — Phase 2 placeholder root component. Renders the static
-// layout shell that index.html used to declare, then kicks off the
-// existing vanilla boot flow inside useEffect so behavior is identical
-// to pre-Phase-2 main.ts. Phase 3 replaces these slot divs with native
-// Preact components.
+// App.tsx — Real composition root. Mounts all shell components and kicks
+// off the app boot logic. Phase 3e: replaces the Phase-2 placeholder.
+//
+// Layout:
+//   <header id="app-header">  — AppHeader (reads SCENE_HANDLE + SOURCE_INFO)
+//   <main id="app-body">
+//     <div id="tree-sidebar"> — showLeftSidebar (called in runAppLogic)
+//     <div id="center-pane">  — canvas (scene started by runAppLogic)
+//     <div id="sidebar">      — mountRightSidebarReactions (called in runAppLogic)
+//   </main>
+//   <footer id="app-footer">  — AppFooter (reads signals directly)
+//   <SourcePickerShell />     — reads SOURCE_PICKER + SERVER_CONFIG signals
+//   <LoadingOverlayShell />   — reads LOADING_OVERLAY signal
 
 import { useEffect } from 'preact/hooks';
-import { bootApp } from '../../boot';
+import { signal } from '@preact/signals';
+import { AppHeader } from './appHeader';
+import { AppFooter } from './appFooter';
+import { SourcePickerComponent } from '../components/sourcePicker';
+import type { SourcePickerState } from '../components/sourcePicker';
+import { LoadingOverlay } from '../components/loadingOverlay';
+import type { OverlayState } from '../components/loadingOverlay';
+import { SOURCE_PICKER, closeSourcePicker, LOADING_OVERLAY } from '@/state/runtime/uiState';
+import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
+import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { NodeKind } from '@/types';
+import { runAppLogic } from '../../appLogic';
+
+// ── Source picker shell: bridges SOURCE_PICKER + SERVER_CONFIG → SourcePickerComponent
+
+function SourcePickerShell() {
+  // Build SourcePickerState from our two runtime signals.
+  const sp = SOURCE_PICKER.value;
+  const serverCfg = SERVER_CONFIG.value;
+  const opts = sp.opts ?? {};
+  const prefill = opts.prefill;
+  const prefillSrc = prefill?.src ?? '';
+  const isGitLike = (src: string) => /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src);
+
+  // Stable signal so SourcePickerComponent's useState initializers run once.
+  // We use a module-level signal and push updates to it.
+  const pickerState = _pickerState;
+  pickerState.value = {
+    open: sp.visible,
+    dismissible: opts.dismissible ?? false,
+    activeTab: isGitLike(prefillSrc) ? 'git' : 'local',
+    prefillSrc,
+    prefillBranch: prefill?.branch ?? '',
+    error: opts.error ?? null,
+    allowLocalRepos: serverCfg.allowLocalRepos,
+  };
+
+  return (
+    <SourcePickerComponent
+      state={pickerState}
+      onSubmit={(payload) => {
+        const fn = (window as Window & { __applyNewSource?: (p: typeof payload) => void })
+          .__applyNewSource;
+        if (fn) fn(payload);
+      }}
+      onClose={() => closeSourcePicker()}
+    />
+  );
+}
+
+// Module-level signal so SourcePickerComponent's useState initializers are stable
+const _pickerState = signal<SourcePickerState>({
+  open: false,
+  dismissible: false,
+  activeTab: 'git',
+  prefillSrc: '',
+  prefillBranch: '',
+  error: null,
+  allowLocalRepos: false,
+});
+
+// ── Loading overlay shell: bridges LOADING_OVERLAY → LoadingOverlay
+
+function LoadingOverlayShell() {
+  const lo = LOADING_OVERLAY.value;
+  const overlayState = _overlayState;
+  overlayState.value = {
+    visible: lo.visible,
+    kind: lo.showOpts?.kind ?? null,
+    branch: lo.showOpts?.branch ?? null,
+    activeStep: lo.activeStep,
+    pendingLabel: lo.pendingLabel,
+    stepTails: lo.stepTails,
+  };
+  return <LoadingOverlay state={overlayState} />;
+}
+
+const _overlayState = signal<OverlayState>({
+  visible: false,
+  kind: null,
+  branch: null,
+  activeStep: null,
+  pendingLabel: null,
+  stepTails: {},
+});
+
+// ── App root ────────────────────────────────────────────────────────────────
 
 export function App() {
   useEffect(() => {
-    // bootApp finds #city via getElementById; the canvas below is in
-    // the DOM by the time this effect runs (Preact has committed the
-    // render synchronously before useEffect fires).
-    bootApp();
+    let disposeLogic: (() => void) | undefined;
+    let cancelled = false;
+    runAppLogic().then((dispose) => {
+      if (!cancelled) disposeLogic = dispose;
+      else dispose();
+    });
+    return () => {
+      cancelled = true;
+      disposeLogic?.();
+    };
   }, []);
+
+  // AppHeader: callbacks wire actions to scene handle (read at click-time)
+  function onSegmentClick(path: string) {
+    SCENE_HANDLE.peek()?.picker.selectByPath(path);
+  }
+  function onSwitchSource() {
+    const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
+    fn?.();
+  }
+  function onResetView() {
+    SCENE_HANDLE.peek()?.resetView();
+  }
+  function onFocus() {
+    const handle = SCENE_HANDLE.peek();
+    if (!handle) return;
+    const sel = handle.picker.selection.peek();
+    if (!sel) return;
+    if (sel.kind === NodeKind.File) handle.rig.focusBuilding(sel.mesh, sel.data);
+    else if (sel.kind === NodeKind.Directory) handle.rig.focusStreet(sel.street, null);
+    else if (sel.kind === NodeKind.Commit) handle.rig.focusTree(sel.commit.sha);
+  }
 
   return (
     <>
       <header id="app-header">
-        <div id="app-header-left"></div>
-        <div id="app-title"></div>
-        <div id="app-header-right"></div>
+        <div id="app-header-left">
+          <AppHeader
+            onSegmentClick={onSegmentClick}
+            onSwitchSource={onSwitchSource}
+            onResetView={onResetView}
+            onFocus={onFocus}
+          />
+        </div>
+        <div id="app-title" />
+        <div id="app-header-right" />
       </header>
       <main id="app-body">
-        <div id="tree-sidebar"></div>
+        <div id="tree-sidebar" />
         <div id="center-pane">
-          <canvas id="city"></canvas>
+          <canvas id="city" />
         </div>
-        <div id="sidebar"></div>
+        <div id="sidebar" />
       </main>
-      <footer id="app-footer"></footer>
-      <div id="source-picker-root" style={{ display: 'none' }}></div>
-      <div id="loading-overlay-root" style={{ display: 'none' }}></div>
+      <footer id="app-footer">
+        <AppFooter />
+      </footer>
+      <SourcePickerShell />
+      <LoadingOverlayShell />
     </>
   );
 }
