@@ -1,9 +1,14 @@
-// views/panes/infoPane.js — "Info" tab in the left sidebar. Shows the
+// views/panes/infoPane.tsx — "Info" tab in the left sidebar. Shows the
 // rendered markdown of the project's root README (if any) — README.md,
 // README.markdown, README, etc. Re-fetches and re-renders whenever the
 // manifest is re-applied (which happens on live-update polling), so an
 // edit to the README on disk shows up here without a page reload.
 
+import { h } from 'preact';
+import { useState, useEffect } from 'preact/hooks';
+import { signal } from '@preact/signals';
+import type { Signal } from '@preact/signals';
+import { render } from 'preact';
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
@@ -46,9 +51,117 @@ function _findRootReadme(manifest: Manifest | DirNode | null): FileNode | null {
   return null;
 }
 
+// ── State shape for Preact component ─────────────────────────────────────────
+
+type InfoBodyState =
+  | { kind: 'no-project' }
+  | { kind: 'no-readme' }
+  | { kind: 'loading' }
+  | { kind: 'markdown'; html: string }
+  | { kind: 'error'; message: string };
+
+export interface InfoPaneProps {
+  manifest: Signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>;
+  onClose?: () => void;
+}
+
+// ── Preact component ─────────────────────────────────────────────────────────
+
+export function InfoPane({ manifest, onClose }: InfoPaneProps) {
+  const [body, setBody] = useState<InfoBodyState>({ kind: 'no-project' });
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const doFetch = (
+      m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
+    ) => {
+      if (_isEmptyManifest(m)) {
+        setBody({ kind: 'no-project' });
+        return;
+      }
+      const readme = _findRootReadme(m as Manifest | DirNode | null);
+      if (!readme || !readme.fullPath) {
+        setBody({ kind: 'no-readme' });
+        return;
+      }
+      setBody({ kind: 'loading' });
+      const url = `/api/file?path=${encodeURIComponent(readme.fullPath)}`;
+      fetch(url)
+        .then((resp) => {
+          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+          return resp.text();
+        })
+        .then((text) => {
+          if (!cancelled) setBody({ kind: 'markdown', html: marked.parse(text) as string });
+        })
+        .catch((err) => {
+          if (!cancelled) setBody({ kind: 'error', message: (err && err.message) || 'Unknown error' });
+        });
+    };
+
+    doFetch(manifest.value);
+
+    // Subscribe to future manifest changes
+    const unsub = manifest.subscribe((m) => {
+      doFetch(m);
+    });
+
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [manifest]);
+
+  return (
+    <div class="pane info-pane">
+      <div class="pane-header">
+        <h3 class="text-pane-title">Info</h3>
+        {typeof onClose === 'function' && (
+          <button
+            type="button"
+            class="btn-icon btn-icon--text"
+            title="Hide sidebar"
+            aria-label="Hide sidebar"
+            onClick={() => onClose()}
+          >
+          </button>
+        )}
+      </div>
+      <div class="pane-body info-body">
+        {body.kind === 'no-project' && (
+          <div class="empty-state empty-state--lg">
+            <p class="text-card-title">No project loaded</p>
+            <p class="text-card-sub">Open one to read its README.</p>
+          </div>
+        )}
+        {body.kind === 'no-readme' && (
+          <div class="empty-state empty-state--lg">
+            <p class="text-card-title">No README</p>
+            <p class="text-card-sub">Add a README at the project root to fill this panel.</p>
+          </div>
+        )}
+        {body.kind === 'error' && (
+          <div class="empty-state empty-state--lg">
+            <p class="text-card-title">{"Couldn't load README"}</p>
+            <p class="text-card-sub">{body.message}</p>
+          </div>
+        )}
+        {body.kind === 'markdown' && (
+          <article
+            class="info-markdown"
+            dangerouslySetInnerHTML={{ __html: body.html }}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Backward-compat factory ───────────────────────────────────────────────────
 // buildInfoPane(manifest, opts) -> { pane, api }
 //
-// opts.onClose      — fn() when the user clicks the × in the header.
+// opts.onClose      — fn() when the user clicks the x in the header.
 //
 // api.setManifest(manifest) — caller pushes the latest manifest in (e.g.
 //   on world.onChange after a live-update rebuild). The pane re-runs
@@ -118,7 +231,7 @@ export function buildInfoPane(
     box.appendChild(makeLucideIcon('file-warning'));
     const h = document.createElement('p');
     h.className = 'text-card-title';
-    h.textContent = 'Couldn’t load README';
+    h.textContent = "Couldn't load README";
     box.appendChild(h);
     if (message) {
       const sub = document.createElement('p');
@@ -144,7 +257,7 @@ export function buildInfoPane(
     body.replaceChildren(article);
   }
 
-  function render(
+  function renderBody(
     currentManifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null
   ): void {
     if (_isEmptyManifest(currentManifest)) {
@@ -173,13 +286,13 @@ export function buildInfoPane(
       });
   }
 
-  render(manifest);
+  renderBody(manifest);
 
   return {
     pane,
     api: {
       setManifest(m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null) {
-        render(m);
+        renderBody(m);
       },
     },
   };
