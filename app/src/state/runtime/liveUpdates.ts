@@ -13,15 +13,10 @@
 // only flipped during the actual manifest fetch so the footer's
 // "rebuilding…" indicator only lights up when there's real work.
 
-import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index.js';
-import {
-  REBUILD_STATUS,
-  LAST_REBUILD_ERROR,
-  setRefreshManifest,
-} from '@/state/runtime/liveStatus.js';
-import { streamManifest } from '@/api/manifest.js';
-import { manifestUrl, signatureUrl } from '@/api/urls.js';
-import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop.js';
+import { LIVE_UPDATES, POLL_SECONDS_MIN, POLL_SECONDS_MAX } from '@/state/settings/index';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, setRefreshManifest } from '@/state/runtime/liveStatus';
+import { manifestUrl, signatureUrl, streamManifest } from '@/api/manifest';
+import { _applyDisplayLabel, startRenderLoop } from '@/scene/renderLoop';
 
 function _clampPollSeconds(s: number | unknown): number {
   if (typeof s !== 'number' || !isFinite(s)) return POLL_SECONDS_MIN;

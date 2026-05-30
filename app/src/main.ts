@@ -4,30 +4,30 @@
 
 import './styles.css';
 
-import * as Config from './state/settings/index.js';
-import { REBUILD_STATUS } from './state/runtime/liveStatus.js';
-import { attachPersistence, persistAtomPerSource } from './state/persist.js';
-import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme.js';
-import { sourceKey, CURRENT_SOURCE_KEY } from './state/runtime/sourceContext.js';
-import { attachCommitReactions } from './state/reactions.js';
-import { setupLiveUpdates } from './state/runtime/liveUpdates.js';
+import * as Config from './state/settings/index';
+import { REBUILD_STATUS } from './state/runtime/liveStatus';
+import { attachPersistence, persistAtomPerSource } from './state/persist';
+import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme';
+import { sourceKey, CURRENT_SOURCE_KEY } from './state/runtime/sourceContext';
+import { attachCommitReactions } from './state/reactions';
+import { setupLiveUpdates } from './state/runtime/liveUpdates';
 import { DOM_IDS } from './constants';
 import { NodeKind } from './types';
 import type { Manifest } from './types';
 
-import { PICKER_SELECTION_KEY } from './scene/system/picker.js';
-import { manifestUrl } from './api/urls.js';
-import { srcKind, labelFromUrl } from './utils/sources.js';
-import { applyHljsTheme } from './utils/syntaxTheme.js';
-import { buildIconAtlas } from './scene/components/buildings/iconAtlas.js';
-import { setIconAtlas } from './scene/components/buildings/buildings.js';
-import { setCellIconAtlas } from './scene/components/buildings/buildingsCell.js';
-import { createSourcePicker, type SourcePayload } from './views/components/sourcePicker.js';
-import { createLoadingOverlay } from './views/components/loadingOverlay.js';
-import { streamManifest } from './api/manifest.js';
-import { pushRecent } from './utils/sourceRecents.js';
-import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop.js';
-import { getServerConfig } from './api/config.js';
+import { PICKER_SELECTION_KEY } from './scene/system/picker';
+import { manifestUrl } from './api/manifest';
+import { srcKind, labelFromUrl } from './utils/sources';
+import { applyHljsTheme } from './utils/syntaxTheme';
+import { buildIconAtlas } from './scene/components/buildings/iconAtlas';
+import { setIconAtlas } from './scene/components/buildings/buildings';
+import { setCellIconAtlas } from './scene/components/buildings/buildingsCell';
+import { createSourcePicker, type SourcePayload } from './views/components/sourcePicker';
+import { createLoadingOverlay } from './views/components/loadingOverlay';
+import { streamManifest } from './api/manifest';
+import { pushRecent } from './utils/sourceRecents';
+import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop';
+import { getServerConfig } from './api/config';
 
 /**
  * Set document.title to "{label} (pending) — codecity" from a server-emitted

@@ -15,9 +15,9 @@ import {
   type AgeRange,
   type SizeRange,
   type DailyCountRange,
-} from '@/scene/components/trees/treeEncoding.js';
+} from '@/scene/components/trees/treeEncoding';
 import type { CommitEntry } from '@/types';
-import { commits as buildCommits } from './_commitFixtures.js';
+import { commits as buildCommits } from './_commitFixtures';
 
 const commits: CommitEntry[] = buildCommits(
   { date: '2026-01-01', files: 1 },

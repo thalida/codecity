@@ -17,6 +17,22 @@
 //   error    — fatal mid-stream failure; client should surface and stop.
 
 import type { Manifest } from '@/types/manifest';
+import { buildApiUrl, type BuildApiUrlOpts } from './';
+
+// ── Endpoint URL builders ────────────────────────────────────────────────
+
+/** URL for the manifest stream endpoint, bound to the current page's
+ *  `?src` (and optional `?branch`) query params. */
+export function manifestUrl(opts: BuildApiUrlOpts = {}): string {
+  return buildApiUrl('/api/manifest', window.location.search, window.location.origin, opts);
+}
+
+/** URL for the lightweight manifest-signature poll endpoint. */
+export function signatureUrl(): string {
+  return buildApiUrl('/api/manifest/signature', window.location.search, window.location.origin);
+}
+
+// ── NDJSON streaming reader ──────────────────────────────────────────────
 
 // One variant per discriminant value so TS narrows cleanly through
 // `if (event.phase === 'cloning' || event.phase === 'scanning')` etc.

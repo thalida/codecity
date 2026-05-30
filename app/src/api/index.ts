@@ -1,6 +1,6 @@
-// api/urls.ts — Build API URLs from the page's query params. Pure function so
-// it's directly unit-testable; main.ts wraps it with the live
-// `window.location.*` values for runtime callers.
+// api/index.ts — Shared API helpers. Endpoint-specific code (URL builders,
+// fetchers, streaming) lives in sibling files (api/manifest.ts,
+// api/commit.ts, api/config.ts).
 
 export interface BuildApiUrlOpts {
   noCache?: boolean;
@@ -12,6 +12,10 @@ export interface BuildApiUrlOpts {
  * appends `no_cache=true` to force a fresh scan on this request.
  * When no `src` is present, returns the endpoint URL without any
  * source params — boot uses this to detect "no source picked yet".
+ *
+ * Pure function (no `window` access) so endpoint-specific wrappers
+ * in sibling modules can bind it to live `window.location.*` values
+ * while this helper stays directly unit-testable.
  */
 export function buildApiUrl(
   endpoint: string,
@@ -29,17 +33,4 @@ export function buildApiUrl(
     u.searchParams.set('no_cache', 'true');
   }
   return u.toString();
-}
-
-// Runtime wrappers that bind `buildApiUrl` to the live `window.location.*`
-// values. Kept here (rather than at callsites) so the boot orchestrator and
-// the live-update poll loop share the same construction path. Pure helper
-// stays separately testable via buildApiUrl.
-
-export function manifestUrl(opts: BuildApiUrlOpts = {}): string {
-  return buildApiUrl('/api/manifest', window.location.search, window.location.origin, opts);
-}
-
-export function signatureUrl(): string {
-  return buildApiUrl('/api/manifest/signature', window.location.search, window.location.origin);
 }

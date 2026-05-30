@@ -3,12 +3,12 @@
 // lifecycle handle. Mirrors trees/trees.ts.
 
 import * as THREE from 'three';
-import { placeFireflies, type FireflyPlacement } from './firefliesPlacement.js';
-import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer.js';
-import { createOrbitRings } from './orbitRings.js';
-import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
+import { placeFireflies, type FireflyPlacement } from './firefliesPlacement';
+import { createFireflyRenderer, type FireflyRenderer } from './firefliesRenderer';
+import { createOrbitRings } from './orbitRings';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement';
 import type { CommitEntry } from '@/types';
-import { FIREFLIES } from '@/state/settings/components/fireflies.js';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
 
 /** Public handle returned by createFireflies. Extends the renderer with
  *  sha-based hover/select methods so callers don't need to manage the

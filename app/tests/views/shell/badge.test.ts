@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { makeExtensionBadge } from '@/views/components/badge.js';
+import { makeExtensionBadge } from '@/views/components/badge';
 
 const EMPTY_PALETTE: Record<string, number> = {};
 // Match the file-badge HSL formula in CSS (S=60%, L=35%).

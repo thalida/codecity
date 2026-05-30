@@ -10,7 +10,7 @@
 //   - cell tests place a mesh in the world and assert on Y, so 0.5.
 // Each suite spreads this and overrides ELEVATION as needed.
 
-import type { LabelTypographyConfig } from '@/state/settings/index.js';
+import type { LabelTypographyConfig } from '@/state/settings/index';
 
 export const TYPOGRAPHY: LabelTypographyConfig = {
   FONT_FAMILY: 'sans-serif',

@@ -5,8 +5,8 @@ import type * as THREE from 'three';
 import type { Building } from './building';
 import type { Street } from './street';
 import type { CommitEntry, DirNode, FileNode, NodeKind } from './manifest';
-import type { BuildingIndex } from '@/scene/components/buildings/buildingIndex.js';
-import type { CellTile } from '@/scene/layout/cellTile.js';
+import type { BuildingIndex } from '@/scene/components/buildings/buildingIndex';
+import type { CellTile } from '@/scene/layout/cellTile';
 
 /** Hovered/selected file (a building mesh). */
 export interface FileTarget {

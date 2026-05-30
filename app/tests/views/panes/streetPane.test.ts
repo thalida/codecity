@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildStreetPane } from '@/views/panes/streetPane.js';
+import { buildStreetPane } from '@/views/panes/streetPane';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode } from '@/types';
 

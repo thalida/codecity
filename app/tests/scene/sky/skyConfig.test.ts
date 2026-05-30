@@ -5,7 +5,7 @@
 // break this test when changed.
 
 import { describe, it, expect } from 'vitest';
-import { SKY, SKY_STARS } from '@/state/settings/components/sky.js';
+import { SKY, SKY_STARS } from '@/state/settings/components/sky';
 
 describe('SKY', () => {
   it('exposes the expected keys with the right types', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { BuildingIndex } from '@/scene/components/buildings/buildingIndex.js';
-import { NodeKind } from '@/types/index.js';
-import type { FileNode, DirNode } from '@/types/manifest.js';
+import { BuildingIndex } from '@/scene/components/buildings/buildingIndex';
+import { NodeKind } from '@/types/index';
+import type { FileNode, DirNode } from '@/types/manifest';
 import { building } from '../../../_helpers/buildingFixture';
 
 // Build a FileNode whose only meaningful fields are `path` and `name` (which

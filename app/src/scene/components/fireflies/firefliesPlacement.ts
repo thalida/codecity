@@ -9,16 +9,16 @@
 // encoding functions as treeRenderer, and read config defaults from TREES.
 
 import type { CommitEntry } from '@/types';
-import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-import { TREES } from '@/state/settings/components/trees.js';
-import { FIREFLIES } from '@/state/settings/components/fireflies.js';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement';
+import { TREES } from '@/state/settings/components/trees';
+import { FIREFLIES } from '@/state/settings/components/fireflies';
 import {
   computeAgeRange,
   computeSizeRange,
   ageT,
   sizeT,
-} from '@/scene/components/trees/treeEncoding.js';
-import { colorForAuthor, lightColorForAuthor } from './authorColor.js';
+} from '@/scene/components/trees/treeEncoding';
+import { colorForAuthor, lightColorForAuthor } from './authorColor';
 
 export interface FireflyPlacement {
   /** Orbit center, world X. */

@@ -16,27 +16,27 @@ import {
   GEM_GLOW,
   GEM_SIZING,
   BLOOM,
-} from '../state/settings/index.js';
+} from '../state/settings/index';
 import { NodeKind, StreetAxis } from '../types';
 import type { Manifest } from '../types';
 
-import { SKY } from '@/state/settings/components/sky.js';
-import { createWorld } from './world.js';
-import { refreshBuildingMaterial } from './components/buildings/buildings.js';
-import { createCameraRig } from './system/cameraRig.js';
-import { createAnimator } from './system/animator.js';
-import { createPicker } from './system/picker.js';
-import { createInputHandlers } from './system/inputHandlers.js';
-import { createBuildingFader } from './effects/buildingFader.js';
-import { createOutlineRenderer } from './effects/outlineRenderer.js';
-import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer.js';
-import { createGhostRenderer } from './effects/ghostRenderer.js';
-import { createPathLineRenderer } from './effects/pathLineRenderer.js';
-import { createCoordinator } from '../coordinator.js';
-import { showTooltip, hideTooltip } from '../views/components/tooltip.js';
-import { createPostFx } from './system/postFx.js';
-import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray.js';
-import { labelFromManifest } from '@/utils/sources.js';
+import { SKY } from '@/state/settings/components/sky';
+import { createWorld } from './world';
+import { refreshBuildingMaterial } from './components/buildings/buildings';
+import { createCameraRig } from './system/cameraRig';
+import { createAnimator } from './system/animator';
+import { createPicker } from './system/picker';
+import { createInputHandlers } from './system/inputHandlers';
+import { createBuildingFader } from './effects/buildingFader';
+import { createOutlineRenderer } from './effects/outlineRenderer';
+import { createTreeOutlineRenderer } from './effects/treeOutlineRenderer';
+import { createGhostRenderer } from './effects/ghostRenderer';
+import { createPathLineRenderer } from './effects/pathLineRenderer';
+import { createCoordinator } from '../coordinator';
+import { showTooltip, hideTooltip } from '../views/components/tooltip';
+import { createPostFx } from './system/postFx';
+import { registerRenderer as registerAdPanelRenderer } from './components/adPanels/adPanelTextureArray';
+import { labelFromManifest } from '@/utils/sources';
 
 // Rewrite manifest.tree.name to the friendly label derived from display_root
 // so that every downstream consumer (root street label, file tree root row,

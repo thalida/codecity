@@ -9,8 +9,8 @@
 // so reverse lookups are O(1). Inserts/removes update all three
 // maps atomically.
 
-import type { Building } from '@/types/index.js';
-import type { DirNode } from '@/types/manifest.js';
+import type { Building } from '@/types/index';
+import type { DirNode } from '@/types/manifest';
 
 export class BuildingIndex {
   readonly byPath = new Map<string, Building>();

@@ -3,15 +3,15 @@
 
 import { describe, it, expect, afterEach } from 'vitest';
 import * as THREE from 'three';
-import { SpatialGrid } from '@/scene/layout/spatialGrid.js';
-import { createEmptyCellTile } from '@/scene/layout/cellTile.js';
+import { SpatialGrid } from '@/scene/layout/spatialGrid';
+import { createEmptyCellTile } from '@/scene/layout/cellTile';
 import {
   attachBuildingMeshToCell,
   writeBuildingToSlot,
   setCellIconAtlas,
-} from '@/scene/components/buildings/buildingsCell.js';
-import { BuildingOrient } from '@/types/index.js';
-import type { IconAtlas } from '@/scene/components/buildings/iconAtlas.js';
+} from '@/scene/components/buildings/buildingsCell';
+import { BuildingOrient } from '@/types/index';
+import type { IconAtlas } from '@/scene/components/buildings/iconAtlas';
 import { building } from '../../../_helpers/buildingFixture';
 
 // ---------------------------------------------------------------------------

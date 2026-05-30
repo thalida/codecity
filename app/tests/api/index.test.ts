@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildApiUrl } from '@/api/urls.js';
+import { buildApiUrl } from '@/api';
 
 describe('buildApiUrl', () => {
   it('forwards src param when present', () => {

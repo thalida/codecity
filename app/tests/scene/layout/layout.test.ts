@@ -6,12 +6,12 @@ import {
   sortForRendering,
   computeLineStats,
   __test,
-} from '@/scene/layout/layout.js';
-import type { Rect } from '@/scene/layout/layout.js';
-import { BUILDING_DIMENSIONS } from '@/state/settings/index.js';
+} from '@/scene/layout/layout';
+import type { Rect } from '@/scene/layout/layout';
+import { BUILDING_DIMENSIONS } from '@/state/settings/index';
 import { BuildingOrient, NodeKind, StreetAxis } from '@/types';
-import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings.js';
-import type { StreetTier } from '@/state/settings/components/streets.js';
+import type { BuildingDimensionsConfig } from '@/state/settings/components/buildings';
+import type { StreetTier } from '@/state/settings/components/streets';
 import {
   assertNoOverlap,
   assertStemOrder,

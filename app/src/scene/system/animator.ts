@@ -28,9 +28,9 @@
 // cannot conflict by construction.
 
 import * as THREE from 'three';
-import { ANIMATION_TIMING } from '@/state/settings/index.js';
+import { ANIMATION_TIMING } from '@/state/settings/index';
 import type { Building, WorldDiff } from '@/types';
-import type { createWorld } from '../world.js';
+import type { createWorld } from '../world';
 
 interface Tween {
   /** Slot index within the CellTile InstancedMesh (same as building.slotId). */

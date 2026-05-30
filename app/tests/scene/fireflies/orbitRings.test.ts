@@ -6,8 +6,8 @@
 
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
-import { createOrbitRings } from '@/scene/components/fireflies/orbitRings.js';
-import type { FireflyPlacement } from '@/scene/components/fireflies/firefliesPlacement.js';
+import { createOrbitRings } from '@/scene/components/fireflies/orbitRings';
+import type { FireflyPlacement } from '@/scene/components/fireflies/firefliesPlacement';
 
 const RING_GROUP_NAME = 'firefly-orbit-rings';
 

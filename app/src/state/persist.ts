@@ -17,7 +17,7 @@
 
 import type { WritableAtom } from 'nanostores';
 import { STORAGE_PREFIX, STORAGE_PER_SOURCE_PREFIX } from '@/constants';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext.js';
+import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 
 // Defaults snapshotted at attach time, BEFORE hydration. These are what the
 // "reset to default" UI restores to and what the diff-vs-default check uses.

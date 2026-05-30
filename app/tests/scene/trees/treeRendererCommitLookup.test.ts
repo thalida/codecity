@@ -5,10 +5,10 @@
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import * as THREE from 'three';
-import { createTreeRenderer } from '@/scene/components/trees/treeRenderer.js';
-import type { TreePlacement } from '@/scene/components/trees/treePlacement.js';
-import { TREES } from '@/state/settings/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
+import { createTreeRenderer } from '@/scene/components/trees/treeRenderer';
+import type { TreePlacement } from '@/scene/components/trees/treePlacement';
+import { TREES } from '@/state/settings/components/trees';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
 import type { CommitEntry } from '@/types';
 
 function resetStores() {

@@ -2,8 +2,8 @@
 // Moved here because layoutPacker.test.ts also needs them — and importing
 // from a .test.ts file forces vitest to register the source file's
 // describe() blocks twice across workers.
-import { __test } from '@/scene/layout/layout.js';
-import type { Rect } from '@/scene/layout/layout.js';
+import { __test } from '@/scene/layout/layout';
+import type { Rect } from '@/scene/layout/layout';
 import { StreetAxis } from '@/types';
 import type { CityLayout, Street, Building } from '@/types';
 

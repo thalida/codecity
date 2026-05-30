@@ -15,11 +15,11 @@
 // the shared atlas built by buildLabelAtlas() from labelAtlas.ts.
 
 import * as THREE from 'three';
-import { LABEL_TYPOGRAPHY } from '@/state/settings/index.js';
+import { LABEL_TYPOGRAPHY } from '@/state/settings/index';
 import { RENDER_ORDERS } from '@/constants';
-import type { Building } from '@/types/index.js';
-import type { CellTile } from '../../layout/cellTile.js';
-import type { LabelAtlasResult } from './labelAtlas.js';
+import type { Building } from '@/types/index';
+import type { CellTile } from '../../layout/cellTile';
+import type { LabelAtlasResult } from './labelAtlas';
 
 import labelVertSrc from './label.vert.glsl?raw';
 import labelFragSrc from './label.frag.glsl?raw';

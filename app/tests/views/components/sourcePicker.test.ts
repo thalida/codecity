@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createSourcePicker } from '@/views/components/sourcePicker.js';
-import { pushRecent } from '@/utils/sourceRecents.js';
+import { createSourcePicker } from '@/views/components/sourcePicker';
+import { pushRecent } from '@/utils/sourceRecents';
 
 function mountRoot(): HTMLElement {
   document.body.innerHTML = '<div id="source-picker-root" style="display: none;"></div>';

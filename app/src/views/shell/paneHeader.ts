@@ -4,7 +4,7 @@
 // `.text-pane-title` + `.pane-header-close` triplet, so the panes look
 // identical and adding a new pane is a one-call affair.
 
-import { makeLucideIcon } from '../components/icon.js';
+import { makeLucideIcon } from '../components/icon';
 
 interface BuildPaneHeaderOpts {
   /** Initial title text. Update later via the returned api.setTitle. */

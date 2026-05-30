@@ -19,14 +19,14 @@ import {
   BUILDING_DIMENSIONS,
   STREET_LAYOUT,
   GEM_SIZING,
-} from '@/state/settings/index.js';
-import type { StreetTier } from '@/state/settings/components/streets.js';
+} from '@/state/settings/index';
+import type { StreetTier } from '@/state/settings/components/streets';
 import { BuildingOrient, JoinSide, NodeKind, StreetAxis } from '@/types';
 import type { Building, CityLayout, RangeStat, Street } from '@/types';
-import { parentDirPath } from '../utils/path.js';
-import { isMediaFile } from '../components/adPanels/adPanels.js';
-import { WorldOccupancy, WorldRectKind } from './worldOccupancy.js';
-import type { WorldRect } from './worldOccupancy.js';
+import { parentDirPath } from '../utils/path';
+import { isMediaFile } from '../components/adPanels/adPanels';
+import { WorldOccupancy, WorldRectKind } from './worldOccupancy';
+import type { WorldRect } from './worldOccupancy';
 
 // Structural shapes — kept lenient so test fixtures (which omit fields the
 // helpers don't read, like name/path on intermediate nodes) stay

@@ -9,8 +9,8 @@
 import * as THREE from 'three';
 
 // Re-export shared atlas types + builder from the extracted module.
-export type { LabelAtlasRect, LabelAtlasResult } from './labelAtlas.js';
-export { buildLabelAtlas } from './labelAtlas.js';
+export type { LabelAtlasRect, LabelAtlasResult } from './labelAtlas';
+export { buildLabelAtlas } from './labelAtlas';
 
 // One ShaderMaterial per atlas texture (= per atlas page). world owns
 // the textures' lifetime; when it disposes them it calls

@@ -20,8 +20,8 @@ import {
   BUILDING_DIMENSIONS,
   GEM_SIZING,
   STREET_TIERS,
-} from '@/state/settings/index.js';
-import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout.js';
+} from '@/state/settings/index';
+import { layoutCity, makeHeightContext, recomputeBuildingDimensions } from './layout';
 import type { Manifest, CityLayout, FileNode, TreeNode } from '@/types';
 
 interface PendingRequest {

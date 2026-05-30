@@ -3,13 +3,13 @@
 // the worker's local store instances, runs the layout, posts the
 // result back. Pure compute, no DOM or THREE.* references.
 
-import { layoutCity } from './layout.js';
+import { layoutCity } from './layout';
 import {
   STREET_LAYOUT,
   BUILDING_DIMENSIONS,
   GEM_SIZING,
   STREET_TIERS,
-} from '@/state/settings/index.js';
+} from '@/state/settings/index';
 import type { Manifest } from '@/types';
 import type { CityLayout } from '@/types';
 

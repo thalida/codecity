@@ -31,45 +31,45 @@ import * as THREE from 'three';
 import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { registerShaderChunks } from './utils/color/registerShaderChunks.js';
-import { getSharedBuildingUniforms } from './components/buildings/buildings.js';
-import { disposeLabelMaterials } from './components/labels/labels.js';
-import { buildCellsFromLayout } from './layout/cellAssembly.js';
-import type { CellTile } from './layout/cellTile.js';
-import { BuildingIndex } from './components/buildings/buildingIndex.js';
-import { findLayoutOverlaps } from './layout/layout.js';
-import type { LayoutOverlap } from './layout/layout.js';
-import { createLayoutClient } from './layout/layoutClient.js';
-import type { LayoutComputeOpts } from './layout/layoutClient.js';
-import { layoutCityWithTrace } from './layout/layout.js';
-import type { ChildPlacementTrace, StemPlacementTrace } from './layout/layout.js';
-import type { WorldRect } from './layout/worldOccupancy.js';
-import { createRootGem } from './components/gem/gem.js';
-import { createStreetMesh } from './components/streets/streets.js';
-import { createStreetLabels } from './components/streets/streetLabels.js';
-import { createSky } from './components/sky/sky.js';
-import type { Sky } from './components/sky/sky.js';
-import { createRepoLabel } from './components/repoLabel/repoLabel.js';
-import type { RepoLabel } from './components/repoLabel/repoLabel.js';
-import { createTrees } from './components/trees/trees.js';
-import type { Trees } from './components/trees/trees.js';
-import { createFireflies } from './components/fireflies/fireflies.js';
-import type { Fireflies } from './components/fireflies/fireflies.js';
-import { createTreePlacementClient } from './components/trees/treePlacementClient.js';
-import type { TreePlacementClient } from './components/trees/treePlacementClient.js';
-import { createIsland } from './components/island/islandMesh.js';
-import type { Island } from './components/island/islandMesh.js';
-import { getWorldBounds, type WorldBounds } from './layout/worldBounds.js';
-import { createCityFootprint } from './components/footprint/footprint.js';
-import type { CityFootprint } from './components/footprint/footprint.js';
-import { FOOTPRINT } from '@/state/settings/components/footprint.js';
+import { registerShaderChunks } from './utils/color/registerShaderChunks';
+import { getSharedBuildingUniforms } from './components/buildings/buildings';
+import { disposeLabelMaterials } from './components/labels/labels';
+import { buildCellsFromLayout } from './layout/cellAssembly';
+import type { CellTile } from './layout/cellTile';
+import { BuildingIndex } from './components/buildings/buildingIndex';
+import { findLayoutOverlaps } from './layout/layout';
+import type { LayoutOverlap } from './layout/layout';
+import { createLayoutClient } from './layout/layoutClient';
+import type { LayoutComputeOpts } from './layout/layoutClient';
+import { layoutCityWithTrace } from './layout/layout';
+import type { ChildPlacementTrace, StemPlacementTrace } from './layout/layout';
+import type { WorldRect } from './layout/worldOccupancy';
+import { createRootGem } from './components/gem/gem';
+import { createStreetMesh } from './components/streets/streets';
+import { createStreetLabels } from './components/streets/streetLabels';
+import { createSky } from './components/sky/sky';
+import type { Sky } from './components/sky/sky';
+import { createRepoLabel } from './components/repoLabel/repoLabel';
+import type { RepoLabel } from './components/repoLabel/repoLabel';
+import { createTrees } from './components/trees/trees';
+import type { Trees } from './components/trees/trees';
+import { createFireflies } from './components/fireflies/fireflies';
+import type { Fireflies } from './components/fireflies/fireflies';
+import { createTreePlacementClient } from './components/trees/treePlacementClient';
+import type { TreePlacementClient } from './components/trees/treePlacementClient';
+import { createIsland } from './components/island/islandMesh';
+import type { Island } from './components/island/islandMesh';
+import { getWorldBounds, type WorldBounds } from './layout/worldBounds';
+import { createCityFootprint } from './components/footprint/footprint';
+import type { CityFootprint } from './components/footprint/footprint';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
 import {
   getBuildingColor,
   getCreatedAge,
   getModifiedAge,
   getDateRanges,
-} from './components/buildings/buildingColor.js';
-import { SKY } from '@/state/settings/components/sky.js';
+} from './components/buildings/buildingColor';
+import { SKY } from '@/state/settings/components/sky';
 import {
   ASPHALT,
   GEM_APPEARANCE,
@@ -80,8 +80,8 @@ import {
   TREES,
   SCENE_COLORS,
   SIDEWALK_COLORS,
-} from '@/state/settings/index.js';
-import { REBUILD_STATUS } from '@/state/runtime/liveStatus.js';
+} from '@/state/settings/index';
+import { REBUILD_STATUS } from '@/state/runtime/liveStatus';
 import type {
   Building,
   CityBbox,

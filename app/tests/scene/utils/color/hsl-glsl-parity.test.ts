@@ -21,7 +21,7 @@ import {
   shadeAndShiftHue,
   shadeByRatio,
   hslToComponents,
-} from '@/scene/utils/color/colors.js';
+} from '@/scene/utils/color/colors';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 

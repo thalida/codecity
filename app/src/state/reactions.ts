@@ -18,7 +18,7 @@
 
 import { listenKeys } from 'nanostores';
 
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus.js';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/liveStatus';
 
 import {
   // Rebuild-required (affects layout or geometry):
@@ -71,19 +71,19 @@ import {
   // Cyberpunk Valley — floating repo-name label (all keys material-only
   // via repoLabel.refresh() inside applyTheme()):
   REPO_LABEL,
-} from '@/state/settings/index.js';
+} from '@/state/settings/index';
 import {
   // Cyberpunk Valley — island geometry and materials
   // (all material-only via island.refresh() inside applyTheme()):
   ISLAND_GEOMETRY,
   ISLAND_MATERIALS,
-} from '@/state/settings/components/island.js';
+} from '@/state/settings/components/island';
 import {
   // Cyberpunk Valley — fireflies (structural: visibility is determined at
   // creation time by reading FIREFLIES_ENABLED, so any change requires a
   // full rebuild — there is no refresh() hot-path):
   FIREFLIES,
-} from '@/state/settings/components/fireflies.js';
+} from '@/state/settings/components/fireflies';
 
 // Min-dwell for the 'rebuilding' indicator on the material-only path.
 // applyTheme() is synchronous and finishes within microseconds, so without

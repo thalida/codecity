@@ -29,14 +29,14 @@
 
 import * as THREE from 'three';
 
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
-import { REPO_LABEL } from '@/state/settings/components/repoLabel.js';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { REPO_LABEL } from '@/state/settings/components/repoLabel';
 import { RENDER_ORDERS } from '@/constants';
 
 import vertSrc from './holoQuad.vert.glsl?raw';
 import beamFragSrc from './holoBeam.frag.glsl?raw';
 import textFragSrc from './holoText.frag.glsl?raw';
-import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './textCanvas.js';
+import { createRepoNameTexture, redrawRepoName, type RepoNameTexture } from './textCanvas';
 
 // Beam radius as a fraction of FONT_SIZE. Beam thickens automatically
 // when the user grows the label — keeps the beam reading as a real

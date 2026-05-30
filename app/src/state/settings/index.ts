@@ -34,31 +34,31 @@
 // see src/constants/ or inlined private consts in their consumer.
 
 // ── System (camera, input, animation, tooltip) ───────────────────────
-export * from './system/cameraRig.js';
-export * from './system/animator.js';
-export * from './system/inputHandlers.js';
-export * from './system/tooltip.js';
+export * from './system/cameraRig';
+export * from './system/animator';
+export * from './system/inputHandlers';
+export * from './system/tooltip';
 
 // ── App-level user preferences ────────────────────────────────────────
-export * from './prefs/liveUpdates.js';
-export * from './prefs/syntaxTheme.js';
+export * from './prefs/liveUpdates';
+export * from './prefs/syntaxTheme';
 
 // ── World (background + sizing) ───────────────────────────────────────
-export * from './world/world.js';
+export * from './world/world';
 
 // ── Visual components ─────────────────────────────────────────────────
-export * from './components/sky.js';
-export * from './components/lighting.js';
-export * from './components/streets.js';
-export * from './components/buildings.js';
-export * from './components/facade.js';
-export * from './components/adPanels.js';
-export * from './components/gem.js';
-export * from './components/island.js';
-export * from './components/footprint.js';
-export * from './components/trees.js';
-export * from './components/fireflies.js';
-export * from './components/repoLabel.js';
+export * from './components/sky';
+export * from './components/lighting';
+export * from './components/streets';
+export * from './components/buildings';
+export * from './components/facade';
+export * from './components/adPanels';
+export * from './components/gem';
+export * from './components/island';
+export * from './components/footprint';
+export * from './components/trees';
+export * from './components/fireflies';
+export * from './components/repoLabel';
 
 // ── Cross-cutting visual effects ──────────────────────────────────────
-export * from './effects/effects.js';
+export * from './effects/effects';

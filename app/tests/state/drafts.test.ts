@@ -10,8 +10,8 @@ import {
   isDirty,
   subscribe,
   _resetForTests,
-} from '@/state/drafts.js';
-import { persistStore } from '@/state/persist.js';
+} from '@/state/drafts';
+import { persistStore } from '@/state/persist';
 
 interface FooConfig {
   COLOR: string;

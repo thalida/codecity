@@ -11,7 +11,7 @@
 // light text on dark backgrounds. That keeps the label readable no
 // matter what colors the user picks in Controls.
 
-import { getHue } from '@/scene/components/buildings/buildingColor.js';
+import { getHue } from '@/scene/components/buildings/buildingColor';
 
 const TEXT_DARK = '#0a0b10';
 const TEXT_LIGHT = '#f4f6ff';

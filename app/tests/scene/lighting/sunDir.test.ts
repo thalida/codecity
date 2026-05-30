@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { writeSunDir, sunDirFromLighting } from '@/scene/components/lighting/sunDir.js';
-import { LIGHTING } from '@/state/settings/components/lighting.js';
+import { writeSunDir, sunDirFromLighting } from '@/scene/components/lighting/sunDir';
+import { LIGHTING } from '@/state/settings/components/lighting';
 
 describe('writeSunDir', () => {
   beforeEach(() => {

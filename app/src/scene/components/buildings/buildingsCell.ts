@@ -10,15 +10,15 @@
 // index/position buffers).
 
 import * as THREE from 'three';
-import { FACADE_GEOMETRY } from '@/state/settings/index.js';
-import { BuildingOrient } from '@/types/index.js';
+import { FACADE_GEOMETRY } from '@/state/settings/index';
+import { BuildingOrient } from '@/types/index';
 import buildingVertSrc from './building.vert.glsl?raw';
 import buildingFragSrc from './building.frag.glsl?raw';
-import type { CellTile } from '../../layout/cellTile.js';
-import type { Building } from '@/types/index.js';
-import type { IconAtlas } from './iconAtlas.js';
-import { getFileIconName } from '@/views/components/fileIcon.js';
-import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt.js';
+import type { CellTile } from '../../layout/cellTile';
+import type { Building } from '@/types/index';
+import type { IconAtlas } from './iconAtlas';
+import { getFileIconName } from '@/views/components/fileIcon';
+import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt';
 
 // ---------------------------------------------------------------------------
 // Shared geometry — unit box, constructed once at module load and

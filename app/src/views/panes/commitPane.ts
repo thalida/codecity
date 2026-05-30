@@ -15,12 +15,12 @@
 // sidebar without churn.
 
 import type { CommitEntry } from '@/types';
-import { makeLucideIcon } from '@/views/components/icon.js';
-import { buildPaneHeader } from '@/views/shell/paneHeader.js';
-import { commitUrl } from '@/utils/commitUrl.js';
-import { formatRelativeAge, formatFullDate } from '@/utils/dates.js';
-import { fetchCommitDetail } from '@/api/commit.js';
-import { colorForAuthor } from '@/scene/components/fireflies/authorColor.js';
+import { makeLucideIcon } from '@/views/components/icon';
+import { buildPaneHeader } from '@/views/shell/paneHeader';
+import { commitUrl } from '@/utils/commitUrl';
+import { formatRelativeAge, formatFullDate } from '@/utils/dates';
+import { fetchCommitDetail } from '@/api/commit';
+import { colorForAuthor } from '@/scene/components/fireflies/authorColor';
 
 interface BuildCommitPaneOpts {
   onClose?: () => void;

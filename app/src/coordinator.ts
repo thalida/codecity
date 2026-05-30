@@ -16,22 +16,22 @@
 //   });
 //   coord.dispose();
 
-import { initAppHeader } from './views/shell/appHeader.js';
-import { initAppFooter } from './views/shell/appFooter.js';
-import { showLeftSidebar } from './views/shell/leftSidebar.js';
-import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar.js';
-import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane.js';
-import { buildCommitPane } from './views/panes/commitPane.js';
-import { buildStreetPane } from './views/panes/streetPane.js';
-import { sameDayCommitCount } from './utils/commitMetrics.js';
-import { labelFromManifest } from './utils/sources.js';
-import { LIVE_UPDATES } from './state/settings/index.js';
-import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './state/runtime/liveStatus.js';
+import { initAppHeader } from './views/shell/appHeader';
+import { initAppFooter } from './views/shell/appFooter';
+import { showLeftSidebar } from './views/shell/leftSidebar';
+import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar';
+import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane';
+import { buildCommitPane } from './views/panes/commitPane';
+import { buildStreetPane } from './views/panes/streetPane';
+import { sameDayCommitCount } from './utils/commitMetrics';
+import { labelFromManifest } from './utils/sources';
+import { LIVE_UPDATES } from './state/settings/index';
+import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './state/runtime/liveStatus';
 import { DateSource, NodeKind } from './types';
 import type { DirNode, FileNode, PickTarget, TreeNode } from './types';
-import type { createWorld } from './scene/world.js';
-import type { createPicker } from './scene/system/picker.js';
-import type { createCameraRig } from './scene/system/cameraRig.js';
+import type { createWorld } from './scene/world';
+import type { createPicker } from './scene/system/picker';
+import type { createCameraRig } from './scene/system/cameraRig';
 
 interface CoordinatorOpts {
   world: ReturnType<typeof createWorld>;

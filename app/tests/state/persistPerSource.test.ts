@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { atom } from 'nanostores';
-import { persistAtomPerSource } from '@/state/persist.js';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext.js';
+import { persistAtomPerSource } from '@/state/persist';
+import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 
 describe('persistAtomPerSource', () => {
   beforeEach(() => {

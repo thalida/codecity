@@ -2,7 +2,7 @@
 // git URL). Owns its own DOM, mounted into #source-picker-root. Recents
 // are pulled from sourceRecents.ts each time the modal renders.
 
-import { listRecents, removeRecent } from '@/utils/sourceRecents.js';
+import { listRecents, removeRecent } from '@/utils/sourceRecents';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────

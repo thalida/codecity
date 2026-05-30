@@ -16,7 +16,7 @@
 // the camera orbits to the "upside-down" side.
 
 import * as THREE from 'three';
-import { ASPHALT, LABEL_TYPOGRAPHY } from '@/state/settings/components/streets.js';
+import { ASPHALT, LABEL_TYPOGRAPHY } from '@/state/settings/components/streets';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind, StreetAxis } from '@/types';
 import type { Street } from '@/types';

@@ -5,7 +5,7 @@
 // colors are baked in so no per-frame uniform updates are needed.
 
 import * as THREE from 'three';
-import type { SpatialGrid } from '@/scene/layout/spatialGrid.js';
+import type { SpatialGrid } from '@/scene/layout/spatialGrid';
 
 export interface SidewalkRect {
   x: number; // centroid X

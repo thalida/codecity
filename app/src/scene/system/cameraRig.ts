@@ -26,11 +26,11 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index.js';
-import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext.js';
+import { CAMERA_PERSPECTIVE, CAMERA_CONTROLS, ANIMATION_TIMING } from '@/state/settings/index';
+import { CURRENT_SOURCE_KEY } from '@/state/runtime/sourceContext';
 import { StreetAxis } from '@/types';
 import type { Building, Street } from '@/types';
-import type { createWorld } from '../world.js';
+import type { createWorld } from '../world';
 
 /** Floor on controls.maxDistance regardless of city size. Tiny-but-tall
  *  cities (small footprint, one big building) end up with a tiny

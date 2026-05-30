@@ -1,6 +1,6 @@
 // app/tests/config/footprint.test.ts
 import { describe, it, expect } from 'vitest';
-import { FOOTPRINT } from '@/state/settings/components/footprint.js';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
 
 describe('FOOTPRINT', () => {
   it('exposes the expected keys with the right types', () => {

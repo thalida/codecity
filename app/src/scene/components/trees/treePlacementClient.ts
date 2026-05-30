@@ -6,13 +6,13 @@
 // to a synchronous in-thread call when Worker is unavailable (older
 // browsers / SSR / test environments).
 
-import { placeTrees, type TreePlacement } from './treePlacement.js';
-import { MSG } from './treePlacementProtocol.js';
-import { TREES } from '@/state/settings/components/trees.js';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
-import { FOOTPRINT } from '@/state/settings/components/footprint.js';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island.js';
-import { WORLD } from '@/state/settings/world/world.js';
+import { placeTrees, type TreePlacement } from './treePlacement';
+import { MSG } from './treePlacementProtocol';
+import { TREES } from '@/state/settings/components/trees';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
+import { WORLD } from '@/state/settings/world/world';
 import type { CityBbox, CityLayout } from '@/types';
 
 interface PendingRequest {

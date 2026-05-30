@@ -21,13 +21,13 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { BUILDING_OUTLINE, RAINBOW } from '@/state/settings/index.js';
+import { BUILDING_OUTLINE, RAINBOW } from '@/state/settings/index';
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
-import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world.js';
-import { getBuildingTilt } from '@/scene/components/buildings/buildingTilt.js';
-import type { createWorld } from '@/scene/world.js';
-import type { createPicker } from '@/scene/system/picker.js';
+import { UNIT_BOX_EDGE_POSITIONS } from '@/scene/world';
+import { getBuildingTilt } from '@/scene/components/buildings/buildingTilt';
+import type { createWorld } from '@/scene/world';
+import type { createPicker } from '@/scene/system/picker';
 import type { FileTarget } from '@/types';
 
 export function createOutlineRenderer({

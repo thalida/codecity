@@ -3,7 +3,7 @@
 // and animation tuning (applied on Save via applyTheme(); read fresh per frame).
 
 import { map } from 'nanostores';
-import { oklchToHex } from '@/scene/utils/color/colors.js';
+import { oklchToHex } from '@/scene/utils/color/colors';
 
 // ─── Sizing + landing zone ────────────────────────────────────────────────
 // Layout reserves dead space around the gem based on these — changing any

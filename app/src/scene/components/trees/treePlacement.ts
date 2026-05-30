@@ -24,17 +24,17 @@
 
 import RBush from 'rbush';
 import * as THREE from 'three';
-import { TREES } from '@/state/settings/components/trees.js';
-import { FOOTPRINT } from '@/state/settings/components/footprint.js';
-import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings.js';
-import { ISLAND_GEOMETRY } from '@/state/settings/components/island.js';
-import { getWorldBounds } from '../../layout/worldBounds.js';
-import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry.js';
-import { islandSeedFromBounds } from '../island/islandMesh.js';
+import { TREES } from '@/state/settings/components/trees';
+import { FOOTPRINT } from '@/state/settings/components/footprint';
+import { BUILDING_DIMENSIONS } from '@/state/settings/components/buildings';
+import { ISLAND_GEOMETRY } from '@/state/settings/components/island';
+import { getWorldBounds } from '../../layout/worldBounds';
+import { buildTopPolygon, pointInIslandPolygon } from '../island/islandGeometry';
+import { islandSeedFromBounds } from '../island/islandMesh';
 import { StreetAxis } from '@/types';
-import { gemAnchorXZ } from '../../utils/gemAnchor.js';
+import { gemAnchorXZ } from '../../utils/gemAnchor';
 import type { Building, CityBbox, CityLayout, Street } from '@/types';
-import type { IslandGeometryConfig } from '@/state/settings/components/island.js';
+import type { IslandGeometryConfig } from '@/state/settings/components/island';
 
 interface Rect {
   minX: number;

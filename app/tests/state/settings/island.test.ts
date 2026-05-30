@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island.js';
+import { ISLAND_GEOMETRY, ISLAND_MATERIALS } from '@/state/settings/components/island';
 
 describe('ISLAND config defaults', () => {
   it('GEOMETRY exposes the expected keys with the right types', () => {

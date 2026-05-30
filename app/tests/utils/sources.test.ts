@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { labelFromManifest, labelFromUrl, srcKind, toHttpsRepoUrl } from '@/utils/sources.js';
+import { labelFromManifest, labelFromUrl, srcKind, toHttpsRepoUrl } from '@/utils/sources';
 import type { Manifest } from '@/types/manifest';
 
 // Test helper: build the minimal Manifest shape labelFromManifest reads,

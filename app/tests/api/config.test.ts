@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchServerConfig, getServerConfig, _resetServerConfigForTests } from '@/api/config.js';
+import { fetchServerConfig, getServerConfig, _resetServerConfigForTests } from '@/api/config';
 
 describe('fetchServerConfig', () => {
   beforeEach(() => {

@@ -1,14 +1,10 @@
 // world-stem-diagnostic.test.ts — _formatStemDiagnostic groups child
-import { WorldRectKind } from '@/scene/layout/worldOccupancy.js';
+import { WorldRectKind } from '@/scene/layout/worldOccupancy';
 // placements by parent road and emits a multi-line block per parent.
 
 import { describe, it, expect } from 'vitest';
-import { __test } from '@/scene/world.js';
-import type {
-  StemPlacementTrace,
-  ChildPlacementTrace,
-  VariantTrace,
-} from '@/scene/layout/layout.js';
+import { __test } from '@/scene/world';
+import type { StemPlacementTrace, ChildPlacementTrace, VariantTrace } from '@/scene/layout/layout';
 
 const { _formatStemDiagnostic } = __test;
 

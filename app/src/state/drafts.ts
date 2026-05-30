@@ -9,7 +9,7 @@
 // Storage shape: Map<storeRef, Map<key | null, value>>. For atom stores
 // (no setKey), key = null and the inner map has at most one entry.
 
-import { forEachRegisteredStore, getDefault } from './persist.js';
+import { forEachRegisteredStore, getDefault } from './persist';
 
 interface MapLikeStore {
   get(): any;

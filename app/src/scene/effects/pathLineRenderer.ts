@@ -13,7 +13,7 @@ import { LineSegments2 } from 'three/addons/lines/LineSegments2.js';
 import { LineSegmentsGeometry } from 'three/addons/lines/LineSegmentsGeometry.js';
 import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
-import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/state/settings/index.js';
+import { PATH_LINE, HOVER_PATH_LINE, RAINBOW, STREET_TIERS } from '@/state/settings/index';
 
 /**
  * Converts a LINEWIDTH_PCT percentage (1–50) into an actual pixel linewidth
@@ -30,9 +30,9 @@ export function computePathLinewidthPixels(pct: number): number {
 }
 import { RENDER_ORDERS } from '@/constants';
 import { NodeKind } from '@/types';
-import { computePathPoints } from '@/scene/utils/path.js';
-import type { createWorld } from '@/scene/world.js';
-import type { createPicker } from '@/scene/system/picker.js';
+import { computePathPoints } from '@/scene/utils/path';
+import type { createWorld } from '@/scene/world';
+import type { createPicker } from '@/scene/system/picker';
 
 export function createPathLineRenderer({
   canvas,
