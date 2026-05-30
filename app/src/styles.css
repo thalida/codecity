@@ -2984,11 +2984,12 @@ canvas {
      - pane-header (from buildPaneHeader) — title becomes "Commit <sha>"
        with an inline open-on-origin link; close × at far right.
      - .commit-body — pane-body, scrolls vertically. Renders in this order:
-         .commit-author rows (one per distinct author, primary first)
+         .commit-message-subject (commit title at the top — most prominent)
+         .commit-author rows (one per distinct author, primary first; smaller
+           than the title since they're secondary metadata)
          .commit-meta (age · files)
          .commit-same-day (busyness + N commits that day)
          .commit-no-remote (when no remote configured)
-         .commit-message-subject (now the message block's title)
          .commit-message-body-slot — mutable region holding the lazy body
            (loading hint / <pre> body / error / hidden). The slot lives
            at the bottom so body load doesn't shift content above it. */
@@ -3028,14 +3029,14 @@ canvas {
 }
 
 .commit-author-dot {
-  width: 10px;
-  height: 10px;
+  width: 8px;
+  height: 8px;
   border-radius: var(--cc-radius-circle);
   flex-shrink: 0;
 }
 
 .commit-author-name {
-  font-size: var(--cc-font-xl); /* 14px */
+  font-size: var(--cc-font-lg); /* 12px — secondary metadata under the title */
   font-weight: 500;
   color: var(--cc-text-secondary);
 }

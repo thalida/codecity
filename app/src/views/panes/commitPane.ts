@@ -153,6 +153,12 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
     body.replaceChildren();
     _bodySlotEl = null;
 
+    // ── Subject (commit title at the top) ─────────────────────────────
+    const subjectEl = document.createElement('div');
+    subjectEl.className = 'commit-message-subject';
+    subjectEl.textContent = commit.subject || '(no subject)';
+    body.appendChild(subjectEl);
+
     // ── Author rows (one per distinct author; primary first) ─────────
     for (const author of commit.authors) {
       const row = document.createElement('div');
@@ -216,12 +222,6 @@ export function buildCommitPane(opts: BuildCommitPaneOpts = {}) {
       note.textContent = 'No remote configured';
       body.appendChild(note);
     }
-
-    // ── Subject (title of the message block at the bottom) ────────────
-    const subjectEl = document.createElement('div');
-    subjectEl.className = 'commit-message-subject';
-    subjectEl.textContent = commit.subject || '(no subject)';
-    body.appendChild(subjectEl);
 
     // ── Body slot (mutable region for loading / text / error / hidden) ─
     const bodySlot = document.createElement('div');

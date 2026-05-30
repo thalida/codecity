@@ -599,7 +599,7 @@ describe('buildCommitPane', () => {
     expect(pane.querySelector('.commit-meta')).not.toBeNull();
   });
 
-  it('DOM order is: authors → meta → same-day → subject → body slot', () => {
+  it('DOM order is: subject → authors → meta → same-day → body slot', () => {
     globalThis.fetch = (() => new Promise(() => {})) as unknown as typeof fetch;
     const { pane, api } = buildCommitPane({});
     api.setCommit(COMMIT, { sameDayTotal: 3, now: new Date('2026-05-24T12:00:00Z') });
@@ -608,17 +608,18 @@ describe('buildCommitPane', () => {
     // Find first occurrence of each marker class.
     const idx = (cls: string) =>
       children.findIndex((c) => c.classList.contains(cls));
+    const iSubject = idx('commit-message-subject');
     const iAuthor = idx('commit-author');
     const iMeta = idx('commit-meta');
     const iSameDay = idx('commit-same-day');
-    const iSubject = idx('commit-message-subject');
     const iBody = idx('commit-message-body-slot');
-    // Every section must be present and in the expected order.
-    expect(iAuthor).toBeGreaterThanOrEqual(0);
+    // Every section must be present and in the expected order: subject
+    // (commit title) at top, authors below it, then meta, same-day, body slot.
+    expect(iSubject).toBeGreaterThanOrEqual(0);
+    expect(iAuthor).toBeGreaterThan(iSubject);
     expect(iMeta).toBeGreaterThan(iAuthor);
     expect(iSameDay).toBeGreaterThan(iMeta);
-    expect(iSubject).toBeGreaterThan(iSameDay);
-    expect(iBody).toBeGreaterThan(iSubject);
+    expect(iBody).toBeGreaterThan(iSameDay);
   });
 
   it('content above the body slot does not move when body resolves', async () => {
