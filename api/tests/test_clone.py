@@ -119,6 +119,34 @@ class EnsureCloneTests(unittest.TestCase):
         with self.assertRaises(CloneError):
             ensure_clone(str(self.tmp_path / "does-not-exist.git"))
 
+    def test_empty_remote_no_commits_clones_without_error(self) -> None:
+        """A brand-new remote with no commits has an unborn HEAD: the
+        bare repo has no refs/heads/* and no resolvable origin/HEAD on
+        clones. ensure_clone must produce an empty working tree rather
+        than surfacing `git symbolic-ref … is not a symbolic ref` from
+        the update-path reset. The frontend then renders an empty world.
+        """
+        empty_bare = self.tmp_path / "empty.git"
+        _run("git", "init", "--bare", "-q", str(empty_bare), cwd=self.tmp_path)
+        url = str(empty_bare)
+
+        # First call (fresh clone path): git clone of an empty bare
+        # succeeds with a working tree containing nothing.
+        local = ensure_clone(url)
+        self.assertTrue(local.is_dir())
+        self.assertTrue((local / ".git").is_dir())
+        # No files in the working tree (just .git/).
+        files = [p.name for p in local.iterdir() if p.name != ".git"]
+        self.assertEqual(files, [])
+
+        # Second call (update path) — this is where the bug was: the
+        # old code unconditionally called `git symbolic-ref
+        # refs/remotes/origin/HEAD` which exits non-zero on an unborn
+        # HEAD and bubbled the cryptic git stderr to the picker modal.
+        ensure_clone(url)
+        files_after = [p.name for p in local.iterdir() if p.name != ".git"]
+        self.assertEqual(files_after, [])
+
 
 class CleanCloneErrorDispatcherTests(unittest.TestCase):
     def test_branch_not_found_first_clone_stderr(self) -> None:

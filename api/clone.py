@@ -372,11 +372,25 @@ def clone_dir_for(url: str, branch: str | None) -> Path:
     return CACHE_ROOT / digest
 
 
-def _resolve_default_branch(repo: Path) -> str:
-    """Return the default branch name on origin (e.g. 'main')."""
-    out = _run_git("symbolic-ref", "refs/remotes/origin/HEAD", cwd=repo).strip()
+def _resolve_default_branch(repo: Path) -> str | None:
+    """Return the default branch name on origin (e.g. 'main'), or None
+    when the remote has no commits yet (an unborn HEAD).
+
+    A brand-new empty github.com/<owner>/<name> repo clones successfully
+    but has no symbolic refs/remotes/origin/HEAD — `git symbolic-ref`
+    exits non-zero. Treat that as "nothing to check out" rather than an
+    error: the caller skips the post-clone reset and the working tree
+    stays empty, which the scanner happily walks into an empty manifest
+    so the frontend renders an empty world.
+    """
+    try:
+        out = _run_git("symbolic-ref", "refs/remotes/origin/HEAD", cwd=repo).strip()
+    except CloneError as e:
+        if "is not a symbolic ref" in str(e):
+            return None
+        raise
     # e.g. "refs/remotes/origin/main" → "main"
-    return out.rsplit("/", 1)[-1] if out else "HEAD"
+    return out.rsplit("/", 1)[-1] if out else None
 
 
 def ensure_clone(
@@ -408,9 +422,16 @@ def ensure_clone(
                 cwd=target, progress_dir=pack_dir,
                 on_progress=on_progress,
             )
-            ref = f"origin/{branch}" if branch else f"origin/{_resolve_default_branch(target)}"
-            _log(f"resetting to {ref}")
-            _run_git("reset", "--hard", ref, cwd=target)
+            default = None if branch else _resolve_default_branch(target)
+            if branch or default:
+                ref = f"origin/{branch or default}"
+                _log(f"resetting to {ref}")
+                _run_git("reset", "--hard", ref, cwd=target)
+            else:
+                # Remote has no commits yet — nothing to reset to. Leave
+                # the working tree empty; the scanner will produce an
+                # empty manifest and the frontend renders an empty world.
+                _log("remote has no commits; skipping reset")
             _log("update complete")
         except CloneError as e:
             # On update-path failure: try clean-error translation, then re-raise.

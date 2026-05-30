@@ -289,13 +289,40 @@ export function buildTreePane(
   const listEl = document.createElement('ul');
   listEl.className = 'tree-list tree-root';
   ctx.rootList = listEl;
-  const rootItem = _buildItem(tree, ctx, true);
-  ctx.rootDirLi = rootItem;
-  listEl.appendChild(rootItem);
+
+  // Empty-state card shown when no project is loaded — the EMPTY_MANIFEST
+  // path used on cold boot before the source picker resolves. Lives in
+  // the pane alongside the tree list; visibility is toggled in lockstep
+  // with the list. Without this the pane would show a lone unlabeled
+  // gem (the EMPTY_MANIFEST root rendered into the tree).
+  const emptyEl = _buildEmptyState();
+  pane.appendChild(emptyEl);
   pane.appendChild(listEl);
+
+  _renderTree(tree);
 
   let currentSelectedLi: HTMLLIElement | null = null;
   let currentHoveredLi: HTMLLIElement | null = null;
+
+  // Render `tree` into listEl OR show the empty state — toggle in lockstep
+  // so the pane shows exactly one of them at a time. Treats a tree with
+  // no name and no children as "empty" (the EMPTY_MANIFEST shape).
+  function _renderTree(tree: TreeNode): void {
+    const isEmpty =
+      !tree.name &&
+      (!('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0);
+    if (isEmpty) {
+      emptyEl.style.display = '';
+      listEl.style.display = 'none';
+      ctx.rootDirLi = null;
+      return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.style.display = '';
+    const rootItem = _buildItem(tree, ctx, true);
+    ctx.rootDirLi = rootItem;
+    listEl.appendChild(rootItem);
+  }
 
   // Rebuild the tree DOM from a fresh manifest. Used after applyManifest
   // swaps in a new tree (e.g. live-update poll picking up new files).
@@ -307,9 +334,7 @@ export function buildTreePane(
     currentSelectedLi = null;
     currentHoveredLi = null;
     const next = ((m as { tree?: unknown }).tree || m) as TreeNode;
-    const nextRoot = _buildItem(next, ctx, true);
-    ctx.rootDirLi = nextRoot;
-    listEl.appendChild(nextRoot);
+    _renderTree(next);
   }
 
   function setSelectedPath(path: string | null): void {
@@ -355,4 +380,25 @@ export function buildTreePane(
       setManifest,
     },
   };
+}
+
+/**
+ * Empty-state card for the Explorer pane — centered icon + title +
+ * subtitle, shown when no project is loaded (EMPTY_MANIFEST). Follows
+ * the existing `.empty-state` design pattern used by the file-preview
+ * and info panes.
+ */
+function _buildEmptyState(): HTMLElement {
+  const box = document.createElement('div');
+  box.className = 'empty-state empty-state--lg';
+  box.appendChild(makeLucideIcon('folder-open'));
+  const h = document.createElement('p');
+  h.className = 'text-card-title';
+  h.textContent = 'No project loaded';
+  box.appendChild(h);
+  const sub = document.createElement('p');
+  sub.className = 'text-card-sub';
+  sub.textContent = 'Open one to explore its file tree.';
+  box.appendChild(sub);
+  return box;
 }
