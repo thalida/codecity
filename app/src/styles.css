@@ -989,11 +989,11 @@ canvas {
 }
 
 /* The project switcher button is now .btn-chip (defined with the button
-   components near the top of the file). This rule only styles its
-   ellipsis-truncated label child. */
+   components near the top of the file). The label is allowed to grow
+   to the full project name — no ellipsis — so users always see what
+   they're switched to even for long owner/repo strings. */
 .btn-chip-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .btn-chip .lucide-icon {
   font-size: var(--cc-font-xl);

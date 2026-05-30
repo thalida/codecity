@@ -421,6 +421,15 @@ def _collect_repo_info(root: Path) -> RepoInfo:
         # Detached: surface the short SHA so the footer isn't blank.
         short = _run_git(root, "rev-parse", "--short", "HEAD").strip()
         info["branch"] = f"detached @ {short}" if short else "detached HEAD"
+    else:
+        # Unborn HEAD (rev-parse exited non-zero → empty stdout): the
+        # repo has no commits yet, but HEAD still resolves as a symbolic
+        # ref to the configured default branch (e.g. "main"). Surface
+        # that name so the frontend can show "this is an empty <branch>"
+        # instead of falling back to "detached HEAD".
+        symref = _run_git(root, "symbolic-ref", "--short", "HEAD").strip()
+        if symref:
+            info["branch"] = symref
 
     remote = _run_git(root, "config", "--get", "remote.origin.url").strip()
     info["remote_url"] = _normalize_remote_to_web_url(remote) or None

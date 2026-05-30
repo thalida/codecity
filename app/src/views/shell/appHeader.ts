@@ -238,8 +238,12 @@ export function initAppHeader(opts: InitAppHeaderOpts = {}) {
         _repoLinkEl = a;
         _projectBtn.parentElement.insertBefore(_repoLinkEl, _projectBtn.nextSibling);
       }
-      _repoLinkEl.href = toHttpsRepoUrl(_sourceUrl);
-      _repoLinkEl.title = `Open repo: ${_sourceUrl}`;
+      const baseUrl = toHttpsRepoUrl(_sourceUrl);
+      const url = _branch ? _withBranchPath(baseUrl, _branch) : baseUrl;
+      _repoLinkEl.href = url;
+      _repoLinkEl.title = _branch
+        ? `Open repo at @${_branch}`
+        : `Open repo: ${_sourceUrl}`;
     } else if (_repoLinkEl) {
       _repoLinkEl.remove();
       _repoLinkEl = null;
@@ -409,6 +413,38 @@ function _copy(text: string, btn: HTMLButtonElement): void {
     _legacyCopy(text);
     flash();
   }
+}
+
+/**
+ * Append a branch-tree path to a forge HTTPS URL so the external-link
+ * icon opens the branch instead of the repo root. Path conventions
+ * vary by forge:
+ *   github.com / sr.ht                       → /tree/<branch>
+ *   gitlab.com                               → /-/tree/<branch>
+ *   bitbucket.org                            → /src/<branch>
+ *   codeberg.org + Forgejo + Gitea hosts     → /src/branch/<branch>
+ *
+ * Self-hosted Forgejo / Gitea instances live on arbitrary hostnames;
+ * we match by the host containing "forgejo" or "gitea" as a best-effort
+ * shorthand (works for e.g. forgejo.example.com or git.gitea.io, but
+ * not for fully-renamed instances). When nothing matches, return the
+ * base URL — better to land on the repo than to ship a broken 404.
+ */
+function _withBranchPath(repoHttpsUrl: string, branch: string): string {
+  const ref = encodeURIComponent(branch);
+  if (/codeberg\.org|forgejo|gitea/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/branch/${ref}`;
+  }
+  if (/github\.com|sr\.ht/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/tree/${ref}`;
+  }
+  if (/gitlab\.com/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/-/tree/${ref}`;
+  }
+  if (/bitbucket\.org/i.test(repoHttpsUrl)) {
+    return `${repoHttpsUrl}/src/${ref}`;
+  }
+  return repoHttpsUrl;
 }
 
 function _legacyCopy(text: string): void {

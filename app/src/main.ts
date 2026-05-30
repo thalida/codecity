@@ -357,18 +357,40 @@ if (_canvas) {
         _applyDisplayLabel(manifest);
         await handle.world.applyManifest(manifest);
 
+        // If the user didn't explicitly request a branch, fall back to
+        // the manifest's resolved HEAD (the repo's default branch) so
+        // both the header pill and the recents row reflect what was
+        // actually loaded instead of leaving the branch blank.
+        //
+        // Defensive guard: the scanner labels a detached HEAD with
+        // strings like "detached HEAD" or "detached @ a1b2c3d". Those
+        // are display labels, NOT real branch names — passing them to
+        // a later `git clone --branch …` would fail. Only treat the
+        // manifest branch as a usable default when it looks like a
+        // normal ref (no spaces, no leading parens/"detached" prefix).
+        const manifestBranch = manifest.repo.branch;
+        const looksLikeRealBranch =
+          !!manifestBranch &&
+          !/\s/.test(manifestBranch) &&
+          !manifestBranch.startsWith('(') &&
+          !manifestBranch.startsWith('detached');
+        const resolvedBranch =
+          payload.branch ?? (looksLikeRealBranch ? manifestBranch! : undefined);
+        const branchIsDefault = !payload.branch && looksLikeRealBranch;
+
         // Update the header (project label, branch pill) + footer (repo link)
         // AFTER applyManifest so world.getManifest() inside the coordinator
         // resolves to the just-applied manifest — otherwise the label is stale.
         handle.coordinator.setSourceInfo(
-          payload.branch,
+          resolvedBranch,
           _srcKind(payload.src) === 'git' ? payload.src : undefined
         );
 
         _liveUpdates?.setSignature(manifest.signature);
         pushRecent({
           src: payload.src,
-          branch: payload.branch,
+          branch: resolvedBranch,
+          branchIsDefault,
           label: _deriveLabel(payload.src),
         });
 

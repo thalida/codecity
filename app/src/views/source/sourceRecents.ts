@@ -7,6 +7,11 @@ const MAX = 10;
 export interface RecentSource {
   src: string; // exactly what was typed / passed; goes into ?src=
   branch?: string; // only meaningful for git URLs
+  /** True when `branch` was filled in from the manifest's resolved
+   *  HEAD (i.e. the user didn't type a branch — we recorded the
+   *  repo's default). The picker annotates these rows with "(default)"
+   *  so the user knows the branch was inferred, not chosen. */
+  branchIsDefault?: boolean;
   label: string; // derived at save time: basename(src) or "owner/repo"
   lastOpenedAt: number; // ms since epoch, for MRU sort
 }
@@ -34,13 +39,23 @@ export function listRecents(): RecentSource[] {
  * Push (or update) an entry. Dedupes by (src, branch ?? ''). The pushed
  * entry becomes the most-recent. List is capped at MAX entries (oldest
  * dropped).
+ *
+ * Special case for `branchIsDefault`: when an entry's branch was filled
+ * in from the manifest's resolved HEAD (the user didn't type one), we
+ * also drop any pre-existing entry for the same src with NO branch
+ * recorded. Those are the same logical project — the empty-branch row
+ * was just from before we resolved the default — and keeping both
+ * leaves a confusing duplicate in the picker.
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
   const list = _read();
-  const filtered = list.filter(
-    (r) => !(r.src === entry.src && (r.branch ?? '') === (entry.branch ?? ''))
-  );
+  const filtered = list.filter((r) => {
+    if (r.src !== entry.src) return true;
+    if ((r.branch ?? '') === (entry.branch ?? '')) return false;
+    if (entry.branchIsDefault && !r.branch) return false;
+    return true;
+  });
   filtered.unshift({ ...entry, lastOpenedAt: now });
   _write(filtered.slice(0, MAX));
 }
