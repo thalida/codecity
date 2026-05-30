@@ -6,7 +6,6 @@
 
 # Tool artifacts
 .superpowers/
-docs/superpowers/
 
 # Generated test fixtures
 #   run `bash api/tests/fixtures/setup.sh` to regenerate
