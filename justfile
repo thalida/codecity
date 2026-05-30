@@ -9,12 +9,13 @@ default:
 # a compose override at .local/dev-mount.override.yml (gitignored) so the
 # extra mount can be layered onto the base dev compose without editing it.
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
-# under key 'vite'), uses a worktree-derived compose project name (so containers
-# + volumes don't collide), and prints a subdomain URL so browser storage is
-# isolated per worktree. Auto-re-picks if the saved port becomes occupied.
+# under key 'vite'), uses a branch-derived compose project name (so containers
+# + volumes don't collide across branches/worktrees), and prints a subdomain
+# URL so browser storage is isolated per branch. Falls back to the directory
+# basename for detached HEAD. Auto-re-picks if the saved port becomes occupied.
 dev mount='': install-hooks setup
     @PORT=$(python3 bin/pick-port.py vite) ; \
-     SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      COMPOSE_ARGS="-f docker-compose.dev.yml" ; \
      if [ -n "{{mount}}" ]; then \
          ABS=$(realpath "{{mount}}") || exit 1 ; \
@@ -34,10 +35,12 @@ dev mount='': install-hooks setup
 # can only render git URLs.
 # Picks a free host port per worktree (persisted to .local/worktree-ports.json
 # under key 'run') so bookmarked URLs survive restarts AND concurrent worktrees
-# don't fight over port 8080. Auto-re-picks if the saved port becomes occupied.
+# don't fight over port 8080. Subdomain URL is branch-derived (falls back to
+# directory basename on detached HEAD). Auto-re-picks if the saved port becomes
+# occupied.
 run mount='':
     @PORT=$(python3 bin/pick-port.py run) ; \
-     SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+     SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      MOUNT_ARG="" ; \
      if [ -n "{{mount}}" ]; then \
          ABS=$(realpath "{{mount}}") || exit 1 ; \
@@ -56,7 +59,7 @@ run mount='':
 
 # Shell into the api container in dev mode.
 shell:
-    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+    @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml run --rm api sh
 
 # Recover from a corrupt dev app container (symptom: `sh: 1: npm: not found`
@@ -66,7 +69,7 @@ shell:
 # Removes just the app container (api + cache volume are preserved) and
 # re-runs dev. Accepts the same optional `mount` arg as `dev`.
 reset-dev mount='':
-    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+    @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml rm -fs app
     @just dev "{{mount}}"
 
@@ -175,7 +178,7 @@ release VERSION:
 
 # ── Cleanup ──────────────────────────────────────────────────────
 clean:
-    @SLUG=$(basename $(pwd) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
+    @SLUG=$( ( git symbolic-ref --short -q HEAD 2>/dev/null || basename $(pwd) ) | tr '[:upper:]' '[:lower:]' | tr -c '[:alnum:]' '-' | sed 's/-*$//') ; \
      docker compose -p codecity-$SLUG -f docker-compose.dev.yml down --volumes --rmi local 2>/dev/null || true ; \
      docker compose -f docker-compose.test.yml down --rmi local 2>/dev/null || true
     rm -f .local/worktree-ports.json
