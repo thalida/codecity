@@ -51,11 +51,13 @@ export interface GemFacePaletteConfig {
   FACE_8: string;
 }
 
-// OKLCH params for the default rainbow. Matches the firefly orb palette
-// (L=0.78, C=0.18) so the gem reads visually consistent with the
-// per-author orbs orbiting the trees.
-const FACE_L = 0.78;
-const FACE_C = 0.18;
+// OKLCH params for the default rainbow. Slightly more vibrant than the
+// firefly orb palette (orbs use L=0.78, C=0.18); the gem benefits from
+// higher chroma since each face is a large solid area, where the
+// fireflies are tiny moving dots whose color already gets boosted by
+// the additive bloom pass.
+const FACE_L = 0.75;
+const FACE_C = 0.22;
 const FACE_COUNT = 8;
 const faceHex = (i: number): string => oklchToHex(FACE_L, FACE_C, (i / FACE_COUNT) * 360);
 
