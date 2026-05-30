@@ -18,7 +18,7 @@
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/shell/paneHeader';
+import { buildPaneHeader } from '@/views/components/paneHeader';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

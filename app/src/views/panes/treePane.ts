@@ -7,7 +7,7 @@ import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
 import { makeGemIcon, makeLucideIcon } from '@/views/components/icon';
 import { makeFileIcon, makeFolderIcon } from '@/views/components/fileIcon';
-import { buildPaneHeader } from '@/views/shell/paneHeader';
+import { buildPaneHeader } from '@/views/components/paneHeader';
 
 interface TreeCtx {
   byPath: Record<string, { li: HTMLLIElement; node: TreeNode }>;

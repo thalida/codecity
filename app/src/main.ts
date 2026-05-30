@@ -25,7 +25,7 @@ import { setCellIconAtlas } from './scene/components/buildings/buildingsCell';
 import { createSourcePicker, type SourcePayload } from './views/components/sourcePicker';
 import { createLoadingOverlay } from './views/components/loadingOverlay';
 import { streamManifest } from './api/manifest';
-import { pushRecent } from './utils/sourceRecents';
+import { pushRecent } from './state/runtime/sourceRecents';
 import { startRenderLoop, _applyDisplayLabel } from './scene/renderLoop';
 import { getServerConfig } from './api/config';
 

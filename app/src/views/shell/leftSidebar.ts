@@ -12,7 +12,7 @@ import { buildSearchPane } from '@/views/panes/searchPane';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
 import { SidebarTab } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { loadFlag, saveFlag } from '@/utils/localFlag';
+import { loadFlag, saveFlag } from '@/state/runtime/localFlag';
 
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH = 600;

@@ -10,7 +10,7 @@
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/shell/paneHeader';
+import { buildPaneHeader } from '@/views/components/paneHeader';
 import { makeExtensionBadge } from '@/views/components/badge';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 

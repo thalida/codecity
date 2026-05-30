@@ -23,7 +23,7 @@ import { showRightSidebar, hideRightSidebar } from './views/shell/rightSidebar';
 import { buildFilePreviewPane, humanLanguageFor } from './views/panes/filePreviewPane';
 import { buildCommitPane } from './views/panes/commitPane';
 import { buildStreetPane } from './views/panes/streetPane';
-import { sameDayCommitCount } from './utils/commitMetrics';
+import { sameDayCommitCount } from './utils/commit';
 import { labelFromManifest } from './utils/sources';
 import { LIVE_UPDATES } from './state/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from './state/runtime/liveStatus';

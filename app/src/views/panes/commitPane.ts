@@ -16,8 +16,8 @@
 
 import type { CommitEntry } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/shell/paneHeader';
-import { commitUrl } from '@/utils/commitUrl';
+import { buildPaneHeader } from '@/views/components/paneHeader';
+import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';
 import { colorForAuthor } from '@/scene/components/fireflies/authorColor';

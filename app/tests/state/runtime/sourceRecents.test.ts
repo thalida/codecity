@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { listRecents, pushRecent, removeRecent } from '@/utils/sourceRecents';
+import { listRecents, pushRecent, removeRecent } from '@/state/runtime/sourceRecents';
 
 describe('sourceRecents', () => {
   beforeEach(() => {

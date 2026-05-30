@@ -8,7 +8,7 @@ import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
 import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/shell/paneHeader';
+import { buildPaneHeader } from '@/views/components/paneHeader';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
