@@ -64,6 +64,7 @@ from api.scan import (
 from api.types import (
     CacheClearResponse,
     CommitDetailResponse,
+    ConfigResponse,
     ErrorResponse,
     FileTooLargeResponse,
     HealthResponse,
@@ -194,6 +195,7 @@ JsonBody = (
     | HealthResponse
     | CacheClearResponse
     | CommitDetailResponse
+    | ConfigResponse
 )
 
 
@@ -417,6 +419,19 @@ def _resolve_scan_target(
         )
         return None
     return scan_target, raw_src, None, "local"
+
+
+def _local_repos_allowed() -> bool:
+    """Return True if CODECITY_ALLOW_LOCAL_REPOS is set to a truthy
+    value. Read fresh on each call so tests can monkeypatch the env
+    var without restarting the server."""
+    return env_bool("CODECITY_ALLOW_LOCAL_REPOS")
+
+
+def _serve_config(handler: BaseHTTPRequestHandler) -> None:
+    """GET /api/config — server-side feature flags for the frontend."""
+    body: ConfigResponse = {"allowLocalRepos": _local_repos_allowed()}
+    _send_json(handler, HTTPStatus.OK, body)
 
 
 _COMMIT_SHA_RE = re.compile(r"^[0-9a-fA-F]{7,40}$")
@@ -961,6 +976,10 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == "/api/health":
             _send_json(self, HTTPStatus.OK, {"ok": True})
+            return
+
+        if path == "/api/config":
+            _serve_config(self)
             return
 
         if path == "/api/manifest":

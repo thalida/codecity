@@ -165,6 +165,13 @@ class HealthResponse(TypedDict):
     ok: bool
 
 
+class ConfigResponse(TypedDict):
+    """/api/config body. Read by the frontend at boot to learn
+    server-side feature flags."""
+
+    allowLocalRepos: bool
+
+
 class CommitDetailResponse(TypedDict):
     """Body of GET /api/commit?sha=<sha>. Returns the commit's author
     name (no email), day-precision date, single-line subject, and full
