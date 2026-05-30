@@ -1,4 +1,4 @@
-// views/components/fileIcon.ts — VSCode-style file/folder icons (Material
+// views/components/fileIcon.tsx — VSCode-style file/folder icons (Material
 // Icon Theme, MIT). Returns an <img> element pointing at a CDN-hosted
 // SVG; the browser caches per URL so a project with N files but only K
 // unique extensions only triggers K icon fetches on first paint.
@@ -8,7 +8,12 @@
 // glyphs — the COLOR is the info — so we render them as plain <img>
 // instead. Trade: no theme-tint, but every-file-recognizable from a
 // glance is the whole point.
+//
+// Preact components: FileIcon, FolderIcon.
+// Backward-compat factories: makeFileIcon, makeFolderIcon (used by panes/
+// shell until Phases 3c/3d port them).
 
+import { h } from 'preact';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode } from '@/types';
 
@@ -336,6 +341,8 @@ const GENERIC_FOLDER = 'folder';
 const HARD_FALLBACK_FILE = 'file';
 const HARD_FALLBACK_FOLDER = 'folder';
 
+// ── Public helpers ──────────────────────────────────────────────────────────
+
 /**
  * Resolve the Material icon basename for a file node — same lookup
  * order makeFileIcon uses (exact filename > extension > generic).
@@ -355,6 +362,48 @@ export function getFolderIconName(dir: DirNode | { name?: string }): string {
 
 /** Base URL the atlas / tree both fetch icon SVGs from. */
 export const FILE_ICON_CDN_BASE = ICON_CDN_BASE;
+
+// ── Preact components ───────────────────────────────────────────────────────
+
+export interface FileIconProps {
+  file: FileNode | { name?: string; extension?: string };
+}
+
+export interface FolderIconProps {
+  dir: DirNode | { name?: string };
+}
+
+export function FileIcon({ file }: FileIconProps) {
+  const iconName = getFileIconName(file);
+  const label = file.name || '';
+  return (
+    <img
+      class="file-icon"
+      src={`${ICON_CDN_BASE}${iconName}.svg`}
+      alt=""
+      loading="lazy"
+      data-icon-name={iconName}
+      data-icon-for={label || undefined}
+    />
+  );
+}
+
+export function FolderIcon({ dir }: FolderIconProps) {
+  const iconName = getFolderIconName(dir);
+  const label = dir.name || '';
+  return (
+    <img
+      class="file-icon"
+      src={`${ICON_CDN_BASE}${iconName}.svg`}
+      alt=""
+      loading="lazy"
+      data-icon-name={iconName}
+      data-icon-for={label || undefined}
+    />
+  );
+}
+
+// ── Backward-compat factories (Phase 3c/3d will delete these) ──────────────
 
 /** Build the <img> for a file node, with extension/name lookups + fallback. */
 export function makeFileIcon(
