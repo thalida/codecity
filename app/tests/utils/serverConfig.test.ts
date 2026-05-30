@@ -1,5 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { fetchServerConfig, getServerConfig, _resetServerConfigForTests } from '@/utils/serverConfig.js';
+import {
+  fetchServerConfig,
+  getServerConfig,
+  _resetServerConfigForTests,
+} from '@/utils/serverConfig.js';
 
 describe('fetchServerConfig', () => {
   beforeEach(() => {
@@ -24,9 +28,7 @@ describe('fetchServerConfig', () => {
   });
 
   it('fails closed on a non-200 response', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response('oops', { status: 500 })
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('oops', { status: 500 }));
     const cfg = await fetchServerConfig();
     expect(cfg).toEqual({ allowLocalRepos: false });
   });
@@ -38,9 +40,7 @@ describe('fetchServerConfig', () => {
   });
 
   it('fails closed on malformed JSON', async () => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
-      new Response('not-json', { status: 200 })
-    );
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(new Response('not-json', { status: 200 }));
     const cfg = await fetchServerConfig();
     expect(cfg).toEqual({ allowLocalRepos: false });
   });
@@ -55,9 +55,7 @@ describe('getServerConfig', () => {
   it('memoizes the first successful fetch', async () => {
     const spy = vi
       .spyOn(globalThis, 'fetch')
-      .mockResolvedValue(
-        new Response(JSON.stringify({ allowLocalRepos: true }), { status: 200 })
-      );
+      .mockResolvedValue(new Response(JSON.stringify({ allowLocalRepos: true }), { status: 200 }));
     await getServerConfig();
     await getServerConfig();
     await getServerConfig();

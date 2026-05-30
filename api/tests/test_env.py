@@ -1,4 +1,4 @@
-"""Tests for the permissive boolean env-var parser in api._env."""
+"""Tests for the permissive boolean env-var parser in api.env."""
 
 from __future__ import annotations
 

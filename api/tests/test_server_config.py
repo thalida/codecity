@@ -20,11 +20,9 @@ class ServerConfigTests(unittest.TestCase):
     env-var states."""
 
     @pytest.fixture(autouse=True)
-    def _setup_fixtures(self, http_helpers, monkeypatch, redirect_cache_root, init_git_repo) -> None:
+    def _setup_fixtures(self, http_helpers, monkeypatch) -> None:
         self._http = http_helpers
         self.monkeypatch = monkeypatch
-        self.redirect_cache_root = redirect_cache_root
-        self._init_git_repo = init_git_repo
 
     def setUp(self) -> None:
         super().setUp()

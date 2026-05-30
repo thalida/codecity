@@ -172,7 +172,7 @@ export function createSourcePicker(opts: {
                 Restart the container with the env var set and a read-only mount of the
                 directory you want to load.</p>
                 <p><a href="https://github.com/thalida/codecity#local-directories"
-                  target="_blank" rel="noopener">How to enable local repositories →</a></p>
+                  target="_blank" rel="noopener noreferrer">How to enable local repositories →</a></p>
               </div>`
               }
             </div>
@@ -348,7 +348,8 @@ export function createSourcePicker(opts: {
   function submitFromForm(): void {
     const src =
       activeTab === 'local'
-        ? (root!.querySelector('[data-field="path"]') as HTMLInputElement | null)?.value.trim() ?? ''
+        ? ((root!.querySelector('[data-field="path"]') as HTMLInputElement | null)?.value.trim() ??
+          '')
         : (root!.querySelector('[data-field="url"]') as HTMLInputElement).value.trim();
     if (!src) return;
     const branch =

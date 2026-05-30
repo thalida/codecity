@@ -48,7 +48,15 @@ describe('sourcePicker', () => {
     const input = root.querySelector('[data-field="path"]') as HTMLInputElement;
     input.value = '/Users/foo/bar';
     (root.querySelector('button.submit') as HTMLButtonElement).click();
-    expect(onSubmit).toHaveBeenCalledWith({ src: '/Users/foo/bar', branch: undefined });
+    // Full payload: submitFromForm always emits all four keys (undefined
+    // for absent inputs). Asserting the complete shape catches regressions
+    // where a future change accidentally starts including extra fields.
+    expect(onSubmit).toHaveBeenCalledWith({
+      src: '/Users/foo/bar',
+      branch: undefined,
+      gitWindow: undefined,
+      skipCache: undefined,
+    });
   });
 
   it('git-tab submit includes branch', () => {
@@ -62,6 +70,8 @@ describe('sourcePicker', () => {
     expect(onSubmit).toHaveBeenCalledWith({
       src: 'https://github.com/o/r',
       branch: 'main',
+      gitWindow: undefined,
+      skipCache: undefined,
     });
   });
 
@@ -81,7 +91,13 @@ describe('sourcePicker', () => {
     const p = createSourcePicker({ onSubmit, allowLocalRepos: true });
     p.open();
     (root.querySelector('.recent-row') as HTMLElement).click();
-    expect(onSubmit).toHaveBeenCalledWith({ src: '/foo', branch: undefined });
+    // Recent-row clicks omit skipCache entirely (it's only set on fresh-
+    // form submits via the checkbox), so the payload has 3 keys, not 4.
+    expect(onSubmit).toHaveBeenCalledWith({
+      src: '/foo',
+      branch: undefined,
+      gitWindow: undefined,
+    });
   });
 
   it('shows error banner when open() includes error', () => {
