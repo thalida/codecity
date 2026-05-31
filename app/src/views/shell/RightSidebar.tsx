@@ -1,92 +1,43 @@
-// views/shell/rightSidebar.tsx — chrome for the right-side panel. Owns:
+// views/shell/RightSidebar.tsx — Right-side panel chrome + pane router.
+//
+// Owns:
 //   - the .open class that drives the open/close transition
 //   - the drag-to-resize handle on the inside (left) edge
 //   - persisting the chosen width across reloads
-//   - mounting one pane element into the slot
+//   - choosing which of three panes to mount based on picker selection:
+//       file → FilePreviewPane
+//       commit → CommitPane
+//       directory → StreetPane
+//   - feeding live manifest data into the panes (remoteUrl, same-day
+//     commit counts, busyness thresholds, tree color)
 //
-// Exactly one pane is mounted at a time. The coordinator builds a pane
-// (filePreviewPane today) and hands it in via showRightSidebar(pane).
-// Subsequent calls with the same pane reference are no-ops; passing a
-// different pane swaps it. Body-level rendering lives in the pane, not
-// here — see views/panes/filePreviewPane.tsx.
+// Full Preact: <aside id="right-sidebar"> is rendered directly. The
+// three panes are real Preact components driven by signal state. The
+// world.onChange subscription updates the state signals so the panes
+// stay fresh through live-update polls.
 
-import { effect } from '@preact/signals';
-import type { ReadonlySignal } from '@preact/signals';
-import { useEffect } from 'preact/hooks';
+import { signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import type { Signal } from '@preact/signals';
+import { useEffect, useRef } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
+import type { CommitEntry, DirNode, FileNode } from '@/types';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { buildFilePreviewPane } from '@/views/panes/FilePreviewPane';
-import { buildCommitPane } from '@/views/panes/CommitPane';
-import { buildStreetPane } from '@/views/panes/StreetPane';
+import { FilePreviewPane } from '@/views/panes/FilePreviewPane';
+import type { FilePreviewPaneState } from '@/views/panes/FilePreviewPane';
+import { CommitPane } from '@/views/panes/CommitPane';
+import type { CommitPaneState } from '@/views/panes/CommitPane';
+import { StreetPane } from '@/views/panes/StreetPane';
+import type { StreetPaneState } from '@/views/panes/StreetPane';
 import { sameDayCommitCount, dailyCommitThresholds } from '@/utils/commit';
 
 // Persistent width range (in px) for the right sidebar drag handle.
 const SIDEBAR_MIN_WIDTH = 280;
 const SIDEBAR_MAX_WIDTH_RATIO = 0.7; // fraction of viewport width
 
-// ── State shape for Preact component ─────────────────────────────────────────
+type SidebarPaneKind = 'file' | 'commit' | 'street' | null;
 
-export interface RightSidebarState {
-  isOpen: boolean;
-  pane: HTMLElement | null;
-}
-
-// ── Resize handle helpers ─────────────────────────────────────────────────────
-
-function _ensureResizeHandle(sidebar: HTMLElement): void {
-  if (sidebar.querySelector('.sidebar-resize-handle-right')) return;
-
-  const handle = document.createElement('div');
-  handle.className = 'sidebar-resize-handle-right';
-  handle.setAttribute('role', 'separator');
-  handle.setAttribute('aria-orientation', 'vertical');
-  handle.title = 'Drag to resize';
-
-  let dragging = false;
-  let liveWidth = 0;
-
-  handle.addEventListener('pointerdown', (e) => {
-    dragging = true;
-    handle.classList.add('dragging');
-    handle.setPointerCapture(e.pointerId);
-    e.preventDefault();
-  });
-  handle.addEventListener('pointermove', (e) => {
-    if (!dragging) return;
-    let w = window.innerWidth - e.clientX;
-    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
-    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > maxW) w = maxW;
-    liveWidth = w;
-    sidebar.style.setProperty('--sidebar-width', `${w}px`);
-  });
-  handle.addEventListener('pointerup', (e) => {
-    if (!dragging) return;
-    dragging = false;
-    handle.classList.remove('dragging');
-    handle.releasePointerCapture(e.pointerId);
-    _persistWidth(liveWidth || sidebar.offsetWidth);
-  });
-
-  sidebar.appendChild(handle);
-}
-
-function _applyPersistedWidth(sidebar: HTMLElement): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH);
-    if (raw == null) return;
-    let w = parseFloat(raw);
-    if (!Number.isFinite(w)) return;
-    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
-    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
-    if (w > maxW) w = maxW;
-    sidebar.style.setProperty('--sidebar-width', `${w}px`);
-  } catch (_) {
-    /* private mode / no storage — fall back to CSS default */
-  }
-}
+// ── Helpers ──────────────────────────────────────────────────────────
 
 function _persistWidth(w: number): void {
   if (typeof localStorage === 'undefined') return;
@@ -97,258 +48,237 @@ function _persistWidth(w: number): void {
   }
 }
 
-// ── DOM helpers ───────────────────────────────────────────────────────────────
-
-function _currentPane(sidebar: HTMLElement): Element | null {
-  const children = sidebar.children;
-  for (let i = 0; i < children.length; i++) {
-    if (!children[i].classList.contains('sidebar-resize-handle-right')) {
-      return children[i];
-    }
-  }
-  return null;
-}
-
-function _clearMountedPane(sidebar: HTMLElement): void {
-  for (const child of [...sidebar.children]) {
-    if (!child.classList.contains('sidebar-resize-handle-right')) {
-      sidebar.removeChild(child);
-    }
+function _readPersistedWidth(): number | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.FILE_SIDEBAR_WIDTH);
+    if (raw == null) return null;
+    const w = parseFloat(raw);
+    if (!Number.isFinite(w)) return null;
+    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    return Math.min(maxW, Math.max(SIDEBAR_MIN_WIDTH, w));
+  } catch (_) {
+    return null;
   }
 }
 
-// ── Shell wrapper — owns the <aside id="right-sidebar"> element ──────────────
-// App.tsx renders <RightSidebarShell />, not a bare placeholder div. The
-// imperative show/hideRightSidebar + mountRightSidebarReactions still do the
-// heavy lifting (resize handle, pane mount, world reactions); this just gives
-// the component ownership of its outer DOM node so App.tsx's tree matches
-// the rendered hierarchy. Phase 3e will fold the imperative path into this
-// component.
+// ── ResizeHandle (left edge of the right sidebar) ────────────────────
 
-export function RightSidebarShell() {
-  return <aside id={DOM_IDS.RIGHT_SIDEBAR} />;
+function ResizeHandle({ targetRef }: { targetRef: { current: HTMLElement | null } }) {
+  const dragging = useRef(false);
+  const liveWidth = useRef(0);
+
+  const onPointerDown = (e: PointerEvent) => {
+    dragging.current = true;
+    (e.currentTarget as HTMLElement).classList.add('dragging');
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    e.preventDefault();
+  };
+  const onPointerMove = (e: PointerEvent) => {
+    if (!dragging.current || !targetRef.current) return;
+    let w = window.innerWidth - e.clientX;
+    const maxW = Math.floor(window.innerWidth * SIDEBAR_MAX_WIDTH_RATIO);
+    if (w < SIDEBAR_MIN_WIDTH) w = SIDEBAR_MIN_WIDTH;
+    if (w > maxW) w = maxW;
+    liveWidth.current = w;
+    targetRef.current.style.setProperty('--sidebar-width', `${w}px`);
+  };
+  const onPointerUp = (e: PointerEvent) => {
+    if (!dragging.current || !targetRef.current) return;
+    dragging.current = false;
+    (e.currentTarget as HTMLElement).classList.remove('dragging');
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    _persistWidth(liveWidth.current || targetRef.current.offsetWidth);
+  };
+
+  return (
+    <div
+      class="sidebar-resize-handle-right"
+      role="separator"
+      aria-orientation="vertical"
+      title="Drag to resize"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+    />
+  );
 }
 
-// ── Preact pane-mount component (used by an in-progress port) ────────────────
-// Reads the state signal and applies DOM mutations via useEffect. The factory
-// below is the live path today; this component is unused until App.tsx is
-// rewritten to drive the right sidebar via a state signal.
+// ── Pane state signals (module-level so they survive remounts) ────────
 
-interface RightSidebarProps {
-  state: ReadonlySignal<RightSidebarState>;
-  sidebarEl: HTMLElement;
-}
+const FILE_STATE: Signal<FilePreviewPaneState> = signal({ file: null });
+const COMMIT_STATE: Signal<CommitPaneState> = signal({ commit: null });
+const STREET_STATE: Signal<StreetPaneState> = signal({ directory: null });
+const ACTIVE_KIND: Signal<SidebarPaneKind> = signal(null);
 
-export function RightSidebar({ state, sidebarEl }: RightSidebarProps) {
-  const { isOpen, pane } = state.value;
+// One-shot subscription installed at module load. Reads picker
+// selection + world.onChange to populate the three pane state signals
+// and the ACTIVE_KIND signal.
+let _sceneBridgeInstalled = false;
+function _installSceneBridge(): void {
+  if (_sceneBridgeInstalled) return;
+  _sceneBridgeInstalled = true;
 
-  useEffect(() => {
-    sidebarEl.classList.toggle('open', isOpen);
-  }, [isOpen, sidebarEl]);
+  let _selUnsub: (() => void) | null = null;
+  let _hovUnsub: (() => void) | null = null;
+  let _worldUnsub: (() => void) | null = null;
 
-  useEffect(() => {
-    _ensureResizeHandle(sidebarEl);
-    _applyPersistedWidth(sidebarEl);
-    if (pane) {
-      const current = _currentPane(sidebarEl);
-      if (current !== pane) {
-        _clearMountedPane(sidebarEl);
-        sidebarEl.appendChild(pane);
-      }
-    }
-  }, [pane, sidebarEl]);
-
-  // No visual output — all changes are imperative DOM mutations on sidebarEl
-  return null;
-}
-
-// ── Self-subscribing right sidebar reactions ──────────────────────────────────
-// Called from App.tsx instead of coordinator.ts. Builds the three panes once
-// then subscribes to SCENE_HANDLE + picker.selection to swap panes in response
-// to selection changes. Called on app boot; returns a dispose() that stops
-// the effects.
-
-export function mountRightSidebarReactions(): () => void {
-  type SidebarPane = 'file' | 'commit' | 'street' | null;
-  let sidebarPane: SidebarPane = null;
-
-  // Close-button handler shared by every pane: clear the picker selection
-  // alongside the local sidebarPane state. Without clearing the selection
-  // signal, re-clicking the same building / tree / street wouldn't fire
-  // the selection effect below (signals dedupe by reference), and the
-  // sidebar would stay closed — confusing UX where "click → close → click
-  // same thing" silently does nothing.
-  function _closePane(): void {
-    sidebarPane = null;
-    SCENE_HANDLE.peek()?.picker.clearSelection();
-    _renderSidebar();
-  }
-
-  const filePreview = buildFilePreviewPane({
-    onClose: _closePane,
-    onFocus(file) {
-      const handle = SCENE_HANDLE.peek();
-      if (!handle) return;
-      const b = handle.world.getBuildingByPath(file.path);
-      if (b) handle.rig.focusBuilding(b.mesh, b.building);
-    },
-  });
-
-  const commitPane = buildCommitPane({
-    onClose: _closePane,
-    onFocus(c) {
-      const handle = SCENE_HANDLE.peek();
-      if (handle) handle.rig.focusTree(c.sha);
-    },
-  });
-
-  const streetPane = buildStreetPane({
-    onClose: _closePane,
-    onFocus(d) {
-      const handle = SCENE_HANDLE.peek();
-      if (!handle) return;
-      const st = handle.world.getStreetByDir(d.path);
-      if (st) handle.rig.focusStreet(st, null);
-    },
-  });
-
-  function _renderSidebar(): void {
+  function _refreshCommitState(commit: CommitEntry): void {
     const handle = SCENE_HANDLE.peek();
-    const sel = handle?.picker.selection.peek() ?? null;
-    if (sidebarPane === null) {
-      hideRightSidebar();
+    const m = handle?.world.getManifest();
+    const commits = m?.commits ?? [];
+    COMMIT_STATE.value = {
+      commit,
+      remoteUrl: m?.repo?.remote_url ?? null,
+      sameDayTotal: sameDayCommitCount(commit, commits),
+      busynessThresholds: dailyCommitThresholds(commits),
+      color: handle?.world.getTrees()?.colorForSha(commit.sha) ?? undefined,
+    };
+  }
+
+  function _refreshStreetState(dir: DirNode): void {
+    const handle = SCENE_HANDLE.peek();
+    const refreshed = handle?.world.getStreetByDir(dir.path);
+    STREET_STATE.value = { directory: refreshed?.dir ?? dir };
+  }
+
+  // Read picker.selection on every change → populate pane state.
+  function _applySelection(handle: ReturnType<typeof SCENE_HANDLE.peek>): void {
+    if (!handle) {
+      ACTIVE_KIND.value = null;
       return;
     }
-    if (sidebarPane === 'file') {
-      showRightSidebar(filePreview.pane);
-      if (sel && sel.kind === NodeKind.File) filePreview.api.setFile(sel.file);
-      else filePreview.api.setFile(null);
+    const sel = handle.picker.selection.peek();
+    if (!sel) {
+      ACTIVE_KIND.value = null;
       return;
     }
-    if (sidebarPane === 'commit') {
-      showRightSidebar(commitPane.pane);
-      const world = handle?.world;
-      const m = world?.getManifest();
-      const remote = m?.repo?.remote_url ?? null;
-      if (sel && sel.kind === NodeKind.Commit) {
-        const commits = m?.commits ?? [];
-        const sameDayTotal = sameDayCommitCount(sel.commit, commits);
-        const busynessThresholds = dailyCommitThresholds(commits);
-        const color = world?.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
-        commitPane.api.setCommit(sel.commit, {
-          remoteUrl: remote,
-          sameDayTotal,
-          busynessThresholds,
-          color,
-        });
-      } else {
-        commitPane.api.setCommit(null);
-      }
-      return;
-    }
-    if (sidebarPane === 'street') {
-      showRightSidebar(streetPane.pane);
-      const _sel = sel;
-      setTimeout(() => {
-        if (_sel && _sel.kind === NodeKind.Directory) {
-          streetPane.api.setDirectory(_sel.dir);
-        } else {
-          streetPane.api.setDirectory(null);
-        }
-      }, 0);
-      return;
+    if (sel.kind === NodeKind.File) {
+      FILE_STATE.value = { file: sel.file };
+      ACTIVE_KIND.value = 'file';
+    } else if (sel.kind === NodeKind.Commit) {
+      _refreshCommitState(sel.commit);
+      ACTIVE_KIND.value = 'commit';
+    } else if (sel.kind === NodeKind.Directory) {
+      _refreshStreetState(sel.dir);
+      ACTIVE_KIND.value = 'street';
+    } else {
+      ACTIVE_KIND.value = null;
     }
   }
 
-  // Subscribe to selection changes. Reading SCENE_HANDLE.value establishes
-  // tracking so when the handle is first assigned (CenterPane mount) this
-  // effect runs and wires up the selection-based pane choice.
-  const _selUnsub = effect(() => {
-    const handle = SCENE_HANDLE.value;
+  SCENE_HANDLE.subscribe((handle) => {
+    if (_selUnsub) { _selUnsub(); _selUnsub = null; }
+    if (_hovUnsub) { _hovUnsub(); _hovUnsub = null; }
+    if (_worldUnsub) { _worldUnsub(); _worldUnsub = null; }
     if (!handle) {
-      sidebarPane = null;
-      hideRightSidebar();
+      ACTIVE_KIND.value = null;
       return;
     }
-    const sel = handle.picker.selection.value;
-    if (sel && sel.kind === NodeKind.File) sidebarPane = 'file';
-    else if (sel && sel.kind === NodeKind.Commit) sidebarPane = 'commit';
-    else if (sel && sel.kind === NodeKind.Directory) sidebarPane = 'street';
-    else sidebarPane = null;
-    _renderSidebar();
-  });
-
-  // Subscribe to world.onChange so panes stay fresh on live-update rebuilds.
-  const _worldUnsub = effect(() => {
-    const handle = SCENE_HANDLE.value;
-    if (!handle) return;
-    let _unsub: (() => void) | null = null;
-    _unsub = handle.world.onChange(() => {
+    _applySelection(handle);
+    _selUnsub = handle.picker.selection.subscribe(() => _applySelection(handle));
+    _worldUnsub = handle.world.onChange(() => {
       const sel = handle.picker.selection.peek();
-      const m = handle.world.getManifest();
-      // Refresh commit pane data when manifest updates while a commit is selected.
-      if (sidebarPane === 'commit' && sel?.kind === NodeKind.Commit) {
-        const remote = m?.repo?.remote_url ?? null;
-        const commits = m?.commits ?? [];
-        const sameDayTotal = sameDayCommitCount(sel.commit, commits);
-        const busynessThresholds = dailyCommitThresholds(commits);
-        const color = handle.world.getTrees()?.colorForSha(sel.commit.sha) ?? undefined;
-        commitPane.api.setCommit(sel.commit, {
-          remoteUrl: remote,
-          sameDayTotal,
-          busynessThresholds,
-          color,
-        });
-      }
-      // Refresh street pane data when directory is selected and manifest updated.
-      if (sidebarPane === 'street' && sel?.kind === NodeKind.Directory) {
-        const refreshed = handle.world.getStreetByDir(sel.dir.path);
-        const dir = refreshed?.dir ?? sel.dir;
-        streetPane.api.setDirectory(dir);
+      // Refresh whatever pane is currently showing so it picks up new
+      // manifest data (commit lookup, street dir reference) without
+      // changing the active kind.
+      if (ACTIVE_KIND.peek() === 'commit' && sel?.kind === NodeKind.Commit) {
+        _refreshCommitState(sel.commit);
+      } else if (ACTIVE_KIND.peek() === 'street' && sel?.kind === NodeKind.Directory) {
+        _refreshStreetState(sel.dir);
       }
     });
-    return () => {
-      if (_unsub) _unsub();
-    };
+  });
+}
+_installSceneBridge();
+
+// ── Main component ───────────────────────────────────────────────────
+
+export function RightSidebar() {
+  const sidebarRef = useRef<HTMLElement>(null);
+  // Local override flag — set true when the user clicks a pane's close
+  // button, cleared when the picker selection becomes non-null again.
+  // Without it, re-selecting the SAME node wouldn't re-open the sidebar
+  // (signals dedupe by reference).
+  const userClosed = useSignal(false);
+
+  // Clear userClosed any time ACTIVE_KIND becomes null (picker cleared
+  // by something other than the close button — keyboard, click on empty
+  // space, etc.).
+  useSignalEffect(() => {
+    if (ACTIVE_KIND.value !== null && userClosed.value) {
+      userClosed.value = false;
+    }
   });
 
-  return function dispose() {
-    if (typeof _selUnsub === 'function') _selUnsub();
-    if (typeof _worldUnsub === 'function') _worldUnsub();
+  // Apply persisted width on mount.
+  useEffect(() => {
+    const w = _readPersistedWidth();
+    if (w != null && sidebarRef.current) {
+      sidebarRef.current.style.setProperty('--sidebar-width', `${w}px`);
+    }
+  }, []);
+
+  // Effective open state: true when there's an active pane AND the user
+  // hasn't closed it. The .open class drives the CSS transition.
+  const isOpen = useComputed(() => ACTIVE_KIND.value !== null && !userClosed.value);
+
+  const onClose = () => {
+    userClosed.value = true;
+    SCENE_HANDLE.peek()?.picker.clearSelection();
   };
+
+  const onFileFocus = (file: FileNode) => {
+    const handle = SCENE_HANDLE.peek();
+    if (!handle) return;
+    const b = handle.world.getBuildingByPath(file.path);
+    if (b) handle.rig.focusBuilding(b.mesh, b.building);
+  };
+
+  const onCommitFocus = (commit: CommitEntry) => {
+    SCENE_HANDLE.peek()?.rig.focusTree(commit.sha);
+  };
+
+  const onStreetFocus = (dir: DirNode) => {
+    const handle = SCENE_HANDLE.peek();
+    if (!handle) return;
+    const st = handle.world.getStreetByDir(dir.path);
+    if (st) handle.rig.focusStreet(st, null);
+  };
+
+  const kind = ACTIVE_KIND.value;
+  const open = isOpen.value;
+
+  return (
+    <aside
+      ref={sidebarRef}
+      id={DOM_IDS.RIGHT_SIDEBAR}
+      class={open ? 'open' : ''}
+    >
+      {kind === 'file' && (
+        <FilePreviewPane state={FILE_STATE} onClose={onClose} onFocus={onFileFocus} />
+      )}
+      {kind === 'commit' && (
+        <CommitPane state={COMMIT_STATE} onClose={onClose} onFocus={onCommitFocus} />
+      )}
+      {kind === 'street' && (
+        <StreetPane state={STREET_STATE} onClose={onClose} onFocus={onStreetFocus} />
+      )}
+      <ResizeHandle targetRef={sidebarRef} />
+    </aside>
+  );
 }
 
-// ── Backward-compat shims ─────────────────────────────────────────────────────
-// Phase 3e will delete these once App.tsx mounts <RightSidebar /> directly.
-// The shims are fully synchronous (matching original behavior) to preserve
-// test compatibility — DOM mutations are applied directly, not via useEffect.
+// Alias for App.tsx's existing import. RightSidebarShell used to render
+// a bare placeholder; the full Preact port replaces it with the real
+// component.
+export const RightSidebarShell = RightSidebar;
 
-/**
- * Mount `pane` (a DOM element) into the right sidebar slot and open the
- * panel. Idempotent: passing the already-mounted pane does NOT clear or
- * re-append. Passing a different pane swaps the mounted one.
- */
-export function showRightSidebar(pane: HTMLElement): void {
-  const sidebar = document.getElementById(DOM_IDS.RIGHT_SIDEBAR);
-  if (!sidebar) return;
+// ── No-op stub for the imperative bridge ─────────────────────────────
+// runtime/sidebarSetup.ts still calls mountRightSidebarReactions for
+// symmetry with the previous flow. The Preact component now subscribes
+// to SCENE_HANDLE itself, so this returns a no-op dispose.
 
-  _ensureResizeHandle(sidebar);
-  _applyPersistedWidth(sidebar);
-
-  if (pane && _currentPane(sidebar) !== pane) {
-    _clearMountedPane(sidebar);
-    sidebar.appendChild(pane);
-  }
-
-  sidebar.classList.add('open');
-}
-
-/**
- * Hide the sidebar (remove the .open class so it collapses to width 0).
- * Pure DOM mutation; the mounted pane stays in the DOM so it can re-open
- * without rebuilding.
- */
-export function hideRightSidebar(): void {
-  const sidebar = document.getElementById(DOM_IDS.RIGHT_SIDEBAR);
-  if (sidebar) sidebar.classList.remove('open');
+export function mountRightSidebarReactions(): () => void {
+  return () => {};
 }

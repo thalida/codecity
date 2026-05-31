@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildFilePreviewPane } from '@/views/panes/FilePreviewPane';
-import { showRightSidebar, hideRightSidebar } from '@/views/shell/RightSidebar';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
 
@@ -114,45 +113,9 @@ describe('buildFilePreviewPane', () => {
   });
 });
 
-describe('showRightSidebar / hideRightSidebar', () => {
-  beforeEach(resetDom);
-
-  it('mounts a pane and adds .open to #right-sidebar', () => {
-    const { pane } = buildFilePreviewPane();
-    showRightSidebar(pane);
-    expect(document.getElementById('right-sidebar')!.classList.contains('open')).toBe(true);
-    expect(document.querySelector('#right-sidebar > .pane')).toBe(pane);
-  });
-
-  it('does not duplicate the pane when called twice with the same pane', () => {
-    const { pane } = buildFilePreviewPane();
-    showRightSidebar(pane);
-    showRightSidebar(pane);
-    expect(document.querySelectorAll('#right-sidebar > .pane').length).toBe(1);
-  });
-
-  it('swaps the pane when called with a different pane', () => {
-    const a = buildFilePreviewPane().pane;
-    const b = buildFilePreviewPane().pane;
-    showRightSidebar(a);
-    showRightSidebar(b);
-    const panes = document.querySelectorAll('#right-sidebar > .pane');
-    expect(panes.length).toBe(1);
-    expect(panes[0]).toBe(b);
-  });
-
-  it('hideRightSidebar removes .open but keeps the mounted pane', () => {
-    const { pane } = buildFilePreviewPane();
-    showRightSidebar(pane);
-    hideRightSidebar();
-    expect(document.getElementById('right-sidebar')!.classList.contains('open')).toBe(false);
-    expect(document.querySelector('#right-sidebar > .pane')).toBe(pane);
-  });
-
-  it('does nothing if #right-sidebar is missing', () => {
-    document.body.innerHTML = '';
-    const { pane } = buildFilePreviewPane();
-    expect(() => showRightSidebar(pane)).not.toThrow();
-    expect(() => hideRightSidebar()).not.toThrow();
-  });
-});
+// The previous `showRightSidebar / hideRightSidebar` describe block was
+// removed in #36: those imperative DOM-mutation helpers are gone and
+// the right-sidebar open/close behavior is exercised by the Preact
+// <RightSidebar /> component (see tests/views/shell/rightSidebar.test.tsx
+// when it lands). The remaining buildFilePreviewPane tests above still
+// cover the pane's own behavior.
