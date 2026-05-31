@@ -5,9 +5,7 @@ import { StreetPane } from '@/views/panes/StreetPane';
 import type { StreetPaneState } from '@/views/panes/StreetPane';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode } from '@/types';
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { flush } from '../../_helpers/preact';
 
 function f(name: string, ext: string, size: number, lines = 0): FileNode {
   return {

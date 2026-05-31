@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { LeftSidebar } from '@/views/shell/LeftSidebar';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { flush } from '../../_helpers/preact';
 
 const TEST_TREE = {
   name: 'project',
@@ -36,9 +37,6 @@ function makeSceneHandle() {
     },
   };
 }
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('LeftSidebar', () => {
   let container: HTMLDivElement;

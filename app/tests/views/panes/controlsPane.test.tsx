@@ -6,9 +6,7 @@ import { ControlsPane } from '@/views/panes/ControlsPane';
 // at module-load (used by getDefault / forEachRegisteredStore inside the
 // controls sections).
 import '@/state/settings/index';
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { flush } from '../../_helpers/preact';
 
 describe('ControlsPane', () => {
   let container: HTMLDivElement;

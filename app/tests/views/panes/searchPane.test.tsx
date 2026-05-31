@@ -3,9 +3,7 @@ import { render } from 'preact';
 import { signal } from '@preact/signals';
 import { SearchPane } from '@/views/panes/SearchPane';
 import { NodeKind } from '@/types';
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { flush } from '../../_helpers/preact';
 
 // Minimal manifest fixture — fields that the search pane reads:
 // tree.children[].path, .name, .type. Extras carried so it parses as a

@@ -4,11 +4,7 @@ import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
 import { buildTree, TreePane } from '@/views/panes/TreePane';
 import type { Manifest, DirNode, TreeNode } from '@/types';
-
-// Preact schedules signal-driven component re-renders on the microtask
-// queue. Tests that mutate signals (selectedPath/hoveredPath/manifest,
-// chevron clicks) need to await a microtask before reading the DOM.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { flush } from '../../_helpers/preact';
 
 type TreeLike = Manifest | DirNode | { tree?: unknown; [k: string]: unknown };
 

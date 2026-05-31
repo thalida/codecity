@@ -6,25 +6,13 @@ import { FilePreviewPane } from '@/views/panes/FilePreviewPane';
 import type { FilePreviewPaneState } from '@/views/panes/FilePreviewPane';
 import { NodeKind } from '@/types';
 import type { FileNode } from '@/types';
-
-// Settling a FilePreviewPane render for a TEXT file involves three
-// interleaved schedulers:
-//   1. the body useEffect (keyed on file path) runs after Preact commits —
-//      it mounts the .preview-shell scaffold and kicks off fetchFileText();
-//   2. the fetch chain — fetch() then resp.text(): a run of microtasks;
-//   3. a requestAnimationFrame inside the .then() that finally builds the
-//      code editor into the shell.
-// jsdom's requestAnimationFrame fires on a ~16ms timer, so draining only
-// microtasks (or setTimeout(0)) races the rAF callback. flush() therefore
-// alternates microtask drains with real ~20ms macrotask yields, repeated
-// enough times to deterministically cover the fetch + rAF + re-render hops.
-const macrotask = () => new Promise<void>((resolve) => setTimeout(resolve, 20));
-const flush = async () => {
-  for (let round = 0; round < 12; round++) {
-    await Promise.resolve();
-    await macrotask();
-  }
-};
+// Settling a FilePreviewPane render for a TEXT file involves three interleaved
+// schedulers: the body useEffect (mounts .preview-shell, kicks off
+// fetchFileText()), the fetch chain (fetch() then resp.text()), and a
+// requestAnimationFrame that builds the code editor. jsdom's rAF fires on a
+// ~16ms timer, so draining only microtasks races the rAF callback — drainAsync
+// alternates microtask drains with real macrotask yields to cover all hops.
+import { drainAsync } from '../../_helpers/preact';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -61,7 +49,7 @@ describe('FilePreviewPane', () => {
     await act(async () => {
       state.value = { file };
     });
-    await flush();
+    await drainAsync();
   }
 
   beforeEach(() => {
@@ -101,8 +89,8 @@ describe('FilePreviewPane', () => {
     mount();
     // The empty-state body is mounted imperatively in a useEffect (the
     // original factory built it synchronously), so it appears one commit
-    // later — flush before asserting on the body content.
-    await flush();
+    // later — drain before asserting on the body content.
+    await drainAsync();
     expect(container.querySelector('.empty-state')).not.toBeNull();
     expect(container.querySelector('.text-pane-title')!.textContent).toBe('No file');
   });

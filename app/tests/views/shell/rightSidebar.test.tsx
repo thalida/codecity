@@ -5,6 +5,7 @@ import { RightSidebar } from '@/views/shell/RightSidebar';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { NodeKind } from '@/types';
 import type { FileNode, PickTarget } from '@/types';
+import { flush } from '../../_helpers/preact';
 
 const FILE_NODE: FileNode = {
   name: 'index.ts',
@@ -50,8 +51,6 @@ function makeSceneHandle() {
     },
   };
 }
-
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('RightSidebar', () => {
   let container: HTMLDivElement;

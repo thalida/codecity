@@ -2,14 +2,12 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { FileIcon } from '@/views/components/FileIcon';
 import { FolderIcon } from '@/views/components/FolderIcon';
+import { flush } from '../../_helpers/preact';
 
 // jsdom doesn't actually fetch the icon src — we just validate the
 // URL the component picks. The `data-icon-name` data attribute on the
 // rendered <img> exposes the resolved icon basename to tests without
 // having to parse the URL.
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe('FileIcon', () => {
   let container: HTMLDivElement;

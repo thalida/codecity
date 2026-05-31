@@ -9,9 +9,7 @@ import {
 } from '@/views/components/SourcePicker';
 import type { SourcePickerState, SourcePayload, OpenOpts } from '@/views/components/SourcePicker';
 import { pushRecent, RECENTS } from '@/state/runtime/sourceRecents';
-
-// Preact schedules signal-driven re-renders on the microtask queue.
-const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+import { flush } from '../../_helpers/preact';
 
 describe('SourcePicker', () => {
   let container: HTMLDivElement;
