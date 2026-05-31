@@ -9,7 +9,7 @@
 // Phases 3c/3d port them).
 
 import { h } from 'preact';
-import { LucideIcon, makeLucideIcon } from '../components/icon';
+import { LucideIcon, makeLucideIcon } from './LucideIcon';
 
 // ── Props interface ─────────────────────────────────────────────────────────
 

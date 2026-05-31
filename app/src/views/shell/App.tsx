@@ -13,11 +13,11 @@
 //   <LoadingOverlay />        — reads LOADING_OVERLAY directly
 
 import { useEffect } from 'preact/hooks';
-import { AppHeader } from './appHeader';
-import { AppFooter } from './appFooter';
+import { AppHeader } from './AppHeader';
+import { AppFooter } from './AppFooter';
 import { CenterPane } from './CenterPane';
-import { SourcePicker } from '../components/sourcePicker';
-import { LoadingOverlay } from '../components/loadingOverlay';
+import { SourcePicker } from '../components/SourcePicker';
+import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { NodeKind } from '@/types';

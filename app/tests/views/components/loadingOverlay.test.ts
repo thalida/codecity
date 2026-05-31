@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { createLoadingOverlay } from '@/views/components/loadingOverlay';
+import { createLoadingOverlay } from '@/views/components/LoadingOverlay';
 
 function mountRoot(): HTMLElement {
   document.body.innerHTML = '<div id="loading-overlay-root" style="display: none;"></div>';

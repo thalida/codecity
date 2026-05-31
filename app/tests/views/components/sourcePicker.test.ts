@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { createSourcePicker } from '@/views/components/sourcePicker';
+import { createSourcePicker } from '@/views/components/SourcePicker';
 import { pushRecent, RECENTS } from '@/state/runtime/sourceRecents';
 
 function mountRoot(): HTMLElement {

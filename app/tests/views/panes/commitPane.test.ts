@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { buildCommitPane } from '@/views/panes/commitPane';
+import { buildCommitPane } from '@/views/panes/CommitPane';
 import type { CommitEntry } from '@/types';
 
 function resetDom() {

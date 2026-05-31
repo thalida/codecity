@@ -4,8 +4,8 @@
 // `loadingOverlay.show()` pattern from boot.ts.
 
 import { signal } from '@preact/signals';
-import type { OpenOpts } from '../../views/components/sourcePicker';
-import type { LoadingOverlayShowOpts } from '../../views/components/loadingOverlay';
+import type { OpenOpts } from '../../views/components/SourcePicker';
+import type { LoadingOverlayShowOpts } from '../../views/components/LoadingOverlay';
 
 // ── Source picker ────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ export function closeSourcePicker(): void {
 
 // ── Loading overlay ──────────────────────────────────────────────────────────
 
-import type { LoadingStep } from '../../views/components/loadingOverlay';
+import type { LoadingStep } from '../../views/components/LoadingOverlay';
 
 export interface LoadingOverlayState {
   visible: boolean;

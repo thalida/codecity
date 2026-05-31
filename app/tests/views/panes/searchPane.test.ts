@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { buildSearchPane } from '@/views/panes/searchPane';
+import { buildSearchPane } from '@/views/panes/SearchPane';
 import { NodeKind } from '@/types';
 
 // Minimal manifest fixture — fields that the search pane reads:

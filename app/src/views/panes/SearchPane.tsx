@@ -20,8 +20,8 @@ import { useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { makeLucideIcon, LucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
+import { makeLucideIcon, LucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
 
 const MAX_RESULTS = 50;
 const WORD_BOUNDARY_RE = /[/_\-.]/;

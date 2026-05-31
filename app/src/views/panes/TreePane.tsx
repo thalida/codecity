@@ -6,9 +6,11 @@
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { makeGemIcon, makeLucideIcon } from '@/views/components/icon';
-import { makeFileIcon, makeFolderIcon } from '@/views/components/fileIcon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
+import { makeGemIcon } from '@/views/components/GemIcon';
+import { makeLucideIcon } from '@/views/components/LucideIcon';
+import { makeFileIcon } from '@/views/components/FileIcon';
+import { makeFolderIcon } from '@/views/components/FolderIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
 
 interface TreeCtx {
   byPath: Record<string, { li: HTMLLIElement; node: TreeNode }>;

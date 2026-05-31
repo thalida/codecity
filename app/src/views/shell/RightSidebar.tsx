@@ -16,9 +16,9 @@ import { useEffect } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
-import { buildFilePreviewPane } from '@/views/panes/filePreviewPane';
-import { buildCommitPane } from '@/views/panes/commitPane';
-import { buildStreetPane } from '@/views/panes/streetPane';
+import { buildFilePreviewPane } from '@/views/panes/FilePreviewPane';
+import { buildCommitPane } from '@/views/panes/CommitPane';
+import { buildStreetPane } from '@/views/panes/StreetPane';
 import { sameDayCommitCount, dailyCommitThresholds } from '@/utils/commit';
 
 // Persistent width range (in px) for the right sidebar drag handle.

@@ -8,7 +8,7 @@
 // streamInitialManifest() completes.
 
 import { openSourcePicker, closeSourcePicker } from '../state/runtime/uiState';
-import type { SourcePayload } from '../views/components/sourcePicker';
+import type { SourcePayload } from '../views/components/SourcePicker';
 import { applyNewSource } from './manifestStream';
 import type { SceneHandle } from './manifestStream';
 

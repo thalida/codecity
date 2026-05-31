@@ -17,8 +17,8 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
-import { LucideIcon, makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
+import { LucideIcon, makeLucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
 import { fetchCommitDetail } from '@/api/commit';

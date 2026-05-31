@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildTree, buildTreePane } from '@/views/panes/treePane';
+import { buildTree, buildTreePane } from '@/views/panes/TreePane';
 import type { TreeNode } from '@/types';
 
 const TEST_TREE = {

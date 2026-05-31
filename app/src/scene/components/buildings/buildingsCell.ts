@@ -17,7 +17,7 @@ import buildingFragSrc from './building.frag.glsl?raw';
 import type { CellTile } from '../../layout/cellTile';
 import type { Building } from '@/types/index';
 import type { IconAtlas } from './iconAtlas';
-import { getFileIconName } from '@/views/components/fileIcon';
+import { getFileIconName } from '@/utils/fileIcons';
 import { seedFromPath, attachLeanAwareRaycast } from './buildingTilt';
 
 // ---------------------------------------------------------------------------

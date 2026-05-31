@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildControlsPane } from '@/views/panes/controlsPane';
+import { buildControlsPane } from '@/views/panes/ControlsPane';
 // Importing the settings barrel triggers every persistedSignal() registration
 // at module-load (used by getDefault / forEachRegisteredStore inside controlsPane).
 import '@/state/settings/index';

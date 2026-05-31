@@ -28,9 +28,9 @@ export enum PreviewKind {
   Text = 'text',
 }
 import { fileUrl, fetchFileText } from '@/api/file';
-import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
-import { makeExtensionBadge } from '@/views/components/badge';
+import { makeLucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
+import { makeExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { escapeHtml } from '@/utils/html';
 import { languageFor } from '@/utils/syntaxLanguages';

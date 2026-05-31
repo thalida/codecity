@@ -84,8 +84,8 @@ import {
 } from '@/state/drafts';
 import { KEY_BINDINGS } from '@/constants';
 import { FadeDetail } from '@/types';
-import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
+import { makeLucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
 
 // Structural store shape used by all the widget builders. Covers nanostores
 // `map<T>()` (with .setKey) and falls back to .set for atom-like stores.

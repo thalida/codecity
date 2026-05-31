@@ -10,7 +10,7 @@ import { useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
 import { clearManifestCache } from '@/api/manifest';
-import { LucideIcon } from './icon';
+import { LucideIcon } from './LucideIcon';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
 import { SOURCE_PICKER, closeSourcePicker } from '@/state/runtime/uiState';
 import { SERVER_CONFIG } from '@/state/runtime/serverConfig';

@@ -21,7 +21,8 @@
 import * as THREE from 'three';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest, TreeNode } from '@/types';
-import { FILE_ICON_CDN_BASE, getFileIconName } from '@/views/components/fileIcon';
+import { FILE_ICON_CDN_BASE } from '@/constants/fileIcons';
+import { getFileIconName } from '@/utils/fileIcons';
 
 // Atlas is 2048×2048 with 128-px slots → up to 16×16 = 256 unique
 // icons at 4× the per-icon resolution of the old 64-px slots.

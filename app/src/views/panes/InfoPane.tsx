@@ -11,8 +11,8 @@ import { fetchFileText } from '@/api/file';
 import { marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
-import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
+import { makeLucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
 import { isEmptyManifest } from '@/utils/manifest';
 
 // Match README, README.md, readme.markdown, README.txt — any file whose

@@ -5,8 +5,8 @@
 import { NodeKind } from '../types';
 import type { Manifest } from '../types';
 import type { SceneHandle } from './manifestStream';
-import { showLeftSidebar } from '../views/shell/leftSidebar';
-import { mountRightSidebarReactions } from '../views/shell/rightSidebar';
+import { showLeftSidebar } from '../views/shell/LeftSidebar';
+import { mountRightSidebarReactions } from '../views/shell/RightSidebar';
 
 export interface SidebarSetupResult {
   dispose(): void;

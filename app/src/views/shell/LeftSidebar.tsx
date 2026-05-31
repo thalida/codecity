@@ -7,10 +7,10 @@
 
 import { signal, effect } from '@preact/signals';
 import type { ReadonlySignal } from '@preact/signals';
-import { buildTreePane } from '@/views/panes/treePane';
-import { buildInfoPane } from '@/views/panes/infoPane';
-import { buildControlsPane } from '@/views/panes/controlsPane';
-import { buildSearchPane } from '@/views/panes/searchPane';
+import { buildTreePane } from '@/views/panes/TreePane';
+import { buildInfoPane } from '@/views/panes/InfoPane';
+import { buildControlsPane } from '@/views/panes/ControlsPane';
+import { buildSearchPane } from '@/views/panes/SearchPane';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';

@@ -10,9 +10,9 @@
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/components/icon';
-import { buildPaneHeader } from '@/views/components/paneHeader';
-import { makeExtensionBadge } from '@/views/components/badge';
+import { makeLucideIcon } from '@/views/components/LucideIcon';
+import { buildPaneHeader } from '@/views/components/PaneHeader';
+import { makeExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 
