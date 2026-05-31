@@ -140,6 +140,23 @@ export async function runAppLogic(): Promise<() => void> {
           await handle.world.applyManifest(m);
         }
         initialManifest = m;
+
+        // Populate SOURCE_INFO so AppHeader renders its project chip
+        // (switch-source button, branch pill, repo link). applyNewSource
+        // does this on picker-submit; the URL-prefilled boot path needs
+        // the same write so the chip shows up on cold boot with ?src=.
+        const _manifestBranch = m.repo.branch;
+        const _looksLikeRealBranch =
+          !!_manifestBranch &&
+          !/\s/.test(_manifestBranch) &&
+          !_manifestBranch.startsWith('(') &&
+          !_manifestBranch.startsWith('detached');
+        const _resolvedBranch = _bootBranch ?? (_looksLikeRealBranch ? _manifestBranch! : undefined);
+        SOURCE_INFO.value = {
+          label: labelFromManifest(m) ?? m.tree?.name ?? '',
+          branch: _resolvedBranch,
+          sourceUrl: srcKind(_bootSrc) === 'git' ? _bootSrc : undefined,
+        };
       }
       if (handle === null) throw new Error('No manifest received');
     } catch (err) {
