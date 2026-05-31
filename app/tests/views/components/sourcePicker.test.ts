@@ -200,7 +200,9 @@ describe('sourcePicker', () => {
     // Order is MRU: o/r first (git, normal), /foo second (local, disabled).
     expect(rows[0].classList.contains('recent-row--disabled')).toBe(false);
     expect(rows[1].classList.contains('recent-row--disabled')).toBe(true);
-    expect(rows[1].querySelector('.recent-icon')?.textContent).toContain('⚠');
+    // Disabled rows render the alert-triangle SVG (formerly an emoji); check
+    // for the SVG element rather than text content.
+    expect(rows[1].querySelector('.recent-icon svg')).not.toBeNull();
     expect((rows[1] as HTMLElement).title).toContain('Local repos are disabled');
   });
 

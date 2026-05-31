@@ -17,7 +17,7 @@
 import { useState, useEffect, useRef } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import type { CommitEntry } from '@/types';
-import { makeLucideIcon } from '@/views/components/icon';
+import { LucideIcon, makeLucideIcon } from '@/views/components/icon';
 import { buildPaneHeader } from '@/views/components/paneHeader';
 import { commitUrl } from '@/utils/commit';
 import { formatRelativeAge, formatFullDate } from '@/utils/dates';
@@ -170,7 +170,7 @@ export function CommitPane({ state, onClose, onFocus }: CommitPaneProps) {
               title="Open this commit on the origin remote"
               aria-label="Open commit on origin"
             >
-              <span class="lucide-icon" data-icon="external-link" />
+              <LucideIcon name="external-link" />
             </a>
           )}
         </h3>
