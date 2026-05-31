@@ -1,5 +1,8 @@
-// state/runtime/sourceRecents.ts — Tiny localStorage-backed list of recently-
-// opened sources. Used by the source picker modal to show one-click reload rows.
+// state/runtime/sourceRecents.ts — recently-opened sources, backed by a
+// persistedSignal. The source picker modal reads listRecents() to show
+// one-click reload rows.
+
+import { persistedSignal } from '@/state/persist';
 
 const KEY = 'codecity:recents';
 const MAX = 10;
@@ -16,23 +19,11 @@ export interface RecentSource {
   lastOpenedAt: number; // ms since epoch, for MRU sort
 }
 
-function _read(): RecentSource[] {
-  const raw = localStorage.getItem(KEY);
-  if (raw === null) return [];
-  try {
-    const v = JSON.parse(raw);
-    return Array.isArray(v) ? (v as RecentSource[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function _write(list: RecentSource[]): void {
-  localStorage.setItem(KEY, JSON.stringify(list));
-}
+/** Persisted list of recently-opened sources. Hydrates at module load. */
+export const RECENTS = persistedSignal<RecentSource[]>(KEY, []);
 
 export function listRecents(): RecentSource[] {
-  return _read();
+  return RECENTS.value;
 }
 
 /**
@@ -49,22 +40,19 @@ export function listRecents(): RecentSource[] {
  */
 export function pushRecent(entry: Omit<RecentSource, 'lastOpenedAt'>): void {
   const now = Date.now();
-  const list = _read();
-  const filtered = list.filter((r) => {
+  const filtered = RECENTS.value.filter((r) => {
     if (r.src !== entry.src) return true;
     if ((r.branch ?? '') === (entry.branch ?? '')) return false;
     if (entry.branchIsDefault && !r.branch) return false;
     return true;
   });
   filtered.unshift({ ...entry, lastOpenedAt: now });
-  _write(filtered.slice(0, MAX));
+  RECENTS.value = filtered.slice(0, MAX);
 }
 
-/**
- * Drop the entry matching (src, branch). No-op if not present.
- */
+/** Drop the entry matching (src, branch). No-op if not present. */
 export function removeRecent(src: string, branch?: string): void {
-  const list = _read();
-  const filtered = list.filter((r) => !(r.src === src && (r.branch ?? '') === (branch ?? '')));
-  _write(filtered);
+  RECENTS.value = RECENTS.value.filter(
+    (r) => !(r.src === src && (r.branch ?? '') === (branch ?? ''))
+  );
 }

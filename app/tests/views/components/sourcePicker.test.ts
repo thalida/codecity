@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createSourcePicker } from '@/views/components/sourcePicker';
-import { pushRecent } from '@/state/runtime/sourceRecents';
+import { pushRecent, RECENTS } from '@/state/runtime/sourceRecents';
 
 function mountRoot(): HTMLElement {
   document.body.innerHTML = '<div id="source-picker-root" style="display: none;"></div>';
@@ -11,6 +11,9 @@ describe('sourcePicker', () => {
   let root: HTMLElement;
   beforeEach(() => {
     localStorage.clear();
+    // RECENTS persists at module load — reset in-memory value so each
+    // test starts from an empty list.
+    RECENTS.value = [];
     root = mountRoot();
     history.replaceState(null, '', '/');
   });

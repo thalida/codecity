@@ -1,9 +1,17 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { listRecents, pushRecent, removeRecent } from '@/state/runtime/sourceRecents';
+import {
+  listRecents,
+  pushRecent,
+  removeRecent,
+  RECENTS,
+} from '@/state/runtime/sourceRecents';
 
 describe('sourceRecents', () => {
   beforeEach(() => {
     localStorage.clear();
+    // RECENTS hydrated at module load — reset in-memory value to match
+    // the cleared storage so each test starts from an empty list.
+    RECENTS.value = [];
   });
 
   it('starts empty', () => {

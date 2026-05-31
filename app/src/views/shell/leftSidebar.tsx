@@ -14,7 +14,14 @@ import { buildSearchPane } from '@/views/panes/searchPane';
 import { ACTIVITY_BAR_TABS, DOM_IDS, LUCIDE_ICON_BASE_URL, STORAGE_KEYS } from '@/constants';
 import { SidebarTab, NodeKind } from '@/types';
 import type { DirNode, Manifest, TreeNode } from '@/types';
-import { loadFlag, saveFlag } from '@/state/runtime/localFlag';
+import { persistedSignal } from '@/state/persist';
+
+// Persistent boolean for the left-sidebar collapsed state. Key matches the
+// pre-Phase-3.5 storage slot ('cc.sidebarCollapsed'), so users keep their
+// state across the upgrade. Old encoding was '1' / removed; new encoding is
+// JSON true / null — readback of '1' parses as truthy and gets rewritten as
+// true on the next toggle.
+const SIDEBAR_COLLAPSED = persistedSignal<boolean>('sidebarCollapsed', false);
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 
 const SIDEBAR_MIN_WIDTH = 280;
@@ -249,7 +256,7 @@ export function showLeftSidebar(
   const _manifestIsEmpty =
     !('children' in _treeRoot) ||
     (((_treeRoot as DirNode).children?.length ?? 0) === 0 && !_treeRoot.name);
-  let collapsed = _manifestIsEmpty ? true : loadFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, false);
+  let collapsed = _manifestIsEmpty ? true : !!SIDEBAR_COLLAPSED.value;
   const iconBtns: Record<string, HTMLButtonElement> = {};
 
   // Signal backing the Preact activity bar — updated on state changes.
@@ -322,7 +329,7 @@ export function showLeftSidebar(
     state.value = { ...state.value, collapsed };
     container.classList.toggle('is-collapsed', collapsed);
     _refreshActiveStates();
-    saveFlag(STORAGE_KEYS.SIDEBAR_COLLAPSED, collapsed);
+    SIDEBAR_COLLAPSED.value = collapsed;
     if (wasCollapsed && !collapsed && activeTab === SidebarTab.Controls) {
       controlsBundle.resetCollapsed();
     }
