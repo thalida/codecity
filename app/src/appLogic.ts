@@ -4,4 +4,4 @@
 
 export { bootApp as runAppLogic } from './runtime/boot';
 export { applyPendingTitle } from './utils/pendingTitle';
-export { EMPTY_MANIFEST } from './utils/emptyManifest';
+export { EMPTY_MANIFEST } from './constants/manifest';

@@ -12,7 +12,7 @@ import { getServerConfig } from '../api/config';
 import { SERVER_CONFIG } from '../state/runtime/serverConfig';
 import { setupLiveUpdates } from '../state/runtime/liveUpdates';
 import { labelFromManifest } from '../utils/sources';
-import { EMPTY_MANIFEST } from '../utils/emptyManifest';
+import { EMPTY_MANIFEST } from '../constants/manifest';
 
 import { streamInitialManifest } from './manifestStream';
 import { installSourcePickerBridge } from './sourcePickerBridge';

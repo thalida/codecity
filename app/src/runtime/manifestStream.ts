@@ -21,7 +21,7 @@ import { manifestUrl } from '../api/manifest';
 import { streamManifest } from '../api/manifest';
 import { srcKind, labelFromUrl, labelFromManifest } from '../utils/sources';
 import { applyPendingTitle } from '../utils/pendingTitle';
-import { EMPTY_MANIFEST } from '../utils/emptyManifest';
+import { EMPTY_MANIFEST } from '../constants/manifest';
 import { buildIconAtlas } from '../scene/components/buildings/iconAtlas';
 import { setIconAtlas } from '../scene/components/buildings/buildings';
 import { setCellIconAtlas } from '../scene/components/buildings/buildingsCell';

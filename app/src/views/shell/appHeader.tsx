@@ -15,7 +15,7 @@ import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { LucideIcon, GemIcon } from '../components/icon';
 import { ExtensionBadge } from '../components/badge';
 import { toHttpsRepoUrl } from '@/utils/sources';
-import { fitSegments } from '../components/pathTruncate';
+import { applyMiddleEllipsis } from '@/utils/middleEllipsis';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { SOURCE_INFO } from '@/state/runtime/sourceInfo';
 import { openSourcePicker } from '@/state/runtime/uiState';
@@ -174,7 +174,7 @@ function HeaderTitle({
     const crumbsEl = crumbsRef.current;
     const segEls = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-seg'));
     const sepEls = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-sep'));
-    fitSegments(crumbsEl, segEls, sepEls);
+    applyMiddleEllipsis(crumbsEl, segEls, sepEls, { ellipsisClass: 'app-header-ellipsis' });
 
     // Observe the header row for resize events
     const parentRow = crumbsEl.closest('header, [id]') as HTMLElement | null;
@@ -182,7 +182,7 @@ function HeaderTitle({
     const ro = new ResizeObserver(() => {
       const s = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-seg'));
       const sep = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-sep'));
-      fitSegments(crumbsEl, s, sep);
+      applyMiddleEllipsis(crumbsEl, s, sep, { ellipsisClass: 'app-header-ellipsis' });
     });
     ro.observe(parentRow);
     return () => ro.disconnect();
