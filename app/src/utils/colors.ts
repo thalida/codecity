@@ -17,6 +17,19 @@ export function parseHex(hex: string): [number, number, number] | null {
   return null;
 }
 
+/**
+ * Normalize a hex color to canonical lowercase `#rrggbb` form. Expands the
+ * short `#rgb` form. Returns `#000000` for anything unparseable. Pure (no
+ * DOM) — the app's colors are always hex, so no CSS-color round-trip probe
+ * is needed.
+ */
+export function normalizeHex(input: unknown): string {
+  if (typeof input !== 'string') return '#000000';
+  const rgb = parseHex(input);
+  if (!rgb) return '#000000';
+  return `#${rgb.map((c) => c.toString(16).padStart(2, '0')).join('')}`;
+}
+
 /** HSL → sRGB. h in [0, 360), s/l in [0, 1]. Returns [r, g, b] each 0-255. */
 export function hslToRgb(h: number, s: number, l: number): [number, number, number] {
   const c = (1 - Math.abs(2 * l - 1)) * s;

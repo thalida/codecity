@@ -18,7 +18,7 @@
 
 import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
 import { NodeKind } from '@/types';
 import type { CommitEntry, DirNode, FileNode } from '@/types';
@@ -65,12 +65,15 @@ function _readPersistedWidth(): number | null {
 // ── ResizeHandle (left edge of the right sidebar) ────────────────────
 
 function ResizeHandle({ targetRef }: { targetRef: { current: HTMLElement | null } }) {
+  // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
+  // `isDragging` is state, driving the visual `.dragging` class declaratively.
   const dragging = useRef(false);
   const liveWidth = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const onPointerDown = (e: PointerEvent) => {
     dragging.current = true;
-    (e.currentTarget as HTMLElement).classList.add('dragging');
+    setIsDragging(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
   };
@@ -86,14 +89,14 @@ function ResizeHandle({ targetRef }: { targetRef: { current: HTMLElement | null 
   const onPointerUp = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
     dragging.current = false;
-    (e.currentTarget as HTMLElement).classList.remove('dragging');
+    setIsDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     _persistWidth(liveWidth.current || targetRef.current.offsetWidth);
   };
 
   return (
     <div
-      class="sidebar-resize-handle-right"
+      class={`sidebar-resize-handle-right${isDragging ? ' dragging' : ''}`}
       role="separator"
       aria-orientation="vertical"
       title="Drag to resize"

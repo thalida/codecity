@@ -298,9 +298,10 @@ describe('SourcePicker', () => {
     // Order is MRU: o/r first (git, normal), /foo second (local, disabled).
     expect(rows[0].classList.contains('recent-row--disabled')).toBe(false);
     expect(rows[1].classList.contains('recent-row--disabled')).toBe(true);
-    // Disabled rows render the alert-triangle SVG (formerly an emoji); check
-    // for the SVG element rather than text content.
-    expect(rows[1].querySelector('.recent-icon svg')).not.toBeNull();
+    // Disabled (local) rows render the Lucide alert glyph (a mask-painted
+    // .lucide-icon span); git rows render an inline brand <svg>.
+    expect(rows[1].querySelector('.recent-icon .lucide-icon')).not.toBeNull();
+    expect(rows[0].querySelector('.recent-icon svg')).not.toBeNull();
     expect((rows[1] as HTMLElement).title).toContain('Local repos are disabled');
   });
 

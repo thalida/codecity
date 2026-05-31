@@ -1,49 +1,14 @@
-// views/components/CopyButton.tsx — Small icon button that copies `text`
-// to the clipboard, flashes a brief "Copied!" state on the button itself
-// (driven by a CSS-side .is-copied modifier), and falls back to a
-// hidden <textarea> + execCommand('copy') when the async Clipboard API
-// is unavailable (older browsers / non-https contexts).
+// views/components/CopyButton.tsx — Small icon button that copies `text` to
+// the clipboard and flashes a brief "Copied!" state on itself (a CSS-side
+// .is-copied modifier toggled from component state). Uses the async
+// Clipboard API; secure contexts always provide it, so there's no legacy
+// execCommand fallback.
 
-import { useRef } from 'preact/hooks';
+import { useState, useRef, useEffect } from 'preact/hooks';
 import { LucideIcon } from './LucideIcon';
 
 // How long the "Copied!" badge lingers after the copy button is clicked.
 const COPY_FEEDBACK_DURATION_MS = 1500;
-
-function _fallbackCopy(text: string): void {
-  const ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.focus();
-  ta.select();
-  try {
-    document.execCommand('copy');
-  } catch (_) {
-    /* fallback unavailable */
-  }
-  document.body.removeChild(ta);
-}
-
-function _copy(text: string, btn: HTMLButtonElement): void {
-  function flash() {
-    if (!btn) return;
-    btn.classList.add('is-copied');
-    setTimeout(() => {
-      btn.classList.remove('is-copied');
-    }, COPY_FEEDBACK_DURATION_MS);
-  }
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(flash, () => {
-      _fallbackCopy(text);
-      flash();
-    });
-  } else {
-    _fallbackCopy(text);
-    flash();
-  }
-}
 
 export interface CopyButtonProps {
   text: string;
@@ -51,17 +16,35 @@ export interface CopyButtonProps {
 }
 
 export function CopyButton({ text, label = 'Copy path' }: CopyButtonProps) {
-  const ref = useRef<HTMLButtonElement>(null);
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Clear a pending reset timer on unmount so it can't fire after teardown.
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  const flash = () => {
+    setCopied(true);
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => setCopied(false), COPY_FEEDBACK_DURATION_MS);
+  };
+
+  const onClick = () => {
+    // Optional-chain so the call is a no-op if the API is somehow absent
+    // (non-secure context) rather than throwing.
+    void navigator.clipboard?.writeText(text).then(flash, () => {
+      /* clipboard write denied — leave the button un-flashed */
+    });
+  };
+
   return (
     <button
-      ref={ref}
       type="button"
-      class="btn-icon btn-icon--no-drag"
+      class={`btn-icon btn-icon--no-drag${copied ? ' is-copied' : ''}`}
       title={label}
       aria-label={label}
-      onClick={() => {
-        if (ref.current) _copy(text, ref.current);
-      }}
+      onClick={onClick}
     >
       <LucideIcon name="copy" />
     </button>

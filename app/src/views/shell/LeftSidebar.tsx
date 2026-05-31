@@ -16,7 +16,7 @@
 // they too are ported.
 
 import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
-import { useEffect, useRef } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
   DOM_IDS,
@@ -178,11 +178,14 @@ interface ResizeHandleProps {
 }
 
 function ResizeHandle({ targetRef }: ResizeHandleProps) {
+  // `dragging` is a ref (sync guard for pointermove — no stale-closure race);
+  // `isDragging` is state, driving the visual `.dragging` class declaratively.
   const dragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const onPointerDown = (e: PointerEvent) => {
     dragging.current = true;
-    (e.currentTarget as HTMLElement).classList.add('dragging');
+    setIsDragging(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     e.preventDefault();
   };
@@ -198,14 +201,14 @@ function ResizeHandle({ targetRef }: ResizeHandleProps) {
   const onPointerUp = (e: PointerEvent) => {
     if (!dragging.current || !targetRef.current) return;
     dragging.current = false;
-    (e.currentTarget as HTMLElement).classList.remove('dragging');
+    setIsDragging(false);
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     _persistWidth(parseFloat(targetRef.current.style.width) || targetRef.current.offsetWidth);
   };
 
   return (
     <div
-      class="sidebar-resize-handle"
+      class={`sidebar-resize-handle${isDragging ? ' dragging' : ''}`}
       role="separator"
       aria-orientation="vertical"
       title="Drag to resize"

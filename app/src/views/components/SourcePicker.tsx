@@ -16,7 +16,7 @@ import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
-import { hostingIconSvg, alertIconSvg, folderIconSvg } from './hostingIcons';
+import { HostingIcon } from './HostingIcon';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -256,7 +256,6 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
                 const isActive = r.src === currentSrc && (r.branch ?? '') === (currentBranch ?? '');
                 const isLocal = inferSourceTab(r.src) === SourceTab.Local;
                 const isDisabled = isLocal && !s.allowLocalRepos;
-                const icon = isDisabled ? alertIconSvg : isLocal ? folderIconSvg : hostingIconSvg(r.src);
                 const disabledTitle = isDisabled
                   ? 'Local repos are disabled. Restart codecity with CODECITY_ALLOW_LOCAL_REPOS=1 to load this.'
                   : '';
@@ -279,7 +278,15 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
                         handleRecentClick(r.src, r.branch);
                       }}
                     >
-                      <span class="recent-icon" dangerouslySetInnerHTML={{ __html: icon }} />
+                      <span class="recent-icon">
+                        {isDisabled ? (
+                          <LucideIcon name="triangle-alert" />
+                        ) : isLocal ? (
+                          <LucideIcon name="folder" />
+                        ) : (
+                          <HostingIcon src={r.src} />
+                        )}
+                      </span>
                       <div class="recent-row-body">
                         <div class="recent-label">{r.label}</div>
                         <div class="recent-sub">{subParts.join(' · ')}</div>

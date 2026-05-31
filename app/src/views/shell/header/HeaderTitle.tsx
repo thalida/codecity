@@ -8,13 +8,12 @@
 // the path into the available width as the header row resizes.
 
 import { Fragment } from 'preact';
-import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import { LucideIcon } from '@/views/components/LucideIcon';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { CopyButton } from '@/views/components/CopyButton';
-import { applyMiddleEllipsis } from '@/utils/middleEllipsis';
+import { useMiddleEllipsis } from '@/hooks';
 
 export type HeaderSelection =
   | {
@@ -39,26 +38,14 @@ export interface HeaderTitleProps {
 }
 
 export function HeaderTitle({ sel, rootLabel, rootPath, onSegmentClick, onFocus }: HeaderTitleProps) {
-  const crumbsRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!crumbsRef.current) return;
-    const crumbsEl = crumbsRef.current;
-    const segEls = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-seg'));
-    const sepEls = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-sep'));
-    applyMiddleEllipsis(crumbsEl, segEls, sepEls, { ellipsisClass: 'app-header-ellipsis' });
-
-    // Observe the header row for resize events
-    const parentRow = crumbsEl.closest('header, [id]') as HTMLElement | null;
-    if (!parentRow) return;
-    const ro = new ResizeObserver(() => {
-      const s = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-seg'));
-      const sep = Array.from(crumbsEl.querySelectorAll<HTMLElement>('.app-header-sep'));
-      applyMiddleEllipsis(crumbsEl, s, sep, { ellipsisClass: 'app-header-ellipsis' });
-    });
-    ro.observe(parentRow);
-    return () => ro.disconnect();
-  }, [sel]);
+  const crumbsRef = useMiddleEllipsis<HTMLDivElement>(
+    {
+      segmentClass: 'app-header-seg',
+      separatorClass: 'app-header-sep',
+      ellipsisClass: 'app-header-ellipsis',
+    },
+    [sel]
+  );
 
   if (!sel) return null;
 
