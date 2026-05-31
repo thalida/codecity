@@ -26,27 +26,28 @@
 //
 // Selection persistence
 // ---------------------
-// PICKER_SELECTION_KEY (exported, signal) holds the persistable form, a
+// PICKER_SELECTION_KEY (exported, perSourceSignal) holds the persistable form, a
 // tagged union over the same three discriminators carried by selection:
 //   { kind: NodeKind.File,      path: string }
 //   { kind: NodeKind.Directory, path: string }
 //   { kind: NodeKind.Commit,    sha: string }
-// It's hooked
-// into the existing attachPersistence system as `cc.PICKER_SELECTION_KEY`.
-// One-way derivation: selection is the source of truth; whenever it
-// changes, picker writes the matching key. On world.onChange, the
-// key is re-resolved to a live selection (or cleared if the path is
-// gone), so a rebuild that loses a node clears it from selection too.
+// Stored under cc.source.<sourceKey>.selection; save/load called explicitly
+// by appLogic on source switch. One-way derivation: selection is the source
+// of truth; whenever it changes, picker writes the matching key. On
+// world.onChange, the key is re-resolved to a live selection (or cleared if
+// the path is gone), so a rebuild that loses a node clears it too.
 
 import * as THREE from 'three';
 import { signal, effect } from '@preact/signals';
 import { NodeKind } from '@/types';
+import { perSourceSignal } from '@/state/persist';
 
 import type { PickTarget, PickerWorld, PickerSelectionKey } from '@/types';
 
-// Persisted across reloads. Exported so attachPersistence can pick it
-// up via the Config barrel re-export.
-export const PICKER_SELECTION_KEY = signal<PickerSelectionKey | null>(null);
+// Per-source selection key — persisted under cc.source.<key>.selection.
+// Hydrated/saved explicitly by appLogic via loadPerSourceState/savePerSourceState
+// on source switch. Defaults to null (no selection) for a new source.
+export const PICKER_SELECTION_KEY = perSourceSignal<PickerSelectionKey | null>('selection', null);
 
 export function createPicker({
   canvas,
@@ -100,8 +101,8 @@ export function createPicker({
   // No code path writes to both signals simultaneously.
   //
   // NOTE: effect() fires immediately with the current value.
-  // We suppress the initial fire so we don't clobber a key that was
-  // hydrated by attachPersistence before this picker was created.
+  // We suppress the initial fire so we don't clobber the key that was
+  // hydrated by loadPerSourceState before this picker was created.
   let _suspendKeyDerive = true;
   const _disposeSelectionEffect = effect(() => {
     const sel = selection.value;
@@ -212,7 +213,7 @@ export function createPicker({
     _clearHoverOnRebuild();
     _resolveKeyToSelection();
   });
-  // Also resolve once now in case the key was hydrated by attachPersistence
+  // Also resolve once now in case the key was hydrated by loadPerSourceState
   // before this picker was created.
   _resolveKeyToSelection();
 
