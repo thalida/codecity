@@ -20,7 +20,6 @@ interface SignalLike {
 type DraftKey = string | null;
 
 const _drafts: Map<SignalLike, Map<DraftKey, unknown>> = new Map();
-const _listeners: Array<() => void> = [];
 
 /**
  * Monotonic revision counter — bumped on every draft mutation
@@ -32,14 +31,8 @@ const _listeners: Array<() => void> = [];
 export const DRAFTS_REV = signal(0);
 
 function _emit(): void {
+  // Bump the revision signal — components reading DRAFTS_REV.value re-render.
   DRAFTS_REV.value++;
-  for (const cb of _listeners) {
-    try {
-      cb();
-    } catch (_) {
-      /* noop */
-    }
-  }
 }
 
 function _equal(a: unknown, b: unknown): boolean {
@@ -194,17 +187,7 @@ export function isDirty(): boolean {
   return _drafts.size > 0;
 }
 
-export function subscribe(cb: () => void): () => void {
-  if (typeof cb !== 'function') return function () {};
-  _listeners.push(cb);
-  return function () {
-    const idx = _listeners.indexOf(cb);
-    if (idx >= 0) _listeners.splice(idx, 1);
-  };
-}
-
 // Test-only hook so each test starts with an empty draft map.
 export function _resetForTests(): void {
   _drafts.clear();
-  _listeners.length = 0;
 }

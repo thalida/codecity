@@ -8,7 +8,7 @@ import {
   commit,
   discard,
   isDirty,
-  subscribe,
+  DRAFTS_REV,
   _resetForTests,
 } from '@/state/drafts';
 import { persistStore } from '@/state/persist';
@@ -75,34 +75,27 @@ describe('drafts', () => {
     });
   });
 
-  describe('subscribe', () => {
-    it('fires on setDraft, stageReset, stageResetAll, commit, discard', () => {
-      let count = 0;
-      const unsub = subscribe(() => {
-        count++;
-      });
+  describe('DRAFTS_REV', () => {
+    it('bumps on setDraft, stageReset, commit, discard', () => {
+      const start = DRAFTS_REV.peek();
 
       setDraft(FOO, 'COUNT', 5);
-      expect(count).toBe(1);
+      expect(DRAFTS_REV.peek()).toBe(start + 1);
 
       stageReset(FOO, 'COUNT');
-      expect(count).toBe(2);
+      expect(DRAFTS_REV.peek()).toBe(start + 2);
 
       setDraft(FOO, 'COUNT', 7);
-      expect(count).toBe(3);
+      expect(DRAFTS_REV.peek()).toBe(start + 3);
 
       commit();
-      expect(count).toBe(4);
+      expect(DRAFTS_REV.peek()).toBe(start + 4);
 
       setDraft(FOO, 'COUNT', 9);
-      expect(count).toBe(5);
+      expect(DRAFTS_REV.peek()).toBe(start + 5);
 
       discard();
-      expect(count).toBe(6);
-
-      unsub();
-      setDraft(FOO, 'COUNT', 11);
-      expect(count).toBe(6); // unsubscribed
+      expect(DRAFTS_REV.peek()).toBe(start + 6);
     });
   });
 
@@ -145,15 +138,10 @@ describe('drafts', () => {
     it('is a no-op on the second call (idempotent)', () => {
       FOO.value = { ...FOO.value, COLOR: '#ff0000' };
       stageResetAll();
-      let count = 0;
-      const unsub = subscribe(() => {
-        count++;
-      });
+      const before = DRAFTS_REV.peek();
       stageResetAll();
-      // No new draft entries to stage → no subscribers fired beyond
-      // the always-fire end-of-call notification (allow ≤ 1).
-      expect(count).toBeLessThanOrEqual(1);
-      unsub();
+      // No new draft entries to stage → nothing touched → DRAFTS_REV unchanged.
+      expect(DRAFTS_REV.peek()).toBe(before);
     });
 
     it('skips entries where effective value already equals default', () => {

@@ -228,7 +228,7 @@ export const HAS_ANY_NON_DEFAULT = computed(() => {
   return false;
 });
 
-// ── Public: getDefault / resetKey / clearPersistence / forEachRegisteredStore ─
+// ── Public: getDefault / forEachRegisteredStore ─
 
 // Loose signal-like type used at the boundary with drafts.ts / controlsPane
 // which have their own local interface types (SignalLike, MapLikeStore).
@@ -244,25 +244,6 @@ export function getDefault(store: AnySignalLike, key?: string): any {
     }
   }
   return undefined;
-}
-
-/** Reset a single key (object-signal) or whole signal to its default. */
-export function resetKey(store: AnySignalLike, key?: string): void {
-  const defaultVal = getDefault(store, key);
-  if (defaultVal === undefined) return;
-  if (key !== undefined && store.value && typeof store.value === 'object' && !Array.isArray(store.value)) {
-    store.value = { ...store.value, [key]: defaultVal };
-  } else {
-    store.value = defaultVal;
-  }
-}
-
-/** Reset ALL registered signals to their defaults (the "Reset all" action). */
-export function clearPersistence(): void {
-  for (const [key, s] of _SIGNALS) {
-    const def = _DEFAULTS.get(key);
-    if (def !== undefined) s.value = _clone(def);
-  }
 }
 
 /** Visit every registered signal. Used by drafts.ts for stageResetAll. */
