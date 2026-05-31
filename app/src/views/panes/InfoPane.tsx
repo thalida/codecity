@@ -8,11 +8,31 @@ import { useState, useEffect } from 'preact/hooks';
 import { effect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { fetchFileText } from '@/api/file';
-import { marked } from 'marked';
+import { Marked } from 'marked';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, Manifest } from '@/types';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { isEmptyManifest } from '@/utils/manifest';
+import { resolveReadmeAssetUrl } from '@/utils/readmeAssets';
+
+/**
+ * Render README markdown to HTML, rewriting relative image refs to route
+ * through /api/file (resolved against the README's directory) so they load
+ * instead of 404ing against the app origin. The href is mutated on the image
+ * token before rendering, so marked's default renderer still handles all HTML
+ * escaping.
+ */
+function _renderReadme(text: string, readmeFullPath: string): string {
+  const md = new Marked();
+  md.use({
+    walkTokens(token) {
+      if (token.type === 'image') {
+        token.href = resolveReadmeAssetUrl(token.href, readmeFullPath);
+      }
+    },
+  });
+  return md.parse(text) as string;
+}
 
 // Match README, README.md, readme.markdown, README.txt — any file whose
 // stem (case-insensitive) is "readme". GitHub/VSCode use the same rule.
@@ -79,9 +99,10 @@ export function InfoPane({ manifest, onClose }: InfoPaneProps) {
         return;
       }
       setBody({ kind: InfoBodyKind.Loading });
-      fetchFileText(readme.fullPath)
+      const readmePath = readme.fullPath;
+      fetchFileText(readmePath)
         .then((text) => {
-          if (!cancelled) setBody({ kind: InfoBodyKind.Markdown, html: marked.parse(text) as string });
+          if (!cancelled) setBody({ kind: InfoBodyKind.Markdown, html: _renderReadme(text, readmePath) });
         })
         .catch((err) => {
           if (!cancelled) setBody({ kind: InfoBodyKind.Error, message: (err && err.message) || 'Unknown error' });
