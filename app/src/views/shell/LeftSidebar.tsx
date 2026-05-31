@@ -442,13 +442,3 @@ export function showLeftSidebar(
     },
   };
 }
-
-/**
- * No-op hideLeftSidebar — the left sidebar doesn't have a show/hide
- * toggle in the current design (it uses the collapsed state instead).
- * Kept for API symmetry with rightSidebar.
- */
-export function hideLeftSidebar(): void {
-  const container = document.getElementById(DOM_IDS.LEFT_SIDEBAR);
-  if (container) container.classList.add('is-collapsed');
-}

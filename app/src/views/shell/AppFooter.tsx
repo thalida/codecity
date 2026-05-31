@@ -14,9 +14,7 @@
 //
 // The refresh/reset-view button has moved to the header (far right).
 
-import { signal, useSignal } from '@preact/signals';
-import type { ReadonlySignal } from '@preact/signals';
-import { render } from 'preact';
+import { useSignal } from '@preact/signals';
 import { useEffect } from 'preact/hooks';
 import { DateSource, NodeKind } from '@/types';
 import { formatShortDate, formatRelativeAgeShort } from '@/utils/dates';
@@ -63,11 +61,6 @@ export interface FooterStatus {
   lastUpdatedAt: number;
   /** Surfaced as the indicator's `title` (hover tooltip) when rebuildStatus === 'error'. */
   errorMessage: string | null;
-}
-
-interface AppFooterState {
-  selection: FooterSelection | null;
-  status: FooterStatus | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -288,60 +281,3 @@ export function AppFooter() {
   );
 }
 
-// ── Props-driven AppFooter (used by the backward-compat shim) ────────────────
-
-interface _AppFooterPropsLegacy {
-  state: ReadonlySignal<AppFooterState>;
-}
-
-function _AppFooterLegacy({ state }: _AppFooterPropsLegacy) {
-  const s = state.value;
-  return (
-    <>
-      <div class="app-footer-section app-footer-left">
-        <FooterStatusSection status={s.status} />
-      </div>
-      <div class="app-footer-section app-footer-right">
-        <FooterSelectionSection selection={s.selection} />
-      </div>
-    </>
-  );
-}
-
-// ── Backward-compat shim ──────────────────────────────────────────────────────
-// Phase 3e will delete this once App.tsx mounts <AppFooter /> directly.
-
-const NOOP_API = {
-  setSelection(_sel: FooterSelection | null) {},
-  setStatus(_status: FooterStatus) {},
-};
-
-type InitAppFooterOpts = Record<string, never>;
-
-/**
- * Initialise the sitewide footer. Returns:
- *   setStatus({ liveEnabled, rebuildStatus, lastUpdatedAt, errorMessage })
- *                                            — right section (combined indicator)
- *   setSelection(sel | null)                 — left section (badge + metadata)
- *
- * The leading path-badge reads palette + asphalt from the live config
- * stores at render time and re-renders on any change, so editing an
- * extension hue or the asphalt color in Controls repaints the pill.
- */
-export function initAppFooter(_opts: InitAppFooterOpts = {}) {
-  const footer = document.getElementById('app-footer');
-  if (!footer) return NOOP_API;
-
-  const state = signal<AppFooterState>({ selection: null, status: null });
-  render(<_AppFooterLegacy state={state} />, footer);
-
-  function setStatus(status: FooterStatus): void {
-    state.value = { ...state.value, status };
-  }
-
-  function setSelection(sel: FooterSelection | null): void {
-    state.value = { ...state.value, selection: sel };
-  }
-
-  return { setSelection, setStatus };
-}
