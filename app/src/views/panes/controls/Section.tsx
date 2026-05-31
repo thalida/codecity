@@ -25,36 +25,38 @@ export function Section({ name, hint, children }: SectionProps) {
   const ref = useRef<HTMLDetailsElement>(null);
   const sectionState = useHasAnyResettableRow(ref);
 
-  // Reset button is rendered as a sibling of <summary> (not a descendant)
-  // so it doesn't trip the "interactive element inside summary" a11y rule;
-  // CSS positions it absolutely so it still visually sits at the right of
-  // the summary row.
+  // Reset button lives INSIDE <summary> (flex child, margin-left:auto) so it
+  // stays visible when the section is collapsed — a closed <details> hides
+  // its non-summary children. preventDefault + stopPropagation on click keep
+  // it from toggling the disclosure. (A button inside summary is nested
+  // interactive content; the click guards make it behave, and the
+  // collapsed-visibility requirement outweighs the lint.)
   return (
     <details ref={ref} class="controls-section">
       <summary class="row row--bleed controls-section-summary">
         <LucideIcon name="chevron-right" class="controls-section-chevron" />
         <span class="text-label">{name}</span>
+        <button
+          type="button"
+          class="controls-section-reset"
+          title="Reset all values in this section to defaults"
+          aria-label="Reset section to defaults"
+          disabled={!sectionState.hasResettable || !sectionState.canReset}
+          style={sectionState.hasResettable ? undefined : { display: 'none' }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (!ref.current) return;
+            ref.current
+              .querySelectorAll<HTMLButtonElement>('.theme-row-reset')
+              .forEach((b) => {
+                if (!b.disabled) b.click();
+              });
+          }}
+        >
+          <LucideIcon name="rotate-ccw" />
+        </button>
       </summary>
-      <button
-        type="button"
-        class="controls-section-reset"
-        title="Reset all values in this section to defaults"
-        aria-label="Reset section to defaults"
-        disabled={!sectionState.hasResettable || !sectionState.canReset}
-        style={sectionState.hasResettable ? undefined : { display: 'none' }}
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          if (!ref.current) return;
-          ref.current
-            .querySelectorAll<HTMLButtonElement>('.theme-row-reset')
-            .forEach((b) => {
-              if (!b.disabled) b.click();
-            });
-        }}
-      >
-        <LucideIcon name="rotate-ccw" />
-      </button>
       {hint && <div class="controls-section-hint">{hint}</div>}
       {children}
     </details>

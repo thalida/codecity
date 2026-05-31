@@ -1,14 +1,13 @@
-// runtime/sourcePickerBridge.ts — Installs the window.__openSourcePicker and
-// window.__applyNewSource hooks that view code (AppHeader, SourcePicker) calls.
-//
-// These hooks are set during app boot (after the scene handle and server config
-// are available). The window hooks remain for now; removal is tracked as #20.
+// runtime/sourcePickerBridge.ts — Registers the apply-new-source handler that
+// the picker UI invokes via submitNewSource(). The handler needs the live
+// scene + live-update handles, which only exist after boot, so it's wired here
+// rather than in the view. No window globals — the picker calls submitNewSource
+// (uiState) and the header calls openSourcePickerForCurrentSource (uiState).
 //
 // installSourcePickerBridge() is called once from the boot orchestrator after
 // streamInitialManifest() completes.
 
-import { openSourcePicker, closeSourcePicker } from '../state/runtime/uiState';
-import type { SourcePayload } from '../views/components/SourcePicker';
+import { openSourcePicker, closeSourcePicker, registerSourceApplier } from '../state/runtime/uiState';
 import { applyNewSource } from './manifestStream';
 import type { SceneHandle } from './manifestStream';
 
@@ -19,23 +18,11 @@ export interface SourcePickerBridgeOpts {
 }
 
 /**
- * Install the __openSourcePicker and __applyNewSource window hooks.
- * Returns a cleanup function that unregisters them.
+ * Register the apply-new-source handler. Returns a cleanup function that
+ * unregisters it.
  */
 export function installSourcePickerBridge(opts: SourcePickerBridgeOpts): () => void {
-  (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker = () => {
-    const cur = new URLSearchParams(window.location.search);
-    openSourcePicker({
-      dismissible: true,
-      prefill: cur.has('src')
-        ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
-        : undefined,
-    });
-  };
-
-  (window as Window & { __applyNewSource?: (payload: SourcePayload) => void }).__applyNewSource = (
-    payload: SourcePayload
-  ) => {
+  return registerSourceApplier((payload) => {
     closeSourcePicker();
     applyNewSource({
       handle: opts.getHandle(),
@@ -51,11 +38,5 @@ export function installSourcePickerBridge(opts: SourcePickerBridgeOpts): () => v
         });
       },
     });
-  };
-
-  return () => {
-    delete (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
-    delete (window as Window & { __applyNewSource?: (payload: SourcePayload) => void })
-      .__applyNewSource;
-  };
+  });
 }

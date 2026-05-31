@@ -7,7 +7,6 @@
 import type { DirNode } from '@/types';
 import { ICON_CDN_BASE } from '@/constants/fileIcons';
 import { getFolderIconName } from '@/utils/fileIcons';
-import { makeIconImg } from './iconImg';
 
 export interface FolderIconProps {
   dir: DirNode | { name?: string };
@@ -26,10 +25,4 @@ export function FolderIcon({ dir }: FolderIconProps) {
       data-icon-for={label || undefined}
     />
   );
-}
-
-/** Imperative DOM factory — same renderer, for callers that haven't yet
- *  ported to Preact. Phase 3c/3d will delete it. */
-export function makeFolderIcon(dir: DirNode | { name?: string }): HTMLImageElement {
-  return makeIconImg(getFolderIconName(dir), dir.name || '');
 }

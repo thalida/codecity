@@ -16,7 +16,7 @@ import {
 } from '../state/runtime/uiState';
 import type { Manifest } from '../types';
 
-import { manifestUrl } from '../api/manifest';
+import { manifestUrl, manifestUrlFor } from '../api/manifest';
 import { streamManifest } from '../api/manifest';
 import { srcKind, labelFromUrl, labelFromManifest } from '../utils/sources';
 import { applyPendingTitle } from '../utils/pendingTitle';
@@ -185,15 +185,16 @@ export async function applyNewSource(opts: ApplyNewSourceOpts): Promise<void> {
   });
 
   try {
-    const url = new URL('/api/manifest', window.location.origin);
-    url.searchParams.set('src', payload.src);
-    if (payload.branch) url.searchParams.set('branch', payload.branch);
-    if (pendingSkipCache) url.searchParams.set('no_cache', 'true');
+    const url = manifestUrlFor({
+      src: payload.src,
+      branch: payload.branch,
+      noCache: pendingSkipCache,
+    });
 
     let manifest: Manifest | null = null;
     let _pendingTitleSet = false;
 
-    for await (const event of streamManifest(url.toString())) {
+    for await (const event of streamManifest(url)) {
       if (event.phase === 'error') throw new Error(event.error);
 
       if (!_pendingTitleSet && 'display_root' in event && event.display_root) {

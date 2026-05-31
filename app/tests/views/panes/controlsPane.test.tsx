@@ -1,12 +1,55 @@
-import { describe, it, expect } from 'vitest';
-import { buildControlsPane } from '@/views/panes/ControlsPane';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render } from 'preact';
+import { act } from 'preact/test-utils';
+import { ControlsPane } from '@/views/panes/ControlsPane';
 // Importing the settings barrel triggers every persistedSignal() registration
-// at module-load (used by getDefault / forEachRegisteredStore inside controlsPane).
+// at module-load (used by getDefault / forEachRegisteredStore inside the
+// controls sections).
 import '@/state/settings/index';
 
-describe('buildControlsPane', () => {
+// Preact schedules signal-driven re-renders on the microtask queue.
+const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+describe('ControlsPane', () => {
+  let container: HTMLDivElement;
+
+  interface MountOpts {
+    onClose?: () => void;
+    onRunCollisionCheck?: () => void;
+    onRunStemDiagnostic?: () => void;
+    collapsed?: boolean;
+  }
+
+  // Renders <ControlsPane> into the test container and returns the `.pane`
+  // element (mirrors the old buildControlsPane().pane). act() flushes
+  // Preact's effect queue so the collapsed-driven useEffect is live.
+  function mount(opts: MountOpts = {}): HTMLElement {
+    act(() => {
+      render(
+        <ControlsPane
+          onClose={opts.onClose}
+          onRunCollisionCheck={opts.onRunCollisionCheck}
+          onRunStemDiagnostic={opts.onRunStemDiagnostic}
+          collapsed={opts.collapsed}
+        />,
+        container
+      );
+    });
+    return container.querySelector('.pane') as HTMLElement;
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
   it('returns a pane with the Settings header + Keyboard & mouse section first', () => {
-    const { pane } = buildControlsPane({});
+    const pane = mount();
     expect(pane.classList.contains('controls-pane')).toBe(true);
     expect(pane.querySelector<HTMLElement>('.text-pane-title')!.textContent).toBe('Settings');
     expect(
@@ -15,7 +58,7 @@ describe('buildControlsPane', () => {
   });
 
   it('renders a shortcuts list in the Keyboard & mouse section', () => {
-    const { pane } = buildControlsPane({});
+    const pane = mount();
     const shortcuts = pane.querySelector<HTMLElement>('.shortcuts-list');
     expect(shortcuts).not.toBeNull();
     // Must include both keyboard and mouse rows.
@@ -33,7 +76,7 @@ describe('buildControlsPane', () => {
   });
 
   it('renders three buttons in the sticky action bar: Reset all, Discard, Save', () => {
-    const { pane } = buildControlsPane({});
+    const pane = mount();
     const buttons = pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button');
     expect(buttons.length).toBe(3);
     const labels = Array.from(buttons).map((b) => b.textContent?.trim());
@@ -45,7 +88,7 @@ describe('buildControlsPane', () => {
   });
 
   it('Save and Discard buttons are disabled when no drafts are pending', () => {
-    const { pane } = buildControlsPane({});
+    const pane = mount();
     const buttons = Array.from(
       pane.querySelectorAll<HTMLButtonElement>('.controls-actions .controls-button')
     );
@@ -56,49 +99,82 @@ describe('buildControlsPane', () => {
   });
 
   it('does not render any rebuild badges on rows', () => {
-    const { pane } = buildControlsPane({});
+    const pane = mount();
     expect(pane.querySelector('.theme-row-rebuild-badge')).toBeNull();
   });
 
-  it('resetCollapsed() sets all <details> elements to closed', () => {
-    const { pane, resetCollapsed } = buildControlsPane({});
-    // Open every details element, then reset.
+  it('collapsed=true closes all <details> elements', async () => {
+    // Collapse is declarative: render with collapsed=false, open every
+    // <details>, then re-render the same container with collapsed=true —
+    // the useEffect([collapsed]) closes every section.
+    const pane = mount({ collapsed: false });
+    // Open every details element.
     pane.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
       d.open = true;
     });
-    resetCollapsed();
-    const openDetails = Array.from(pane.querySelectorAll<HTMLDetailsElement>('details')).filter(
-      (d) => d.open
-    );
+    // Re-render into the same container with collapsed=true so the effect fires.
+    act(() => {
+      render(
+        <ControlsPane
+          onClose={() => {}}
+          onRunCollisionCheck={() => {}}
+          onRunStemDiagnostic={() => {}}
+          collapsed={true}
+        />,
+        container
+      );
+    });
+    await flush();
+    const openDetails = Array.from(
+      container.querySelectorAll<HTMLDetailsElement>('details')
+    ).filter((d) => d.open);
     expect(openDetails).toHaveLength(0);
   });
 });
 
 describe('subgroup group reset button', () => {
+  let container: HTMLDivElement;
+
+  function mount(): HTMLElement {
+    act(() => {
+      render(<ControlsPane />, container);
+    });
+    return container.querySelector('.pane') as HTMLElement;
+  }
+
+  beforeEach(() => {
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
+  });
+
   // Persisted-signal registration happens at module load when settings/index
   // is imported (top of file), so per-row reset buttons start correctly
   // enabled/disabled vs defaults without an explicit setup hook.
 
   it('renders a group reset button alongside every collapsible subgroup summary', () => {
-    const { pane } = buildControlsPane();
+    const pane = mount();
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
     expect(subgroups.length).toBeGreaterThan(0);
     for (const sg of subgroups) {
-      // The reset button is a sibling of <summary> (not a descendant —
-      // interactive elements inside <summary> fail the a11y rule). It's
-      // CSS-positioned over the summary row.
-      const resetBtn = sg.querySelector(':scope > .controls-subgroup-reset');
+      // The reset button lives inside <summary> (flex child, margin-left:auto)
+      // so it stays visible when the subgroup is collapsed.
+      const resetBtn = sg.querySelector(':scope > summary > .controls-subgroup-reset');
       expect(resetBtn).not.toBeNull();
     }
   });
 
   it('group reset button is hidden when the subgroup contains no resettable rows', () => {
-    const { pane } = buildControlsPane();
+    const pane = mount();
     const subgroups = pane.querySelectorAll('details.theme-subgroup-collapsible');
     let foundHidden = false;
     for (const sg of subgroups) {
       const resetBtn = sg.querySelector<HTMLButtonElement>(
-        ':scope > .controls-subgroup-reset'
+        ':scope > summary > .controls-subgroup-reset'
       );
       if (resetBtn && resetBtn.style.display === 'none') {
         foundHidden = true;
@@ -109,11 +185,11 @@ describe('subgroup group reset button', () => {
   });
 
   it('group reset button is disabled when all descendant rows are at defaults', () => {
-    const { pane } = buildControlsPane();
+    const pane = mount();
     const subgroup = pane.querySelector<HTMLDetailsElement>('details.theme-subgroup-collapsible');
     expect(subgroup).not.toBeNull();
     const resetBtn = subgroup!.querySelector<HTMLButtonElement>(
-      ':scope > .controls-subgroup-reset'
+      ':scope > summary > .controls-subgroup-reset'
     );
     expect(resetBtn).not.toBeNull();
     // No drafts have been staged → no row differs from default → group reset is disabled.

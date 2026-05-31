@@ -10,7 +10,7 @@
 // views/shell/rightSidebar.ts.
 
 import type { Signal } from '@preact/signals';
-import { effect } from '@preact/signals';
+import { useEffect, useRef } from 'preact/hooks';
 import hljs from 'highlight.js/lib/common';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 import type { FileNode } from '@/types';
@@ -29,7 +29,7 @@ export enum PreviewKind {
 }
 import { fileUrl, fetchFileText } from '@/api/file';
 import { makeLucideIcon } from '@/views/components/LucideIcon';
-import { buildPaneHeader } from '@/views/components/PaneHeader';
+import { Pane } from '@/views/components/Pane';
 import { makeExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { escapeHtml } from '@/utils/html';
@@ -56,19 +56,6 @@ const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
 const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
 const PDF_EXTS = ['.pdf'];
 
-interface BuildFilePreviewPaneOpts {
-  /** Called when the user clicks the x in the pane header. Host should
-   *  hide the sidebar AND update any shell-level visibility tracker so a
-   *  subsequent re-open isn't suppressed. */
-  onClose?: () => void;
-  /** Called when the user clicks the focus button in the pane header.
-   *  Equivalent of pressing F on the canvas with the current file selected
-   *  — host should frame the camera on the currently-previewed file. The
-   *  callback receives the file the pane is currently showing (so the host
-   *  doesn't have to read from picker state). */
-  onFocus?: (file: FileNode) => void;
-}
-
 // ── State shape for Preact component ─────────────────────────────────────────
 
 export interface FilePreviewPaneState {
@@ -92,143 +79,17 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
     ? ((file.path ?? '').split('/').filter(Boolean).pop() || file.name || 'No file')
     : 'No file';
 
-  return (
-    <div class="pane">
-      <div class="pane-header">
-        {file && typeof onFocus === 'function' && (
-          <button
-            type="button"
-            class="btn-icon btn-icon--text"
-            title="Focus the camera on this file (F)"
-            aria-label="Focus the camera on this file (F)"
-            onClick={() => onFocus(file)}
-          />
-        )}
-        {file && (
-          <span
-            dangerouslySetInnerHTML={{
-              __html: makeExtensionBadge(file.extension ?? null, false, huePalette, asphaltColor).outerHTML,
-            }}
-          />
-        )}
-        <h3 class="text-pane-title is-mono" title={file?.path || undefined}>{leaf}</h3>
-        {typeof onClose === 'function' && (
-          <button
-            type="button"
-            class="btn-icon btn-icon--text"
-            title="Hide sidebar"
-            aria-label="Hide sidebar"
-            onClick={() => onClose()}
-          />
-        )}
-      </div>
-      <div class="pane editor-body">
-        {!file ? (
-          <div class="empty-state empty-state--lg">
-            <p class="text-card-title">Nothing to preview</p>
-            <p class="text-card-sub">Select a file in the city to inspect it here.</p>
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-// ── Backward-compat factory ───────────────────────────────────────────────────
-/**
- * Build a file-preview pane.
- *
- * Returns:
- *   pane — outer container `<div class="file-preview-pane">` to mount
- *     into the right sidebar slot. Contains a `.pane-header` (leaf
- *     filename + x close button) and a `.editor-body` that holds the
- *     actual preview content.
- *   api.setFile(file | null) — push the file the pane should render. Pass
- *     null to show the "nothing to preview" empty state (used both for
- *     no-selection and for directory-selection, since dirs aren't
- *     previewable in this pane). The header title updates in lockstep.
- */
-export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
-  const pane = document.createElement('div');
-  pane.className = 'pane';
-
-  const { el: header, api: headerApi } = buildPaneHeader({
-    title: 'No file',
-    mono: true,
-    onClose: opts.onClose,
-    onFocus: opts.onFocus
-      ? () => {
-          if (_activeFile) opts.onFocus!(_activeFile);
-        }
-      : undefined,
-    focusTitle: 'Focus the camera on this file (F)',
-  });
-  pane.appendChild(header);
-
-  const body = document.createElement('div');
-  body.className = 'pane editor-body';
-  pane.appendChild(body);
-
-  // Track the active file so palette/asphalt changes can re-render the badge.
-  let _activeFile: FileNode | null = null;
-
-  function _renderBadge(): void {
-    if (!_activeFile) {
-      headerApi.setPrefixEl(null);
-      return;
-    }
-    // Use .value to read signals (Phase 3a migration)
-    const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
-    const asphaltColor = ASPHALT.value.COLOR;
-    headerApi.setPrefixEl(
-      makeExtensionBadge(_activeFile.extension ?? null, false, huePalette, asphaltColor)
-    );
-  }
-
-  /** Render just the leaf filename in the pane-title element. The full
-   *  path lives in the header breadcrumb (sitewide app header); the
-   *  sidebar header stays compact. Hovering the title shows the full
-   *  path as a native browser tooltip. */
-  function _renderFilenameTitle(file: { path?: string; name?: string } | null): void {
-    const rawPath = (file as FileNode | null)?.path ?? '';
-    const segs = rawPath.split('/').filter(Boolean);
-    const leaf =
-      segs.length > 0 ? segs[segs.length - 1] : file?.name ? String(file.name) : 'No file';
-    headerApi.setTitle(leaf);
-    if (rawPath) headerApi.titleEl.title = rawPath;
-    else headerApi.titleEl.removeAttribute('title');
-  }
-
-  // Re-render badge when palette or asphalt color changes mid-session.
-  // Drop the initial synchronous callback at subscribe time (same pattern
-  // as appHeader) — _ready gates it until after first setFile().
-  let _ready = false;
-  const _onConfigChange = () => {
-    if (_ready) _renderBadge();
-  };
-  effect(() => { void BUILDING_PALETTE.value; _onConfigChange(); });
-  effect(() => { void ASPHALT.value; _onConfigChange(); });
-  _ready = true;
-
-  function setFile(
-    file:
-      | FileNode
-      | {
-          name?: string;
-          extension?: string;
-          fullPath?: string;
-          size?: number;
-          [k: string]: unknown;
-        }
-      | null
-  ): void {
-    _activeFile = file as FileNode | null;
-    _renderFilenameTitle(file as FileNode | null);
-    _renderBadge();
-    headerApi.setFocusEnabled(!!_activeFile);
-    body.replaceChildren();
+  // The preview body (image / video / audio / pdf / syntax-highlighted code)
+  // is built imperatively because the code path produces highlight.js HTML
+  // and async-streamed content. Pane owns the .editor-body element via
+  // bodyRef but renders no JSX children into it, so replaceChildren() is safe.
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const host = bodyRef.current;
+    if (!host) return;
+    host.replaceChildren();
     if (!file) {
-      body.appendChild(
+      host.appendChild(
         _makeStateMessage(
           'mouse-pointer-click',
           'Nothing to preview',
@@ -237,18 +98,31 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
       );
       return;
     }
-    const section = _makePreviewSection(file as FileNode);
-    if (section) body.appendChild(section);
-  }
+    const section = _makePreviewSection(file);
+    if (section) host.appendChild(section);
+  }, [file?.fullPath, file?.path]);
 
-  setFile(null);
+  const badge = file ? (
+    <span
+      dangerouslySetInnerHTML={{
+        __html: makeExtensionBadge(file.extension ?? null, false, huePalette, asphaltColor).outerHTML,
+      }}
+    />
+  ) : undefined;
 
-  return {
-    pane,
-    api: { setFile },
-  };
+  return (
+    <Pane
+      titleSlot={<span title={file?.path || undefined}>{leaf}</span>}
+      mono
+      prefixSlot={badge}
+      onFocus={file && typeof onFocus === 'function' ? () => onFocus(file) : undefined}
+      focusTitle="Focus the camera on this file (F)"
+      onClose={onClose}
+      bodyClass="editor-body"
+      bodyRef={bodyRef}
+    />
+  );
 }
-
 function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;

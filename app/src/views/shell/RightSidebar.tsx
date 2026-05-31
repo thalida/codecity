@@ -16,7 +16,7 @@
 // world.onChange subscription updates the state signals so the panes
 // stay fresh through live-update polls.
 
-import { signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import type { Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { DOM_IDS, STORAGE_KEYS } from '@/constants';
@@ -120,7 +120,6 @@ function _installSceneBridge(): void {
   _sceneBridgeInstalled = true;
 
   let _selUnsub: (() => void) | null = null;
-  let _hovUnsub: (() => void) | null = null;
   let _worldUnsub: (() => void) | null = null;
 
   function _refreshCommitState(commit: CommitEntry): void {
@@ -167,16 +166,23 @@ function _installSceneBridge(): void {
     }
   }
 
-  SCENE_HANDLE.subscribe((handle) => {
+  // effect() (not .subscribe) — the outer tracks SCENE_HANDLE; the inner
+  // tracks picker.selection (both signals). world.onChange is a custom emitter
+  // and stays an explicit subscription. The inner effect's disposer is held in
+  // _selUnsub and torn down when the handle swaps.
+  effect(() => {
+    const handle = SCENE_HANDLE.value;
     if (_selUnsub) { _selUnsub(); _selUnsub = null; }
-    if (_hovUnsub) { _hovUnsub(); _hovUnsub = null; }
     if (_worldUnsub) { _worldUnsub(); _worldUnsub = null; }
     if (!handle) {
       ACTIVE_KIND.value = null;
       return;
     }
-    _applySelection(handle);
-    _selUnsub = handle.picker.selection.subscribe(() => _applySelection(handle));
+    // Fires immediately (covering the initial selection) + on each change.
+    _selUnsub = effect(() => {
+      void handle.picker.selection.value;
+      _applySelection(handle);
+    });
     _worldUnsub = handle.world.onChange(() => {
       const sel = handle.picker.selection.peek();
       // Refresh whatever pane is currently showing so it picks up new
@@ -230,9 +236,7 @@ export function RightSidebar() {
 
   const onFileFocus = (file: FileNode) => {
     const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    const b = handle.world.getBuildingByPath(file.path);
-    if (b) handle.rig.focusBuilding(b.mesh, b.building);
+    handle?.rig.focusSelection(handle.picker.targetForPath(file.path));
   };
 
   const onCommitFocus = (commit: CommitEntry) => {
@@ -241,9 +245,7 @@ export function RightSidebar() {
 
   const onStreetFocus = (dir: DirNode) => {
     const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    const st = handle.world.getStreetByDir(dir.path);
-    if (st) handle.rig.focusStreet(st, null);
+    handle?.rig.focusSelection(handle.picker.targetForPath(dir.path));
   };
 
   const kind = ACTIVE_KIND.value;

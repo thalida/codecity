@@ -222,8 +222,8 @@ export function createBuildingFader({
 
   // Selection / hover / config changes all trigger a full sweep. Separate
   // effects per signal keep tracking narrow.
-  const _unsubSel = effect(() => { picker.selection.value; _sweepAll(); });
-  const _unsubHov = effect(() => { picker.hover.value; _sweepAll(); });
+  const _unsubSel = effect(() => { void picker.selection.value; _sweepAll(); });
+  const _unsubHov = effect(() => { void picker.hover.value; _sweepAll(); });
 
   // Re-sweep after a manifest rebuild — new blocks start with fresh iFade
   // buffers (opacity=1.0, silhouette=0, outlineOpacity=0) and the current
@@ -233,7 +233,7 @@ export function createBuildingFader({
   // BUILDING_FADE config (tier thresholds, body opacity, detail mode)
   // controls every value _sweepAll reads. Resweep on any change so dragging
   // a slider in the controls pane updates the scene live.
-  const _unsubCfg = effect(() => { BUILDING_FADE.value; _sweepAll(); });
+  const _unsubCfg = effect(() => { void BUILDING_FADE.value; _sweepAll(); });
 
   // update() kept as a no-op for API compatibility: main.ts calls
   // fader.update(0) in the animation loop. With the subscription-driven

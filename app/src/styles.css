@@ -610,21 +610,15 @@ h6 {
   color: var(--cc-accent-bg);
   cursor: default;
 }
-/* Section and subgroup reset variants are siblings of <summary> (not
- * descendants — interactive elements inside <summary> fail a11y rules)
- * and absolute-positioned over the right edge of the summary row. The
- * parent <details> carries position:relative below to anchor them. */
+/* Section and subgroup resets live INSIDE their <summary> (a flex row with
+ * align-items:center) so they stay visible when the section is collapsed — a
+ * closed <details> hides its non-summary children. margin-left:auto pins them
+ * to the far right; the row's flexbox centers them vertically (no magic top
+ * offsets, and immune to inter-section padding). */
 .controls-section-reset,
 .controls-subgroup-reset {
-  position: absolute;
-  top: var(--cc-space-1); /* aligned with summary's flex row vertical centre */
-  right: var(--cc-space-3);
+  margin-left: auto;
   flex-shrink: 0;
-  z-index: 1;
-}
-.controls-section,
-.theme-subgroup-collapsible {
-  position: relative;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

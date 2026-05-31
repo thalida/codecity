@@ -10,18 +10,10 @@
 import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
-import { makeLucideIcon } from '@/views/components/LucideIcon';
-import { buildPaneHeader } from '@/views/components/PaneHeader';
+import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { makeExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
-
-interface BuildStreetPaneOpts {
-  onClose?: () => void;
-  /** Called when the user clicks the focus button in the pane header.
-   *  Equivalent of pressing F on the canvas with the current dir selected. */
-  onFocus?: (dir: DirNode) => void;
-}
 
 interface ExtensionStats {
   ext: string;
@@ -82,20 +74,13 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
 
   if (!d) {
     return (
-      <div class="pane street-pane">
-        <div class="pane-header">
-          <h3 class="text-pane-title">Road</h3>
-          {typeof onClose === 'function' && (
-            <button type="button" class="btn-icon btn-icon--text" title="Hide sidebar" aria-label="Hide sidebar" onClick={() => onClose()} />
-          )}
-        </div>
-        <div class="pane-body street-body">
-          <div class="empty-state empty-state--lg">
-            <p class="text-card-title">No road selected</p>
-            <p class="text-card-sub">Select a road in the city to inspect it here.</p>
-          </div>
-        </div>
-      </div>
+      <Pane paneClass="street-pane" title="Road" onClose={onClose} bodyClass="street-body">
+        <PaneEmpty
+          icon="route"
+          title="No road selected"
+          sub="Select a road in the city to inspect it here."
+        />
+      </Pane>
     );
   }
 
@@ -107,23 +92,14 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
   const stats = aggregateExtensions(d);
 
   return (
-    <div class="pane street-pane">
-      <div class="pane-header">
-        {typeof onFocus === 'function' && (
-          <button
-            type="button"
-            class="btn-icon btn-icon--text"
-            title="Focus the camera on this road (F)"
-            aria-label="Focus the camera on this road (F)"
-            onClick={() => onFocus(d)}
-          />
-        )}
-        <h3 class="text-pane-title">{leaf}</h3>
-        {typeof onClose === 'function' && (
-          <button type="button" class="btn-icon btn-icon--text" title="Hide sidebar" aria-label="Hide sidebar" onClick={() => onClose()} />
-        )}
-      </div>
-      <div class="pane-body street-body">
+    <Pane
+      paneClass="street-pane"
+      title={leaf}
+      onFocus={typeof onFocus === 'function' ? () => onFocus(d) : undefined}
+      focusTitle="Focus the camera on this road (F)"
+      onClose={onClose}
+      bodyClass="street-body"
+    >
         <div class="street-counts">
           <div class="street-counts-col">
             <div class="street-counts-h">Direct</div>
@@ -163,8 +139,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
             </div>
           </>
         )}
-      </div>
-    </div>
+    </Pane>
   );
 }
 
@@ -188,156 +163,4 @@ function StreetExtRow({
       <span class="street-ext-size">{formatBytes(s.size)}</span>
     </div>
   );
-}
-
-// ── Backward-compat factory ───────────────────────────────────────────────────
-
-export function buildStreetPane(opts: BuildStreetPaneOpts = {}) {
-  const pane = document.createElement('div');
-  pane.className = 'pane street-pane';
-
-  let _activeDir: DirNode | null = null;
-
-  const { el: header, api: headerApi } = buildPaneHeader({
-    title: 'Road',
-    onClose: opts.onClose,
-    onFocus: opts.onFocus
-      ? () => {
-          if (_activeDir) opts.onFocus!(_activeDir);
-        }
-      : undefined,
-    focusTitle: 'Focus the camera on this road (F)',
-  });
-  pane.appendChild(header);
-
-  const body = document.createElement('div');
-  body.className = 'pane-body street-body';
-  pane.appendChild(body);
-
-  function _renderEmpty(): void {
-    _activeDir = null;
-    headerApi.setFocusEnabled(false);
-    headerApi.setTitle('Road');
-    body.replaceChildren();
-    const box = document.createElement('div');
-    box.className = 'empty-state empty-state--lg';
-    box.appendChild(makeLucideIcon('route'));
-    const h = document.createElement('p');
-    h.className = 'text-card-title';
-    h.textContent = 'No road selected';
-    box.appendChild(h);
-    const sub = document.createElement('p');
-    sub.className = 'text-card-sub';
-    sub.textContent = 'Select a road in the city to inspect it here.';
-    box.appendChild(sub);
-    body.appendChild(box);
-  }
-
-  function _renderDir(d: DirNode): void {
-    _activeDir = d;
-    headerApi.setFocusEnabled(true);
-    const leaf =
-      (d.path && d.path !== '.' ? d.path.split('/').filter(Boolean).pop() : null) ||
-      d.name ||
-      'Road';
-    headerApi.setTitle(leaf);
-    body.replaceChildren();
-
-    // Counts block
-    const counts = document.createElement('div');
-    counts.className = 'street-counts';
-
-    // Each row renders as "<count> <label>" so regex patterns like /2.*files/i
-    // and /1.*dirs?/i in tests can match the plain textContent.
-    function makeCol(label: string, rows: Array<[string, string]>): HTMLElement {
-      const col = document.createElement('div');
-      col.className = 'street-counts-col';
-      const h = document.createElement('div');
-      h.className = 'street-counts-h';
-      h.textContent = label;
-      col.appendChild(h);
-      for (const [v, k] of rows) {
-        const row = document.createElement('div');
-        row.className = 'street-counts-row';
-        const vEl = document.createElement('span');
-        vEl.className = 'street-counts-v';
-        vEl.textContent = v;
-        const kEl = document.createElement('span');
-        kEl.className = 'street-counts-k';
-        kEl.textContent = k;
-        row.appendChild(vEl);
-        row.appendChild(kEl);
-        col.appendChild(row);
-      }
-      return col;
-    }
-
-    counts.appendChild(
-      makeCol('Direct', [
-        [String(d.children_file_count ?? 0), 'files'],
-        [String(d.children_dir_count ?? 0), 'dirs'],
-      ])
-    );
-    counts.appendChild(
-      makeCol('Descendants', [
-        [String(d.descendants_file_count ?? 0), 'files'],
-        [String(d.descendants_dir_count ?? 0), 'dirs'],
-      ])
-    );
-    body.appendChild(counts);
-
-    // By extension
-    const stats = aggregateExtensions(d);
-    if (stats.length > 0) {
-      const h = document.createElement('div');
-      h.className = 'street-ext-h';
-      h.textContent = 'By extension';
-      body.appendChild(h);
-      const list = document.createElement('div');
-      list.className = 'street-ext-list';
-      // Use .value to read signals (Phase 3a migration)
-      const huePalette = BUILDING_PALETTE.value.HUE_EXT_MAP || {};
-      const asphaltColor = ASPHALT.value.COLOR;
-      for (const s of stats) {
-        const row = document.createElement('div');
-        row.className = 'street-ext-row';
-        const badgeExt = s.ext === '(none)' ? null : s.ext;
-        row.appendChild(makeExtensionBadge(badgeExt, false, huePalette, asphaltColor));
-        const label = document.createElement('span');
-        label.className = 'street-ext-label';
-        label.textContent = s.ext;
-        row.appendChild(label);
-        const count = document.createElement('span');
-        count.className = 'street-ext-count';
-        count.textContent = `${s.count} file${s.count === 1 ? '' : 's'}`;
-        row.appendChild(count);
-        const sep = document.createElement('span');
-        sep.className = 'street-ext-sep';
-        sep.setAttribute('aria-hidden', 'true');
-        sep.textContent = '·';
-        row.appendChild(sep);
-        const size = document.createElement('span');
-        size.className = 'street-ext-size';
-        size.textContent = formatBytes(s.size);
-        row.appendChild(size);
-        list.appendChild(row);
-      }
-      body.appendChild(list);
-    }
-  }
-
-  function setDirectory(d: DirNode | null): void {
-    if (!d) {
-      _renderEmpty();
-      return;
-    }
-    _renderDir(d);
-  }
-
-  setDirectory(null);
-
-  return {
-    pane,
-    api: { setDirectory },
-  };
 }

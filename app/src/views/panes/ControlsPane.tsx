@@ -15,13 +15,11 @@
 // which triggers the existing reaction effects (applyTheme or
 // world.applyManifest). Discard clears drafts without touching
 // signals. Section / collapsible-subgroup open state is intentionally
-// NOT persisted — `resetCollapsed()` (called by the left sidebar
-// whenever the Controls tab becomes visible) collapses every <details>
-// so the panel always opens fresh.
+// NOT persisted — the `collapsed` prop (driven by the sidebar's collapsed
+// state) collapses every <details> when the panel is hidden, so it always
+// reopens fresh.
 
-import { render } from 'preact';
-import { useImperativeHandle, useRef } from 'preact/hooks';
-import type { Ref } from 'preact';
+import { useEffect, useRef } from 'preact/hooks';
 import { ShortcutsSection } from './controls/ShortcutsSection';
 import { UpdatesSection } from './controls/UpdatesSection';
 import { SceneSection } from './controls/SceneSection';
@@ -37,42 +35,31 @@ import { DebugSection } from './controls/DebugSection';
 import { ActionsBar } from './controls/ActionsBar';
 import { PaneHeader } from '@/views/components/PaneHeader';
 
-export interface ControlsPaneApi {
-  /** Collapse every <details> inside the pane. Called by the left
-   *  sidebar when the Controls tab becomes visible so the panel
-   *  always opens fresh — no state memory between opens. */
-  resetCollapsed: () => void;
-}
-
 export interface ControlsPaneProps {
   onClose?: () => void;
   onRunCollisionCheck?: () => void;
   onRunStemDiagnostic?: () => void;
-  apiRef?: Ref<ControlsPaneApi | null>;
+  /** When true the panel is hidden (sidebar collapsed). On that transition we
+   *  collapse every section so the panel reopens fresh — section open-state is
+   *  intentionally not persisted across opens. Declarative: the parent just
+   *  passes its collapsed state; no imperative reset call. */
+  collapsed?: boolean;
 }
 
 export function ControlsPane({
   onClose,
   onRunCollisionCheck,
   onRunStemDiagnostic,
-  apiRef,
+  collapsed,
 }: ControlsPaneProps) {
   const paneRef = useRef<HTMLDivElement>(null);
 
-  useImperativeHandle(
-    apiRef,
-    () => ({
-      resetCollapsed() {
-        if (!paneRef.current) return;
-        paneRef.current
-          .querySelectorAll<HTMLDetailsElement>('details')
-          .forEach((d) => {
-            d.open = false;
-          });
-      },
-    }),
-    []
-  );
+  useEffect(() => {
+    if (!collapsed || !paneRef.current) return;
+    paneRef.current.querySelectorAll<HTMLDetailsElement>('details').forEach((d) => {
+      d.open = false;
+    });
+  }, [collapsed]);
 
   return (
     <div ref={paneRef} class="pane controls-pane">
@@ -97,50 +84,4 @@ export function ControlsPane({
       <ActionsBar />
     </div>
   );
-}
-
-// ── Imperative shim ───────────────────────────────────────────────────
-// LeftSidebar still mounts panes by appending HTMLElements (#35 will
-// port that path to Preact, after which this shim can be deleted per
-// #10). buildControlsPane returns an element ready to be appended into
-// the sidebar's pane slot, plus a hook to collapse every <details>.
-//
-// Internally it renders <ControlsPane /> into the returned element via
-// Preact's render() — every section + widget is real Preact, no
-// imperative DOM building anywhere.
-
-export interface BuildControlsPaneOpts {
-  onClose?: () => void;
-  onRunCollisionCheck?: () => void;
-  onRunStemDiagnostic?: () => void;
-}
-
-export interface ControlsPaneBundle {
-  pane: HTMLElement;
-  resetCollapsed: () => void;
-}
-
-export function buildControlsPane(opts: BuildControlsPaneOpts = {}): ControlsPaneBundle {
-  // Preact's render() always mounts the component as a child of the
-  // container, so we render into a throwaway host and return the
-  // component's outer element (host.firstElementChild) — which IS the
-  // `.pane.controls-pane` div produced by <ControlsPane />.
-  const host = document.createElement('div');
-  const apiRef: { current: ControlsPaneApi | null } = { current: null };
-  render(
-    <ControlsPane
-      onClose={opts.onClose}
-      onRunCollisionCheck={opts.onRunCollisionCheck}
-      onRunStemDiagnostic={opts.onRunStemDiagnostic}
-      apiRef={apiRef}
-    />,
-    host
-  );
-  const pane = host.firstElementChild as HTMLElement;
-  return {
-    pane,
-    resetCollapsed() {
-      apiRef.current?.resetCollapsed();
-    },
-  };
 }

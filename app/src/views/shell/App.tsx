@@ -22,6 +22,7 @@ import { SourcePicker } from '../components/SourcePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
 import { HljsThemeLink } from '../components/HljsThemeLink';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
+import { openSourcePickerForCurrentSource } from '@/state/runtime/uiState';
 import { runAppLogic } from '../../appLogic';
 
 export function App() {
@@ -42,8 +43,7 @@ export function App() {
     SCENE_HANDLE.peek()?.picker.selectByPath(path);
   }
   function onSwitchSource() {
-    const fn = (window as Window & { __openSourcePicker?: () => void }).__openSourcePicker;
-    fn?.();
+    openSourcePickerForCurrentSource();
   }
   function onResetView() {
     SCENE_HANDLE.peek()?.resetView();

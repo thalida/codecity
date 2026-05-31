@@ -1,6 +1,11 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { buildSearchPane } from '@/views/panes/SearchPane';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { render } from 'preact';
+import { signal } from '@preact/signals';
+import { SearchPane } from '@/views/panes/SearchPane';
 import { NodeKind } from '@/types';
+
+// Preact schedules signal-driven re-renders on the microtask queue.
+const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 // Minimal manifest fixture — fields that the search pane reads:
 // tree.children[].path, .name, .type. Extras carried so it parses as a
@@ -88,40 +93,64 @@ const TREE = {
   ],
 };
 
-describe('buildSearchPane', () => {
+describe('SearchPane', () => {
+  let container: HTMLDivElement;
+
+  function mount(
+    opts: { onSelect?: (p: string) => void; onFocus?: (p: string) => void } = {}
+  ): ReturnType<typeof signal> {
+    const manifest = signal<unknown>({ tree: TREE });
+    render(
+      <SearchPane
+        manifest={manifest as never}
+        onClose={() => {}}
+        onSelect={opts.onSelect}
+        onFocus={opts.onFocus}
+      />,
+      container
+    );
+    return manifest;
+  }
+
+  async function typeQuery(value: string): Promise<void> {
+    const input = container.querySelector<HTMLInputElement>('input.search-input')!;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await flush();
+  }
+
   beforeEach(() => {
-    document.body.innerHTML = '';
+    container = document.createElement('div');
+    document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    render(null, container);
+    container.remove();
   });
 
   it('renders the empty hint when no query is set', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const state = pane.querySelector('.text-card-title');
+    mount();
+    const state = container.querySelector('.text-card-title');
     expect(state).not.toBeNull();
     expect(state!.textContent).toContain('Start typing');
   });
 
-  it('lists substring-matched files for a query and wraps matches in <mark>', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'coord';
-    input.dispatchEvent(new Event('input'));
+  it('lists substring-matched files for a query and wraps matches in <mark>', async () => {
+    mount();
+    await typeQuery('coord');
 
-    const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].textContent).toBe('src/coordinator.ts');
     expect(results[0].querySelectorAll('mark').length).toBeGreaterThan(0);
   });
 
-  it('treats ".png" as a contiguous substring (not per-character fuzzy)', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = '.png';
-    input.dispatchEvent(new Event('input'));
+  it('treats ".png" as a contiguous substring (not per-character fuzzy)', async () => {
+    mount();
+    await typeQuery('.png');
 
-    const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
     const paths = Array.from(results).map((r) => r.textContent);
     // Only assets/logo.png contains ".png" as a substring. parsing.ts
     // contains '.', 'p', 'n', 'g' characters but never the contiguous
@@ -129,14 +158,11 @@ describe('buildSearchPane', () => {
     expect(paths).toEqual(['assets/logo.png']);
   });
 
-  it('supports whitespace-separated tokens (every token must appear as a substring)', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'src .ts';
-    input.dispatchEvent(new Event('input'));
+  it('supports whitespace-separated tokens (every token must appear as a substring)', async () => {
+    mount();
+    await typeQuery('src .ts');
 
-    const paths = Array.from(pane.querySelectorAll<HTMLLIElement>('.search-result')).map(
+    const paths = Array.from(container.querySelectorAll<HTMLLIElement>('.search-result')).map(
       (r) => r.textContent
     );
     expect(paths).toContain('src/coordinator.ts');
@@ -146,79 +172,58 @@ describe('buildSearchPane', () => {
     expect(paths).not.toContain('assets/logo.png');
   });
 
-  it('matches the file extension as part of the path', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'readme.md';
-    input.dispatchEvent(new Event('input'));
+  it('matches the file extension as part of the path', async () => {
+    mount();
+    await typeQuery('readme.md');
 
-    const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
     expect(results.length).toBeGreaterThan(0);
     expect(results[0].textContent).toBe('README.md');
   });
 
-  it('shows "no matches" when nothing fuzzy-matches', () => {
-    const { pane } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'xyzpdq';
-    input.dispatchEvent(new Event('input'));
+  it('shows "no matches" when nothing fuzzy-matches', async () => {
+    mount();
+    await typeQuery('xyzpdq');
 
-    const state = pane.querySelector('.text-card-title');
+    const state = container.querySelector('.text-card-title');
     expect(state).not.toBeNull();
     expect(state!.textContent).toContain('No files');
   });
 
-  it('calls onSelect(path) when a result is single-clicked', () => {
+  it('calls onSelect(path) when a result is single-clicked', async () => {
     let selected: string | null = null;
-    const { pane } = buildSearchPane(
-      { tree: TREE },
-      {
-        onSelect: (p: string) => {
-          selected = p;
-        },
-      }
-    );
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'coord';
-    input.dispatchEvent(new Event('input'));
+    mount({
+      onSelect: (p: string) => {
+        selected = p;
+      },
+    });
+    await typeQuery('coord');
 
-    const first = pane.querySelector<HTMLLIElement>('.search-result')!;
+    const first = container.querySelector<HTMLLIElement>('.search-result')!;
     first.click();
     expect(selected).toBe('src/coordinator.ts');
   });
 
-  it('calls onFocus(path) when a result is double-clicked', () => {
+  it('calls onFocus(path) when a result is double-clicked', async () => {
     let focused: string | null = null;
-    const { pane } = buildSearchPane(
-      { tree: TREE },
-      {
-        onFocus: (p: string) => {
-          focused = p;
-        },
-      }
-    );
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'coord';
-    input.dispatchEvent(new Event('input'));
+    mount({
+      onFocus: (p: string) => {
+        focused = p;
+      },
+    });
+    await typeQuery('coord');
 
-    const first = pane.querySelector<HTMLLIElement>('.search-result')!;
+    const first = container.querySelector<HTMLLIElement>('.search-result')!;
     first.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(focused).toBe('src/coordinator.ts');
   });
 
-  it('re-indexes when setManifest is called', () => {
-    const { pane, api } = buildSearchPane({ tree: TREE });
-    document.body.appendChild(pane);
-    const input = pane.querySelector<HTMLInputElement>('.search-input')!;
-    input.value = 'newfile';
-    input.dispatchEvent(new Event('input'));
-    expect(pane.querySelector('.text-card-title')!.textContent).toContain('No files');
+  it('re-indexes when the manifest signal changes', async () => {
+    const manifest = mount();
+    await typeQuery('newfile');
+    expect(container.querySelector('.text-card-title')!.textContent).toContain('No files');
 
-    api.setManifest({
+    manifest.value = {
       tree: {
         ...TREE,
         children: [
@@ -238,9 +243,10 @@ describe('buildSearchPane', () => {
           },
         ],
       },
-    });
+    };
+    await flush();
 
-    const results = pane.querySelectorAll<HTMLLIElement>('.search-result');
+    const results = container.querySelectorAll<HTMLLIElement>('.search-result');
     expect(results.length).toBe(1);
     expect(results[0].textContent).toBe('newfile.ts');
   });

@@ -233,32 +233,44 @@ export function createPicker({
     selection.value = null;
   }
 
-  // Resolve a path string (file or directory) to a live target and set
-  // it as the selection. Used by tree-row clicks and breadcrumb-segment
-  // clicks. No-op if the path doesn't match anything.
-  function selectByPath(path: string): void {
-    if (!path) return;
+  // Resolve a path string (file or directory) to a live PickTarget, or null
+  // if it matches nothing. Pure — no side effects. The single place that maps
+  // a path to scene internals (building mesh / street / sidewalk), so view
+  // code never switches on node kind or constructs PickTargets itself; it
+  // just calls selectByPath / hoverByPath, or feeds the result to
+  // rig.focusSelection.
+  function targetForPath(path: string): PickTarget | null {
+    if (!path) return null;
     const b = world.getBuildingByPath(path);
     if (b) {
-      setSelection({
+      return {
         kind: NodeKind.File,
         mesh: b.mesh,
         data: b.building,
         file: b.building.file,
         instanceId: b.instanceId,
-      });
-      return;
+      };
     }
     const sw = world.getSidewalkByDir(path);
     const st = world.getStreetByDir(path);
     if (sw && st && st.dir) {
-      setSelection({
-        kind: NodeKind.Directory,
-        sidewalk: sw,
-        street: st,
-        dir: st.dir,
-      });
+      return { kind: NodeKind.Directory, sidewalk: sw, street: st, dir: st.dir };
     }
+    return null;
+  }
+
+  // Resolve a path and set it as the selection. Used by tree-row clicks and
+  // breadcrumb-segment clicks. No-op if the path doesn't match anything.
+  function selectByPath(path: string): void {
+    const t = targetForPath(path);
+    if (t) setSelection(t);
+  }
+
+  // Resolve a path and set it as the hover target (tree-row hover → city
+  // highlight). No-op if the path doesn't match anything.
+  function hoverByPath(path: string): void {
+    const t = targetForPath(path);
+    if (t) setHover(t);
   }
 
   // ── Raycasting ────────────────────────────────────────────────────
@@ -369,6 +381,8 @@ export function createPicker({
     setSelection,
     clearSelection,
     selectByPath,
+    hoverByPath,
+    targetForPath,
     pickAt,
     interpretHit,
     dispose,

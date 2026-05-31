@@ -9,7 +9,7 @@
 // chain of the selected node.
 
 import { render } from 'preact';
-import { computed, effect, signal, useComputed } from '@preact/signals';
+import { effect, signal, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
@@ -18,7 +18,7 @@ import { LucideIcon } from '@/views/components/LucideIcon';
 import { GemIcon } from '@/views/components/GemIcon';
 import { FileIcon } from '@/views/components/FileIcon';
 import { FolderIcon } from '@/views/components/FolderIcon';
-import { PaneHeader } from '@/views/components/PaneHeader';
+import { Pane, PaneEmpty } from '@/views/components/Pane';
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -221,38 +221,25 @@ export function TreePane({
   // Selection → expansion bridge. Subscribes via useEffect so the
   // production JSX usage (LeftSidebar mounts <TreePane /> directly) gets
   // automatic ancestor-chain expansion when picker selection moves.
-  // buildTreePane (the imperative shim) sets up its own pre-mount
-  // bridge for tests — this effect is idempotent on top of that.
   useEffect(() => {
-    function apply() {
+    // effect() fires immediately + on every selectedPath change, and returns
+    // its own disposer — so the bridge is set up and torn down with the mount.
+    return effect(() => {
       const p = selectedPath.value;
       expanded.value = p == null ? new Set([rootPath]) : _ancestorChain(p, rootPath);
-    }
-    apply();
-    const unsubSel = selectedPath.subscribe(apply);
-    return unsubSel;
+    });
   }, [rootPath]);
 
   const noChildren = !tree || !('children' in tree) || ((tree as DirNode).children?.length ?? 0) === 0;
 
   return (
-    <div class="pane tree-pane">
-      <PaneHeader title="Explorer" onClose={onClose} />
+    <Pane paneClass="tree-pane" title="Explorer" onClose={onClose}>
       {noChildren ? (
-        <div class="empty-state empty-state--lg">
-          <LucideIcon name="folder-open" />
-          {tree?.name ? (
-            <>
-              <p class="text-card-title">Empty repository</p>
-              <p class="text-card-sub">This project has no files yet.</p>
-            </>
-          ) : (
-            <>
-              <p class="text-card-title">No project loaded</p>
-              <p class="text-card-sub">Open one to explore its file tree.</p>
-            </>
-          )}
-        </div>
+        <PaneEmpty
+          icon="folder-open"
+          title={tree?.name ? 'Empty repository' : 'No project loaded'}
+          sub={tree?.name ? 'This project has no files yet.' : 'Open one to explore its file tree.'}
+        />
       ) : (
         <ul class="tree-list tree-root">
           <TreeItem
@@ -269,99 +256,16 @@ export function TreePane({
           />
         </ul>
       )}
-    </div>
+    </Pane>
   );
-}
-
-// ── Imperative shim ─────────────────────────────────────────────────
-// LeftSidebar still mounts panes as HTMLElements. The shim renders
-// <TreePane /> into a host div, returns the inner element, and exposes
-// an api compatible with the previous buildTreePane signature.
-//
-// #35 will port LeftSidebar to Preact, at which point this shim can be
-// deleted per #10.
-
-interface BuildTreePaneOpts {
-  onClose?: () => void;
-  onSelect?: (node: TreeNode) => void;
-  onFocus?: (node: TreeNode) => void;
-  onHover?: (node: TreeNode) => void;
-  onHoverEnd?: (node: TreeNode) => void;
-}
-
-export interface TreePaneApi {
-  setSelectedPath(path: string | null): void;
-  setHoveredPath(path: string | null): void;
-  setManifest(m: Manifest | DirNode | { tree?: unknown; [k: string]: unknown }): void;
-}
-
-export function buildTreePane(
-  manifest: Manifest | DirNode | { tree?: unknown; [k: string]: unknown },
-  opts: BuildTreePaneOpts = {}
-): { pane: HTMLElement; api: TreePaneApi } {
-  const manifestSig = signal<Manifest | DirNode | { tree?: unknown; [k: string]: unknown } | null>(manifest);
-  const selectedPath = signal<string | null>(null);
-  const hoveredPath = signal<string | null>(null);
-
-  // Root path may change when the manifest swaps. Derive it via a
-  // computed so the bridge effect re-binds on swap.
-  const rootPathSig = computed(() => _treeRoot(manifestSig.value)?.path ?? '');
-
-  // Expansion state is shared between the user (chevron clicks) and the
-  // selection bridge (which forces the ancestor chain open when
-  // selectedPath changes). Initial: just the root.
-  const expanded = signal<Set<string>>(new Set([rootPathSig.value]));
-
-  // Bridge: any change to selectedPath or rootPath rewrites the expanded
-  // set to the new ancestor chain. Wired up synchronously here (not via
-  // useEffect inside the component) so the subscription is live before
-  // the first setSelectedPath call from test code.
-  effect(() => {
-    const p = selectedPath.value;
-    const root = rootPathSig.value;
-    expanded.value = p == null ? new Set([root]) : _ancestorChain(p, root);
-  });
-
-  const host = document.createElement('div');
-  render(
-    <TreePane
-      manifest={manifestSig}
-      selectedPath={selectedPath}
-      hoveredPath={hoveredPath}
-      expanded={expanded}
-      rootPath={rootPathSig.value}
-      onClose={opts.onClose}
-      onSelect={opts.onSelect}
-      onFocus={opts.onFocus}
-      onHover={opts.onHover}
-      onHoverEnd={opts.onHoverEnd}
-    />,
-    host
-  );
-  const pane = host.firstElementChild as HTMLElement;
-
-  return {
-    pane,
-    api: {
-      setSelectedPath(path) {
-        selectedPath.value = path;
-      },
-      setHoveredPath(path) {
-        hoveredPath.value = path;
-      },
-      setManifest(m) {
-        manifestSig.value = m;
-      },
-    },
-  };
 }
 
 // ── Bare-tree helper (used by tests) ────────────────────────────────
 // Returns a <ul> for `node`'s children with all directories expanded,
 // no event handlers, no selection/hover binding. Test fixtures use this
 // to assert DOM structure independent of the live <TreePane>'s
-// expansion state. Production callers should use buildTreePane to get
-// the click/dblclick handlers + selection api wired up.
+// expansion state. Production callers render <TreePane /> directly to get
+// the click/dblclick handlers + selection wiring.
 //
 // Renders directly via Preact into a detached <ul> so the markup matches
 // what <TreePane> produces — same classes, same structure, just every

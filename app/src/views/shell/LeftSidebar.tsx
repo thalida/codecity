@@ -15,7 +15,7 @@
 // The factories survive (#10) for external consumers / tests until
 // they too are ported.
 
-import { signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
+import { effect, signal, useComputed, useSignal, useSignalEffect } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import {
   ACTIVITY_BAR_TABS,
@@ -64,7 +64,10 @@ function _installManifestBridge(): void {
   if (_manifestBridgeInstalled) return;
   _manifestBridgeInstalled = true;
   let _worldUnsub: (() => void) | null = null;
-  SCENE_HANDLE.subscribe((handle) => {
+  // effect() (not .subscribe) — tracks SCENE_HANDLE only; world.onChange is a
+  // custom emitter, not a signal, so it stays an explicit subscription.
+  effect(() => {
+    const handle = SCENE_HANDLE.value;
     if (_worldUnsub) {
       _worldUnsub();
       _worldUnsub = null;
@@ -300,39 +303,11 @@ export function LeftSidebar() {
     if (!node?.path) return;
     const handle = SCENE_HANDLE.peek();
     if (!handle) return;
-    if (node.type === NodeKind.File) {
-      const b = handle.world.getBuildingByPath(node.path);
-      if (b) handle.rig.focusBuilding(b.mesh, b.building);
-    } else if (node.type === NodeKind.Directory) {
-      const st = handle.world.getStreetByDir(node.path);
-      if (st) handle.rig.focusStreet(st, null);
-    }
+    handle.rig.focusSelection(handle.picker.targetForPath(node.path));
   };
   const onTreeHover = (node: TreeNode) => {
     if (!node?.path) return;
-    const handle = SCENE_HANDLE.peek();
-    if (!handle) return;
-    if (node.type === NodeKind.File) {
-      const b = handle.world.getBuildingByPath(node.path);
-      if (!b) return;
-      handle.picker.setHover({
-        kind: NodeKind.File,
-        mesh: b.mesh,
-        data: b.building,
-        file: b.building.file,
-        instanceId: b.instanceId,
-      });
-    } else if (node.type === NodeKind.Directory) {
-      const sw = handle.world.getSidewalkByDir(node.path);
-      const st = handle.world.getStreetByDir(node.path);
-      if (!sw || !st || !st.dir) return;
-      handle.picker.setHover({
-        kind: NodeKind.Directory,
-        sidewalk: sw,
-        street: st,
-        dir: st.dir,
-      });
-    }
+    SCENE_HANDLE.peek()?.picker.hoverByPath(node.path);
   };
   const onTreeHoverEnd = () => {
     SCENE_HANDLE.peek()?.picker.setHover(null);
@@ -343,8 +318,7 @@ export function LeftSidebar() {
   const onSearchFocus = (path: string) => {
     const handle = SCENE_HANDLE.peek();
     if (!handle) return;
-    const b = handle.world.getBuildingByPath(path);
-    if (b) handle.rig.focusBuilding(b.mesh, b.building);
+    handle.rig.focusSelection(handle.picker.targetForPath(path));
   };
   const onRunCollisionCheck = () => {
     SCENE_HANDLE.peek()?.world.runCollisionCheck();
@@ -399,6 +373,7 @@ export function LeftSidebar() {
             onClose={onPaneClose}
             onRunCollisionCheck={onRunCollisionCheck}
             onRunStemDiagnostic={onRunStemDiagnostic}
+            collapsed={effectiveCollapsed}
           />
         )}
       </div>

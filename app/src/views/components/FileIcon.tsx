@@ -15,7 +15,6 @@
 import type { FileNode } from '@/types';
 import { ICON_CDN_BASE } from '@/constants/fileIcons';
 import { getFileIconName } from '@/utils/fileIcons';
-import { makeIconImg } from './iconImg';
 
 export interface FileIconProps {
   file: FileNode | { name?: string; extension?: string };
@@ -34,12 +33,4 @@ export function FileIcon({ file }: FileIconProps) {
       data-icon-for={label || undefined}
     />
   );
-}
-
-/** Imperative DOM factory — same renderer, for callers that haven't yet
- *  ported to Preact. Phase 3c/3d will delete it. */
-export function makeFileIcon(
-  file: FileNode | { name?: string; extension?: string }
-): HTMLImageElement {
-  return makeIconImg(getFileIconName(file), file.name || '');
 }

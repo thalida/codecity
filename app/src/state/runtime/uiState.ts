@@ -4,7 +4,7 @@
 // `loadingOverlay.show()` pattern from boot.ts.
 
 import { signal } from '@preact/signals';
-import type { OpenOpts } from '../../views/components/SourcePicker';
+import type { OpenOpts, SourcePayload } from '../../views/components/SourcePicker';
 import type { LoadingOverlayShowOpts } from '../../views/components/LoadingOverlay';
 
 // ── Source picker ────────────────────────────────────────────────────────────
@@ -27,6 +27,38 @@ export function openSourcePicker(opts: OpenOpts = {}): void {
 /** Close the source picker modal. */
 export function closeSourcePicker(): void {
   SOURCE_PICKER.value = { ...SOURCE_PICKER.value, visible: false };
+}
+
+/** Open the picker pre-filled with the current `?src`/`?branch` — the
+ *  header's "switch source" affordance. Always dismissible. */
+export function openSourcePickerForCurrentSource(): void {
+  const cur = new URLSearchParams(window.location.search);
+  openSourcePicker({
+    dismissible: true,
+    prefill: cur.has('src')
+      ? { src: cur.get('src')!, branch: cur.get('branch') ?? undefined }
+      : undefined,
+  });
+}
+
+// Apply-new-source handler. The boot wiring (sourcePickerBridge) registers the
+// function that actually fetches + applies a source — it needs the live scene
+// and live-update handles. The picker UI calls submitNewSource(); no window
+// globals. Same register/invoke shape as manifestPoll's refreshManifest.
+let _sourceApplier: ((payload: SourcePayload) => void) | null = null;
+
+/** Register the apply-new-source handler; returns an unregister fn. */
+export function registerSourceApplier(fn: (payload: SourcePayload) => void): () => void {
+  _sourceApplier = fn;
+  return () => {
+    if (_sourceApplier === fn) _sourceApplier = null;
+  };
+}
+
+/** Submit a new source from the picker. No-op before boot registers the
+ *  applier (which only happens once, during initial load). */
+export function submitNewSource(payload: SourcePayload): void {
+  _sourceApplier?.(payload);
 }
 
 // ── Loading overlay ──────────────────────────────────────────────────────────

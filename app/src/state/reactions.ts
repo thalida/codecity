@@ -7,7 +7,7 @@
 // For stores that are split-routed (some keys rebuild, others refresh), the
 // computed reads ONLY the relevant keys so the wrong effect doesn't fire.
 
-import { computed, effect } from '@preact/signals';
+import { computed, effect, untracked } from '@preact/signals';
 
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
 
@@ -261,16 +261,24 @@ export function attachCommitReactions({ world, applyTheme }: CommitReactionsOpts
     }, HOT_REBUILD_MIN_DWELL_MS);
   }
 
+  // Each effect must track ONLY its signature computed. The imperative work
+  // (scheduleRebuild → applyManifest, refreshMaterials → applyTheme) reads
+  // OTHER signals — notably applyTheme → _refreshSidewalkTints reads
+  // picker.hover / picker.selection — so it must run untracked(); otherwise the
+  // effect subscribes to hover/selection after its first run and re-fires on
+  // every hover (bug #4: spurious "rebuilding" on tree hover after a save).
   const unsubRebuild = effect(() => {
     void REBUILD_SIGNATURE.value; // establish tracking
     if (!armed) return;
-    void scheduleRebuild();
+    untracked(() => {
+      void scheduleRebuild();
+    });
   });
 
   const unsubMaterials = effect(() => {
     void MATERIAL_REFRESH_SIGNATURE.value; // establish tracking
     if (!armed) return;
-    refreshMaterials();
+    untracked(() => refreshMaterials());
   });
 
   armed = true;

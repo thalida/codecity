@@ -32,6 +32,18 @@ export function signatureUrl(): string {
   return buildApiUrl('/api/manifest/signature', window.location.search, window.location.origin);
 }
 
+/** URL for the manifest stream of an EXPLICIT source — used when loading or
+ *  switching to a source whose params aren't on the page URL yet (the picker
+ *  submit path). `manifestUrl()` reads the page URL; this takes the source
+ *  directly. */
+export function manifestUrlFor(opts: { src: string; branch?: string; noCache?: boolean }): string {
+  const u = new URL('/api/manifest', window.location.origin);
+  u.searchParams.set('src', opts.src);
+  if (opts.branch) u.searchParams.set('branch', opts.branch);
+  if (opts.noCache) u.searchParams.set('no_cache', 'true');
+  return u.toString();
+}
+
 // ── NDJSON streaming reader ──────────────────────────────────────────────
 
 // One variant per discriminant value so TS narrows cleanly through
