@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { render } from 'preact';
 import { act } from 'preact/test-utils';
 import { signal } from '@preact/signals';
-import { buildTree, TreePane } from '@/views/panes/TreePane';
+import { TreePane } from '@/views/panes/TreePane';
 import type { Manifest, DirNode, TreeNode } from '@/types';
 import { flush } from '../../_helpers/preact';
 
@@ -46,81 +46,6 @@ const TEST_TREE = {
     },
   ],
 };
-
-// ---- buildTree ----
-// buildTree is a test helper: renders the full tree with every directory
-// pre-expanded so structural assertions can inspect the whole DOM. The
-// live <TreePane> uses signal-driven expansion state instead.
-describe('buildTree', () => {
-  it('returns a <ul> element', () => {
-    const ul = buildTree(TEST_TREE);
-    expect(ul.tagName).toBe('UL');
-  });
-
-  it('has the tree-list class', () => {
-    const ul = buildTree(TEST_TREE);
-    expect(ul.className).toBe('tree-list');
-  });
-
-  it('creates correct number of top-level items', () => {
-    const ul = buildTree(TEST_TREE);
-    const items = ul.querySelectorAll(':scope > li');
-    // 3 children: index.ts (file), README.md (file), src (dir)
-    expect(items.length).toBe(3);
-  });
-
-  it('sorts children alphabetically with files + directories intermingled', () => {
-    // Mirrors layout.js _layoutDir: a single alphabetical pass over all
-    // children, no dirs-first grouping. Keeps the tree's order identical
-    // to the city's road layout.
-    const ul = buildTree(TEST_TREE);
-    const labels = ul.querySelectorAll(':scope > li > .row > .tree-label');
-    const names = [];
-    for (let i = 0; i < labels.length; i++) names.push(labels[i].textContent);
-    expect(names).toEqual(['index.ts', 'README.md', 'src']);
-  });
-
-  it('expanded directories render their nested .tree-list', () => {
-    const ul = buildTree(TEST_TREE);
-    const dir = ul.querySelector<HTMLElement>('.tree-dir');
-    expect(dir).not.toBeNull();
-    const subtree = dir!.querySelector<HTMLElement>(':scope > .tree-list');
-    expect(subtree).not.toBeNull();
-  });
-
-  it('file items have tree-file class', () => {
-    const ul = buildTree(TEST_TREE);
-    const files = ul.querySelectorAll('.tree-file');
-    // 3 total files across all nesting: index.ts, README.md, and src/utils.ts
-    expect(files.length).toBe(3);
-  });
-
-  it('renders labels with file/directory names', () => {
-    const ul = buildTree(TEST_TREE);
-    const labels = ul.querySelectorAll('.tree-label');
-    const names = [];
-    for (let i = 0; i < labels.length; i++) names.push(labels[i].textContent);
-    expect(names).toContain('src');
-    expect(names).toContain('index.ts');
-    expect(names).toContain('README.md');
-  });
-
-  it('stamps each item with its data path', () => {
-    const ul = buildTree(TEST_TREE);
-    const paths: Array<string | undefined> = [];
-    const items = ul.querySelectorAll<HTMLLIElement>('li.tree-item');
-    for (let i = 0; i < items.length; i++) paths.push(items[i].dataset.path);
-    expect(paths).toContain('index.ts');
-    expect(paths).toContain('src');
-    expect(paths).toContain('src/utils.ts');
-  });
-
-  it('handles empty children array', () => {
-    const ul = buildTree({ name: 'empty', type: 'directory', children: [] });
-    const items = ul.querySelectorAll<HTMLLIElement>('li');
-    expect(items.length).toBe(0);
-  });
-});
 
 // ---- TreePane ----
 describe('TreePane', () => {
@@ -262,6 +187,27 @@ describe('TreePane', () => {
     expect(topLevelItems[0].querySelector(':scope > .row > .tree-label')!.textContent).toBe(
       'project'
     );
+  });
+
+  // Structural assertions migrated from the deleted buildTree helper. They
+  // exercise the same render path via the live <TreePane> instead of a
+  // test-only bare-tree builder exported from production.
+  it('sorts top-level children alphabetically (files + dirs intermingled)', () => {
+    const pane = mount(TEST_TREE);
+    const rootChildList = pane.querySelector('ul.tree-root > li > .tree-list')!;
+    const labels = rootChildList.querySelectorAll<HTMLElement>(':scope > li > .row > .tree-label');
+    const names = Array.from(labels, (el) => el.textContent);
+    expect(names).toEqual(['index.ts', 'README.md', 'src']);
+  });
+
+  it('renders every file across nesting once its branch is expanded', async () => {
+    const pane = mount(TEST_TREE);
+    // Selecting into src expands its ancestor chain, surfacing src/utils.ts
+    // alongside the two top-level files. (Single-branch-open, so for a
+    // fixture with one nested dir this is the whole tree.)
+    selectedPath.value = 'src/utils.ts';
+    await flush();
+    expect(pane.querySelectorAll('.tree-file').length).toBe(3);
   });
 
   it('with no selection, only the root folder is expanded', async () => {

@@ -29,7 +29,7 @@ export enum PreviewKind {
 import { fileUrl, fetchFileText } from '@/api/file';
 import { LucideIcon } from '@/views/components/LucideIcon';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
-import { makeExtensionBadge } from '@/views/components/Badge';
+import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { languageFor } from '@/utils/syntaxLanguages';
 
@@ -275,10 +275,11 @@ export function FilePreviewPane({ state, onClose, onFocus }: FilePreviewPaneProp
     : 'No file';
 
   const badge = file ? (
-    <span
-      dangerouslySetInnerHTML={{
-        __html: makeExtensionBadge(file.extension ?? null, false, huePalette, asphaltColor).outerHTML,
-      }}
+    <ExtensionBadge
+      extension={file.extension ?? null}
+      isDir={false}
+      huePalette={huePalette}
+      asphaltColor={asphaltColor}
     />
   ) : undefined;
 

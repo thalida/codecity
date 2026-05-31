@@ -27,27 +27,3 @@ export function GemIcon({ class: cls, title, simple }: GemIconProps) {
     />
   );
 }
-
-interface GemIconOpts {
-  /** Extra class added alongside `gem-icon`. */
-  class?: string;
-  /** Tooltip shown on hover (sets the title attr). */
-  title?: string;
-  /** Grayscale variant — see the `simple` prop on GemIcon. */
-  simple?: boolean;
-}
-
-/**
- * Imperative DOM factory — same component, for callers that haven't
- * yet ported to Preact. Phase 3c/3d will delete it.
- */
-export function makeGemIcon(opts: GemIconOpts = {}): HTMLSpanElement {
-  const span = document.createElement('span');
-  span.className = `gem-icon${opts.class ? ` ${opts.class}` : ''}`;
-  span.setAttribute('aria-hidden', 'true');
-  if (opts.title) span.title = opts.title;
-  if (opts.simple) {
-    span.style.backgroundImage = 'url(/gem-simple.svg)';
-  }
-  return span;
-}

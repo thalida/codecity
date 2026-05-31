@@ -11,7 +11,7 @@ import type { Signal } from '@preact/signals';
 import { NodeKind } from '@/types';
 import type { DirNode, FileNode, TreeNode } from '@/types';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
-import { makeExtensionBadge } from '@/views/components/Badge';
+import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
 
@@ -153,10 +153,14 @@ function StreetExtRow({
   asphaltColor: string;
 }) {
   const badgeExt = s.ext === '(none)' ? null : s.ext;
-  const badgeEl = makeExtensionBadge(badgeExt, false, huePalette, asphaltColor);
   return (
     <div class="street-ext-row">
-      <span dangerouslySetInnerHTML={{ __html: badgeEl.outerHTML }} />
+      <ExtensionBadge
+        extension={badgeExt}
+        isDir={false}
+        huePalette={huePalette}
+        asphaltColor={asphaltColor}
+      />
       <span class="street-ext-label">{s.ext}</span>
       <span class="street-ext-count">{`${s.count} file${s.count === 1 ? '' : 's'}`}</span>
       <span class="street-ext-sep" aria-hidden="true">·</span>

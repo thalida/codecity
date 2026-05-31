@@ -8,8 +8,7 @@
 // selection-driven highlight (from the city) expands the ancestor
 // chain of the selected node.
 
-import { render } from 'preact';
-import { effect, signal, useComputed } from '@preact/signals';
+import { effect, useComputed } from '@preact/signals';
 import type { ReadonlySignal, Signal } from '@preact/signals';
 import { useEffect, useRef } from 'preact/hooks';
 import { NodeKind } from '@/types';
@@ -255,58 +254,4 @@ export function TreePane({
       )}
     </Pane>
   );
-}
-
-// ── Bare-tree helper (used by tests) ────────────────────────────────
-// Returns a <ul> for `node`'s children with all directories expanded,
-// no event handlers, no selection/hover binding. Test fixtures use this
-// to assert DOM structure independent of the live <TreePane>'s
-// expansion state. Production callers render <TreePane /> directly to get
-// the click/dblclick handlers + selection wiring.
-//
-// Renders directly via Preact into a detached <ul> so the markup matches
-// what <TreePane> produces — same classes, same structure, just every
-// directory pre-expanded.
-
-export function buildTree(
-  node: TreeNode | DirNode | { children?: unknown[]; [k: string]: unknown }
-): HTMLUListElement {
-  // expanded contains EVERY descendant dir path so the recursive render
-  // walks the entire tree.
-  const expandedPaths = new Set<string>();
-  function _collectDirPaths(n: TreeNode): void {
-    if (n.type === NodeKind.Directory) {
-      if (n.path != null) expandedPaths.add(n.path);
-      for (const c of (n as DirNode).children ?? []) _collectDirPaths(c);
-    }
-  }
-  _collectDirPaths(node as TreeNode);
-
-  const expanded = signal(expandedPaths);
-  const selectedPath = signal<string | null>(null);
-  const hoveredPath = signal<string | null>(null);
-  const rootPath = (node as TreeNode).path ?? '';
-
-  // We need a <ul> top-level matching `class="tree-list"` — render
-  // TreeItem inside one and return that ul.
-  const host = document.createElement('div');
-  const children = _sortChildren(
-    'children' in node ? (node as DirNode).children : []
-  );
-  render(
-    <ul class="tree-list">
-      {children.map((child) => (
-        <TreeItem
-          key={child.path ?? child.name}
-          node={child}
-          rootPath={rootPath}
-          expanded={expanded}
-          selectedPath={selectedPath}
-          hoveredPath={hoveredPath}
-        />
-      ))}
-    </ul>,
-    host
-  );
-  return host.firstElementChild as HTMLUListElement;
 }
