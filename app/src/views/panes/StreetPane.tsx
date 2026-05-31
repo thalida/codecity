@@ -8,50 +8,11 @@
 // without churn.
 
 import type { Signal } from '@preact/signals';
-import { NodeKind } from '@/types';
-import type { DirNode, FileNode, TreeNode } from '@/types';
+import type { DirNode, ExtBreakdownEntry } from '@/types';
 import { Pane, PaneEmpty } from '@/views/components/Pane';
 import { ExtensionBadge } from '@/views/components/Badge';
 import { formatBytes } from '@/utils/bytes';
 import { ASPHALT, BUILDING_PALETTE } from '@/state/settings';
-
-interface ExtensionStats {
-  ext: string;
-  count: number;
-  size: number;
-}
-
-/** Walk a directory's descendant subtree and aggregate by extension.
- *  Treats missing/empty extension as '(none)'.
- *
- *  Memoized by the DirNode reference. A fresh manifest produces fresh
- *  node objects, so a manifest swap implicitly invalidates the cache;
- *  re-selecting the same directory in the same manifest is O(1). */
-const _aggCache = new WeakMap<DirNode, ExtensionStats[]>();
-
-function aggregateExtensions(d: DirNode): ExtensionStats[] {
-  const hit = _aggCache.get(d);
-  if (hit) return hit;
-  const byExt = new Map<string, { count: number; size: number }>();
-  function walk(node: TreeNode): void {
-    if (node.type === NodeKind.File) {
-      const ext = ((node as FileNode).extension || '(none)').toLowerCase();
-      const cur = byExt.get(ext) || { count: 0, size: 0 };
-      cur.count += 1;
-      cur.size += (node as FileNode).size || 0;
-      byExt.set(ext, cur);
-      return;
-    }
-    if (node.type === NodeKind.Directory) {
-      const kids = (node as DirNode).children || [];
-      for (let i = 0; i < kids.length; i++) walk(kids[i]);
-    }
-  }
-  walk(d);
-  const result = Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
-  _aggCache.set(d, result);
-  return result;
-}
 
 // ── State shape for Preact component ─────────────────────────────────────────
 
@@ -89,7 +50,7 @@ export function StreetPane({ state, onClose, onFocus }: StreetPaneProps) {
     d.name ||
     'Road';
 
-  const stats = aggregateExtensions(d);
+  const stats = d.descendants_ext_breakdown;
 
   return (
     <Pane
@@ -148,7 +109,7 @@ function StreetExtRow({
   huePalette,
   asphaltColor,
 }: {
-  s: ExtensionStats;
+  s: ExtBreakdownEntry;
   huePalette: Record<string, number>;
   asphaltColor: string;
 }) {

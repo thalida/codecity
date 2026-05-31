@@ -4,8 +4,28 @@ import { signal } from '@preact/signals';
 import { StreetPane } from '@/views/panes/StreetPane';
 import type { StreetPaneState } from '@/views/panes/StreetPane';
 import { NodeKind } from '@/types';
-import type { DirNode, FileNode } from '@/types';
+import type { DirNode, FileNode, ExtBreakdownEntry } from '@/types';
 import { flush } from '../../_helpers/preact';
+
+// Mirror the backend's per-dir extension aggregation (api/scan.py) so test
+// fixtures carry a realistic descendants_ext_breakdown — StreetPane reads
+// that baked field rather than walking the subtree itself.
+function _extBreakdown(children: (FileNode | DirNode)[]): ExtBreakdownEntry[] {
+  const byExt = new Map<string, { count: number; size: number }>();
+  function walk(node: FileNode | DirNode): void {
+    if (node.type === NodeKind.File) {
+      const ext = (node.extension || '(none)').toLowerCase();
+      const cur = byExt.get(ext) || { count: 0, size: 0 };
+      cur.count += 1;
+      cur.size += node.size || 0;
+      byExt.set(ext, cur);
+      return;
+    }
+    for (const c of node.children || []) walk(c);
+  }
+  for (const c of children) walk(c);
+  return Array.from(byExt, ([ext, v]) => ({ ext, ...v })).sort((a, b) => b.count - a.count);
+}
 
 function f(name: string, ext: string, size: number, lines = 0): FileNode {
   return {
@@ -35,6 +55,7 @@ function dir(name: string, children: (FileNode | DirNode)[] = []): DirNode {
     descendants_file_count: 0,
     descendants_dir_count: 0,
     descendants_size: 0,
+    descendants_ext_breakdown: _extBreakdown(children),
   } as unknown as DirNode;
 }
 
@@ -85,6 +106,7 @@ describe('StreetPane', () => {
       f('b.md', '.md', 50),
       dir('sub', [f('c.ts', '.ts', 80), f('d.json', '.json', 30)]),
     ];
+    d.descendants_ext_breakdown = _extBreakdown(d.children);
 
     await setDirectory(d);
 

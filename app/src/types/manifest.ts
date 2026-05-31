@@ -48,6 +48,18 @@ export interface FileNode {
   media_height?: number;
 }
 
+/**
+ * One file-extension bucket in a directory's descendant breakdown. `ext` is
+ * the lowercase extension (".ts") or "(none)" for extensionless files.
+ * Computed once on the backend during the tree walk (see api/scan.py); the
+ * street view reads it instead of re-walking the subtree on each selection.
+ */
+export interface ExtBreakdownEntry {
+  ext: string;
+  count: number;
+  size: number;
+}
+
 export interface DirNode {
   name: string;
   type: NodeKind.Directory;
@@ -61,6 +73,9 @@ export interface DirNode {
   descendants_file_count: number;
   descendants_dir_count: number;
   descendants_size: number;
+  /** Per-extension counts/sizes over all descendant files, sorted by count
+   *  desc (ext asc tiebreak). Empty for directories with no files. */
+  descendants_ext_breakdown: ExtBreakdownEntry[];
 }
 
 export type TreeNode = FileNode | DirNode;

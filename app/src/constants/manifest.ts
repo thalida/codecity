@@ -23,6 +23,7 @@ export const EMPTY_MANIFEST: Manifest = {
     descendants_file_count: 0,
     descendants_dir_count: 0,
     descendants_size: 0,
+    descendants_ext_breakdown: [],
   },
   repo: {
     branch: null,

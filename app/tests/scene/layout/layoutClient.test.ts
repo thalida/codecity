@@ -38,6 +38,7 @@ function makeMinimalManifest(): Manifest {
       descendants_file_count: 1,
       descendants_dir_count: 0,
       descendants_size: 10,
+      descendants_ext_breakdown: [],
     },
   };
 }
@@ -125,6 +126,7 @@ describe('layoutClient', () => {
         descendants_file_count: 2,
         descendants_dir_count: 0,
         descendants_size: 10010,
+        descendants_ext_breakdown: [],
       },
     };
     const priorLayout = await client.compute(m1);
