@@ -10,6 +10,8 @@ import { useState } from 'preact/hooks';
 import type { Signal } from '@preact/signals';
 import { listRecents, removeRecent } from '@/state/runtime/sourceRecents';
 import { LUCIDE_ICON_BASE_URL } from '@/constants';
+import { SOURCE_PICKER, closeSourcePicker } from '@/state/runtime/uiState';
+import { SERVER_CONFIG } from '@/state/runtime/serverConfig';
 
 // ── Hosting-site SVG icons ───────────────────────────────────────────────────
 
@@ -299,6 +301,52 @@ export function SourcePickerComponent({ state, onSubmit, onClose }: SourcePicker
         </div>
       </div>
     </div>
+  );
+}
+
+// ── Signal-driven top-level component ──────────────────────────────────────
+// Reads SOURCE_PICKER + SERVER_CONFIG directly. App.tsx renders <SourcePicker />
+// with no props. Returns null when the picker is closed so SourcePickerComponent
+// fully unmounts — its useState-backed form inputs reset on the next open.
+
+export function SourcePicker() {
+  const sp = SOURCE_PICKER.value;
+  if (!sp.visible) return null;
+
+  const serverCfg = SERVER_CONFIG.value;
+  const opts = sp.opts ?? {};
+  const prefill = opts.prefill;
+  const prefillSrc = prefill?.src ?? '';
+  const isGitLike = (src: string) => /:\/\//.test(src) || /^[^@]+@[^:]+:/.test(src);
+
+  const pickerState: SourcePickerState = {
+    open: true,
+    dismissible: opts.dismissible ?? false,
+    activeTab: prefillSrc && !isGitLike(prefillSrc) ? 'local' : 'git',
+    prefillSrc,
+    prefillBranch: prefill?.branch ?? '',
+    error: opts.error ?? null,
+    allowLocalRepos: serverCfg.allowLocalRepos,
+  };
+
+  // Wrap pickerState in a minimal signal-like object so SourcePickerComponent's
+  // `state.value` read works. The force-re-render write (on recent-remove) is
+  // no longer needed: removeRecent writes to RECENTS signal which Preact tracks.
+  const stateSignal = {
+    get value() { return pickerState; },
+    set value(_: SourcePickerState) { /* re-renders via RECENTS signal */ },
+  } as Signal<SourcePickerState>;
+
+  return (
+    <SourcePickerComponent
+      state={stateSignal}
+      onSubmit={(payload) => {
+        const fn = (window as Window & { __applyNewSource?: (p: typeof payload) => void })
+          .__applyNewSource;
+        if (fn) fn(payload);
+      }}
+      onClose={() => closeSourcePicker()}
+    />
   );
 }
 

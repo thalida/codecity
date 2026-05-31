@@ -31,7 +31,7 @@
 // Backward-compat factory: createLoadingOverlay (imperative DOM; callers in
 // main.ts use this until Phase 3c ports them).
 
-import type { Signal } from '@preact/signals';
+import { LOADING_OVERLAY } from '@/state/runtime/uiState';
 
 export type LoadingStep =
   | 'resolving'
@@ -93,14 +93,18 @@ export interface OverlayState {
 }
 
 // ── Preact component ────────────────────────────────────────────────────────
-// Used by future Phase 3c/3d callers via <LoadingOverlay state={...} />.
+// Signal-driven: reads LOADING_OVERLAY directly. No props required.
 
-export interface LoadingOverlayProps {
-  state: Signal<OverlayState>;
-}
-
-export function LoadingOverlay({ state }: LoadingOverlayProps) {
-  const s = state.value;
+export function LoadingOverlay() {
+  const lo = LOADING_OVERLAY.value;
+  const s: OverlayState = {
+    visible: lo.visible,
+    kind: lo.showOpts?.kind ?? null,
+    branch: lo.showOpts?.branch ?? null,
+    activeStep: lo.activeStep,
+    pendingLabel: lo.pendingLabel,
+    stepTails: lo.stepTails,
+  };
   if (!s.visible || !s.activeStep) return null;
 
   const activeStep = s.activeStep;
