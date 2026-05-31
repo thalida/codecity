@@ -63,7 +63,14 @@ import {
 } from '@/state/settings/components/facade';
 import { AD_PANEL } from '@/state/settings/components/adPanels';
 import { ANIMATION_TIMING } from '@/state/settings/system/animator';
-import { getDefault, forEachRegisteredStore, onAnyChange } from '@/state/persist';
+import { getDefault, forEachRegisteredStore, HAS_ANY_NON_DEFAULT } from '@/state/persist';
+
+// onAnyChange(cb): fires cb whenever any persisted signal changes value.
+// Replaces the old listener-pool API; backed by HAS_ANY_NON_DEFAULT computed.
+// Returns an unsubscribe function.
+function onAnyChange(cb: () => void): () => void {
+  return HAS_ANY_NON_DEFAULT.subscribe(cb);
+}
 import {
   setDraft,
   getEffective,
