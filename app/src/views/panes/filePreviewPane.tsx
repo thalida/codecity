@@ -21,6 +21,7 @@ import { buildPaneHeader } from '@/views/components/paneHeader';
 import { makeExtensionBadge } from '@/views/components/badge';
 import { formatBytes } from '@/utils/bytes';
 import { escapeHtml } from '@/utils/html';
+import { languageFor } from '@/utils/syntaxLanguages';
 
 // Auto-load images/video/audio/PDF (browser handles streaming + memory).
 // Auto-load text up to the server's own ceiling — kept in sync with
@@ -42,72 +43,6 @@ const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.bmp', '.
 const VIDEO_EXTS = ['.mp4', '.webm', '.mov', '.ogv', '.m4v'];
 const AUDIO_EXTS = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a'];
 const PDF_EXTS = ['.pdf'];
-
-// hljs language hints by extension. Falls through to auto-detection if a
-// file doesn't match anything here. Matches the languages bundled in
-// highlight.js/lib/common (~37 langs).
-const EXT_LANG: Record<string, string> = {
-  '.js': 'javascript',
-  '.mjs': 'javascript',
-  '.cjs': 'javascript',
-  '.ts': 'typescript',
-  '.tsx': 'typescript',
-  '.jsx': 'javascript',
-  '.py': 'python',
-  '.rb': 'ruby',
-  '.go': 'go',
-  '.rs': 'rust',
-  '.java': 'java',
-  '.kt': 'kotlin',
-  '.swift': 'swift',
-  '.c': 'c',
-  '.h': 'c',
-  '.cpp': 'cpp',
-  '.hpp': 'cpp',
-  '.cc': 'cpp',
-  '.cs': 'csharp',
-  '.php': 'php',
-  '.sh': 'bash',
-  '.bash': 'bash',
-  '.zsh': 'bash',
-  '.fish': 'shell',
-  '.html': 'xml',
-  '.htm': 'xml',
-  '.xml': 'xml',
-  '.css': 'css',
-  '.scss': 'scss',
-  '.less': 'less',
-  '.json': 'json',
-  '.yaml': 'yaml',
-  '.yml': 'yaml',
-  '.toml': 'ini',
-  '.ini': 'ini',
-  '.md': 'markdown',
-  '.markdown': 'markdown',
-  '.sql': 'sql',
-  '.dockerfile': 'dockerfile',
-  '.diff': 'diff',
-  '.patch': 'diff',
-  '.lua': 'lua',
-  '.r': 'r',
-  '.pl': 'perl',
-  '.scala': 'scala',
-};
-
-// Filename-only hints (no extension or special-cased). Lower-cased keys.
-const NAME_LANG: Record<string, string> = {
-  dockerfile: 'dockerfile',
-  makefile: 'makefile',
-  gnumakefile: 'makefile',
-  '.gitignore': 'plaintext',
-  '.gitattributes': 'plaintext',
-  '.dockerignore': 'plaintext',
-  '.npmignore': 'plaintext',
-  '.editorconfig': 'ini',
-  '.env': 'bash',
-  license: 'plaintext',
-  readme: 'markdown',
-};
 
 interface BuildFilePreviewPaneOpts {
   /** Called when the user clicks the x in the pane header. Host should
@@ -302,55 +237,6 @@ export function buildFilePreviewPane(opts: BuildFilePreviewPaneOpts = {}) {
   };
 }
 
-/**
- * Map a file node to a human-readable language label. Used by the
- * sitewide footer too — exported so callers don't have to duplicate
- * the EXT_LANG / NAME_LANG inference.
- */
-export function humanLanguageFor(file: FileNode): string {
-  const key = _languageFor(file);
-  if (!key) {
-    if (file.extension) return file.extension.replace(/^\./, '').toUpperCase();
-    return 'Plain Text';
-  }
-  // Map hljs internal id -> display name.
-  const labels: Record<string, string> = {
-    javascript: 'JavaScript',
-    typescript: 'TypeScript',
-    python: 'Python',
-    ruby: 'Ruby',
-    go: 'Go',
-    rust: 'Rust',
-    java: 'Java',
-    kotlin: 'Kotlin',
-    swift: 'Swift',
-    c: 'C',
-    cpp: 'C++',
-    csharp: 'C#',
-    php: 'PHP',
-    bash: 'Shell',
-    shell: 'Shell',
-    xml: 'HTML',
-    css: 'CSS',
-    scss: 'SCSS',
-    less: 'Less',
-    json: 'JSON',
-    yaml: 'YAML',
-    ini: 'INI',
-    markdown: 'Markdown',
-    sql: 'SQL',
-    dockerfile: 'Dockerfile',
-    diff: 'Diff',
-    lua: 'Lua',
-    r: 'R',
-    perl: 'Perl',
-    scala: 'Scala',
-    plaintext: 'Plain Text',
-    makefile: 'Makefile',
-  };
-  return labels[key] || key;
-}
-
 function _previewKind(file: FileNode | { extension?: string }): PreviewKind {
   const ext = (file.extension || '').toLowerCase();
   if (IMAGE_EXTS.includes(ext)) return PreviewKind.Image;
@@ -523,7 +409,7 @@ function _buildCodeEditor(text: string, file: FileNode): HTMLElement {
     // freeze and a near-instant render on big files.
     code.textContent = text;
   } else {
-    const lang = _languageFor(file);
+    const lang = languageFor(file);
     let html: string;
     try {
       if (lang && hljs.getLanguage(lang)) {
@@ -556,10 +442,3 @@ function _makeDegradationBanner(sizeBytes: number, gutterSkipped: boolean): HTML
   return banner;
 }
 
-function _languageFor(file: { extension?: string; name?: string }): string | null {
-  const ext = (file.extension || '').toLowerCase();
-  if (ext && EXT_LANG[ext]) return EXT_LANG[ext];
-  const name = (file.name || '').toLowerCase();
-  if (NAME_LANG[name]) return NAME_LANG[name];
-  return null;
-}

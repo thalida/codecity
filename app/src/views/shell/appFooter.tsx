@@ -24,7 +24,7 @@ import { formatBytes } from '@/utils/bytes';
 import { SCENE_HANDLE } from '@/state/runtime/scene';
 import { LIVE_UPDATES } from '@/state/settings/index';
 import { REBUILD_STATUS, LAST_REBUILD_ERROR, LAST_UPDATED_AT } from '@/state/runtime/manifestPoll';
-import { humanLanguageFor } from '@/views/panes/filePreviewPane';
+import { humanLanguageFor } from '@/utils/syntaxLanguages';
 
 interface FooterFileSelection {
   kind: NodeKind.File;
