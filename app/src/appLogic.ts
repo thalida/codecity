@@ -10,9 +10,8 @@
 //   - showLeftSidebar and mountRightSidebarReactions are called here.
 //   - Returns a dispose() so App.tsx can clean up on unmount.
 
-import * as Config from './state/settings/index';
 import { REBUILD_STATUS } from './state/runtime/liveStatus';
-import { attachPersistence, persistAtomPerSource } from './state/persist';
+import { savePerSourceState, loadPerSourceState } from './state/persist';
 import { SYNTAX_THEME } from './state/settings/prefs/syntaxTheme';
 import { sourceKey, CURRENT_SOURCE_KEY } from './state/runtime/sourceContext';
 import { attachCommitReactions } from './state/reactions';
@@ -32,7 +31,6 @@ import { LAST_UPDATED_AT } from './state/runtime/liveStatus';
 import { NodeKind } from './types';
 import type { Manifest } from './types';
 
-import { PICKER_SELECTION_KEY } from './scene/system/picker';
 import { manifestUrl } from './api/manifest';
 import { srcKind, labelFromUrl, labelFromManifest } from './utils/sources';
 import { applyPendingTitle } from './utils/pendingTitle';
@@ -59,18 +57,18 @@ export { EMPTY_MANIFEST } from './utils/emptyManifest';
  * unmount (though in practice App never unmounts for the page lifetime).
  */
 export async function runAppLogic(): Promise<() => void> {
-  // ── Pre-paint: hydrate config + syntax theme + source key ────────────────
-  attachPersistence(Config);
+  // ── Pre-paint: syntax theme + source key ─────────────────────────────────
+  // Settings signals hydrate from localStorage at module load (persistedSignal).
+  // PICKER_SELECTION_KEY is per-source — hydrated below after CURRENT_SOURCE_KEY is set.
   SYNTAX_THEME.subscribe(applyHljsTheme);
 
   {
     const qp = new URLSearchParams(window.location.search);
     if (qp.has('src')) {
       CURRENT_SOURCE_KEY.value = sourceKey(qp.get('src')!, qp.get('branch') ?? undefined);
+      loadPerSourceState(CURRENT_SOURCE_KEY.value);
     }
   }
-
-  persistAtomPerSource('selection', PICKER_SELECTION_KEY, null);
 
   const qp = new URLSearchParams(window.location.search);
   const hasSrc = qp.has('src');
@@ -308,7 +306,9 @@ export async function runAppLogic(): Promise<() => void> {
       pageUrl.searchParams.delete('git_window');
       history.replaceState(null, '', pageUrl.toString());
 
+      savePerSourceState(CURRENT_SOURCE_KEY.value);
       CURRENT_SOURCE_KEY.value = sourceKey(payload.src, payload.branch);
+      loadPerSourceState(CURRENT_SOURCE_KEY.value);
 
       try {
         const _builtAtlas = await buildIconAtlas(manifest);
